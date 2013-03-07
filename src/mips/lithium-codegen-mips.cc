@@ -65,7 +65,7 @@ bool LCodeGen::GenerateCode() {
   HPhase phase("Z_Code generation", chunk());
   ASSERT(is_unused());
   status_ = GENERATING;
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // NONE indicates that the scope shouldn't actually generate code to set up
@@ -194,7 +194,7 @@ bool LCodeGen::GeneratePrologue() {
   }
 
   if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     Comment(";;; Save clobbered callee double registers");
     int count = 0;
     BitVector* doubles = chunk()->allocated_double_registers();
@@ -1474,7 +1474,7 @@ void LCodeGen::DoConstantI(LConstantI* instr) {
 void LCodeGen::DoConstantD(LConstantD* instr) {
   ASSERT(instr->result()->IsDoubleRegister());
   DoubleRegister result = ToDoubleRegister(instr->result());
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   double v = instr->value();
   __ Move(result, v);
 }
@@ -1672,7 +1672,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ bind(&done);
   } else {
     ASSERT(instr->hydrogen()->representation().IsDouble());
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     FPURegister left_reg = ToDoubleRegister(left);
     FPURegister right_reg = ToDoubleRegister(right);
     FPURegister result_reg = ToDoubleRegister(instr->result());
@@ -1713,7 +1713,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   DoubleRegister left = ToDoubleRegister(instr->left());
   DoubleRegister right = ToDoubleRegister(instr->right());
   DoubleRegister result = ToDoubleRegister(instr->result());
@@ -1823,10 +1823,10 @@ void LCodeGen::DoBranch(LBranch* instr) {
     Register reg = ToRegister(instr->value());
     EmitBranch(true_block, false_block, ne, reg, Operand(zero_reg));
   } else if (r.IsDouble()) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     DoubleRegister reg = ToDoubleRegister(instr->value());
     // Test the double value. Zero and NaN are false.
-    EmitBranchF(true_block, false_block, ne, reg, kDoubleRegZero);
+    EmitBranchF(true_block, false_block, nue, reg, kDoubleRegZero);
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->value());
@@ -1901,7 +1901,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm(), FPU);
         // heap number -> false iff +0, -0, or NaN.
         DoubleRegister dbl_scratch = double_scratch0();
         Label not_heap_number;
@@ -1981,7 +1981,7 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
     EmitGoto(next_block);
   } else {
     if (instr->is_double()) {
-      CpuFeatures::Scope scope(FPU);
+      CpuFeatureScope scope(masm(), FPU);
       // Compare left and right as doubles and load the
       // resulting flags into the normal status register.
       FPURegister left_reg = ToDoubleRegister(left);
@@ -2327,12 +2327,12 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   __ lw(temp, FieldMemOperand(temp, JSFunction::kSharedFunctionInfoOffset));
   __ lw(temp, FieldMemOperand(temp,
                                SharedFunctionInfo::kInstanceClassNameOffset));
-  // The class name we are testing against is a symbol because it's a literal.
-  // The name in the constructor is a symbol because of the way the context is
-  // booted.  This routine isn't expected to work for random API-created
+  // The class name we are testing against is internalized since it's a literal.
+  // The name in the constructor is internalized because of the way the context
+  // is booted.  This routine isn't expected to work for random API-created
   // classes and it doesn't have to because you can't access it with natives
-  // syntax.  Since both sides are symbols it is sufficient to use an identity
-  // comparison.
+  // syntax.  Since both sides are internalized it is sufficient to use an
+  // identity comparison.
 
   // End with the address of this class_name instance in temp register.
   // On MIPS, the caller must do the comparison with Handle<String>class_name.
@@ -2527,11 +2527,12 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
   // A minor optimization that relies on LoadRoot always emitting one
   // instruction.
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
-  Label done;
+  Label done, check;
   __ Branch(USE_DELAY_SLOT, &done, condition, v0, Operand(zero_reg));
+  __ bind(&check);
   __ LoadRoot(ToRegister(instr->result()), Heap::kTrueValueRootIndex);
+  ASSERT_EQ(1, masm()->InstructionsGeneratedSince(&check));
   __ LoadRoot(ToRegister(instr->result()), Heap::kFalseValueRootIndex);
-  ASSERT_EQ(3, masm()->InstructionsGeneratedSince(&done));
   __ bind(&done);
 }
 
@@ -2544,7 +2545,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
   if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     ASSERT(NeedsEagerFrame());
     BitVector* doubles = chunk()->allocated_double_registers();
     BitVector::Iterator save_iterator(doubles);
@@ -2923,7 +2924,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       __ Addu(scratch0(), scratch0(), external_pointer);
     }
     if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatures::Scope scope(FPU);
+      CpuFeatureScope scope(masm(), FPU);
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
         __ lwc1(result, MemOperand(scratch0(), additional_offset));
         __ cvt_d_s(result, result);
@@ -3052,7 +3053,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
     __ Addu(elements, elements, scratch);
   }
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     __ Addu(elements, elements, Operand(base_offset));
     __ ldc1(result, MemOperand(elements));
     if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -3506,8 +3507,6 @@ void LCodeGen::EmitIntegerMathAbs(LUnaryMathOperation* instr) {
   Label done;
   __ Branch(USE_DELAY_SLOT, &done, ge, input, Operand(zero_reg));
   __ mov(result, input);
-  ASSERT_EQ(2, masm()->InstructionsGeneratedSince(&done));
-  __ subu(result, zero_reg, input);
   // Overflow if result is still negative, i.e. 0x80000000.
   DeoptimizeIf(lt, instr->environment(), result, Operand(zero_reg));
   __ bind(&done);
@@ -3515,7 +3514,7 @@ void LCodeGen::EmitIntegerMathAbs(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   // Class for deferred case.
   class DeferredMathAbsTaggedHeapNumber: public LDeferredCode {
    public:
@@ -3552,7 +3551,7 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
   Register scratch1 = scratch0();
@@ -3581,7 +3580,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
   DoubleRegister double_scratch1 = ToDoubleRegister(instr->temp());
@@ -3658,7 +3657,7 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());
   __ sqrt_d(result, input);
@@ -3666,7 +3665,7 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());
   DoubleRegister temp = ToDoubleRegister(instr->temp());
@@ -3691,7 +3690,7 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoPower(LPower* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   Representation exponent_type = instr->hydrogen()->right()->representation();
   // Having marked this as a call, we can use any registers.
   // Just make sure that the input/output registers are the expected ones.
@@ -3722,7 +3721,7 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoRandom(LRandom* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   class DeferredDoRandom: public LDeferredCode {
    public:
     DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
@@ -3799,7 +3798,7 @@ void LCodeGen::DoDeferredRandom(LRandom* instr) {
 
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());
   DoubleRegister double_scratch1 = ToDoubleRegister(instr->double_temp());
@@ -3965,9 +3964,29 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   ASSERT(ToRegister(instr->constructor()).is(a1));
   ASSERT(ToRegister(instr->result()).is(v0));
 
-  CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   __ li(a0, Operand(instr->arity()));
+  if (FLAG_optimize_constructed_arrays) {
+    // No cell in a2 for construct type feedback in optimized code
+    Handle<Object> undefined_value(isolate()->heap()->undefined_value(),
+                                   isolate());
+    __ li(a2, Operand(undefined_value));
+  }
+  CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+}
+
+
+void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
+  ASSERT(ToRegister(instr->constructor()).is(a1));
+  ASSERT(ToRegister(instr->result()).is(v0));
+  ASSERT(FLAG_optimize_constructed_arrays);
+
+  __ li(a0, Operand(instr->arity()));
+  __ li(a2, Operand(instr->hydrogen()->property_cell()));
+  Handle<Code> array_construct_code =
+      isolate()->builtins()->ArrayConstructCode();
+
+  CallCode(array_construct_code, RelocInfo::CONSTRUCT_CALL, instr);
 }
 
 
@@ -4075,7 +4094,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 
 
 void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   Register external_pointer = ToRegister(instr->elements());
   Register key = no_reg;
   ElementsKind elements_kind = instr->elements_kind();
@@ -4149,7 +4168,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   DoubleRegister value = ToDoubleRegister(instr->value());
   Register elements = ToRegister(instr->elements());
   Register key = no_reg;
@@ -4453,7 +4472,7 @@ void LCodeGen::DoStringLength(LStringLength* instr) {
 
 
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   LOperand* input = instr->value();
   ASSERT(input->IsRegister() || input->IsStackSlot());
   LOperand* output = instr->result();
@@ -4471,7 +4490,7 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 
 
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
   LOperand* input = instr->value();
   LOperand* output = instr->result();
 
@@ -4592,7 +4611,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
       __ Xor(src, src, Operand(0x80000000));
     }
     if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatures::Scope scope(FPU);
+      CpuFeatureScope scope(masm(), FPU);
       __ mtc1(src, dbl_scratch);
       __ cvt_d_w(dbl_scratch, dbl_scratch);
     } else {
@@ -4604,7 +4623,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
     }
   } else {
     if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatures::Scope scope(FPU);
+      CpuFeatureScope scope(masm(), FPU);
       __ mtc1(src, dbl_scratch);
       __ Cvt_d_uw(dbl_scratch, dbl_scratch, f22);
     } else {
@@ -4644,7 +4663,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   // number.
   __ bind(&done);
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     __ sdc1(dbl_scratch, MemOperand(dst, HeapNumber::kValueOffset));
   } else {
     __ sw(sfpd_lo, MemOperand(dst, HeapNumber::kMantissaOffset));
@@ -4683,7 +4702,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   Label done;
   if (convert_hole) {
     if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatures::Scope scope(FPU);
+      CpuFeatureScope scope(masm(), FPU);
       DoubleRegister input_reg = ToDoubleRegister(instr->value());
       __ BranchF(&no_special_nan_handling, NULL, eq, input_reg, input_reg);
       __ Move(reg, scratch0(), input_reg);
@@ -4729,7 +4748,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   }
   __ bind(deferred->exit());
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     __ sdc1(input_reg, MemOperand(reg, HeapNumber::kValueOffset));
   } else {
     __ sw(sfpd_lo, MemOperand(reg, HeapNumber::kValueOffset));
@@ -4784,7 +4803,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
   Register scratch = scratch0();
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm(), FPU);
 
   Label load_smi, heap_number, done;
 
@@ -4862,7 +4881,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   // of the if.
 
   if (instr->truncating()) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     Register scratch3 = ToRegister(instr->temp2());
     FPURegister single_scratch = double_scratch.low();
     ASSERT(!scratch3.is(input_reg) &&
@@ -5117,7 +5136,7 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 
 
 void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
-  CpuFeatures::Scope vfp_scope(FPU);
+  CpuFeatureScope vfp_scope(masm(), FPU);
   DoubleRegister value_reg = ToDoubleRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());
   DoubleRegister temp_reg = ToDoubleRegister(instr->temp());
@@ -5126,7 +5145,7 @@ void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
 
 
 void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
-  CpuFeatures::Scope vfp_scope(FPU);
+  CpuFeatureScope vfp_scope(masm(), FPU);
   Register unclamped_reg = ToRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());
   __ ClampUint8(result_reg, unclamped_reg);
@@ -5134,7 +5153,7 @@ void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
 
 
 void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
-  CpuFeatures::Scope vfp_scope(FPU);
+  CpuFeatureScope vfp_scope(masm(), FPU);
   Register scratch = scratch0();
   Register input_reg = ToRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());
@@ -5720,7 +5739,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   // register.
   Condition final_branch_condition = kNoCondition;
   Register scratch = scratch0();
-  if (type_name->Equals(heap()->number_symbol())) {
+  if (type_name->Equals(heap()->number_string())) {
     __ JumpIfSmi(input, true_label);
     __ lw(input, FieldMemOperand(input, HeapObject::kMapOffset));
     __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
@@ -5728,7 +5747,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(at);
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->string_symbol())) {
+  } else if (type_name->Equals(heap()->string_string())) {
     __ JumpIfSmi(input, false_label);
     __ GetObjectType(input, input, scratch);
     __ Branch(USE_DELAY_SLOT, false_label,
@@ -5741,7 +5760,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(zero_reg);
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->boolean_symbol())) {
+  } else if (type_name->Equals(heap()->boolean_string())) {
     __ LoadRoot(at, Heap::kTrueValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
     __ LoadRoot(at, Heap::kFalseValueRootIndex);
@@ -5749,13 +5768,13 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(input);
     final_branch_condition = eq;
 
-  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_symbol())) {
+  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_string())) {
     __ LoadRoot(at, Heap::kNullValueRootIndex);
     cmp1 = at;
     cmp2 = Operand(input);
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->undefined_symbol())) {
+  } else if (type_name->Equals(heap()->undefined_string())) {
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
     // The first instruction of JumpIfSmi is an And - it is safe in the delay
@@ -5769,7 +5788,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(zero_reg);
     final_branch_condition = ne;
 
-  } else if (type_name->Equals(heap()->function_symbol())) {
+  } else if (type_name->Equals(heap()->function_string())) {
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     __ JumpIfSmi(input, false_label);
     __ GetObjectType(input, scratch, input);
@@ -5778,7 +5797,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(JS_FUNCTION_PROXY_TYPE);
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->object_symbol())) {
+  } else if (type_name->Equals(heap()->object_string())) {
     __ JumpIfSmi(input, false_label);
     if (!FLAG_harmony_typeof) {
       __ LoadRoot(at, Heap::kNullValueRootIndex);

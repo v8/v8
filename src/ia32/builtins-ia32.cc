@@ -643,6 +643,8 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 
 void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
   // TODO(kasperl): Do we need to save/restore the XMM registers too?
+  // TODO(mvstanton): We should save these regs, do this in a future
+  // checkin.
 
   // For now, we are relying on the fact that Runtime::NotifyOSR
   // doesn't do any garbage collection which allows us to save/restore
@@ -1792,12 +1794,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  CpuFeatures::TryForceFeatureScope scope(SSE2);
-  if (!CpuFeatures::IsSupported(SSE2) && FLAG_debug_code) {
-    __ Abort("Unreachable code: Cannot optimize without SSE2 support.");
-    return;
-  }
-
   // Get the loop depth of the stack guard check. This is recorded in
   // a test(eax, depth) instruction right after the call.
   Label stack_check;

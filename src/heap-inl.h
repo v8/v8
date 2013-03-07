@@ -320,8 +320,8 @@ bool Heap::InNewSpace(Object* object) {
 }
 
 
-bool Heap::InNewSpace(Address addr) {
-  return new_space_.Contains(addr);
+bool Heap::InNewSpace(Address address) {
+  return new_space_.Contains(address);
 }
 
 
@@ -332,6 +332,16 @@ bool Heap::InFromSpace(Object* object) {
 
 bool Heap::InToSpace(Object* object) {
   return new_space_.ToSpaceContains(object);
+}
+
+
+bool Heap::InOldPointerSpace(Address address) {
+  return old_pointer_space_->Contains(address);
+}
+
+
+bool Heap::InOldPointerSpace(Object* object) {
+  return InOldPointerSpace(reinterpret_cast<Address>(object));
 }
 
 

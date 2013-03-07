@@ -653,7 +653,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // restore them.
   __ pushad();
   if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm, SSE2);
     __ sub(esp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
@@ -670,7 +670,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       ExternalReference::store_buffer_overflow_function(masm->isolate()),
       argument_count);
   if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm, SSE2);
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       __ movdbl(reg, Operand(esp, i * kDoubleSize));
@@ -820,7 +820,7 @@ static void IntegerConvert(MacroAssembler* masm,
   __ cmp(scratch2, Immediate(kResultIsZeroExponent));
   __ j(above, &done);
   if (use_sse3) {
-    CpuFeatures::Scope scope(SSE3);
+    CpuFeatureScope scope(masm, SSE3);
     // Check whether the exponent is too big for a 64 bit signed integer.
     static const uint32_t kTooBigExponent = 63;
     __ cmp(scratch2, Immediate(kTooBigExponent));
@@ -1183,7 +1183,7 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(MacroAssembler* masm,
     __ bind(&heapnumber_allocated);
   }
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatureScope use_sse2(masm, SSE2);
     __ cvtsi2sd(xmm0, ecx);
     __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
   } else {
@@ -1568,7 +1568,7 @@ static void BinaryOpStub_GenerateSmiCode(
         } else {
           ASSERT_EQ(Token::SHL, op);
           if (CpuFeatures::IsSupported(SSE2)) {
-            CpuFeatures::Scope use_sse2(SSE2);
+            CpuFeatureScope use_sse2(masm, SSE2);
             __ cvtsi2sd(xmm0, left);
             __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
           } else {
@@ -1612,7 +1612,7 @@ static void BinaryOpStub_GenerateSmiCode(
         }
         __ AllocateHeapNumber(ecx, ebx, no_reg, slow);
         if (CpuFeatures::IsSupported(SSE2)) {
-          CpuFeatures::Scope use_sse2(SSE2);
+          CpuFeatureScope use_sse2(masm, SSE2);
           FloatingPointHelper::LoadSSE2Smis(masm, ebx);
           switch (op) {
             case Token::ADD: __ addsd(xmm0, xmm1); break;
@@ -1777,7 +1777,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       Label not_floats;
       Label not_int32;
       if (CpuFeatures::IsSupported(SSE2)) {
-        CpuFeatures::Scope use_sse2(SSE2);
+        CpuFeatureScope use_sse2(masm, SSE2);
         // It could be that only SMIs have been seen at either the left
         // or the right operand. For precise type feedback, patch the IC
         // again if this changes.
@@ -1908,7 +1908,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         }
         // Store the result in the HeapNumber and return.
         if (CpuFeatures::IsSupported(SSE2)) {
-          CpuFeatures::Scope use_sse2(SSE2);
+          CpuFeatureScope use_sse2(masm, SSE2);
           __ cvtsi2sd(xmm0, ebx);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         } else {
@@ -1998,7 +1998,7 @@ void BinaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
     case Token::DIV: {
       Label not_floats;
       if (CpuFeatures::IsSupported(SSE2)) {
-        CpuFeatures::Scope use_sse2(SSE2);
+        CpuFeatureScope use_sse2(masm, SSE2);
 
         // It could be that only SMIs have been seen at either the left
         // or the right operand. For precise type feedback, patch the IC
@@ -2125,7 +2125,7 @@ void BinaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
         }
         // Store the result in the HeapNumber and return.
         if (CpuFeatures::IsSupported(SSE2)) {
-          CpuFeatures::Scope use_sse2(SSE2);
+          CpuFeatureScope use_sse2(masm, SSE2);
           __ cvtsi2sd(xmm0, ebx);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         } else {
@@ -2205,7 +2205,7 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     case Token::DIV: {
       Label not_floats;
       if (CpuFeatures::IsSupported(SSE2)) {
-        CpuFeatures::Scope use_sse2(SSE2);
+        CpuFeatureScope use_sse2(masm, SSE2);
         FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
 
         switch (op_) {
@@ -2306,7 +2306,7 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
         }
         // Store the result in the HeapNumber and return.
         if (CpuFeatures::IsSupported(SSE2)) {
-          CpuFeatures::Scope use_sse2(SSE2);
+          CpuFeatureScope use_sse2(masm, SSE2);
           __ cvtsi2sd(xmm0, ebx);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         } else {
@@ -2476,9 +2476,9 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     __ bind(&loaded);
   } else {  // UNTAGGED.
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm, SSE2);
     if (CpuFeatures::IsSupported(SSE4_1)) {
-      CpuFeatures::Scope sse4_scope(SSE4_1);
+      CpuFeatureScope sse4_scope(masm, SSE4_1);
       __ pextrd(edx, xmm1, 0x1);  // copy xmm1[63..32] to edx.
     } else {
       __ pshufd(xmm0, xmm1, 0x1);
@@ -2549,7 +2549,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ fstp(0);
     __ ret(kPointerSize);
   } else {  // UNTAGGED.
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm, SSE2);
     __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
     __ Ret();
   }
@@ -2562,7 +2562,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   if (tagged) {
     __ AllocateHeapNumber(eax, edi, no_reg, &runtime_call_clear_stack);
   } else {  // UNTAGGED.
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm, SSE2);
     __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
     __ sub(esp, Immediate(kDoubleSize));
     __ movdbl(Operand(esp, 0), xmm1);
@@ -2577,7 +2577,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   if (tagged) {
     __ ret(kPointerSize);
   } else {  // UNTAGGED.
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm, SSE2);
     __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
     __ Ret();
 
@@ -2610,7 +2610,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
         ExternalReference(RuntimeFunction(), masm->isolate());
     __ TailCallExternalReference(runtime, 1, 1);
   } else {  // UNTAGGED.
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm, SSE2);
     __ bind(&runtime_call_clear_stack);
     __ bind(&runtime_call);
     __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
@@ -2776,7 +2776,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(
 
   // Get the untagged integer version of the edx heap number in ecx.
   if (left_type == BinaryOpIC::INT32 && CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatureScope use_sse2(masm, SSE2);
     ConvertHeapNumberToInt32(masm, edx, conversion_failure);
   } else {
     IntegerConvert(masm, edx, use_sse3, conversion_failure);
@@ -2811,7 +2811,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(
   // Get the untagged integer version of the eax heap number in ecx.
 
   if (right_type == BinaryOpIC::INT32 && CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatureScope use_sse2(masm, SSE2);
     ConvertHeapNumberToInt32(masm, eax, conversion_failure);
   } else {
     IntegerConvert(masm, eax, use_sse3, conversion_failure);
@@ -3019,7 +3019,7 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  CpuFeatures::Scope use_sse2(SSE2);
+  CpuFeatureScope use_sse2(masm, SSE2);
   Factory* factory = masm->isolate()->factory();
   const Register exponent = eax;
   const Register base = edx;
@@ -3363,7 +3363,7 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
   Register value = eax;
   Register scratch = ebx;
 
-  if (kind() == Code::KEYED_LOAD_IC) {
+  if (kind() == Code::KEYED_STORE_IC) {
     __ cmp(ecx, Immediate(masm->isolate()->factory()->length_string()));
     __ j(not_equal, &miss);
   }
@@ -4407,7 +4407,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                         FixedArray::kHeaderSize));
     __ JumpIfSmi(probe, not_found);
     if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope fscope(SSE2);
+      CpuFeatureScope fscope(masm, SSE2);
       __ movdbl(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
       __ movdbl(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
       __ ucomisd(xmm0, xmm1);
@@ -4667,8 +4667,8 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   Label non_number_comparison;
   Label unordered;
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
-    CpuFeatures::Scope use_cmov(CMOV);
+    CpuFeatureScope use_sse2(masm, SSE2);
+    CpuFeatureScope use_cmov(masm, CMOV);
 
     FloatingPointHelper::LoadSSE2Operands(masm, &non_number_comparison);
     __ ucomisd(xmm0, xmm1);
@@ -6890,8 +6890,8 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or SSE2 or CMOV is unsupported.
   if (CpuFeatures::IsSupported(SSE2) && CpuFeatures::IsSupported(CMOV)) {
-    CpuFeatures::Scope scope1(SSE2);
-    CpuFeatures::Scope scope2(CMOV);
+    CpuFeatureScope scope1(masm, SSE2);
+    CpuFeatureScope scope2(masm, CMOV);
 
     // Load left and right operand.
     Label done, left, left_smi, right_smi;
@@ -7233,14 +7233,14 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 // the property. This function may return false negatives, so miss_label
 // must always call a backup property check that is complete.
 // This function is safe to call if the receiver has fast properties.
-// Name must be an internalized string and receiver must be a heap object.
-void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
-                                                        Label* miss,
-                                                        Label* done,
-                                                        Register properties,
-                                                        Handle<String> name,
-                                                        Register r0) {
-  ASSERT(name->IsInternalizedString());
+// Name must be a unique name and receiver must be a heap object.
+void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
+                                                      Label* miss,
+                                                      Label* done,
+                                                      Register properties,
+                                                      Handle<Name> name,
+                                                      Register r0) {
+  ASSERT(name->IsUniqueName());
 
   // If names of slots in range from 1 to kProbes - 1 for the hash value are
   // not equal to the name and kProbes-th slot is not used (its name is the
@@ -7255,10 +7255,10 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ dec(index);
     __ and_(index,
             Immediate(Smi::FromInt(name->Hash() +
-                                   StringDictionary::GetProbeOffset(i))));
+                                   NameDictionary::GetProbeOffset(i))));
 
     // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
+    ASSERT(NameDictionary::kEntrySize == 3);
     __ lea(index, Operand(index, index, times_2, 0));  // index *= 3.
     Register entity_name = r0;
     // Having undefined at this place means the name is not contained.
@@ -7269,26 +7269,26 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ j(equal, done);
 
     // Stop if found the property.
-    __ cmp(entity_name, Handle<String>(name));
+    __ cmp(entity_name, Handle<Name>(name));
     __ j(equal, miss);
 
-    Label the_hole;
+    Label good;
     // Check for the hole and skip.
     __ cmp(entity_name, masm->isolate()->factory()->the_hole_value());
-    __ j(equal, &the_hole, Label::kNear);
+    __ j(equal, &good, Label::kNear);
 
-    // Check if the entry name is not an internalized string.
+    // Check if the entry name is not a unique name.
     __ mov(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
     __ test_b(FieldOperand(entity_name, Map::kInstanceTypeOffset),
               kIsInternalizedMask);
-    __ j(zero, miss);
-    __ bind(&the_hole);
+    __ j(not_zero, &good);
+    __ cmpb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
+            static_cast<uint8_t>(SYMBOL_TYPE));
+    __ j(not_equal, miss);
+    __ bind(&good);
   }
 
-  StringDictionaryLookupStub stub(properties,
-                                  r0,
-                                  r0,
-                                  StringDictionaryLookupStub::NEGATIVE_LOOKUP);
+  NameDictionaryLookupStub stub(properties, r0, r0, NEGATIVE_LOOKUP);
   __ push(Immediate(Handle<Object>(name)));
   __ push(Immediate(name->Hash()));
   __ CallStub(&stub);
@@ -7298,23 +7298,23 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 }
 
 
-// Probe the string dictionary in the |elements| register. Jump to the
+// Probe the name dictionary in the |elements| register. Jump to the
 // |done| label if a property with the given name is found leaving the
 // index into the dictionary in |r0|. Jump to the |miss| label
 // otherwise.
-void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
-                                                        Label* miss,
-                                                        Label* done,
-                                                        Register elements,
-                                                        Register name,
-                                                        Register r0,
-                                                        Register r1) {
+void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
+                                                      Label* miss,
+                                                      Label* done,
+                                                      Register elements,
+                                                      Register name,
+                                                      Register r0,
+                                                      Register r1) {
   ASSERT(!elements.is(r0));
   ASSERT(!elements.is(r1));
   ASSERT(!name.is(r0));
   ASSERT(!name.is(r1));
 
-  __ AssertString(name);
+  __ AssertName(name);
 
   __ mov(r1, FieldOperand(elements, kCapacityOffset));
   __ shr(r1, kSmiTagSize);  // convert smi to int
@@ -7325,15 +7325,15 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
   // cover ~93% of loads from dictionaries.
   for (int i = 0; i < kInlinedProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
-    __ mov(r0, FieldOperand(name, String::kHashFieldOffset));
-    __ shr(r0, String::kHashShift);
+    __ mov(r0, FieldOperand(name, Name::kHashFieldOffset));
+    __ shr(r0, Name::kHashShift);
     if (i > 0) {
-      __ add(r0, Immediate(StringDictionary::GetProbeOffset(i)));
+      __ add(r0, Immediate(NameDictionary::GetProbeOffset(i)));
     }
     __ and_(r0, r1);
 
     // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
+    ASSERT(NameDictionary::kEntrySize == 3);
     __ lea(r0, Operand(r0, r0, times_2, 0));  // r0 = r0 * 3
 
     // Check if the key is identical to the name.
@@ -7344,13 +7344,10 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
     __ j(equal, done);
   }
 
-  StringDictionaryLookupStub stub(elements,
-                                  r1,
-                                  r0,
-                                  POSITIVE_LOOKUP);
+  NameDictionaryLookupStub stub(elements, r1, r0, POSITIVE_LOOKUP);
   __ push(name);
-  __ mov(r0, FieldOperand(name, String::kHashFieldOffset));
-  __ shr(r0, String::kHashShift);
+  __ mov(r0, FieldOperand(name, Name::kHashFieldOffset));
+  __ shr(r0, Name::kHashShift);
   __ push(r0);
   __ CallStub(&stub);
 
@@ -7360,7 +7357,7 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 }
 
 
-void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
+void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   // This stub overrides SometimesSetsUpAFrame() to return false.  That means
   // we cannot call anything that could cause a GC from this stub.
   // Stack frame on entry:
@@ -7368,7 +7365,7 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   //  esp[1 * kPointerSize]: key's hash.
   //  esp[2 * kPointerSize]: key.
   // Registers:
-  //  dictionary_: StringDictionary to probe.
+  //  dictionary_: NameDictionary to probe.
   //  result_: used as scratch.
   //  index_: will hold an index of entry if lookup is successful.
   //          might alias with result_.
@@ -7393,12 +7390,12 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
     // Compute the masked index: (hash + i + i * i) & mask.
     __ mov(scratch, Operand(esp, 2 * kPointerSize));
     if (i > 0) {
-      __ add(scratch, Immediate(StringDictionary::GetProbeOffset(i)));
+      __ add(scratch, Immediate(NameDictionary::GetProbeOffset(i)));
     }
     __ and_(scratch, Operand(esp, 0));
 
     // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
+    ASSERT(NameDictionary::kEntrySize == 3);
     __ lea(index_, Operand(scratch, scratch, times_2, 0));  // index *= 3.
 
     // Having undefined at this place means the name is not contained.
@@ -7415,15 +7412,20 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
     __ j(equal, &in_dictionary);
 
     if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
-      // If we hit a key that is not an internalized string during negative
+      // If we hit a key that is not a unique name during negative
       // lookup we have to bailout as this key might be equal to the
       // key we are looking for.
 
-      // Check if the entry name is not an internalized string.
+      // Check if the entry name is not a unique name.
+      Label cont;
       __ mov(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
       __ test_b(FieldOperand(scratch, Map::kInstanceTypeOffset),
                 kIsInternalizedMask);
-      __ j(zero, &maybe_in_dictionary);
+      __ j(not_zero, &cont);
+      __ cmpb(FieldOperand(scratch, Map::kInstanceTypeOffset),
+              static_cast<uint8_t>(SYMBOL_TYPE));
+      __ j(not_equal, &maybe_in_dictionary);
+      __ bind(&cont);
     }
   }
 
@@ -7514,11 +7516,9 @@ bool RecordWriteStub::IsPregenerated() {
 
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
-  StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode(isolate)->set_is_pregenerated(true);
-
-  CpuFeatures::TryForceFeatureScope scope(SSE2);
-  if (CpuFeatures::IsSupported(SSE2)) {
+  StoreBufferOverflowStub stub(kDontSaveFPRegs);
+  stub.GetCode(isolate)->set_is_pregenerated(true);
+  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
     StoreBufferOverflowStub stub2(kSaveFPRegs);
     stub2.GetCode(isolate)->set_is_pregenerated(true);
   }

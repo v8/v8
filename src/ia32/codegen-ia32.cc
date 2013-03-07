@@ -114,7 +114,7 @@ UnaryMathFunction CreateExpFunction() {
   // esp[1 * kPointerSize]: raw double input
   // esp[0 * kPointerSize]: return address
   {
-    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatureScope use_sse2(&masm, SSE2);
     XMMRegister input = xmm1;
     XMMRegister result = xmm2;
     __ movdbl(input, Operand(esp, 1 * kPointerSize));
@@ -154,7 +154,7 @@ UnaryMathFunction CreateSqrtFunction() {
   // esp[0 * kPointerSize]: return address
   // Move double input into registers.
   {
-    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatureScope use_sse2(&masm, SSE2);
     __ movdbl(xmm0, Operand(esp, 1 * kPointerSize));
     __ sqrtsd(xmm0, xmm0);
     __ movdbl(Operand(esp, 1 * kPointerSize), xmm0);
@@ -214,7 +214,7 @@ OS::MemCopyFunction CreateMemCopyFunction() {
     __ bind(&ok);
   }
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope enable(SSE2);
+    CpuFeatureScope enable(&masm, SSE2);
     __ push(edi);
     __ push(esi);
     stack_offset += 2 * kPointerSize;
@@ -479,7 +479,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
       ExternalReference::address_of_the_hole_nan();
   XMMRegister the_hole_nan = xmm1;
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatureScope use_sse2(masm, SSE2);
     __ movdbl(the_hole_nan,
               Operand::StaticVariable(canonical_the_hole_nan_reference));
   }
@@ -504,7 +504,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Normal smi, convert it to double and store.
   __ SmiUntag(ebx);
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope fscope(SSE2);
+    CpuFeatureScope fscope(masm, SSE2);
     __ cvtsi2sd(xmm0, ebx);
     __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
               xmm0);
@@ -525,7 +525,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   }
 
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatureScope use_sse2(masm, SSE2);
     __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
               the_hole_nan);
   } else {
@@ -635,7 +635,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ AllocateHeapNumber(edx, esi, no_reg, &gc_required);
   // edx: new heap number
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope fscope(SSE2);
+    CpuFeatureScope fscope(masm, SSE2);
     __ movdbl(xmm0,
               FieldOperand(edi, ebx, times_4, FixedDoubleArray::kHeaderSize));
     __ movdbl(FieldOperand(edx, HeapNumber::kValueOffset), xmm0);

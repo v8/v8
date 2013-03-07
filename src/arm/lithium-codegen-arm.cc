@@ -196,7 +196,7 @@ bool LCodeGen::GeneratePrologue() {
   }
 
   if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     Comment(";;; Save clobbered callee double registers");
     int count = 0;
     BitVector* doubles = chunk()->allocated_double_registers();
@@ -1162,7 +1162,7 @@ void LCodeGen::DoModI(LModI* instr) {
   Label done;
 
   if (CpuFeatures::IsSupported(SUDIV)) {
-    CpuFeatures::Scope scope(SUDIV);
+    CpuFeatureScope scope(masm(), SUDIV);
     // Check for x % 0.
     if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
       __ cmp(right, Operand::Zero());
@@ -1208,7 +1208,7 @@ void LCodeGen::DoModI(LModI* instr) {
 
     Label vfp_modulo, both_positive, right_negative;
 
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
 
     // Check for x % 0.
     if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
@@ -1411,6 +1411,42 @@ void LCodeGen::DoDivI(LDivI* instr) {
     LDivI* instr_;
   };
 
+  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+    Register dividend = ToRegister(instr->left());
+    int32_t divisor =
+        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
+    int32_t test_value = 0;
+    int32_t power = 0;
+
+    if (divisor > 0) {
+      test_value = divisor - 1;
+      power = WhichPowerOf2(divisor);
+    } else {
+      // Check for (0 / -x) that will produce negative zero.
+      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        __ tst(dividend, Operand(dividend));
+        DeoptimizeIf(eq, instr->environment());
+      }
+      // Check for (kMinInt / -1).
+      if (divisor == -1 && instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+        __ cmp(dividend, Operand(kMinInt));
+        DeoptimizeIf(eq, instr->environment());
+      }
+      test_value = - divisor - 1;
+      power = WhichPowerOf2(-divisor);
+    }
+
+    if (test_value != 0) {
+      // Deoptimize if remainder is not 0.
+      __ tst(dividend, Operand(test_value));
+      DeoptimizeIf(ne, instr->environment());
+      __ mov(dividend, Operand(dividend, ASR, power));
+    }
+    if (divisor < 0) __ rsb(dividend, dividend, Operand(0));
+
+    return;
+  }
+
   const Register left = ToRegister(instr->left());
   const Register right = ToRegister(instr->right());
   const Register scratch = scratch0();
@@ -1531,7 +1567,7 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
     __ teq(remainder, Operand(divisor), ne);
     __ sub(result, result, Operand(1), LeaveCC, mi);
   } else {
-    CpuFeatures::Scope scope(SUDIV);
+    CpuFeatureScope scope(masm(), SUDIV);
     const Register right = ToRegister(instr->right());
 
     // Check for x / 0.
@@ -1578,7 +1614,7 @@ void LCodeGen::DoDeferredBinaryOpStub(LPointerMap* pointer_map,
                                       LOperand* left_argument,
                                       LOperand* right_argument,
                                       Token::Value op) {
-  CpuFeatures::Scope vfp_scope(VFP2);
+  CpuFeatureScope vfp_scope(masm(), VFP2);
   Register left = ToRegister(left_argument);
   Register right = ToRegister(right_argument);
 
@@ -1864,7 +1900,7 @@ void LCodeGen::DoConstantI(LConstantI* instr) {
 void LCodeGen::DoConstantD(LConstantD* instr) {
   ASSERT(instr->result()->IsDoubleRegister());
   DwVfpRegister result = ToDoubleRegister(instr->result());
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   double v = instr->value();
   __ Vmov(result, v, scratch0());
 }
@@ -2042,7 +2078,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ mov(result_reg, right_op, LeaveCC, NegateCondition(condition));
   } else {
     ASSERT(instr->hydrogen()->representation().IsDouble());
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     DwVfpRegister left_reg = ToDoubleRegister(left);
     DwVfpRegister right_reg = ToDoubleRegister(right);
     DwVfpRegister result_reg = ToDoubleRegister(instr->result());
@@ -2088,7 +2124,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   DwVfpRegister left = ToDoubleRegister(instr->left());
   DwVfpRegister right = ToDoubleRegister(instr->right());
   DwVfpRegister result = ToDoubleRegister(instr->result());
@@ -2179,7 +2215,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     __ cmp(reg, Operand::Zero());
     EmitBranch(true_block, false_block, ne);
   } else if (r.IsDouble()) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     DwVfpRegister reg = ToDoubleRegister(instr->value());
     Register scratch = scratch0();
 
@@ -2265,7 +2301,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
-        CpuFeatures::Scope scope(VFP2);
+        CpuFeatureScope scope(masm(), VFP2);
         // heap number -> false iff +0, -0, or NaN.
         DwVfpRegister dbl_scratch = double_scratch0();
         Label not_heap_number;
@@ -2345,7 +2381,7 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
     EmitGoto(next_block);
   } else {
     if (instr->is_double()) {
-      CpuFeatures::Scope scope(VFP2);
+      CpuFeatureScope scope(masm(), VFP2);
       // Compare left and right operands as doubles and load the
       // resulting flags into the normal status register.
       __ VFPCompareAndSetFlags(ToDoubleRegister(left), ToDoubleRegister(right));
@@ -2901,7 +2937,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
   if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     ASSERT(NeedsEagerFrame());
     BitVector* doubles = chunk()->allocated_double_registers();
     BitVector::Iterator save_iterator(doubles);
@@ -3276,7 +3312,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         : Operand(key, LSL, shift_size);
     __ add(scratch0(), external_pointer, operand);
     if (CpuFeatures::IsSupported(VFP2)) {
-      CpuFeatures::Scope scope(VFP2);
+      CpuFeatureScope scope(masm(), VFP2);
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
         __ vldr(kScratchDoubleReg.low(), scratch0(), additional_offset);
         __ vcvt_f64_f32(result, kScratchDoubleReg.low());
@@ -3401,7 +3437,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
     __ add(elements, elements, Operand(key, LSL, shift_size));
   }
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     __ add(elements, elements, Operand(base_offset));
     __ vldr(result, elements, 0);
     if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -3858,7 +3894,7 @@ void LCodeGen::EmitIntegerMathAbs(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   // Class for deferred case.
   class DeferredMathAbsTaggedHeapNumber: public LDeferredCode {
    public:
@@ -3895,99 +3931,70 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   DwVfpRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
-  Register scratch = scratch0();
+  Register input_high = scratch0();
+  Label done, exact;
 
-  __ EmitVFPTruncate(kRoundToMinusInf,
-                     result,
-                     input,
-                     scratch,
-                     double_scratch0());
-  DeoptimizeIf(ne, instr->environment());
+  __ vmov(input_high, input.high());
+  __ TryInt32Floor(result, input, input_high, double_scratch0(), &done, &exact);
+  DeoptimizeIf(al, instr->environment());
 
+  __ bind(&exact);
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Test for -0.
-    Label done;
     __ cmp(result, Operand::Zero());
     __ b(ne, &done);
-    __ vmov(scratch, input.high());
-    __ tst(scratch, Operand(HeapNumber::kSignMask));
-    DeoptimizeIf(ne, instr->environment());
-    __ bind(&done);
-  }
-}
-
-
-void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(VFP2);
-  DwVfpRegister input = ToDoubleRegister(instr->value());
-  Register result = ToRegister(instr->result());
-  DwVfpRegister double_scratch1 = ToDoubleRegister(instr->temp());
-  Register scratch = scratch0();
-  Label done, check_sign_on_zero;
-
-  // Extract exponent bits.
-  __ vmov(result, input.high());
-  __ ubfx(scratch,
-          result,
-          HeapNumber::kExponentShift,
-          HeapNumber::kExponentBits);
-
-  // If the number is in ]-0.5, +0.5[, the result is +/- 0.
-  __ cmp(scratch, Operand(HeapNumber::kExponentBias - 2));
-  __ mov(result, Operand::Zero(), LeaveCC, le);
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ b(le, &check_sign_on_zero);
-  } else {
-    __ b(le, &done);
-  }
-
-  // The following conversion will not work with numbers
-  // outside of ]-2^32, 2^32[.
-  __ cmp(scratch, Operand(HeapNumber::kExponentBias + 32));
-  DeoptimizeIf(ge, instr->environment());
-
-  __ Vmov(double_scratch0(), 0.5, scratch);
-  __ vadd(double_scratch0(), input, double_scratch0());
-
-  // Save the original sign for later comparison.
-  __ and_(scratch, result, Operand(HeapNumber::kSignMask));
-
-  // Check sign of the result: if the sign changed, the input
-  // value was in ]0.5, 0[ and the result should be -0.
-  __ vmov(result, double_scratch0().high());
-  __ eor(result, result, Operand(scratch), SetCC);
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ cmp(input_high, Operand::Zero());
     DeoptimizeIf(mi, instr->environment());
-  } else {
-    __ mov(result, Operand::Zero(), LeaveCC, mi);
-    __ b(mi, &done);
-  }
-
-  __ EmitVFPTruncate(kRoundToMinusInf,
-                     result,
-                     double_scratch0(),
-                     scratch,
-                     double_scratch1);
-  DeoptimizeIf(ne, instr->environment());
-
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    // Test for -0.
-    __ cmp(result, Operand::Zero());
-    __ b(ne, &done);
-    __ bind(&check_sign_on_zero);
-    __ vmov(scratch, input.high());
-    __ tst(scratch, Operand(HeapNumber::kSignMask));
-    DeoptimizeIf(ne, instr->environment());
   }
   __ bind(&done);
 }
 
 
+void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
+  CpuFeatureScope scope(masm(), VFP2);
+  DwVfpRegister input = ToDoubleRegister(instr->value());
+  Register result = ToRegister(instr->result());
+  DwVfpRegister double_scratch1 = ToDoubleRegister(instr->temp());
+  DwVfpRegister input_plus_dot_five = double_scratch1;
+  Register input_high = scratch0();
+  DwVfpRegister dot_five = double_scratch0();
+  Label convert, done;
+
+  __ Vmov(dot_five, 0.5, scratch0());
+  __ vabs(double_scratch1, input);
+  __ VFPCompareAndSetFlags(double_scratch1, dot_five);
+  // If input is in [-0.5, -0], the result is -0.
+  // If input is in [+0, +0.5[, the result is +0.
+  // If the input is +0.5, the result is 1.
+  __ b(hi, &convert);  // Out of [-0.5, +0.5].
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ vmov(input_high, input.high());
+    __ cmp(input_high, Operand::Zero());
+    DeoptimizeIf(mi, instr->environment());  // [-0.5, -0].
+  }
+  __ VFPCompareAndSetFlags(input, dot_five);
+  __ mov(result, Operand(1), LeaveCC, eq);  // +0.5.
+  // Remaining cases: [+0, +0.5[ or [-0.5, +0.5[, depending on
+  // flag kBailoutOnMinusZero.
+  __ mov(result, Operand::Zero(), LeaveCC, ne);
+  __ b(&done);
+
+  __ bind(&convert);
+  __ vadd(input_plus_dot_five, input, dot_five);
+  __ vmov(input_high, input_plus_dot_five.high());
+  // Reuse dot_five (double_scratch0) as we no longer need this value.
+  __ TryInt32Floor(result, input_plus_dot_five, input_high, double_scratch0(),
+                   &done, &done);
+  DeoptimizeIf(al, instr->environment());
+  __ bind(&done);
+}
+
+
 void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   DwVfpRegister input = ToDoubleRegister(instr->value());
   DwVfpRegister result = ToDoubleRegister(instr->result());
   __ vsqrt(result, input);
@@ -3995,7 +4002,7 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   DwVfpRegister input = ToDoubleRegister(instr->value());
   DwVfpRegister result = ToDoubleRegister(instr->result());
   DwVfpRegister temp = ToDoubleRegister(instr->temp());
@@ -4017,7 +4024,7 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoPower(LPower* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   Representation exponent_type = instr->hydrogen()->right()->representation();
   // Having marked this as a call, we can use any registers.
   // Just make sure that the input/output registers are the expected ones.
@@ -4050,7 +4057,7 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoRandom(LRandom* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   class DeferredDoRandom: public LDeferredCode {
    public:
     DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
@@ -4129,7 +4136,7 @@ void LCodeGen::DoDeferredRandom(LRandom* instr) {
 
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   DwVfpRegister input = ToDoubleRegister(instr->value());
   DwVfpRegister result = ToDoubleRegister(instr->result());
   DwVfpRegister double_scratch1 = ToDoubleRegister(instr->double_temp());
@@ -4420,7 +4427,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 
 
 void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   Register external_pointer = ToRegister(instr->elements());
   Register key = no_reg;
   ElementsKind elements_kind = instr->elements_kind();
@@ -4441,7 +4448,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    CpuFeatures::Scope scope(VFP3);
+    CpuFeatureScope scope(masm(), VFP3);
     DwVfpRegister value(ToDoubleRegister(instr->value()));
     Operand operand(key_is_constant
                     ? Operand(constant_key << element_size_shift)
@@ -4491,7 +4498,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   DwVfpRegister value = ToDoubleRegister(instr->value());
   Register elements = ToRegister(instr->elements());
   Register key = no_reg;
@@ -4792,7 +4799,7 @@ void LCodeGen::DoStringLength(LStringLength* instr) {
 
 
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   LOperand* input = instr->value();
   ASSERT(input->IsRegister() || input->IsStackSlot());
   LOperand* output = instr->result();
@@ -4810,7 +4817,7 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 
 
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   LOperand* input = instr->value();
   LOperand* output = instr->result();
 
@@ -4930,7 +4937,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
       __ eor(src, src, Operand(0x80000000));
     }
     if (CpuFeatures::IsSupported(VFP2)) {
-      CpuFeatures::Scope scope(VFP2);
+      CpuFeatureScope scope(masm(), VFP2);
       __ vmov(flt_scratch, src);
       __ vcvt_f64_s32(dbl_scratch, flt_scratch);
     } else {
@@ -4942,7 +4949,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
     }
   } else {
     if (CpuFeatures::IsSupported(VFP2)) {
-      CpuFeatures::Scope scope(VFP2);
+      CpuFeatureScope scope(masm(), VFP2);
       __ vmov(flt_scratch, src);
       __ vcvt_f64_u32(dbl_scratch, flt_scratch);
     } else {
@@ -4983,7 +4990,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   // number.
   __ bind(&done);
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     __ vstr(dbl_scratch, dst, HeapNumber::kValueOffset);
   } else {
     __ str(sfpd_lo, MemOperand(dst, HeapNumber::kMantissaOffset));
@@ -5022,7 +5029,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   Label done;
   if (convert_hole) {
     if (CpuFeatures::IsSupported(VFP2)) {
-      CpuFeatures::Scope scope(VFP2);
+      CpuFeatureScope scope(masm(), VFP2);
       DwVfpRegister input_reg = ToDoubleRegister(instr->value());
       __ VFPCompareAndSetFlags(input_reg, input_reg);
       __ b(vc, &no_special_nan_handling);
@@ -5074,7 +5081,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   }
   __ bind(deferred->exit());
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     __ vstr(input_reg, reg, HeapNumber::kValueOffset);
   } else {
     __ str(sfpd_lo, MemOperand(reg, HeapNumber::kValueOffset));
@@ -5129,7 +5136,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   Register scratch = scratch0();
   SwVfpRegister flt_scratch = double_scratch0().low();
   ASSERT(!result_reg.is(double_scratch0()));
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
 
   Label load_smi, heap_number, done;
 
@@ -5218,7 +5225,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   __ cmp(scratch1, Operand(ip));
 
   if (instr->truncating()) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     Register scratch3 = ToRegister(instr->temp2());
     ASSERT(!scratch3.is(input_reg) &&
            !scratch3.is(scratch1) &&
@@ -5247,18 +5254,13 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
                         scratch3);
 
   } else {
-    CpuFeatures::Scope scope(VFP3);
+    CpuFeatureScope scope(masm(), VFP3);
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr->environment());
 
     __ sub(ip, input_reg, Operand(kHeapObjectTag));
     __ vldr(double_scratch, ip, HeapNumber::kValueOffset);
-    __ EmitVFPTruncate(kRoundToZero,
-                       input_reg,
-                       double_scratch,
-                       scratch1,
-                       double_scratch2,
-                       kCheckForInexactConversion);
+    __ TryDoubleToInt32Exact(input_reg, double_scratch, double_scratch2);
     DeoptimizeIf(ne, instr->environment());
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
@@ -5354,15 +5356,8 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
                         scratch2,
                         scratch3);
   } else {
-    __ EmitVFPTruncate(kRoundToMinusInf,
-                       result_reg,
-                       double_input,
-                       scratch1,
-                       double_scratch,
-                       kCheckForInexactConversion);
-
-    // Deoptimize if we had a vfp invalid exception,
-    // including inexact operation.
+    __ TryDoubleToInt32Exact(result_reg, double_input, double_scratch);
+    // Deoptimize if the input wasn't a int32 (inside a double).
     DeoptimizeIf(ne, instr->environment());
   }
     __ bind(&done);
@@ -5475,7 +5470,7 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 
 
 void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
-  CpuFeatures::Scope vfp_scope(VFP2);
+  CpuFeatureScope vfp_scope(masm(), VFP2);
   DwVfpRegister value_reg = ToDoubleRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());
   DwVfpRegister temp_reg = ToDoubleRegister(instr->temp());
@@ -5484,7 +5479,7 @@ void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
 
 
 void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   Register unclamped_reg = ToRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());
   __ ClampUint8(result_reg, unclamped_reg);
@@ -5492,7 +5487,7 @@ void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
 
 
 void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(masm(), VFP2);
   Register scratch = scratch0();
   Register input_reg = ToRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());

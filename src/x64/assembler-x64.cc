@@ -43,7 +43,7 @@ namespace internal {
 bool CpuFeatures::initialized_ = false;
 #endif
 uint64_t CpuFeatures::supported_ = CpuFeatures::kDefaultCpuFeatures;
-uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
+uint64_t CpuFeatures::found_by_runtime_probing_only_ = 0;
 
 
 ExternalReference ExternalReference::cpu_features() {
@@ -108,7 +108,7 @@ void CpuFeatures::Probe() {
   __ bind(&cpuid);
   __ movl(rax, Immediate(1));
   supported_ = kDefaultCpuFeatures | (1 << CPUID);
-  { Scope fscope(CPUID);
+  { CpuFeatureScope fscope(&assm, CPUID);
     __ cpuid();
     // Move the result from ecx:edx to rdi.
     __ movl(rdi, rdx);  // Zero-extended to 64 bits.
@@ -143,12 +143,13 @@ void CpuFeatures::Probe() {
 
   typedef uint64_t (*F0)();
   F0 probe = FUNCTION_CAST<F0>(reinterpret_cast<Address>(memory->address()));
-  supported_ = probe();
-  found_by_runtime_probing_ = supported_;
-  found_by_runtime_probing_ &= ~kDefaultCpuFeatures;
-  uint64_t os_guarantees = OS::CpuFeaturesImpliedByPlatform();
-  supported_ |= os_guarantees;
-  found_by_runtime_probing_ &= ~os_guarantees;
+
+  uint64_t probed_features = probe();
+  uint64_t platform_features = OS::CpuFeaturesImpliedByPlatform();
+  supported_ = probed_features | platform_features;
+  found_by_runtime_probing_only_
+      = probed_features & ~kDefaultCpuFeatures & ~platform_features;
+
   // SSE2 and CMOV must be available on an X64 CPU.
   ASSERT(IsSupported(CPUID));
   ASSERT(IsSupported(SSE2));
@@ -978,7 +979,7 @@ void Assembler::cmpb_al(Immediate imm8) {
 
 
 void Assembler::cpuid() {
-  ASSERT(CpuFeatures::IsEnabled(CPUID));
+  ASSERT(IsEnabled(CPUID));
   EnsureSpace ensure_space(this);
   emit(0x0F);
   emit(0xA2);
@@ -2218,7 +2219,7 @@ void Assembler::fistp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_s(const Operand& adr) {
-  ASSERT(CpuFeatures::IsEnabled(SSE3));
+  ASSERT(IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(adr);
   emit(0xDB);
@@ -2227,7 +2228,7 @@ void Assembler::fisttp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_d(const Operand& adr) {
-  ASSERT(CpuFeatures::IsEnabled(SSE3));
+  ASSERT(IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(adr);
   emit(0xDD);
@@ -2943,7 +2944,7 @@ void Assembler::ucomisd(XMMRegister dst, const Operand& src) {
 
 void Assembler::roundsd(XMMRegister dst, XMMRegister src,
                         Assembler::RoundingMode mode) {
-  ASSERT(CpuFeatures::IsEnabled(SSE4_1));
+  ASSERT(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(dst, src);

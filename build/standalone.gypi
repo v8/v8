@@ -29,7 +29,6 @@
 
 {
   'variables': {
-    'library%': 'static_library',
     'component%': 'static_library',
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,

@@ -197,7 +197,7 @@ function WeakMapGet(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.get', this]);
   }
-  if (!IS_SPEC_OBJECT(key)) {
+  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
   return %WeakMapGet(this, key);
@@ -209,7 +209,7 @@ function WeakMapSet(key, value) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.set', this]);
   }
-  if (!IS_SPEC_OBJECT(key)) {
+  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
   return %WeakMapSet(this, key, value);
@@ -221,7 +221,7 @@ function WeakMapHas(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.has', this]);
   }
-  if (!IS_SPEC_OBJECT(key)) {
+  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
   return %WeakMapHas(this, key);
@@ -233,7 +233,7 @@ function WeakMapDelete(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.delete', this]);
   }
-  if (!IS_SPEC_OBJECT(key)) {
+  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
   return %WeakMapDelete(this, key);

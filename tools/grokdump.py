@@ -1145,8 +1145,104 @@ class HeapObject(object):
 
 
 class Map(HeapObject):
+  def Decode(self, offset, size, value):
+    return (value >> offset) & ((1 << size) - 1)
+
+  # Instance Sizes
+  def InstanceSizesOffset(self):
+    return self.heap.PointerSize()
+
+  def InstanceSizeOffset(self):
+    return self.InstanceSizesOffset()
+
+  def InObjectProperties(self):
+    return self.InstanceSizeOffset() + 1
+
+  def PreAllocatedPropertyFields(self):
+    return self.InObjectProperties() + 1
+
+  def VisitorId(self):
+    return self.PreAllocatedPropertyFields() + 1
+
+  # Instance Attributes
+  def InstanceAttributesOffset(self):
+    return self.InstanceSizesOffset() + self.heap.IntSize()
+
   def InstanceTypeOffset(self):
-    return self.heap.PointerSize() + self.heap.IntSize()
+    return self.InstanceAttributesOffset()
+
+  def UnusedPropertyFieldsOffset(self):
+    return self.InstanceTypeOffset() + 1
+
+  def BitFieldOffset(self):
+    return self.UnusedPropertyFieldsOffset() + 1
+
+  def BitField2Offset(self):
+    return self.BitFieldOffset() + 1
+
+  # Other fields
+  def PrototypeOffset(self):
+    return self.InstanceAttributesOffset() + self.heap.IntSize()
+
+  def ConstructorOffset(self):
+    return self.PrototypeOffset() + self.heap.PointerSize()
+
+  def TransitionsOrBackPointerOffset(self):
+    return self.ConstructorOffset() + self.heap.PointerSize()
+
+  def DescriptorsOffset(self):
+    return self.TransitionsOrBackPointerOffset() + self.heap.PointerSize()
+
+  def CodeCacheOffset(self):
+    return self.DescriptorsOffset() + self.heap.PointerSize()
+
+  def DependentCodeOffset(self):
+    return self.CodeCacheOffset() + self.heap.PointerSize()
+
+  def BitField3Offset(self):
+    return self.DependentCodeOffset() + self.heap.PointerSize()
+
+  def ReadByte(self, offset):
+    return self.heap.reader.ReadU8(self.address + offset)
+
+  def Print(self, p):
+    p.Print("Map(%08x)" % (self.address))
+    p.Print("- size: %d, inobject: %d, preallocated: %d, visitor: %d" % (
+        self.ReadByte(self.InstanceSizeOffset()),
+        self.ReadByte(self.InObjectProperties()),
+        self.ReadByte(self.PreAllocatedPropertyFields()),
+        self.VisitorId()))
+
+    bitfield = self.ReadByte(self.BitFieldOffset())
+    bitfield2 = self.ReadByte(self.BitField2Offset())
+    p.Print("- %s, unused: %d, bf: %d, bf2: %d" % (
+        INSTANCE_TYPES[self.ReadByte(self.InstanceTypeOffset())],
+        self.ReadByte(self.UnusedPropertyFieldsOffset()),
+        bitfield, bitfield2))
+
+    p.Print("- kind: %s" % (self.Decode(3, 5, bitfield2)))
+
+    bitfield3 = self.ObjectField(self.BitField3Offset())
+    p.Print(
+        "- EnumLength: %d NumberOfOwnDescriptors: %d OwnsDescriptors: %s" % (
+            self.Decode(0, 11, bitfield3),
+            self.Decode(11, 11, bitfield3),
+            self.Decode(25, 1, bitfield3)))
+    p.Print("- IsShared: %s" % (self.Decode(22, 1, bitfield3)))
+    p.Print("- FunctionWithPrototype: %s" % (self.Decode(23, 1, bitfield3)))
+    p.Print("- DictionaryMap: %s" % (self.Decode(24, 1, bitfield3)))
+
+    descriptors = self.ObjectField(self.DescriptorsOffset())
+    if descriptors.__class__ == FixedArray:
+      DescriptorArray(descriptors).Print(p)
+    else:
+      p.Print("Descriptors: %s" % (descriptors))
+
+    transitions = self.ObjectField(self.TransitionsOrBackPointerOffset())
+    if transitions.__class__ == FixedArray:
+      TransitionArray(transitions).Print(p)
+    else:
+      p.Print("TransitionsOrBackPointer: %s" % (transitions))
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
@@ -1280,6 +1376,12 @@ class FixedArray(HeapObject):
   def ElementsOffset(self):
     return self.heap.PointerSize() * 2
 
+  def MemberOffset(self, i):
+    return self.ElementsOffset() + self.heap.PointerSize() * i
+
+  def Get(self, i):
+    return self.ObjectField(self.MemberOffset(i))
+
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
     self.length = self.SmiField(self.LengthOffset())
@@ -1303,6 +1405,111 @@ class FixedArray(HeapObject):
 
   def __str__(self):
     return "FixedArray(%08x, length=%d)" % (self.address, self.length)
+
+
+class DescriptorArray(object):
+  def __init__(self, array):
+    self.array = array
+
+  def Length(self):
+    return self.array.Get(0)
+
+  def Decode(self, offset, size, value):
+    return (value >> offset) & ((1 << size) - 1)
+
+  TYPES = [
+      "normal",
+      "field",
+      "function",
+      "callbacks"
+  ]
+
+  def Type(self, value):
+    return DescriptorArray.TYPES[self.Decode(0, 3, value)]
+
+  def Attributes(self, value):
+    attributes = self.Decode(3, 3, value)
+    result = []
+    if (attributes & 0): result += ["ReadOnly"]
+    if (attributes & 1): result += ["DontEnum"]
+    if (attributes & 2): result += ["DontDelete"]
+    return "[" + (",".join(result)) + "]"
+
+  def Deleted(self, value):
+    return self.Decode(6, 1, value) == 1
+
+  def Storage(self, value):
+    return self.Decode(7, 11, value)
+
+  def Pointer(self, value):
+    return self.Decode(18, 11, value)
+
+  def Details(self, di, value):
+    return (
+        di,
+        self.Type(value),
+        self.Attributes(value),
+        self.Storage(value),
+        self.Pointer(value)
+    )
+
+
+  def Print(self, p):
+    length = self.Length()
+    array = self.array
+
+    p.Print("Descriptors(%08x, length=%d)" % (array.address, length))
+    p.Print("[et] %s" % (array.Get(1)))
+
+    for di in xrange(length):
+      i = 2 + di * 3
+      p.Print("0x%x" % (array.address + array.MemberOffset(i)))
+      p.Print("[%i] name:    %s" % (di, array.Get(i + 0)))
+      p.Print("[%i] details: %s %s enum %i pointer %i" % \
+              self.Details(di, array.Get(i + 1)))
+      p.Print("[%i] value:   %s" % (di, array.Get(i + 2)))
+
+    end = self.array.length // 3
+    if length != end:
+      p.Print("[%i-%i] slack descriptors" % (length, end))
+
+
+class TransitionArray(object):
+  def __init__(self, array):
+    self.array = array
+
+  def IsSimpleTransition(self):
+    return self.array.length <= 2
+
+  def Length(self):
+    # SimpleTransition cases
+    if self.IsSimpleTransition():
+      return self.array.length - 1
+    return (self.array.length - 3) // 2
+
+  def Print(self, p):
+    length = self.Length()
+    array = self.array
+
+    p.Print("Transitions(%08x, length=%d)" % (array.address, length))
+    p.Print("[backpointer] %s" % (array.Get(0)))
+    if self.IsSimpleTransition():
+      if length == 1:
+        p.Print("[simple target] %s" % (array.Get(1)))
+      return
+
+    elements = array.Get(1)
+    if elements is not None:
+      p.Print("[elements   ] %s" % (elements))
+
+    prototype = array.Get(2)
+    if prototype is not None:
+      p.Print("[prototype  ] %s" % (prototype))
+
+    for di in xrange(length):
+      i = 3 + di * 2
+      p.Print("[%i] symbol: %s" % (di, array.Get(i + 0)))
+      p.Print("[%i] target: %s" % (di, array.Get(i + 1)))
 
 
 class JSFunction(HeapObject):
@@ -1719,6 +1926,30 @@ class InspectionShell(cmd.Cmd):
       heap_object.Print(Printer())
     else:
       print "Address cannot be interpreted as object!"
+
+  def do_do_desc(self, address):
+    """
+      Print a descriptor array in a readable format.
+    """
+    start = int(address, 16)
+    if ((start & 1) == 1): start = start + 1
+    DescriptorArray(FixedArray(self.heap, None, start)).Print(Printer())
+
+  def do_do_map(self, address):
+    """
+      Print a descriptor array in a readable format.
+    """
+    start = int(address, 16)
+    if ((start & 1) == 1): start = start - 1
+    Map(self.heap, None, start).Print(Printer())
+
+  def do_do_trans(self, address):
+    """
+      Print a transition array in a readable format.
+    """
+    start = int(address, 16)
+    if ((start & 1) == 1): start = start - 1
+    TransitionArray(FixedArray(self.heap, None, start)).Print(Printer())
 
   def do_dp(self, address):
     """

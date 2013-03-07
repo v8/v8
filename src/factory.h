@@ -60,7 +60,7 @@ class Factory {
   Handle<UnseededNumberDictionary> NewUnseededNumberDictionary(
       int at_least_space_for);
 
-  Handle<StringDictionary> NewStringDictionary(int at_least_space_for);
+  Handle<NameDictionary> NewNameDictionary(int at_least_space_for);
 
   Handle<ObjectHashSet> NewObjectHashSet(int at_least_space_for);
 
@@ -204,6 +204,8 @@ class Factory {
   // Allocate a new struct.  The struct is pretenured (allocated directly in
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
+
+  Handle<DeclaredAccessorDescriptor> NewDeclaredAccessorDescriptor();
 
   Handle<DeclaredAccessorInfo> NewDeclaredAccessorInfo();
 

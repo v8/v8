@@ -577,7 +577,10 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       object->elements()->length() == 0) {
     Handle<Map> map(object->map());
     for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
-      Handle<String> key(map->instance_descriptors()->GetKey(i), isolate_);
+      Handle<Name> name(map->instance_descriptors()->GetKey(i), isolate_);
+      // TODO(rossberg): Should this throw?
+      if (!name->IsString()) continue;
+      Handle<String> key = Handle<String>::cast(name);
       PropertyDetails details = map->instance_descriptors()->GetDetails(i);
       if (details.IsDontEnum() || details.IsDeleted()) continue;
       Handle<Object> property;
@@ -679,7 +682,8 @@ void BasicJsonStringifier::SerializeStringUnchecked_(const SrcChar* src,
     if (DoNotEscape(c)) {
       *(dest++) = static_cast<DestChar>(c);
     } else {
-      const char* chars = &JsonEscapeTable[c * kJsonEscapeTableEntrySize];
+      const uint8_t* chars = reinterpret_cast<const uint8_t*>(
+          &JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
       while (*chars != '\0') *(dest++) = *(chars++);
     }
   }
@@ -719,9 +723,8 @@ void BasicJsonStringifier::SerializeString_(Handle<String> string) {
       if (DoNotEscape(c)) {
         Append_<is_ascii, Char>(c);
       } else {
-        Append_<is_ascii, uint8_t>(
-            reinterpret_cast<const uint8_t*>(
-                &JsonEscapeTable[c * kJsonEscapeTableEntrySize]));
+        Append_<is_ascii, uint8_t>(reinterpret_cast<const uint8_t*>(
+            &JsonEscapeTable[c * kJsonEscapeTableEntrySize]));
       }
       // If GC moved the string, we need to refresh the vector.
       if (*string != string_location) {

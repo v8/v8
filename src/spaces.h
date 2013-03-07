@@ -1648,11 +1648,7 @@ class PagedSpace : public Space {
 
   // As size, but the bytes in lazily swept pages are estimated and the bytes
   // in the current linear allocation area are not included.
-  virtual intptr_t SizeOfObjects() {
-    // TODO(hpayer): broken when concurrent sweeping turned on
-    ASSERT(!IsLazySweepingComplete() || (unswept_free_bytes_ == 0));
-    return Size() - unswept_free_bytes_ - (limit() - top());
-  }
+  virtual intptr_t SizeOfObjects();
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.  They do not include the
@@ -1769,9 +1765,9 @@ class PagedSpace : public Space {
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);
 
-  // When parallel sweeper threads are active this function waits
-  // for them to complete, otherwise AdvanceSweeper with size_in_bytes
-  // is called.
+  // When parallel sweeper threads are active and the main thread finished
+  // its sweeping phase, this function waits for them to complete, otherwise
+  // AdvanceSweeper with size_in_bytes is called.
   bool EnsureSweeperProgress(intptr_t size_in_bytes);
 
   bool IsLazySweepingComplete() {

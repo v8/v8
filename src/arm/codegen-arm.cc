@@ -72,7 +72,7 @@ UnaryMathFunction CreateExpFunction() {
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
 
   {
-    CpuFeatures::Scope use_vfp(VFP2);
+    CpuFeatureScope use_vfp(&masm, VFP2);
     DwVfpRegister input = d0;
     DwVfpRegister result = d1;
     DwVfpRegister double_scratch1 = d2;
@@ -277,7 +277,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Normal smi, convert to double and store.
   if (vfp2_supported) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     __ vmov(s0, r9);
     __ vcvt_f64_s32(d0, s0);
     __ vstr(d0, r7, 0);

@@ -184,7 +184,7 @@ test_div();
 %OptimizeFunctionOnNextCall(test_div);
 test_div();
 
-// Test for ia32/x64 flooring correctness.
+// Test for flooring correctness.
 var values2 = [1, 3, 10, 99, 100, 101, 0x7fffffff];
 function test_div2() {
   for (var i = 0; i < values2.length; i++) {

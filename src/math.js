@@ -37,7 +37,7 @@ var $abs = MathAbs;
 function MathConstructor() {}
 %FunctionSetInstanceClassName(MathConstructor, 'Math');
 var $Math = new MathConstructor();
-$Math.__proto__ = $Object.prototype;
+%SetPrototype($Math, $Object.prototype);
 %SetProperty(global, "Math", $Math, DONT_ENUM);
 
 // ECMA 262 - 15.8.2.1

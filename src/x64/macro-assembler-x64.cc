@@ -898,7 +898,7 @@ void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
   }
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == kSaveFPRegs) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(this, SSE2);
     subq(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
@@ -913,7 +913,7 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
                                     Register exclusion2,
                                     Register exclusion3) {
   if (fp_mode == kSaveFPRegs) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(this, SSE2);
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(reg, Operand(rsp, i * kDoubleSize));
@@ -3017,6 +3017,19 @@ void MacroAssembler::AssertString(Register object) {
 }
 
 
+void MacroAssembler::AssertName(Register object) {
+  if (emit_debug_code()) {
+    testb(object, Immediate(kSmiTagMask));
+    Check(not_equal, "Operand is a smi and not a name");
+    push(object);
+    movq(object, FieldOperand(object, HeapObject::kMapOffset));
+    CmpInstanceType(object, LAST_NAME_TYPE);
+    pop(object);
+    Check(below_equal, "Operand is not a name");
+  }
+}
+
+
 void MacroAssembler::AssertRootValue(Register src,
                                      Heap::RootListIndex root_value_index,
                                      const char* message) {
@@ -3038,6 +3051,16 @@ Condition MacroAssembler::IsObjectStringType(Register heap_object,
   STATIC_ASSERT(kNotStringTag != 0);
   testb(instance_type, Immediate(kIsNotStringMask));
   return zero;
+}
+
+
+Condition MacroAssembler::IsObjectNameType(Register heap_object,
+                                           Register map,
+                                           Register instance_type) {
+  movq(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  movzxbl(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
+  cmpb(instance_type, Immediate(static_cast<uint8_t>(LAST_NAME_TYPE)));
+  return below_equal;
 }
 
 

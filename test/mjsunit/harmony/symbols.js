@@ -114,14 +114,115 @@ function TestSet() {
 TestSet()
 
 
-function TestMap() {
-  var map = new Map;
+function TestCollections() {
+  var set = new Set
+  var map = new Map
+  var weakmap = new WeakMap
   for (var i in symbols) {
+    set.add(symbols[i])
     map.set(symbols[i], i)
+    weakmap.set(symbols[i], i)
+  }
+  assertEquals(symbols.length, set.size)
+  assertEquals(symbols.length, map.size)
+  for (var i in symbols) {
+    assertTrue(set.has(symbols[i]))
+    assertTrue(map.has(symbols[i]))
+    assertTrue(weakmap.has(symbols[i]))
+    assertEquals(i, map.get(symbols[i]))
+    assertEquals(i, weakmap.get(symbols[i]))
   }
   for (var i in symbols) {
-    assertTrue(map.has(symbols[i]))
-    assertEquals(i, map.get(symbols[i]))
+    assertTrue(set.delete(symbols[i]))
+    assertTrue(map.delete(symbols[i]))
+    assertTrue(weakmap.delete(symbols[i]))
+  }
+  assertEquals(0, set.size)
+  assertEquals(0, map.size)
+}
+TestCollections()
+
+
+
+function TestKeySet(obj) {
+  // Set the even symbols via assignment.
+  for (var i = 0; i < symbols.length; i += 2) {
+    obj[symbols[i]] = i
   }
 }
-TestMap()
+
+
+function TestKeyDefine(obj) {
+  // Set the odd symbols via defineProperty (as non-enumerable).
+  for (var i = 1; i < symbols.length; i += 2) {
+    Object.defineProperty(obj, symbols[i], {value: i, configurable: true})
+  }
+}
+
+
+function TestKeyGet(obj) {
+  var obj2 = Object.create(obj)
+  for (var i in symbols) {
+    assertEquals(i|0, obj[symbols[i]])
+    assertEquals(i|0, obj2[symbols[i]])
+  }
+}
+
+
+function TestKeyHas() {
+  for (var i in symbols) {
+    assertTrue(symbols[i] in obj)
+    assertTrue(Object.hasOwnProperty.call(obj, symbols[i]))
+  }
+}
+
+
+function TestKeyEnum(obj) {
+  for (var name in obj) {
+    assertFalse(%_IsSymbol(name))
+  }
+}
+
+
+function TestKeyKeys(obj) {
+  assertEquals(0, Object.keys(obj).length)
+  assertTrue(symbols.length <= Object.getOwnPropertyNames(obj).length)
+}
+
+
+function TestKeyDescriptor(obj) {
+  for (var i in symbols) {
+    var desc = Object.getOwnPropertyDescriptor(obj, symbols[i]);
+    assertEquals(i|0, desc.value)
+    assertTrue(desc.configurable)
+    assertEquals(i % 2 == 0, desc.writable)
+    assertEquals(i % 2 == 0, desc.enumerable)
+    assertEquals(i % 2 == 0,
+        Object.prototype.propertyIsEnumerable.call(obj, symbols[i]))
+  }
+}
+
+
+function TestKeyDelete(obj) {
+  for (var i in symbols) {
+    delete obj[symbols[i]]
+  }
+  for (var i in symbols) {
+    assertEquals(undefined, Object.getOwnPropertyDescriptor(obj, symbols[i]))
+  }
+}
+
+
+var objs = [{}, [], Object.create(null), Object(1), new Map, function(){}]
+
+for (var i in objs) {
+  var obj = objs[i]
+  TestKeySet(obj)
+  TestKeyDefine(obj)
+  TestKeyGet(obj)
+  TestKeyHas(obj)
+  TestKeyEnum(obj)
+  TestKeyKeys(obj)
+  TestKeyDescriptor(obj)
+  TestKeyDelete(obj)
+}

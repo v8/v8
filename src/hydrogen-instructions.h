@@ -2868,7 +2868,7 @@ class HCheckSmiOrInt32: public HUnaryOperation {
   }
 
   virtual HValue* Canonicalize() {
-    if (representation().IsTagged() && !type().IsSmi()) {
+    if (representation().IsTagged() && !value()->type().IsSmi()) {
       return this;
     } else {
       return value();
@@ -4671,6 +4671,8 @@ class HAllocate: public HTemplateInstruction<2> {
   bool MustAllocateDoubleAligned() const {
     return (flags_ & ALLOCATE_DOUBLE_ALIGNED) != 0;
   }
+
+  virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate)
 

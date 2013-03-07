@@ -67,6 +67,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       compacting_(false),
       was_marked_incrementally_(false),
       sweeping_pending_(false),
+      sequential_sweeping_(false),
       tracer_(NULL),
       migration_slots_buffer_(NULL),
       heap_(NULL),
@@ -550,16 +551,15 @@ void MarkCompactCollector::StartSweeperThreads() {
 
 
 void MarkCompactCollector::WaitUntilSweepingCompleted() {
-  if (sweeping_pending_) {
-    for (int i = 0; i < FLAG_sweeper_threads; i++) {
-      heap()->isolate()->sweeper_threads()[i]->WaitForSweeperThread();
-    }
-    sweeping_pending_ = false;
-    StealMemoryFromSweeperThreads(heap()->paged_space(OLD_DATA_SPACE));
-    StealMemoryFromSweeperThreads(heap()->paged_space(OLD_POINTER_SPACE));
-    heap()->paged_space(OLD_DATA_SPACE)->ResetUnsweptFreeBytes();
-    heap()->paged_space(OLD_POINTER_SPACE)->ResetUnsweptFreeBytes();
+  ASSERT(sweeping_pending_ == true);
+  for (int i = 0; i < FLAG_sweeper_threads; i++) {
+    heap()->isolate()->sweeper_threads()[i]->WaitForSweeperThread();
   }
+  sweeping_pending_ = false;
+  StealMemoryFromSweeperThreads(heap()->paged_space(OLD_DATA_SPACE));
+  StealMemoryFromSweeperThreads(heap()->paged_space(OLD_POINTER_SPACE));
+  heap()->paged_space(OLD_DATA_SPACE)->ResetUnsweptFreeBytes();
+  heap()->paged_space(OLD_POINTER_SPACE)->ResetUnsweptFreeBytes();
 }
 
 
@@ -908,7 +908,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 
   ASSERT(!FLAG_never_compact || !FLAG_always_compact);
 
-  if (AreSweeperThreadsActivated() && FLAG_concurrent_sweeping) {
+  if (IsConcurrentSweepingInProgress()) {
     // Instead of waiting we could also abort the sweeper threads here.
     WaitUntilSweepingCompleted();
     FinalizeSweeping();
@@ -1059,16 +1059,6 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
   }
 
   shared_function_info_candidates_head_ = NULL;
-}
-
-
-bool CodeFlusher::ContainsCandidate(SharedFunctionInfo* shared_info) {
-  SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
-  while (candidate != NULL) {
-    if (candidate == shared_info) return true;
-    candidate = GetNextCandidate(candidate);
-  }
-  return false;
 }
 
 
@@ -3771,10 +3761,10 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
 
   PageIterator it(space);
 
-  intptr_t freed_bytes = 0;
   int pages_swept = 0;
   bool lazy_sweeping_active = false;
   bool unused_page_present = false;
+  bool parallel_sweeping_active = false;
 
   while (it.has_next()) {
     Page* p = it.next();
@@ -3810,15 +3800,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
       unused_page_present = true;
     }
 
-    if (lazy_sweeping_active) {
-      if (FLAG_gc_verbose) {
-        PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
-               reinterpret_cast<intptr_t>(p));
-      }
-      space->IncreaseUnsweptFreeBytes(p);
-      continue;
-    }
-
     switch (sweeper) {
       case CONSERVATIVE: {
         if (FLAG_gc_verbose) {
@@ -3830,24 +3811,42 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         break;
       }
       case LAZY_CONSERVATIVE: {
-        if (FLAG_gc_verbose) {
-          PrintF("Sweeping 0x%" V8PRIxPTR " conservatively as needed.\n",
-                 reinterpret_cast<intptr_t>(p));
+        if (lazy_sweeping_active) {
+          if (FLAG_gc_verbose) {
+            PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
+                   reinterpret_cast<intptr_t>(p));
+          }
+          space->IncreaseUnsweptFreeBytes(p);
+        } else {
+          if (FLAG_gc_verbose) {
+            PrintF("Sweeping 0x%" V8PRIxPTR " conservatively.\n",
+                   reinterpret_cast<intptr_t>(p));
+          }
+          SweepConservatively<SWEEP_SEQUENTIALLY>(space, NULL, p);
+          pages_swept++;
+          space->SetPagesToSweep(p->next_page());
+          lazy_sweeping_active = true;
         }
-        freed_bytes += SweepConservatively<SWEEP_SEQUENTIALLY>(space, NULL, p);
-        pages_swept++;
-        space->SetPagesToSweep(p->next_page());
-        lazy_sweeping_active = true;
         break;
       }
       case CONCURRENT_CONSERVATIVE:
       case PARALLEL_CONSERVATIVE: {
-        if (FLAG_gc_verbose) {
-          PrintF("Sweeping 0x%" V8PRIxPTR " conservatively in parallel.\n",
-                 reinterpret_cast<intptr_t>(p));
+        if (!parallel_sweeping_active) {
+          if (FLAG_gc_verbose) {
+            PrintF("Sweeping 0x%" V8PRIxPTR " conservatively.\n",
+                   reinterpret_cast<intptr_t>(p));
+          }
+          SweepConservatively<SWEEP_SEQUENTIALLY>(space, NULL, p);
+          pages_swept++;
+          parallel_sweeping_active = true;
+        } else {
+          if (FLAG_gc_verbose) {
+            PrintF("Sweeping 0x%" V8PRIxPTR " conservatively in parallel.\n",
+                   reinterpret_cast<intptr_t>(p));
+          }
+          p->set_parallel_sweeping(1);
+          space->IncreaseUnsweptFreeBytes(p);
         }
-        p->set_parallel_sweeping(1);
-        space->IncreaseUnsweptFreeBytes(p);
         break;
       }
       case PRECISE: {
@@ -3896,7 +3895,7 @@ void MarkCompactCollector::SweepSpaces() {
   // the map space last because freeing non-live maps overwrites them and
   // the other spaces rely on possibly non-live maps to get the sizes for
   // non-live objects.
-
+  SequentialSweepingScope scope(this);
   SweepSpace(heap()->old_pointer_space(), how_to_sweep);
   SweepSpace(heap()->old_data_space(), how_to_sweep);
 

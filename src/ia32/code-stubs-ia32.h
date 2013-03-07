@@ -64,7 +64,9 @@ class TranscendentalCacheStub: public PlatformCodeStub {
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
-      : save_doubles_(save_fp) { }
+      : save_doubles_(save_fp) {
+    ASSERT(CpuFeatures::IsSafeForSnapshot(SSE2) || save_fp == kDontSaveFPRegs);
+  }
 
   void Generate(MacroAssembler* masm);
 
@@ -320,14 +322,14 @@ class NumberToStringStub: public PlatformCodeStub {
 };
 
 
-class StringDictionaryLookupStub: public PlatformCodeStub {
+class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
-  StringDictionaryLookupStub(Register dictionary,
-                             Register result,
-                             Register index,
-                             LookupMode mode)
+  NameDictionaryLookupStub(Register dictionary,
+                           Register result,
+                           Register index,
+                           LookupMode mode)
       : dictionary_(dictionary), result_(result), index_(index), mode_(mode) { }
 
   void Generate(MacroAssembler* masm);
@@ -336,7 +338,7 @@ class StringDictionaryLookupStub: public PlatformCodeStub {
                                      Label* miss,
                                      Label* done,
                                      Register properties,
-                                     Handle<String> name,
+                                     Handle<Name> name,
                                      Register r0);
 
   static void GeneratePositiveLookup(MacroAssembler* masm,
@@ -354,14 +356,14 @@ class StringDictionaryLookupStub: public PlatformCodeStub {
   static const int kTotalProbes = 20;
 
   static const int kCapacityOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kCapacityIndex * kPointerSize;
+      NameDictionary::kHeaderSize +
+      NameDictionary::kCapacityIndex * kPointerSize;
 
   static const int kElementsStartOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kElementsStartIndex * kPointerSize;
+      NameDictionary::kHeaderSize +
+      NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return StringDictionaryLookup; }
+  Major MajorKey() { return NameDictionaryLookup; }
 
   int MinorKey() {
     return DictionaryBits::encode(dictionary_.code()) |
@@ -397,6 +399,7 @@ class RecordWriteStub: public PlatformCodeStub {
         regs_(object,   // An input reg.
               address,  // An input reg.
               value) {  // One scratch reg.
+    ASSERT(CpuFeatures::IsSafeForSnapshot(SSE2) || fp_mode == kDontSaveFPRegs);
   }
 
   enum Mode {
@@ -540,7 +543,7 @@ class RecordWriteStub: public PlatformCodeStub {
       if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->push(eax);
       if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->push(edx);
       if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(SSE2);
+        CpuFeatureScope scope(masm, SSE2);
         masm->sub(esp,
                   Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
         // Save all XMM registers except XMM0.
@@ -554,7 +557,7 @@ class RecordWriteStub: public PlatformCodeStub {
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(SSE2);
+        CpuFeatureScope scope(masm, SSE2);
         // Restore all XMM registers except XMM0.
         for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
           XMMRegister reg = XMMRegister::from_code(i);

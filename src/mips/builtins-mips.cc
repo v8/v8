@@ -555,34 +555,64 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0     : number of arguments
   //  -- a1     : constructor function
+  //  -- a2     : type info cell
   //  -- ra     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
-  Label generic_constructor;
 
   if (FLAG_debug_code) {
     // The array construct code is only set for the builtin and internal
     // Array functions which always have a map.
     // Initial map for the builtin Array function should be a map.
-    __ lw(a2, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
-    __ And(t0, a2, Operand(kSmiTagMask));
+    __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
+    __ And(t0, a3, Operand(kSmiTagMask));
     __ Assert(ne, "Unexpected initial map for Array function (3)",
               t0, Operand(zero_reg));
-    __ GetObjectType(a2, a3, t0);
+    __ GetObjectType(a3, a3, t0);
     __ Assert(eq, "Unexpected initial map for Array function (4)",
               t0, Operand(MAP_TYPE));
+
+    if (FLAG_optimize_constructed_arrays) {
+      // We should either have undefined in a2 or a valid jsglobalpropertycell
+      Label okay_here;
+      Handle<Object> undefined_sentinel(
+          masm->isolate()->heap()->undefined_value(), masm->isolate());
+      Handle<Map> global_property_cell_map(
+          masm->isolate()->heap()->global_property_cell_map());
+      __ Branch(&okay_here, eq, a2, Operand(undefined_sentinel));
+      __ lw(a3, FieldMemOperand(a2, 0));
+      __ Assert(eq, "Expected property cell in register a3",
+                a3, Operand(global_property_cell_map));
+      __ bind(&okay_here);
+    }
   }
 
-  // Run the native code for the Array function called as a constructor.
-  ArrayNativeCode(masm, &generic_constructor);
+  if (FLAG_optimize_constructed_arrays) {
+    Label not_zero_case, not_one_case;
+    __ Branch(&not_zero_case, ne, a0, Operand(zero_reg));
+    ArrayNoArgumentConstructorStub no_argument_stub;
+    __ TailCallStub(&no_argument_stub);
 
-  // Jump to the generic construct code in case the specialized code cannot
-  // handle the construction.
-  __ bind(&generic_constructor);
+    __ bind(&not_zero_case);
+    __ Branch(&not_one_case, gt, a0, Operand(1));
+    ArraySingleArgumentConstructorStub single_argument_stub;
+    __ TailCallStub(&single_argument_stub);
 
-  Handle<Code> generic_construct_stub =
-      masm->isolate()->builtins()->JSConstructStubGeneric();
-  __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+    __ bind(&not_one_case);
+    ArrayNArgumentsConstructorStub n_argument_stub;
+    __ TailCallStub(&n_argument_stub);
+  } else {
+    Label generic_constructor;
+    // Run the native code for the Array function called as a constructor.
+    ArrayNativeCode(masm, &generic_constructor);
+
+    // Jump to the generic construct code in case the specialized code cannot
+    // handle the construction.
+    __ bind(&generic_constructor);
+    Handle<Code> generic_construct_stub =
+        masm->isolate()->builtins()->JSConstructStubGeneric();
+    __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+  }
 }
 
 
@@ -698,7 +728,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // Load the empty string into a2, remove the receiver from the
   // stack, and jump back to the case where the argument is a string.
   __ bind(&no_arguments);
-  __ LoadRoot(argument, Heap::kEmptyStringRootIndex);
+  __ LoadRoot(argument, Heap::kempty_stringRootIndex);
   __ Drop(1);
   __ Branch(&argument_is_string);
 
@@ -1171,6 +1201,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Invoke the code and pass argc as a0.
     __ mov(a0, a3);
     if (is_construct) {
+      // No type feedback cell is available
+      Handle<Object> undefined_sentinel(
+          masm->isolate()->heap()->undefined_value(), masm->isolate());
+      __ li(a2, Operand(undefined_sentinel));
       CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
       __ CallStub(&stub);
     } else {
@@ -1375,12 +1409,6 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  CpuFeatures::TryForceFeatureScope scope(VFP3);
-  if (!CpuFeatures::IsSupported(FPU)) {
-    __ Abort("Unreachable code: Cannot optimize without FPU support.");
-    return;
-  }
-
   // Lookup the function in the JavaScript frame and push it as an
   // argument to the on-stack replacement function.
   __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));

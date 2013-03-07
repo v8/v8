@@ -853,7 +853,7 @@ void MacroAssembler::MultiPopReversed(RegList regs) {
 
 
 void MacroAssembler::MultiPushFPU(RegList regs) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(this, FPU);
   int16_t num_to_push = NumberOfBitsSet(regs);
   int16_t stack_offset = num_to_push * kDoubleSize;
 
@@ -868,7 +868,7 @@ void MacroAssembler::MultiPushFPU(RegList regs) {
 
 
 void MacroAssembler::MultiPushReversedFPU(RegList regs) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(this, FPU);
   int16_t num_to_push = NumberOfBitsSet(regs);
   int16_t stack_offset = num_to_push * kDoubleSize;
 
@@ -883,7 +883,7 @@ void MacroAssembler::MultiPushReversedFPU(RegList regs) {
 
 
 void MacroAssembler::MultiPopFPU(RegList regs) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(this, FPU);
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
@@ -897,7 +897,7 @@ void MacroAssembler::MultiPopFPU(RegList regs) {
 
 
 void MacroAssembler::MultiPopReversedFPU(RegList regs) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(this, FPU);
   int16_t stack_offset = 0;
 
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
@@ -1125,23 +1125,19 @@ void MacroAssembler::BranchF(Label* target,
     // have been handled by the caller.
     // Unsigned conditions are treated as their signed counterpart.
     switch (cc) {
-      case Uless:
-      case less:
+      case lt:
         c(OLT, D, cmp1, cmp2);
         bc1t(target);
         break;
-      case Ugreater:
-      case greater:
+      case gt:
         c(ULE, D, cmp1, cmp2);
         bc1f(target);
         break;
-      case Ugreater_equal:
-      case greater_equal:
+      case ge:
         c(ULT, D, cmp1, cmp2);
         bc1f(target);
         break;
-      case Uless_equal:
-      case less_equal:
+      case le:
         c(OLE, D, cmp1, cmp2);
         bc1t(target);
         break;
@@ -1149,8 +1145,16 @@ void MacroAssembler::BranchF(Label* target,
         c(EQ, D, cmp1, cmp2);
         bc1t(target);
         break;
+      case ueq:
+        c(UEQ, D, cmp1, cmp2);
+        bc1t(target);
+        break;
       case ne:
         c(EQ, D, cmp1, cmp2);
+        bc1f(target);
+        break;
+      case nue:
+        c(UEQ, D, cmp1, cmp2);
         bc1f(target);
         break;
       default:
@@ -1165,7 +1169,7 @@ void MacroAssembler::BranchF(Label* target,
 
 
 void MacroAssembler::Move(FPURegister dst, double imm) {
-  ASSERT(CpuFeatures::IsEnabled(FPU));
+  ASSERT(IsEnabled(FPU));
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
   DoubleRepresentation value(imm);
@@ -1345,7 +1349,7 @@ void MacroAssembler::ConvertToInt32(Register source,
   }
   bind(&right_exponent);
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(this, FPU);
     // MIPS FPU instructions implementing double precision to integer
     // conversion using round to zero. Since the FP value was qualified
     // above, the resulting integer should be a legal int32.
@@ -1406,7 +1410,7 @@ void MacroAssembler::EmitFPUTruncate(FPURoundingMode rounding_mode,
   ASSERT(!except_flag.is(scratch));
 
   ASSERT(CpuFeatures::IsSupported(FPU));
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(this, FPU);
   Label done;
 
   // Clear the except flag (0 = no exception)
@@ -1548,7 +1552,7 @@ void MacroAssembler::EmitECMATruncate(Register result,
                                       Register scratch,
                                       Register scratch2,
                                       Register scratch3) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(this, FPU);
   ASSERT(!scratch2.is(result));
   ASSERT(!scratch3.is(result));
   ASSERT(!scratch3.is(scratch2));
@@ -3484,7 +3488,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                           scratch4,
                                           f2);
   if (destination == FloatingPointHelper::kFPURegisters) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(this, FPU);
     sdc1(f0, MemOperand(scratch1, 0));
   } else {
     sw(mantissa_reg, MemOperand(scratch1, 0));
@@ -3577,7 +3581,7 @@ void MacroAssembler::CheckMap(Register obj,
 
 
 void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(this, FPU);
   if (IsMipsSoftFloatABI) {
     Move(dst, v0, v1);
   } else {
@@ -3587,7 +3591,7 @@ void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
 
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(this, FPU);
   if (!IsMipsSoftFloatABI) {
     Move(f12, dreg);
   } else {
@@ -3598,7 +3602,7 @@ void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
                                              DoubleRegister dreg2) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(this, FPU);
   if (!IsMipsSoftFloatABI) {
     if (dreg2.is(f12)) {
       ASSERT(!dreg1.is(f14));
@@ -3617,7 +3621,7 @@ void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg,
                                              Register reg) {
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(this, FPU);
   if (!IsMipsSoftFloatABI) {
     Move(f12, dreg);
     Move(a2, reg);
@@ -4557,6 +4561,19 @@ void MacroAssembler::LoadGlobalFunction(int index, Register function) {
 }
 
 
+void MacroAssembler::LoadArrayFunction(Register function) {
+  // Load the global or builtins object from the current context.
+  lw(function,
+     MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  // Load the global context from the global or builtins object.
+  lw(function,
+     FieldMemOperand(function, GlobalObject::kGlobalContextOffset));
+  // Load the array function from the native context.
+  lw(function,
+     MemOperand(function, Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+}
+
+
 void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
                                                   Register map,
                                                   Register scratch) {
@@ -4632,7 +4649,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   if (save_doubles) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(this, FPU);
     // The stack  must be allign to 0 modulo 8 for stores with sdc1.
     ASSERT(kDoubleSize == frame_alignment);
     if (frame_alignment > 0) {
@@ -4670,7 +4687,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     bool do_return) {
   // Optionally restore all double registers.
   if (save_doubles) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(this, FPU);
     // Remember: we only need to restore every 2nd double FPU value.
     lw(t8, MemOperand(fp, ExitFrameConstants::kSPOffset));
     for (int i = 0; i < FPURegister::kMaxNumRegisters; i+=2) {

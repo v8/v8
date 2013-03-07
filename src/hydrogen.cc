@@ -75,6 +75,11 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       is_osr_entry_(false) { }
 
 
+Isolate* HBasicBlock::isolate() const {
+  return graph_->isolate();
+}
+
+
 void HBasicBlock::AttachLoopInformation() {
   ASSERT(!IsLoopHeader());
   loop_information_ = new(zone()) HLoopInformation(this, zone());
@@ -829,8 +834,8 @@ void HGraphBuilder::LoopBuilder::EndBody() {
 
 HGraph* HGraphBuilder::CreateGraph() {
   graph_ = new(zone()) HGraph(info_);
-  if (FLAG_hydrogen_stats) HStatistics::Instance()->Initialize(info_);
-  HPhase phase("H_Block building");
+  if (FLAG_hydrogen_stats) isolate()->GetHStatistics()->Initialize(info_);
+  HPhase phase("H_Block building", isolate());
   set_current_block(graph()->entry_block());
   if (!BuildGraph()) return NULL;
   return graph_;
@@ -1001,7 +1006,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       AddInstruction(new(zone) HLoadElements(object, mapcheck));
   if (is_store && (fast_elements || fast_smi_only_elements)) {
     HCheckMaps* check_cow_map = new(zone) HCheckMaps(
-        elements, graph()->isolate()->factory()->fixed_array_map(), zone);
+        elements, isolate()->factory()->fixed_array_map(), zone);
     check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
     AddInstruction(check_cow_map);
   }
@@ -1066,16 +1071,14 @@ HValue* HGraphBuilder::BuildAllocateElements(HContext* context,
   HValue* elements =
       AddInstruction(new(zone) HAllocate(context, total_size,
                                          HType::JSArray(), flags));
-  Isolate* isolate = graph()->isolate();
 
-  Factory* factory = isolate->factory();
+  Factory* factory = isolate()->factory();
   Handle<Map> map = IsFastDoubleElementsKind(kind)
       ? factory->fixed_double_array_map()
       : factory->fixed_array_map();
   BuildStoreMap(elements, map, BailoutId::StubEntry());
 
-  Handle<String> fixed_array_length_field_name =
-      isolate->factory()->length_field_string();
+  Handle<String> fixed_array_length_field_name = factory->length_field_string();
   HInstruction* store_length =
       new(zone) HStoreNamedField(elements, fixed_array_length_field_name,
                                  capacity, true, FixedArray::kLengthOffset);
@@ -1090,8 +1093,7 @@ HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
                                            HValue* map,
                                            BailoutId id) {
   Zone* zone = this->zone();
-  Isolate* isolate = graph()->isolate();
-  Factory* factory = isolate->factory();
+  Factory* factory = isolate()->factory();
   Handle<String> map_field_name = factory->map_field_string();
   HInstruction* store_map =
       new(zone) HStoreNamedField(object, map_field_name, map,
@@ -1553,7 +1555,7 @@ class PostorderProcessor : public ZoneObject {
 
 
 void HGraph::OrderBlocks() {
-  HPhase phase("H_Block ordering");
+  HPhase phase("H_Block ordering", isolate());
   BitVector visited(blocks_.length(), zone());
 
   ZoneList<HBasicBlock*> reverse_result(8, zone());
@@ -9380,7 +9382,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return HandleLiteralCompareTypeof(expr, typeof_expr, check);
   }
   HValue* sub_expr = NULL;
-  Factory* f = graph()->isolate()->factory();
+  Factory* f = isolate()->factory();
   if (IsLiteralCompareNil(left, op, right, f->undefined_value(), &sub_expr)) {
     return HandleLiteralCompareNil(expr, sub_expr, kUndefinedValue);
   }
@@ -10511,7 +10513,7 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
 
 
 void HTracer::TraceLithium(const char* name, LChunk* chunk) {
-  AllowHandleDereference allow_handle_deref(chunk->graph()->isolate());
+  AllowHandleDereference allow_handle_deref(chunk->isolate());
   Trace(name, chunk->graph(), chunk);
 }
 
@@ -10713,7 +10715,7 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type,
 
 
 void HTracer::FlushToFile() {
-  AppendChars(filename_, *trace_.ToCString(), trace_.length(), false);
+  AppendChars(filename_.start(), *trace_.ToCString(), trace_.length(), false);
   trace_.Reset();
 }
 
@@ -10798,10 +10800,33 @@ void HStatistics::SaveTiming(const char* name, int64_t ticks, unsigned size) {
 
 const char* const HPhase::kFullCodeGen = "Full code generator";
 
-void HPhase::Begin(const char* name,
-                   HGraph* graph,
-                   LChunk* chunk,
-                   LAllocator* allocator) {
+
+HPhase::HPhase(const char* name, Isolate* isolate) {
+  Init(isolate, name, NULL, NULL, NULL);
+}
+
+
+HPhase::HPhase(const char* name, HGraph* graph) {
+  Init(graph->isolate(), name, graph, NULL, NULL);
+}
+
+
+HPhase::HPhase(const char* name, LChunk* chunk) {
+  Init(chunk->isolate(), name, NULL, chunk, NULL);
+}
+
+
+HPhase::HPhase(const char* name, LAllocator* allocator) {
+  Init(allocator->isolate(), name, NULL, NULL, allocator);
+}
+
+
+void HPhase::Init(Isolate* isolate,
+                  const char* name,
+                  HGraph* graph,
+                  LChunk* chunk,
+                  LAllocator* allocator) {
+  isolate_ = isolate;
   name_ = name;
   graph_ = graph;
   chunk_ = chunk;
@@ -10809,26 +10834,32 @@ void HPhase::Begin(const char* name,
   if (allocator != NULL && chunk_ == NULL) {
     chunk_ = allocator->chunk();
   }
-  if (FLAG_hydrogen_stats) start_ = OS::Ticks();
-  start_allocation_size_ = Zone::allocation_size_;
+  if (FLAG_hydrogen_stats) {
+    start_ticks_ = OS::Ticks();
+    start_allocation_size_ = Zone::allocation_size_;
+  }
 }
 
 
-void HPhase::End() const {
+HPhase::~HPhase() {
   if (FLAG_hydrogen_stats) {
-    int64_t end = OS::Ticks();
+    int64_t ticks = OS::Ticks() - start_ticks_;
     unsigned size = Zone::allocation_size_ - start_allocation_size_;
-    HStatistics::Instance()->SaveTiming(name_, end - start_, size);
+    isolate_->GetHStatistics()->SaveTiming(name_, ticks, size);
   }
 
   // Produce trace output if flag is set so that the first letter of the
   // phase name matches the command line parameter FLAG_trace_phase.
   if (FLAG_trace_hydrogen &&
       OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL) {
-    if (graph_ != NULL) HTracer::Instance()->TraceHydrogen(name_, graph_);
-    if (chunk_ != NULL) HTracer::Instance()->TraceLithium(name_, chunk_);
+    if (graph_ != NULL) {
+      isolate_->GetHTracer()->TraceHydrogen(name_, graph_);
+    }
+    if (chunk_ != NULL) {
+      isolate_->GetHTracer()->TraceLithium(name_, chunk_);
+    }
     if (allocator_ != NULL) {
-      HTracer::Instance()->TraceLiveRanges(name_, allocator_);
+      isolate_->GetHTracer()->TraceLiveRanges(name_, allocator_);
     }
   }
 

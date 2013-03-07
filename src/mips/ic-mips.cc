@@ -305,30 +305,30 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
 }
 
 
-// Checks whether a key is an array index string or a symbol string.
-// Falls through if a key is a symbol.
+// Checks whether a key is an array index string or an internalized string.
+// Falls through if a key is an internalized string.
 static void GenerateKeyStringCheck(MacroAssembler* masm,
                                    Register key,
                                    Register map,
                                    Register hash,
                                    Label* index_string,
-                                   Label* not_symbol) {
+                                   Label* not_internalized) {
   // The key is not a smi.
   // Is it a string?
   __ GetObjectType(key, map, hash);
-  __ Branch(not_symbol, ge, hash, Operand(FIRST_NONSTRING_TYPE));
+  __ Branch(not_internalized, ge, hash, Operand(FIRST_NONSTRING_TYPE));
 
   // Is the string an array index, with cached numeric value?
   __ lw(hash, FieldMemOperand(key, String::kHashFieldOffset));
   __ And(at, hash, Operand(String::kContainsCachedArrayIndexMask));
   __ Branch(index_string, eq, at, Operand(zero_reg));
 
-  // Is the string a symbol?
+  // Is the string internalized?
   // map: key map
   __ lbu(hash, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kSymbolTag != 0);
-  __ And(at, hash, Operand(kIsSymbolMask));
-  __ Branch(not_symbol, eq, at, Operand(zero_reg));
+  STATIC_ASSERT(kInternalizedTag != 0);
+  __ And(at, hash, Operand(kIsInternalizedMask));
+  __ Branch(not_internalized, eq, at, Operand(zero_reg));
 }
 
 
@@ -583,7 +583,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ bind(&check_string);
   GenerateKeyStringCheck(masm, a2, a0, a3, &index_string, &slow_call);
 
-  // The key is known to be a symbol.
+  // The key is known to be internalized.
   // If the receiver is a regular JS object with slow properties then do
   // a quick inline probe of the receiver's dictionary.
   // Otherwise do the monomorphic cache probe.
@@ -610,7 +610,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ bind(&slow_call);
   // This branch is taken if:
   // - the receiver requires boxing or access check,
-  // - the key is neither smi nor symbol,
+  // - the key is neither smi nor an internalized string,
   // - the value loaded is not a function,
   // - there is hope that the runtime will create a monomorphic call stub,
   //   that will get fetched next time.
@@ -991,7 +991,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   int mask = KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask;
   __ And(a3, a3, Operand(mask));
 
-  // Load the key (consisting of map and symbol) from the cache and
+  // Load the key (consisting of map and internalized string) from the cache and
   // check for match.
   Label load_in_object_property;
   static const int kEntriesPerBucket = KeyedLookupCache::kEntriesPerBucket;

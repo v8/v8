@@ -129,10 +129,11 @@ class SmartArrayPointer: public SmartPointerBase<ArrayDeallocator<T>, T> {
 
 template<typename T>
 struct ObjectDeallocator {
-  static void Delete(T* array) {
-    Malloced::Delete(array);
+  static void Delete(T* object) {
+    delete object;
   }
 };
+
 
 template<typename T>
 class SmartPointer: public SmartPointerBase<ObjectDeallocator<T>, T> {

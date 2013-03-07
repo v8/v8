@@ -160,7 +160,7 @@ namespace internal {
   V(Object, last_script_id, LastScriptId)                                      \
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
-  V(StringDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
+  V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
   V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
@@ -226,8 +226,6 @@ namespace internal {
     "KeyedLoadElementMonomorphic")                                       \
   V(KeyedStoreElementMonomorphic_string,                                 \
     "KeyedStoreElementMonomorphic")                                      \
-  V(KeyedStoreAndGrowElementMonomorphic_string,                          \
-    "KeyedStoreAndGrowElementMonomorphic")                               \
   V(stack_overflow_string, "kStackOverflowBoilerplate")                  \
   V(illegal_access_string, "illegal access")                             \
   V(out_of_memory_string, "out-of-memory")                               \
@@ -266,7 +264,7 @@ namespace internal {
   V(infinity_string, "Infinity")                                         \
   V(minus_infinity_string, "-Infinity")                                  \
   V(hidden_stack_trace_string, "v8::hidden_stack_trace")                 \
-  V(query_colon_string, "(?:)")                                          \
+  V(query_colon_string, "(?:)")
 
 // Forward declarations.
 class GCTracer;
@@ -1312,10 +1310,14 @@ class Heap {
 
   // Returns whether the object resides in new space.
   inline bool InNewSpace(Object* object);
-  inline bool InNewSpace(Address addr);
-  inline bool InNewSpacePage(Address addr);
+  inline bool InNewSpace(Address address);
+  inline bool InNewSpacePage(Address address);
   inline bool InFromSpace(Object* object);
   inline bool InToSpace(Object* object);
+
+  // Returns whether the object resides in old pointer space.
+  inline bool InOldPointerSpace(Address address);
+  inline bool InOldPointerSpace(Object* object);
 
   // Checks whether an address/object in the heap (including auxiliary
   // area and unused area).
@@ -1694,6 +1696,12 @@ class Heap {
     ASSERT(!FLAG_parallel_sweeping && !FLAG_concurrent_sweeping);
     bool sweeping_complete = old_data_space()->AdvanceSweeper(step_size);
     sweeping_complete &= old_pointer_space()->AdvanceSweeper(step_size);
+    return sweeping_complete;
+  }
+
+  bool EnsureSweepersProgressed(int step_size) {
+    bool sweeping_complete = old_data_space()->EnsureSweeperProgress(step_size);
+    sweeping_complete &= old_pointer_space()->EnsureSweeperProgress(step_size);
     return sweeping_complete;
   }
 
@@ -2496,10 +2504,10 @@ class HeapIterator BASE_EMBEDDED {
 class KeyedLookupCache {
  public:
   // Lookup field offset for (map, name). If absent, -1 is returned.
-  int Lookup(Map* map, String* name);
+  int Lookup(Map* map, Name* name);
 
   // Update an element in the cache.
-  void Update(Map* map, String* name, int field_offset);
+  void Update(Map* map, Name* name, int field_offset);
 
   // Clear the cache.
   void Clear();
@@ -2524,7 +2532,7 @@ class KeyedLookupCache {
     }
   }
 
-  static inline int Hash(Map* map, String* name);
+  static inline int Hash(Map* map, Name* name);
 
   // Get the address of the keys and field_offsets arrays.  Used in
   // generated code to perform cache lookups.
@@ -2538,7 +2546,7 @@ class KeyedLookupCache {
 
   struct Key {
     Map* map;
-    String* name;
+    Name* name;
   };
 
   Key keys_[kLength];
@@ -2558,8 +2566,8 @@ class DescriptorLookupCache {
  public:
   // Lookup descriptor index for (map, name).
   // If absent, kAbsent is returned.
-  int Lookup(Map* source, String* name) {
-    if (!StringShape(name).IsInternalized()) return kAbsent;
+  int Lookup(Map* source, Name* name) {
+    if (!name->IsUniqueName()) return kAbsent;
     int index = Hash(source, name);
     Key& key = keys_[index];
     if ((key.source == source) && (key.name == name)) return results_[index];
@@ -2567,9 +2575,9 @@ class DescriptorLookupCache {
   }
 
   // Update an element in the cache.
-  void Update(Map* source, String* name, int result) {
+  void Update(Map* source, Name* name, int result) {
     ASSERT(result != kAbsent);
-    if (StringShape(name).IsInternalized()) {
+    if (name->IsUniqueName()) {
       int index = Hash(source, name);
       Key& key = keys_[index];
       key.source = source;
@@ -2592,7 +2600,7 @@ class DescriptorLookupCache {
     }
   }
 
-  static int Hash(Object* source, String* name) {
+  static int Hash(Object* source, Name* name) {
     // Uses only lower 32 bits if pointers are larger.
     uint32_t source_hash =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source))
@@ -2606,7 +2614,7 @@ class DescriptorLookupCache {
   static const int kLength = 64;
   struct Key {
     Map* source;
-    String* name;
+    Name* name;
   };
 
   Key keys_[kLength];

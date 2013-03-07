@@ -59,6 +59,7 @@ class OptimizingCompilerThread : public Thread {
 
   void Run();
   void Stop();
+  void CompileNext();
   void QueueForOptimization(OptimizingCompiler* optimizing_compiler);
   void InstallOptimizedFunctions();
 

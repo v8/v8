@@ -173,9 +173,9 @@ class StringHelper : public AllStatic {
                                          int flags);
 
 
-  // Probe the symbol table for a two character string. If the string is
+  // Probe the string table for a two character string. If the string is
   // not found by probing a jump to the label not_found is performed. This jump
-  // does not guarantee that the string is not in the symbol table. If the
+  // does not guarantee that the string is not in the string table. If the
   // string is found the code falls through with the string in register r0.
   // Contents of both c1 and c2 registers are modified. At the exit c1 is
   // guaranteed to contain halfword with low and high bytes equal to
@@ -484,7 +484,7 @@ class RecordWriteStub: public PlatformCodeStub {
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
       masm->MultiPush((kJSCallerSaved | ra.bit()) & ~scratch1_.bit());
       if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm, FPU);
         masm->MultiPushFPU(kCallerSavedFPU);
       }
     }
@@ -492,7 +492,7 @@ class RecordWriteStub: public PlatformCodeStub {
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm, FPU);
         masm->MultiPopFPU(kCallerSavedFPU);
       }
       masm->MultiPop((kJSCallerSaved | ra.bit()) & ~scratch1_.bit());

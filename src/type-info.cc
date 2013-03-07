@@ -126,12 +126,12 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(TypeFeedbackId ast_id) {
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    bool allow_growth =
-        Code::GetKeyedAccessGrowMode(code->extra_ic_state()) ==
-        ALLOW_JSARRAY_GROWTH;
+    bool standard_store =
+        Code::GetKeyedAccessStoreMode(code->extra_ic_state()) ==
+        STANDARD_STORE;
     bool preliminary_checks =
         code->is_keyed_store_stub() &&
-        !allow_growth &&
+        standard_store &&
         code->ic_state() == MONOMORPHIC &&
         Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL;
     if (!preliminary_checks) return false;
@@ -146,10 +146,10 @@ bool TypeFeedbackOracle::StoreIsPolymorphic(TypeFeedbackId ast_id) {
   Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    bool allow_growth =
-        Code::GetKeyedAccessGrowMode(code->extra_ic_state()) ==
-        ALLOW_JSARRAY_GROWTH;
-    return code->is_keyed_store_stub() && !allow_growth &&
+    bool standard_store =
+        Code::GetKeyedAccessStoreMode(code->extra_ic_state()) ==
+        STANDARD_STORE;
+    return code->is_keyed_store_stub() && standard_store  &&
         code->ic_state() == POLYMORPHIC;
   }
   return false;
@@ -215,6 +215,19 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(
         : Handle<Map>(first_map);
   }
   return Handle<Map>::cast(map_or_code);
+}
+
+
+KeyedAccessStoreMode TypeFeedbackOracle::GetStoreMode(
+    TypeFeedbackId ast_id) {
+  Handle<Object> map_or_code = GetInfo(ast_id);
+  if (map_or_code->IsCode()) {
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
+    if (code->kind() == Code::KEYED_STORE_IC) {
+      return Code::GetKeyedAccessStoreMode(code->extra_ic_state());
+    }
+  }
+  return STANDARD_STORE;
 }
 
 

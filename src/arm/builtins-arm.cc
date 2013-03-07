@@ -554,7 +554,7 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     __ ldr(r3, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
     __ tst(r3, Operand(kSmiTagMask));
     __ Assert(ne, "Unexpected initial map for Array function");
-    __ CompareObjectType(r1, r3, r4, MAP_TYPE);
+    __ CompareObjectType(r3, r3, r4, MAP_TYPE);
     __ Assert(eq, "Unexpected initial map for Array function");
 
     if (FLAG_optimize_constructed_arrays) {
@@ -1377,12 +1377,6 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  CpuFeatures::TryForceFeatureScope scope(VFP3);
-  if (!CPU::SupportsCrankshaft()) {
-    __ Abort("Unreachable code: Cannot optimize without VFP3 support.");
-    return;
-  }
-
   // Lookup the function in the JavaScript frame and push it as an
   // argument to the on-stack replacement function.
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));

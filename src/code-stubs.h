@@ -78,7 +78,7 @@ namespace internal {
   V(ArrayNArgumentsConstructor)          \
   V(KeyedStoreElement)                   \
   V(DebuggerStatement)                   \
-  V(StringDictionaryLookup)              \
+  V(NameDictionaryLookup)                \
   V(ElementsTransitionAndStore)          \
   V(TransitionElementsKind)              \
   V(StoreArrayLiteralElement)            \
@@ -251,6 +251,7 @@ class PlatformCodeStub : public CodeStub {
   virtual Handle<Code> GenerateCode();
 
   virtual int GetCodeKind() { return Code::STUB; }
+  virtual int GetStubFlags() { return -1; }
 
  protected:
   // Generates the assembler code for the stub.
@@ -662,11 +663,8 @@ class StoreArrayLengthStub: public StoreICStub {
 class HandlerStub: public ICStub {
  public:
   explicit HandlerStub(Code::Kind kind) : ICStub(kind) { }
-
- protected:
-  virtual Code::ExtraICState GetExtraICState() {
-    return Code::HANDLER_FRAGMENT;
-  }
+  virtual int GetCodeKind() { return Code::STUB; }
+  virtual int GetStubFlags() { return kind(); }
 };
 
 
@@ -1402,31 +1400,31 @@ class KeyedStoreElementStub : public PlatformCodeStub {
  public:
   KeyedStoreElementStub(bool is_js_array,
                         ElementsKind elements_kind,
-                        KeyedAccessGrowMode grow_mode)
+                        KeyedAccessStoreMode store_mode)
       : is_js_array_(is_js_array),
         elements_kind_(elements_kind),
-        grow_mode_(grow_mode),
+        store_mode_(store_mode),
         fp_registers_(CanUseFPRegisters()) { }
 
   Major MajorKey() { return KeyedStoreElement; }
   int MinorKey() {
     return ElementsKindBits::encode(elements_kind_) |
         IsJSArrayBits::encode(is_js_array_) |
-        GrowModeBits::encode(grow_mode_) |
+        StoreModeBits::encode(store_mode_) |
         FPRegisters::encode(fp_registers_);
   }
 
   void Generate(MacroAssembler* masm);
 
  private:
-  class ElementsKindBits: public BitField<ElementsKind,    0, 8> {};
-  class GrowModeBits: public BitField<KeyedAccessGrowMode, 8, 1> {};
-  class IsJSArrayBits: public BitField<bool,               9, 1> {};
-  class FPRegisters: public BitField<bool,                10, 1> {};
+  class ElementsKindBits: public BitField<ElementsKind,      0, 8> {};
+  class StoreModeBits: public BitField<KeyedAccessStoreMode, 8, 4> {};
+  class IsJSArrayBits: public BitField<bool,                12, 1> {};
+  class FPRegisters: public BitField<bool,                  13, 1> {};
 
   bool is_js_array_;
   ElementsKind elements_kind_;
-  KeyedAccessGrowMode grow_mode_;
+  KeyedAccessStoreMode store_mode_;
   bool fp_registers_;
 
   DISALLOW_COPY_AND_ASSIGN(KeyedStoreElementStub);
@@ -1509,19 +1507,19 @@ class ElementsTransitionAndStoreStub : public PlatformCodeStub {
                                  ElementsKind to,
                                  bool is_jsarray,
                                  StrictModeFlag strict_mode,
-                                 KeyedAccessGrowMode grow_mode)
+                                 KeyedAccessStoreMode store_mode)
       : from_(from),
         to_(to),
         is_jsarray_(is_jsarray),
         strict_mode_(strict_mode),
-        grow_mode_(grow_mode) {}
+        store_mode_(store_mode) {}
 
  private:
-  class FromBits:       public BitField<ElementsKind,      0, 8> {};
-  class ToBits:         public BitField<ElementsKind,      8, 8> {};
-  class IsJSArrayBits:  public BitField<bool,              16, 1> {};
-  class StrictModeBits: public BitField<StrictModeFlag,    17, 1> {};
-  class GrowModeBits: public BitField<KeyedAccessGrowMode, 18, 1> {};
+  class FromBits:       public BitField<ElementsKind,        0, 8> {};
+  class ToBits:         public BitField<ElementsKind,        8, 8> {};
+  class IsJSArrayBits:  public BitField<bool,                16, 1> {};
+  class StrictModeBits: public BitField<StrictModeFlag,      17, 1> {};
+  class StoreModeBits: public BitField<KeyedAccessStoreMode, 18, 4> {};
 
   Major MajorKey() { return ElementsTransitionAndStore; }
   int MinorKey() {
@@ -1529,7 +1527,7 @@ class ElementsTransitionAndStoreStub : public PlatformCodeStub {
         ToBits::encode(to_) |
         IsJSArrayBits::encode(is_jsarray_) |
         StrictModeBits::encode(strict_mode_) |
-        GrowModeBits::encode(grow_mode_);
+        StoreModeBits::encode(store_mode_);
   }
 
   void Generate(MacroAssembler* masm);
@@ -1538,7 +1536,7 @@ class ElementsTransitionAndStoreStub : public PlatformCodeStub {
   ElementsKind to_;
   bool is_jsarray_;
   StrictModeFlag strict_mode_;
-  KeyedAccessGrowMode grow_mode_;
+  KeyedAccessStoreMode store_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(ElementsTransitionAndStoreStub);
 };

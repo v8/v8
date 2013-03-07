@@ -255,6 +255,8 @@ class TypeFeedbackOracle: public ZoneObject {
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
   Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId ast_id);
 
+  KeyedAccessStoreMode GetStoreMode(TypeFeedbackId ast_id);
+
   void LoadReceiverTypes(Property* expr,
                          Handle<String> name,
                          SmallMapList* types);

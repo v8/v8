@@ -61,6 +61,7 @@ class HBasicBlock: public ZoneObject {
   int block_id() const { return block_id_; }
   void set_block_id(int id) { block_id_ = id; }
   HGraph* graph() const { return graph_; }
+  Isolate* isolate() const;
   const ZoneList<HPhi*>* phis() const { return &phis_; }
   HInstruction* first() const { return first_; }
   HInstruction* last() const { return last_; }
@@ -870,7 +871,8 @@ class HGraphBuilder {
     return current_block()->last_environment();
   }
   Zone* zone() const { return info_->zone(); }
-  HGraph* graph() { return graph_; }
+  HGraph* graph() const { return graph_; }
+  Isolate* isolate() const { return graph_->isolate(); }
 
   HGraph* CreateGraph();
 
@@ -1534,26 +1536,6 @@ class HSideEffectMap BASE_EMBEDDED {
 
 class HStatistics: public Malloced {
  public:
-  void Initialize(CompilationInfo* info);
-  void Print();
-  void SaveTiming(const char* name, int64_t ticks, unsigned size);
-  static HStatistics* Instance() {
-    static SetOncePointer<HStatistics> instance;
-    if (!instance.is_set()) {
-      instance.set(new HStatistics());
-    }
-    return instance.get();
-  }
-
-  void IncrementSubtotals(int64_t create_graph,
-                          int64_t optimize_graph,
-                          int64_t generate_code) {
-    create_graph_ += create_graph;
-    optimize_graph_ += optimize_graph;
-    generate_code_ += generate_code;
-  }
-
- private:
   HStatistics()
       : timing_(5),
         names_(5),
@@ -1565,6 +1547,19 @@ class HStatistics: public Malloced {
         full_code_gen_(0),
         source_size_(0) { }
 
+  void Initialize(CompilationInfo* info);
+  void Print();
+  void SaveTiming(const char* name, int64_t ticks, unsigned size);
+
+  void IncrementSubtotals(int64_t create_graph,
+                          int64_t optimize_graph,
+                          int64_t generate_code) {
+    create_graph_ += create_graph;
+    optimize_graph_ += optimize_graph;
+    generate_code_ += generate_code;
+  }
+
+ private:
   List<int64_t> timing_;
   List<const char*> names_;
   List<unsigned> sizes_;
@@ -1581,51 +1576,44 @@ class HPhase BASE_EMBEDDED {
  public:
   static const char* const kFullCodeGen;
 
-  explicit HPhase(const char* name) { Begin(name, NULL, NULL, NULL); }
-  HPhase(const char* name, HGraph* graph) {
-    Begin(name, graph, NULL, NULL);
-  }
-  HPhase(const char* name, LChunk* chunk) {
-    Begin(name, NULL, chunk, NULL);
-  }
-  HPhase(const char* name, LAllocator* allocator) {
-    Begin(name, NULL, NULL, allocator);
-  }
-
-  ~HPhase() {
-    End();
-  }
+  HPhase(const char* name, Isolate* isolate);
+  HPhase(const char* name, HGraph* graph);
+  HPhase(const char* name, LChunk* chunk);
+  HPhase(const char* name, LAllocator* allocator);
+  ~HPhase();
 
  private:
-  void Begin(const char* name,
-             HGraph* graph,
-             LChunk* chunk,
-             LAllocator* allocator);
-  void End() const;
+  void Init(Isolate* isolate,
+            const char* name,
+            HGraph* graph,
+            LChunk* chunk,
+            LAllocator* allocator);
 
-  int64_t start_;
+  Isolate* isolate_;
   const char* name_;
   HGraph* graph_;
   LChunk* chunk_;
   LAllocator* allocator_;
+  int64_t start_ticks_;
   unsigned start_allocation_size_;
 };
 
 
 class HTracer: public Malloced {
  public:
+  explicit HTracer(int isolate_id)
+      : trace_(&string_allocator_), indent_(0) {
+    OS::SNPrintF(filename_,
+                 "hydrogen-%d-%d.cfg",
+                 OS::GetCurrentProcessId(),
+                 isolate_id);
+    WriteChars(filename_.start(), "", 0, false);
+  }
+
   void TraceCompilation(CompilationInfo* info);
   void TraceHydrogen(const char* name, HGraph* graph);
   void TraceLithium(const char* name, LChunk* chunk);
   void TraceLiveRanges(const char* name, LAllocator* allocator);
-
-  static HTracer* Instance() {
-    static SetOncePointer<HTracer> instance;
-    if (!instance.is_set()) {
-      instance.set(new HTracer("hydrogen.cfg"));
-    }
-    return instance.get();
-  }
 
  private:
   class Tag BASE_EMBEDDED {
@@ -1650,11 +1638,6 @@ class HTracer: public Malloced {
     HTracer* tracer_;
     const char* name_;
   };
-
-  explicit HTracer(const char* filename)
-      : filename_(filename), trace_(&string_allocator_), indent_(0) {
-    WriteChars(filename, "", 0, false);
-  }
 
   void TraceLiveRange(LiveRange* range, const char* type, Zone* zone);
   void Trace(const char* name, HGraph* graph, LChunk* chunk);
@@ -1691,7 +1674,7 @@ class HTracer: public Malloced {
     }
   }
 
-  const char* filename_;
+  EmbeddedVector<char, 64> filename_;
   HeapStringAllocator string_allocator_;
   StringStream trace_;
   int indent_;

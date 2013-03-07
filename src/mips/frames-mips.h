@@ -208,14 +208,30 @@ class JavaScriptFrameConstants : public AllStatic {
 
 class ArgumentsAdaptorFrameConstants : public AllStatic {
  public:
+  // FP-relative.
   static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
+
   static const int kFrameSize =
       StandardFrameConstants::kFixedFrameSize + kPointerSize;
 };
 
 
+class ConstructFrameConstants : public AllStatic {
+ public:
+  // FP-relative.
+  static const int kImplicitReceiverOffset = -6 * kPointerSize;
+  static const int kConstructorOffset      = -5 * kPointerSize;
+  static const int kLengthOffset           = -4 * kPointerSize;
+  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
+
+  static const int kFrameSize =
+      StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
+};
+
+
 class InternalFrameConstants : public AllStatic {
  public:
+  // FP-relative.
   static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
 };
 

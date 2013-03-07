@@ -2476,6 +2476,12 @@ bool PagedSpace::ReserveSpace(int size_in_bytes) {
 }
 
 
+intptr_t PagedSpace::SizeOfObjects() {
+  ASSERT(!heap()->IsSweepingComplete() || (unswept_free_bytes_ == 0));
+  return Size() - unswept_free_bytes_ - (limit() - top());
+}
+
+
 // After we have booted, we have created a map which represents free space
 // on the heap.  If there was already a free list then the elements on it
 // were created with the wrong FreeSpaceMap (normally NULL), so we need to
@@ -2545,11 +2551,13 @@ void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
 bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->AreSweeperThreadsActivated()) {
-    if (FLAG_concurrent_sweeping) {
+    if (collector->IsConcurrentSweepingInProgress()) {
       if (collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
-        collector->WaitUntilSweepingCompleted();
-        collector->FinalizeSweeping();
-        return true;
+        if (!collector->sequential_sweeping()) {
+          collector->WaitUntilSweepingCompleted();
+          collector->FinalizeSweeping();
+          return true;
+        }
       }
       return false;
     }

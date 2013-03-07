@@ -1626,8 +1626,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           }
           break;
         }
-        // Fall through.
-      case ObjectLiteral::Property::PROTOTYPE:
         __ push(Operand(rsp, 0));  // Duplicate receiver.
         VisitForStackValue(key);
         VisitForStackValue(value);
@@ -1636,6 +1634,15 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
           __ Drop(3);
+        }
+        break;
+      case ObjectLiteral::Property::PROTOTYPE:
+        __ push(Operand(rsp, 0));  // Duplicate receiver.
+        VisitForStackValue(value);
+        if (property->emit_store()) {
+          __ CallRuntime(Runtime::kSetPrototype, 2);
+        } else {
+          __ Drop(2);
         }
         break;
       case ObjectLiteral::Property::GETTER:

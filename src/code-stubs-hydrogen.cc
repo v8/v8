@@ -59,9 +59,9 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   CodeStubGraphBuilderBase(Isolate* isolate, HydrogenCodeStub* stub)
       : HGraphBuilder(&info_), info_(stub, isolate), context_(NULL) {
     int major_key = stub->MajorKey();
-    descriptor_ = info_.isolate()->code_stub_interface_descriptor(major_key);
+    descriptor_ = isolate->code_stub_interface_descriptor(major_key);
     if (descriptor_->register_param_count_ < 0) {
-      stub->InitializeInterfaceDescriptor(info_.isolate(), descriptor_);
+      stub->InitializeInterfaceDescriptor(isolate, descriptor_);
     }
     parameters_.Reset(new HParameter*[descriptor_->register_param_count_]);
   }
@@ -88,7 +88,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     const char* name = CodeStub::MajorName(stub()->MajorKey(), false);
     PrintF("-----------------------------------------------------------\n");
     PrintF("Compiling stub %s using hydrogen\n", name);
-    HTracer::Instance()->TraceCompilation(&info_);
+    isolate()->GetHTracer()->TraceCompilation(&info_);
   }
 
   Zone* zone = this->zone();

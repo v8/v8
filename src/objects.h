@@ -152,10 +152,74 @@ enum CompareMapMode {
   ALLOW_ELEMENT_TRANSITION_MAPS
 };
 
-enum KeyedAccessGrowMode {
-  DO_NOT_ALLOW_JSARRAY_GROWTH,
-  ALLOW_JSARRAY_GROWTH
+enum KeyedAccessStoreMode {
+  STANDARD_STORE,
+  STORE_TRANSITION_SMI_TO_OBJECT,
+  STORE_TRANSITION_SMI_TO_DOUBLE,
+  STORE_TRANSITION_DOUBLE_TO_OBJECT,
+  STORE_TRANSITION_HOLEY_SMI_TO_OBJECT,
+  STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE,
+  STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT,
+  STORE_AND_GROW_NO_TRANSITION,
+  STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT,
+  STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE,
+  STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT,
+  STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT,
+  STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE,
+  STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT,
+  STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS,
+  STORE_NO_TRANSITION_HANDLE_COW
 };
+
+
+static const int kGrowICDelta = STORE_AND_GROW_NO_TRANSITION -
+    STANDARD_STORE;
+STATIC_ASSERT(STANDARD_STORE == 0);
+STATIC_ASSERT(kGrowICDelta ==
+              STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT -
+              STORE_TRANSITION_SMI_TO_OBJECT);
+STATIC_ASSERT(kGrowICDelta ==
+              STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE -
+              STORE_TRANSITION_SMI_TO_DOUBLE);
+STATIC_ASSERT(kGrowICDelta ==
+              STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT -
+              STORE_TRANSITION_DOUBLE_TO_OBJECT);
+
+
+static inline KeyedAccessStoreMode GetGrowStoreMode(
+    KeyedAccessStoreMode store_mode) {
+  if (store_mode < STORE_AND_GROW_NO_TRANSITION) {
+    store_mode = static_cast<KeyedAccessStoreMode>(
+        static_cast<int>(store_mode) + kGrowICDelta);
+  }
+  return store_mode;
+}
+
+
+static inline bool IsTransitionStoreMode(KeyedAccessStoreMode store_mode) {
+  return store_mode > STANDARD_STORE &&
+      store_mode <= STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT &&
+      store_mode != STORE_AND_GROW_NO_TRANSITION;
+}
+
+
+static inline KeyedAccessStoreMode GetNonTransitioningStoreMode(
+    KeyedAccessStoreMode store_mode) {
+  if (store_mode >= STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
+    return store_mode;
+  }
+  if (store_mode >= STORE_AND_GROW_NO_TRANSITION) {
+    return STORE_AND_GROW_NO_TRANSITION;
+  }
+  return STANDARD_STORE;
+}
+
+
+static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
+  return store_mode >= STORE_AND_GROW_NO_TRANSITION &&
+      store_mode <= STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT;
+}
+
 
 // Setter that skips the write barrier if mode is SKIP_WRITE_BARRIER.
 enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
@@ -936,8 +1000,6 @@ class MaybeObject BASE_EMBEDDED {
   V(ObjectHashTable)                           \
 
 
-class JSReceiver;
-
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
 // Object does not use any virtual functions to avoid the
@@ -1003,28 +1065,28 @@ class Object : public MaybeObject {
   // Failure is returned otherwise.
   MUST_USE_RESULT inline MaybeObject* ToSmi();
 
-  void Lookup(String* name, LookupResult* result);
+  void Lookup(Name* name, LookupResult* result);
 
   // Property access.
-  MUST_USE_RESULT inline MaybeObject* GetProperty(String* key);
+  MUST_USE_RESULT inline MaybeObject* GetProperty(Name* key);
   MUST_USE_RESULT inline MaybeObject* GetProperty(
-      String* key,
+      Name* key,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyWithReceiver(
       Object* receiver,
-      String* key,
+      Name* key,
       PropertyAttributes* attributes);
 
-  static Handle<Object> GetProperty(Handle<Object> object, Handle<String> key);
+  static Handle<Object> GetProperty(Handle<Object> object, Handle<Name> key);
   static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Object> receiver,
                                     LookupResult* result,
-                                    Handle<String> key,
+                                    Handle<Name> key,
                                     PropertyAttributes* attributes);
 
   MUST_USE_RESULT MaybeObject* GetProperty(Object* receiver,
                                            LookupResult* result,
-                                           String* key,
+                                           Name* key,
                                            PropertyAttributes* attributes);
 
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
@@ -1491,20 +1553,20 @@ class JSReceiver: public HeapObject {
   static inline JSReceiver* cast(Object* obj);
 
   static Handle<Object> SetProperty(Handle<JSReceiver> object,
-                                    Handle<String> key,
+                                    Handle<Name> key,
                                     Handle<Object> value,
                                     PropertyAttributes attributes,
                                     StrictModeFlag strict_mode);
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetProperty(
-      String* key,
+      Name* key,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       StoreFromKeyed store_from_keyed = MAY_BE_STORE_FROM_KEYED);
   MUST_USE_RESULT MaybeObject* SetProperty(
       LookupResult* result,
-      String* key,
+      Name* key,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
@@ -1512,7 +1574,7 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSReceiver* setter,
                                                             Object* value);
 
-  MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
+  MUST_USE_RESULT MaybeObject* DeleteProperty(Name* name, DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
 
   // Set the index'th array element.
@@ -1533,17 +1595,17 @@ class JSReceiver: public HeapObject {
   // function that was used to instantiate the object).
   String* constructor_name();
 
-  inline PropertyAttributes GetPropertyAttribute(String* name);
+  inline PropertyAttributes GetPropertyAttribute(Name* name);
   PropertyAttributes GetPropertyAttributeWithReceiver(JSReceiver* receiver,
-                                                      String* name);
-  PropertyAttributes GetLocalPropertyAttribute(String* name);
+                                                      Name* name);
+  PropertyAttributes GetLocalPropertyAttribute(Name* name);
 
   inline PropertyAttributes GetElementAttribute(uint32_t index);
   inline PropertyAttributes GetLocalElementAttribute(uint32_t index);
 
   // Can cause a GC.
-  inline bool HasProperty(String* name);
-  inline bool HasLocalProperty(String* name);
+  inline bool HasProperty(Name* name);
+  inline bool HasLocalProperty(Name* name);
   inline bool HasElement(uint32_t index);
   inline bool HasLocalElement(uint32_t index);
 
@@ -1563,9 +1625,9 @@ class JSReceiver: public HeapObject {
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
-  void LocalLookup(String* name, LookupResult* result,
+  void LocalLookup(Name* name, LookupResult* result,
                    bool search_hidden_prototypes = false);
-  void Lookup(String* name, LookupResult* result);
+  void Lookup(Name* name, LookupResult* result);
 
  protected:
   Smi* GenerateIdentityHash();
@@ -1573,7 +1635,7 @@ class JSReceiver: public HeapObject {
  private:
   PropertyAttributes GetPropertyAttributeForResult(JSReceiver* receiver,
                                                    LookupResult* result,
-                                                   String* name,
+                                                   Name* name,
                                                    bool continue_search);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
@@ -1591,7 +1653,7 @@ class JSObject: public JSReceiver {
   DECL_ACCESSORS(properties, FixedArray)  // Get and set fast properties.
   inline void initialize_properties();
   inline bool HasFastProperties();
-  inline StringDictionary* property_dictionary();  // Gets slow properties.
+  inline NameDictionary* property_dictionary();  // Gets slow properties.
 
   // [elements]: The elements (properties with names that are integers).
   //
@@ -1665,34 +1727,34 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT MaybeObject* GetPropertyWithCallback(Object* receiver,
                                                        Object* structure,
-                                                       String* name);
+                                                       Name* name);
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetPropertyForResult(LookupResult* result,
-                                           String* key,
+                                           Name* key,
                                            Object* value,
                                            PropertyAttributes attributes,
                                            StrictModeFlag strict_mode,
                                            StoreFromKeyed store_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyWithFailedAccessCheck(
       LookupResult* result,
-      String* name,
+      Name* name,
       Object* value,
       bool check_prototype,
       StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyWithCallback(
       Object* structure,
-      String* name,
+      Name* name,
       Object* value,
       JSObject* holder,
       StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyWithInterceptor(
-      String* name,
+      Name* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyPostInterceptor(
-      String* name,
+      Name* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
@@ -1700,14 +1762,14 @@ class JSObject: public JSReceiver {
 
   static Handle<Object> SetLocalPropertyIgnoreAttributes(
       Handle<JSObject> object,
-      Handle<String> key,
+      Handle<Name> key,
       Handle<Object> value,
       PropertyAttributes attributes);
 
   // Try to follow an existing transition to a field with attributes NONE. The
   // return value indicates whether the transition was successful.
   static inline bool TryTransitionToField(Handle<JSObject> object,
-                                          Handle<String> key);
+                                          Handle<Name> key);
 
   inline int LastAddedFieldIndex();
 
@@ -1718,7 +1780,7 @@ class JSObject: public JSReceiver {
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
-      String* key,
+      Name* key,
       Object* value,
       PropertyAttributes attributes);
 
@@ -1733,16 +1795,16 @@ class JSObject: public JSReceiver {
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
   static Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
-                                              Handle<String> key,
+                                              Handle<Name> key,
                                               Handle<Object> value,
                                               PropertyDetails details);
 
-  MUST_USE_RESULT MaybeObject* SetNormalizedProperty(String* name,
+  MUST_USE_RESULT MaybeObject* SetNormalizedProperty(Name* name,
                                                      Object* value,
                                                      PropertyDetails details);
 
   // Deletes the named property in a normalized object.
-  MUST_USE_RESULT MaybeObject* DeleteNormalizedProperty(String* name,
+  MUST_USE_RESULT MaybeObject* DeleteNormalizedProperty(Name* name,
                                                         DeleteMode mode);
 
   MUST_USE_RESULT MaybeObject* OptimizeAsPrototype();
@@ -1753,27 +1815,27 @@ class JSObject: public JSReceiver {
 
   // Used from JSReceiver.
   PropertyAttributes GetPropertyAttributePostInterceptor(JSObject* receiver,
-                                                         String* name,
+                                                         Name* name,
                                                          bool continue_search);
   PropertyAttributes GetPropertyAttributeWithInterceptor(JSObject* receiver,
-                                                         String* name,
+                                                         Name* name,
                                                          bool continue_search);
   PropertyAttributes GetPropertyAttributeWithFailedAccessCheck(
       Object* receiver,
       LookupResult* result,
-      String* name,
+      Name* name,
       bool continue_search);
   PropertyAttributes GetElementAttributeWithReceiver(JSReceiver* receiver,
                                                      uint32_t index,
                                                      bool continue_search);
 
   static void DefineAccessor(Handle<JSObject> object,
-                             Handle<String> name,
+                             Handle<Name> name,
                              Handle<Object> getter,
                              Handle<Object> setter,
                              PropertyAttributes attributes);
   // Can cause GC.
-  MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
+  MUST_USE_RESULT MaybeObject* DefineAccessor(Name* name,
                                               Object* getter,
                                               Object* setter,
                                               PropertyAttributes attributes);
@@ -1781,11 +1843,11 @@ class JSObject: public JSReceiver {
   // Returns a JavaScript null if this was not possible and we have to use the
   // slow case. Note that we can fail due to allocations, too.
   MUST_USE_RESULT MaybeObject* DefineFastAccessor(
-      String* name,
+      Name* name,
       AccessorComponent component,
       Object* accessor,
       PropertyAttributes attributes);
-  Object* LookupAccessor(String* name, AccessorComponent component);
+  Object* LookupAccessor(Name* name, AccessorComponent component);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
 
@@ -1793,19 +1855,19 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* GetPropertyWithFailedAccessCheck(
       Object* receiver,
       LookupResult* result,
-      String* name,
+      Name* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyWithInterceptor(
       Object* receiver,
-      String* name,
+      Name* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyPostInterceptor(
       Object* receiver,
-      String* name,
+      Name* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetLocalPropertyPostInterceptor(
       Object* receiver,
-      String* name,
+      Name* name,
       PropertyAttributes* attributes);
 
   // Returns true if this is an instance of an api function and has
@@ -1828,17 +1890,17 @@ class JSObject: public JSReceiver {
   // Sets a hidden property on this object. Returns this object if successful,
   // undefined if called on a detached proxy.
   static Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
-                                          Handle<String> key,
+                                          Handle<Name> key,
                                           Handle<Object> value);
   // Returns a failure if a GC is required.
-  MUST_USE_RESULT MaybeObject* SetHiddenProperty(String* key, Object* value);
+  MUST_USE_RESULT MaybeObject* SetHiddenProperty(Name* key, Object* value);
   // Gets the value of a hidden property with the given key. Returns undefined
   // if the property doesn't exist (or if called on a detached proxy),
   // otherwise returns the value set for the key.
-  Object* GetHiddenProperty(String* key);
+  Object* GetHiddenProperty(Name* key);
   // Deletes a hidden property. Deleting a non-existing property is
   // considered successful.
-  void DeleteHiddenProperty(String* key);
+  void DeleteHiddenProperty(Name* key);
   // Returns true if the object has a property with the hidden string as name.
   bool HasHiddenProperties();
 
@@ -1847,9 +1909,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* SetIdentityHash(Smi* hash, CreationFlag flag);
 
   static Handle<Object> DeleteProperty(Handle<JSObject> obj,
-                                       Handle<String> name);
+                                       Handle<Name> name);
   // Can cause GC.
-  MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
+  MUST_USE_RESULT MaybeObject* DeleteProperty(Name* name, DeleteMode mode);
 
   static Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
@@ -1893,11 +1955,11 @@ class JSObject: public JSReceiver {
     return old_capacity + (old_capacity >> 1) + 16;
   }
 
-  PropertyType GetLocalPropertyType(String* name);
+  PropertyType GetLocalPropertyType(Name* name);
   PropertyType GetLocalElementType(uint32_t index);
 
   // These methods do not perform access checks!
-  AccessorPair* GetLocalPropertyAccessorPair(String* name);
+  AccessorPair* GetLocalPropertyAccessorPair(Name* name);
   AccessorPair* GetLocalElementAccessorPair(uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
@@ -1970,9 +2032,9 @@ class JSObject: public JSReceiver {
   inline bool HasIndexedInterceptor();
 
   // Support functions for v8 api (needed for correct interceptor behavior).
-  bool HasRealNamedProperty(String* key);
+  bool HasRealNamedProperty(Name* key);
   bool HasRealElementProperty(uint32_t index);
-  bool HasRealNamedCallbackProperty(String* key);
+  bool HasRealNamedCallbackProperty(Name* key);
 
   // Get the header size for a JSObject.  Used to compute the index of
   // internal fields as well as the number of internal fields.
@@ -1985,12 +2047,12 @@ class JSObject: public JSReceiver {
   inline void SetInternalField(int index, Smi* value);
 
   // The following lookup functions skip interceptors.
-  void LocalLookupRealNamedProperty(String* name, LookupResult* result);
-  void LookupRealNamedProperty(String* name, LookupResult* result);
-  void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
+  void LocalLookupRealNamedProperty(Name* name, LookupResult* result);
+  void LookupRealNamedProperty(Name* name, LookupResult* result);
+  void LookupRealNamedPropertyInPrototypes(Name* name, LookupResult* result);
   MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
       uint32_t index, Object* value, bool* found, StrictModeFlag strict_mode);
-  void LookupCallbackProperty(String* name, LookupResult* result);
+  void LookupCallbackProperty(Name* name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -2017,7 +2079,7 @@ class JSObject: public JSReceiver {
   // Add a property to a fast-case object using a map transition to
   // new_map.
   MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(Map* new_map,
-                                                       String* name,
+                                                       Name* name,
                                                        Object* value,
                                                        int field_index);
 
@@ -2028,12 +2090,12 @@ class JSObject: public JSReceiver {
   // This avoids the creation of many maps with the same constant
   // function, all orphaned.
   MUST_USE_RESULT MaybeObject* AddConstantFunctionProperty(
-      String* name,
+      Name* name,
       JSFunction* function,
       PropertyAttributes attributes);
 
   MUST_USE_RESULT MaybeObject* ReplaceSlowProperty(
-      String* name,
+      Name* name,
       Object* value,
       PropertyAttributes attributes);
 
@@ -2057,32 +2119,32 @@ class JSObject: public JSReceiver {
   // Replaces an existing transition with a transition to a map with a FIELD.
   MUST_USE_RESULT MaybeObject* ConvertTransitionToMapTransition(
       int transition_index,
-      String* name,
+      Name* name,
       Object* new_value,
       PropertyAttributes attributes);
 
   // Converts a descriptor of any other type to a real field, backed by the
   // properties array.
   MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
-      String* name,
+      Name* name,
       Object* new_value,
       PropertyAttributes attributes);
 
   // Add a property to a fast-case object.
   MUST_USE_RESULT MaybeObject* AddFastProperty(
-      String* name,
+      Name* name,
       Object* value,
       PropertyAttributes attributes,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
   // Add a property to a slow-case object.
-  MUST_USE_RESULT MaybeObject* AddSlowProperty(String* name,
+  MUST_USE_RESULT MaybeObject* AddSlowProperty(Name* name,
                                                Object* value,
                                                PropertyAttributes attributes);
 
   // Add a property to an object. May cause GC.
   MUST_USE_RESULT MaybeObject* AddProperty(
-      String* name,
+      Name* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
@@ -2109,10 +2171,10 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
   static void UpdateMapCodeCache(Handle<JSObject> object,
-                                 Handle<String> name,
+                                 Handle<Name> name,
                                  Handle<Code> code);
 
-  MUST_USE_RESULT MaybeObject* UpdateMapCodeCache(String* name, Code* code);
+  MUST_USE_RESULT MaybeObject* UpdateMapCodeCache(Name* name, Code* code);
 
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
@@ -2249,7 +2311,7 @@ class JSObject: public JSReceiver {
   // Enqueue change record for Object.observe. May cause GC.
   static void EnqueueChangeRecord(Handle<JSObject> object,
                                   const char* type,
-                                  Handle<String> name,
+                                  Handle<Name> name,
                                   Handle<Object> old_value);
 
   // Deliver change records to observers. May cause GC.
@@ -2296,15 +2358,15 @@ class JSObject: public JSReceiver {
   // read-only, reject and set '*done' to true. Otherwise, set '*done' to
   // false. Can cause GC and can return a failure result with '*done==true'.
   MUST_USE_RESULT MaybeObject* SetPropertyViaPrototypes(
-      String* name,
+      Name* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       bool* done);
 
-  MUST_USE_RESULT MaybeObject* DeletePropertyPostInterceptor(String* name,
+  MUST_USE_RESULT MaybeObject* DeletePropertyPostInterceptor(Name* name,
                                                              DeleteMode mode);
-  MUST_USE_RESULT MaybeObject* DeletePropertyWithInterceptor(String* name);
+  MUST_USE_RESULT MaybeObject* DeletePropertyWithInterceptor(Name* name);
 
   MUST_USE_RESULT MaybeObject* DeleteElementWithInterceptor(uint32_t index);
 
@@ -2322,13 +2384,13 @@ class JSObject: public JSReceiver {
   // Gets the current elements capacity and the number of used elements.
   void GetElementsCapacityAndUsage(int* capacity, int* used);
 
-  bool CanSetCallback(String* name);
+  bool CanSetCallback(Name* name);
   MUST_USE_RESULT MaybeObject* SetElementCallback(
       uint32_t index,
       Object* structure,
       PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* SetPropertyCallback(
-      String* name,
+      Name* name,
       Object* structure,
       PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefineElementAccessor(
@@ -2336,9 +2398,9 @@ class JSObject: public JSReceiver {
       Object* getter,
       Object* setter,
       PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* CreateAccessorPairFor(String* name);
+  MUST_USE_RESULT MaybeObject* CreateAccessorPairFor(Name* name);
   MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
-      String* name,
+      Name* name,
       Object* getter,
       Object* setter,
       PropertyAttributes attributes);
@@ -2639,7 +2701,7 @@ class DescriptorArray: public FixedArray {
                     Object* new_index_cache);
 
   // Accessors for fetching instance descriptor at descriptor number.
-  inline String* GetKey(int descriptor_number);
+  inline Name* GetKey(int descriptor_number);
   inline Object** GetKeySlot(int descriptor_number);
   inline Object* GetValue(int descriptor_number);
   inline Object** GetValueSlot(int descriptor_number);
@@ -2652,7 +2714,7 @@ class DescriptorArray: public FixedArray {
   inline Object* GetCallbacksObject(int descriptor_number);
   inline AccessorDescriptor* GetCallbacks(int descriptor_number);
 
-  inline String* GetSortedKey(int descriptor_number);
+  inline Name* GetSortedKey(int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
   inline void SetSortedKey(int pointer, int descriptor_number);
 
@@ -2682,11 +2744,11 @@ class DescriptorArray: public FixedArray {
   void Sort();
 
   // Search the instance descriptors for given name.
-  INLINE(int Search(String* name, int number_of_own_descriptors));
+  INLINE(int Search(Name* name, int number_of_own_descriptors));
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
-  INLINE(int SearchWithCache(String* name, Map* map));
+  INLINE(int SearchWithCache(Name* name, Map* map));
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
@@ -2795,11 +2857,11 @@ class DescriptorArray: public FixedArray {
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
 
 template<SearchMode search_mode, typename T>
-inline int LinearSearch(T* array, String* name, int len, int valid_entries);
+inline int LinearSearch(T* array, Name* name, int len, int valid_entries);
 
 
 template<SearchMode search_mode, typename T>
-inline int Search(T* array, String* name, int valid_entries = 0);
+inline int Search(T* array, Name* name, int valid_entries = 0);
 
 
 // HashTable is a subclass of FixedArray that implements a hash table
@@ -3127,11 +3189,11 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
 
 // MapCache.
 //
-// Maps keys that are a fixed array of internalized strings to a map.
+// Maps keys that are a fixed array of unique names to a map.
 // Used for canonicalize maps for object literals.
 class MapCache: public HashTable<MapCacheShape, HashTableKey*> {
  public:
-  // Find cached value for a string key, otherwise return null.
+  // Find cached value for a name key, otherwise return null.
   Object* Lookup(FixedArray* key);
   MUST_USE_RESULT MaybeObject* Put(FixedArray* key, Map* value);
   static inline MapCache* cast(Object* obj);
@@ -3250,29 +3312,29 @@ class Dictionary: public HashTable<Shape, Key> {
 };
 
 
-class StringDictionaryShape : public BaseShape<String*> {
+class NameDictionaryShape : public BaseShape<Name*> {
  public:
-  static inline bool IsMatch(String* key, Object* other);
-  static inline uint32_t Hash(String* key);
-  static inline uint32_t HashForObject(String* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(String* key);
+  static inline bool IsMatch(Name* key, Object* other);
+  static inline uint32_t Hash(Name* key);
+  static inline uint32_t HashForObject(Name* key, Object* object);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Name* key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = true;
 };
 
 
-class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
+class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
  public:
-  static inline StringDictionary* cast(Object* obj) {
+  static inline NameDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
-    return reinterpret_cast<StringDictionary*>(obj);
+    return reinterpret_cast<NameDictionary*>(obj);
   }
 
   // Copies enumerable keys to preallocated fixed array.
   FixedArray* CopyEnumKeysTo(FixedArray* storage);
   static void DoGenerateNewEnumerationIndices(
-      Handle<StringDictionary> dictionary);
+      Handle<NameDictionary> dictionary);
 
   // For transforming properties of a JSObject.
   MUST_USE_RESULT MaybeObject* TransformPropertiesToFastFor(
@@ -3281,7 +3343,7 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
 
   // Find entry for key, otherwise return kNotFound. Optimized version of
   // HashTable::FindEntry.
-  int FindEntry(String* key);
+  int FindEntry(Name* key);
 };
 
 
@@ -4282,11 +4344,6 @@ class Code: public HeapObject {
     NONEXISTENT
   };
 
-  enum IcFragment {
-    IC_FRAGMENT,
-    HANDLER_FRAGMENT
-  };
-
   enum {
     NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
@@ -4476,24 +4533,22 @@ class Code: public HeapObject {
   void FindAllCode(CodeHandleList* code_list, int length);
 
   class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
-  class ExtraICStateKeyedAccessGrowMode:
-      public BitField<KeyedAccessGrowMode, 1, 1> {};  // NOLINT
-
-  static const int kExtraICStateGrowModeShift = 1;
+  class ExtraICStateKeyedAccessStoreMode:
+      public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
 
   static inline StrictModeFlag GetStrictMode(ExtraICState extra_ic_state) {
     return ExtraICStateStrictMode::decode(extra_ic_state);
   }
 
-  static inline KeyedAccessGrowMode GetKeyedAccessGrowMode(
+  static inline KeyedAccessStoreMode GetKeyedAccessStoreMode(
       ExtraICState extra_ic_state) {
-    return ExtraICStateKeyedAccessGrowMode::decode(extra_ic_state);
+    return ExtraICStateKeyedAccessStoreMode::decode(extra_ic_state);
   }
 
   static inline ExtraICState ComputeExtraICState(
-      KeyedAccessGrowMode grow_mode,
+      KeyedAccessStoreMode store_mode,
       StrictModeFlag strict_mode) {
-    return ExtraICStateKeyedAccessGrowMode::encode(grow_mode) |
+    return ExtraICStateKeyedAccessStoreMode::encode(store_mode) |
         ExtraICStateStrictMode::encode(strict_mode);
   }
 
@@ -4657,8 +4712,8 @@ class Code: public HeapObject {
   class TypeField: public BitField<StubType, 3, 3> {};
   class CacheHolderField: public BitField<InlineCacheHolderFlag, 6, 1> {};
   class KindField: public BitField<Kind, 7, 4> {};
-  class ExtraICStateField: public BitField<ExtraICState, 11, 2> {};
-  class IsPregeneratedField: public BitField<bool, 13, 1> {};
+  class ExtraICStateField: public BitField<ExtraICState, 11, 5> {};
+  class IsPregeneratedField: public BitField<bool, 16, 1> {};
 
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
@@ -4715,7 +4770,7 @@ class Code: public HeapObject {
   class StackCheckTableOffsetField: public BitField<int, 0, 31> {};
 
   // Signed field cannot be encoded using the BitField class.
-  static const int kArgumentsCountShift = 14;
+  static const int kArgumentsCountShift = 17;
   static const int kArgumentsCountMask = ~((1 << kArgumentsCountShift) - 1);
 
   // This constant should be encodable in an ARM instruction.
@@ -4874,7 +4929,7 @@ class Map: public HeapObject {
   inline bool function_with_prototype();
 
   // Tells whether the instance with this map should be ignored by the
-  // __proto__ accessor.
+  // Object.getPrototypeOf() function and the __proto__ accessor.
   inline void set_is_hidden_prototype() {
     set_bit_field(bit_field() | (1 << kIsHiddenPrototype));
   }
@@ -4993,7 +5048,7 @@ class Map: public HeapObject {
       Map* transitioned_map);
   inline void SetTransition(int transition_index, Map* target);
   inline Map* GetTransition(int transition_index);
-  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key,
+  MUST_USE_RESULT inline MaybeObject* AddTransition(Name* key,
                                                     Map* target,
                                                     SimpleTransitionFlag flag);
   DECL_ACCESSORS(transitions, TransitionArray)
@@ -5091,11 +5146,11 @@ class Map: public HeapObject {
   // with the given holder if the name is found. The holder may be
   // NULL when this function is used from the compiler.
   inline void LookupDescriptor(JSObject* holder,
-                               String* name,
+                               Name* name,
                                LookupResult* result);
 
   inline void LookupTransition(JSObject* holder,
-                               String* name,
+                               Name* name,
                                LookupResult* result);
 
   // The size of transition arrays are limited so they do not end up in large
@@ -5144,7 +5199,7 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
       DescriptorArray* descriptors,
-      String* name,
+      Name* name,
       TransitionFlag flag,
       int descriptor_index);
   MUST_USE_RESULT MaybeObject* ShareDescriptor(DescriptorArray* descriptors,
@@ -5172,7 +5227,7 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* Copy();
 
   // Returns the property index for name (only valid for FAST MODE).
-  int PropertyIndexFor(String* name);
+  int PropertyIndexFor(Name* name);
 
   // Returns the next free property index (only valid for FAST MODE).
   int NextFreePropertyIndex();
@@ -5186,7 +5241,7 @@ class Map: public HeapObject {
   static inline Map* cast(Object* obj);
 
   // Locate an accessor in the instance descriptor.
-  AccessorDescriptor* FindAccessor(String* name);
+  AccessorDescriptor* FindAccessor(Name* name);
 
   // Code cache operations.
 
@@ -5195,9 +5250,9 @@ class Map: public HeapObject {
 
   // Update code cache.
   static void UpdateCodeCache(Handle<Map> map,
-                              Handle<String> name,
+                              Handle<Name> name,
                               Handle<Code> code);
-  MUST_USE_RESULT MaybeObject* UpdateCodeCache(String* name, Code* code);
+  MUST_USE_RESULT MaybeObject* UpdateCodeCache(Name* name, Code* code);
 
   // Extend the descriptor array of the map with the list of descriptors.
   // In case of duplicates, the latest descriptor is used.
@@ -5207,14 +5262,14 @@ class Map: public HeapObject {
   static void EnsureDescriptorSlack(Handle<Map> map, int slack);
 
   // Returns the found code or undefined if absent.
-  Object* FindInCodeCache(String* name, Code::Flags flags);
+  Object* FindInCodeCache(Name* name, Code::Flags flags);
 
   // Returns the non-negative index of the code object if it is in the
   // cache and -1 otherwise.
   int IndexInCodeCache(Object* name, Code* code);
 
   // Removes a code object from the code cache at the given index.
-  void RemoveFromCodeCache(String* name, Code* code, int index);
+  void RemoveFromCodeCache(Name* name, Code* code, int index);
 
   // Set all map transitions from this map to dead maps to null.  Also clear
   // back pointers in transition targets so that we do not process this map
@@ -6434,7 +6489,7 @@ class GlobalObject: public JSObject {
   // by throwing an exception.  This is for the debug and builtins global
   // objects, where it is known which properties can be expected to be present
   // on the object.
-  Object* GetPropertyNoExceptionThrown(String* key) {
+  Object* GetPropertyNoExceptionThrown(Name* key) {
     Object* answer = GetProperty(key)->ToObjectUnchecked();
     return answer;
   }
@@ -6442,10 +6497,10 @@ class GlobalObject: public JSObject {
   // Ensure that the global object has a cell for the given property name.
   static Handle<JSGlobalPropertyCell> EnsurePropertyCell(
       Handle<GlobalObject> global,
-      Handle<String> name);
+      Handle<Name> name);
   // TODO(kmillikin): This function can be eliminated once the stub cache is
   // fully handlified (and the static helper can be written directly).
-  MUST_USE_RESULT MaybeObject* EnsurePropertyCell(String* name);
+  MUST_USE_RESULT MaybeObject* EnsurePropertyCell(Name* name);
 
   // Casting.
   static inline GlobalObject* cast(Object* obj);
@@ -6896,11 +6951,11 @@ class CodeCache: public Struct {
   DECL_ACCESSORS(normal_type_cache, Object)
 
   // Add the code object to the cache.
-  MUST_USE_RESULT MaybeObject* Update(String* name, Code* code);
+  MUST_USE_RESULT MaybeObject* Update(Name* name, Code* code);
 
   // Lookup code object in the cache. Returns code object if found and undefined
   // if not.
-  Object* Lookup(String* name, Code::Flags flags);
+  Object* Lookup(Name* name, Code::Flags flags);
 
   // Get the internal index of a code object in the cache. Returns -1 if the
   // code object is not in that cache. This index can be used to later call
@@ -6923,10 +6978,10 @@ class CodeCache: public Struct {
   static const int kSize = kNormalTypeCacheOffset + kPointerSize;
 
  private:
-  MUST_USE_RESULT MaybeObject* UpdateDefaultCache(String* name, Code* code);
-  MUST_USE_RESULT MaybeObject* UpdateNormalTypeCache(String* name, Code* code);
-  Object* LookupDefaultCache(String* name, Code::Flags flags);
-  Object* LookupNormalTypeCache(String* name, Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* UpdateDefaultCache(Name* name, Code* code);
+  MUST_USE_RESULT MaybeObject* UpdateNormalTypeCache(Name* name, Code* code);
+  Object* LookupDefaultCache(Name* name, Code::Flags flags);
+  Object* LookupNormalTypeCache(Name* name, Code::Flags flags);
 
   // Code cache layout of the default cache. Elements are alternating name and
   // code objects for non normal load/store/call IC's.
@@ -6964,10 +7019,10 @@ class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
 class CodeCacheHashTable: public HashTable<CodeCacheHashTableShape,
                                            HashTableKey*> {
  public:
-  Object* Lookup(String* name, Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* Put(String* name, Code* code);
+  Object* Lookup(Name* name, Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* Put(Name* name, Code* code);
 
-  int GetIndex(String* name, Code::Flags flags);
+  int GetIndex(Name* name, Code::Flags flags);
   void RemoveByIndex(int index);
 
   static inline CodeCacheHashTable* cast(Object* obj);
@@ -7254,8 +7309,16 @@ class Name: public HeapObject {
   // Returns a hash value used for the property table
   inline uint32_t Hash();
 
+  // Equality operations.
+  inline bool Equals(Name* other);
+
+  // Conversion.
+  inline bool AsArrayIndex(uint32_t* index);
+
   // Casting.
   static inline Name* cast(Object* obj);
+
+  DECLARE_PRINTER(Name)
 
   // Layout description.
   static const int kHashFieldOffset = HeapObject::kHeaderSize;
@@ -7335,6 +7398,8 @@ class Symbol: public Name {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
 };
 
+
+class ConsString;
 
 // The String abstract class captures JavaScript string values:
 //
@@ -7614,6 +7679,7 @@ class String: public Name {
     return NonOneByteStart(chars, length) >= length;
   }
 
+  // TODO(dcarney): Replace all instances of this with VisitFlat.
   template<class Visitor, class ConsOp>
   static inline void Visit(String* string,
                            unsigned offset,
@@ -7621,6 +7687,21 @@ class String: public Name {
                            ConsOp& cons_op,
                            int32_t type,
                            unsigned length);
+
+  template<class Visitor>
+  static inline ConsString* VisitFlat(Visitor* visitor,
+                                      String* string,
+                                      int offset,
+                                      int length,
+                                      int32_t type);
+
+  template<class Visitor>
+  static inline ConsString* VisitFlat(Visitor* visitor,
+                                      String* string,
+                                      int offset = 0) {
+    int32_t type = string->map()->instance_type();
+    return VisitFlat(visitor, string, offset, string->length(), type);
+  }
 
  private:
   friend class Name;
@@ -8180,19 +8261,19 @@ class JSProxy: public JSReceiver {
   // Casting.
   static inline JSProxy* cast(Object* obj);
 
-  bool HasPropertyWithHandler(String* name);
+  bool HasPropertyWithHandler(Name* name);
   bool HasElementWithHandler(uint32_t index);
 
   MUST_USE_RESULT MaybeObject* GetPropertyWithHandler(
       Object* receiver,
-      String* name);
+      Name* name);
   MUST_USE_RESULT MaybeObject* GetElementWithHandler(
       Object* receiver,
       uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetPropertyWithHandler(
       JSReceiver* receiver,
-      String* name,
+      Name* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
@@ -8208,14 +8289,14 @@ class JSProxy: public JSReceiver {
   // otherwise set it to false.
   MUST_USE_RESULT MaybeObject* SetPropertyViaPrototypesWithHandler(
       JSReceiver* receiver,
-      String* name,
+      Name* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       bool* done);
 
   MUST_USE_RESULT MaybeObject* DeletePropertyWithHandler(
-      String* name,
+      Name* name,
       DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElementWithHandler(
       uint32_t index,
@@ -8223,7 +8304,7 @@ class JSProxy: public JSReceiver {
 
   MUST_USE_RESULT PropertyAttributes GetPropertyAttributeWithHandler(
       JSReceiver* receiver,
-      String* name);
+      Name* name);
   MUST_USE_RESULT PropertyAttributes GetElementAttributeWithHandler(
       JSReceiver* receiver,
       uint32_t index);
@@ -8522,19 +8603,91 @@ class AccessorInfo: public Struct {
 };
 
 
+enum AccessorDescriptorType {
+  kDescriptorBitmaskCompare,
+  kDescriptorPointerCompare,
+  kDescriptorPrimitiveValue,
+  kDescriptorObjectDereference,
+  kDescriptorPointerDereference,
+  kDescriptorPointerShift,
+  kDescriptorReturnObject
+};
+
+
+struct BitmaskCompareDescriptor {
+  uint32_t bitmask;
+  uint32_t compare_value;
+  uint8_t size;  // Must be in {1,2,4}.
+};
+
+
+struct PointerCompareDescriptor {
+  void* compare_value;
+};
+
+
+struct PrimitiveValueDescriptor {
+  v8::DeclaredAccessorDescriptorDataType data_type;
+  uint8_t bool_offset;  // Must be in [0,7], used for kDescriptorBoolType.
+};
+
+
+struct ObjectDerefenceDescriptor {
+  uint8_t internal_field;
+};
+
+
+struct PointerShiftDescriptor {
+  int16_t byte_offset;
+};
+
+
+struct DeclaredAccessorDescriptorData {
+  AccessorDescriptorType type;
+  union {
+    struct BitmaskCompareDescriptor bitmask_compare_descriptor;
+    struct PointerCompareDescriptor pointer_compare_descriptor;
+    struct PrimitiveValueDescriptor primitive_value_descriptor;
+    struct ObjectDerefenceDescriptor object_dereference_descriptor;
+    struct PointerShiftDescriptor pointer_shift_descriptor;
+  };
+};
+
+
+class DeclaredAccessorDescriptor;
+
+
+class DeclaredAccessorDescriptorIterator {
+ public:
+  explicit DeclaredAccessorDescriptorIterator(
+      DeclaredAccessorDescriptor* descriptor);
+  const DeclaredAccessorDescriptorData* Next();
+  bool Complete() const { return length_ == offset_; }
+ private:
+  uint8_t* array_;
+  const int length_;
+  int offset_;
+  DISALLOW_IMPLICIT_CONSTRUCTORS(DeclaredAccessorDescriptorIterator);
+};
+
+
 class DeclaredAccessorDescriptor: public Struct {
  public:
-  // TODO(dcarney): Fill out this class.
-  DECL_ACCESSORS(internal_field, Smi)
+  DECL_ACCESSORS(serialized_data, ByteArray)
 
   static inline DeclaredAccessorDescriptor* cast(Object* obj);
+
+  static Handle<DeclaredAccessorDescriptor> Create(
+      Isolate* isolate,
+      const DeclaredAccessorDescriptorData& data,
+      Handle<DeclaredAccessorDescriptor> previous);
 
   // Dispatched behavior.
   DECLARE_PRINTER(DeclaredAccessorDescriptor)
   DECLARE_VERIFIER(DeclaredAccessorDescriptor)
 
-  static const int kInternalFieldOffset = HeapObject::kHeaderSize;
-  static const int kSize = kInternalFieldOffset + kPointerSize;
+  static const int kSerializedDataOffset = HeapObject::kHeaderSize;
+  static const int kSize = kSerializedDataOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(DeclaredAccessorDescriptor);

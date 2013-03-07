@@ -81,10 +81,6 @@ d8-os: PASS, SKIP if ($isolates || $arch == android_arm || $arch == android_ia32
 tools/tickprocessor: PASS, SKIP if ($arch == android_arm || $arch == android_ia32)
 
 ##############################################################################
-# This test is the same as math-floor-of-div for non ARM architectures.
-math-floor-of-div-nosudiv: PASS, SKIP if ($arch != arm && $arch != android_arm)
-
-##############################################################################
 # Long running test that reproduces memory leak and should be run manually.
 regress/regress-2073: SKIP
 

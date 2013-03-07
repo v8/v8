@@ -49,7 +49,7 @@ class CompilationInfo {
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
   CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate, Zone* zone);
 
-  virtual ~CompilationInfo();
+  ~CompilationInfo();
 
   Isolate* isolate() {
     ASSERT(Isolate::Current() == isolate_);
@@ -349,8 +349,6 @@ class CompilationInfo {
 // Zone on construction and deallocates it on exit.
 class CompilationInfoWithZone: public CompilationInfo {
  public:
-  INLINE(void* operator new(size_t size)) { return Malloced::New(size); }
-
   explicit CompilationInfoWithZone(Handle<Script> script)
       : CompilationInfo(script, &zone_),
         zone_(script->GetIsolate()),

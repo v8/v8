@@ -248,6 +248,8 @@ DEFINE_bool(parallel_recompilation, false,
 DEFINE_bool(trace_parallel_recompilation, false, "track parallel recompilation")
 DEFINE_int(parallel_recompilation_queue_length, 2,
            "the length of the parallel compilation queue")
+DEFINE_int(parallel_recompilation_delay, 0,
+           "artificial compilation delay in ms")
 DEFINE_bool(manual_parallel_recompilation, false,
             "disable automatic optimization")
 DEFINE_implication(manual_parallel_recompilation, parallel_recompilation)
@@ -369,10 +371,6 @@ DEFINE_int(max_opt_count, 10,
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
 
 DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
-
-// cpu-profiler.cc
-DEFINE_int(cpu_profiler_sampling_period, 1000,
-           "CPU profiler sampling period in microseconds")
 
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")

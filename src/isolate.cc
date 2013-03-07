@@ -338,7 +338,7 @@ Thread::LocalStorageKey Isolate::thread_id_key_;
 Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 Mutex* Isolate::process_wide_mutex_ = OS::CreateMutex();
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
-
+Atomic32 Isolate::isolate_counter_ = 0;
 
 Isolate::PerIsolateThreadData* Isolate::AllocatePerIsolateThreadData(
     ThreadId thread_id) {
@@ -1624,7 +1624,8 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 #define TRACE_ISOLATE(tag)                                              \
   do {                                                                  \
     if (FLAG_trace_isolates) {                                          \
-      PrintF("Isolate %p " #tag "\n", reinterpret_cast<void*>(this));   \
+      PrintF("Isolate %p (id %d)" #tag "\n",                            \
+             reinterpret_cast<void*>(this), id());                      \
     }                                                                   \
   } while (false)
 #else
@@ -1684,6 +1685,7 @@ Isolate::Isolate()
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
       sweeper_thread_(NULL) {
+  id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,
@@ -1772,6 +1774,8 @@ void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
 
+    if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
+
     if (FLAG_sweeper_threads > 0) {
       for (int i = 0; i < FLAG_sweeper_threads; i++) {
         sweeper_thread_[i]->Stop();
@@ -1788,9 +1792,7 @@ void Isolate::Deinit() {
       delete[] marking_thread_;
     }
 
-    if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
-
-    if (FLAG_hydrogen_stats) HStatistics::Instance()->Print();
+    if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
     // We must stop the logger before we tear down other components.
     logger_->EnsureTickerStopped();
@@ -2154,8 +2156,10 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   if (!Serializer::enabled()) {
-    // Ensure that the stub failure trampoline has been generated.
+    // Ensure that all stubs which need to be generated ahead of time, but
+    // cannot be serialized into the snapshot have been generated.
     HandleScope scope(this);
+    StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     CodeStub::GenerateFPStubs(this);
     StubFailureTrampolineStub::GenerateAheadOfTime(this);
   }
@@ -2197,6 +2201,11 @@ bool Isolate::Init(Deserializer* des) {
   } else {
     FLAG_concurrent_sweeping = false;
     FLAG_parallel_sweeping = false;
+  }
+  if (FLAG_parallel_recompilation &&
+      SystemThreadManager::NumberOfParallelSystemThreads(
+          SystemThreadManager::PARALLEL_RECOMPILATION) == 0) {
+    FLAG_parallel_recompilation = false;
   }
   return true;
 }
@@ -2308,6 +2317,18 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
   if (deferred->previous_ != NULL) {
     deferred->previous_->next_ = deferred->next_;
   }
+}
+
+
+HStatistics* Isolate::GetHStatistics() {
+  if (hstatistics() == NULL) set_hstatistics(new HStatistics());
+  return hstatistics();
+}
+
+
+HTracer* Isolate::GetHTracer() {
+  if (htracer() == NULL) set_htracer(new HTracer(id()));
+  return htracer();
 }
 
 

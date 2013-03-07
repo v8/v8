@@ -74,6 +74,44 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
+static void InitializeArrayConstructorDescriptor(Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // register state
+  // a1 -- constructor function
+  // a2 -- type info cell with elements kind
+  // a0 -- number of arguments to the constructor function
+  static Register registers[] = { a1, a2 };
+  descriptor->register_param_count_ = 2;
+  // stack param count needs (constructor pointer, and single argument)
+  descriptor->stack_parameter_count_ = &a0;
+  descriptor->register_params_ = registers;
+  descriptor->extra_expression_stack_count_ = 1;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(ArrayConstructor_StubFailure);
+}
+
+
+void ArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeArrayConstructorDescriptor(isolate, descriptor);
+}
+
+
+void ArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeArrayConstructorDescriptor(isolate, descriptor);
+}
+
+
+void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeArrayConstructorDescriptor(isolate, descriptor);
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
@@ -614,7 +652,7 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
                                    Register scratch1,
                                    Register scratch2) {
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ sra(scratch1, a0, kSmiTagSize);
     __ mtc1(scratch1, f14);
     __ cvt_d_w(f14, f14);
@@ -665,7 +703,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   // Handle loading a double from a heap number.
   if (CpuFeatures::IsSupported(FPU) &&
       destination == kFPURegisters) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     // Load the double from tagged HeapNumber to double register.
 
     // ARM uses a workaround here because of the unaligned HeapNumber
@@ -684,7 +722,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   // Handle loading a double from a smi.
   __ bind(&is_smi);
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     // Convert smi to double using FPU instructions.
     __ mtc1(scratch1, dst);
     __ cvt_d_w(dst, dst);
@@ -760,7 +798,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
   Label done;
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ mtc1(int_scratch, single_scratch);
     __ cvt_d_w(double_dst, single_scratch);
     if (destination == kCoreRegisters) {
@@ -862,7 +900,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
 
   // Load the number.
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     // Load the double value.
     __ ldc1(double_dst, FieldMemOperand(object, HeapNumber::kValueOffset));
 
@@ -959,7 +997,7 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
   // Object is a heap number.
   // Convert the floating point value to a 32-bit integer.
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     // Load the double value.
     __ ldc1(double_scratch0, FieldMemOperand(object, HeapNumber::kValueOffset));
 
@@ -1097,7 +1135,7 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   __ push(ra);
   __ PrepareCallCFunction(4, scratch);  // Two doubles are 4 arguments.
   if (!IsMipsSoftFloatABI) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     // We are not using MIPS FPU instructions, and parameters for the runtime
     // function call are prepaired in a0-a3 registers, but function we are
     // calling is compiled with hard-float flag and expecting hard float ABI
@@ -1113,7 +1151,7 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   }
   // Store answer in the overwritable heap number.
   if (!IsMipsSoftFloatABI) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     // Double returned in register f0.
     __ sdc1(f0, FieldMemOperand(heap_number_result, HeapNumber::kValueOffset));
   } else {
@@ -1337,7 +1375,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   // Rhs is a smi, lhs is a number.
   // Convert smi rhs to double.
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ sra(at, rhs, kSmiTagSize);
     __ mtc1(at, f14);
     __ cvt_d_w(f14, f14);
@@ -1376,7 +1414,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   // Lhs is a smi, rhs is a number.
   // Convert smi lhs to double.
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ sra(at, lhs, kSmiTagSize);
     __ mtc1(at, f12);
     __ cvt_d_w(f12, f12);
@@ -1404,7 +1442,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 void EmitNanCheck(MacroAssembler* masm, Condition cc) {
   bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     // Lhs and rhs are already loaded to f12 and f14 register pairs.
     __ Move(t0, t1, f14);
     __ Move(t2, t3, f12);
@@ -1471,7 +1509,7 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
     // Exception: 0 and -0.
     bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
     if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatures::Scope scope(FPU);
+      CpuFeatureScope scope(masm, FPU);
       // Lhs and rhs are already loaded to f12 and f14 register pairs.
       __ Move(t0, t1, f14);
       __ Move(t2, t3, f12);
@@ -1527,7 +1565,7 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
     __ pop(ra);  // Because this function returns int, result is in v0.
     __ Ret();
   } else {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     Label equal, less_than;
     __ BranchF(&equal, NULL, eq, f12, f14);
     __ BranchF(&less_than, NULL, lt, f12, f14);
@@ -1577,12 +1615,13 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     // Check for oddballs: true, false, null, undefined.
     __ Branch(&return_not_equal, eq, a3, Operand(ODDBALL_TYPE));
 
-    // Now that we have the types we might as well check for symbol-symbol.
-    // Ensure that no non-strings have the symbol bit set.
-    STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsSymbolMask);
-    STATIC_ASSERT(kSymbolTag != 0);
+    // Now that we have the types we might as well check for
+    // internalized-internalized.
+    // Ensure that no non-strings have the internalized bit set.
+    STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsInternalizedMask);
+    STATIC_ASSERT(kInternalizedTag != 0);
     __ And(t2, a2, Operand(a3));
-    __ And(t0, t2, Operand(kIsSymbolMask));
+    __ And(t0, t2, Operand(kIsInternalizedMask));
     __ Branch(&return_not_equal, ne, t0, Operand(zero_reg));
 }
 
@@ -1602,7 +1641,7 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
   // Both are heap numbers. Load them up then jump to the code we have
   // for that.
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
     __ ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
   } else {
@@ -1620,30 +1659,30 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 }
 
 
-// Fast negative check for symbol-to-symbol equality.
-static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
-                                         Register lhs,
-                                         Register rhs,
-                                         Label* possible_strings,
-                                         Label* not_both_strings) {
+// Fast negative check for internalized-to-internalized equality.
+static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
+                                                     Register lhs,
+                                                     Register rhs,
+                                                     Label* possible_strings,
+                                                     Label* not_both_strings) {
   ASSERT((lhs.is(a0) && rhs.is(a1)) ||
          (lhs.is(a1) && rhs.is(a0)));
 
   // a2 is object type of lhs.
-  // Ensure that no non-strings have the symbol bit set.
+  // Ensure that no non-strings have the internalized bit set.
   Label object_test;
-  STATIC_ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kInternalizedTag != 0);
   __ And(at, a2, Operand(kIsNotStringMask));
   __ Branch(&object_test, ne, at, Operand(zero_reg));
-  __ And(at, a2, Operand(kIsSymbolMask));
+  __ And(at, a2, Operand(kIsInternalizedMask));
   __ Branch(possible_strings, eq, at, Operand(zero_reg));
   __ GetObjectType(rhs, a3, a3);
   __ Branch(not_both_strings, ge, a3, Operand(FIRST_NONSTRING_TYPE));
-  __ And(at, a3, Operand(kIsSymbolMask));
+  __ And(at, a3, Operand(kIsInternalizedMask));
   __ Branch(possible_strings, eq, at, Operand(zero_reg));
 
-  // Both are symbols. We already checked they weren't the same pointer
-  // so they are not equal.
+  // Both are internalized strings. We already checked they weren't the same
+  // pointer so they are not equal.
   __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(1));   // Non-zero indicates not equal.
 
@@ -1697,7 +1736,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   if (!object_is_smi) {
     __ JumpIfSmi(object, &is_smi);
     if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatures::Scope scope(FPU);
+      CpuFeatureScope scope(masm, FPU);
       __ CheckMap(object,
                   scratch1,
                   Heap::kHeapNumberMapRootIndex,
@@ -1789,7 +1828,7 @@ static void ICCompareStub_CheckInputType(MacroAssembler* masm,
     __ CheckMap(input, scratch, Heap::kHeapNumberMapRootIndex, fail,
                 DONT_DO_SMI_CHECK);
   }
-  // We could be strict about symbol/string here, but as long as
+  // We could be strict about internalized/string here, but as long as
   // hydrogen doesn't care, the stub doesn't have to care either.
   __ bind(&ok);
 }
@@ -1850,7 +1889,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
   Isolate* isolate = masm->isolate();
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     Label nan;
     __ li(t0, Operand(LESS));
     __ li(t1, Operand(GREATER));
@@ -1902,25 +1941,28 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
     EmitStrictTwoHeapObjectCompare(masm, lhs, rhs);
   }
 
-  Label check_for_symbols;
+  Label check_for_internalized_strings;
   Label flat_string_check;
   // Check for heap-number-heap-number comparison. Can jump to slow case,
   // or load both doubles and jump to the code that handles
-  // that case. If the inputs are not doubles then jumps to check_for_symbols.
+  // that case. If the inputs are not doubles then jumps to
+  // check_for_internalized_strings.
   // In this case a2 will contain the type of lhs_.
   EmitCheckForTwoHeapNumbers(masm,
                              lhs,
                              rhs,
                              &both_loaded_as_doubles,
-                             &check_for_symbols,
+                             &check_for_internalized_strings,
                              &flat_string_check);
 
-  __ bind(&check_for_symbols);
+  __ bind(&check_for_internalized_strings);
   if (cc == eq && !strict()) {
-    // Returns an answer for two symbols or two detectable objects.
+    // Returns an answer for two internalized strings or two
+    // detectable objects.
     // Otherwise jumps to string case or not both strings case.
     // Assumes that a2 is the type of lhs_ on entry.
-    EmitCheckForSymbolsOrObjects(masm, lhs, rhs, &flat_string_check, &slow);
+    EmitCheckForInternalizedStringsOrObjects(
+        masm, lhs, rhs, &flat_string_check, &slow);
   }
 
   // Check for both being sequential ASCII strings, and inline if that is the
@@ -1982,7 +2024,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 // it, too: zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   // This stub uses FPU instructions.
-  CpuFeatures::Scope scope(FPU);
+  CpuFeatureScope scope(masm, FPU);
 
   Label patch;
   const Register map = t5.is(tos_) ? t3 : t5;
@@ -2097,7 +2139,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // restore them.
   __ MultiPush(kJSCallerSaved | ra.bit());
   if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ MultiPushFPU(kCallerSavedFPU);
   }
   const int argument_count = 1;
@@ -2111,7 +2153,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       ExternalReference::store_buffer_overflow_function(masm->isolate()),
       argument_count);
   if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ MultiPopFPU(kCallerSavedFPU);
   }
 
@@ -2344,7 +2386,7 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
 
   if (CpuFeatures::IsSupported(FPU)) {
     // Convert the int32 in a1 to the heap number in v0. a2 is corrupted.
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ mtc1(a1, f0);
     __ cvt_d_w(f0, f0);
     __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
@@ -2689,7 +2731,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
         // Using FPU registers:
         // f12: Left value.
         // f14: Right value.
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm, FPU);
         switch (op) {
         case Token::ADD:
           __ add_d(f10, f12, f14);
@@ -2821,7 +2863,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
       if (CpuFeatures::IsSupported(FPU)) {
         // Convert the int32 in a2 to the heap number in a0. As
         // mentioned above SHR needs to always produce a positive result.
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm, FPU);
         __ mtc1(a2, f0);
         if (op == Token::SHR) {
           __ Cvt_d_uw(f0, f0, f22);
@@ -3016,7 +3058,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    &transition);
 
       if (destination == FloatingPointHelper::kFPURegisters) {
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm, FPU);
         Label return_heap_number;
         switch (op_) {
           case Token::ADD:
@@ -3230,7 +3272,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                 mode_);
 
       if (CpuFeatures::IsSupported(FPU)) {
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm, FPU);
 
         if (op_ != Token::SHR) {
           // Convert the result to a floating point value.
@@ -3434,7 +3476,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   const bool tagged = (argument_type_ == TAGGED);
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
 
     if (tagged) {
       // Argument is a number and is on stack and in a0.
@@ -3544,7 +3586,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
                                  1);
   } else {
     ASSERT(CpuFeatures::IsSupported(FPU));
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
 
     Label no_update;
     Label skip_cache;
@@ -3672,7 +3714,7 @@ void InterruptStub::Generate(MacroAssembler* masm) {
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  CpuFeatures::Scope fpu_scope(FPU);
+  CpuFeatureScope fpu_scope(masm, FPU);
   const Register base = a1;
   const Register exponent = a2;
   const Register heapnumbermap = t1;
@@ -3915,21 +3957,15 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   // These stubs might already be in the snapshot, detect that and don't
   // regenerate, which would lead to code stub initialization state being messed
   // up.
-  Code* save_doubles_code = NULL;
-  Code* store_buffer_overflow_code = NULL;
-  if (!save_doubles.FindCodeInCache(&save_doubles_code, ISOLATE)) {
-    if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatures::Scope scope2(FPU);
-      save_doubles_code = *save_doubles.GetCode(isolate);
-      store_buffer_overflow_code = *stub.GetCode(isolate);
-    } else {
-      save_doubles_code = *save_doubles.GetCode(isolate);
-      store_buffer_overflow_code = *stub.GetCode(isolate);
-    }
+  Code* save_doubles_code;
+  if (!save_doubles.FindCodeInCache(&save_doubles_code, isolate)) {
+    save_doubles_code = *save_doubles.GetCode(isolate);
     save_doubles_code->set_is_pregenerated(true);
+
+    Code* store_buffer_overflow_code = *stub.GetCode(isolate);
     store_buffer_overflow_code->set_is_pregenerated(true);
   }
-  ISOLATE->set_fp_stubs_generated(true);
+  isolate->set_fp_stubs_generated(true);
 }
 
 
@@ -4185,7 +4221,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ MultiPush(kCalleeSaved | ra.bit());
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     // Save callee-saved FPU registers.
     __ MultiPushFPU(kCalleeSavedFPU);
     // Set up the reserved register for 0.0.
@@ -4334,7 +4370,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ addiu(sp, sp, -EntryFrameConstants::kCallerFPOffset);
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     // Restore callee-saved fpu registers.
     __ MultiPopFPU(kCalleeSavedFPU);
   }
@@ -4534,7 +4570,7 @@ void ArrayLengthStub::Generate(MacroAssembler* masm) {
     //  -- a1    : receiver
     // -----------------------------------
     __ Branch(&miss, ne, a0,
-        Operand(masm->isolate()->factory()->length_symbol()));
+        Operand(masm->isolate()->factory()->length_string()));
     receiver = a1;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -4563,7 +4599,7 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
     //  -- a1    : receiver
     // -----------------------------------
     __ Branch(&miss, ne, a0,
-        Operand(masm->isolate()->factory()->prototype_symbol()));
+        Operand(masm->isolate()->factory()->prototype_string()));
     receiver = a1;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -4592,7 +4628,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     //  -- a1    : receiver
     // -----------------------------------
     __ Branch(&miss, ne, a0,
-        Operand(masm->isolate()->factory()->length_symbol()));
+        Operand(masm->isolate()->factory()->length_string()));
     receiver = a1;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -4630,7 +4666,7 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
     //  -- a2    : receiver
     // -----------------------------------
     __ Branch(&miss, ne, a1,
-        Operand(masm->isolate()->factory()->length_symbol()));
+        Operand(masm->isolate()->factory()->length_string()));
     receiver = a2;
     value = a0;
   } else {
@@ -5224,7 +5260,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (3) Cons string.  Check that it's flat.
   // Replace subject with first string and reload instance type.
   __ lw(a0, FieldMemOperand(subject, ConsString::kSecondOffset));
-  __ LoadRoot(a1, Heap::kEmptyStringRootIndex);
+  __ LoadRoot(a1, Heap::kempty_stringRootIndex);
   __ Branch(&runtime, ne, a0, Operand(a1));
   __ lw(subject, FieldMemOperand(subject, ConsString::kFirstOffset));
 
@@ -5620,12 +5656,13 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void GenerateRecordCallTarget(MacroAssembler* masm) {
+static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
   // a1 : the function to call
   // a2 : cache cell for call target
+  ASSERT(!FLAG_optimize_constructed_arrays);
   Label done;
 
   ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
@@ -5657,6 +5694,78 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // write-barrier is needed.
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
   __ sw(at, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
+
+  __ bind(&done);
+}
+
+
+static void GenerateRecordCallTarget(MacroAssembler* masm) {
+  // Cache the called function in a global property cell.  Cache states
+  // are uninitialized, monomorphic (indicated by a JSFunction), and
+  // megamorphic.
+  // a1 : the function to call
+  // a2 : cache cell for call target
+  ASSERT(FLAG_optimize_constructed_arrays);
+  Label initialize, done, miss, megamorphic, not_array_function;
+
+  ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
+            masm->isolate()->heap()->undefined_value());
+  ASSERT_EQ(*TypeFeedbackCells::UninitializedSentinel(masm->isolate()),
+            masm->isolate()->heap()->the_hole_value());
+
+  // Load the cache state into a3.
+  __ lw(a3, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
+
+  // A monomorphic cache hit or an already megamorphic state: invoke the
+  // function without changing the state.
+  __ Branch(&done, eq, a3, Operand(a1));
+  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ Branch(&done, eq, a3, Operand(at));
+
+  // Special handling of the Array() function, which caches not only the
+  // monomorphic Array function but the initial ElementsKind with special
+  // sentinels
+  Handle<Object> terminal_kind_sentinel =
+      TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
+                                                  LAST_FAST_ELEMENTS_KIND);
+  __ Branch(&miss, ne, a3, Operand(terminal_kind_sentinel));
+  // Make sure the function is the Array() function
+  __ LoadArrayFunction(a3);
+  __ Branch(&megamorphic, ne, a1, Operand(a3));
+  __ jmp(&done);
+
+  __ bind(&miss);
+
+  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
+  // megamorphic.
+  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+  __ Branch(&initialize, eq, a3, Operand(at));
+  // MegamorphicSentinel is an immortal immovable object (undefined) so no
+  // write-barrier is needed.
+  __ bind(&megamorphic);
+  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ sw(at, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
+
+  // An uninitialized cache is patched with the function or sentinel to
+  // indicate the ElementsKind if function is the Array constructor.
+  __ bind(&initialize);
+  // Make sure the function is the Array() function
+  __ LoadArrayFunction(a3);
+  __ Branch(&not_array_function, ne, a1, Operand(a3));
+
+  // The target function is the Array constructor, install a sentinel value in
+  // the constructor's type info cell that will track the initial ElementsKind
+  // that should be used for the array when its constructed.
+  Handle<Object> initial_kind_sentinel =
+      TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
+          GetInitialFastElementsKind());
+  __ li(a3, Operand(initial_kind_sentinel));
+  __ sw(a3, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
+  __ Branch(&done);
+
+  __ bind(&not_array_function);
+  __ sw(a1, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
+  // No need for a write barrier here - cells are rescanned.
 
   __ bind(&done);
 }
@@ -5694,7 +5803,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
 
   if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    if (FLAG_optimize_constructed_arrays) {
+      GenerateRecordCallTarget(masm);
+    } else {
+      GenerateRecordCallTargetNoArray(masm);
+    }
   }
 
   // Fast-case: Invoke the function now.
@@ -5768,13 +5881,19 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
 
   if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    if (FLAG_optimize_constructed_arrays) {
+      GenerateRecordCallTarget(masm);
+    } else {
+      GenerateRecordCallTargetNoArray(masm);
+    }
   }
 
   // Jump to the function-specific construct stub.
-  __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kConstructStubOffset));
-  __ Addu(at, a2, Operand(Code::kHeaderSize - kHeapObjectTag));
+  Register jmp_reg = FLAG_optimize_constructed_arrays ? a3 : a2;
+  __ lw(jmp_reg, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(jmp_reg, FieldMemOperand(jmp_reg,
+                                 SharedFunctionInfo::kConstructStubOffset));
+  __ Addu(at, jmp_reg, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(at);
 
   // a0: number of arguments
@@ -6102,7 +6221,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
   Register scratch = scratch3;
 
   // Make sure that both characters are not digits as such strings has a
-  // different hash algorithm. Don't try to look for these in the symbol table.
+  // different hash algorithm. Don't try to look for these in the string table.
   Label not_array_index;
   __ Subu(scratch, c1, Operand(static_cast<int>('0')));
   __ Branch(&not_array_index,
@@ -6137,21 +6256,21 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
   // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
   // hash:  hash of two character string.
 
-  // Load symbol table.
-  // Load address of first element of the symbol table.
+  // Load string table.
+  // Load address of first element of the string table.
   Register string_table = c2;
   __ LoadRoot(string_table, Heap::kStringTableRootIndex);
 
   Register undefined = scratch4;
   __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
 
-  // Calculate capacity mask from the symbol table capacity.
+  // Calculate capacity mask from the string table capacity.
   Register mask = scratch2;
   __ lw(mask, FieldMemOperand(string_table, StringTable::kCapacityOffset));
   __ sra(mask, mask, 1);
   __ Addu(mask, mask, -1);
 
-  // Calculate untagged address of the first element of the symbol table.
+  // Calculate untagged address of the first element of the string table.
   Register first_string_table_element = string_table;
   __ Addu(first_string_table_element, string_table,
          Operand(StringTable::kElementsStartOffset - kHeapObjectTag));
@@ -6161,17 +6280,17 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
   // hash:  hash of two character string
   // mask:  capacity mask
   // first_string_table_element: address of the first element of
-  //                             the symbol table
+  //                             the string table
   // undefined: the undefined object
   // scratch: -
 
-  // Perform a number of probes in the symbol table.
+  // Perform a number of probes in the string table.
   const int kProbes = 4;
   Label found_in_string_table;
   Label next_probe[kProbes];
   Register candidate = scratch5;  // Scratch register contains candidate.
   for (int i = 0; i < kProbes; i++) {
-    // Calculate entry in symbol table.
+    // Calculate entry in string table.
     if (i > 0) {
       __ Addu(candidate, hash, Operand(StringTable::GetProbeOffset(i)));
     } else {
@@ -6195,7 +6314,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
     // Must be the hole (deleted entry).
     if (FLAG_debug_code) {
       __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
-      __ Assert(eq, "oddball in symbol table is not undefined or the hole",
+      __ Assert(eq, "oddball in string table is not undefined or the hole",
           scratch, Operand(candidate));
     }
     __ jmp(&next_probe[i]);
@@ -6356,7 +6475,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ Branch(&sliced_string, ne, t0, Operand(zero_reg));
   // Cons string.  Check whether it is flat, then fetch first part.
   __ lw(t1, FieldMemOperand(v0, ConsString::kSecondOffset));
-  __ LoadRoot(t0, Heap::kEmptyStringRootIndex);
+  __ LoadRoot(t0, Heap::kempty_stringRootIndex);
   __ Branch(&runtime, ne, t1, Operand(t0));
   __ lw(t1, FieldMemOperand(v0, ConsString::kFirstOffset));
   // Update instance type.
@@ -6739,8 +6858,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Adding two lengths can't overflow.
   STATIC_ASSERT(String::kMaxLength < String::kMaxLength * 2);
   __ Addu(t2, a2, Operand(a3));
-  // Use the symbol table when adding two one character strings, as it
-  // helps later optimizations to return a symbol here.
+  // Use the string table when adding two one character strings, as it
+  // helps later optimizations to return a string here.
   __ Branch(&longer_than_two, ne, t2, Operand(2));
 
   // Check that both strings are non-external ASCII strings.
@@ -6757,7 +6876,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ lbu(a2, FieldMemOperand(a0, SeqOneByteString::kHeaderSize));
   __ lbu(a3, FieldMemOperand(a1, SeqOneByteString::kHeaderSize));
 
-  // Try to lookup two character string in symbol table. If it is not found
+  // Try to lookup two character string in string table. If it is not found
   // just allocate a new one.
   Label make_two_character_string;
   StringHelper::GenerateTwoCharacterStringTableProbe(
@@ -7023,7 +7142,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or FPU is unsupported.
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
 
     // Load left and right operand.
     Label done, left, left_smi, right_smi;
@@ -7102,7 +7221,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
+void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::SYMBOL);
   Label miss;
 
@@ -7115,14 +7234,14 @@ void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
   // Check that both operands are heap objects.
   __ JumpIfEitherSmi(left, right, &miss);
 
-  // Check that both operands are symbols.
+  // Check that both operands are internalized strings.
   __ lw(tmp1, FieldMemOperand(left, HeapObject::kMapOffset));
   __ lw(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
   __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
   __ lbu(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kInternalizedTag != 0);
   __ And(tmp1, tmp1, Operand(tmp2));
-  __ And(tmp1, tmp1, kIsSymbolMask);
+  __ And(tmp1, tmp1, kIsInternalizedMask);
   __ Branch(&miss, eq, tmp1, Operand(zero_reg));
   // Make sure a0 is non-zero. At this point input operands are
   // guaranteed to be non-zero.
@@ -7130,7 +7249,7 @@ void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
   STATIC_ASSERT(EQUAL == 0);
   STATIC_ASSERT(kSmiTag == 0);
   __ mov(v0, right);
-  // Symbols are compared by identity.
+  // Internalized strings are compared by identity.
   __ Ret(ne, left, Operand(right));
   __ li(v0, Operand(Smi::FromInt(EQUAL)));
   __ Ret();
@@ -7180,13 +7299,13 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
   // Handle not identical strings.
 
-  // Check that both strings are symbols. If they are, we're done
+  // Check that both strings are internalized strings. If they are, we're done
   // because we already know they are not identical.
   if (equality) {
     ASSERT(GetCondition() == eq);
-    STATIC_ASSERT(kSymbolTag != 0);
+    STATIC_ASSERT(kInternalizedTag != 0);
     __ And(tmp3, tmp1, Operand(tmp2));
-    __ And(tmp5, tmp3, Operand(kIsSymbolMask));
+    __ And(tmp5, tmp3, Operand(kIsInternalizedMask));
     Label is_symbol;
     __ Branch(&is_symbol, eq, tmp5, Operand(zero_reg));
     // Make sure a0 is non-zero. At this point input operands are
@@ -7389,11 +7508,11 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
       Label the_hole;
       __ Branch(&the_hole, eq, entity_name, Operand(tmp));
 
-      // Check if the entry name is not a symbol.
+      // Check if the entry name is not a internalized string.
       __ lw(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
       __ lbu(entity_name,
              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-      __ And(scratch0, entity_name, Operand(kIsSymbolMask));
+      __ And(scratch0, entity_name, Operand(kIsInternalizedMask));
       __ Branch(miss, eq, scratch0, Operand(zero_reg));
 
       __ bind(&the_hole);
@@ -7569,11 +7688,11 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
     __ Branch(&in_dictionary, eq, entry_key, Operand(key));
 
     if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
-      // Check if the entry name is not a symbol.
+      // Check if the entry name is not a internalized string.
       __ lw(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
       __ lbu(entry_key,
              FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      __ And(result, entry_key, Operand(kIsSymbolMask));
+      __ And(result, entry_key, Operand(kIsInternalizedMask));
       __ Branch(&maybe_in_dictionary, eq, result, Operand(zero_reg));
     }
   }

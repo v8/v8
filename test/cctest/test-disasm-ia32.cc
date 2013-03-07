@@ -108,12 +108,12 @@ TEST(DisasmIa320) {
   __ nop();
   {
     CHECK(CpuFeatures::IsSupported(CPUID));
-    CpuFeatures::Scope fscope(CPUID);
+    CpuFeatureScope fscope(&assm, CPUID);
     __ cpuid();
   }
   {
     CHECK(CpuFeatures::IsSupported(RDTSC));
-    CpuFeatures::Scope fscope(RDTSC);
+    CpuFeatureScope fscope(&assm, RDTSC);
     __ rdtsc();
   }
   __ movsx_b(edx, ecx);
@@ -369,7 +369,7 @@ TEST(DisasmIa320) {
   __ nop();
   {
     if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope fscope(SSE2);
+      CpuFeatureScope fscope(&assm, SSE2);
       __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
       __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ addsd(xmm1, xmm0);
@@ -391,7 +391,7 @@ TEST(DisasmIa320) {
   // cmov.
   {
     if (CpuFeatures::IsSupported(CMOV)) {
-      CpuFeatures::Scope use_cmov(CMOV);
+      CpuFeatureScope use_cmov(&assm, CMOV);
       __ cmov(overflow, eax, Operand(eax, 0));
       __ cmov(no_overflow, eax, Operand(eax, 1));
       __ cmov(below, eax, Operand(eax, 2));
@@ -414,7 +414,7 @@ TEST(DisasmIa320) {
   // andpd, cmpltsd, movaps, psllq, psrlq, por.
   {
     if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope fscope(SSE2);
+      CpuFeatureScope fscope(&assm, SSE2);
       __ andpd(xmm0, xmm1);
       __ andpd(xmm1, xmm2);
 
@@ -444,7 +444,7 @@ TEST(DisasmIa320) {
   {
     if (CpuFeatures::IsSupported(SSE2) &&
         CpuFeatures::IsSupported(SSE4_1)) {
-      CpuFeatures::Scope scope(SSE4_1);
+      CpuFeatureScope scope(&assm, SSE4_1);
       __ pextrd(eax, xmm0, 1);
       __ pinsrd(xmm1, eax, 0);
     }

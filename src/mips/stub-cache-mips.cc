@@ -121,14 +121,14 @@ static void ProbeTable(Isolate* isolate,
 // the property. This function may return false negatives, so miss_label
 // must always call a backup property check that is complete.
 // This function is safe to call if the receiver has fast properties.
-// Name must be a symbol and receiver must be a heap object.
+// Name must be internalized and receiver must be a heap object.
 static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
                                              Label* miss_label,
                                              Register receiver,
                                              Handle<String> name,
                                              Register scratch0,
                                              Register scratch1) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->negative_lookups(), 1, scratch0, scratch1);
   __ IncrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
@@ -998,7 +998,7 @@ static void StoreIntAsFloat(MacroAssembler* masm,
                             Register scratch1,
                             Register scratch2) {
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ mtc1(ival, f0);
     __ cvt_s_w(f0, f0);
     __ sll(scratch1, wordoffset, 2);
@@ -1103,7 +1103,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     if (!current->HasFastProperties() &&
         !current->IsJSGlobalObject() &&
         !current->IsJSGlobalProxy()) {
-      if (!name->IsSymbol()) {
+      if (!name->IsInternalizedString()) {
         name = factory()->InternalizeString(name);
       }
       ASSERT(current->property_dictionary()->FindEntry(*name) ==
@@ -2001,7 +2001,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
 
   if (index_out_of_range.is_linked()) {
     __ bind(&index_out_of_range);
-    __ LoadRoot(v0, Heap::kEmptyStringRootIndex);
+    __ LoadRoot(v0, Heap::kempty_stringRootIndex);
     __ Drop(argc + 1);
     __ Ret();
   }
@@ -2108,7 +2108,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
     return Handle<Code>::null();
   }
 
-  CpuFeatures::Scope scope_fpu(FPU);
+  CpuFeatureScope scope_fpu(masm(), FPU);
   const int argc = arguments().immediate();
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
@@ -2420,7 +2420,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       break;
 
     case STRING_CHECK:
-      // Check that the object is a two-byte string or a symbol.
+      // Check that the object is a string.
       __ GetObjectType(a1, a3, a3);
       __ Branch(&miss, Ugreater_equal, a3, Operand(FIRST_NONSTRING_TYPE));
       // Check that the maps starting from the prototype haven't changed.
@@ -3353,7 +3353,7 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                                 FPURegister double_scratch1,
                                 Label* fail) {
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     Label key_ok;
     // Check for smi or a smi inside a heap number.  We convert the heap
     // number and check if the conversion is exact and fits into the smi
@@ -3489,7 +3489,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           f0, t2, t3,  // These are: double_dst, dst_mantissa, dst_exponent.
           t0, f2);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kFPURegisters) {
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm(), FPU);
         __ sdc1(f0, MemOperand(a3, 0));
       } else {
         __ sw(t2, MemOperand(a3, 0));
@@ -3527,7 +3527,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // reproducible behavior, convert these to zero.
 
     if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatures::Scope scope(FPU);
+      CpuFeatureScope scope(masm, FPU);
 
       __ ldc1(f0, FieldMemOperand(a0, HeapNumber::kValueOffset));
 
@@ -3788,7 +3788,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     MacroAssembler* masm,
     bool is_js_array,
     ElementsKind elements_kind,
-    KeyedAccessGrowMode grow_mode) {
+    KeyedAccessStoreMode store_mode) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -3950,7 +3950,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
 void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     MacroAssembler* masm,
     bool is_js_array,
-    KeyedAccessGrowMode grow_mode) {
+    KeyedAccessStoreMode store_mode) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key

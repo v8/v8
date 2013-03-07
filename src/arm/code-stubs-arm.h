@@ -471,7 +471,7 @@ class RecordWriteStub: public PlatformCodeStub {
       if (mode == kSaveFPRegs) {
         // Number of d-regs not known at snapshot time.
         ASSERT(!Serializer::enabled());
-        CpuFeatures::Scope scope(VFP2);
+        CpuFeatureScope scope(masm, VFP2);
         masm->sub(sp,
                   sp,
                   Operand(kDoubleSize * (DwVfpRegister::NumRegisters() - 1)));
@@ -489,7 +489,7 @@ class RecordWriteStub: public PlatformCodeStub {
       if (mode == kSaveFPRegs) {
         // Number of d-regs not known at snapshot time.
         ASSERT(!Serializer::enabled());
-        CpuFeatures::Scope scope(VFP2);
+        CpuFeatureScope scope(masm, VFP2);
         // Restore all VFP registers except d0.
         // TODO(hans): We should probably restore d0 too. And maybe use vldm.
         for (int i = DwVfpRegister::NumRegisters() - 1; i > 0; i--) {
@@ -745,11 +745,11 @@ class FloatingPointHelper : public AllStatic {
 };
 
 
-class StringDictionaryLookupStub: public PlatformCodeStub {
+class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
-  explicit StringDictionaryLookupStub(LookupMode mode) : mode_(mode) { }
+  explicit NameDictionaryLookupStub(LookupMode mode) : mode_(mode) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -758,7 +758,7 @@ class StringDictionaryLookupStub: public PlatformCodeStub {
                                      Label* done,
                                      Register receiver,
                                      Register properties,
-                                     Handle<String> name,
+                                     Handle<Name> name,
                                      Register scratch0);
 
   static void GeneratePositiveLookup(MacroAssembler* masm,
@@ -776,14 +776,14 @@ class StringDictionaryLookupStub: public PlatformCodeStub {
   static const int kTotalProbes = 20;
 
   static const int kCapacityOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kCapacityIndex * kPointerSize;
+      NameDictionary::kHeaderSize +
+      NameDictionary::kCapacityIndex * kPointerSize;
 
   static const int kElementsStartOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kElementsStartIndex * kPointerSize;
+      NameDictionary::kHeaderSize +
+      NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return StringDictionaryLookup; }
+  Major MajorKey() { return NameDictionaryLookup; }
 
   int MinorKey() {
     return LookupModeBits::encode(mode_);

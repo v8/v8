@@ -94,7 +94,7 @@ function SetUpLockedPrototype(constructor, fields, methods) {
     %SetProperty(prototype, key, f, DONT_ENUM | DONT_DELETE | READ_ONLY);
     %SetNativeFlag(f);
   }
-  prototype.__proto__ = null;
+  %SetPrototype(prototype, null);
   %ToFastProperties(prototype);
 }
 
@@ -258,9 +258,9 @@ function ObjectValueOf() {
 function ObjectHasOwnProperty(V) {
   if (%IsJSProxy(this)) {
     var handler = %GetHandler(this);
-    return CallTrap1(handler, "hasOwn", DerivedHasOwnTrap, TO_STRING_INLINE(V));
+    return CallTrap1(handler, "hasOwn", DerivedHasOwnTrap, ToName(V));
   }
-  return %HasLocalProperty(TO_OBJECT_INLINE(this), TO_STRING_INLINE(V));
+  return %HasLocalProperty(TO_OBJECT_INLINE(this), ToName(V));
 }
 
 
@@ -277,7 +277,7 @@ function ObjectIsPrototypeOf(V) {
 
 // ECMA-262 - 15.2.4.6
 function ObjectPropertyIsEnumerable(V) {
-  var P = ToString(V);
+  var P = ToName(V);
   if (%IsJSProxy(this)) {
     var desc = GetOwnProperty(this, P);
     return IS_UNDEFINED(desc) ? false : desc.isEnumerable();
@@ -300,7 +300,7 @@ function ObjectDefineGetter(name, fun) {
   desc.setGet(fun);
   desc.setEnumerable(true);
   desc.setConfigurable(true);
-  DefineOwnProperty(ToObject(receiver), ToString(name), desc, false);
+  DefineOwnProperty(ToObject(receiver), ToName(name), desc, false);
 }
 
 
@@ -309,7 +309,7 @@ function ObjectLookupGetter(name) {
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
     receiver = %GlobalReceiver(global);
   }
-  return %LookupAccessor(ToObject(receiver), ToString(name), GETTER);
+  return %LookupAccessor(ToObject(receiver), ToName(name), GETTER);
 }
 
 
@@ -326,7 +326,7 @@ function ObjectDefineSetter(name, fun) {
   desc.setSet(fun);
   desc.setEnumerable(true);
   desc.setConfigurable(true);
-  DefineOwnProperty(ToObject(receiver), ToString(name), desc, false);
+  DefineOwnProperty(ToObject(receiver), ToName(name), desc, false);
 }
 
 
@@ -335,7 +335,7 @@ function ObjectLookupSetter(name) {
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
     receiver = %GlobalReceiver(global);
   }
-  return %LookupAccessor(ToObject(receiver), ToString(name), SETTER);
+  return %LookupAccessor(ToObject(receiver), ToName(name), SETTER);
 }
 
 
@@ -346,7 +346,7 @@ function ObjectKeys(obj) {
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "keys", DerivedKeysTrap);
-    return ToStringArray(names, "keys");
+    return ToNameArray(names, "keys", false);
   }
   return %LocalKeys(obj);
 }
@@ -644,7 +644,7 @@ function CallTrap2(handler, name, defaultTrap, x, y) {
 
 // ES5 section 8.12.1.
 function GetOwnProperty(obj, v) {
-  var p = ToString(v);
+  var p = ToName(v);
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var descriptor = CallTrap1(handler, "getOwnPropertyDescriptor", void 0, p);
@@ -660,7 +660,7 @@ function GetOwnProperty(obj, v) {
   // GetOwnProperty returns an array indexed by the constants
   // defined in macros.py.
   // If p is not a property on obj undefined is returned.
-  var props = %GetOwnProperty(ToObject(obj), ToString(v));
+  var props = %GetOwnProperty(ToObject(obj), p);
 
   // A false value here means that access checks failed.
   if (props === false) return void 0;
@@ -702,7 +702,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
 // ES5 8.12.9.
 function DefineObjectProperty(obj, p, desc, should_throw) {
-  var current_or_access = %GetOwnProperty(ToObject(obj), ToString(p));
+  var current_or_access = %GetOwnProperty(ToObject(obj), ToName(p));
   // A false value here means that access checks failed.
   if (current_or_access === false) return void 0;
 
@@ -982,7 +982,7 @@ function ObjectGetOwnPropertyDescriptor(obj, p) {
 
 
 // For Harmony proxies
-function ToStringArray(obj, trap) {
+function ToNameArray(obj, trap, includeSymbols) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("proxy_non_object_prop_names", [obj, trap]);
   }
@@ -990,7 +990,8 @@ function ToStringArray(obj, trap) {
   var array = new $Array(n);
   var names = { __proto__: null };  // TODO(rossberg): use sets once ready.
   for (var index = 0; index < n; index++) {
-    var s = ToString(obj[index]);
+    var s = ToName(obj[index]);
+    if (IS_SYMBOL(s) && !includeSymbols) continue;
     if (%HasLocalProperty(names, s)) {
       throw MakeTypeError("proxy_repeated_prop_name", [obj, trap, s]);
     }
@@ -1010,7 +1011,7 @@ function ObjectGetOwnPropertyNames(obj) {
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "getOwnPropertyNames", void 0);
-    return ToStringArray(names, "getOwnPropertyNames");
+    return ToNameArray(names, "getOwnPropertyNames", true);
   }
 
   // Find all the indexed properties.
@@ -1045,13 +1046,13 @@ function ObjectGetOwnPropertyNames(obj) {
     }
   }
 
-  // Property names are expected to be unique strings,
+  // Property names are expected to be unique names,
   // but interceptors can interfere with that assumption.
   if (interceptorInfo != 0) {
     var propertySet = { __proto__: null };
     var j = 0;
     for (var i = 0; i < propertyNames.length; ++i) {
-      var name = ToString(propertyNames[i]);
+      var name = ToName(propertyNames[i]);
       // We need to check for the exact property value since for intrinsic
       // properties like toString if(propertySet["toString"]) will always
       // succeed.
@@ -1073,8 +1074,7 @@ function ObjectCreate(proto, properties) {
   if (!IS_SPEC_OBJECT(proto) && proto !== null) {
     throw MakeTypeError("proto_object_or_null", [proto]);
   }
-  var obj = new $Object();
-  obj.__proto__ = proto;
+  var obj = { __proto__: proto };
   if (!IS_UNDEFINED(properties)) ObjectDefineProperties(obj, properties);
   return obj;
 }
@@ -1085,7 +1085,7 @@ function ObjectDefineProperty(obj, p, attributes) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.defineProperty"]);
   }
-  var name = ToString(p);
+  var name = ToName(p);
   if (%IsJSProxy(obj)) {
     // Clone the attributes object for protection.
     // TODO(rossberg): not spec'ed yet, so not sure if this should involve

@@ -50,6 +50,11 @@ void OptimizingCompilerThread::Run() {
     input_queue_semaphore_->Wait();
     Logger::TimerEventScope timer(
         isolate_, Logger::TimerEventScope::v8_recompile_parallel);
+
+    if (FLAG_parallel_recompilation_delay != 0) {
+      OS::Sleep(FLAG_parallel_recompilation_delay);
+    }
+
     if (Acquire_Load(&stop_thread_)) {
       stop_semaphore_->Signal();
       if (FLAG_trace_parallel_recompilation) {
@@ -61,19 +66,8 @@ void OptimizingCompilerThread::Run() {
     int64_t compiling_start = 0;
     if (FLAG_trace_parallel_recompilation) compiling_start = OS::Ticks();
 
-    Heap::RelocationLock relocation_lock(isolate_->heap());
-    OptimizingCompiler* optimizing_compiler = NULL;
-    input_queue_.Dequeue(&optimizing_compiler);
-    Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(-1));
+    CompileNext();
 
-    ASSERT(!optimizing_compiler->info()->closure()->IsOptimized());
-
-    OptimizingCompiler::Status status = optimizing_compiler->OptimizeGraph();
-    ASSERT(status != OptimizingCompiler::FAILED);
-    // Prevent an unused-variable error in release mode.
-    USE(status);
-
-    output_queue_.Enqueue(optimizing_compiler);
     if (!FLAG_manual_parallel_recompilation) {
       isolate_->stack_guard()->RequestCodeReadyEvent();
     } else {
@@ -89,10 +83,45 @@ void OptimizingCompilerThread::Run() {
 }
 
 
+void OptimizingCompilerThread::CompileNext() {
+  Heap::RelocationLock relocation_lock(isolate_->heap());
+  OptimizingCompiler* optimizing_compiler = NULL;
+  input_queue_.Dequeue(&optimizing_compiler);
+  Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(-1));
+
+  // Function may have been optimized meanwhile by OSR.
+  if (FLAG_use_osr &&
+      optimizing_compiler->info()->closure()->IsOptimized()) {
+    return;
+  }
+
+  OptimizingCompiler::Status status = optimizing_compiler->OptimizeGraph();
+  ASSERT(status != OptimizingCompiler::FAILED);
+  // Prevent an unused-variable error in release mode.
+  USE(status);
+
+  output_queue_.Enqueue(optimizing_compiler);
+}
+
+
 void OptimizingCompilerThread::Stop() {
   Release_Store(&stop_thread_, static_cast<AtomicWord>(true));
   input_queue_semaphore_->Signal();
   stop_semaphore_->Wait();
+
+  if (FLAG_parallel_recompilation_delay != 0) {
+    // Execution ended before we managed to compile and install the remaining
+    // functions in the queue.  We still want to do that for debugging though.
+    // At this point the optimizing thread already stopped, so we finish
+    // processing the queue in the main thread.
+    InstallOptimizedFunctions();
+    // Barrier when loading queue length is not necessary since the write
+    // happens in CompileNext on the same thread.
+    while (NoBarrier_Load(&queue_length_) > 0) {
+      CompileNext();
+      InstallOptimizedFunctions();
+    }
+  }
 
   if (FLAG_trace_parallel_recompilation) {
     double compile_time = static_cast<double>(time_spent_compiling_);
@@ -123,11 +152,13 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
 
 Handle<SharedFunctionInfo>
     OptimizingCompilerThread::InstallNextOptimizedFunction() {
-  ASSERT(FLAG_manual_parallel_recompilation);
+  ASSERT(FLAG_manual_parallel_recompilation ||
+         FLAG_parallel_recompilation_delay != 0);
   output_queue_semaphore_->Wait();
   OptimizingCompiler* compiler = NULL;
   output_queue_.Dequeue(&compiler);
-  Handle<SharedFunctionInfo> shared = compiler->info()->shared_info();
+  // Copy a handle from deferred handle scope to the normal handle scope.
+  Handle<SharedFunctionInfo> shared(*compiler->info()->shared_info());
   Compiler::InstallOptimizedCode(compiler);
   return shared;
 }

@@ -427,6 +427,14 @@ class Logger::NameBuffer {
     }
   }
 
+  void AppendHex(uint32_t n) {
+    Vector<char> buffer(utf8_buffer_ + utf8_pos_, kUtf8BufferSize - utf8_pos_);
+    int size = OS::SNPrintF(buffer, "%x", n);
+    if (size > 0 && utf8_pos_ + size <= kUtf8BufferSize) {
+      utf8_pos_ += size;
+    }
+  }
+
   const char* get() { return utf8_buffer_; }
   int size() const { return utf8_pos_; }
 
@@ -635,6 +643,8 @@ void Logger::ApiNamedSecurityCheck(Object* key) {
     SmartArrayPointer<char> str =
         String::cast(key)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     ApiEvent("api,check-security,\"%s\"\n", *str);
+  } else if (key->IsSymbol()) {
+    ApiEvent("api,check-security,symbol(hash %x)\n", Symbol::cast(key)->Hash());
   } else if (key->IsUndefined()) {
     ApiEvent("api,check-security,undefined\n");
   } else {
@@ -813,14 +823,19 @@ void Logger::ApiIndexedSecurityCheck(uint32_t index) {
 void Logger::ApiNamedPropertyAccess(const char* tag,
                                     JSObject* holder,
                                     Object* name) {
-  ASSERT(name->IsString());
+  ASSERT(name->IsName());
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = holder->class_name();
   SmartArrayPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  SmartArrayPointer<char> property_name =
-      String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  ApiEvent("api,%s,\"%s\",\"%s\"\n", tag, *class_name, *property_name);
+  if (name->IsString()) {
+    SmartArrayPointer<char> property_name =
+        String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+    ApiEvent("api,%s,\"%s\",\"%s\"\n", tag, *class_name, *property_name);
+  } else {
+    uint32_t hash = Symbol::cast(name)->Hash();
+    ApiEvent("api,%s,\"%s\",symbol(hash %x)\n", tag, *class_name, hash);
+  }
 }
 
 void Logger::ApiIndexedPropertyAccess(const char* tag,
@@ -874,7 +889,7 @@ void Logger::DeleteEventStatic(const char* name, void* object) {
   LOGGER->DeleteEvent(name, object);
 }
 
-void Logger::CallbackEventInternal(const char* prefix, const char* name,
+void Logger::CallbackEventInternal(const char* prefix, Name* name,
                                    Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg(this);
@@ -882,33 +897,33 @@ void Logger::CallbackEventInternal(const char* prefix, const char* name,
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[CALLBACK_TAG]);
   msg.AppendAddress(entry_point);
-  msg.Append(",1,\"%s%s\"", prefix, name);
+  if (name->IsString()) {
+    SmartArrayPointer<char> str =
+        String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+    msg.Append(",1,\"%s%s\"", prefix, *str);
+  } else {
+    msg.Append(",1,symbol(hash %x)", prefix, Name::cast(name)->Hash());
+  }
   msg.Append('\n');
   msg.WriteToLogFile();
 }
 
 
-void Logger::CallbackEvent(String* name, Address entry_point) {
+void Logger::CallbackEvent(Name* name, Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
-  SmartArrayPointer<char> str =
-      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  CallbackEventInternal("", *str, entry_point);
+  CallbackEventInternal("", name, entry_point);
 }
 
 
-void Logger::GetterCallbackEvent(String* name, Address entry_point) {
+void Logger::GetterCallbackEvent(Name* name, Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
-  SmartArrayPointer<char> str =
-      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  CallbackEventInternal("get ", *str, entry_point);
+  CallbackEventInternal("get ", name, entry_point);
 }
 
 
-void Logger::SetterCallbackEvent(String* name, Address entry_point) {
+void Logger::SetterCallbackEvent(Name* name, Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
-  SmartArrayPointer<char> str =
-      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  CallbackEventInternal("set ", *str, entry_point);
+  CallbackEventInternal("set ", name, entry_point);
 }
 
 
@@ -954,13 +969,19 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
-                             String* name) {
+                             Name* name) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
-    name_buffer_->AppendString(name);
+    if (name->IsString()) {
+      name_buffer_->AppendString(String::cast(name));
+    } else {
+      name_buffer_->AppendBytes("symbol(hash ");
+      name_buffer_->AppendHex(Name::cast(name)->Hash());
+      name_buffer_->AppendByte(')');
+    }
   }
   if (code_event_handler_ != NULL) {
     IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
@@ -979,9 +1000,14 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
              kLogEventsNames[tag],
              code->kind());
   msg.AppendAddress(code->address());
-  msg.Append(",%d,\"", code->ExecutableSize());
-  msg.AppendDetailed(name, false);
-  msg.Append('"');
+  msg.Append(",%d,", code->ExecutableSize());
+  if (name->IsString()) {
+    msg.Append('"');
+    msg.AppendDetailed(String::cast(name), false);
+    msg.Append('"');
+  } else {
+    msg.Append("symbol(hash %x)", Name::cast(name)->Hash());
+  }
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -1000,14 +1026,20 @@ static const char* ComputeMarker(Code* code) {
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              SharedFunctionInfo* shared,
-                             String* name) {
+                             Name* name) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
     name_buffer_->AppendBytes(ComputeMarker(code));
-    name_buffer_->AppendString(name);
+    if (name->IsString()) {
+      name_buffer_->AppendString(String::cast(name));
+    } else {
+      name_buffer_->AppendBytes("symbol(hash ");
+      name_buffer_->AppendHex(Name::cast(name)->Hash());
+      name_buffer_->AppendByte(')');
+    }
   }
   if (code_event_handler_ != NULL) {
     Script* script =
@@ -1030,14 +1062,20 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     return;
 
   LogMessageBuilder msg(this);
-  SmartArrayPointer<char> str =
-      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[tag],
              code->kind());
   msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s\",", code->ExecutableSize(), *str);
+  msg.Append(",%d,", code->ExecutableSize());
+  if (name->IsString()) {
+    SmartArrayPointer<char> str =
+        String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+    msg.Append("\"%s\"", *str);
+  } else {
+    msg.Append("symbol(hash %x)", Name::cast(name)->Hash());
+  }
+  msg.Append(',');
   msg.AppendAddress(shared->address());
   msg.Append(",%s", ComputeMarker(code));
   msg.Append('\n');
@@ -1051,7 +1089,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              SharedFunctionInfo* shared,
-                             String* source, int line) {
+                             Name* source, int line) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
     name_buffer_->Reset();
@@ -1060,7 +1098,13 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(shared->DebugName());
     name_buffer_->AppendByte(' ');
-    name_buffer_->AppendString(source);
+    if (source->IsString()) {
+      name_buffer_->AppendString(String::cast(source));
+    } else {
+      name_buffer_->AppendBytes("symbol(hash ");
+      name_buffer_->AppendHex(Name::cast(source)->Hash());
+      name_buffer_->AppendByte(')');
+    }
     name_buffer_->AppendByte(':');
     name_buffer_->AppendInt(line);
   }
@@ -1083,18 +1127,20 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   LogMessageBuilder msg(this);
   SmartArrayPointer<char> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  SmartArrayPointer<char> sourcestr =
-      source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[tag],
              code->kind());
   msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s %s:%d\",",
-             code->ExecutableSize(),
-             *name,
-             *sourcestr,
-             line);
+  msg.Append(",%d,\"%s ", code->ExecutableSize(), *name);
+  if (source->IsString()) {
+    SmartArrayPointer<char> sourcestr =
+       String::cast(source)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+    msg.Append("%s", *sourcestr);
+  } else {
+    msg.Append("symbol(hash %x)", Name::cast(source)->Hash());
+  }
+  msg.Append(":%d\",", line);
   msg.AppendAddress(shared->address());
   msg.Append(",%s", ComputeMarker(code));
   msg.Append('\n');
@@ -1298,7 +1344,7 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
 }
 
 
-void Logger::SuspectReadEvent(String* name, Object* obj) {
+void Logger::SuspectReadEvent(Name* name, Object* obj) {
   if (!log_->IsEnabled() || !FLAG_log_suspect) return;
   LogMessageBuilder msg(this);
   String* class_name = obj->IsJSObject()
@@ -1307,9 +1353,13 @@ void Logger::SuspectReadEvent(String* name, Object* obj) {
   msg.Append("suspect-read,");
   msg.Append(class_name);
   msg.Append(',');
-  msg.Append('"');
-  msg.Append(name);
-  msg.Append('"');
+  if (name->IsString()) {
+    msg.Append('"');
+    msg.Append(String::cast(name));
+    msg.Append('"');
+  } else {
+    msg.Append("symbol(hash %x)", Name::cast(name)->Hash());
+  }
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -1735,9 +1785,9 @@ void Logger::LogAccessorCallbacks() {
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsExecutableAccessorInfo()) continue;
     ExecutableAccessorInfo* ai = ExecutableAccessorInfo::cast(obj);
-    if (!ai->name()->IsString()) continue;
-    String* name = String::cast(ai->name());
+    if (!ai->name()->IsName()) continue;
     Address getter_entry = v8::ToCData<Address>(ai->getter());
+    Name* name = Name::cast(ai->name());
     if (getter_entry != 0) {
       PROFILE(ISOLATE, GetterCallbackEvent(name, getter_entry));
     }

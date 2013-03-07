@@ -177,7 +177,8 @@ class RegisteredExtension {
   V(Context, Context)                          \
   V(External, Foreign)                         \
   V(StackTrace, JSArray)                       \
-  V(StackFrame, JSObject)
+  V(StackFrame, JSObject)                      \
+  V(DeclaredAccessorDescriptor, DeclaredAccessorDescriptor)
 
 
 class Utils {
@@ -225,6 +226,8 @@ class Utils {
       v8::internal::Handle<v8::internal::TypeSwitchInfo> obj);
   static inline Local<External> ExternalToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
+  static inline Local<DeclaredAccessorDescriptor> ToLocal(
+      v8::internal::Handle<v8::internal::DeclaredAccessorDescriptor> obj);
 
 #define DECLARE_OPEN_HANDLE(From, To) \
   static inline v8::internal::Handle<v8::internal::To> \
@@ -280,6 +283,7 @@ MAKE_TO_LOCAL(NumberToLocal, Object, Number)
 MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
+MAKE_TO_LOCAL(ToLocal, DeclaredAccessorDescriptor, DeclaredAccessorDescriptor)
 
 #undef MAKE_TO_LOCAL
 

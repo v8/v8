@@ -260,7 +260,7 @@ Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
 
 
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
-                                          Handle<String> key,
+                                          Handle<Name> key,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
                                           StrictModeFlag strict_mode) {
@@ -291,7 +291,7 @@ Handle<Object> GetProperty(Isolate* isolate,
 
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
-                                          Handle<String> name,
+                                          Handle<Name> name,
                                           PropertyAttributes* attributes) {
   Isolate* isolate = receiver->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
@@ -551,6 +551,7 @@ void CustomArguments::IterateInstance(ObjectVisitor* v) {
 
 
 // Compute the property keys from the interceptor.
+// TODO(rossberg): support symbols in API, and filter here if needed.
 v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
                                                  Handle<JSObject> object) {
   Isolate* isolate = receiver->GetIsolate();
@@ -754,10 +755,10 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
       // to kInvalidEnumCache, this means that the map itself has never used the
       // present enum cache. The first step to using the cache is to set the
       // enum length of the map by counting the number of own descriptors that
-      // are not DONT_ENUM.
+      // are not DONT_ENUM or SYMBOLIC.
       if (own_property_count == Map::kInvalidEnumCache) {
         own_property_count = object->map()->NumberOfDescribedProperties(
-            OWN_DESCRIPTORS, DONT_ENUM);
+            OWN_DESCRIPTORS, DONT_SHOW);
 
         if (cache_result) object->map()->SetEnumLength(own_property_count);
       }
@@ -784,7 +785,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
     }
 
     isolate->counters()->enum_cache_misses()->Increment();
-    int num_enum = map->NumberOfDescribedProperties(ALL_DESCRIPTORS, DONT_ENUM);
+    int num_enum = map->NumberOfDescribedProperties(ALL_DESCRIPTORS, DONT_SHOW);
 
     Handle<FixedArray> storage = isolate->factory()->NewFixedArray(num_enum);
     Handle<FixedArray> indices = isolate->factory()->NewFixedArray(num_enum);
@@ -798,9 +799,10 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
       PropertyDetails details = descs->GetDetails(i);
-      if (!details.IsDontEnum()) {
+      Object* key = descs->GetKey(i);
+      if (!(details.IsDontEnum() || key->IsSymbol())) {
         if (i < real_size) ++enum_size;
-        storage->set(index, descs->GetKey(i));
+        storage->set(index, key);
         if (!indices.is_null()) {
           if (details.type() != FIELD) {
             indices = Handle<FixedArray>();
@@ -831,7 +833,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 
     return ReduceFixedArrayTo(storage, enum_size);
   } else {
-    Handle<StringDictionary> dictionary(object->property_dictionary());
+    Handle<NameDictionary> dictionary(object->property_dictionary());
 
     int length = dictionary->NumberOfElements();
     if (length == 0) {
@@ -852,7 +854,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
     // many properties were added but subsequently deleted.
     int next_enumeration = dictionary->NextEnumerationIndex();
     if (!object->IsGlobalObject() && next_enumeration > (length * 3) / 2) {
-      StringDictionary::DoGenerateNewEnumerationIndices(dictionary);
+      NameDictionary::DoGenerateNewEnumerationIndices(dictionary);
       next_enumeration = dictionary->NextEnumerationIndex();
     }
 
@@ -860,7 +862,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
         isolate->factory()->NewFixedArray(next_enumeration);
 
     storage = Handle<FixedArray>(dictionary->CopyEnumKeysTo(*storage));
-    ASSERT(storage->length() == object->NumberOfLocalProperties(DONT_ENUM));
+    ASSERT(storage->length() == object->NumberOfLocalProperties(DONT_SHOW));
     return storage;
   }
 }
