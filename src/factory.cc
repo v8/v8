@@ -369,6 +369,12 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 }
 
 
+Handle<DeclaredAccessorDescriptor> Factory::NewDeclaredAccessorDescriptor() {
+  return Handle<DeclaredAccessorDescriptor>::cast(
+      NewStruct(DECLARED_ACCESSOR_DESCRIPTOR_TYPE));
+}
+
+
 Handle<DeclaredAccessorInfo> Factory::NewDeclaredAccessorInfo() {
   Handle<DeclaredAccessorInfo> info =
       Handle<DeclaredAccessorInfo>::cast(

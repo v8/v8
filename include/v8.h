@@ -131,6 +131,9 @@ class AccessorInfo;
 class StackTrace;
 class StackFrame;
 class Isolate;
+class DeclaredAccessorDescriptor;
+class ObjectOperationDescriptor;
+class RawOperationDescriptor;
 
 namespace internal {
 
@@ -1606,6 +1609,12 @@ class V8EXPORT Object : public Value {
                    AccessControl settings = DEFAULT,
                    PropertyAttribute attribute = None);
 
+  // This function is not yet stable and should not be used at this time.
+  bool SetAccessor(Handle<String> name,
+                   Handle<DeclaredAccessorDescriptor> descriptor,
+                   AccessControl settings = DEFAULT,
+                   PropertyAttribute attribute = None);
+
   /**
    * Returns an array containing the names of the enumerable properties
    * of this object, including properties from prototype objects.  The
@@ -2377,13 +2386,6 @@ class V8EXPORT FunctionTemplate : public Template {
 
  private:
   FunctionTemplate();
-  void AddInstancePropertyAccessor(Handle<String> name,
-                                   AccessorGetter getter,
-                                   AccessorSetter setter,
-                                   Handle<Value> data,
-                                   AccessControl settings,
-                                   PropertyAttribute attributes,
-                                   Handle<AccessorSignature> signature);
   void SetNamedInstancePropertyHandler(NamedPropertyGetter getter,
                                        NamedPropertySetter setter,
                                        NamedPropertyQuery query,
@@ -2451,6 +2453,14 @@ class V8EXPORT ObjectTemplate : public Template {
                    AccessorGetter getter,
                    AccessorSetter setter = 0,
                    Handle<Value> data = Handle<Value>(),
+                   AccessControl settings = DEFAULT,
+                   PropertyAttribute attribute = None,
+                   Handle<AccessorSignature> signature =
+                       Handle<AccessorSignature>());
+
+  // This function is not yet stable and should not be used at this time.
+  bool SetAccessor(Handle<String> name,
+                   Handle<DeclaredAccessorDescriptor> descriptor,
                    AccessControl settings = DEFAULT,
                    PropertyAttribute attribute = None,
                    Handle<AccessorSignature> signature =
@@ -2582,6 +2592,61 @@ class V8EXPORT AccessorSignature : public Data {
                                           Handle<FunctionTemplate>());
  private:
   AccessorSignature();
+};
+
+
+class V8EXPORT DeclaredAccessorDescriptor : public Data {
+ private:
+  DeclaredAccessorDescriptor();
+};
+
+
+class V8EXPORT ObjectOperationDescriptor : public Data {
+ public:
+  // This function is not yet stable and should not be used at this time.
+  static Local<RawOperationDescriptor> NewInternalFieldDereference(
+      Isolate* isolate,
+      int internal_field);
+ private:
+  ObjectOperationDescriptor();
+};
+
+
+enum DeclaredAccessorDescriptorDataType {
+    kDescriptorBoolType,
+    kDescriptorInt8Type, kDescriptorUint8Type,
+    kDescriptorInt16Type, kDescriptorUint16Type,
+    kDescriptorInt32Type, kDescriptorUint32Type,
+    kDescriptorFloatType, kDescriptorDoubleType
+};
+
+
+class V8EXPORT RawOperationDescriptor : public Data {
+ public:
+  Local<DeclaredAccessorDescriptor> NewHandleDereference(Isolate* isolate);
+  Local<RawOperationDescriptor> NewRawDereference(Isolate* isolate);
+  Local<RawOperationDescriptor> NewRawShift(Isolate* isolate,
+                                            int16_t byte_offset);
+  Local<DeclaredAccessorDescriptor> NewPointerCompare(Isolate* isolate,
+                                                      void* compare_value);
+  Local<DeclaredAccessorDescriptor> NewPrimitiveValue(
+      Isolate* isolate,
+      DeclaredAccessorDescriptorDataType data_type,
+      uint8_t bool_offset = 0);
+  Local<DeclaredAccessorDescriptor> NewBitmaskCompare8(Isolate* isolate,
+                                                       uint8_t bitmask,
+                                                       uint8_t compare_value);
+  Local<DeclaredAccessorDescriptor> NewBitmaskCompare16(
+      Isolate* isolate,
+      uint16_t bitmask,
+      uint16_t compare_value);
+  Local<DeclaredAccessorDescriptor> NewBitmaskCompare32(
+      Isolate* isolate,
+      uint32_t bitmask,
+      uint32_t compare_value);
+
+ private:
+  RawOperationDescriptor();
 };
 
 

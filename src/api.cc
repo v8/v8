@@ -1041,6 +1041,124 @@ Local<AccessorSignature> AccessorSignature::New(
 }
 
 
+template<typename Operation>
+static Local<Operation> NewDescriptor(
+    Isolate* isolate,
+    const i::DeclaredAccessorDescriptorData& data,
+    Data* previous_descriptor
+    ) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::DeclaredAccessorDescriptor> previous =
+      i::Handle<i::DeclaredAccessorDescriptor>();
+  if (previous_descriptor != NULL) {
+    previous = Utils::OpenHandle(
+      static_cast<DeclaredAccessorDescriptor*>(previous_descriptor));
+  }
+  i::Handle<i::DeclaredAccessorDescriptor> descriptor =
+      i::DeclaredAccessorDescriptor::Create(internal_isolate, data, previous);
+  return Local<Operation>(
+      reinterpret_cast<Operation*>(*Utils::ToLocal(descriptor)));
+}
+
+
+Local<RawOperationDescriptor>
+  ObjectOperationDescriptor::NewInternalFieldDereference(
+    Isolate* isolate,
+    int internal_field) {
+  i::DeclaredAccessorDescriptorData data;
+  data.type = i::kDescriptorObjectDereference;
+  data.object_dereference_descriptor.internal_field = internal_field;
+  return NewDescriptor<RawOperationDescriptor>(isolate, data, NULL);
+}
+
+
+Local<RawOperationDescriptor> RawOperationDescriptor::NewRawShift(
+    Isolate* isolate,
+    int16_t byte_offset) {
+  i::DeclaredAccessorDescriptorData data;
+  data.type = i::kDescriptorPointerShift;
+  data.pointer_shift_descriptor.byte_offset = byte_offset;
+  return NewDescriptor<RawOperationDescriptor>(isolate, data, this);
+}
+
+
+Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewHandleDereference(
+    Isolate* isolate) {
+  i::DeclaredAccessorDescriptorData data;
+  data.type = i::kDescriptorReturnObject;
+  return NewDescriptor<DeclaredAccessorDescriptor>(isolate, data, this);
+}
+
+
+Local<RawOperationDescriptor> RawOperationDescriptor::NewRawDereference(
+    Isolate* isolate) {
+  i::DeclaredAccessorDescriptorData data;
+  data.type = i::kDescriptorPointerDereference;
+  return NewDescriptor<RawOperationDescriptor>(isolate, data, this);
+}
+
+
+Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewPointerCompare(
+    Isolate* isolate,
+    void* compare_value) {
+  i::DeclaredAccessorDescriptorData data;
+  data.type = i::kDescriptorPointerCompare;
+  data.pointer_compare_descriptor.compare_value = compare_value;
+  return NewDescriptor<DeclaredAccessorDescriptor>(isolate, data, this);
+}
+
+
+Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewPrimitiveValue(
+    Isolate* isolate,
+    DeclaredAccessorDescriptorDataType data_type,
+    uint8_t bool_offset) {
+  i::DeclaredAccessorDescriptorData data;
+  data.type = i::kDescriptorPrimitiveValue;
+  data.primitive_value_descriptor.data_type = data_type;
+  data.primitive_value_descriptor.bool_offset = bool_offset;
+  return NewDescriptor<DeclaredAccessorDescriptor>(isolate, data, this);
+}
+
+
+template<typename T>
+static Local<DeclaredAccessorDescriptor> NewBitmaskCompare(
+    Isolate* isolate,
+    T bitmask,
+    T compare_value,
+    RawOperationDescriptor* operation) {
+  i::DeclaredAccessorDescriptorData data;
+  data.type = i::kDescriptorBitmaskCompare;
+  data.bitmask_compare_descriptor.bitmask = bitmask;
+  data.bitmask_compare_descriptor.compare_value = compare_value;
+  data.bitmask_compare_descriptor.size = sizeof(T);
+  return NewDescriptor<DeclaredAccessorDescriptor>(isolate, data, operation);
+}
+
+
+Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewBitmaskCompare8(
+    Isolate* isolate,
+    uint8_t bitmask,
+    uint8_t compare_value) {
+  return NewBitmaskCompare(isolate, bitmask, compare_value, this);
+}
+
+
+Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewBitmaskCompare16(
+    Isolate* isolate,
+    uint16_t bitmask,
+    uint16_t compare_value) {
+  return NewBitmaskCompare(isolate, bitmask, compare_value, this);
+}
+
+
+Local<DeclaredAccessorDescriptor> RawOperationDescriptor::NewBitmaskCompare32(
+    Isolate* isolate,
+    uint32_t bitmask,
+    uint32_t compare_value) {
+  return NewBitmaskCompare(isolate, bitmask, compare_value, this);
+}
+
+
 Local<TypeSwitch> TypeSwitch::New(Handle<FunctionTemplate> type) {
   Handle<FunctionTemplate> types[1] = { type };
   return TypeSwitch::New(1, types);
@@ -1102,20 +1220,12 @@ void FunctionTemplate::SetCallHandler(InvocationCallback callback,
 }
 
 
-static i::Handle<i::AccessorInfo> MakeAccessorInfo(
-      v8::Handle<String> name,
-      AccessorGetter getter,
-      AccessorSetter setter,
-      v8::Handle<Value> data,
-      v8::AccessControl settings,
-      v8::PropertyAttribute attributes,
-      v8::Handle<AccessorSignature> signature) {
-  i::Handle<i::ExecutableAccessorInfo> obj =
-      FACTORY->NewExecutableAccessorInfo();
-  SET_FIELD_WRAPPED(obj, set_getter, getter);
-  SET_FIELD_WRAPPED(obj, set_setter, setter);
-  if (data.IsEmpty()) data = v8::Undefined();
-  obj->set_data(*Utils::OpenHandle(*data));
+static i::Handle<i::AccessorInfo> SetAccessorInfoProperties(
+    i::Handle<i::AccessorInfo> obj,
+    v8::Handle<String> name,
+    v8::AccessControl settings,
+    v8::PropertyAttribute attributes,
+    v8::Handle<AccessorSignature> signature) {
   obj->set_name(*Utils::OpenHandle(*name));
   if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
   if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
@@ -1128,7 +1238,7 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
 }
 
 
-void FunctionTemplate::AddInstancePropertyAccessor(
+static i::Handle<i::AccessorInfo> MakeAccessorInfo(
       v8::Handle<String> name,
       AccessorGetter getter,
       AccessorSetter setter,
@@ -1136,25 +1246,29 @@ void FunctionTemplate::AddInstancePropertyAccessor(
       v8::AccessControl settings,
       v8::PropertyAttribute attributes,
       v8::Handle<AccessorSignature> signature) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate,
-                  "v8::FunctionTemplate::AddInstancePropertyAccessor()")) {
-    return;
-  }
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
+  i::Isolate* isolate = Utils::OpenHandle(*name)->GetIsolate();
+  i::Handle<i::ExecutableAccessorInfo> obj =
+      isolate->factory()->NewExecutableAccessorInfo();
+  SET_FIELD_WRAPPED(obj, set_getter, getter);
+  SET_FIELD_WRAPPED(obj, set_setter, setter);
+  if (data.IsEmpty()) data = v8::Undefined();
+  obj->set_data(*Utils::OpenHandle(*data));
+  return SetAccessorInfoProperties(obj, name, settings, attributes, signature);
+}
 
-  i::Handle<i::AccessorInfo> obj = MakeAccessorInfo(name, getter, setter, data,
-                                                    settings, attributes,
-                                                    signature);
-  i::Handle<i::Object> list(Utils::OpenHandle(this)->property_accessors(),
-                            isolate);
-  if (list->IsUndefined()) {
-    list = NeanderArray().value();
-    Utils::OpenHandle(this)->set_property_accessors(*list);
-  }
-  NeanderArray array(list);
-  array.add(obj);
+
+static i::Handle<i::AccessorInfo> MakeAccessorInfo(
+      v8::Handle<String> name,
+      v8::Handle<v8::DeclaredAccessorDescriptor> descriptor,
+      v8::AccessControl settings,
+      v8::PropertyAttribute attributes,
+      v8::Handle<AccessorSignature> signature) {
+  i::Isolate* isolate = Utils::OpenHandle(*name)->GetIsolate();
+  if (descriptor.IsEmpty()) return i::Handle<i::DeclaredAccessorInfo>();
+  i::Handle<i::DeclaredAccessorInfo> obj =
+      isolate->factory()->NewDeclaredAccessorInfo();
+  obj->set_descriptor(*Utils::OpenHandle(*descriptor));
+  return SetAccessorInfoProperties(obj, name, settings, attributes, signature);
 }
 
 
@@ -1335,6 +1449,19 @@ static void EnsureConstructor(ObjectTemplate* object_template) {
 }
 
 
+static inline void AddPropertyToFunctionTemplate(
+    i::Handle<i::FunctionTemplateInfo> cons,
+    i::Handle<i::AccessorInfo> obj) {
+  i::Handle<i::Object> list(cons->property_accessors(), cons->GetIsolate());
+  if (list->IsUndefined()) {
+    list = NeanderArray().value();
+    cons->set_property_accessors(*list);
+  }
+  NeanderArray array(list);
+  array.add(obj);
+}
+
+
 void ObjectTemplate::SetAccessor(v8::Handle<String> name,
                                  AccessorGetter getter,
                                  AccessorSetter setter,
@@ -1350,13 +1477,31 @@ void ObjectTemplate::SetAccessor(v8::Handle<String> name,
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
-  Utils::ToLocal(cons)->AddInstancePropertyAccessor(name,
-                                                    getter,
-                                                    setter,
-                                                    data,
-                                                    settings,
-                                                    attribute,
-                                                    signature);
+  i::Handle<i::AccessorInfo> obj = MakeAccessorInfo(name, getter, setter, data,
+                                                      settings, attribute,
+                                                      signature);
+  AddPropertyToFunctionTemplate(cons, obj);
+}
+
+
+bool ObjectTemplate::SetAccessor(Handle<String> name,
+                                 Handle<DeclaredAccessorDescriptor> descriptor,
+                                 AccessControl settings,
+                                 PropertyAttribute attribute,
+                                 Handle<AccessorSignature> signature) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ObjectTemplate::SetAccessor()")) return false;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  EnsureConstructor(this);
+  i::FunctionTemplateInfo* constructor =
+      i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
+  i::Handle<i::FunctionTemplateInfo> cons(constructor);
+  i::Handle<i::AccessorInfo> obj = MakeAccessorInfo(
+      name, descriptor, settings, attribute, signature);
+  if (obj.is_null()) return false;
+  AddPropertyToFunctionTemplate(cons, obj);
+  return true;
 }
 
 
@@ -3158,6 +3303,16 @@ bool v8::Object::Has(uint32_t index) {
 }
 
 
+static inline bool SetAccessor(Object* obj, i::Handle<i::AccessorInfo> info) {
+  if (info.is_null()) return false;
+  bool fast = Utils::OpenHandle(obj)->HasFastProperties();
+  i::Handle<i::Object> result = i::SetAccessor(Utils::OpenHandle(obj), info);
+  if (result.is_null() || result->IsUndefined()) return false;
+  if (fast) i::JSObject::TransformToFastProperties(Utils::OpenHandle(obj), 0);
+  return true;
+}
+
+
 bool Object::SetAccessor(Handle<String> name,
                          AccessorGetter getter,
                          AccessorSetter setter,
@@ -3172,11 +3327,22 @@ bool Object::SetAccessor(Handle<String> name,
   i::Handle<i::AccessorInfo> info = MakeAccessorInfo(name, getter, setter, data,
                                                      settings, attributes,
                                                      signature);
-  bool fast = Utils::OpenHandle(this)->HasFastProperties();
-  i::Handle<i::Object> result = i::SetAccessor(Utils::OpenHandle(this), info);
-  if (result.is_null() || result->IsUndefined()) return false;
-  if (fast) i::JSObject::TransformToFastProperties(Utils::OpenHandle(this), 0);
-  return true;
+  return v8::SetAccessor(this, info);
+}
+
+
+bool Object::SetAccessor(Handle<String> name,
+                         Handle<DeclaredAccessorDescriptor> descriptor,
+                         AccessControl settings,
+                         PropertyAttribute attributes) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::SetAccessor()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  v8::Handle<AccessorSignature> signature;
+  i::Handle<i::AccessorInfo> info = MakeAccessorInfo(
+      name, descriptor, settings, attributes, signature);
+  return v8::SetAccessor(this, info);
 }
 
 

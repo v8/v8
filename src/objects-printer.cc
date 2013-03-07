@@ -929,7 +929,7 @@ void DeclaredAccessorInfo::DeclaredAccessorInfoPrint(FILE* out) {
 void DeclaredAccessorDescriptor::DeclaredAccessorDescriptorPrint(FILE* out) {
   HeapObject::PrintHeader(out, "DeclaredAccessorDescriptor");
   PrintF(out, "\n - internal field: ");
-  internal_field()->ShortPrint(out);
+  serialized_data()->ShortPrint(out);
 }
 
 

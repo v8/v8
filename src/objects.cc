@@ -165,6 +165,146 @@ MaybeObject* Object::GetPropertyWithReceiver(Object* receiver,
 }
 
 
+template<typename To>
+static inline To* CheckedCast(void *from) {
+  uintptr_t temp = reinterpret_cast<uintptr_t>(from);
+  ASSERT(temp % sizeof(To) == 0);
+  return reinterpret_cast<To*>(temp);
+}
+
+
+static MaybeObject* PerformCompare(const BitmaskCompareDescriptor& descriptor,
+                                   char* ptr,
+                                   Heap* heap) {
+  uint32_t bitmask = descriptor.bitmask;
+  uint32_t compare_value = descriptor.compare_value;
+  uint32_t value;
+  switch (descriptor.size) {
+    case 1:
+      value = static_cast<uint32_t>(*CheckedCast<uint8_t>(ptr));
+      compare_value &= 0xff;
+      bitmask &= 0xff;
+      break;
+    case 2:
+      value = static_cast<uint32_t>(*CheckedCast<uint16_t>(ptr));
+      compare_value &= 0xffff;
+      bitmask &= 0xffff;
+      break;
+    case 4:
+      value = *CheckedCast<uint32_t>(ptr);
+      break;
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
+  return heap->ToBoolean((bitmask & value) == (bitmask & compare_value));
+}
+
+
+static MaybeObject* PerformCompare(const PointerCompareDescriptor& descriptor,
+                                   char* ptr,
+                                   Heap* heap) {
+  uintptr_t compare_value =
+      reinterpret_cast<uintptr_t>(descriptor.compare_value);
+  uintptr_t value = *CheckedCast<uintptr_t>(ptr);
+  return heap->ToBoolean(compare_value == value);
+}
+
+
+static MaybeObject* GetPrimitiveValue(
+    const PrimitiveValueDescriptor& descriptor,
+    char* ptr,
+    Heap* heap) {
+  int32_t int32_value;
+  switch (descriptor.data_type) {
+    case kDescriptorInt8Type:
+      int32_value = *CheckedCast<int8_t>(ptr);
+      break;
+    case kDescriptorUint8Type:
+      int32_value = *CheckedCast<uint8_t>(ptr);
+      break;
+    case kDescriptorInt16Type:
+      int32_value = *CheckedCast<int16_t>(ptr);
+      break;
+    case kDescriptorUint16Type:
+      int32_value = *CheckedCast<uint16_t>(ptr);
+      break;
+    case kDescriptorInt32Type:
+      int32_value = *CheckedCast<int32_t>(ptr);
+      break;
+    case kDescriptorUint32Type: {
+      uint32_t value = *CheckedCast<uint32_t>(ptr);
+      return heap->NumberFromUint32(value);
+    }
+    case kDescriptorBoolType: {
+      uint8_t byte = *CheckedCast<uint8_t>(ptr);
+      return heap->ToBoolean(byte & (0x1 << descriptor.bool_offset));
+    }
+    case kDescriptorFloatType: {
+      float value = *CheckedCast<float>(ptr);
+      return heap->NumberFromDouble(value);
+    }
+    case kDescriptorDoubleType: {
+      double value = *CheckedCast<double>(ptr);
+      return heap->NumberFromDouble(value);
+    }
+  }
+  return heap->NumberFromInt32(int32_value);
+}
+
+
+static MaybeObject* GetDeclaredAccessorProperty(Object* receiver,
+                                                DeclaredAccessorInfo* info,
+                                                Isolate* isolate) {
+  char* current = reinterpret_cast<char*>(receiver);
+  DeclaredAccessorDescriptorIterator iterator(info->descriptor());
+  while (true) {
+    const DeclaredAccessorDescriptorData* data = iterator.Next();
+    switch (data->type) {
+      case kDescriptorReturnObject: {
+        ASSERT(iterator.Complete());
+        current = *CheckedCast<char*>(current);
+        return *CheckedCast<Object*>(current);
+      }
+      case kDescriptorPointerDereference:
+        ASSERT(!iterator.Complete());
+        current = *reinterpret_cast<char**>(current);
+        break;
+      case kDescriptorPointerShift:
+        ASSERT(!iterator.Complete());
+        current += data->pointer_shift_descriptor.byte_offset;
+        break;
+      case kDescriptorObjectDereference: {
+        ASSERT(!iterator.Complete());
+        Object* object = CheckedCast<Object>(current);
+        int field = data->object_dereference_descriptor.internal_field;
+        Object* smi = JSObject::cast(object)->GetInternalField(field);
+        ASSERT(smi->IsSmi());
+        current = reinterpret_cast<char*>(smi);
+        break;
+      }
+      case kDescriptorBitmaskCompare:
+        ASSERT(iterator.Complete());
+        return PerformCompare(data->bitmask_compare_descriptor,
+                              current,
+                              isolate->heap());
+      case kDescriptorPointerCompare:
+        ASSERT(iterator.Complete());
+        return PerformCompare(data->pointer_compare_descriptor,
+                              current,
+                              isolate->heap());
+      case kDescriptorPrimitiveValue:
+        ASSERT(iterator.Complete());
+        return GetPrimitiveValue(data->primitive_value_descriptor,
+                                 current,
+                                 isolate->heap());
+    }
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
+
 MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
                                                Object* structure,
                                                Name* name) {
@@ -182,9 +322,8 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
   }
 
   // api style callbacks.
-  if (structure->IsExecutableAccessorInfo()) {
-    ExecutableAccessorInfo* data = ExecutableAccessorInfo::cast(structure);
-    if (!data->IsCompatibleReceiver(receiver)) {
+  if (structure->IsAccessorInfo()) {
+    if (!AccessorInfo::cast(structure)->IsCompatibleReceiver(receiver)) {
       Handle<Object> name_handle(name, isolate);
       Handle<Object> receiver_handle(receiver, isolate);
       Handle<Object> args[2] = { name_handle, receiver_handle };
@@ -197,6 +336,12 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     // TODO(rossberg): Handling symbols in the API requires changing the API,
     // so we do not support it for now.
     if (name->IsSymbol()) return isolate->heap()->undefined_value();
+    if (structure->IsDeclaredAccessorInfo()) {
+      return GetDeclaredAccessorProperty(receiver,
+                                         DeclaredAccessorInfo::cast(structure),
+                                         isolate);
+    }
+    ExecutableAccessorInfo* data = ExecutableAccessorInfo::cast(structure);
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
     if (call_fun == NULL) return isolate->heap()->undefined_value();
@@ -229,11 +374,6 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
       return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
     }
     // Getter is not a function.
-    return isolate->heap()->undefined_value();
-  }
-
-  // TODO(dcarney): Handle correctly.
-  if (structure->IsDeclaredAccessorInfo()) {
     return isolate->heap()->undefined_value();
   }
 
@@ -9941,8 +10081,9 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
   }
 
   if (structure->IsDeclaredAccessorInfo()) {
-    // TODO(dcarney): Handle correctly.
-    return isolate->heap()->undefined_value();
+    return GetDeclaredAccessorProperty(receiver,
+                                       DeclaredAccessorInfo::cast(structure),
+                                       isolate);
   }
 
   UNREACHABLE();
@@ -13721,6 +13862,58 @@ void ObjectHashTable::RemoveEntry(int entry) {
   set_the_hole(EntryToIndex(entry));
   set_the_hole(EntryToIndex(entry) + 1);
   ElementRemoved();
+}
+
+
+DeclaredAccessorDescriptorIterator::DeclaredAccessorDescriptorIterator(
+    DeclaredAccessorDescriptor* descriptor)
+    : array_(descriptor->serialized_data()->GetDataStartAddress()),
+      length_(descriptor->serialized_data()->length()),
+      offset_(0) {
+}
+
+
+const DeclaredAccessorDescriptorData*
+  DeclaredAccessorDescriptorIterator::Next() {
+  ASSERT(offset_ < length_);
+  uint8_t* ptr = &array_[offset_];
+  ASSERT(reinterpret_cast<uintptr_t>(ptr) % sizeof(uintptr_t) == 0);
+  const DeclaredAccessorDescriptorData* data =
+      reinterpret_cast<const DeclaredAccessorDescriptorData*>(ptr);
+  offset_ += sizeof(*data);
+  ASSERT(offset_ <= length_);
+  return data;
+}
+
+
+Handle<DeclaredAccessorDescriptor> DeclaredAccessorDescriptor::Create(
+    Isolate* isolate,
+    const DeclaredAccessorDescriptorData& descriptor,
+    Handle<DeclaredAccessorDescriptor> previous) {
+  int previous_length =
+      previous.is_null() ? 0 : previous->serialized_data()->length();
+  int length = sizeof(descriptor) + previous_length;
+  Handle<ByteArray> serialized_descriptor =
+      isolate->factory()->NewByteArray(length);
+  Handle<DeclaredAccessorDescriptor> value =
+      isolate->factory()->NewDeclaredAccessorDescriptor();
+  value->set_serialized_data(*serialized_descriptor);
+  // Copy in the data.
+  {
+    AssertNoAllocation no_allocation;
+    uint8_t* array = serialized_descriptor->GetDataStartAddress();
+    if (previous_length != 0) {
+      uint8_t* previous_array =
+          previous->serialized_data()->GetDataStartAddress();
+      memcpy(array, previous_array, previous_length);
+      array += previous_length;
+    }
+    ASSERT(reinterpret_cast<uintptr_t>(array) % sizeof(uintptr_t) == 0);
+    DeclaredAccessorDescriptorData* data =
+        reinterpret_cast<DeclaredAccessorDescriptorData*>(array);
+    *data = descriptor;
+  }
+  return value;
 }
 
 

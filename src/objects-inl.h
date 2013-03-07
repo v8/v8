@@ -4178,7 +4178,8 @@ ACCESSORS_TO_SMI(AccessorInfo, flag, kFlagOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)
 
-ACCESSORS(DeclaredAccessorDescriptor, internal_field, Smi, kInternalFieldOffset)
+ACCESSORS(DeclaredAccessorDescriptor, serialized_data, ByteArray,
+          kSerializedDataOffset)
 
 ACCESSORS(DeclaredAccessorInfo, descriptor, DeclaredAccessorDescriptor,
           kDescriptorOffset)

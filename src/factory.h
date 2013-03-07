@@ -205,6 +205,8 @@ class Factory {
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
 
+  Handle<DeclaredAccessorDescriptor> NewDeclaredAccessorDescriptor();
+
   Handle<DeclaredAccessorInfo> NewDeclaredAccessorInfo();
 
   Handle<ExecutableAccessorInfo> NewExecutableAccessorInfo();

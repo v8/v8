@@ -744,7 +744,7 @@ void ExecutableAccessorInfo::ExecutableAccessorInfoVerify() {
 
 void DeclaredAccessorDescriptor::DeclaredAccessorDescriptorVerify() {
   CHECK(IsDeclaredAccessorDescriptor());
-  VerifySmiField(kInternalFieldOffset);
+  VerifyPointer(serialized_data());
 }
 
 
