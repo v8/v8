@@ -7222,7 +7222,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
-  ASSERT(state_ == CompareIC::SYMBOL);
+  ASSERT(state_ == CompareIC::INTERNALIZED_STRING);
   Label miss;
 
   // Registers containing left and right operands respectively.
