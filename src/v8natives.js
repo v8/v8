@@ -1710,7 +1710,7 @@ function NewFunction(arg1) {  // length == 1
     p += '\n/' + '**/';
   }
   var body = (n > 0) ? ToString(%_Arguments(n - 1)) : '';
-  var source = '(function(\n' + p + '\n) {\n' + body + '\n})';
+  var source = '(function(' + p + ') {\n' + body + '\n})';
 
   // The call to SetNewFunctionAttributes will ensure the prototype
   // property of the resulting function is enumerable (ECMA262, 15.3.5.2).

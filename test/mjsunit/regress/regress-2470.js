@@ -40,3 +40,8 @@ assertThrows('Function("a", "/*", "*/", "/**/");', SyntaxError);
 assertDoesNotThrow('Function("//", "//")');
 assertDoesNotThrow('Function("//", "//", "//")');
 assertThrows('Function("a", "//", "//")', SyntaxError);
+
+// Some embedders rely on the string representation of the resulting
+// function in cases where no formal parameters are specified.
+var asString = Function("return 23").toString();
+assertSame("function anonymous() {\nreturn 23\n}", asString);
