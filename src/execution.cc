@@ -601,22 +601,6 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
   } while (false)
 
 
-Handle<Object> Execution::ToBoolean(Isolate* isolate, Handle<Object> obj) {
-  // See the similar code in runtime.js:ToBoolean.
-  if (obj->IsBoolean()) return obj;
-  bool result = true;
-  if (obj->IsString()) {
-    result = Handle<String>::cast(obj)->length() != 0;
-  } else if (obj->IsNull() || obj->IsUndefined()) {
-    result = false;
-  } else if (obj->IsNumber()) {
-    double value = obj->Number();
-    result = !((value == 0) || isnan(value));
-  }
-  return Handle<Object>(isolate->heap()->ToBoolean(result), isolate);
-}
-
-
 Handle<Object> Execution::ToNumber(Handle<Object> obj, bool* exc) {
   RETURN_NATIVE_CALL(to_number, { obj }, exc);
 }

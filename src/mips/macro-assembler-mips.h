@@ -900,6 +900,10 @@ class MacroAssembler: public Assembler {
                             Register scratch,
                             Label* fail);
 
+  void IsObjectNameType(Register object,
+                        Register scratch,
+                        Label* fail);
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // -------------------------------------------------------------------------
   // Debugger Support.
@@ -1356,6 +1360,9 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is not a string, enabled via --debug-code.
   void AssertString(Register object);
+
+  // Abort execution if argument is not a name, enabled via --debug-code.
+  void AssertName(Register object);
 
   // Abort execution if argument is not the root value with the given index,
   // enabled via --debug-code.

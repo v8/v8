@@ -3866,6 +3866,15 @@ void MacroAssembler::IsObjectJSStringType(Register object,
 }
 
 
+void MacroAssembler::IsObjectNameType(Register object,
+                                      Register scratch,
+                                      Label* fail) {
+  lw(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  lbu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  Branch(fail, hi, scratch, Operand(LAST_NAME_TYPE));
+}
+
+
 // ---------------------------------------------------------------------------
 // Support functions.
 
@@ -4893,6 +4902,20 @@ void MacroAssembler::AssertString(Register object) {
     lbu(object, FieldMemOperand(object, Map::kInstanceTypeOffset));
     Check(lo, "Operand is not a string", object, Operand(FIRST_NONSTRING_TYPE));
     pop(object);
+  }
+}
+
+
+void MacroAssembler::AssertName(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    And(t0, object, Operand(kSmiTagMask));
+    Check(ne, "Operand is a smi and not a name", t0, Operand(zero_reg));
+    push(object);
+    lw(object, FieldMemOperand(object, HeapObject::kMapOffset));
+    lbu(object, FieldMemOperand(object, Map::kInstanceTypeOffset));
+    pop(object);
+    Check(le, "Operand is not a name", object, Operand(LAST_NAME_TYPE));
   }
 }
 

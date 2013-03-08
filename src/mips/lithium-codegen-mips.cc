@@ -5803,10 +5803,20 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
       __ LoadRoot(at, Heap::kNullValueRootIndex);
       __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
     }
-    // input is an object, it is safe to use GetObjectType in the delay slot.
-    __ GetObjectType(input, input, scratch);
-    __ Branch(USE_DELAY_SLOT, false_label,
-              lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+    if (FLAG_harmony_symbols) {
+      // input is an object, it is safe to use GetObjectType in the delay slot.
+      __ GetObjectType(input, input, scratch);
+      __ Branch(USE_DELAY_SLOT, true_label, eq, scratch, Operand(SYMBOL_TYPE));
+      // Still an object, so the InstanceType can be loaded.
+      __ lbu(scratch, FieldMemOperand(input, Map::kInstanceTypeOffset));
+      __ Branch(USE_DELAY_SLOT, false_label,
+                lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+    } else {
+      // input is an object, it is safe to use GetObjectType in the delay slot.
+      __ GetObjectType(input, input, scratch);
+      __ Branch(USE_DELAY_SLOT, false_label,
+                lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+    }
     // Still an object, so the InstanceType can be loaded.
     __ lbu(scratch, FieldMemOperand(input, Map::kInstanceTypeOffset));
     __ Branch(USE_DELAY_SLOT, false_label,

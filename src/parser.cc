@@ -656,6 +656,16 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
       CheckConflictingVarDeclarations(top_scope_, &ok);
     }
 
+    if (ok && info->parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
+      if (body->length() != 1 ||
+          !body->at(0)->IsExpressionStatement() ||
+          !body->at(0)->AsExpressionStatement()->
+              expression()->IsFunctionLiteral()) {
+        ReportMessage("unable_to_parse", Vector<const char*>::empty());
+        ok = false;
+      }
+    }
+
     if (ok) {
       result = factory()->NewFunctionLiteral(
           no_name,
@@ -3212,7 +3222,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       Handle<Object> literal = expression->AsLiteral()->handle();
       if (op == Token::NOT) {
         // Convert the literal to a boolean condition and negate it.
-        bool condition = literal->ToBoolean()->IsTrue();
+        bool condition = literal->BooleanValue();
         Handle<Object> result(isolate()->heap()->ToBoolean(!condition),
                               isolate());
         return factory()->NewLiteral(result);

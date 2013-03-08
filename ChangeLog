@@ -1,3 +1,20 @@
+2013-03-08: Version 3.17.9
+
+        Restored Function()'s expected string representation. (issue 2470)
+
+        Enabled deprecatations (again). (issue 2487)
+
+        Avoid bool to Oddball conversions by being lazy. (issue 2491)
+
+        Added %p option to --logfile.
+
+        Hardened Function()'s parsing of function literals. (issue 2470)
+
+        ES6 symbols: Refine test for getOwnPropertyNames. (issue 2158)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-03-07: Version 3.17.8
 
         Added missing license headers. (Chromium issue 98597)

@@ -105,28 +105,14 @@ MaybeObject* Object::ToObject() {
 }
 
 
-Object* Object::ToBoolean() {
-  if (IsTrue()) return this;
-  if (IsFalse()) return this;
-  if (IsSmi()) {
-    return Isolate::Current()->heap()->ToBoolean(Smi::cast(this)->value() != 0);
-  }
-  HeapObject* heap_object = HeapObject::cast(this);
-  if (heap_object->IsUndefined() || heap_object->IsNull()) {
-    return heap_object->GetHeap()->false_value();
-  }
-  // Undetectable object is false
-  if (heap_object->IsUndetectableObject()) {
-    return heap_object->GetHeap()->false_value();
-  }
-  if (heap_object->IsString()) {
-    return heap_object->GetHeap()->ToBoolean(
-        String::cast(this)->length() != 0);
-  }
-  if (heap_object->IsHeapNumber()) {
-    return HeapNumber::cast(this)->HeapNumberToBoolean();
-  }
-  return heap_object->GetHeap()->true_value();
+bool Object::BooleanValue() {
+  if (IsBoolean()) return IsTrue();
+  if (IsSmi()) return Smi::cast(this)->value() != 0;
+  if (IsUndefined() || IsNull()) return false;
+  if (IsUndetectableObject()) return false;   // Undetectable object is false.
+  if (IsString()) return String::cast(this)->length() != 0;
+  if (IsHeapNumber()) return HeapNumber::cast(this)->HeapNumberBooleanValue();
+  return true;
 }
 
 
@@ -1627,7 +1613,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
 }
 
 
-Object* HeapNumber::HeapNumberToBoolean() {
+bool HeapNumber::HeapNumberBooleanValue() {
   // NaN, +0, and -0 should return the false object
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   union IeeeDoubleLittleEndianArchType u;
@@ -1637,15 +1623,13 @@ Object* HeapNumber::HeapNumberToBoolean() {
   u.d = value();
   if (u.bits.exp == 2047) {
     // Detect NaN for IEEE double precision floating point.
-    if ((u.bits.man_low | u.bits.man_high) != 0)
-      return GetHeap()->false_value();
+    if ((u.bits.man_low | u.bits.man_high) != 0) return false;
   }
   if (u.bits.exp == 0) {
     // Detect +0, and -0 for IEEE double precision floating point.
-    if ((u.bits.man_low | u.bits.man_high) == 0)
-      return GetHeap()->false_value();
+    if ((u.bits.man_low | u.bits.man_high) == 0) return false;
   }
-  return GetHeap()->true_value();
+  return true;
 }
 
 
@@ -2778,7 +2762,7 @@ bool JSProxy::HasPropertyWithHandler(Name* name_raw) {
     "has", isolate->derived_has_trap(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return false;
 
-  return result->ToBoolean()->IsTrue();
+  return result->BooleanValue();
 }
 
 
@@ -2910,8 +2894,8 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
     "delete", Handle<Object>(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Failure::Exception();
 
-  Object* bool_result = result->ToBoolean();
-  if (mode == STRICT_DELETION && bool_result == GetHeap()->false_value()) {
+  bool result_bool = result->BooleanValue();
+  if (mode == STRICT_DELETION && !result_bool) {
     Handle<Object> handler(receiver->handler(), isolate);
     Handle<String> trap_name = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("delete"));
@@ -2921,7 +2905,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
     isolate->Throw(*error);
     return Failure::Exception();
   }
-  return bool_result;
+  return isolate->heap()->ToBoolean(result_bool);
 }
 
 
@@ -2984,9 +2968,9 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   }
 
   int attributes = NONE;
-  if (enumerable->ToBoolean()->IsFalse()) attributes |= DONT_ENUM;
-  if (configurable->ToBoolean()->IsFalse()) attributes |= DONT_DELETE;
-  if (writable->ToBoolean()->IsFalse()) attributes |= READ_ONLY;
+  if (!enumerable->BooleanValue()) attributes |= DONT_ENUM;
+  if (!configurable->BooleanValue()) attributes |= DONT_DELETE;
+  if (!writable->BooleanValue()) attributes |= READ_ONLY;
   return static_cast<PropertyAttributes>(attributes);
 }
 

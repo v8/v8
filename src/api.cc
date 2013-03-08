@@ -2583,7 +2583,8 @@ Local<Boolean> Value::ToBoolean() const {
     }
     LOG_API(isolate, "ToBoolean");
     ENTER_V8(isolate);
-    i::Handle<i::Object> val = i::Execution::ToBoolean(isolate, obj);
+    i::Handle<i::Object> val =
+        isolate->factory()->ToBoolean(obj->BooleanValue());
     return Local<Boolean>(ToApi<Boolean>(val));
   }
 }
@@ -2739,17 +2740,7 @@ void v8::RegExp::CheckCast(v8::Value* that) {
 
 
 bool Value::BooleanValue() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (obj->IsBoolean()) {
-    return obj->IsTrue();
-  } else {
-    i::Isolate* isolate = i::Isolate::Current();
-    if (IsDeadCheck(isolate, "v8::Value::BooleanValue()")) return false;
-    LOG_API(isolate, "BooleanValue");
-    ENTER_V8(isolate);
-    i::Handle<i::Object> value = i::Execution::ToBoolean(isolate, obj);
-    return value->IsTrue();
-  }
+  return Utils::OpenHandle(this)->BooleanValue();
 }
 
 

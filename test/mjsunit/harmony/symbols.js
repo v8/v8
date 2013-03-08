@@ -184,9 +184,25 @@ function TestKeyEnum(obj) {
 }
 
 
-function TestKeyKeys(obj) {
+function TestKeyNames(obj) {
   assertEquals(0, Object.keys(obj).length)
-  assertTrue(symbols.length <= Object.getOwnPropertyNames(obj).length)
+
+  var names = Object.getOwnPropertyNames(obj)
+  assertTrue(symbols.length <= names.length)
+  // TODO(rossberg): once we have iterators, the following would be:
+  //   var expected = new Set(symbols)
+  var expected = new Set
+  for (var i = 0; i < symbols.length; ++i) expected.add(symbols[i])
+  for (var i = 0; i < names.length; ++i) {
+    var name = names[i]
+    var asString = String(name)
+    if (asString !== name) {
+      assertEquals("[object Symbol]", asString)
+      assertTrue(expected.has(name))
+      expected.delete(name)
+    }
+  }
+  assertEquals(0, expected.size)
 }
 
 
@@ -222,7 +238,7 @@ for (var i in objs) {
   TestKeyGet(obj)
   TestKeyHas(obj)
   TestKeyEnum(obj)
-  TestKeyKeys(obj)
+  TestKeyNames(obj)
   TestKeyDescriptor(obj)
   TestKeyDelete(obj)
 }

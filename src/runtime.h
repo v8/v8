@@ -265,7 +265,7 @@ namespace internal {
   /* Numbers */ \
   \
   /* Globals */ \
-  F(CompileString, 1, 1) \
+  F(CompileString, 2, 1) \
   F(GlobalPrint, 1, 1) \
   \
   /* Eval */ \
