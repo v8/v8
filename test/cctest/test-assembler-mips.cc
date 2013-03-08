@@ -287,7 +287,7 @@ TEST(MIPS3) {
   Label L, C;
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(&assm, FPU);
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
     __ ldc1(f6, MemOperand(a0, OFFSET_OF(T, b)) );
@@ -370,7 +370,7 @@ TEST(MIPS4) {
   Label L, C;
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(&assm, FPU);
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
     __ ldc1(f6, MemOperand(a0, OFFSET_OF(T, b)) );
@@ -431,7 +431,7 @@ TEST(MIPS5) {
   Label L, C;
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(&assm, FPU);
 
     // Load all structure elements to registers.
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
@@ -579,7 +579,7 @@ TEST(MIPS7) {
   Label neither_is_nan, less_than, outa_here;
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(&assm, FPU);
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
     __ ldc1(f6, MemOperand(a0, OFFSET_OF(T, b)) );
@@ -792,7 +792,7 @@ TEST(MIPS10) {
   Label L, C;
 
   if (CpuFeatures::IsSupported(FPU) && kArchVariant == kMips32r2) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(&assm, FPU);
 
     // Load all structure elements to registers.
     __ ldc1(f0, MemOperand(a0, OFFSET_OF(T, a)));
@@ -1097,7 +1097,7 @@ TEST(MIPS13) {
   MacroAssembler assm(Isolate::Current(), NULL, 0);
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(&assm, FPU);
 
     __ sw(t0, MemOperand(a0, OFFSET_OF(T, cvt_small_in)));
     __ Cvt_d_uw(f10, t0, f22);
@@ -1180,7 +1180,7 @@ TEST(MIPS14) {
   MacroAssembler assm(Isolate::Current(), NULL, 0);
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(&assm, FPU);
 
     // Save FCSR.
     __ cfc1(a1, FCSR);

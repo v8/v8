@@ -3520,7 +3520,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           f0, t2, t3,  // These are: double_dst, dst_mantissa, dst_exponent.
           t0, f2);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kFPURegisters) {
-        CpuFeatureScope scope(masm(), FPU);
+        CpuFeatureScope scope(masm, FPU);
         __ sdc1(f0, MemOperand(a3, 0));
       } else {
         __ sw(t2, MemOperand(a3, 0));
