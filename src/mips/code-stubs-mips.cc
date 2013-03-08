@@ -7259,6 +7259,60 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 }
 
 
+void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::UNIQUE_NAME);
+  ASSERT(GetCondition() == eq);
+  Label miss;
+
+  // Registers containing left and right operands respectively.
+  Register left = a1;
+  Register right = a0;
+  Register tmp1 = a2;
+  Register tmp2 = a3;
+
+  // Check that both operands are heap objects.
+  __ JumpIfEitherSmi(left, right, &miss);
+
+  // Check that both operands are unique names. This leaves the instance
+  // types loaded in tmp1 and tmp2.
+  STATIC_ASSERT(kInternalizedTag != 0);
+  __ lw(tmp1, FieldMemOperand(left, HeapObject::kMapOffset));
+  __ lw(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
+  __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
+  __ lbu(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
+
+  Label succeed1;
+  __ And(at, tmp1, Operand(kIsInternalizedMask));
+  __ Branch(&succeed1, ne, at, Operand(zero_reg));
+  __ Branch(&miss, ne, tmp1, Operand(SYMBOL_TYPE));
+  __ bind(&succeed1);
+
+  Label succeed2;
+  __ And(at, tmp2, Operand(kIsInternalizedMask));
+  __ Branch(&succeed2, ne, at, Operand(zero_reg));
+  __ Branch(&miss, ne, tmp2, Operand(SYMBOL_TYPE));
+  __ bind(&succeed2);
+
+  // Use a0 as result
+  __ mov(v0, a0);
+
+  // Unique names are compared by identity.
+  Label done;
+  __ Branch(&done, ne, left, Operand(right));
+  // Make sure a0 is non-zero. At this point input operands are
+  // guaranteed to be non-zero.
+  ASSERT(right.is(a0));
+  STATIC_ASSERT(EQUAL == 0);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ li(v0, Operand(Smi::FromInt(EQUAL)));
+  __ bind(&done);
+  __ Ret();
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::STRING);
   Label miss;

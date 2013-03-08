@@ -2431,6 +2431,12 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
           a0, holder, a3, a1, t0, name, &miss);
       break;
 
+    case SYMBOL_CHECK:
+      // Check that the object is a symbol.
+      __ GetObjectType(a1, a1, a3);
+      __ Branch(&miss, ne, a3, Operand(SYMBOL_TYPE));
+      break;
+
     case NUMBER_CHECK: {
       Label fast;
       // Check that the object is a smi or a heap number.
