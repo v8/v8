@@ -356,187 +356,6 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
 }
 
 
-void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
-                                             int frame_index) {
-  //
-  //               FROM                                  TO
-  //    |          ....           |          |          ....           |
-  //    +-------------------------+          +-------------------------+
-  //    | JSFunction continuation |          | JSFunction continuation |
-  //    +-------------------------+          +-------------------------+
-  // |  |   saved frame (fp)      |          |   saved frame (fp)      |
-  // |  +=========================+<-fp      +=========================+<-fp
-  // |  |   JSFunction context    |          |   JSFunction context    |
-  // v  +-------------------------+          +-------------------------|
-  //    |   COMPILED_STUB marker  |          |   STUB_FAILURE marker   |
-  //    +-------------------------+          +-------------------------+
-  //    |                         |          |  caller args.arguments_ |
-  //    | ...                     |          +-------------------------+
-  //    |                         |          |  caller args.length_    |
-  //    |-------------------------|<-sp      +-------------------------+
-  //                                         |  caller args pointer    |
-  //                                         +-------------------------+
-  //                                         |  caller stack param 1   |
-  //      parameters in registers            +-------------------------+
-  //       and spilled to stack              |           ....          |
-  //                                         +-------------------------+
-  //                                         |  caller stack param n   |
-  //                                         +-------------------------+<-sp
-  //                                         r0 = number of parameters
-  //                                         r1 = failure handler address
-  //                                         fp = saved frame
-  //                                         cp = JSFunction context
-  //
-
-  ASSERT(compiled_code_->kind() == Code::COMPILED_STUB);
-  int major_key = compiled_code_->major_key();
-  CodeStubInterfaceDescriptor* descriptor =
-      isolate_->code_stub_interface_descriptor(major_key);
-
-  // The output frame must have room for all pushed register parameters
-  // and the standard stack frame slots.  Include space for an argument
-  // object to the callee and optionally the space to pass the argument
-  // object to the stub failure handler.
-  int height_in_bytes = kPointerSize * descriptor->register_param_count_ +
-      sizeof(Arguments) + kPointerSize;
-  int fixed_frame_size = StandardFrameConstants::kFixedFrameSize;
-  int input_frame_size = input_->GetFrameSize();
-  int output_frame_size = height_in_bytes + fixed_frame_size;
-  if (trace_) {
-    PrintF("  translating %s => StubFailureTrampolineStub, height=%d\n",
-           CodeStub::MajorName(static_cast<CodeStub::Major>(major_key), false),
-           height_in_bytes);
-  }
-
-  // The stub failure trampoline is a single frame.
-  FrameDescription* output_frame =
-      new(output_frame_size) FrameDescription(output_frame_size, NULL);
-  output_frame->SetFrameType(StackFrame::STUB_FAILURE_TRAMPOLINE);
-  ASSERT(frame_index == 0);
-  output_[frame_index] = output_frame;
-
-  // The top address for the output frame can be computed from the input
-  // frame pointer and the output frame's height. Subtract space for the
-  // context and function slots.
-  intptr_t top_address = input_->GetRegister(fp.code()) - (2 * kPointerSize) -
-        height_in_bytes;
-  output_frame->SetTop(top_address);
-
-  // Read caller's PC (JSFunction continuation) from the input frame.
-  intptr_t input_frame_offset = input_frame_size - kPointerSize;
-  intptr_t output_frame_offset = output_frame_size - kPointerSize;
-  intptr_t value = input_->GetFrameSlot(input_frame_offset);
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; caller's pc\n",
-           top_address + output_frame_offset, output_frame_offset, value);
-  }
-
-  // Read caller's FP from the input frame, and set this frame's FP.
-  input_frame_offset -= kPointerSize;
-  value = input_->GetFrameSlot(input_frame_offset);
-  output_frame_offset -= kPointerSize;
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  intptr_t frame_ptr = input_->GetRegister(fp.code());
-  output_frame->SetRegister(fp.code(), frame_ptr);
-  output_frame->SetFp(frame_ptr);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; caller's fp\n",
-           top_address + output_frame_offset, output_frame_offset, value);
-  }
-
-  // The context can be gotten from the input frame.
-  input_frame_offset -= kPointerSize;
-  value = input_->GetFrameSlot(input_frame_offset);
-  output_frame->SetRegister(cp.code(), value);
-  output_frame_offset -= kPointerSize;
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; context\n",
-           top_address + output_frame_offset, output_frame_offset, value);
-  }
-
-  // A marker value is used in place of the function.
-  output_frame_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(
-      Smi::FromInt(StackFrame::STUB_FAILURE_TRAMPOLINE));
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; function (stub fail sentinel)\n",
-           top_address + output_frame_offset, output_frame_offset, value);
-  }
-
-  int caller_arg_count = 0;
-  if (descriptor->stack_parameter_count_ != NULL) {
-    caller_arg_count =
-        input_->GetRegister(descriptor->stack_parameter_count_->code());
-  }
-
-  // Build the Arguments object for the caller's parameters and a pointer to it.
-  output_frame_offset -= kPointerSize;
-  value = frame_ptr + StandardFrameConstants::kCallerSPOffset +
-      (caller_arg_count - 1) * kPointerSize;
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; args.arguments\n",
-           top_address + output_frame_offset, output_frame_offset, value);
-  }
-
-  output_frame_offset -= kPointerSize;
-  value = caller_arg_count;
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; args.length\n",
-           top_address + output_frame_offset, output_frame_offset, value);
-  }
-
-  output_frame_offset -= kPointerSize;
-  value = frame_ptr - (output_frame_size - output_frame_offset) -
-      StandardFrameConstants::kMarkerOffset + kPointerSize;
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; args*\n",
-           top_address + output_frame_offset, output_frame_offset, value);
-  }
-
-  // Copy the register parameters to the failure frame.
-  for (int i = 0; i < descriptor->register_param_count_; ++i) {
-    output_frame_offset -= kPointerSize;
-    DoTranslateCommand(iterator, 0, output_frame_offset);
-  }
-
-  ASSERT(0 == output_frame_offset);
-
-  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-    double double_value = input_->GetDoubleRegister(i);
-    output_frame->SetDoubleRegister(i, double_value);
-  }
-
-  ApiFunction function(descriptor->deoptimization_handler_);
-  ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
-  intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
-  int params = descriptor->register_param_count_;
-  if (descriptor->stack_parameter_count_ != NULL) {
-    params++;
-  }
-  output_frame->SetRegister(r0.code(), params);
-  output_frame->SetRegister(r1.code(), handler);
-
-  // Compute this frame's PC, state, and continuation.
-  Code* trampoline = NULL;
-  int extra = descriptor->extra_expression_stack_count_;
-  StubFailureTrampolineStub(extra).FindCodeInCache(&trampoline, isolate_);
-  ASSERT(trampoline != NULL);
-  output_frame->SetPc(reinterpret_cast<intptr_t>(
-      trampoline->instruction_start()));
-  output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
-  Code* notify_failure =
-      isolate_->builtins()->builtin(Builtins::kNotifyStubFailure);
-  output_frame->SetContinuation(
-      reinterpret_cast<intptr_t>(notify_failure->entry()));
-}
-
-
 // This code is very similar to ia32 code, but relies on register names (fp, sp)
 // and how the frame is laid out.
 void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
@@ -731,6 +550,28 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   // Fill the frame content from the actual data on the frame.
   for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
     input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
+  }
+}
+
+
+void Deoptimizer::SetPlatformCompiledStubRegisters(
+    FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
+  ApiFunction function(descriptor->deoptimization_handler_);
+  ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
+  intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
+  int params = descriptor->register_param_count_;
+  if (descriptor->stack_parameter_count_ != NULL) {
+    params++;
+  }
+  output_frame->SetRegister(r0.code(), params);
+  output_frame->SetRegister(r1.code(), handler);
+}
+
+
+void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
+  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
+    double double_value = input_->GetDoubleRegister(i);
+    output_frame->SetDoubleRegister(i, double_value);
   }
 }
 

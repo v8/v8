@@ -709,6 +709,10 @@ class StubFailureTrampolineFrame: public StandardFrame {
 
   virtual void Iterate(ObjectVisitor* v) const;
 
+  // Architecture-specific register description.
+  static Register fp_register();
+  static Register context_register();
+
  protected:
   inline explicit StubFailureTrampolineFrame(
       StackFrameIterator* iterator);
