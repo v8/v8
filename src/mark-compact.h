@@ -690,8 +690,6 @@ class MarkCompactCollector {
 
   bool IsConcurrentSweepingInProgress();
 
-  void FinalizeSweeping();
-
   void set_sequential_sweeping(bool sequential_sweeping) {
     sequential_sweeping_ = sequential_sweeping;
   }
@@ -713,6 +711,7 @@ class MarkCompactCollector {
   void RemoveDeadInvalidatedCode();
   void ProcessInvalidatedCode(ObjectVisitor* visitor);
 
+  void UnlinkEvacuationCandidates();
   void ReleaseEvacuationCandidates();
 
   void StartSweeperThreads();

@@ -1697,7 +1697,7 @@ class PagedSpace : public Space {
   }
 
   // Releases an unused page and shrinks the space.
-  void ReleasePage(Page* page);
+  void ReleasePage(Page* page, bool unlink);
 
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }

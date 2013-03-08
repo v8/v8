@@ -981,6 +981,7 @@ bool PagedSpace::CanExpand() {
   return true;
 }
 
+
 bool PagedSpace::Expand() {
   if (!CanExpand()) return false;
 
@@ -1045,7 +1046,7 @@ int PagedSpace::CountTotalPages() {
 }
 
 
-void PagedSpace::ReleasePage(Page* page) {
+void PagedSpace::ReleasePage(Page* page, bool unlink) {
   ASSERT(page->LiveBytes() == 0);
   ASSERT(AreaSize() == page->area_size());
 
@@ -1069,7 +1070,9 @@ void PagedSpace::ReleasePage(Page* page) {
     allocation_info_.top = allocation_info_.limit = NULL;
   }
 
-  page->Unlink();
+  if (unlink) {
+    page->Unlink();
+  }
   if (page->IsFlagSet(MemoryChunk::CONTAINS_ONLY_DATA)) {
     heap()->isolate()->memory_allocator()->Free(page);
   } else {
@@ -2555,7 +2558,6 @@ bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
       if (collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
         if (!collector->sequential_sweeping()) {
           collector->WaitUntilSweepingCompleted();
-          collector->FinalizeSweeping();
           return true;
         }
       }

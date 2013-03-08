@@ -585,13 +585,6 @@ bool MarkCompactCollector::IsConcurrentSweepingInProgress() {
 }
 
 
-void MarkCompactCollector::FinalizeSweeping() {
-  ASSERT(sweeping_pending_ == false);
-  ReleaseEvacuationCandidates();
-  heap()->FreeQueuedChunks();
-}
-
-
 void MarkCompactCollector::MarkInParallel() {
   for (int i = 0; i < FLAG_marking_threads; i++) {
     heap()->isolate()->marking_threads()[i]->StartMarking();
@@ -911,7 +904,6 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   if (IsConcurrentSweepingInProgress()) {
     // Instead of waiting we could also abort the sweeper threads here.
     WaitUntilSweepingCompleted();
-    FinalizeSweeping();
   }
 
   // Clear marking bits if incremental marking is aborted.
@@ -2849,6 +2841,7 @@ void MarkCompactCollector::EvacuatePages() {
           slots_buffer_allocator_.DeallocateChain(page->slots_buffer_address());
           page->ClearEvacuationCandidate();
           page->SetFlag(Page::RESCAN_ON_EVACUATION);
+          page->InsertAfter(static_cast<PagedSpace*>(page->owner())->anchor());
         }
         return;
       }
@@ -3309,6 +3302,18 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 }
 
 
+void MarkCompactCollector::UnlinkEvacuationCandidates() {
+  int npages = evacuation_candidates_.length();
+  for (int i = 0; i < npages; i++) {
+    Page* p = evacuation_candidates_[i];
+    if (!p->IsEvacuationCandidate()) continue;
+    p->Unlink();
+    p->ClearSweptPrecisely();
+    p->ClearSweptConservatively();
+  }
+}
+
+
 void MarkCompactCollector::ReleaseEvacuationCandidates() {
   int npages = evacuation_candidates_.length();
   for (int i = 0; i < npages; i++) {
@@ -3319,10 +3324,11 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
     p->set_scan_on_scavenge(false);
     slots_buffer_allocator_.DeallocateChain(p->slots_buffer_address());
     p->ResetLiveBytes();
-    space->ReleasePage(p);
+    space->ReleasePage(p, false);
   }
   evacuation_candidates_.Rewind(0);
   compacting_ = false;
+  heap()->FreeQueuedChunks();
 }
 
 
@@ -3794,7 +3800,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         // Adjust unswept free bytes because releasing a page expects said
         // counter to be accurate for unswept pages.
         space->IncreaseUnsweptFreeBytes(p);
-        space->ReleasePage(p);
+        space->ReleasePage(p, true);
         continue;
       }
       unused_page_present = true;
@@ -3899,6 +3905,10 @@ void MarkCompactCollector::SweepSpaces() {
   SweepSpace(heap()->old_pointer_space(), how_to_sweep);
   SweepSpace(heap()->old_data_space(), how_to_sweep);
 
+  // Unlink evacuation candidates before sweeper threads access the list of
+  // pages to avoid race condition.
+  UnlinkEvacuationCandidates();
+
   if (how_to_sweep == PARALLEL_CONSERVATIVE ||
       how_to_sweep == CONCURRENT_CONSERVATIVE) {
     // TODO(hpayer): fix race with concurrent sweeper
@@ -3924,9 +3934,7 @@ void MarkCompactCollector::SweepSpaces() {
   // Deallocate unmarked objects and clear marked bits for marked objects.
   heap_->lo_space()->FreeUnmarkedObjects();
 
-  if (how_to_sweep != CONCURRENT_CONSERVATIVE) {
-    FinalizeSweeping();
-  }
+  ReleaseEvacuationCandidates();
 }
 
 
