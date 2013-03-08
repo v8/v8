@@ -739,11 +739,11 @@ class FloatingPointHelper : public AllStatic {
 };
 
 
-class StringDictionaryLookupStub: public PlatformCodeStub {
+class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
-  explicit StringDictionaryLookupStub(LookupMode mode) : mode_(mode) { }
+  explicit NameDictionaryLookupStub(LookupMode mode) : mode_(mode) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -752,7 +752,7 @@ class StringDictionaryLookupStub: public PlatformCodeStub {
                                      Label* done,
                                      Register receiver,
                                      Register properties,
-                                     Handle<String> name,
+                                     Handle<Name> name,
                                      Register scratch0);
 
   static void GeneratePositiveLookup(MacroAssembler* masm,
@@ -770,14 +770,14 @@ class StringDictionaryLookupStub: public PlatformCodeStub {
   static const int kTotalProbes = 20;
 
   static const int kCapacityOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kCapacityIndex * kPointerSize;
+      NameDictionary::kHeaderSize +
+      NameDictionary::kCapacityIndex * kPointerSize;
 
   static const int kElementsStartOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kElementsStartIndex * kPointerSize;
+      NameDictionary::kHeaderSize +
+      NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return StringDictionaryLookup; }
+  Major MajorKey() { return NameDictionaryLookup; }
 
   int MinorKey() {
     return LookupModeBits::encode(mode_);

@@ -61,12 +61,12 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
 
 // Generated code falls through if the receiver is a regular non-global
 // JS object with slow properties and no interceptors.
-static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
-                                                  Register receiver,
-                                                  Register elements,
-                                                  Register scratch0,
-                                                  Register scratch1,
-                                                  Label* miss) {
+static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm,
+                                                Register receiver,
+                                                Register elements,
+                                                Register scratch0,
+                                                Register scratch1,
+                                                Label* miss) {
   // Register usage:
   //   receiver: holds the receiver on entry and is unchanged.
   //   elements: holds the property dictionary on fall through.
@@ -129,19 +129,19 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   Label done;
 
   // Probe the dictionary.
-  StringDictionaryLookupStub::GeneratePositiveLookup(masm,
-                                                     miss,
-                                                     &done,
-                                                     elements,
-                                                     name,
-                                                     scratch1,
-                                                     scratch2);
+  NameDictionaryLookupStub::GeneratePositiveLookup(masm,
+                                                   miss,
+                                                   &done,
+                                                   elements,
+                                                   name,
+                                                   scratch1,
+                                                   scratch2);
 
   // If probing finds an entry check that the value is a normal
   // property.
   __ bind(&done);  // scratch2 == elements + 4 * index.
-  const int kElementsStartOffset = StringDictionary::kHeaderSize +
-      StringDictionary::kElementsStartIndex * kPointerSize;
+  const int kElementsStartOffset = NameDictionary::kHeaderSize +
+      NameDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   __ lw(scratch1, FieldMemOperand(scratch2, kDetailsOffset));
   __ And(at,
@@ -182,19 +182,19 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
   Label done;
 
   // Probe the dictionary.
-  StringDictionaryLookupStub::GeneratePositiveLookup(masm,
-                                                     miss,
-                                                     &done,
-                                                     elements,
-                                                     name,
-                                                     scratch1,
-                                                     scratch2);
+  NameDictionaryLookupStub::GeneratePositiveLookup(masm,
+                                                   miss,
+                                                   &done,
+                                                   elements,
+                                                   name,
+                                                   scratch1,
+                                                   scratch2);
 
   // If probing finds an entry in the dictionary check that the value
   // is a normal property that is not read only.
   __ bind(&done);  // scratch2 == elements + 4 * index.
-  const int kElementsStartOffset = StringDictionary::kHeaderSize +
-      StringDictionary::kElementsStartIndex * kPointerSize;
+  const int kElementsStartOffset = NameDictionary::kHeaderSize +
+      NameDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   const int kTypeAndReadOnlyMask =
       (PropertyDetails::TypeField::kMask |
@@ -305,22 +305,25 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
 }
 
 
-// Checks whether a key is an array index string or an internalized string.
-// Falls through if a key is an internalized string.
-static void GenerateKeyStringCheck(MacroAssembler* masm,
-                                   Register key,
-                                   Register map,
-                                   Register hash,
-                                   Label* index_string,
-                                   Label* not_internalized) {
+// Checks whether a key is an array index string or a unique name.
+// Falls through if a key is a unique name.
+static void GenerateKeyNameCheck(MacroAssembler* masm,
+                                 Register key,
+                                 Register map,
+                                 Register hash,
+                                 Label* index_string,
+                                 Label* not_unique) {
   // The key is not a smi.
-  // Is it a string?
+  Label unique;
+  // Is it a name?
   __ GetObjectType(key, map, hash);
-  __ Branch(not_internalized, ge, hash, Operand(FIRST_NONSTRING_TYPE));
+  __ Branch(not_unique, hi, hash, Operand(LAST_UNIQUE_NAME_TYPE));
+  STATIC_ASSERT(LAST_UNIQUE_NAME_TYPE == FIRST_NONSTRING_TYPE);
+  __ Branch(&unique, eq, hash, Operand(LAST_UNIQUE_NAME_TYPE));
 
   // Is the string an array index, with cached numeric value?
-  __ lw(hash, FieldMemOperand(key, String::kHashFieldOffset));
-  __ And(at, hash, Operand(String::kContainsCachedArrayIndexMask));
+  __ lw(hash, FieldMemOperand(key, Name::kHashFieldOffset));
+  __ And(at, hash, Operand(Name::kContainsCachedArrayIndexMask));
   __ Branch(index_string, eq, at, Operand(zero_reg));
 
   // Is the string internalized?
@@ -328,7 +331,9 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
   __ lbu(hash, FieldMemOperand(map, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kInternalizedTag != 0);
   __ And(at, hash, Operand(kIsInternalizedMask));
-  __ Branch(not_internalized, eq, at, Operand(zero_reg));
+  __ Branch(not_unique, eq, at, Operand(zero_reg));
+
+  __ bind(&unique);
 }
 
 
@@ -426,7 +431,7 @@ void CallICBase::GenerateNormal(MacroAssembler* masm, int argc) {
   // Get the receiver of the function from the stack into a1.
   __ lw(a1, MemOperand(sp, argc * kPointerSize));
 
-  GenerateStringDictionaryReceiverCheck(masm, a1, a0, a3, t0, &miss);
+  GenerateNameDictionaryReceiverCheck(masm, a1, a0, a3, t0, &miss);
 
   // a0: elements
   // Search the dictionary - put result in register a1.
@@ -529,11 +534,11 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ lw(a1, MemOperand(sp, argc * kPointerSize));
 
   Label do_call, slow_call, slow_load, slow_reload_receiver;
-  Label check_number_dictionary, check_string, lookup_monomorphic_cache;
-  Label index_smi, index_string;
+  Label check_number_dictionary, check_name, lookup_monomorphic_cache;
+  Label index_smi, index_name;
 
   // Check that the key is a smi.
-  __ JumpIfNotSmi(a2, &check_string);
+  __ JumpIfNotSmi(a2, &check_name);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from below
   // where a numeric string is converted to a smi.
@@ -580,10 +585,10 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ mov(a1, v0);
   __ jmp(&do_call);
 
-  __ bind(&check_string);
-  GenerateKeyStringCheck(masm, a2, a0, a3, &index_string, &slow_call);
+  __ bind(&check_name);
+  GenerateKeyNameCheck(masm, a2, a0, a3, &index_name, &slow_call);
 
-  // The key is known to be internalized.
+  // The key is known to be a unique name.
   // If the receiver is a regular JS object with slow properties then do
   // a quick inline probe of the receiver's dictionary.
   // Otherwise do the monomorphic cache probe.
@@ -610,14 +615,14 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ bind(&slow_call);
   // This branch is taken if:
   // - the receiver requires boxing or access check,
-  // - the key is neither smi nor an internalized string,
+  // - the key is neither smi nor a unique name,
   // - the value loaded is not a function,
   // - there is hope that the runtime will create a monomorphic call stub,
   //   that will get fetched next time.
   __ IncrementCounter(counters->keyed_call_generic_slow(), 1, a0, a3);
   GenerateMiss(masm, argc);
 
-  __ bind(&index_string);
+  __ bind(&index_name);
   __ IndexFromHash(a3, a2);
   // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
@@ -630,10 +635,10 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   //  -- ra    : return address
   // -----------------------------------
 
-  // Check if the name is a string.
+  // Check if the name is really a name.
   Label miss;
   __ JumpIfSmi(a2, &miss);
-  __ IsObjectJSStringType(a2, a0, &miss);
+  __ IsObjectNameType(a2, a0, &miss);
 
   CallICBase::GenerateNormal(masm, argc);
   __ bind(&miss);
@@ -672,7 +677,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // -----------------------------------
   Label miss;
 
-  GenerateStringDictionaryReceiverCheck(masm, a0, a1, a3, t0, &miss);
+  GenerateNameDictionaryReceiverCheck(masm, a0, a1, a3, t0, &miss);
 
   // a1: elements
   GenerateDictionaryLoad(masm, &miss, a1, a2, v0, a3, t0);
@@ -920,7 +925,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- a0     : key
   //  -- a1     : receiver
   // -----------------------------------
-  Label slow, check_string, index_smi, index_string, property_array_property;
+  Label slow, check_name, index_smi, index_name, property_array_property;
   Label probe_dictionary, check_number_dictionary;
 
   Register key = a0;
@@ -929,7 +934,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
 
   // Check that the key is a smi.
-  __ JumpIfNotSmi(key, &check_string);
+  __ JumpIfNotSmi(key, &check_name);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from below
   // where a numeric string is converted to a smi.
@@ -968,8 +973,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
                       a3);
   GenerateRuntimeGetProperty(masm);
 
-  __ bind(&check_string);
-  GenerateKeyStringCheck(masm, key, a2, a3, &index_string, &slow);
+  __ bind(&check_name);
+  GenerateKeyNameCheck(masm, key, a2, a3, &index_name, &slow);
 
   GenerateKeyedLoadReceiverCheck(
        masm, receiver, a2, a3, Map::kHasIndexedInterceptor, &slow);
@@ -983,16 +988,16 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ Branch(&probe_dictionary, eq, t0, Operand(at));
 
   // Load the map of the receiver, compute the keyed lookup cache hash
-  // based on 32 bits of the map pointer and the string hash.
+  // based on 32 bits of the map pointer and the name hash.
   __ lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
   __ sra(a3, a2, KeyedLookupCache::kMapHashShift);
-  __ lw(t0, FieldMemOperand(a0, String::kHashFieldOffset));
-  __ sra(at, t0, String::kHashShift);
+  __ lw(t0, FieldMemOperand(a0, Name::kHashFieldOffset));
+  __ sra(at, t0, Name::kHashShift);
   __ xor_(a3, a3, at);
   int mask = KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask;
   __ And(a3, a3, Operand(mask));
 
-  // Load the key (consisting of map and internalized string) from the cache and
+  // Load the key (consisting of map and unique name) from the cache and
   // check for match.
   Label load_in_object_property;
   static const int kEntriesPerBucket = KeyedLookupCache::kEntriesPerBucket;
@@ -1085,7 +1090,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
                       a3);
   __ Ret();
 
-  __ bind(&index_string);
+  __ bind(&index_name);
   __ IndexFromHash(a3, key);
   // Now jump to the place where smi keys are handled.
   __ Branch(&index_smi);
@@ -1545,7 +1550,7 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   // -----------------------------------
   Label miss;
 
-  GenerateStringDictionaryReceiverCheck(masm, a1, a3, t0, t1, &miss);
+  GenerateNameDictionaryReceiverCheck(masm, a1, a3, t0, t1, &miss);
 
   GenerateDictionaryStore(masm, &miss, a3, a2, a0, t0, t1);
   Counters* counters = masm->isolate()->counters();
