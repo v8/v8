@@ -653,7 +653,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // -----------------------------------
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, MONOMORPHIC);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::LOAD_IC, MONOMORPHIC, Code::HANDLER_FRAGMENT);
   Isolate::Current()->stub_cache()->GenerateProbe(
       masm, flags, a0, a2, a3, t0, t1, t2);
 
