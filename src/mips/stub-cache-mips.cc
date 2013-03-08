@@ -3093,7 +3093,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
   Handle<Code> stub =
       KeyedStoreElementStub(is_js_array,
                             elements_kind,
-                            grow_mode_).GetCode(isolate());
+                            store_mode_).GetCode(isolate());
 
   __ DispatchMap(a2, a3, receiver_map, stub, DO_SMI_CHECK);
 
@@ -3858,7 +3858,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     __ lw(scratch, FieldMemOperand(elements_reg, FixedArray::kLengthOffset));
   }
   // Compare smis.
-  if (is_js_array && grow_mode == ALLOW_JSARRAY_GROWTH) {
+  if (is_js_array && IsGrowStoreMode(store_mode)) {
     __ Branch(&grow, hs, key_reg, Operand(scratch));
   } else {
     __ Branch(&miss_force_generic, hs, key_reg, Operand(scratch));
@@ -3910,7 +3910,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ Jump(ic_miss, RelocInfo::CODE_TARGET);
 
-  if (is_js_array && grow_mode == ALLOW_JSARRAY_GROWTH) {
+  if (is_js_array && IsGrowStoreMode(store_mode)) {
     // Grow the array by a single element if possible.
     __ bind(&grow);
 
@@ -4026,7 +4026,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   }
   // Compare smis, unsigned compare catches both negative and out-of-bound
   // indexes.
-  if (grow_mode == ALLOW_JSARRAY_GROWTH) {
+  if (IsGrowStoreMode(store_mode)) {
     __ Branch(&grow, hs, key_reg, Operand(scratch1));
   } else {
     __ Branch(&miss_force_generic, hs, key_reg, Operand(scratch1));
@@ -4057,7 +4057,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ Jump(ic_miss, RelocInfo::CODE_TARGET);
 
-  if (is_js_array && grow_mode == ALLOW_JSARRAY_GROWTH) {
+  if (is_js_array && IsGrowStoreMode(store_mode)) {
     // Grow the array by a single element if possible.
     __ bind(&grow);
 
