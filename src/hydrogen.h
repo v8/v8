@@ -886,6 +886,8 @@ class HGraphBuilder {
       BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY,
       Representation r = Representation::None());
 
+  HReturn* AddReturn(HValue* value);
+
  protected:
   virtual bool BuildGraph() = 0;
 

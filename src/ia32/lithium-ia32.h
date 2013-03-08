@@ -1391,12 +1391,23 @@ class LArithmeticT: public LTemplateInstruction<1, 3, 0> {
 };
 
 
-class LReturn: public LTemplateInstruction<0, 2, 0> {
+class LReturn: public LTemplateInstruction<0, 3, 0> {
  public:
-  explicit LReturn(LOperand* value, LOperand* context) {
+  explicit LReturn(LOperand* value, LOperand* context,
+                   LOperand* parameter_count) {
     inputs_[0] = value;
     inputs_[1] = context;
+    inputs_[2] = parameter_count;
   }
+
+  bool has_constant_parameter_count() {
+    return parameter_count()->IsConstantOperand();
+  }
+  LConstantOperand* constant_parameter_count() {
+    ASSERT(has_constant_parameter_count());
+    return LConstantOperand::cast(parameter_count());
+  }
+  LOperand* parameter_count() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Return, "return")
 };

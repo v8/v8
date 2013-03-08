@@ -2558,10 +2558,16 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ movq(rsp, rbp);
     __ pop(rbp);
   }
-  if (info()->IsStub()) {
-    __ Ret(0, r10);
+  if (instr->has_constant_parameter_count()) {
+    __ Ret((ToInteger32(instr->constant_parameter_count()) + 1) * kPointerSize,
+           rcx);
   } else {
-    __ Ret((GetParameterCount() + 1) * kPointerSize, rcx);
+    Register reg = ToRegister(instr->parameter_count());
+    Register return_addr_reg = reg.is(rcx) ? rbx : rcx;
+    __ pop(return_addr_reg);
+    __ shl(reg, Immediate(kPointerSizeLog2));
+    __ addq(rsp, reg);
+    __ jmp(return_addr_reg);
   }
 }
 

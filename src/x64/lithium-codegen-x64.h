@@ -170,7 +170,6 @@ class LCodeGen BASE_EMBEDDED {
                        Register scratch);
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
-  int GetParameterCount() const { return info()->num_parameters(); }
 
   void Abort(const char* reason);
   void Comment(const char* format, ...);

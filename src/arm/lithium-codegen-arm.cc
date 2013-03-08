@@ -2950,11 +2950,19 @@ void LCodeGen::DoReturn(LReturn* instr) {
     }
   }
   if (NeedsEagerFrame()) {
-    int32_t sp_delta = (GetParameterCount() + 1) * kPointerSize;
     __ mov(sp, fp);
     __ ldm(ia_w, sp, fp.bit() | lr.bit());
-    if (!info()->IsStub()) {
-      __ add(sp, sp, Operand(sp_delta));
+
+    if (instr->has_constant_parameter_count()) {
+      int parameter_count = ToInteger32(instr->constant_parameter_count());
+      int32_t sp_delta = (parameter_count + 1) * kPointerSize;
+      if (sp_delta != 0) {
+        __ add(sp, sp, Operand(sp_delta));
+      }
+    } else {
+      Register reg = ToRegister(instr->parameter_count());
+      __ add(reg, reg, Operand(1));
+      __ add(sp, sp, Operand(reg, LSL, kPointerSizeLog2));
     }
   }
   __ Jump(lr);

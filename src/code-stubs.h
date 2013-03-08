@@ -270,6 +270,13 @@ struct CodeStubInterfaceDescriptor {
   int extra_expression_stack_count_;
   Register* register_params_;
   Address deoptimization_handler_;
+
+  int environment_length() const {
+    if (stack_parameter_count_ != NULL) {
+      return register_param_count_ + 1;
+    }
+    return register_param_count_;
+  }
 };
 
 

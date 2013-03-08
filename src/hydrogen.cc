@@ -875,6 +875,18 @@ HBoundsCheck* HGraphBuilder::AddBoundsCheck(HValue* index,
 }
 
 
+HReturn* HGraphBuilder::AddReturn(HValue* value) {
+  HValue* context = environment()->LookupContext();
+  int num_parameters = graph()->info()->num_parameters();
+  HValue* params = AddInstruction(new(graph()->zone())
+      HConstant(num_parameters, Representation::Integer32()));
+  HReturn* return_instruction = new(graph()->zone())
+      HReturn(value, context, params);
+  current_block()->FinishExit(return_instruction);
+  return return_instruction;
+}
+
+
 HBasicBlock* HGraphBuilder::CreateBasicBlock(HEnvironment* env) {
   HBasicBlock* b = graph()->CreateBasicBlock();
   b->SetInitialEnvironment(env);
@@ -1225,10 +1237,10 @@ HGraph::HGraph(CompilationInfo* info)
       type_change_checksum_(0) {
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
-    int param_count =
-        stub->GetInterfaceDescriptor(isolate_)->register_param_count_;
+    CodeStubInterfaceDescriptor* descriptor =
+        stub->GetInterfaceDescriptor(isolate_);
     start_environment_ =
-        new(zone_) HEnvironment(zone_, param_count);
+        new(zone_) HEnvironment(zone_, descriptor->environment_length());
   } else {
     start_environment_ =
         new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
@@ -3841,9 +3853,7 @@ bool HOptimizedGraphBuilder::BuildGraph() {
   if (HasStackOverflow()) return false;
 
   if (current_block() != NULL) {
-    HReturn* instr = new(zone()) HReturn(graph()->GetConstantUndefined(),
-                                         context);
-    current_block()->FinishExit(instr);
+    AddReturn(graph()->GetConstantUndefined());
     set_current_block(NULL);
   }
 
@@ -4726,9 +4736,7 @@ void HOptimizedGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
     // Not an inlined return, so an actual one.
     CHECK_ALIVE(VisitForValue(stmt->expression()));
     HValue* result = environment()->Pop();
-    current_block()->FinishExit(new(zone()) HReturn(
-        result,
-        environment()->LookupContext()));
+    AddReturn(result);
   } else if (state->inlining_kind() == CONSTRUCT_CALL_RETURN) {
     // Return from an inlined construct call. In a test context the return value
     // will always evaluate to true, in a value context the return value needs
