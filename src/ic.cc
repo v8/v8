@@ -1021,6 +1021,20 @@ void KeyedLoadIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
 }
 
 
+void IC::CopyICToMegamorphicCache(Handle<String> name) {
+  MapHandleList receiver_maps;
+  CodeHandleList handlers;
+  {
+    AssertNoAllocation no_gc;
+    target()->FindAllMaps(&receiver_maps);
+    target()->FindAllCode(&handlers, receiver_maps.length());
+  }
+  for (int i = 0; i < receiver_maps.length(); i++) {
+    UpdateMegamorphicCache(*receiver_maps.at(i), *name, *handlers.at(i));
+  }
+}
+
+
 // Since GC may have been invoked, by the time PatchCache is called, |state| is
 // not necessarily equal to target()->state().
 void IC::PatchCache(State state,
@@ -1043,28 +1057,17 @@ void IC::PatchCache(State state,
           }
         }
         if (target()->type() != Code::NORMAL) {
-          // We are transitioning from monomorphic to megamorphic case. Place
-          // the stub compiled for the receiver into stub cache.
-          Map* map;
-          Code* handler;
-          {
-            AssertNoAllocation no_gc;
-            map = target()->FindFirstMap();
+          if (target()->is_load_stub()) {
+            CopyICToMegamorphicCache(name);
+          } else {
+            Code* handler = target();
+            Map* map = handler->FindFirstMap();
             if (map != NULL) {
-              if (target()->is_load_stub()) {
-                handler = target()->FindFirstCode();
-              } else {
-                handler = target();
-              }
-            } else {
-              // Avoid compiler warnings.
-              handler = NULL;
+              UpdateMegamorphicCache(map, *name, handler);
             }
           }
-          if (handler != NULL) {
-            UpdateMegamorphicCache(map, *name, handler);
-          }
         }
+
         UpdateMegamorphicCache(receiver->map(), *name, *code);
         set_target((strict_mode == kStrictMode)
                      ? *megamorphic_stub_strict()
@@ -1080,16 +1083,7 @@ void IC::PatchCache(State state,
         if (UpdatePolymorphicIC(state, strict_mode, receiver, name, code)) {
           break;
         }
-        MapHandleList receiver_maps;
-        CodeHandleList handlers;
-        {
-          AssertNoAllocation no_gc;
-          target()->FindAllMaps(&receiver_maps);
-          target()->FindAllCode(&handlers, receiver_maps.length());
-        }
-        for (int i = 0; i < receiver_maps.length(); i++) {
-          UpdateMegamorphicCache(*receiver_maps.at(i), *name, *handlers.at(i));
-        }
+        CopyICToMegamorphicCache(name);
         UpdateMegamorphicCache(receiver->map(), *name, *code);
         set_target(*megamorphic_stub());
       } else {
