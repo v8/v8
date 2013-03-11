@@ -206,9 +206,6 @@ UsePosition* LiveRange::NextRegisterPosition(LifetimePosition start) {
 
 
 bool LiveRange::CanBeSpilled(LifetimePosition pos) {
-  // TODO(kmillikin): Comment. Now.
-  if (pos.Value() <= Start().Value() && HasRegisterAssigned()) return false;
-
   // We cannot spill a live range that has a use requiring a register
   // at the current or the immediate next position.
   UsePosition* use_pos = NextRegisterPosition(pos);
@@ -1917,12 +1914,6 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
   if (pos.Value() < register_use->pos().Value()) {
     // All registers are blocked before the first use that requires a register.
     // Spill starting part of live range up to that use.
-    //
-    // Corner case: the first use position is equal to the start of the range.
-    // In this case we have nothing to spill and SpillBetween will just return
-    // this range to the list of unhandled ones. This will lead to the infinite
-    // loop.
-    ASSERT(current->Start().Value() < register_use->pos().Value());
     SpillBetween(current, current->Start(), register_use->pos());
     return;
   }
@@ -2072,7 +2063,7 @@ void LAllocator::SpillAfter(LiveRange* range, LifetimePosition pos) {
 void LAllocator::SpillBetween(LiveRange* range,
                               LifetimePosition start,
                               LifetimePosition end) {
-  ASSERT(start.Value() < end.Value());
+  CHECK(start.Value() < end.Value());
   LiveRange* second_part = SplitRangeAt(range, start);
   if (!AllocationOk()) return;
 
