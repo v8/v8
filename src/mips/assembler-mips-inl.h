@@ -231,6 +231,19 @@ Address* RelocInfo::target_reference_address() {
 }
 
 
+Address RelocInfo::target_runtime_entry(Assembler* origin) {
+  ASSERT(IsRuntimeEntry(rmode_));
+  return target_address();
+}
+
+
+void RelocInfo::set_target_runtime_entry(Address target,
+                                         WriteBarrierMode mode) {
+  ASSERT(IsRuntimeEntry(rmode_));
+  if (target_address() != target) set_target_address(target, mode);
+}
+
+
 Handle<JSGlobalPropertyCell> RelocInfo::target_cell_handle() {
   ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
   Address address = Memory::Address_at(pc_);

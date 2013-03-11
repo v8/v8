@@ -353,9 +353,9 @@ bool LCodeGen::GenerateJumpTable() {
       }
     } else {
       if (is_lazy_deopt) {
-        __ Call(entry, RelocInfo::RUNTIME_ENTRY);
+        __ call(entry, RelocInfo::RUNTIME_ENTRY);
       } else {
-        __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+        __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
       }
     }
   }
@@ -754,9 +754,9 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   bool needs_lazy_deopt = info()->IsStub();
   if (cc == no_condition && frame_is_built_) {
     if (needs_lazy_deopt) {
-      __ Call(entry, RelocInfo::RUNTIME_ENTRY);
+      __ call(entry, RelocInfo::RUNTIME_ENTRY);
     } else {
-      __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+      __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
     }
   } else {
     // We often have several deopts to the same entry, reuse the last
