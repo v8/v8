@@ -316,6 +316,9 @@ class RelocInfo BASE_EMBEDDED {
   static inline bool IsEmbeddedObject(Mode mode) {
     return mode == EMBEDDED_OBJECT;
   }
+  static inline bool IsRuntimeEntry(Mode mode) {
+    return mode == RUNTIME_ENTRY;
+  }
   // Is the relocation mode affected by GC?
   static inline bool IsGCRelocMode(Mode mode) {
     return mode <= LAST_GCED_ENUM;
@@ -379,6 +382,10 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Object** target_object_address());
   INLINE(void set_target_object(Object* target,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
+  INLINE(Address target_runtime_entry(Assembler* origin));
+  INLINE(void set_target_runtime_entry(Address target,
+                                       WriteBarrierMode mode =
+                                           UPDATE_WRITE_BARRIER));
   INLINE(JSGlobalPropertyCell* target_cell());
   INLINE(Handle<JSGlobalPropertyCell> target_cell_handle());
   INLINE(void set_target_cell(JSGlobalPropertyCell* cell,

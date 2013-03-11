@@ -8793,8 +8793,10 @@ void Code::CopyFrom(const CodeDesc& desc) {
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::GLOBAL_PROPERTY_CELL) |
+                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
                   RelocInfo::kApplyMask;
-  Assembler* origin = desc.origin;  // Needed to find target_object on X64.
+  // Needed to find target_object and runtime_entry on X64
+  Assembler* origin = desc.origin;
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
@@ -8810,6 +8812,9 @@ void Code::CopyFrom(const CodeDesc& desc) {
       Code* code = Code::cast(*p);
       it.rinfo()->set_target_address(code->instruction_start(),
                                      SKIP_WRITE_BARRIER);
+    } else if (RelocInfo::IsRuntimeEntry(mode)) {
+      Address p = it.rinfo()->target_runtime_entry(origin);
+      it.rinfo()->set_target_runtime_entry(p, SKIP_WRITE_BARRIER);
     } else {
       it.rinfo()->apply(delta);
     }
