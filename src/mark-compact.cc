@@ -3776,17 +3776,15 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
     Page* p = it.next();
 
     ASSERT(p->parallel_sweeping() == 0);
+    ASSERT(!p->IsEvacuationCandidate());
+
     // Clear sweeping flags indicating that marking bits are still intact.
     p->ClearSweptPrecisely();
     p->ClearSweptConservatively();
 
-    if (p->IsEvacuationCandidate()) {
-      ASSERT(evacuation_candidates_.length() > 0);
-      continue;
-    }
-
     if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
       // Will be processed in EvacuateNewSpaceAndCandidates.
+      ASSERT(evacuation_candidates_.length() > 0);
       continue;
     }
 
@@ -3896,6 +3894,11 @@ void MarkCompactCollector::SweepSpaces() {
   if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
   if (FLAG_expose_gc) how_to_sweep = CONSERVATIVE;
   if (sweep_precisely_) how_to_sweep = PRECISE;
+
+  // Unlink evacuation candidates before sweeper threads access the list of
+  // pages to avoid race condition.
+  UnlinkEvacuationCandidates();
+
   // Noncompacting collections simply sweep the spaces to clear the mark
   // bits and free the nonlive blocks (for old and map spaces).  We sweep
   // the map space last because freeing non-live maps overwrites them and
@@ -3904,10 +3907,6 @@ void MarkCompactCollector::SweepSpaces() {
   SequentialSweepingScope scope(this);
   SweepSpace(heap()->old_pointer_space(), how_to_sweep);
   SweepSpace(heap()->old_data_space(), how_to_sweep);
-
-  // Unlink evacuation candidates before sweeper threads access the list of
-  // pages to avoid race condition.
-  UnlinkEvacuationCandidates();
 
   if (how_to_sweep == PARALLEL_CONSERVATIVE ||
       how_to_sweep == CONCURRENT_CONSERVATIVE) {
@@ -3934,6 +3933,7 @@ void MarkCompactCollector::SweepSpaces() {
   // Deallocate unmarked objects and clear marked bits for marked objects.
   heap_->lo_space()->FreeUnmarkedObjects();
 
+  // Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
 }
 
