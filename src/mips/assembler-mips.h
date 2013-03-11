@@ -413,6 +413,11 @@ class CpuFeatures : public AllStatic {
             (static_cast<uint64_t>(1) << f)) != 0;
   }
 
+  static bool IsSafeForSnapshot(CpuFeature f) {
+    return (IsSupported(f) &&
+            (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
+  }
+
  private:
 #ifdef DEBUG
   static bool initialized_;
