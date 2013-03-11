@@ -8648,6 +8648,11 @@ void HOptimizedGraphBuilder::VisitAdd(UnaryOperation* expr) {
   HValue* context = environment()->LookupContext();
   HInstruction* instr =
       HMul::New(zone(), context, value, graph()->GetConstant1());
+  if (instr->IsBinaryOperation()) {
+    // Since we don't have type feedback, we must be cautious/pessimistic.
+    HBinaryOperation::cast(instr)->set_observed_input_representation(
+        Representation::Tagged(), Representation::Tagged());
+  }
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
