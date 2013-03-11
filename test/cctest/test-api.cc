@@ -18257,6 +18257,19 @@ THREADED_TEST(Regress157124) {
 }
 
 
+THREADED_TEST(Regress2535) {
+  i::FLAG_harmony_collections = true;
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<Value> set_value = CompileRun("new Set();");
+  Local<Object> set_object(Object::Cast(*set_value));
+  CHECK_EQ(0, set_object->InternalFieldCount());
+  Local<Value> map_value = CompileRun("new Map();");
+  Local<Object> map_object(Object::Cast(*map_value));
+  CHECK_EQ(0, map_object->InternalFieldCount());
+}
+
+
 #ifndef WIN32
 class ThreadInterruptTest {
  public:
