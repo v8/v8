@@ -841,16 +841,6 @@ void Assembler::call(Label* L) {
 }
 
 
-void Assembler::call(Address entry, RelocInfo::Mode rmode) {
-  ASSERT(RelocInfo::IsRuntimeEntry(rmode));
-  positions_recorder()->WriteRecordedPositions();
-  EnsureSpace ensure_space(this);
-  // 1110 1000 #32-bit disp.
-  emit(0xE8);
-  emit_runtime_entry(entry, rmode);
-}
-
-
 void Assembler::call(Handle<Code> target,
                      RelocInfo::Mode rmode,
                      TypeFeedbackId ast_id) {
@@ -1257,16 +1247,6 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
 }
 
 
-void Assembler::j(Condition cc, Address entry, RelocInfo::Mode rmode) {
-  ASSERT(RelocInfo::IsRuntimeEntry(rmode));
-  EnsureSpace ensure_space(this);
-  ASSERT(is_uint4(cc));
-  emit(0x0F);
-  emit(0x80 | cc);
-  emit_runtime_entry(entry, rmode);
-}
-
-
 void Assembler::j(Condition cc,
                   Handle<Code> target,
                   RelocInfo::Mode rmode) {
@@ -1326,15 +1306,6 @@ void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
   // 1110 1001 #32-bit disp.
   emit(0xE9);
   emit_code_target(target, rmode);
-}
-
-
-void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
-  ASSERT(RelocInfo::IsRuntimeEntry(rmode));
-  EnsureSpace ensure_space(this);
-  ASSERT(RelocInfo::IsRuntimeEntry(rmode));
-  emit(0xE9);
-  emit_runtime_entry(entry, rmode);
 }
 
 
@@ -3078,7 +3049,6 @@ void Assembler::RecordComment(const char* msg, bool force) {
 
 
 const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
-    1 << RelocInfo::RUNTIME_ENTRY |
     1 << RelocInfo::INTERNAL_REFERENCE |
     1 << RelocInfo::CODE_AGE_SEQUENCE;
 

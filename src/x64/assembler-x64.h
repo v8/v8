@@ -561,7 +561,6 @@ class Assembler : public AssemblerBase {
   }
 
   inline Handle<Object> code_target_object_handle_at(Address pc);
-  inline Address runtime_entry_at(Address pc);
   // Number of bytes taken up by the branch target in the code.
   static const int kSpecialTargetSize = 4;  // Use 32-bit displacement.
   // Distance between the address of the code target in the call instruction
@@ -1181,7 +1180,6 @@ class Assembler : public AssemblerBase {
   // Calls
   // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
-  void call(Address entry, RelocInfo::Mode rmode);
   void call(Handle<Code> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             TypeFeedbackId ast_id = TypeFeedbackId::None());
@@ -1203,7 +1201,6 @@ class Assembler : public AssemblerBase {
   // Use a 32-bit signed displacement.
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
-  void jmp(Address entry, RelocInfo::Mode rmode);
   void jmp(Handle<Code> target, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
@@ -1216,7 +1213,6 @@ class Assembler : public AssemblerBase {
   void j(Condition cc,
          Label* L,
          Label::Distance distance = Label::kFar);
-  void j(Condition cc, Address entry, RelocInfo::Mode rmode);
   void j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode);
 
   // Floating-point operations
@@ -1434,7 +1430,6 @@ class Assembler : public AssemblerBase {
   inline void emit_code_target(Handle<Code> target,
                                RelocInfo::Mode rmode,
                                TypeFeedbackId ast_id = TypeFeedbackId::None());
-  inline void emit_runtime_entry(Address entry, RelocInfo::Mode rmode);
   void emit(Immediate x) { emitl(x.value_); }
 
   // Emits a REX prefix that encodes a 64-bit operand size and

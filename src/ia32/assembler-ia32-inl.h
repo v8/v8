@@ -51,7 +51,7 @@ static const byte kCallOpcode = 0xE8;
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
-  if (IsRuntimeEntry(rmode_) || IsCodeTarget(rmode_)) {
+  if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
     *p -= delta;  // Relocate entry.
     CPU::FlushICache(p, sizeof(uint32_t));
@@ -83,13 +83,13 @@ void RelocInfo::apply(intptr_t delta) {
 
 
 Address RelocInfo::target_address() {
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   return Assembler::target_address_at(pc_);
 }
 
 
 Address RelocInfo::target_address_address() {
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
   return reinterpret_cast<Address>(pc_);
@@ -103,7 +103,7 @@ int RelocInfo::target_address_size() {
 
 void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
   Assembler::set_target_address_at(pc_, target);
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -146,19 +146,6 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
 Address* RelocInfo::target_reference_address() {
   ASSERT(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   return reinterpret_cast<Address*>(pc_);
-}
-
-
-Address RelocInfo::target_runtime_entry(Assembler* origin) {
-  ASSERT(IsRuntimeEntry(rmode_));
-  return reinterpret_cast<Address>(*reinterpret_cast<int32_t*>(pc_));
-}
-
-
-void RelocInfo::set_target_runtime_entry(Address target,
-                                         WriteBarrierMode mode) {
-  ASSERT(IsRuntimeEntry(rmode_));
-  if (target_address() != target) set_target_address(target, mode);
 }
 
 
@@ -275,7 +262,7 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
              Isolate::Current()->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
 #endif
-  } else if (IsRuntimeEntry(mode)) {
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     visitor->VisitRuntimeEntry(this);
   }
 }
@@ -304,7 +291,7 @@ void RelocInfo::Visit(Heap* heap) {
               IsPatchedDebugBreakSlotSequence()))) {
     StaticVisitor::VisitDebugTarget(heap, this);
 #endif
-  } else if (IsRuntimeEntry(mode)) {
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     StaticVisitor::VisitRuntimeEntry(this);
   }
 }

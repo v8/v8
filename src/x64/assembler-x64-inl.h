@@ -86,14 +86,6 @@ void Assembler::emit_code_target(Handle<Code> target,
 }
 
 
-void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
-  ASSERT(RelocInfo::IsRuntimeEntry(rmode));
-  ASSERT(isolate()->code_range()->exists());
-  RecordRelocInfo(rmode);
-  emitl(static_cast<uint32_t>(entry - isolate()->code_range()->start()));
-}
-
-
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   emit(0x48 | reg.high_bit() << 2 | rm_reg.high_bit());
 }
@@ -216,12 +208,6 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   return code_targets_[Memory::int32_at(pc)];
 }
 
-
-Address Assembler::runtime_entry_at(Address pc) {
-  ASSERT(isolate()->code_range()->exists());
-  return Memory::int32_at(pc) + isolate()->code_range()->start();
-}
-
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
@@ -231,7 +217,7 @@ void RelocInfo::apply(intptr_t delta) {
     // absolute code pointer inside code object moves with the code object.
     Memory::Address_at(pc_) += static_cast<int32_t>(delta);
     CPU::FlushICache(pc_, sizeof(Address));
-  } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
+  } else if (IsCodeTarget(rmode_)) {
     Memory::int32_at(pc_) -= static_cast<int32_t>(delta);
     CPU::FlushICache(pc_, sizeof(int32_t));
   } else if (rmode_ == CODE_AGE_SEQUENCE) {
@@ -245,13 +231,17 @@ void RelocInfo::apply(intptr_t delta) {
 
 
 Address RelocInfo::target_address() {
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  return Assembler::target_address_at(pc_);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  if (IsCodeTarget(rmode_)) {
+    return Assembler::target_address_at(pc_);
+  } else {
+    return Memory::Address_at(pc_);
+  }
 }
 
 
 Address RelocInfo::target_address_address() {
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
   return reinterpret_cast<Address>(pc_);
@@ -268,12 +258,17 @@ int RelocInfo::target_address_size() {
 
 
 void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, target);
-  if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  if (IsCodeTarget(rmode_)) {
+    Assembler::set_target_address_at(pc_, target);
     Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
+    if (mode == UPDATE_WRITE_BARRIER && host() != NULL) {
+      host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+          host(), this, HeapObject::cast(target_code));
+    }
+  } else {
+    Memory::Address_at(pc_) = target;
+    CPU::FlushICache(pc_, sizeof(Address));
   }
 }
 
@@ -316,19 +311,6 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
     host()->GetHeap()->incremental_marking()->RecordWrite(
         host(), &Memory::Object_at(pc_), HeapObject::cast(target));
   }
-}
-
-
-Address RelocInfo::target_runtime_entry(Assembler* origin) {
-  ASSERT(IsRuntimeEntry(rmode_));
-  return origin->runtime_entry_at(pc_);
-}
-
-
-void RelocInfo::set_target_runtime_entry(Address target,
-                                         WriteBarrierMode mode) {
-  ASSERT(IsRuntimeEntry(rmode_));
-  if (target_address() != target) set_target_address(target, mode);
 }
 
 
@@ -461,7 +443,7 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
              Isolate::Current()->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
 #endif
-  } else if (RelocInfo::IsRuntimeEntry(mode)) {
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     visitor->VisitRuntimeEntry(this);
   }
 }
@@ -490,7 +472,7 @@ void RelocInfo::Visit(Heap* heap) {
               IsPatchedDebugBreakSlotSequence()))) {
     StaticVisitor::VisitDebugTarget(heap, this);
 #endif
-  } else if (RelocInfo::IsRuntimeEntry(mode)) {
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     StaticVisitor::VisitRuntimeEntry(this);
   }
 }
