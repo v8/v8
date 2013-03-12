@@ -140,8 +140,6 @@ static void GetICCounts(JSFunction* function,
 
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
   ASSERT(function->IsOptimizable());
-  // If we are in manual mode, don't auto-optimize anything.
-  if (FLAG_manual_parallel_recompilation) return;
 
   if (FLAG_trace_opt) {
     PrintF("[marking ");
@@ -157,6 +155,8 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
   }
 
   if (FLAG_parallel_recompilation) {
+    ASSERT(!function->IsMarkedForInstallingRecompiledCode());
+    ASSERT(!function->IsInRecompileQueue());
     function->MarkForParallelRecompilation();
   } else {
     // The next call to the function will trigger optimization.
@@ -169,7 +169,8 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // See AlwaysFullCompiler (in compiler.cc) comment on why we need
   // Debug::has_break_points().
   ASSERT(function->IsMarkedForLazyRecompilation() ||
-         function->IsMarkedForParallelRecompilation());
+         function->IsMarkedForParallelRecompilation() ||
+         function->IsOptimized());
   if (!FLAG_use_osr ||
       isolate_->DebuggerHasBreakPoints() ||
       function->IsBuiltin()) {
@@ -245,6 +246,12 @@ void RuntimeProfiler::AddSample(JSFunction* function, int weight) {
 void RuntimeProfiler::OptimizeNow() {
   HandleScope scope(isolate_);
 
+  if (FLAG_parallel_recompilation) {
+    // Take this as opportunity to process the optimizing compiler thread's
+    // output queue so that it does not unnecessarily keep objects alive.
+    isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
+  }
+
   // Run through the JavaScript frames and collect them. If we already
   // have a sample of the function, we mark it for optimizations
   // (eagerly or lazily).
@@ -280,9 +287,14 @@ void RuntimeProfiler::OptimizeNow() {
     Code* shared_code = shared->code();
 
     if (shared_code->kind() != Code::FUNCTION) continue;
+    if (function->IsInRecompileQueue()) continue;
 
-    if (function->IsMarkedForLazyRecompilation() ||
-        function->IsMarkedForParallelRecompilation()) {
+    // Attempt OSR if we are still running unoptimized code even though the
+    // the function has long been marked or even already been optimized.
+    if (!frame->is_optimized() &&
+        (function->IsMarkedForLazyRecompilation() ||
+         function->IsMarkedForParallelRecompilation() ||
+         function->IsOptimized())) {
       int nesting = shared_code->allow_osr_at_loop_nesting_level();
       if (nesting == 0) AttemptOnStackReplacement(function);
       int new_nesting = Min(nesting + 1, Code::kMaxLoopNestingMarker);

@@ -7758,7 +7758,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
   HandleScope handle_scope(isolate);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (!AllowOptimization(isolate, function)) {
     function->ReplaceCode(function->shared()->code());
     return function->code();
@@ -7770,30 +7771,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ForceParallelRecompile) {
-  HandleScope handle_scope(isolate);
-  if (!V8::UseCrankshaft()) return isolate->heap()->undefined_value();
-  ASSERT(FLAG_parallel_recompilation && FLAG_manual_parallel_recompilation);
-  if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
-    return isolate->Throw(*isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("Recompile queue is full.")));
-  }
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  fun->ReplaceCode(isolate->builtins()->builtin(Builtins::kParallelRecompile));
-  Compiler::RecompileParallel(fun);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
   HandleScope handle_scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (!V8::UseCrankshaft()) return isolate->heap()->undefined_value();
-  ASSERT(FLAG_parallel_recompilation && FLAG_manual_parallel_recompilation);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  ASSERT(FLAG_parallel_recompilation);
   OptimizingCompilerThread* opt_thread = isolate->optimizing_compiler_thread();
-  Handle<SharedFunctionInfo> shared(fun->shared());
-  while (*opt_thread->InstallNextOptimizedFunction() != *shared) { }
-  return isolate->heap()->undefined_value();
+  opt_thread->InstallOptimizedFunctions();
+  return function->code();
 }
 
 
@@ -7960,6 +7946,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
     }
   }
 
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_WaitUntilOptimized) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  if (FLAG_parallel_recompilation) {
+    if (V8::UseCrankshaft() && function->IsOptimizable()) {
+      while (!function->IsOptimized()) OS::Sleep(50);
+    }
+  }
   return isolate->heap()->undefined_value();
 }
 

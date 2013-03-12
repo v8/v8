@@ -7980,22 +7980,51 @@ void JSFunction::MarkForLazyRecompilation() {
   ASSERT(is_compiled() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
-  Builtins* builtins = GetIsolate()->builtins();
-  ReplaceCode(builtins->builtin(Builtins::kLazyRecompile));
+  set_code_no_write_barrier(
+      GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile));
+  // No write barrier required, since the builtin is part of the root set.
 }
+
 
 void JSFunction::MarkForParallelRecompilation() {
   ASSERT(is_compiled() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  Builtins* builtins = GetIsolate()->builtins();
-  ReplaceCode(builtins->builtin(Builtins::kParallelRecompile));
-
-  // Unlike MarkForLazyRecompilation, after queuing a function for
-  // recompilation on the compiler thread, we actually tail-call into
-  // the full code.  We reset the profiler ticks here so that the
-  // function doesn't bother the runtime profiler too much.
-  shared()->code()->set_profiler_ticks(0);
+  ASSERT(FLAG_parallel_recompilation);
+  if (FLAG_trace_parallel_recompilation) {
+    PrintF("  ** Marking ");
+    PrintName();
+    PrintF(" for parallel recompilation.\n");
+  }
+  set_code_no_write_barrier(
+      GetIsolate()->builtins()->builtin(Builtins::kParallelRecompile));
+  // No write barrier required, since the builtin is part of the root set.
 }
+
+
+void JSFunction::MarkForInstallingRecompiledCode() {
+  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
+  ASSERT(FLAG_parallel_recompilation);
+  set_code_no_write_barrier(
+      GetIsolate()->builtins()->builtin(Builtins::kInstallRecompiledCode));
+  // No write barrier required, since the builtin is part of the root set.
+}
+
+
+void JSFunction::MarkInRecompileQueue() {
+  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
+  ASSERT(FLAG_parallel_recompilation);
+  if (FLAG_trace_parallel_recompilation) {
+    PrintF("  ** Queueing ");
+    PrintName();
+    PrintF(" for parallel recompilation.\n");
+  }
+  set_code_no_write_barrier(
+      GetIsolate()->builtins()->builtin(Builtins::kInRecompileQueue));
+  // No write barrier required, since the builtin is part of the root set.
+}
+
 
 static bool CompileLazyHelper(CompilationInfo* info,
                               ClearExceptionFlag flag) {

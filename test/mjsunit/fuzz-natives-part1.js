@@ -151,6 +151,7 @@ var knownProblems = {
   "LazyCompile": true,
   "LazyRecompile": true,
   "ParallelRecompile": true,
+  "InstallRecompiledCode": true,
   "NotifyDeoptimized": true,
   "NotifyStubFailure": true,
   "NotifyOSR": true,
@@ -200,10 +201,6 @@ var knownProblems = {
   "_GetCachedArrayIndex": true,
   "_OneByteSeqStringSetChar": true,
   "_TwoByteSeqStringSetChar": true,
-
-  // Only for debugging parallel recompilation.
-  "InstallRecompiledCode": true,
-  "ForceParallelRecompile": true
 };
 
 var currentlyUncallable = {

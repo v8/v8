@@ -25,13 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --parallel-recompilation --manual-parallel-recompilation
-
-function assertOptimized(fun) {
-  // This assertion takes --always-opt and --nocrankshaft flags into account.
-  assertTrue(%GetOptimizationStatus(fun) != 2);
-}
+// Flags: --allow-natives-syntax --expose-gc --parallel-recompilation
 
 function assertUnoptimized(fun) {
   assertTrue(%GetOptimizationStatus(fun) != 1);
@@ -54,26 +48,15 @@ function k(x) {
 }
 
 f(g(1));
+assertUnoptimized(f);
+assertUnoptimized(g);
+
+%OptimizeFunctionOnNextCall(f, "parallel");
+%OptimizeFunctionOnNextCall(g, "parallel");
 f(g(2));
+
 assertUnoptimized(f);
 assertUnoptimized(g);
 
-%ForceParallelRecompile(f);
-%ForceParallelRecompile(g);
-assertUnoptimized(f);
-assertUnoptimized(g);
-
-var sum = 0;
-for (var i = 0; i < 10000; i++) sum += f(i) + g(i);
-gc();
-
-assertEquals(95274, sum);
-assertUnoptimized(f);
-assertUnoptimized(g);
-
-%InstallRecompiledCode(f);
-assertOptimized(f);
-assertUnoptimized(g);
-
-%InstallRecompiledCode(g);
-assertOptimized(g);
+%WaitUntilOptimized(f);
+%WaitUntilOptimized(g);

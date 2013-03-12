@@ -87,7 +87,6 @@ namespace internal {
   F(LazyCompile, 1, 1) \
   F(LazyRecompile, 1, 1) \
   F(ParallelRecompile, 1, 1) \
-  F(ForceParallelRecompile, 1, 1) \
   F(InstallRecompiledCode, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyStubFailure, 0, 1) \
@@ -96,6 +95,7 @@ namespace internal {
   F(ClearFunctionTypeFeedback, 1, 1) \
   F(RunningInSimulator, 0, 1) \
   F(OptimizeFunctionOnNextCall, -1, 1) \
+  F(WaitUntilOptimized, 1, 1) \
   F(GetOptimizationStatus, 1, 1) \
   F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \

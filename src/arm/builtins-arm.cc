@@ -746,6 +746,35 @@ void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_InstallRecompiledCode(MacroAssembler* masm) {
+  // Enter an internal frame.
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Preserve the function.
+    __ push(r1);
+    // Push call kind information.
+    __ push(r5);
+
+    // Push the function on the stack as the argument to the runtime function.
+    __ push(r1);
+    __ CallRuntime(Runtime::kInstallRecompiledCode, 1);
+    // Calculate the entry point.
+    __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+    // Restore call kind information.
+    __ pop(r5);
+    // Restore saved function.
+    __ pop(r1);
+
+    // Tear down internal frame.
+  }
+
+  // Do a tail-call of the compiled function.
+  __ Jump(r2);
+}
+
+
 void Builtins::Generate_ParallelRecompile(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);

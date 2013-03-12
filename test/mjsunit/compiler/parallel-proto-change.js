@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// Flags: --parallel-recompilation --manual-parallel-recompilation
+// Flags: --allow-natives-syntax --parallel-recompilation
 
 function f(foo) { return foo.bar(); }
 
@@ -36,9 +35,11 @@ o.__proto__ = { __proto__: { bar: function() { return 1; } } };
 assertEquals(1, f(o));
 assertEquals(1, f(o));
 
-%ForceParallelRecompile(f);
+%OptimizeFunctionOnNextCall(f, "parallel");
+assertEquals(1, f(o));
 // Change the prototype chain during optimization.
 o.__proto__.__proto__ = { bar: function() { return 2; } };
-%InstallRecompiledCode(f);
+
+%WaitUntilOptimized(f);
 
 assertEquals(2, f(o));

@@ -336,6 +336,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_profiler_ticks(0);
   code->set_stack_check_table_offset(table_offset);
+  code->set_stack_check_patched_for_osr(false);
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);  // May be an empty handle.
 #ifdef ENABLE_GDB_JIT_INTERFACE

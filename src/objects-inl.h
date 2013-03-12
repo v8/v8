@@ -3768,6 +3768,22 @@ void Code::set_stack_check_table_offset(unsigned offset) {
 }
 
 
+bool Code::stack_check_patched_for_osr() {
+  ASSERT_EQ(FUNCTION, kind());
+  return StackCheckPatchedForOSRField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
+}
+
+
+void Code::set_stack_check_patched_for_osr(bool value) {
+  ASSERT_EQ(FUNCTION, kind());
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  int updated = StackCheckPatchedForOSRField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
+}
+
+
+
 CheckType Code::check_type() {
   ASSERT(is_call_stub() || is_keyed_call_stub());
   byte type = READ_BYTE_FIELD(this, kCheckTypeOffset);
@@ -4300,6 +4316,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
                kIsTopLevelBit)
+
 BOOL_GETTER(SharedFunctionInfo,
             compiler_hints,
             has_only_simple_this_property_assignments,
@@ -4706,9 +4723,15 @@ bool JSFunction::IsMarkedForLazyRecompilation() {
 }
 
 
+bool JSFunction::IsMarkedForInstallingRecompiledCode() {
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kInstallRecompiledCode);
+}
+
+
 bool JSFunction::IsMarkedForParallelRecompilation() {
-  return code() ==
-      GetIsolate()->builtins()->builtin(Builtins::kParallelRecompile);
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kParallelRecompile);
 }
 
 
@@ -4737,6 +4760,13 @@ void JSFunction::set_code(Code* value) {
       this,
       HeapObject::RawField(this, kCodeEntryOffset),
       value);
+}
+
+
+void JSFunction::set_code_no_write_barrier(Code* value) {
+  ASSERT(!HEAP->InNewSpace(value));
+  Address entry = value->entry();
+  WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
 }
 
 

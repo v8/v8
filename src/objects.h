@@ -4499,6 +4499,9 @@ class Code: public HeapObject {
   inline unsigned stack_check_table_offset();
   inline void set_stack_check_table_offset(unsigned offset);
 
+  inline bool stack_check_patched_for_osr();
+  inline void set_stack_check_patched_for_osr(bool value);
+
   // [check type]: For kind CALL_IC, tells how to check if the
   // receiver is valid for the given call.
   inline CheckType check_type();
@@ -4776,6 +4779,7 @@ class Code: public HeapObject {
 
   // KindSpecificFlags2 layout (FUNCTION)
   class StackCheckTableOffsetField: public BitField<int, 0, 31> {};
+  class StackCheckPatchedForOSRField: public BitField<bool, 31, 1> {};
 
   // Signed field cannot be encoded using the BitField class.
   static const int kArgumentsCountShift = 17;
@@ -6138,10 +6142,10 @@ class SharedFunctionInfo: public HeapObject {
   // Bit positions in start_position_and_type.
   // The source code start position is in the 30 most significant bits of
   // the start_position_and_type field.
-  static const int kIsExpressionBit = 0;
-  static const int kIsTopLevelBit   = 1;
+  static const int kIsExpressionBit    = 0;
+  static const int kIsTopLevelBit      = 1;
   static const int kStartPositionShift = 2;
-  static const int kStartPositionMask = ~((1 << kStartPositionShift) - 1);
+  static const int kStartPositionMask  = ~((1 << kStartPositionShift) - 1);
 
   // Bit positions in compiler_hints.
   static const int kCodeAgeSize = 3;
@@ -6275,6 +6279,7 @@ class JSFunction: public JSObject {
   // 8.6.2, page 27.
   inline Code* code();
   inline void set_code(Code* code);
+  inline void set_code_no_write_barrier(Code* code);
   inline void ReplaceCode(Code* code);
 
   inline Code* unchecked_code();
@@ -6295,6 +6300,8 @@ class JSFunction: public JSObject {
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();
   void MarkForParallelRecompilation();
+  void MarkForInstallingRecompiledCode();
+  void MarkInRecompileQueue();
 
   // Helpers to compile this function.  Returns true on success, false on
   // failure (e.g., stack overflow during compilation).
@@ -6310,6 +6317,7 @@ class JSFunction: public JSObject {
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
   inline bool IsMarkedForParallelRecompilation();
+  inline bool IsMarkedForInstallingRecompiledCode();
 
   // Tells whether or not the function is on the parallel
   // recompilation queue.
