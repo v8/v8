@@ -1532,6 +1532,22 @@ class Call: public Expression {
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   CheckType check_type() const { return check_type_; }
+
+  void set_string_check(Handle<JSObject> holder) {
+    holder_ = holder;
+    check_type_ = STRING_CHECK;
+  }
+
+  void set_number_check(Handle<JSObject> holder) {
+    holder_ = holder;
+    check_type_ = NUMBER_CHECK;
+  }
+
+  void set_map_check() {
+    holder_ = Handle<JSObject>::null();
+    check_type_ = RECEIVER_MAP_CHECK;
+  }
+
   Handle<JSFunction> target() { return target_; }
 
   // A cache for the holder, set as a side effect of computing the target of the
