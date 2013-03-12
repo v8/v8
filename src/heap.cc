@@ -2749,7 +2749,8 @@ bool Heap::CreateInitialObjects() {
   set_the_hole_value(reinterpret_cast<Oddball*>(Smi::FromInt(0)));
 
   // Allocate initial string table.
-  { MaybeObject* maybe_obj = StringTable::Allocate(kInitialStringTableSize);
+  { MaybeObject* maybe_obj =
+        StringTable::Allocate(this, kInitialStringTableSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   // Don't use set_string_table() due to asserts.
@@ -2840,7 +2841,7 @@ bool Heap::CreateInitialObjects() {
 
   // Allocate the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
-  { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(128);
+  { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(this, 128);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_code_stubs(UnseededNumberDictionary::cast(obj));
@@ -2848,7 +2849,7 @@ bool Heap::CreateInitialObjects() {
 
   // Allocate the non_monomorphic_cache used in stub-cache.cc. The initial size
   // is set to avoid expanding the dictionary during bootstrapping.
-  { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(64);
+  { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(this, 64);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_non_monomorphic_cache(UnseededNumberDictionary::cast(obj));
@@ -2865,7 +2866,8 @@ bool Heap::CreateInitialObjects() {
   CreateFixedStubs();
 
   // Allocate the dictionary of intrinsic function names.
-  { MaybeObject* maybe_obj = NameDictionary::Allocate(Runtime::kNumFunctions);
+  { MaybeObject* maybe_obj =
+        NameDictionary::Allocate(this, Runtime::kNumFunctions);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   { MaybeObject* maybe_obj = Runtime::InitializeIntrinsicFunctionNames(this,
@@ -4524,6 +4526,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   NameDictionary* dictionary;
   MaybeObject* maybe_dictionary =
       NameDictionary::Allocate(
+          this,
           map->NumberOfOwnDescriptors() * 2 + initial_size);
   if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 

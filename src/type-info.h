@@ -336,8 +336,8 @@ class TypeFeedbackOracle: public ZoneObject {
  private:
   Handle<Context> native_context_;
   Isolate* isolate_;
-  Handle<UnseededNumberDictionary> dictionary_;
   Zone* zone_;
+  Handle<UnseededNumberDictionary> dictionary_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

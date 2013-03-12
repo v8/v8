@@ -2887,7 +2887,7 @@ inline int Search(T* array, Name* name, int valid_entries = 0);
 //     // Returns the hash value for object.
 //     static uint32_t HashForObject(Key key, Object* object);
 //     // Convert key to an object.
-//     static inline Object* AsObject(Key key);
+//     static inline Object* AsObject(Isolate* isolate, Key key);
 //     // The prefix size indicates number of elements in the beginning
 //     // of the backing storage.
 //     static const int kPrefixSize = ..;
@@ -2973,6 +2973,7 @@ class HashTable: public FixedArray {
 
   // Returns a new HashTable object. Might return Failure.
   MUST_USE_RESULT static MaybeObject* Allocate(
+      Heap* heap,
       int at_least_space_for,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
       PretenureFlag pretenure = NOT_TENURED);
@@ -3112,7 +3113,8 @@ class StringTableShape : public BaseShape<HashTableKey*> {
   static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
     return key->HashForObject(object);
   }
-  MUST_USE_RESULT static inline MaybeObject* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Isolate* isolate,
+                                                      HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -3179,7 +3181,8 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static inline MaybeObject* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Isolate* isolate,
+                                                      HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -3268,7 +3271,8 @@ class Dictionary: public HashTable<Shape, Key> {
   }
 
   // Returns a new array for dictionary usage. Might return Failure.
-  MUST_USE_RESULT static MaybeObject* Allocate(int at_least_space_for);
+  MUST_USE_RESULT static MaybeObject* Allocate(Heap* heap,
+                                               int at_least_space_for);
 
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
@@ -3318,7 +3322,8 @@ class NameDictionaryShape : public BaseShape<Name*> {
   static inline bool IsMatch(Name* key, Object* other);
   static inline uint32_t Hash(Name* key);
   static inline uint32_t HashForObject(Name* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Name* key);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Isolate* isolate,
+                                                      Name* key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = true;
@@ -3351,7 +3356,8 @@ class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
 class NumberDictionaryShape : public BaseShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object* other);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(uint32_t key);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Isolate* isolate,
+                                                      uint32_t key);
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = false;
 };
@@ -3455,7 +3461,8 @@ class ObjectHashTableShape : public BaseShape<Object*> {
   static inline bool IsMatch(Object* key, Object* other);
   static inline uint32_t Hash(Object* key);
   static inline uint32_t HashForObject(Object* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Object* key);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Isolate* isolate,
+                                                      Object* key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = entrysize;
 };
@@ -6906,7 +6913,8 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static MaybeObject* AsObject(Isolate* isolate,
+                                               HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -7008,7 +7016,8 @@ class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static MaybeObject* AsObject(Isolate* isolate,
+                                               HashTableKey* key) {
     return key->AsObject();
   }
 

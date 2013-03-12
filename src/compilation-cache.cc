@@ -67,7 +67,7 @@ CompilationCache::~CompilationCache() {}
 
 static Handle<CompilationCacheTable> AllocateTable(Isolate* isolate, int size) {
   CALL_HEAP_FUNCTION(isolate,
-                     CompilationCacheTable::Allocate(size),
+                     CompilationCacheTable::Allocate(isolate->heap(), size),
                      CompilationCacheTable);
 }
 

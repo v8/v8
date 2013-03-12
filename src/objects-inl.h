@@ -1453,7 +1453,7 @@ MaybeObject* JSObject::ResetElements() {
   if (map()->is_observed()) {
     // Maintain invariant that observed elements are always in dictionary mode.
     SeededNumberDictionary* dictionary;
-    MaybeObject* maybe = SeededNumberDictionary::Allocate(0);
+    MaybeObject* maybe = SeededNumberDictionary::Allocate(GetHeap(), 0);
     if (!maybe->To(&dictionary)) return maybe;
     if (map() == GetHeap()->non_strict_arguments_elements_map()) {
       FixedArray::cast(elements())->set(1, dictionary);
@@ -5630,8 +5630,8 @@ uint32_t SeededNumberDictionaryShape::SeededHashForObject(uint32_t key,
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), seed);
 }
 
-MaybeObject* NumberDictionaryShape::AsObject(uint32_t key) {
-  return Isolate::Current()->heap()->NumberFromUint32(key);
+MaybeObject* NumberDictionaryShape::AsObject(Isolate* isolate, uint32_t key) {
+  return isolate->heap()->NumberFromUint32(key);
 }
 
 
@@ -5653,7 +5653,7 @@ uint32_t NameDictionaryShape::HashForObject(Name* key, Object* other) {
 }
 
 
-MaybeObject* NameDictionaryShape::AsObject(Name* key) {
+MaybeObject* NameDictionaryShape::AsObject(Isolate* isolate, Name* key) {
   return key;
 }
 
@@ -5680,7 +5680,8 @@ uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
 
 
 template <int entrysize>
-MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Object* key) {
+MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Isolate* isolate,
+                                                       Object* key) {
   return key;
 }
 

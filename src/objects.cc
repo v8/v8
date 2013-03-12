@@ -3725,7 +3725,8 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
     property_count += 2;  // Make space for two more properties.
   }
   NameDictionary* dictionary;
-  MaybeObject* maybe_dictionary = NameDictionary::Allocate(property_count);
+  MaybeObject* maybe_dictionary =
+      NameDictionary::Allocate(GetHeap(), property_count);
   if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 
   DescriptorArray* descs = map_of_this->instance_descriptors();
@@ -3863,7 +3864,8 @@ MaybeObject* JSObject::NormalizeElements() {
   GetElementsCapacityAndUsage(&old_capacity, &used_elements);
   SeededNumberDictionary* dictionary = NULL;
   { Object* object;
-    MaybeObject* maybe = SeededNumberDictionary::Allocate(used_elements);
+    MaybeObject* maybe =
+        SeededNumberDictionary::Allocate(GetHeap(), used_elements);
     if (!maybe->ToObject(&object)) return maybe;
     dictionary = SeededNumberDictionary::cast(object);
   }
@@ -4149,7 +4151,8 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
   ObjectHashTable* hashtable;
   static const int kInitialCapacity = 4;
   MaybeObject* maybe_obj =
-      ObjectHashTable::Allocate(kInitialCapacity,
+      ObjectHashTable::Allocate(GetHeap(),
+                                kInitialCapacity,
                                 ObjectHashTable::USE_CUSTOM_MINIMUM_CAPACITY);
   if (!maybe_obj->To<ObjectHashTable>(&hashtable)) return maybe_obj;
 
@@ -6036,7 +6039,8 @@ MaybeObject* CodeCache::Update(Name* name, Code* code) {
     if (normal_type_cache()->IsUndefined()) {
       Object* result;
       { MaybeObject* maybe_result =
-            CodeCacheHashTable::Allocate(CodeCacheHashTable::kInitialSize);
+            CodeCacheHashTable::Allocate(GetHeap(),
+                                         CodeCacheHashTable::kInitialSize);
         if (!maybe_result->ToObject(&result)) return maybe_result;
       }
       set_normal_type_cache(result);
@@ -6317,6 +6321,7 @@ MaybeObject* PolymorphicCodeCache::Update(MapHandleList* maps,
     Object* result;
     { MaybeObject* maybe_result =
           PolymorphicCodeCacheHashTable::Allocate(
+              GetHeap(),
               PolymorphicCodeCacheHashTable::kInitialSize);
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
@@ -12078,7 +12083,8 @@ void HashTable<Shape, Key>::IterateElements(ObjectVisitor* v) {
 
 
 template<typename Shape, typename Key>
-MaybeObject* HashTable<Shape, Key>::Allocate(int at_least_space_for,
+MaybeObject* HashTable<Shape, Key>::Allocate(Heap* heap,
+                                             int at_least_space_for,
                                              MinimumCapacity capacity_option,
                                              PretenureFlag pretenure) {
   ASSERT(!capacity_option || IS_POWER_OF_TWO(at_least_space_for));
@@ -12090,8 +12096,8 @@ MaybeObject* HashTable<Shape, Key>::Allocate(int at_least_space_for,
   }
 
   Object* obj;
-  { MaybeObject* maybe_obj = Isolate::Current()->heap()->
-        AllocateHashTable(EntryToIndex(capacity), pretenure);
+  { MaybeObject* maybe_obj =
+        heap-> AllocateHashTable(EntryToIndex(capacity), pretenure);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   HashTable::cast(obj)->SetNumberOfElements(0);
@@ -12193,7 +12199,8 @@ MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
       (capacity > kMinCapacityForPretenure) && !GetHeap()->InNewSpace(this);
   Object* obj;
   { MaybeObject* maybe_obj =
-        Allocate(nof * 2,
+        Allocate(GetHeap(),
+                 nof * 2,
                  USE_DEFAULT_MINIMUM_CAPACITY,
                  pretenure ? TENURED : NOT_TENURED);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
@@ -12224,7 +12231,8 @@ MaybeObject* HashTable<Shape, Key>::Shrink(Key key) {
       !GetHeap()->InNewSpace(this);
   Object* obj;
   { MaybeObject* maybe_obj =
-        Allocate(at_least_room_for,
+        Allocate(GetHeap(),
+                 at_least_room_for,
                  USE_DEFAULT_MINIMUM_CAPACITY,
                  pretenure ? TENURED : NOT_TENURED);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
@@ -12268,12 +12276,13 @@ template class Dictionary<SeededNumberDictionaryShape, uint32_t>;
 template class Dictionary<UnseededNumberDictionaryShape, uint32_t>;
 
 template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
-    Allocate(int at_least_space_for);
+    Allocate(Heap* heap, int at_least_space_for);
 
 template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
-    Allocate(int at_least_space_for);
+    Allocate(Heap* heap, int at_least_space_for);
 
-template MaybeObject* Dictionary<NameDictionaryShape, Name*>::Allocate(int n);
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::
+    Allocate(Heap* heap, int n);
 
 template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::AtPut(
     uint32_t, Object*);
@@ -12379,7 +12388,7 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 
   Object* obj;
   { MaybeObject* maybe_obj =
-        SeededNumberDictionary::Allocate(dict->NumberOfElements());
+        SeededNumberDictionary::Allocate(GetHeap(), dict->NumberOfElements());
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   SeededNumberDictionary* new_dict = SeededNumberDictionary::cast(obj);
@@ -13163,10 +13172,11 @@ MaybeObject* MapCache::Put(FixedArray* array, Map* value) {
 
 
 template<typename Shape, typename Key>
-MaybeObject* Dictionary<Shape, Key>::Allocate(int at_least_space_for) {
+MaybeObject* Dictionary<Shape, Key>::Allocate(Heap* heap,
+                                              int at_least_space_for) {
   Object* obj;
   { MaybeObject* maybe_obj =
-        HashTable<Shape, Key>::Allocate(at_least_space_for);
+        HashTable<Shape, Key>::Allocate(heap, at_least_space_for);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   // Initialize the next enumeration index.
@@ -13294,7 +13304,7 @@ MaybeObject* Dictionary<Shape, Key>::AtPut(Key key, Object* value) {
   }
 
   Object* k;
-  { MaybeObject* maybe_k = Shape::AsObject(key);
+  { MaybeObject* maybe_k = Shape::AsObject(this->GetIsolate(), key);
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
   PropertyDetails details = PropertyDetails(NONE, NORMAL);
@@ -13331,7 +13341,7 @@ MaybeObject* Dictionary<Shape, Key>::AddEntry(Key key,
                                               uint32_t hash) {
   // Compute the key object.
   Object* k;
-  { MaybeObject* maybe_k = Shape::AsObject(key);
+  { MaybeObject* maybe_k = Shape::AsObject(this->GetIsolate(), key);
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
 
@@ -13431,7 +13441,8 @@ MaybeObject* SeededNumberDictionary::Set(uint32_t key,
   details = PropertyDetails(details.attributes(),
                             details.type(),
                             DetailsAt(entry).dictionary_index());
-  MaybeObject* maybe_object_key = SeededNumberDictionaryShape::AsObject(key);
+  MaybeObject* maybe_object_key =
+      SeededNumberDictionaryShape::AsObject(GetIsolate(), key);
   Object* object_key;
   if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
   SetEntry(entry, object_key, value, details);
@@ -13443,7 +13454,8 @@ MaybeObject* UnseededNumberDictionary::Set(uint32_t key,
                                            Object* value) {
   int entry = FindEntry(key);
   if (entry == kNotFound) return AddNumberEntry(key, value);
-  MaybeObject* maybe_object_key = UnseededNumberDictionaryShape::AsObject(key);
+  MaybeObject* maybe_object_key =
+      UnseededNumberDictionaryShape::AsObject(GetIsolate(), key);
   Object* object_key;
   if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
   SetEntry(entry, object_key, value);
