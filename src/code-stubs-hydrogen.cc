@@ -132,13 +132,12 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     // it's essential to bind this value to the environment in case of deopt
     start_environment->Bind(param_count, stack_parameter_count);
     AddInstruction(stack_parameter_count);
+    arguments_length_ = stack_parameter_count;
   } else {
     ASSERT(descriptor_->environment_length() == param_count);
-    stack_parameter_count = AddInstruction(new(zone)
-        HConstant(-1, Representation::Integer32()));
+    stack_parameter_count = graph()->GetConstantMinus1();
+    arguments_length_ = graph()->GetConstant0();
   }
-
-  arguments_length_ = stack_parameter_count;
 
   context_ = new(zone) HContext();
   AddInstruction(context_);
