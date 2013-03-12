@@ -6237,10 +6237,10 @@ class CodeCacheHashTableKey : public HashTableKey {
     return NameFlagsHashHelper(name, code->flags());
   }
 
-  MUST_USE_RESULT MaybeObject* AsObject() {
+  MUST_USE_RESULT MaybeObject* AsObject(Heap* heap) {
     ASSERT(code_ != NULL);
     Object* obj;
-    { MaybeObject* maybe_obj = code_->GetHeap()->AllocateFixedArray(2);
+    { MaybeObject* maybe_obj = heap->AllocateFixedArray(2);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     FixedArray* pair = FixedArray::cast(obj);
@@ -6277,7 +6277,7 @@ MaybeObject* CodeCacheHashTable::Put(Name* name, Code* code) {
 
   int entry = cache->FindInsertionEntry(key.Hash());
   Object* k;
-  { MaybeObject* maybe_k = key.AsObject();
+  { MaybeObject* maybe_k = key.AsObject(GetHeap());
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
 
@@ -6410,13 +6410,13 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
     return MapsHashHelper(&other_maps, other_flags);
   }
 
-  MUST_USE_RESULT MaybeObject* AsObject() {
+  MUST_USE_RESULT MaybeObject* AsObject(Heap* heap) {
     Object* obj;
     // The maps in |maps_| must be copied to a newly allocated FixedArray,
     // both because the referenced MapList is short-lived, and because C++
     // objects can't be stored in the heap anyway.
     { MaybeObject* maybe_obj =
-        HEAP->AllocateUninitializedFixedArray(maps_->length() + 1);
+          heap->AllocateUninitializedFixedArray(maps_->length() + 1);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     FixedArray* list = FixedArray::cast(obj);
@@ -6466,7 +6466,7 @@ MaybeObject* PolymorphicCodeCacheHashTable::Put(MapHandleList* maps,
   PolymorphicCodeCacheHashTable* cache =
       reinterpret_cast<PolymorphicCodeCacheHashTable*>(obj);
   int entry = cache->FindInsertionEntry(key.Hash());
-  { MaybeObject* maybe_obj = key.AsObject();
+  { MaybeObject* maybe_obj = key.AsObject(GetHeap());
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   cache->set(EntryToIndex(entry), obj);
@@ -11754,7 +11754,7 @@ class StringKey : public HashTableKey {
 
   uint32_t HashForObject(Object* other) { return String::cast(other)->Hash(); }
 
-  Object* AsObject() { return string_; }
+  Object* AsObject(Heap* heap) { return string_; }
 
   String* string_;
   uint32_t hash_;
@@ -11829,9 +11829,9 @@ class StringSharedKey : public HashTableKey {
         source, shared, language_mode, scope_position);
   }
 
-  MUST_USE_RESULT MaybeObject* AsObject() {
+  MUST_USE_RESULT MaybeObject* AsObject(Heap* heap) {
     Object* obj;
-    { MaybeObject* maybe_obj = source_->GetHeap()->AllocateFixedArray(4);
+    { MaybeObject* maybe_obj = heap->AllocateFixedArray(4);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     FixedArray* other_array = FixedArray::cast(obj);
@@ -11869,7 +11869,7 @@ class RegExpKey : public HashTableKey {
 
   uint32_t Hash() { return RegExpHash(string_, flags_); }
 
-  Object* AsObject() {
+  Object* AsObject(Heap* heap) {
     // Plain hash maps, which is where regexp keys are used, don't
     // use this function.
     UNREACHABLE();
@@ -11912,10 +11912,11 @@ class Utf8StringKey : public HashTableKey {
     return String::cast(other)->Hash();
   }
 
-  MaybeObject* AsObject() {
+  MaybeObject* AsObject(Heap* heap) {
     if (hash_field_ == 0) Hash();
-    return Isolate::Current()->heap()->AllocateInternalizedStringFromUtf8(
-        string_, chars_, hash_field_);
+    return heap->AllocateInternalizedStringFromUtf8(string_,
+                                                    chars_,
+                                                    hash_field_);
   }
 
   Vector<const char> string_;
@@ -11962,9 +11963,9 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
     return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
-  MaybeObject* AsObject() {
+  MaybeObject* AsObject(Heap* heap) {
     if (hash_field_ == 0) Hash();
-    return HEAP->AllocateOneByteInternalizedString(string_, hash_field_);
+    return heap->AllocateOneByteInternalizedString(string_, hash_field_);
   }
 };
 
@@ -11997,10 +11998,10 @@ class SubStringOneByteStringKey : public HashTableKey {
     return String::cast(string)->IsOneByteEqualTo(chars);
   }
 
-  MaybeObject* AsObject() {
+  MaybeObject* AsObject(Heap* heap) {
     if (hash_field_ == 0) Hash();
     Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-    return HEAP->AllocateOneByteInternalizedString(chars, hash_field_);
+    return heap->AllocateOneByteInternalizedString(chars, hash_field_);
   }
 
  private:
@@ -12020,9 +12021,9 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
     return String::cast(string)->IsTwoByteEqualTo(string_);
   }
 
-  MaybeObject* AsObject() {
+  MaybeObject* AsObject(Heap* heap) {
     if (hash_field_ == 0) Hash();
-    return HEAP->AllocateTwoByteInternalizedString(string_, hash_field_);
+    return heap->AllocateTwoByteInternalizedString(string_, hash_field_);
   }
 };
 
@@ -12043,11 +12044,10 @@ class InternalizedStringKey : public HashTableKey {
     return String::cast(other)->Hash();
   }
 
-  MaybeObject* AsObject() {
+  MaybeObject* AsObject(Heap* heap) {
     // Attempt to flatten the string, so that internalized strings will most
     // often be flat strings.
     string_ = string_->TryFlattenGetString();
-    Heap* heap = string_->GetHeap();
     // Internalize the string if possible.
     Map* map = heap->InternalizedStringMapForString(string_);
     if (map != NULL) {
@@ -12871,7 +12871,7 @@ class TwoCharHashTableKey : public HashTableKey {
     return String::cast(key)->Hash();
   }
 
-  Object* AsObject() {
+  Object* AsObject(Heap* heap) {
     // The TwoCharHashTableKey is only used for looking in the string
     // table, not for adding to it.
     UNREACHABLE();
@@ -12960,7 +12960,7 @@ MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
 
   // Create string object.
   Object* string;
-  { MaybeObject* maybe_string = key->AsObject();
+  { MaybeObject* maybe_string = key->AsObject(GetHeap());
     if (!maybe_string->ToObject(&string)) return maybe_string;
   }
 
@@ -13037,7 +13037,7 @@ MaybeObject* CompilationCacheTable::Put(String* src,
   if (!maybe_cache->To(&cache)) return maybe_cache;
 
   Object* k;
-  MaybeObject* maybe_k = key.AsObject();
+  MaybeObject* maybe_k = key.AsObject(GetHeap());
   if (!maybe_k->To(&k)) return maybe_k;
 
   int entry = cache->FindInsertionEntry(key.Hash());
@@ -13066,7 +13066,7 @@ MaybeObject* CompilationCacheTable::PutEval(String* src,
   int entry = cache->FindInsertionEntry(key.Hash());
 
   Object* k;
-  { MaybeObject* maybe_k = key.AsObject();
+  { MaybeObject* maybe_k = key.AsObject(GetHeap());
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
 
@@ -13140,7 +13140,7 @@ class StringsKey : public HashTableKey {
     return hash;
   }
 
-  Object* AsObject() { return strings_; }
+  Object* AsObject(Heap* heap) { return strings_; }
 
  private:
   FixedArray* strings_;
@@ -13304,7 +13304,7 @@ MaybeObject* Dictionary<Shape, Key>::AtPut(Key key, Object* value) {
   }
 
   Object* k;
-  { MaybeObject* maybe_k = Shape::AsObject(this->GetIsolate(), key);
+  { MaybeObject* maybe_k = Shape::AsObject(this->GetHeap(), key);
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
   PropertyDetails details = PropertyDetails(NONE, NORMAL);
@@ -13341,7 +13341,7 @@ MaybeObject* Dictionary<Shape, Key>::AddEntry(Key key,
                                               uint32_t hash) {
   // Compute the key object.
   Object* k;
-  { MaybeObject* maybe_k = Shape::AsObject(this->GetIsolate(), key);
+  { MaybeObject* maybe_k = Shape::AsObject(this->GetHeap(), key);
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
 
@@ -13442,7 +13442,7 @@ MaybeObject* SeededNumberDictionary::Set(uint32_t key,
                             details.type(),
                             DetailsAt(entry).dictionary_index());
   MaybeObject* maybe_object_key =
-      SeededNumberDictionaryShape::AsObject(GetIsolate(), key);
+      SeededNumberDictionaryShape::AsObject(GetHeap(), key);
   Object* object_key;
   if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
   SetEntry(entry, object_key, value, details);
@@ -13455,7 +13455,7 @@ MaybeObject* UnseededNumberDictionary::Set(uint32_t key,
   int entry = FindEntry(key);
   if (entry == kNotFound) return AddNumberEntry(key, value);
   MaybeObject* maybe_object_key =
-      UnseededNumberDictionaryShape::AsObject(GetIsolate(), key);
+      UnseededNumberDictionaryShape::AsObject(GetHeap(), key);
   Object* object_key;
   if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
   SetEntry(entry, object_key, value);

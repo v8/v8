@@ -2887,7 +2887,7 @@ inline int Search(T* array, Name* name, int valid_entries = 0);
 //     // Returns the hash value for object.
 //     static uint32_t HashForObject(Key key, Object* object);
 //     // Convert key to an object.
-//     static inline Object* AsObject(Isolate* isolate, Key key);
+//     static inline Object* AsObject(Heap* heap, Key key);
 //     // The prefix size indicates number of elements in the beginning
 //     // of the backing storage.
 //     static const int kPrefixSize = ..;
@@ -3096,7 +3096,7 @@ class HashTableKey {
   virtual uint32_t HashForObject(Object* key) = 0;
   // Returns the key object for storing into the hash table.
   // If allocations fails a failure object is returned.
-  MUST_USE_RESULT virtual MaybeObject* AsObject() = 0;
+  MUST_USE_RESULT virtual MaybeObject* AsObject(Heap* heap) = 0;
   // Required.
   virtual ~HashTableKey() {}
 };
@@ -3113,9 +3113,9 @@ class StringTableShape : public BaseShape<HashTableKey*> {
   static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
     return key->HashForObject(object);
   }
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Isolate* isolate,
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
                                                       HashTableKey* key) {
-    return key->AsObject();
+    return key->AsObject(heap);
   }
 
   static const int kPrefixSize = 0;
@@ -3181,9 +3181,9 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Isolate* isolate,
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
                                                       HashTableKey* key) {
-    return key->AsObject();
+    return key->AsObject(heap);
   }
 
   static const int kPrefixSize = 0;
@@ -3322,7 +3322,7 @@ class NameDictionaryShape : public BaseShape<Name*> {
   static inline bool IsMatch(Name* key, Object* other);
   static inline uint32_t Hash(Name* key);
   static inline uint32_t HashForObject(Name* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Isolate* isolate,
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
                                                       Name* key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
@@ -3356,7 +3356,7 @@ class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
 class NumberDictionaryShape : public BaseShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object* other);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Isolate* isolate,
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
                                                       uint32_t key);
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = false;
@@ -3461,7 +3461,7 @@ class ObjectHashTableShape : public BaseShape<Object*> {
   static inline bool IsMatch(Object* key, Object* other);
   static inline uint32_t Hash(Object* key);
   static inline uint32_t HashForObject(Object* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Isolate* isolate,
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
                                                       Object* key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = entrysize;
@@ -6913,9 +6913,9 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(Isolate* isolate,
+  MUST_USE_RESULT static MaybeObject* AsObject(Heap* heap,
                                                HashTableKey* key) {
-    return key->AsObject();
+    return key->AsObject(heap);
   }
 
   static const int kPrefixSize = 0;
@@ -7016,9 +7016,9 @@ class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(Isolate* isolate,
+  MUST_USE_RESULT static MaybeObject* AsObject(Heap* heap,
                                                HashTableKey* key) {
-    return key->AsObject();
+    return key->AsObject(heap);
   }
 
   static const int kPrefixSize = 0;

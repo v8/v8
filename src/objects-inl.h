@@ -5630,8 +5630,8 @@ uint32_t SeededNumberDictionaryShape::SeededHashForObject(uint32_t key,
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), seed);
 }
 
-MaybeObject* NumberDictionaryShape::AsObject(Isolate* isolate, uint32_t key) {
-  return isolate->heap()->NumberFromUint32(key);
+MaybeObject* NumberDictionaryShape::AsObject(Heap* heap, uint32_t key) {
+  return heap->NumberFromUint32(key);
 }
 
 
@@ -5653,7 +5653,7 @@ uint32_t NameDictionaryShape::HashForObject(Name* key, Object* other) {
 }
 
 
-MaybeObject* NameDictionaryShape::AsObject(Isolate* isolate, Name* key) {
+MaybeObject* NameDictionaryShape::AsObject(Heap* heap, Name* key) {
   return key;
 }
 
@@ -5680,7 +5680,7 @@ uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
 
 
 template <int entrysize>
-MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Isolate* isolate,
+MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Heap* heap,
                                                        Object* key) {
   return key;
 }
