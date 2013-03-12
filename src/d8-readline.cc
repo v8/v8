@@ -49,7 +49,7 @@ class ReadLineEditor: public LineEditor {
  public:
   ReadLineEditor() : LineEditor(LineEditor::READLINE, "readline") { }
   virtual Handle<String> Prompt(const char* prompt);
-  virtual bool Open();
+  virtual bool Open(Isolate* isolate);
   virtual bool Close();
   virtual void AddHistory(const char* str);
 
@@ -62,6 +62,8 @@ class ReadLineEditor: public LineEditor {
   static char* CompletionGenerator(const char* text, int state);
 #endif  // V8_SHARED
   static char kWordBreakCharacters[];
+
+  Isolate* isolate_;
 };
 
 
@@ -75,7 +77,9 @@ const char* ReadLineEditor::kHistoryFileName = ".d8_history";
 const int ReadLineEditor::kMaxHistoryEntries = 1000;
 
 
-bool ReadLineEditor::Open() {
+bool ReadLineEditor::Open(Isolate* isolate) {
+  isolate_ = isolate;
+
   rl_initialize();
 
 #ifdef V8_SHARED
@@ -144,12 +148,14 @@ char** ReadLineEditor::AttemptedCompletion(const char* text,
 char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
   static unsigned current_index;
   static Persistent<Array> current_completions;
+  Isolate* isolate = read_line_editor.isolate_;
+  Locker lock(isolate);
   if (state == 0) {
     HandleScope scope;
     Local<String> full_text = String::New(rl_line_buffer, rl_point);
     Handle<Array> completions =
       Shell::GetCompletions(String::New(text), full_text);
-    current_completions = Persistent<Array>::New(completions);
+    current_completions = Persistent<Array>::New(isolate, completions);
     current_index = 0;
   }
   if (current_index < current_completions->Length()) {
@@ -160,7 +166,7 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
     String::Utf8Value str(str_obj);
     return strdup(*str);
   } else {
-    current_completions.Dispose();
+    current_completions.Dispose(isolate);
     current_completions.Clear();
     return NULL;
   }

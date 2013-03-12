@@ -1497,7 +1497,7 @@ void Shell::RunShell(Isolate* isolate) {
   Handle<String> name = String::New("(d8)");
   LineEditor* console = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
-  console->Open();
+  console->Open(isolate);
   while (true) {
     HandleScope inner_scope;
     Handle<String> input = console->Prompt(Shell::kPrompt);

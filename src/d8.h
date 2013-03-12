@@ -123,7 +123,7 @@ class LineEditor {
   virtual ~LineEditor() { }
 
   virtual Handle<String> Prompt(const char* prompt) = 0;
-  virtual bool Open() { return true; }
+  virtual bool Open(Isolate* isolate) { return true; }
   virtual bool Close() { return true; }
   virtual void AddHistory(const char* str) { }
 
