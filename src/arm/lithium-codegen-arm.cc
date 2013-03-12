@@ -5254,12 +5254,8 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ sub(scratch1, input_reg, Operand(kHeapObjectTag));
     __ vldr(double_scratch2, scratch1, HeapNumber::kValueOffset);
 
-    __ EmitECMATruncate(input_reg,
-                        double_scratch2,
-                        double_scratch,
-                        scratch1,
-                        scratch2,
-                        scratch3);
+    __ ECMAToInt32VFP(input_reg, double_scratch2, double_scratch,
+                      scratch1, scratch2, scratch3);
 
   } else {
     CpuFeatureScope scope(masm(), VFP3);
@@ -5357,12 +5353,8 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
-    __ EmitECMATruncate(result_reg,
-                        double_input,
-                        double_scratch,
-                        scratch1,
-                        scratch2,
-                        scratch3);
+    __ ECMAToInt32VFP(result_reg, double_input, double_scratch,
+                      scratch1, scratch2, scratch3);
   } else {
     __ TryDoubleToInt32Exact(result_reg, double_input, double_scratch);
     // Deoptimize if the input wasn't a int32 (inside a double).

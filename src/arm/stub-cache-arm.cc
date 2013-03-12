@@ -3512,7 +3512,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         // not include -kHeapObjectTag into it.
         __ sub(r5, value, Operand(kHeapObjectTag));
         __ vldr(d0, r5, HeapNumber::kValueOffset);
-        __ EmitECMATruncate(r5, d0, d1, r6, r7, r9);
+        __ ECMAToInt32VFP(r5, d0, d1, r6, r7, r9);
 
         switch (elements_kind) {
           case EXTERNAL_BYTE_ELEMENTS:

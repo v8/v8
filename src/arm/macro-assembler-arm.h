@@ -933,17 +933,6 @@ class MacroAssembler: public Assembler {
                               Register scratch1,
                               SwVfpRegister scratch2);
 
-  // Convert the HeapNumber pointed to by source to a 32bits signed integer
-  // dest. If the HeapNumber does not fit into a 32bits signed integer branch
-  // to not_int32 label. If VFP3 is available double_scratch is used but not
-  // scratch2.
-  void ConvertToInt32(Register source,
-                      Register dest,
-                      Register scratch,
-                      Register scratch2,
-                      DwVfpRegister double_scratch,
-                      Label *not_int32);
-
   // Check if a double can be exactly represented as a signed 32-bit integer.
   // Z flag set to one if true.
   void TestDoubleIsInt32(DwVfpRegister double_input,
@@ -965,26 +954,34 @@ class MacroAssembler: public Assembler {
                      Label* done,
                      Label* exact);
 
-  // Helper for EmitECMATruncate.
-  // This will truncate a floating-point value outside of the signed 32bit
-  // integer range to a 32bit signed integer.
-  // Expects the double value loaded in input_high and input_low.
-  // Exits with the answer in 'result'.
-  // Note that this code does not work for values in the 32bit range!
-  void EmitOutOfInt32RangeTruncate(Register result,
-                                   Register input_high,
-                                   Register input_low,
-                                   Register scratch);
+  // Performs a truncating conversion of a heap floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer.
+  void ECMAConvertNumberToInt32(Register source,
+                                Register result,
+                                Register scratch,
+                                Register input_high,
+                                Register input_low,
+                                DwVfpRegister double_scratch1,
+                                DwVfpRegister double_scratch2);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
   // Exits with 'result' holding the answer and all other registers clobbered.
-  void EmitECMATruncate(Register result,
-                        DwVfpRegister double_input,
-                        DwVfpRegister double_scratch,
+  void ECMAToInt32VFP(Register result,
+                      DwVfpRegister double_input,
+                      DwVfpRegister double_scratch,
+                      Register scratch,
+                      Register input_high,
+                      Register input_low);
+
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer.
+  void ECMAToInt32NoVFP(Register result,
                         Register scratch,
-                        Register scratch2,
-                        Register scratch3);
+                        Register input_high,
+                        Register input_low);
 
   // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
   // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
@@ -1364,6 +1361,16 @@ class MacroAssembler: public Assembler {
   // Helper for throwing exceptions.  Compute a handler address and jump to
   // it.  See the implementation for register usage.
   void JumpToHandlerEntry();
+
+  // Helper for ECMAToInt32VFP and ECMAToInt32NoVFP.
+  // It is expected that 31 <= exponent <= 83, and scratch is exponent - 1.
+  void ECMAToInt32Tail(Register result,
+                       Register scratch,
+                       Register input_high,
+                       Register input_low,
+                       Label* out_of_range,
+                       Label* negate,
+                       Label* done);
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
