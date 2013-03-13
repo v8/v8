@@ -373,7 +373,7 @@ class RelocInfo BASE_EMBEDDED {
 
   // Read/modify the code target in the branch/call instruction
   // this relocation applies to;
-  // can only be called if IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
+  // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
   INLINE(Address target_address());
   INLINE(void set_target_address(Address target,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER));

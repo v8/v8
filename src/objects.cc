@@ -9110,7 +9110,7 @@ void Code::PrintDeoptLocation(int bailout_id) {
     } else if (last_comment != NULL &&
                bailout_id == Deoptimizer::GetDeoptimizationId(
                    info->target_address(), Deoptimizer::EAGER)) {
-      CHECK(info->rmode() == RelocInfo::RUNTIME_ENTRY);
+      CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
       PrintF("            %s\n", last_comment);
       return;
     }
