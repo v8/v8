@@ -4011,31 +4011,30 @@ class Utf8LengthHelper : public i::AllStatic {
 
   class Visitor {
    public:
-    explicit Visitor()
+    inline explicit Visitor()
       : utf8_length_(0),
         state_(kInitialState) {}
 
-    template<typename Char>
-    inline void Visit(const Char* chars, int length) {
+    void VisitOneByteString(const uint8_t* chars, int length) {
+      int utf8_length = 0;
+      // Add in length 1 for each non-ASCII character.
+      for (int i = 0; i < length; i++) {
+        utf8_length += *chars++ >> 7;
+      }
+      // Add in length 1 for each character.
+      utf8_length_ = utf8_length + length;
+      state_ = kInitialState;
+    }
+
+    void VisitTwoByteString(const uint16_t* chars, int length) {
       int utf8_length = 0;
       int last_character = unibrow::Utf16::kNoPreviousCharacter;
       for (int i = 0; i < length; i++) {
         uint16_t c = chars[i];
         utf8_length += unibrow::Utf8::Length(c, last_character);
-        if (sizeof(Char) > 1) {
-          last_character = c;
-        }
+        last_character = c;
       }
       utf8_length_ = utf8_length;
-    }
-
-    void VisitOneByteString(const uint8_t* chars, int length) {
-      Visit(chars, length);
-      state_ = kInitialState;
-    }
-
-    void VisitTwoByteString(const uint16_t* chars, int length) {
-      Visit(chars, length);
       uint8_t state = 0;
       if (unibrow::Utf16::IsTrailSurrogate(chars[0])) {
         state |= kStartsWithTrailingSurrogate;
@@ -4132,32 +4131,30 @@ class Utf8LengthHelper : public i::AllStatic {
       if (right_as_cons == NULL) {
         total_length += leaf_length;
         MergeLeafRight(&total_length, &state, right_leaf_state);
-        // Terminal node.
-        if (left_as_cons == NULL) {
+        if (left_as_cons != NULL) {
+          // 1 Leaf node. Descend in place.
+          current = left_as_cons;
+          continue;
+        } else {
+          // Terminal node.
           MergeTerminal(&total_length, state, state_out);
           return total_length;
         }
-      } else if (left_as_cons != NULL) {
-        // Both strings are ConsStrings.
-        // Recurse on smallest.
-        if (left->length() < right->length()) {
-          total_length += Calculate(left_as_cons, &left_leaf_state);
-          MergeLeafLeft(&total_length, &state, left_leaf_state);
-          current = right_as_cons;
-          continue;
-        } else {
-          total_length += Calculate(right_as_cons, &right_leaf_state);
-          MergeLeafRight(&total_length, &state, right_leaf_state);
-          current = left_as_cons;
-          continue;
-        }
-      }
-      // 1 leaf node. Do in place descent.
-      if (left_as_cons != NULL) {
-        current = left_as_cons;
-      } else {
-        ASSERT(right_as_cons != NULL);
+      } else if (left_as_cons == NULL) {
+        // 1 Leaf node. Descend in place.
         current = right_as_cons;
+        continue;
+      }
+      // Both strings are ConsStrings.
+      // Recurse on smallest.
+      if (left->length() < right->length()) {
+        total_length += Calculate(left_as_cons, &left_leaf_state);
+        MergeLeafLeft(&total_length, &state, left_leaf_state);
+        current = right_as_cons;
+      } else {
+        total_length += Calculate(right_as_cons, &right_leaf_state);
+        MergeLeafRight(&total_length, &state, right_leaf_state);
+        current = left_as_cons;
       }
     }
     UNREACHABLE();
@@ -4267,7 +4264,7 @@ class Utf8WriterVisitor {
       if (sizeof(Char) == 1) {
         for (; i < fast_length; i++) {
           buffer +=
-              Utf8::Encode(buffer, *chars++, Utf16::kNoPreviousCharacter);
+              Utf8::EncodeOneByte(buffer, static_cast<uint8_t>(*chars++));
           ASSERT(capacity_ == -1 || (buffer - start_) <= capacity_);
         }
       } else {
