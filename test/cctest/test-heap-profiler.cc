@@ -1762,10 +1762,10 @@ TEST(ManyLocalsInSharedContext) {
   // Check all the objects have got their names.
   // ... well check just every 8th because otherwise it's too slow in debug.
   for (int i = 0; i < num_objects - 1; i += 8) {
-    char var_name[100];
-    snprintf(var_name, sizeof(var_name), "f_%d", i);
+    i::EmbeddedVector<char, 100> var_name;
+    i::OS::SNPrintF(var_name, "f_%d", i);
     const v8::HeapGraphNode* f_object = GetProperty(
-        context_object, v8::HeapGraphEdge::kContextVariable, var_name);
+        context_object, v8::HeapGraphEdge::kContextVariable, var_name.start());
     CHECK_NE(NULL, f_object);
   }
 }
