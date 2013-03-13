@@ -11861,9 +11861,10 @@ THREADED_TEST(ExternalAllocatedMemory) {
   v8::Persistent<Context> env(Context::New());
   CHECK(!env.IsEmpty());
   const intptr_t kSize = 1024*1024;
-  CHECK_EQ(cast(v8::V8::AdjustAmountOfExternalAllocatedMemory(kSize)),
+  v8::Isolate* isolate = env->GetIsolate();
+  CHECK_EQ(cast(isolate->AdjustAmountOfExternalAllocatedMemory(kSize)),
            cast(kSize));
-  CHECK_EQ(cast(v8::V8::AdjustAmountOfExternalAllocatedMemory(-kSize)),
+  CHECK_EQ(cast(isolate->AdjustAmountOfExternalAllocatedMemory(-kSize)),
            cast(0));
 }
 

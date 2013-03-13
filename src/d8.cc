@@ -389,7 +389,7 @@ Handle<Value> Shell::CreateExternalArrayBuffer(Isolate* isolate,
       Persistent<Object>::New(isolate, buffer);
   persistent_array.MakeWeak(isolate, data, ExternalArrayWeakCallback);
   persistent_array.MarkIndependent(isolate);
-  V8::AdjustAmountOfExternalAllocatedMemory(length);
+  isolate->AdjustAmountOfExternalAllocatedMemory(length);
 
   buffer->SetIndexedPropertiesToExternalArrayData(
       data, v8::kExternalByteArray, length);
@@ -830,7 +830,7 @@ void Shell::ExternalArrayWeakCallback(v8::Isolate* isolate,
   HandleScope scope;
   int32_t length =
       object->ToObject()->Get(Symbols::byteLength(isolate))->Uint32Value();
-  V8::AdjustAmountOfExternalAllocatedMemory(-length);
+  isolate->AdjustAmountOfExternalAllocatedMemory(-length);
   delete[] static_cast<uint8_t*>(data);
   object.Dispose(isolate);
 }
@@ -1446,7 +1446,7 @@ Handle<Value> Shell::ReadBuffer(const Arguments& args) {
       Persistent<Object>::New(isolate, buffer);
   persistent_buffer.MakeWeak(isolate, data, ExternalArrayWeakCallback);
   persistent_buffer.MarkIndependent(isolate);
-  V8::AdjustAmountOfExternalAllocatedMemory(length);
+  isolate->AdjustAmountOfExternalAllocatedMemory(length);
 
   buffer->SetIndexedPropertiesToExternalArrayData(
       data, kExternalUnsignedByteArray, length);
