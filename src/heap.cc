@@ -3596,10 +3596,6 @@ MaybeObject* Heap::AllocateExternalStringFromAscii(
     return Failure::OutOfMemoryException(0x5);
   }
 
-#ifndef ENABLE_LATIN_1
-  ASSERT(String::IsAscii(resource->data(), static_cast<int>(length)));
-#endif  // ENABLE_LATIN_1
-
   Map* map = external_ascii_string_map();
   Object* result;
   { MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
@@ -5077,17 +5073,6 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
-
-#ifndef ENABLE_LATIN_1
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    // Initialize string's content to ensure ASCII-ness (character range 0-127)
-    // as required when verifying the heap.
-    uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
-    memset(dest, 0x0F, length * kCharSize);
-  }
-#endif
-#endif
 
   return result;
 }

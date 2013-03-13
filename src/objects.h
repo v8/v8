@@ -7796,8 +7796,6 @@ class SeqOneByteString: public SeqString {
   // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
   static const int kMaxLength = (kMaxSize - kHeaderSize);
 
-  DECLARE_VERIFIER(SeqOneByteString)
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqOneByteString);
 };

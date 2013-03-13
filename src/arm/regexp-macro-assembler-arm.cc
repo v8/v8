@@ -337,9 +337,6 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     __ b(ne, &fail);
     __ sub(r3, r3, Operand('a'));
     __ cmp(r3, Operand('z' - 'a'));  // Is r3 a lowercase letter?
-#ifndef ENABLE_LATIN_1
-    __ b(hi, &fail);
-#else
     __ b(ls, &loop_check);  // In range 'a'-'z'.
     // Latin-1: Check for values in range [224,254] but not 247.
     __ sub(r3, r3, Operand(224 - 'a'));
@@ -347,7 +344,6 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     __ b(hi, &fail);  // Weren't Latin-1 letters.
     __ cmp(r3, Operand(247 - 224));  // Check for 247.
     __ b(eq, &fail);
-#endif
 
     __ bind(&loop_check);
     __ cmp(r0, r1);

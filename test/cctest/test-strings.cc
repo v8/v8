@@ -1302,7 +1302,6 @@ TEST(IsAscii) {
 
 
 
-#ifdef ENABLE_LATIN_1
 template<typename Op, bool return_first>
 static uint16_t ConvertLatin1(uint16_t c) {
   uint32_t result[Op::kMaxWidth];
@@ -1325,7 +1324,6 @@ static void CheckCanonicalEquivalence(uint16_t c, uint16_t test) {
 
 
 TEST(Latin1IgnoreCase) {
-  if (true) return;
   using namespace unibrow;
   for (uint16_t c = Latin1::kMaxChar + 1; c != 0; c++) {
     uint16_t lower = ConvertLatin1<ToLowercase, false>(c);
@@ -1357,4 +1355,3 @@ TEST(Latin1IgnoreCase) {
     CHECK_EQ(Min(upper, lower), test);
   }
 }
-#endif  // ENABLE_LATIN_1

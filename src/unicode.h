@@ -135,11 +135,7 @@ class Utf16 {
 
 class Latin1 {
  public:
-#ifndef ENABLE_LATIN_1
-  static const unsigned kMaxChar = 0x7f;
-#else
   static const unsigned kMaxChar = 0xff;
-#endif
   // Returns 0 if character does not convert to single latin-1 character
   // or if the character doesn't not convert back to latin-1 via inverse
   // operation (upper to lower, etc).

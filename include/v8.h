@@ -38,9 +38,6 @@
 #ifndef V8_H_
 #define V8_H_
 
-// TODO(dcarney): Remove once Latin-1 transitions in WebKit has stuck.
-#define V8_ONE_BYTE_STRINGS_ENABLED 1
-
 #include "v8stdint.h"
 
 #ifdef _WIN32
