@@ -1812,7 +1812,7 @@ void HRangeAnalysis::InferControlFlowRange(HCompareIDAndBranch* test,
     if (test->SecondSuccessor() == dest) {
       op = Token::NegateCompareOp(op);
     }
-    Token::Value inverted_op = Token::InvertCompareOp(op);
+    Token::Value inverted_op = Token::ReverseCompareOp(op);
     UpdateControlFlowRange(op, test->left(), test->right());
     UpdateControlFlowRange(inverted_op, test->right(), test->left());
   }

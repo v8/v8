@@ -820,7 +820,8 @@ function CallSiteGetMethodName() {
        %_CallFunction(this.receiver,
                       ownName,
                       ObjectLookupSetter) === this.fun ||
-       %GetDataProperty(this.receiver, ownName) === this.fun)) {
+       (IS_OBJECT(this.receiver) &&
+        %GetDataProperty(this.receiver, ownName) === this.fun))) {
     // To handle DontEnum properties we guess that the method has
     // the same name as the function.
     return ownName;
@@ -829,7 +830,8 @@ function CallSiteGetMethodName() {
   for (var prop in this.receiver) {
     if (%_CallFunction(this.receiver, prop, ObjectLookupGetter) === this.fun ||
         %_CallFunction(this.receiver, prop, ObjectLookupSetter) === this.fun ||
-        %GetDataProperty(this.receiver, prop) === this.fun) {
+        (IS_OBJECT(this.receiver) &&
+         %GetDataProperty(this.receiver, prop) === this.fun)) {
       // If we find more than one match bail out to avoid confusion.
       if (name) {
         return null;
@@ -883,10 +885,9 @@ function CallSiteGetPosition() {
 
 function CallSiteIsConstructor() {
   var receiver = this.receiver;
-  var constructor = receiver ? %GetDataProperty(receiver, "constructor") : null;
-  if (!constructor) {
-    return false;
-  }
+  var constructor =
+      IS_OBJECT(receiver) ? %GetDataProperty(receiver, "constructor") : null;
+  if (!constructor) return false;
   return this.fun === constructor;
 }
 
