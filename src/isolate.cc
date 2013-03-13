@@ -944,11 +944,7 @@ bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
   if (decision != UNKNOWN) return decision == YES;
 
   // Get named access check callback
-  // TODO(dcarney): revert
-  Map* map = receiver->map();
-  CHECK(map->IsMap());
-  CHECK(map->constructor()->IsJSFunction());
-  JSFunction* constructor = JSFunction::cast(map->constructor());
+  JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
   if (!constructor->shared()->IsApiFunction()) return false;
 
   Object* data_obj =
