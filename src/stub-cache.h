@@ -80,12 +80,15 @@ class StubCache {
   Handle<Code> FindIC(Handle<Name> name,
                       Handle<JSObject> stub_holder,
                       Code::Kind kind,
-                      Code::StubType type);
+                      Code::StubType type,
+                      Code::ExtraICState extra_state = Code::kNoExtraICState);
 
-  Handle<Code> FindStub(Handle<Name> name,
-                        Handle<JSObject> stub_holder,
-                        Code::Kind kind,
-                        Code::StubType type);
+  Handle<Code> FindHandler(
+      Handle<Name> name,
+      Handle<JSObject> stub_holder,
+      Code::Kind kind,
+      Code::StubType type,
+      Code::ExtraICState extra_state = Code::kNoExtraICState);
 
   Handle<Code> ComputeMonomorphicIC(Handle<JSObject> receiver,
                                     Handle<Code> handler,
@@ -513,14 +516,23 @@ class StubCompiler BASE_EMBEDDED {
                           Handle<Name> name,
                           Register receiver_reg,
                           Register name_reg,
+                          Register value_reg,
                           Register scratch1,
                           Register scratch2,
-                          Label* miss_label);
+                          Label* miss_label,
+                          Label* miss_restore_name);
 
-  static void GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind);
-  static void GenerateStoreMiss(MacroAssembler* masm, Code::Kind kind);
-
-  static void GenerateKeyedLoadMissForceGeneric(MacroAssembler* masm);
+  static Builtins::Name MissBuiltin(Code::Kind kind) {
+    switch (kind) {
+      case Code::LOAD_IC: return Builtins::kLoadIC_Miss;
+      case Code::STORE_IC: return Builtins::kStoreIC_Miss;
+      case Code::KEYED_LOAD_IC: return Builtins::kKeyedLoadIC_Miss;
+      case Code::KEYED_STORE_IC: return Builtins::kKeyedStoreIC_Miss;
+      default: UNREACHABLE();
+    }
+    return Builtins::kLoadIC_Miss;
+  }
+  static void TailCallBuiltin(MacroAssembler* masm, Builtins::Name name);
 
   // Generates code that verifies that the property holder has not changed
   // (checking maps of objects in the prototype chain for fast and global
@@ -577,7 +589,7 @@ class StubCompiler BASE_EMBEDDED {
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
 
-  void GenerateTailCall(Handle<Code> code);
+  static void GenerateTailCall(MacroAssembler* masm, Handle<Code> code);
 
  private:
   Isolate* isolate_;
@@ -739,8 +751,6 @@ class KeyedLoadStubCompiler: public BaseLoadStubCompiler {
   void CompileElementHandlers(MapHandleList* receiver_maps,
                               CodeHandleList* handlers);
 
-  Handle<Code> CompileLoadElementPolymorphic(MapHandleList* receiver_maps);
-
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
   static Register receiver() { return registers()[0]; }
@@ -760,16 +770,62 @@ class KeyedLoadStubCompiler: public BaseLoadStubCompiler {
 };
 
 
-class StoreStubCompiler: public StubCompiler {
+class BaseStoreStubCompiler: public StubCompiler {
  public:
-  StoreStubCompiler(Isolate* isolate, StrictModeFlag strict_mode)
-    : StubCompiler(isolate), strict_mode_(strict_mode) { }
+  BaseStoreStubCompiler(Isolate* isolate,
+                        StrictModeFlag strict_mode,
+                        Register* registers)
+      : StubCompiler(isolate),
+        strict_mode_(strict_mode),
+        registers_(registers) { }
 
+  virtual ~BaseStoreStubCompiler() { }
 
   Handle<Code> CompileStoreField(Handle<JSObject> object,
                                  int index,
                                  Handle<Map> transition,
                                  Handle<Name> name);
+
+ protected:
+  Handle<Code> GetICCode(Code::Kind kind,
+                         Code::StubType type,
+                         Handle<Name> name,
+                         InlineCacheState state = MONOMORPHIC);
+
+  Handle<Code> GetCode(Code::Kind kind,
+                       Code::StubType type,
+                       Handle<Name> name);
+
+  void GenerateRestoreName(MacroAssembler* masm,
+                           Label* label,
+                           Handle<Name> name);
+
+  Register receiver() { return registers_[0]; }
+  Register name()     { return registers_[1]; }
+  Register value()    { return registers_[2]; }
+  Register scratch1() { return registers_[3]; }
+  Register scratch2() { return registers_[4]; }
+  Register scratch3() { return registers_[5]; }
+  StrictModeFlag strict_mode() { return strict_mode_; }
+  virtual Code::ExtraICState extra_state() { return strict_mode_; }
+
+ private:
+  virtual Code::Kind kind() = 0;
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) = 0;
+  virtual void JitEvent(Handle<Name> name, Handle<Code> code) = 0;
+  virtual void GenerateNameCheck(Handle<Name> name,
+                                 Register name_reg,
+                                 Label* miss) { }
+  StrictModeFlag strict_mode_;
+  Register* registers_;
+};
+
+
+class StoreStubCompiler: public BaseStoreStubCompiler {
+ public:
+  StoreStubCompiler(Isolate* isolate, StrictModeFlag strict_mode)
+      : BaseStoreStubCompiler(isolate, strict_mode, registers()) { }
+
 
   Handle<Code> CompileStoreCallback(Handle<Name> name,
                                     Handle<JSObject> object,
@@ -792,25 +848,24 @@ class StoreStubCompiler: public StubCompiler {
                                   Handle<Name> name);
 
  private:
-  Handle<Code> GetCode(Code::StubType type, Handle<Name> name);
-
-  StrictModeFlag strict_mode_;
+  static Register* registers();
+  virtual Code::Kind kind() { return Code::STORE_IC; }
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
+    if (!code->is_inline_cache_stub()) return Logger::STUB_TAG;
+    return code->ic_state() == MONOMORPHIC
+        ? Logger::STORE_IC_TAG : Logger::STORE_POLYMORPHIC_IC_TAG;
+  }
+  virtual void JitEvent(Handle<Name> name, Handle<Code> code);
 };
 
 
-class KeyedStoreStubCompiler: public StubCompiler {
+class KeyedStoreStubCompiler: public BaseStoreStubCompiler {
  public:
   KeyedStoreStubCompiler(Isolate* isolate,
                          StrictModeFlag strict_mode,
                          KeyedAccessStoreMode store_mode)
-    : StubCompiler(isolate),
-      strict_mode_(strict_mode),
-      store_mode_(store_mode) { }
-
-  Handle<Code> CompileStoreField(Handle<JSObject> object,
-                                 int index,
-                                 Handle<Map> transition,
-                                 Handle<Name> name);
+      : BaseStoreStubCompiler(isolate, strict_mode, registers()),
+        store_mode_(store_mode) { }
 
   Handle<Code> CompileStoreElement(Handle<Map> receiver_map);
 
@@ -834,12 +889,23 @@ class KeyedStoreStubCompiler: public StubCompiler {
 
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 
- private:
-  Handle<Code> GetCode(Code::StubType type,
-                       Handle<Name> name,
-                       InlineCacheState state = MONOMORPHIC);
+ protected:
+  virtual Code::ExtraICState extra_state() {
+    return Code::ComputeExtraICState(store_mode_, strict_mode());
+  }
 
-  StrictModeFlag strict_mode_;
+ private:
+  static Register* registers();
+  virtual Code::Kind kind() { return Code::KEYED_STORE_IC; }
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
+    if (!code->is_inline_cache_stub()) return Logger::STUB_TAG;
+    return code->ic_state() == MONOMORPHIC
+        ? Logger::KEYED_STORE_IC_TAG : Logger::KEYED_STORE_POLYMORPHIC_IC_TAG;
+  }
+  virtual void JitEvent(Handle<Name> name, Handle<Code> code);
+  virtual void GenerateNameCheck(Handle<Name> name,
+                                 Register name_reg,
+                                 Label* miss);
   KeyedAccessStoreMode store_mode_;
 };
 
