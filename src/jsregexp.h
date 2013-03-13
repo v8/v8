@@ -582,9 +582,7 @@ class RegExpNode: public ZoneObject {
   // used to indicate that we know we are not at the start of the input.  In
   // this case anchored branches will always fail and can be ignored when
   // determining how many characters are consumed on success.
-  virtual int EatsAtLeast(int still_to_find,
-                          int recursion_depth,
-                          bool not_at_start) = 0;
+  virtual int EatsAtLeast(int still_to_find, int budget, bool not_at_start) = 0;
   // Emits some quick code that checks whether the preloaded characters match.
   // Falls through on certain failure, jumps to the label on possible success.
   // If the node cannot make a quick check it does nothing and returns false.
@@ -616,9 +614,8 @@ class RegExpNode: public ZoneObject {
   // implementation.  TODO(erikcorry):  This should share more code with
   // EatsAtLeast, GetQuickCheckDetails.  The budget argument is used to limit
   // the number of nodes we are willing to look at in order to create this data.
-  static const int kFillInBMBudget = 200;
+  static const int kRecursionBudget = 200;
   virtual void FillInBMInfo(int offset,
-                            int recursion_depth,
                             int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
@@ -725,12 +722,10 @@ class SeqRegExpNode: public RegExpNode {
   void set_on_success(RegExpNode* node) { on_success_ = node; }
   virtual RegExpNode* FilterASCII(int depth);
   virtual void FillInBMInfo(int offset,
-                            int recursion_depth,
                             int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
-    on_success_->FillInBMInfo(
-        offset, recursion_depth + 1, budget - 1, bm, not_at_start);
+    on_success_->FillInBMInfo(offset, budget - 1, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
 
@@ -773,9 +768,7 @@ class ActionNode: public SeqRegExpNode {
                                      RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find,
-                          int recursion_depth,
-                          bool not_at_start);
+  virtual int EatsAtLeast(int still_to_find, int budget, bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int filled_in,
@@ -784,7 +777,6 @@ class ActionNode: public SeqRegExpNode {
         details, compiler, filled_in, not_at_start);
   }
   virtual void FillInBMInfo(int offset,
-                            int recursion_depth,
                             int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
@@ -843,9 +835,7 @@ class TextNode: public SeqRegExpNode {
   }
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find,
-                          int recursion_depth,
-                          bool not_at_start);
+  virtual int EatsAtLeast(int still_to_find, int budget, bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
@@ -856,7 +846,6 @@ class TextNode: public SeqRegExpNode {
   virtual RegExpNode* GetSuccessorOfOmnivorousTextNode(
       RegExpCompiler* compiler);
   virtual void FillInBMInfo(int offset,
-                            int recursion_depth,
                             int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
@@ -911,15 +900,12 @@ class AssertionNode: public SeqRegExpNode {
   }
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find,
-                          int recursion_depth,
-                          bool not_at_start);
+  virtual int EatsAtLeast(int still_to_find, int budget, bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int filled_in,
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
-                            int recursion_depth,
                             int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
@@ -960,7 +946,6 @@ class BackReferenceNode: public SeqRegExpNode {
     return;
   }
   virtual void FillInBMInfo(int offset,
-                            int recursion_depth,
                             int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
@@ -989,7 +974,6 @@ class EndNode: public RegExpNode {
     UNREACHABLE();
   }
   virtual void FillInBMInfo(int offset,
-                            int recursion_depth,
                             int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
@@ -1075,11 +1059,9 @@ class ChoiceNode: public RegExpNode {
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
   DispatchTable* GetTable(bool ignore_case);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find,
-                          int recursion_depth,
-                          bool not_at_start);
+  virtual int EatsAtLeast(int still_to_find, int budget, bool not_at_start);
   int EatsAtLeastHelper(int still_to_find,
-                        int recursion_depth,
+                        int budget,
                         RegExpNode* ignore_this_node,
                         bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
@@ -1087,7 +1069,6 @@ class ChoiceNode: public RegExpNode {
                                     int characters_filled_in,
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
-                            int recursion_depth,
                             int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
@@ -1133,20 +1114,17 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
     AddAlternative(this_must_fail);
     AddAlternative(then_do_this);
   }
-  virtual int EatsAtLeast(int still_to_find,
-                          int recursion_depth,
-                          bool not_at_start);
+  virtual int EatsAtLeast(int still_to_find, int budget, bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
-                            int recursion_depth,
                             int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
     alternatives_->at(1).node()->FillInBMInfo(
-        offset, recursion_depth + 1, budget - 1, bm, not_at_start);
+        offset, budget - 1, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
   // For a negative lookahead we don't emit the quick check for the
@@ -1169,15 +1147,12 @@ class LoopChoiceNode: public ChoiceNode {
   void AddLoopAlternative(GuardedAlternative alt);
   void AddContinueAlternative(GuardedAlternative alt);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find,
-                          int recursion_depth,
-                          bool not_at_start);
+  virtual int EatsAtLeast(int still_to_find, int budget, bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
-                            int recursion_depth,
                             int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
