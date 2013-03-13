@@ -396,7 +396,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
 OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
   AssertNoAllocation no_gc;
   NoHandleAllocation no_handles(isolate());
-  NoHandleDereference no_deref(isolate());
+  HandleDereferenceGuard no_deref(isolate(), HandleDereferenceGuard::DISALLOW);
 
   ASSERT(last_status() == SUCCEEDED);
   Timer t(this, &time_taken_to_optimize_);
@@ -943,6 +943,9 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
             new(info->zone()) OptimizingCompiler(*info);
         OptimizingCompiler::Status status = compiler->CreateGraph();
         if (status == OptimizingCompiler::SUCCEEDED) {
+          // Do a scavenge to put off the next scavenge as far as possible.
+          // This may ease the issue that GVN blocks the next scavenge.
+          isolate->heap()->CollectGarbage(NEW_SPACE, "parallel recompile");
           closure->MarkInRecompileQueue();
           shared->code()->set_profiler_ticks(0);
           info.Detach();
@@ -976,6 +979,13 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
 void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
   ASSERT(info->closure()->IsMarkedForInstallingRecompiledCode());
+  // While waiting for the optimizer thread, OSR may have already done all
+  // the work and disabled optimization of this function for some reason.
+  if (info->shared_info()->optimization_disabled()) {
+    info->SetCode(Handle<Code>(info->shared_info()->code()));
+    InstallFullCode(*info);
+    return;
+  }
 
   Isolate* isolate = info->isolate();
   VMState state(isolate, PARALLEL_COMPILER);

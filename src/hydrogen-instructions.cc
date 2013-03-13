@@ -348,11 +348,7 @@ const char* HType::ToString() {
 }
 
 
-HType HType::TypeFromValue(Isolate* isolate, Handle<Object> value) {
-  // Handle dereferencing is safe here: an object's type as checked below
-  // never changes.
-  AllowHandleDereference allow_handle_deref(isolate);
-
+HType HType::TypeFromValue(Handle<Object> value) {
   HType result = HType::Tagged();
   if (value->IsSmi()) {
     result = HType::Smi();
@@ -1309,10 +1305,7 @@ HValue* HCheckInstanceType::Canonicalize() {
   }
 
   if (check_ == IS_INTERNALIZED_STRING && value()->IsConstant()) {
-    // Dereferencing is safe here:
-    // an internalized string cannot become non-internalized.
-    AllowHandleDereference allow_handle_deref(isolate());
-    if (HConstant::cast(value())->handle()->IsInternalizedString()) return NULL;
+    if (HConstant::cast(value())->HasInternalizedStringValue()) return NULL;
   }
   return this;
 }
@@ -1814,17 +1807,20 @@ static bool IsInteger32(double value) {
 
 
 HConstant::HConstant(Handle<Object> handle, Representation r)
-    : handle_(handle),
-      has_int32_value_(false),
-      has_double_value_(false) {
-  // Dereferencing here is safe: the value of a number object does not change.
-  AllowHandleDereference allow_handle_deref(Isolate::Current());
+  : handle_(handle),
+    has_int32_value_(false),
+    has_double_value_(false),
+    is_internalized_string_(false),
+    boolean_value_(handle->BooleanValue()) {
   if (handle_->IsNumber()) {
     double n = handle_->Number();
     has_int32_value_ = IsInteger32(n);
     int32_value_ = DoubleToInt32(n);
     double_value_ = n;
     has_double_value_ = true;
+  } else {
+    type_from_value_ = HType::TypeFromValue(handle_);
+    is_internalized_string_ = handle_->IsInternalizedString();
   }
   if (r.IsNone()) {
     if (has_int32_value_) {
@@ -1839,18 +1835,44 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
 }
 
 
-HConstant::HConstant(int32_t integer_value, Representation r)
+HConstant::HConstant(Handle<Object> handle,
+                     Representation r,
+                     HType type,
+                     bool is_internalize_string,
+                     bool boolean_value)
+    : handle_(handle),
+      has_int32_value_(false),
+      has_double_value_(false),
+      is_internalized_string_(is_internalize_string),
+      boolean_value_(boolean_value),
+      type_from_value_(type) {
+  ASSERT(!handle.is_null());
+  ASSERT(!type.IsUninitialized());
+  ASSERT(!type.IsTaggedNumber());
+  Initialize(r);
+}
+
+
+HConstant::HConstant(int32_t integer_value,
+                     Representation r,
+                     Handle<Object> optional_handle)
     : has_int32_value_(true),
       has_double_value_(true),
+      is_internalized_string_(false),
+      boolean_value_(integer_value != 0),
       int32_value_(integer_value),
       double_value_(FastI2D(integer_value)) {
   Initialize(r);
 }
 
 
-HConstant::HConstant(double double_value, Representation r)
+HConstant::HConstant(double double_value,
+                     Representation r,
+                     Handle<Object> optional_handle)
     : has_int32_value_(IsInteger32(double_value)),
       has_double_value_(true),
+      is_internalized_string_(false),
+      boolean_value_(double_value != 0 && !isnan(double_value)),
       int32_value_(DoubleToInt32(double_value)),
       double_value_(double_value) {
   Initialize(r);
@@ -1869,52 +1891,26 @@ void HConstant::Initialize(Representation r) {
 HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   if (r.IsInteger32() && !has_int32_value_) return NULL;
   if (r.IsDouble() && !has_double_value_) return NULL;
-  if (handle_.is_null()) {
-    ASSERT(has_int32_value_ || has_double_value_);
-    if (has_int32_value_) return new(zone) HConstant(int32_value_, r);
-    return new(zone) HConstant(double_value_, r);
-  }
-  return new(zone) HConstant(handle_, r);
+  if (has_int32_value_) return new(zone) HConstant(int32_value_, r, handle_);
+  if (has_double_value_) return new(zone) HConstant(double_value_, r, handle_);
+  ASSERT(!handle_.is_null());
+  return new(zone) HConstant(
+      handle_, r, type_from_value_, is_internalized_string_, boolean_value_);
 }
 
 
 HConstant* HConstant::CopyToTruncatedInt32(Zone* zone) const {
   if (has_int32_value_) {
-    if (handle_.is_null()) {
-      return new(zone) HConstant(int32_value_, Representation::Integer32());
-    } else {
-      // Re-use the existing Handle if possible.
-      return new(zone) HConstant(handle_, Representation::Integer32());
-    }
-  } else if (has_double_value_) {
-    return new(zone) HConstant(DoubleToInt32(double_value_),
-                               Representation::Integer32());
-  } else {
-    return NULL;
+    return new(zone) HConstant(
+        int32_value_, Representation::Integer32(), handle_);
   }
+  if (has_double_value_) {
+    return new(zone) HConstant(
+        DoubleToInt32(double_value_), Representation::Integer32(), handle_);
+  }
+  return NULL;
 }
 
-
-bool HConstant::ToBoolean() {
-  // Converts the constant's boolean value according to
-  // ECMAScript section 9.2 ToBoolean conversion.
-  if (HasInteger32Value()) return Integer32Value() != 0;
-  if (HasDoubleValue()) {
-    double v = DoubleValue();
-    return v != 0 && !isnan(v);
-  }
-  // Dereferencing is safe: singletons do not change and strings are
-  // immutable.
-  AllowHandleDereference allow_handle_deref(isolate());
-  if (handle_->IsTrue()) return true;
-  if (handle_->IsFalse()) return false;
-  if (handle_->IsUndefined()) return false;
-  if (handle_->IsNull()) return false;
-  if (handle_->IsString() && String::cast(*handle_)->length() == 0) {
-    return false;
-  }
-  return true;
-}
 
 void HConstant::PrintDataTo(StringStream* stream) {
   if (has_int32_value_) {
@@ -2600,7 +2596,8 @@ HType HConstant::CalculateInferredType() {
     return Smi::IsValid(int32_value_) ? HType::Smi() : HType::HeapNumber();
   }
   if (has_double_value_) return HType::HeapNumber();
-  return HType::TypeFromValue(isolate(), handle_);
+  ASSERT(!type_from_value_.IsUninitialized());
+  return type_from_value_;
 }
 
 

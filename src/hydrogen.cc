@@ -505,7 +505,9 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 
 void HGraph::Verify(bool do_full_verify) const {
   // Allow dereferencing for debug mode verification.
-  AllowHandleDereference allow_handle_deref(isolate());
+  Heap::RelocationLock(isolate()->heap());
+  HandleDereferenceGuard allow_handle_deref(isolate(),
+                                            HandleDereferenceGuard::ALLOW);
   for (int i = 0; i < blocks_.length(); i++) {
     HBasicBlock* block = blocks_.at(i);
 
@@ -585,18 +587,6 @@ void HGraph::Verify(bool do_full_verify) const {
 #endif
 
 
-HConstant* HGraph::GetConstant(SetOncePointer<HConstant>* pointer,
-                               Handle<Object> value) {
-  if (!pointer->is_set()) {
-    HConstant* constant = new(zone()) HConstant(value,
-                                                Representation::Tagged());
-    constant->InsertAfter(GetConstantUndefined());
-    pointer->set(constant);
-  }
-  return pointer->get();
-}
-
-
 HConstant* HGraph::GetConstantInt32(SetOncePointer<HConstant>* pointer,
                                     int32_t value) {
   if (!pointer->is_set()) {
@@ -624,19 +614,27 @@ HConstant* HGraph::GetConstantMinus1() {
 }
 
 
-HConstant* HGraph::GetConstantTrue() {
-  return GetConstant(&constant_true_, isolate()->factory()->true_value());
+#define DEFINE_GET_CONSTANT(Name, name, htype, boolean_value)                  \
+HConstant* HGraph::GetConstant##Name() {                                       \
+  if (!constant_##name##_.is_set()) {                                          \
+    HConstant* constant = new(zone()) HConstant(                               \
+        isolate()->factory()->name##_value(),                                  \
+        Representation::Tagged(),                                              \
+        htype,                                                                 \
+        false,                                                                 \
+        boolean_value);                                                        \
+    constant->InsertAfter(GetConstantUndefined());                             \
+    constant_##name##_.set(constant);                                          \
+  }                                                                            \
+  return constant_##name##_.get();                                             \
 }
 
 
-HConstant* HGraph::GetConstantFalse() {
-  return GetConstant(&constant_false_, isolate()->factory()->false_value());
-}
+DEFINE_GET_CONSTANT(True, true, HType::Boolean(), true)
+DEFINE_GET_CONSTANT(False, false, HType::Boolean(), false)
+DEFINE_GET_CONSTANT(Hole, the_hole, HType::Tagged(), false)
 
-
-HConstant* HGraph::GetConstantHole() {
-  return GetConstant(&constant_hole_, isolate()->factory()->the_hole_value());
-}
+#undef DEFINE_GET_CONSTANT
 
 
 HGraphBuilder::CheckBuilder::CheckBuilder(HGraphBuilder* builder, BailoutId id)
@@ -3711,7 +3709,7 @@ void TestContext::BuildBranch(HValue* value) {
   }
   if (value->IsConstant()) {
     HConstant* constant_value = HConstant::cast(value);
-    if (constant_value->ToBoolean()) {
+    if (constant_value->BooleanValue()) {
       builder->current_block()->Goto(if_true(), builder->function_state());
     } else {
       builder->current_block()->Goto(if_false(), builder->function_state());
@@ -3878,6 +3876,8 @@ bool HOptimizedGraphBuilder::BuildGraph() {
 void HGraph::GlobalValueNumbering() {
   // Perform common subexpression elimination and loop-invariant code motion.
   if (FLAG_use_gvn) {
+    // We use objects' raw addresses for identification, so they must not move.
+    Heap::RelocationLock relocation_lock(isolate()->heap());
     HPhase phase("H_Global value numbering", this);
     HGlobalValueNumberer gvn(this, info());
     bool removed_side_effects = gvn.Analyze();
@@ -9241,8 +9241,8 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 
     if (left_value->IsConstant()) {
       HConstant* left_constant = HConstant::cast(left_value);
-      if ((is_logical_and && left_constant->ToBoolean()) ||
-          (!is_logical_and && !left_constant->ToBoolean())) {
+      if ((is_logical_and && left_constant->BooleanValue()) ||
+          (!is_logical_and && !left_constant->BooleanValue())) {
         Drop(1);  // left_value.
         CHECK_BAILOUT(VisitForValue(expr->right()));
       }
@@ -10578,13 +10578,17 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
 
 
 void HTracer::TraceLithium(const char* name, LChunk* chunk) {
-  AllowHandleDereference allow_handle_deref(chunk->isolate());
+  ASSERT(!FLAG_parallel_recompilation);
+  HandleDereferenceGuard allow_handle_deref(chunk->isolate(),
+                                            HandleDereferenceGuard::ALLOW);
   Trace(name, chunk->graph(), chunk);
 }
 
 
 void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
-  AllowHandleDereference allow_handle_deref(graph->isolate());
+  ASSERT(!FLAG_parallel_recompilation);
+  HandleDereferenceGuard allow_handle_deref(graph->isolate(),
+                                            HandleDereferenceGuard::ALLOW);
   Trace(name, graph, NULL);
 }
 

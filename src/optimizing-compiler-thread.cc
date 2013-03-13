@@ -76,7 +76,6 @@ void OptimizingCompilerThread::Run() {
 
 
 void OptimizingCompilerThread::CompileNext() {
-  Heap::RelocationLock relocation_lock(isolate_->heap());
   OptimizingCompiler* optimizing_compiler = NULL;
   input_queue_.Dequeue(&optimizing_compiler);
   Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(-1));

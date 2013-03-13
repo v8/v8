@@ -39,7 +39,7 @@ static LChunk* OptimizeGraph(HGraph* graph) {
   Isolate* isolate =  graph->isolate();
   AssertNoAllocation no_gc;
   NoHandleAllocation no_handles(isolate);
-  NoHandleDereference no_deref(isolate);
+  HandleDereferenceGuard no_deref(isolate, HandleDereferenceGuard::DISALLOW);
 
   ASSERT(graph != NULL);
   SmartArrayPointer<char> bailout_reason;

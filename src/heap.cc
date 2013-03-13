@@ -6597,6 +6597,9 @@ bool Heap::SetUp() {
   store_buffer()->SetUp();
 
   if (FLAG_parallel_recompilation) relocation_mutex_ = OS::CreateMutex();
+#ifdef DEBUG
+  relocation_mutex_locked_ = false;
+#endif  // DEBUG
 
   return true;
 }

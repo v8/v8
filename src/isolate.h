@@ -988,8 +988,9 @@ class Isolate {
 
   int* code_kind_statistics() { return code_kind_statistics_; }
 
-  bool allow_handle_deref() { return allow_handle_deref_; }
-  void set_allow_handle_deref(bool allow) { allow_handle_deref_ = allow; }
+  bool AllowHandleDereference();
+
+  void SetAllowHandleDereference(bool allow);
 #endif
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
@@ -1305,7 +1306,8 @@ class Isolate {
   JSObject::SpillInformation js_spill_information_;
   int code_kind_statistics_[Code::NUMBER_OF_KINDS];
 
-  bool allow_handle_deref_;
+  bool allow_compiler_thread_handle_deref_;
+  bool allow_execution_thread_handle_deref_;
 #endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
