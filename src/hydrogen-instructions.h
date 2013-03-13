@@ -122,6 +122,7 @@ class LChunkBuilder;
   V(HasInstanceTypeAndBranch)                  \
   V(InductionVariableAnnotation)               \
   V(In)                                        \
+  V(InnerAllocatedObject)                      \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
   V(InstanceSize)                              \
@@ -4684,6 +4685,31 @@ class HAllocate: public HTemplateInstruction<2> {
 };
 
 
+class HInnerAllocatedObject: public HTemplateInstruction<1> {
+ public:
+  HInnerAllocatedObject(HValue* value, int offset)
+      : offset_(offset) {
+    ASSERT(value->IsAllocate());
+    SetOperandAt(0, value);
+    set_representation(Representation::Tagged());
+  }
+
+  HValue* base_object() { return OperandAt(0); }
+  int offset() { return offset_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject)
+
+ private:
+  int offset_;
+};
+
+
 inline bool StoringValueNeedsWriteBarrier(HValue* value) {
   return !value->type().IsBoolean()
       && !value->type().IsSmi()
@@ -4693,6 +4719,11 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 
 inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
                                             HValue* new_space_dominator) {
+  if (object->IsInnerAllocatedObject()) {
+    return ReceiverObjectNeedsWriteBarrier(
+        HInnerAllocatedObject::cast(object)->base_object(),
+        new_space_dominator);
+  }
   if (object != new_space_dominator) return true;
   if (object->IsFastLiteral()) return false;
   if (object->IsAllocateObject()) return false;

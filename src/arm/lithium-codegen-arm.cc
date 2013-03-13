@@ -4341,6 +4341,13 @@ void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
 }
 
 
+void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
+  Register result = ToRegister(instr->result());
+  Register base = ToRegister(instr->base_object());
+  __ add(result, base, Operand(instr->offset()));
+}
+
+
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Register object = ToRegister(instr->object());
   Register value = ToRegister(instr->value());

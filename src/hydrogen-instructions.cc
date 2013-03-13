@@ -2514,6 +2514,12 @@ void HLoadGlobalGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
+void HInnerAllocatedObject::PrintDataTo(StringStream* stream) {
+  base_object()->PrintNameTo(stream);
+  stream->Add(" offset %d", offset());
+}
+
+
 void HStoreGlobalCell::PrintDataTo(StringStream* stream) {
   stream->Add("[%p] = ", *cell());
   value()->PrintNameTo(stream);
