@@ -93,7 +93,6 @@ class OptimizingCompilerThread : public Thread {
   Isolate* isolate_;
   Semaphore* stop_semaphore_;
   Semaphore* input_queue_semaphore_;
-  Semaphore* output_queue_semaphore_;
   UnboundQueue<OptimizingCompiler*> input_queue_;
   UnboundQueue<OptimizingCompiler*> output_queue_;
   volatile AtomicWord stop_thread_;
