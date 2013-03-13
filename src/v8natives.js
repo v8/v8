@@ -1014,39 +1014,44 @@ function ObjectGetOwnPropertyNames(obj) {
     return ToNameArray(names, "getOwnPropertyNames", true);
   }
 
+  var nameArrays = new InternalArray();
+
   // Find all the indexed properties.
 
   // Get the local element names.
-  var propertyNames = %GetLocalElementNames(obj);
-  for (var i = 0; i < propertyNames.length; ++i) {
-    propertyNames[i] = %_NumberToString(propertyNames[i]);
+  var localElementNames = %GetLocalElementNames(obj);
+  for (var i = 0; i < localElementNames.length; ++i) {
+    localElementNames[i] = %_NumberToString(localElementNames[i]);
   }
+  nameArrays.push(localElementNames);
 
   // Get names for indexed interceptor properties.
   var interceptorInfo = %GetInterceptorInfo(obj);
   if ((interceptorInfo & 1) != 0) {
-    var indexedInterceptorNames =
-        %GetIndexedInterceptorElementNames(obj);
-    if (indexedInterceptorNames) {
-      propertyNames = propertyNames.concat(indexedInterceptorNames);
+    var indexedInterceptorNames = %GetIndexedInterceptorElementNames(obj);
+    if (!IS_UNDEFINED(indexedInterceptorNames)) {
+      nameArrays.push(indexedInterceptorNames);
     }
   }
 
   // Find all the named properties.
 
   // Get the local property names.
-  propertyNames = propertyNames.concat(%GetLocalPropertyNames(obj));
+  nameArrays.push(%GetLocalPropertyNames(obj));
 
   // Get names for named interceptor properties if any.
   if ((interceptorInfo & 2) != 0) {
-    var namedInterceptorNames =
-        %GetNamedInterceptorPropertyNames(obj);
-    if (namedInterceptorNames) {
-      propertyNames = propertyNames.concat(namedInterceptorNames);
+    var namedInterceptorNames = %GetNamedInterceptorPropertyNames(obj);
+    if (!IS_UNDEFINED(namedInterceptorNames)) {
+      nameArrays.push(namedInterceptorNames);
     }
   }
 
-  // Property names are expected to be unique names,
+  var propertyNames =
+      %Apply(InternalArray.prototype.concat,
+             nameArrays[0], nameArrays, 1, nameArrays.length - 1);
+
+  // Property names are expected to be unique strings,
   // but interceptors can interfere with that assumption.
   if (interceptorInfo != 0) {
     var propertySet = { __proto__: null };

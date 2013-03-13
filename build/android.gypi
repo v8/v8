@@ -35,9 +35,9 @@
     'variables': {
       'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
       'android_toolchain%': '<!(/bin/echo -n $ANDROID_TOOLCHAIN)',
-      # Switch between different build types, currently only '0' is
-      # supported.
-      'android_build_type%': 0,
+      # This is set when building the Android WebView inside the Android build
+      # system, using the 'android' gyp backend.
+      'android_webview_build%': 0,
     },
     'conditions': [
       ['android_ndk_root==""', {
@@ -62,10 +62,10 @@
     ],
     # Enable to use the system stlport, otherwise statically
     # link the NDK one?
-    'use_system_stlport%': '<(android_build_type)',
+    'use_system_stlport%': '<(android_webview_build)',
     'android_stlport_library': 'stlport_static',
     # Copy it out one scope.
-    'android_build_type%': '<(android_build_type)',
+    'android_webview_build%': '<(android_webview_build)',
     'OS': 'android',
   },  # variables
   'target_defaults': {
@@ -141,7 +141,7 @@
             '-lm',
         ],
         'conditions': [
-          ['android_build_type==0', {
+          ['android_webview_build==0', {
             'ldflags': [
               '-Wl,-rpath-link=<(android_lib)',
               '-L<(android_lib)',

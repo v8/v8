@@ -1954,7 +1954,9 @@ LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   LOperand* context = info()->IsStub()
       ? UseFixed(instr->context(), esi)
       : NULL;
-  return new(zone()) LReturn(UseFixed(instr->value(), eax), context);
+  LOperand* parameter_count = UseRegisterOrConstant(instr->parameter_count());
+  return new(zone()) LReturn(UseFixed(instr->value(), eax), context,
+                             parameter_count);
 }
 
 

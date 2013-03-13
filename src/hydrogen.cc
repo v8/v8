@@ -875,6 +875,18 @@ HBoundsCheck* HGraphBuilder::AddBoundsCheck(HValue* index,
 }
 
 
+HReturn* HGraphBuilder::AddReturn(HValue* value) {
+  HValue* context = environment()->LookupContext();
+  int num_parameters = graph()->info()->num_parameters();
+  HValue* params = AddInstruction(new(graph()->zone())
+      HConstant(num_parameters, Representation::Integer32()));
+  HReturn* return_instruction = new(graph()->zone())
+      HReturn(value, context, params);
+  current_block()->FinishExit(return_instruction);
+  return return_instruction;
+}
+
+
 HBasicBlock* HGraphBuilder::CreateBasicBlock(HEnvironment* env) {
   HBasicBlock* b = graph()->CreateBasicBlock();
   b->SetInitialEnvironment(env);
@@ -1225,10 +1237,10 @@ HGraph::HGraph(CompilationInfo* info)
       type_change_checksum_(0) {
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
-    int param_count =
-        stub->GetInterfaceDescriptor(isolate_)->register_param_count_;
+    CodeStubInterfaceDescriptor* descriptor =
+        stub->GetInterfaceDescriptor(isolate_);
     start_environment_ =
-        new(zone_) HEnvironment(zone_, param_count);
+        new(zone_) HEnvironment(zone_, descriptor->environment_length());
   } else {
     start_environment_ =
         new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
@@ -3841,9 +3853,7 @@ bool HOptimizedGraphBuilder::BuildGraph() {
   if (HasStackOverflow()) return false;
 
   if (current_block() != NULL) {
-    HReturn* instr = new(zone()) HReturn(graph()->GetConstantUndefined(),
-                                         context);
-    current_block()->FinishExit(instr);
+    AddReturn(graph()->GetConstantUndefined());
     set_current_block(NULL);
   }
 
@@ -4726,9 +4736,7 @@ void HOptimizedGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
     // Not an inlined return, so an actual one.
     CHECK_ALIVE(VisitForValue(stmt->expression()));
     HValue* result = environment()->Pop();
-    current_block()->FinishExit(new(zone()) HReturn(
-        result,
-        environment()->LookupContext()));
+    AddReturn(result);
   } else if (state->inlining_kind() == CONSTRUCT_CALL_RETURN) {
     // Return from an inlined construct call. In a test context the return value
     // will always evaluate to true, in a value context the return value needs
@@ -7363,10 +7371,24 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   HBasicBlock* join = NULL;
   FunctionSorter order[kMaxCallPolymorphism];
   int ordered_functions = 0;
+
+  Handle<Map> initial_string_map(
+      isolate()->native_context()->string_function()->initial_map());
+  Handle<Map> string_marker_map(
+      JSObject::cast(initial_string_map->prototype())->map());
+  Handle<Map> initial_number_map(
+      isolate()->native_context()->number_function()->initial_map());
+  Handle<Map> number_marker_map(
+      JSObject::cast(initial_number_map->prototype())->map());
+  Handle<Map> heap_number_map = isolate()->factory()->heap_number_map();
+
+  bool handle_smi = false;
+
   for (int i = 0;
        i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
     Handle<Map> map = types->at(i);
+    if (map.is_identical_to(number_marker_map)) handle_smi = true;
     if (expr->ComputeTarget(map, name)) {
       order[ordered_functions++] =
           FunctionSorter(i,
@@ -7381,21 +7403,59 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
         sizeof(order[0]),
         &CompareHotness);
 
+  HBasicBlock* number_block = NULL;
+
   for (int fn = 0; fn < ordered_functions; ++fn) {
     int i = order[fn].index();
     Handle<Map> map = types->at(i);
     if (fn == 0) {
       // Only needed once.
-      AddInstruction(new(zone()) HCheckNonSmi(receiver));
       join = graph()->CreateBasicBlock();
+      if (handle_smi) {
+        HBasicBlock* empty_smi_block = graph()->CreateBasicBlock();
+        HBasicBlock* not_smi_block = graph()->CreateBasicBlock();
+        number_block = graph()->CreateBasicBlock();
+        HIsSmiAndBranch* smicheck = new(zone()) HIsSmiAndBranch(receiver);
+        smicheck->SetSuccessorAt(0, empty_smi_block);
+        smicheck->SetSuccessorAt(1, not_smi_block);
+        current_block()->Finish(smicheck);
+        empty_smi_block->Goto(number_block);
+        set_current_block(not_smi_block);
+      } else {
+        AddInstruction(new(zone()) HCheckNonSmi(receiver));
+      }
     }
     HBasicBlock* if_true = graph()->CreateBasicBlock();
     HBasicBlock* if_false = graph()->CreateBasicBlock();
-    HCompareMap* compare =
-        new(zone()) HCompareMap(receiver, map, if_true, if_false);
+    HUnaryControlInstruction* compare;
+
+    if (handle_smi && map.is_identical_to(number_marker_map)) {
+      compare = new(zone()) HCompareMap(
+          receiver, heap_number_map, if_true, if_false);
+      map = initial_number_map;
+      expr->set_number_check(
+          Handle<JSObject>(JSObject::cast(map->prototype())));
+    } else if (map.is_identical_to(string_marker_map)) {
+      compare = new(zone()) HIsStringAndBranch(receiver);
+      compare->SetSuccessorAt(0, if_true);
+      compare->SetSuccessorAt(1, if_false);
+      map = initial_string_map;
+      expr->set_string_check(
+          Handle<JSObject>(JSObject::cast(map->prototype())));
+    } else {
+      compare = new(zone()) HCompareMap(receiver, map, if_true, if_false);
+      expr->set_map_check();
+    }
+
     current_block()->Finish(compare);
 
+    if (expr->check_type() == NUMBER_CHECK) {
+      if_true->Goto(number_block);
+      if_true = number_block;
+      number_block->SetJoinId(expr->id());
+    }
     set_current_block(if_true);
+
     expr->ComputeTarget(map, name);
     AddCheckPrototypeMaps(expr->holder(), map);
     if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
@@ -8640,6 +8700,11 @@ void HOptimizedGraphBuilder::VisitAdd(UnaryOperation* expr) {
   HValue* context = environment()->LookupContext();
   HInstruction* instr =
       HMul::New(zone(), context, value, graph()->GetConstant1());
+  if (instr->IsBinaryOperation()) {
+    // Since we don't have type feedback, we must be cautious/pessimistic.
+    HBinaryOperation::cast(instr)->set_observed_input_representation(
+        Representation::Tagged(), Representation::Tagged());
+  }
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 

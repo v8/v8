@@ -1,3 +1,12 @@
+2013-03-13: Version 3.17.10
+
+        Fixed heap snapshot creation for Harmony collections. (issue 2535)
+
+        Fixed register allocation corner case. (Chromium issue 177883)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-03-08: Version 3.17.9
 
         Restored Function()'s expected string representation. (issue 2470)

@@ -745,34 +745,21 @@ void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
                                                Register scratch1,
                                                Register scratch2,
                                                Register scratch3,
-                                               DwVfpRegister double_scratch,
+                                               DwVfpRegister double_scratch1,
+                                               DwVfpRegister double_scratch2,
                                                Label* not_number) {
+  Label done;
   __ AssertRootValue(heap_number_map,
                      Heap::kHeapNumberMapRootIndex,
                      "HeapNumberMap register clobbered.");
-  Label done;
-  Label not_in_int32_range;
 
   __ UntagAndJumpIfSmi(dst, object, &done);
   __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kMapOffset));
   __ cmp(scratch1, heap_number_map);
   __ b(ne, not_number);
-  __ ConvertToInt32(object,
-                    dst,
-                    scratch1,
-                    scratch2,
-                    double_scratch,
-                    &not_in_int32_range);
-  __ jmp(&done);
-
-  __ bind(&not_in_int32_range);
-  __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
-  __ ldr(scratch2, FieldMemOperand(object, HeapNumber::kMantissaOffset));
-
-  __ EmitOutOfInt32RangeTruncate(dst,
-                                 scratch1,
-                                 scratch2,
-                                 scratch3);
+  __ ECMAConvertNumberToInt32(object, dst,
+                              scratch1, scratch2, scratch3,
+                              double_scratch1, double_scratch2);
   __ bind(&done);
 }
 
@@ -2290,18 +2277,16 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
 }
 
 
-void UnaryOpStub::GenerateHeapNumberCodeBitNot(
-    MacroAssembler* masm, Label* slow) {
-  Label impossible;
-
+void UnaryOpStub::GenerateHeapNumberCodeBitNot(MacroAssembler* masm,
+                                               Label* slow) {
   EmitCheckForHeapNumber(masm, r0, r1, r6, slow);
-  // Convert the heap number is r0 to an untagged integer in r1.
-  __ ConvertToInt32(r0, r1, r2, r3, d0, slow);
+  // Convert the heap number in r0 to an untagged integer in r1.
+  __ ECMAConvertNumberToInt32(r0, r1, r2, r3, r4, d0, d1);
 
   // Do the bitwise operation and check if the result fits in a smi.
   Label try_float;
   __ mvn(r1, Operand(r1));
-  __ add(r2, r1, Operand(0x40000000), SetCC);
+  __ cmn(r1, Operand(0x40000000));
   __ b(mi, &try_float);
 
   // Tag the result as a smi and we're done.
@@ -2312,28 +2297,22 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
   __ bind(&try_float);
   if (mode_ == UNARY_NO_OVERWRITE) {
     Label slow_allocate_heapnumber, heapnumber_allocated;
-    // Allocate a new heap number without zapping r0, which we need if it fails.
-    __ AllocateHeapNumber(r2, r3, r4, r6, &slow_allocate_heapnumber);
+    __ AllocateHeapNumber(r0, r3, r4, r6, &slow_allocate_heapnumber);
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ push(r0);  // Push the heap number, not the untagged int32.
+      // Push the lower bit of the result (left shifted to look like a smi).
+      __ mov(r2, Operand(r1, LSL, 31));
+      // Push the 31 high bits (bit 0 cleared to look like a smi).
+      __ bic(r1, r1, Operand(1));
+      __ Push(r2, r1);
       __ CallRuntime(Runtime::kNumberAlloc, 0);
-      __ mov(r2, r0);  // Move the new heap number into r2.
-      // Get the heap number into r0, now that the new heap number is in r2.
-      __ pop(r0);
+      __ Pop(r2, r1);  // Restore the result.
+      __ orr(r1, r1, Operand(r2, LSR, 31));
     }
-
-    // Convert the heap number in r0 to an untagged integer in r1.
-    // This can't go slow-case because it's the same number we already
-    // converted once again.
-    __ ConvertToInt32(r0, r1, r3, r4, d0, &impossible);
-    __ mvn(r1, Operand(r1));
-
     __ bind(&heapnumber_allocated);
-    __ mov(r0, r2);  // Move newly allocated heap number to r0.
   }
 
   if (CpuFeatures::IsSupported(VFP2)) {
@@ -2341,19 +2320,13 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     CpuFeatureScope scope(masm, VFP2);
     __ vmov(s0, r1);
     __ vcvt_f64_s32(d0, s0);
-    __ sub(r2, r0, Operand(kHeapObjectTag));
-    __ vstr(d0, r2, HeapNumber::kValueOffset);
+    __ vstr(d0, FieldMemOperand(r0, HeapNumber::kValueOffset));
     __ Ret();
   } else {
     // WriteInt32ToHeapNumberStub does not trigger GC, so we do not
     // have to set up a frame.
     WriteInt32ToHeapNumberStub stub(r1, r0, r2);
     __ Jump(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
-  }
-
-  __ bind(&impossible);
-  if (FLAG_debug_code) {
-    __ stop("Incorrect assumption in bit-not stub");
   }
 }
 
@@ -2786,6 +2759,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
                                                   scratch2,
                                                   scratch3,
                                                   d0,
+                                                  d1,
                                                   not_numbers);
         FloatingPointHelper::ConvertNumberToInt32(masm,
                                                   right,
@@ -2795,6 +2769,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
                                                   scratch2,
                                                   scratch3,
                                                   d0,
+                                                  d1,
                                                   not_numbers);
       }
 

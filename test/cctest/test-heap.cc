@@ -50,7 +50,11 @@ static void InitializeVM() {
 
 // Go through all incremental marking steps in one swoop.
 static void SimulateIncrementalMarking() {
+  MarkCompactCollector* collector = HEAP->mark_compact_collector();
   IncrementalMarking* marking = HEAP->incremental_marking();
+  if (collector->IsConcurrentSweepingInProgress()) {
+    collector->WaitUntilSweepingCompleted();
+  }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
     marking->Start();

@@ -2700,6 +2700,41 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
 }
 
 
+void LCodeGen::EmitReturn(LReturn* instr, bool dynamic_frame_alignment) {
+  int extra_value_count = dynamic_frame_alignment ? 2 : 1;
+
+  if (instr->has_constant_parameter_count()) {
+    int parameter_count = ToInteger32(instr->constant_parameter_count());
+    if (dynamic_frame_alignment && FLAG_debug_code) {
+      __ cmp(Operand(esp,
+                     (parameter_count + extra_value_count) * kPointerSize),
+             Immediate(kAlignmentZapValue));
+      __ Assert(equal, "expected alignment marker");
+    }
+    __ Ret((parameter_count + extra_value_count) * kPointerSize, ecx);
+  } else {
+    Register reg = ToRegister(instr->parameter_count());
+    Register return_addr_reg = reg.is(ecx) ? ebx : ecx;
+    if (dynamic_frame_alignment && FLAG_debug_code) {
+      ASSERT(extra_value_count == 2);
+      __ cmp(Operand(esp, reg, times_pointer_size,
+                     extra_value_count * kPointerSize),
+             Immediate(kAlignmentZapValue));
+      __ Assert(equal, "expected alignment marker");
+    }
+
+    // emit code to restore stack based on instr->parameter_count()
+    __ pop(return_addr_reg);  // save return address
+    if (dynamic_frame_alignment) {
+      __ inc(reg);  // 1 more for alignment
+    }
+    __ shl(reg, kPointerSizeLog2);
+    __ add(esp, reg);
+    __ jmp(return_addr_reg);
+  }
+}
+
+
 void LCodeGen::DoReturn(LReturn* instr) {
   if (FLAG_trace && info()->IsOptimizing()) {
     // Preserve the return value on the stack and rely on the runtime call
@@ -2736,19 +2771,12 @@ void LCodeGen::DoReturn(LReturn* instr) {
     Label no_padding;
     __ cmp(edx, Immediate(kNoAlignmentPadding));
     __ j(equal, &no_padding);
-    if (FLAG_debug_code) {
-      __ cmp(Operand(esp, (GetParameterCount() + 2) * kPointerSize),
-             Immediate(kAlignmentZapValue));
-      __ Assert(equal, "expected alignment marker");
-    }
-    __ Ret((GetParameterCount() + 2) * kPointerSize, ecx);
+
+    EmitReturn(instr, true);
     __ bind(&no_padding);
   }
-  if (info()->IsStub()) {
-    __ Ret();
-  } else {
-    __ Ret((GetParameterCount() + 1) * kPointerSize, ecx);
-  }
+
+  EmitReturn(instr, false);
 }
 
 

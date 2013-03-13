@@ -891,7 +891,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                       Register scratch1,
                       Register scratch2,
                       Register scratch3,
-                      Handle<String> name,
+                      Handle<Name> name,
                       Handle<JSObject> interceptor_holder,
                       Label* miss_label) {
     Register holder =
@@ -2650,7 +2650,7 @@ Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
                      a1, a2, a3, t0,
                      &miss);
   __ bind(&miss);
-  __ li(a2, Operand(Handle<String>(name)));  // Restore name.
+  __ li(a2, Operand(Handle<Name>(name)));  // Restore name.
   Handle<Code> ic = masm()->isolate()->builtins()->Builtins::StoreIC_Miss();
   __ Jump(ic, RelocInfo::CODE_TARGET);
 

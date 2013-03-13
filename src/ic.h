@@ -175,6 +175,7 @@ class IC {
                            Handle<JSObject> receiver,
                            Handle<String> name,
                            Handle<Code> code);
+  void CopyICToMegamorphicCache(Handle<String> name);
   void PatchCache(State state,
                   StrictModeFlag strict_mode,
                   Handle<JSObject> receiver,

@@ -2887,7 +2887,7 @@ inline int Search(T* array, Name* name, int valid_entries = 0);
 //     // Returns the hash value for object.
 //     static uint32_t HashForObject(Key key, Object* object);
 //     // Convert key to an object.
-//     static inline Object* AsObject(Key key);
+//     static inline Object* AsObject(Heap* heap, Key key);
 //     // The prefix size indicates number of elements in the beginning
 //     // of the backing storage.
 //     static const int kPrefixSize = ..;
@@ -2973,6 +2973,7 @@ class HashTable: public FixedArray {
 
   // Returns a new HashTable object. Might return Failure.
   MUST_USE_RESULT static MaybeObject* Allocate(
+      Heap* heap,
       int at_least_space_for,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
       PretenureFlag pretenure = NOT_TENURED);
@@ -3095,7 +3096,7 @@ class HashTableKey {
   virtual uint32_t HashForObject(Object* key) = 0;
   // Returns the key object for storing into the hash table.
   // If allocations fails a failure object is returned.
-  MUST_USE_RESULT virtual MaybeObject* AsObject() = 0;
+  MUST_USE_RESULT virtual MaybeObject* AsObject(Heap* heap) = 0;
   // Required.
   virtual ~HashTableKey() {}
 };
@@ -3112,8 +3113,9 @@ class StringTableShape : public BaseShape<HashTableKey*> {
   static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
     return key->HashForObject(object);
   }
-  MUST_USE_RESULT static inline MaybeObject* AsObject(HashTableKey* key) {
-    return key->AsObject();
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
+                                                      HashTableKey* key) {
+    return key->AsObject(heap);
   }
 
   static const int kPrefixSize = 0;
@@ -3179,8 +3181,9 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static inline MaybeObject* AsObject(HashTableKey* key) {
-    return key->AsObject();
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
+                                                      HashTableKey* key) {
+    return key->AsObject(heap);
   }
 
   static const int kPrefixSize = 0;
@@ -3268,7 +3271,8 @@ class Dictionary: public HashTable<Shape, Key> {
   }
 
   // Returns a new array for dictionary usage. Might return Failure.
-  MUST_USE_RESULT static MaybeObject* Allocate(int at_least_space_for);
+  MUST_USE_RESULT static MaybeObject* Allocate(Heap* heap,
+                                               int at_least_space_for);
 
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
@@ -3318,7 +3322,8 @@ class NameDictionaryShape : public BaseShape<Name*> {
   static inline bool IsMatch(Name* key, Object* other);
   static inline uint32_t Hash(Name* key);
   static inline uint32_t HashForObject(Name* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Name* key);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
+                                                      Name* key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = true;
@@ -3351,7 +3356,8 @@ class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
 class NumberDictionaryShape : public BaseShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object* other);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(uint32_t key);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
+                                                      uint32_t key);
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = false;
 };
@@ -3455,7 +3461,8 @@ class ObjectHashTableShape : public BaseShape<Object*> {
   static inline bool IsMatch(Object* key, Object* other);
   static inline uint32_t Hash(Object* key);
   static inline uint32_t HashForObject(Object* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Object* key);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
+                                                      Object* key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = entrysize;
 };
@@ -4492,6 +4499,9 @@ class Code: public HeapObject {
   inline unsigned stack_check_table_offset();
   inline void set_stack_check_table_offset(unsigned offset);
 
+  inline bool stack_check_patched_for_osr();
+  inline void set_stack_check_patched_for_osr(bool value);
+
   // [check type]: For kind CALL_IC, tells how to check if the
   // receiver is valid for the given call.
   inline CheckType check_type();
@@ -4769,6 +4779,7 @@ class Code: public HeapObject {
 
   // KindSpecificFlags2 layout (FUNCTION)
   class StackCheckTableOffsetField: public BitField<int, 0, 31> {};
+  class StackCheckPatchedForOSRField: public BitField<bool, 31, 1> {};
 
   // Signed field cannot be encoded using the BitField class.
   static const int kArgumentsCountShift = 17;
@@ -6131,10 +6142,10 @@ class SharedFunctionInfo: public HeapObject {
   // Bit positions in start_position_and_type.
   // The source code start position is in the 30 most significant bits of
   // the start_position_and_type field.
-  static const int kIsExpressionBit = 0;
-  static const int kIsTopLevelBit   = 1;
+  static const int kIsExpressionBit    = 0;
+  static const int kIsTopLevelBit      = 1;
   static const int kStartPositionShift = 2;
-  static const int kStartPositionMask = ~((1 << kStartPositionShift) - 1);
+  static const int kStartPositionMask  = ~((1 << kStartPositionShift) - 1);
 
   // Bit positions in compiler_hints.
   static const int kCodeAgeSize = 3;
@@ -6268,6 +6279,7 @@ class JSFunction: public JSObject {
   // 8.6.2, page 27.
   inline Code* code();
   inline void set_code(Code* code);
+  inline void set_code_no_write_barrier(Code* code);
   inline void ReplaceCode(Code* code);
 
   inline Code* unchecked_code();
@@ -6288,6 +6300,8 @@ class JSFunction: public JSObject {
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();
   void MarkForParallelRecompilation();
+  void MarkForInstallingRecompiledCode();
+  void MarkInRecompileQueue();
 
   // Helpers to compile this function.  Returns true on success, false on
   // failure (e.g., stack overflow during compilation).
@@ -6303,6 +6317,7 @@ class JSFunction: public JSObject {
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
   inline bool IsMarkedForParallelRecompilation();
+  inline bool IsMarkedForInstallingRecompiledCode();
 
   // Tells whether or not the function is on the parallel
   // recompilation queue.
@@ -6906,8 +6921,9 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
-    return key->AsObject();
+  MUST_USE_RESULT static MaybeObject* AsObject(Heap* heap,
+                                               HashTableKey* key) {
+    return key->AsObject(heap);
   }
 
   static const int kPrefixSize = 0;
@@ -7008,8 +7024,9 @@ class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
-    return key->AsObject();
+  MUST_USE_RESULT static MaybeObject* AsObject(Heap* heap,
+                                               HashTableKey* key) {
+    return key->AsObject(heap);
   }
 
   static const int kPrefixSize = 0;

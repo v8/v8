@@ -585,13 +585,6 @@ bool MarkCompactCollector::IsConcurrentSweepingInProgress() {
 }
 
 
-void MarkCompactCollector::FinalizeSweeping() {
-  ASSERT(sweeping_pending_ == false);
-  ReleaseEvacuationCandidates();
-  heap()->FreeQueuedChunks();
-}
-
-
 void MarkCompactCollector::MarkInParallel() {
   for (int i = 0; i < FLAG_marking_threads; i++) {
     heap()->isolate()->marking_threads()[i]->StartMarking();
@@ -911,7 +904,6 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   if (IsConcurrentSweepingInProgress()) {
     // Instead of waiting we could also abort the sweeper threads here.
     WaitUntilSweepingCompleted();
-    FinalizeSweeping();
   }
 
   // Clear marking bits if incremental marking is aborted.
@@ -2849,6 +2841,7 @@ void MarkCompactCollector::EvacuatePages() {
           slots_buffer_allocator_.DeallocateChain(page->slots_buffer_address());
           page->ClearEvacuationCandidate();
           page->SetFlag(Page::RESCAN_ON_EVACUATION);
+          page->InsertAfter(static_cast<PagedSpace*>(page->owner())->anchor());
         }
         return;
       }
@@ -3309,6 +3302,18 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 }
 
 
+void MarkCompactCollector::UnlinkEvacuationCandidates() {
+  int npages = evacuation_candidates_.length();
+  for (int i = 0; i < npages; i++) {
+    Page* p = evacuation_candidates_[i];
+    if (!p->IsEvacuationCandidate()) continue;
+    p->Unlink();
+    p->ClearSweptPrecisely();
+    p->ClearSweptConservatively();
+  }
+}
+
+
 void MarkCompactCollector::ReleaseEvacuationCandidates() {
   int npages = evacuation_candidates_.length();
   for (int i = 0; i < npages; i++) {
@@ -3319,10 +3324,11 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
     p->set_scan_on_scavenge(false);
     slots_buffer_allocator_.DeallocateChain(p->slots_buffer_address());
     p->ResetLiveBytes();
-    space->ReleasePage(p);
+    space->ReleasePage(p, false);
   }
   evacuation_candidates_.Rewind(0);
   compacting_ = false;
+  heap()->FreeQueuedChunks();
 }
 
 
@@ -3770,17 +3776,15 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
     Page* p = it.next();
 
     ASSERT(p->parallel_sweeping() == 0);
+    ASSERT(!p->IsEvacuationCandidate());
+
     // Clear sweeping flags indicating that marking bits are still intact.
     p->ClearSweptPrecisely();
     p->ClearSweptConservatively();
 
-    if (p->IsEvacuationCandidate()) {
-      ASSERT(evacuation_candidates_.length() > 0);
-      continue;
-    }
-
     if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
       // Will be processed in EvacuateNewSpaceAndCandidates.
+      ASSERT(evacuation_candidates_.length() > 0);
       continue;
     }
 
@@ -3794,7 +3798,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         // Adjust unswept free bytes because releasing a page expects said
         // counter to be accurate for unswept pages.
         space->IncreaseUnsweptFreeBytes(p);
-        space->ReleasePage(p);
+        space->ReleasePage(p, true);
         continue;
       }
       unused_page_present = true;
@@ -3890,6 +3894,11 @@ void MarkCompactCollector::SweepSpaces() {
   if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
   if (FLAG_expose_gc) how_to_sweep = CONSERVATIVE;
   if (sweep_precisely_) how_to_sweep = PRECISE;
+
+  // Unlink evacuation candidates before sweeper threads access the list of
+  // pages to avoid race condition.
+  UnlinkEvacuationCandidates();
+
   // Noncompacting collections simply sweep the spaces to clear the mark
   // bits and free the nonlive blocks (for old and map spaces).  We sweep
   // the map space last because freeing non-live maps overwrites them and
@@ -3924,9 +3933,8 @@ void MarkCompactCollector::SweepSpaces() {
   // Deallocate unmarked objects and clear marked bits for marked objects.
   heap_->lo_space()->FreeUnmarkedObjects();
 
-  if (how_to_sweep != CONCURRENT_CONSERVATIVE) {
-    FinalizeSweeping();
-  }
+  // Deallocate evacuated candidate pages.
+  ReleaseEvacuationCandidates();
 }
 
 

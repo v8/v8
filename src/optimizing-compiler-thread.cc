@@ -68,14 +68,6 @@ void OptimizingCompilerThread::Run() {
 
     CompileNext();
 
-    if (!FLAG_manual_parallel_recompilation) {
-      isolate_->stack_guard()->RequestCodeReadyEvent();
-    } else {
-      // In manual mode, do not trigger a code ready event.
-      // Instead, wait for the optimized functions to be installed manually.
-      output_queue_semaphore_->Signal();
-    }
-
     if (FLAG_trace_parallel_recompilation) {
       time_spent_compiling_ += OS::Ticks() - compiling_start;
     }
@@ -89,11 +81,7 @@ void OptimizingCompilerThread::CompileNext() {
   input_queue_.Dequeue(&optimizing_compiler);
   Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(-1));
 
-  // Function may have been optimized meanwhile by OSR.
-  if (FLAG_use_osr &&
-      optimizing_compiler->info()->closure()->IsOptimized()) {
-    return;
-  }
+  ASSERT(optimizing_compiler->info()->closure()->IsInRecompileQueue());
 
   OptimizingCompiler::Status status = optimizing_compiler->OptimizeGraph();
   ASSERT(status != OptimizingCompiler::FAILED);
@@ -101,10 +89,21 @@ void OptimizingCompilerThread::CompileNext() {
   USE(status);
 
   output_queue_.Enqueue(optimizing_compiler);
+
+  // The execution thread can call InstallOptimizedFunctions() at any time,
+  // including at this point, after queuing for install and before marking
+  // for install.  To avoid race condition, functions that are queued but not
+  // yet marked for install are not processed by InstallOptimizedFunctions().
+
+  ASSERT(optimizing_compiler->info()->closure()->IsInRecompileQueue());
+  // Mark function to generate and install optimized code.  We assume this
+  // write to be atomic.
+  optimizing_compiler->info()->closure()->MarkForInstallingRecompiledCode();
 }
 
 
 void OptimizingCompilerThread::Stop() {
+  ASSERT(!IsOptimizerThread());
   Release_Store(&stop_thread_, static_cast<AtomicWord>(true));
   input_queue_semaphore_->Signal();
   stop_semaphore_->Wait();
@@ -133,44 +132,41 @@ void OptimizingCompilerThread::Stop() {
 
 
 void OptimizingCompilerThread::InstallOptimizedFunctions() {
+  ASSERT(!IsOptimizerThread());
   HandleScope handle_scope(isolate_);
   int functions_installed = 0;
   while (!output_queue_.IsEmpty()) {
-    if (FLAG_manual_parallel_recompilation) {
-      output_queue_semaphore_->Wait();
+    OptimizingCompiler* compiler = *output_queue_.Peek();
+
+    if (compiler->info()->closure()->IsInRecompileQueue()) {
+      // A function may be queued for install, but not marked as such yet.
+      // We continue with the output queue the next to avoid race condition.
+      break;
     }
-    OptimizingCompiler* compiler = NULL;
     output_queue_.Dequeue(&compiler);
+
+#ifdef DEBUG
+    // Create new closure handle since the deferred handle is about to die.
+    Handle<JSFunction> closure(*compiler->info()->closure());
+#endif  // DEBUG
+
     Compiler::InstallOptimizedCode(compiler);
+    // Assert that the marker builtin has been replaced by actual code.
+    ASSERT(!closure->IsInRecompileQueue());
     functions_installed++;
   }
-  if (FLAG_trace_parallel_recompilation && functions_installed != 0) {
-    PrintF("  ** Installed %d function(s).\n", functions_installed);
-  }
-}
-
-
-Handle<SharedFunctionInfo>
-    OptimizingCompilerThread::InstallNextOptimizedFunction() {
-  ASSERT(FLAG_manual_parallel_recompilation ||
-         FLAG_parallel_recompilation_delay != 0);
-  output_queue_semaphore_->Wait();
-  OptimizingCompiler* compiler = NULL;
-  output_queue_.Dequeue(&compiler);
-  // Copy a handle from deferred handle scope to the normal handle scope.
-  Handle<SharedFunctionInfo> shared(*compiler->info()->shared_info());
-  Compiler::InstallOptimizedCode(compiler);
-  return shared;
 }
 
 
 void OptimizingCompilerThread::QueueForOptimization(
     OptimizingCompiler* optimizing_compiler) {
   ASSERT(IsQueueAvailable());
+  ASSERT(!IsOptimizerThread());
   Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(1));
   input_queue_.Enqueue(optimizing_compiler);
   input_queue_semaphore_->Signal();
 }
+
 
 #ifdef DEBUG
 bool OptimizingCompilerThread::IsOptimizerThread() {

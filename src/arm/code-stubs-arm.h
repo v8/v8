@@ -638,7 +638,8 @@ class FloatingPointHelper : public AllStatic {
                                    Register scratch1,
                                    Register scratch2,
                                    Register scratch3,
-                                   DwVfpRegister double_scratch,
+                                   DwVfpRegister double_scratch1,
+                                   DwVfpRegister double_scratch2,
                                    Label* not_int32);
 
   // Converts the integer (untagged smi) in |int_scratch| to a double, storing

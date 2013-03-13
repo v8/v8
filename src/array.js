@@ -1553,6 +1553,7 @@ function SetUpArray() {
   // exposed to user code.
   // Adding only the functions that are actually used.
   SetUpLockedPrototype(InternalArray, $Array(), $Array(
+    "concat", getFunction("concat", ArrayConcat),
     "indexOf", getFunction("indexOf", ArrayIndexOf),
     "join", getFunction("join", ArrayJoin),
     "pop", getFunction("pop", ArrayPop),

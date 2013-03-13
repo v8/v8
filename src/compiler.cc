@@ -33,6 +33,7 @@
 #include "codegen.h"
 #include "compilation-cache.h"
 #include "debug.h"
+#include "deoptimizer.h"
 #include "full-codegen.h"
 #include "gdb-jit.h"
 #include "hydrogen.h"
@@ -900,7 +901,6 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
 
 void Compiler::RecompileParallel(Handle<JSFunction> closure) {
-  if (closure->IsInRecompileQueue()) return;
   ASSERT(closure->IsMarkedForParallelRecompilation());
 
   Isolate* isolate = closure->GetIsolate();
@@ -928,8 +928,7 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
   {
     CompilationHandleScope handle_scope(*info);
 
-    if (!FLAG_manual_parallel_recompilation &&
-        InstallCodeFromOptimizedCodeMap(*info)) {
+    if (InstallCodeFromOptimizedCodeMap(*info)) {
       return;
     }
 
@@ -944,11 +943,10 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
             new(info->zone()) OptimizingCompiler(*info);
         OptimizingCompiler::Status status = compiler->CreateGraph();
         if (status == OptimizingCompiler::SUCCEEDED) {
-          isolate->optimizing_compiler_thread()->QueueForOptimization(compiler);
+          closure->MarkInRecompileQueue();
           shared->code()->set_profiler_ticks(0);
-          closure->ReplaceCode(isolate->builtins()->builtin(
-              Builtins::kInRecompileQueue));
           info.Detach();
+          isolate->optimizing_compiler_thread()->QueueForOptimization(compiler);
         } else if (status == OptimizingCompiler::BAILED_OUT) {
           isolate->clear_pending_exception();
           InstallFullCode(*info);
@@ -957,24 +955,27 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
     }
   }
 
-  if (isolate->has_pending_exception()) {
-    isolate->clear_pending_exception();
+  if (shared->code()->stack_check_patched_for_osr()) {
+    // At this point we either put the function on recompilation queue or
+    // aborted optimization.  In either case we want to continue executing
+    // the unoptimized code without running into OSR.  If the unoptimized
+    // code has been patched for OSR, unpatch it.
+    InterruptStub interrupt_stub;
+    Handle<Code> check_code = interrupt_stub.GetCode(isolate);
+    Handle<Code> replacement_code =
+        isolate->builtins()->OnStackReplacement();
+    Deoptimizer::RevertStackCheckCode(shared->code(),
+                                      *check_code,
+                                      *replacement_code);
   }
+
+  if (isolate->has_pending_exception()) isolate->clear_pending_exception();
 }
 
 
 void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
-  // Function may have been optimized meanwhile by OSR.
-  if (FLAG_use_osr) {
-    // Function may have already been optimized meanwhile by OSR.
-    if (!info->code().is_null() &&
-        info->code()->kind() == Code::OPTIMIZED_FUNCTION) {
-      return;
-    }
-    // OSR may also have caused optimization to be disabled.
-    if (info->shared_info()->optimization_disabled()) return;
-  }
+  ASSERT(info->closure()->IsMarkedForInstallingRecompiledCode());
 
   Isolate* isolate = info->isolate();
   VMState state(isolate, PARALLEL_COMPILER);
@@ -1002,10 +1003,18 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
             info->closure()->context()->native_context()) == -1) {
       InsertCodeIntoOptimizedCodeMap(*info);
     }
+    if (FLAG_trace_parallel_recompilation) {
+      PrintF("  ** Optimized code for ");
+      info->closure()->PrintName();
+      PrintF(" installed.\n");
+    }
   } else {
     info->SetCode(Handle<Code>(info->shared_info()->code()));
     InstallFullCode(*info);
   }
+  // Optimized code is finally replacing unoptimized code.  Reset the latter's
+  // profiler ticks to prevent too soon re-opt after a deopt.
+  info->shared_info()->code()->set_profiler_ticks(0);
 }
 
 

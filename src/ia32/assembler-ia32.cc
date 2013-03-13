@@ -1425,7 +1425,11 @@ void Assembler::call(byte* entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   ASSERT(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
-  emit(entry - (pc_ + sizeof(int32_t)), rmode);
+  if (RelocInfo::IsRuntimeEntry(rmode)) {
+    emit(reinterpret_cast<uint32_t>(entry), rmode);
+  } else {
+    emit(entry - (pc_ + sizeof(int32_t)), rmode);
+  }
 }
 
 
@@ -1490,7 +1494,11 @@ void Assembler::jmp(byte* entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   ASSERT(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE9);
-  emit(entry - (pc_ + sizeof(int32_t)), rmode);
+  if (RelocInfo::IsRuntimeEntry(rmode)) {
+    emit(reinterpret_cast<uint32_t>(entry), rmode);
+  } else {
+    emit(entry - (pc_ + sizeof(int32_t)), rmode);
+  }
 }
 
 
@@ -1547,7 +1555,11 @@ void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode) {
   // 0000 1111 1000 tttn #32-bit disp.
   EMIT(0x0F);
   EMIT(0x80 | cc);
-  emit(entry - (pc_ + sizeof(int32_t)), rmode);
+  if (RelocInfo::IsRuntimeEntry(rmode)) {
+    emit(reinterpret_cast<uint32_t>(entry), rmode);
+  } else {
+    emit(entry - (pc_ + sizeof(int32_t)), rmode);
+  }
 }
 
 
@@ -2564,10 +2576,7 @@ void Assembler::GrowBuffer() {
   // Relocate runtime entries.
   for (RelocIterator it(desc); !it.done(); it.next()) {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
-    if (rmode == RelocInfo::RUNTIME_ENTRY) {
-      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
-      *p -= pc_delta;  // relocate entry
-    } else if (rmode == RelocInfo::INTERNAL_REFERENCE) {
+    if (rmode == RelocInfo::INTERNAL_REFERENCE) {
       int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
       if (*p != 0) {  // 0 means uninitialized.
         *p += pc_delta;

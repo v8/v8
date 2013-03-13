@@ -1453,7 +1453,7 @@ MaybeObject* JSObject::ResetElements() {
   if (map()->is_observed()) {
     // Maintain invariant that observed elements are always in dictionary mode.
     SeededNumberDictionary* dictionary;
-    MaybeObject* maybe = SeededNumberDictionary::Allocate(0);
+    MaybeObject* maybe = SeededNumberDictionary::Allocate(GetHeap(), 0);
     if (!maybe->To(&dictionary)) return maybe;
     if (map() == GetHeap()->non_strict_arguments_elements_map()) {
       FixedArray::cast(elements())->set(1, dictionary);
@@ -1563,6 +1563,10 @@ int JSObject::GetHeaderSize() {
       return JSDate::kSize;
     case JS_ARRAY_TYPE:
       return JSArray::kSize;
+    case JS_SET_TYPE:
+      return JSSet::kSize;
+    case JS_MAP_TYPE:
+      return JSMap::kSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kSize;
     case JS_REGEXP_TYPE:
@@ -3764,6 +3768,22 @@ void Code::set_stack_check_table_offset(unsigned offset) {
 }
 
 
+bool Code::stack_check_patched_for_osr() {
+  ASSERT_EQ(FUNCTION, kind());
+  return StackCheckPatchedForOSRField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
+}
+
+
+void Code::set_stack_check_patched_for_osr(bool value) {
+  ASSERT_EQ(FUNCTION, kind());
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  int updated = StackCheckPatchedForOSRField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
+}
+
+
+
 CheckType Code::check_type() {
   ASSERT(is_call_stub() || is_keyed_call_stub());
   byte type = READ_BYTE_FIELD(this, kCheckTypeOffset);
@@ -4296,6 +4316,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
                kIsTopLevelBit)
+
 BOOL_GETTER(SharedFunctionInfo,
             compiler_hints,
             has_only_simple_this_property_assignments,
@@ -4702,9 +4723,15 @@ bool JSFunction::IsMarkedForLazyRecompilation() {
 }
 
 
+bool JSFunction::IsMarkedForInstallingRecompiledCode() {
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kInstallRecompiledCode);
+}
+
+
 bool JSFunction::IsMarkedForParallelRecompilation() {
-  return code() ==
-      GetIsolate()->builtins()->builtin(Builtins::kParallelRecompile);
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kParallelRecompile);
 }
 
 
@@ -4733,6 +4760,13 @@ void JSFunction::set_code(Code* value) {
       this,
       HeapObject::RawField(this, kCodeEntryOffset),
       value);
+}
+
+
+void JSFunction::set_code_no_write_barrier(Code* value) {
+  ASSERT(!HEAP->InNewSpace(value));
+  Address entry = value->entry();
+  WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
 }
 
 
@@ -5626,8 +5660,8 @@ uint32_t SeededNumberDictionaryShape::SeededHashForObject(uint32_t key,
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), seed);
 }
 
-MaybeObject* NumberDictionaryShape::AsObject(uint32_t key) {
-  return Isolate::Current()->heap()->NumberFromUint32(key);
+MaybeObject* NumberDictionaryShape::AsObject(Heap* heap, uint32_t key) {
+  return heap->NumberFromUint32(key);
 }
 
 
@@ -5649,7 +5683,7 @@ uint32_t NameDictionaryShape::HashForObject(Name* key, Object* other) {
 }
 
 
-MaybeObject* NameDictionaryShape::AsObject(Name* key) {
+MaybeObject* NameDictionaryShape::AsObject(Heap* heap, Name* key) {
   return key;
 }
 
@@ -5676,7 +5710,8 @@ uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
 
 
 template <int entrysize>
-MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Object* key) {
+MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Heap* heap,
+                                                       Object* key) {
   return key;
 }
 

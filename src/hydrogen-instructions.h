@@ -1478,11 +1478,12 @@ class HCompareMap: public HUnaryControlInstruction {
 };
 
 
-class HReturn: public HTemplateControlInstruction<0, 2> {
+class HReturn: public HTemplateControlInstruction<0, 3> {
  public:
-  HReturn(HValue* value, HValue* context) {
+  HReturn(HValue* value, HValue* context, HValue* parameter_count) {
     SetOperandAt(0, value);
     SetOperandAt(1, context);
+    SetOperandAt(2, parameter_count);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -1493,6 +1494,7 @@ class HReturn: public HTemplateControlInstruction<0, 2> {
 
   HValue* value() { return OperandAt(0); }
   HValue* context() { return OperandAt(1); }
+  HValue* parameter_count() { return OperandAt(2); }
 
   DECLARE_CONCRETE_INSTRUCTION(Return)
 };

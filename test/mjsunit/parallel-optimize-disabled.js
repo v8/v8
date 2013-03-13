@@ -39,8 +39,8 @@ function f(x) {
 
 f();
 f();
-%OptimizeFunctionOnNextCall(g, "parallel");
 %OptimizeFunctionOnNextCall(f);
+%OptimizeFunctionOnNextCall(g, "parallel");
 f(0);  // g() is disabled for optimization on inlining attempt.
-g();  // Attempt to optimize g() should not run into any assertion.
-
+// Attempt to optimize g() should not run into any assertion.
+%WaitUntilOptimized(g);

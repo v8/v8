@@ -2950,11 +2950,19 @@ void LCodeGen::DoReturn(LReturn* instr) {
     }
   }
   if (NeedsEagerFrame()) {
-    int32_t sp_delta = (GetParameterCount() + 1) * kPointerSize;
     __ mov(sp, fp);
     __ ldm(ia_w, sp, fp.bit() | lr.bit());
-    if (!info()->IsStub()) {
-      __ add(sp, sp, Operand(sp_delta));
+
+    if (instr->has_constant_parameter_count()) {
+      int parameter_count = ToInteger32(instr->constant_parameter_count());
+      int32_t sp_delta = (parameter_count + 1) * kPointerSize;
+      if (sp_delta != 0) {
+        __ add(sp, sp, Operand(sp_delta));
+      }
+    } else {
+      Register reg = ToRegister(instr->parameter_count());
+      __ add(reg, reg, Operand(1));
+      __ add(sp, sp, Operand(reg, LSL, kPointerSizeLog2));
     }
   }
   __ Jump(lr);
@@ -5246,12 +5254,8 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ sub(scratch1, input_reg, Operand(kHeapObjectTag));
     __ vldr(double_scratch2, scratch1, HeapNumber::kValueOffset);
 
-    __ EmitECMATruncate(input_reg,
-                        double_scratch2,
-                        double_scratch,
-                        scratch1,
-                        scratch2,
-                        scratch3);
+    __ ECMAToInt32VFP(input_reg, double_scratch2, double_scratch,
+                      scratch1, scratch2, scratch3);
 
   } else {
     CpuFeatureScope scope(masm(), VFP3);
@@ -5349,12 +5353,8 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
-    __ EmitECMATruncate(result_reg,
-                        double_input,
-                        double_scratch,
-                        scratch1,
-                        scratch2,
-                        scratch3);
+    __ ECMAToInt32VFP(result_reg, double_input, double_scratch,
+                      scratch1, scratch2, scratch3);
   } else {
     __ TryDoubleToInt32Exact(result_reg, double_input, double_scratch);
     // Deoptimize if the input wasn't a int32 (inside a double).

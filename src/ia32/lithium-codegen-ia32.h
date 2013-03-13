@@ -190,7 +190,6 @@ class LCodeGen BASE_EMBEDDED {
                        Register temporary2);
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
-  int GetParameterCount() const { return info()->num_parameters(); }
 
   void Abort(const char* reason);
   void Comment(const char* format, ...);
@@ -364,6 +363,8 @@ class LCodeGen BASE_EMBEDDED {
   void DoStoreKeyedExternalArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedArray(LStoreKeyed* instr);
+
+  void EmitReturn(LReturn* instr, bool dynamic_frame_alignment);
 
   // Emits code for pushing either a tagged constant, a (non-double)
   // register, or a stack slot operand.

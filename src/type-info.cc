@@ -62,10 +62,10 @@ TypeInfo TypeInfo::TypeFromValue(Handle<Object> value) {
 TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
                                        Handle<Context> native_context,
                                        Isolate* isolate,
-                                       Zone* zone) {
-  native_context_ = native_context;
-  isolate_ = isolate;
-  zone_ = zone;
+                                       Zone* zone)
+    : native_context_(native_context),
+      isolate_(isolate),
+      zone_(zone) {
   BuildDictionary(code);
   ASSERT(reinterpret_cast<Address>(*dictionary_.location()) != kHandleZapValue);
 }
@@ -167,7 +167,7 @@ bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
   if (info->IsSmi()) {
     ASSERT(static_cast<ElementsKind>(Smi::cast(*info)->value()) <=
            LAST_FAST_ELEMENTS_KIND);
-    return Isolate::Current()->global_context()->array_function();
+    return isolate_->global_context()->array_function();
   }
   return info->IsJSFunction();
 }
@@ -310,8 +310,7 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
   if (info->IsSmi()) {
     ASSERT(static_cast<ElementsKind>(Smi::cast(*info)->value()) <=
            LAST_FAST_ELEMENTS_KIND);
-    return Handle<JSFunction>(Isolate::Current()->global_context()->
-                              array_function());
+    return Handle<JSFunction>(isolate_->global_context()->array_function());
   } else {
     return Handle<JSFunction>::cast(info);
   }
@@ -638,7 +637,7 @@ byte TypeFeedbackOracle::ToBooleanTypes(TypeFeedbackId ast_id) {
 void TypeFeedbackOracle::BuildDictionary(Handle<Code> code) {
   AssertNoAllocation no_allocation;
   ZoneList<RelocInfo> infos(16, zone());
-  HandleScope scope(code->GetIsolate());
+  HandleScope scope(isolate_);
   GetRelocInfos(code, &infos);
   CreateDictionary(code, &infos);
   ProcessRelocInfos(&infos);

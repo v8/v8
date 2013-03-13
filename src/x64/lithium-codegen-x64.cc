@@ -353,9 +353,9 @@ bool LCodeGen::GenerateJumpTable() {
       }
     } else {
       if (is_lazy_deopt) {
-        __ Call(entry, RelocInfo::RUNTIME_ENTRY);
+        __ call(entry, RelocInfo::RUNTIME_ENTRY);
       } else {
-        __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+        __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
       }
     }
   }
@@ -754,9 +754,9 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   bool needs_lazy_deopt = info()->IsStub();
   if (cc == no_condition && frame_is_built_) {
     if (needs_lazy_deopt) {
-      __ Call(entry, RelocInfo::RUNTIME_ENTRY);
+      __ call(entry, RelocInfo::RUNTIME_ENTRY);
     } else {
-      __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+      __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
     }
   } else {
     // We often have several deopts to the same entry, reuse the last
@@ -1643,7 +1643,8 @@ void LCodeGen::DoDateField(LDateField* instr) {
   } else {
     if (index->value() < JSDate::kFirstUncachedField) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
-      __ movq(kScratchRegister, stamp);
+      Operand stamp_operand = __ ExternalOperand(stamp);
+      __ movq(kScratchRegister, stamp_operand);
       __ cmpq(kScratchRegister, FieldOperand(object,
                                              JSDate::kCacheStampOffset));
       __ j(not_equal, &runtime, Label::kNear);
@@ -2558,10 +2559,16 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ movq(rsp, rbp);
     __ pop(rbp);
   }
-  if (info()->IsStub()) {
-    __ Ret(0, r10);
+  if (instr->has_constant_parameter_count()) {
+    __ Ret((ToInteger32(instr->constant_parameter_count()) + 1) * kPointerSize,
+           rcx);
   } else {
-    __ Ret((GetParameterCount() + 1) * kPointerSize, rcx);
+    Register reg = ToRegister(instr->parameter_count());
+    Register return_addr_reg = reg.is(rcx) ? rbx : rcx;
+    __ pop(return_addr_reg);
+    __ shl(reg, Immediate(kPointerSizeLog2));
+    __ addq(rsp, reg);
+    __ jmp(return_addr_reg);
   }
 }
 

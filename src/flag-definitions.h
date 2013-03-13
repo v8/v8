@@ -246,13 +246,10 @@ DEFINE_bool(opt_safe_uint32_operations, true,
 DEFINE_bool(parallel_recompilation, false,
             "optimizing hot functions asynchronously on a separate thread")
 DEFINE_bool(trace_parallel_recompilation, false, "track parallel recompilation")
-DEFINE_int(parallel_recompilation_queue_length, 2,
+DEFINE_int(parallel_recompilation_queue_length, 3,
            "the length of the parallel compilation queue")
 DEFINE_int(parallel_recompilation_delay, 0,
            "artificial compilation delay in ms")
-DEFINE_bool(manual_parallel_recompilation, false,
-            "disable automatic optimization")
-DEFINE_implication(manual_parallel_recompilation, parallel_recompilation)
 DEFINE_bool(omit_prototype_checks_for_leaf_maps, true,
             "do not emit prototype checks if all prototypes have leaf maps, "
             "deoptimize the optimized code if the layout of the maps changes.")
