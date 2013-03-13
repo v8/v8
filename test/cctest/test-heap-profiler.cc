@@ -1726,3 +1726,46 @@ TEST(MapHasDescriptorsAndTransitions) {
       map, v8::HeapGraphEdge::kInternal, "transitions");
   CHECK_EQ(NULL, own_transitions);
 }
+
+
+TEST(ManyLocalsInSharedContext) {
+  v8::HandleScope scope;
+  LocalContext env;
+  int num_objects = 5000;
+  CompileRun(
+      "var n = 5000;"
+      "var result = [];"
+      "result.push('(function outer() {');"
+      "for (var i = 0; i < n; i++) {"
+      "    var f = 'function f_' + i + '() { ';"
+      "    if (i > 0)"
+      "        f += 'f_' + (i - 1) + '();';"
+      "    f += ' }';"
+      "    result.push(f);"
+      "}"
+      "result.push('return f_' + (n - 1) + ';');"
+      "result.push('})()');"
+      "var ok = eval(result.join('\\n'));");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("snapshot"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  const v8::HeapGraphNode* ok_object =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "ok");
+  CHECK_NE(NULL, ok_object);
+  const v8::HeapGraphNode* context_object =
+      GetProperty(ok_object, v8::HeapGraphEdge::kInternal, "context");
+  CHECK_NE(NULL, context_object);
+  // Check the objects are not duplicated in the context.
+  CHECK_EQ(v8::internal::Context::MIN_CONTEXT_SLOTS + num_objects - 1,
+           context_object->GetChildrenCount());
+  // Check all the objects have got their names.
+  // ... well check just every 8th because otherwise it's too slow in debug.
+  for (int i = 0; i < num_objects - 1; i += 8) {
+    char var_name[100];
+    snprintf(var_name, sizeof(var_name), "f_%d", i);
+    const v8::HeapGraphNode* f_object = GetProperty(
+        context_object, v8::HeapGraphEdge::kContextVariable, var_name);
+    CHECK_NE(NULL, f_object);
+  }
+}
