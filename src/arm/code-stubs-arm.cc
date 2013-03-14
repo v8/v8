@@ -166,12 +166,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ pop(r3);
 
   // Attempt to allocate new JSFunction in new space.
-  __ AllocateInNewSpace(JSFunction::kSize,
-                        r0,
-                        r1,
-                        r2,
-                        &gc,
-                        TAG_OBJECT);
+  __ Allocate(JSFunction::kSize, r0, r1, r2, &gc, TAG_OBJECT);
 
   __ IncrementCounter(counters->fast_new_closure_total(), 1, r6, r7);
 
@@ -298,12 +293,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   int length = slots_ + Context::MIN_CONTEXT_SLOTS;
 
   // Attempt to allocate the context in new space.
-  __ AllocateInNewSpace(FixedArray::SizeFor(length),
-                        r0,
-                        r1,
-                        r2,
-                        &gc,
-                        TAG_OBJECT);
+  __ Allocate(FixedArray::SizeFor(length), r0, r1, r2, &gc, TAG_OBJECT);
 
   // Load the function from the stack.
   __ ldr(r3, MemOperand(sp, 0));
@@ -348,8 +338,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Try to allocate the context in new space.
   Label gc;
   int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ AllocateInNewSpace(FixedArray::SizeFor(length),
-                        r0, r1, r2, &gc, TAG_OBJECT);
+  __ Allocate(FixedArray::SizeFor(length), r0, r1, r2, &gc, TAG_OBJECT);
 
   // Load the function from the stack.
   __ ldr(r3, MemOperand(sp, 0));
@@ -435,7 +424,7 @@ static void GenerateFastCloneShallowArrayCommon(
   if (mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS) {
     flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT | flags);
   }
-  __ AllocateInNewSpace(size, r0, r1, r2, fail, flags);
+  __ Allocate(size, r0, r1, r2, fail, flags);
 
   if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
     __ mov(r2, Operand(Handle<Map>(masm->isolate()->heap()->

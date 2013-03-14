@@ -145,7 +145,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   Counters* counters = masm->isolate()->counters();
 
   Label gc;
-  __ AllocateInNewSpace(JSFunction::kSize, eax, ebx, ecx, &gc, TAG_OBJECT);
+  __ Allocate(JSFunction::kSize, eax, ebx, ecx, &gc, TAG_OBJECT);
 
   __ IncrementCounter(counters->fast_new_closure_total(), 1);
 
@@ -273,8 +273,8 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Try to allocate the context in new space.
   Label gc;
   int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ AllocateInNewSpace((length * kPointerSize) + FixedArray::kHeaderSize,
-                        eax, ebx, ecx, &gc, TAG_OBJECT);
+  __ Allocate((length * kPointerSize) + FixedArray::kHeaderSize,
+              eax, ebx, ecx, &gc, TAG_OBJECT);
 
   // Get the function from the stack.
   __ mov(ecx, Operand(esp, 1 * kPointerSize));
@@ -321,8 +321,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Try to allocate the context in new space.
   Label gc;
   int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ AllocateInNewSpace(FixedArray::SizeFor(length),
-                        eax, ebx, ecx, &gc, TAG_OBJECT);
+  __ Allocate(FixedArray::SizeFor(length), eax, ebx, ecx, &gc, TAG_OBJECT);
 
   // Get the function or sentinel from the stack.
   __ mov(ecx, Operand(esp, 1 * kPointerSize));
@@ -414,7 +413,7 @@ static void GenerateFastCloneShallowArrayCommon(
   if (mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS) {
     flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT | flags);
   }
-  __ AllocateInNewSpace(size, eax, ebx, edx, fail, flags);
+  __ Allocate(size, eax, ebx, edx, fail, flags);
 
   if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
     __ mov(FieldOperand(eax, allocation_info_start),

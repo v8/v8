@@ -2051,6 +2051,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 // Test pretenuring of array literals allocated with HAllocate.
 TEST(OptimizedPretenuringArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_pretenure_literals = true;
   InitializeVM();
   if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2059,23 +2060,18 @@ TEST(OptimizedPretenuringArrayLiterals) {
   AlwaysAllocateScope always_allocate;
   v8::Local<v8::Value> res = CompileRun(
       "function f() {"
-      "  var numbers = new Array(1, 2, 3);"
-      "  numbers[0] = 3.14;"
+      "  var numbers = [1, 2, 3];"
+      "  numbers[0] = {};"
       "  return numbers;"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
       "f();");
-  CHECK_EQ(static_cast<int>(3.14),
-           v8::Object::Cast(*res)->Get(v8_str("0"))->Int32Value());
 
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
-  // TODO(hpayer): remove InNewSpace check and test if object was allocated
-  // in old pointer space.
-  CHECK(!HEAP->InOldPointerSpace(*o));
-  CHECK(HEAP->InNewSpace(*o));
+  CHECK(HEAP->InOldPointerSpace(o->elements()));
 }
 
 
@@ -2103,7 +2099,7 @@ TEST(OptimizedAllocationArrayLiterals) {
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
-  CHECK(HEAP->InNewSpace(*o));
+  CHECK(HEAP->InNewSpace(o->elements()));
 }
 
 

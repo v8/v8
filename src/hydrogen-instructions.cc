@@ -2669,6 +2669,7 @@ HType HAllocate::CalculateInferredType() {
 
 void HAllocate::PrintDataTo(StringStream* stream) {
   size()->PrintNameTo(stream);
+  if (!GuaranteedInNewSpace()) stream->Add(" (pretenure)");
 }
 
 

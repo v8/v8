@@ -590,6 +590,13 @@ class Heap {
     return new_space_.allocation_limit_address();
   }
 
+  Address* OldPointerSpaceAllocationTopAddress() {
+    return old_pointer_space_->allocation_top_address();
+  }
+  Address* OldPointerSpaceAllocationLimitAddress() {
+    return old_pointer_space_->allocation_limit_address();
+  }
+
   // Uncommit unused semi space.
   bool UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
 

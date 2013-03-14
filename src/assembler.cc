@@ -1188,6 +1188,20 @@ ExternalReference ExternalReference::new_space_allocation_limit_address(
 }
 
 
+ExternalReference ExternalReference::old_pointer_space_allocation_top_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->heap()->OldPointerSpaceAllocationTopAddress());
+}
+
+
+ExternalReference ExternalReference::old_pointer_space_allocation_limit_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->heap()->OldPointerSpaceAllocationLimitAddress());
+}
+
+
 ExternalReference ExternalReference::handle_scope_level_address(
     Isolate* isolate) {
   return ExternalReference(HandleScope::current_level_address(isolate));

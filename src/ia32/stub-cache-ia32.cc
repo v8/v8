@@ -3067,8 +3067,8 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   __ cmp(ecx, Immediate(instance_size));
   __ Check(equal, "Instance size of initial map changed.");
 #endif
-  __ AllocateInNewSpace(instance_size, edx, ecx, no_reg,
-                        &generic_stub_call, NO_ALLOCATION_FLAGS);
+  __ Allocate(instance_size, edx, ecx, no_reg, &generic_stub_call,
+              NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
   // ebx: initial map
@@ -3529,7 +3529,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     __ j(not_equal, &check_capacity);
 
     int size = FixedArray::SizeFor(JSArray::kPreallocatedArrayElements);
-    __ AllocateInNewSpace(size, edi, ebx, ecx, &prepare_slow, TAG_OBJECT);
+    __ Allocate(size, edi, ebx, ecx, &prepare_slow, TAG_OBJECT);
     // Restore the key, which is known to be the array length.
 
     // eax: value
@@ -3661,7 +3661,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ j(not_equal, &check_capacity);
 
     int size = FixedDoubleArray::SizeFor(JSArray::kPreallocatedArrayElements);
-    __ AllocateInNewSpace(size, edi, ebx, ecx, &prepare_slow, TAG_OBJECT);
+    __ Allocate(size, edi, ebx, ecx, &prepare_slow, TAG_OBJECT);
 
     // Restore the key, which is known to be the array length.
     __ mov(ecx, Immediate(0));

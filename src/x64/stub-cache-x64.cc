@@ -2896,8 +2896,8 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   __ cmpq(rcx, Immediate(instance_size));
   __ Check(equal, "Instance size of initial map changed.");
 #endif
-  __ AllocateInNewSpace(instance_size, rdx, rcx, no_reg,
-                        &generic_stub_call, NO_ALLOCATION_FLAGS);
+  __ Allocate(instance_size, rdx, rcx, no_reg, &generic_stub_call,
+              NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
   // rbx: initial map
@@ -3319,7 +3319,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     __ j(not_equal, &check_capacity);
 
     int size = FixedArray::SizeFor(JSArray::kPreallocatedArrayElements);
-    __ AllocateInNewSpace(size, rdi, rbx, r8, &slow, TAG_OBJECT);
+    __ Allocate(size, rdi, rbx, r8, &slow, TAG_OBJECT);
 
     // rax: value
     // rcx: key
@@ -3449,7 +3449,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ j(not_equal, &check_capacity);
 
     int size = FixedDoubleArray::SizeFor(JSArray::kPreallocatedArrayElements);
-    __ AllocateInNewSpace(size, rdi, rbx, r8, &slow, TAG_OBJECT);
+    __ Allocate(size, rdi, rbx, r8, &slow, TAG_OBJECT);
 
     // rax: value
     // rcx: key
