@@ -946,7 +946,6 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
           // Do a scavenge to put off the next scavenge as far as possible.
           // This may ease the issue that GVN blocks the next scavenge.
           isolate->heap()->CollectGarbage(NEW_SPACE, "parallel recompile");
-          closure->MarkInRecompileQueue();
           shared->code()->set_profiler_ticks(0);
           info.Detach();
           isolate->optimizing_compiler_thread()->QueueForOptimization(compiler);
@@ -978,12 +977,17 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
 
 void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
-  ASSERT(info->closure()->IsMarkedForInstallingRecompiledCode());
-  // While waiting for the optimizer thread, OSR may have already done all
-  // the work and disabled optimization of this function for some reason.
+  // The function may have already been optimized by OSR.  Simply continue.
+  // Except when OSR already disabled optimization for some reason.
   if (info->shared_info()->optimization_disabled()) {
     info->SetCode(Handle<Code>(info->shared_info()->code()));
     InstallFullCode(*info);
+    if (FLAG_trace_parallel_recompilation) {
+      PrintF("  ** aborting optimization for ");
+      info->closure()->PrintName();
+      PrintF(" as it has been disabled.\n");
+    }
+    ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
     return;
   }
 
@@ -1025,6 +1029,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // Optimized code is finally replacing unoptimized code.  Reset the latter's
   // profiler ticks to prevent too soon re-opt after a deopt.
   info->shared_info()->code()->set_profiler_ticks(0);
+  ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
 }
 
 

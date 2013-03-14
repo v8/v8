@@ -80,24 +80,16 @@ void OptimizingCompilerThread::CompileNext() {
   input_queue_.Dequeue(&optimizing_compiler);
   Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(-1));
 
-  ASSERT(optimizing_compiler->info()->closure()->IsInRecompileQueue());
-
+  // The function may have already been optimized by OSR.  Simply continue.
   OptimizingCompiler::Status status = optimizing_compiler->OptimizeGraph();
+  USE(status);   // Prevent an unused-variable error in release mode.
   ASSERT(status != OptimizingCompiler::FAILED);
-  // Prevent an unused-variable error in release mode.
-  USE(status);
 
-  output_queue_.Enqueue(optimizing_compiler);
-
-  // The execution thread can call InstallOptimizedFunctions() at any time,
-  // including at this point, after queuing for install and before marking
-  // for install.  To avoid race condition, functions that are queued but not
-  // yet marked for install are not processed by InstallOptimizedFunctions().
-
-  ASSERT(optimizing_compiler->info()->closure()->IsInRecompileQueue());
-  // Mark function to generate and install optimized code.  We assume this
-  // write to be atomic.
+  // The function may have already been optimized by OSR.  Simply continue.
+  // Mark it for installing before queuing so that we can be sure of the write
+  // order: marking first and (after being queued) installing code second.
   optimizing_compiler->info()->closure()->MarkForInstallingRecompiledCode();
+  output_queue_.Enqueue(optimizing_compiler);
 }
 
 
@@ -108,10 +100,6 @@ void OptimizingCompilerThread::Stop() {
   stop_semaphore_->Wait();
 
   if (FLAG_parallel_recompilation_delay != 0) {
-    // Execution ended before we managed to compile and install the remaining
-    // functions in the queue.  We still want to do that for debugging though.
-    // At this point the optimizing thread already stopped, so we finish
-    // processing the queue in the main thread.
     InstallOptimizedFunctions();
     // Barrier when loading queue length is not necessary since the write
     // happens in CompileNext on the same thread.
@@ -135,23 +123,9 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
   HandleScope handle_scope(isolate_);
   int functions_installed = 0;
   while (!output_queue_.IsEmpty()) {
-    OptimizingCompiler* compiler = *output_queue_.Peek();
-
-    if (compiler->info()->closure()->IsInRecompileQueue()) {
-      // A function may be queued for install, but not marked as such yet.
-      // We continue with the output queue the next to avoid race condition.
-      break;
-    }
+    OptimizingCompiler* compiler;
     output_queue_.Dequeue(&compiler);
-
-#ifdef DEBUG
-    // Create new closure handle since the deferred handle is about to die.
-    Handle<JSFunction> closure(*compiler->info()->closure());
-#endif  // DEBUG
-
     Compiler::InstallOptimizedCode(compiler);
-    // Assert that the marker builtin has been replaced by actual code.
-    ASSERT(!closure->IsInRecompileQueue());
     functions_installed++;
   }
 }
@@ -162,6 +136,7 @@ void OptimizingCompilerThread::QueueForOptimization(
   ASSERT(IsQueueAvailable());
   ASSERT(!IsOptimizerThread());
   Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(1));
+  optimizing_compiler->info()->closure()->MarkInRecompileQueue();
   input_queue_.Enqueue(optimizing_compiler);
   input_queue_semaphore_->Signal();
 }

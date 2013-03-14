@@ -7729,7 +7729,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (!AllowOptimization(isolate, function)) {
     function->ReplaceCode(function->shared()->code());
-    return function->code();
+    return isolate->heap()->undefined_value();
   }
   function->shared()->code()->set_profiler_ticks(0);
   ASSERT(FLAG_parallel_recompilation);
@@ -7742,10 +7742,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
   HandleScope handle_scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (!V8::UseCrankshaft()) return isolate->heap()->undefined_value();
-  ASSERT(FLAG_parallel_recompilation);
+  ASSERT(V8::UseCrankshaft() && FLAG_parallel_recompilation);
   OptimizingCompilerThread* opt_thread = isolate->optimizing_compiler_thread();
-  opt_thread->InstallOptimizedFunctions();
+  do {
+    // The function could have been marked for installing, but not queued just
+    // yet.  In this case, retry until installed.
+    opt_thread->InstallOptimizedFunctions();
+  } while (function->IsMarkedForInstallingRecompiledCode());
   return function->code();
 }
 
