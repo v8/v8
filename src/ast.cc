@@ -1007,11 +1007,6 @@ CaseClause::CaseClause(Isolate* isolate,
     add_flag(kDontInline); \
     add_flag(kDontSelfOptimize); \
   }
-#define DONT_INLINE_NODE(NodeType) \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_flag(kDontInline); \
-  }
 #define DONT_SELFOPTIMIZE_NODE(NodeType) \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
@@ -1038,6 +1033,7 @@ REGULAR_NODE(ReturnStatement)
 REGULAR_NODE(SwitchStatement)
 REGULAR_NODE(Conditional)
 REGULAR_NODE(Literal)
+REGULAR_NODE(ArrayLiteral)
 REGULAR_NODE(ObjectLiteral)
 REGULAR_NODE(RegExpLiteral)
 REGULAR_NODE(FunctionLiteral)
@@ -1071,8 +1067,6 @@ DONT_OPTIMIZE_NODE(TryFinallyStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
 DONT_OPTIMIZE_NODE(SharedFunctionInfoLiteral)
 
-DONT_INLINE_NODE(ArrayLiteral)  // TODO(1322): Allow materialized literals.
-
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)
 DONT_SELFOPTIMIZE_NODE(ForStatement)
@@ -1099,7 +1093,6 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 
 #undef REGULAR_NODE
 #undef DONT_OPTIMIZE_NODE
-#undef DONT_INLINE_NODE
 #undef DONT_SELFOPTIMIZE_NODE
 #undef DONT_CACHE_NODE
 
