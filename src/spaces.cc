@@ -537,6 +537,17 @@ bool MemoryChunk::CommitArea(size_t requested) {
 void MemoryChunk::InsertAfter(MemoryChunk* other) {
   next_chunk_ = other->next_chunk_;
   prev_chunk_ = other;
+
+  // This memory barrier is needed since concurrent sweeper threads may iterate
+  // over the list of pages while a new page is inserted.
+  // TODO(hpayer): find a cleaner way to guarantee that the page list can be
+  // expanded concurrently
+  MemoryBarrier();
+
+  // The following two write operations can take effect in arbitrary order
+  // since pages are always iterated by the sweeper threads in LIFO order, i.e,
+  // the inserted page becomes visible for the sweeper threads after
+  // other->next_chunk_ = this;
   other->next_chunk_->prev_chunk_ = this;
   other->next_chunk_ = this;
 }
