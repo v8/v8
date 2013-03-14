@@ -2531,7 +2531,15 @@ void MacroAssembler::ECMAToInt32VFP(Register result,
          !scratch.is(input_low));
   ASSERT(!double_input.is(double_scratch));
 
-  Label overflow, out_of_range, negate, done;
+  Label out_of_range, negate, done;
+
+  vcvt_s32_f64(double_scratch.low(), double_input);
+  vmov(result, double_scratch.low());
+
+  // If result is not saturated (0x7fffffff or 0x80000000), we are done.
+  sub(scratch, result, Operand(1));
+  cmp(scratch, Operand(0x7ffffffe));
+  b(lt, &done);
 
   vmov(input_low, input_high, double_input);
   Ubfx(scratch, input_high,
@@ -2539,20 +2547,9 @@ void MacroAssembler::ECMAToInt32VFP(Register result,
   // Load scratch with exponent - 1. This is faster than loading
   // with exponent because Bias + 1 = 1024 which is an *ARM* immediate value.
   sub(scratch, scratch, Operand(HeapNumber::kExponentBias + 1));
-  // Compare exponent with 31 (compare exponent - 1 with 30).
-  cmp(scratch, Operand(30));
-  b(ge, &overflow);
-  // Exponent is less than 31 so vcvt will never saturate.
-  // So, just return the result.
-  vcvt_s32_f64(double_scratch.low(), double_input);
-  vmov(result, double_scratch.low());
-  b(&done);
-
-  bind(&overflow);
   // If exponent is greater than or equal to 84, the 32 less significant
   // bits are 0s (2^84 = 1, 52 significant bits, 32 uncoded bits),
   // the result is 0.
-  // This test also catch Nan and infinities which also return 0.
   // Compare exponent with 84 (compare exponent - 1 with 83).
   cmp(scratch, Operand(83));
   b(ge, &out_of_range);
