@@ -4914,8 +4914,8 @@ void MacroAssembler::AssertName(Register object) {
     push(object);
     lw(object, FieldMemOperand(object, HeapObject::kMapOffset));
     lbu(object, FieldMemOperand(object, Map::kInstanceTypeOffset));
-    pop(object);
     Check(le, "Operand is not a name", object, Operand(LAST_NAME_TYPE));
+    pop(object);
   }
 }
 
