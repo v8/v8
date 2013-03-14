@@ -1731,9 +1731,9 @@ TEST(MapHasDescriptorsAndTransitions) {
 TEST(ManyLocalsInSharedContext) {
   v8::HandleScope scope;
   LocalContext env;
-  int num_objects = 5000;
+  int num_objects = 6000;
   CompileRun(
-      "var n = 5000;"
+      "var n = 6000;"
       "var result = [];"
       "result.push('(function outer() {');"
       "for (var i = 0; i < n; i++) {"
