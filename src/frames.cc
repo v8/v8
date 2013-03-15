@@ -679,6 +679,13 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
 
   // Visit the return address in the callee and incoming arguments.
   IteratePc(v, pc_address(), code);
+
+  // Visit the context in stub frame and JavaScript frame.
+  // Visit the function in JavaScript frame.
+  Object** fixed_base = &Memory::Object_at(
+      fp() + StandardFrameConstants::kMarkerOffset);
+  Object** fixed_limit = &Memory::Object_at(fp());
+  v->VisitPointers(fixed_base, fixed_limit);
 }
 
 
@@ -710,12 +717,6 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
 #endif
 
   IterateCompiledFrame(v);
-
-  // Visit the context and the function.
-  Object** fixed_base = &Memory::Object_at(
-      fp() + JavaScriptFrameConstants::kFunctionOffset);
-  Object** fixed_limit = &Memory::Object_at(fp());
-  v->VisitPointers(fixed_base, fixed_limit);
 }
 
 
