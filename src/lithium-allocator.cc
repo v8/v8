@@ -196,6 +196,18 @@ UsePosition* LiveRange::NextUsePositionRegisterIsBeneficial(
 }
 
 
+UsePosition* LiveRange::PreviousUsePositionRegisterIsBeneficial(
+    LifetimePosition start) {
+  UsePosition* pos = first_pos();
+  UsePosition* prev = NULL;
+  while (pos != NULL && pos->pos().Value() < start.Value()) {
+    if (pos->RegisterIsBeneficial()) prev = pos;
+    pos = pos->next();
+  }
+  return prev;
+}
+
+
 UsePosition* LiveRange::NextRegisterPosition(LifetimePosition start) {
   UsePosition* pos = NextUsePosition(start);
   while (pos != NULL && !pos->RequiresRegister()) {
@@ -1943,6 +1955,39 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
 }
 
 
+LifetimePosition LAllocator::FindOptimalSpillingPos(LiveRange* range,
+                                                    LifetimePosition pos) {
+  HBasicBlock* block = GetBlock(pos.InstructionStart());
+  HBasicBlock* loop_header =
+      block->IsLoopHeader() ? block : block->parent_loop_header();
+
+  if (loop_header == NULL) return pos;
+
+  UsePosition* prev_use =
+    range->PreviousUsePositionRegisterIsBeneficial(pos);
+
+  while (loop_header != NULL) {
+    // We are going to spill live range inside the loop.
+    // If possible try to move spilling position backwards to loop header.
+    // This will reduce number of memory moves on the back edge.
+    LifetimePosition loop_start = LifetimePosition::FromInstructionIndex(
+        loop_header->first_instruction_index());
+
+    if (range->Covers(loop_start)) {
+      if (prev_use == NULL || prev_use->pos().Value() < loop_start.Value()) {
+        // No register beneficial use inside the loop before the pos.
+        pos = loop_start;
+      }
+    }
+
+    // Try hoisting out to an outer loop.
+    loop_header = loop_header->parent_loop_header();
+  }
+
+  return pos;
+}
+
+
 void LAllocator::SplitAndSpillIntersecting(LiveRange* current) {
   ASSERT(current->HasRegisterAssigned());
   int reg = current->assigned_register();
@@ -1951,10 +1996,11 @@ void LAllocator::SplitAndSpillIntersecting(LiveRange* current) {
     LiveRange* range = active_live_ranges_[i];
     if (range->assigned_register() == reg) {
       UsePosition* next_pos = range->NextRegisterPosition(current->Start());
+      LifetimePosition spill_pos = FindOptimalSpillingPos(range, split_pos);
       if (next_pos == NULL) {
-        SpillAfter(range, split_pos);
+        SpillAfter(range, spill_pos);
       } else {
-        SpillBetween(range, split_pos, next_pos->pos());
+        SpillBetween(range, spill_pos, next_pos->pos());
       }
       if (!AllocationOk()) return;
       ActiveToHandled(range);
