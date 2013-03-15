@@ -39,7 +39,6 @@
 namespace v8 {
 namespace internal {
 
-static const int kEventsBufferSize = 256 * KB;
 static const int kTickSamplesBufferChunkSize = 64 * KB;
 static const int kTickSamplesBufferChunksCount = 16;
 static const int kProfilerStackSize = 64 * KB;

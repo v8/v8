@@ -6498,14 +6498,6 @@ Handle<String> CpuProfile::GetTitle() const {
 }
 
 
-const CpuProfileNode* CpuProfile::GetBottomUpRoot() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfile::GetBottomUpRoot");
-  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return reinterpret_cast<const CpuProfileNode*>(profile->bottom_up()->root());
-}
-
-
 const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::GetTopDownRoot");

@@ -468,19 +468,16 @@ void ProfileTree::ShortPrint() {
 
 void CpuProfile::AddPath(const Vector<CodeEntry*>& path) {
   top_down_.AddPathFromEnd(path);
-  bottom_up_.AddPathFromStart(path);
 }
 
 
 void CpuProfile::CalculateTotalTicks() {
   top_down_.CalculateTotalTicks();
-  bottom_up_.CalculateTotalTicks();
 }
 
 
 void CpuProfile::SetActualSamplingRate(double actual_sampling_rate) {
   top_down_.SetTickRatePerMs(actual_sampling_rate);
-  bottom_up_.SetTickRatePerMs(actual_sampling_rate);
 }
 
 
@@ -488,7 +485,6 @@ CpuProfile* CpuProfile::FilteredClone(int security_token_id) {
   ASSERT(security_token_id != TokenEnumerator::kNoSecurityToken);
   CpuProfile* clone = new CpuProfile(title_, uid_);
   clone->top_down_.FilteredClone(&top_down_, security_token_id);
-  clone->bottom_up_.FilteredClone(&bottom_up_, security_token_id);
   return clone;
 }
 
@@ -496,16 +492,12 @@ CpuProfile* CpuProfile::FilteredClone(int security_token_id) {
 void CpuProfile::ShortPrint() {
   OS::Print("top down ");
   top_down_.ShortPrint();
-  OS::Print("bottom up ");
-  bottom_up_.ShortPrint();
 }
 
 
 void CpuProfile::Print() {
   OS::Print("[Top down]:\n");
   top_down_.Print();
-  OS::Print("[Bottom up]:\n");
-  bottom_up_.Print();
 }
 
 

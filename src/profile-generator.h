@@ -222,7 +222,6 @@ class CpuProfile {
   INLINE(const char* title() const) { return title_; }
   INLINE(unsigned uid() const) { return uid_; }
   INLINE(const ProfileTree* top_down() const) { return &top_down_; }
-  INLINE(const ProfileTree* bottom_up() const) { return &bottom_up_; }
 
   void UpdateTicksScale();
 
@@ -233,7 +232,6 @@ class CpuProfile {
   const char* title_;
   unsigned uid_;
   ProfileTree top_down_;
-  ProfileTree bottom_up_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
 };

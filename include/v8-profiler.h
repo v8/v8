@@ -116,9 +116,8 @@ class V8EXPORT CpuProfileNode {
 
 
 /**
- * CpuProfile contains a CPU profile in a form of two call trees:
- *  - top-down (from main() down to functions that do all the work);
- *  - bottom-up call graph (in backward direction).
+ * CpuProfile contains a CPU profile in a form of top-down call tree
+ * (from main() down to functions that do all the work).
  */
 class V8EXPORT CpuProfile {
  public:
@@ -127,9 +126,6 @@ class V8EXPORT CpuProfile {
 
   /** Returns CPU profile title. */
   Handle<String> GetTitle() const;
-
-  /** Returns the root node of the bottom up call tree. */
-  const CpuProfileNode* GetBottomUpRoot() const;
 
   /** Returns the root node of the top down call tree. */
   const CpuProfileNode* GetTopDownRoot() const;
