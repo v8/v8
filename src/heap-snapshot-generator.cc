@@ -174,7 +174,6 @@ const char* HeapEntry::TypeAsString() {
     case kHeapNumber: return "/number/";
     case kNative: return "/native/";
     case kSynthetic: return "/synthetic/";
-    case kContext: return "/context/";
     default: return "???";
   }
 }
@@ -827,7 +826,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   } else if (object->IsNativeContext()) {
     return AddEntry(object, HeapEntry::kHidden, "system / NativeContext");
   } else if (object->IsContext()) {
-    return AddEntry(object, HeapEntry::kContext, "system / Context");
+    return AddEntry(object, HeapEntry::kObject, "system / Context");
   } else if (object->IsFixedArray() ||
              object->IsFixedDoubleArray() ||
              object->IsByteArray() ||
@@ -2580,8 +2579,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("regexp") ","
             JSON_S("number") ","
             JSON_S("native") ","
-            JSON_S("synthetic") ","
-            JSON_S("context")) ","
+            JSON_S("synthetic")) ","
         JSON_S("string") ","
         JSON_S("number") ","
         JSON_S("number") ","

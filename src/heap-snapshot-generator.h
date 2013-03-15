@@ -98,8 +98,7 @@ class HeapEntry BASE_EMBEDDED {
     kRegExp = v8::HeapGraphNode::kRegExp,
     kHeapNumber = v8::HeapGraphNode::kHeapNumber,
     kNative = v8::HeapGraphNode::kNative,
-    kSynthetic = v8::HeapGraphNode::kSynthetic,
-    kContext = v8::HeapGraphNode::kContext
+    kSynthetic = v8::HeapGraphNode::kSynthetic
   };
   static const int kNoEntry;
 
