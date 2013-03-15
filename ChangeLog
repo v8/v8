@@ -1,3 +1,19 @@
+2013-03-15: Version 3.17.11
+
+        Added a version of the v8::HandleScope constructor with an v8::Isolate
+        parameter and made AdjustAmountOfExternalAllocatedMemory an instance
+        method of v8::Isolate.
+        (issue 2487)
+
+        Fixed two register allocator bugs (off-by-one error/failure
+        propagation). (issue 2576)
+
+        Fixed huge heap snapshot when a heavily shared context has many
+        variables. (Chromium issue 145687)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-03-13: Version 3.17.10
 
         Fixed heap snapshot creation for Harmony collections. (issue 2535)
