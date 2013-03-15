@@ -895,6 +895,10 @@ class KeyedStoreStubCompiler: public BaseStoreStubCompiler {
   }
 
  private:
+  Register transition_map() {
+    return registers()[3];
+  }
+
   static Register* registers();
   virtual Code::Kind kind() { return Code::KEYED_STORE_IC; }
   virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {

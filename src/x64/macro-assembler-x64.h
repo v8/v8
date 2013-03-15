@@ -909,6 +909,7 @@ class MacroAssembler: public Assembler {
   // specified target if equal. Skip the smi check if not required (object is
   // known to be a heap object)
   void DispatchMap(Register obj,
+                   Register unused,
                    Handle<Map> map,
                    Handle<Code> success,
                    SmiCheckType smi_check_type);

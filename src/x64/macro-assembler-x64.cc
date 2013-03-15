@@ -2944,6 +2944,7 @@ void MacroAssembler::EnumLength(Register dst, Register map) {
 
 
 void MacroAssembler::DispatchMap(Register obj,
+                                 Register unused,
                                  Handle<Map> map,
                                  Handle<Code> success,
                                  SmiCheckType smi_check_type) {

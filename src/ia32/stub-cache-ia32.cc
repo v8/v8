@@ -2551,31 +2551,25 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
 
 Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<Name> name,
-    Handle<JSObject> receiver,
+    Handle<JSObject> object,
     Handle<JSObject> holder,
     Handle<ExecutableAccessorInfo> callback) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
+  Label miss, miss_restore_name;
   // Check that the maps haven't changed, preserving the value register.
-  __ push(eax);
-  __ JumpIfSmi(edx, &miss);
-  CheckPrototypes(receiver, edx, holder, ebx, eax, edi, name, &miss);
-  __ pop(eax);  // restore value
+  __ JumpIfSmi(receiver(), &miss);
+  CheckPrototypes(object, receiver(), holder,
+                  scratch1(), this->name(), scratch2(),
+                  name, &miss_restore_name);
 
   // Stub never generated for non-global objects that require access checks.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
 
-  __ pop(ebx);  // remove the return address
-  __ push(edx);  // receiver
-  __ push(Immediate(callback));  // callback info
-  __ push(ecx);  // name
-  __ push(eax);  // value
-  __ push(ebx);  // restore return address
+  __ pop(scratch1());  // remove the return address
+  __ push(receiver());
+  __ Push(callback);
+  __ Push(name);
+  __ push(value());
+  __ push(scratch1());  // restore return address
 
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
@@ -2583,8 +2577,8 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   __ TailCallExternalReference(store_callback_property, 4, 1);
 
   // Handle store cache miss.
+  GenerateRestoreName(masm(), &miss_restore_name, name);
   __ bind(&miss);
-  __ pop(eax);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
@@ -2638,66 +2632,30 @@ void StoreStubCompiler::GenerateStoreViaSetter(
 #define __ ACCESS_MASM(masm())
 
 
-Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
-    Handle<Name> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<JSFunction> setter) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  // Check that the maps haven't changed, preserving the name register.
-  __ push(ecx);
-  __ JumpIfSmi(edx, &miss);
-  CheckPrototypes(receiver, edx, holder, ebx, ecx, edi, name, &miss);
-  __ pop(ecx);
-
-  GenerateStoreViaSetter(masm(), setter);
-
-  __ bind(&miss);
-  __ pop(ecx);
-  TailCallBuiltin(masm(), MissBuiltin(kind()));
-
-  // Return the generated code.
-  return GetICCode(kind(), Code::CALLBACKS, name);
-}
-
-
 Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
-    Handle<JSObject> receiver,
+    Handle<JSObject> object,
     Handle<Name> name) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
   Label miss;
 
   // Check that the map of the object hasn't changed.
-  __ CheckMap(edx, Handle<Map>(receiver->map()),
+  __ CheckMap(receiver(), Handle<Map>(object->map()),
               &miss, DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
 
   // Perform global security token check if needed.
-  if (receiver->IsJSGlobalProxy()) {
+  if (object->IsJSGlobalProxy()) {
     __ CheckAccessGlobalProxy(edx, ebx, &miss);
   }
 
   // Stub never generated for non-global objects that require access
   // checks.
-  ASSERT(receiver->IsJSGlobalProxy() || !receiver->IsAccessCheckNeeded());
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
-  __ pop(ebx);  // remove the return address
-  __ push(edx);  // receiver
-  __ push(ecx);  // name
-  __ push(eax);  // value
+  __ pop(scratch1());  // remove the return address
+  __ push(receiver());
+  __ push(this->name());
+  __ push(value());
   __ push(Immediate(Smi::FromInt(strict_mode())));
-  __ push(ebx);  // restore return address
+  __ push(scratch1());  // restore return address
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
@@ -2717,22 +2675,17 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
     Handle<GlobalObject> object,
     Handle<JSGlobalPropertyCell> cell,
     Handle<Name> name) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
   Label miss;
 
   // Check that the map of the global has not changed.
-  __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+  __ cmp(FieldOperand(receiver(), HeapObject::kMapOffset),
          Immediate(Handle<Map>(object->map())));
   __ j(not_equal, &miss);
 
   // Compute the cell operand to use.
-  __ mov(ebx, Immediate(cell));
-  Operand cell_operand = FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset);
+  __ mov(scratch1(), Immediate(cell));
+  Operand cell_operand =
+      FieldOperand(scratch1(), JSGlobalPropertyCell::kValueOffset);
 
   // Check that the value in the cell is not the hole. If it is, this
   // cell could have been deleted and reintroducing the global needs
@@ -2742,7 +2695,7 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
   __ j(equal, &miss);
 
   // Store the value in the cell.
-  __ mov(cell_operand, eax);
+  __ mov(cell_operand, value());
   // No write barrier here, because cells are always rescanned.
 
   // Return the value (register eax).
@@ -2760,52 +2713,21 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
 }
 
 
-Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
-    Handle<Map> receiver_map) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  ElementsKind elements_kind = receiver_map->elements_kind();
-  bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
-  Handle<Code> stub =
-      KeyedStoreElementStub(is_jsarray,
-                            elements_kind,
-                            store_mode_).GetCode(isolate());
-
-  __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
-
-  TailCallBuiltin(masm(), MissBuiltin(kind()));
-
-  // Return the generated code.
-  return GetICCode(kind(), Code::NORMAL, factory()->empty_string());
-}
-
-
 Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
     MapHandleList* receiver_maps,
     CodeHandleList* handler_stubs,
     MapHandleList* transitioned_maps) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
   Label miss;
-  __ JumpIfSmi(edx, &miss, Label::kNear);
-  __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
-  // ebx: receiver->map().
+  __ JumpIfSmi(receiver(), &miss, Label::kNear);
+  __ mov(scratch1(), FieldOperand(receiver(), HeapObject::kMapOffset));
   for (int i = 0; i < receiver_maps->length(); ++i) {
-    __ cmp(edi, receiver_maps->at(i));
+    __ cmp(scratch1(), receiver_maps->at(i));
     if (transitioned_maps->at(i).is_null()) {
       __ j(equal, handler_stubs->at(i));
     } else {
       Label next_map;
       __ j(not_equal, &next_map, Label::kNear);
-      __ mov(ebx, Immediate(transitioned_maps->at(i)));
+      __ mov(transition_map(), Immediate(transitioned_maps->at(i)));
       __ jmp(handler_stubs->at(i), RelocInfo::CODE_TARGET);
       __ bind(&next_map);
     }
@@ -2958,34 +2880,6 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 
   // Return the generated code.
   return GetICCode(kind(), Code::NORMAL, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
-    Handle<Map> receiver_map) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-
-  ElementsKind elements_kind = receiver_map->elements_kind();
-  if (receiver_map->has_fast_elements() ||
-      receiver_map->has_external_array_elements()) {
-    Handle<Code> stub = KeyedLoadFastElementStub(
-        receiver_map->instance_type() == JS_ARRAY_TYPE,
-        elements_kind).GetCode(isolate());
-    __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
-  } else {
-    Handle<Code> stub =
-        KeyedLoadDictionaryElementStub().GetCode(isolate());
-    __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
-  }
-
-  TailCallBuiltin(masm(), Builtins::kKeyedLoadIC_Miss);
-
-  // Return the generated code.
-  return GetICCode(kind(), Code::NORMAL, factory()->empty_string());
 }
 
 

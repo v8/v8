@@ -1609,6 +1609,71 @@ Handle<Code> BaseStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
 }
 
 
+Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
+    Handle<Name> name,
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Handle<JSFunction> setter) {
+  Label miss, miss_restore_name;
+
+  // Check that the maps haven't changed, preserving the name register.
+  __ JumpIfSmi(receiver(), &miss);
+  CheckPrototypes(object, receiver(), holder,
+                  this->name(), scratch1(), scratch2(),
+                  name, &miss_restore_name);
+
+  GenerateStoreViaSetter(masm(), setter);
+
+  GenerateRestoreName(masm(), &miss_restore_name, name);
+
+  __ bind(&miss);
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
+
+  // Return the generated code.
+  return GetICCode(kind(), Code::CALLBACKS, name);
+}
+
+
+Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
+    Handle<Map> receiver_map) {
+  ElementsKind elements_kind = receiver_map->elements_kind();
+  if (receiver_map->has_fast_elements() ||
+      receiver_map->has_external_array_elements()) {
+    Handle<Code> stub = KeyedLoadFastElementStub(
+        receiver_map->instance_type() == JS_ARRAY_TYPE,
+        elements_kind).GetCode(isolate());
+    __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
+  } else {
+    Handle<Code> stub =
+        KeyedLoadDictionaryElementStub().GetCode(isolate());
+    __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
+  }
+
+  TailCallBuiltin(masm(), Builtins::kKeyedLoadIC_Miss);
+
+  // Return the generated code.
+  return GetICCode(kind(), Code::NORMAL, factory()->empty_string());
+}
+
+
+Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
+    Handle<Map> receiver_map) {
+  ElementsKind elements_kind = receiver_map->elements_kind();
+  bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
+  Handle<Code> stub =
+      KeyedStoreElementStub(is_jsarray,
+                            elements_kind,
+                            store_mode_).GetCode(isolate());
+
+  __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
+
+  TailCallBuiltin(masm(), Builtins::kKeyedStoreIC_Miss);
+
+  // Return the generated code.
+  return GetICCode(kind(), Code::NORMAL, factory()->empty_string());
+}
+
+
 #undef __
 
 
