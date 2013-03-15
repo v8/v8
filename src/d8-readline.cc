@@ -154,7 +154,7 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
     HandleScope scope;
     Local<String> full_text = String::New(rl_line_buffer, rl_point);
     Handle<Array> completions =
-      Shell::GetCompletions(String::New(text), full_text);
+        Shell::GetCompletions(isolate, String::New(text), full_text);
     current_completions = Persistent<Array>::New(isolate, completions);
     current_index = 0;
   }

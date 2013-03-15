@@ -52,10 +52,26 @@ Handle<T>::Handle(T* obj, Isolate* isolate) {
 
 
 template <typename T>
+inline bool Handle<T>::is_identical_to(const Handle<T> other) const {
+  ASSERT(location_ == NULL ||
+         reinterpret_cast<Address>(*location_) != kZapValue);
+#ifdef DEBUG
+  if (FLAG_enable_slow_asserts) {
+    Isolate* isolate = Isolate::Current();
+    CHECK(isolate->AllowHandleDereference() ||
+          Heap::RelocationLock::IsLocked(isolate->heap()) ||
+          !isolate->optimizing_compiler_thread()->IsOptimizerThread());
+  }
+#endif  // DEBUG
+  return *location_ == *other.location_;
+}
+
+
+template <typename T>
 inline T* Handle<T>::operator*() const {
   ASSERT(location_ != NULL);
   ASSERT(reinterpret_cast<Address>(*location_) != kHandleZapValue);
-  SLOW_ASSERT(ISOLATE->allow_handle_deref());
+  SLOW_ASSERT(Isolate::Current()->AllowHandleDereference());
   return *BitCast<T**>(location_);
 }
 
@@ -63,7 +79,7 @@ template <typename T>
 inline T** Handle<T>::location() const {
   ASSERT(location_ == NULL ||
          reinterpret_cast<Address>(*location_) != kZapValue);
-  SLOW_ASSERT(ISOLATE->allow_handle_deref());
+  SLOW_ASSERT(Isolate::Current()->AllowHandleDereference());
   return location_;
 }
 
@@ -164,38 +180,18 @@ inline NoHandleAllocation::~NoHandleAllocation() {
 }
 
 
-NoHandleDereference::NoHandleDereference(Isolate* isolate)
+HandleDereferenceGuard::HandleDereferenceGuard(Isolate* isolate, State state)
     : isolate_(isolate) {
-  // The guard is set on a per-isolate basis, so it affects all threads.
-  // That's why we can only use it when running without parallel recompilation.
-  if (FLAG_parallel_recompilation) return;
-  old_state_ = isolate->allow_handle_deref();
-  isolate_->set_allow_handle_deref(false);
+  old_state_ = isolate_->AllowHandleDereference();
+  isolate_->SetAllowHandleDereference(state == ALLOW);
 }
 
 
-NoHandleDereference::~NoHandleDereference() {
-  if (FLAG_parallel_recompilation) return;
-  isolate_->set_allow_handle_deref(old_state_);
+HandleDereferenceGuard::~HandleDereferenceGuard() {
+  isolate_->SetAllowHandleDereference(old_state_);
 }
 
-
-AllowHandleDereference::AllowHandleDereference(Isolate* isolate)
-    : isolate_(isolate) {
-  // The guard is set on a per-isolate basis, so it affects all threads.
-  // That's why we can only use it when running without parallel recompilation.
-  if (FLAG_parallel_recompilation) return;
-  old_state_ = isolate->allow_handle_deref();
-  isolate_->set_allow_handle_deref(true);
-}
-
-
-AllowHandleDereference::~AllowHandleDereference() {
-  if (FLAG_parallel_recompilation) return;
-  isolate_->set_allow_handle_deref(old_state_);
-}
 #endif
-
 
 } }  // namespace v8::internal
 

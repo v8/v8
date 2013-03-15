@@ -79,14 +79,14 @@ TEST(Weakness) {
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
   GlobalHandles* global_handles = isolate->global_handles();
 
   // Keep global reference to the key.
   Handle<Object> key;
   {
-    v8::HandleScope scope;
+    HandleScope scope(isolate);
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     key = global_handles->Create(*object);
@@ -95,7 +95,7 @@ TEST(Weakness) {
 
   // Put entry into weak map.
   {
-    v8::HandleScope scope;
+    HandleScope scope(isolate);
     PutIntoWeakMap(weakmap,
                    Handle<JSObject>(JSObject::cast(*key)),
                    Handle<Smi>(Smi::FromInt(23), isolate));
@@ -111,7 +111,7 @@ TEST(Weakness) {
 
   // Make the global reference to the key weak.
   {
-    v8::HandleScope scope;
+    HandleScope scope(isolate);
     global_handles->MakeWeak(key.location(),
                              reinterpret_cast<void*>(1234),
                              NULL,
@@ -140,7 +140,7 @@ TEST(Shrinking) {
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
 
   // Check initial capacity.
@@ -148,7 +148,7 @@ TEST(Shrinking) {
 
   // Fill up weak map to trigger capacity change.
   {
-    v8::HandleScope scope;
+    HandleScope scope(isolate);
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObjectFromMap(map);
@@ -181,7 +181,7 @@ TEST(Regress2060a) {
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
   Handle<JSFunction> function =
       factory->NewFunction(factory->function_string(), factory->null_value());
   Handle<JSObject> key = factory->NewJSObject(function);
@@ -193,7 +193,7 @@ TEST(Regress2060a) {
 
   // Fill up weak map with values on an evacuation candidate.
   {
-    v8::HandleScope scope;
+    HandleScope scope(isolate);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
       CHECK(!heap->InNewSpace(object->address()));
@@ -220,7 +220,7 @@ TEST(Regress2060b) {
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
   Handle<JSFunction> function =
       factory->NewFunction(factory->function_string(), factory->null_value());
 

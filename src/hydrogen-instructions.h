@@ -122,6 +122,7 @@ class LChunkBuilder;
   V(HasInstanceTypeAndBranch)                  \
   V(InductionVariableAnnotation)               \
   V(In)                                        \
+  V(InnerAllocatedObject)                      \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
   V(InstanceSize)                              \
@@ -385,7 +386,7 @@ class HType {
     return HType(static_cast<Type>(type_ & other.type_));
   }
 
-  bool Equals(const HType& other) {
+  bool Equals(const HType& other) const {
     return type_ == other.type_;
   }
 
@@ -393,66 +394,66 @@ class HType {
     return Combine(other).Equals(other);
   }
 
-  bool IsTagged() {
+  bool IsTagged() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kTagged) == kTagged);
   }
 
-  bool IsTaggedPrimitive() {
+  bool IsTaggedPrimitive() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kTaggedPrimitive) == kTaggedPrimitive);
   }
 
-  bool IsTaggedNumber() {
+  bool IsTaggedNumber() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kTaggedNumber) == kTaggedNumber);
   }
 
-  bool IsSmi() {
+  bool IsSmi() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kSmi) == kSmi);
   }
 
-  bool IsHeapNumber() {
+  bool IsHeapNumber() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kHeapNumber) == kHeapNumber);
   }
 
-  bool IsString() {
+  bool IsString() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kString) == kString);
   }
 
-  bool IsBoolean() {
+  bool IsBoolean() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kBoolean) == kBoolean);
   }
 
-  bool IsNonPrimitive() {
+  bool IsNonPrimitive() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kNonPrimitive) == kNonPrimitive);
   }
 
-  bool IsJSArray() {
+  bool IsJSArray() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kJSArray) == kJSArray);
   }
 
-  bool IsJSObject() {
+  bool IsJSObject() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kJSObject) == kJSObject);
   }
 
-  bool IsUninitialized() {
+  bool IsUninitialized() const {
     return type_ == kUninitialized;
   }
 
-  bool IsHeapObject() {
+  bool IsHeapObject() const {
     ASSERT(type_ != kUninitialized);
     return IsHeapNumber() || IsString() || IsNonPrimitive();
   }
 
-  static HType TypeFromValue(Isolate* isolate, Handle<Object> value);
+  static HType TypeFromValue(Handle<Object> value);
 
   const char* ToString();
 
@@ -2791,7 +2792,10 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   virtual intptr_t Hashcode() {
     ASSERT_ALLOCATION_DISABLED;
     // Dereferencing to use the object's raw address for hashing is safe.
-    AllowHandleDereference allow_handle_deref(isolate());
+    HandleDereferenceGuard allow_handle_deref(isolate(),
+                                              HandleDereferenceGuard::ALLOW);
+    SLOW_ASSERT(Heap::RelocationLock::IsLocked(isolate()->heap()) ||
+                !isolate()->optimizing_compiler_thread()->IsOptimizerThread());
     intptr_t hash = 0;
     for (int i = 0; i < prototypes_.length(); i++) {
       hash = 17 * hash + reinterpret_cast<intptr_t>(*prototypes_[i]);
@@ -3069,8 +3073,17 @@ class HArgumentsObject: public HTemplateInstruction<0> {
 class HConstant: public HTemplateInstruction<0> {
  public:
   HConstant(Handle<Object> handle, Representation r);
-  HConstant(int32_t value, Representation r);
-  HConstant(double value, Representation r);
+  HConstant(int32_t value,
+            Representation r,
+            Handle<Object> optional_handle = Handle<Object>::null());
+  HConstant(double value,
+            Representation r,
+            Handle<Object> optional_handle = Handle<Object>::null());
+  HConstant(Handle<Object> handle,
+            Representation r,
+            HType type,
+            bool is_internalized_string,
+            bool boolean_value);
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
@@ -3098,8 +3111,9 @@ class HConstant: public HTemplateInstruction<0> {
     Heap* heap = isolate()->heap();
     // We should have handled minus_zero_value and nan_value in the
     // has_double_value_ clause above.
-    // Dereferencing is safe to compare against singletons.
-    AllowHandleDereference allow_handle_deref(isolate());
+    // Dereferencing is safe to compare against immovable singletons.
+    HandleDereferenceGuard allow_handle_deref(isolate(),
+                                              HandleDereferenceGuard::ALLOW);
     ASSERT(*handle_ != heap->minus_zero_value());
     ASSERT(*handle_ != heap->nan_value());
     return *handle_ == heap->undefined_value() ||
@@ -3148,14 +3162,17 @@ class HConstant: public HTemplateInstruction<0> {
   bool HasStringValue() const {
     if (has_double_value_ || has_int32_value_) return false;
     ASSERT(!handle_.is_null());
-    return handle_->IsString();
+    return type_from_value_.IsString();
   }
   Handle<String> StringValue() const {
     ASSERT(HasStringValue());
     return Handle<String>::cast(handle_);
   }
+  bool HasInternalizedStringValue() const {
+    return HasStringValue() && is_internalized_string_;
+  }
 
-  bool ToBoolean();
+  bool BooleanValue() const { return boolean_value_; }
 
   bool IsUint32() {
     return HasInteger32Value() && (Integer32Value() >= 0);
@@ -3172,7 +3189,10 @@ class HConstant: public HTemplateInstruction<0> {
     } else {
       ASSERT(!handle_.is_null());
       // Dereferencing to use the object's raw address for hashing is safe.
-      AllowHandleDereference allow_handle_deref(isolate());
+      HandleDereferenceGuard allow_handle_deref(isolate(),
+                                                HandleDereferenceGuard::ALLOW);
+      SLOW_ASSERT(Heap::RelocationLock::IsLocked(isolate()->heap()) ||
+                 !isolate()->optimizing_compiler_thread()->IsOptimizerThread());
       hash = reinterpret_cast<intptr_t>(*handle_);
     }
 
@@ -3222,8 +3242,11 @@ class HConstant: public HTemplateInstruction<0> {
   // not the converse.
   bool has_int32_value_ : 1;
   bool has_double_value_ : 1;
+  bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
+  bool boolean_value_ : 1;
   int32_t int32_value_;
   double double_value_;
+  HType type_from_value_;
 };
 
 
@@ -4525,7 +4548,10 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
   virtual intptr_t Hashcode() {
     ASSERT_ALLOCATION_DISABLED;
     // Dereferencing to use the object's raw address for hashing is safe.
-    AllowHandleDereference allow_handle_deref(isolate());
+    HandleDereferenceGuard allow_handle_deref(isolate(),
+                                              HandleDereferenceGuard::ALLOW);
+    SLOW_ASSERT(Heap::RelocationLock::IsLocked(isolate()->heap()) ||
+               !isolate()->optimizing_compiler_thread()->IsOptimizerThread());
     return reinterpret_cast<intptr_t>(*cell_);
   }
 
@@ -4629,7 +4655,6 @@ class HAllocate: public HTemplateInstruction<2> {
       : type_(type),
         flags_(flags) {
     ASSERT((flags & CAN_ALLOCATE_IN_OLD_DATA_SPACE) == 0);  // unimplemented
-    ASSERT((flags & CAN_ALLOCATE_IN_OLD_POINTER_SPACE) == 0);  // unimplemented
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
@@ -4684,6 +4709,31 @@ class HAllocate: public HTemplateInstruction<2> {
 };
 
 
+class HInnerAllocatedObject: public HTemplateInstruction<1> {
+ public:
+  HInnerAllocatedObject(HValue* value, int offset)
+      : offset_(offset) {
+    ASSERT(value->IsAllocate());
+    SetOperandAt(0, value);
+    set_representation(Representation::Tagged());
+  }
+
+  HValue* base_object() { return OperandAt(0); }
+  int offset() { return offset_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject)
+
+ private:
+  int offset_;
+};
+
+
 inline bool StoringValueNeedsWriteBarrier(HValue* value) {
   return !value->type().IsBoolean()
       && !value->type().IsSmi()
@@ -4693,6 +4743,11 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 
 inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
                                             HValue* new_space_dominator) {
+  if (object->IsInnerAllocatedObject()) {
+    return ReceiverObjectNeedsWriteBarrier(
+        HInnerAllocatedObject::cast(object)->base_object(),
+        new_space_dominator);
+  }
   if (object != new_space_dominator) return true;
   if (object->IsFastLiteral()) return false;
   if (object->IsAllocateObject()) return false;

@@ -1663,6 +1663,10 @@ class PagedSpace : public Space {
   Address top() { return allocation_info_.top; }
   Address limit() { return allocation_info_.limit; }
 
+  // The allocation top and limit addresses.
+  Address* allocation_top_address() { return &allocation_info_.top; }
+  Address* allocation_limit_address() { return &allocation_info_.limit; }
+
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
   MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes);

@@ -74,8 +74,6 @@
     # Default arch variant for MIPS.
     'mips_arch_variant%': 'mips32r2',
 
-    'v8_enable_latin_1%': 1,
-
     'v8_enable_debugger_support%': 1,
 
     'v8_enable_backtrace%': 0,
@@ -116,9 +114,6 @@
   },
   'target_defaults': {
     'conditions': [
-      ['v8_enable_latin_1==1', {
-        'defines': ['ENABLE_LATIN_1',],
-      }],
       ['v8_enable_debugger_support==1', {
         'defines': ['ENABLE_DEBUGGER_SUPPORT',],
       }],

@@ -57,9 +57,9 @@ static void InitializeVM() {
 
 TEST(0) {
   InitializeVM();
-  v8::HandleScope scope;
-
   Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
   Assembler assm(isolate, NULL, 0);
 
   __ add(r0, r0, Operand(r1));
@@ -84,9 +84,9 @@ TEST(0) {
 
 TEST(1) {
   InitializeVM();
-  v8::HandleScope scope;
-
   Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
@@ -122,9 +122,9 @@ TEST(1) {
 
 TEST(2) {
   InitializeVM();
-  v8::HandleScope scope;
-
   Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
@@ -169,7 +169,8 @@ TEST(2) {
 
 TEST(3) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     int i;
@@ -178,7 +179,6 @@ TEST(3) {
   } T;
   T t;
 
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
@@ -225,7 +225,8 @@ TEST(3) {
 TEST(4) {
   // Test the VFP floating point instructions.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     double a;
@@ -246,7 +247,6 @@ TEST(4) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
@@ -364,9 +364,9 @@ TEST(4) {
 TEST(5) {
   // Test the ARMv7 bitfield instructions.
   InitializeVM();
-  v8::HandleScope scope;
-
   Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(ARMv7)) {
@@ -401,9 +401,9 @@ TEST(5) {
 TEST(6) {
   // Test saturating instructions.
   InitializeVM();
-  v8::HandleScope scope;
-
   Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(ARMv7)) {
@@ -445,9 +445,9 @@ static void TestRoundingMode(VCVTTypes types,
                              int expected,
                              bool expected_exception = false) {
   InitializeVM();
-  v8::HandleScope scope;
-
   Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP3)) {
@@ -623,7 +623,8 @@ TEST(7) {
 TEST(8) {
   // Test VFP multi load/store with ia_w.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     double a;
@@ -651,7 +652,6 @@ TEST(8) {
 
   // Create a function that uses vldm/vstm to move some double and
   // single precision values around in memory.
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP2)) {
@@ -735,7 +735,8 @@ TEST(8) {
 TEST(9) {
   // Test VFP multi load/store with ia.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     double a;
@@ -763,7 +764,6 @@ TEST(9) {
 
   // Create a function that uses vldm/vstm to move some double and
   // single precision values around in memory.
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP2)) {
@@ -851,7 +851,8 @@ TEST(9) {
 TEST(10) {
   // Test VFP multi load/store with db_w.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     double a;
@@ -879,7 +880,6 @@ TEST(10) {
 
   // Create a function that uses vldm/vstm to move some double and
   // single precision values around in memory.
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP2)) {
@@ -963,7 +963,8 @@ TEST(10) {
 TEST(11) {
   // Test instructions using the carry flag.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     int32_t a;
@@ -976,7 +977,6 @@ TEST(11) {
   i.a = 0xabcd0001;
   i.b = 0xabcd0000;
 
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, NULL, 0);
 
   // Test HeapObject untagging.
@@ -1029,9 +1029,10 @@ TEST(11) {
 TEST(12) {
   // Test chaining of label usages within instructions (issue 1644).
   InitializeVM();
-  v8::HandleScope scope;
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
+  Assembler assm(isolate, NULL, 0);
   Label target;
   __ b(eq, &target);
   __ b(ne, &target);
@@ -1043,7 +1044,8 @@ TEST(12) {
 TEST(13) {
   // Test VFP instructions using registers d16-d31.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   if (!CpuFeatures::IsSupported(VFP32DREGS)) {
     return;
@@ -1064,7 +1066,6 @@ TEST(13) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 

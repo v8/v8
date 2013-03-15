@@ -173,7 +173,7 @@ class ScriptResource : public v8::String::ExternalAsciiStringResource {
 
 
 TEST(Preparsing) {
-  v8::HandleScope handles;
+  v8::HandleScope handles(v8::Isolate::GetCurrent());
   v8::Persistent<v8::Context> context = v8::Context::New();
   v8::Context::Scope context_scope(context);
   int marker;
@@ -351,7 +351,7 @@ TEST(Regress928) {
       "try { } catch (e) { var foo = function () { /* first */ } }"
       "var bar = function () { /* second */ }";
 
-  v8::HandleScope handles;
+  v8::HandleScope handles(v8::Isolate::GetCurrent());
   i::Handle<i::String> source(
       FACTORY->NewStringFromAscii(i::CStrVector(program)));
   i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
@@ -544,7 +544,7 @@ void TestCharacterStream(const char* ascii_source,
 
 
 TEST(CharacterStreams) {
-  v8::HandleScope handles;
+  v8::HandleScope handles(v8::Isolate::GetCurrent());
   v8::Persistent<v8::Context> context = v8::Context::New();
   v8::Context::Scope context_scope(context);
 
@@ -988,7 +988,7 @@ TEST(ScopePositions) {
     { NULL, NULL, NULL, i::EVAL_SCOPE, i::CLASSIC_MODE }
   };
 
-  v8::HandleScope handles;
+  v8::HandleScope handles(v8::Isolate::GetCurrent());
   v8::Persistent<v8::Context> context = v8::Context::New();
   v8::Context::Scope context_scope(context);
 
@@ -1226,7 +1226,7 @@ TEST(ParserSync) {
     NULL
   };
 
-  v8::HandleScope handles;
+  v8::HandleScope handles(v8::Isolate::GetCurrent());
   v8::Persistent<v8::Context> context = v8::Context::New();
   v8::Context::Scope context_scope(context);
 
@@ -1267,7 +1267,7 @@ TEST(PreparserStrictOctal) {
   // such (issue 2220).
   v8::internal::FLAG_min_preparse_length = 1;  // Force preparsing.
   v8::V8::Initialize();
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Context::Scope context_scope(v8::Context::New());
   v8::TryCatch try_catch;
   const char* script =

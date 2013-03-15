@@ -265,12 +265,13 @@ class Shell : public i::AllStatic {
 #endif  // V8_SHARED
 
  public:
-  static bool ExecuteString(Handle<String> source,
+  static bool ExecuteString(Isolate* isolate,
+                            Handle<String> source,
                             Handle<Value> name,
                             bool print_result,
                             bool report_exceptions);
   static const char* ToCString(const v8::String::Utf8Value& value);
-  static void ReportException(TryCatch* try_catch);
+  static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Handle<String> ReadFile(Isolate* isolate, const char* name);
   static Persistent<Context> CreateEvaluationContext(Isolate* isolate);
   static int RunMain(Isolate* isolate, int argc, char* argv[]);
@@ -279,7 +280,8 @@ class Shell : public i::AllStatic {
   static void OnExit();
 
 #ifndef V8_SHARED
-  static Handle<Array> GetCompletions(Handle<String> text,
+  static Handle<Array> GetCompletions(Isolate* isolate,
+                                      Handle<String> text,
                                       Handle<String> full);
   static int* LookupCounter(const char* name);
   static void* CreateHistogram(const char* name,

@@ -47,6 +47,8 @@ class HarmonyIsolate {
     isolate_->Dispose();
   }
 
+  Isolate* GetIsolate() const { return isolate_; }
+
  private:
   Isolate* isolate_;
 };
@@ -54,7 +56,7 @@ class HarmonyIsolate {
 
 TEST(PerIsolateState) {
   HarmonyIsolate isolate;
-  HandleScope scope;
+  HandleScope scope(isolate.GetIsolate());
   LocalContext context1;
   CompileRun(
       "var count = 0;"
@@ -94,7 +96,7 @@ TEST(PerIsolateState) {
 
 TEST(EndOfMicrotaskDelivery) {
   HarmonyIsolate isolate;
-  HandleScope scope;
+  HandleScope scope(isolate.GetIsolate());
   LocalContext context;
   CompileRun(
       "var obj = {};"
@@ -107,7 +109,7 @@ TEST(EndOfMicrotaskDelivery) {
 
 TEST(DeliveryOrdering) {
   HarmonyIsolate isolate;
-  HandleScope scope;
+  HandleScope scope(isolate.GetIsolate());
   LocalContext context;
   CompileRun(
       "var obj1 = {};"
@@ -138,7 +140,7 @@ TEST(DeliveryOrdering) {
 
 TEST(DeliveryOrderingReentrant) {
   HarmonyIsolate isolate;
-  HandleScope scope;
+  HandleScope scope(isolate.GetIsolate());
   LocalContext context;
   CompileRun(
       "var obj = {};"
@@ -169,7 +171,7 @@ TEST(DeliveryOrderingReentrant) {
 
 TEST(DeliveryOrderingDeliverChangeRecords) {
   HarmonyIsolate isolate;
-  HandleScope scope;
+  HandleScope scope(isolate.GetIsolate());
   LocalContext context;
   CompileRun(
       "var obj = {};"
@@ -193,7 +195,7 @@ TEST(DeliveryOrderingDeliverChangeRecords) {
 
 TEST(ObjectHashTableGrowth) {
   HarmonyIsolate isolate;
-  HandleScope scope;
+  HandleScope scope(isolate.GetIsolate());
   // Initializing this context sets up initial hash tables.
   LocalContext context;
   Handle<Value> obj = CompileRun("obj = {};");
@@ -222,8 +224,8 @@ TEST(ObjectHashTableGrowth) {
 
 TEST(GlobalObjectObservation) {
   HarmonyIsolate isolate;
-  HandleScope scope;
   LocalContext context;
+  HandleScope scope(isolate.GetIsolate());
   Handle<Object> global_proxy = context->Global();
   Handle<Object> inner_global = global_proxy->GetPrototype().As<Object>();
   CompileRun(
@@ -317,7 +319,7 @@ static void ExpectRecords(Handle<Value> records,
 
 TEST(APITestBasicMutation) {
   HarmonyIsolate isolate;
-  HandleScope scope;
+  HandleScope scope(isolate.GetIsolate());
   LocalContext context;
   Handle<Object> obj = Handle<Object>::Cast(CompileRun(
       "var records = [];"
@@ -360,7 +362,7 @@ TEST(APITestBasicMutation) {
 
 TEST(HiddenPrototypeObservation) {
   HarmonyIsolate isolate;
-  HandleScope scope;
+  HandleScope scope(isolate.GetIsolate());
   LocalContext context;
   Handle<FunctionTemplate> tmpl = FunctionTemplate::New();
   tmpl->SetHiddenPrototype(true);
@@ -409,7 +411,7 @@ static int NumberOfElements(i::Handle<i::JSWeakMap> map) {
 
 TEST(ObservationWeakMap) {
   HarmonyIsolate isolate;
-  HandleScope scope;
+  HandleScope scope(isolate.GetIsolate());
   LocalContext context;
   CompileRun(
       "var obj = {};"

@@ -373,7 +373,7 @@ class RelocInfo BASE_EMBEDDED {
 
   // Read/modify the code target in the branch/call instruction
   // this relocation applies to;
-  // can only be called if IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
+  // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
   INLINE(Address target_address());
   INLINE(void set_target_address(Address target,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
@@ -749,6 +749,10 @@ class ExternalReference BASE_EMBEDDED {
   // Used for fast allocation in generated code.
   static ExternalReference new_space_allocation_top_address(Isolate* isolate);
   static ExternalReference new_space_allocation_limit_address(Isolate* isolate);
+  static ExternalReference old_pointer_space_allocation_top_address(
+      Isolate* isolate);
+  static ExternalReference old_pointer_space_allocation_limit_address(
+      Isolate* isolate);
 
   static ExternalReference double_fp_operation(Token::Value operation,
                                                Isolate* isolate);

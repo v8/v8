@@ -944,11 +944,7 @@ bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
   if (decision != UNKNOWN) return decision == YES;
 
   // Get named access check callback
-  // TODO(dcarney): revert
-  Map* map = receiver->map();
-  CHECK(map->IsMap());
-  CHECK(map->constructor()->IsJSFunction());
-  JSFunction* constructor = JSFunction::cast(map->constructor());
+  JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
   if (!constructor->shared()->IsApiFunction()) return false;
 
   Object* data_obj =
@@ -1713,7 +1709,8 @@ Isolate::Isolate()
   memset(code_kind_statistics_, 0,
          sizeof(code_kind_statistics_[0]) * Code::NUMBER_OF_KINDS);
 
-  allow_handle_deref_ = true;
+  allow_compiler_thread_handle_deref_ = true;
+  allow_execution_thread_handle_deref_ = true;
 #endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -2319,6 +2316,33 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
     deferred->previous_->next_ = deferred->next_;
   }
 }
+
+
+#ifdef DEBUG
+bool Isolate::AllowHandleDereference() {
+  if (allow_execution_thread_handle_deref_ &&
+      allow_compiler_thread_handle_deref_) {
+    // Short-cut to avoid polling thread id.
+    return true;
+  }
+  if (FLAG_parallel_recompilation &&
+      optimizing_compiler_thread()->IsOptimizerThread()) {
+    return allow_compiler_thread_handle_deref_;
+  } else {
+    return allow_execution_thread_handle_deref_;
+  }
+}
+
+
+void Isolate::SetAllowHandleDereference(bool allow) {
+  if (FLAG_parallel_recompilation &&
+      optimizing_compiler_thread()->IsOptimizerThread()) {
+    allow_compiler_thread_handle_deref_ = allow;
+  } else {
+    allow_execution_thread_handle_deref_ = allow;
+  }
+}
+#endif
 
 
 HStatistics* Isolate::GetHStatistics() {

@@ -16,12 +16,10 @@ static v8::Persistent<v8::Context> env;
 
 static void InitializeVM() {
   if (env.IsEmpty()) {
-    v8::HandleScope scope;
     const char* extensions[] = { "v8/print" };
     v8::ExtensionConfiguration config(1, extensions);
     env = v8::Context::New(&config);
   }
-  v8::HandleScope scope;
   env->Enter();
 }
 

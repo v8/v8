@@ -666,11 +666,21 @@ void V8::DisposeGlobal(i::Isolate* isolate, i::Object** obj) {
 
 
 HandleScope::HandleScope() {
-  i::Isolate* isolate = i::Isolate::Current();
-  API_ENTRY_CHECK(isolate, "HandleScope::HandleScope");
+  Initialize(reinterpret_cast<Isolate*>(i::Isolate::Current()));
+}
+
+
+HandleScope::HandleScope(Isolate* isolate) {
+  Initialize(isolate);
+}
+
+
+void HandleScope::Initialize(Isolate* isolate) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  API_ENTRY_CHECK(internal_isolate, "HandleScope::HandleScope");
   v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
-  isolate_ = isolate;
+      internal_isolate->handle_scope_data();
+  isolate_ = internal_isolate;
   prev_next_ = current->next;
   prev_limit_ = current->limit;
   is_closed_ = false;
@@ -686,7 +696,6 @@ HandleScope::~HandleScope() {
 
 
 void HandleScope::Leave() {
-  ASSERT(isolate_ == i::Isolate::Current());
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate_->handle_scope_data();
   current->level--;
@@ -1884,7 +1893,7 @@ v8::TryCatch::TryCatch()
 v8::TryCatch::~TryCatch() {
   ASSERT(isolate_ == i::Isolate::Current());
   if (rethrow_) {
-    v8::HandleScope scope;
+    v8::HandleScope scope(reinterpret_cast<Isolate*>(isolate_));
     v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
     isolate_->UnregisterTryCatchHandler(this);
     v8::ThrowException(exc);
@@ -1976,7 +1985,7 @@ Local<String> Message::Get() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Message::Get()", return Local<String>());
   ENTER_V8(isolate);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::String> raw_result = i::MessageHandler::GetMessage(isolate, obj);
   Local<String> result = Utils::ToLocal(raw_result);
@@ -1990,7 +1999,7 @@ v8::Handle<Value> Message::GetScriptResourceName() const {
     return Local<String>();
   }
   ENTER_V8(isolate);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   // Return this.script.name.
@@ -2009,7 +2018,7 @@ v8::Handle<Value> Message::GetScriptData() const {
     return Local<Value>();
   }
   ENTER_V8(isolate);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   // Return this.script.data.
@@ -2027,7 +2036,7 @@ v8::Handle<v8::StackTrace> Message::GetStackTrace() const {
     return Local<v8::StackTrace>();
   }
   ENTER_V8(isolate);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> stackFramesObj(message->stack_frames(), isolate);
@@ -2147,7 +2156,7 @@ Local<String> Message::GetSourceLine() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Message::GetSourceLine()", return Local<String>());
   ENTER_V8(isolate);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result = CallV8HeapFunction("GetSourceLine",
                                                    Utils::OpenHandle(this),
@@ -2177,7 +2186,7 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
     return Local<StackFrame>();
   }
   ENTER_V8(isolate);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSArray> self = Utils::OpenHandle(this);
   i::Object* raw_object = self->GetElementNoExceptionThrown(index);
   i::Handle<i::JSObject> obj(i::JSObject::cast(raw_object));
@@ -2254,7 +2263,7 @@ Local<String> StackFrame::GetScriptName() const {
     return Local<String>();
   }
   ENTER_V8(isolate);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> name = GetProperty(self, "scriptName");
   if (!name->IsString()) {
@@ -2270,7 +2279,7 @@ Local<String> StackFrame::GetScriptNameOrSourceURL() const {
     return Local<String>();
   }
   ENTER_V8(isolate);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> name = GetProperty(self, "scriptNameOrSourceURL");
   if (!name->IsString()) {
@@ -2286,7 +2295,7 @@ Local<String> StackFrame::GetFunctionName() const {
     return Local<String>();
   }
   ENTER_V8(isolate);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> name = GetProperty(self, "functionName");
   if (!name->IsString()) {
@@ -3280,7 +3289,7 @@ bool v8::Object::Delete(uint32_t index) {
   ON_BAILOUT(isolate, "v8::Object::DeleteProperty()",
              return false);
   ENTER_V8(isolate);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   return i::JSObject::DeleteElement(self, index)->IsTrue();
 }
@@ -3858,7 +3867,7 @@ Local<v8::Object> Function::NewInstance(int argc,
   ENTER_V8(isolate);
   i::Logger::TimerEventScope timer_scope(
       isolate, i::Logger::TimerEventScope::v8_execute);
-  HandleScope scope;
+  HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSFunction> function = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
@@ -4011,31 +4020,30 @@ class Utf8LengthHelper : public i::AllStatic {
 
   class Visitor {
    public:
-    explicit Visitor()
+    inline explicit Visitor()
       : utf8_length_(0),
         state_(kInitialState) {}
 
-    template<typename Char>
-    inline void Visit(const Char* chars, int length) {
+    void VisitOneByteString(const uint8_t* chars, int length) {
+      int utf8_length = 0;
+      // Add in length 1 for each non-ASCII character.
+      for (int i = 0; i < length; i++) {
+        utf8_length += *chars++ >> 7;
+      }
+      // Add in length 1 for each character.
+      utf8_length_ = utf8_length + length;
+      state_ = kInitialState;
+    }
+
+    void VisitTwoByteString(const uint16_t* chars, int length) {
       int utf8_length = 0;
       int last_character = unibrow::Utf16::kNoPreviousCharacter;
       for (int i = 0; i < length; i++) {
         uint16_t c = chars[i];
         utf8_length += unibrow::Utf8::Length(c, last_character);
-        if (sizeof(Char) > 1) {
-          last_character = c;
-        }
+        last_character = c;
       }
       utf8_length_ = utf8_length;
-    }
-
-    void VisitOneByteString(const uint8_t* chars, int length) {
-      Visit(chars, length);
-      state_ = kInitialState;
-    }
-
-    void VisitTwoByteString(const uint16_t* chars, int length) {
-      Visit(chars, length);
       uint8_t state = 0;
       if (unibrow::Utf16::IsTrailSurrogate(chars[0])) {
         state |= kStartsWithTrailingSurrogate;
@@ -4132,32 +4140,30 @@ class Utf8LengthHelper : public i::AllStatic {
       if (right_as_cons == NULL) {
         total_length += leaf_length;
         MergeLeafRight(&total_length, &state, right_leaf_state);
-        // Terminal node.
-        if (left_as_cons == NULL) {
+        if (left_as_cons != NULL) {
+          // 1 Leaf node. Descend in place.
+          current = left_as_cons;
+          continue;
+        } else {
+          // Terminal node.
           MergeTerminal(&total_length, state, state_out);
           return total_length;
         }
-      } else if (left_as_cons != NULL) {
-        // Both strings are ConsStrings.
-        // Recurse on smallest.
-        if (left->length() < right->length()) {
-          total_length += Calculate(left_as_cons, &left_leaf_state);
-          MergeLeafLeft(&total_length, &state, left_leaf_state);
-          current = right_as_cons;
-          continue;
-        } else {
-          total_length += Calculate(right_as_cons, &right_leaf_state);
-          MergeLeafRight(&total_length, &state, right_leaf_state);
-          current = left_as_cons;
-          continue;
-        }
-      }
-      // 1 leaf node. Do in place descent.
-      if (left_as_cons != NULL) {
-        current = left_as_cons;
-      } else {
-        ASSERT(right_as_cons != NULL);
+      } else if (left_as_cons == NULL) {
+        // 1 Leaf node. Descend in place.
         current = right_as_cons;
+        continue;
+      }
+      // Both strings are ConsStrings.
+      // Recurse on smallest.
+      if (left->length() < right->length()) {
+        total_length += Calculate(left_as_cons, &left_leaf_state);
+        MergeLeafLeft(&total_length, &state, left_leaf_state);
+        current = right_as_cons;
+      } else {
+        total_length += Calculate(right_as_cons, &right_leaf_state);
+        MergeLeafRight(&total_length, &state, right_leaf_state);
+        current = left_as_cons;
       }
     }
     UNREACHABLE();
@@ -4267,7 +4273,7 @@ class Utf8WriterVisitor {
       if (sizeof(Char) == 1) {
         for (; i < fast_length; i++) {
           buffer +=
-              Utf8::Encode(buffer, *chars++, Utf16::kNoPreviousCharacter);
+              Utf8::EncodeOneByte(buffer, static_cast<uint8_t>(*chars++));
           ASSERT(capacity_ == -1 || (buffer - start_) <= capacity_);
         }
       } else {
@@ -5783,14 +5789,21 @@ void V8::AddImplicitReferences(Persistent<Object> parent,
 }
 
 
+intptr_t Isolate::AdjustAmountOfExternalAllocatedMemory(
+    intptr_t change_in_bytes) {
+  i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
+  return heap->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+}
+
+
 intptr_t V8::AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes) {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   if (isolate == NULL || !isolate->IsInitialized() ||
       IsDeadCheck(isolate, "v8::V8::AdjustAmountOfExternalAllocatedMemory()")) {
     return 0;
   }
-  return isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
-      change_in_bytes);
+  Isolate* isolate_ext = reinterpret_cast<Isolate*>(isolate);
+  return isolate_ext->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
 }
 
 
@@ -6314,7 +6327,7 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   if (!isolate->IsInitialized()) return Local<Value>();
   ON_BAILOUT(isolate, "v8::Debug::GetMirror()", return Local<Value>());
   ENTER_V8(isolate);
-  v8::HandleScope scope;
+  v8::HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Debug* isolate_debug = isolate->debug();
   isolate_debug->Load();
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());

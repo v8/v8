@@ -49,7 +49,9 @@ enum AllocationFlags {
   // words instead of bytes.
   SIZE_IN_WORDS = 1 << 2,
   // Align the allocation to a multiple of kDoubleSize
-  DOUBLE_ALIGNMENT = 1 << 3
+  DOUBLE_ALIGNMENT = 1 << 3,
+  // Directly allocate in old pointer space
+  PRETENURE_OLD_POINTER_SPACE = 1 << 4
 };
 
 
@@ -167,6 +169,26 @@ class Comment {
 };
 
 #endif  // DEBUG
+
+
+class AllocationUtils {
+ public:
+  static ExternalReference GetAllocationTopReference(
+      Isolate* isolate, AllocationFlags flags) {
+    return ((flags & PRETENURE_OLD_POINTER_SPACE) != 0) ?
+        ExternalReference::old_pointer_space_allocation_top_address(isolate) :
+        ExternalReference::new_space_allocation_top_address(isolate);
+  }
+
+
+  static ExternalReference GetAllocationLimitReference(
+      Isolate* isolate, AllocationFlags flags) {
+    return ((flags & PRETENURE_OLD_POINTER_SPACE) != 0) ?
+        ExternalReference::old_pointer_space_allocation_limit_address(isolate) :
+        ExternalReference::new_space_allocation_limit_address(isolate);
+  }
+};
+
 
 } }  // namespace v8::internal
 

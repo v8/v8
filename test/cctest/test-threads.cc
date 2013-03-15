@@ -36,7 +36,7 @@
 TEST(Preemption) {
   v8::Locker locker(CcTest::default_isolate());
   v8::V8::Initialize();
-  v8::HandleScope scope;
+  v8::HandleScope scope(CcTest::default_isolate());
   v8::Context::Scope context_scope(v8::Context::New());
 
   v8::Locker::StartPreemption(100);
@@ -68,7 +68,7 @@ class ThreadA : public v8::internal::Thread {
   ThreadA() : Thread("ThreadA") { }
   void Run() {
     v8::Locker locker(CcTest::default_isolate());
-    v8::HandleScope scope;
+    v8::HandleScope scope(CcTest::default_isolate());
     v8::Context::Scope context_scope(v8::Context::New());
 
     CHECK_EQ(FILL_CACHE, turn);
@@ -107,7 +107,7 @@ class ThreadB : public v8::internal::Thread {
       {
         v8::Locker locker(CcTest::default_isolate());
         if (turn == CLEAN_CACHE) {
-          v8::HandleScope scope;
+          v8::HandleScope scope(CcTest::default_isolate());
           v8::Context::Scope context_scope(v8::Context::New());
 
           // Clear the caches by forcing major GC.

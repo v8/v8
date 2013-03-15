@@ -839,8 +839,9 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
         ASSERT(!cur_input->IsUsedAtStart());
 
         LUnallocated* input_copy = cur_input->CopyUnconstrained(zone());
-        cur_input->set_virtual_register(GetVirtualRegister());
+        int vreg = GetVirtualRegister();
         if (!AllocationOk()) return;
+        cur_input->set_virtual_register(vreg);
 
         if (RequiredRegisterKind(input_copy->virtual_register()) ==
             DOUBLE_REGISTERS) {
@@ -1924,6 +1925,7 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
     LiveRange* tail = SplitBetween(current,
                                    current->Start(),
                                    block_pos[reg].InstructionStart());
+    if (!AllocationOk()) return;
     AddToUnhandledSorted(tail);
   }
 
@@ -1954,6 +1956,7 @@ void LAllocator::SplitAndSpillIntersecting(LiveRange* current) {
       } else {
         SpillBetween(range, split_pos, next_pos->pos());
       }
+      if (!AllocationOk()) return;
       ActiveToHandled(range);
       --i;
     }
@@ -1972,6 +1975,7 @@ void LAllocator::SplitAndSpillIntersecting(LiveRange* current) {
           next_intersection = Min(next_intersection, next_pos->pos());
           SpillBetween(range, split_pos, next_intersection);
         }
+        if (!AllocationOk()) return;
         InactiveToHandled(range);
         --i;
       }
@@ -1997,8 +2001,9 @@ LiveRange* LAllocator::SplitRangeAt(LiveRange* range, LifetimePosition pos) {
   ASSERT(pos.IsInstructionStart() ||
          !chunk_->instructions()->at(pos.InstructionIndex())->IsControl());
 
-  LiveRange* result = LiveRangeFor(GetVirtualRegister());
+  int vreg = GetVirtualRegister();
   if (!AllocationOk()) return NULL;
+  LiveRange* result = LiveRangeFor(vreg);
   range->SplitAt(pos, result, zone_);
   return result;
 }
@@ -2075,6 +2080,7 @@ void LAllocator::SpillBetween(LiveRange* range,
         second_part,
         second_part->Start().InstructionEnd(),
         end.PrevInstruction().InstructionEnd());
+    if (!AllocationOk()) return;
 
     ASSERT(third_part != second_part);
 

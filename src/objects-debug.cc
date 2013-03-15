@@ -486,16 +486,7 @@ void String::StringVerify() {
     ConsString::cast(this)->ConsStringVerify();
   } else if (IsSlicedString()) {
     SlicedString::cast(this)->SlicedStringVerify();
-  } else if (IsSeqOneByteString()) {
-    SeqOneByteString::cast(this)->SeqOneByteStringVerify();
   }
-}
-
-
-void SeqOneByteString::SeqOneByteStringVerify() {
-#ifndef ENABLE_LATIN_1
-  CHECK(String::IsAscii(GetChars(), length()));
-#endif
 }
 
 

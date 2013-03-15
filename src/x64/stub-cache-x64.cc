@@ -343,19 +343,6 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 }
 
 
-// Load a fast property out of a holder object (src). In-object properties
-// are loaded directly otherwise the property is loaded from the properties
-// fixed array.
-void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
-                                            Register dst,
-                                            Register src,
-                                            Handle<JSObject> holder,
-                                            PropertyIndex index) {
-  DoGenerateFastPropertyLoad(
-      masm, dst, src, index.is_inobject(holder), index.translate(holder));
-}
-
-
 void StubCompiler::DoGenerateFastPropertyLoad(MacroAssembler* masm,
                                               Register dst,
                                               Register src,
@@ -715,28 +702,13 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 };
 
 
-void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
-  ASSERT(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
-  Handle<Code> code = (kind == Code::LOAD_IC)
-      ? masm->isolate()->builtins()->LoadIC_Miss()
-      : masm->isolate()->builtins()->KeyedLoadIC_Miss();
-  __ Jump(code, RelocInfo::CODE_TARGET);
-}
-
-
-void StubCompiler::GenerateStoreMiss(MacroAssembler* masm, Code::Kind kind) {
-  ASSERT(kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC);
-  Handle<Code> code = (kind == Code::STORE_IC)
-      ? masm->isolate()->builtins()->StoreIC_Miss()
-      : masm->isolate()->builtins()->KeyedStoreIC_Miss();
-  __ Jump(code, RelocInfo::CODE_TARGET);
-}
-
-
-void StubCompiler::GenerateKeyedLoadMissForceGeneric(MacroAssembler* masm) {
-  Handle<Code> code =
-      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
-  __ Jump(code, RelocInfo::CODE_TARGET);
+void BaseStoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
+                                                Label* label,
+                                                Handle<Name> name) {
+  if (!label->is_unused()) {
+    __ bind(label);
+    __ Move(this->name(), name);
+  }
 }
 
 
@@ -749,9 +721,11 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Handle<Name> name,
                                       Register receiver_reg,
                                       Register name_reg,
+                                      Register value_reg,
                                       Register scratch1,
                                       Register scratch2,
-                                      Label* miss_label) {
+                                      Label* miss_label,
+                                      Label* miss_restore_name) {
   LookupResult lookup(masm->isolate());
   object->Lookup(*name, &lookup);
   if (lookup.IsFound() && (lookup.IsReadOnly() || !lookup.IsCacheable())) {
@@ -785,17 +759,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
         holder = JSObject::cast(holder->GetPrototype());
       } while (holder->GetPrototype()->IsJSObject());
     }
-    // We need an extra register, push
-    __ push(name_reg);
-    Label miss_pop, done_check;
     CheckPrototypes(object, receiver_reg, Handle<JSObject>(holder), name_reg,
-                    scratch1, scratch2, name, &miss_pop);
-    __ jmp(&done_check);
-    __ bind(&miss_pop);
-    __ pop(name_reg);
-    __ jmp(miss_label);
-    __ bind(&done_check);
-    __ pop(name_reg);
+                    scratch1, scratch2, name, miss_restore_name);
   }
 
   // Stub never generated for non-global objects that require access
@@ -809,7 +774,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ pop(scratch1);  // Return address.
     __ push(receiver_reg);
     __ Push(transition);
-    __ push(rax);
+    __ push(value_reg);
     __ push(scratch1);
     __ TailCallExternalReference(
         ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
@@ -843,11 +808,11 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
-    __ movq(FieldOperand(receiver_reg, offset), rax);
+    __ movq(FieldOperand(receiver_reg, offset), value_reg);
 
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
-    __ movq(name_reg, rax);
+    __ movq(name_reg, value_reg);
     __ RecordWriteField(
         receiver_reg, offset, name_reg, scratch1, kDontSaveFPRegs);
   } else {
@@ -855,16 +820,17 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array (optimistically).
     __ movq(scratch1, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-    __ movq(FieldOperand(scratch1, offset), rax);
+    __ movq(FieldOperand(scratch1, offset), value_reg);
 
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
-    __ movq(name_reg, rax);
+    __ movq(name_reg, value_reg);
     __ RecordWriteField(
         scratch1, offset, name_reg, receiver_reg, kDontSaveFPRegs);
   }
 
   // Return the value (register rax).
+  ASSERT(value_reg.is(rax));
   __ ret(0);
 }
 
@@ -908,13 +874,14 @@ static void GenerateCheckPropertyCells(MacroAssembler* masm,
   }
 }
 
-#undef __
-#define __ ACCESS_MASM((masm()))
 
-
-void StubCompiler::GenerateTailCall(Handle<Code> code) {
+void StubCompiler::GenerateTailCall(MacroAssembler* masm, Handle<Code> code) {
   __ jmp(code, RelocInfo::CODE_TARGET);
 }
+
+
+#undef __
+#define __ ACCESS_MASM((masm()))
 
 
 Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
@@ -1039,7 +1006,7 @@ void BaseLoadStubCompiler::HandlerFrontendFooter(Label* success,
   if (!miss->is_unused()) {
     __ jmp(success);
     __ bind(miss);
-    GenerateLoadMiss(masm(), kind());
+    TailCallBuiltin(masm(), MissBuiltin(kind()));
   }
 }
 
@@ -2408,64 +2375,26 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
 }
 
 
-Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
-                                                  int index,
-                                                  Handle<Map> transition,
-                                                  Handle<Name> name) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  // Generate store field code.  Preserves receiver and name on jump to miss.
-  GenerateStoreField(masm(),
-                     object,
-                     index,
-                     transition,
-                     name,
-                     rdx, rcx, rbx, rdi,
-                     &miss);
-
-  // Handle store cache miss.
-  __ bind(&miss);
-  Handle<Code> ic = isolate()->builtins()->StoreIC_Miss();
-  __ Jump(ic, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode(transition.is_null()
-                 ? Code::FIELD
-                 : Code::MAP_TRANSITION, name);
-}
-
-
 Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<Name> name,
-    Handle<JSObject> receiver,
+    Handle<JSObject> object,
     Handle<JSObject> holder,
     Handle<ExecutableAccessorInfo> callback) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
   Label miss;
   // Check that the maps haven't changed.
-  __ JumpIfSmi(rdx, &miss);
-  CheckPrototypes(receiver, rdx, holder, rbx, r8, rdi, name, &miss);
+  __ JumpIfSmi(receiver(), &miss);
+  CheckPrototypes(object, receiver(), holder,
+                  scratch1(), scratch2(), scratch3(), name, &miss);
 
   // Stub never generated for non-global objects that require access checks.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
 
-  __ pop(rbx);  // remove the return address
-  __ push(rdx);  // receiver
+  __ pop(scratch1());  // remove the return address
+  __ push(receiver());
   __ Push(callback);  // callback info
-  __ push(rcx);  // name
-  __ push(rax);  // value
-  __ push(rbx);  // restore return address
+  __ push(this->name());
+  __ push(value());
+  __ push(scratch1());  // restore return address
 
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
@@ -2474,11 +2403,10 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 
   // Handle store cache miss.
   __ bind(&miss);
-  Handle<Code> ic = isolate()->builtins()->StoreIC_Miss();
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
+  return GetICCode(kind(), Code::CALLBACKS, name);
 }
 
 
@@ -2528,64 +2456,30 @@ void StoreStubCompiler::GenerateStoreViaSetter(
 #define __ ACCESS_MASM(masm())
 
 
-Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
-    Handle<Name> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<JSFunction> setter) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  // Check that the maps haven't changed.
-  __ JumpIfSmi(rdx, &miss);
-  CheckPrototypes(receiver, rdx, holder, rbx, r8, rdi, name, &miss);
-
-  GenerateStoreViaSetter(masm(), setter);
-
-  __ bind(&miss);
-  Handle<Code> ic = isolate()->builtins()->StoreIC_Miss();
-  __ Jump(ic, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
-}
-
-
 Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
-    Handle<JSObject> receiver,
+    Handle<JSObject> object,
     Handle<Name> name) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
   Label miss;
 
   // Check that the map of the object hasn't changed.
-  __ CheckMap(rdx, Handle<Map>(receiver->map()), &miss,
+  __ CheckMap(receiver(), Handle<Map>(object->map()), &miss,
               DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
 
   // Perform global security token check if needed.
-  if (receiver->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(rdx, rbx, &miss);
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(receiver(), scratch1(), &miss);
   }
 
   // Stub never generated for non-global objects that require access
   // checks.
-  ASSERT(receiver->IsJSGlobalProxy() || !receiver->IsAccessCheckNeeded());
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
-  __ pop(rbx);  // remove the return address
-  __ push(rdx);  // receiver
-  __ push(rcx);  // name
-  __ push(rax);  // value
-  __ Push(Smi::FromInt(strict_mode_));
-  __ push(rbx);  // restore return address
+  __ pop(scratch1());  // remove the return address
+  __ push(receiver());
+  __ push(this->name());
+  __ push(value());
+  __ Push(Smi::FromInt(strict_mode()));
+  __ push(scratch1());  // restore return address
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
@@ -2594,11 +2488,10 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 
   // Handle store cache miss.
   __ bind(&miss);
-  Handle<Code> ic = isolate()->builtins()->StoreIC_Miss();
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(Code::INTERCEPTOR, name);
+  return GetICCode(kind(), Code::INTERCEPTOR, name);
 }
 
 
@@ -2606,22 +2499,17 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
     Handle<GlobalObject> object,
     Handle<JSGlobalPropertyCell> cell,
     Handle<Name> name) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
   Label miss;
 
   // Check that the map of the global has not changed.
-  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
+  __ Cmp(FieldOperand(receiver(), HeapObject::kMapOffset),
          Handle<Map>(object->map()));
   __ j(not_equal, &miss);
 
   // Compute the cell operand to use.
-  __ Move(rbx, cell);
-  Operand cell_operand = FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset);
+  __ Move(scratch1(), cell);
+  Operand cell_operand =
+      FieldOperand(scratch1(), JSGlobalPropertyCell::kValueOffset);
 
   // Check that the value in the cell is not the hole. If it is, this
   // cell could have been deleted and reintroducing the global needs
@@ -2631,7 +2519,7 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
   __ j(equal, &miss);
 
   // Store the value in the cell.
-  __ movq(cell_operand, rax);
+  __ movq(cell_operand, value());
   // Cells are always rescanned, so no write barrier here.
 
   // Return the value (register rax).
@@ -2642,78 +2530,10 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
   // Handle store cache miss.
   __ bind(&miss);
   __ IncrementCounter(counters->named_store_global_inline_miss(), 1);
-  Handle<Code> ic = isolate()->builtins()->StoreIC_Miss();
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(Code::NORMAL, name);
-}
-
-
-Handle<Code> KeyedStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
-                                                       int index,
-                                                       Handle<Map> transition,
-                                                       Handle<Name> name) {
-  // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
-  // -----------------------------------
-  Label miss;
-
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->keyed_store_field(), 1);
-
-  // Check that the name has not changed.
-  __ Cmp(rcx, name);
-  __ j(not_equal, &miss);
-
-  // Generate store field code.  Preserves receiver and name on jump to miss.
-  GenerateStoreField(masm(),
-                     object,
-                     index,
-                     transition,
-                     name,
-                     rdx, rcx, rbx, rdi,
-                     &miss);
-
-  // Handle store cache miss.
-  __ bind(&miss);
-  __ DecrementCounter(counters->keyed_store_field(), 1);
-  Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
-  __ Jump(ic, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode(transition.is_null()
-                 ? Code::FIELD
-                 : Code::MAP_TRANSITION, name);
-}
-
-
-Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
-    Handle<Map> receiver_map) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-
-  ElementsKind elements_kind = receiver_map->elements_kind();
-  bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-  Handle<Code> stub =
-      KeyedStoreElementStub(is_js_array,
-                            elements_kind,
-                            store_mode_).GetCode(isolate());
-
-  __ DispatchMap(rdx, receiver_map, stub, DO_SMI_CHECK);
-
-  Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode(Code::NORMAL, factory()->empty_string());
+  return GetICCode(kind(), Code::NORMAL, name);
 }
 
 
@@ -2721,37 +2541,34 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
     MapHandleList* receiver_maps,
     CodeHandleList* handler_stubs,
     MapHandleList* transitioned_maps) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
   Label miss;
-  __ JumpIfSmi(rdx, &miss, Label::kNear);
+  __ JumpIfSmi(receiver(), &miss, Label::kNear);
 
-  __ movq(rdi, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ movq(scratch1(), FieldOperand(receiver(), HeapObject::kMapOffset));
   int receiver_count = receiver_maps->length();
   for (int i = 0; i < receiver_count; ++i) {
     // Check map and tail call if there's a match
-    __ Cmp(rdi, receiver_maps->at(i));
+    __ Cmp(scratch1(), receiver_maps->at(i));
     if (transitioned_maps->at(i).is_null()) {
       __ j(equal, handler_stubs->at(i), RelocInfo::CODE_TARGET);
     } else {
       Label next_map;
       __ j(not_equal, &next_map, Label::kNear);
-      __ movq(rbx, transitioned_maps->at(i), RelocInfo::EMBEDDED_OBJECT);
+      __ movq(transition_map(),
+              transitioned_maps->at(i),
+              RelocInfo::EMBEDDED_OBJECT);
       __ jmp(handler_stubs->at(i), RelocInfo::CODE_TARGET);
       __ bind(&next_map);
     }
   }
 
   __ bind(&miss);
-  Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
-  return GetCode(Code::NORMAL, factory()->empty_string(), POLYMORPHIC);
+  return GetICCode(
+      kind(), Code::NORMAL, factory()->empty_string(), POLYMORPHIC);
 }
 
 
@@ -2789,9 +2606,31 @@ Register* KeyedLoadStubCompiler::registers() {
 }
 
 
+Register* StoreStubCompiler::registers() {
+  // receiver, name, value, scratch1, scratch2, scratch3.
+  static Register registers[] = { rdx, rcx, rax, rbx, rdi, r8 };
+  return registers;
+}
+
+
+Register* KeyedStoreStubCompiler::registers() {
+  // receiver, name, value, scratch1, scratch2, scratch3.
+  static Register registers[] = { rdx, rcx, rax, rbx, rdi, r8 };
+  return registers;
+}
+
+
 void KeyedLoadStubCompiler::GenerateNameCheck(Handle<Name> name,
                                               Register name_reg,
                                               Label* miss) {
+  __ Cmp(name_reg, name);
+  __ j(not_equal, miss);
+}
+
+
+void KeyedStoreStubCompiler::GenerateNameCheck(Handle<Name> name,
+                                               Register name_reg,
+                                               Label* miss) {
   __ Cmp(name_reg, name);
   __ j(not_equal, miss);
 }
@@ -2875,33 +2714,6 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
-    Handle<Map> receiver_map) {
-  // ----------- S t a t e -------------
-  //  -- rax    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  ElementsKind elements_kind = receiver_map->elements_kind();
-  if (receiver_map->has_fast_elements() ||
-      receiver_map->has_external_array_elements()) {
-    Handle<Code> stub = KeyedLoadFastElementStub(
-        receiver_map->instance_type() == JS_ARRAY_TYPE,
-        elements_kind).GetCode(isolate());
-    __ DispatchMap(rdx, receiver_map, stub, DO_SMI_CHECK);
-  } else {
-    Handle<Code> stub =
-        KeyedLoadDictionaryElementStub().GetCode(isolate());
-    __ DispatchMap(rdx, receiver_map, stub, DO_SMI_CHECK);
-  }
-
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetICCode(kind(), Code::NORMAL, factory()->empty_string());
-}
-
-
 Handle<Code> BaseLoadStubCompiler::CompilePolymorphicIC(
     MapHandleList* receiver_maps,
     CodeHandleList* handlers,
@@ -2925,7 +2737,7 @@ Handle<Code> BaseLoadStubCompiler::CompilePolymorphicIC(
   }
 
   __  bind(&miss);
-  GenerateLoadMiss(masm(), kind());
+  TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   // Return the generated code.
   InlineCacheState state =
@@ -2985,8 +2797,8 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   __ cmpq(rcx, Immediate(instance_size));
   __ Check(equal, "Instance size of initial map changed.");
 #endif
-  __ AllocateInNewSpace(instance_size, rdx, rcx, no_reg,
-                        &generic_stub_call, NO_ALLOCATION_FLAGS);
+  __ Allocate(instance_size, rdx, rcx, no_reg, &generic_stub_call,
+              NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
   // rbx: initial map
@@ -3101,9 +2913,7 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   //  -- rdx    : receiver
   //  -- rsp[0]  : return address
   // -----------------------------------
-  Handle<Code> slow_ic =
-      masm->isolate()->builtins()->KeyedLoadIC_Slow();
-  __ jmp(slow_ic, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
 
   __ bind(&miss_force_generic);
   // ----------- S t a t e -------------
@@ -3111,9 +2921,7 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   //  -- rdx    : receiver
   //  -- rsp[0]  : return address
   // -----------------------------------
-  Handle<Code> miss_ic =
-      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
-  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_MissForceGeneric);
 }
 
 
@@ -3311,9 +3119,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   //  -- rdx     : receiver
   //  -- rsp[0]  : return address
   // -----------------------------------
-
-  Handle<Code> ic = masm->isolate()->builtins()->KeyedStoreIC_Slow();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm, Builtins::kKeyedStoreIC_Slow);
 
   // Miss case: call runtime.
   __ bind(&miss_force_generic);
@@ -3324,10 +3130,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
-
-  Handle<Code> miss_ic =
-      masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
-  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm, Builtins::kKeyedStoreIC_MissForceGeneric);
 }
 
 
@@ -3396,13 +3199,10 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
 
   // Handle store cache miss.
   __ bind(&miss_force_generic);
-  Handle<Code> ic_force_generic =
-      masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
-  __ jmp(ic_force_generic, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm, Builtins::kKeyedStoreIC_MissForceGeneric);
 
   __ bind(&transition_elements_kind);
-  Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic_miss, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm, Builtins::kKeyedStoreIC_Miss);
 
   if (is_js_array && IsGrowStoreMode(store_mode)) {
     // Grow the array by a single element if possible.
@@ -3420,7 +3220,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     __ j(not_equal, &check_capacity);
 
     int size = FixedArray::SizeFor(JSArray::kPreallocatedArrayElements);
-    __ AllocateInNewSpace(size, rdi, rbx, r8, &slow, TAG_OBJECT);
+    __ Allocate(size, rdi, rbx, r8, &slow, TAG_OBJECT);
 
     // rax: value
     // rcx: key
@@ -3468,8 +3268,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     __ jmp(&finish_store);
 
     __ bind(&slow);
-    Handle<Code> ic_slow = masm->isolate()->builtins()->KeyedStoreIC_Slow();
-    __ jmp(ic_slow, RelocInfo::CODE_TARGET);
+    TailCallBuiltin(masm, Builtins::kKeyedStoreIC_Slow);
   }
 }
 
@@ -3519,16 +3318,13 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   // Handle store cache miss, replacing the ic with the generic stub.
   __ bind(&miss_force_generic);
-  Handle<Code> ic_force_generic =
-      masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
-  __ jmp(ic_force_generic, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm, Builtins::kKeyedStoreIC_MissForceGeneric);
 
   __ bind(&restore_key_transition_elements_kind);
   // Restore smi-tagging of rcx.
   __ Integer32ToSmi(rcx, rcx);
   __ bind(&transition_elements_kind);
-  Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic_miss, RelocInfo::CODE_TARGET);
+  TailCallBuiltin(masm, Builtins::kKeyedStoreIC_Miss);
 
   if (is_js_array && IsGrowStoreMode(store_mode)) {
     // Grow the array by a single element if possible.
@@ -3554,7 +3350,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ j(not_equal, &check_capacity);
 
     int size = FixedDoubleArray::SizeFor(JSArray::kPreallocatedArrayElements);
-    __ AllocateInNewSpace(size, rdi, rbx, r8, &slow, TAG_OBJECT);
+    __ Allocate(size, rdi, rbx, r8, &slow, TAG_OBJECT);
 
     // rax: value
     // rcx: key
@@ -3602,8 +3398,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ jmp(&finish_store);
 
     __ bind(&slow);
-    Handle<Code> ic_slow = masm->isolate()->builtins()->KeyedStoreIC_Slow();
-    __ jmp(ic_slow, RelocInfo::CODE_TARGET);
+    TailCallBuiltin(masm, Builtins::kKeyedStoreIC_Slow);
   }
 }
 

@@ -139,6 +139,7 @@ class PositionsRecorder;
   V(REG_EXP_TAG,                    "RegExp")                           \
   V(SCRIPT_TAG,                     "Script")                           \
   V(STORE_IC_TAG,                   "StoreIC")                          \
+  V(STORE_POLYMORPHIC_IC_TAG,       "StorePolymorphicIC")               \
   V(STUB_TAG,                       "Stub")                             \
   V(NATIVE_FUNCTION_TAG,            "Function")                         \
   V(NATIVE_LAZY_COMPILE_TAG,        "LazyCompile")                      \

@@ -38,9 +38,6 @@
 #ifndef V8_H_
 #define V8_H_
 
-// TODO(dcarney): Remove once Latin-1 transitions in WebKit has stuck.
-#define V8_ONE_BYTE_STRINGS_ENABLED 1
-
 #include "v8stdint.h"
 
 #ifdef _WIN32
@@ -517,7 +514,10 @@ template <class T> class Persistent : public Handle<T> {
  */
 class V8EXPORT HandleScope {
  public:
+  // TODO(svenpanne) Deprecate me when Chrome is fixed!
   HandleScope();
+
+  HandleScope(Isolate* isolate);
 
   ~HandleScope();
 
@@ -562,6 +562,7 @@ class V8EXPORT HandleScope {
     }
   };
 
+  void Initialize(Isolate* isolate);
   void Leave();
 
   internal::Isolate* isolate_;
@@ -3007,6 +3008,21 @@ class V8EXPORT Isolate {
    */
   void GetHeapStatistics(HeapStatistics* heap_statistics);
 
+  /**
+   * Adjusts the amount of registered external memory. Used to give V8 an
+   * indication of the amount of externally allocated memory that is kept alive
+   * by JavaScript objects. V8 uses this to decide when to perform global
+   * garbage collections. Registering externally allocated memory will trigger
+   * global garbage collections more often than it would otherwise in an attempt
+   * to garbage collect the JavaScript objects that keep the externally
+   * allocated memory alive.
+   *
+   * \param change_in_bytes the change in externally allocated memory that is
+   *   kept alive by JavaScript objects.
+   * \returns the adjusted value.
+   */
+  intptr_t AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes);
+
  private:
   Isolate();
   Isolate(const Isolate&);
@@ -3487,20 +3503,8 @@ class V8EXPORT V8 {
   static void SetJitCodeEventHandler(JitCodeEventOptions options,
                                      JitCodeEventHandler event_handler);
 
-  /**
-   * Adjusts the amount of registered external memory.  Used to give
-   * V8 an indication of the amount of externally allocated memory
-   * that is kept alive by JavaScript objects.  V8 uses this to decide
-   * when to perform global garbage collections.  Registering
-   * externally allocated memory will trigger global garbage
-   * collections more often than otherwise in an attempt to garbage
-   * collect the JavaScript objects keeping the externally allocated
-   * memory alive.
-   *
-   * \param change_in_bytes the change in externally allocated memory
-   *   that is kept alive by JavaScript objects.
-   * \returns the adjusted value.
-   */
+  // TODO(svenpanne) Really deprecate me when Chrome is fixed.
+  /** Deprecated. Use Isolate::AdjustAmountOfExternalAllocatedMemory instead. */
   static intptr_t AdjustAmountOfExternalAllocatedMemory(
       intptr_t change_in_bytes);
 

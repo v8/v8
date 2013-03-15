@@ -53,11 +53,7 @@ class StringSearchBase {
   // a potentially less efficient searching, but is a safe approximation.
   // For needles using only characters in the same Unicode 256-code point page,
   // there is no search speed degradation.
-#ifndef ENABLE_LATIN_1
-  static const int kAsciiAlphabetSize = 128;
-#else
   static const int kAsciiAlphabetSize = 256;
-#endif
   static const int kUC16AlphabetSize = Isolate::kUC16AlphabetSize;
 
   // Bad-char shift table stored in the state. It's length is the alphabet size.
@@ -155,11 +151,7 @@ class StringSearch : private StringSearchBase {
   void PopulateBoyerMooreTable();
 
   static inline bool exceedsOneByte(uint8_t c) {
-#ifdef ENABLE_LATIN_1
     return false;
-#else
-    return c > String::kMaxOneByteCharCodeU;
-#endif
   }
 
   static inline bool exceedsOneByte(uint16_t c) {

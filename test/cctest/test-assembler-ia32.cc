@@ -58,10 +58,10 @@ static void InitializeVM() {
 
 TEST(AssemblerIa320) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof buffer);
 
   __ mov(eax, Operand(esp, 4));
@@ -87,10 +87,10 @@ TEST(AssemblerIa320) {
 
 TEST(AssemblerIa321) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof buffer);
   Label L, C;
 
@@ -126,10 +126,10 @@ TEST(AssemblerIa321) {
 
 TEST(AssemblerIa322) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof buffer);
   Label L, C;
 
@@ -173,10 +173,10 @@ TEST(AssemblerIa323) {
   InitializeVM();
   if (!CpuFeatures::IsSupported(SSE2)) return;
 
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof buffer);
 
   CHECK(CpuFeatures::IsSupported(SSE2));
@@ -209,10 +209,10 @@ TEST(AssemblerIa324) {
   InitializeVM();
   if (!CpuFeatures::IsSupported(SSE2)) return;
 
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof buffer);
 
   CHECK(CpuFeatures::IsSupported(SSE2));
@@ -241,10 +241,10 @@ TEST(AssemblerIa324) {
 static int baz = 42;
 TEST(AssemblerIa325) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof buffer);
 
   __ mov(eax, Operand(reinterpret_cast<intptr_t>(&baz), RelocInfo::NONE32));
@@ -268,9 +268,9 @@ TEST(AssemblerIa326) {
   InitializeVM();
   if (!CpuFeatures::IsSupported(SSE2)) return;
 
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof buffer);
 
   CpuFeatureScope fscope(&assm, SSE2);
@@ -314,9 +314,9 @@ TEST(AssemblerIa328) {
   InitializeVM();
   if (!CpuFeatures::IsSupported(SSE2)) return;
 
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof buffer);
   CpuFeatureScope fscope(&assm, SSE2);
   __ mov(eax, Operand(esp, 4));
@@ -349,9 +349,9 @@ typedef int (*F7)(double x, double y);
 
 TEST(AssemblerIa329) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  Isolate* isolate = Isolate::Current();
   MacroAssembler assm(isolate, buffer, sizeof buffer);
   enum { kEqual = 0, kGreater = 1, kLess = 2, kNaN = 3, kUndefined = 4 };
   Label equal_l, less_l, greater_l, nan_l;
@@ -405,8 +405,8 @@ TEST(AssemblerIa329) {
 TEST(AssemblerIa3210) {
   // Test chaining of label usages within instructions (issue 1644).
   InitializeVM();
-  v8::HandleScope scope;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
   Assembler assm(isolate, NULL, 0);
 
   Label target;
@@ -419,9 +419,9 @@ TEST(AssemblerIa3210) {
 
 TEST(AssemblerMultiByteNop) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof(buffer));
   __ push(ebx);
   __ push(ecx);

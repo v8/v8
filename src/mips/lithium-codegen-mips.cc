@@ -1268,12 +1268,12 @@ void LCodeGen::DoMulI(LMulI* instr) {
             __ sll(result, left, shift);
           } else if (IsPowerOf2(constant_abs - 1)) {
             int32_t shift = WhichPowerOf2(constant_abs - 1);
-            __ sll(result, left, shift);
-            __ Addu(result, result, left);
+            __ sll(scratch, left, shift);
+            __ Addu(result, scratch, left);
           } else if (IsPowerOf2(constant_abs + 1)) {
             int32_t shift = WhichPowerOf2(constant_abs + 1);
-            __ sll(result, left, shift);
-            __ Subu(result, result, left);
+            __ sll(scratch, left, shift);
+            __ Subu(result, scratch, left);
           }
 
           // Correct the sign of the result is the constant is negative.

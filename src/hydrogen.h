@@ -386,8 +386,6 @@ class HGraph: public ZoneObject {
   }
 
  private:
-  HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
-                         Handle<Object> value);
   HConstant* GetConstantInt32(SetOncePointer<HConstant>* pointer,
                               int32_t integer_value);
 
@@ -422,7 +420,7 @@ class HGraph: public ZoneObject {
   SetOncePointer<HConstant> constant_minus1_;
   SetOncePointer<HConstant> constant_true_;
   SetOncePointer<HConstant> constant_false_;
-  SetOncePointer<HConstant> constant_hole_;
+  SetOncePointer<HConstant> constant_the_hole_;
   SetOncePointer<HArgumentsObject> arguments_object_;
 
   SetOncePointer<HBasicBlock> osr_loop_entry_;

@@ -590,6 +590,13 @@ class Heap {
     return new_space_.allocation_limit_address();
   }
 
+  Address* OldPointerSpaceAllocationTopAddress() {
+    return old_pointer_space_->allocation_top_address();
+  }
+  Address* OldPointerSpaceAllocationLimitAddress() {
+    return old_pointer_space_->allocation_limit_address();
+  }
+
   // Uncommit unused semi space.
   bool UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
 
@@ -1822,13 +1829,26 @@ class Heap {
     explicit RelocationLock(Heap* heap) : heap_(heap) {
       if (FLAG_parallel_recompilation) {
         heap_->relocation_mutex_->Lock();
+#ifdef DEBUG
+        heap_->relocation_mutex_locked_ = true;
+#endif  // DEBUG
       }
     }
+
     ~RelocationLock() {
       if (FLAG_parallel_recompilation) {
+#ifdef DEBUG
+        heap_->relocation_mutex_locked_ = false;
+#endif  // DEBUG
         heap_->relocation_mutex_->Unlock();
       }
     }
+
+#ifdef DEBUG
+    static bool IsLocked(Heap* heap) {
+      return heap->relocation_mutex_locked_;
+    }
+#endif  // DEBUG
 
    private:
     Heap* heap_;
@@ -2304,6 +2324,9 @@ class Heap {
   MemoryChunk* chunks_queued_for_free_;
 
   Mutex* relocation_mutex_;
+#ifdef DEBUG
+  bool relocation_mutex_locked_;
+#endif  // DEBUG;
 
   friend class Factory;
   friend class GCTracer;

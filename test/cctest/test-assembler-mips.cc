@@ -62,9 +62,10 @@ static void InitializeVM() {
 
 TEST(MIPS0) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0);
 
   // Addition.
   __ addu(v0, a0, a1);
@@ -87,9 +88,10 @@ TEST(MIPS0) {
 
 TEST(MIPS1) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0);
   Label L, C;
 
   __ mov(a1, a0);
@@ -125,9 +127,10 @@ TEST(MIPS1) {
 
 TEST(MIPS2) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0);
 
   Label exit, error;
 
@@ -266,7 +269,8 @@ TEST(MIPS2) {
 TEST(MIPS3) {
   // Test floating point instructions.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     double a;
@@ -283,7 +287,7 @@ TEST(MIPS3) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles t.a ... t.f.
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0);
   Label L, C;
 
   if (CpuFeatures::IsSupported(FPU)) {
@@ -357,7 +361,8 @@ TEST(MIPS3) {
 TEST(MIPS4) {
   // Test moves between floating point and integer registers.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     double a;
@@ -366,7 +371,7 @@ TEST(MIPS4) {
   } T;
   T t;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Assembler assm(isolate, NULL, 0);
   Label L, C;
 
   if (CpuFeatures::IsSupported(FPU)) {
@@ -417,7 +422,8 @@ TEST(MIPS4) {
 TEST(MIPS5) {
   // Test conversions between doubles and integers.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     double a;
@@ -427,7 +433,7 @@ TEST(MIPS5) {
   } T;
   T t;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Assembler assm(isolate, NULL, 0);
   Label L, C;
 
   if (CpuFeatures::IsSupported(FPU)) {
@@ -488,7 +494,8 @@ TEST(MIPS5) {
 TEST(MIPS6) {
   // Test simple memory loads and stores.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     uint32_t ui;
@@ -502,7 +509,7 @@ TEST(MIPS6) {
   } T;
   T t;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Assembler assm(isolate, NULL, 0);
   Label L, C;
 
   // Basic word load/store.
@@ -560,7 +567,8 @@ TEST(MIPS6) {
 TEST(MIPS7) {
   // Test floating point compare and branch instructions.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     double a;
@@ -575,7 +583,7 @@ TEST(MIPS7) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles t.a ... t.f.
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0);
   Label neither_is_nan, less_than, outa_here;
 
   if (CpuFeatures::IsSupported(FPU)) {
@@ -641,7 +649,8 @@ TEST(MIPS7) {
 TEST(MIPS8) {
   // Test ROTR and ROTRV instructions.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     int32_t input;
@@ -662,7 +671,7 @@ TEST(MIPS8) {
   } T;
   T t;
 
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0);
 
   // Basic word load.
   __ lw(t0, MemOperand(a0, OFFSET_OF(T, input)) );
@@ -745,9 +754,10 @@ TEST(MIPS8) {
 TEST(MIPS9) {
   // Test BRANCH improvements.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0);
   Label exit, exit2, exit3;
 
   __ Branch(&exit, ge, a0, Operand(0x00000000));
@@ -774,7 +784,8 @@ TEST(MIPS10) {
   // Test conversions between doubles and long integers.
   // Test hos the long ints map to FP regs pairs.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     double a;
@@ -788,7 +799,7 @@ TEST(MIPS10) {
   } T;
   T t;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Assembler assm(isolate, NULL, 0);
   Label L, C;
 
   if (CpuFeatures::IsSupported(FPU) && kArchVariant == kMips32r2) {
@@ -848,7 +859,8 @@ TEST(MIPS10) {
 TEST(MIPS11) {
   // Test LWL, LWR, SWL and SWR instructions.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     int32_t reg_init;
@@ -872,7 +884,7 @@ TEST(MIPS11) {
   } T;
   T t;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Assembler assm(isolate, NULL, 0);
 
   // Test all combinations of LWL and vAddr.
   __ lw(t0, MemOperand(a0, OFFSET_OF(T, reg_init)) );
@@ -991,7 +1003,8 @@ TEST(MIPS11) {
 
 TEST(MIPS12) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
       int32_t  x;
@@ -1003,7 +1016,7 @@ TEST(MIPS12) {
   } T;
   T t;
 
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0);
 
   __ mov(t6, fp);  // Save frame pointer.
   __ mov(fp, a0);  // Access struct T by fp.
@@ -1082,7 +1095,8 @@ TEST(MIPS12) {
 TEST(MIPS13) {
   // Test Cvt_d_uw and Trunc_uw_d macros.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
   typedef struct {
     double cvt_big_out;
@@ -1094,7 +1108,7 @@ TEST(MIPS13) {
   } T;
   T t;
 
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatureScope scope(&assm, FPU);
@@ -1144,7 +1158,8 @@ TEST(MIPS13) {
 TEST(MIPS14) {
   // Test round, floor, ceil, trunc, cvt.
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
 
 #define ROUND_STRUCT_ELEMENT(x) \
   int32_t x##_up_out; \
@@ -1177,7 +1192,7 @@ TEST(MIPS14) {
 
 #undef ROUND_STRUCT_ELEMENT
 
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatureScope scope(&assm, FPU);
@@ -1280,8 +1295,9 @@ TEST(MIPS14) {
 TEST(MIPS15) {
   // Test chaining of label usages within instructions (issue 1644).
   InitializeVM();
-  v8::HandleScope scope;
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, NULL, 0);
 
   Label target;
   __ beq(v0, v1, &target);

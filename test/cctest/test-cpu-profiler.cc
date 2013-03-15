@@ -55,7 +55,7 @@ static v8::Persistent<v8::Context> env;
 
 static void InitializeVM() {
   if (env.IsEmpty()) env = v8::Context::New();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   env->Enter();
 }
 
@@ -326,8 +326,8 @@ TEST(DeleteAllCpuProfiles) {
 
 
 TEST(DeleteCpuProfile) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   CHECK_EQ(0, v8::CpuProfiler::GetProfilesCount());
   v8::Local<v8::String> name1 = v8::String::New("1");
@@ -372,8 +372,8 @@ TEST(DeleteCpuProfile) {
 
 
 TEST(DeleteCpuProfileDifferentTokens) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   CHECK_EQ(0, v8::CpuProfiler::GetProfilesCount());
   v8::Local<v8::String> name1 = v8::String::New("1");

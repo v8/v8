@@ -393,9 +393,6 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ j(not_equal, on_no_match);  // Definitely not equal.
     __ subb(rax, Immediate('a'));
     __ cmpb(rax, Immediate('z' - 'a'));
-#ifndef ENABLE_LATIN_1
-    __ j(above, on_no_match);  // Weren't letters anyway.
-#else
     __ j(below_equal, &loop_increment);  // In range 'a'-'z'.
     // Latin-1: Check for values in range [224,254] but not 247.
     __ subb(rax, Immediate(224 - 'a'));
@@ -403,7 +400,6 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ j(above, on_no_match);  // Weren't Latin-1 letters.
     __ cmpb(rax, Immediate(247 - 224));  // Check for 247.
     __ j(equal, on_no_match);
-#endif
     __ bind(&loop_increment);
     // Increment pointers into match and capture strings.
     __ addq(r11, Immediate(1));

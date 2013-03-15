@@ -5675,9 +5675,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
 namespace {
 
 static const uintptr_t kOneInEveryByte = kUintptrAllBitsSet / 0xFF;
-#ifdef ENABLE_LATIN_1
 static const uintptr_t kAsciiMask = kOneInEveryByte << 7;
-#endif
 
 // Given a word and two range boundaries returns a word with high bit
 // set in every byte iff the corresponding input byte was strictly in
@@ -5690,11 +5688,6 @@ static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
   // Use strict inequalities since in edge cases the function could be
   // further simplified.
   ASSERT(0 < m && m < n);
-#ifndef ENABLE_LATIN_1
-  // Every byte in an ASCII string is less than or equal to 0x7F.
-  ASSERT((w & (kOneInEveryByte * 0x7F)) == w);
-  ASSERT(n < 0x7F);
-#endif
   // Has high bit set in every w byte less than n.
   uintptr_t tmp1 = kOneInEveryByte * (0x7F + n) - w;
   // Has high bit set in every w byte greater than m.
@@ -5711,11 +5704,7 @@ enum AsciiCaseConversion {
 
 template <AsciiCaseConversion dir>
 struct FastAsciiConverter {
-#ifdef ENABLE_LATIN_1
   static bool Convert(char* dst, char* src, int length, bool* changed_out) {
-#else
-  static bool Convert(char* dst, char* src, int length) {
-#endif
 #ifdef DEBUG
     char* saved_dst = dst;
     char* saved_src = src;
@@ -5727,18 +5716,14 @@ struct FastAsciiConverter {
     const char lo = (dir == ASCII_TO_LOWER) ? 'A' - 1 : 'a' - 1;
     const char hi = (dir == ASCII_TO_LOWER) ? 'Z' + 1 : 'z' + 1;
     bool changed = false;
-#ifdef ENABLE_LATIN_1
     uintptr_t or_acc = 0;
-#endif
     char* const limit = src + length;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
     // Process the prefix of the input that requires no conversion one
     // (machine) word at a time.
     while (src <= limit - sizeof(uintptr_t)) {
       uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
-#ifdef ENABLE_LATIN_1
       or_acc |= w;
-#endif
       if (AsciiRangeMask(w, lo, hi) != 0) {
         changed = true;
         break;
@@ -5751,9 +5736,7 @@ struct FastAsciiConverter {
     // required one word at a time.
     while (src <= limit - sizeof(uintptr_t)) {
       uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
-#ifdef ENABLE_LATIN_1
       or_acc |= w;
-#endif
       uintptr_t m = AsciiRangeMask(w, lo, hi);
       // The mask has high (7th) bit set in every byte that needs
       // conversion and we know that the distance between cases is
@@ -5767,9 +5750,7 @@ struct FastAsciiConverter {
     // unaligned access is not supported).
     while (src < limit) {
       char c = *src;
-#ifdef ENABLE_LATIN_1
       or_acc |= c;
-#endif
       if (lo < c && c < hi) {
         c ^= (1 << 5);
         changed = true;
@@ -5778,20 +5759,14 @@ struct FastAsciiConverter {
       ++src;
       ++dst;
     }
-#ifdef ENABLE_LATIN_1
     if ((or_acc & kAsciiMask) != 0) {
       return false;
     }
-#endif
 #ifdef DEBUG
     CheckConvert(saved_dst, saved_src, length, changed);
 #endif
-#ifdef ENABLE_LATIN_1
     *changed_out = changed;
     return true;
-#else
-    return changed;
-#endif
   }
 
 #ifdef DEBUG
@@ -5856,13 +5831,6 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
       if (!maybe_o->ToObject(&o)) return maybe_o;
     }
     SeqOneByteString* result = SeqOneByteString::cast(o);
-#ifndef ENABLE_LATIN_1
-    bool has_changed_character = ConvertTraits::AsciiConverter::Convert(
-        reinterpret_cast<char*>(result->GetChars()),
-        reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
-        length);
-    return has_changed_character ? result : s;
-#else
     bool has_changed_character;
     bool is_ascii = ConvertTraits::AsciiConverter::Convert(
         reinterpret_cast<char*>(result->GetChars()),
@@ -5873,7 +5841,6 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     if (is_ascii) {
       return has_changed_character ? result : s;
     }
-#endif
   }
 
   Object* answer;
@@ -7762,7 +7729,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (!AllowOptimization(isolate, function)) {
     function->ReplaceCode(function->shared()->code());
-    return function->code();
+    return isolate->heap()->undefined_value();
   }
   function->shared()->code()->set_profiler_ticks(0);
   ASSERT(FLAG_parallel_recompilation);
@@ -7775,10 +7742,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
   HandleScope handle_scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (!V8::UseCrankshaft()) return isolate->heap()->undefined_value();
-  ASSERT(FLAG_parallel_recompilation);
+  ASSERT(V8::UseCrankshaft() && FLAG_parallel_recompilation);
   OptimizingCompilerThread* opt_thread = isolate->optimizing_compiler_thread();
-  opt_thread->InstallOptimizedFunctions();
+  do {
+    // The function could have been marked for installing, but not queued just
+    // yet.  In this case, retry until installed.
+    opt_thread->InstallOptimizedFunctions();
+  } while (function->IsMarkedForInstallingRecompiledCode());
   return function->code();
 }
 
@@ -9119,6 +9089,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInNewSpace) {
   RUNTIME_ASSERT(size <= kMinFreeNewSpaceAfterGC);
   Object* allocation;
   { MaybeObject* maybe_allocation = heap->new_space()->AllocateRaw(size);
+    if (maybe_allocation->ToObject(&allocation)) {
+      heap->CreateFillerObjectAt(HeapObject::cast(allocation)->address(), size);
+    }
+    return maybe_allocation;
+  }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInOldPointerSpace) {
+  // Allocate a block of memory in old pointer space (filled with a filler).
+  // Use as fallback for allocation in generated code when old pointer space
+  // is full.
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, size_smi, 0);
+  int size = size_smi->value();
+  RUNTIME_ASSERT(IsAligned(size, kPointerSize));
+  RUNTIME_ASSERT(size > 0);
+  Heap* heap = isolate->heap();
+  Object* allocation;
+  { MaybeObject* maybe_allocation =
+        heap->old_pointer_space()->AllocateRaw(size);
     if (maybe_allocation->ToObject(&allocation)) {
       heap->CreateFillerObjectAt(HeapObject::cast(allocation)->address(), size);
     }

@@ -174,6 +174,7 @@ const char* HeapEntry::TypeAsString() {
     case kHeapNumber: return "/number/";
     case kNative: return "/native/";
     case kSynthetic: return "/synthetic/";
+    case kContext: return "/context/";
     default: return "???";
   }
 }
@@ -826,7 +827,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   } else if (object->IsNativeContext()) {
     return AddEntry(object, HeapEntry::kHidden, "system / NativeContext");
   } else if (object->IsContext()) {
-    return AddEntry(object, HeapEntry::kHidden, "system / Context");
+    return AddEntry(object, HeapEntry::kContext, "system / Context");
   } else if (object->IsFixedArray() ||
              object->IsFixedDoubleArray() ||
              object->IsByteArray() ||
@@ -1097,6 +1098,27 @@ void V8HeapExplorer::ExtractStringReferences(int entry, String* string) {
 
 
 void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
+  if (context == context->declaration_context()) {
+    ScopeInfo* scope_info = context->closure()->shared()->scope_info();
+    // Add context allocated locals.
+    int context_locals = scope_info->ContextLocalCount();
+    for (int i = 0; i < context_locals; ++i) {
+      String* local_name = scope_info->ContextLocalName(i);
+      int idx = Context::MIN_CONTEXT_SLOTS + i;
+      SetContextReference(context, entry, local_name, context->get(idx),
+                          Context::OffsetOfElementAt(idx));
+    }
+    if (scope_info->HasFunctionName()) {
+      String* name = scope_info->FunctionName();
+      VariableMode mode;
+      int idx = scope_info->FunctionContextSlotIndex(name, &mode);
+      if (idx >= 0) {
+        SetContextReference(context, entry, name, context->get(idx),
+                            Context::OffsetOfElementAt(idx));
+      }
+    }
+  }
+
 #define EXTRACT_CONTEXT_FIELD(index, type, name) \
   SetInternalReference(context, entry, #name, context->get(Context::index), \
       FixedArray::OffsetOfElementAt(Context::index));
@@ -1285,26 +1307,6 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj, int entry) {
           i - JSFunction::kBoundArgumentsStartIndex);
       SetNativeBindReference(js_obj, entry, reference_name,
                              bindings->get(i));
-    }
-  } else {
-    Context* context = func->context()->declaration_context();
-    ScopeInfo* scope_info = context->closure()->shared()->scope_info();
-    // Add context allocated locals.
-    int context_locals = scope_info->ContextLocalCount();
-    for (int i = 0; i < context_locals; ++i) {
-      String* local_name = scope_info->ContextLocalName(i);
-      int idx = Context::MIN_CONTEXT_SLOTS + i;
-      SetClosureReference(js_obj, entry, local_name, context->get(idx));
-    }
-
-    // Add function variable.
-    if (scope_info->HasFunctionName()) {
-      String* name = scope_info->FunctionName();
-      VariableMode mode;
-      int idx = scope_info->FunctionContextSlotIndex(name, &mode);
-      if (idx >= 0) {
-        SetClosureReference(js_obj, entry, name, context->get(idx));
-      }
     }
   }
 }
@@ -1580,16 +1582,18 @@ bool V8HeapExplorer::IsEssentialObject(Object* object) {
 }
 
 
-void V8HeapExplorer::SetClosureReference(HeapObject* parent_obj,
+void V8HeapExplorer::SetContextReference(HeapObject* parent_obj,
                                          int parent_entry,
                                          String* reference_name,
-                                         Object* child_obj) {
+                                         Object* child_obj,
+                                         int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
     filler_->SetNamedReference(HeapGraphEdge::kContextVariable,
                                parent_entry,
                                collection_->names()->GetName(reference_name),
                                child_entry);
+    IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
   }
 }
 
@@ -2576,7 +2580,8 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("regexp") ","
             JSON_S("number") ","
             JSON_S("native") ","
-            JSON_S("synthetic")) ","
+            JSON_S("synthetic") ","
+            JSON_S("context")) ","
         JSON_S("string") ","
         JSON_S("number") ","
         JSON_S("number") ","

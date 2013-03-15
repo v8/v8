@@ -1333,8 +1333,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   Isolate::Current()->stub_cache()->GenerateProbe(
       masm, flags, rax, rcx, rbx, rdx);
 
-  // Cache miss: Jump to runtime.
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
+  GenerateMiss(masm);
 }
 
 

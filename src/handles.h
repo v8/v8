@@ -64,9 +64,7 @@ class Handle {
   INLINE(T* operator ->() const) { return operator*(); }
 
   // Check if this handle refers to the exact same object as the other handle.
-  bool is_identical_to(const Handle<T> other) const {
-    return *location_ == *other.location_;
-  }
+  INLINE(bool is_identical_to(const Handle<T> other) const);
 
   // Provides the C++ dereference operator.
   INLINE(T* operator*() const);
@@ -341,29 +339,15 @@ class NoHandleAllocation BASE_EMBEDDED {
 };
 
 
-class NoHandleDereference BASE_EMBEDDED {
+class HandleDereferenceGuard BASE_EMBEDDED {
  public:
+  enum State { ALLOW, DISALLOW };
 #ifndef DEBUG
-  explicit NoHandleDereference(Isolate* isolate) {}
-  ~NoHandleDereference() {}
+  HandleDereferenceGuard(Isolate* isolate, State state) { }
+  ~HandleDereferenceGuard() { }
 #else
-  explicit inline NoHandleDereference(Isolate* isolate);
-  inline ~NoHandleDereference();
- private:
-  Isolate* isolate_;
-  bool old_state_;
-#endif
-};
-
-
-class AllowHandleDereference BASE_EMBEDDED {
- public:
-#ifndef DEBUG
-  explicit AllowHandleDereference(Isolate* isolate) {}
-  ~AllowHandleDereference() {}
-#else
-  explicit inline AllowHandleDereference(Isolate* isolate);
-  inline ~AllowHandleDereference();
+  inline HandleDereferenceGuard(Isolate* isolate,  State state);
+  inline ~HandleDereferenceGuard();
  private:
   Isolate* isolate_;
   bool old_state_;

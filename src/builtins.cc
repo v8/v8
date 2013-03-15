@@ -203,12 +203,6 @@ RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
     holey = (value > 0 && value < JSObject::kInitialMaxFastElementArray);
   }
 
-  ASSERT(function->has_initial_map());
-  ElementsKind kind = function->initial_map()->elements_kind();
-  if (holey) {
-    kind = GetHoleyElementsKind(kind);
-  }
-
   MaybeObject* maybe_array;
   if (*type_info != isolate->heap()->undefined_value()) {
     JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(*type_info);
@@ -224,12 +218,18 @@ RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
       AllocationSiteMode mode = AllocationSiteInfo::GetMode(to_kind);
       if (mode == TRACK_ALLOCATION_SITE) {
         maybe_array = isolate->heap()->AllocateEmptyJSArrayWithAllocationSite(
-            kind, type_info);
+            to_kind, type_info);
       } else {
-        maybe_array = isolate->heap()->AllocateEmptyJSArray(kind);
+        maybe_array = isolate->heap()->AllocateEmptyJSArray(to_kind);
       }
       if (!maybe_array->To(&array)) return maybe_array;
     }
+  }
+
+  ASSERT(function->has_initial_map());
+  ElementsKind kind = function->initial_map()->elements_kind();
+  if (holey) {
+    kind = GetHoleyElementsKind(kind);
   }
 
   if (array == NULL) {

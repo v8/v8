@@ -52,10 +52,10 @@ static v8::Handle<Value> handle_property(Local<String> name,
 
 
 THREADED_TEST(PropertyHandler) {
-  v8::HandleScope scope;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
   fun_templ->InstanceTemplate()->SetAccessor(v8_str("foo"), handle_property);
-  LocalContext env;
   Local<Function> fun = fun_templ->GetFunction();
   env->Global()->Set(v8_str("Fun"), fun);
   Local<Script> getter = v8_compile("var obj = new Fun(); obj.foo;");
@@ -88,7 +88,7 @@ THREADED_TEST(GlobalVariableAccess) {
   foo = 0;
   bar = -4;
   baz = 10;
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
   templ->InstanceTemplate()->SetAccessor(v8_str("foo"),
                                          GetIntValue,
@@ -136,10 +136,10 @@ static void XSetter(Local<String> name,
 
 
 THREADED_TEST(AccessorIC) {
-  v8::HandleScope scope;
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("x"), XGetter, XSetter);
-  LocalContext context;
   x_holder = obj->NewInstance();
   context->Global()->Set(v8_str("holder"), x_holder);
   x_receiver = v8::Object::New();
@@ -169,8 +169,8 @@ static v8::Handle<Value> AccessorProhibitsOverwritingGetter(
 
 
 THREADED_TEST(AccessorProhibitsOverwriting) {
-  v8::HandleScope scope;
   LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->SetAccessor(v8_str("x"),
                      AccessorProhibitsOverwritingGetter,
@@ -218,17 +218,17 @@ static v8::Handle<Value> HandleAllocatingGetter(Local<String> name,
 
 
 THREADED_TEST(HandleScopePop) {
-  v8::HandleScope scope;
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("one"), HandleAllocatingGetter<1>);
   obj->SetAccessor(v8_str("many"), HandleAllocatingGetter<1024>);
-  LocalContext context;
   v8::Handle<v8::Object> inst = obj->NewInstance();
   context->Global()->Set(v8::String::New("obj"), inst);
   i::Isolate* isolate = i::Isolate::Current();
   int count_before = i::HandleScope::NumberOfHandles(isolate);
   {
-    v8::HandleScope scope;
+    v8::HandleScope scope(context->GetIsolate());
     CompileRun(
         "for (var i = 0; i < 1000; i++) {"
         "  obj.one;"
@@ -256,13 +256,13 @@ static v8::Handle<Value> CheckAccessorArgsCorrect(Local<String> name,
 }
 
 THREADED_TEST(DirectCall) {
-  v8::HandleScope scope;
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("xxx"),
                    CheckAccessorArgsCorrect,
                    NULL,
                    v8::String::New("data"));
-  LocalContext context;
   v8::Handle<v8::Object> inst = obj->NewInstance();
   context->Global()->Set(v8::String::New("obj"), inst);
   Local<Script> scr = v8::Script::Compile(v8::String::New("obj.xxx"));
@@ -282,10 +282,10 @@ static v8::Handle<Value> EmptyGetter(Local<String> name,
 }
 
 THREADED_TEST(EmptyResult) {
-  v8::HandleScope scope;
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL, v8::String::New("data"));
-  LocalContext context;
   v8::Handle<v8::Object> inst = obj->NewInstance();
   context->Global()->Set(v8::String::New("obj"), inst);
   Local<Script> scr = v8::Script::Compile(v8::String::New("obj.xxx"));
@@ -299,7 +299,7 @@ THREADED_TEST(EmptyResult) {
 THREADED_TEST(NoReuseRegress) {
   // Check that the IC generated for the one test doesn't get reused
   // for the other.
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   {
     v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
     obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL, v8::String::New("data"));
@@ -345,14 +345,14 @@ static void ThrowingSetAccessor(Local<String> name,
 
 
 THREADED_TEST(Regress1054726) {
-  v8::HandleScope scope;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("x"),
                    ThrowingGetAccessor,
                    ThrowingSetAccessor,
                    Local<Value>());
 
-  LocalContext env;
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
 
   // Use the throwing property setter/getter in a loop to force
@@ -382,10 +382,10 @@ static v8::Handle<Value> AllocGetter(Local<String> name,
 
 
 THREADED_TEST(Gc) {
-  v8::HandleScope scope;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("xxx"), AllocGetter);
-  LocalContext env;
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
   Script::Compile(String::New(
       "var last = [];"
@@ -414,11 +414,11 @@ static v8::Handle<Value> StackCheck(Local<String> name,
 
 
 THREADED_TEST(StackIteration) {
-  v8::HandleScope scope;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   i::StringStream::ClearMentionedObjectCache();
   obj->SetAccessor(v8_str("xxx"), StackCheck);
-  LocalContext env;
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
   Script::Compile(String::New(
       "function foo() {"
@@ -442,10 +442,10 @@ static v8::Handle<Value> AllocateHandles(Local<String> name,
 THREADED_TEST(HandleScopeSegment) {
   // Check that we can return values past popping of handle scope
   // segments.
-  v8::HandleScope scope;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetAccessor(v8_str("xxx"), AllocateHandles);
-  LocalContext env;
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
   v8::Handle<v8::Value> result = Script::Compile(String::New(
       "var result;"
@@ -470,8 +470,8 @@ v8::Handle<v8::Value> JSONStringifyGetter(Local<String> name,
 
 
 THREADED_TEST(JSONStringifyNamedInterceptorObject) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetNamedPropertyHandler(

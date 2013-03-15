@@ -282,7 +282,7 @@ static void Deserialize() {
 
 
 static void SanityCheck() {
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
 #ifdef VERIFY_HEAP
   HEAP->Verify();
 #endif
@@ -299,7 +299,7 @@ DEPENDENT_TEST(Deserialize, Serialize) {
   // serialization.  That doesn't matter.  We don't need to be able to
   // serialize a snapshot in a VM that is booted from a snapshot.
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::HandleScope scope;
+    v8::HandleScope scope(v8::Isolate::GetCurrent());
     Deserialize();
 
     v8::Persistent<v8::Context> env = v8::Context::New();
@@ -312,7 +312,7 @@ DEPENDENT_TEST(Deserialize, Serialize) {
 
 DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::HandleScope scope;
+    v8::HandleScope scope(v8::Isolate::GetCurrent());
     Deserialize();
 
     v8::Persistent<v8::Context> env = v8::Context::New();
@@ -325,7 +325,7 @@ DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
 
 DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::HandleScope scope;
+    v8::HandleScope scope(v8::Isolate::GetCurrent());
     Deserialize();
 
     v8::Persistent<v8::Context> env = v8::Context::New();
@@ -342,7 +342,7 @@ DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
 DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
                SerializeTwice) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::HandleScope scope;
+    v8::HandleScope scope(v8::Isolate::GetCurrent());
     Deserialize();
 
     v8::Persistent<v8::Context> env = v8::Context::New();
@@ -377,7 +377,7 @@ TEST(PartialSerialization) {
 
     Object* raw_foo;
     {
-      v8::HandleScope handle_scope;
+      v8::HandleScope handle_scope(env->GetIsolate());
       v8::Local<v8::String> foo = v8::String::New("foo");
       ASSERT(!foo.IsEmpty());
       raw_foo = *(v8::Utils::OpenHandle(*foo));
@@ -473,7 +473,7 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
       deserializer.DeserializePartial(&root);
       CHECK(root->IsString());
     }
-    v8::HandleScope handle_scope;
+    v8::HandleScope handle_scope(v8::Isolate::GetCurrent());
     Handle<Object> root_handle(root, Isolate::Current());
 
 
@@ -571,7 +571,7 @@ DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
       deserializer.DeserializePartial(&root);
       CHECK(root->IsContext());
     }
-    v8::HandleScope handle_scope;
+    v8::HandleScope handle_scope(v8::Isolate::GetCurrent());
     Handle<Object> root_handle(root, Isolate::Current());
 
 

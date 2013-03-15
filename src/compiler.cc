@@ -396,7 +396,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
 OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
   AssertNoAllocation no_gc;
   NoHandleAllocation no_handles(isolate());
-  NoHandleDereference no_deref(isolate());
+  HandleDereferenceGuard no_deref(isolate(), HandleDereferenceGuard::DISALLOW);
 
   ASSERT(last_status() == SUCCEEDED);
   Timer t(this, &time_taken_to_optimize_);
@@ -943,7 +943,9 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
             new(info->zone()) OptimizingCompiler(*info);
         OptimizingCompiler::Status status = compiler->CreateGraph();
         if (status == OptimizingCompiler::SUCCEEDED) {
-          closure->MarkInRecompileQueue();
+          // Do a scavenge to put off the next scavenge as far as possible.
+          // This may ease the issue that GVN blocks the next scavenge.
+          isolate->heap()->CollectGarbage(NEW_SPACE, "parallel recompile");
           shared->code()->set_profiler_ticks(0);
           info.Detach();
           isolate->optimizing_compiler_thread()->QueueForOptimization(compiler);
@@ -975,7 +977,19 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
 
 void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
-  ASSERT(info->closure()->IsMarkedForInstallingRecompiledCode());
+  // The function may have already been optimized by OSR.  Simply continue.
+  // Except when OSR already disabled optimization for some reason.
+  if (info->shared_info()->optimization_disabled()) {
+    info->SetCode(Handle<Code>(info->shared_info()->code()));
+    InstallFullCode(*info);
+    if (FLAG_trace_parallel_recompilation) {
+      PrintF("  ** aborting optimization for ");
+      info->closure()->PrintName();
+      PrintF(" as it has been disabled.\n");
+    }
+    ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
+    return;
+  }
 
   Isolate* isolate = info->isolate();
   VMState state(isolate, PARALLEL_COMPILER);
@@ -1015,6 +1029,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // Optimized code is finally replacing unoptimized code.  Reset the latter's
   // profiler ticks to prevent too soon re-opt after a deopt.
   info->shared_info()->code()->set_profiler_ticks(0);
+  ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
 }
 
 

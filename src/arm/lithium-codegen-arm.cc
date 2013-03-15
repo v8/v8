@@ -4341,6 +4341,13 @@ void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
 }
 
 
+void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
+  Register result = ToRegister(instr->result());
+  Register base = ToRegister(instr->base_object());
+  __ add(result, base, Operand(instr->offset()));
+}
+
+
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Register object = ToRegister(instr->object());
   Register value = ToRegister(instr->value());
@@ -5581,12 +5588,8 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
   // the constructor's prototype changes, but instance size and property
   // counts remain unchanged (if slack tracking finished).
   ASSERT(!constructor->shared()->IsInobjectSlackTrackingInProgress());
-  __ AllocateInNewSpace(instance_size,
-                        result,
-                        scratch,
-                        scratch2,
-                        deferred->entry(),
-                        TAG_OBJECT);
+  __ Allocate(instance_size, result, scratch, scratch2, deferred->entry(),
+              TAG_OBJECT);
 
   __ bind(deferred->exit());
   if (FLAG_debug_code) {
@@ -5661,12 +5664,10 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   }
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-    __ AllocateInNewSpace(size,
-                          result,
-                          scratch,
-                          scratch2,
-                          deferred->entry(),
-                          flags);
+    if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
+      flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE);
+    }
+    __ Allocate(size, result, scratch, scratch2, deferred->entry(), flags);
   } else {
     Register size = ToRegister(instr->size());
     __ AllocateInNewSpace(size,
@@ -5899,7 +5900,7 @@ void LCodeGen::DoFastLiteral(LFastLiteral* instr) {
   // Allocate all objects that are part of the literal in one big
   // allocation. This avoids multiple limit checks.
   Label allocated, runtime_allocate;
-  __ AllocateInNewSpace(size, r0, r2, r3, &runtime_allocate, TAG_OBJECT);
+  __ Allocate(size, r0, r2, r3, &runtime_allocate, TAG_OBJECT);
   __ jmp(&allocated);
 
   __ bind(&runtime_allocate);
@@ -5981,7 +5982,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
   Label allocated, runtime_allocate;
 
-  __ AllocateInNewSpace(size, r0, r2, r3, &runtime_allocate, TAG_OBJECT);
+  __ Allocate(size, r0, r2, r3, &runtime_allocate, TAG_OBJECT);
   __ jmp(&allocated);
 
   __ bind(&runtime_allocate);

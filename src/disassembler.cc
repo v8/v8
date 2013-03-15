@@ -282,7 +282,7 @@ static int DecodeIt(Isolate* isolate,
         if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
           out.AddFormatted(" (id = %d)", static_cast<int>(relocinfo.data()));
         }
-      } else if (rmode == RelocInfo::RUNTIME_ENTRY &&
+      } else if (RelocInfo::IsRuntimeEntry(rmode) &&
                  isolate->deoptimizer_data() != NULL) {
         // A runtime entry reloinfo might be a deoptimization bailout.
         Address addr = relocinfo.target_address();

@@ -703,9 +703,11 @@ Handle<Object> Factory::NewReferenceError(Handle<String> message) {
 }
 
 
-Handle<Object> Factory::NewError(const char* maker, const char* type,
-    Vector< Handle<Object> > args) {
-  v8::HandleScope scope;  // Instantiate a closeable HandleScope for EscapeFrom.
+Handle<Object> Factory::NewError(const char* maker,
+                                 const char* type,
+                                 Vector< Handle<Object> > args) {
+  // Instantiate a closeable HandleScope for EscapeFrom.
+  v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));
   Handle<FixedArray> array = NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
     array->set(i, *args[i]);

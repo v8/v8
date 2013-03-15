@@ -2512,11 +2512,7 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
     // For 2-character preloads in ASCII mode or 1-character preloads in
     // TWO_BYTE mode we also use a 16 bit load with zero extend.
     if (details->characters() == 2 && compiler->ascii()) {
-#ifndef ENABLE_LATIN_1
-      if ((mask & 0x7f7f) == 0xffff) need_mask = false;
-#else
       if ((mask & 0xffff) == 0xffff) need_mask = false;
-#endif
     } else if (details->characters() == 1 && !compiler->ascii()) {
       if ((mask & 0xffff) == 0xffff) need_mask = false;
     } else {
@@ -2794,17 +2790,12 @@ RegExpNode* SeqRegExpNode::FilterSuccessor(int depth, bool ignore_case) {
 
 // We need to check for the following characters: 0x39c 0x3bc 0x178.
 static inline bool RangeContainsLatin1Equivalents(CharacterRange range) {
-#ifdef ENABLE_LATIN_1
   // TODO(dcarney): this could be a lot more efficient.
   return range.Contains(0x39c) ||
       range.Contains(0x3bc) || range.Contains(0x178);
-#else
-  return false;
-#endif
 }
 
 
-#ifdef ENABLE_LATIN_1
 static bool RangesContainLatin1Equivalents(ZoneList<CharacterRange>* ranges) {
   for (int i = 0; i < ranges->length(); i++) {
     // TODO(dcarney): this could be a lot more efficient.
@@ -2812,7 +2803,6 @@ static bool RangesContainLatin1Equivalents(ZoneList<CharacterRange>* ranges) {
   }
   return false;
 }
-#endif
 
 
 RegExpNode* TextNode::FilterASCII(int depth, bool ignore_case) {
@@ -2826,11 +2816,6 @@ RegExpNode* TextNode::FilterASCII(int depth, bool ignore_case) {
     if (elm.type == TextElement::ATOM) {
       Vector<const uc16> quarks = elm.data.u_atom->data();
       for (int j = 0; j < quarks.length(); j++) {
-#ifndef ENABLE_LATIN_1
-        if (quarks[j] > String::kMaxOneByteCharCode) {
-          return set_replacement(NULL);
-        }
-#else
         uint16_t c = quarks[j];
         if (c <= String::kMaxOneByteCharCode) continue;
         if (!ignore_case) return set_replacement(NULL);
@@ -2842,7 +2827,6 @@ RegExpNode* TextNode::FilterASCII(int depth, bool ignore_case) {
         // Convert quark to Latin-1 in place.
         uint16_t* copy = const_cast<uint16_t*>(quarks.start());
         copy[j] = converted;
-#endif
       }
     } else {
       ASSERT(elm.type == TextElement::CHAR_CLASS);
@@ -2857,19 +2841,15 @@ RegExpNode* TextNode::FilterASCII(int depth, bool ignore_case) {
         if (range_count != 0 &&
             ranges->at(0).from() == 0 &&
             ranges->at(0).to() >= String::kMaxOneByteCharCode) {
-#ifdef ENABLE_LATIN_1
           // This will be handled in a later filter.
           if (ignore_case && RangesContainLatin1Equivalents(ranges)) continue;
-#endif
           return set_replacement(NULL);
         }
       } else {
         if (range_count == 0 ||
             ranges->at(0).from() > String::kMaxOneByteCharCode) {
-#ifdef ENABLE_LATIN_1
           // This will be handled in a later filter.
           if (ignore_case && RangesContainLatin1Equivalents(ranges)) continue;
-#endif
           return set_replacement(NULL);
         }
       }

@@ -140,7 +140,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   Counters* counters = masm->isolate()->counters();
 
   Label gc;
-  __ AllocateInNewSpace(JSFunction::kSize, rax, rbx, rcx, &gc, TAG_OBJECT);
+  __ Allocate(JSFunction::kSize, rax, rbx, rcx, &gc, TAG_OBJECT);
 
   __ IncrementCounter(counters->fast_new_closure_total(), 1);
 
@@ -274,8 +274,8 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Try to allocate the context in new space.
   Label gc;
   int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ AllocateInNewSpace((length * kPointerSize) + FixedArray::kHeaderSize,
-                        rax, rbx, rcx, &gc, TAG_OBJECT);
+  __ Allocate((length * kPointerSize) + FixedArray::kHeaderSize,
+              rax, rbx, rcx, &gc, TAG_OBJECT);
 
   // Get the function from the stack.
   __ movq(rcx, Operand(rsp, 1 * kPointerSize));
@@ -320,8 +320,8 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Try to allocate the context in new space.
   Label gc;
   int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ AllocateInNewSpace(FixedArray::SizeFor(length),
-                        rax, rbx, rcx, &gc, TAG_OBJECT);
+  __ Allocate(FixedArray::SizeFor(length),
+              rax, rbx, rcx, &gc, TAG_OBJECT);
 
   // Get the function from the stack.
   __ movq(rcx, Operand(rsp, 1 * kPointerSize));
@@ -406,7 +406,7 @@ static void GenerateFastCloneShallowArrayCommon(
   if (mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS) {
     flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT | flags);
   }
-  __ AllocateInNewSpace(size, rax, rbx, rdx, fail, flags);
+  __ Allocate(size, rax, rbx, rdx, fail, flags);
 
   if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
     __ LoadRoot(kScratchRegister, Heap::kAllocationSiteInfoMapRootIndex);
@@ -1316,12 +1316,8 @@ static void BinaryOpStub_GenerateFloatingPointCode(MacroAssembler* masm,
         // Allocate heap number in new space.
         // Not using AllocateHeapNumber macro in order to reuse
         // already loaded heap_number_map.
-        __ AllocateInNewSpace(HeapNumber::kSize,
-                              rax,
-                              rdx,
-                              no_reg,
-                              &allocation_failed,
-                              TAG_OBJECT);
+        __ Allocate(HeapNumber::kSize, rax, rdx, no_reg, &allocation_failed,
+                    TAG_OBJECT);
         // Set the map.
         __ AssertRootValue(heap_number_map,
                            Heap::kHeapNumberMapRootIndex,
@@ -2403,7 +2399,7 @@ void ArrayLengthStub::Generate(MacroAssembler* masm) {
 
   StubCompiler::GenerateLoadArrayLength(masm, receiver, r8, &miss);
   __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, kind());
+  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -2431,7 +2427,7 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 
   StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, r8, r9, &miss);
   __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, kind());
+  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -2460,7 +2456,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
   StubCompiler::GenerateLoadStringLength(masm, receiver, r8, r9, &miss,
                                          support_wrapper_);
   __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, kind());
+  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -2523,7 +2519,7 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
 
   __ bind(&miss);
 
-  StubCompiler::GenerateStoreMiss(masm, kind());
+  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
 }
 
 
@@ -5756,32 +5752,22 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Compare lengths (precomputed).
   __ bind(&compare_lengths);
   __ SmiTest(length_difference);
-#ifndef ENABLE_LATIN_1
-  __ j(not_zero, &result_not_equal, Label::kNear);
-#else
   Label length_not_equal;
   __ j(not_zero, &length_not_equal, Label::kNear);
-#endif
 
   // Result is EQUAL.
   __ Move(rax, Smi::FromInt(EQUAL));
   __ ret(0);
 
   Label result_greater;
-#ifdef ENABLE_LATIN_1
   Label result_less;
   __ bind(&length_not_equal);
   __ j(greater, &result_greater, Label::kNear);
   __ jmp(&result_less, Label::kNear);
-#endif
   __ bind(&result_not_equal);
   // Unequal comparison of left to right, either character or length.
-#ifndef ENABLE_LATIN_1
-  __ j(greater, &result_greater, Label::kNear);
-#else
   __ j(above, &result_greater, Label::kNear);
   __ bind(&result_less);
-#endif
 
   // Result is LESS.
   __ Move(rax, Smi::FromInt(LESS));

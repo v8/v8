@@ -361,7 +361,8 @@ TEST(OperandRegisterDependency) {
 
 TEST(AssemblerX64LabelChaining) {
   // Test chaining of label usages within instructions (issue 1644).
-  v8::HandleScope scope;
+  InitializeVM();
+  v8::HandleScope scope(env->GetIsolate());
   Assembler assm(Isolate::Current(), NULL, 0);
 
   Label target;
@@ -374,7 +375,7 @@ TEST(AssemblerX64LabelChaining) {
 
 TEST(AssemblerMultiByteNop) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   v8::internal::byte buffer[1024];
   Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof(buffer));

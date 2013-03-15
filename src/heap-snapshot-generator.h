@@ -98,7 +98,8 @@ class HeapEntry BASE_EMBEDDED {
     kRegExp = v8::HeapGraphNode::kRegExp,
     kHeapNumber = v8::HeapGraphNode::kHeapNumber,
     kNative = v8::HeapGraphNode::kNative,
-    kSynthetic = v8::HeapGraphNode::kSynthetic
+    kSynthetic = v8::HeapGraphNode::kSynthetic,
+    kContext = v8::HeapGraphNode::kContext
   };
   static const int kNoEntry;
 
@@ -479,10 +480,11 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractElementReferences(JSObject* js_obj, int entry);
   void ExtractInternalReferences(JSObject* js_obj, int entry);
   bool IsEssentialObject(Object* object);
-  void SetClosureReference(HeapObject* parent_obj,
+  void SetContextReference(HeapObject* parent_obj,
                            int parent,
                            String* reference_name,
-                           Object* child);
+                           Object* child,
+                           int field_offset);
   void SetNativeBindReference(HeapObject* parent_obj,
                               int parent,
                               const char* reference_name,

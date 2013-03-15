@@ -811,7 +811,7 @@ void RelocInfo::Print(FILE* out) {
     }
   } else if (IsPosition(rmode_)) {
     PrintF(out, "  (%" V8_PTR_PREFIX "d)", data());
-  } else if (rmode_ == RelocInfo::RUNTIME_ENTRY &&
+  } else if (IsRuntimeEntry(rmode_) &&
              Isolate::Current()->deoptimizer_data() != NULL) {
     // Depotimization bailouts are stored as runtime entries.
     int id = Deoptimizer::GetDeoptimizationId(
@@ -1185,6 +1185,20 @@ ExternalReference ExternalReference::heap_always_allocate_scope_depth(
 ExternalReference ExternalReference::new_space_allocation_limit_address(
     Isolate* isolate) {
   return ExternalReference(isolate->heap()->NewSpaceAllocationLimitAddress());
+}
+
+
+ExternalReference ExternalReference::old_pointer_space_allocation_top_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->heap()->OldPointerSpaceAllocationTopAddress());
+}
+
+
+ExternalReference ExternalReference::old_pointer_space_allocation_limit_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->heap()->OldPointerSpaceAllocationLimitAddress());
 }
 
 

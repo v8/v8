@@ -768,8 +768,6 @@ MaybeObject* Object::GetProperty(Object* receiver,
         // that even though we may not actually end up loading the named
         // property from the current object, we still check that we have
         // access to it.
-        // TODO(dcarney): revert.
-        CHECK(current->IsJSObject());
         JSObject* checked = JSObject::cast(current);
         if (!heap->isolate()->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
           return checked->GetPropertyWithFailedAccessCheck(receiver,
@@ -9110,7 +9108,7 @@ void Code::PrintDeoptLocation(int bailout_id) {
     } else if (last_comment != NULL &&
                bailout_id == Deoptimizer::GetDeoptimizationId(
                    info->target_address(), Deoptimizer::EAGER)) {
-      CHECK(info->rmode() == RelocInfo::RUNTIME_ENTRY);
+      CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
       PrintF("            %s\n", last_comment);
       return;
     }
