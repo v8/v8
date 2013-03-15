@@ -3567,7 +3567,8 @@ v8::Handle<v8::Object> MessageImpl::GetEventData() const {
 
 
 v8::Handle<v8::String> MessageImpl::GetJSON() const {
-  v8::HandleScope scope;
+  v8::HandleScope scope(
+      reinterpret_cast<v8::Isolate*>(event_data_->GetIsolate()));
 
   if (IsEvent()) {
     // Call toJSONProtocol on the debug event object.

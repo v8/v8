@@ -61,7 +61,7 @@ class TokenEnumeratorTester {
 TEST(TokenEnumerator) {
   TokenEnumerator te;
   CHECK_EQ(TokenEnumerator::kNoSecurityToken, te.GetTokenId(NULL));
-  v8::HandleScope hs;
+  v8::HandleScope hs(v8::Isolate::GetCurrent());
   v8::Local<v8::String> token1(v8::String::New("1x"));
   CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
   CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
@@ -70,7 +70,7 @@ TEST(TokenEnumerator) {
   CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
   CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
   {
-    v8::HandleScope hs;
+    v8::HandleScope hs(v8::Isolate::GetCurrent());
     v8::Local<v8::String> token3(v8::String::New("3x"));
     CHECK_EQ(2, te.GetTokenId(*v8::Utils::OpenHandle(*token3)));
     CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
@@ -784,12 +784,12 @@ TEST(RecordStackTraceAtStartProfiling) {
   i::FLAG_use_inlining = false;
 
   if (env.IsEmpty()) {
-    v8::HandleScope scope;
+    v8::HandleScope scope(v8::Isolate::GetCurrent());
     const char* extensions[] = { "v8/profiler" };
     v8::ExtensionConfiguration config(1, extensions);
     env = v8::Context::New(&config);
   }
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   env->Enter();
 
   CHECK_EQ(0, CpuProfiler::GetProfilesCount());

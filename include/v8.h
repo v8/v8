@@ -514,7 +514,10 @@ template <class T> class Persistent : public Handle<T> {
  */
 class V8EXPORT HandleScope {
  public:
+  // TODO(svenpanne) Deprecate me when Chrome is fixed!
   HandleScope();
+
+  HandleScope(Isolate* isolate);
 
   ~HandleScope();
 
@@ -559,6 +562,7 @@ class V8EXPORT HandleScope {
     }
   };
 
+  void Initialize(Isolate* isolate);
   void Leave();
 
   internal::Isolate* isolate_;

@@ -121,7 +121,7 @@ v8::Handle<v8::ObjectTemplate> CreateGlobalTemplate(
 // Test that a single thread of JavaScript execution can terminate
 // itself.
 TEST(TerminateOnlyV8ThreadFromThreadItself) {
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::ObjectTemplate> global =
       CreateGlobalTemplate(TerminateCurrentThread, DoLoop);
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
@@ -141,7 +141,7 @@ TEST(TerminateOnlyV8ThreadFromThreadItself) {
 // Test that a single thread of JavaScript execution can terminate
 // itself in a loop that performs no calls.
 TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::ObjectTemplate> global =
       CreateGlobalTemplate(TerminateCurrentThread, DoLoopNoCall);
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
@@ -181,7 +181,7 @@ TEST(TerminateOnlyV8ThreadFromOtherThread) {
   TerminatorThread thread(i::Isolate::Current());
   thread.Start();
 
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::ObjectTemplate> global = CreateGlobalTemplate(Signal, DoLoop);
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
   v8::Context::Scope context_scope(context);
@@ -203,7 +203,7 @@ class LoopingThread : public v8::internal::Thread {
   LoopingThread() : Thread("LoopingThread") { }
   void Run() {
     v8::Locker locker(CcTest::default_isolate());
-    v8::HandleScope scope;
+    v8::HandleScope scope(CcTest::default_isolate());
     v8_thread_id_ = v8::V8::GetCurrentThreadId();
     v8::Handle<v8::ObjectTemplate> global =
         CreateGlobalTemplate(Signal, DoLoop);
@@ -306,7 +306,7 @@ v8::Handle<v8::Value> LoopGetProperty(const v8::Arguments& args) {
 // Test that we correctly handle termination exceptions if they are
 // triggered by the creation of error objects in connection with ICs.
 TEST(TerminateLoadICException) {
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   global->Set(v8::String::New("terminate_or_return_object"),
               v8::FunctionTemplate::New(TerminateOrReturnObject));
@@ -357,7 +357,7 @@ v8::Handle<v8::Value> ReenterAfterTermination(const v8::Arguments& args) {
 // Test that reentry into V8 while the termination exception is still pending
 // (has not yet unwound the 0-level JS frame) does not crash.
 TEST(TerminateAndReenterFromThreadItself) {
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::ObjectTemplate> global =
       CreateGlobalTemplate(TerminateCurrentThread, ReenterAfterTermination);
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);

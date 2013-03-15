@@ -96,7 +96,7 @@ static Handle<Object> Test() {
 
 TEST(StressHandles) {
   v8::Persistent<v8::Context> env = v8::Context::New();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   env->Enter();
   Handle<Object> o = Test();
   CHECK(o->IsSmi() && Smi::cast(*o)->value() == 42);
@@ -118,7 +118,7 @@ const AccessorDescriptor kDescriptor = {
 
 TEST(StressJS) {
   v8::Persistent<v8::Context> env = v8::Context::New();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   env->Enter();
   Handle<JSFunction> function =
       FACTORY->NewFunction(FACTORY->function_string(), FACTORY->null_value());

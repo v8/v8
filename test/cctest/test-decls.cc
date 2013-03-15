@@ -113,7 +113,7 @@ DeclarationContext::DeclarationContext()
 
 void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
   Local<FunctionTemplate> function = FunctionTemplate::New();
   Local<Value> data = External::New(this);
   GetHolder(function)->SetNamedPropertyHandler(&HandleGet,
@@ -136,7 +136,7 @@ void DeclarationContext::Check(const char* source,
   // A retry after a GC may pollute the counts, so perform gc now
   // to avoid that.
   HEAP->CollectGarbage(v8::internal::NEW_SPACE);
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
   TryCatch catcher;
   catcher.SetVerbose(true);
   Local<Script> script = Script::Compile(String::New(source));
@@ -215,7 +215,7 @@ v8::Handle<Integer> DeclarationContext::Query(Local<String> key) {
 // Test global declaration of a property the interceptor doesn't know
 // about and doesn't handle.
 TEST(Unknown) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { DeclarationContext context;
     context.Check("var x; x",
@@ -270,7 +270,7 @@ class PresentPropertyContext: public DeclarationContext {
 
 
 TEST(Present) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { PresentPropertyContext context;
     context.Check("var x; x",
@@ -324,7 +324,7 @@ class AbsentPropertyContext: public DeclarationContext {
 
 
 TEST(Absent) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { AbsentPropertyContext context;
     context.Check("var x; x",
@@ -414,7 +414,7 @@ class AppearingPropertyContext: public DeclarationContext {
 
 
 TEST(Appearing) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { AppearingPropertyContext context;
     context.Check("var x; x",
@@ -506,7 +506,7 @@ class ReappearingPropertyContext: public DeclarationContext {
 
 
 TEST(Reappearing) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { ReappearingPropertyContext context;
     context.Check("const x; var x = 0",
@@ -535,7 +535,7 @@ class ExistsInPrototypeContext: public DeclarationContext {
 
 TEST(ExistsInPrototype) {
   i::FLAG_es52_globals = true;
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   // Sanity check to make sure that the holder of the interceptor
   // really is the prototype object.
@@ -598,7 +598,7 @@ class AbsentInPrototypeContext: public DeclarationContext {
 
 TEST(AbsentInPrototype) {
   i::FLAG_es52_globals = true;
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { AbsentInPrototypeContext context;
     context.Check("if (false) { var x = 0; }; x",
@@ -645,7 +645,7 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
 
 TEST(ExistsInHiddenPrototype) {
   i::FLAG_es52_globals = true;
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { ExistsInHiddenPrototypeContext context;
     context.Check("var x; x",
@@ -707,7 +707,7 @@ class SimpleContext {
   void Check(const char* source,
              Expectations expectations,
              v8::Handle<Value> value = Local<Value>()) {
-    HandleScope scope;
+    HandleScope scope(context_->GetIsolate());
     TryCatch catcher;
     catcher.SetVerbose(true);
     Local<Script> script = Script::Compile(String::New(source));
@@ -737,7 +737,7 @@ class SimpleContext {
 
 
 TEST(CrossScriptReferences) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { SimpleContext context;
     context.Check("var x = 1; x",
@@ -782,7 +782,7 @@ TEST(CrossScriptReferencesHarmony) {
   i::FLAG_harmony_scoping = true;
   i::FLAG_harmony_modules = true;
 
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   const char* decs[] = {
     "var x = 1; x", "x", "this.x",
@@ -810,7 +810,7 @@ TEST(CrossScriptConflicts) {
   i::FLAG_harmony_scoping = true;
   i::FLAG_harmony_modules = true;
 
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   const char* firsts[] = {
     "var x = 1; x",

@@ -73,7 +73,7 @@ TEST(CrankshaftRandom) {
   if (env.IsEmpty()) env = v8::Context::New();
   // Skip test if crankshaft is disabled.
   if (!V8::UseCrankshaft()) return;
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   env->Enter();
 
   Handle<Context> context(Isolate::Current()->context());

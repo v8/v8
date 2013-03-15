@@ -47,7 +47,6 @@ static v8::Persistent<v8::Context> env;
 
 static void InitializeVM() {
   if (env.IsEmpty()) env = v8::Context::New();
-  v8::HandleScope scope;
   env->Enter();
 }
 
@@ -92,7 +91,7 @@ TEST(Promotion) {
 
   InitializeVM();
 
-  v8::HandleScope sc;
+  v8::HandleScope sc(env->GetIsolate());
 
   // Allocate a fixed array in the new space.
   int array_size =
@@ -120,7 +119,7 @@ TEST(NoPromotion) {
   // the old space
   InitializeVM();
 
-  v8::HandleScope sc;
+  v8::HandleScope sc(env->GetIsolate());
 
   // Do a mark compact GC to shrink the heap.
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
@@ -158,7 +157,7 @@ TEST(NoPromotion) {
 TEST(MarkCompactCollector) {
   InitializeVM();
 
-  v8::HandleScope sc;
+  v8::HandleScope sc(env->GetIsolate());
   // call mark-compact when heap is empty
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
@@ -320,7 +319,7 @@ TEST(ObjectGroups) {
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
 
   NumberOfWeakCalls = 0;
-  v8::HandleScope handle_scope;
+  v8::HandleScope handle_scope(env->GetIsolate());
 
   Handle<Object> g1s1 =
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
@@ -456,7 +455,7 @@ TEST(EmptyObjectGroups) {
   InitializeVM();
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
 
-  v8::HandleScope handle_scope;
+  v8::HandleScope handle_scope(env->GetIsolate());
 
   Handle<Object> object =
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());

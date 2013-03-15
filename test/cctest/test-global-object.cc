@@ -34,7 +34,7 @@ using namespace v8;
 // This test fails if properties on the prototype of the global object appear
 // as declared globals.
 TEST(StrictUndeclaredGlobalVariable) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
   v8::Local<v8::String> var_name = v8_str("x");
   LocalContext context;
   v8::TryCatch try_catch;

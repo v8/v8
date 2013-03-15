@@ -43,7 +43,6 @@ static v8::Persistent<v8::Context> env;
 
 static void InitializeVM() {
   if (env.IsEmpty()) env = v8::Context::New();
-  v8::HandleScope scope;
   env->Enter();
 }
 
@@ -156,7 +155,7 @@ TEST(HeapObjects) {
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
 
-  v8::HandleScope sc;
+  HandleScope sc(isolate);
   Object* value = heap->NumberFromDouble(1.000123)->ToObjectChecked();
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
@@ -258,7 +257,7 @@ TEST(GarbageCollection) {
   Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
 
-  v8::HandleScope sc;
+  HandleScope sc(isolate);
   // Check GC.
   heap->CollectGarbage(NEW_SPACE);
 
@@ -323,9 +322,9 @@ TEST(GarbageCollection) {
 }
 
 
-static void VerifyStringAllocation(const char* string) {
-  v8::HandleScope scope;
-  Handle<String> s = FACTORY->NewStringFromUtf8(CStrVector(string));
+static void VerifyStringAllocation(Isolate* isolate, const char* string) {
+  HandleScope scope(isolate);
+  Handle<String> s = isolate->factory()->NewStringFromUtf8(CStrVector(string));
   CHECK_EQ(StrLength(string), s->length());
   for (int index = 0; index < s->length(); index++) {
     CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));
@@ -335,19 +334,20 @@ static void VerifyStringAllocation(const char* string) {
 
 TEST(String) {
   InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
 
-  VerifyStringAllocation("a");
-  VerifyStringAllocation("ab");
-  VerifyStringAllocation("abc");
-  VerifyStringAllocation("abcd");
-  VerifyStringAllocation("fiskerdrengen er paa havet");
+  VerifyStringAllocation(isolate, "a");
+  VerifyStringAllocation(isolate, "ab");
+  VerifyStringAllocation(isolate, "abc");
+  VerifyStringAllocation(isolate, "abcd");
+  VerifyStringAllocation(isolate, "fiskerdrengen er paa havet");
 }
 
 
 TEST(LocalHandles) {
   InitializeVM();
 
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   const char* name = "Kasper the spunky";
   Handle<String> string = FACTORY->NewStringFromAscii(CStrVector(name));
   CHECK_EQ(StrLength(name), string->length());
@@ -620,7 +620,7 @@ TEST(StringTable) {
 TEST(FunctionAllocation) {
   InitializeVM();
 
-  v8::HandleScope sc;
+  v8::HandleScope sc(env->GetIsolate());
   Handle<String> name = FACTORY->InternalizeUtf8String("theFunction");
   Handle<JSFunction> function =
       FACTORY->NewFunction(name, FACTORY->undefined_value());
@@ -643,7 +643,7 @@ TEST(FunctionAllocation) {
 TEST(ObjectProperties) {
   InitializeVM();
 
-  v8::HandleScope sc;
+  v8::HandleScope sc(env->GetIsolate());
   String* object_string = String::cast(HEAP->Object_string());
   Object* raw_object = Isolate::Current()->context()->global_object()->
       GetProperty(object_string)->ToObjectChecked();
@@ -716,7 +716,7 @@ TEST(ObjectProperties) {
 TEST(JSObjectMaps) {
   InitializeVM();
 
-  v8::HandleScope sc;
+  v8::HandleScope sc(env->GetIsolate());
   Handle<String> name = FACTORY->InternalizeUtf8String("theFunction");
   Handle<JSFunction> function =
       FACTORY->NewFunction(name, FACTORY->undefined_value());
@@ -740,7 +740,7 @@ TEST(JSObjectMaps) {
 TEST(JSArray) {
   InitializeVM();
 
-  v8::HandleScope sc;
+  v8::HandleScope sc(env->GetIsolate());
   Handle<String> name = FACTORY->InternalizeUtf8String("Array");
   Object* raw_object = Isolate::Current()->context()->global_object()->
       GetProperty(*name)->ToObjectChecked();
@@ -787,7 +787,7 @@ TEST(JSArray) {
 TEST(JSObjectCopy) {
   InitializeVM();
 
-  v8::HandleScope sc;
+  v8::HandleScope sc(env->GetIsolate());
   String* object_string = String::cast(HEAP->Object_string());
   Object* raw_object = Isolate::Current()->context()->global_object()->
       GetProperty(object_string)->ToObjectChecked();
@@ -835,10 +835,9 @@ TEST(JSObjectCopy) {
 TEST(StringAllocation) {
   InitializeVM();
 
-
   const unsigned char chars[] = { 0xe5, 0xa4, 0xa7 };
   for (int length = 0; length < 100; length++) {
-    v8::HandleScope scope;
+    v8::HandleScope scope(env->GetIsolate());
     char* non_ascii = NewArray<char>(3 * length + 1);
     char* ascii = NewArray<char>(length + 1);
     non_ascii[3 * length] = 0;
@@ -887,7 +886,7 @@ static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
 
 TEST(Iteration) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   // Array of objects to scan haep for.
   const int objs_count = 6;
@@ -926,11 +925,11 @@ TEST(Iteration) {
 TEST(EmptyHandleEscapeFrom) {
   InitializeVM();
 
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   Handle<JSObject> runaway;
 
   {
-      v8::HandleScope nested;
+      v8::HandleScope nested(env->GetIsolate());
       Handle<JSObject> empty;
       runaway = empty.EscapeFrom(&nested);
   }
@@ -951,7 +950,7 @@ TEST(Regression39128) {
   // Increase the chance of 'bump-the-pointer' allocation in old space.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   // The plan: create JSObject which references objects in new space.
   // Then clone this object (forcing it to go into old space) and check
@@ -1024,7 +1023,7 @@ TEST(TestCodeFlushing) {
   if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   const char* source = "function foo() {"
                        "  var x = 42;"
                        "  var y = 42;"
@@ -1034,7 +1033,7 @@ TEST(TestCodeFlushing) {
   Handle<String> foo_name = FACTORY->InternalizeUtf8String("foo");
 
   // This compile will add the code to the compilation cache.
-  { v8::HandleScope scope;
+  { v8::HandleScope scope(env->GetIsolate());
     CompileRun(source);
   }
 
@@ -1071,7 +1070,7 @@ TEST(TestCodeFlushingIncremental) {
   if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
   i::FLAG_allow_natives_syntax = true;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   const char* source = "function foo() {"
                        "  var x = 42;"
                        "  var y = 42;"
@@ -1081,7 +1080,7 @@ TEST(TestCodeFlushingIncremental) {
   Handle<String> foo_name = FACTORY->InternalizeUtf8String("foo");
 
   // This compile will add the code to the compilation cache.
-  { v8::HandleScope scope;
+  { v8::HandleScope scope(env->GetIsolate());
     CompileRun(source);
   }
 
@@ -1107,7 +1106,7 @@ TEST(TestCodeFlushingIncremental) {
   CHECK(!function->is_compiled() || function->IsOptimized());
 
   // This compile will compile the function again.
-  { v8::HandleScope scope;
+  { v8::HandleScope scope(env->GetIsolate());
     CompileRun("foo();");
   }
 
@@ -1121,7 +1120,7 @@ TEST(TestCodeFlushingIncremental) {
 
   // Force optimization while incremental marking is active and while
   // the function is enqueued as a candidate.
-  { v8::HandleScope scope;
+  { v8::HandleScope scope(env->GetIsolate());
     CompileRun("%OptimizeFunctionOnNextCall(foo); foo();");
   }
 
@@ -1137,7 +1136,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
   i::FLAG_allow_natives_syntax = true;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   const char* source = "var foo = function() {"
                        "  var x = 42;"
                        "  var y = 42;"
@@ -1155,7 +1154,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   // This compile will add the code to the compilation cache.
-  { v8::HandleScope scope;
+  { v8::HandleScope scope(env->GetIsolate());
     CompileRun(source);
   }
 
@@ -1172,7 +1171,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   CHECK(function2->shared()->is_compiled());
 
   // Clear references to functions so that one of them can die.
-  { v8::HandleScope scope;
+  { v8::HandleScope scope(env->GetIsolate());
     CompileRun("foo = 0; bar = 0;");
   }
 
@@ -1205,7 +1204,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   const char* source = "function foo() {"
                        "  var x = 42;"
                        "  var y = 42;"
@@ -1215,7 +1214,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   Handle<String> foo_name = FACTORY->InternalizeUtf8String("foo");
 
   // This compile will add the code to the compilation cache.
-  { v8::HandleScope scope;
+  { v8::HandleScope scope(env->GetIsolate());
     CompileRun(source);
   }
 
@@ -1250,7 +1249,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   isolate->debug()->ClearAllBreakPoints();
 
   // Force optimization now that code flushing is disabled.
-  { v8::HandleScope scope;
+  { v8::HandleScope scope(env->GetIsolate());
     CompileRun("%OptimizeFunctionOnNextCall(foo); foo();");
   }
 
@@ -1298,7 +1297,7 @@ TEST(TestInternalWeakLists) {
 
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
   v8::Persistent<v8::Context> ctx[kNumTestContexts];
 
   CHECK_EQ(0, CountNativeContexts());
@@ -1315,7 +1314,7 @@ TEST(TestInternalWeakLists) {
 
     // Create a handle scope so no function objects get stuch in the outer
     // handle scope
-    v8::HandleScope scope;
+    HandleScope scope(isolate);
     const char* source = "function f1() { };"
                          "function f2() { };"
                          "function f3() { };"
@@ -1435,7 +1434,7 @@ TEST(TestInternalWeakListsTraverseWithGC) {
 
   static const int kNumTestContexts = 10;
 
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
   v8::Persistent<v8::Context> ctx[kNumTestContexts];
 
   CHECK_EQ(0, CountNativeContexts());
@@ -1559,12 +1558,15 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
 static void FillUpNewSpace(NewSpace* new_space) {
   // Fill up new space to the point that it is completely full. Make sure
   // that the scavenger does not undo the filling.
-  v8::HandleScope scope;
+  Heap* heap = new_space->heap();
+  Isolate* isolate = heap->isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
   AlwaysAllocateScope always_allocate;
   intptr_t available = new_space->EffectiveCapacity() - new_space->Size();
   intptr_t number_of_fillers = (available / FixedArray::SizeFor(32)) - 1;
   for (intptr_t i = 0; i < number_of_fillers; i++) {
-    CHECK(HEAP->InNewSpace(*FACTORY->NewFixedArray(32, NOT_TENURED)));
+    CHECK(heap->InNewSpace(*factory->NewFixedArray(32, NOT_TENURED)));
   }
 }
 
@@ -1630,7 +1632,7 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
     return;
   }
 
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   NewSpace* new_space = HEAP->new_space();
   intptr_t old_capacity, new_capacity;
   old_capacity = new_space->Capacity();
@@ -1658,7 +1660,7 @@ static int NumberOfGlobalObjects() {
 // optimized code.
 TEST(LeakNativeContextViaMap) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope;
+  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
   v8::Persistent<v8::Context> ctx2 = v8::Context::New();
   ctx1->Enter();
@@ -1667,7 +1669,7 @@ TEST(LeakNativeContextViaMap) {
   CHECK_EQ(4, NumberOfGlobalObjects());
 
   {
-    v8::HandleScope inner_scope;
+    v8::HandleScope inner_scope(v8::Isolate::GetCurrent());
     CompileRun("var v = {x: 42}");
     v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
     ctx2->Enter();
@@ -1696,7 +1698,7 @@ TEST(LeakNativeContextViaMap) {
 // optimized code.
 TEST(LeakNativeContextViaFunction) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope;
+  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
   v8::Persistent<v8::Context> ctx2 = v8::Context::New();
   ctx1->Enter();
@@ -1705,7 +1707,7 @@ TEST(LeakNativeContextViaFunction) {
   CHECK_EQ(4, NumberOfGlobalObjects());
 
   {
-    v8::HandleScope inner_scope;
+    v8::HandleScope inner_scope(v8::Isolate::GetCurrent());
     CompileRun("var v = function() { return 42; }");
     v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
     ctx2->Enter();
@@ -1732,7 +1734,7 @@ TEST(LeakNativeContextViaFunction) {
 
 TEST(LeakNativeContextViaMapKeyed) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope;
+  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
   v8::Persistent<v8::Context> ctx2 = v8::Context::New();
   ctx1->Enter();
@@ -1741,7 +1743,7 @@ TEST(LeakNativeContextViaMapKeyed) {
   CHECK_EQ(4, NumberOfGlobalObjects());
 
   {
-    v8::HandleScope inner_scope;
+    v8::HandleScope inner_scope(v8::Isolate::GetCurrent());
     CompileRun("var v = [42, 43]");
     v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
     ctx2->Enter();
@@ -1768,7 +1770,7 @@ TEST(LeakNativeContextViaMapKeyed) {
 
 TEST(LeakNativeContextViaMapProto) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope;
+  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
   v8::Persistent<v8::Context> ctx2 = v8::Context::New();
   ctx1->Enter();
@@ -1777,7 +1779,7 @@ TEST(LeakNativeContextViaMapProto) {
   CHECK_EQ(4, NumberOfGlobalObjects());
 
   {
-    v8::HandleScope inner_scope;
+    v8::HandleScope inner_scope(v8::Isolate::GetCurrent());
     CompileRun("var v = { y: 42}");
     v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
     ctx2->Enter();
@@ -1815,10 +1817,10 @@ TEST(InstanceOfStubWriteBarrier) {
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
   if (i::FLAG_force_marking_deque_overflows) return;
-  v8::HandleScope outer_scope;
+  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
 
   {
-    v8::HandleScope scope;
+    v8::HandleScope scope(v8::Isolate::GetCurrent());
     CompileRun(
         "function foo () { }"
         "function mkbar () { return new (new Function(\"\")) (); }"
@@ -1850,7 +1852,7 @@ TEST(InstanceOfStubWriteBarrier) {
   CHECK(marking->IsMarking());
 
   {
-    v8::HandleScope scope;
+    v8::HandleScope scope(v8::Isolate::GetCurrent());
     v8::Handle<v8::Object> global = v8::Context::GetCurrent()->Global();
     v8::Handle<v8::Function> g =
         v8::Handle<v8::Function>::Cast(global->Get(v8_str("g")));
@@ -1864,7 +1866,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
 TEST(PrototypeTransitionClearing) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   CompileRun(
       "var base = {};"
@@ -1928,10 +1930,10 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
-  v8::HandleScope outer_scope;
+  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
 
   {
-    v8::HandleScope scope;
+    v8::HandleScope scope(v8::Isolate::GetCurrent());
     CompileRun(
         "function f () {"
         "  var s = 0;"
@@ -1984,10 +1986,10 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
-  v8::HandleScope outer_scope;
+  v8::HandleScope outer_scope(env->GetIsolate());
 
   {
-    v8::HandleScope scope;
+    v8::HandleScope scope(env->GetIsolate());
     CompileRun(
         "function f () {"
         "  var s = 0;"
@@ -2024,7 +2026,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
   InitializeVM();
   if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   SimulateFullSpace(HEAP->new_space());
   AlwaysAllocateScope always_allocate;
@@ -2055,7 +2057,7 @@ TEST(OptimizedPretenuringArrayLiterals) {
   InitializeVM();
   if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   AlwaysAllocateScope always_allocate;
   v8::Local<v8::Value> res = CompileRun(
@@ -2081,7 +2083,7 @@ TEST(OptimizedAllocationArrayLiterals) {
   InitializeVM();
   if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   AlwaysAllocateScope always_allocate;
   v8::Local<v8::Value> res = CompileRun(
@@ -2114,7 +2116,7 @@ TEST(Regress1465) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_trace_incremental_marking = true;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   static const int transitions_count = 256;
 
   {
@@ -2152,7 +2154,7 @@ TEST(Regress2143a) {
   i::FLAG_collect_maps = true;
   i::FLAG_incremental_marking = true;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   // Prepare a map transition from the root object together with a yet
   // untransitioned root object.
@@ -2193,7 +2195,7 @@ TEST(Regress2143b) {
   i::FLAG_incremental_marking = true;
   i::FLAG_allow_natives_syntax = true;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   // Prepare a map transition from the root object together with a yet
   // untransitioned root object.
@@ -2238,7 +2240,7 @@ TEST(ReleaseOverReservedPages) {
   i::FLAG_crankshaft = false;
   i::FLAG_always_opt = false;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   static const int number_of_test_pages = 20;
 
   // Prepare many pages with low live-bytes count.
@@ -2277,12 +2279,12 @@ TEST(ReleaseOverReservedPages) {
 
 TEST(Regress2237) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   Handle<String> slice(HEAP->empty_string());
 
   {
     // Generate a parent that lives in new-space.
-    v8::HandleScope inner_scope;
+    v8::HandleScope inner_scope(env->GetIsolate());
     const char* c = "This text is long enough to trigger sliced strings.";
     Handle<String> s = FACTORY->NewStringFromAscii(CStrVector(c));
     CHECK(s->IsSeqOneByteString());
@@ -2307,7 +2309,7 @@ TEST(Regress2237) {
 #ifdef OBJECT_PRINT
 TEST(PrintSharedFunctionInfo) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   const char* source = "f = function() { return 987654321; }\n"
                        "g = function() { return 123456789; }\n";
   CompileRun(source);
@@ -2324,7 +2326,7 @@ TEST(PrintSharedFunctionInfo) {
 
 TEST(Regress2211) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::String> value = v8_str("val string");
   Smi* hash = Smi::FromInt(321);
@@ -2362,7 +2364,7 @@ TEST(Regress2211) {
 TEST(IncrementalMarkingClearsTypeFeedbackCells) {
   if (i::FLAG_always_opt) return;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::Value> fun1, fun2;
 
   {
@@ -2421,7 +2423,7 @@ static Code* FindFirstIC(Code* code, Code::Kind kind) {
 TEST(IncrementalMarkingPreservesMonomorhpicIC) {
   if (i::FLAG_always_opt) return;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   // Prepare function f that contains a monomorphic IC for object
   // originating from the same native context.
@@ -2446,7 +2448,7 @@ TEST(IncrementalMarkingPreservesMonomorhpicIC) {
 TEST(IncrementalMarkingClearsMonomorhpicIC) {
   if (i::FLAG_always_opt) return;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::Value> obj1;
 
   {
@@ -2480,7 +2482,7 @@ TEST(IncrementalMarkingClearsMonomorhpicIC) {
 TEST(IncrementalMarkingClearsPolymorhpicIC) {
   if (i::FLAG_always_opt) return;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::Value> obj1, obj2;
 
   {
@@ -2546,10 +2548,10 @@ void ReleaseStackTraceDataTest(const char* source) {
   // to check whether the data is being released since the external string
   // resource's callback is fired when the external string is GC'ed.
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   SourceResource* resource = new SourceResource(i::StrDup(source));
   {
-    v8::HandleScope scope;
+    v8::HandleScope scope(env->GetIsolate());
     v8::Handle<v8::String> source_string = v8::String::NewExternal(resource);
     v8::Script::Compile(source_string)->Run();
     CHECK(!resource->IsDisposed());
@@ -2584,12 +2586,12 @@ TEST(Regression144230) {
   InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
 
   // First make sure that the uninitialized CallIC stub is on a single page
   // that will later be selected as an evacuation candidate.
   {
-    v8::HandleScope inner_scope;
+    HandleScope inner_scope(isolate);
     AlwaysAllocateScope always_allocate;
     SimulateFullSpace(heap->code_space());
     isolate->stub_cache()->ComputeCallInitialize(9, RelocInfo::CODE_TARGET);
@@ -2598,7 +2600,7 @@ TEST(Regression144230) {
   // Second compile a CallIC and execute it once so that it gets patched to
   // the pre-monomorphic stub. These code objects are on yet another page.
   {
-    v8::HandleScope inner_scope;
+    HandleScope inner_scope(isolate);
     AlwaysAllocateScope always_allocate;
     SimulateFullSpace(heap->code_space());
     CompileRun("var o = { f:function(a,b,c,d,e,f,g,h,i) {}};"
@@ -2609,7 +2611,7 @@ TEST(Regression144230) {
   // Third we fill up the last page of the code space so that it does not get
   // chosen as an evacuation candidate.
   {
-    v8::HandleScope inner_scope;
+    HandleScope inner_scope(isolate);
     AlwaysAllocateScope always_allocate;
     CompileRun("for (var i = 0; i < 2000; i++) {"
                "  eval('function f' + i + '() { return ' + i +'; };' +"
@@ -2647,7 +2649,7 @@ TEST(Regress159140) {
   InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
 
   // Perform one initial GC to enable code flushing.
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
@@ -2709,7 +2711,7 @@ TEST(Regress165495) {
   InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
 
   // Perform one initial GC to enable code flushing.
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
@@ -2757,7 +2759,7 @@ TEST(Regress169209) {
   InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
 
   // Perform one initial GC to enable code flushing.
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
@@ -2841,7 +2843,7 @@ TEST(Regress169928) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_crankshaft = false;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   // Some flags turn Scavenge collections into Mark-sweep collections
   // and hence are incompatible with this test case.
@@ -2916,7 +2918,7 @@ TEST(Regress168801) {
   InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
 
   // Perform one initial GC to enable code flushing.
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
@@ -2972,7 +2974,7 @@ TEST(Regress173458) {
   InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope;
+  HandleScope scope(isolate);
 
   // Perform one initial GC to enable code flushing.
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);

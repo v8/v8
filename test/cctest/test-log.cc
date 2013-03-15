@@ -61,7 +61,7 @@ class ScopedLoggerInitializer {
         temp_file_(NULL),
         // Need to run this prior to creating the scope.
         trick_to_run_init_flags_(init_flags_(prof_lazy)),
-        scope_(),
+        scope_(v8::Isolate::GetCurrent()),
         env_(v8::Context::New()) {
     env_->Enter();
   }
@@ -365,7 +365,7 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
 }  // namespace
 
 TEST(Issue23768) {
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::Context> env = v8::Context::New();
   env->Enter();
 

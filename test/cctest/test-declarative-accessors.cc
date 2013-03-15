@@ -114,8 +114,8 @@ static void VerifyRead(v8::Handle<v8::DeclaredAccessorDescriptor> descriptor,
                        int internal_field,
                        void* internal_object,
                        v8::Handle<v8::Value> expected_value) {
-  v8::HandleScope scope;
   LocalContext local_context;
+  v8::HandleScope scope(local_context->GetIsolate());
   v8::Handle<v8::Context> context = local_context.local();
   CreateConstructor(context, "Accessible", internal_field, "x", descriptor);
   // Setup object.
@@ -168,7 +168,7 @@ static void TestPrimitiveValue(
     T value,
     v8::DeclaredAccessorDescriptorDataType data_type,
     DescriptorTestHelper* helper) {
-  v8::HandleScope handle_scope;
+  v8::HandleScope handle_scope(helper->isolate_);
   int index = 17;
   int internal_field = 6;
   v8::Handle<v8::DeclaredAccessorDescriptor> descriptor =
@@ -194,7 +194,7 @@ template<typename T>
 static void TestBitmaskCompare(T bitmask,
                                T compare_value,
                                DescriptorTestHelper* helper) {
-  v8::HandleScope handle_scope;
+  v8::HandleScope handle_scope(helper->isolate_);
   int index = 13;
   int internal_field = 4;
   v8::Handle<v8::RawOperationDescriptor> raw_descriptor =
@@ -244,7 +244,7 @@ TEST(BitmaskCompareRead) {
 
 TEST(PointerCompareRead) {
   DescriptorTestHelper helper;
-  v8::HandleScope handle_scope;
+  v8::HandleScope handle_scope(helper.isolate_);
   int index = 35;
   int internal_field = 3;
   void* ptr = helper.isolate_;
@@ -261,7 +261,7 @@ TEST(PointerCompareRead) {
 
 TEST(PointerDereferenceRead) {
   DescriptorTestHelper helper;
-  v8::HandleScope handle_scope;
+  v8::HandleScope handle_scope(helper.isolate_);
   int first_index = 13;
   int internal_field = 7;
   int second_index = 11;
@@ -286,7 +286,7 @@ TEST(PointerDereferenceRead) {
 
 TEST(HandleDereferenceRead) {
   DescriptorTestHelper helper;
-  v8::HandleScope handle_scope;
+  v8::HandleScope handle_scope(helper.isolate_);
   int index = 13;
   int internal_field = 0;
   v8::Handle<v8::DeclaredAccessorDescriptor> descriptor =
@@ -299,4 +299,3 @@ TEST(HandleDereferenceRead) {
                                                           expected);
   VerifyRead(descriptor, internal_field, array, expected);
 }
-

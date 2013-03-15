@@ -93,7 +93,7 @@ const char kArrayMarkerPropName[] = "d8::_is_typed_array_";
 class Symbols {
  public:
   explicit Symbols(Isolate* isolate) : isolate_(isolate) {
-    HandleScope scope;
+    HandleScope scope(isolate);
 #define INIT_SYMBOL(name, value) \
     name##_ = Persistent<String>::New(isolate, String::NewSymbol(value));
     FOR_EACH_SYMBOL(INIT_SYMBOL)
@@ -181,7 +181,8 @@ const char* Shell::ToCString(const v8::String::Utf8Value& value) {
 
 
 // Executes a string within the current v8 context.
-bool Shell::ExecuteString(Handle<String> source,
+bool Shell::ExecuteString(Isolate* isolate,
+                          Handle<String> source,
                           Handle<Value> name,
                           bool print_result,
                           bool report_exceptions) {
@@ -190,7 +191,7 @@ bool Shell::ExecuteString(Handle<String> source,
 #else
   bool FLAG_debugger = false;
 #endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
-  HandleScope handle_scope;
+  HandleScope handle_scope(isolate);
   TryCatch try_catch;
   options.script_executed = true;
   if (FLAG_debugger) {
@@ -201,7 +202,7 @@ bool Shell::ExecuteString(Handle<String> source,
   if (script.IsEmpty()) {
     // Print errors that happened during compilation.
     if (report_exceptions && !FLAG_debugger)
-      ReportException(&try_catch);
+      ReportException(isolate, &try_catch);
     return false;
   } else {
     Handle<Value> result = script->Run();
@@ -209,7 +210,7 @@ bool Shell::ExecuteString(Handle<String> source,
       ASSERT(try_catch.HasCaught());
       // Print errors that happened during execution.
       if (report_exceptions && !FLAG_debugger)
-        ReportException(&try_catch);
+        ReportException(isolate, &try_catch);
       return false;
     } else {
       ASSERT(!try_catch.HasCaught());
@@ -237,7 +238,7 @@ Handle<Value> Shell::Print(const Arguments& args) {
 
 Handle<Value> Shell::Write(const Arguments& args) {
   for (int i = 0; i < args.Length(); i++) {
-    HandleScope handle_scope;
+    HandleScope handle_scope(args.GetIsolate());
     if (i != 0) {
       printf(" ");
     }
@@ -315,7 +316,7 @@ Handle<String> Shell::ReadFromStdin(Isolate* isolate) {
 
 Handle<Value> Shell::Load(const Arguments& args) {
   for (int i = 0; i < args.Length(); i++) {
-    HandleScope handle_scope;
+    HandleScope handle_scope(args.GetIsolate());
     String::Utf8Value file(args[i]);
     if (*file == NULL) {
       return Throw("Error loading file");
@@ -324,7 +325,11 @@ Handle<Value> Shell::Load(const Arguments& args) {
     if (source.IsEmpty()) {
       return Throw("Error loading file");
     }
-    if (!ExecuteString(source, String::New(*file), false, true)) {
+    if (!ExecuteString(args.GetIsolate(),
+                       source,
+                       String::New(*file),
+                       false,
+                       true)) {
       return Throw("Error executing file");
     }
   }
@@ -827,7 +832,7 @@ Handle<Value> Shell::ArraySet(const Arguments& args) {
 void Shell::ExternalArrayWeakCallback(v8::Isolate* isolate,
                                       Persistent<Value> object,
                                       void* data) {
-  HandleScope scope;
+  HandleScope scope(isolate);
   int32_t length =
       object->ToObject()->Get(Symbols::byteLength(isolate))->Uint32Value();
   isolate->AdjustAmountOfExternalAllocatedMemory(-length);
@@ -903,8 +908,8 @@ Handle<Value> Shell::Version(const Arguments& args) {
 }
 
 
-void Shell::ReportException(v8::TryCatch* try_catch) {
-  HandleScope handle_scope;
+void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
+  HandleScope handle_scope(isolate);
 #if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
   bool enter_context = !Context::InContext();
   if (enter_context) utility_context_->Enter();
@@ -950,8 +955,10 @@ void Shell::ReportException(v8::TryCatch* try_catch) {
 
 
 #ifndef V8_SHARED
-Handle<Array> Shell::GetCompletions(Handle<String> text, Handle<String> full) {
-  HandleScope handle_scope;
+Handle<Array> Shell::GetCompletions(Isolate* isolate,
+                                    Handle<String> text,
+                                    Handle<String> full) {
+  HandleScope handle_scope(isolate);
   Context::Scope context_scope(utility_context_);
   Handle<Object> global = utility_context_->Global();
   Handle<Value> fun = global->Get(String::New("GetCompletions"));
@@ -1094,7 +1101,7 @@ void Shell::AddHistogramSample(void* histogram, int sample) {
 
 void Shell::InstallUtilityScript(Isolate* isolate) {
   Locker lock(isolate);
-  HandleScope scope;
+  HandleScope scope(isolate);
   // If we use the utility context, we have to set the security tokens so that
   // utility, evaluation and debug context can all access each other.
   utility_context_->SetSecurityToken(Undefined(isolate));
@@ -1272,7 +1279,7 @@ void Shell::InitializeDebugger(Isolate* isolate) {
   if (options.test_shell) return;
 #ifndef V8_SHARED
   Locker lock(isolate);
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   utility_context_ = Context::New(NULL, global_template);
 
@@ -1493,16 +1500,16 @@ Handle<String> Shell::ReadFile(Isolate* isolate, const char* name) {
 void Shell::RunShell(Isolate* isolate) {
   Locker locker(isolate);
   Context::Scope context_scope(evaluation_context_);
-  HandleScope outer_scope;
+  HandleScope outer_scope(isolate);
   Handle<String> name = String::New("(d8)");
   LineEditor* console = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
   console->Open(isolate);
   while (true) {
-    HandleScope inner_scope;
+    HandleScope inner_scope(isolate);
     Handle<String> input = console->Prompt(Shell::kPrompt);
     if (input.IsEmpty()) break;
-    ExecuteString(input, name, true, true);
+    ExecuteString(isolate, input, name, true, true);
   }
   printf("\n");
 }
@@ -1541,13 +1548,13 @@ void ShellThread::Run() {
 
     // Prepare the context for this thread.
     Locker locker(isolate_);
-    HandleScope outer_scope;
+    HandleScope outer_scope(isolate_);
     Persistent<Context> thread_context =
         Shell::CreateEvaluationContext(isolate_);
     Context::Scope context_scope(thread_context);
 
     while ((ptr != NULL) && (*ptr != '\0')) {
-      HandleScope inner_scope;
+      HandleScope inner_scope(isolate_);
       char* filename = ptr;
       ptr = ReadWord(ptr);
 
@@ -1562,7 +1569,7 @@ void ShellThread::Run() {
         Shell::Exit(1);
       }
 
-      Shell::ExecuteString(str, String::New(filename), false, false);
+      Shell::ExecuteString(isolate_, str, String::New(filename), false, false);
     }
 
     thread_context.Dispose(thread_context->GetIsolate());
@@ -1589,10 +1596,10 @@ void SourceGroup::Execute(Isolate* isolate) {
     const char* arg = argv_[i];
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
       // Execute argument given to -e option directly.
-      HandleScope handle_scope;
+      HandleScope handle_scope(isolate);
       Handle<String> file_name = String::New("unnamed");
       Handle<String> source = String::New(argv_[i + 1]);
-      if (!Shell::ExecuteString(source, file_name, false, true)) {
+      if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
         Shell::Exit(1);
       }
       ++i;
@@ -1600,14 +1607,14 @@ void SourceGroup::Execute(Isolate* isolate) {
       // Ignore other options. They have been parsed already.
     } else {
       // Use all other arguments as names of files to load and run.
-      HandleScope handle_scope;
+      HandleScope handle_scope(isolate);
       Handle<String> file_name = String::New(arg);
       Handle<String> source = ReadFile(isolate, arg);
       if (source.IsEmpty()) {
         printf("Error reading '%s'\n", arg);
         Shell::Exit(1);
       }
-      if (!Shell::ExecuteString(source, file_name, false, true)) {
+      if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
         Shell::Exit(1);
       }
     }
@@ -1642,7 +1649,7 @@ void SourceGroup::ExecuteInThread() {
     {
       Isolate::Scope iscope(isolate);
       Locker lock(isolate);
-      HandleScope scope;
+      HandleScope scope(isolate);
       Symbols symbols(isolate);
       Persistent<Context> context = Shell::CreateEvaluationContext(isolate);
       {
@@ -1840,7 +1847,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 #endif  // V8_SHARED
   {  // NOLINT
     Locker lock(isolate);
-    HandleScope scope;
+    HandleScope scope(isolate);
     Persistent<Context> context = CreateEvaluationContext(isolate);
     if (options.last_run) {
       // Keep using the same context in the interactive shell.
@@ -1936,7 +1943,7 @@ int Shell::Main(int argc, char* argv[]) {
     // Run remote debugger if requested, but never on --test
     if (i::FLAG_remote_debugger && !options.test_shell) {
       InstallUtilityScript(isolate);
-      RunRemoteDebugger(i::FLAG_debugger_port);
+      RunRemoteDebugger(isolate, i::FLAG_debugger_port);
       return 0;
     }
 #endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
