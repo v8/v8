@@ -149,10 +149,10 @@ class CodeStub BASE_EMBEDDED {
 
   virtual ~CodeStub() {}
 
-  bool CompilingCallsToThisStubIsGCSafe() {
+  bool CompilingCallsToThisStubIsGCSafe(Isolate* isolate) {
     bool is_pregenerated = IsPregenerated();
     Code* code = NULL;
-    CHECK(!is_pregenerated || FindCodeInCache(&code, Isolate::Current()));
+    CHECK(!is_pregenerated || FindCodeInCache(&code, isolate));
     return is_pregenerated;
   }
 
