@@ -215,7 +215,9 @@ bool Shell::ExecuteString(Isolate* isolate,
     } else {
       ASSERT(!try_catch.HasCaught());
       if (print_result) {
+#if !defined(V8_SHARED)
         if (options.test_shell) {
+#endif
           if (!result->IsUndefined()) {
             // If all went well and the result wasn't undefined then print
             // the returned value.
@@ -223,6 +225,7 @@ bool Shell::ExecuteString(Isolate* isolate,
             fwrite(*str, sizeof(**str), str.length(), stdout);
             printf("\n");
           }
+#if !defined(V8_SHARED)
         } else {
           Context::Scope context_scope(utility_context_);
           Handle<Object> global = utility_context_->Global();
@@ -234,6 +237,7 @@ bool Shell::ExecuteString(Isolate* isolate,
           printf("\n");
         }
       }
+#endif
       return true;
     }
   }
