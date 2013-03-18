@@ -943,11 +943,11 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
             new(info->zone()) OptimizingCompiler(*info);
         OptimizingCompiler::Status status = compiler->CreateGraph();
         if (status == OptimizingCompiler::SUCCEEDED) {
+          info.Detach();
+          shared->code()->set_profiler_ticks(0);
           // Do a scavenge to put off the next scavenge as far as possible.
           // This may ease the issue that GVN blocks the next scavenge.
           isolate->heap()->CollectGarbage(NEW_SPACE, "parallel recompile");
-          shared->code()->set_profiler_ticks(0);
-          info.Detach();
           isolate->optimizing_compiler_thread()->QueueForOptimization(compiler);
         } else if (status == OptimizingCompiler::BAILED_OUT) {
           isolate->clear_pending_exception();

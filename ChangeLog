@@ -1,3 +1,15 @@
+2013-03-18: Version 3.17.12
+
+        Unified kMaxArguments with number of bits used to encode it.
+        (Chromium issue 211741)
+
+        Fixed detection of |handle_smi| case in
+        HOptimizedGraphBuilder::HandlePolymorphicCallNamed.
+        (Chromium issue 196583)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-03-15: Version 3.17.11
 
         Added a version of the v8::HandleScope constructor with an v8::Isolate

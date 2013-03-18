@@ -360,7 +360,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
     bool is_lazy_deopt = deopt_jump_table_[i].is_lazy_deopt;
     Deoptimizer::BailoutType type =
         is_lazy_deopt ? Deoptimizer::LAZY : Deoptimizer::EAGER;
-    int id = Deoptimizer::GetDeoptimizationId(entry, type);
+    int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
     if (id == Deoptimizer::kNotDeoptimizationEntry) {
       Comment(";;; jump table entry %d.", i);
     } else {
@@ -897,7 +897,8 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
   Handle<DeoptimizationInputData> data =
       factory()->NewDeoptimizationInputData(length, TENURED);
 
-  Handle<ByteArray> translations = translations_.CreateByteArray();
+  Handle<ByteArray> translations =
+      translations_.CreateByteArray(isolate()->factory());
   data->SetTranslationByteArray(*translations);
   data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
 

@@ -200,4 +200,32 @@ result_phi = test_phi(data_phi, 3,  true);
 assertEquals(12, result_phi);
 
 
+// A test for recursive decomposition
+var data_composition_long = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+var data_composition_short = [0, 1, 2, 3, 4];
+function test_composition(a, base0, check) {
+  var base1 = ((base0 + 2));
+  var base2 = ((base1 + 8) >> 2);
+  var base3 = ((base2 + 6) >> 1);
+  var base4 = ((base3 + 8) >> 1);
+
+  var result = 0;
+  result += a[base0];
+  result += a[base1];
+  result += a[base2];
+  result += a[base3];
+  result += a[base4];
+
+  return result;
+}
+var result_composition = 0;
+result_composition = test_composition(data_composition_long, 2);
+assertEquals(19, result_composition);
+result_composition = test_composition(data_composition_long, 2);
+assertEquals(19, result_composition);
+%OptimizeFunctionOnNextCall(test_composition);
+result_composition = test_composition(data_composition_short, 2);
+assertEquals(NaN, result_composition);
+
+
 gc();

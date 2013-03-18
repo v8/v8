@@ -311,6 +311,10 @@ class LiveRange: public ZoneObject {
   // Modifies internal state of live range!
   UsePosition* NextUsePositionRegisterIsBeneficial(LifetimePosition start);
 
+  // Returns use position for which register is beneficial in this live
+  // range and which precedes start.
+  UsePosition* PreviousUsePositionRegisterIsBeneficial(LifetimePosition start);
+
   // Can this live range be spilled at this position.
   bool CanBeSpilled(LifetimePosition pos);
 
@@ -538,6 +542,11 @@ class LAllocator BASE_EMBEDDED {
                     LifetimePosition end);
 
   void SplitAndSpillIntersecting(LiveRange* range);
+
+  // If we are trying to spill a range inside the loop try to
+  // hoist spill position out to the point just before the loop.
+  LifetimePosition FindOptimalSpillingPos(LiveRange* range,
+                                          LifetimePosition pos);
 
   void Spill(LiveRange* range);
   bool IsBlockBoundary(LifetimePosition pos);

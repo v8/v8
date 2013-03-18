@@ -789,7 +789,7 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 }
 
 
-void RelocInfo::Print(FILE* out) {
+void RelocInfo::Print(Isolate* isolate, FILE* out) {
   PrintF(out, "%p  %s", pc_, RelocModeName(rmode_));
   if (IsComment(rmode_)) {
     PrintF(out, "  (%s)", reinterpret_cast<char*>(data_));
@@ -812,10 +812,10 @@ void RelocInfo::Print(FILE* out) {
   } else if (IsPosition(rmode_)) {
     PrintF(out, "  (%" V8_PTR_PREFIX "d)", data());
   } else if (IsRuntimeEntry(rmode_) &&
-             Isolate::Current()->deoptimizer_data() != NULL) {
+             isolate->deoptimizer_data() != NULL) {
     // Depotimization bailouts are stored as runtime entries.
     int id = Deoptimizer::GetDeoptimizationId(
-        target_address(), Deoptimizer::EAGER);
+        isolate, target_address(), Deoptimizer::EAGER);
     if (id != Deoptimizer::kNotDeoptimizationEntry) {
       PrintF(out, "  (deoptimization bailout %d)", id);
     }

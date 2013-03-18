@@ -450,7 +450,7 @@ class RelocInfo BASE_EMBEDDED {
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* RelocModeName(Mode rmode);
-  void Print(FILE* out);
+  void Print(Isolate* isolate, FILE* out);
 #endif  // ENABLE_DISASSEMBLER
 #ifdef VERIFY_HEAP
   void Verify();

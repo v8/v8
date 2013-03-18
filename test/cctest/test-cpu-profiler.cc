@@ -211,31 +211,6 @@ TEST(TickEvents) {
   const i::List<ProfileNode*>* top_down_ddd_children =
       top_down_stub_children->last()->children();
   CHECK_EQ(0, top_down_ddd_children->length());
-
-  const i::List<ProfileNode*>* bottom_up_root_children_unsorted =
-      profile->bottom_up()->root()->children();
-  CHECK_EQ(3, bottom_up_root_children_unsorted->length());
-  i::List<ProfileNode*> bottom_up_root_children(3);
-  bottom_up_root_children.AddAll(*bottom_up_root_children_unsorted);
-  bottom_up_root_children.Sort(&CompareProfileNodes);
-  CHECK_EQ("5", bottom_up_root_children[0]->entry()->name());
-  CHECK_EQ("bbb", bottom_up_root_children[1]->entry()->name());
-  CHECK_EQ("ddd", bottom_up_root_children[2]->entry()->name());
-  const i::List<ProfileNode*>* bottom_up_stub_children =
-      bottom_up_root_children[0]->children();
-  CHECK_EQ(1, bottom_up_stub_children->length());
-  CHECK_EQ("bbb", bottom_up_stub_children->last()->entry()->name());
-  const i::List<ProfileNode*>* bottom_up_bbb_children =
-      bottom_up_root_children[1]->children();
-  CHECK_EQ(0, bottom_up_bbb_children->length());
-  const i::List<ProfileNode*>* bottom_up_ddd_children =
-      bottom_up_root_children[2]->children();
-  CHECK_EQ(1, bottom_up_ddd_children->length());
-  CHECK_EQ("5", bottom_up_ddd_children->last()->entry()->name());
-  const i::List<ProfileNode*>* bottom_up_ddd_stub_children =
-      bottom_up_ddd_children->last()->children();
-  CHECK_EQ(1, bottom_up_ddd_stub_children->length());
-  CHECK_EQ("bbb", bottom_up_ddd_stub_children->last()->entry()->name());
 }
 
 

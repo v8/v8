@@ -687,6 +687,11 @@ void HGraphBuilder::CheckBuilder::End() {
 }
 
 
+HConstant* HGraph::GetInvalidContext() {
+  return GetConstantInt32(&constant_invalid_context_, 0xFFFFC0C7);
+}
+
+
 HGraphBuilder::IfBuilder::IfBuilder(HGraphBuilder* builder, BailoutId id)
     : builder_(builder),
       finished_(false),
@@ -4006,6 +4011,13 @@ void HGraph::SetupInformativeDefinitionsRecursively(HBasicBlock* block) {
   SetupInformativeDefinitionsInBlock(block);
   for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
     SetupInformativeDefinitionsRecursively(block->dominated_blocks()->at(i));
+  }
+
+  for (HInstruction* i = block->first(); i != NULL; i = i->next()) {
+    if (i->IsBoundsCheck()) {
+      HBoundsCheck* check = HBoundsCheck::cast(i);
+      check->ApplyIndexChange();
+    }
   }
 }
 
@@ -7393,8 +7405,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
        i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
     Handle<Map> map = types->at(i);
-    if (map.is_identical_to(number_marker_map)) handle_smi = true;
     if (expr->ComputeTarget(map, name)) {
+      if (map.is_identical_to(number_marker_map)) handle_smi = true;
       order[ordered_functions++] =
           FunctionSorter(i,
                          expr->target()->shared()->profiler_ticks(),

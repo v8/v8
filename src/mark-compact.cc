@@ -545,7 +545,7 @@ void MarkCompactCollector::ClearMarkbits() {
 void MarkCompactCollector::StartSweeperThreads() {
   sweeping_pending_ = true;
   for (int i = 0; i < FLAG_sweeper_threads; i++) {
-    heap()->isolate()->sweeper_threads()[i]->StartSweeping();
+    isolate()->sweeper_threads()[i]->StartSweeping();
   }
 }
 
@@ -553,7 +553,7 @@ void MarkCompactCollector::StartSweeperThreads() {
 void MarkCompactCollector::WaitUntilSweepingCompleted() {
   ASSERT(sweeping_pending_ == true);
   for (int i = 0; i < FLAG_sweeper_threads; i++) {
-    heap()->isolate()->sweeper_threads()[i]->WaitForSweeperThread();
+    isolate()->sweeper_threads()[i]->WaitForSweeperThread();
   }
   sweeping_pending_ = false;
   StealMemoryFromSweeperThreads(heap()->paged_space(OLD_DATA_SPACE));
@@ -567,7 +567,7 @@ intptr_t MarkCompactCollector::
              StealMemoryFromSweeperThreads(PagedSpace* space) {
   intptr_t freed_bytes = 0;
   for (int i = 0; i < FLAG_sweeper_threads; i++) {
-    freed_bytes += heap()->isolate()->sweeper_threads()[i]->StealMemory(space);
+    freed_bytes += isolate()->sweeper_threads()[i]->StealMemory(space);
   }
   space->AddToAccountingStats(freed_bytes);
   space->DecrementUnsweptFreeBytes(freed_bytes);
@@ -576,7 +576,7 @@ intptr_t MarkCompactCollector::
 
 
 bool MarkCompactCollector::AreSweeperThreadsActivated() {
-  return heap()->isolate()->sweeper_threads() != NULL;
+  return isolate()->sweeper_threads() != NULL;
 }
 
 
@@ -587,14 +587,14 @@ bool MarkCompactCollector::IsConcurrentSweepingInProgress() {
 
 void MarkCompactCollector::MarkInParallel() {
   for (int i = 0; i < FLAG_marking_threads; i++) {
-    heap()->isolate()->marking_threads()[i]->StartMarking();
+    isolate()->marking_threads()[i]->StartMarking();
   }
 }
 
 
 void MarkCompactCollector::WaitUntilMarkingCompleted() {
   for (int i = 0; i < FLAG_marking_threads; i++) {
-    heap()->isolate()->marking_threads()[i]->WaitForMarkingThread();
+    isolate()->marking_threads()[i]->WaitForMarkingThread();
   }
 }
 
@@ -952,10 +952,10 @@ void MarkCompactCollector::Finish() {
   // force lazy re-initialization of it. This must be done after the
   // GC, because it relies on the new address of certain old space
   // objects (empty string, illegal builtin).
-  heap()->isolate()->stub_cache()->Clear();
+  isolate()->stub_cache()->Clear();
 
   DeoptimizeMarkedCodeFilter filter;
-  Deoptimizer::DeoptimizeAllFunctionsWith(&filter);
+  Deoptimizer::DeoptimizeAllFunctionsWith(isolate(), &filter);
 }
 
 
@@ -1932,7 +1932,7 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
 
 void MarkCompactCollector::MarkImplicitRefGroups() {
   List<ImplicitRefGroup*>* ref_groups =
-      heap()->isolate()->global_handles()->implicit_ref_groups();
+      isolate()->global_handles()->implicit_ref_groups();
 
   int last = 0;
   for (int i = 0; i < ref_groups->length(); i++) {
@@ -2052,7 +2052,7 @@ void MarkCompactCollector::ProcessExternalMarking(RootMarkingVisitor* visitor) {
   bool work_to_do = true;
   ASSERT(marking_deque_.IsEmpty());
   while (work_to_do) {
-    heap()->isolate()->global_handles()->IterateObjectGroups(
+    isolate()->global_handles()->IterateObjectGroups(
         visitor, &IsUnmarkedHeapObjectWithHeap);
     MarkImplicitRefGroups();
     work_to_do = !marking_deque_.IsEmpty();
@@ -2066,7 +2066,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   // The recursive GC marker detects when it is nearing stack overflow,
   // and switches to a different marking system.  JS interrupts interfere
   // with the C stack limit check.
-  PostponeInterruptsScope postpone(heap()->isolate());
+  PostponeInterruptsScope postpone(isolate());
 
   bool incremental_marking_overflowed = false;
   IncrementalMarking* incremental_marking = heap_->incremental_marking();
@@ -2520,7 +2520,7 @@ void MarkCompactCollector::MigrateObject(Address dst,
       }
     }
   } else if (dest == CODE_SPACE) {
-    PROFILE(heap()->isolate(), CodeMoveEvent(src, dst));
+    PROFILE(isolate(), CodeMoveEvent(src, dst));
     heap()->MoveBlock(dst, src, size);
     SlotsBuffer::AddTo(&slots_buffer_allocator_,
                        &migration_slots_buffer_,
@@ -3940,15 +3940,15 @@ void MarkCompactCollector::SweepSpaces() {
 
 void MarkCompactCollector::EnableCodeFlushing(bool enable) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (heap()->isolate()->debug()->IsLoaded() ||
-      heap()->isolate()->debug()->has_break_points()) {
+  if (isolate()->debug()->IsLoaded() ||
+      isolate()->debug()->has_break_points()) {
     enable = false;
   }
 #endif
 
   if (enable) {
     if (code_flusher_ != NULL) return;
-    code_flusher_ = new CodeFlusher(heap()->isolate());
+    code_flusher_ = new CodeFlusher(isolate());
   } else {
     if (code_flusher_ == NULL) return;
     code_flusher_->EvictAllCandidates();
@@ -3971,6 +3971,11 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj,
   if (obj->IsCode()) {
     PROFILE(isolate, CodeDeleteEvent(obj->address()));
   }
+}
+
+
+Isolate* MarkCompactCollector::isolate() const {
+  return heap_->isolate();
 }
 
 
@@ -4055,7 +4060,7 @@ void MarkCompactCollector::RecordCodeEntrySlot(Address slot, Code* target) {
 void MarkCompactCollector::RecordCodeTargetPatch(Address pc, Code* target) {
   ASSERT(heap()->gc_state() == Heap::MARK_COMPACT);
   if (is_compacting()) {
-    Code* host = heap()->isolate()->inner_pointer_to_code_cache()->
+    Code* host = isolate()->inner_pointer_to_code_cache()->
         GcSafeFindCodeForInnerPointer(pc);
     MarkBit mark_bit = Marking::MarkBitFrom(host);
     if (Marking::IsBlack(mark_bit)) {

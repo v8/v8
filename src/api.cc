@@ -3041,7 +3041,7 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   // value with DontDelete properties.  We have to deoptimize all contexts
   // because of possible cross-context inlined functions.
   if (self->IsJSGlobalProxy() || self->IsGlobalObject()) {
-    i::Deoptimizer::DeoptimizeAll();
+    i::Deoptimizer::DeoptimizeAll(isolate);
   }
 
   EXCEPTION_PREAMBLE(isolate);
@@ -6498,14 +6498,6 @@ Handle<String> CpuProfile::GetTitle() const {
 }
 
 
-const CpuProfileNode* CpuProfile::GetBottomUpRoot() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfile::GetBottomUpRoot");
-  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return reinterpret_cast<const CpuProfileNode*>(profile->bottom_up()->root());
-}
-
-
 const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::GetTopDownRoot");
@@ -6934,7 +6926,7 @@ void Testing::PrepareStressRun(int run) {
 void Testing::DeoptimizeAll() {
   i::Isolate* isolate = i::Isolate::Current();
   i::HandleScope scope(isolate);
-  internal::Deoptimizer::DeoptimizeAll();
+  internal::Deoptimizer::DeoptimizeAll(isolate);
 }
 
 
@@ -6979,7 +6971,7 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
   for (int i = blocks()->length() - 2; i >= 0; --i) {
     Object** block = blocks()->at(i);
     if (last_handle_before_deferred_block_ != NULL &&
-        (last_handle_before_deferred_block_ < &block[kHandleBlockSize]) &&
+        (last_handle_before_deferred_block_ <= &block[kHandleBlockSize]) &&
         (last_handle_before_deferred_block_ >= block)) {
       v->VisitPointers(block, last_handle_before_deferred_block_);
       ASSERT(!found_block_before_deferred);

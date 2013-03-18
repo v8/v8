@@ -580,6 +580,7 @@ class MarkCompactCollector {
   static inline bool IsMarked(Object* obj);
 
   inline Heap* heap() const { return heap_; }
+  inline Isolate* isolate() const;
 
   CodeFlusher* code_flusher() { return code_flusher_; }
   inline bool is_code_flushing_enabled() const { return code_flusher_ != NULL; }
