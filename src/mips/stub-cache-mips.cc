@@ -3731,8 +3731,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     __ Branch(&check_capacity, ne, elements_reg, Operand(at));
 
     int size = FixedArray::SizeFor(JSArray::kPreallocatedArrayElements);
-    __ AllocateInNewSpace(size, elements_reg, scratch, scratch2, &slow,
-                          TAG_OBJECT);
+    __ Allocate(size, elements_reg, scratch, scratch2, &slow, TAG_OBJECT);
 
     __ LoadRoot(scratch, Heap::kFixedArrayMapRootIndex);
     __ sw(scratch, FieldMemOperand(elements_reg, JSObject::kMapOffset));
@@ -3882,8 +3881,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ Branch(&check_capacity, ne, elements_reg, Operand(at));
 
     int size = FixedDoubleArray::SizeFor(JSArray::kPreallocatedArrayElements);
-    __ AllocateInNewSpace(size, elements_reg, scratch1, scratch2, &slow,
-                          TAG_OBJECT);
+    __ Allocate(size, elements_reg, scratch1, scratch2, &slow, TAG_OBJECT);
 
     // Initialize the new FixedDoubleArray.
     __ LoadRoot(scratch1, Heap::kFixedDoubleArrayMapRootIndex);
