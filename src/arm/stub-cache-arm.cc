@@ -102,12 +102,7 @@ static void ProbeTable(Isolate* isolate,
   uint32_t mask = Code::kFlagsNotUsedInLookup;
   ASSERT(__ ImmediateFitsAddrMode1Instruction(mask));
   __ bic(flags_reg, flags_reg, Operand(mask));
-  // Using cmn and the negative instead of cmp means we can use movw.
-  if (flags < 0) {
-    __ cmn(flags_reg, Operand(-flags));
-  } else {
-    __ cmp(flags_reg, Operand(flags));
-  }
+  __ cmp(flags_reg, Operand(flags));
   __ b(ne, &miss);
 
 #ifdef DEBUG
