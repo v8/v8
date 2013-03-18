@@ -9107,7 +9107,7 @@ void Code::PrintDeoptLocation(int bailout_id) {
       last_comment = reinterpret_cast<const char*>(info->data());
     } else if (last_comment != NULL &&
                bailout_id == Deoptimizer::GetDeoptimizationId(
-                   info->target_address(), Deoptimizer::EAGER)) {
+                   GetIsolate(), info->target_address(), Deoptimizer::EAGER)) {
       CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
       PrintF("            %s\n", last_comment);
       return;
@@ -9466,7 +9466,9 @@ void Code::Disassemble(const char* name, FILE* out) {
   }
 
   PrintF("RelocInfo (size = %d)\n", relocation_size());
-  for (RelocIterator it(this); !it.done(); it.next()) it.rinfo()->Print(out);
+  for (RelocIterator it(this); !it.done(); it.next()) {
+    it.rinfo()->Print(GetIsolate(), out);
+  }
   PrintF(out, "\n");
 }
 #endif  // ENABLE_DISASSEMBLER
@@ -9839,6 +9841,7 @@ class DeoptimizeDependentCodeFilter : public OptimizedFunctionFilter {
 
 
 void DependentCode::DeoptimizeDependentCodeGroup(
+    Isolate* isolate,
     DependentCode::DependencyGroup group) {
   AssertNoAllocation no_allocation_scope;
   DependentCode::GroupStartIndexes starts(this);
@@ -9861,7 +9864,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   }
   set_number_of_entries(group, 0);
   DeoptimizeDependentCodeFilter filter;
-  Deoptimizer::DeoptimizeAllFunctionsWith(&filter);
+  Deoptimizer::DeoptimizeAllFunctionsWith(isolate, &filter);
 }
 
 

@@ -4860,7 +4860,8 @@ class DependentCode: public FixedArray {
   static Handle<DependentCode> Insert(Handle<DependentCode> entries,
                                        DependencyGroup group,
                                        Handle<Code> value);
-  void DeoptimizeDependentCodeGroup(DependentCode::DependencyGroup group);
+  void DeoptimizeDependentCodeGroup(Isolate* isolate,
+                                    DependentCode::DependencyGroup group);
 
   // The following low-level accessors should only be used by this class
   // and the mark compact collector.

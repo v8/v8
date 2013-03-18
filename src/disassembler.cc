@@ -286,9 +286,13 @@ static int DecodeIt(Isolate* isolate,
                  isolate->deoptimizer_data() != NULL) {
         // A runtime entry reloinfo might be a deoptimization bailout.
         Address addr = relocinfo.target_address();
-        int id = Deoptimizer::GetDeoptimizationId(addr, Deoptimizer::EAGER);
+        int id = Deoptimizer::GetDeoptimizationId(isolate,
+                                                  addr,
+                                                  Deoptimizer::EAGER);
         if (id == Deoptimizer::kNotDeoptimizationEntry) {
-          id = Deoptimizer::GetDeoptimizationId(addr, Deoptimizer::LAZY);
+          id = Deoptimizer::GetDeoptimizationId(isolate,
+                                                addr,
+                                                Deoptimizer::LAZY);
           if (id == Deoptimizer::kNotDeoptimizationEntry) {
             out.AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
           } else {

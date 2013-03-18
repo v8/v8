@@ -3041,7 +3041,7 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   // value with DontDelete properties.  We have to deoptimize all contexts
   // because of possible cross-context inlined functions.
   if (self->IsJSGlobalProxy() || self->IsGlobalObject()) {
-    i::Deoptimizer::DeoptimizeAll();
+    i::Deoptimizer::DeoptimizeAll(isolate);
   }
 
   EXCEPTION_PREAMBLE(isolate);
@@ -6926,7 +6926,7 @@ void Testing::PrepareStressRun(int run) {
 void Testing::DeoptimizeAll() {
   i::Isolate* isolate = i::Isolate::Current();
   i::HandleScope scope(isolate);
-  internal::Deoptimizer::DeoptimizeAll();
+  internal::Deoptimizer::DeoptimizeAll(isolate);
 }
 
 

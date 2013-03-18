@@ -1559,7 +1559,7 @@ static int EnumerateCompiledFunctions(Heap* heap,
   EnumerateOptimizedFunctionsVisitor visitor(sfis,
                                              code_objects,
                                              &compiled_funcs_count);
-  Deoptimizer::VisitAllOptimizedFunctions(&visitor);
+  Deoptimizer::VisitAllOptimizedFunctions(heap->isolate(), &visitor);
 
   return compiled_funcs_count;
 }

@@ -100,7 +100,7 @@ class Deoptimizer;
 
 class DeoptimizerData {
  public:
-  DeoptimizerData();
+  explicit DeoptimizerData(MemoryAllocator* allocator);
   ~DeoptimizerData();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -111,6 +111,7 @@ class DeoptimizerData {
   void RemoveDeoptimizingCode(Code* code);
 
  private:
+  MemoryAllocator* allocator_;
   int eager_deoptimization_entry_code_entries_;
   int lazy_deoptimization_entry_code_entries_;
   MemoryChunk* eager_deoptimization_entry_code_;
@@ -190,11 +191,12 @@ class Deoptimizer : public Malloced {
   static void ReplaceCodeForRelatedFunctions(JSFunction* function, Code* code);
 
   // Deoptimize all functions in the heap.
-  static void DeoptimizeAll();
+  static void DeoptimizeAll(Isolate* isolate);
 
   static void DeoptimizeGlobalObject(JSObject* object);
 
-  static void DeoptimizeAllFunctionsWith(OptimizedFunctionFilter* filter);
+  static void DeoptimizeAllFunctionsWith(Isolate* isolate,
+                                         OptimizedFunctionFilter* filter);
 
   static void DeoptimizeAllFunctionsForContext(
       Context* context, OptimizedFunctionFilter* filter);
@@ -202,7 +204,8 @@ class Deoptimizer : public Malloced {
   static void VisitAllOptimizedFunctionsForContext(
       Context* context, OptimizedFunctionVisitor* visitor);
 
-  static void VisitAllOptimizedFunctions(OptimizedFunctionVisitor* visitor);
+  static void VisitAllOptimizedFunctions(Isolate* isolate,
+                                         OptimizedFunctionVisitor* visitor);
 
   // The size in bytes of the code required at a lazy deopt patch site.
   static int patch_size();
@@ -259,7 +262,9 @@ class Deoptimizer : public Malloced {
       int id,
       BailoutType type,
       GetEntryMode mode = ENSURE_ENTRY_CODE);
-  static int GetDeoptimizationId(Address addr, BailoutType type);
+  static int GetDeoptimizationId(Isolate* isolate,
+                                 Address addr,
+                                 BailoutType type);
   static int GetOutputInfo(DeoptimizationOutputData* data,
                            BailoutId node_id,
                            SharedFunctionInfo* shared);
@@ -320,6 +325,8 @@ class Deoptimizer : public Malloced {
   static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
                                                BailoutType type,
                                                int max_entry_id);
+
+  Isolate* isolate() const { return isolate_; }
 
  private:
   static const int kMinNumberOfEntries = 64;
@@ -604,7 +611,7 @@ class TranslationBuffer BASE_EMBEDDED {
   int CurrentIndex() const { return contents_.length(); }
   void Add(int32_t value, Zone* zone);
 
-  Handle<ByteArray> CreateByteArray();
+  Handle<ByteArray> CreateByteArray(Factory* factory);
 
  private:
   ZoneList<uint8_t> contents_;

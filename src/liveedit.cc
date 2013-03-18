@@ -1260,7 +1260,7 @@ static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
   AssertNoAllocation no_allocation;
 
   DependentFunctionFilter filter(function_info);
-  Deoptimizer::DeoptimizeAllFunctionsWith(&filter);
+  Deoptimizer::DeoptimizeAllFunctionsWith(function_info->GetIsolate(), &filter);
 }
 
 

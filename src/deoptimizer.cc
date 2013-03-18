@@ -40,36 +40,31 @@
 namespace v8 {
 namespace internal {
 
-DeoptimizerData::DeoptimizerData() {
-  eager_deoptimization_entry_code_entries_ = -1;
-  lazy_deoptimization_entry_code_entries_ = -1;
-  size_t deopt_table_size = Deoptimizer::GetMaxDeoptTableSize();
-  MemoryAllocator* allocator = Isolate::Current()->memory_allocator();
-  size_t initial_commit_size = OS::CommitPageSize();
-  eager_deoptimization_entry_code_ =
-      allocator->AllocateChunk(deopt_table_size,
-                               initial_commit_size,
-                               EXECUTABLE,
-                               NULL);
-  lazy_deoptimization_entry_code_ =
-       allocator->AllocateChunk(deopt_table_size,
-                               initial_commit_size,
-                               EXECUTABLE,
-                               NULL);
-  current_ = NULL;
-  deoptimizing_code_list_ = NULL;
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  deoptimized_frame_info_ = NULL;
-#endif
+static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
+  return allocator->AllocateChunk(Deoptimizer::GetMaxDeoptTableSize(),
+                                  OS::CommitPageSize(),
+                                  EXECUTABLE,
+                                  NULL);
 }
 
 
+DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
+    : allocator_(allocator),
+      eager_deoptimization_entry_code_entries_(-1),
+      lazy_deoptimization_entry_code_entries_(-1),
+      eager_deoptimization_entry_code_(AllocateCodeChunk(allocator)),
+      lazy_deoptimization_entry_code_(AllocateCodeChunk(allocator)),
+      current_(NULL),
+#ifdef ENABLE_DEBUGGER_SUPPORT
+      deoptimized_frame_info_(NULL),
+#endif
+      deoptimizing_code_list_(NULL) { }
+
+
 DeoptimizerData::~DeoptimizerData() {
-  Isolate::Current()->memory_allocator()->Free(
-      eager_deoptimization_entry_code_);
+  allocator_->Free(eager_deoptimization_entry_code_);
   eager_deoptimization_entry_code_ = NULL;
-  Isolate::Current()->memory_allocator()->Free(
-      lazy_deoptimization_entry_code_);
+  allocator_->Free(lazy_deoptimization_entry_code_);
   lazy_deoptimization_entry_code_ = NULL;
 
   DeoptimizingCodeListNode* current = deoptimizing_code_list_;
@@ -129,7 +124,6 @@ Deoptimizer* Deoptimizer::New(JSFunction* function,
                               Address from,
                               int fp_to_sp_delta,
                               Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   Deoptimizer* deoptimizer = new Deoptimizer(isolate,
                                              function,
                                              type,
@@ -158,7 +152,6 @@ size_t Deoptimizer::GetMaxDeoptTableSize() {
 
 
 Deoptimizer* Deoptimizer::Grab(Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   Deoptimizer* result = isolate->deoptimizer_data()->current_;
   ASSERT(result != NULL);
   result->DeleteFrameDescriptions();
@@ -188,7 +181,6 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
     JavaScriptFrame* frame,
     int jsframe_index,
     Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   ASSERT(frame->is_optimized());
   ASSERT(isolate->deoptimizer_data()->deoptimized_frame_info_ == NULL);
 
@@ -274,7 +266,6 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
 
 void Deoptimizer::DeleteDebuggerInspectableFrame(DeoptimizedFrameInfo* info,
                                                  Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   ASSERT(isolate->deoptimizer_data()->deoptimized_frame_info_ == info);
   delete info;
   isolate->deoptimizer_data()->deoptimized_frame_info_ = NULL;
@@ -319,11 +310,12 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
 
 
 void Deoptimizer::VisitAllOptimizedFunctions(
+    Isolate* isolate,
     OptimizedFunctionVisitor* visitor) {
   AssertNoAllocation no_allocation;
 
   // Run through the list of all native contexts and deoptimize.
-  Object* context = Isolate::Current()->heap()->native_contexts_list();
+  Object* context = isolate->heap()->native_contexts_list();
   while (!context->IsUndefined()) {
     VisitAllOptimizedFunctionsForContext(Context::cast(context), visitor);
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
@@ -394,7 +386,7 @@ class DeoptimizeWithMatchingCodeFilter : public OptimizedFunctionFilter {
 };
 
 
-void Deoptimizer::DeoptimizeAll() {
+void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   AssertNoAllocation no_allocation;
 
   if (FLAG_trace_deopt) {
@@ -402,7 +394,7 @@ void Deoptimizer::DeoptimizeAll() {
   }
 
   DeoptimizeAllFilter filter;
-  DeoptimizeAllFunctionsWith(&filter);
+  DeoptimizeAllFunctionsWith(isolate, &filter);
 }
 
 
@@ -456,11 +448,12 @@ void Deoptimizer::DeoptimizeAllFunctionsForContext(
 }
 
 
-void Deoptimizer::DeoptimizeAllFunctionsWith(OptimizedFunctionFilter* filter) {
+void Deoptimizer::DeoptimizeAllFunctionsWith(Isolate* isolate,
+                                             OptimizedFunctionFilter* filter) {
   AssertNoAllocation no_allocation;
 
   // Run through the list of all native contexts and deoptimize.
-  Object* context = Isolate::Current()->heap()->native_contexts_list();
+  Object* context = isolate->heap()->native_contexts_list();
   while (!context->IsUndefined()) {
     DeoptimizeAllFunctionsForContext(Context::cast(context), filter);
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
@@ -640,30 +633,26 @@ Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
                                             GetEntryMode mode) {
   ASSERT(id >= 0);
   if (id >= kMaxNumberOfEntries) return NULL;
-  MemoryChunk* base = NULL;
   if (mode == ENSURE_ENTRY_CODE) {
     EnsureCodeForDeoptimizationEntry(isolate, type, id);
   } else {
     ASSERT(mode == CALCULATE_ENTRY_ADDRESS);
   }
   DeoptimizerData* data = isolate->deoptimizer_data();
-  if (type == EAGER) {
-    base = data->eager_deoptimization_entry_code_;
-  } else {
-    base = data->lazy_deoptimization_entry_code_;
-  }
+  MemoryChunk* base = (type == EAGER)
+      ? data->eager_deoptimization_entry_code_
+      : data->lazy_deoptimization_entry_code_;
   return base->area_start() + (id * table_entry_size_);
 }
 
 
-int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
-  MemoryChunk* base = NULL;
-  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
-  if (type == EAGER) {
-    base = data->eager_deoptimization_entry_code_;
-  } else {
-    base = data->lazy_deoptimization_entry_code_;
-  }
+int Deoptimizer::GetDeoptimizationId(Isolate* isolate,
+                                     Address addr,
+                                     BailoutType type) {
+  DeoptimizerData* data = isolate->deoptimizer_data();
+  MemoryChunk* base = (type == EAGER)
+      ? data->eager_deoptimization_entry_code_
+      : data->lazy_deoptimization_entry_code_;
   Address start = base->area_start();
   if (base == NULL ||
       addr < start ||
@@ -2135,7 +2124,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   masm.GetCode(&desc);
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
-  MemoryChunk* chunk = type == EAGER
+  MemoryChunk* chunk = (type == EAGER)
       ? data->eager_deoptimization_entry_code_
       : data->lazy_deoptimization_entry_code_;
   ASSERT(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
@@ -2155,7 +2144,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
 void Deoptimizer::ReplaceCodeForRelatedFunctions(JSFunction* function,
                                                  Code* code) {
   SharedFunctionInfo* shared = function->shared();
-  Object* undefined = Isolate::Current()->heap()->undefined_value();
+  Object* undefined = function->GetHeap()->undefined_value();
   Object* current = function;
 
   while (current != undefined) {
@@ -2281,10 +2270,9 @@ int32_t TranslationIterator::Next() {
 }
 
 
-Handle<ByteArray> TranslationBuffer::CreateByteArray() {
+Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
   int length = contents_.length();
-  Handle<ByteArray> result =
-      Isolate::Current()->factory()->NewByteArray(length, TENURED);
+  Handle<ByteArray> result = factory->NewByteArray(length, TENURED);
   memcpy(result->GetDataStartAddress(), contents_.ToVector().start(), length);
   return result;
 }
@@ -2479,7 +2467,7 @@ const char* Translation::StringFor(Opcode opcode) {
 
 
 DeoptimizingCodeListNode::DeoptimizingCodeListNode(Code* code): next_(NULL) {
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = code->GetIsolate()->global_handles();
   // Globalize the code object and make it weak.
   code_ = Handle<Code>::cast(global_handles->Create(code));
   global_handles->MakeWeak(reinterpret_cast<Object**>(code_.location()),
@@ -2490,7 +2478,7 @@ DeoptimizingCodeListNode::DeoptimizingCodeListNode(Code* code): next_(NULL) {
 
 
 DeoptimizingCodeListNode::~DeoptimizingCodeListNode() {
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = code_->GetIsolate()->global_handles();
   global_handles->Destroy(reinterpret_cast<Object**>(code_.location()));
 }
 
@@ -2656,7 +2644,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
   expression_stack_ = new Object*[expression_count_];
   // Get the source position using the unoptimized code.
   Address pc = reinterpret_cast<Address>(output_frame->GetPc());
-  Code* code = Code::cast(Isolate::Current()->heap()->FindCodeObject(pc));
+  Code* code = Code::cast(deoptimizer->isolate()->heap()->FindCodeObject(pc));
   source_position_ = code->SourcePosition(pc);
 
   for (int i = 0; i < expression_count_; i++) {

@@ -656,7 +656,8 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
                                          v8::Handle<v8::Object> exec_state,
                                          v8::Handle<v8::Object> event_data,
                                          v8::Handle<v8::Value> data) {
-  Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Isolate* isolate = v8::internal::Isolate::Current();
+  Debug* debug = isolate->debug();
   // When hitting a debug event listener there must be a break set.
   CHECK_NE(debug->break_id(), 0);
 
@@ -732,7 +733,7 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
     // Perform a full deoptimization when the specified number of
     // breaks have been hit.
     if (break_point_hit_count == break_point_hit_count_deoptimize) {
-      i::Deoptimizer::DeoptimizeAll();
+      i::Deoptimizer::DeoptimizeAll(isolate);
     }
   } else if (event == v8::AfterCompile && !compiled_script_data.IsEmpty()) {
     const int argc = 1;
@@ -983,7 +984,8 @@ static void DebugEventBreakMax(v8::DebugEvent event,
                                v8::Handle<v8::Object> exec_state,
                                v8::Handle<v8::Object> event_data,
                                v8::Handle<v8::Value> data) {
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Isolate* isolate = v8::internal::Isolate::Current();
+  v8::internal::Debug* debug = isolate->debug();
   // When hitting a debug event listener there must be a break set.
   CHECK_NE(debug->break_id(), 0);
 
@@ -1014,7 +1016,7 @@ static void DebugEventBreakMax(v8::DebugEvent event,
     // Perform a full deoptimization when the specified number of
     // breaks have been hit.
     if (break_point_hit_count == break_point_hit_count_deoptimize) {
-      i::Deoptimizer::DeoptimizeAll();
+      i::Deoptimizer::DeoptimizeAll(isolate);
     }
   }
 }
@@ -7167,7 +7169,7 @@ static void DebugEventBreakDeoptimize(v8::DebugEvent event,
         v8::Handle<v8::String> function_name(result->ToString());
         function_name->WriteAscii(fn);
         if (strcmp(fn, "bar") == 0) {
-          i::Deoptimizer::DeoptimizeAll();
+          i::Deoptimizer::DeoptimizeAll(v8::internal::Isolate::Current());
           debug_event_break_deoptimize_done = true;
         }
       }

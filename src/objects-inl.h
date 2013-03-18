@@ -3479,6 +3479,7 @@ bool Map::is_observed() {
 
 void Map::NotifyLeafMapLayoutChange() {
   dependent_code()->DeoptimizeDependentCodeGroup(
+      GetIsolate(),
       DependentCode::kPrototypeCheckGroup);
 }
 
