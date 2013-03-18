@@ -147,16 +147,13 @@ class Genesis BASE_EMBEDDED {
           v8::ExtensionConfiguration* extensions);
   ~Genesis() { }
 
-  Handle<Context> result() { return result_; }
-
   Isolate* isolate() const { return isolate_; }
   Factory* factory() const { return isolate_->factory(); }
   Heap* heap() const { return isolate_->heap(); }
 
- private:
-  Handle<Context> native_context_;
-  Isolate* isolate_;
+  Handle<Context> result() { return result_; }
 
+ private:
   Handle<Context> native_context() { return native_context_; }
 
   // Creates some basic objects. Used for creating a context from scratch.
@@ -277,7 +274,9 @@ class Genesis BASE_EMBEDDED {
                                   Handle<Context> top_context,
                                   bool use_runtime_context);
 
+  Isolate* isolate_;
   Handle<Context> result_;
+  Handle<Context> native_context_;
 
   // Function instance maps. Function literal maps are created initially with
   // a read only prototype for the processing of JS builtins. Later the function
@@ -303,9 +302,9 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     v8::Handle<v8::ObjectTemplate> global_template,
     v8::ExtensionConfiguration* extensions) {
   HandleScope scope(isolate_);
-  Handle<Context> env;
   Genesis genesis(isolate_, global_object, global_template, extensions);
-  env = genesis.result();
+  Handle<Object> context(isolate_->global_handles()->Create(*genesis.result()));
+  Handle<Context> env = Handle<Context>::cast(context);
   if (!env.is_null()) {
     if (InstallExtensions(env, extensions)) {
       return env;
@@ -692,9 +691,8 @@ void Genesis::CreateRoots() {
   // closure and extension object later (we need the empty function
   // and the global object, but in order to create those, we need the
   // native context).
-  native_context_ = Handle<Context>::cast(isolate()->global_handles()->Create(
-              *factory()->NewNativeContext()));
-  AddToWeakNativeContextList(*native_context_);
+  native_context_ = factory()->NewNativeContext();
+  AddToWeakNativeContextList(*native_context());
   isolate()->set_context(*native_context());
 
   // Allocate the message listeners object.
@@ -823,11 +821,11 @@ void Genesis::HookUpGlobalProxy(Handle<GlobalObject> inner_global,
 
 void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
   Handle<GlobalObject> inner_global_from_snapshot(
-      GlobalObject::cast(native_context_->extension()));
-  Handle<JSBuiltinsObject> builtins_global(native_context_->builtins());
-  native_context_->set_extension(*inner_global);
-  native_context_->set_global_object(*inner_global);
-  native_context_->set_security_token(*inner_global);
+      GlobalObject::cast(native_context()->extension()));
+  Handle<JSBuiltinsObject> builtins_global(native_context()->builtins());
+  native_context()->set_extension(*inner_global);
+  native_context()->set_global_object(*inner_global);
+  native_context()->set_security_token(*inner_global);
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   ForceSetProperty(builtins_global,
@@ -2417,7 +2415,6 @@ Genesis::Genesis(Isolate* isolate,
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.
-  HandleScope scope(isolate);
   SaveContext saved_context(isolate);
 
   // During genesis, the boilerplate for stack overflow won't work until the
@@ -2426,12 +2423,10 @@ Genesis::Genesis(Isolate* isolate,
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return;
 
-  Handle<Context> new_context = Snapshot::NewContextFromSnapshot();
-  if (!new_context.is_null()) {
-    native_context_ =
-        Handle<Context>::cast(isolate->global_handles()->Create(*new_context));
-    AddToWeakNativeContextList(*native_context_);
-    isolate->set_context(*native_context_);
+  native_context_ = Snapshot::NewContextFromSnapshot();
+  if (!native_context().is_null()) {
+    AddToWeakNativeContextList(*native_context());
+    isolate->set_context(*native_context());
     isolate->counters()->contexts_created_by_snapshot()->Increment();
     Handle<GlobalObject> inner_global;
     Handle<JSGlobalProxy> global_proxy =
@@ -2467,7 +2462,7 @@ Genesis::Genesis(Isolate* isolate,
   InitializeExperimentalGlobal();
   if (!InstallExperimentalNatives()) return;
 
-  result_ = native_context_;
+  result_ = native_context();
 }
 
 
