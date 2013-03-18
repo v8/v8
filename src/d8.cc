@@ -214,13 +214,25 @@ bool Shell::ExecuteString(Isolate* isolate,
       return false;
     } else {
       ASSERT(!try_catch.HasCaught());
-      if (print_result && !result->IsUndefined()) {
-        // If all went well and the result wasn't undefined then print
-        // the returned value.
-        v8::String::Utf8Value str(result);
-        size_t count = fwrite(*str, sizeof(**str), str.length(), stdout);
-        (void) count;  // Silence GCC-4.5.x "unused result" warning.
-        printf("\n");
+      if (print_result) {
+        if (options.test_shell) {
+          if (!result->IsUndefined()) {
+            // If all went well and the result wasn't undefined then print
+            // the returned value.
+            v8::String::Utf8Value str(result);
+            fwrite(*str, sizeof(**str), str.length(), stdout);
+            printf("\n");
+          }
+        } else {
+          Context::Scope context_scope(utility_context_);
+          Handle<Object> global = utility_context_->Global();
+          Handle<Value> fun = global->Get(String::New("Stringify"));
+          Handle<Value> argv[1] = { result };
+          Handle<Value> s = Handle<Function>::Cast(fun)->Call(global, 1, argv);
+          v8::String::Utf8Value str(s);
+          fwrite(*str, sizeof(**str), str.length(), stdout);
+          printf("\n");
+        }
       }
       return true;
     }
