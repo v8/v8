@@ -3869,8 +3869,9 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                StubType type,
                                int argc,
                                InlineCacheHolderFlag holder) {
+  ASSERT(argc <= Code::kMaxArguments);
   // Compute the bit mask.
-  int bits = KindField::encode(kind)
+  unsigned int bits = KindField::encode(kind)
       | ICStateField::encode(ic_state)
       | TypeField::encode(type)
       | ExtraICStateField::encode(extra_ic_state)
