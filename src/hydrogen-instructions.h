@@ -75,6 +75,7 @@ class LChunkBuilder;
   V(BitNot)                                    \
   V(BlockEntry)                                \
   V(BoundsCheck)                               \
+  V(BoundsCheckBaseIndexInformation)           \
   V(Branch)                                    \
   V(CallConstantFunction)                      \
   V(CallFunction)                              \
@@ -667,10 +668,127 @@ class NumericRelation {
     return false;
   }
 
+  // CompoundImplies returns true when
+  // "((x + my_offset) >> my_scale) rel y" implies
+  // "((x + other_offset) >> other_scale) other_relation y".
+  bool CompoundImplies(NumericRelation other_relation,
+                       int my_offset,
+                       int my_scale,
+                       int other_offset = 0,
+                       int other_scale = 0) {
+    return Implies(other_relation) && ComponentsImply(
+        my_offset, my_scale, other_offset, other_scale);
+  }
+
  private:
+  // ComponentsImply returns true when
+  // "((x + my_offset) >> my_scale) rel y" implies
+  // "((x + other_offset) >> other_scale) rel y".
+  bool ComponentsImply(int my_offset,
+                       int my_scale,
+                       int other_offset,
+                       int other_scale) {
+    switch (kind_) {
+      case NONE: break;  // Fall through to UNREACHABLE().
+      case EQ:
+      case NE: return my_offset == other_offset && my_scale == other_scale;
+      case GT:
+      case GE: return my_offset <= other_offset && my_scale >= other_scale;
+      case LT:
+      case LE: return my_offset >= other_offset && my_scale <= other_scale;
+    }
+    UNREACHABLE();
+    return false;
+  }
+
   explicit NumericRelation(Kind kind) : kind_(kind) {}
 
   Kind kind_;
+};
+
+
+class DecompositionResult BASE_EMBEDDED {
+ public:
+  DecompositionResult() : base_(NULL), offset_(0), scale_(0) {}
+
+  HValue* base() { return base_; }
+  int offset() { return offset_; }
+  int scale() { return scale_; }
+
+  bool Apply(HValue* other_base, int other_offset, int other_scale = 0) {
+    if (base_ == NULL) {
+      base_ = other_base;
+      offset_ = other_offset;
+      scale_ = other_scale;
+      return true;
+    } else {
+      if (scale_ == 0) {
+        base_ = other_base;
+        offset_ += other_offset;
+        scale_ = other_scale;
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+
+  void SwapValues(HValue** other_base, int* other_offset, int* other_scale) {
+    swap(&base_, other_base);
+    swap(&offset_, other_offset);
+    swap(&scale_, other_scale);
+  }
+
+ private:
+  template <class T> void swap(T* a, T* b) {
+    T c(*a);
+    *a = *b;
+    *b = c;
+  }
+
+  HValue* base_;
+  int offset_;
+  int scale_;
+};
+
+
+class RangeEvaluationContext BASE_EMBEDDED {
+ public:
+  RangeEvaluationContext(HValue* value, HValue* upper);
+
+  HValue* lower_bound() { return lower_bound_; }
+  HValue* lower_bound_guarantee() { return lower_bound_guarantee_; }
+  HValue* candidate() { return candidate_; }
+  HValue* upper_bound() { return upper_bound_; }
+  HValue* upper_bound_guarantee() { return upper_bound_guarantee_; }
+  int offset() { return offset_; }
+  int scale() { return scale_; }
+
+  bool is_range_satisfied() {
+    return lower_bound_guarantee() != NULL && upper_bound_guarantee() != NULL;
+  }
+
+  void set_lower_bound_guarantee(HValue* guarantee) {
+    lower_bound_guarantee_ = ConvertGuarantee(guarantee);
+  }
+  void set_upper_bound_guarantee(HValue* guarantee) {
+    upper_bound_guarantee_ = ConvertGuarantee(guarantee);
+  }
+
+  void swap_candidate(DecompositionResult* other_candicate) {
+    other_candicate->SwapValues(&candidate_, &offset_, &scale_);
+  }
+
+ private:
+  HValue* ConvertGuarantee(HValue* guarantee);
+
+  HValue* lower_bound_;
+  HValue* lower_bound_guarantee_;
+  HValue* candidate_;
+  HValue* upper_bound_;
+  HValue* upper_bound_guarantee_;
+  int offset_;
+  int scale_;
 };
 
 
@@ -977,25 +1095,32 @@ class HValue: public ZoneObject {
   virtual void Verify() = 0;
 #endif
 
-  // This method is recursive but it is guaranteed to terminate because
-  // RedefinedOperand() always dominates "this".
-  bool IsRelationTrue(NumericRelation relation, HValue* other) {
-    if (this == other) {
-      return NumericRelation::Eq().Implies(relation);
-    }
+  bool IsRelationTrue(NumericRelation relation,
+                      HValue* other,
+                      int offset = 0,
+                      int scale = 0);
 
-    bool result = IsRelationTrueInternal(relation, other) ||
-        other->IsRelationTrueInternal(relation.Reversed(), this);
-    if (!result) {
-      HValue* redefined = RedefinedOperand();
-      if (redefined != NULL) {
-        result = redefined->IsRelationTrue(relation, other);
-      }
+  bool TryGuaranteeRange(HValue* upper_bound);
+  virtual bool TryDecompose(DecompositionResult* decomposition) {
+    if (RedefinedOperand() != NULL) {
+      return RedefinedOperand()->TryDecompose(decomposition);
+    } else {
+      return false;
     }
-    return result;
   }
 
  protected:
+  void TryGuaranteeRangeRecursive(RangeEvaluationContext* context);
+
+  enum RangeGuaranteeDirection {
+    DIRECTION_NONE = 0,
+    DIRECTION_UPPER = 1,
+    DIRECTION_LOWER = 2,
+    DIRECTION_BOTH = DIRECTION_UPPER | DIRECTION_LOWER
+  };
+  virtual void SetResponsibilityForRange(RangeGuaranteeDirection direction) {}
+  virtual void TryGuaranteeRangeChanging(RangeEvaluationContext* context) {}
+
   // This function must be overridden for instructions with flag kUseGVN, to
   // compare the non-Operand parts of the instruction.
   virtual bool DataEquals(HValue* other) {
@@ -1059,7 +1184,12 @@ class HValue: public ZoneObject {
 
   // Informative definitions can override this method to state any numeric
   // relation they provide on the redefined value.
-  virtual bool IsRelationTrueInternal(NumericRelation relation, HValue* other) {
+  // Returns true if it is guaranteed that:
+  // ((this + offset) >> scale) relation other
+  virtual bool IsRelationTrueInternal(NumericRelation relation,
+                                      HValue* other,
+                                      int offset = 0,
+                                      int scale = 0) {
     return false;
   }
 
@@ -1308,9 +1438,11 @@ class HNumericConstraint : public HTemplateInstruction<2> {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual bool IsRelationTrueInternal(NumericRelation other_relation,
-                                      HValue* other_related_value) {
+                                      HValue* other_related_value,
+                                      int offset = 0,
+                                      int scale = 0) {
     if (related_value() == other_related_value) {
-      return relation().Implies(other_relation);
+      return relation().CompoundImplies(other_relation, offset, scale);
     } else {
       return false;
     }
@@ -1325,7 +1457,6 @@ class HNumericConstraint : public HTemplateInstruction<2> {
       : relation_(relation) {
     SetOperandAt(0, constrained_value);
     SetOperandAt(1, related_value);
-    set_representation(constrained_value->representation());
   }
 
   NumericRelation relation_;
@@ -2992,7 +3123,10 @@ class HPhi: public HValue {
     inputs_[index] = value;
   }
 
-  virtual bool IsRelationTrueInternal(NumericRelation relation, HValue* other);
+  virtual bool IsRelationTrueInternal(NumericRelation relation,
+                                      HValue* other,
+                                      int offset = 0,
+                                      int scale = 0);
 
  private:
   ZoneList<HValue*> inputs_;
@@ -3024,9 +3158,11 @@ class HInductionVariableAnnotation : public HUnaryOperation {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual bool IsRelationTrueInternal(NumericRelation other_relation,
-                                      HValue* other_related_value) {
+                                      HValue* other_related_value,
+                                      int offset = 0,
+                                      int scale = 0) {
     if (induction_base() == other_related_value) {
-      return relation().Implies(other_relation);
+      return relation().CompoundImplies(other_relation, offset, scale);
     } else {
       return false;
     }
@@ -3040,7 +3176,6 @@ class HInductionVariableAnnotation : public HUnaryOperation {
                                int operand_index)
       : HUnaryOperation(phi),
     phi_(phi), relation_(relation), operand_index_(operand_index) {
-    set_representation(phi->representation());
   }
 
   // We need to store the phi both here and in the instruction operand because
@@ -3445,6 +3580,9 @@ enum BoundsCheckKeyMode {
 };
 
 
+class HBoundsCheckBaseIndexInformation;
+
+
 class HBoundsCheck: public HTemplateInstruction<2> {
  public:
   // Normally HBoundsCheck should be created using the
@@ -3456,7 +3594,9 @@ class HBoundsCheck: public HTemplateInstruction<2> {
                HValue* length,
                BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY,
                Representation r = Representation::None())
-      : key_mode_(key_mode), skip_check_(false) {
+    : key_mode_(key_mode), skip_check_(false),
+      base_(NULL), offset_(0), scale_(0),
+      responsibility_direction_(DIRECTION_NONE) {
     SetOperandAt(0, index);
     SetOperandAt(1, length);
     if (r.IsNone()) {
@@ -3473,6 +3613,33 @@ class HBoundsCheck: public HTemplateInstruction<2> {
 
   bool skip_check() { return skip_check_; }
   void set_skip_check(bool skip_check) { skip_check_ = skip_check; }
+  HValue* base() { return base_; }
+  int offset() { return offset_; }
+  int scale() { return scale_; }
+  bool index_can_increase() {
+    return (responsibility_direction_ & DIRECTION_LOWER) == 0;
+  }
+  bool index_can_decrease() {
+    return (responsibility_direction_ & DIRECTION_UPPER) == 0;
+  }
+
+  void ApplyIndexChange();
+  bool DetectCompoundIndex() {
+    ASSERT(base() == NULL);
+
+    DecompositionResult decomposition;
+    if (index()->TryDecompose(&decomposition)) {
+      base_ = decomposition.base();
+      offset_ = decomposition.offset();
+      scale_ = decomposition.scale();
+      return true;
+    } else {
+      base_ = index();
+      offset_ = 0;
+      scale_ = 0;
+      return false;
+    }
+  }
 
   virtual Representation RequiredInputRepresentation(int arg_index) {
     return representation();
@@ -3482,7 +3649,9 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   }
 
   virtual bool IsRelationTrueInternal(NumericRelation relation,
-                                      HValue* related_value);
+                                      HValue* related_value,
+                                      int offset = 0,
+                                      int scale = 0);
 
   virtual void PrintDataTo(StringStream* stream);
   virtual void InferRepresentation(HInferRepresentation* h_infer);
@@ -3497,9 +3666,61 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck)
 
  protected:
+  friend class HBoundsCheckBaseIndexInformation;
+
+  virtual void SetResponsibilityForRange(RangeGuaranteeDirection direction) {
+    responsibility_direction_ = static_cast<RangeGuaranteeDirection>(
+        responsibility_direction_ | direction);
+  }
+
   virtual bool DataEquals(HValue* other) { return true; }
+  virtual void TryGuaranteeRangeChanging(RangeEvaluationContext* context);
   BoundsCheckKeyMode key_mode_;
   bool skip_check_;
+  HValue* base_;
+  int offset_;
+  int scale_;
+  RangeGuaranteeDirection responsibility_direction_;
+};
+
+
+class HBoundsCheckBaseIndexInformation: public HTemplateInstruction<2> {
+ public:
+  explicit HBoundsCheckBaseIndexInformation(HBoundsCheck* check) {
+    DecompositionResult decomposition;
+    if (check->index()->TryDecompose(&decomposition)) {
+      SetOperandAt(0, decomposition.base());
+      SetOperandAt(1, check);
+    } else {
+      UNREACHABLE();
+    }
+  }
+
+  HValue* base_index() { return OperandAt(0); }
+  HBoundsCheck* bounds_check() { return HBoundsCheck::cast(OperandAt(1)); }
+
+  DECLARE_CONCRETE_INSTRUCTION(BoundsCheckBaseIndexInformation)
+
+  virtual Representation RequiredInputRepresentation(int arg_index) {
+    return representation();
+  }
+
+  virtual bool IsRelationTrueInternal(NumericRelation relation,
+                                      HValue* related_value,
+                                      int offset = 0,
+                                      int scale = 0);
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual int RedefinedOperandIndex() { return 0; }
+  virtual bool IsPurelyInformativeDefinition() { return true; }
+
+ protected:
+  virtual void SetResponsibilityForRange(RangeGuaranteeDirection direction) {
+    bounds_check()->SetResponsibilityForRange(direction);
+  }
+  virtual void TryGuaranteeRangeChanging(RangeEvaluationContext* context) {
+    bounds_check()->TryGuaranteeRangeChanging(context);
+  }
 };
 
 
@@ -4092,21 +4313,16 @@ class HAdd: public HArithmeticBinaryOperation {
 
   virtual HValue* Canonicalize();
 
-  virtual bool IsRelationTrueInternal(NumericRelation relation, HValue* other) {
-    HValue* base = NULL;
-    int32_t offset = 0;
+  virtual bool TryDecompose(DecompositionResult* decomposition) {
     if (left()->IsInteger32Constant()) {
-      base = right();
-      offset = left()->GetInteger32Constant();
+      decomposition->Apply(right(), left()->GetInteger32Constant());
+      return true;
     } else if (right()->IsInteger32Constant()) {
-      base = left();
-      offset = right()->GetInteger32Constant();
+      decomposition->Apply(left(), right()->GetInteger32Constant());
+      return true;
     } else {
       return false;
     }
-
-    return relation.IsExtendable(offset)
-        ? base->IsRelationTrue(relation, other) : false;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Add)
@@ -4135,12 +4351,10 @@ class HSub: public HArithmeticBinaryOperation {
 
   virtual HValue* Canonicalize();
 
-  virtual bool IsRelationTrueInternal(NumericRelation relation, HValue* other) {
+  virtual bool TryDecompose(DecompositionResult* decomposition) {
     if (right()->IsInteger32Constant()) {
-      HValue* base = left();
-      int32_t offset = right()->GetInteger32Constant();
-      return relation.IsExtendable(-offset)
-          ? base->IsRelationTrue(relation, other) : false;
+      decomposition->Apply(left(), -right()->GetInteger32Constant());
+      return true;
     } else {
       return false;
     }
@@ -4375,6 +4589,18 @@ class HShr: public HBitwiseBinaryOperation {
                            HValue* left,
                            HValue* right);
 
+  virtual bool TryDecompose(DecompositionResult* decomposition) {
+    if (right()->IsInteger32Constant()) {
+      if (decomposition->Apply(left(), 0, right()->GetInteger32Constant())) {
+        // This is intended to look for HAdd and HSub, to handle compounds
+        // like ((base + offset) >> scale) with one single decomposition.
+        left()->TryDecompose(decomposition);
+        return true;
+      }
+    }
+    return false;
+  }
+
   virtual Range* InferRange(Zone* zone);
 
   DECLARE_CONCRETE_INSTRUCTION(Shr)
@@ -4394,6 +4620,18 @@ class HSar: public HBitwiseBinaryOperation {
                            HValue* context,
                            HValue* left,
                            HValue* right);
+
+  virtual bool TryDecompose(DecompositionResult* decomposition) {
+    if (right()->IsInteger32Constant()) {
+      if (decomposition->Apply(left(), 0, right()->GetInteger32Constant())) {
+        // This is intended to look for HAdd and HSub, to handle compounds
+        // like ((base + offset) >> scale) with one single decomposition.
+        left()->TryDecompose(decomposition);
+        return true;
+      }
+    }
+    return false;
+  }
 
   virtual Range* InferRange(Zone* zone);
 
