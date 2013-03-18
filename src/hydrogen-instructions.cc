@@ -174,7 +174,7 @@ bool HValue::IsRelationTrue(NumericRelation relation,
                             int offset,
                             int scale) {
   if (this == other) {
-    return NumericRelation::Eq().Implies(relation);
+    return scale == 0 && relation.IsExtendable(offset);
   }
 
   // Test the direct relation.
