@@ -7405,8 +7405,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
        i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
     Handle<Map> map = types->at(i);
-    if (map.is_identical_to(number_marker_map)) handle_smi = true;
     if (expr->ComputeTarget(map, name)) {
+      if (map.is_identical_to(number_marker_map)) handle_smi = true;
       order[ordered_functions++] =
           FunctionSorter(i,
                          expr->target()->shared()->profiler_ticks(),
