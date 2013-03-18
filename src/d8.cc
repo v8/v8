@@ -236,8 +236,8 @@ bool Shell::ExecuteString(Isolate* isolate,
           fwrite(*str, sizeof(**str), str.length(), stdout);
           printf("\n");
         }
-      }
 #endif
+      }
       return true;
     }
   }
