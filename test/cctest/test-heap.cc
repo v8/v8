@@ -3017,3 +3017,31 @@ TEST(Regress173458) {
   heap->CollectAllGarbage(Heap::kNoGCFlags);
   heap->CollectAllGarbage(Heap::kNoGCFlags);
 }
+
+
+class DummyVisitor : public ObjectVisitor {
+ public:
+  void VisitPointers(Object** start, Object** end) { }
+};
+
+
+TEST(DeferredHandles) {
+  InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope;
+  v8::ImplementationUtilities::HandleScopeData* data =
+      isolate->handle_scope_data();
+  Handle<Object> init(heap->empty_string(), isolate);
+  while (data->next < data->limit) {
+    Handle<Object> obj(heap->empty_string(), isolate);
+  }
+  // An entire block of handles has been filled.
+  // Next handle would require a new block.
+  ASSERT(data->next == data->limit);
+
+  DeferredHandleScope deferred(isolate);
+  DummyVisitor visitor;
+  isolate->handle_scope_implementer()->Iterate(&visitor);
+  deferred.Detach();
+}
