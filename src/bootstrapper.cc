@@ -149,8 +149,6 @@ class Genesis BASE_EMBEDDED {
 
   Handle<Context> result() { return result_; }
 
-  Genesis* previous() { return previous_; }
-
   Isolate* isolate() const { return isolate_; }
   Factory* factory() const { return isolate_->factory(); }
   Heap* heap() const { return isolate_->heap(); }
@@ -158,11 +156,6 @@ class Genesis BASE_EMBEDDED {
  private:
   Handle<Context> native_context_;
   Isolate* isolate_;
-
-  // There may be more than one active genesis object: When GC is
-  // triggered during environment creation there may be weak handle
-  // processing callbacks which may create new environments.
-  Genesis* previous_;
 
   Handle<Context> native_context() { return native_context_; }
 
