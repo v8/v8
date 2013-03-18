@@ -8816,6 +8816,8 @@ void Code::CopyFrom(const CodeDesc& desc) {
   memmove(instruction_start(), desc.buffer, desc.instr_size);
 
   // copy reloc info
+  // TODO(mstarzinger): Remove once we found the bug.
+  CHECK(relocation_info()->IsByteArray());
   memmove(relocation_start(),
           desc.buffer + desc.buffer_size - desc.reloc_size,
           desc.reloc_size);

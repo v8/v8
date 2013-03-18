@@ -3785,7 +3785,11 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   ASSERT(!isolate_->code_range()->exists() ||
       isolate_->code_range()->contains(code->address()));
   code->set_instruction_size(desc.instr_size);
+  // TODO(mstarzinger): Remove once we found the bug.
+  CHECK(reloc_info->IsByteArray());
   code->set_relocation_info(reloc_info);
+  // TODO(mstarzinger): Remove once we found the bug.
+  CHECK(code->relocation_info()->IsByteArray());
   code->set_flags(flags);
   if (code->is_call_stub() || code->is_keyed_call_stub()) {
     code->set_check_type(RECEIVER_MAP_CHECK);
