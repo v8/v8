@@ -426,8 +426,10 @@ class LAllocator BASE_EMBEDDED {
   Zone* zone() const { return zone_; }
 
   int GetVirtualRegister() {
-    if (next_virtual_register_ > LUnallocated::kMaxVirtualRegisters) {
+    if (next_virtual_register_ >= LUnallocated::kMaxVirtualRegisters) {
       allocation_ok_ = false;
+      // Maintain the invariant that we return something below the maximum.
+      return 0;
     }
     return next_virtual_register_++;
   }
