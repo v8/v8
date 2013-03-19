@@ -876,16 +876,16 @@ TEST(RecordStackTraceAtStartProfiling) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   env->Enter();
 
-  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+  CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
+  CHECK_EQ(0, profiler->GetProfilesCount());
   CompileRun(
       "function c() { startProfiling(); }\n"
       "function b() { c(); }\n"
       "function a() { b(); }\n"
       "a();\n"
       "stopProfiling();");
-  CHECK_EQ(1, CpuProfiler::GetProfilesCount());
-  CpuProfile* profile =
-      CpuProfiler::GetProfile(NULL, 0);
+  CHECK_EQ(1, profiler->GetProfilesCount());
+  CpuProfile* profile = profiler->GetProfile(NULL, 0);
   const ProfileTree* topDown = profile->top_down();
   const ProfileNode* current = topDown->root();
   const_cast<ProfileNode*>(current)->Print(0);
