@@ -188,7 +188,9 @@ class LCodeGen;
   V(LoadFieldByIndex)                           \
   V(DateField)                                  \
   V(WrapReceiver)                               \
-  V(Drop)
+  V(Drop)                                       \
+  V(InnerAllocatedObject)
+
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
   virtual Opcode opcode() const { return LInstruction::k##type; } \
@@ -1597,6 +1599,22 @@ class LDrop: public LTemplateInstruction<0, 0, 0> {
 
  private:
   int count_;
+};
+
+
+class LInnerAllocatedObject: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LInnerAllocatedObject(LOperand* base_object) {
+    inputs_[0] = base_object;
+  }
+
+  LOperand* base_object() { return inputs_[0]; }
+  int offset() { return hydrogen()->offset(); }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject, "sub-allocated-object")
+  DECLARE_HYDROGEN_ACCESSOR(InnerAllocatedObject)
 };
 
 
