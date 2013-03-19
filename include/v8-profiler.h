@@ -105,6 +105,9 @@ class V8EXPORT CpuProfileNode {
   /** Returns function entry UID. */
   unsigned GetCallUid() const;
 
+  /** Returns id of the node. The id is unique within the tree */
+  unsigned GetNodeId() const;
+
   /** Returns child nodes count of the node. */
   int GetChildrenCount() const;
 
@@ -129,6 +132,18 @@ class V8EXPORT CpuProfile {
 
   /** Returns the root node of the top down call tree. */
   const CpuProfileNode* GetTopDownRoot() const;
+
+  /**
+    * Returns number of samples recorded. The samples are not recorded unless
+    * |record_samples| parameter of CpuProfiler::StartProfiling is true.
+    */
+  int GetSamplesCount() const;
+
+  /**
+    * Returns profile node corresponding to the top frame the sample at
+    * the given index.
+    */
+  const CpuProfileNode* GetSample(int index) const;
 
   /**
    * Deletes the profile and removes it from CpuProfiler's list.
@@ -179,8 +194,11 @@ class V8EXPORT CpuProfiler {
    * title are silently ignored. While collecting a profile, functions
    * from all security contexts are included in it. The token-based
    * filtering is only performed when querying for a profile.
+   *
+   * |record_samples| parameter controls whether individual samples should
+   * be recorded in addition to the aggregated tree.
    */
-  static void StartProfiling(Handle<String> title);
+  static void StartProfiling(Handle<String> title, bool record_samples = false);
 
   /**
    * Stops collecting CPU profile with a given title and returns it.

@@ -107,7 +107,7 @@ TEST(CodeEvents) {
   i::Factory* factory = isolate->factory();
   TestSetup test_setup;
   CpuProfilesCollection profiles;
-  profiles.StartProfiling("", 1);
+  profiles.StartProfiling("", 1, false);
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(&generator);
   processor.Start();
@@ -168,7 +168,7 @@ static int CompareProfileNodes(const T* p1, const T* p2) {
 TEST(TickEvents) {
   TestSetup test_setup;
   CpuProfilesCollection profiles;
-  profiles.StartProfiling("", 1);
+  profiles.StartProfiling("", 1, false);
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(&generator);
   processor.Start();
@@ -233,7 +233,7 @@ TEST(CrashIfStoppingLastNonExistentProfile) {
 TEST(Issue1398) {
   TestSetup test_setup;
   CpuProfilesCollection profiles;
-  profiles.StartProfiling("", 1);
+  profiles.StartProfiling("", 1, false);
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(&generator);
   processor.Start();
