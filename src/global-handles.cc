@@ -83,7 +83,6 @@ class GlobalHandles::Node {
     set_partially_dependent(false);
     set_in_new_space_list(false);
     parameter_or_next_free_.next_free = NULL;
-    weak_reference_callback_ = NULL;
     near_death_callback_ = NULL;
   }
 #endif
@@ -105,7 +104,6 @@ class GlobalHandles::Node {
     set_partially_dependent(false);
     set_state(NORMAL);
     parameter_or_next_free_.parameter = NULL;
-    weak_reference_callback_ = NULL;
     near_death_callback_ = NULL;
     IncreaseBlockUses(global_handles);
   }
@@ -120,7 +118,6 @@ class GlobalHandles::Node {
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_partially_dependent(false);
-    weak_reference_callback_ = NULL;
     near_death_callback_ = NULL;
 #endif
     parameter_or_next_free_.next_free = global_handles->first_free_;
@@ -235,8 +232,14 @@ class GlobalHandles::Node {
     ASSERT(state() != FREE);
     set_state(WEAK);
     set_parameter(parameter);
-    weak_reference_callback_ = weak_reference_callback;
-    near_death_callback_ = near_death_callback;
+    if (weak_reference_callback != NULL) {
+      flags_ = IsWeakCallback::update(flags_, true);
+      near_death_callback_ =
+          reinterpret_cast<NearDeathCallback>(weak_reference_callback);
+    } else {
+      flags_ = IsWeakCallback::update(flags_, false);
+      near_death_callback_ = near_death_callback;
+    }
   }
 
   void ClearWeakness(GlobalHandles* global_handles) {
@@ -248,8 +251,7 @@ class GlobalHandles::Node {
   bool PostGarbageCollectionProcessing(Isolate* isolate,
                                        GlobalHandles* global_handles) {
     if (state() != Node::PENDING) return false;
-    if (weak_reference_callback_ == NULL &&
-        near_death_callback_ == NULL) {
+    if (near_death_callback_ == NULL) {
       Release(global_handles);
       return false;
     }
@@ -267,13 +269,16 @@ class GlobalHandles::Node {
              ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
       VMState state(isolate, EXTERNAL);
-      if (weak_reference_callback_ != NULL) {
-        weak_reference_callback_(object, par);
-      }
       if (near_death_callback_ != NULL) {
-        near_death_callback_(reinterpret_cast<v8::Isolate*>(isolate),
-                             object,
-                             par);
+        if (IsWeakCallback::decode(flags_)) {
+          WeakReferenceCallback callback =
+              reinterpret_cast<WeakReferenceCallback>(near_death_callback_);
+          callback(object, par);
+        } else {
+          near_death_callback_(reinterpret_cast<v8::Isolate*>(isolate),
+                               object,
+                               par);
+        }
       }
     }
     // Absence of explicit cleanup or revival of weak handle
@@ -306,11 +311,11 @@ class GlobalHandles::Node {
   class IsIndependent:        public BitField<bool,  4, 1> {};
   class IsPartiallyDependent: public BitField<bool,  5, 1> {};
   class IsInNewSpaceList:     public BitField<bool,  6, 1> {};
+  class IsWeakCallback:       public BitField<bool,  7, 1> {};
 
   uint8_t flags_;
 
-  // Handle specific callback.
-  WeakReferenceCallback weak_reference_callback_;
+  // Handle specific callback - might be a weak reference in disguise.
   NearDeathCallback near_death_callback_;
 
   // Provided data for callback.  In FREE state, this is used for
@@ -481,8 +486,7 @@ void GlobalHandles::MakeWeak(Object** location,
                              void* parameter,
                              WeakReferenceCallback weak_reference_callback,
                              NearDeathCallback near_death_callback) {
-  ASSERT((weak_reference_callback != NULL) !=
-         (near_death_callback != NULL));
+  ASSERT(near_death_callback != NULL);
   Node::FromLocation(location)->MakeWeak(this,
                                          parameter,
                                          weak_reference_callback,
