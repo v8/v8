@@ -1854,7 +1854,7 @@ class ScavengingVisitor : public StaticVisitorBase {
       HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
       Isolate* isolate = heap->isolate();
       if (isolate->logger()->is_logging_code_events() ||
-          CpuProfiler::is_profiling(isolate)) {
+          isolate->cpu_profiler()->is_profiling()) {
         if (target->IsSharedFunctionInfo()) {
           PROFILE(isolate, SharedFunctionInfoMoveEvent(
               source->address(), target->address()));
@@ -2110,7 +2110,7 @@ static void InitializeScavengingVisitorsTables() {
 void Heap::SelectScavengingVisitorsTable() {
   bool logging_and_profiling =
       isolate()->logger()->is_logging() ||
-      CpuProfiler::is_profiling(isolate()) ||
+      isolate()->cpu_profiler()->is_profiling() ||
       (isolate()->heap_profiler() != NULL &&
        isolate()->heap_profiler()->is_profiling());
 
@@ -3805,6 +3805,8 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   }
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
+  CHECK(code->IsCode());
+  CHECK(code->relocation_info()->IsByteArray());
   if (!self_reference.is_null()) {
     *(self_reference.location()) = code;
   }
@@ -3813,6 +3815,8 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   // that are dereferenced during the copy to point directly to the actual heap
   // objects. These pointers can include references to the code object itself,
   // through the self_reference parameter.
+  CHECK(code->IsCode());
+  CHECK(code->relocation_info()->IsByteArray());
   code->CopyFrom(desc);
 
 #ifdef VERIFY_HEAP

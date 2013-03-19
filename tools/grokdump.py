@@ -2085,13 +2085,14 @@ def AnalyzeMinidump(options, minidump_name):
     else:
       print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
 
-    print
-    print "  modules:"
-    for module in reader.module_list.modules:
-      name = GetModuleName(reader, module)
-      if name in KNOWN_MODULES:
-        print "    %s at %08X" % (name, module.base_of_image)
-        reader.TryLoadSymbolsFor(name, module)
+    # TODO(mstarzinger): Disabled because broken, needs investigation.
+    #print
+    #print "  modules:"
+    #for module in reader.module_list.modules:
+    #  name = GetModuleName(reader, module)
+    #  if name in KNOWN_MODULES:
+    #    print "    %s at %08X" % (name, module.base_of_image)
+    #    reader.TryLoadSymbolsFor(name, module)
     print
 
     stack_top = reader.ExceptionSP()

@@ -1615,7 +1615,7 @@ void Logger::LogCodeObject(Object* object) {
         tag = Logger::KEYED_CALL_IC_TAG;
         break;
     }
-    PROFILE(ISOLATE, CodeCreateEvent(tag, code_object, description));
+    PROFILE(isolate_, CodeCreateEvent(tag, code_object, description));
   }
 }
 
@@ -1719,20 +1719,20 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       Handle<String> script_name(String::cast(script->name()));
       int line_num = GetScriptLineNumber(script, shared->start_position());
       if (line_num > 0) {
-        PROFILE(ISOLATE,
+        PROFILE(isolate_,
                 CodeCreateEvent(
                     Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
                     *code, *shared,
                     *script_name, line_num + 1));
       } else {
         // Can't distinguish eval and script here, so always use Script.
-        PROFILE(ISOLATE,
+        PROFILE(isolate_,
                 CodeCreateEvent(
                     Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
                     *code, *shared, *script_name));
       }
     } else {
-      PROFILE(ISOLATE,
+      PROFILE(isolate_,
               CodeCreateEvent(
                   Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
                   *code, *shared, *func_name));
@@ -1745,10 +1745,10 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
       Object* callback_obj = call_data->callback();
       Address entry_point = v8::ToCData<Address>(callback_obj);
-      PROFILE(ISOLATE, CallbackEvent(*func_name, entry_point));
+      PROFILE(isolate_, CallbackEvent(*func_name, entry_point));
     }
   } else {
-    PROFILE(ISOLATE,
+    PROFILE(isolate_,
             CodeCreateEvent(
                 Logger::LAZY_COMPILE_TAG, *code, *shared, *func_name));
   }
@@ -1789,11 +1789,11 @@ void Logger::LogAccessorCallbacks() {
     Address getter_entry = v8::ToCData<Address>(ai->getter());
     Name* name = Name::cast(ai->name());
     if (getter_entry != 0) {
-      PROFILE(ISOLATE, GetterCallbackEvent(name, getter_entry));
+      PROFILE(isolate_, GetterCallbackEvent(name, getter_entry));
     }
     Address setter_entry = v8::ToCData<Address>(ai->setter());
     if (setter_entry != 0) {
-      PROFILE(ISOLATE, SetterCallbackEvent(name, setter_entry));
+      PROFILE(isolate_, SetterCallbackEvent(name, setter_entry));
     }
   }
 }

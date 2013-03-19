@@ -4299,12 +4299,7 @@ class Code: public HeapObject {
  public:
   // Opaque data type for encapsulating code flags like kind, inline
   // cache state, and arguments count.
-  // FLAGS_MIN_VALUE and FLAGS_MAX_VALUE are specified to ensure that
-  // enumeration type has correct value range (see Issue 830 for more details).
-  enum Flags {
-    FLAGS_MIN_VALUE = 0,
-    FLAGS_MAX_VALUE = kMaxUInt32
-  };
+  typedef uint32_t Flags;
 
 #define CODE_KIND_LIST(V) \
   V(FUNCTION)             \

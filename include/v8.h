@@ -97,48 +97,47 @@
  */
 namespace v8 {
 
+class AccessorInfo;
+class AccessorSignature;
+class Array;
+class Boolean;
+class BooleanObject;
 class Context;
-class String;
-class StringObject;
-class Value;
-class Utils;
+class Data;
+class Date;
+class DeclaredAccessorDescriptor;
+class External;
+class Function;
+class FunctionTemplate;
+class ImplementationUtilities;
+class Int32;
+class Integer;
+class Isolate;
 class Number;
 class NumberObject;
 class Object;
-class Array;
-class Int32;
-class Uint32;
-class External;
+class ObjectOperationDescriptor;
+class ObjectTemplate;
 class Primitive;
-class Boolean;
-class BooleanObject;
-class Integer;
-class Function;
-class Date;
-class ImplementationUtilities;
+class RawOperationDescriptor;
 class Signature;
-class AccessorSignature;
+class StackFrame;
+class StackTrace;
+class String;
+class StringObject;
+class Uint32;
+class Utils;
+class Value;
 template <class T> class Handle;
 template <class T> class Local;
 template <class T> class Persistent;
-class FunctionTemplate;
-class ObjectTemplate;
-class Data;
-class AccessorInfo;
-class StackTrace;
-class StackFrame;
-class Isolate;
-class DeclaredAccessorDescriptor;
-class ObjectOperationDescriptor;
-class RawOperationDescriptor;
 
 namespace internal {
-
 class Arguments;
-class Object;
 class Heap;
 class HeapObject;
 class Isolate;
+class Object;
 }
 
 

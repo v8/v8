@@ -168,12 +168,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ pop(a3);
 
   // Attempt to allocate new JSFunction in new space.
-  __ AllocateInNewSpace(JSFunction::kSize,
-                        v0,
-                        a1,
-                        a2,
-                        &gc,
-                        TAG_OBJECT);
+  __ Allocate(JSFunction::kSize, v0, a1, a2, &gc, TAG_OBJECT);
 
   __ IncrementCounter(counters->fast_new_closure_total(), 1, t2, t3);
 
@@ -300,12 +295,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   int length = slots_ + Context::MIN_CONTEXT_SLOTS;
 
   // Attempt to allocate the context in new space.
-  __ AllocateInNewSpace(FixedArray::SizeFor(length),
-                        v0,
-                        a1,
-                        a2,
-                        &gc,
-                        TAG_OBJECT);
+  __ Allocate(FixedArray::SizeFor(length), v0, a1, a2, &gc, TAG_OBJECT);
 
   // Load the function from the stack.
   __ lw(a3, MemOperand(sp, 0));
@@ -349,8 +339,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Try to allocate the context in new space.
   Label gc;
   int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ AllocateInNewSpace(FixedArray::SizeFor(length),
-                        v0, a1, a2, &gc, TAG_OBJECT);
+  __ Allocate(FixedArray::SizeFor(length), v0, a1, a2, &gc, TAG_OBJECT);
 
   // Load the function from the stack.
   __ lw(a3, MemOperand(sp, 0));
@@ -429,12 +418,7 @@ static void GenerateFastCloneShallowArrayCommon(
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
-  __ AllocateInNewSpace(size,
-                        v0,
-                        a1,
-                        a2,
-                        fail,
-                        TAG_OBJECT);
+  __ Allocate(size, v0, a1, a2, fail, TAG_OBJECT);
 
   if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
     __ li(a2, Operand(Handle<Map>(masm->isolate()->heap()->

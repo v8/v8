@@ -296,6 +296,7 @@ ProfileTree::ProfileTree()
                   "",
                   0,
                   TokenEnumerator::kNoSecurityToken),
+      next_node_id_(1),
       root_(new ProfileNode(this, &root_entry_)) {
 }
 
@@ -306,7 +307,7 @@ ProfileTree::~ProfileTree() {
 }
 
 
-void ProfileTree::AddPathFromEnd(const Vector<CodeEntry*>& path) {
+ProfileNode* ProfileTree::AddPathFromEnd(const Vector<CodeEntry*>& path) {
   ProfileNode* node = root_;
   for (CodeEntry** entry = path.start() + path.length() - 1;
        entry != path.start() - 1;
@@ -316,6 +317,7 @@ void ProfileTree::AddPathFromEnd(const Vector<CodeEntry*>& path) {
     }
   }
   node->IncrementSelfTicks();
+  return node;
 }
 
 
@@ -467,7 +469,8 @@ void ProfileTree::ShortPrint() {
 
 
 void CpuProfile::AddPath(const Vector<CodeEntry*>& path) {
-  top_down_.AddPathFromEnd(path);
+  ProfileNode* top_frame_node = top_down_.AddPathFromEnd(path);
+  if (record_samples_) samples_.Add(top_frame_node);
 }
 
 
@@ -483,7 +486,7 @@ void CpuProfile::SetActualSamplingRate(double actual_sampling_rate) {
 
 CpuProfile* CpuProfile::FilteredClone(int security_token_id) {
   ASSERT(security_token_id != TokenEnumerator::kNoSecurityToken);
-  CpuProfile* clone = new CpuProfile(title_, uid_);
+  CpuProfile* clone = new CpuProfile(title_, uid_, false);
   clone->top_down_.FilteredClone(&top_down_, security_token_id);
   return clone;
 }
@@ -609,7 +612,8 @@ CpuProfilesCollection::~CpuProfilesCollection() {
 }
 
 
-bool CpuProfilesCollection::StartProfiling(const char* title, unsigned uid) {
+bool CpuProfilesCollection::StartProfiling(const char* title, unsigned uid,
+                                           bool record_samples) {
   ASSERT(uid > 0);
   current_profiles_semaphore_->Wait();
   if (current_profiles_.length() >= kMaxSimultaneousProfiles) {
@@ -623,14 +627,9 @@ bool CpuProfilesCollection::StartProfiling(const char* title, unsigned uid) {
       return false;
     }
   }
-  current_profiles_.Add(new CpuProfile(title, uid));
+  current_profiles_.Add(new CpuProfile(title, uid, record_samples));
   current_profiles_semaphore_->Signal();
   return true;
-}
-
-
-bool CpuProfilesCollection::StartProfiling(String* title, unsigned uid) {
-  return StartProfiling(GetName(title), uid);
 }
 
 

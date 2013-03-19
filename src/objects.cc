@@ -8813,10 +8813,15 @@ void Code::CopyFrom(const CodeDesc& desc) {
   ASSERT(Marking::Color(this) == Marking::WHITE_OBJECT);
 
   // copy code
+  CHECK(IsCode());
+  CHECK(relocation_info()->IsByteArray());
+  CHECK(reinterpret_cast<intptr_t>(instruction_start()) ==
+        reinterpret_cast<intptr_t>(this) + Code::kHeaderSize - kHeapObjectTag);
   memmove(instruction_start(), desc.buffer, desc.instr_size);
 
   // copy reloc info
   // TODO(mstarzinger): Remove once we found the bug.
+  CHECK(IsCode());
   CHECK(relocation_info()->IsByteArray());
   memmove(relocation_start(),
           desc.buffer + desc.buffer_size - desc.reloc_size,

@@ -1,3 +1,10 @@
+2013-03-19: Version 3.17.13
+
+        Turned Flags into a uint32_t typedef (Chromium issue 194749).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-03-18: Version 3.17.12
 
         Unified kMaxArguments with number of bits used to encode it.

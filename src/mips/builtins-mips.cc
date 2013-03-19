@@ -128,12 +128,8 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   if (initial_capacity > 0) {
     size += FixedArray::SizeFor(initial_capacity);
   }
-  __ AllocateInNewSpace(size,
-                        result,
-                        scratch2,
-                        scratch3,
-                        gc_required,
-                        TAG_OBJECT);
+  __ Allocate(size, result, scratch2, scratch3, gc_required, TAG_OBJECT);
+
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.
   // result: JSObject
@@ -665,12 +661,12 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // -----------------------------------
 
   Label gc_required;
-  __ AllocateInNewSpace(JSValue::kSize,
-                        v0,  // Result.
-                        a3,  // Scratch.
-                        t0,  // Scratch.
-                        &gc_required,
-                        TAG_OBJECT);
+  __ Allocate(JSValue::kSize,
+              v0,  // Result.
+              a3,  // Scratch.
+              t0,  // Scratch.
+              &gc_required,
+              TAG_OBJECT);
 
   // Initialising the String Object.
   Register map = a3;
