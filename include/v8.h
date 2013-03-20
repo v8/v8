@@ -103,6 +103,7 @@ class Array;
 class Boolean;
 class BooleanObject;
 class Context;
+class CpuProfiler;
 class Data;
 class Date;
 class DeclaredAccessorDescriptor;
@@ -3028,6 +3029,12 @@ class V8EXPORT Isolate {
    * is initialized.
    */
   HeapProfiler* GetHeapProfiler();
+
+  /**
+   * Returns CPU profiler for this isolate. Will return NULL until the isolate
+   * is initialized.
+   */
+  CpuProfiler* GetCpuProfiler();
 
  private:
   Isolate();

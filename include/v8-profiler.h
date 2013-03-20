@@ -135,7 +135,7 @@ class V8EXPORT CpuProfile {
 
   /**
     * Returns number of samples recorded. The samples are not recorded unless
-    * |record_samples| parameter of CpuProfiler::StartProfiling is true.
+    * |record_samples| parameter of CpuProfiler::StartCpuProfiling is true.
     */
   int GetSamplesCount() const;
 
@@ -158,7 +158,8 @@ class V8EXPORT CpuProfile {
 
 
 /**
- * Interface for controlling CPU profiling.
+ * Interface for controlling CPU profiling. Instance of the
+ * profiler can be retrieved using v8::Isolate::GetCpuProfiler.
  */
 class V8EXPORT CpuProfiler {
  public:
@@ -171,22 +172,34 @@ class V8EXPORT CpuProfiler {
    * obtaining profiling results.
    */
 
+  /** Deprecated. Use GetProfileCount instead. */
+  static int GetProfilesCount();
   /**
    * Returns the number of profiles collected (doesn't include
    * profiles that are being collected at the moment of call.)
    */
-  static int GetProfilesCount();
+  int GetProfileCount();
 
-  /** Returns a profile by index. */
+  /** Deprecated. Use GetCpuProfile instead. */
   static const CpuProfile* GetProfile(
       int index,
       Handle<Value> security_token = Handle<Value>());
+  /** Returns a profile by index. */
+  const CpuProfile* GetCpuProfile(
+      int index,
+      Handle<Value> security_token = Handle<Value>());
 
-  /** Returns a profile by uid. */
+  /** Deprecated. Use FindProfile instead. */
   static const CpuProfile* FindProfile(
       unsigned uid,
       Handle<Value> security_token = Handle<Value>());
+  /** Returns a profile by uid. */
+  const CpuProfile* FindCpuProfile(
+      unsigned uid,
+      Handle<Value> security_token = Handle<Value>());
 
+  /** Deprecated. Use StartCpuProfiling instead. */
+  static void StartProfiling(Handle<String> title, bool record_samples = false);
   /**
    * Starts collecting CPU profile. Title may be an empty string. It
    * is allowed to have several profiles being collected at
@@ -198,22 +211,34 @@ class V8EXPORT CpuProfiler {
    * |record_samples| parameter controls whether individual samples should
    * be recorded in addition to the aggregated tree.
    */
-  static void StartProfiling(Handle<String> title, bool record_samples = false);
+  void StartCpuProfiling(Handle<String> title, bool record_samples = false);
 
+  /** Deprecated. Use StopCpuProfiling instead. */
+  static const CpuProfile* StopProfiling(
+      Handle<String> title,
+      Handle<Value> security_token = Handle<Value>());
   /**
    * Stops collecting CPU profile with a given title and returns it.
    * If the title given is empty, finishes the last profile started.
    */
-  static const CpuProfile* StopProfiling(
+  const CpuProfile* StopCpuProfiling(
       Handle<String> title,
       Handle<Value> security_token = Handle<Value>());
 
+  /** Deprecated. Use DeleteAllCpuProfiles instead. */
+  static void DeleteAllProfiles();
   /**
    * Deletes all existing profiles, also cancelling all profiling
    * activity.  All previously returned pointers to profiles and their
    * contents become invalid after this call.
    */
-  static void DeleteAllProfiles();
+  void DeleteAllCpuProfiles();
+
+ private:
+  CpuProfiler();
+  ~CpuProfiler();
+  CpuProfiler(const CpuProfiler&);
+  CpuProfiler& operator=(const CpuProfiler&);
 };
 
 
