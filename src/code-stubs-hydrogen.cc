@@ -167,6 +167,14 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
 };
 
 
+template <class Stub>
+static Handle<Code> DoGenerateCode(Stub* stub) {
+  CodeStubGraphBuilder<Stub> builder(stub);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
+
+
 template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   Zone* zone = this->zone();
@@ -218,11 +226,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
 
 
 Handle<Code> FastCloneShallowObjectStub::GenerateCode() {
-  CodeStubGraphBuilder<FastCloneShallowObjectStub> builder(this);
-  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return DoGenerateCode(this);
 }
-
 
 template <>
 HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
@@ -235,9 +240,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
 
 
 Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
-  CodeStubGraphBuilder<KeyedLoadFastElementStub> builder(this);
-  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return DoGenerateCode(this);
 }
 
 
@@ -329,9 +332,7 @@ HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
 
 
 Handle<Code> ArrayNoArgumentConstructorStub::GenerateCode() {
-  CodeStubGraphBuilder<ArrayNoArgumentConstructorStub> builder(this);
-  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return DoGenerateCode(this);
 }
 
 
@@ -346,16 +347,12 @@ HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
 
 
 Handle<Code> TransitionElementsKindStub::GenerateCode() {
-  CodeStubGraphBuilder<TransitionElementsKindStub> builder(this);
-  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return DoGenerateCode(this);
 }
 
 
 Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode() {
-  CodeStubGraphBuilder<ArraySingleArgumentConstructorStub> builder(this);
-  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return DoGenerateCode(this);
 }
 
 
@@ -369,9 +366,7 @@ HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
 
 
 Handle<Code> ArrayNArgumentsConstructorStub::GenerateCode() {
-  CodeStubGraphBuilder<ArrayNArgumentsConstructorStub> builder(this);
-  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return DoGenerateCode(this);
 }
 
 } }  // namespace v8::internal
