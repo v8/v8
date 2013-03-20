@@ -53,12 +53,10 @@ class HeapProfiler {
 
   HeapSnapshot* TakeSnapshot(
       const char* name,
-      int type,
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
   HeapSnapshot* TakeSnapshot(
       String* name,
-      int type,
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
 

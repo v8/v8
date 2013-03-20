@@ -72,25 +72,15 @@ v8::RetainedObjectInfo* HeapProfiler::ExecuteWrapperClassCallback(
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     const char* name,
-    int type,
     v8::ActivityControl* control,
     v8::HeapProfiler::ObjectNameResolver* resolver) {
-  HeapSnapshot::Type s_type = static_cast<HeapSnapshot::Type>(type);
-  HeapSnapshot* result =
-      snapshots_->NewSnapshot(s_type, name, next_snapshot_uid_++);
-  bool generation_completed = true;
-  switch (s_type) {
-    case HeapSnapshot::kFull: {
-      HeapSnapshotGenerator generator(result, control, resolver, heap());
-      generation_completed = generator.GenerateSnapshot();
-      break;
+  HeapSnapshot* result = snapshots_->NewSnapshot(name, next_snapshot_uid_++);
+  {
+    HeapSnapshotGenerator generator(result, control, resolver, heap());
+    if (!generator.GenerateSnapshot()) {
+      delete result;
+      result = NULL;
     }
-    default:
-      UNREACHABLE();
-  }
-  if (!generation_completed) {
-    delete result;
-    result = NULL;
   }
   snapshots_->SnapshotGenerationFinished(result);
   return result;
@@ -99,11 +89,9 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     String* name,
-    int type,
     v8::ActivityControl* control,
     v8::HeapProfiler::ObjectNameResolver* resolver) {
-  return TakeSnapshot(snapshots_->names()->GetName(name), type, control,
-                      resolver);
+  return TakeSnapshot(snapshots_->names()->GetName(name), control, resolver);
 }
 
 void HeapProfiler::StartHeapObjectsTracking() {

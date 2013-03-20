@@ -6727,7 +6727,7 @@ void HeapSnapshot::Delete() {
 HeapSnapshot::Type HeapSnapshot::GetType() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetType");
-  return static_cast<HeapSnapshot::Type>(ToInternal(this)->type());
+  return kFull;
 }
 
 
@@ -6861,17 +6861,9 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
                                                ObjectNameResolver* resolver) {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapProfiler::TakeSnapshot");
-  i::HeapSnapshot::Type internal_type = i::HeapSnapshot::kFull;
-  switch (type) {
-    case HeapSnapshot::kFull:
-      internal_type = i::HeapSnapshot::kFull;
-      break;
-    default:
-      UNREACHABLE();
-  }
   return reinterpret_cast<const HeapSnapshot*>(
       isolate->heap_profiler()->TakeSnapshot(
-          *Utils::OpenHandle(*title), internal_type, control, resolver));
+          *Utils::OpenHandle(*title), control, resolver));
 }
 
 
@@ -6881,8 +6873,7 @@ const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
     ObjectNameResolver* resolver) {
   return reinterpret_cast<const HeapSnapshot*>(
       reinterpret_cast<i::HeapProfiler*>(this)->TakeSnapshot(
-          *Utils::OpenHandle(*title), i::HeapSnapshot::kFull,
-          control, resolver));
+          *Utils::OpenHandle(*title), control, resolver));
 }
 
 
