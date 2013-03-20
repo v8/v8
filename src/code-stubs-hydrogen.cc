@@ -258,9 +258,7 @@ HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
 
 
 Handle<Code> KeyedStoreFastElementStub::GenerateCode() {
-  CodeStubGraphBuilder<KeyedStoreFastElementStub> builder(this);
-  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return DoGenerateCode(this);
 }
 
 
@@ -323,6 +321,11 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 }
 
 
+Handle<Code> TransitionElementsKindStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
 template <>
 HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
   HInstruction* deopt = new(zone()) HSoftDeoptimize();
@@ -344,11 +347,6 @@ HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
   AddInstruction(deopt);
   current_block()->MarkAsDeoptimizing();
   return GetParameter(0);
-}
-
-
-Handle<Code> TransitionElementsKindStub::GenerateCode() {
-  return DoGenerateCode(this);
 }
 
 
