@@ -229,6 +229,7 @@ Handle<Code> FastCloneShallowObjectStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
+
 template <>
 HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
