@@ -1,3 +1,14 @@
+2013-03-20: Version 3.17.14
+
+        Use internal memcpy when initializing code objects.
+        (Chromium issue 196330)
+
+        Disabled weak embedded maps because of crashes.
+        (Chromium issues 172489, 217858)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-03-19: Version 3.17.13
 
         Turned Flags into a uint32_t typedef (Chromium issue 194749).
