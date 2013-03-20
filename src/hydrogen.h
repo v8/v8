@@ -909,7 +909,20 @@ class HGraphBuilder {
       HValue* val,
       HValue* dependency,
       ElementsKind elements_kind,
-      bool is_store);
+      bool is_store,
+      KeyedAccessStoreMode store_mode);
+
+  HValue* BuildCheckForCapacityGrow(HValue* object,
+                                    HValue* elements,
+                                    ElementsKind kind,
+                                    HValue* length,
+                                    HValue* key,
+                                    bool is_js_array);
+
+  HValue* BuildCopyElementsOnWrite(HValue* object,
+                                   HValue* elements,
+                                   ElementsKind kind,
+                                   HValue* length);
 
   HInstruction* BuildUncheckedMonomorphicElementAccess(
       HValue* object,
@@ -919,6 +932,7 @@ class HGraphBuilder {
       bool is_js_array,
       ElementsKind elements_kind,
       bool is_store,
+      KeyedAccessStoreMode store_mode,
       Representation checked_index_representation = Representation::None());
 
   HInstruction* BuildStoreMap(HValue* object, HValue* map, BailoutId id);
@@ -931,8 +945,9 @@ class HGraphBuilder {
       if (!finished_) End();
     }
 
-    void CheckNotUndefined(HValue* value);
-    void CheckIntegerEq(HValue* left, HValue* right);
+    HValue* CheckNotUndefined(HValue* value);
+    HValue* CheckIntegerCompare(HValue* left, HValue* right, Token::Value op);
+    HValue* CheckIntegerEq(HValue* left, HValue* right);
     void End();
 
    private:
@@ -952,12 +967,14 @@ class HGraphBuilder {
       if (!finished_) End();
     }
 
-    HInstruction* BeginTrue(
+    HInstruction* BeginIf(
         HValue* left,
         HValue* right,
         Token::Value token,
         Representation input_representation = Representation::Integer32());
-    void BeginFalse();
+    HInstruction* BeginIfObjectsEqual(HValue* left, HValue* right);
+    HInstruction* BeginIfMapEquals(HValue* value, Handle<Map> map);
+    void BeginElse();
     void End();
 
    private:
@@ -965,6 +982,7 @@ class HGraphBuilder {
 
     HGraphBuilder* builder_;
     bool finished_;
+    bool did_else_;
     HBasicBlock* first_true_block_;
     HBasicBlock* last_true_block_;
     HBasicBlock* first_false_block_;
@@ -1011,16 +1029,39 @@ class HGraphBuilder {
     bool finished_;
   };
 
-  HValue* BuildAllocateElements(HContext* context,
-                                ElementsKind kind,
-                                HValue* capacity);
+  HValue* BuildNewElementsCapacity(HValue* context,
+                                   HValue* old_capacity);
 
-  void BuildCopyElements(HContext* context,
+  void BuildNewSpaceArrayCheck(HValue* length,
+                               ElementsKind kind);
+
+  HValue* BuildAllocateElements(HValue* context,
+                                ElementsKind kind,
+                                HValue* capacity,
+                                BailoutId ast_id);
+
+  HValue* BuildGrowElementsCapacity(HValue* object,
+                                    HValue* elements,
+                                    ElementsKind kind,
+                                    HValue* length,
+                                    HValue* new_capacity,
+                                    BailoutId ast_id);
+
+  void BuildFillElementsWithHole(HValue* context,
+                                 HValue* elements,
+                                 ElementsKind elements_kind,
+                                 HValue* from,
+                                 HValue* to,
+                                 BailoutId ast_id);
+
+  void BuildCopyElements(HValue* context,
                          HValue* from_elements,
                          ElementsKind from_elements_kind,
                          HValue* to_elements,
                          ElementsKind to_elements_kind,
-                         HValue* length);
+                         HValue* length,
+                         HValue* capacity,
+                         BailoutId ast_id);
 
  private:
   HGraphBuilder();
@@ -1348,7 +1389,8 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                               HValue* val,
                                               HValue* dependency,
                                               Handle<Map> map,
-                                              bool is_store);
+                                              bool is_store,
+                                              KeyedAccessStoreMode store_mode);
 
   HValue* HandlePolymorphicElementAccess(HValue* object,
                                          HValue* key,
@@ -1357,6 +1399,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                          BailoutId ast_id,
                                          int position,
                                          bool is_store,
+                                         KeyedAccessStoreMode store_mode,
                                          bool* has_side_effects);
 
   HValue* HandleKeyedElementAccess(HValue* obj,

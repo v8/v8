@@ -441,7 +441,9 @@ Handle<Code> StubCache::ComputeKeyedStoreElement(
       Code::KEYED_STORE_IC, extra_state);
 
   ASSERT(store_mode == STANDARD_STORE ||
-         store_mode == STORE_AND_GROW_NO_TRANSITION);
+         store_mode == STORE_AND_GROW_NO_TRANSITION ||
+         store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
+         store_mode == STORE_NO_TRANSITION_HANDLE_COW);
 
   Handle<String> name =
       isolate()->factory()->KeyedStoreElementMonomorphic_string();
@@ -899,7 +901,9 @@ Handle<Code> StubCache::ComputeStoreElementPolymorphic(
     KeyedAccessStoreMode store_mode,
     StrictModeFlag strict_mode) {
   ASSERT(store_mode == STANDARD_STORE ||
-         store_mode == STORE_AND_GROW_NO_TRANSITION);
+         store_mode == STORE_AND_GROW_NO_TRANSITION ||
+         store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
+         store_mode == STORE_NO_TRANSITION_HANDLE_COW);
   Handle<PolymorphicCodeCache> cache =
       isolate_->factory()->polymorphic_code_cache();
   Code::ExtraICState extra_state = Code::ComputeExtraICState(store_mode,
@@ -1660,10 +1664,19 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
     Handle<Map> receiver_map) {
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
-  Handle<Code> stub =
-      KeyedStoreElementStub(is_jsarray,
-                            elements_kind,
-                            store_mode_).GetCode(isolate());
+  Handle<Code> stub;
+  if (FLAG_compiled_keyed_stores &&
+      (receiver_map->has_fast_elements() ||
+       receiver_map->has_external_array_elements())) {
+    stub = KeyedStoreFastElementStub(
+        is_jsarray,
+        elements_kind,
+        store_mode_).GetCode(isolate());
+  } else {
+    stub = KeyedStoreElementStub(is_jsarray,
+                                 elements_kind,
+                                 store_mode_).GetCode(isolate());
+  }
 
   __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
 
@@ -1809,10 +1822,19 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
           strict_mode(),
           store_mode_).GetCode(isolate());
     } else {
-      cached_stub = KeyedStoreElementStub(
-          is_js_array,
-          elements_kind,
-          store_mode_).GetCode(isolate());
+      if (FLAG_compiled_keyed_stores &&
+          (receiver_map->has_fast_elements() ||
+           receiver_map->has_external_array_elements())) {
+        cached_stub = KeyedStoreFastElementStub(
+            is_js_array,
+            elements_kind,
+            store_mode_).GetCode(isolate());
+      } else {
+        cached_stub = KeyedStoreElementStub(
+            is_js_array,
+            elements_kind,
+            store_mode_).GetCode(isolate());
+      }
     }
     ASSERT(!cached_stub.is_null());
     handlers.Add(cached_stub);

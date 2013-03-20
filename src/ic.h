@@ -496,7 +496,7 @@ class KeyedLoadIC: public LoadIC {
 
 class StoreIC: public IC {
  public:
-  explicit StoreIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {
+  StoreIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
     ASSERT(target()->is_store_stub() || target()->is_keyed_store_stub());
   }
 
@@ -585,7 +585,8 @@ enum KeyedStoreIncrementLength {
 
 class KeyedStoreIC: public StoreIC {
  public:
-  explicit KeyedStoreIC(Isolate* isolate) : StoreIC(isolate) {
+  KeyedStoreIC(FrameDepth depth, Isolate* isolate)
+      : StoreIC(depth, isolate) {
     ASSERT(target()->is_keyed_store_stub());
   }
 
@@ -786,6 +787,7 @@ enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
 
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure);
 
 } }  // namespace v8::internal
 

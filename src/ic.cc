@@ -1355,7 +1355,8 @@ MaybeObject* KeyedLoadIC::Load(State state,
           stub = non_strict_arguments_stub();
         } else if (receiver->HasIndexedInterceptor()) {
           stub = indexed_interceptor_stub();
-        } else if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
+        } else if (!key->ToSmi()->IsFailure() &&
+                   (target() != *non_strict_arguments_stub())) {
           stub = LoadElementStub(receiver);
         }
       }
@@ -1649,7 +1650,8 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     return strict_mode == kStrictMode ? generic_stub_strict() : generic_stub();
   }
 
-  if ((store_mode == STORE_NO_TRANSITION_HANDLE_COW ||
+  if (!FLAG_compiled_keyed_stores &&
+      (store_mode == STORE_NO_TRANSITION_HANDLE_COW ||
        store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS)) {
     // TODO(danno): We'll soon handle MONOMORPHIC ICs that also support
     // copying COW arrays and silently ignoring some OOB stores into external
@@ -1712,9 +1714,12 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       return isolate()->stub_cache()->ComputeKeyedStoreElement(
           transitioned_receiver_map, strict_mode, store_mode);
     } else if (*previous_receiver_map == receiver->map()) {
-      if (IsGrowStoreMode(store_mode)) {
+      if (IsGrowStoreMode(store_mode) ||
+          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
+          store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
         // A "normal" IC that handles stores can switch to a version that can
-        // grow at the end of the array and still stay MONOMORPHIC.
+        // grow at the end of the array, handle OOB accesses or copy COW arrays
+        // and still stay MONOMORPHIC.
         return isolate()->stub_cache()->ComputeKeyedStoreElement(
             receiver_map, strict_mode, store_mode);
       }
@@ -1813,8 +1818,10 @@ bool IsOutOfBoundsAccess(Handle<JSObject> receiver,
 KeyedAccessStoreMode KeyedStoreIC::GetStoreMode(Handle<JSObject> receiver,
                                                 Handle<Object> key,
                                                 Handle<Object> value) {
-  ASSERT(key->IsSmi());
-  int index = Smi::cast(*key)->value();
+  ASSERT(!key->ToSmi()->IsFailure());
+  Smi* smi_key = NULL;
+  key->ToSmi()->To(&smi_key);
+  int index = smi_key->value();
   bool oob_access = IsOutOfBoundsAccess(receiver, index);
   bool allow_growth = receiver->IsJSArray() && oob_access;
   if (allow_growth) {
@@ -1872,6 +1879,10 @@ KeyedAccessStoreMode KeyedStoreIC::GetStoreMode(Handle<JSObject> receiver,
     if (!FLAG_trace_external_array_abuse &&
         receiver->map()->has_external_array_elements() && oob_access) {
       return STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS;
+    }
+    Heap* heap = receiver->GetHeap();
+    if (receiver->elements()->map() == heap->fixed_cow_array_map()) {
+      return STORE_NO_TRANSITION_HANDLE_COW;
     } else {
       return STANDARD_STORE;
     }
@@ -1910,13 +1921,20 @@ MaybeObject* KeyedStoreIC::Store(State state,
     if (miss_mode != MISS_FORCE_GENERIC) {
       if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+        bool key_is_smi_like = key->IsSmi() ||
+            (FLAG_compiled_keyed_stores && !key->ToSmi()->IsFailure());
         if (receiver->elements()->map() ==
             isolate()->heap()->non_strict_arguments_elements_map()) {
           stub = non_strict_arguments_stub();
-        } else if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
+        } else if (key_is_smi_like &&
+                   (target() != *non_strict_arguments_stub())) {
           KeyedAccessStoreMode store_mode = GetStoreMode(receiver, key, value);
           stub = StoreElementStub(receiver, store_mode, strict_mode);
+        } else {
+          TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "key not a number");
         }
+      } else {
+        TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "not an object");
       }
     } else {
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "force generic");
@@ -2074,7 +2092,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissForceGeneric) {
 RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  StoreIC ic(isolate);
+  StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   return ic.Store(state,
@@ -2150,7 +2168,22 @@ RUNTIME_FUNCTION(MaybeObject*, SharedStoreIC_ExtendStorage) {
 RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  KeyedStoreIC ic(isolate);
+  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
+  return ic.Store(state,
+                  Code::GetStrictMode(extra_ic_state),
+                  args.at<Object>(0),
+                  args.at<Object>(1),
+                  args.at<Object>(2),
+                  MISS);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   return ic.Store(state,
@@ -2165,7 +2198,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
 RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
   NoHandleAllocation na(isolate);
   ASSERT(args.length() == 3);
-  KeyedStoreIC ic(isolate);
+  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
@@ -2183,7 +2216,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
 RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  KeyedStoreIC ic(isolate);
+  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   return ic.Store(state,

@@ -111,6 +111,8 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   next_block->SetJoinId(BailoutId::StubEntry());
   set_current_block(next_block);
 
+  start_environment->set_ast_id(BailoutId::StubEntry());
+
   HConstant* undefined_constant = new(zone) HConstant(
       isolate()->factory()->undefined_value(), Representation::Tagged());
   AddInstruction(undefined_constant);
@@ -227,14 +229,32 @@ HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), NULL, NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
-      false, Representation::Tagged());
-  AddInstruction(load);
+      false, STANDARD_STORE, Representation::Tagged());
   return load;
 }
 
 
 Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
   CodeStubGraphBuilder<KeyedLoadFastElementStub> builder(this);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
+  BuildUncheckedMonomorphicElementAccess(
+      GetParameter(0), GetParameter(1), GetParameter(2), NULL,
+      casted_stub()->is_js_array(), casted_stub()->elements_kind(),
+      true, casted_stub()->store_mode(), Representation::Tagged());
+  AddSimulate(BailoutId::StubEntry(), REMOVABLE_SIMULATE);
+
+  return GetParameter(2);
+}
+
+
+Handle<Code> KeyedStoreFastElementStub::GenerateCode() {
+  CodeStubGraphBuilder<KeyedStoreFastElementStub> builder(this);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
   return chunk->Codegen(Code::COMPILED_STUB);
 }
@@ -256,27 +276,16 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
                                               js_array,
                                               HType::Smi()));
 
-  Heap* heap = isolate()->heap();
-  const int kMinFreeNewSpaceAfterGC =
-      ((heap->InitialSemiSpaceSize() - sizeof(FixedArrayBase)) / 2) /
-      kDoubleSize;
-
-  HConstant* max_alloc_size =
-      new(zone) HConstant(kMinFreeNewSpaceAfterGC, Representation::Integer32());
-  AddInstruction(max_alloc_size);
-  // Since we're forcing Integer32 representation for this HBoundsCheck,
-  // there's no need to Smi-check the index.
-  AddInstruction(
-      new(zone) HBoundsCheck(array_length, max_alloc_size,
-                             DONT_ALLOW_SMI_KEY, Representation::Integer32()));
+  ElementsKind to_kind = casted_stub()->to_kind();
+  BuildNewSpaceArrayCheck(array_length, to_kind);
 
   IfBuilder if_builder(this, BailoutId::StubEntry());
 
-  if_builder.BeginTrue(array_length, graph()->GetConstant0(), Token::EQ);
+  if_builder.BeginIf(array_length, graph()->GetConstant0(), Token::EQ);
 
   // Nothing to do, just change the map.
 
-  if_builder.BeginFalse();
+  if_builder.BeginElse();
 
   HInstruction* elements =
       AddInstruction(new(zone) HLoadElements(js_array, js_array));
@@ -284,37 +293,16 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   HInstruction* elements_length =
       AddInstruction(new(zone) HFixedArrayBaseLength(elements));
 
-  ElementsKind to_kind = casted_stub()->to_kind();
   HValue* new_elements =
-      BuildAllocateElements(context(), to_kind, elements_length);
-
-  // Fast elements kinds need to be initialized in case statements below cause a
-  // garbage collection.
-  Factory* factory = isolate()->factory();
-
-  ASSERT(!IsFastSmiElementsKind(to_kind));
-  double nan_double = FixedDoubleArray::hole_nan_as_double();
-  HValue* hole = IsFastObjectElementsKind(to_kind)
-      ? AddInstruction(new(zone) HConstant(factory->the_hole_value(),
-                                           Representation::Tagged()))
-      : AddInstruction(new(zone) HConstant(nan_double,
-                                           Representation::Double()));
-
-  LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement,
-                      BailoutId::StubEntry());
-
-  HValue* zero = graph()->GetConstant0();
-  HValue* start = IsFastElementsKind(to_kind) ? zero : array_length;
-  HValue* key = builder.BeginBody(start, elements_length, Token::LT);
-
-  AddInstruction(new(zone) HStoreKeyed(new_elements, key, hole, to_kind));
-  AddSimulate(BailoutId::StubEntry(), REMOVABLE_SIMULATE);
-
-  builder.EndBody();
+      BuildAllocateElements(context(), to_kind, elements_length,
+                            BailoutId::StubEntry());
 
   BuildCopyElements(context(), elements,
                     casted_stub()->from_kind(), new_elements,
-                    to_kind, array_length);
+                    to_kind, array_length, elements_length,
+                    BailoutId::StubEntry());
+
+  Factory* factory = isolate()->factory();
 
   AddInstruction(new(zone) HStoreNamedField(js_array,
                                             factory->elements_field_string(),
