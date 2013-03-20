@@ -160,7 +160,7 @@ Address IC::OriginalCodeAddress() const {
   // Find the function on the stack and both the active code for the
   // function and the original code.
   JSFunction* function = JSFunction::cast(frame->function());
-  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate());
   Code* code = shared->code();
   ASSERT(Debug::HasDebugInfo(shared));
   Code* original_code = Debug::GetDebugInfo(shared)->original_code();
@@ -435,7 +435,7 @@ static void LookupForRead(Handle<Object> object,
       return;
     }
 
-    Handle<JSObject> holder(lookup->holder());
+    Handle<JSObject> holder(lookup->holder(), lookup->isolate());
     if (HasInterceptorGetter(*holder)) {
       return;
     }
@@ -446,7 +446,7 @@ static void LookupForRead(Handle<Object> object,
       return;
     }
 
-    Handle<Object> proto(holder->GetPrototype(), name->GetIsolate());
+    Handle<Object> proto(holder->GetPrototype(), lookup->isolate());
     if (proto->IsNull()) {
       ASSERT(!lookup->IsFound());
       return;
@@ -636,7 +636,7 @@ Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
                                                 Handle<Object> object,
                                                 Handle<String> name) {
   int argc = target()->arguments_count();
-  Handle<JSObject> holder(lookup->holder());
+  Handle<JSObject> holder(lookup->holder(), isolate());
   switch (lookup->type()) {
     case FIELD: {
       PropertyIndex index = lookup->GetFieldIndex();
@@ -647,7 +647,7 @@ Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
       // Get the constant function and compute the code stub for this
       // call; used for rewriting to monomorphic state and making sure
       // that the code stub is in the stub cache.
-      Handle<JSFunction> function(lookup->GetConstantFunction());
+      Handle<JSFunction> function(lookup->GetConstantFunction(), isolate());
       return isolate()->stub_cache()->ComputeCallConstant(
           argc, kind_, extra_state, name, object, holder, function);
     }
@@ -658,7 +658,8 @@ Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
 
       if (holder->IsGlobalObject()) {
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
-        Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(lookup));
+        Handle<JSGlobalPropertyCell> cell(
+            global->GetPropertyCell(lookup), isolate());
         if (!cell->value()->IsJSFunction()) return Handle<Code>::null();
         Handle<JSFunction> function(JSFunction::cast(cell->value()));
         return isolate()->stub_cache()->ComputeCallGlobal(
@@ -746,7 +747,8 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
       // GenerateMonomorphicCacheProbe. It is not the map which holds the stub.
       Handle<JSObject> cache_object = object->IsJSObject()
           ? Handle<JSObject>::cast(object)
-          : Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate())));
+          : Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate())),
+                             isolate());
       // Update the stub cache.
       UpdateMegamorphicCache(cache_object->map(), *name, *code);
       break;
@@ -1196,7 +1198,8 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
     case NORMAL:
       if (holder->IsGlobalObject()) {
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
-        Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(lookup));
+        Handle<JSGlobalPropertyCell> cell(
+            global->GetPropertyCell(lookup), isolate());
         return isolate()->stub_cache()->ComputeLoadGlobal(
             name, receiver, global, cell, lookup->IsDontDelete());
       }
@@ -1272,7 +1275,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
     return generic_stub();
   }
 
-  Handle<Map> receiver_map(receiver->map());
+  Handle<Map> receiver_map(receiver->map(), isolate());
   MapHandleList target_receiver_maps;
   if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
     // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
@@ -1283,7 +1286,8 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
   if (target() == *string_stub()) {
     target_receiver_maps.Add(isolate()->factory()->string_map());
   } else {
-    GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
+    GetReceiverMapsForStub(Handle<Code>(target(), isolate()),
+                           &target_receiver_maps);
     if (target_receiver_maps.length() == 0) {
       return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
     }
@@ -1380,13 +1384,13 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
   if (!lookup->IsProperty()) return Handle<Code>::null();
 
   // Compute a monomorphic stub.
-  Handle<JSObject> holder(lookup->holder());
+  Handle<JSObject> holder(lookup->holder(), isolate());
   switch (lookup->type()) {
     case FIELD:
       return isolate()->stub_cache()->ComputeKeyedLoadField(
           name, receiver, holder, lookup->GetFieldIndex());
     case CONSTANT_FUNCTION: {
-      Handle<JSFunction> constant(lookup->GetConstantFunction());
+      Handle<JSFunction> constant(lookup->GetConstantFunction(), isolate());
       return isolate()->stub_cache()->ComputeKeyedLoadConstant(
           name, receiver, holder, constant);
     }
@@ -1579,7 +1583,8 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         // from the property cell. So the property must be directly on the
         // global object.
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
-        Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(lookup));
+        Handle<JSGlobalPropertyCell> cell(
+            global->GetPropertyCell(lookup), isolate());
         return isolate()->stub_cache()->ComputeStoreGlobal(
             name, global, cell, strict_mode);
       }
@@ -1596,8 +1601,8 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         return isolate()->stub_cache()->ComputeStoreCallback(
             name, receiver, holder, info, strict_mode);
       } else if (callback->IsAccessorPair()) {
-        Handle<Object> setter(Handle<AccessorPair>::cast(callback)->setter(),
-                              isolate());
+        Handle<Object> setter(
+            Handle<AccessorPair>::cast(callback)->setter(), isolate());
         if (!setter->IsJSFunction()) break;
         if (holder->IsGlobalObject()) break;
         if (!holder->HasFastProperties()) break;
@@ -1618,7 +1623,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
     case CONSTANT_FUNCTION:
       break;
     case TRANSITION: {
-      Handle<Map> transition(lookup->GetTransitionTarget());
+      Handle<Map> transition(lookup->GetTransitionTarget(), isolate());
       int descriptor = transition->LastAdded();
 
       DescriptorArray* target_descriptors = transition->instance_descriptors();
@@ -1663,7 +1668,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   }
 
   State ic_state = target()->ic_state();
-  Handle<Map> receiver_map(receiver->map());
+  Handle<Map> receiver_map(receiver->map(), isolate());
   if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
     // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
     // yet will do so and stay there.
@@ -1799,7 +1804,7 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
     case STORE_NO_TRANSITION_HANDLE_COW:
     case STANDARD_STORE:
     case STORE_AND_GROW_NO_TRANSITION:
-      return Handle<Map>(receiver->map());
+      return Handle<Map>(receiver->map(), isolate());
   }
   return Handle<Map>::null();
 }
@@ -1962,7 +1967,7 @@ Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
           name, receiver, lookup->GetFieldIndex().field_index(),
           Handle<Map>::null(), strict_mode);
     case TRANSITION: {
-      Handle<Map> transition(lookup->GetTransitionTarget());
+      Handle<Map> transition(lookup->GetTransitionTarget(), isolate());
       int descriptor = transition->LastAdded();
 
       DescriptorArray* target_descriptors = transition->instance_descriptors();
@@ -2041,7 +2046,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_Miss) {
 
   if (raw_function->is_compiled()) return raw_function;
 
-  Handle<JSFunction> function(raw_function);
+  Handle<JSFunction> function(raw_function, isolate);
   JSFunction::CompileLazy(function, CLEAR_EXCEPTION);
   return *function;
 }
@@ -2701,7 +2706,8 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
                             HasInlinedSmiCode(address()), x, y);
   ICCompareStub stub(op_, new_left, new_right, state);
   if (state == KNOWN_OBJECT) {
-    stub.set_known_map(Handle<Map>(Handle<JSObject>::cast(x)->map()));
+    stub.set_known_map(
+        Handle<Map>(Handle<JSObject>::cast(x)->map(), isolate()));
   }
   set_target(*stub.GetCode(isolate()));
 

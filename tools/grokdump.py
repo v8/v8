@@ -1933,7 +1933,7 @@ class InspectionShell(cmd.Cmd):
       Print a descriptor array in a readable format.
     """
     start = int(address, 16)
-    if ((start & 1) == 1): start = start + 1
+    if ((start & 1) == 1): start = start - 1
     DescriptorArray(FixedArray(self.heap, None, start)).Print(Printer())
 
   def do_do_map(self, address):
