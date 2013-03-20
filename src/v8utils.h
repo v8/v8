@@ -122,7 +122,7 @@ inline Vector< Handle<Object> > HandleVector(v8::internal::Handle<T>* elms,
 
 // Memory
 
-// Copies data from |src| to |dst|.  The data spans MUST not overlap.
+// Copies data from |src| to |dst|.  The data spans must not overlap.
 template <typename T>
 inline void CopyWords(T* dst, T* src, int num_words) {
   STATIC_ASSERT(sizeof(T) == kPointerSize);
@@ -137,6 +137,30 @@ inline void CopyWords(T* dst, T* src, int num_words) {
     memcpy(dst, src, num_words * kPointerSize);
   } else {
     int remaining = num_words;
+    do {
+      remaining--;
+      *dst++ = *src++;
+    } while (remaining > 0);
+  }
+}
+
+
+// Copies data from |src| to |dst|.  The data spans must not overlap.
+template <typename T>
+inline void CopyBytes(T* dst, T* src, int num_bytes) {
+  STATIC_ASSERT(sizeof(T) == 1);
+  ASSERT(Min(dst, src) + num_bytes <= Max(dst, src));
+  ASSERT(num_bytes >= 0);
+  if (num_bytes == 0) return;
+
+  // Use block copying memcpy if the segment we're copying is
+  // enough to justify the extra call/setup overhead.
+  static const int kBlockCopyLimit = OS::kMinComplexMemCopy;
+
+  if (num_bytes >= kBlockCopyLimit) {
+    OS::MemCopy(dst, src, num_bytes);
+  } else {
+    int remaining = num_bytes;
     do {
       remaining--;
       *dst++ = *src++;

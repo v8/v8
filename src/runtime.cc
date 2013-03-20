@@ -9085,8 +9085,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInNewSpace) {
   RUNTIME_ASSERT(IsAligned(size, kPointerSize));
   RUNTIME_ASSERT(size > 0);
   Heap* heap = isolate->heap();
-  const int kMinFreeNewSpaceAfterGC = heap->InitialSemiSpaceSize() * 3/4;
-  RUNTIME_ASSERT(size <= kMinFreeNewSpaceAfterGC);
+  RUNTIME_ASSERT(size <= heap->MaxNewSpaceAllocationSize());
   Object* allocation;
   { MaybeObject* maybe_allocation = heap->new_space()->AllocateRaw(size);
     if (maybe_allocation->ToObject(&allocation)) {

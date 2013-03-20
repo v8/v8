@@ -16054,15 +16054,17 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
 
   CHECK(flat_string->IsTwoByteRepresentation());
 
-  // At this point, we should have a Cons string which is flat and ASCII,
-  // with a first half that is a two-byte string (although it only contains
-  // ASCII characters). This is a valid sequence of steps, and it can happen
-  // in real pages.
-
-  CHECK(string->IsOneByteRepresentation());
-  i::ConsString* cons = i::ConsString::cast(*string);
-  CHECK_EQ(0, cons->second()->length());
-  CHECK(cons->first()->IsTwoByteRepresentation());
+  // If the cons string has been short-circuited, skip the following checks.
+  if (!string.is_identical_to(flat_string)) {
+    // At this point, we should have a Cons string which is flat and ASCII,
+    // with a first half that is a two-byte string (although it only contains
+    // ASCII characters). This is a valid sequence of steps, and it can happen
+    // in real pages.
+    CHECK(string->IsOneByteRepresentation());
+    i::ConsString* cons = i::ConsString::cast(*string);
+    CHECK_EQ(0, cons->second()->length());
+    CHECK(cons->first()->IsTwoByteRepresentation());
+  }
 
   // Check that some string operations work.
 

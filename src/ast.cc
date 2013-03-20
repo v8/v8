@@ -128,7 +128,8 @@ Assignment::Assignment(Isolate* isolate,
       pos_(pos),
       binary_operation_(NULL),
       assignment_id_(GetNextId(isolate)),
-      is_monomorphic_(false) { }
+      is_monomorphic_(false),
+      store_mode_(STANDARD_STORE) { }
 
 
 Token::Value Assignment::binary_op() const {
@@ -455,9 +456,11 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
     receiver_types_.Add(oracle->StoreMonomorphicReceiverType(id), zone);
+    store_mode_ = oracle->GetStoreMode(id);
   } else if (oracle->StoreIsPolymorphic(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
+    store_mode_ = oracle->GetStoreMode(id);
   }
 }
 
@@ -475,6 +478,7 @@ void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
   }
+  store_mode_ = oracle->GetStoreMode(id);
 }
 
 
