@@ -1,3 +1,19 @@
+2013-03-21: Version 3.17.15
+
+        Rolled back API changes to maintain compatibility with older
+        3.17.x versions of V8.
+
+        Disable zapping of global handles in release mode.
+
+        Always mark the entire valid prefix of the descriptor array.
+        (Chromium issue 196331)
+
+        Use internal memcpy for CopyWords and when copying code.
+        (Chromium issue 196330)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-03-20: Version 3.17.14
 
         Use internal memcpy when initializing code objects.
