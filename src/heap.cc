@@ -3880,7 +3880,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
 
   // Copy header and instructions.
-  CopyBytes(new_addr, old_addr, relocation_offset);
+  CopyBytes(new_addr, old_addr, static_cast<int>(relocation_offset));
 
   Code* new_code = Code::cast(result);
   new_code->set_relocation_info(ByteArray::cast(reloc_info_array));
