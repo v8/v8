@@ -74,8 +74,7 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
       entry_(entry),
       total_ticks_(0),
       self_ticks_(0),
-      children_(CodeEntriesMatch),
-      id_(tree->next_node_id()) {
+      children_(CodeEntriesMatch) {
 }
 
 

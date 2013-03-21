@@ -184,71 +184,84 @@ class ProfilerEventsProcessor : public Thread {
   unsigned enqueue_order_;
 };
 
+} }  // namespace v8::internal
 
-#define PROFILE(IsolateGetter, Call)                                   \
-  do {                                                                 \
-    Isolate* cpu_profiler_isolate = (IsolateGetter);                   \
-    LOG_CODE_EVENT(cpu_profiler_isolate, Call);                        \
-    CpuProfiler* cpu_profiler = cpu_profiler_isolate->cpu_profiler();  \
-    if (cpu_profiler->is_profiling()) {                                \
-      cpu_profiler->Call;                                              \
-    }                                                                  \
+
+#define PROFILE(isolate, Call)                                \
+  LOG_CODE_EVENT(isolate, Call);                              \
+  do {                                                        \
+    if (v8::internal::CpuProfiler::is_profiling(isolate)) {   \
+      v8::internal::CpuProfiler::Call;                        \
+    }                                                         \
   } while (false)
 
 
+namespace v8 {
+namespace internal {
+
+
+// TODO(isolates): isolatify this class.
 class CpuProfiler {
  public:
-  explicit CpuProfiler(Isolate* isolate);
-  ~CpuProfiler();
+  static void SetUp();
+  static void TearDown();
 
-  void StartProfiling(const char* title, bool record_samples = false);
-  void StartProfiling(String* title, bool record_samples);
-  CpuProfile* StopProfiling(const char* title);
-  CpuProfile* StopProfiling(Object* security_token, String* title);
-  int GetProfilesCount();
-  CpuProfile* GetProfile(Object* security_token, int index);
-  CpuProfile* FindProfile(Object* security_token, unsigned uid);
-  void DeleteAllProfiles();
-  void DeleteProfile(CpuProfile* profile);
-  bool HasDetachedProfiles();
+  static void StartProfiling(const char* title);
+  static void StartProfiling(String* title);
+  static CpuProfile* StopProfiling(const char* title);
+  static CpuProfile* StopProfiling(Object* security_token, String* title);
+  static int GetProfilesCount();
+  static CpuProfile* GetProfile(Object* security_token, int index);
+  static CpuProfile* FindProfile(Object* security_token, unsigned uid);
+  static void DeleteAllProfiles();
+  static void DeleteProfile(CpuProfile* profile);
+  static bool HasDetachedProfiles();
 
   // Invoked from stack sampler (thread or signal handler.)
-  TickSample* TickSampleEvent();
+  static TickSample* TickSampleEvent(Isolate* isolate);
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.
-  void CallbackEvent(Name* name, Address entry_point);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Code* code, const char* comment);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Code* code, Name* name);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Code* code,
+  static void CallbackEvent(Name* name, Address entry_point);
+  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                              Code* code, const char* comment);
+  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                              Code* code, Name* name);
+  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                              Code* code,
                               SharedFunctionInfo* shared,
                               Name* name);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Code* code,
-                       SharedFunctionInfo* shared,
-                       String* source, int line);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Code* code, int args_count);
-  void CodeMovingGCEvent() {}
-  void CodeMoveEvent(Address from, Address to);
-  void CodeDeleteEvent(Address from);
-  void GetterCallbackEvent(Name* name, Address entry_point);
-  void RegExpCodeCreateEvent(Code* code, String* source);
-  void SetterCallbackEvent(Name* name, Address entry_point);
-  void SharedFunctionInfoMoveEvent(Address from, Address to);
+  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                              Code* code,
+                              SharedFunctionInfo* shared,
+                              String* source, int line);
+  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                              Code* code, int args_count);
+  static void CodeMovingGCEvent() {}
+  static void CodeMoveEvent(Address from, Address to);
+  static void CodeDeleteEvent(Address from);
+  static void GetterCallbackEvent(Name* name, Address entry_point);
+  static void RegExpCodeCreateEvent(Code* code, String* source);
+  static void SetterCallbackEvent(Name* name, Address entry_point);
+  static void SharedFunctionInfoMoveEvent(Address from, Address to);
 
-  INLINE(bool is_profiling() const) { return is_profiling_; }
+  static INLINE(bool is_profiling(Isolate* isolate)) {
+    CpuProfiler* profiler = isolate->cpu_profiler();
+    return profiler != NULL && profiler->is_profiling_;
+  }
 
  private:
+  CpuProfiler();
+  ~CpuProfiler();
+  void StartCollectingProfile(const char* title);
+  void StartCollectingProfile(String* title);
   void StartProcessorIfNotStarted();
+  CpuProfile* StopCollectingProfile(const char* title);
+  CpuProfile* StopCollectingProfile(Object* security_token, String* title);
   void StopProcessorIfLastProfile(const char* title);
   void StopProcessor();
   void ResetProfiles();
 
-  Isolate* isolate_;
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;
   TokenEnumerator* token_enumerator_;

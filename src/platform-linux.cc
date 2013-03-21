@@ -1088,7 +1088,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   if (sampler == NULL || !sampler->IsActive()) return;
 
   TickSample sample_obj;
-  TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
+  TickSample* sample = CpuProfiler::TickSampleEvent(isolate);
   if (sample == NULL) sample = &sample_obj;
 
   // Extracting the sample from the context is extremely machine dependent.

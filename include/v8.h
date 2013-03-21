@@ -103,14 +103,12 @@ class Array;
 class Boolean;
 class BooleanObject;
 class Context;
-class CpuProfiler;
 class Data;
 class Date;
 class DeclaredAccessorDescriptor;
 class External;
 class Function;
 class FunctionTemplate;
-class HeapProfiler;
 class ImplementationUtilities;
 class Int32;
 class Integer;
@@ -3024,18 +3022,6 @@ class V8EXPORT Isolate {
    */
   intptr_t AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes);
 
-  /**
-   * Returns heap profiler for this isolate. Will return NULL until the isolate
-   * is initialized.
-   */
-  HeapProfiler* GetHeapProfiler();
-
-  /**
-   * Returns CPU profiler for this isolate. Will return NULL until the isolate
-   * is initialized.
-   */
-  CpuProfiler* GetCpuProfiler();
-
  private:
   Isolate();
   Isolate(const Isolate&);
@@ -3602,24 +3588,6 @@ class V8EXPORT V8 {
   static bool IsExecutionTerminating(Isolate* isolate = NULL);
 
   /**
-   * Resume execution capability in the given isolate, whose execution
-   * was previously forcefully terminated using TerminateExecution().
-   *
-   * When execution is forcefully terminated using TerminateExecution(),
-   * the isolate can not resume execution until all JavaScript frames
-   * have propagated the uncatchable exception which is generated.  This
-   * method allows the program embedding the engine to handle the
-   * termination event and resume execution capability, even if
-   * JavaScript frames remain on the stack.
-   *
-   * This method can be used by any thread even if that thread has not
-   * acquired the V8 lock with a Locker object.
-   *
-   * \param isolate The isolate in which to resume execution capability.
-   */
-  static void CancelTerminateExecution(Isolate* isolate);
-
-  /**
    * Releases any resources used by v8 and stops any utility threads
    * that may be running.  Note that disposing v8 is permanent, it
    * cannot be reinitialized.
@@ -3729,28 +3697,19 @@ class V8EXPORT TryCatch {
   bool HasCaught() const;
 
   /**
-   * For certain types of exceptions, it makes no sense to continue execution.
+   * For certain types of exceptions, it makes no sense to continue
+   * execution.
    *
-   * If CanContinue returns false, the correct action is to perform any C++
-   * cleanup needed and then return.  If CanContinue returns false and
-   * HasTerminated returns true, it is possible to call
-   * CancelTerminateExecution in order to continue calling into the engine.
+   * Currently, the only type of exception that can be caught by a
+   * TryCatch handler and for which it does not make sense to continue
+   * is termination exception.  Such exceptions are thrown when the
+   * TerminateExecution methods are called to terminate a long-running
+   * script.
+   *
+   * If CanContinue returns false, the correct action is to perform
+   * any C++ cleanup needed and then return.
    */
   bool CanContinue() const;
-
-  /**
-   * Returns true if an exception has been caught due to script execution
-   * being terminated.
-   *
-   * There is no JavaScript representation of an execution termination
-   * exception.  Such exceptions are thrown when the TerminateExecution
-   * methods are called to terminate a long-running script.
-   *
-   * If such an exception has been thrown, HasTerminated will return true,
-   * indicating that it is possible to call CancelTerminateExecution in order
-   * to continue calling into the engine.
-   */
-  bool HasTerminated() const;
 
   /**
    * Throws the exception caught by this TryCatch in a way that avoids
@@ -3827,7 +3786,6 @@ class V8EXPORT TryCatch {
   bool can_continue_ : 1;
   bool capture_message_ : 1;
   bool rethrow_ : 1;
-  bool has_terminated_ : 1;
 
   friend class v8::internal::Isolate;
 };

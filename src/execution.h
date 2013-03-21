@@ -189,7 +189,6 @@ class StackGuard {
   void Interrupt();
   bool IsTerminateExecution();
   void TerminateExecution();
-  void CancelTerminateExecution();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   bool IsDebugBreak();
   void DebugBreak();

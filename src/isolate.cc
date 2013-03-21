@@ -1056,23 +1056,6 @@ Failure* Isolate::TerminateExecution() {
 }
 
 
-void Isolate::CancelTerminateExecution() {
-  if (try_catch_handler()) {
-    try_catch_handler()->has_terminated_ = false;
-  }
-  if (has_pending_exception() &&
-      pending_exception() == heap_.termination_exception()) {
-    thread_local_top()->external_caught_exception_ = false;
-    clear_pending_exception();
-  }
-  if (has_scheduled_exception() &&
-      scheduled_exception() == heap_.termination_exception()) {
-    thread_local_top()->external_caught_exception_ = false;
-    clear_scheduled_exception();
-  }
-}
-
-
 Failure* Isolate::Throw(Object* exception, MessageLocation* location) {
   DoThrow(exception, location);
   return Failure::Exception();
@@ -1695,8 +1678,6 @@ Isolate::Isolate()
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
       context_exit_happened_(false),
-      cpu_profiler_(NULL),
-      heap_profiler_(NULL),
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
@@ -1828,11 +1809,8 @@ void Isolate::Deinit() {
     preallocated_message_space_ = NULL;
     PreallocatedMemoryThreadStop();
 
-    delete heap_profiler_;
-    heap_profiler_ = NULL;
-    delete cpu_profiler_;
-    cpu_profiler_ = NULL;
-
+    HeapProfiler::TearDown();
+    CpuProfiler::TearDown();
     if (runtime_profiler_ != NULL) {
       runtime_profiler_->TearDown();
       delete runtime_profiler_;
@@ -1977,14 +1955,12 @@ void Isolate::PropagatePendingExceptionToExternalTryCatch() {
   } else if (thread_local_top_.pending_exception_ ==
              heap()->termination_exception()) {
     try_catch_handler()->can_continue_ = false;
-    try_catch_handler()->has_terminated_ = true;
     try_catch_handler()->exception_ = heap()->null_value();
   } else {
     // At this point all non-object (failure) exceptions have
     // been dealt with so this shouldn't fail.
     ASSERT(!pending_exception()->IsFailure());
     try_catch_handler()->can_continue_ = true;
-    try_catch_handler()->has_terminated_ = false;
     try_catch_handler()->exception_ = pending_exception();
     if (!thread_local_top_.pending_message_obj_->IsTheHole()) {
       try_catch_handler()->message_ = thread_local_top_.pending_message_obj_;
@@ -2063,8 +2039,8 @@ bool Isolate::Init(Deserializer* des) {
   // Enable logging before setting up the heap
   logger_->SetUp();
 
-  cpu_profiler_ = new CpuProfiler(this);
-  heap_profiler_ = new HeapProfiler(heap());
+  CpuProfiler::SetUp();
+  HeapProfiler::SetUp();
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)

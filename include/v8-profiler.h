@@ -105,9 +105,6 @@ class V8EXPORT CpuProfileNode {
   /** Returns function entry UID. */
   unsigned GetCallUid() const;
 
-  /** Returns id of the node. The id is unique within the tree */
-  unsigned GetNodeId() const;
-
   /** Returns child nodes count of the node. */
   int GetChildrenCount() const;
 
@@ -134,18 +131,6 @@ class V8EXPORT CpuProfile {
   const CpuProfileNode* GetTopDownRoot() const;
 
   /**
-    * Returns number of samples recorded. The samples are not recorded unless
-    * |record_samples| parameter of CpuProfiler::StartCpuProfiling is true.
-    */
-  int GetSamplesCount() const;
-
-  /**
-    * Returns profile node corresponding to the top frame the sample at
-    * the given index.
-    */
-  const CpuProfileNode* GetSample(int index) const;
-
-  /**
    * Deletes the profile and removes it from CpuProfiler's list.
    * All pointers to nodes previously returned become invalid.
    * Profiles with the same uid but obtained using different
@@ -158,8 +143,7 @@ class V8EXPORT CpuProfile {
 
 
 /**
- * Interface for controlling CPU profiling. Instance of the
- * profiler can be retrieved using v8::Isolate::GetCpuProfiler.
+ * Interface for controlling CPU profiling.
  */
 class V8EXPORT CpuProfiler {
  public:
@@ -172,34 +156,22 @@ class V8EXPORT CpuProfiler {
    * obtaining profiling results.
    */
 
-  /** Deprecated. Use GetProfileCount instead. */
-  static int GetProfilesCount();
   /**
    * Returns the number of profiles collected (doesn't include
    * profiles that are being collected at the moment of call.)
    */
-  int GetProfileCount();
+  static int GetProfilesCount();
 
-  /** Deprecated. Use GetCpuProfile instead. */
+  /** Returns a profile by index. */
   static const CpuProfile* GetProfile(
       int index,
       Handle<Value> security_token = Handle<Value>());
-  /** Returns a profile by index. */
-  const CpuProfile* GetCpuProfile(
-      int index,
-      Handle<Value> security_token = Handle<Value>());
 
-  /** Deprecated. Use FindProfile instead. */
+  /** Returns a profile by uid. */
   static const CpuProfile* FindProfile(
       unsigned uid,
       Handle<Value> security_token = Handle<Value>());
-  /** Returns a profile by uid. */
-  const CpuProfile* FindCpuProfile(
-      unsigned uid,
-      Handle<Value> security_token = Handle<Value>());
 
-  /** Deprecated. Use StartCpuProfiling instead. */
-  static void StartProfiling(Handle<String> title, bool record_samples = false);
   /**
    * Starts collecting CPU profile. Title may be an empty string. It
    * is allowed to have several profiles being collected at
@@ -207,38 +179,23 @@ class V8EXPORT CpuProfiler {
    * title are silently ignored. While collecting a profile, functions
    * from all security contexts are included in it. The token-based
    * filtering is only performed when querying for a profile.
-   *
-   * |record_samples| parameter controls whether individual samples should
-   * be recorded in addition to the aggregated tree.
    */
-  void StartCpuProfiling(Handle<String> title, bool record_samples = false);
+  static void StartProfiling(Handle<String> title);
 
-  /** Deprecated. Use StopCpuProfiling instead. */
-  static const CpuProfile* StopProfiling(
-      Handle<String> title,
-      Handle<Value> security_token = Handle<Value>());
   /**
    * Stops collecting CPU profile with a given title and returns it.
    * If the title given is empty, finishes the last profile started.
    */
-  const CpuProfile* StopCpuProfiling(
+  static const CpuProfile* StopProfiling(
       Handle<String> title,
       Handle<Value> security_token = Handle<Value>());
 
-  /** Deprecated. Use DeleteAllCpuProfiles instead. */
-  static void DeleteAllProfiles();
   /**
    * Deletes all existing profiles, also cancelling all profiling
    * activity.  All previously returned pointers to profiles and their
    * contents become invalid after this call.
    */
-  void DeleteAllCpuProfiles();
-
- private:
-  CpuProfiler();
-  ~CpuProfiler();
-  CpuProfiler(const CpuProfiler&);
-  CpuProfiler& operator=(const CpuProfiler&);
+  static void DeleteAllProfiles();
 };
 
 
@@ -346,8 +303,8 @@ class V8EXPORT HeapSnapshot {
     kJSON = 0  // See format description near 'Serialize' method.
   };
 
-  /** Deprecated. Returns kFull. */
-  V8_DEPRECATED(Type GetType() const);
+  /** Returns heap snapshot type. */
+  Type GetType() const;
 
   /** Returns heap snapshot UID (assigned by the profiler.) */
   unsigned GetUid() const;
@@ -410,8 +367,7 @@ class V8EXPORT HeapSnapshot {
 class RetainedObjectInfo;
 
 /**
- * Interface for controlling heap profiling. Instance of the
- * profiler can be retrieved using v8::Isolate::GetHeapProfiler.
+ * Interface for controlling heap profiling.
  */
 class V8EXPORT HeapProfiler {
  public:
@@ -424,28 +380,20 @@ class V8EXPORT HeapProfiler {
   typedef RetainedObjectInfo* (*WrapperInfoCallback)
       (uint16_t class_id, Handle<Value> wrapper);
 
-  /** Deprecated. Use GetSnapshotCount instead. */
-  static int GetSnapshotsCount();
   /** Returns the number of snapshots taken. */
-  int GetSnapshotCount();
+  static int GetSnapshotsCount();
 
-  /** Deprecated. Use GetHeapSnapshot instead. */
-  static const HeapSnapshot* GetSnapshot(int index);
   /** Returns a snapshot by index. */
-  const HeapSnapshot* GetHeapSnapshot(int index);
+  static const HeapSnapshot* GetSnapshot(int index);
 
-  /** Deprecated. Use FindHeapSnapshot instead. */
-  static const HeapSnapshot* FindSnapshot(unsigned uid);
   /** Returns a profile by uid. */
-  const HeapSnapshot* FindHeapSnapshot(unsigned uid);
+  static const HeapSnapshot* FindSnapshot(unsigned uid);
 
-  /** Deprecated. Use GetObjectId instead. */
-  static SnapshotObjectId GetSnapshotObjectId(Handle<Value> value);
   /**
    * Returns SnapshotObjectId for a heap object referenced by |value| if
    * it has been seen by the heap profiler, kUnknownObjectId otherwise.
    */
-  SnapshotObjectId GetObjectId(Handle<Value> value);
+  static SnapshotObjectId GetSnapshotObjectId(Handle<Value> value);
 
   /**
    * A constant for invalid SnapshotObjectId. GetSnapshotObjectId will return
@@ -458,42 +406,33 @@ class V8EXPORT HeapProfiler {
    * Callback interface for retrieving user friendly names of global objects.
    */
   class ObjectNameResolver {
-   public:
+  public:
     /**
      * Returns name to be used in the heap snapshot for given node. Returned
      * string must stay alive until snapshot collection is completed.
      */
     virtual const char* GetName(Handle<Object> object) = 0;
-   protected:
+  protected:
     virtual ~ObjectNameResolver() {}
   };
 
-  /** Deprecated. Use TakeHeapSnapshot instead. */
+  /**
+   * Takes a heap snapshot and returns it. Title may be an empty string.
+   * See HeapSnapshot::Type for types description.
+   */
   static const HeapSnapshot* TakeSnapshot(
       Handle<String> title,
       HeapSnapshot::Type type = HeapSnapshot::kFull,
       ActivityControl* control = NULL,
       ObjectNameResolver* global_object_name_resolver = NULL);
-  /**
-   * Takes a heap snapshot and returns it. Title may be an empty string.
-   */
-  const HeapSnapshot* TakeHeapSnapshot(
-      Handle<String> title,
-      ActivityControl* control = NULL,
-      ObjectNameResolver* global_object_name_resolver = NULL);
 
-
-  /** Deprecated. Use StartTrackingHeapObjects instead. */
-  static void StartHeapObjectsTracking();
   /**
    * Starts tracking of heap objects population statistics. After calling
    * this method, all heap objects relocations done by the garbage collector
    * are being registered.
    */
-  void StartTrackingHeapObjects();
+  static void StartHeapObjectsTracking();
 
-  /** Deprecated. Use GetHeapStats instead. */
-  static SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
   /**
    * Adds a new time interval entry to the aggregated statistics array. The
    * time interval entry contains information on the current heap objects
@@ -503,34 +442,26 @@ class V8EXPORT HeapProfiler {
    * HeapStatsUpdate structure instances.
    * The return value of the function is the last seen heap object Id.
    *
-   * StartTrackingHeapObjects must be called before the first call to this
+   * StartHeapObjectsTracking must be called before the first call to this
    * method.
    */
-  SnapshotObjectId GetHeapStats(OutputStream* stream);
+  static SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
 
-  /** Deprecated. Use StopTrackingHeapObjects instead. */
-  static void StopHeapObjectsTracking();
   /**
    * Stops tracking of heap objects population statistics, cleans up all
    * collected data. StartHeapObjectsTracking must be called again prior to
    * calling PushHeapObjectsStats next time.
    */
-  void StopTrackingHeapObjects();
+  static void StopHeapObjectsTracking();
 
-  /** Deprecated. Use DeleteAllHeapSnapshots instead. */
-  static void DeleteAllSnapshots();
   /**
    * Deletes all snapshots taken. All previously returned pointers to
    * snapshots and their contents become invalid after this call.
    */
-  void DeleteAllHeapSnapshots();
+  static void DeleteAllSnapshots();
 
-  /** Deprecated. Use SetWrapperClassInfoProvider instead. */
-  static void DefineWrapperClass(
-      uint16_t class_id,
-      WrapperInfoCallback callback);
   /** Binds a callback to embedder's class ID. */
-  void SetWrapperClassInfoProvider(
+  static void DefineWrapperClass(
       uint16_t class_id,
       WrapperInfoCallback callback);
 
@@ -541,21 +472,11 @@ class V8EXPORT HeapProfiler {
    */
   static const uint16_t kPersistentHandleNoClassId = 0;
 
-  /**
-   * Deprecated. Returns the number of currently existing persistent handles.
-   */
+  /** Returns the number of currently existing persistent handles. */
   static int GetPersistentHandleCount();
 
-  /** Deprecated. Use GetHeapProfilerMemorySize instead. */
-  static size_t GetMemorySizeUsedByProfiler();
   /** Returns memory used for profiler internal data and snapshots. */
-  size_t GetProfilerMemorySize();
-
- private:
-  HeapProfiler();
-  ~HeapProfiler();
-  HeapProfiler(const HeapProfiler&);
-  HeapProfiler& operator=(const HeapProfiler&);
+  static size_t GetMemorySizeUsedByProfiler();
 };
 
 
@@ -635,7 +556,7 @@ class V8EXPORT RetainedObjectInfo {  // NOLINT
 
 /**
  * A struct for exporting HeapStats data from V8, using "push" model.
- * See HeapProfiler::GetHeapStats.
+ * See HeapProfiler::PushHeapObjectsStats.
  */
 struct HeapStatsUpdate {
   HeapStatsUpdate(uint32_t index, uint32_t count, uint32_t size)

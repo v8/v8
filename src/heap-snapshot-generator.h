@@ -157,12 +157,18 @@ class HeapSnapshotsCollection;
 // HeapSnapshotGenerator fills in a HeapSnapshot.
 class HeapSnapshot {
  public:
+  enum Type {
+    kFull = v8::HeapSnapshot::kFull
+  };
+
   HeapSnapshot(HeapSnapshotsCollection* collection,
+               Type type,
                const char* title,
                unsigned uid);
   void Delete();
 
   HeapSnapshotsCollection* collection() { return collection_; }
+  Type type() { return type_; }
   const char* title() { return title_; }
   unsigned uid() { return uid_; }
   size_t RawSnapshotSize() const;
@@ -197,6 +203,7 @@ class HeapSnapshot {
 
  private:
   HeapSnapshotsCollection* collection_;
+  Type type_;
   const char* title_;
   unsigned uid_;
   int root_index_;
@@ -298,7 +305,8 @@ class HeapSnapshotsCollection {
   void StartHeapObjectsTracking() { is_tracking_objects_ = true; }
   void StopHeapObjectsTracking() { ids_.StopHeapObjectsTracking(); }
 
-  HeapSnapshot* NewSnapshot(const char* name, unsigned uid);
+  HeapSnapshot* NewSnapshot(
+      HeapSnapshot::Type type, const char* name, unsigned uid);
   void SnapshotGenerationFinished(HeapSnapshot* snapshot);
   List<HeapSnapshot*>* snapshots() { return &snapshots_; }
   HeapSnapshot* GetSnapshot(unsigned uid);
