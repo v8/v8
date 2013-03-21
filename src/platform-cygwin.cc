@@ -687,14 +687,13 @@ class SamplerThread : public Thread {
     CONTEXT context;
     memset(&context, 0, sizeof(context));
 
-    Isolate* isolate = sampler->isolate();
     TickSample sample_obj;
-    TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
+    TickSample* sample = CpuProfiler::TickSampleEvent(sampler->isolate());
     if (sample == NULL) sample = &sample_obj;
 
     static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
     if (SuspendThread(profiled_thread) == kSuspendFailed) return;
-    sample->state = isolate->current_vm_state();
+    sample->state = sampler->isolate()->current_vm_state();
 
     context.ContextFlags = CONTEXT_FULL;
     if (GetThreadContext(profiled_thread, &context) != 0) {

@@ -171,8 +171,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
   Isolate* isolate = Isolate::Current();
-  if (!isolate->logger()->is_logging() &&
-      !isolate->cpu_profiler()->is_profiling()) {
+  if (!isolate->logger()->is_logging() && !CpuProfiler::is_profiling(isolate)) {
     return false;
   }
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());

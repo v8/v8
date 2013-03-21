@@ -103,14 +103,12 @@ class Array;
 class Boolean;
 class BooleanObject;
 class Context;
-class CpuProfiler;
 class Data;
 class Date;
 class DeclaredAccessorDescriptor;
 class External;
 class Function;
 class FunctionTemplate;
-class HeapProfiler;
 class ImplementationUtilities;
 class Int32;
 class Integer;
@@ -3023,18 +3021,6 @@ class V8EXPORT Isolate {
    * \returns the adjusted value.
    */
   intptr_t AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes);
-
-  /**
-   * Returns heap profiler for this isolate. Will return NULL until the isolate
-   * is initialized.
-   */
-  HeapProfiler* GetHeapProfiler();
-
-  /**
-   * Returns CPU profiler for this isolate. Will return NULL until the isolate
-   * is initialized.
-   */
-  CpuProfiler* GetCpuProfiler();
 
  private:
   Isolate();

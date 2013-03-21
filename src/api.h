@@ -294,6 +294,9 @@ MAKE_TO_LOCAL(ToLocal, DeclaredAccessorDescriptor, DeclaredAccessorDescriptor)
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                 \
     const v8::From* that, bool allow_empty_handle) {                        \
     EXTRA_CHECK(allow_empty_handle || that != NULL);                        \
+    EXTRA_CHECK(that == NULL ||                                             \
+        !(*reinterpret_cast<v8::internal::To**>(                            \
+            const_cast<v8::From*>(that)))->IsFailure());                    \
     return v8::internal::Handle<v8::internal::To>(                          \
         reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that))); \
   }

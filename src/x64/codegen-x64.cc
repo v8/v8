@@ -769,7 +769,7 @@ void Code::PatchPlatformCodeAge(byte* sequence,
   uint32_t young_length;
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);
   if (age == kNoAge) {
-    memcpy(sequence, young_sequence, young_length);
+    CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(age, parity);

@@ -220,6 +220,7 @@ namespace internal {
   V(undefined_string, "undefined")                                       \
   V(value_of_string, "valueOf")                                          \
   V(stack_string, "stack")                                               \
+  V(toJSON_string, "toJSON")                                             \
   V(InitializeVarGlobal_string, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_string, "InitializeConstGlobal")               \
   V(KeyedLoadElementMonomorphic_string,                                  \

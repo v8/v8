@@ -2130,7 +2130,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   ASSERT(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
          desc.instr_size);
   chunk->CommitArea(desc.instr_size);
-  memcpy(chunk->area_start(), desc.buffer, desc.instr_size);
+  CopyBytes(chunk->area_start(), desc.buffer, desc.instr_size);
   CPU::FlushICache(chunk->area_start(), desc.instr_size);
 
   if (type == EAGER) {

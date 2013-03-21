@@ -1678,8 +1678,6 @@ Isolate::Isolate()
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
       context_exit_happened_(false),
-      cpu_profiler_(NULL),
-      heap_profiler_(NULL),
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
@@ -1811,11 +1809,8 @@ void Isolate::Deinit() {
     preallocated_message_space_ = NULL;
     PreallocatedMemoryThreadStop();
 
-    delete heap_profiler_;
-    heap_profiler_ = NULL;
-    delete cpu_profiler_;
-    cpu_profiler_ = NULL;
-
+    HeapProfiler::TearDown();
+    CpuProfiler::TearDown();
     if (runtime_profiler_ != NULL) {
       runtime_profiler_->TearDown();
       delete runtime_profiler_;
@@ -2044,8 +2039,8 @@ bool Isolate::Init(Deserializer* des) {
   // Enable logging before setting up the heap
   logger_->SetUp();
 
-  cpu_profiler_ = new CpuProfiler(this);
-  heap_profiler_ = new HeapProfiler(heap());
+  CpuProfiler::SetUp();
+  HeapProfiler::SetUp();
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)

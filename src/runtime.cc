@@ -2231,7 +2231,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   target->set_literals(*literals);
 
   if (isolate->logger()->is_logging_code_events() ||
-      isolate->cpu_profiler()->is_profiling()) {
+      CpuProfiler::is_profiling(isolate)) {
     isolate->logger()->LogExistingFunction(
         source_shared, Handle<Code>(source_shared->code()));
   }
@@ -5171,365 +5171,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIUnescape) {
 }
 
 
-static const unsigned int kQuoteTableLength = 128u;
-
-static const int kJsonQuotesCharactersPerEntry = 8;
-static const char* const JsonQuotes =
-    "\\u0000  \\u0001  \\u0002  \\u0003  "
-    "\\u0004  \\u0005  \\u0006  \\u0007  "
-    "\\b      \\t      \\n      \\u000b  "
-    "\\f      \\r      \\u000e  \\u000f  "
-    "\\u0010  \\u0011  \\u0012  \\u0013  "
-    "\\u0014  \\u0015  \\u0016  \\u0017  "
-    "\\u0018  \\u0019  \\u001a  \\u001b  "
-    "\\u001c  \\u001d  \\u001e  \\u001f  "
-    "        !       \\\"      #       "
-    "$       %       &       '       "
-    "(       )       *       +       "
-    ",       -       .       /       "
-    "0       1       2       3       "
-    "4       5       6       7       "
-    "8       9       :       ;       "
-    "<       =       >       ?       "
-    "@       A       B       C       "
-    "D       E       F       G       "
-    "H       I       J       K       "
-    "L       M       N       O       "
-    "P       Q       R       S       "
-    "T       U       V       W       "
-    "X       Y       Z       [       "
-    "\\\\      ]       ^       _       "
-    "`       a       b       c       "
-    "d       e       f       g       "
-    "h       i       j       k       "
-    "l       m       n       o       "
-    "p       q       r       s       "
-    "t       u       v       w       "
-    "x       y       z       {       "
-    "|       }       ~       \177       ";
-
-
-// For a string that is less than 32k characters it should always be
-// possible to allocate it in new space.
-static const int kMaxGuaranteedNewSpaceString = 32 * 1024;
-
-
-// Doing JSON quoting cannot make the string more than this many times larger.
-static const int kJsonQuoteWorstCaseBlowup = 6;
-
-static const int kSpaceForQuotesAndComma = 3;
-static const int kSpaceForBrackets = 2;
-
-// Covers the entire ASCII range (all other characters are unchanged by JSON
-// quoting).
-static const byte JsonQuoteLengths[kQuoteTableLength] = {
-    6, 6, 6, 6, 6, 6, 6, 6,
-    2, 2, 2, 6, 2, 2, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    1, 1, 2, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 2, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
-};
-
-
-template <typename StringType>
-MaybeObject* AllocateRawString(Isolate* isolate, int length);
-
-
-template <>
-MaybeObject* AllocateRawString<SeqTwoByteString>(Isolate* isolate, int length) {
-  return isolate->heap()->AllocateRawTwoByteString(length);
-}
-
-
-template <>
-MaybeObject* AllocateRawString<SeqOneByteString>(Isolate* isolate, int length) {
-  return isolate->heap()->AllocateRawOneByteString(length);
-}
-
-
-template <typename Char, typename StringType, bool comma>
-static MaybeObject* SlowQuoteJsonString(Isolate* isolate,
-                                        Vector<const Char> characters) {
-  int length = characters.length();
-  const Char* read_cursor = characters.start();
-  const Char* end = read_cursor + length;
-  const int kSpaceForQuotes = 2 + (comma ? 1 :0);
-  int quoted_length = kSpaceForQuotes;
-  while (read_cursor < end) {
-    Char c = *(read_cursor++);
-    if (static_cast<unsigned>(c) >= kQuoteTableLength) {
-      quoted_length++;
-    } else {
-      quoted_length += JsonQuoteLengths[static_cast<unsigned>(c)];
-    }
-  }
-  MaybeObject* new_alloc = AllocateRawString<StringType>(isolate,
-                                                         quoted_length);
-  Object* new_object;
-  if (!new_alloc->ToObject(&new_object)) {
-    return new_alloc;
-  }
-  StringType* new_string = StringType::cast(new_object);
-
-  Char* write_cursor = reinterpret_cast<Char*>(
-      new_string->address() + SeqString::kHeaderSize);
-  if (comma) *(write_cursor++) = ',';
-  *(write_cursor++) = '"';
-
-  read_cursor = characters.start();
-  while (read_cursor < end) {
-    Char c = *(read_cursor++);
-    if (static_cast<unsigned>(c) >= kQuoteTableLength) {
-      *(write_cursor++) = c;
-    } else {
-      int len = JsonQuoteLengths[static_cast<unsigned>(c)];
-      const char* replacement = JsonQuotes +
-          static_cast<unsigned>(c) * kJsonQuotesCharactersPerEntry;
-      for (int i = 0; i < len; i++) {
-        *write_cursor++ = *replacement++;
-      }
-    }
-  }
-  *(write_cursor++) = '"';
-  return new_string;
-}
-
-
-template <typename SinkChar, typename SourceChar>
-static inline SinkChar* WriteQuoteJsonString(
-    Isolate* isolate,
-    SinkChar* write_cursor,
-    Vector<const SourceChar> characters) {
-  // SinkChar is only char if SourceChar is guaranteed to be char.
-  ASSERT(sizeof(SinkChar) >= sizeof(SourceChar));
-  const SourceChar* read_cursor = characters.start();
-  const SourceChar* end = read_cursor + characters.length();
-  *(write_cursor++) = '"';
-  while (read_cursor < end) {
-    SourceChar c = *(read_cursor++);
-    if (static_cast<unsigned>(c) >= kQuoteTableLength) {
-      *(write_cursor++) = static_cast<SinkChar>(c);
-    } else {
-      int len = JsonQuoteLengths[static_cast<unsigned>(c)];
-      const char* replacement = JsonQuotes +
-          static_cast<unsigned>(c) * kJsonQuotesCharactersPerEntry;
-      write_cursor[0] = replacement[0];
-      if (len > 1) {
-        write_cursor[1] = replacement[1];
-        if (len > 2) {
-          ASSERT(len == 6);
-          write_cursor[2] = replacement[2];
-          write_cursor[3] = replacement[3];
-          write_cursor[4] = replacement[4];
-          write_cursor[5] = replacement[5];
-        }
-      }
-      write_cursor += len;
-    }
-  }
-  *(write_cursor++) = '"';
-  return write_cursor;
-}
-
-
-template <typename Char, typename StringType, bool comma>
-static MaybeObject* QuoteJsonString(Isolate* isolate,
-                                    Vector<const Char> characters) {
-  int length = characters.length();
-  isolate->counters()->quote_json_char_count()->Increment(length);
-  int worst_case_length =
-        length * kJsonQuoteWorstCaseBlowup + kSpaceForQuotesAndComma;
-  if (worst_case_length > kMaxGuaranteedNewSpaceString) {
-    return SlowQuoteJsonString<Char, StringType, comma>(isolate, characters);
-  }
-
-  MaybeObject* new_alloc = AllocateRawString<StringType>(isolate,
-                                                         worst_case_length);
-  Object* new_object;
-  if (!new_alloc->ToObject(&new_object)) {
-    return new_alloc;
-  }
-  if (!isolate->heap()->new_space()->Contains(new_object)) {
-    // Even if our string is small enough to fit in new space we still have to
-    // handle it being allocated in old space as may happen in the third
-    // attempt.  See CALL_AND_RETRY in heap-inl.h and similar code in
-    // CEntryStub::GenerateCore.
-    return SlowQuoteJsonString<Char, StringType, comma>(isolate, characters);
-  }
-  StringType* new_string = StringType::cast(new_object);
-  ASSERT(isolate->heap()->new_space()->Contains(new_string));
-
-  Char* write_cursor = reinterpret_cast<Char*>(
-      new_string->address() + SeqString::kHeaderSize);
-  if (comma) *(write_cursor++) = ',';
-  write_cursor = WriteQuoteJsonString<Char, Char>(isolate,
-                                                  write_cursor,
-                                                  characters);
-  int final_length = static_cast<int>(
-      write_cursor - reinterpret_cast<Char*>(
-          new_string->address() + SeqString::kHeaderSize));
-  isolate->heap()->new_space()->
-      template ShrinkStringAtAllocationBoundary<StringType>(
-          new_string, final_length);
-  return new_string;
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONString) {
-  NoHandleAllocation ha(isolate);
-  CONVERT_ARG_CHECKED(String, str, 0);
-  if (!str->IsFlat()) {
-    MaybeObject* try_flatten = str->TryFlatten();
-    Object* flat;
-    if (!try_flatten->ToObject(&flat)) {
-      return try_flatten;
-    }
-    str = String::cast(flat);
-    ASSERT(str->IsFlat());
-  }
-  String::FlatContent flat = str->GetFlatContent();
-  ASSERT(flat.IsFlat());
-  if (flat.IsTwoByte()) {
-    return QuoteJsonString<uc16, SeqTwoByteString, false>(isolate,
-                                                          flat.ToUC16Vector());
-  } else {
-    return QuoteJsonString<uint8_t, SeqOneByteString, false>(
-        isolate,
-        flat.ToOneByteVector());
-  }
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringComma) {
-  NoHandleAllocation ha(isolate);
-  CONVERT_ARG_CHECKED(String, str, 0);
-  if (!str->IsFlat()) {
-    MaybeObject* try_flatten = str->TryFlatten();
-    Object* flat;
-    if (!try_flatten->ToObject(&flat)) {
-      return try_flatten;
-    }
-    str = String::cast(flat);
-    ASSERT(str->IsFlat());
-  }
-  String::FlatContent flat = str->GetFlatContent();
-  if (flat.IsTwoByte()) {
-    return QuoteJsonString<uc16, SeqTwoByteString, true>(isolate,
-                                                         flat.ToUC16Vector());
-  } else {
-    return QuoteJsonString<uint8_t, SeqOneByteString, true>(
-        isolate,
-        flat.ToOneByteVector());
-  }
-}
-
-
-template <typename Char, typename StringType>
-static MaybeObject* QuoteJsonStringArray(Isolate* isolate,
-                                         FixedArray* array,
-                                         int worst_case_length) {
-  int length = array->length();
-
-  MaybeObject* new_alloc = AllocateRawString<StringType>(isolate,
-                                                         worst_case_length);
-  Object* new_object;
-  if (!new_alloc->ToObject(&new_object)) {
-    return new_alloc;
-  }
-  if (!isolate->heap()->new_space()->Contains(new_object)) {
-    // Even if our string is small enough to fit in new space we still have to
-    // handle it being allocated in old space as may happen in the third
-    // attempt.  See CALL_AND_RETRY in heap-inl.h and similar code in
-    // CEntryStub::GenerateCore.
-    return isolate->heap()->undefined_value();
-  }
-  AssertNoAllocation no_gc;
-  StringType* new_string = StringType::cast(new_object);
-  ASSERT(isolate->heap()->new_space()->Contains(new_string));
-
-  Char* write_cursor = reinterpret_cast<Char*>(
-      new_string->address() + SeqString::kHeaderSize);
-  *(write_cursor++) = '[';
-  for (int i = 0; i < length; i++) {
-    if (i != 0) *(write_cursor++) = ',';
-    String* str = String::cast(array->get(i));
-    String::FlatContent content = str->GetFlatContent();
-    ASSERT(content.IsFlat());
-    if (content.IsTwoByte()) {
-      write_cursor = WriteQuoteJsonString<Char, uc16>(isolate,
-                                                      write_cursor,
-                                                      content.ToUC16Vector());
-    } else {
-      write_cursor =
-          WriteQuoteJsonString<Char, uint8_t>(isolate,
-                                              write_cursor,
-                                              content.ToOneByteVector());
-    }
-  }
-  *(write_cursor++) = ']';
-
-  int final_length = static_cast<int>(
-      write_cursor - reinterpret_cast<Char*>(
-          new_string->address() + SeqString::kHeaderSize));
-  isolate->heap()->new_space()->
-      template ShrinkStringAtAllocationBoundary<StringType>(
-          new_string, final_length);
-  return new_string;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringArray) {
-  NoHandleAllocation ha(isolate);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSArray, array, 0);
-
-  if (!array->HasFastObjectElements()) {
-    return isolate->heap()->undefined_value();
-  }
-  FixedArray* elements = FixedArray::cast(array->elements());
-  int n = elements->length();
-  bool ascii = true;
-  int total_length = 0;
-
-  for (int i = 0; i < n; i++) {
-    Object* elt = elements->get(i);
-    if (!elt->IsString()) return isolate->heap()->undefined_value();
-    String* element = String::cast(elt);
-    if (!element->IsFlat()) return isolate->heap()->undefined_value();
-    total_length += element->length();
-    if (ascii && element->IsTwoByteRepresentation()) {
-      ascii = false;
-    }
-  }
-
-  int worst_case_length =
-      kSpaceForBrackets + n * kSpaceForQuotesAndComma
-      + total_length * kJsonQuoteWorstCaseBlowup;
-
-  if (worst_case_length > kMaxGuaranteedNewSpaceString) {
-    return isolate->heap()->undefined_value();
-  }
-
-  if (ascii) {
-    return QuoteJsonStringArray<char, SeqOneByteString>(isolate,
-                                                      elements,
-                                                      worst_case_length);
-  } else {
-    return QuoteJsonStringArray<uc16, SeqTwoByteString>(isolate,
-                                                        elements,
-                                                        worst_case_length);
-  }
+  return BasicJsonStringifier::StringifyString(isolate, string);
 }
 
 
@@ -9015,7 +8661,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
   // and return the compiled function bound in the local context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
-      Handle<Context>(isolate->context()),
+      context,
       context->IsNativeContext(),
       language_mode,
       NO_PARSE_RESTRICTION,
@@ -11919,21 +11565,58 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
 }
 
 
-static const char kSourceStr[] =
-    "(function(arguments,__source__){return eval(__source__);})";
+// Compile and evaluate source for the given context.
+static MaybeObject* DebugEvaluate(Isolate* isolate,
+                                  Handle<Context> context,
+                                  Handle<Object> context_extension,
+                                  Handle<Object> receiver,
+                                  Handle<String> source) {
+  if (context_extension->IsJSObject()) {
+    Handle<JSObject> extension = Handle<JSObject>::cast(context_extension);
+    Handle<JSFunction> closure(context->closure(), isolate);
+    context = isolate->factory()->NewWithContext(closure, context, extension);
+  }
+
+  Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
+      source,
+      context,
+      context->IsNativeContext(),
+      CLASSIC_MODE,
+      NO_PARSE_RESTRICTION,
+      RelocInfo::kNoPosition);
+  if (shared.is_null()) return Failure::Exception();
+
+  Handle<JSFunction> eval_fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared, context, NOT_TENURED);
+  bool pending_exception;
+  Handle<Object> result = Execution::Call(
+      eval_fun, receiver, 0, NULL, &pending_exception);
+
+  if (pending_exception) return Failure::Exception();
+
+  // Skip the global proxy as it has no properties and always delegates to the
+  // real global object.
+  if (result->IsJSGlobalProxy()) {
+    result = Handle<JSObject>(JSObject::cast(result->GetPrototype(isolate)));
+  }
+
+  // Clear the oneshot breakpoints so that the debugger does not step further.
+  isolate->debug()->ClearStepping();
+  return *result;
+}
 
 
 // Evaluate a piece of JavaScript in the context of a stack frame for
-// debugging. This is accomplished by creating a new context which in its
-// extension part has all the parameters and locals of the function on the
-// stack frame. A function which calls eval with the code to evaluate is then
-// compiled in this context and called in this context. As this context
-// replaces the context of the function on the stack frame a new (empty)
-// function is created as well to be used as the closure for the context.
-// This function and the context acts as replacements for the function on the
-// stack frame presenting the same view of the values of parameters and
-// local variables as if the piece of JavaScript was evaluated at the point
-// where the function on the stack frame is currently stopped.
+// debugging.  This is done by creating a new context which in its extension
+// part has all the parameters and locals of the function on the stack frame
+// as well as a materialized arguments object.  As this context replaces
+// the context of the function on the stack frame a new (empty) function
+// is created as well to be used as the closure for the context.
+// This closure as replacements for the one on the stack frame presenting
+// the same view of the values of parameters and local variables as if the
+// piece of JavaScript was evaluated at the point where the function on the
+// stack frame is currently stopped when we compile and run the (direct) eval.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   HandleScope scope(isolate);
 
@@ -11941,17 +11624,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   // evaluated.
   ASSERT(args.length() == 6);
   Object* check_result;
-  { MaybeObject* maybe_check_result = Runtime_CheckExecutionState(
+  { MaybeObject* maybe_result = Runtime_CheckExecutionState(
       RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_check_result->ToObject(&check_result)) {
-      return maybe_check_result;
-    }
+    if (!maybe_result->ToObject(&check_result)) return maybe_result;
   }
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 3);
   CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 4);
-  Handle<Object> additional_context(args[5], isolate);
+  Handle<Object> context_extension(args[5], isolate);
 
   // Handle the processing of break.
   DisableBreak disable_break_save(disable_break);
@@ -11962,7 +11643,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   JavaScriptFrame* frame = it.frame();
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
   Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
-  Handle<ScopeInfo> scope_info(function->shared()->scope_info());
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -11987,28 +11667,39 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   ASSERT(go_between_scope_info->ContextLocalCount() == 0);
 #endif
 
-  // Materialize the content of the local scope into a JSObject.
+  // Materialize the content of the local scope including the arguments object.
   Handle<JSObject> local_scope = MaterializeLocalScopeWithFrameInspector(
       isolate, frame, &frame_inspector);
   RETURN_IF_EMPTY_HANDLE(isolate, local_scope);
 
+  Handle<Context> frame_context(Context::cast(frame->context()));
+  Handle<Context> function_context;
+  Handle<ScopeInfo> scope_info(function->shared()->scope_info());
+  if (scope_info->HasContext()) {
+    function_context = Handle<Context>(frame_context->declaration_context());
+  }
+  Handle<Object> arguments = GetArgumentsObject(isolate,
+                                                frame,
+                                                &frame_inspector,
+                                                scope_info,
+                                                function_context);
+  SetProperty(isolate,
+              local_scope,
+              isolate->factory()->arguments_string(),
+              arguments,
+              ::NONE,
+              kNonStrictMode);
+
   // Allocate a new context for the debug evaluation and set the extension
   // object build.
-  Handle<Context> context =
-      isolate->factory()->NewFunctionContext(Context::MIN_CONTEXT_SLOTS,
-                                             go_between);
+  Handle<Context> context = isolate->factory()->NewFunctionContext(
+      Context::MIN_CONTEXT_SLOTS, go_between);
 
   // Use the materialized local scope in a with context.
   context =
       isolate->factory()->NewWithContext(go_between, context, local_scope);
 
   // Copy any with contexts present and chain them in front of this context.
-  Handle<Context> frame_context(Context::cast(frame->context()));
-  Handle<Context> function_context;
-  // Get the function's context if it has one.
-  if (scope_info->HasContext()) {
-    function_context = Handle<Context>(frame_context->declaration_context());
-  }
   context = CopyNestedScopeContextChain(isolate,
                                         go_between,
                                         context,
@@ -12021,79 +11712,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
     return exception;
   }
 
-  if (additional_context->IsJSObject()) {
-    Handle<JSObject> extension = Handle<JSObject>::cast(additional_context);
-    context =
-        isolate->factory()->NewWithContext(go_between, context, extension);
-  }
-
-  // Wrap the evaluation statement in a new function compiled in the newly
-  // created context. The function has one parameter which has to be called
-  // 'arguments'. This it to have access to what would have been 'arguments' in
-  // the function being debugged.
-  // function(arguments,__source__) {return eval(__source__);}
-
-  Handle<String> function_source =
-      isolate->factory()->NewStringFromAscii(
-          Vector<const char>(kSourceStr, sizeof(kSourceStr) - 1));
-
-  // Currently, the eval code will be executed in non-strict mode,
-  // even in the strict code context.
-  Handle<SharedFunctionInfo> shared =
-      Compiler::CompileEval(function_source,
-                            context,
-                            context->IsNativeContext(),
-                            CLASSIC_MODE,
-                            NO_PARSE_RESTRICTION,
-                            RelocInfo::kNoPosition);
-  if (shared.is_null()) return Failure::Exception();
-  Handle<JSFunction> compiled_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context);
-
-  // Invoke the result of the compilation to get the evaluation function.
-  bool has_pending_exception;
   Handle<Object> receiver(frame->receiver(), isolate);
-  Handle<Object> evaluation_function =
-      Execution::Call(compiled_function, receiver, 0, NULL,
-                      &has_pending_exception);
-  if (has_pending_exception) return Failure::Exception();
-
-  Handle<Object> arguments = GetArgumentsObject(isolate,
-                                                frame,
-                                                &frame_inspector,
-                                                scope_info,
-                                                function_context);
-
-  // Check if eval is blocked in the context and temporarily allow it
-  // for debugger.
-  Handle<Context> native_context = Handle<Context>(context->native_context());
-  bool eval_disabled =
-      native_context->allow_code_gen_from_strings()->IsFalse();
-  if (eval_disabled) {
-    native_context->set_allow_code_gen_from_strings(
-        isolate->heap()->true_value());
-  }
-  // Invoke the evaluation function and return the result.
-  Handle<Object> argv[] = { arguments, source };
-  Handle<Object> result =
-      Execution::Call(Handle<JSFunction>::cast(evaluation_function),
-                      receiver,
-                      ARRAY_SIZE(argv),
-                      argv,
-                      &has_pending_exception);
-  if (eval_disabled) {
-    native_context->set_allow_code_gen_from_strings(
-        isolate->heap()->false_value());
-  }
-  if (has_pending_exception) return Failure::Exception();
-
-  // Skip the global proxy as it has no properties and always delegates to the
-  // real global object.
-  if (result->IsJSGlobalProxy()) {
-    result = Handle<JSObject>(JSObject::cast(result->GetPrototype(isolate)));
-  }
-
-  return *result;
+  return DebugEvaluate(isolate, context, context_extension, receiver, source);
 }
 
 
@@ -12104,15 +11724,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   // evaluated.
   ASSERT(args.length() == 4);
   Object* check_result;
-  { MaybeObject* maybe_check_result = Runtime_CheckExecutionState(
+  { MaybeObject* maybe_result = Runtime_CheckExecutionState(
       RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_check_result->ToObject(&check_result)) {
-      return maybe_check_result;
-    }
+    if (!maybe_result->ToObject(&check_result)) return maybe_result;
   }
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
   CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 2);
-  Handle<Object> additional_context(args[3], isolate);
+  Handle<Object> context_extension(args[3], isolate);
 
   // Handle the processing of break.
   DisableBreak disable_break_save(disable_break);
@@ -12130,45 +11748,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   // Get the native context now set to the top context from before the
   // debugger was invoked.
   Handle<Context> context = isolate->native_context();
-
-  bool is_global = true;
-
-  if (additional_context->IsJSObject()) {
-    // Create a new with context with the additional context information between
-    // the context of the debugged function and the eval code to be executed.
-    context = isolate->factory()->NewWithContext(
-        Handle<JSFunction>(context->closure()),
-        context,
-        Handle<JSObject>::cast(additional_context));
-    is_global = false;
-  }
-
-  // Compile the source to be evaluated.
-  // Currently, the eval code will be executed in non-strict mode,
-  // even in the strict code context.
-  Handle<SharedFunctionInfo> shared =
-      Compiler::CompileEval(source,
-                            context,
-                            is_global,
-                            CLASSIC_MODE,
-                            NO_PARSE_RESTRICTION,
-                            RelocInfo::kNoPosition);
-  if (shared.is_null()) return Failure::Exception();
-  Handle<JSFunction> compiled_function =
-      Handle<JSFunction>(
-          isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
-                                                                context));
-
-  // Invoke the result of the compilation to get the evaluation function.
-  bool has_pending_exception;
   Handle<Object> receiver = isolate->global_object();
-  Handle<Object> result =
-    Execution::Call(compiled_function, receiver, 0, NULL,
-                    &has_pending_exception);
-  // Clear the oneshot breakpoints so that the debugger does not step further.
-  isolate->debug()->ClearStepping();
-  if (has_pending_exception) return Failure::Exception();
-  return *result;
+  return DebugEvaluate(isolate, context, context_extension, receiver, source);
 }
 
 

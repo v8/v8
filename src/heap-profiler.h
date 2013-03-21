@@ -46,28 +46,30 @@ class HeapSnapshotsCollection;
 
 class HeapProfiler {
  public:
-  explicit HeapProfiler(Heap* heap);
-  ~HeapProfiler();
+  static void SetUp();
+  static void TearDown();
 
-  size_t GetMemorySizeUsedByProfiler();
+  static size_t GetMemorySizeUsedByProfiler();
 
-  HeapSnapshot* TakeSnapshot(
+  static HeapSnapshot* TakeSnapshot(
       const char* name,
+      int type,
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
-  HeapSnapshot* TakeSnapshot(
+  static HeapSnapshot* TakeSnapshot(
       String* name,
+      int type,
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
 
-  void StartHeapObjectsTracking();
-  void StopHeapObjectsTracking();
-  SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
-  int GetSnapshotsCount();
-  HeapSnapshot* GetSnapshot(int index);
-  HeapSnapshot* FindSnapshot(unsigned uid);
-  SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
-  void DeleteAllSnapshots();
+  static void StartHeapObjectsTracking();
+  static void StopHeapObjectsTracking();
+  static SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
+  static int GetSnapshotsCount();
+  static HeapSnapshot* GetSnapshot(int index);
+  static HeapSnapshot* FindSnapshot(unsigned uid);
+  static SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
+  static void DeleteAllSnapshots();
 
   void ObjectMoveEvent(Address from, Address to);
 
@@ -81,6 +83,24 @@ class HeapProfiler {
   }
 
  private:
+  explicit HeapProfiler(Heap* heap);
+  ~HeapProfiler();
+  HeapSnapshot* TakeSnapshotImpl(
+      const char* name,
+      int type,
+      v8::ActivityControl* control,
+      v8::HeapProfiler::ObjectNameResolver* resolver);
+  HeapSnapshot* TakeSnapshotImpl(
+      String* name,
+      int type,
+      v8::ActivityControl* control,
+      v8::HeapProfiler::ObjectNameResolver* resolver);
+  void ResetSnapshots();
+
+  void StartHeapObjectsTrackingImpl();
+  void StopHeapObjectsTrackingImpl();
+  SnapshotObjectId PushHeapObjectsStatsImpl(OutputStream* stream);
+
   Heap* heap() const { return snapshots_->heap(); }
 
   HeapSnapshotsCollection* snapshots_;

@@ -111,6 +111,7 @@ int WriteAsCFile(const char* filename, const char* varname,
                  const char* str, int size, bool verbose = true);
 
 
+// ----------------------------------------------------------------------------
 // Data structures
 
 template <typename T>
@@ -120,6 +121,8 @@ inline Vector< Handle<Object> > HandleVector(v8::internal::Handle<T>* elms,
       reinterpret_cast<v8::internal::Handle<Object>*>(elms), length);
 }
 
+
+// ----------------------------------------------------------------------------
 // Memory
 
 // Copies data from |src| to |dst|.  The data spans must not overlap.
@@ -129,12 +132,13 @@ inline void CopyWords(T* dst, T* src, int num_words) {
   ASSERT(Min(dst, src) + num_words <= Max(dst, src));
   ASSERT(num_words > 0);
 
-  // Use block copying memcpy if the segment we're copying is
+  // Use block copying OS::MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
   static const int kBlockCopyLimit = 16;
+  STATIC_ASSERT(kBlockCopyLimit * kPointerSize >= OS::kMinComplexMemCopy);
 
   if (num_words >= kBlockCopyLimit) {
-    memcpy(dst, src, num_words * kPointerSize);
+    OS::MemCopy(dst, src, num_words * kPointerSize);
   } else {
     int remaining = num_words;
     do {
@@ -153,7 +157,7 @@ inline void CopyBytes(T* dst, T* src, int num_bytes) {
   ASSERT(num_bytes >= 0);
   if (num_bytes == 0) return;
 
-  // Use block copying memcpy if the segment we're copying is
+  // Use block copying OS::MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
   static const int kBlockCopyLimit = OS::kMinComplexMemCopy;
 
