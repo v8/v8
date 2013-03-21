@@ -3785,11 +3785,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   ASSERT(!isolate_->code_range()->exists() ||
       isolate_->code_range()->contains(code->address()));
   code->set_instruction_size(desc.instr_size);
-  // TODO(mstarzinger): Remove once we found the bug.
-  CHECK(reloc_info->IsByteArray());
   code->set_relocation_info(reloc_info);
-  // TODO(mstarzinger): Remove once we found the bug.
-  CHECK(code->relocation_info()->IsByteArray());
   code->set_flags(flags);
   if (code->is_call_stub() || code->is_keyed_call_stub()) {
     code->set_check_type(RECEIVER_MAP_CHECK);
@@ -3805,8 +3801,6 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   }
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
-  CHECK(code->IsCode());
-  CHECK(code->relocation_info()->IsByteArray());
   if (!self_reference.is_null()) {
     *(self_reference.location()) = code;
   }
@@ -3815,8 +3809,6 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   // that are dereferenced during the copy to point directly to the actual heap
   // objects. These pointers can include references to the code object itself,
   // through the self_reference parameter.
-  CHECK(code->IsCode());
-  CHECK(code->relocation_info()->IsByteArray());
   code->CopyFrom(desc);
 
 #ifdef VERIFY_HEAP
