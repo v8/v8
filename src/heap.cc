@@ -3888,13 +3888,15 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
 
   // Copy header and instructions.
-  memcpy(new_addr, old_addr, relocation_offset);
+  CopyBytes(new_addr, old_addr, relocation_offset);
 
   Code* new_code = Code::cast(result);
   new_code->set_relocation_info(ByteArray::cast(reloc_info_array));
 
   // Copy patched rinfo.
-  memcpy(new_code->relocation_start(), reloc_info.start(), reloc_info.length());
+  CopyBytes(new_code->relocation_start(),
+            reloc_info.start(),
+            reloc_info.length());
 
   // Relocate the copy.
   ASSERT(!isolate_->code_range()->exists() ||
