@@ -261,20 +261,6 @@ Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
 }
 
 
-Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
-                                          Handle<Name> key,
-                                          Handle<Object> value,
-                                          PropertyAttributes attributes,
-                                          StrictModeFlag strict_mode) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->SetPropertyWithInterceptor(*key,
-                                                        *value,
-                                                        attributes,
-                                                        strict_mode),
-                     Object);
-}
-
-
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name) {
   Isolate* isolate = obj->GetIsolate();
@@ -288,19 +274,6 @@ Handle<Object> GetProperty(Isolate* isolate,
                            Handle<Object> key) {
   CALL_HEAP_FUNCTION(isolate,
                      Runtime::GetObjectProperty(isolate, obj, key), Object);
-}
-
-
-Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
-                                          Handle<JSObject> holder,
-                                          Handle<Name> name,
-                                          PropertyAttributes* attributes) {
-  Isolate* isolate = receiver->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     holder->GetPropertyWithInterceptor(*receiver,
-                                                        *name,
-                                                        attributes),
-                     Object);
 }
 
 

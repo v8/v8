@@ -233,11 +233,6 @@ Handle<Object> GetProperty(Isolate* isolate,
                            Handle<Object> obj,
                            Handle<Object> key);
 
-Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
-                                          Handle<JSObject> holder,
-                                          Handle<String> name,
-                                          PropertyAttributes* attributes);
-
 Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
 
 Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
