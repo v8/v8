@@ -101,12 +101,14 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 }
 
 
+#ifdef ENABLE_EXTRA_CHECKS
 void HandleScope::ZapRange(Object** start, Object** end) {
   ASSERT(end - start <= kHandleBlockSize);
   for (Object** p = start; p != end; p++) {
     *reinterpret_cast<Address*>(p) = v8::internal::kHandleZapValue;
   }
 }
+#endif
 
 
 Address HandleScope::current_level_address(Isolate* isolate) {

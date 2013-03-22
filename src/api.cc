@@ -477,14 +477,6 @@ void V8::SetAllowCodeGenerationFromStringsCallback(
 }
 
 
-#ifdef DEBUG
-void ImplementationUtilities::ZapHandleRange(i::Object** begin,
-                                             i::Object** end) {
-  i::HandleScope::ZapRange(begin, end);
-}
-#endif
-
-
 void V8::SetFlagsFromString(const char* str, int length) {
   i::FlagList::SetFlagsFromString(str, length);
 }
@@ -706,7 +698,7 @@ void HandleScope::Leave() {
     i::HandleScope::DeleteExtensions(isolate_);
   }
 
-#ifdef DEBUG
+#ifdef ENABLE_EXTRA_CHECKS
   i::HandleScope::ZapRange(prev_next_, prev_limit_);
 #endif
 }
@@ -7053,7 +7045,7 @@ DeferredHandles::~DeferredHandles() {
   isolate_->UnlinkDeferredHandles(this);
 
   for (int i = 0; i < blocks_.length(); i++) {
-#ifdef DEBUG
+#ifdef ENABLE_EXTRA_CHECKS
     HandleScope::ZapRange(blocks_[i], &blocks_[i][kHandleBlockSize]);
 #endif
     isolate_->handle_scope_implementer()->ReturnBlock(blocks_[i]);
