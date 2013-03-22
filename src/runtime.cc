@@ -12829,7 +12829,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsObserved) {
   CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
   if (obj->IsJSGlobalProxy()) {
     Object* proto = obj->GetPrototype();
-    if (obj->IsNull()) return isolate->heap()->false_value();
+    if (proto->IsNull()) return isolate->heap()->false_value();
     ASSERT(proto->IsJSGlobalObject());
     obj = JSReceiver::cast(proto);
   }
@@ -12844,7 +12844,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
   CONVERT_BOOLEAN_ARG_CHECKED(is_observed, 1);
   if (obj->IsJSGlobalProxy()) {
     Object* proto = obj->GetPrototype();
-    if (obj->IsNull()) return isolate->heap()->undefined_value();
+    if (proto->IsNull()) return isolate->heap()->undefined_value();
     ASSERT(proto->IsJSGlobalObject());
     obj = JSReceiver::cast(proto);
   }
