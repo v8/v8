@@ -87,9 +87,9 @@ class BasicJsonStringifier BASE_EMBEDDED {
                           bool deferred_comma,
                           bool deferred_key);
 
-  template <typename StringType>
+  template <typename ResultType, typename Char>
   INLINE(static MaybeObject* StringifyString_(Isolate* isolate,
-                                              Handle<String> string,
+                                              Vector<Char> vector,
                                               Handle<String> result));
 
   // Entry point to serialize the object.
@@ -295,36 +295,38 @@ MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
     return stringifier.Stringify(object);
   }
 
-  object = FlattenGetString(object);
-  if (object->IsSeqOneByteString()) {
+  FlattenString(object);
+  String::FlatContent flat = object->GetFlatContent();
+  if (flat.IsAscii()) {
     return StringifyString_<SeqOneByteString>(
         isolate,
-        object,
+        flat.ToOneByteVector(),
         isolate->factory()->NewRawOneByteString(worst_case_length));
   } else {
+    ASSERT(flat.IsTwoByte());
     return StringifyString_<SeqTwoByteString>(
         isolate,
-        object,
+        flat.ToUC16Vector(),
         isolate->factory()->NewRawTwoByteString(worst_case_length));
   }
 }
 
 
-template <typename StringType>
+template <typename ResultType, typename Char>
 MaybeObject* BasicJsonStringifier::StringifyString_(Isolate* isolate,
-                                                    Handle<String> string,
+                                                    Vector<Char> vector,
                                                     Handle<String> result) {
   AssertNoAllocation no_allocation;
   int final_size = 0;
-  StringType* dest = StringType::cast(*result);
+  ResultType* dest = ResultType::cast(*result);
   dest->Set(final_size++, '\"');
-  final_size += SerializeStringUnchecked_(StringType::cast(*string)->GetChars(),
+  final_size += SerializeStringUnchecked_(vector.start(),
                                           dest->GetChars() + 1,
-                                          string->length());
+                                          vector.length());
   dest->Set(final_size++, '\"');
   if (isolate->heap()->InNewSpace(*result)) {
     // In new space, simply lower the allocation top to fit the actual size.
-    isolate->heap()->new_space()->ShrinkStringAtAllocationBoundary<StringType>(
+    isolate->heap()->new_space()->ShrinkStringAtAllocationBoundary<ResultType>(
         *result, final_size);
     return *result;
   } else {
