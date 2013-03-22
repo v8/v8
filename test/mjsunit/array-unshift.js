@@ -194,7 +194,7 @@
 (function() {
   for (var i = 0; i < 7; i++) {
     try {
-      new Array((1 << 32) - 3).unshift(1, 2, 3, 4, 5);
+      new Array(Math.pow(2, 32) - 3).unshift(1, 2, 3, 4, 5);
       throw 'Should have thrown RangeError';
     } catch (e) {
       assertTrue(e instanceof RangeError);
