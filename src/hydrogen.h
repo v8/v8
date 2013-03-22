@@ -108,7 +108,7 @@ class HBasicBlock: public ZoneObject {
   bool Dominates(HBasicBlock* other) const;
   int LoopNestingDepth() const;
 
-  void SetInitialEnvironment(HEnvironment* env);
+  void SetInitialEnvironment(HEnvironment* env, BailoutId previous_id);
   void ClearEnvironment() { last_environment_ = NULL; }
   bool HasEnvironment() const { return last_environment_ != NULL; }
   void UpdateEnvironment(HEnvironment* env) { last_environment_ = env; }
@@ -483,6 +483,8 @@ class HEnvironment: public ZoneObject {
 
   BailoutId ast_id() const { return ast_id_; }
   void set_ast_id(BailoutId id) { ast_id_ = id; }
+  BailoutId previous_ast_id() const { return previous_ast_id_; }
+  void set_previous_ast_id(BailoutId id) { previous_ast_id_ = id; }
 
   HEnterInlined* entry() const { return entry_; }
   void set_entry(HEnterInlined* entry) { entry_ = entry; }
@@ -644,6 +646,7 @@ class HEnvironment: public ZoneObject {
   int pop_count_;
   int push_count_;
   BailoutId ast_id_;
+  BailoutId previous_ast_id_;
   Zone* zone_;
 };
 
@@ -891,8 +894,9 @@ class HGraphBuilder {
  protected:
   virtual bool BuildGraph() = 0;
 
-  HBasicBlock* CreateBasicBlock(HEnvironment* env);
-  HBasicBlock* CreateLoopHeaderBlock();
+  HBasicBlock* CreateBasicBlock(HEnvironment* envy,
+                                BailoutId previous_ast_id);
+  HBasicBlock* CreateLoopHeaderBlock(BailoutId previous_ast_id);
 
   // Building common constructs
   HInstruction* BuildExternalArrayElementAccess(
@@ -940,7 +944,7 @@ class HGraphBuilder {
 
   class CheckBuilder {
    public:
-    CheckBuilder(HGraphBuilder* builder, BailoutId id);
+    explicit CheckBuilder(HGraphBuilder* builder);
     ~CheckBuilder() {
       if (!finished_) End();
     }
@@ -962,7 +966,7 @@ class HGraphBuilder {
 
   class IfBuilder {
    public:
-    IfBuilder(HGraphBuilder* builder, BailoutId id);
+    explicit IfBuilder(HGraphBuilder* builder);
     ~IfBuilder() {
       if (!finished_) End();
     }
@@ -1001,8 +1005,7 @@ class HGraphBuilder {
 
     LoopBuilder(HGraphBuilder* builder,
                 HValue* context,
-                Direction direction,
-                BailoutId id);
+                Direction direction);
     ~LoopBuilder() {
       ASSERT(finished_);
     }
@@ -1037,22 +1040,19 @@ class HGraphBuilder {
 
   HValue* BuildAllocateElements(HValue* context,
                                 ElementsKind kind,
-                                HValue* capacity,
-                                BailoutId ast_id);
+                                HValue* capacity);
 
   HValue* BuildGrowElementsCapacity(HValue* object,
                                     HValue* elements,
                                     ElementsKind kind,
                                     HValue* length,
-                                    HValue* new_capacity,
-                                    BailoutId ast_id);
+                                    HValue* new_capacity);
 
   void BuildFillElementsWithHole(HValue* context,
                                  HValue* elements,
                                  ElementsKind elements_kind,
                                  HValue* from,
-                                 HValue* to,
-                                 BailoutId ast_id);
+                                 HValue* to);
 
   void BuildCopyElements(HValue* context,
                          HValue* from_elements,
@@ -1060,8 +1060,7 @@ class HGraphBuilder {
                          HValue* to_elements,
                          ElementsKind to_elements_kind,
                          HValue* length,
-                         HValue* capacity,
-                         BailoutId ast_id);
+                         HValue* capacity);
 
  private:
   HGraphBuilder();

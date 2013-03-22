@@ -106,12 +106,11 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   Zone* zone = this->zone();
   int param_count = descriptor_->register_param_count_;
   HEnvironment* start_environment = graph()->start_environment();
-  HBasicBlock* next_block = CreateBasicBlock(start_environment);
+  HBasicBlock* next_block =
+      CreateBasicBlock(start_environment, BailoutId::StubEntry());
   current_block()->Goto(next_block);
   next_block->SetJoinId(BailoutId::StubEntry());
   set_current_block(next_block);
-
-  start_environment->set_ast_id(BailoutId::StubEntry());
 
   HConstant* undefined_constant = new(zone) HConstant(
       isolate()->factory()->undefined_value(), Representation::Tagged());
@@ -186,7 +185,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
                                           NULL,
                                           FAST_ELEMENTS));
 
-  CheckBuilder builder(this, BailoutId::StubEntry());
+  CheckBuilder builder(this);
   builder.CheckNotUndefined(boilerplate);
 
   int size = JSObject::kHeaderSize + casted_stub()->length() * kPointerSize;
@@ -281,7 +280,7 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   ElementsKind to_kind = casted_stub()->to_kind();
   BuildNewSpaceArrayCheck(array_length, to_kind);
 
-  IfBuilder if_builder(this, BailoutId::StubEntry());
+  IfBuilder if_builder(this);
 
   if_builder.BeginIf(array_length, graph()->GetConstant0(), Token::EQ);
 
@@ -296,13 +295,11 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
       AddInstruction(new(zone) HFixedArrayBaseLength(elements));
 
   HValue* new_elements =
-      BuildAllocateElements(context(), to_kind, elements_length,
-                            BailoutId::StubEntry());
+      BuildAllocateElements(context(), to_kind, elements_length);
 
   BuildCopyElements(context(), elements,
                     casted_stub()->from_kind(), new_elements,
-                    to_kind, array_length, elements_length,
-                    BailoutId::StubEntry());
+                    to_kind, array_length, elements_length);
 
   Factory* factory = isolate()->factory();
 
