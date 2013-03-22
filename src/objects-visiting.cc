@@ -129,9 +129,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
                                  Foreign::kSize);
 
     case SYMBOL_TYPE:
-      return GetVisitorIdForSize(kVisitDataObject,
-                                 kVisitDataObjectGeneric,
-                                 Symbol::kSize);
+      return kVisitSymbol;
 
     case FILLER_TYPE:
       return kVisitDataObjectGeneric;

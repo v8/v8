@@ -684,8 +684,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateSymbol) {
   NoHandleAllocation ha(isolate);
-  ASSERT(args.length() == 0);
-  return isolate->heap()->AllocateSymbol();
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
+  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
+  Symbol* symbol;
+  MaybeObject* maybe = isolate->heap()->AllocateSymbol();
+  if (!maybe->To(&symbol)) return maybe;
+  if (name->IsString()) symbol->set_name(*name);
+  return symbol;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SymbolName) {
+  NoHandleAllocation ha(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Symbol, symbol, 0);
+  return symbol->name();
 }
 
 

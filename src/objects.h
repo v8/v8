@@ -7398,6 +7398,9 @@ class Name: public HeapObject {
 // ES6 symbols.
 class Symbol: public Name {
  public:
+  // [name]: the print name of a symbol, or undefined if none.
+  DECL_ACCESSORS(name, Object)
+
   // Casting.
   static inline Symbol* cast(Object* obj);
 
@@ -7406,7 +7409,11 @@ class Symbol: public Name {
   DECLARE_VERIFIER(Symbol)
 
   // Layout description.
-  static const int kSize = Name::kSize;
+  static const int kNameOffset = Name::kSize;
+  static const int kSize = kNameOffset + kPointerSize;
+
+  typedef FixedBodyDescriptor<kNameOffset, kNameOffset + kPointerSize, kSize>
+          BodyDescriptor;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);

@@ -2215,7 +2215,7 @@ function Stringify(x, depth) {
     case "string":
       return "\"" + x.toString() + "\"";
     case "symbol":
-      return "Symbol()";
+      return "Symbol(" + (x.name ? Stringify(x.name, depth) : "") + ")"
     case "object":
       if (x === null) return "null";
       if (x.constructor && x.constructor.name === "Array") {

@@ -49,6 +49,11 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                   SlicedString::BodyDescriptor,
                   int>::Visit);
 
+  table_.Register(kVisitSymbol,
+                  &FixedBodyVisitor<StaticVisitor,
+                  Symbol::BodyDescriptor,
+                  int>::Visit);
+
   table_.Register(kVisitFixedArray,
                   &FlexibleBodyVisitor<StaticVisitor,
                   FixedArray::BodyDescriptor,
@@ -108,6 +113,11 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
   table_.Register(kVisitSlicedString,
                   &FixedBodyVisitor<StaticVisitor,
                   SlicedString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitSymbol,
+                  &FixedBodyVisitor<StaticVisitor,
+                  Symbol::BodyDescriptor,
                   void>::Visit);
 
   table_.Register(kVisitFixedArray, &FixedArrayVisitor::Visit);

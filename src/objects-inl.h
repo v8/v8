@@ -2505,6 +2505,9 @@ bool Name::Equals(Name* other) {
 }
 
 
+ACCESSORS(Symbol, name, Object, kNameOffset)
+
+
 bool String::Equals(String* other) {
   if (other == this) return true;
   if (this->IsInternalizedString() && other->IsInternalizedString()) {

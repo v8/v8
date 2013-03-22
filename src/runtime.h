@@ -297,7 +297,8 @@ namespace internal {
   F(IsJSModule, 1, 1) \
   \
   /* Harmony symbols */ \
-  F(CreateSymbol, 0, 1) \
+  F(CreateSymbol, 1, 1) \
+  F(SymbolName, 1, 1) \
   \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \

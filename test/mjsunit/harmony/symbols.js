@@ -37,6 +37,9 @@ function TestNew() {
   for (var i = 0; i < 2; ++i) {
     for (var j = 0; j < 5; ++j) {
       symbols.push(Symbol())
+      symbols.push(Symbol(undefined))
+      symbols.push(Symbol("66"))
+      symbols.push(Symbol(66))
       symbols.push(Symbol(Symbol()))
       symbols.push((new Symbol).valueOf())
       symbols.push((new Symbol()).valueOf())
@@ -77,6 +80,15 @@ function TestPrototype() {
   }
 }
 TestPrototype()
+
+
+function TestName() {
+  for (var i in symbols) {
+    var name = symbols[i].name
+    assertTrue(name === undefined || name === "66")
+  }
+}
+TestName()
 
 
 function TestToString() {

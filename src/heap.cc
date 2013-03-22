@@ -1779,6 +1779,10 @@ class ScavengingVisitor : public StaticVisitorBase {
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         template VisitSpecialized<SlicedString::kSize>);
 
+    table_.Register(kVisitSymbol,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                        template VisitSpecialized<Symbol::kSize>);
+
     table_.Register(kVisitSharedFunctionInfo,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         template VisitSpecialized<SharedFunctionInfo::kSize>);
@@ -5427,10 +5431,10 @@ MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
 MaybeObject* Heap::AllocateSymbol(PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
   STATIC_ASSERT(Symbol::kSize <= Page::kNonCodeObjectAreaSize);
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  AllocationSpace space = pretenure == TENURED ? OLD_POINTER_SPACE : NEW_SPACE;
 
   Object* result;
-  MaybeObject* maybe = AllocateRaw(Symbol::kSize, space, OLD_DATA_SPACE);
+  MaybeObject* maybe = AllocateRaw(Symbol::kSize, space, OLD_POINTER_SPACE);
   if (!maybe->ToObject(&result)) return maybe;
 
   HeapObject::cast(result)->set_map_no_write_barrier(symbol_map());
@@ -5446,6 +5450,7 @@ MaybeObject* Heap::AllocateSymbol(PretenureFlag pretenure) {
 
   Symbol::cast(result)->set_hash_field(
       Name::kIsNotArrayIndexMask | (hash << Name::kHashShift));
+  Symbol::cast(result)->set_name(undefined_value());
 
   ASSERT(result->IsSymbol());
   return result;

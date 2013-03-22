@@ -552,6 +552,9 @@ static const char* TypeToString(InstanceType type) {
 void Symbol::SymbolPrint(FILE* out) {
   HeapObject::PrintHeader(out, "Symbol");
   PrintF(out, " - hash: %d\n", Hash());
+  PrintF(out, " - name: ");
+  name()->ShortPrint();
+  PrintF(out, "\n");
 }
 
 

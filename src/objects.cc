@@ -1460,9 +1460,16 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
         accumulator->Add("<Odd Oddball>");
       break;
     }
-    case SYMBOL_TYPE:
-      accumulator->Add("<Symbol: %d>", Symbol::cast(this)->Hash());
+    case SYMBOL_TYPE: {
+      Symbol* symbol = Symbol::cast(this);
+      accumulator->Add("<Symbol: %d", symbol->Hash());
+      if (!symbol->name()->IsUndefined()) {
+        accumulator->Add(" ");
+        String::cast(symbol->name())->StringShortPrint(accumulator);
+      }
+      accumulator->Add(">");
       break;
+    }
     case HEAP_NUMBER_TYPE:
       accumulator->Add("<Number: ");
       HeapNumber::cast(this)->HeapNumberPrint(accumulator);
@@ -1572,6 +1579,8 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       JSGlobalPropertyCell::BodyDescriptor::IterateBody(this, v);
       break;
     case SYMBOL_TYPE:
+      Symbol::BodyDescriptor::IterateBody(this, v);
+      break;
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:

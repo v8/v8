@@ -30,12 +30,23 @@
 var $Symbol = global.Symbol;
 
 function SymbolConstructor(x) {
-  var value = IS_SYMBOL(x) ? x : %CreateSymbol();
+  var value =
+    IS_SYMBOL(x) ? x : %CreateSymbol(IS_UNDEFINED(x) ? x : ToString(x));
   if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
     return value;
   }
+}
+
+function SymbolGetName() {
+  var symbol = IS_SYMBOL_WRAPPER(this) ? %_ValueOf(this) : this;
+  if (!IS_SYMBOL(symbol)) {
+    throw MakeTypeError(
+        'incompatible_method_receiver', ["Symbol.prototype.name", this]);
+
+  }
+  return %SymbolName(symbol);
 }
 
 function SymbolToString() {
@@ -61,6 +72,7 @@ function SetUpSymbol() {
   %FunctionSetPrototype($Symbol, new $Symbol());
   %SetProperty($Symbol.prototype, "constructor", $Symbol, DONT_ENUM);
 
+  InstallGetter($Symbol.prototype, "name", SymbolGetName);
   InstallFunctions($Symbol.prototype, DONT_ENUM, $Array(
     "toString", SymbolToString,
     "valueOf", SymbolValueOf
