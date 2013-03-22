@@ -44,7 +44,6 @@ function SymbolGetName() {
   if (!IS_SYMBOL(symbol)) {
     throw MakeTypeError(
         'incompatible_method_receiver', ["Symbol.prototype.name", this]);
-
   }
   return %SymbolName(symbol);
 }

@@ -227,11 +227,13 @@ bool Shell::ExecuteString(Isolate* isolate,
           }
 #if !defined(V8_SHARED)
         } else {
+          v8::TryCatch try_catch;
           Context::Scope context_scope(utility_context_);
           Handle<Object> global = utility_context_->Global();
           Handle<Value> fun = global->Get(String::New("Stringify"));
           Handle<Value> argv[1] = { result };
           Handle<Value> s = Handle<Function>::Cast(fun)->Call(global, 1, argv);
+          if (try_catch.HasCaught()) return true;
           v8::String::Utf8Value str(s);
           fwrite(*str, sizeof(**str), str.length(), stdout);
           printf("\n");
