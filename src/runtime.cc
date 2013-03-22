@@ -5035,6 +5035,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
       }
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_string();
+    case SYMBOL_TYPE:
+      return isolate->heap()->symbol_string();
     case JS_FUNCTION_TYPE:
     case JS_FUNCTION_PROXY_TYPE:
       return isolate->heap()->function_string();

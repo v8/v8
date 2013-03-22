@@ -532,6 +532,7 @@ function ToNumber(x) {
   }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return $NaN;
+  if (IS_SYMBOL(x)) return $NaN;
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
@@ -542,6 +543,7 @@ function NonNumberToNumber(x) {
   }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return $NaN;
+  if (IS_SYMBOL(x)) return $NaN;
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
@@ -572,6 +574,7 @@ function ToName(x) {
 // ECMA-262, section 9.9, page 36.
 function ToObject(x) {
   if (IS_STRING(x)) return new $String(x);
+  if (IS_SYMBOL(x)) return new $Symbol(x);
   if (IS_NUMBER(x)) return new $Number(x);
   if (IS_BOOLEAN(x)) return new $Boolean(x);
   if (IS_NULL_OR_UNDEFINED(x) && !IS_UNDETECTABLE(x)) {

@@ -3189,7 +3189,7 @@ Local<String> v8::Object::ObjectProtoToString() {
   i::Handle<i::Object> name(self->class_name(), isolate);
 
   // Native implementation of Object.prototype.toString (v8natives.js):
-  //   var c = %ClassOf(this);
+  //   var c = %_ClassOf(this);
   //   if (c === 'Arguments') c  = 'Object';
   //   return "[object " + c + "]";
 

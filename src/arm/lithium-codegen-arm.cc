@@ -2301,6 +2301,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ bind(&not_string);
       }
 
+      if (expected.Contains(ToBooleanStub::SYMBOL)) {
+        // Symbol value -> true.
+        __ CompareInstanceType(map, ip, SYMBOL_TYPE);
+        __ b(eq, true_label);
+      }
+
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
         CpuFeatureScope scope(masm(), VFP2);
         // heap number -> false iff +0, -0, or NaN.
@@ -6074,6 +6080,11 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
     final_branch_condition = eq;
 
+  } else if (type_name->Equals(heap()->symbol_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ CompareObjectType(input, input, scratch, SYMBOL_TYPE);
+    final_branch_condition = eq;
+
   } else if (type_name->Equals(heap()->boolean_string())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
     __ b(eq, true_label);
@@ -6108,15 +6119,8 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
       __ CompareRoot(input, Heap::kNullValueRootIndex);
       __ b(eq, true_label);
     }
-    if (FLAG_harmony_symbols) {
-      __ CompareObjectType(input, input, scratch, SYMBOL_TYPE);
-      __ b(eq, true_label);
-      __ CompareInstanceType(input, scratch,
-                             FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    } else {
-      __ CompareObjectType(input, input, scratch,
-                           FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    }
+    __ CompareObjectType(input, input, scratch,
+                         FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ b(lt, false_label);
     __ CompareInstanceType(input, scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ b(gt, false_label);

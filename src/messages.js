@@ -150,6 +150,7 @@ var kMessages = {
   cant_prevent_ext_external_array_elements: ["Cannot prevent extension of an object with external array elements"],
   redef_external_array_element:  ["Cannot redefine a property of an object with external array elements"],
   harmony_const_assign:          ["Assignment to constant variable."],
+  symbol_to_string:              ["Conversion from symbol to string"],
   invalid_module_path:           ["Module does not export '", "%0", "', or export is not itself a module"],
   module_type_error:             ["Module '", "%0", "' used improperly"],
   module_export_undefined:       ["Export '", "%0", "' is not defined in module"],

@@ -126,10 +126,10 @@ void Object::Lookup(Name* name, LookupResult* result) {
       holder = native_context->number_function()->instance_prototype();
     } else if (IsString()) {
       holder = native_context->string_function()->instance_prototype();
+    } else if (IsSymbol()) {
+      holder = native_context->symbol_function()->instance_prototype();
     } else if (IsBoolean()) {
       holder = native_context->boolean_function()->instance_prototype();
-    } else if (IsSymbol()) {
-      holder = native_context->symbol_delegate();
     } else {
       Isolate::Current()->PushStackTraceAndDie(
           0xDEAD0000, this, JSReceiver::cast(this)->map(), 0xDEAD0001);
@@ -756,7 +756,7 @@ MaybeObject* Object::GetProperty(Object* receiver,
   // holder in the prototype chain.
   // Proxy handlers do not use the proxy's prototype, so we can skip this.
   if (!result->IsHandler()) {
-    Object* last = result->IsProperty() && !receiver->IsSymbol()
+    Object* last = result->IsProperty()
         ? result->holder()
         : Object::cast(heap->null_value());
     ASSERT(this != this->GetPrototype(isolate));
@@ -837,10 +837,10 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
         holder = native_context->number_function()->instance_prototype();
       } else if (holder->IsString()) {
         holder = native_context->string_function()->instance_prototype();
+      } else if (holder->IsSymbol()) {
+        holder = native_context->symbol_function()->instance_prototype();
       } else if (holder->IsBoolean()) {
         holder = native_context->boolean_function()->instance_prototype();
-      } else if (holder->IsSymbol()) {
-        holder = native_context->symbol_delegate();
       } else if (holder->IsJSProxy()) {
         return JSProxy::cast(holder)->GetElementWithHandler(receiver, index);
       } else {
@@ -900,21 +900,14 @@ Object* Object::GetPrototype(Isolate* isolate) {
   if (heap_object->IsString()) {
     return context->string_function()->instance_prototype();
   }
+  if (heap_object->IsSymbol()) {
+    return context->symbol_function()->instance_prototype();
+  }
   if (heap_object->IsBoolean()) {
     return context->boolean_function()->instance_prototype();
   } else {
     return isolate->heap()->null_value();
   }
-}
-
-
-Object* Object::GetDelegate(Isolate* isolate) {
-  if (IsSymbol()) {
-    Heap* heap = Symbol::cast(this)->GetHeap();
-    Context* context = heap->isolate()->context()->native_context();
-    return context->symbol_delegate();
-  }
-  return GetPrototype(isolate);
 }
 
 

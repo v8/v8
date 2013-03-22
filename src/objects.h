@@ -1102,9 +1102,6 @@ class Object : public MaybeObject {
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
 
-  // Return the prototype, or the method holder for a value-like object.
-  Object* GetDelegate(Isolate* isolate);
-
   // Returns the permanent hash code associated with this object depending on
   // the actual object type.  Might return a failure in case no hash was
   // created yet or GC was caused by creation.

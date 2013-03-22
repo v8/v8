@@ -1105,10 +1105,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ CompareObjectType(r0, r1, r3, FIRST_SPEC_OBJECT_TYPE);
     __ b(ge, &exit);
 
-    // Symbols are "objects".
-    __ CompareInstanceType(r1, r3, SYMBOL_TYPE);
-    __ b(eq, &exit);
-
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.
     __ bind(&use_receiver);

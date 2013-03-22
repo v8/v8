@@ -1277,7 +1277,8 @@ Representation HBranch::observed_input_representation(int index) {
       ToBooleanStub::UNDEFINED |
       ToBooleanStub::NULL_TYPE |
       ToBooleanStub::SPEC_OBJECT |
-      ToBooleanStub::STRING);
+      ToBooleanStub::STRING |
+      ToBooleanStub::SYMBOL);
   if (expected_input_types_.ContainsAnyOf(tagged_types)) {
     return Representation::Tagged();
   } else if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {

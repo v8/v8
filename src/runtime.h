@@ -512,7 +512,6 @@ namespace internal {
 #define INLINE_FUNCTION_LIST(F) \
   F(IsSmi, 1, 1)                                                             \
   F(IsNonNegativeSmi, 1, 1)                                                  \
-  F(IsSymbol, 1, 1)                                                          \
   F(IsArray, 1, 1)                                                           \
   F(IsRegExp, 1, 1)                                                          \
   F(IsConstructCall, 0, 1)                                                   \

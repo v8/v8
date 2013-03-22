@@ -233,7 +233,6 @@ $Object.prototype.constructor = $Object;
 function ObjectToString() {
   if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
-  if (IS_SYMBOL(this)) return "[object Symbol]";
   return "[object " + %_ClassOf(ToObject(this)) + "]";
 }
 
@@ -865,7 +864,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
   // DefineObjectProperty() to modify its value.
 
   // Step 3 - Special handling for length property.
-  if (p == "length") {
+  if (p === "length") {
     var length = obj.length;
     if (!desc.hasValue()) {
       return DefineObjectProperty(obj, "length", desc, should_throw);

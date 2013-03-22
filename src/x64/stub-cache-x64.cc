@@ -2174,6 +2174,12 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       // Check that the object is a symbol.
       __ CmpObjectType(rdx, SYMBOL_TYPE, rax);
       __ j(not_equal, &miss);
+      // Check that the maps starting from the prototype haven't changed.
+      GenerateDirectLoadGlobalFunctionPrototype(
+          masm(), Context::SYMBOL_FUNCTION_INDEX, rax, &miss);
+      CheckPrototypes(
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
+          rax, holder, rbx, rdx, rdi, name, &miss);
       break;
 
     case NUMBER_CHECK: {

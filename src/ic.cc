@@ -190,7 +190,7 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
     // The stub was generated for JSObject but called for non-JSObject.
     // IC::GetCodeCacheHolder is not applicable.
     return false;
-  } else if (cache_holder == DELEGATE_MAP &&
+  } else if (cache_holder == PROTOTYPE_MAP &&
              receiver->GetPrototype(isolate)->IsNull()) {
     // IC::GetCodeCacheHolder is not applicable.
     return false;

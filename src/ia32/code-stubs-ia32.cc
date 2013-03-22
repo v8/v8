@@ -632,6 +632,14 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     __ bind(&not_string);
   }
 
+  if (types_.Contains(SYMBOL)) {
+    // Symbol value -> true.
+    Label not_symbol;
+    __ CmpInstanceType(map, SYMBOL_TYPE);
+    __ j(not_equal, &not_symbol, Label::kNear);
+    __ bind(&not_symbol);
+  }
+
   if (types_.Contains(HEAP_NUMBER)) {
     // heap number -> false iff +0, -0, or NaN.
     Label not_heap_number, false_result;
