@@ -1130,10 +1130,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ GetObjectType(v0, a1, a3);
     __ Branch(&exit, greater_equal, a3, Operand(FIRST_SPEC_OBJECT_TYPE));
 
-    // Symbols are "objects".
-    __ lbu(a3, FieldMemOperand(a1, Map::kInstanceTypeOffset));
-    __ Branch(&exit, eq, a3, Operand(SYMBOL_TYPE));
-
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.
     __ bind(&use_receiver);

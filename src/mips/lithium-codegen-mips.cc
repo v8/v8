@@ -1901,6 +1901,13 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ bind(&not_string);
       }
 
+      if (expected.Contains(ToBooleanStub::SYMBOL)) {
+        // Symbol value -> true.
+        const Register scratch = scratch1();
+        __ lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+        __ Branch(true_label, eq, scratch, Operand(SYMBOL_TYPE));
+      }
+
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
         CpuFeatureScope scope(masm(), FPU);
         // heap number -> false iff +0, -0, or NaN.
@@ -5771,6 +5778,13 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(zero_reg);
     final_branch_condition = eq;
 
+  } else if (type_name->Equals(heap()->symbol_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ GetObjectType(input, input, scratch);
+    cmp1 = scratch;
+    cmp2 = Operand(SYMBOL_TYPE);
+    final_branch_condition = eq;
+
   } else if (type_name->Equals(heap()->boolean_string())) {
     __ LoadRoot(at, Heap::kTrueValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
@@ -5814,20 +5828,10 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
       __ LoadRoot(at, Heap::kNullValueRootIndex);
       __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
     }
-    if (FLAG_harmony_symbols) {
-      // input is an object, it is safe to use GetObjectType in the delay slot.
-      __ GetObjectType(input, input, scratch);
-      __ Branch(USE_DELAY_SLOT, true_label, eq, scratch, Operand(SYMBOL_TYPE));
-      // Still an object, so the InstanceType can be loaded.
-      __ lbu(scratch, FieldMemOperand(input, Map::kInstanceTypeOffset));
-      __ Branch(USE_DELAY_SLOT, false_label,
-                lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    } else {
-      // input is an object, it is safe to use GetObjectType in the delay slot.
-      __ GetObjectType(input, input, scratch);
-      __ Branch(USE_DELAY_SLOT, false_label,
-                lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    }
+    // input is an object, it is safe to use GetObjectType in the delay slot.
+    __ GetObjectType(input, input, scratch);
+    __ Branch(USE_DELAY_SLOT, false_label,
+              lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
     // Still an object, so the InstanceType can be loaded.
     __ lbu(scratch, FieldMemOperand(input, Map::kInstanceTypeOffset));
     __ Branch(USE_DELAY_SLOT, false_label,
