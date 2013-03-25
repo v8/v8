@@ -397,7 +397,7 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
 
 Handle<Code> StubCache::ComputeStoreField(Handle<Name> name,
                                           Handle<JSObject> receiver,
-                                          int field_index,
+                                          LookupResult* lookup,
                                           Handle<Map> transition,
                                           StrictModeFlag strict_mode) {
   Code::StubType type =
@@ -409,7 +409,7 @@ Handle<Code> StubCache::ComputeStoreField(Handle<Name> name,
 
   StoreStubCompiler compiler(isolate_, strict_mode);
   Handle<Code> code =
-      compiler.CompileStoreField(receiver, field_index, transition, name);
+      compiler.CompileStoreField(receiver, lookup, transition, name);
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -532,7 +532,7 @@ Handle<Code> StubCache::ComputeStoreInterceptor(Handle<Name> name,
 
 Handle<Code> StubCache::ComputeKeyedStoreField(Handle<Name> name,
                                                Handle<JSObject> receiver,
-                                               int field_index,
+                                               LookupResult* lookup,
                                                Handle<Map> transition,
                                                StrictModeFlag strict_mode) {
   Code::StubType type =
@@ -543,7 +543,7 @@ Handle<Code> StubCache::ComputeKeyedStoreField(Handle<Name> name,
 
   KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
   Handle<Code> code =
-      compiler.CompileStoreField(receiver, field_index, transition, name);
+      compiler.CompileStoreField(receiver, lookup, transition, name);
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -1584,7 +1584,7 @@ Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
 
 
 Handle<Code> BaseStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
-                                                      int index,
+                                                      LookupResult* lookup,
                                                       Handle<Map> transition,
                                                       Handle<Name> name) {
   Label miss, miss_restore_name;
@@ -1594,7 +1594,7 @@ Handle<Code> BaseStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
   // Generate store field code.
   GenerateStoreField(masm(),
                      object,
-                     index,
+                     lookup,
                      transition,
                      name,
                      receiver(), this->name(), value(), scratch1(), scratch2(),

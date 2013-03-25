@@ -161,7 +161,7 @@ class StubCache {
 
   Handle<Code> ComputeStoreField(Handle<Name> name,
                                  Handle<JSObject> object,
-                                 int field_index,
+                                 LookupResult* lookup,
                                  Handle<Map> transition,
                                  StrictModeFlag strict_mode);
 
@@ -192,7 +192,7 @@ class StubCache {
 
   Handle<Code> ComputeKeyedStoreField(Handle<Name> name,
                                       Handle<JSObject> object,
-                                      int field_index,
+                                      LookupResult* lookup,
                                       Handle<Map> transition,
                                       StrictModeFlag strict_mode);
 
@@ -511,7 +511,7 @@ class StubCompiler BASE_EMBEDDED {
 
   void GenerateStoreField(MacroAssembler* masm,
                           Handle<JSObject> object,
-                          int index,
+                          LookupResult* lookup,
                           Handle<Map> transition,
                           Handle<Name> name,
                           Register receiver_reg,
@@ -782,7 +782,7 @@ class BaseStoreStubCompiler: public StubCompiler {
   virtual ~BaseStoreStubCompiler() { }
 
   Handle<Code> CompileStoreField(Handle<JSObject> object,
-                                 int index,
+                                 LookupResult* lookup,
                                  Handle<Map> transition,
                                  Handle<Name> name);
 

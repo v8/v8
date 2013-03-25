@@ -1418,41 +1418,42 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
 }
 
 
-static bool StoreICableLookup(LookupResult* lookup) {
-  // Bail out if we didn't find a result.
-  if (!lookup->IsFound()) return false;
-
-  // Bail out if inline caching is not allowed.
-  if (!lookup->IsCacheable()) return false;
-
-  // If the property is read-only, we leave the IC in its current state.
-  if (lookup->IsTransition()) {
-    return !lookup->GetTransitionDetails().IsReadOnly();
-  }
-  return !lookup->IsReadOnly();
-}
-
-
 static bool LookupForWrite(Handle<JSObject> receiver,
                            Handle<String> name,
                            LookupResult* lookup) {
-  receiver->LocalLookup(*name, lookup);
-  if (!lookup->IsFound()) {
-    receiver->map()->LookupTransition(*receiver, *name, lookup);
-  }
-  if (!StoreICableLookup(lookup)) {
-    // 2nd chance: There can be accessors somewhere in the prototype chain.
-    receiver->Lookup(*name, lookup);
-    return lookup->IsPropertyCallbacks() && StoreICableLookup(lookup);
+  Handle<JSObject> holder = receiver;
+  receiver->Lookup(*name, lookup);
+  if (lookup->IsFound()) {
+    if (lookup->IsReadOnly() || !lookup->IsCacheable()) return false;
+
+    if (lookup->holder() == *receiver) {
+      if (lookup->IsInterceptor() &&
+          receiver->GetNamedInterceptor()->setter()->IsUndefined()) {
+        receiver->LocalLookupRealNamedProperty(*name, lookup);
+        return lookup->IsFound() &&
+            !lookup->IsReadOnly() &&
+            lookup->IsCacheable();
+      }
+      return true;
+    }
+
+    if (lookup->IsPropertyCallbacks()) return true;
+
+    // Currently normal holders in the prototype chain are not supported. They
+    // would require a runtime positive lookup and verification that the details
+    // have not changed.
+    if (lookup->IsInterceptor() || lookup->IsNormal()) return false;
+    holder = Handle<JSObject>(lookup->holder(), lookup->isolate());
   }
 
-  if (lookup->IsInterceptor() &&
-      receiver->GetNamedInterceptor()->setter()->IsUndefined()) {
-    receiver->LocalLookupRealNamedProperty(*name, lookup);
-    return StoreICableLookup(lookup);
-  }
-
-  return true;
+  // While normally LookupTransition gets passed the receiver, in this case we
+  // pass the holder of the property that we overwrite. This keeps the holder in
+  // the LookupResult intact so we can later use it to generate a prototype
+  // chain check. This avoids a double lookup, but requires us to pass in the
+  // receiver when trying to fetch extra information from the transition.
+  receiver->map()->LookupTransition(*holder, *name, lookup);
+  return lookup->IsTransition() &&
+      !lookup->GetTransitionDetails(receiver->map()).IsReadOnly();
 }
 
 
@@ -1552,7 +1553,6 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
                            Handle<String> name,
                            Handle<Object> value) {
   ASSERT(!receiver->IsJSGlobalProxy());
-  ASSERT(StoreICableLookup(lookup));
   ASSERT(lookup->IsFound());
 
   // These are not cacheable, so we never see such LookupResults here.
@@ -1575,8 +1575,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
   switch (lookup->type()) {
     case FIELD:
       return isolate()->stub_cache()->ComputeStoreField(
-          name, receiver, lookup->GetFieldIndex().field_index(),
-          Handle<Map>::null(), strict_mode);
+          name, receiver, lookup, Handle<Map>::null(), strict_mode);
     case NORMAL:
       if (receiver->IsGlobalObject()) {
         // The stub generated for the global object picks the value directly
@@ -1588,7 +1587,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         return isolate()->stub_cache()->ComputeStoreGlobal(
             name, global, cell, strict_mode);
       }
-      if (!holder.is_identical_to(receiver)) break;
+      ASSERT(holder.is_identical_to(receiver));
       return isolate()->stub_cache()->ComputeStoreNormal(strict_mode);
     case CALLBACKS: {
       Handle<Object> callback(lookup->GetCallbackObject(), isolate());
@@ -1623,7 +1622,10 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
     case CONSTANT_FUNCTION:
       break;
     case TRANSITION: {
-      Handle<Map> transition(lookup->GetTransitionTarget(), isolate());
+      // Explicitly pass in the receiver map since LookupForWrite may have
+      // stored something else than the receiver in the holder.
+      Handle<Map> transition(
+          lookup->GetTransitionTarget(receiver->map()), isolate());
       int descriptor = transition->LastAdded();
 
       DescriptorArray* target_descriptors = transition->instance_descriptors();
@@ -1631,9 +1633,8 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
 
       if (details.type() != FIELD || details.attributes() != NONE) break;
 
-      int field_index = target_descriptors->GetFieldIndex(descriptor);
       return isolate()->stub_cache()->ComputeStoreField(
-          name, receiver, field_index, transition, strict_mode);
+          name, receiver, lookup, transition, strict_mode);
     }
     case NONEXISTENT:
     case HANDLER:
@@ -1964,19 +1965,20 @@ Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
   switch (lookup->type()) {
     case FIELD:
       return isolate()->stub_cache()->ComputeKeyedStoreField(
-          name, receiver, lookup->GetFieldIndex().field_index(),
-          Handle<Map>::null(), strict_mode);
+          name, receiver, lookup, Handle<Map>::null(), strict_mode);
     case TRANSITION: {
-      Handle<Map> transition(lookup->GetTransitionTarget(), isolate());
+      // Explicitly pass in the receiver map since LookupForWrite may have
+      // stored something else than the receiver in the holder.
+      Handle<Map> transition(
+          lookup->GetTransitionTarget(receiver->map()), isolate());
       int descriptor = transition->LastAdded();
 
       DescriptorArray* target_descriptors = transition->instance_descriptors();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
       if (details.type() == FIELD && details.attributes() == NONE) {
-        int field_index = target_descriptors->GetFieldIndex(descriptor);
         return isolate()->stub_cache()->ComputeKeyedStoreField(
-            name, receiver, field_index, transition, strict_mode);
+            name, receiver, lookup, transition, strict_mode);
       }
       // fall through.
     }
