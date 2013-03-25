@@ -9562,7 +9562,8 @@ static Handle<Object> NewSingleInterval(Isolate* isolate, uint32_t length) {
   Handle<FixedArray> single_interval = isolate->factory()->NewFixedArray(2);
   // -1 means start of array.
   single_interval->set(0, Smi::FromInt(-1));
-  single_interval->set(1, *isolate->factory()->NewNumberFromUint(length));
+  Handle<Object> number = isolate->factory()->NewNumberFromUint(length);
+  single_interval->set(1, *number);
   return isolate->factory()->NewJSArrayWithElements(single_interval);
 }
 
