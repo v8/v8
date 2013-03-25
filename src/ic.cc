@@ -1772,6 +1772,26 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     }
   }
 
+  // If the store mode isn't the standard mode, make sure that all polymorphic
+  // receivers are either external arrays, or all "normal" arrays. Otherwise,
+  // use the generic stub.
+  if (store_mode != STANDARD_STORE) {
+    int external_arrays = 0;
+    for (int i = 0; i < target_receiver_maps.length(); ++i) {
+      if (target_receiver_maps[i]->has_external_array_elements()) {
+        external_arrays++;
+      }
+    }
+    if (external_arrays != 0 &&
+        external_arrays != target_receiver_maps.length()) {
+      TRACE_GENERIC_IC(isolate(), "KeyedIC",
+          "unsupported combination of external and normal arrays");
+      return strict_mode == kStrictMode
+          ? generic_stub_strict()
+          : generic_stub();
+    }
+  }
+
   return isolate()->stub_cache()->ComputeStoreElementPolymorphic(
       &target_receiver_maps, store_mode, strict_mode);
 }
