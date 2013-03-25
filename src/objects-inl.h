@@ -1490,7 +1490,7 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* map) {
 bool JSObject::TryTransitionToField(Handle<JSObject> object,
                                     Handle<Name> key) {
   if (!object->map()->HasTransitionArray()) return false;
-  Handle<TransitionArray> transitions(object->map()->transitions());
+  TransitionArray* transitions = object->map()->transitions();
   int transition = transitions->Search(*key);
   if (transition == TransitionArray::kNotFound) return false;
   PropertyDetails target_details = transitions->GetTargetDetails(transition);
@@ -4128,9 +4128,12 @@ TransitionArray* Map::transitions() {
 
 void Map::set_transitions(TransitionArray* transition_array,
                           WriteBarrierMode mode) {
-  // In release mode, only run this code if verify_heap is on.
-  if (Heap::ShouldZapGarbage() && HasTransitionArray()) {
-    CHECK(transitions() != transition_array);
+  // Transition arrays are not shared. When one is replaced, it should not
+  // keep referenced objects alive, so we zap it.
+  // When there is another reference to the array somewhere (e.g. a handle),
+  // not zapping turns from a waste of memory into a source of crashes.
+  if (HasTransitionArray()) {
+    ASSERT(transitions() != transition_array);
     ZapTransitions();
   }
 
