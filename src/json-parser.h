@@ -291,6 +291,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonValue() {
 // Parse a JSON object. Position must be right at '{'.
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
+  HandleScope scope(isolate());
   Handle<JSObject> json_object =
       factory()->NewJSObject(object_constructor(), pretenure_);
   ASSERT_EQ(c0_, '{');
@@ -358,12 +359,13 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
     }
   }
   AdvanceSkipWhitespace();
-  return json_object;
+  return scope.CloseAndEscape(json_object);
 }
 
 // Parse a JSON array. Position must be right at '['.
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonArray() {
+  HandleScope scope(isolate());
   ZoneScope zone_scope(zone(), DELETE_ON_EXIT);
   ZoneList<Handle<Object> > elements(4, zone());
   ASSERT_EQ(c0_, '[');
@@ -386,8 +388,9 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonArray() {
   for (int i = 0, n = elements.length(); i < n; i++) {
     fast_elements->set(i, *elements[i]);
   }
-  return factory()->NewJSArrayWithElements(
+  Handle<Object> json_array = factory()->NewJSArrayWithElements(
       fast_elements, FAST_ELEMENTS, pretenure_);
+  return scope.CloseAndEscape(json_array);
 }
 
 
