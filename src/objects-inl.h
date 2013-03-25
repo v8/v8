@@ -1490,13 +1490,17 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* map) {
 bool JSObject::TryTransitionToField(Handle<JSObject> object,
                                     Handle<Name> key) {
   if (!object->map()->HasTransitionArray()) return false;
-  TransitionArray* transitions = object->map()->transitions();
-  int transition = transitions->Search(*key);
-  if (transition == TransitionArray::kNotFound) return false;
-  PropertyDetails target_details = transitions->GetTargetDetails(transition);
-  if (target_details.type() != FIELD) return false;
-  if (target_details.attributes() != NONE) return false;
-  Handle<Map> target(transitions->GetTarget(transition));
+  Handle<Map> target;
+  {
+    AssertNoAllocation no_allocation;
+    TransitionArray* transitions = object->map()->transitions();
+    int transition = transitions->Search(*key);
+    if (transition == TransitionArray::kNotFound) return false;
+    PropertyDetails target_details = transitions->GetTargetDetails(transition);
+    if (target_details.type() != FIELD) return false;
+    if (target_details.attributes() != NONE) return false;
+    target = Handle<Map>(transitions->GetTarget(transition));
+  }
   JSObject::AddFastPropertyUsingMap(object, target);
   return true;
 }
