@@ -11573,19 +11573,10 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
     }
   }
 
-  Handle<JSFunction> function(JSFunction::cast(frame_inspector->GetFunction()));
-  int length = frame_inspector->GetParametersCount();
-  Handle<JSObject> arguments =
-      isolate->factory()->NewArgumentsObject(function, length);
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
-
-  AssertNoAllocation no_gc;
-  WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < length; i++) {
-    array->set(i, frame_inspector->GetParameter(i), mode);
-  }
-  arguments->set_elements(*array);
-  return arguments;
+  // FunctionGetArguments can't return a non-Object.
+  return Handle<JSObject>(JSObject::cast(
+      Accessors::FunctionGetArguments(frame_inspector->GetFunction(),
+                                      NULL)->ToObjectUnchecked()), isolate);
 }
 
 
