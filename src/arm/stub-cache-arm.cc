@@ -2995,7 +2995,7 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   __ cmp(r3, Operand(instance_size >> kPointerSizeLog2));
   __ Check(eq, "Instance size of initial map changed.");
 #endif
-  __ AllocateInNewSpace(r3, r4, r5, r6, &generic_stub_call, SIZE_IN_WORDS);
+  __ Allocate(r3, r4, r5, r6, &generic_stub_call, SIZE_IN_WORDS);
 
   // Allocated the JSObject, now initialize the fields. Map is set to initial
   // map and properties and elements are set to empty fixed array.

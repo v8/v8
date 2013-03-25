@@ -216,8 +216,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // eax: initial map
       __ movzx_b(edi, FieldOperand(eax, Map::kInstanceSizeOffset));
       __ shl(edi, kPointerSizeLog2);
-      __ AllocateInNewSpace(
-          edi, ebx, edi, no_reg, &rt_call, NO_ALLOCATION_FLAGS);
+      __ Allocate(edi, ebx, edi, no_reg, &rt_call, NO_ALLOCATION_FLAGS);
       // Allocated the JSObject, now initialize the fields.
       // eax: initial map
       // ebx: JSObject
@@ -280,15 +279,15 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // ebx: JSObject
       // edi: start of next object (will be start of FixedArray)
       // edx: number of elements in properties array
-      __ AllocateInNewSpace(FixedArray::kHeaderSize,
-                            times_pointer_size,
-                            edx,
-                            REGISTER_VALUE_IS_INT32,
-                            edi,
-                            ecx,
-                            no_reg,
-                            &undo_allocation,
-                            RESULT_CONTAINS_TOP);
+      __ Allocate(FixedArray::kHeaderSize,
+                  times_pointer_size,
+                  edx,
+                  REGISTER_VALUE_IS_INT32,
+                  edi,
+                  ecx,
+                  no_reg,
+                  &undo_allocation,
+                  RESULT_CONTAINS_TOP);
 
       // Initialize the FixedArray.
       // ebx: JSObject
@@ -1125,15 +1124,15 @@ static void AllocateJSArray(MacroAssembler* masm,
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
-                        times_pointer_size,
-                        array_size,
-                        REGISTER_VALUE_IS_SMI,
-                        result,
-                        elements_array_end,
-                        scratch,
-                        gc_required,
-                        TAG_OBJECT);
+  __ Allocate(JSArray::kSize + FixedArray::kHeaderSize,
+              times_pointer_size,
+              array_size,
+              REGISTER_VALUE_IS_SMI,
+              result,
+              elements_array_end,
+              scratch,
+              gc_required,
+              TAG_OBJECT);
 
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.
