@@ -7414,33 +7414,31 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ cmp(entity_name, tmp);
     __ b(eq, done);
 
-    if (i != kInlinedProbes - 1) {
-      // Load the hole ready for use below:
-      __ LoadRoot(tmp, Heap::kTheHoleValueRootIndex);
+    // Load the hole ready for use below:
+    __ LoadRoot(tmp, Heap::kTheHoleValueRootIndex);
 
-      // Stop if found the property.
-      __ cmp(entity_name, Operand(Handle<Name>(name)));
-      __ b(eq, miss);
+    // Stop if found the property.
+    __ cmp(entity_name, Operand(Handle<Name>(name)));
+    __ b(eq, miss);
 
-      Label good;
-      __ cmp(entity_name, tmp);
-      __ b(eq, &good);
+    Label good;
+    __ cmp(entity_name, tmp);
+    __ b(eq, &good);
 
-      // Check if the entry name is not a unique name.
-      __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
-      __ ldrb(entity_name,
-              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-      __ tst(entity_name, Operand(kIsInternalizedMask));
-      __ b(ne, &good);
-      __ cmp(entity_name, Operand(SYMBOL_TYPE));
-      __ b(ne, miss);
+    // Check if the entry name is not a unique name.
+    __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
+    __ ldrb(entity_name,
+            FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
+    __ tst(entity_name, Operand(kIsInternalizedMask));
+    __ b(ne, &good);
+    __ cmp(entity_name, Operand(SYMBOL_TYPE));
+    __ b(ne, miss);
 
-      __ bind(&good);
+    __ bind(&good);
 
-      // Restore the properties.
-      __ ldr(properties,
-             FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-    }
+    // Restore the properties.
+    __ ldr(properties,
+           FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   }
 
   const int spill_mask =
