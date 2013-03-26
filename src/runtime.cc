@@ -11481,6 +11481,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearStepping) {
 }
 
 
+static bool IsBlockOrCatchOrWithScope(ScopeIterator::ScopeType type) {
+  return type == ScopeIterator::ScopeTypeBlock ||
+         type == ScopeIterator::ScopeTypeCatch ||
+         type == ScopeIterator::ScopeTypeWith;
+}
+
+
 // Creates a copy of the with context chain. The copy of the context chain is
 // is linked to the function context supplied.
 static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
@@ -11495,8 +11502,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
   ScopeIterator it(isolate, frame, inlined_jsframe_index);
   if (it.Failed()) return Handle<Context>::null();
 
-  for (; it.Type() != ScopeIterator::ScopeTypeGlobal &&
-         it.Type() != ScopeIterator::ScopeTypeLocal ; it.Next()) {
+  for ( ; IsBlockOrCatchOrWithScope(it.Type()); it.Next()) {
     ASSERT(!it.Done());
     scope_chain.Add(it.CurrentScopeInfo());
     context_chain.Add(it.CurrentContext());
@@ -11512,6 +11518,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
     ASSERT(!(scope_info->HasContext() & current.is_null()));
 
     if (scope_info->Type() == CATCH_SCOPE) {
+      ASSERT(current->IsCatchContext());
       Handle<String> name(String::cast(current->extension()));
       Handle<Object> thrown_object(current->get(Context::THROWN_OBJECT_INDEX),
                                    isolate);
@@ -11522,6 +11529,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
                                               thrown_object);
     } else if (scope_info->Type() == BLOCK_SCOPE) {
       // Materialize the contents of the block scope into a JSObject.
+      ASSERT(current->IsBlockContext());
       Handle<JSObject> block_scope_object =
           MaterializeBlockScope(isolate, current);
       CHECK(!block_scope_object.is_null());
@@ -11688,23 +11696,26 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
       isolate, frame, &frame_inspector);
   RETURN_IF_EMPTY_HANDLE(isolate, local_scope);
 
-  Handle<Context> frame_context(Context::cast(frame->context()));
-  Handle<Context> function_context;
-  Handle<ScopeInfo> scope_info(function->shared()->scope_info());
-  if (scope_info->HasContext()) {
-    function_context = Handle<Context>(frame_context->declaration_context());
+  // Do not materialize the arguments object for eval or top-level code.
+  if (function->shared()->is_function()) {
+    Handle<Context> frame_context(Context::cast(frame->context()));
+    Handle<Context> function_context;
+    Handle<ScopeInfo> scope_info(function->shared()->scope_info());
+    if (scope_info->HasContext()) {
+      function_context = Handle<Context>(frame_context->declaration_context());
+    }
+    Handle<Object> arguments = GetArgumentsObject(isolate,
+                                                  frame,
+                                                  &frame_inspector,
+                                                  scope_info,
+                                                  function_context);
+    SetProperty(isolate,
+                local_scope,
+                isolate->factory()->arguments_string(),
+                arguments,
+                ::NONE,
+                kNonStrictMode);
   }
-  Handle<Object> arguments = GetArgumentsObject(isolate,
-                                                frame,
-                                                &frame_inspector,
-                                                scope_info,
-                                                function_context);
-  SetProperty(isolate,
-              local_scope,
-              isolate->factory()->arguments_string(),
-              arguments,
-              ::NONE,
-              kNonStrictMode);
 
   // Allocate a new context for the debug evaluation and set the extension
   // object build.
