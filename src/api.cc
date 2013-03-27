@@ -5971,6 +5971,14 @@ void Isolate::Exit() {
 
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  if (!isolate->IsInitialized()) {
+    heap_statistics->total_heap_size_ = 0;
+    heap_statistics->total_heap_size_executable_ = 0;
+    heap_statistics->total_physical_size_ = 0;
+    heap_statistics->used_heap_size_ = 0;
+    heap_statistics->heap_size_limit_ = 0;
+    return;
+  }
   i::Heap* heap = isolate->heap();
   heap_statistics->total_heap_size_ = heap->CommittedMemory();
   heap_statistics->total_heap_size_executable_ =
