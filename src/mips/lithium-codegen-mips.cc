@@ -5828,17 +5828,15 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
       __ LoadRoot(at, Heap::kNullValueRootIndex);
       __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
     }
-    // input is an object, it is safe to use GetObjectType in the delay slot.
-    __ GetObjectType(input, input, scratch);
-    __ Branch(USE_DELAY_SLOT, false_label,
+    Register map = input;
+    __ GetObjectType(input, map, scratch);
+    __ Branch(false_label,
               lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    // Still an object, so the InstanceType can be loaded.
-    __ lbu(scratch, FieldMemOperand(input, Map::kInstanceTypeOffset));
     __ Branch(USE_DELAY_SLOT, false_label,
               gt, scratch, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    // Still an object, so the BitField can be loaded.
+    // map is still valid, so the BitField can be loaded in delay slot.
     // Check for undetectable objects => false.
-    __ lbu(at, FieldMemOperand(input, Map::kBitFieldOffset));
+    __ lbu(at, FieldMemOperand(map, Map::kBitFieldOffset));
     __ And(at, at, 1 << Map::kIsUndetectable);
     cmp1 = at;
     cmp2 = Operand(zero_reg);
