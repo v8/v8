@@ -801,7 +801,8 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
 
   size_t allocated_length = ArrayBufferAllocatedLength(
       isolate, JSArrayBuffer::cast(*internal_object));
-  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(-allocated_length);
+  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
+      -static_cast<intptr_t>(allocated_length));
   if (data != NULL)
     free(data);
   object.Dispose(external_isolate);
