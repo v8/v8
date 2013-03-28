@@ -1733,7 +1733,7 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
   // hidden strings) and is not a real identifier.
   // Normalize the object if it will have too many fast properties.
   Isolate* isolate = GetHeap()->isolate();
-  if ((!IsIdentifier(isolate->unicode_cache(), name)
+  if ((!name->IsSymbol() && !IsIdentifier(isolate->unicode_cache(), name)
        && name != isolate->heap()->hidden_string()) ||
       (map()->unused_property_fields() == 0 &&
        TooManyFastProperties(properties()->length(), store_mode))) {

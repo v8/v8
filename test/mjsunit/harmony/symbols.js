@@ -213,9 +213,12 @@ TestCollections()
 
 
 function TestKeySet(obj) {
+  assertTrue(%HasFastProperties(obj))
   // Set the even symbols via assignment.
   for (var i = 0; i < symbols.length; i += 2) {
     obj[symbols[i]] = i
+    // Object should remain in fast mode until too many properties were added.
+    assertTrue(%HasFastProperties(obj) || i >= 30)
   }
 }
 
