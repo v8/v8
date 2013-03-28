@@ -883,13 +883,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, target, 1);
   CONVERT_DOUBLE_ARG_CHECKED(first, 2);
   size_t start = static_cast<size_t>(first);
-  size_t source_length = ArrayBufferAllocatedLength(isolate, *source);
   size_t target_length = ArrayBufferAllocatedLength(isolate, *target);
 
   if (target_length == 0)
     return isolate->heap()->undefined_value();
 
-  ASSERT(source_length - target_length >= start);
+  ASSERT(ArrayBufferAllocatedLength(isolate, *source) - target_length >= start);
   uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
   uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
   CopyBytes(target_data, source_data + start, target_length);
