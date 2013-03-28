@@ -2590,6 +2590,10 @@ bool HLoadKeyed::UsesMustHandleHole() const {
     return false;
   }
 
+  if (IsExternalArrayElementsKind(elements_kind())) {
+    return false;
+  }
+
   if (hole_mode() == ALLOW_RETURN_HOLE) return true;
 
   if (IsFastDoubleElementsKind(elements_kind())) {
@@ -2609,6 +2613,10 @@ bool HLoadKeyed::UsesMustHandleHole() const {
 
 bool HLoadKeyed::RequiresHoleCheck() const {
   if (IsFastPackedElementsKind(elements_kind())) {
+    return false;
+  }
+
+  if (IsExternalArrayElementsKind(elements_kind())) {
     return false;
   }
 
@@ -3037,8 +3045,17 @@ bool HStoreKeyed::NeedsCanonicalization() {
   // If value is an integer or smi or comes from the result of a keyed load or
   // constant then it is either be a non-hole value or in the case of a constant
   // the hole is only being stored explicitly: no need for canonicalization.
-  if (value()->IsLoadKeyed() || value()->IsConstant()) {
+  //
+  // The exception to that is keyed loads from external float or double arrays:
+  // these can load arbitrary representation of NaN.
+
+  if (value()->IsConstant()) {
     return false;
+  }
+
+  if (value()->IsLoadKeyed()) {
+    return IsExternalFloatOrDoubleElementsKind(
+        HLoadKeyed::cast(value())->elements_kind());
   }
 
   if (value()->IsChange()) {
