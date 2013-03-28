@@ -7649,33 +7649,45 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
 }
 
 
-String* SeqString::Truncate(int new_length) {
-  Heap* heap = GetHeap();
-  if (new_length <= 0) return heap->empty_string();
+Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
+  int new_size, old_size;
+  int old_length = string->length();
+  if (old_length <= new_length) return string;
 
-  int string_size, allocated_string_size;
-  int old_length = length();
-  if (old_length <= new_length) return this;
-
-  if (IsSeqOneByteString()) {
-    allocated_string_size = SeqOneByteString::SizeFor(old_length);
-    string_size = SeqOneByteString::SizeFor(new_length);
+  if (string->IsSeqOneByteString()) {
+    old_size = SeqOneByteString::SizeFor(old_length);
+    new_size = SeqOneByteString::SizeFor(new_length);
   } else {
-    allocated_string_size = SeqTwoByteString::SizeFor(old_length);
-    string_size = SeqTwoByteString::SizeFor(new_length);
+    ASSERT(string->IsSeqTwoByteString());
+    old_size = SeqTwoByteString::SizeFor(old_length);
+    new_size = SeqTwoByteString::SizeFor(new_length);
   }
 
-  int delta = allocated_string_size - string_size;
-  set_length(new_length);
+  int delta = old_size - new_size;
+  string->set_length(new_length);
 
-  // String sizes are pointer size aligned, so that we can use filler objects
-  // that are a multiple of pointer size.
-  Address end_of_string = address() + string_size;
-  heap->CreateFillerObjectAt(end_of_string, delta);
-  if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytesFromMutator(address(), -delta);
+  Address start_of_string = string->address();
+  ASSERT_OBJECT_ALIGNED(start_of_string);
+  ASSERT_OBJECT_ALIGNED(start_of_string + new_size);
+
+  Heap* heap = string->GetHeap();
+  NewSpace* newspace = heap->new_space();
+  if (newspace->Contains(start_of_string) &&
+      newspace->top() == start_of_string + old_size) {
+    // Last allocated object in new space.  Simply lower allocation top.
+    *(newspace->allocation_top_address()) = start_of_string + new_size;
+  } else {
+    // Sizes are pointer size aligned, so that we can use filler objects
+    // that are a multiple of pointer size.
+    heap->CreateFillerObjectAt(start_of_string + new_size, delta);
   }
-  return this;
+  if (Marking::IsBlack(Marking::MarkBitFrom(start_of_string))) {
+    MemoryChunk::IncrementLiveBytesFromMutator(start_of_string, -delta);
+  }
+
+
+  if (new_length == 0) return heap->isolate()->factory()->empty_string();
+  return string;
 }
 
 

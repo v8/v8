@@ -55,7 +55,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
 
   void ChangeEncoding();
 
-  void ShrinkCurrentPart();
+  INLINE(void ShrinkCurrentPart());
 
   template <bool is_ascii, typename Char>
   INLINE(void Append_(Char c));
@@ -324,15 +324,7 @@ MaybeObject* BasicJsonStringifier::StringifyString_(Isolate* isolate,
                                           dest->GetChars() + 1,
                                           vector.length());
   dest->Set(final_size++, '\"');
-  if (isolate->heap()->InNewSpace(*result)) {
-    // In new space, simply lower the allocation top to fit the actual size.
-    isolate->heap()->new_space()->ShrinkStringAtAllocationBoundary<ResultType>(
-        *result, final_size);
-    return *result;
-  } else {
-    // Not in new space, need to fill the wasted space with filler objects.
-    return SeqString::cast(*result)->Truncate(final_size);
-  }
+  return *SeqString::Truncate(Handle<SeqString>::cast(result), final_size);
 }
 
 
@@ -699,8 +691,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
 
 void BasicJsonStringifier::ShrinkCurrentPart() {
   ASSERT(current_index_ < part_length_);
-  current_part_ = Handle<String>(
-      SeqString::cast(*current_part_)->Truncate(current_index_), isolate_);
+  current_part_ = SeqString::Truncate(Handle<SeqString>::cast(current_part_),
+                                      current_index_);
 }
 
 

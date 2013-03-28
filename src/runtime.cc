@@ -5155,10 +5155,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewString) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TruncateString) {
-  NoHandleAllocation ha(isolate);
-  CONVERT_ARG_CHECKED(SeqString, string, 0);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SeqString, string, 0);
   CONVERT_SMI_ARG_CHECKED(new_length, 1);
-  return string->Truncate(new_length);
+  return *SeqString::Truncate(string, new_length);
 }
 
 
