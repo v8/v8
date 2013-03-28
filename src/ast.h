@@ -1488,7 +1488,6 @@ class Property: public Expression {
   virtual KeyedAccessStoreMode GetStoreMode() {
     return STANDARD_STORE;
   }
-  bool IsArrayLength() { return is_array_length_; }
   bool IsUninitialized() { return is_uninitialized_; }
   TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
 
@@ -1504,7 +1503,6 @@ class Property: public Expression {
         load_id_(GetNextId(isolate)),
         is_monomorphic_(false),
         is_uninitialized_(false),
-        is_array_length_(false),
         is_string_length_(false),
         is_string_access_(false),
         is_function_prototype_(false) { }
@@ -1518,7 +1516,6 @@ class Property: public Expression {
   SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;
   bool is_uninitialized_ : 1;
-  bool is_array_length_ : 1;
   bool is_string_length_ : 1;
   bool is_string_access_ : 1;
   bool is_function_prototype_ : 1;

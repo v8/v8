@@ -1235,6 +1235,13 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 }
 
 
+HInstruction* HGraphBuilder::BuildFastArrayLengthLoad(HValue* object,
+                                                      HValue* typecheck) {
+  Zone* zone = this->zone();
+  return new (zone) HJSArrayLength(object, typecheck, HType::Smi());
+}
+
+
 HValue* HGraphBuilder::BuildAllocateElements(HValue* context,
                                              ElementsKind kind,
                                              HValue* capacity) {
@@ -6287,6 +6294,12 @@ static int ComputeLoadStoreFieldIndex(Handle<Map> type,
 }
 
 
+void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
+  AddInstruction(new(zone()) HCheckNonSmi(object));
+  AddInstruction(new(zone()) HCheckMaps(object, map, zone()));
+}
+
+
 void HOptimizedGraphBuilder::AddCheckMapsWithTransitions(HValue* object,
                                                          Handle<Map> map) {
   AddInstruction(new(zone()) HCheckNonSmi(object));
@@ -6398,8 +6411,28 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
 }
 
 
-void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
+bool HOptimizedGraphBuilder::HandlePolymorphicArrayLengthLoad(
     Property* expr,
+    HValue* object,
+    SmallMapList* types,
+    Handle<String> name) {
+  if (!name->Equals(isolate()->heap()->length_string())) return false;
+
+  for (int i = 0; i < types->length(); i++) {
+    if (types->at(i)->instance_type() != JS_ARRAY_TYPE) return false;
+  }
+
+  AddInstruction(new(zone()) HCheckNonSmi(object));
+  HInstruction* typecheck =
+    AddInstruction(HCheckInstanceType::NewIsJSArray(object, zone()));
+  HInstruction* instr = BuildFastArrayLengthLoad(object, typecheck);
+  instr->set_position(expr->position());
+  ast_context()->ReturnInstruction(instr, expr->id());
+  return true;
+}
+
+
+void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
     HValue* object,
     SmallMapList* types,
     Handle<String> name) {
@@ -6407,6 +6440,10 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   int previous_field_offset = 0;
   bool previous_field_is_in_object = false;
   bool is_monomorphic_field = true;
+
+  if (HandlePolymorphicArrayLengthLoad(expr, object, types, name))
+    return;
+
   Handle<Map> map;
   LookupResult lookup(isolate());
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
@@ -7042,16 +7079,25 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<Map> map) {
   // Handle a load from a known field.
   ASSERT(!map->is_dictionary_map());
+
+  // Handle access to various length properties
+  if (name->Equals(isolate()->heap()->length_string())) {
+    if (map->instance_type() == JS_ARRAY_TYPE) {
+      AddCheckMapsWithTransitions(object, map);
+      return BuildFastArrayLengthLoad(object, NULL);
+    }
+  }
+
   LookupResult lookup(isolate());
   map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsField()) {
-    AddCheckMapsWithTransitions(object, map);
+    AddCheckMap(object, map);
     return BuildLoadNamedField(object, map, &lookup);
   }
 
   // Handle a load of a constant known function.
   if (lookup.IsConstantFunction()) {
-    AddCheckMapsWithTransitions(object, map);
+    AddCheckMap(object, map);
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
   }
@@ -7062,7 +7108,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
-    AddCheckMapsWithTransitions(object, map);
+    AddCheckMap(object, map);
     HInstruction* holder_value = AddInstruction(
         new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
     return BuildLoadNamedField(holder_value, holder_map, &lookup);
@@ -7073,7 +7119,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
-    AddCheckMapsWithTransitions(object, map);
+    AddCheckMap(object, map);
     AddInstruction(new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*holder_map));
     return new(zone()) HConstant(function, Representation::Tagged());
@@ -7533,13 +7579,7 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   CHECK_ALIVE(VisitForValue(expr->obj()));
 
   HInstruction* instr = NULL;
-  if (expr->AsProperty()->IsArrayLength()) {
-    HValue* array = Pop();
-    AddInstruction(new(zone()) HCheckNonSmi(array));
-    HInstruction* mapcheck =
-        AddInstruction(HCheckInstanceType::NewIsJSArray(array, zone()));
-    instr = new(zone()) HJSArrayLength(array, mapcheck);
-  } else if (expr->IsStringLength()) {
+  if (expr->IsStringLength()) {
     HValue* string = Pop();
     AddInstruction(new(zone()) HCheckNonSmi(string));
     AddInstruction(HCheckInstanceType::NewIsString(string, zone()));

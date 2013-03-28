@@ -857,28 +857,6 @@ MaybeObject* LoadIC::Load(State state,
       return Smi::FromInt(String::cast(*string)->length());
     }
 
-    // Use specialized code for getting the length of arrays.
-    if (object->IsJSArray() &&
-        name->Equals(isolate()->heap()->length_string())) {
-      Handle<Code> stub;
-      if (state == UNINITIALIZED) {
-        stub = pre_monomorphic_stub();
-      } else if (state == PREMONOMORPHIC) {
-        ArrayLengthStub array_length_stub(kind());
-        stub = array_length_stub.GetCode(isolate());
-      } else if (state != MEGAMORPHIC) {
-        ASSERT(state != GENERIC);
-        stub = megamorphic_stub();
-      }
-      if (!stub.is_null()) {
-        set_target(*stub);
-#ifdef DEBUG
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
-#endif
-      }
-      return JSArray::cast(*object)->length();
-    }
-
     // Use specialized code for getting prototype of functions.
     if (object->IsJSFunction() &&
         name->Equals(isolate()->heap()->prototype_string()) &&
@@ -1037,6 +1015,22 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
 }
 
 
+bool IC::IsTransitionedMapOfMonomorphicTarget(Map* receiver_map) {
+  AssertNoAllocation no_allocation;
+
+  Map* current_map = target()->FindFirstMap();
+  ElementsKind receiver_elements_kind = receiver_map->elements_kind();
+  bool more_general_transition =
+      IsMoreGeneralElementsKindTransition(
+        current_map->elements_kind(), receiver_elements_kind);
+  Map* transitioned_map = more_general_transition
+      ? current_map->LookupElementsTransitionMap(receiver_elements_kind)
+      : NULL;
+
+  return transitioned_map == receiver_map;
+}
+
+
 // Since GC may have been invoked, by the time PatchCache is called, |state| is
 // not necessarily equal to target()->state().
 void IC::PatchCache(State state,
@@ -1054,6 +1048,17 @@ void IC::PatchCache(State state,
       // Only move to megamorphic if the target changes.
       if (target() != *code) {
         if (target()->is_load_stub()) {
+          bool is_same_handler = false;
+          {
+            AssertNoAllocation no_allocation;
+            Code* old_handler = target()->FindFirstCode();
+            is_same_handler = old_handler == *code;
+          }
+          if (is_same_handler
+              && IsTransitionedMapOfMonomorphicTarget(receiver->map())) {
+            UpdateMonomorphicIC(receiver, code, name);
+            break;
+          }
           if (UpdatePolymorphicIC(state, strict_mode, receiver, name, code)) {
             break;
           }
@@ -1226,6 +1231,12 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         if (!holder->HasFastProperties()) break;
         return isolate()->stub_cache()->ComputeLoadViaGetter(
             name, receiver, holder, Handle<JSFunction>::cast(getter));
+      } else if (receiver->IsJSArray() &&
+          name->Equals(isolate()->heap()->length_string())) {
+        PropertyIndex lengthIndex =
+          PropertyIndex::NewHeaderIndex(JSArray::kLengthOffset / kPointerSize);
+        return isolate()->stub_cache()->ComputeLoadField(
+            name, receiver, holder, lengthIndex);
       }
       // TODO(dcarney): Handle correctly.
       if (callback->IsDeclaredAccessorInfo()) break;
@@ -1705,16 +1716,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       transitioned_receiver_map =
           ComputeTransitionedMap(receiver, store_mode);
     }
-    ElementsKind transitioned_kind =
-        transitioned_receiver_map->elements_kind();
-    bool more_general_transition =
-        IsMoreGeneralElementsKindTransition(
-            previous_receiver_map->elements_kind(),
-            transitioned_kind);
-    Map* transitioned_previous_map = more_general_transition
-        ? previous_receiver_map->LookupElementsTransitionMap(transitioned_kind)
-        : NULL;
-    if (transitioned_previous_map == *transitioned_receiver_map) {
+    if (IsTransitionedMapOfMonomorphicTarget(*transitioned_receiver_map)) {
       // Element family is the same, use the "worst" case map.
       store_mode = GetNonTransitioningStoreMode(store_mode);
       return isolate()->stub_cache()->ComputeKeyedStoreElement(
