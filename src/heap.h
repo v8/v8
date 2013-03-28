@@ -882,12 +882,11 @@ class Heap {
       void* external_pointer,
       PretenureFlag pretenure);
 
-  // Allocate a symbol.
+  // Allocate a symbol in old space.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateSymbol(
-      PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT MaybeObject* AllocateSymbol();
 
   // Allocate a tenured JS global property cell.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

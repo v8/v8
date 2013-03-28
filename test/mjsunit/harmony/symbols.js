@@ -301,3 +301,19 @@ for (var i in objs) {
   TestKeyDescriptor(obj)
   TestKeyDelete(obj)
 }
+
+
+function TestCachedKeyAfterScavenge() {
+  gc();
+  // Keyed property lookup are cached.  Hereby we assume that the keys are
+  // tenured, so that we only have to clear the cache between mark compacts,
+  // but not between scavenges.  This must also apply for symbol keys.
+  var key = Symbol("key");
+  var a = {};
+  a[key] = "abc";
+
+  for (var i = 0; i < 1000000; i++) {
+    a[key] += "a";  // Allocations cause a scavenge.
+  }
+}
+TestCachedKeyAfterScavenge();

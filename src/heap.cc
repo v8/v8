@@ -5428,13 +5428,13 @@ MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
 }
 
 
-MaybeObject* Heap::AllocateSymbol(PretenureFlag pretenure) {
+MaybeObject* Heap::AllocateSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
   STATIC_ASSERT(Symbol::kSize <= Page::kNonCodeObjectAreaSize);
-  AllocationSpace space = pretenure == TENURED ? OLD_POINTER_SPACE : NEW_SPACE;
 
   Object* result;
-  MaybeObject* maybe = AllocateRaw(Symbol::kSize, space, OLD_POINTER_SPACE);
+  MaybeObject* maybe =
+      AllocateRaw(Symbol::kSize, OLD_POINTER_SPACE, OLD_POINTER_SPACE);
   if (!maybe->ToObject(&result)) return maybe;
 
   HeapObject::cast(result)->set_map_no_write_barrier(symbol_map());
@@ -7470,6 +7470,9 @@ void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
     }
     name = internalized_string;
   }
+  // This cache is cleared only between mark compact passes, so we expect the
+  // cache to only contain old space names.
+  ASSERT(!HEAP->InNewSpace(name));
 
   int index = (Hash(map, name) & kHashMask);
   // After a GC there will be free slots, so we use them in order (this may
