@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
+#include <limits>
 
 #include "v8.h"
 
@@ -774,6 +775,124 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
   proxy->Fix();
+  return isolate->heap()->undefined_value();
+}
+
+
+static size_t ArrayBufferAllocatedLength(Isolate* isolate,
+                                         JSArrayBuffer* buffer) {
+  NoHandleAllocation hc(isolate);
+  Object* byte_length = buffer->byte_length();
+  if (byte_length->IsSmi()) {
+    return Smi::cast(byte_length)->value();
+  } else {
+    double value = HeapNumber::cast(byte_length)->value();
+    return static_cast<size_t>(value);
+  }
+}
+
+
+static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
+                                    Persistent<Value> object,
+                                    void* data) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(external_isolate);
+  HandleScope scope(isolate);
+  Handle<Object> internal_object = Utils::OpenHandle(*object);
+
+  size_t allocated_length = ArrayBufferAllocatedLength(
+      isolate, JSArrayBuffer::cast(*internal_object));
+  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(-allocated_length);
+  if (data != NULL)
+    free(data);
+  object.Dispose(external_isolate);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, byteLength, 1);
+  size_t allocated_length;
+  if (byteLength->IsSmi()) {
+    allocated_length = Smi::cast(*byteLength)->value();
+  } else {
+    ASSERT(byteLength->IsHeapNumber());
+    double value = HeapNumber::cast(*byteLength)->value();
+
+    ASSERT(value >= 0);
+
+    if (value > std::numeric_limits<size_t>::max()) {
+      return isolate->Throw(
+          *isolate->factory()->NewRangeError("invalid_array_buffer_length",
+            HandleVector<Object>(NULL, 0)));
+    }
+
+    allocated_length = static_cast<size_t>(value);
+  }
+
+  void* data;
+  if (allocated_length != 0) {
+    data = malloc(allocated_length);
+
+    if (data == NULL) {
+      return isolate->Throw(*isolate->factory()->
+          NewRangeError("invalid_array_buffer_length",
+            HandleVector<Object>(NULL, 0)));
+    }
+
+    memset(data, 0, allocated_length);
+  } else {
+    data = NULL;
+  }
+  holder->set_backing_store(data);
+
+  Object* byte_length;
+  {
+    MaybeObject* maybe_byte_length =
+        isolate->heap()->NumberFromDouble(allocated_length);
+    if (!maybe_byte_length->ToObject(&byte_length)) return maybe_byte_length;
+  }
+  CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
+  holder->set_byte_length(byte_length);
+
+  v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::Handle<Object> external_holder(*holder);
+  Persistent<Object> weak_handle = Persistent<Object>::New(
+      external_isolate, external_holder);
+  weak_handle.MakeWeak(external_isolate, data, ArrayBufferWeakCallback);
+  weak_handle.MarkIndependent(external_isolate);
+  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
+
+  return *holder;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferGetByteLength) {
+  NoHandleAllocation ha(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSArrayBuffer, holder, 0);
+  return holder->byte_length();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, source, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, target, 1);
+  CONVERT_DOUBLE_ARG_CHECKED(first, 2);
+  size_t start = static_cast<size_t>(first);
+  size_t source_length = ArrayBufferAllocatedLength(isolate, *source);
+  size_t target_length = ArrayBufferAllocatedLength(isolate, *target);
+
+  if (target_length == 0)
+    return isolate->heap()->undefined_value();
+
+  ASSERT(source_length - target_length >= start);
+  uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
+  uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
+  CopyBytes(target_data, source_data + start, target_length);
   return isolate->heap()->undefined_value();
 }
 
@@ -5793,6 +5912,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToInteger) {
   // We do not include 0 so that we don't have to treat +0 / -0 cases.
   if (number > 0 && number <= Smi::kMaxValue) {
     return Smi::FromInt(static_cast<int>(number));
+  }
+  return isolate->heap()->NumberFromDouble(DoubleToInteger(number));
+}
+
+
+// ES6 draft 9.1.11
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToPositiveInteger) {
+  NoHandleAllocation ha(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
+
+  // We do not include 0 so that we don't have to treat +0 / -0 cases.
+  if (number > 0 && number <= Smi::kMaxValue) {
+    return Smi::FromInt(static_cast<int>(number));
+  }
+  if (number <= 0) {
+    return Smi::FromInt(0);
   }
   return isolate->heap()->NumberFromDouble(DoubleToInteger(number));
 }

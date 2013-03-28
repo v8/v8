@@ -1311,6 +1311,16 @@ void Genesis::InitializeExperimentalGlobal() {
                       prototype, Builtins::kIllegal, true);
     }
   }
+
+  if (FLAG_harmony_typed_arrays) {
+    { // -- A r r a y B u f f e r
+      Handle<JSObject> prototype =
+          factory()->NewJSObject(isolate()->object_function(), TENURED);
+      InstallFunction(global, "__ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
+                      JSArrayBuffer::kSize, prototype,
+                      Builtins::kIllegal, true);
+    }
+  }
 }
 
 
@@ -1916,6 +1926,11 @@ bool Genesis::InstallExperimentalNatives() {
     if (FLAG_harmony_observation &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
                "native object-observe.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
+    if (FLAG_harmony_typed_arrays &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native typedarray.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }

@@ -100,6 +100,7 @@ var kMessages = {
   observe_notify_non_notifier:   ["notify called on non-notifier object"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
+  invalid_array_buffer_length:   ["Invalid array buffer length"],
   stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
   // SyntaxError
