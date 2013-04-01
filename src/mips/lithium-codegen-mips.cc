@@ -4578,10 +4578,11 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 
 // Convert unsigned integer with specified number of leading zeroes in binary
 // representation to IEEE 754 double.
-// Integer to convert is passed in register hiword.
+// Integer to convert is passed in register src.
 // Resulting double is returned in registers hiword:loword.
 // This functions does not work correctly for 0.
 static void GenerateUInt2Double(MacroAssembler* masm,
+                                Register src,
                                 Register hiword,
                                 Register loword,
                                 Register scratch,
@@ -4595,12 +4596,12 @@ static void GenerateUInt2Double(MacroAssembler* masm,
       kBitsPerInt - mantissa_shift_for_hi_word;
   masm->li(scratch, Operand(biased_exponent << HeapNumber::kExponentShift));
   if (mantissa_shift_for_hi_word > 0) {
-    masm->sll(loword, hiword, mantissa_shift_for_lo_word);
-    masm->srl(hiword, hiword, mantissa_shift_for_hi_word);
+    masm->sll(loword, src, mantissa_shift_for_lo_word);
+    masm->srl(hiword, src, mantissa_shift_for_hi_word);
     masm->Or(hiword, scratch, hiword);
   } else {
     masm->mov(loword, zero_reg);
-    masm->sll(hiword, hiword, mantissa_shift_for_hi_word);
+    masm->sll(hiword, src, mantissa_shift_for_hi_word);
     masm->Or(hiword, scratch, hiword);
   }
 
@@ -4651,17 +4652,17 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
       __ mtc1(src, dbl_scratch);
       __ Cvt_d_uw(dbl_scratch, dbl_scratch, f22);
     } else {
-      Label no_leading_zero, done;
+      Label no_leading_zero, convert_done;
       __ And(at, src, Operand(0x80000000));
       __ Branch(&no_leading_zero, ne, at, Operand(zero_reg));
 
       // Integer has one leading zeros.
-      GenerateUInt2Double(masm(), sfpd_hi, sfpd_lo, t0, 1);
-      __ Branch(&done);
+      GenerateUInt2Double(masm(), src, sfpd_hi, sfpd_lo, t0, 1);
+      __ Branch(&convert_done);
 
       __ bind(&no_leading_zero);
-      GenerateUInt2Double(masm(), sfpd_hi, sfpd_lo, t0, 0);
-      __ Branch(&done);
+      GenerateUInt2Double(masm(), src, sfpd_hi, sfpd_lo, t0, 0);
+      __ bind(&convert_done);
     }
   }
 
