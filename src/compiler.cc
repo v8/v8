@@ -1134,7 +1134,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
   if (info->isolate()->logger()->is_logging_code_events() ||
-      CpuProfiler::is_profiling(info->isolate())) {
+      info->isolate()->cpu_profiler()->is_profiling()) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))

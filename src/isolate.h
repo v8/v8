@@ -357,9 +357,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(FunctionInfoListener*, active_function_info_listener, NULL)                \
   /* State for Relocatable. */                                                 \
   V(Relocatable*, relocatable_top, NULL)                                       \
-  /* State for CodeEntry in profile-generator. */                              \
-  V(CodeGenerator*, current_code_generator, NULL)                              \
-  V(bool, jump_target_compiling_deferred_code, false)                          \
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
   V(Object*, string_stream_current_security_token, NULL)                       \
   /* TODO(isolates): Release this on destruction? */                           \
@@ -371,7 +368,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(unsigned, ast_node_count, 0)                                               \
   /* SafeStackFrameIterator activations count. */                              \
   V(int, safe_stack_iterator_counter, 0)                                       \
-  V(CpuProfiler*, cpu_profiler, NULL)                                          \
   V(HeapProfiler*, heap_profiler, NULL)                                        \
   V(bool, observer_delivery_pending, false)                                    \
   V(HStatistics*, hstatistics, NULL)                                           \
@@ -979,6 +975,8 @@ class Isolate {
   inline bool IsDebuggerActive();
   inline bool DebuggerHasBreakPoints();
 
+  CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
+
 #ifdef DEBUG
   HistogramInfo* heap_histograms() { return heap_histograms_; }
 
@@ -1314,6 +1312,7 @@ class Isolate {
   Debugger* debugger_;
   Debug* debug_;
 #endif
+  CpuProfiler* cpu_profiler_;
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
   type name##_;

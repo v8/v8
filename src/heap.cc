@@ -1858,7 +1858,7 @@ class ScavengingVisitor : public StaticVisitorBase {
       HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
       Isolate* isolate = heap->isolate();
       if (isolate->logger()->is_logging_code_events() ||
-          CpuProfiler::is_profiling(isolate)) {
+          isolate->cpu_profiler()->is_profiling()) {
         if (target->IsSharedFunctionInfo()) {
           PROFILE(isolate, SharedFunctionInfoMoveEvent(
               source->address(), target->address()));
@@ -2114,7 +2114,7 @@ static void InitializeScavengingVisitorsTables() {
 void Heap::SelectScavengingVisitorsTable() {
   bool logging_and_profiling =
       isolate()->logger()->is_logging() ||
-      CpuProfiler::is_profiling(isolate()) ||
+      isolate()->cpu_profiler()->is_profiling() ||
       (isolate()->heap_profiler() != NULL &&
        isolate()->heap_profiler()->is_profiling());
 
