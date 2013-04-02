@@ -4903,10 +4903,11 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 
 // Convert unsigned integer with specified number of leading zeroes in binary
 // representation to IEEE 754 double.
-// Integer to convert is passed in register hiword.
+// Integer to convert is passed in register src.
 // Resulting double is returned in registers hiword:loword.
 // This functions does not work correctly for 0.
 static void GenerateUInt2Double(MacroAssembler* masm,
+                                Register src,
                                 Register hiword,
                                 Register loword,
                                 Register scratch,
@@ -4920,13 +4921,13 @@ static void GenerateUInt2Double(MacroAssembler* masm,
       kBitsPerInt - mantissa_shift_for_hi_word;
   masm->mov(scratch, Operand(biased_exponent << HeapNumber::kExponentShift));
   if (mantissa_shift_for_hi_word > 0) {
-    masm->mov(loword, Operand(hiword, LSL, mantissa_shift_for_lo_word));
+    masm->mov(loword, Operand(src, LSL, mantissa_shift_for_lo_word));
     masm->orr(hiword, scratch,
-              Operand(hiword, LSR, mantissa_shift_for_hi_word));
+              Operand(src, LSR, mantissa_shift_for_hi_word));
   } else {
     masm->mov(loword, Operand::Zero());
     masm->orr(hiword, scratch,
-              Operand(hiword, LSL, -mantissa_shift_for_hi_word));
+              Operand(src, LSL, -mantissa_shift_for_hi_word));
   }
 
   // If least significant bit of biased exponent was not 1 it was corrupted
@@ -4975,17 +4976,17 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
       __ vmov(flt_scratch, src);
       __ vcvt_f64_u32(dbl_scratch, flt_scratch);
     } else {
-      Label no_leading_zero, done;
+      Label no_leading_zero, convert_done;
       __ tst(src, Operand(0x80000000));
       __ b(ne, &no_leading_zero);
 
       // Integer has one leading zeros.
-      GenerateUInt2Double(masm(), sfpd_hi, sfpd_lo, r9, 1);
-      __ b(&done);
+      GenerateUInt2Double(masm(), src, sfpd_hi, sfpd_lo, r9, 1);
+      __ b(&convert_done);
 
       __ bind(&no_leading_zero);
-      GenerateUInt2Double(masm(), sfpd_hi, sfpd_lo, r9, 0);
-      __ b(&done);
+      GenerateUInt2Double(masm(), src, sfpd_hi, sfpd_lo, r9, 0);
+      __ bind(&convert_done);
     }
   }
 
@@ -5002,10 +5003,18 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   // TODO(3095996): Put a valid pointer value in the stack slot where the result
   // register is stored, as this register is in the pointer map, but contains an
   // integer value.
+  if (!CpuFeatures::IsSupported(VFP2)) {
+    // Preserve sfpd_lo.
+    __ mov(r9, sfpd_lo);
+  }
   __ mov(ip, Operand::Zero());
   __ StoreToSafepointRegisterSlot(ip, dst);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
   __ Move(dst, r0);
+  if (!CpuFeatures::IsSupported(VFP2)) {
+    // Restore sfpd_lo.
+    __ mov(sfpd_lo, r9);
+  }
   __ sub(dst, dst, Operand(kHeapObjectTag));
 
   // Done. Put the value in dbl_scratch into the value of the allocated heap

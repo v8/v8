@@ -708,15 +708,14 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
                           const MemOperand& src, Condition cond) {
   ASSERT(src.rm().is(no_reg));
   ASSERT(!dst1.is(lr));  // r14.
-  ASSERT_EQ(0, dst1.code() % 2);
-  ASSERT_EQ(dst1.code() + 1, dst2.code());
 
   // V8 does not use this addressing mode, so the fallback code
   // below doesn't support it yet.
   ASSERT((src.am() != PreIndex) && (src.am() != NegPreIndex));
 
   // Generate two ldr instructions if ldrd is not available.
-  if (CpuFeatures::IsSupported(ARMv7) && !predictable_code_size()) {
+  if (CpuFeatures::IsSupported(ARMv7) && !predictable_code_size() &&
+      (dst1.code() % 2 == 0) && (dst1.code() + 1 == dst2.code())) {
     CpuFeatureScope scope(this, ARMv7);
     ldrd(dst1, dst2, src, cond);
   } else {
@@ -750,15 +749,14 @@ void MacroAssembler::Strd(Register src1, Register src2,
                           const MemOperand& dst, Condition cond) {
   ASSERT(dst.rm().is(no_reg));
   ASSERT(!src1.is(lr));  // r14.
-  ASSERT_EQ(0, src1.code() % 2);
-  ASSERT_EQ(src1.code() + 1, src2.code());
 
   // V8 does not use this addressing mode, so the fallback code
   // below doesn't support it yet.
   ASSERT((dst.am() != PreIndex) && (dst.am() != NegPreIndex));
 
   // Generate two str instructions if strd is not available.
-  if (CpuFeatures::IsSupported(ARMv7) && !predictable_code_size()) {
+  if (CpuFeatures::IsSupported(ARMv7) && !predictable_code_size() &&
+      (src1.code() % 2 == 0) && (src1.code() + 1 == src2.code())) {
     CpuFeatureScope scope(this, ARMv7);
     strd(src1, src2, dst, cond);
   } else {
@@ -2499,9 +2497,9 @@ void MacroAssembler::TryInt32Floor(Register result,
 
 void MacroAssembler::ECMAConvertNumberToInt32(Register source,
                                               Register result,
-                                              Register scratch,
-                                              Register input_high,
                                               Register input_low,
+                                              Register input_high,
+                                              Register scratch,
                                               DwVfpRegister double_scratch1,
                                               DwVfpRegister double_scratch2) {
   if (CpuFeatures::IsSupported(VFP2)) {
@@ -2578,24 +2576,26 @@ void MacroAssembler::ECMAToInt32NoVFP(Register result,
 
   Ubfx(scratch, input_high,
        HeapNumber::kExponentShift, HeapNumber::kExponentBits);
-  // Load scratch with exponent - 1. This is faster than loading
-  // with exponent because Bias + 1 = 1024 which is an *ARM* immediate value.
-  sub(scratch, scratch, Operand(HeapNumber::kExponentBias + 1));
+  // Load scratch with exponent.
+  sub(scratch, scratch, Operand(HeapNumber::kExponentBias));
   // If exponent is negative, 0 < input < 1, the result is 0.
   // If exponent is greater than or equal to 84, the 32 less significant
   // bits are 0s (2^84 = 1, 52 significant bits, 32 uncoded bits),
   // the result is 0.
   // This test also catch Nan and infinities which also return 0.
-  // Compare exponent with 84 (compare exponent - 1 with 83).
-  cmp(scratch, Operand(83));
+  cmp(scratch, Operand(84));
   // We do an unsigned comparison so negative numbers are treated as big
   // positive number and the two tests above are done in one test.
   b(hs, &out_of_range);
 
-  // Load scratch with 20 - exponent (load with 19 - (exponent - 1)).
-  rsb(scratch, scratch, Operand(19), SetCC);
+  // Load scratch with 20 - exponent.
+  rsb(scratch, scratch, Operand(20), SetCC);
   b(mi, &both);
 
+  // Test 0 and -0.
+  bic(result, input_high, Operand(HeapNumber::kSignMask));
+  orr(result, result, Operand(input_low), SetCC);
+  b(eq, &done);
   // 0 <= exponent <= 20, shift only input_high.
   // Scratch contains: 20 - exponent.
   Ubfx(result, input_high,

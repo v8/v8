@@ -2634,8 +2634,8 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
                                       OverwriteMode mode) {
   Register left = r1;
   Register right = r0;
-  Register scratch1 = r7;
-  Register scratch2 = r9;
+  Register scratch1 = r6;
+  Register scratch2 = r7;
   Register scratch3 = r4;
 
   ASSERT(smi_operands || (not_numbers != NULL));
@@ -2650,7 +2650,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
     __ JumpIfNotSmi(right, miss);
   }
 
-  Register heap_number_map = r6;
+  Register heap_number_map = r9;
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
   switch (op) {
