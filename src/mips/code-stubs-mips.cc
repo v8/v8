@@ -7415,29 +7415,27 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ LoadRoot(tmp, Heap::kUndefinedValueRootIndex);
     __ Branch(done, eq, entity_name, Operand(tmp));
 
-    if (i != kInlinedProbes - 1) {
-      // Load the hole ready for use below:
-      __ LoadRoot(tmp, Heap::kTheHoleValueRootIndex);
+    // Load the hole ready for use below:
+    __ LoadRoot(tmp, Heap::kTheHoleValueRootIndex);
 
-      // Stop if found the property.
-      __ Branch(miss, eq, entity_name, Operand(Handle<String>(name)));
+    // Stop if found the property.
+    __ Branch(miss, eq, entity_name, Operand(Handle<String>(name)));
 
-      Label the_hole;
-      __ Branch(&the_hole, eq, entity_name, Operand(tmp));
+    Label the_hole;
+    __ Branch(&the_hole, eq, entity_name, Operand(tmp));
 
-      // Check if the entry name is not a symbol.
-      __ lw(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
-      __ lbu(entity_name,
-             FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-      __ And(scratch0, entity_name, Operand(kIsSymbolMask));
-      __ Branch(miss, eq, scratch0, Operand(zero_reg));
+    // Check if the entry name is not a symbol.
+    __ lw(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
+    __ lbu(entity_name,
+           FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
+    __ And(scratch0, entity_name, Operand(kIsSymbolMask));
+    __ Branch(miss, eq, scratch0, Operand(zero_reg));
 
-      __ bind(&the_hole);
+    __ bind(&the_hole);
 
-      // Restore the properties.
-      __ lw(properties,
-            FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-    }
+    // Restore the properties.
+    __ lw(properties,
+          FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   }
 
   const int spill_mask =
