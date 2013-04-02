@@ -1694,6 +1694,7 @@ Isolate::Isolate()
       code_stub_interface_descriptors_(NULL),
       context_exit_happened_(false),
       cpu_profiler_(NULL),
+      heap_profiler_(NULL),
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
@@ -1825,7 +1826,8 @@ void Isolate::Deinit() {
     preallocated_message_space_ = NULL;
     PreallocatedMemoryThreadStop();
 
-    HeapProfiler::TearDown();
+    delete heap_profiler_;
+    heap_profiler_ = NULL;
     delete cpu_profiler_;
     cpu_profiler_ = NULL;
 
@@ -2058,7 +2060,7 @@ bool Isolate::Init(Deserializer* des) {
   logger_->SetUp();
 
   cpu_profiler_ = new CpuProfiler(this);
-  HeapProfiler::SetUp();
+  heap_profiler_ = new HeapProfiler(heap());
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
