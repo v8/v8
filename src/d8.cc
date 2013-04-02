@@ -907,12 +907,6 @@ Handle<Value> Shell::Uint8ClampedArray(const Arguments& args) {
 }
 
 
-Handle<Value> Shell::Yield(const Arguments& args) {
-  v8::Unlocker unlocker(args.GetIsolate());
-  return Undefined(args.GetIsolate());
-}
-
-
 Handle<Value> Shell::Quit(const Arguments& args) {
   int exit_code = args[0]->Int32Value();
   OnExit();
