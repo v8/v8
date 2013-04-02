@@ -321,8 +321,8 @@ class V8EXPORT HeapSnapshot {
     kJSON = 0  // See format description near 'Serialize' method.
   };
 
-  /** Returns heap snapshot type. */
-  Type GetType() const;
+  /** Deprecated. Returns kFull. */
+  V8_DEPRECATED(Type GetType() const);
 
   /** Returns heap snapshot UID (assigned by the profiler.) */
   unsigned GetUid() const;
@@ -451,7 +451,6 @@ class V8EXPORT HeapProfiler {
       ObjectNameResolver* global_object_name_resolver = NULL);
   /**
    * Takes a heap snapshot and returns it. Title may be an empty string.
-   * See HeapSnapshot::Type for types description.
    */
   const HeapSnapshot* TakeHeapSnapshot(
       Handle<String> title,
