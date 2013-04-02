@@ -3884,7 +3884,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
 
   // Copy header and instructions.
-  CopyBytes(new_addr, old_addr, static_cast<int>(relocation_offset));
+  CopyBytes(new_addr, old_addr, relocation_offset);
 
   Code* new_code = Code::cast(result);
   new_code->set_relocation_info(ByteArray::cast(reloc_info_array));
@@ -3892,7 +3892,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   // Copy patched rinfo.
   CopyBytes(new_code->relocation_start(),
             reloc_info.start(),
-            reloc_info.length());
+            static_cast<size_t>(reloc_info.length()));
 
   // Relocate the copy.
   ASSERT(!isolate_->code_range()->exists() ||

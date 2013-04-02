@@ -8849,12 +8849,13 @@ void Code::CopyFrom(const CodeDesc& desc) {
   ASSERT(Marking::Color(this) == Marking::WHITE_OBJECT);
 
   // copy code
-  CopyBytes(instruction_start(), desc.buffer, desc.instr_size);
+  CopyBytes(instruction_start(), desc.buffer,
+            static_cast<size_t>(desc.instr_size));
 
   // copy reloc info
   CopyBytes(relocation_start(),
             desc.buffer + desc.buffer_size - desc.reloc_size,
-            desc.reloc_size);
+            static_cast<size_t>(desc.reloc_size));
 
   // unbox handles and relocate
   intptr_t delta = instruction_start() - desc.buffer;

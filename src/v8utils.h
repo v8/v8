@@ -151,20 +151,19 @@ inline void CopyWords(T* dst, T* src, int num_words) {
 
 // Copies data from |src| to |dst|.  The data spans must not overlap.
 template <typename T>
-inline void CopyBytes(T* dst, T* src, int num_bytes) {
+inline void CopyBytes(T* dst, T* src, size_t num_bytes) {
   STATIC_ASSERT(sizeof(T) == 1);
   ASSERT(Min(dst, src) + num_bytes <= Max(dst, src));
-  ASSERT(num_bytes >= 0);
   if (num_bytes == 0) return;
 
   // Use block copying OS::MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
   static const int kBlockCopyLimit = OS::kMinComplexMemCopy;
 
-  if (num_bytes >= kBlockCopyLimit) {
+  if (num_bytes >= static_cast<size_t>(kBlockCopyLimit)) {
     OS::MemCopy(dst, src, num_bytes);
   } else {
-    int remaining = num_bytes;
+    size_t remaining = num_bytes;
     do {
       remaining--;
       *dst++ = *src++;
