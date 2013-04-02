@@ -5806,6 +5806,13 @@ HeapProfiler* Isolate::GetHeapProfiler() {
 }
 
 
+CpuProfiler* Isolate::GetCpuProfiler() {
+  i::CpuProfiler* cpu_profiler =
+      reinterpret_cast<i::Isolate*>(this)->cpu_profiler();
+  return reinterpret_cast<CpuProfiler*>(cpu_profiler);
+}
+
+
 void V8::SetGlobalGCPrologueCallback(GCCallback callback) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::SetGlobalGCPrologueCallback()")) return;
@@ -6539,6 +6546,11 @@ int CpuProfiler::GetProfilesCount() {
 }
 
 
+int CpuProfiler::GetProfileCount() {
+  return reinterpret_cast<i::CpuProfiler*>(this)->GetProfilesCount();
+}
+
+
 const CpuProfile* CpuProfiler::GetProfile(int index,
                                           Handle<Value> security_token) {
   i::Isolate* isolate = i::Isolate::Current();
@@ -6547,6 +6559,15 @@ const CpuProfile* CpuProfiler::GetProfile(int index,
   ASSERT(profiler != NULL);
   return reinterpret_cast<const CpuProfile*>(
       profiler->GetProfile(
+          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
+          index));
+}
+
+
+const CpuProfile* CpuProfiler::GetCpuProfile(int index,
+                                             Handle<Value> security_token) {
+  return reinterpret_cast<const CpuProfile*>(
+      reinterpret_cast<i::CpuProfiler*>(this)->GetProfile(
           security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
           index));
 }
@@ -6565,12 +6586,27 @@ const CpuProfile* CpuProfiler::FindProfile(unsigned uid,
 }
 
 
+const CpuProfile* CpuProfiler::FindCpuProfile(unsigned uid,
+                                              Handle<Value> security_token) {
+  return reinterpret_cast<const CpuProfile*>(
+      reinterpret_cast<i::CpuProfiler*>(this)->FindProfile(
+          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
+          uid));
+}
+
+
 void CpuProfiler::StartProfiling(Handle<String> title, bool record_samples) {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfiler::StartProfiling");
   i::CpuProfiler* profiler = isolate->cpu_profiler();
   ASSERT(profiler != NULL);
   profiler->StartProfiling(*Utils::OpenHandle(*title), record_samples);
+}
+
+
+void CpuProfiler::StartCpuProfiling(Handle<String> title, bool record_samples) {
+  reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+      *Utils::OpenHandle(*title), record_samples);
 }
 
 
@@ -6587,12 +6623,26 @@ const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
 }
 
 
+const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title,
+                                                Handle<Value> security_token) {
+  return reinterpret_cast<const CpuProfile*>(
+      reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
+          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
+          *Utils::OpenHandle(*title)));
+}
+
+
 void CpuProfiler::DeleteAllProfiles() {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfiler::DeleteAllProfiles");
   i::CpuProfiler* profiler = isolate->cpu_profiler();
   ASSERT(profiler != NULL);
   profiler->DeleteAllProfiles();
+}
+
+
+void CpuProfiler::DeleteAllCpuProfiles() {
+  reinterpret_cast<i::CpuProfiler*>(this)->DeleteAllProfiles();
 }
 
 
