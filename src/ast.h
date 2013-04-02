@@ -102,6 +102,7 @@ namespace internal {
   V(ObjectLiteral)                              \
   V(ArrayLiteral)                               \
   V(Assignment)                                 \
+  V(Yield)                                      \
   V(Throw)                                      \
   V(Property)                                   \
   V(Call)                                       \
@@ -1953,6 +1954,31 @@ class Assignment: public Expression {
 };
 
 
+class Yield: public Expression {
+ public:
+  DECLARE_NODE_TYPE(Yield)
+
+  Expression* expression() const { return expression_; }
+  bool is_delegating_yield() const { return is_delegating_yield_; }
+  virtual int position() const { return pos_; }
+
+ protected:
+  Yield(Isolate* isolate,
+        Expression* expression,
+        bool is_delegating_yield,
+        int pos)
+      : Expression(isolate),
+        expression_(expression),
+        is_delegating_yield_(is_delegating_yield),
+        pos_(pos) { }
+
+ private:
+  Expression* expression_;
+  bool is_delegating_yield_;
+  int pos_;
+};
+
+
 class Throw: public Expression {
  public:
   DECLARE_NODE_TYPE(Throw)
@@ -1991,6 +2017,11 @@ class FunctionLiteral: public Expression {
   enum IsParenthesizedFlag {
     kIsParenthesized,
     kNotParenthesized
+  };
+
+  enum IsGeneratorFlag {
+    kIsGenerator,
+    kNotGenerator
   };
 
   DECLARE_NODE_TYPE(FunctionLiteral)
@@ -2053,6 +2084,10 @@ class FunctionLiteral: public Expression {
     bitfield_ = IsParenthesized::update(bitfield_, kIsParenthesized);
   }
 
+  bool is_generator() {
+    return IsGenerator::decode(bitfield_) == kIsGenerator;
+  }
+
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
   void set_ast_properties(AstProperties* ast_properties) {
@@ -2073,7 +2108,8 @@ class FunctionLiteral: public Expression {
                   Type type,
                   ParameterFlag has_duplicate_parameters,
                   IsFunctionFlag is_function,
-                  IsParenthesizedFlag is_parenthesized)
+                  IsParenthesizedFlag is_parenthesized,
+                  IsGeneratorFlag is_generator)
       : Expression(isolate),
         name_(name),
         scope_(scope),
@@ -2093,7 +2129,8 @@ class FunctionLiteral: public Expression {
         Pretenure::encode(false) |
         HasDuplicateParameters::encode(has_duplicate_parameters) |
         IsFunction::encode(is_function) |
-        IsParenthesized::encode(is_parenthesized);
+        IsParenthesized::encode(is_parenthesized) |
+        IsGenerator::encode(is_generator);
   }
 
  private:
@@ -2118,6 +2155,7 @@ class FunctionLiteral: public Expression {
   class HasDuplicateParameters: public BitField<ParameterFlag, 4, 1> {};
   class IsFunction: public BitField<IsFunctionFlag, 5, 1> {};
   class IsParenthesized: public BitField<IsParenthesizedFlag, 6, 1> {};
+  class IsGenerator: public BitField<IsGeneratorFlag, 7, 1> {};
 };
 
 
@@ -2916,6 +2954,12 @@ class AstNodeFactory BASE_EMBEDDED {
     VISIT_AND_RETURN(Assignment, assign)
   }
 
+  Yield* NewYield(Expression* expression, bool is_delegating_yield, int pos) {
+    Yield* yield =
+        new(zone_) Yield(isolate_, expression, is_delegating_yield, pos);
+    VISIT_AND_RETURN(Yield, yield)
+  }
+
   Throw* NewThrow(Expression* exception, int pos) {
     Throw* t = new(zone_) Throw(isolate_, exception, pos);
     VISIT_AND_RETURN(Throw, t)
@@ -2934,13 +2978,14 @@ class AstNodeFactory BASE_EMBEDDED {
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::Type type,
       FunctionLiteral::IsFunctionFlag is_function,
-      FunctionLiteral::IsParenthesizedFlag is_parenthesized) {
+      FunctionLiteral::IsParenthesizedFlag is_parenthesized,
+      FunctionLiteral::IsGeneratorFlag is_generator) {
     FunctionLiteral* lit = new(zone_) FunctionLiteral(
         isolate_, name, scope, body,
         materialized_literal_count, expected_property_count, handler_count,
         has_only_simple_this_property_assignments, this_property_assignments,
         parameter_count, type, has_duplicate_parameters, is_function,
-        is_parenthesized);
+        is_parenthesized, is_generator);
     // Top-level literal doesn't count for the AST's properties.
     if (is_function == FunctionLiteral::kIsFunction) {
       visitor_.VisitFunctionLiteral(lit);

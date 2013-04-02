@@ -5948,6 +5948,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that code for this function cannot be cached.
   DECL_BOOLEAN_ACCESSORS(dont_cache)
 
+  // Indicates that this function is a generator.
+  DECL_BOOLEAN_ACCESSORS(is_generator)
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -6174,6 +6177,7 @@ class SharedFunctionInfo: public HeapObject {
     kDontOptimize,
     kDontInline,
     kDontCache,
+    kIsGenerator,
     kCompilerHintsCount  // Pseudo entry
   };
 

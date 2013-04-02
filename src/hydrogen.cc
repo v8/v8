@@ -4122,6 +4122,10 @@ void HOptimizedGraphBuilder::VisitExpressions(
 
 
 bool HOptimizedGraphBuilder::BuildGraph() {
+  if (info()->function()->is_generator()) {
+    Bailout("function is a generator");
+    return false;
+  }
   Scope* scope = info()->scope();
   if (scope->HasIllegalRedeclaration()) {
     Bailout("function with illegal redeclaration");
@@ -7007,6 +7011,12 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
   } else {
     return Bailout("invalid left-hand side in assignment");
   }
+}
+
+
+void HOptimizedGraphBuilder::VisitYield(Yield* expr) {
+  // Generators are not optimized, so we should never get here.
+  UNREACHABLE();
 }
 
 
