@@ -851,7 +851,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
   Object* byte_length;
   {
     MaybeObject* maybe_byte_length =
-        isolate->heap()->NumberFromDouble(allocated_length);
+        isolate->heap()->NumberFromDouble(
+            static_cast<double>(allocated_length));
     if (!maybe_byte_length->ToObject(&byte_length)) return maybe_byte_length;
   }
   CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
