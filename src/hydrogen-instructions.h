@@ -4693,6 +4693,14 @@ class HParameter: public HTemplateInstruction<0> {
     set_representation(Representation::Tagged());
   }
 
+  explicit HParameter(unsigned index,
+                      ParameterKind kind,
+                      Representation r)
+      : index_(index),
+        kind_(kind) {
+    set_representation(r);
+  }
+
   unsigned index() const { return index_; }
   ParameterKind kind() const { return kind_; }
 

@@ -129,7 +129,8 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   if (descriptor_->stack_parameter_count_ != NULL) {
     ASSERT(descriptor_->environment_length() == (param_count + 1));
     stack_parameter_count = new(zone) HParameter(param_count,
-        HParameter::REGISTER_PARAMETER);
+                                                 HParameter::REGISTER_PARAMETER,
+                                                 Representation::Integer32());
     // it's essential to bind this value to the environment in case of deopt
     start_environment->Bind(param_count, stack_parameter_count);
     AddInstruction(stack_parameter_count);
@@ -147,12 +148,25 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   AddSimulate(BailoutId::StubEntry());
 
   HValue* return_value = BuildCodeStub();
+
+  // We might have extra expressions to pop from the stack in addition to the
+  // arguments above
+  HInstruction* stack_pop_count = stack_parameter_count;
+  if (descriptor_->function_mode_ == JS_FUNCTION_STUB_MODE) {
+    HInstruction* amount = graph()->GetConstant1();
+    stack_pop_count = AddInstruction(
+        HAdd::New(zone, context_, stack_parameter_count, amount));
+    stack_pop_count->ChangeRepresentation(Representation::Integer32());
+    stack_pop_count->ClearFlag(HValue::kCanOverflow);
+  }
+
   HReturn* hreturn_instruction = new(zone) HReturn(return_value,
                                                    context_,
-                                                   stack_parameter_count);
+                                                   stack_pop_count);
   current_block()->Finish(hreturn_instruction);
   return true;
 }
+
 
 template <class Stub>
 class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {

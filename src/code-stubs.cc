@@ -619,10 +619,8 @@ void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
-  int i = 0;
-  for (; i <= StubFailureTrampolineStub::kMaxExtraExpressionStackCount; ++i) {
-    StubFailureTrampolineStub(i).GetCode(isolate);
-  }
+  StubFailureTrampolineStub(NOT_JS_FUNCTION_STUB_MODE).GetCode(isolate);
+  StubFailureTrampolineStub(JS_FUNCTION_STUB_MODE).GetCode(isolate);
 }
 
 
