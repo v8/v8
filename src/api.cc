@@ -6454,6 +6454,11 @@ unsigned CpuProfileNode::GetCallUid() const {
 }
 
 
+unsigned CpuProfileNode::GetNodeId() const {
+  return reinterpret_cast<const i::ProfileNode*>(this)->id();
+}
+
+
 int CpuProfileNode::GetChildrenCount() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetChildrenCount");
@@ -6506,6 +6511,17 @@ const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
 }
 
 
+const CpuProfileNode* CpuProfile::GetSample(int index) const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return reinterpret_cast<const CpuProfileNode*>(profile->sample(index));
+}
+
+
+int CpuProfile::GetSamplesCount() const {
+  return reinterpret_cast<const i::CpuProfile*>(this)->samples_count();
+}
+
+
 int CpuProfiler::GetProfilesCount() {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfiler::GetProfilesCount");
@@ -6535,10 +6551,10 @@ const CpuProfile* CpuProfiler::FindProfile(unsigned uid,
 }
 
 
-void CpuProfiler::StartProfiling(Handle<String> title) {
+void CpuProfiler::StartProfiling(Handle<String> title, bool record_samples) {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfiler::StartProfiling");
-  i::CpuProfiler::StartProfiling(*Utils::OpenHandle(*title));
+  i::CpuProfiler::StartProfiling(*Utils::OpenHandle(*title), record_samples);
 }
 
 

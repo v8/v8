@@ -260,13 +260,14 @@ void ProfilerEventsProcessor::Run() {
 
 void CpuProfiler::StartProfiling(const char* title) {
   ASSERT(Isolate::Current()->cpu_profiler() != NULL);
-  Isolate::Current()->cpu_profiler()->StartCollectingProfile(title);
+  Isolate::Current()->cpu_profiler()->StartCollectingProfile(title, false);
 }
 
 
-void CpuProfiler::StartProfiling(String* title) {
+void CpuProfiler::StartProfiling(String* title, bool record_samples) {
   ASSERT(Isolate::Current()->cpu_profiler() != NULL);
-  Isolate::Current()->cpu_profiler()->StartCollectingProfile(title);
+  Isolate::Current()->cpu_profiler()->StartCollectingProfile(
+      title, record_samples);
 }
 
 
@@ -468,16 +469,17 @@ void CpuProfiler::ResetProfiles() {
   profiles_ = new CpuProfilesCollection();
 }
 
-void CpuProfiler::StartCollectingProfile(const char* title) {
-  if (profiles_->StartProfiling(title, next_profile_uid_++)) {
+void CpuProfiler::StartCollectingProfile(const char* title,
+                                         bool record_samples) {
+  if (profiles_->StartProfiling(title, next_profile_uid_++, record_samples)) {
     StartProcessorIfNotStarted();
   }
   processor_->AddCurrentStack();
 }
 
 
-void CpuProfiler::StartCollectingProfile(String* title) {
-  StartCollectingProfile(profiles_->GetName(title));
+void CpuProfiler::StartCollectingProfile(String* title, bool record_samples) {
+  StartCollectingProfile(profiles_->GetName(title), record_samples);
 }
 
 

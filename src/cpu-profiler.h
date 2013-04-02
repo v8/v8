@@ -207,7 +207,7 @@ class CpuProfiler {
   static void TearDown();
 
   static void StartProfiling(const char* title);
-  static void StartProfiling(String* title);
+  static void StartProfiling(String* title, bool record_samples);
   static CpuProfile* StopProfiling(const char* title);
   static CpuProfile* StopProfiling(Object* security_token, String* title);
   static int GetProfilesCount();
@@ -253,8 +253,8 @@ class CpuProfiler {
  private:
   CpuProfiler();
   ~CpuProfiler();
-  void StartCollectingProfile(const char* title);
-  void StartCollectingProfile(String* title);
+  void StartCollectingProfile(const char* title, bool record_samples);
+  void StartCollectingProfile(String* title, bool record_samples);
   void StartProcessorIfNotStarted();
   CpuProfile* StopCollectingProfile(const char* title);
   CpuProfile* StopCollectingProfile(Object* security_token, String* title);
