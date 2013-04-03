@@ -2075,7 +2075,7 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
     LOperand* new_map_reg = TempRegister();
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, new_map_reg, NULL);
-    return DefineSameAsFirst(result);
+    return result;
   } else if (FLAG_compiled_transitions) {
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, NULL, NULL);
