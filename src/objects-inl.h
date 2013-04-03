@@ -2508,7 +2508,10 @@ void Name::set_hash_field(uint32_t value) {
 
 bool Name::Equals(Name* other) {
   if (other == this) return true;
-  if (this->IsUniqueName() && other->IsUniqueName()) return false;
+  if (this->IsSymbol() || other->IsSymbol() ||
+      (this->IsInternalizedString() && other->IsInternalizedString())) {
+    return false;
+  }
   return String::cast(this)->SlowEquals(String::cast(other));
 }
 

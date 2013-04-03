@@ -98,6 +98,10 @@ MaybeObject* Object::ToObject() {
     Isolate* isolate = HeapObject::cast(this)->GetIsolate();
     Context* native_context = isolate->context()->native_context();
     return CreateJSValue(native_context->string_function(), this);
+  } else if (IsSymbol()) {
+    Isolate* isolate = HeapObject::cast(this)->GetIsolate();
+    Context* native_context = isolate->context()->native_context();
+    return CreateJSValue(native_context->symbol_function(), this);
   }
 
   // Throw a type error.

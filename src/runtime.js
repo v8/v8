@@ -69,9 +69,16 @@ function EQUALS(y) {
     } else if (IS_STRING(x)) {
       while (true) {
         if (IS_STRING(y)) return %StringEquals(x, y);
+        if (IS_SYMBOL(y)) return 1;  // not equal
         if (IS_NUMBER(y)) return %NumberEquals(%ToNumber(x), y);
         if (IS_BOOLEAN(y)) return %NumberEquals(%ToNumber(x), %ToNumber(y));
         if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+        y = %ToPrimitive(y, NO_HINT);
+      }
+    } else if (IS_SYMBOL(x)) {
+      while (true) {
+        if (IS_SYMBOL(y)) return %_ObjectEquals(x, y) ? 0 : 1;
+        if (!IS_SPEC_OBJECT(y)) return 1;  // not equal
         y = %ToPrimitive(y, NO_HINT);
       }
     } else if (IS_BOOLEAN(x)) {
@@ -79,6 +86,7 @@ function EQUALS(y) {
       if (IS_NULL_OR_UNDEFINED(y)) return 1;
       if (IS_NUMBER(y)) return %NumberEquals(%ToNumber(x), y);
       if (IS_STRING(y)) return %NumberEquals(%ToNumber(x), %ToNumber(y));
+      if (IS_SYMBOL(y)) return 1;  // not equal
       // y is object.
       x = %ToNumber(x);
       y = %ToPrimitive(y, NO_HINT);
@@ -508,6 +516,7 @@ function ToPrimitive(x, hint) {
   if (IS_STRING(x)) return x;
   // Normal behavior.
   if (!IS_SPEC_OBJECT(x)) return x;
+  if (IS_SYMBOL_WRAPPER(x)) return %_ValueOf(x);
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
   return (hint == NUMBER_HINT) ? %DefaultNumber(x) : %DefaultString(x);
 }

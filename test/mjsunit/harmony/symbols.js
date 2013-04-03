@@ -131,13 +131,17 @@ TestToNumber()
 
 
 function TestEquality() {
-  // Every symbol should equal itself.
+  // Every symbol should equal itself, and non-strictly equal its wrapper.
   for (var i in symbols) {
     assertSame(symbols[i], symbols[i])
     assertEquals(symbols[i], symbols[i])
     assertTrue(Object.is(symbols[i], symbols[i]))
     assertTrue(symbols[i] === symbols[i])
     assertTrue(symbols[i] == symbols[i])
+    assertFalse(symbols[i] === new Symbol(symbols[i]))
+    assertFalse(new Symbol(symbols[i]) === symbols[i])
+    assertTrue(symbols[i] == new Symbol(symbols[i]))
+    assertTrue(new Symbol(symbols[i]) == symbols[i])
   }
 
   // All symbols should be distinct.
@@ -146,6 +150,17 @@ function TestEquality() {
       assertFalse(Object.is(symbols[i], symbols[j]))
       assertFalse(symbols[i] === symbols[j])
       assertFalse(symbols[i] == symbols[j])
+    }
+  }
+
+  // Symbols should not be equal to any other value (and the test terminates).
+  var values = [347, 1.275, NaN, "string", null, undefined, {}, function() {}]
+  for (var i in symbols) {
+    for (var j in values) {
+      assertFalse(symbols[i] === values[j])
+      assertFalse(values[j] === symbols[i])
+      assertFalse(symbols[i] == values[j])
+      assertFalse(values[j] == symbols[i])
     }
   }
 }
