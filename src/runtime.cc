@@ -9554,20 +9554,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_EstimateNumberOfElements) {
 }
 
 
-static Handle<Object> NewSingleInterval(Isolate* isolate, uint32_t length) {
-  Handle<FixedArray> single_interval = isolate->factory()->NewFixedArray(2);
-  // -1 means start of array.
-  single_interval->set(0, Smi::FromInt(-1));
-  Handle<Object> number = isolate->factory()->NewNumberFromUint(length);
-  single_interval->set(1, *number);
-  return isolate->factory()->NewJSArrayWithElements(single_interval);
-}
-
-
 // Returns an array that tells you where in the [0, length) interval an array
-// might have elements.  Can either return keys (positive integers) or
-// intervals (pair of a negative integer (-start-1) followed by a
-// positive (length)) or undefined values.
+// might have elements.  Can either return an array of keys (positive integers
+// or undefined) or a number representing the positive length of an interval
+// starting at index 0.
 // Intervals can span over some keys that are not in the object.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
   HandleScope scope(isolate);
@@ -9582,7 +9572,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
       if (p->IsJSProxy() || JSObject::cast(*p)->HasIndexedInterceptor()) {
         // Bail out if we find a proxy or interceptor, likely not worth
         // collecting keys in that case.
-        return *NewSingleInterval(isolate, length);
+        return *isolate->factory()->NewNumberFromUint(length);
       }
       Handle<JSObject> current = Handle<JSObject>::cast(p);
       Handle<FixedArray> current_keys =
@@ -9602,7 +9592,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
     ASSERT(array->HasFastSmiOrObjectElements() ||
            array->HasFastDoubleElements());
     uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
-    return *NewSingleInterval(isolate, Min(actual_length, length));
+    return *isolate->factory()->NewNumberFromUint(Min(actual_length, length));
   }
 }
 
