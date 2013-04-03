@@ -2045,7 +2045,7 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LTransitionElementsKind: public LTemplateInstruction<1, 1, 2> {
+class LTransitionElementsKind: public LTemplateInstruction<0, 1, 2> {
  public:
   LTransitionElementsKind(LOperand* object,
                           LOperand* new_map_temp,
