@@ -3582,6 +3582,7 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
     case Token::FUTURE_RESERVED_WORD:
       return ReportMessage("unexpected_reserved",
                            Vector<const char*>::empty());
+    case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD:
       return ReportMessage(top_scope_->is_classic_mode() ?
                                "unexpected_token_identifier" :
