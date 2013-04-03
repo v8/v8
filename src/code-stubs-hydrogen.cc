@@ -287,9 +287,8 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   AddInstruction(new(zone) HTrapAllocationMemento(js_array));
 
   HInstruction* array_length =
-      AddInstruction(new(zone) HJSArrayLength(js_array,
-                                              js_array,
-                                              HType::Smi()));
+      AddInstruction(HLoadNamedField::NewArrayLength(
+            zone, js_array, js_array, HType::Smi()));
 
   ElementsKind to_kind = casted_stub()->to_kind();
   BuildNewSpaceArrayCheck(array_length, to_kind);

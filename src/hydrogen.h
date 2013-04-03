@@ -939,8 +939,6 @@ class HGraphBuilder {
       KeyedAccessStoreMode store_mode,
       Representation checked_index_representation = Representation::None());
 
-  HInstruction* BuildFastArrayLengthLoad(HValue* object, HValue* typecheck);
-
   HInstruction* BuildStoreMap(HValue* object, HValue* map, BailoutId id);
   HInstruction* BuildStoreMap(HValue* object, Handle<Map> map, BailoutId id);
 

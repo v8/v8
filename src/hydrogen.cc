@@ -1165,8 +1165,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   HInstruction* length = NULL;
   if (is_js_array) {
-    length = AddInstruction(new(zone) HJSArrayLength(object, mapcheck,
-                                                     HType::Smi()));
+    length = AddInstruction(
+        HLoadNamedField::NewArrayLength(zone, object, mapcheck, HType::Smi()));
   } else {
     length = AddInstruction(new(zone) HFixedArrayBaseLength(elements));
   }
@@ -1232,13 +1232,6 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   return AddInstruction(
       BuildFastElementAccess(elements, checked_key, val, mapcheck,
                              elements_kind, is_store, store_mode));
-}
-
-
-HInstruction* HGraphBuilder::BuildFastArrayLengthLoad(HValue* object,
-                                                      HValue* typecheck) {
-  Zone* zone = this->zone();
-  return new (zone) HJSArrayLength(object, typecheck, HType::Smi());
 }
 
 
@@ -6429,7 +6422,8 @@ bool HOptimizedGraphBuilder::HandlePolymorphicArrayLengthLoad(
   AddInstruction(new(zone()) HCheckNonSmi(object));
   HInstruction* typecheck =
     AddInstruction(HCheckInstanceType::NewIsJSArray(object, zone()));
-  HInstruction* instr = BuildFastArrayLengthLoad(object, typecheck);
+  HInstruction* instr =
+    HLoadNamedField::NewArrayLength(zone(), object, typecheck);
   instr->set_position(expr->position());
   ast_context()->ReturnInstruction(instr, expr->id());
   return true;
@@ -7094,7 +7088,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
   if (name->Equals(isolate()->heap()->length_string())) {
     if (map->instance_type() == JS_ARRAY_TYPE) {
       AddCheckMapsWithTransitions(object, map);
-      return BuildFastArrayLengthLoad(object, NULL);
+      return HLoadNamedField::NewArrayLength(zone(), object, object);
     }
   }
 
@@ -7387,8 +7381,9 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
         set_current_block(if_jsarray);
         HInstruction* length;
-        length = AddInstruction(new(zone()) HJSArrayLength(object, typecheck,
-                                                           HType::Smi()));
+        length = AddInstruction(
+            HLoadNamedField::NewArrayLength(zone(), object, typecheck,
+                                            HType::Smi()));
         checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind_branch,

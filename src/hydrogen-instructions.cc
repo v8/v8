@@ -1468,15 +1468,6 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
-void HJSArrayLength::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  if (HasTypeCheck()) {
-    stream->Add(" ");
-    typecheck()->PrintNameTo(stream);
-  }
-}
-
-
 HValue* HUnaryMathOperation::Canonicalize() {
   if (op() == kMathFloor) {
     // If the input is integer32 then we replace the floor instruction
@@ -2416,6 +2407,10 @@ void HParameter::PrintDataTo(StringStream* stream) {
 void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(" @%d%s", offset(), is_in_object() ? "[in-object]" : "");
+  if (HasTypeCheck()) {
+    stream->Add(" ");
+    typecheck()->PrintNameTo(stream);
+  }
 }
 
 
