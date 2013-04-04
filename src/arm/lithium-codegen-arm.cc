@@ -5734,7 +5734,6 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
   // Boilerplate already exists, constant elements are never accessed.
   // Pass an empty fixed array.
   __ mov(r1, Operand(isolate()->factory()->empty_fixed_array()));
-  __ Push(r3, r2, r1);
 
   // Pick the right runtime function or stub to call.
   int length = instr->hydrogen()->length();
@@ -5745,8 +5744,10 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
     FastCloneShallowArrayStub stub(mode, DONT_TRACK_ALLOCATION_SITE, length);
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   } else if (instr->hydrogen()->depth() > 1) {
+    __ Push(r3, r2, r1);
     CallRuntime(Runtime::kCreateArrayLiteral, 3, instr);
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+    __ Push(r3, r2, r1);
     CallRuntime(Runtime::kCreateArrayLiteralShallow, 3, instr);
   } else {
     FastCloneShallowArrayStub::Mode mode =

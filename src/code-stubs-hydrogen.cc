@@ -189,6 +189,74 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
 
 
 template <>
+HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
+  Zone* zone = this->zone();
+  Factory* factory = isolate()->factory();
+  AllocationSiteMode alloc_site_mode = casted_stub()->allocation_site_mode();
+  FastCloneShallowArrayStub::Mode mode = casted_stub()->mode();
+  int length = casted_stub()->length();
+
+  HInstruction* boilerplate =
+      AddInstruction(new(zone) HLoadKeyed(GetParameter(0),
+                                          GetParameter(1),
+                                          NULL,
+                                          FAST_ELEMENTS));
+
+  CheckBuilder builder(this);
+  builder.CheckNotUndefined(boilerplate);
+
+  if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
+    HValue* elements =
+        AddInstruction(new(zone) HLoadElements(boilerplate, NULL));
+
+    IfBuilder if_fixed_cow(this);
+    if_fixed_cow.BeginIfMapEquals(elements, factory->fixed_cow_array_map());
+    environment()->Push(BuildCloneShallowArray(context(),
+                                               boilerplate,
+                                               alloc_site_mode,
+                                               FAST_ELEMENTS,
+                                               BailoutId::StubEntry(),
+                                               0/*copy-on-write*/));
+    if_fixed_cow.BeginElse();
+
+    IfBuilder if_fixed(this);
+    if_fixed.BeginIfMapEquals(elements, factory->fixed_array_map());
+    environment()->Push(BuildCloneShallowArray(context(),
+                                               boilerplate,
+                                               alloc_site_mode,
+                                               FAST_ELEMENTS,
+                                               BailoutId::StubEntry(),
+                                               length));
+    if_fixed.BeginElse();
+
+    environment()->Push(BuildCloneShallowArray(context(),
+                                               boilerplate,
+                                               alloc_site_mode,
+                                               FAST_DOUBLE_ELEMENTS,
+                                               BailoutId::StubEntry(),
+                                               length));
+  } else {
+    ElementsKind elements_kind = casted_stub()->ComputeElementsKind();
+    environment()->Push(BuildCloneShallowArray(context(),
+                                               boilerplate,
+                                               alloc_site_mode,
+                                               elements_kind,
+                                               BailoutId::StubEntry(),
+                                               length));
+  }
+
+  return environment()->Pop();
+}
+
+
+Handle<Code> FastCloneShallowArrayStub::GenerateCode() {
+  CodeStubGraphBuilder<FastCloneShallowArrayStub> builder(this);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   Zone* zone = this->zone();
   Factory* factory = isolate()->factory();

@@ -1062,6 +1062,13 @@ class HGraphBuilder {
                          HValue* length,
                          HValue* capacity);
 
+  HValue* BuildCloneShallowArray(HContext* context,
+                                 HValue* boilerplate,
+                                 AllocationSiteMode mode,
+                                 ElementsKind kind,
+                                 BailoutId id,
+                                 int length);
+
  private:
   HGraphBuilder();
   CompilationInfo* info_;

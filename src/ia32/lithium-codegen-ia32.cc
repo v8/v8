@@ -5609,26 +5609,33 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
     DeoptimizeIf(not_equal, instr->environment());
   }
 
-  // Set up the parameters to the stub/runtime call.
-  __ PushHeapObject(literals);
-  __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
-  // Boilerplate already exists, constant elements are never accessed.
-  // Pass an empty fixed array.
-  __ push(Immediate(isolate()->factory()->empty_fixed_array()));
-
-  // Pick the right runtime function or stub to call.
+  // Set up the parameters to the stub/runtime call and pick the right
+  // runtime function or stub to call. Boilerplate already exists,
+  // constant elements are never accessed, pass an empty fixed array.
   int length = instr->hydrogen()->length();
   if (instr->hydrogen()->IsCopyOnWrite()) {
     ASSERT(instr->hydrogen()->depth() == 1);
+    __ LoadHeapObject(eax, literals);
+    __ mov(ebx, Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
+    __ mov(ecx, Immediate(isolate()->factory()->empty_fixed_array()));
     FastCloneShallowArrayStub::Mode mode =
         FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS;
     FastCloneShallowArrayStub stub(mode, DONT_TRACK_ALLOCATION_SITE, length);
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   } else if (instr->hydrogen()->depth() > 1) {
+    __ PushHeapObject(literals);
+    __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
+    __ push(Immediate(isolate()->factory()->empty_fixed_array()));
     CallRuntime(Runtime::kCreateArrayLiteral, 3, instr);
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+    __ PushHeapObject(literals);
+    __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
+    __ push(Immediate(isolate()->factory()->empty_fixed_array()));
     CallRuntime(Runtime::kCreateArrayLiteralShallow, 3, instr);
   } else {
+    __ LoadHeapObject(eax, literals);
+    __ mov(ebx, Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
+    __ mov(ecx, Immediate(isolate()->factory()->empty_fixed_array()));
     FastCloneShallowArrayStub::Mode mode =
         boilerplate_elements_kind == FAST_DOUBLE_ELEMENTS
         ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS

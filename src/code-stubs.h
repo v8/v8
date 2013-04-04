@@ -443,7 +443,7 @@ class FastNewBlockContextStub : public PlatformCodeStub {
 };
 
 
-class FastCloneShallowArrayStub : public PlatformCodeStub {
+class FastCloneShallowArrayStub : public HydrogenCodeStub {
  public:
   // Maximum length of copied elements array.
   static const int kMaximumClonedLength = 8;
@@ -467,7 +467,31 @@ class FastCloneShallowArrayStub : public PlatformCodeStub {
     ASSERT_LE(length_, kMaximumClonedLength);
   }
 
-  void Generate(MacroAssembler* masm);
+  Mode mode() const { return mode_; }
+  int length() const { return length_; }
+  AllocationSiteMode allocation_site_mode() const {
+    return allocation_site_mode_;
+  }
+
+  ElementsKind ComputeElementsKind() const {
+    switch (mode()) {
+      case CLONE_ELEMENTS:
+      case COPY_ON_WRITE_ELEMENTS:
+        return FAST_ELEMENTS;
+      case CLONE_DOUBLE_ELEMENTS:
+        return FAST_DOUBLE_ELEMENTS;
+      case CLONE_ANY_ELEMENTS:
+        /*fall-through*/;
+    }
+    UNREACHABLE();
+    return LAST_ELEMENTS_KIND;
+  }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
 
  private:
   Mode mode_;
@@ -1604,18 +1628,25 @@ class StoreArrayLiteralElementStub : public PlatformCodeStub {
 class StubFailureTrampolineStub : public PlatformCodeStub {
  public:
   explicit StubFailureTrampolineStub(StubFunctionMode function_mode)
-      : function_mode_(function_mode) {}
+      : fp_registers_(CanUseFPRegisters()), function_mode_(function_mode) {}
 
   virtual bool IsPregenerated() { return true; }
 
   static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
+  class FPRegisters:       public BitField<bool,                0, 1> {};
+  class FunctionModeField: public BitField<StubFunctionMode,    1, 1> {};
+
   Major MajorKey() { return StubFailureTrampoline; }
-  int MinorKey() { return static_cast<int>(function_mode_); }
+  int MinorKey() {
+    return FPRegisters::encode(fp_registers_) |
+        FunctionModeField::encode(function_mode_);
+  }
 
   void Generate(MacroAssembler* masm);
 
+  bool fp_registers_;
   StubFunctionMode function_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(StubFailureTrampolineStub);

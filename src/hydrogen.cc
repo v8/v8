@@ -1462,6 +1462,123 @@ void HGraphBuilder::BuildCopyElements(HValue* context,
 }
 
 
+HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
+                                              HValue* boilerplate,
+                                              AllocationSiteMode mode,
+                                              ElementsKind kind,
+                                              BailoutId id,
+                                              int length) {
+  Zone* zone = this->zone();
+  Factory* factory = isolate()->factory();
+
+  // All sizes here are multiples of kPointerSize.
+  int size = JSArray::kSize;
+  if (mode == TRACK_ALLOCATION_SITE) {
+    size += AllocationSiteInfo::kSize;
+  }
+  int elems_offset = size;
+  if (length > 0) {
+    size += IsFastDoubleElementsKind(kind)
+        ? FixedDoubleArray::SizeFor(length)
+        : FixedArray::SizeFor(length);
+  }
+
+  HAllocate::Flags allocate_flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
+  if (IsFastDoubleElementsKind(kind)) {
+    allocate_flags = static_cast<HAllocate::Flags>(
+        allocate_flags | HAllocate::ALLOCATE_DOUBLE_ALIGNED);
+  }
+
+  // Allocate both the JS array and the elements array in one big
+  // allocation. This avoids multiple limit checks.
+  HValue* size_in_bytes =
+      AddInstruction(new(zone) HConstant(size, Representation::Integer32()));
+  HInstruction* object =
+      AddInstruction(new(zone) HAllocate(context,
+                                         size_in_bytes,
+                                         HType::JSObject(),
+                                         allocate_flags));
+
+  // Copy the JS array part.
+  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
+    if ((i != JSArray::kElementsOffset) || (length == 0)) {
+      HInstruction* value =
+          AddInstruction(new(zone) HLoadNamedField(boilerplate, true, i));
+      if (i != JSArray::kMapOffset) {
+        AddInstruction(new(zone) HStoreNamedField(object,
+                                                  factory->empty_string(),
+                                                  value,
+                                                  true, i));
+        AddSimulate(id);
+      } else {
+        BuildStoreMap(object, value, id);
+      }
+    }
+  }
+
+  // Create an allocation site info if requested.
+  if (mode == TRACK_ALLOCATION_SITE) {
+    HValue* alloc_site =
+        AddInstruction(new(zone) HInnerAllocatedObject(object, JSArray::kSize));
+    Handle<Map> alloc_site_map(isolate()->heap()->allocation_site_info_map());
+    BuildStoreMap(alloc_site, alloc_site_map, id);
+    int alloc_payload_offset = AllocationSiteInfo::kPayloadOffset;
+    AddInstruction(new(zone) HStoreNamedField(alloc_site,
+                                              factory->empty_string(),
+                                              boilerplate,
+                                              true, alloc_payload_offset));
+    AddSimulate(id);
+  }
+
+  if (length > 0) {
+    // Get hold of the elements array of the boilerplate and setup the
+    // elements pointer in the resulting object.
+    HValue* boilerplate_elements =
+        AddInstruction(new(zone) HLoadElements(boilerplate, NULL));
+    HValue* object_elements =
+        AddInstruction(new(zone) HInnerAllocatedObject(object, elems_offset));
+    AddInstruction(new(zone) HStoreNamedField(object,
+                                              factory->elements_field_string(),
+                                              object_elements,
+                                              true, JSObject::kElementsOffset));
+    AddSimulate(id);
+
+    // Copy the elements array header.
+    for (int i = 0; i < FixedArrayBase::kHeaderSize; i += kPointerSize) {
+      HInstruction* value =
+          AddInstruction(new(zone) HLoadNamedField(boilerplate_elements,
+                                                   true, i));
+      AddInstruction(new(zone) HStoreNamedField(object_elements,
+                                                factory->empty_string(),
+                                                value,
+                                                true, i));
+      AddSimulate(id);
+    }
+
+    // Copy the elements array contents.
+    // TODO(mstarzinger): Teach HGraphBuilder::BuildCopyElements to unfold
+    // copying loops with constant length up to a given boundary and use this
+    // helper here instead.
+    for (int i = 0; i < length; i++) {
+      HValue* key_constant =
+          AddInstruction(new(zone) HConstant(i, Representation::Integer32()));
+      HInstruction* value =
+          AddInstruction(new(zone) HLoadKeyed(boilerplate_elements,
+                                              key_constant,
+                                              NULL,
+                                              kind));
+      AddInstruction(new(zone) HStoreKeyed(object_elements,
+                                           key_constant,
+                                           value,
+                                           kind));
+      AddSimulate(id);
+    }
+  }
+
+  return object;
+}
+
+
 HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info,
                                                TypeFeedbackOracle* oracle)
     : HGraphBuilder(info),

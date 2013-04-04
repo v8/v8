@@ -1204,6 +1204,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   // and the standard stack frame slots.  Include space for an argument
   // object to the callee and optionally the space to pass the argument
   // object to the stub failure handler.
+  ASSERT(descriptor->register_param_count_ >= 0);
   int height_in_bytes = kPointerSize * descriptor->register_param_count_ +
       sizeof(Arguments) + kPointerSize;
   int fixed_frame_size = StandardFrameConstants::kFixedFrameSize;
