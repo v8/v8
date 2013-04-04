@@ -4977,7 +4977,6 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
-  ASSERT(instr->temp()->Equals(instr->result()));
   Register reg = ToRegister(instr->temp());
 
   ZoneList<Handle<JSObject> >* prototypes = instr->prototypes();
@@ -4989,7 +4988,6 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
     for (int i = 0; i < maps->length(); i++) {
       prototype_maps_.Add(maps->at(i), info()->zone());
     }
-    __ LoadHeapObject(reg, prototypes->at(prototypes->length() - 1));
   } else {
     for (int i = 0; i < prototypes->length(); i++) {
       __ LoadHeapObject(reg, prototypes->at(i));

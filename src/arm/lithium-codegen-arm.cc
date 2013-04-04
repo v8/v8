@@ -5541,7 +5541,6 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
-  ASSERT(instr->temp()->Equals(instr->result()));
   Register prototype_reg = ToRegister(instr->temp());
   Register map_reg = ToRegister(instr->temp2());
 
@@ -5554,8 +5553,6 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
     for (int i = 0; i < maps->length(); i++) {
       prototype_maps_.Add(maps->at(i), info()->zone());
     }
-    __ LoadHeapObject(prototype_reg,
-                      prototypes->at(prototypes->length() - 1));
   } else {
     for (int i = 0; i < prototypes->length(); i++) {
       __ LoadHeapObject(prototype_reg, prototypes->at(i));

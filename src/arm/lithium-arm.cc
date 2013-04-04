@@ -1933,7 +1933,7 @@ LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
   LUnallocated* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
   LCheckPrototypeMaps* result = new(zone()) LCheckPrototypeMaps(temp1, temp2);
-  return AssignEnvironment(Define(result, temp1));
+  return AssignEnvironment(result);
 }
 
 

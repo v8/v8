@@ -7113,8 +7113,10 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
     AddCheckMap(object, map);
-    HInstruction* holder_value = AddInstruction(
+    AddInstruction(
         new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
+    HValue* holder_value = AddInstruction(
+            new(zone()) HConstant(holder, Representation::Tagged()));
     return BuildLoadNamedField(holder_value, holder_map, &lookup);
   }
 
