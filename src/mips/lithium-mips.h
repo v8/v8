@@ -2184,7 +2184,7 @@ class LCheckMaps: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LCheckPrototypeMaps: public LTemplateInstruction<1, 0, 2> {
+class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 2> {
  public:
   LCheckPrototypeMaps(LOperand* temp, LOperand* temp2)  {
     temps_[0] = temp;
