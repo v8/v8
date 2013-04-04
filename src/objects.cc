@@ -9931,9 +9931,14 @@ MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
 
 void Map::ZapTransitions() {
   TransitionArray* transition_array = transitions();
-  MemsetPointer(transition_array->data_start(),
-                GetHeap()->the_hole_value(),
-                transition_array->length());
+  // TODO(mstarzinger): Temporarily use a slower version instead of the faster
+  // MemsetPointer to investigate a crasher. Switch back to MemsetPointer.
+  Object** data = transition_array->data_start();
+  Object* the_hole = GetHeap()->the_hole_value();
+  int length = transition_array->length();
+  for (int i = 0; i < length; i++) {
+    data[i] = the_hole;
+  }
 }
 
 
