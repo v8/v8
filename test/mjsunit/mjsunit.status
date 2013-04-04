@@ -44,11 +44,15 @@ regress/regress-524: SKIP
 stack-traces-gc: PASS || FAIL
 
 ##############################################################################
-# Too slow in debug mode with --stress-opt
+# Too slow in debug mode with --stress-opt mode.
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
 compiler/regress-funcaller: PASS, SKIP if $mode == debug
 regress/regress-2318: PASS, SKIP if $mode == debug
 regress/regress-create-exception: PASS, SKIP if $mode == debug
+
+##############################################################################
+# Too slow in debug mode for GC stress mode.
+regress/regress-crbug-217858: PASS, SKIP if $mode == debug
 
 ##############################################################################
 # These use a built-in that's only present in debug mode. They take
