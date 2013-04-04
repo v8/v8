@@ -11545,9 +11545,8 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
 }
 
 
-bool JSObject::HasRealNamedProperty(Name* key) {
+bool JSObject::HasRealNamedProperty(Isolate* isolate, Name* key) {
   // Check access rights if needed.
-  Isolate* isolate = GetIsolate();
   if (IsAccessCheckNeeded()) {
     if (!isolate->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
       isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
@@ -11561,73 +11560,21 @@ bool JSObject::HasRealNamedProperty(Name* key) {
 }
 
 
-bool JSObject::HasRealElementProperty(uint32_t index) {
+bool JSObject::HasRealElementProperty(Isolate* isolate, uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
-    Heap* heap = GetHeap();
-    if (!heap->isolate()->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
-      heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+    if (!isolate->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
       return false;
     }
   }
 
-  // Handle [] on String objects.
-  if (this->IsStringObjectWithCharacterAt(index)) return true;
-
-  switch (GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
-     uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>(
-              Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      return (index < length) &&
-          !FixedArray::cast(elements())->get(index)->IsTheHole();
-    }
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS: {
-      uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>(
-              Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedDoubleArray::cast(elements())->length());
-      return (index < length) &&
-          !FixedDoubleArray::cast(elements())->is_the_hole(index);
-      break;
-    }
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
-      return index < static_cast<uint32_t>(pixels->length());
-    }
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      ExternalArray* array = ExternalArray::cast(elements());
-      return index < static_cast<uint32_t>(array->length());
-    }
-    case DICTIONARY_ELEMENTS: {
-      return element_dictionary()->FindEntry(index)
-          != SeededNumberDictionary::kNotFound;
-    }
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNIMPLEMENTED();
-      break;
-  }
-  // All possibilities have been handled above already.
-  UNREACHABLE();
-  return GetHeap()->null_value();
+  return GetElementAttributeWithoutInterceptor(this, index, false) != ABSENT;
 }
 
 
-bool JSObject::HasRealNamedCallbackProperty(Name* key) {
+bool JSObject::HasRealNamedCallbackProperty(Isolate* isolate, Name* key) {
   // Check access rights if needed.
-  Isolate* isolate = GetIsolate();
   if (IsAccessCheckNeeded()) {
     if (!isolate->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
       isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);

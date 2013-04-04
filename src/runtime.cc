@@ -4629,7 +4629,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
     // Fast case: either the key is a real named property or it is not
     // an array index and there are no interceptors or hidden
     // prototypes.
-    if (object->HasRealNamedProperty(key)) return isolate->heap()->true_value();
+    if (object->HasRealNamedProperty(isolate, key))
+      return isolate->heap()->true_value();
     Map* map = object->map();
     if (!key_is_array_index &&
         !map->has_named_interceptor() &&

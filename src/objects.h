@@ -2034,9 +2034,9 @@ class JSObject: public JSReceiver {
   inline bool HasIndexedInterceptor();
 
   // Support functions for v8 api (needed for correct interceptor behavior).
-  bool HasRealNamedProperty(Name* key);
-  bool HasRealElementProperty(uint32_t index);
-  bool HasRealNamedCallbackProperty(Name* key);
+  bool HasRealNamedProperty(Isolate* isolate, Name* key);
+  bool HasRealElementProperty(Isolate* isolate, uint32_t index);
+  bool HasRealNamedCallbackProperty(Isolate* isolate, Name* key);
 
   // Get the header size for a JSObject.  Used to compute the index of
   // internal fields as well as the number of internal fields.
