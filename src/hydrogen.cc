@@ -1165,8 +1165,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   HInstruction* length = NULL;
   if (is_js_array) {
-    length = AddInstruction(new(zone) HJSArrayLength(object, mapcheck,
-                                                     HType::Smi()));
+    length = AddInstruction(
+        HLoadNamedField::NewArrayLength(zone, object, mapcheck, HType::Smi()));
   } else {
     length = AddInstruction(new(zone) HFixedArrayBaseLength(elements));
   }
@@ -4115,6 +4115,10 @@ void HOptimizedGraphBuilder::VisitExpressions(
 
 
 bool HOptimizedGraphBuilder::BuildGraph() {
+  if (info()->function()->is_generator()) {
+    Bailout("function is a generator");
+    return false;
+  }
   Scope* scope = info()->scope();
   if (scope->HasIllegalRedeclaration()) {
     Bailout("function with illegal redeclaration");
@@ -5083,19 +5087,7 @@ void HOptimizedGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
       typecheck->SetSuccessorAt(1, not_spec_object);
       current_block()->Finish(typecheck);
       if_spec_object->AddLeaveInlined(return_value, state);
-      if (!FLAG_harmony_symbols) {
-        not_spec_object->AddLeaveInlined(receiver, state);
-      } else {
-        HHasInstanceTypeAndBranch* symbolcheck =
-          new(zone()) HHasInstanceTypeAndBranch(return_value, SYMBOL_TYPE);
-        HBasicBlock* is_symbol = graph()->CreateBasicBlock();
-        HBasicBlock* not_symbol = graph()->CreateBasicBlock();
-        symbolcheck->SetSuccessorAt(0, is_symbol);
-        symbolcheck->SetSuccessorAt(1, not_symbol);
-        not_spec_object->Finish(symbolcheck);
-        is_symbol->AddLeaveInlined(return_value, state);
-        not_symbol->AddLeaveInlined(receiver, state);
-      }
+      not_spec_object->AddLeaveInlined(receiver, state);
     }
   } else if (state->inlining_kind() == SETTER_CALL_RETURN) {
     // Return from an inlined setter call. The returned value is never used, the
@@ -6299,6 +6291,12 @@ static int ComputeLoadStoreFieldIndex(Handle<Map> type,
 }
 
 
+void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
+  AddInstruction(new(zone()) HCheckNonSmi(object));
+  AddInstruction(new(zone()) HCheckMaps(object, map, zone()));
+}
+
+
 void HOptimizedGraphBuilder::AddCheckMapsWithTransitions(HValue* object,
                                                          Handle<Map> map) {
   AddInstruction(new(zone()) HCheckNonSmi(object));
@@ -6410,8 +6408,29 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
 }
 
 
-void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
+bool HOptimizedGraphBuilder::HandlePolymorphicArrayLengthLoad(
     Property* expr,
+    HValue* object,
+    SmallMapList* types,
+    Handle<String> name) {
+  if (!name->Equals(isolate()->heap()->length_string())) return false;
+
+  for (int i = 0; i < types->length(); i++) {
+    if (types->at(i)->instance_type() != JS_ARRAY_TYPE) return false;
+  }
+
+  AddInstruction(new(zone()) HCheckNonSmi(object));
+  HInstruction* typecheck =
+    AddInstruction(HCheckInstanceType::NewIsJSArray(object, zone()));
+  HInstruction* instr =
+    HLoadNamedField::NewArrayLength(zone(), object, typecheck);
+  instr->set_position(expr->position());
+  ast_context()->ReturnInstruction(instr, expr->id());
+  return true;
+}
+
+
+void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
     HValue* object,
     SmallMapList* types,
     Handle<String> name) {
@@ -6419,6 +6438,10 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   int previous_field_offset = 0;
   bool previous_field_is_in_object = false;
   bool is_monomorphic_field = true;
+
+  if (HandlePolymorphicArrayLengthLoad(expr, object, types, name))
+    return;
+
   Handle<Map> map;
   LookupResult lookup(isolate());
   for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
@@ -6985,6 +7008,12 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
 }
 
 
+void HOptimizedGraphBuilder::VisitYield(Yield* expr) {
+  // Generators are not optimized, so we should never get here.
+  UNREACHABLE();
+}
+
+
 void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -7054,16 +7083,25 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<Map> map) {
   // Handle a load from a known field.
   ASSERT(!map->is_dictionary_map());
+
+  // Handle access to various length properties
+  if (name->Equals(isolate()->heap()->length_string())) {
+    if (map->instance_type() == JS_ARRAY_TYPE) {
+      AddCheckMapsWithTransitions(object, map);
+      return HLoadNamedField::NewArrayLength(zone(), object, object);
+    }
+  }
+
   LookupResult lookup(isolate());
   map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsField()) {
-    AddCheckMapsWithTransitions(object, map);
+    AddCheckMap(object, map);
     return BuildLoadNamedField(object, map, &lookup);
   }
 
   // Handle a load of a constant known function.
   if (lookup.IsConstantFunction()) {
-    AddCheckMapsWithTransitions(object, map);
+    AddCheckMap(object, map);
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
   }
@@ -7074,7 +7112,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
-    AddCheckMapsWithTransitions(object, map);
+    AddCheckMap(object, map);
     HInstruction* holder_value = AddInstruction(
         new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
     return BuildLoadNamedField(holder_value, holder_map, &lookup);
@@ -7085,7 +7123,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
-    AddCheckMapsWithTransitions(object, map);
+    AddCheckMap(object, map);
     AddInstruction(new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*holder_map));
     return new(zone()) HConstant(function, Representation::Tagged());
@@ -7343,8 +7381,9 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
         set_current_block(if_jsarray);
         HInstruction* length;
-        length = AddInstruction(new(zone()) HJSArrayLength(object, typecheck,
-                                                           HType::Smi()));
+        length = AddInstruction(
+            HLoadNamedField::NewArrayLength(zone(), object, typecheck,
+                                            HType::Smi()));
         checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind_branch,
@@ -7545,13 +7584,7 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   CHECK_ALIVE(VisitForValue(expr->obj()));
 
   HInstruction* instr = NULL;
-  if (expr->AsProperty()->IsArrayLength()) {
-    HValue* array = Pop();
-    AddInstruction(new(zone()) HCheckNonSmi(array));
-    HInstruction* mapcheck =
-        AddInstruction(HCheckInstanceType::NewIsJSArray(array, zone()));
-    instr = new(zone()) HJSArrayLength(array, mapcheck);
-  } else if (expr->IsStringLength()) {
+  if (expr->IsStringLength()) {
     HValue* string = Pop();
     AddInstruction(new(zone()) HCheckNonSmi(string));
     AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
@@ -10076,16 +10109,6 @@ void HOptimizedGraphBuilder::GenerateIsSpecObject(CallRuntime* call) {
       new(zone()) HHasInstanceTypeAndBranch(value,
                                             FIRST_SPEC_OBJECT_TYPE,
                                             LAST_SPEC_OBJECT_TYPE);
-  return ast_context()->ReturnControl(result, call->id());
-}
-
-
-void HOptimizedGraphBuilder::GenerateIsSymbol(CallRuntime* call) {
-  ASSERT(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HHasInstanceTypeAndBranch* result =
-      new(zone()) HHasInstanceTypeAndBranch(value, SYMBOL_TYPE);
   return ast_context()->ReturnControl(result, call->id());
 }
 

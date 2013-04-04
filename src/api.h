@@ -572,8 +572,8 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
 #endif
 
     blocks_.RemoveLast();
-#ifdef DEBUG
-    v8::ImplementationUtilities::ZapHandleRange(block_start, block_limit);
+#ifdef ENABLE_EXTRA_CHECKS
+    internal::HandleScope::ZapRange(block_start, block_limit);
 #endif
     if (spare_ != NULL) {
       DeleteArray(spare_);

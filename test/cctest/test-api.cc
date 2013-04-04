@@ -8376,7 +8376,7 @@ THREADED_TEST(Regress91517) {
   // Call the runtime version of GetLocalPropertyNames() on the natively
   // created object through JavaScript.
   context->Global()->Set(v8_str("obj"), o4);
-  CompileRun("var names = %GetLocalPropertyNames(obj);");
+  CompileRun("var names = %GetLocalPropertyNames(obj, true);");
 
   ExpectInt32("names.length", 1006);
   ExpectTrue("names.indexOf(\"baz\") >= 0");

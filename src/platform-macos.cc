@@ -818,8 +818,9 @@ class SamplerThread : public Thread {
 
   void SampleContext(Sampler* sampler) {
     thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
+    Isolate* isolate = sampler->isolate();
     TickSample sample_obj;
-    TickSample* sample = CpuProfiler::TickSampleEvent(sampler->isolate());
+    TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
     if (sample == NULL) sample = &sample_obj;
 
     if (KERN_SUCCESS != thread_suspend(profiled_thread)) return;
@@ -850,7 +851,7 @@ class SamplerThread : public Thread {
                          flavor,
                          reinterpret_cast<natural_t*>(&state),
                          &count) == KERN_SUCCESS) {
-      sample->state = sampler->isolate()->current_vm_state();
+      sample->state = isolate->current_vm_state();
       sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
       sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
       sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));

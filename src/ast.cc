@@ -414,12 +414,9 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
   receiver_types_.Clear();
   if (key()->IsPropertyName()) {
-    ArrayLengthStub array_stub(Code::LOAD_IC);
     FunctionPrototypeStub proto_stub(Code::LOAD_IC);
     StringLengthStub string_stub(Code::LOAD_IC, false);
-    if (oracle->LoadIsStub(this, &array_stub)) {
-      is_array_length_ = true;
-    } else if (oracle->LoadIsStub(this, &string_stub)) {
+    if (oracle->LoadIsStub(this, &string_stub)) {
       is_string_length_ = true;
     } else if (oracle->LoadIsStub(this, &proto_stub)) {
       is_function_prototype_ = true;
@@ -1065,6 +1062,7 @@ DONT_OPTIMIZE_NODE(ModuleVariable)
 DONT_OPTIMIZE_NODE(ModulePath)
 DONT_OPTIMIZE_NODE(ModuleUrl)
 DONT_OPTIMIZE_NODE(ModuleStatement)
+DONT_OPTIMIZE_NODE(Yield)
 DONT_OPTIMIZE_NODE(WithStatement)
 DONT_OPTIMIZE_NODE(TryCatchStatement)
 DONT_OPTIMIZE_NODE(TryFinallyStatement)

@@ -1351,6 +1351,10 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                        HValue* object,
                                        SmallMapList* types,
                                        Handle<String> name);
+  bool HandlePolymorphicArrayLengthLoad(Property* expr,
+                                        HValue* object,
+                                        SmallMapList* types,
+                                        Handle<String> name);
   void HandlePolymorphicStoreNamedField(Assignment* expr,
                                         HValue* object,
                                         HValue* value,
@@ -1424,6 +1428,8 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                           Handle<String> name,
                                           Property* expr,
                                           Handle<Map> map);
+
+  void AddCheckMap(HValue* object, Handle<Map> map);
 
   void AddCheckMapsWithTransitions(HValue* object,
                                    Handle<Map> map);

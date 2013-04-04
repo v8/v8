@@ -190,7 +190,7 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
     // The stub was generated for JSObject but called for non-JSObject.
     // IC::GetCodeCacheHolder is not applicable.
     return false;
-  } else if (cache_holder == DELEGATE_MAP &&
+  } else if (cache_holder == PROTOTYPE_MAP &&
              receiver->GetPrototype(isolate)->IsNull()) {
     // IC::GetCodeCacheHolder is not applicable.
     return false;
@@ -857,28 +857,6 @@ MaybeObject* LoadIC::Load(State state,
       return Smi::FromInt(String::cast(*string)->length());
     }
 
-    // Use specialized code for getting the length of arrays.
-    if (object->IsJSArray() &&
-        name->Equals(isolate()->heap()->length_string())) {
-      Handle<Code> stub;
-      if (state == UNINITIALIZED) {
-        stub = pre_monomorphic_stub();
-      } else if (state == PREMONOMORPHIC) {
-        ArrayLengthStub array_length_stub(kind());
-        stub = array_length_stub.GetCode(isolate());
-      } else if (state != MEGAMORPHIC) {
-        ASSERT(state != GENERIC);
-        stub = megamorphic_stub();
-      }
-      if (!stub.is_null()) {
-        set_target(*stub);
-#ifdef DEBUG
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
-#endif
-      }
-      return JSArray::cast(*object)->length();
-    }
-
     // Use specialized code for getting prototype of functions.
     if (object->IsJSFunction() &&
         name->Equals(isolate()->heap()->prototype_string()) &&
@@ -1037,6 +1015,22 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
 }
 
 
+bool IC::IsTransitionedMapOfMonomorphicTarget(Map* receiver_map) {
+  AssertNoAllocation no_allocation;
+
+  Map* current_map = target()->FindFirstMap();
+  ElementsKind receiver_elements_kind = receiver_map->elements_kind();
+  bool more_general_transition =
+      IsMoreGeneralElementsKindTransition(
+        current_map->elements_kind(), receiver_elements_kind);
+  Map* transitioned_map = more_general_transition
+      ? current_map->LookupElementsTransitionMap(receiver_elements_kind)
+      : NULL;
+
+  return transitioned_map == receiver_map;
+}
+
+
 // Since GC may have been invoked, by the time PatchCache is called, |state| is
 // not necessarily equal to target()->state().
 void IC::PatchCache(State state,
@@ -1054,6 +1048,17 @@ void IC::PatchCache(State state,
       // Only move to megamorphic if the target changes.
       if (target() != *code) {
         if (target()->is_load_stub()) {
+          bool is_same_handler = false;
+          {
+            AssertNoAllocation no_allocation;
+            Code* old_handler = target()->FindFirstCode();
+            is_same_handler = old_handler == *code;
+          }
+          if (is_same_handler
+              && IsTransitionedMapOfMonomorphicTarget(receiver->map())) {
+            UpdateMonomorphicIC(receiver, code, name);
+            break;
+          }
           if (UpdatePolymorphicIC(state, strict_mode, receiver, name, code)) {
             break;
           }
@@ -1226,6 +1231,12 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         if (!holder->HasFastProperties()) break;
         return isolate()->stub_cache()->ComputeLoadViaGetter(
             name, receiver, holder, Handle<JSFunction>::cast(getter));
+      } else if (receiver->IsJSArray() &&
+          name->Equals(isolate()->heap()->length_string())) {
+        PropertyIndex lengthIndex =
+          PropertyIndex::NewHeaderIndex(JSArray::kLengthOffset / kPointerSize);
+        return isolate()->stub_cache()->ComputeLoadField(
+            name, receiver, holder, lengthIndex);
       }
       // TODO(dcarney): Handle correctly.
       if (callback->IsDeclaredAccessorInfo()) break;
@@ -1418,41 +1429,42 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
 }
 
 
-static bool StoreICableLookup(LookupResult* lookup) {
-  // Bail out if we didn't find a result.
-  if (!lookup->IsFound()) return false;
-
-  // Bail out if inline caching is not allowed.
-  if (!lookup->IsCacheable()) return false;
-
-  // If the property is read-only, we leave the IC in its current state.
-  if (lookup->IsTransition()) {
-    return !lookup->GetTransitionDetails().IsReadOnly();
-  }
-  return !lookup->IsReadOnly();
-}
-
-
 static bool LookupForWrite(Handle<JSObject> receiver,
                            Handle<String> name,
                            LookupResult* lookup) {
-  receiver->LocalLookup(*name, lookup);
-  if (!lookup->IsFound()) {
-    receiver->map()->LookupTransition(*receiver, *name, lookup);
-  }
-  if (!StoreICableLookup(lookup)) {
-    // 2nd chance: There can be accessors somewhere in the prototype chain.
-    receiver->Lookup(*name, lookup);
-    return lookup->IsPropertyCallbacks() && StoreICableLookup(lookup);
+  Handle<JSObject> holder = receiver;
+  receiver->Lookup(*name, lookup);
+  if (lookup->IsFound()) {
+    if (lookup->IsReadOnly() || !lookup->IsCacheable()) return false;
+
+    if (lookup->holder() == *receiver) {
+      if (lookup->IsInterceptor() &&
+          receiver->GetNamedInterceptor()->setter()->IsUndefined()) {
+        receiver->LocalLookupRealNamedProperty(*name, lookup);
+        return lookup->IsFound() &&
+            !lookup->IsReadOnly() &&
+            lookup->IsCacheable();
+      }
+      return true;
+    }
+
+    if (lookup->IsPropertyCallbacks()) return true;
+
+    // Currently normal holders in the prototype chain are not supported. They
+    // would require a runtime positive lookup and verification that the details
+    // have not changed.
+    if (lookup->IsInterceptor() || lookup->IsNormal()) return false;
+    holder = Handle<JSObject>(lookup->holder(), lookup->isolate());
   }
 
-  if (lookup->IsInterceptor() &&
-      receiver->GetNamedInterceptor()->setter()->IsUndefined()) {
-    receiver->LocalLookupRealNamedProperty(*name, lookup);
-    return StoreICableLookup(lookup);
-  }
-
-  return true;
+  // While normally LookupTransition gets passed the receiver, in this case we
+  // pass the holder of the property that we overwrite. This keeps the holder in
+  // the LookupResult intact so we can later use it to generate a prototype
+  // chain check. This avoids a double lookup, but requires us to pass in the
+  // receiver when trying to fetch extra information from the transition.
+  receiver->map()->LookupTransition(*holder, *name, lookup);
+  return lookup->IsTransition() &&
+      !lookup->GetTransitionDetails(receiver->map()).IsReadOnly();
 }
 
 
@@ -1552,7 +1564,6 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
                            Handle<String> name,
                            Handle<Object> value) {
   ASSERT(!receiver->IsJSGlobalProxy());
-  ASSERT(StoreICableLookup(lookup));
   ASSERT(lookup->IsFound());
 
   // These are not cacheable, so we never see such LookupResults here.
@@ -1575,8 +1586,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
   switch (lookup->type()) {
     case FIELD:
       return isolate()->stub_cache()->ComputeStoreField(
-          name, receiver, lookup->GetFieldIndex().field_index(),
-          Handle<Map>::null(), strict_mode);
+          name, receiver, lookup, Handle<Map>::null(), strict_mode);
     case NORMAL:
       if (receiver->IsGlobalObject()) {
         // The stub generated for the global object picks the value directly
@@ -1588,7 +1598,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         return isolate()->stub_cache()->ComputeStoreGlobal(
             name, global, cell, strict_mode);
       }
-      if (!holder.is_identical_to(receiver)) break;
+      ASSERT(holder.is_identical_to(receiver));
       return isolate()->stub_cache()->ComputeStoreNormal(strict_mode);
     case CALLBACKS: {
       Handle<Object> callback(lookup->GetCallbackObject(), isolate());
@@ -1623,7 +1633,10 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
     case CONSTANT_FUNCTION:
       break;
     case TRANSITION: {
-      Handle<Map> transition(lookup->GetTransitionTarget(), isolate());
+      // Explicitly pass in the receiver map since LookupForWrite may have
+      // stored something else than the receiver in the holder.
+      Handle<Map> transition(
+          lookup->GetTransitionTarget(receiver->map()), isolate());
       int descriptor = transition->LastAdded();
 
       DescriptorArray* target_descriptors = transition->instance_descriptors();
@@ -1631,9 +1644,8 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
 
       if (details.type() != FIELD || details.attributes() != NONE) break;
 
-      int field_index = target_descriptors->GetFieldIndex(descriptor);
       return isolate()->stub_cache()->ComputeStoreField(
-          name, receiver, field_index, transition, strict_mode);
+          name, receiver, lookup, transition, strict_mode);
     }
     case NONEXISTENT:
     case HANDLER:
@@ -1704,16 +1716,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       transitioned_receiver_map =
           ComputeTransitionedMap(receiver, store_mode);
     }
-    ElementsKind transitioned_kind =
-        transitioned_receiver_map->elements_kind();
-    bool more_general_transition =
-        IsMoreGeneralElementsKindTransition(
-            previous_receiver_map->elements_kind(),
-            transitioned_kind);
-    Map* transitioned_previous_map = more_general_transition
-        ? previous_receiver_map->LookupElementsTransitionMap(transitioned_kind)
-        : NULL;
-    if (transitioned_previous_map == *transitioned_receiver_map) {
+    if (IsTransitionedMapOfMonomorphicTarget(*transitioned_receiver_map)) {
       // Element family is the same, use the "worst" case map.
       store_mode = GetNonTransitioningStoreMode(store_mode);
       return isolate()->stub_cache()->ComputeKeyedStoreElement(
@@ -1984,19 +1987,20 @@ Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
   switch (lookup->type()) {
     case FIELD:
       return isolate()->stub_cache()->ComputeKeyedStoreField(
-          name, receiver, lookup->GetFieldIndex().field_index(),
-          Handle<Map>::null(), strict_mode);
+          name, receiver, lookup, Handle<Map>::null(), strict_mode);
     case TRANSITION: {
-      Handle<Map> transition(lookup->GetTransitionTarget(), isolate());
+      // Explicitly pass in the receiver map since LookupForWrite may have
+      // stored something else than the receiver in the holder.
+      Handle<Map> transition(
+          lookup->GetTransitionTarget(receiver->map()), isolate());
       int descriptor = transition->LastAdded();
 
       DescriptorArray* target_descriptors = transition->instance_descriptors();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
       if (details.type() == FIELD && details.attributes() == NONE) {
-        int field_index = target_descriptors->GetFieldIndex(descriptor);
         return isolate()->stub_cache()->ComputeKeyedStoreField(
-            name, receiver, field_index, transition, strict_mode);
+            name, receiver, lookup, transition, strict_mode);
       }
       // fall through.
     }

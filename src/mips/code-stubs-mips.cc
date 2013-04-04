@@ -96,7 +96,7 @@ static void InitializeArrayConstructorDescriptor(Isolate* isolate,
   // stack param count needs (constructor pointer, and single argument)
   descriptor->stack_parameter_count_ = &a0;
   descriptor->register_params_ = registers;
-  descriptor->extra_expression_stack_count_ = 1;
+  descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(ArrayConstructor_StubFailure);
 }
@@ -684,6 +684,8 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
                                      Register scratch1,
                                      Register scratch2,
                                      Label* not_number) {
+  ASSERT(!object.is(dst1) && !object.is(dst2));
+
   __ AssertRootValue(heap_number_map,
                      Heap::kHeapNumberMapRootIndex,
                      "HeapNumberMap register clobbered.");
@@ -878,6 +880,10 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
   ASSERT(!heap_number_map.is(object) &&
          !heap_number_map.is(scratch1) &&
          !heap_number_map.is(scratch2));
+  // ARM uses pop/push and Ldlr to save dst_* and probably object registers in
+  // softfloat path. On MIPS there is no ldlr, 1st lw instruction may overwrite
+  // object register making the 2nd lw invalid.
+  ASSERT(!object.is(dst_mantissa) && !object.is(dst_exponent));
 
   Label done, obj_is_not_smi;
 
@@ -914,49 +920,24 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     if (destination == kCoreRegisters) {
       __ Move(dst_mantissa, dst_exponent, double_dst);
     }
-
   } else {
-    ASSERT(!scratch1.is(object) && !scratch2.is(object));
     // Load the double value in the destination registers.
-    bool save_registers = object.is(dst_mantissa) || object.is(dst_exponent);
-    if (save_registers) {
-      // Save both output registers, because the other one probably holds
-      // an important value too.
-      __ Push(dst_exponent, dst_mantissa);
-    }
     __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
     __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
 
     // Check for 0 and -0.
-    Label zero;
     __ And(scratch1, dst_exponent, Operand(~HeapNumber::kSignMask));
     __ Or(scratch1, scratch1, Operand(dst_mantissa));
-    __ Branch(&zero, eq, scratch1, Operand(zero_reg));
+    __ Branch(&done, eq, scratch1, Operand(zero_reg));
 
     // Check that the value can be exactly represented by a 32-bit integer.
     // Jump to not_int32 if that's not the case.
-    Label restore_input_and_miss;
     DoubleIs32BitInteger(masm, dst_exponent, dst_mantissa, scratch1, scratch2,
-                         &restore_input_and_miss);
+                         not_int32);
 
     // dst_* were trashed. Reload the double value.
-    if (save_registers) {
-      __ Pop(dst_exponent, dst_mantissa);
-    }
     __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
     __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
-    __ Branch(&done);
-
-    __ bind(&restore_input_and_miss);
-    if (save_registers) {
-      __ Pop(dst_exponent, dst_mantissa);
-    }
-    __ Branch(not_int32);
-
-    __ bind(&zero);
-    if (save_registers) {
-      __ Drop(2);
-    }
   }
 
   __ bind(&done);
@@ -2707,16 +2688,20 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
               masm, destination, right, f14, a2, a3, heap_number_map,
               scratch1, scratch2, fail);
         }
+        // Use scratch3 as left in LoadNumber functions to avoid overwriting of
+        // left (a0) register.
+        __ mov(scratch3, left);
+
         // Load left operand to f12 or a0/a1. This keeps a0/a1 intact if it
         // jumps to |miss|.
         if (left_type == BinaryOpIC::INT32) {
           FloatingPointHelper::LoadNumberAsInt32Double(
-              masm, left, destination, f12, f16, a0, a1, heap_number_map,
+              masm, scratch3, destination, f12, f16, a0, a1, heap_number_map,
               scratch1, scratch2, f2, miss);
         } else {
           Label* fail = (left_type == BinaryOpIC::NUMBER) ? miss : not_numbers;
           FloatingPointHelper::LoadNumber(
-              masm, destination, left, f12, a0, a1, heap_number_map,
+              masm, destination, scratch3, f12, a0, a1, heap_number_map,
               scratch1, scratch2, fail);
         }
       }
@@ -4555,35 +4540,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArrayLengthStub::Generate(MacroAssembler* masm) {
-  Label miss;
-  Register receiver;
-  if (kind() == Code::KEYED_LOAD_IC) {
-    // ----------- S t a t e -------------
-    //  -- ra    : return address
-    //  -- a0    : key
-    //  -- a1    : receiver
-    // -----------------------------------
-    __ Branch(&miss, ne, a0,
-        Operand(masm->isolate()->factory()->length_string()));
-    receiver = a1;
-  } else {
-    ASSERT(kind() == Code::LOAD_IC);
-    // ----------- S t a t e -------------
-    //  -- a2    : name
-    //  -- ra    : return address
-    //  -- a0    : receiver
-    //  -- sp[0] : receiver
-    // -----------------------------------
-    receiver = a0;
-  }
-
-  StubCompiler::GenerateLoadArrayLength(masm, receiver, a3, &miss);
-  __ bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
-}
-
-
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver;
@@ -4872,7 +4828,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ Addu(t5, t5, Operand(Heap::kArgumentsObjectSize));
 
   // Do the allocation of all three objects in one go.
-  __ AllocateInNewSpace(t5, v0, a3, t0, &runtime, TAG_OBJECT);
+  __ Allocate(t5, v0, a3, t0, &runtime, TAG_OBJECT);
 
   // v0 = address of new object(s) (tagged)
   // a2 = argument count (tagged)
@@ -5063,13 +5019,8 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ Addu(a1, a1, Operand(Heap::kArgumentsObjectSizeStrict / kPointerSize));
 
   // Do the allocation of both objects in one go.
-  __ AllocateInNewSpace(a1,
-                        v0,
-                        a2,
-                        a3,
-                        &runtime,
-                        static_cast<AllocationFlags>(TAG_OBJECT |
-                                                     SIZE_IN_WORDS));
+  __ Allocate(a1, v0, a2, a3, &runtime,
+              static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
 
   // Get the arguments boilerplate from the current native context.
   __ lw(t0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
@@ -5589,7 +5540,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
       (JSRegExpResult::kSize + FixedArray::kHeaderSize) / kPointerSize;
   __ srl(t1, a1, kSmiTagSize + kSmiShiftSize);
   __ Addu(a2, t1, Operand(objects_size));
-  __ AllocateInNewSpace(
+  __ Allocate(
       a2,  // In: Size, in words.
       v0,  // Out: Start of allocation (tagged).
       a3,  // Scratch register.
@@ -8136,6 +8087,9 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
   __ lw(a1, MemOperand(fp, parameter_count_offset));
+  if (function_mode_ == JS_FUNCTION_STUB_MODE) {
+    __ Addu(a1, a1, Operand(1));
+  }
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   __ sll(a1, a1, kPointerSizeLog2);
   __ Addu(sp, sp, a1);

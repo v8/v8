@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --expose-externalize-string
 
 // Test JSON.stringify on the global object.
 var a = 12345;
@@ -172,3 +172,9 @@ non_enum.a = 1;
 Object.defineProperty(non_enum, "b", { value: 2, enumerable: false });
 non_enum.c = 3;
 TestStringify('{"a":1,"c":3}', non_enum);
+
+var str = "external";
+try {
+  externalizeString(str, true);
+} catch (e) { }
+TestStringify("\"external\"", str, null, 0);

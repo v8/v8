@@ -644,7 +644,17 @@ void Logger::ApiNamedSecurityCheck(Object* key) {
         String::cast(key)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     ApiEvent("api,check-security,\"%s\"\n", *str);
   } else if (key->IsSymbol()) {
-    ApiEvent("api,check-security,symbol(hash %x)\n", Symbol::cast(key)->Hash());
+    Symbol* symbol = Symbol::cast(key);
+    if (symbol->name()->IsUndefined()) {
+      ApiEvent("api,check-security,symbol(hash %x)\n",
+               Symbol::cast(key)->Hash());
+    } else {
+      SmartArrayPointer<char> str = String::cast(symbol->name())->ToCString(
+          DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+      ApiEvent("api,check-security,symbol(\"%s\" hash %x)\n",
+               *str,
+               Symbol::cast(key)->Hash());
+    }
   } else if (key->IsUndefined()) {
     ApiEvent("api,check-security,undefined\n");
   } else {
@@ -833,8 +843,16 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     ApiEvent("api,%s,\"%s\",\"%s\"\n", tag, *class_name, *property_name);
   } else {
-    uint32_t hash = Symbol::cast(name)->Hash();
-    ApiEvent("api,%s,\"%s\",symbol(hash %x)\n", tag, *class_name, hash);
+    Symbol* symbol = Symbol::cast(name);
+    uint32_t hash = symbol->Hash();
+    if (symbol->name()->IsUndefined()) {
+      ApiEvent("api,%s,\"%s\",symbol(hash %x)\n", tag, *class_name, hash);
+    } else {
+      SmartArrayPointer<char> str = String::cast(symbol->name())->ToCString(
+          DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+      ApiEvent("api,%s,\"%s\",symbol(\"%s\" hash %x)\n",
+               tag, *class_name, *str, hash);
+    }
   }
 }
 
@@ -902,7 +920,14 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append(",1,\"%s%s\"", prefix, *str);
   } else {
-    msg.Append(",1,symbol(hash %x)", prefix, Name::cast(name)->Hash());
+    Symbol* symbol = Symbol::cast(name);
+    if (symbol->name()->IsUndefined()) {
+      msg.Append(",1,symbol(hash %x)", prefix, symbol->Hash());
+    } else {
+      SmartArrayPointer<char> str = String::cast(symbol->name())->ToCString(
+          DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+      msg.Append(",1,symbol(\"%s\" hash %x)", prefix, *str, symbol->Hash());
+    }
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -978,8 +1003,15 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     if (name->IsString()) {
       name_buffer_->AppendString(String::cast(name));
     } else {
-      name_buffer_->AppendBytes("symbol(hash ");
-      name_buffer_->AppendHex(Name::cast(name)->Hash());
+      Symbol* symbol = Symbol::cast(name);
+      name_buffer_->AppendBytes("symbol(");
+      if (!symbol->name()->IsUndefined()) {
+        name_buffer_->AppendBytes("\"");
+        name_buffer_->AppendString(String::cast(symbol->name()));
+        name_buffer_->AppendBytes("\" ");
+      }
+      name_buffer_->AppendBytes("hash ");
+      name_buffer_->AppendHex(symbol->Hash());
       name_buffer_->AppendByte(')');
     }
   }
@@ -1006,7 +1038,14 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     msg.AppendDetailed(String::cast(name), false);
     msg.Append('"');
   } else {
-    msg.Append("symbol(hash %x)", Name::cast(name)->Hash());
+    Symbol* symbol = Symbol::cast(name);
+    msg.Append("symbol(");
+    if (!symbol->name()->IsUndefined()) {
+      msg.Append("\"");
+      msg.AppendDetailed(String::cast(symbol->name()), false);
+      msg.Append("\" ");
+    }
+    msg.Append("hash %x)", symbol->Hash());
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1036,8 +1075,15 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     if (name->IsString()) {
       name_buffer_->AppendString(String::cast(name));
     } else {
-      name_buffer_->AppendBytes("symbol(hash ");
-      name_buffer_->AppendHex(Name::cast(name)->Hash());
+      Symbol* symbol = Symbol::cast(name);
+      name_buffer_->AppendBytes("symbol(");
+      if (!symbol->name()->IsUndefined()) {
+        name_buffer_->AppendBytes("\"");
+        name_buffer_->AppendString(String::cast(symbol->name()));
+        name_buffer_->AppendBytes("\" ");
+      }
+      name_buffer_->AppendBytes("hash ");
+      name_buffer_->AppendHex(symbol->Hash());
       name_buffer_->AppendByte(')');
     }
   }
@@ -1073,7 +1119,14 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("\"%s\"", *str);
   } else {
-    msg.Append("symbol(hash %x)", Name::cast(name)->Hash());
+    Symbol* symbol = Symbol::cast(name);
+    msg.Append("symbol(");
+    if (!symbol->name()->IsUndefined()) {
+      msg.Append("\"");
+      msg.AppendDetailed(String::cast(symbol->name()), false);
+      msg.Append("\" ");
+    }
+    msg.Append("hash %x)", symbol->Hash());
   }
   msg.Append(',');
   msg.AppendAddress(shared->address());
@@ -1138,7 +1191,14 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
        String::cast(source)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("%s", *sourcestr);
   } else {
-    msg.Append("symbol(hash %x)", Name::cast(source)->Hash());
+    Symbol* symbol = Symbol::cast(source);
+    msg.Append("symbol(");
+    if (!symbol->name()->IsUndefined()) {
+      msg.Append("\"");
+      msg.AppendDetailed(String::cast(symbol->name()), false);
+      msg.Append("\" ");
+    }
+    msg.Append("hash %x)", symbol->Hash());
   }
   msg.Append(":%d\",", line);
   msg.AppendAddress(shared->address());
@@ -1358,7 +1418,14 @@ void Logger::SuspectReadEvent(Name* name, Object* obj) {
     msg.Append(String::cast(name));
     msg.Append('"');
   } else {
-    msg.Append("symbol(hash %x)", Name::cast(name)->Hash());
+    Symbol* symbol = Symbol::cast(name);
+    msg.Append("symbol(");
+    if (!symbol->name()->IsUndefined()) {
+      msg.Append("\"");
+      msg.AppendDetailed(String::cast(symbol->name()), false);
+      msg.Append("\" ");
+    }
+    msg.Append("hash %x)", symbol->Hash());
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1615,7 +1682,7 @@ void Logger::LogCodeObject(Object* object) {
         tag = Logger::KEYED_CALL_IC_TAG;
         break;
     }
-    PROFILE(ISOLATE, CodeCreateEvent(tag, code_object, description));
+    PROFILE(isolate_, CodeCreateEvent(tag, code_object, description));
   }
 }
 
@@ -1719,20 +1786,20 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       Handle<String> script_name(String::cast(script->name()));
       int line_num = GetScriptLineNumber(script, shared->start_position());
       if (line_num > 0) {
-        PROFILE(ISOLATE,
+        PROFILE(isolate_,
                 CodeCreateEvent(
                     Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
                     *code, *shared,
                     *script_name, line_num + 1));
       } else {
         // Can't distinguish eval and script here, so always use Script.
-        PROFILE(ISOLATE,
+        PROFILE(isolate_,
                 CodeCreateEvent(
                     Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
                     *code, *shared, *script_name));
       }
     } else {
-      PROFILE(ISOLATE,
+      PROFILE(isolate_,
               CodeCreateEvent(
                   Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
                   *code, *shared, *func_name));
@@ -1745,10 +1812,10 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
       Object* callback_obj = call_data->callback();
       Address entry_point = v8::ToCData<Address>(callback_obj);
-      PROFILE(ISOLATE, CallbackEvent(*func_name, entry_point));
+      PROFILE(isolate_, CallbackEvent(*func_name, entry_point));
     }
   } else {
-    PROFILE(ISOLATE,
+    PROFILE(isolate_,
             CodeCreateEvent(
                 Logger::LAZY_COMPILE_TAG, *code, *shared, *func_name));
   }
@@ -1789,11 +1856,11 @@ void Logger::LogAccessorCallbacks() {
     Address getter_entry = v8::ToCData<Address>(ai->getter());
     Name* name = Name::cast(ai->name());
     if (getter_entry != 0) {
-      PROFILE(ISOLATE, GetterCallbackEvent(name, getter_entry));
+      PROFILE(isolate_, GetterCallbackEvent(name, getter_entry));
     }
     Address setter_entry = v8::ToCData<Address>(ai->setter());
     if (setter_entry != 0) {
-      PROFILE(ISOLATE, SetterCallbackEvent(name, setter_entry));
+      PROFILE(isolate_, SetterCallbackEvent(name, setter_entry));
     }
   }
 }
