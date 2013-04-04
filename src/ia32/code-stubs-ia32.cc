@@ -4525,6 +4525,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
   // Identical objects can be compared fast, but there are some tricky cases
   // for NaN and undefined.
+  Label generic_heap_number_comparison;
   {
     Label not_identical;
     __ cmp(eax, edx);
@@ -4541,12 +4542,11 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
       __ bind(&check_for_nan);
     }
 
-    // Test for NaN. Sadly, we can't just compare to factory->nan_value(),
-    // so we do the second best thing - test it ourselves.
-    Label heap_number;
+    // Test for NaN. Compare heap numbers in a general way,
+    // to hanlde NaNs correctly.
     __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
            Immediate(masm->isolate()->factory()->heap_number_map()));
-    __ j(equal, &heap_number, Label::kNear);
+    __ j(equal, &generic_heap_number_comparison, Label::kNear);
     if (cc != equal) {
       // Call runtime on identical JSObjects.  Otherwise return equal.
       __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
@@ -4555,37 +4555,6 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
     __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
     __ ret(0);
 
-    __ bind(&heap_number);
-    // It is a heap number, so return non-equal if it's NaN and equal if
-    // it's not NaN.
-    // The representation of NaN values has all exponent bits (52..62) set,
-    // and not all mantissa bits (0..51) clear.
-    // We only accept QNaNs, which have bit 51 set.
-    // Read top bits of double representation (second word of value).
-
-    // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
-    // all bits in the mask are set. We only need to check the word
-    // that contains the exponent and high bit of the mantissa.
-    STATIC_ASSERT(((kQuietNaNHighBitsMask << 1) & 0x80000000u) != 0);
-    __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
-    __ Set(eax, Immediate(0));
-    // Shift value and mask so kQuietNaNHighBitsMask applies to topmost
-    // bits.
-    __ add(edx, edx);
-    __ cmp(edx, kQuietNaNHighBitsMask << 1);
-    if (cc == equal) {
-      STATIC_ASSERT(EQUAL != 1);
-      __ setcc(above_equal, eax);
-      __ ret(0);
-    } else {
-      Label nan;
-      __ j(above_equal, &nan, Label::kNear);
-      __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
-      __ ret(0);
-      __ bind(&nan);
-      __ Set(eax, Immediate(Smi::FromInt(NegativeComparisonResult(cc))));
-      __ ret(0);
-    }
 
     __ bind(&not_identical);
   }
@@ -4665,6 +4634,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   // Generate the number comparison code.
   Label non_number_comparison;
   Label unordered;
+  __ bind(&generic_heap_number_comparison);
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope use_sse2(masm, SSE2);
     CpuFeatureScope use_cmov(masm, CMOV);
