@@ -171,9 +171,7 @@ class ParserApi {
   static bool Parse(CompilationInfo* info, int flags);
 
   // Generic preparser generating full preparse data.
-  static ScriptDataImpl* PreParse(Utf16CharacterStream* source,
-                                  v8::Extension* extension,
-                                  int flags);
+  static ScriptDataImpl* PreParse(Utf16CharacterStream* source);
 };
 
 // ----------------------------------------------------------------------------

@@ -5926,11 +5926,9 @@ static ScriptDataImpl* DoPreParse(Utf16CharacterStream* source,
 }
 
 
-ScriptDataImpl* ParserApi::PreParse(Utf16CharacterStream* source,
-                                    v8::Extension* extension,
-                                    int flags) {
-  Handle<Script> no_script;
-  if (FLAG_lazy && (extension == NULL)) {
+ScriptDataImpl* ParserApi::PreParse(Utf16CharacterStream* source) {
+  int flags = kNoParsingFlags;
+  if (FLAG_lazy) {
     flags |= kAllowLazy;
   }
   if (FLAG_harmony_generators) {

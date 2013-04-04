@@ -329,8 +329,7 @@ TEST(RegressChromium62639) {
   i::Utf8ToUtf16CharacterStream stream(
       reinterpret_cast<const i::byte*>(program),
       static_cast<unsigned>(strlen(program)));
-  i::ScriptDataImpl* data =
-      i::ParserApi::PreParse(&stream, NULL, false);
+  i::ScriptDataImpl* data = i::ParserApi::PreParse(&stream);
   CHECK(data->HasError());
   delete data;
 }
@@ -355,7 +354,7 @@ TEST(Regress928) {
   i::Handle<i::String> source(
       FACTORY->NewStringFromAscii(i::CStrVector(program)));
   i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
-  i::ScriptDataImpl* data = i::ParserApi::PreParse(&stream, NULL, false);
+  i::ScriptDataImpl* data = i::ParserApi::PreParse(&stream);
   CHECK(!data->HasError());
 
   data->Initialize();
