@@ -85,10 +85,10 @@ class StubCache {
 
   Handle<Code> FindHandler(
       Handle<Name> name,
+      Handle<JSObject> receiver,
       Handle<JSObject> stub_holder,
       Code::Kind kind,
-      Code::StubType type,
-      Code::ExtraICState extra_state = Code::kNoExtraICState);
+      Code::StubType type);
 
   Handle<Code> ComputeMonomorphicIC(Handle<JSObject> receiver,
                                     Handle<Code> handler,
