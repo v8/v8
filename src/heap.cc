@@ -2836,13 +2836,6 @@ bool Heap::CreateInitialObjects() {
   }
   hidden_string_ = String::cast(obj);
 
-  // Allocate the foreign for __proto__.
-  { MaybeObject* maybe_obj =
-        AllocateForeign((Address) &Accessors::ObjectPrototype);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_prototype_accessors(Foreign::cast(obj));
-
   // Allocate the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
   { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(this, 128);

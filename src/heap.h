@@ -150,7 +150,6 @@ namespace internal {
   V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
-  V(Foreign, prototype_accessors, PrototypeAccessors)                          \
   V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
   V(UnseededNumberDictionary, non_monomorphic_cache, NonMonomorphicCache)      \
   V(PolymorphicCodeCache, polymorphic_code_cache, PolymorphicCodeCache)        \

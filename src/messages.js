@@ -98,6 +98,7 @@ var kMessages = {
   observe_callback_frozen:       ["Object.observe cannot deliver to a frozen function object"],
   observe_type_non_string:       ["Invalid changeRecord with non-string 'type' property"],
   observe_notify_non_notifier:   ["notify called on non-notifier object"],
+  proto_poison_pill:             ["Generic use of __proto__ accessor not allowed"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],

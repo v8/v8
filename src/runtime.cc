@@ -956,8 +956,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSReceiver, input_obj, 0);
-  Object* obj = input_obj;
+  CONVERT_ARG_CHECKED(Object, obj, 0);
   // We don't expect access checks to be needed on JSProxy objects.
   ASSERT(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
   do {
@@ -975,12 +974,43 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
 }
 
 
+static inline Object* GetPrototypeSkipHiddenPrototypes(Isolate* isolate,
+                                                       Object* receiver) {
+  Object* current = receiver->GetPrototype(isolate);
+  while (current->IsJSObject() &&
+         JSObject::cast(current)->map()->is_hidden_prototype()) {
+    current = current->GetPrototype(isolate);
+  }
+  return current;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSReceiver, input_obj, 0);
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_CHECKED(Object, prototype, 1);
-  return input_obj->SetPrototype(prototype, true);
+  if (FLAG_harmony_observation && obj->map()->is_observed()) {
+    HandleScope scope(isolate);
+    Handle<JSObject> receiver(obj);
+    Handle<Object> value(prototype, isolate);
+    Handle<Object> old_value(
+        GetPrototypeSkipHiddenPrototypes(isolate, *receiver), isolate);
+
+    MaybeObject* result = receiver->SetPrototype(*value, true);
+    Handle<Object> hresult;
+    if (!result->ToHandle(&hresult, isolate)) return result;
+
+    Handle<Object> new_value(
+        GetPrototypeSkipHiddenPrototypes(isolate, *receiver), isolate);
+    if (!new_value->SameValue(*old_value)) {
+      JSObject::EnqueueChangeRecord(receiver, "prototype",
+                                    isolate->factory()->proto_string(),
+                                    old_value);
+    }
+    return *hresult;
+  }
+  return obj->SetPrototype(prototype, true);
 }
 
 
@@ -4108,14 +4138,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     // the value.
     if (callback->IsAccessorInfo()) {
       return isolate->heap()->undefined_value();
-    }
-    // TODO(mstarzinger): The __proto__ property should actually be a real
-    // JavaScript accessor instead of a foreign callback. But for now we just
-    // avoid changing the writability and configurability attribute of this
-    // property.
-    Handle<Name> proto_string = isolate->factory()->proto_string();
-    if (callback->IsForeign() && proto_string->Equals(*name)) {
-      attr = static_cast<PropertyAttributes>(attr & ~(READ_ONLY | DONT_DELETE));
     }
     // Avoid redefining foreign callback as data property, just use the stored
     // setter to update the value instead.
@@ -12015,11 +12037,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPrototype) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 1);
-
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
-
-  // Use the __proto__ accessor.
-  return Accessors::ObjectPrototype.getter(obj, NULL);
+  return GetPrototypeSkipHiddenPrototypes(isolate, obj);
 }
 
 

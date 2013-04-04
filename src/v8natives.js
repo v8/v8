@@ -61,12 +61,24 @@ function InstallFunctions(object, attributes, functions) {
 }
 
 
-// Helper function to install a getter only property.
+// Helper function to install a getter-only accessor property.
 function InstallGetter(object, name, getter) {
   %FunctionSetName(getter, name);
   %FunctionRemovePrototype(getter);
   %DefineOrRedefineAccessorProperty(object, name, getter, null, DONT_ENUM);
   %SetNativeFlag(getter);
+}
+
+
+// Helper function to install a getter/setter accessor property.
+function InstallGetterSetter(object, name, getter, setter) {
+  %FunctionSetName(getter, name);
+  %FunctionSetName(setter, name);
+  %FunctionRemovePrototype(getter);
+  %FunctionRemovePrototype(setter);
+  %DefineOrRedefineAccessorProperty(object, name, getter, setter, DONT_ENUM);
+  %SetNativeFlag(getter);
+  %SetNativeFlag(setter);
 }
 
 
@@ -395,7 +407,8 @@ function FromPropertyDescriptor(desc) {
   }
   // Must be an AccessorDescriptor then. We never return a generic descriptor.
   return { get: desc.getGet(),
-           set: desc.getSet(),
+           set: desc.getSet() === ObjectSetProto ? ObjectPoisonProto
+                                                 : desc.getSet(),
            enumerable: desc.isEnumerable(),
            configurable: desc.isConfigurable() };
 }
@@ -1326,6 +1339,24 @@ function ObjectIs(obj1, obj2) {
 }
 
 
+// Harmony __proto__ getter.
+function ObjectGetProto() {
+  return %GetPrototype(this);
+}
+
+
+// Harmony __proto__ setter.
+function ObjectSetProto(obj) {
+  return %SetPrototype(this, obj);
+}
+
+
+// Harmony __proto__ poison pill.
+function ObjectPoisonProto(obj) {
+  throw MakeTypeError("proto_poison_pill", []);
+}
+
+
 %SetCode($Object, function(x) {
   if (%_IsConstructCall()) {
     if (x == null) return this;
@@ -1336,14 +1367,18 @@ function ObjectIs(obj1, obj2) {
   }
 });
 
-%SetExpectedNumberOfProperties($Object, 4);
 
 // ----------------------------------------------------------------------------
 // Object
 
 function SetUpObject() {
   %CheckIsBootstrapping();
-  // Set Up non-enumerable functions on the Object.prototype object.
+
+  %FunctionSetName(ObjectPoisonProto, "__proto__");
+  %FunctionRemovePrototype(ObjectPoisonProto);
+  %SetExpectedNumberOfProperties($Object, 4);
+
+  // Set up non-enumerable functions on the Object.prototype object.
   InstallFunctions($Object.prototype, DONT_ENUM, $Array(
     "toString", ObjectToString,
     "toLocaleString", ObjectToLocaleString,
@@ -1356,6 +1391,10 @@ function SetUpObject() {
     "__defineSetter__", ObjectDefineSetter,
     "__lookupSetter__", ObjectLookupSetter
   ));
+  InstallGetterSetter($Object.prototype, "__proto__",
+                      ObjectGetProto, ObjectSetProto);
+
+  // Set up non-enumerable functions in the Object object.
   InstallFunctions($Object, DONT_ENUM, $Array(
     "keys", ObjectKeys,
     "create", ObjectCreate,
