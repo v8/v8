@@ -1229,19 +1229,12 @@ void BaseLoadStubCompiler::NonexistentHandlerFrontend(
     Handle<GlobalObject> global) {
   Label miss;
 
-  Register reg = HandlerFrontendHeader(object, receiver(), last, name, &miss);
+  HandlerFrontendHeader(object, receiver(), last, name, &miss);
 
   // If the last object in the prototype chain is a global object,
   // check that the global property cell is empty.
   if (!global.is_null()) {
     GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
-  }
-
-  if (!last->HasFastProperties()) {
-    __ lw(scratch2(), FieldMemOperand(reg, HeapObject::kMapOffset));
-    __ lw(scratch2(), FieldMemOperand(scratch2(), Map::kPrototypeOffset));
-    __ Branch(&miss, ne, scratch2(),
-        Operand(isolate()->factory()->null_value()));
   }
 
   HandlerFrontendFooter(success, &miss);
