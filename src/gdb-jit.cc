@@ -629,7 +629,7 @@ class MachO BASE_EMBEDDED {
 #if defined(__ELF)
 class ELF BASE_EMBEDDED {
  public:
-  ELF(Zone* zone) : sections_(6, zone) {
+  explicit ELF(Zone* zone) : sections_(6, zone) {
     sections_.Add(new(zone) ELFSection("", ELFSection::TYPE_NULL, 0), zone);
     sections_.Add(new(zone) ELFStringTable(".shstrtab"), zone);
   }
