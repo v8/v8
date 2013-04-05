@@ -4391,6 +4391,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   // Parse function body.
   { FunctionState function_state(this, scope, is_generator, isolate());
     top_scope_->SetScopeName(function_name);
+    // For generators, allocating variables in contexts is currently a win
+    // because it minimizes the work needed to suspend and resume an activation.
+    if (is_generator) top_scope_->ForceContextAllocation();
 
     //  FormalParameterList ::
     //    '(' (Identifier)*[','] ')'

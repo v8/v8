@@ -496,8 +496,8 @@ enum VariableMode {
   INTERNAL,        // like VAR, but not user-visible (may or may not
                    // be in a context)
 
-  TEMPORARY,       // temporary variables (not user-visible), never
-                   // in a context
+  TEMPORARY,       // temporary variables (not user-visible), stack-allocated
+                   // unless the scope as a whole has forced context allocation
 
   DYNAMIC,         // always require dynamic lookup (we don't know
                    // the declaration)
