@@ -537,36 +537,32 @@ Parser::FunctionState::~FunctionState() {
 // ----------------------------------------------------------------------------
 // Implementation of Parser
 
-Parser::Parser(CompilationInfo* info,
-               int parser_flags,
-               v8::Extension* extension,
-               ScriptDataImpl* pre_data)
+Parser::Parser(CompilationInfo* info)
     : isolate_(info->isolate()),
-      symbol_cache_(pre_data ? pre_data->symbol_count() : 0, info->zone()),
+      symbol_cache_(0, info->zone()),
       script_(info->script()),
       scanner_(isolate_->unicode_cache()),
       reusable_preparser_(NULL),
       top_scope_(NULL),
       current_function_state_(NULL),
       target_stack_(NULL),
-      extension_(extension),
-      pre_data_(pre_data),
+      extension_(info->extension()),
+      pre_parse_data_(NULL),
       fni_(NULL),
-      allow_natives_syntax_((parser_flags & kAllowNativesSyntax) != 0),
-      allow_lazy_((parser_flags & kAllowLazy) != 0),
-      allow_modules_((parser_flags & kAllowModules) != 0),
+      allow_natives_syntax_(false),
+      allow_lazy_(false),
+      allow_generators_(false),
       stack_overflow_(false),
       parenthesized_function_(false),
       zone_(info->zone()),
       info_(info) {
   ASSERT(!script_.is_null());
   isolate_->set_ast_node_id(0);
-  if ((parser_flags & kLanguageModeMask) == EXTENDED_MODE) {
-    scanner().SetHarmonyScoping(true);
-  }
-  if ((parser_flags & kAllowModules) != 0) {
-    scanner().SetHarmonyModules(true);
-  }
+  set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
+  set_allow_modules(!info->is_native() && FLAG_harmony_modules);
+  set_allow_natives_syntax(FLAG_allow_natives_syntax || info->is_native());
+  set_allow_lazy(false);  // Must be explicitly enabled.
+  set_allow_generators(FLAG_harmony_generators);
 }
 
 
@@ -617,7 +613,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
                                         ZoneScope* zone_scope) {
   ASSERT(top_scope_ == NULL);
   ASSERT(target_stack_ == NULL);
-  if (pre_data_ != NULL) pre_data_->Initialize();
+  if (pre_parse_data_ != NULL) pre_parse_data_->Initialize();
 
   Handle<String> no_name = isolate()->factory()->empty_string();
 
@@ -638,8 +634,10 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     scope->set_end_position(source->length());
 
     // Compute the parsing mode.
-    Mode mode = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
-    if (allow_natives_syntax_ || extension_ != NULL || scope->is_eval_scope()) {
+    Mode mode = (FLAG_lazy && allow_lazy()) ? PARSE_LAZILY : PARSE_EAGERLY;
+    if (allow_natives_syntax() ||
+        extension_ != NULL ||
+        scope->is_eval_scope()) {
       mode = PARSE_EAGERLY;
     }
     ParsingModeScope parsing_mode(this, mode);
@@ -801,8 +799,8 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
 
 Handle<String> Parser::GetSymbol(bool* ok) {
   int symbol_id = -1;
-  if (pre_data() != NULL) {
-    symbol_id = pre_data()->GetSymbolIdentifier();
+  if (pre_parse_data() != NULL) {
+    symbol_id = pre_parse_data()->GetSymbolIdentifier();
   }
   return LookupSymbol(symbol_id);
 }
@@ -1092,7 +1090,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
             mode_ = PARSE_EAGERLY;
           }
           // TODO(ES6): Fix entering extended mode, once it is specified.
-          top_scope_->SetLanguageMode(FLAG_harmony_scoping
+          top_scope_->SetLanguageMode(allow_harmony_scoping()
                                       ? EXTENDED_MODE : STRICT_MODE);
           // "use strict" is the only directive for now.
           directive_prologue = false;
@@ -1910,7 +1908,7 @@ Statement* Parser::ParseFunctionDeclaration(ZoneStringList* names, bool* ok) {
   //      '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
   int function_token_position = scanner().location().beg_pos;
-  bool is_generator = FLAG_harmony_generators && Check(Token::MUL);
+  bool is_generator = allow_generators() && Check(Token::MUL);
   bool is_strict_reserved = false;
   Handle<String> name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
@@ -3486,7 +3484,7 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
   if (peek() == Token::FUNCTION) {
     Expect(Token::FUNCTION, CHECK_OK);
     int function_token_position = scanner().location().beg_pos;
-    bool is_generator = FLAG_harmony_generators && Check(Token::MUL);
+    bool is_generator = allow_generators() && Check(Token::MUL);
     Handle<String> name;
     bool is_strict_reserved_name = false;
     if (peek_any_identifier()) {
@@ -3702,7 +3700,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
       break;
 
     case Token::MOD:
-      if (allow_natives_syntax_ || extension_ != NULL) {
+      if (allow_natives_syntax() || extension_ != NULL) {
         result = ParseV8Intrinsic(CHECK_OK);
         break;
       }
@@ -4475,11 +4473,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     if (is_lazily_compiled) {
       int function_block_pos = scanner().location().beg_pos;
       FunctionEntry entry;
-      if (pre_data_ != NULL) {
-        // If we have pre_data_, we use it to skip parsing the function body.
-        // the preparser data contains the information we need to construct the
-        // lazy function.
-        entry = pre_data()->GetFunctionEntry(function_block_pos);
+      if (pre_parse_data_ != NULL) {
+        // If we have pre_parse_data_, we use it to skip parsing the function
+        // body.  The preparser data contains the information we need to
+        // construct the lazy function.
+        entry = pre_parse_data()->GetFunctionEntry(function_block_pos);
         if (entry.is_valid()) {
           if (entry.end_pos() <= function_block_pos) {
             // End position greater than end of stream is safe, and hard
@@ -4646,14 +4644,14 @@ preparser::PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
 
   if (reusable_preparser_ == NULL) {
     intptr_t stack_limit = isolate()->stack_guard()->real_climit();
-    bool do_allow_lazy = true;
     reusable_preparser_ = new preparser::PreParser(&scanner_,
                                                    NULL,
-                                                   stack_limit,
-                                                   do_allow_lazy,
-                                                   allow_natives_syntax_,
-                                                   allow_modules_,
-                                                   FLAG_harmony_generators);
+                                                   stack_limit);
+    reusable_preparser_->set_allow_harmony_scoping(allow_harmony_scoping());
+    reusable_preparser_->set_allow_modules(allow_modules());
+    reusable_preparser_->set_allow_natives_syntax(allow_natives_syntax());
+    reusable_preparser_->set_allow_lazy(true);
+    reusable_preparser_->set_allow_generators(allow_generators());
   }
   preparser::PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(top_scope_->language_mode(),
@@ -5900,20 +5898,18 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 
 
 // Create a Scanner for the preparser to use as input, and preparse the source.
-static ScriptDataImpl* DoPreParse(Utf16CharacterStream* source,
-                                  int flags,
-                                  ParserRecorder* recorder) {
+ScriptDataImpl* PreParserApi::PreParse(Utf16CharacterStream* source) {
+  CompleteParserRecorder recorder;
   Isolate* isolate = Isolate::Current();
   HistogramTimerScope timer(isolate->counters()->pre_parse());
   Scanner scanner(isolate->unicode_cache());
-  scanner.SetHarmonyScoping(FLAG_harmony_scoping);
-  scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
-  preparser::PreParser::PreParseResult result =
-      preparser::PreParser::PreParseProgram(&scanner,
-                                            recorder,
-                                            flags,
-                                            stack_limit);
+  preparser::PreParser preparser(&scanner, &recorder, stack_limit);
+  preparser.set_allow_lazy(true);
+  preparser.set_allow_generators(FLAG_harmony_generators);
+  preparser.set_allow_harmony_scoping(FLAG_harmony_scoping);
+  scanner.Initialize(source);
+  preparser::PreParser::PreParseResult result = preparser.PreParseProgram();
   if (result == preparser::PreParser::kPreParseStackOverflow) {
     isolate->StackOverflow();
     return NULL;
@@ -5921,21 +5917,8 @@ static ScriptDataImpl* DoPreParse(Utf16CharacterStream* source,
 
   // Extract the accumulated data from the recorder as a single
   // contiguous vector that we are responsible for disposing.
-  Vector<unsigned> store = recorder->ExtractData();
+  Vector<unsigned> store = recorder.ExtractData();
   return new ScriptDataImpl(store);
-}
-
-
-ScriptDataImpl* ParserApi::PreParse(Utf16CharacterStream* source) {
-  int flags = kNoParsingFlags;
-  if (FLAG_lazy) {
-    flags |= kAllowLazy;
-  }
-  if (FLAG_harmony_generators) {
-    flags |= kAllowGenerators;
-  }
-  CompleteParserRecorder recorder;
-  return DoPreParse(source, flags, &recorder);
 }
 
 
@@ -5962,48 +5945,35 @@ bool RegExpParser::ParseRegExp(FlatStringReader* input,
 }
 
 
-bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
-  ASSERT(info->function() == NULL);
+bool Parser::Parse() {
+  ASSERT(info()->function() == NULL);
   FunctionLiteral* result = NULL;
-  ASSERT((parsing_flags & kLanguageModeMask) == CLASSIC_MODE);
-  if (!info->is_native() && FLAG_harmony_scoping) {
-    // Harmony scoping is requested.
-    parsing_flags |= EXTENDED_MODE;
-  }
-  if (!info->is_native() && FLAG_harmony_modules) {
-    parsing_flags |= kAllowModules;
-  }
-  if (FLAG_allow_natives_syntax || info->is_native()) {
-    // We require %identifier(..) syntax.
-    parsing_flags |= kAllowNativesSyntax;
-  }
-  if (info->is_lazy()) {
-    ASSERT(!info->is_eval());
-    Parser parser(info, parsing_flags, NULL, NULL);
-    if (info->shared_info()->is_function()) {
-      result = parser.ParseLazy();
+  if (info()->is_lazy()) {
+    ASSERT(!info()->is_eval());
+    if (info()->shared_info()->is_function()) {
+      result = ParseLazy();
     } else {
-      result = parser.ParseProgram();
+      result = ParseProgram();
     }
   } else {
-    ScriptDataImpl* pre_data = info->pre_parse_data();
-    Parser parser(info, parsing_flags, info->extension(), pre_data);
-    if (pre_data != NULL && pre_data->has_error()) {
-      Scanner::Location loc = pre_data->MessageLocation();
-      const char* message = pre_data->BuildMessage();
-      Vector<const char*> args = pre_data->BuildArgs();
-      parser.ReportMessageAt(loc, message, args);
+    ScriptDataImpl* pre_parse_data = info()->pre_parse_data();
+    set_pre_parse_data(pre_parse_data);
+    if (pre_parse_data != NULL && pre_parse_data->has_error()) {
+      Scanner::Location loc = pre_parse_data->MessageLocation();
+      const char* message = pre_parse_data->BuildMessage();
+      Vector<const char*> args = pre_parse_data->BuildArgs();
+      ReportMessageAt(loc, message, args);
       DeleteArray(message);
       for (int i = 0; i < args.length(); i++) {
         DeleteArray(args[i]);
       }
       DeleteArray(args.start());
-      ASSERT(info->isolate()->has_pending_exception());
+      ASSERT(info()->isolate()->has_pending_exception());
     } else {
-      result = parser.ParseProgram();
+      result = ParseProgram();
     }
   }
-  info->SetFunction(result);
+  info()->SetFunction(result);
   return (result != NULL);
 }
 

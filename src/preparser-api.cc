@@ -191,11 +191,9 @@ PreParserData Preparse(UnicodeInputStream* input, size_t max_stack) {
   internal::Scanner scanner(&unicode_cache);
   scanner.Initialize(&buffer);
   internal::CompleteParserRecorder recorder;
-  preparser::PreParser::PreParseResult result =
-      preparser::PreParser::PreParseProgram(&scanner,
-                                            &recorder,
-                                            internal::kAllowLazy,
-                                            stack_limit);
+  preparser::PreParser preparser(&scanner, &recorder, stack_limit);
+  preparser.set_allow_lazy(true);
+  preparser::PreParser::PreParseResult result = preparser.PreParseProgram();
   if (result == preparser::PreParser::kPreParseStackOverflow) {
     return PreParserData::StackOverflow();
   }

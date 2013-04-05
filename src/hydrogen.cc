@@ -8124,8 +8124,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
   // Parse and allocate variables.
   CompilationInfo target_info(target, zone());
   Handle<SharedFunctionInfo> target_shared(target->shared());
-  if (!ParserApi::Parse(&target_info, kNoParsingFlags) ||
-      !Scope::Analyze(&target_info)) {
+  if (!Parser::Parse(&target_info) || !Scope::Analyze(&target_info)) {
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();

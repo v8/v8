@@ -1655,7 +1655,7 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 ScriptData* ScriptData::PreCompile(const char* input, int length) {
   i::Utf8ToUtf16CharacterStream stream(
       reinterpret_cast<const unsigned char*>(input), length);
-  return i::ParserApi::PreParse(&stream);
+  return i::PreParserApi::PreParse(&stream);
 }
 
 
@@ -1664,10 +1664,10 @@ ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
   if (str->IsExternalTwoByteString()) {
     i::ExternalTwoByteStringUtf16CharacterStream stream(
       i::Handle<i::ExternalTwoByteString>::cast(str), 0, str->length());
-    return i::ParserApi::PreParse(&stream);
+    return i::PreParserApi::PreParse(&stream);
   } else {
     i::GenericStringUtf16CharacterStream stream(str, 0, str->length());
-    return i::ParserApi::PreParse(&stream);
+    return i::PreParserApi::PreParse(&stream);
   }
 }
 
