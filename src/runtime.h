@@ -64,6 +64,7 @@ namespace internal {
   F(ToFastProperties, 1, 1) \
   F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 1, 1) \
+  F(IsClassicModeFunction, 1, 1) \
   F(GetDefaultReceiver, 1, 1) \
   \
   F(GetPrototype, 1, 1) \

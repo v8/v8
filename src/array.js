@@ -1017,7 +1017,7 @@ function ArrayFilter(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver)) {
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(f)) {
     receiver = ToObject(receiver);
   }
 
@@ -1068,9 +1068,10 @@ function ArrayForEach(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver)) {
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(f)) {
     receiver = ToObject(receiver);
   }
+
   if (%DebugCallbackSupportsStepping(f)) {
     for (var i = 0; i < length; i++) {
       if (i in array) {
@@ -1111,7 +1112,7 @@ function ArraySome(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver)) {
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(f)) {
     receiver = ToObject(receiver);
   }
 
@@ -1154,7 +1155,7 @@ function ArrayEvery(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver)) {
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(f)) {
     receiver = ToObject(receiver);
   }
 
@@ -1196,7 +1197,7 @@ function ArrayMap(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver)) {
+  } else if (!IS_SPEC_OBJECT(receiver) && %IsClassicModeFunction(f)) {
     receiver = ToObject(receiver);
   }
 
