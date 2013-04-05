@@ -170,8 +170,6 @@ void FullCodeGenerator::Generate() {
   // the frame (that is done below).
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
-  int locals_count = info->scope()->num_stack_slots();
-
   info->set_prologue_offset(masm_->pc_offset());
   // The following three instructions must remain together and unmodified for
   // code aging to work properly.
@@ -183,6 +181,9 @@ void FullCodeGenerator::Generate() {
   __ Addu(fp, sp, Operand(2 * kPointerSize));
 
   { Comment cmnt(masm_, "[ Allocate locals");
+    int locals_count = info->scope()->num_stack_slots();
+    // Generators allocate locals, if any, in context slots.
+    ASSERT(!info->function()->is_generator() || locals_count == 0);
     for (int i = 0; i < locals_count; i++) {
       __ push(at);
     }
