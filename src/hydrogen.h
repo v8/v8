@@ -1042,6 +1042,14 @@ class HGraphBuilder {
                                 ElementsKind kind,
                                 HValue* capacity);
 
+  void BuildInitializeElements(HValue* elements,
+                               ElementsKind kind,
+                               HValue* capacity);
+
+  HValue* BuildAllocateAndInitializeElements(HValue* context,
+                                             ElementsKind kind,
+                                             HValue* capacity);
+
   HValue* BuildGrowElementsCapacity(HValue* object,
                                     HValue* elements,
                                     ElementsKind kind,

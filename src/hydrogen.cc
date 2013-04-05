@@ -1238,7 +1238,6 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 HValue* HGraphBuilder::BuildAllocateElements(HValue* context,
                                              ElementsKind kind,
                                              HValue* capacity) {
-  BailoutId ast_id = current_block()->last_environment()->previous_ast_id();
   Zone* zone = this->zone();
 
   int elements_size = IsFastDoubleElementsKind(kind)
@@ -1273,7 +1272,15 @@ HValue* HGraphBuilder::BuildAllocateElements(HValue* context,
   HValue* elements =
       AddInstruction(new(zone) HAllocate(context, total_size,
                                          HType::JSArray(), flags));
+  return elements;
+}
 
+
+void HGraphBuilder::BuildInitializeElements(HValue* elements,
+                                            ElementsKind kind,
+                                            HValue* capacity) {
+  Zone* zone = this->zone();
+  BailoutId ast_id = current_block()->last_environment()->previous_ast_id();
   Factory* factory = isolate()->factory();
   Handle<Map> map = IsFastDoubleElementsKind(kind)
       ? factory->fixed_double_array_map()
@@ -1286,8 +1293,16 @@ HValue* HGraphBuilder::BuildAllocateElements(HValue* context,
                                  capacity, true, FixedArray::kLengthOffset);
   AddInstruction(store_length);
   AddSimulate(ast_id, REMOVABLE_SIMULATE);
+}
 
-  return elements;
+
+HValue* HGraphBuilder::BuildAllocateAndInitializeElements(HValue* context,
+                                                          ElementsKind kind,
+                                                          HValue* capacity) {
+  HValue* new_elements =
+      BuildAllocateElements(context, kind, capacity);
+  BuildInitializeElements(new_elements, kind, capacity);
+  return new_elements;
 }
 
 
@@ -1372,7 +1387,7 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
   BuildNewSpaceArrayCheck(new_capacity, kind);
 
   HValue* new_elements =
-      BuildAllocateElements(context, kind, new_capacity);
+      BuildAllocateAndInitializeElements(context, kind, new_capacity);
 
   BuildCopyElements(context, elements, kind,
                     new_elements, kind,

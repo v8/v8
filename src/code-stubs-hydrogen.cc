@@ -376,7 +376,7 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
       AddInstruction(new(zone) HFixedArrayBaseLength(elements));
 
   HValue* new_elements =
-      BuildAllocateElements(context(), to_kind, elements_length);
+      BuildAllocateAndInitializeElements(context(), to_kind, elements_length);
 
   BuildCopyElements(context(), elements,
                     casted_stub()->from_kind(), new_elements,
