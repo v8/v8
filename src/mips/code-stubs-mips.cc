@@ -39,6 +39,18 @@ namespace v8 {
 namespace internal {
 
 
+void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a3, a2, a1 };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kCreateArrayLiteralShallow)->entry;
+}
+
+
 void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -399,147 +411,6 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Need to collect. Call into runtime system.
   __ bind(&gc);
   __ TailCallRuntime(Runtime::kPushBlockContext, 2, 1);
-}
-
-
-static void GenerateFastCloneShallowArrayCommon(
-    MacroAssembler* masm,
-    int length,
-    FastCloneShallowArrayStub::Mode mode,
-    AllocationSiteMode allocation_site_mode,
-    Label* fail) {
-  // Registers on entry:
-  // a3: boilerplate literal array.
-  ASSERT(mode != FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS);
-
-  // All sizes here are multiples of kPointerSize.
-  int elements_size = 0;
-  if (length > 0) {
-    elements_size = mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        ? FixedDoubleArray::SizeFor(length)
-        : FixedArray::SizeFor(length);
-  }
-
-  int size = JSArray::kSize;
-  int allocation_info_start = size;
-  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-    size += AllocationSiteInfo::kSize;
-  }
-  size += elements_size;
-
-  // Allocate both the JS array and the elements array in one big
-  // allocation. This avoids multiple limit checks.
-  __ Allocate(size, v0, a1, a2, fail, TAG_OBJECT);
-
-  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-    __ li(a2, Operand(Handle<Map>(masm->isolate()->heap()->
-                                   allocation_site_info_map())));
-    __ sw(a2, FieldMemOperand(v0, allocation_info_start));
-    __ sw(a3, FieldMemOperand(v0, allocation_info_start + kPointerSize));
-  }
-
-  // Copy the JS array part.
-  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
-    if ((i != JSArray::kElementsOffset) || (length == 0)) {
-      __ lw(a1, FieldMemOperand(a3, i));
-      __ sw(a1, FieldMemOperand(v0, i));
-    }
-  }
-
-  if (length > 0) {
-    // Get hold of the elements array of the boilerplate and setup the
-    // elements pointer in the resulting object.
-    __ lw(a3, FieldMemOperand(a3, JSArray::kElementsOffset));
-    if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-      __ Addu(a2, v0, Operand(JSArray::kSize + AllocationSiteInfo::kSize));
-    } else {
-      __ Addu(a2, v0, Operand(JSArray::kSize));
-    }
-    __ sw(a2, FieldMemOperand(v0, JSArray::kElementsOffset));
-
-    // Copy the elements array.
-    ASSERT((elements_size % kPointerSize) == 0);
-    __ CopyFields(a2, a3, a1.bit(), elements_size / kPointerSize);
-  }
-}
-
-void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
-  // Stack layout on entry:
-  //
-  // [sp]: constant elements.
-  // [sp + kPointerSize]: literal index.
-  // [sp + (2 * kPointerSize)]: literals array.
-
-  // Load boilerplate object into r3 and check if we need to create a
-  // boilerplate.
-  Label slow_case;
-  __ lw(a3, MemOperand(sp, 2 * kPointerSize));
-  __ lw(a0, MemOperand(sp, 1 * kPointerSize));
-  __ Addu(a3, a3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(t0, a0, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t0, a3, t0);
-  __ lw(a3, MemOperand(t0));
-  __ LoadRoot(t1, Heap::kUndefinedValueRootIndex);
-  __ Branch(&slow_case, eq, a3, Operand(t1));
-
-  FastCloneShallowArrayStub::Mode mode = mode_;
-  if (mode == CLONE_ANY_ELEMENTS) {
-    Label double_elements, check_fast_elements;
-    __ lw(v0, FieldMemOperand(a3, JSArray::kElementsOffset));
-    __ lw(v0, FieldMemOperand(v0, HeapObject::kMapOffset));
-    __ LoadRoot(t1, Heap::kFixedCOWArrayMapRootIndex);
-    __ Branch(&check_fast_elements, ne, v0, Operand(t1));
-    GenerateFastCloneShallowArrayCommon(masm, 0, COPY_ON_WRITE_ELEMENTS,
-                                        allocation_site_mode_,
-                                        &slow_case);
-    // Return and remove the on-stack parameters.
-    __ DropAndRet(3);
-
-    __ bind(&check_fast_elements);
-    __ LoadRoot(t1, Heap::kFixedArrayMapRootIndex);
-    __ Branch(&double_elements, ne, v0, Operand(t1));
-    GenerateFastCloneShallowArrayCommon(masm, length_, CLONE_ELEMENTS,
-                                        allocation_site_mode_,
-                                        &slow_case);
-    // Return and remove the on-stack parameters.
-    __ DropAndRet(3);
-
-    __ bind(&double_elements);
-    mode = CLONE_DOUBLE_ELEMENTS;
-    // Fall through to generate the code to handle double elements.
-  }
-
-  if (FLAG_debug_code) {
-    const char* message;
-    Heap::RootListIndex expected_map_index;
-    if (mode == CLONE_ELEMENTS) {
-      message = "Expected (writable) fixed array";
-      expected_map_index = Heap::kFixedArrayMapRootIndex;
-    } else if (mode == CLONE_DOUBLE_ELEMENTS) {
-      message = "Expected (writable) fixed double array";
-      expected_map_index = Heap::kFixedDoubleArrayMapRootIndex;
-    } else {
-      ASSERT(mode == COPY_ON_WRITE_ELEMENTS);
-      message = "Expected copy-on-write fixed array";
-      expected_map_index = Heap::kFixedCOWArrayMapRootIndex;
-    }
-    __ push(a3);
-    __ lw(a3, FieldMemOperand(a3, JSArray::kElementsOffset));
-    __ lw(a3, FieldMemOperand(a3, HeapObject::kMapOffset));
-    __ LoadRoot(at, expected_map_index);
-    __ Assert(eq, message, a3, Operand(at));
-    __ pop(a3);
-  }
-
-  GenerateFastCloneShallowArrayCommon(masm, length_, mode,
-                                      allocation_site_mode_,
-                                      &slow_case);
-
-  // Return and remove the on-stack parameters.
-  __ DropAndRet(3);
-
-  __ bind(&slow_case);
-  __ TailCallRuntime(Runtime::kCreateArrayLiteralShallow, 3, 1);
 }
 
 
@@ -3950,6 +3821,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
+  StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
 }
 
@@ -3966,11 +3838,13 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   Code* save_doubles_code;
   if (!save_doubles.FindCodeInCache(&save_doubles_code, isolate)) {
     save_doubles_code = *save_doubles.GetCode(isolate);
-    save_doubles_code->set_is_pregenerated(true);
-
-    Code* store_buffer_overflow_code = *stub.GetCode(isolate);
-    store_buffer_overflow_code->set_is_pregenerated(true);
   }
+  Code* store_buffer_overflow_code;
+  if (!stub.FindCodeInCache(&store_buffer_overflow_code, isolate)) {
+      store_buffer_overflow_code = *stub.GetCode(isolate);
+  }
+  save_doubles_code->set_is_pregenerated(true);
+  store_buffer_overflow_code->set_is_pregenerated(true);
   isolate->set_fp_stubs_generated(true);
 }
 
@@ -7811,11 +7685,6 @@ bool RecordWriteStub::IsPregenerated() {
 }
 
 
-bool StoreBufferOverflowStub::IsPregenerated() {
-  return save_doubles_ == kDontSaveFPRegs || ISOLATE->fp_stubs_generated();
-}
-
-
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
@@ -8106,9 +7975,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  ASSERT(!Serializer::enabled());
-  bool save_fp_regs = CpuFeatures::IsSupported(FPU);
-  CEntryStub ces(1, save_fp_regs ? kSaveFPRegs : kDontSaveFPRegs);
+  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
   __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;

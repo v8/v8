@@ -62,11 +62,13 @@ class TranscendentalCacheStub: public PlatformCodeStub {
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
-      : save_doubles_(save_fp) { }
+      : save_doubles_(save_fp) {
+    ASSERT(CpuFeatures::IsSafeForSnapshot(FPU) || save_fp == kDontSaveFPRegs);
+  }
 
   void Generate(MacroAssembler* masm);
 
-  virtual bool IsPregenerated();
+  virtual bool IsPregenerated() { return true; }
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
