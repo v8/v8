@@ -1024,69 +1024,65 @@ void MacroAssembler::ThrowUncatchable(Register value) {
 
 
 void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
-                                            Register scratch,
+                                            Register scratch1,
+                                            Register scratch2,
                                             Label* miss) {
   Label same_contexts;
 
-  ASSERT(!holder_reg.is(scratch));
+  ASSERT(!holder_reg.is(scratch1));
+  ASSERT(!holder_reg.is(scratch2));
+  ASSERT(!scratch1.is(scratch2));
 
   // Load current lexical context from the stack frame.
-  mov(scratch, Operand(ebp, StandardFrameConstants::kContextOffset));
+  mov(scratch1, Operand(ebp, StandardFrameConstants::kContextOffset));
 
   // When generating debug code, make sure the lexical context is set.
   if (emit_debug_code()) {
-    cmp(scratch, Immediate(0));
+    cmp(scratch1, Immediate(0));
     Check(not_equal, "we should not have an empty lexical context");
   }
   // Load the native context of the current context.
   int offset =
       Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
-  mov(scratch, FieldOperand(scratch, offset));
-  mov(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
+  mov(scratch1, FieldOperand(scratch1, offset));
+  mov(scratch1, FieldOperand(scratch1, GlobalObject::kNativeContextOffset));
 
   // Check the context is a native context.
   if (emit_debug_code()) {
-    push(scratch);
     // Read the first word and compare to native_context_map.
-    mov(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
-    cmp(scratch, isolate()->factory()->native_context_map());
+    cmp(FieldOperand(scratch1, HeapObject::kMapOffset),
+        isolate()->factory()->native_context_map());
     Check(equal, "JSGlobalObject::native_context should be a native context.");
-    pop(scratch);
   }
 
   // Check if both contexts are the same.
-  cmp(scratch, FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
+  cmp(scratch1, FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   j(equal, &same_contexts);
 
   // Compare security tokens, save holder_reg on the stack so we can use it
   // as a temporary register.
   //
-  // TODO(119): avoid push(holder_reg)/pop(holder_reg)
-  push(holder_reg);
   // Check that the security token in the calling global object is
   // compatible with the security token in the receiving global
   // object.
-  mov(holder_reg,
+  mov(scratch2,
       FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
 
   // Check the context is a native context.
   if (emit_debug_code()) {
-    cmp(holder_reg, isolate()->factory()->null_value());
+    cmp(scratch2, isolate()->factory()->null_value());
     Check(not_equal, "JSGlobalProxy::context() should not be null.");
 
-    push(holder_reg);
     // Read the first word and compare to native_context_map(),
-    mov(holder_reg, FieldOperand(holder_reg, HeapObject::kMapOffset));
-    cmp(holder_reg, isolate()->factory()->native_context_map());
+    cmp(FieldOperand(scratch2, HeapObject::kMapOffset),
+        isolate()->factory()->native_context_map());
     Check(equal, "JSGlobalObject::native_context should be a native context.");
-    pop(holder_reg);
   }
 
   int token_offset = Context::kHeaderSize +
                      Context::SECURITY_TOKEN_INDEX * kPointerSize;
-  mov(scratch, FieldOperand(scratch, token_offset));
-  cmp(scratch, FieldOperand(holder_reg, token_offset));
-  pop(holder_reg);
+  mov(scratch1, FieldOperand(scratch1, token_offset));
+  cmp(scratch1, FieldOperand(scratch2, token_offset));
   j(not_equal, miss);
 
   bind(&same_contexts);

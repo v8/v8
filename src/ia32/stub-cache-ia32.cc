@@ -748,7 +748,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(receiver_reg, scratch1, miss_label);
+    __ CheckAccessGlobalProxy(receiver_reg, scratch1, scratch2, miss_label);
   }
 
   // Check that we are allowed to write this.
@@ -972,10 +972,6 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     } else {
       bool in_new_space = heap()->InNewSpace(*prototype);
       Handle<Map> current_map(current->map());
-      if (in_new_space) {
-        // Save the map in scratch1 for later.
-        __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
-      }
       if (!current.is_identical_to(first) || check == CHECK_ALL_MAPS) {
         __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK,
                     ALLOW_ELEMENT_TRANSITION_MAPS);
@@ -985,8 +981,14 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
       // the map check so that we know that the object is actually a global
       // object.
       if (current->IsJSGlobalProxy()) {
-        __ CheckAccessGlobalProxy(reg, scratch2, miss);
+        __ CheckAccessGlobalProxy(reg, scratch1, scratch2, miss);
       }
+
+      if (in_new_space) {
+        // Save the map in scratch1 for later.
+        __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
+      }
+
       reg = holder_reg;  // From now on the object will be in holder_reg.
 
       if (in_new_space) {
@@ -1020,7 +1022,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   // Perform security check for access to the global object.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
   if (holder->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(reg, scratch1, miss);
+    __ CheckAccessGlobalProxy(reg, scratch1, scratch2, miss);
   }
 
   // If we've skipped any global objects, it's not enough to verify that
@@ -2657,7 +2659,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(edx, ebx, &miss);
+    __ CheckAccessGlobalProxy(receiver(), scratch1(), scratch2(), &miss);
   }
 
   // Stub never generated for non-global objects that require access
