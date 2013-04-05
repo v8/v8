@@ -94,7 +94,7 @@ UnaryMathFunction CreateExpFunction() {
     if (!IsMipsSoftFloatABI) {
       // Result is already in f0, nothing to do.
     } else {
-      __ Move(a0, a1, result);
+      __ Move(v0, v1, result);
     }
     __ Ret();
   }

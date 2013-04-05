@@ -684,8 +684,6 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
                                      Register scratch1,
                                      Register scratch2,
                                      Label* not_number) {
-  ASSERT(!object.is(dst1) && !object.is(dst2));
-
   __ AssertRootValue(heap_number_map,
                      Heap::kHeapNumberMapRootIndex,
                      "HeapNumberMap register clobbered.");
@@ -842,7 +840,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
     // Get the number of bits to set in the lower part of the mantissa.
     __ Subu(scratch2, dst_mantissa,
         Operand(HeapNumber::kMantissaBitsInTopWord));
-    __ Branch(&fewer_than_20_useful_bits, lt, scratch2, Operand(zero_reg));
+    __ Branch(&fewer_than_20_useful_bits, le, scratch2, Operand(zero_reg));
     // Set the higher 20 bits of the mantissa.
     __ srlv(at, int_scratch, scratch2);
     __ or_(dst_exponent, dst_exponent, at);
@@ -880,10 +878,6 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
   ASSERT(!heap_number_map.is(object) &&
          !heap_number_map.is(scratch1) &&
          !heap_number_map.is(scratch2));
-  // ARM uses pop/push and Ldlr to save dst_* and probably object registers in
-  // softfloat path. On MIPS there is no ldlr, 1st lw instruction may overwrite
-  // object register making the 2nd lw invalid.
-  ASSERT(!object.is(dst_mantissa) && !object.is(dst_exponent));
 
   Label done, obj_is_not_smi;
 
@@ -920,24 +914,60 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     if (destination == kCoreRegisters) {
       __ Move(dst_mantissa, dst_exponent, double_dst);
     }
+
   } else {
+    ASSERT(!scratch1.is(object) && !scratch2.is(object));
     // Load the double value in the destination registers.
-    __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
-    __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+    bool save_registers = object.is(dst_mantissa) || object.is(dst_exponent);
+    if (save_registers) {
+      // Save both output registers, because the other one probably holds
+      // an important value too.
+      __ Push(dst_exponent, dst_mantissa);
+    }
+    if (object.is(dst_mantissa)) {
+      __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
+      __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+    } else {
+      __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+      __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
+    }
 
     // Check for 0 and -0.
+    Label zero;
     __ And(scratch1, dst_exponent, Operand(~HeapNumber::kSignMask));
     __ Or(scratch1, scratch1, Operand(dst_mantissa));
-    __ Branch(&done, eq, scratch1, Operand(zero_reg));
+    __ Branch(&zero, eq, scratch1, Operand(zero_reg));
 
     // Check that the value can be exactly represented by a 32-bit integer.
     // Jump to not_int32 if that's not the case.
+    Label restore_input_and_miss;
     DoubleIs32BitInteger(masm, dst_exponent, dst_mantissa, scratch1, scratch2,
-                         not_int32);
+                         &restore_input_and_miss);
 
     // dst_* were trashed. Reload the double value.
-    __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
-    __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+    if (save_registers) {
+      __ Pop(dst_exponent, dst_mantissa);
+    }
+    if (object.is(dst_mantissa)) {
+      __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
+      __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+    } else {
+      __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+      __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
+    }
+
+    __ Branch(&done);
+
+    __ bind(&restore_input_and_miss);
+    if (save_registers) {
+      __ Pop(dst_exponent, dst_mantissa);
+    }
+    __ Branch(not_int32);
+
+    __ bind(&zero);
+    if (save_registers) {
+      __ Drop(2);
+    }
   }
 
   __ bind(&done);
@@ -2688,20 +2718,16 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
               masm, destination, right, f14, a2, a3, heap_number_map,
               scratch1, scratch2, fail);
         }
-        // Use scratch3 as left in LoadNumber functions to avoid overwriting of
-        // left (a0) register.
-        __ mov(scratch3, left);
-
         // Load left operand to f12 or a0/a1. This keeps a0/a1 intact if it
         // jumps to |miss|.
         if (left_type == BinaryOpIC::INT32) {
           FloatingPointHelper::LoadNumberAsInt32Double(
-              masm, scratch3, destination, f12, f16, a0, a1, heap_number_map,
+              masm, left, destination, f12, f16, a0, a1, heap_number_map,
               scratch1, scratch2, f2, miss);
         } else {
           Label* fail = (left_type == BinaryOpIC::NUMBER) ? miss : not_numbers;
           FloatingPointHelper::LoadNumber(
-              masm, destination, scratch3, f12, a0, a1, heap_number_map,
+              masm, destination, left, f12, a0, a1, heap_number_map,
               scratch1, scratch2, fail);
         }
       }
