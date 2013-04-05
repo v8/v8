@@ -3892,6 +3892,7 @@ class V8EXPORT Context {
 
   /** Returns the context that is on the top of the stack. */
   static Local<Context> GetCurrent();
+  static Local<Context> GetCurrent(Isolate* isolate);
 
   /**
    * Returns the context of the calling JavaScript code.  That is the

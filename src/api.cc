@@ -5014,6 +5014,16 @@ v8::Local<v8::Context> Context::GetCurrent() {
 }
 
 
+v8::Local<v8::Context> Context::GetCurrent(Isolate* exported_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
+  ASSERT(isolate == i::Isolate::Current());
+  i::Handle<i::Object> current = isolate->native_context();
+  if (current.is_null()) return Local<Context>();
+  i::Handle<i::Context> context = i::Handle<i::Context>::cast(current);
+  return Utils::ToLocal(context);
+}
+
+
 v8::Local<v8::Context> Context::GetCalling() {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Context::GetCalling()")) {
