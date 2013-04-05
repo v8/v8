@@ -8862,14 +8862,18 @@ class ArrayConcatVisitor {
       storage_(Handle<FixedArray>::cast(
           isolate->global_handles()->Create(*storage))),
       index_offset_(0u),
-      fast_elements_(fast_elements) { }
+      fast_elements_(fast_elements),
+      exceeds_array_limit_(false) { }
 
   ~ArrayConcatVisitor() {
     clear_storage();
   }
 
   void visit(uint32_t i, Handle<Object> elm) {
-    if (i >= JSObject::kMaxElementCount - index_offset_) return;
+    if (i > JSObject::kMaxElementCount - index_offset_) {
+      exceeds_array_limit_ = true;
+      return;
+    }
     uint32_t index = index_offset_ + i;
 
     if (fast_elements_) {
@@ -8902,6 +8906,10 @@ class ArrayConcatVisitor {
     } else {
       index_offset_ += delta;
     }
+  }
+
+  bool exceeds_array_limit() {
+    return exceeds_array_limit_;
   }
 
   Handle<JSArray> ToArray() {
@@ -8962,7 +8970,8 @@ class ArrayConcatVisitor {
   // Index after last seen index. Always less than or equal to
   // JSObject::kMaxElementCount.
   uint32_t index_offset_;
-  bool fast_elements_;
+  bool fast_elements_ : 1;
+  bool exceeds_array_limit_ : 1;
 };
 
 
@@ -9518,6 +9527,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
     }
   }
 
+  if (visitor.exceeds_array_limit()) {
+    return isolate->Throw(
+        *isolate->factory()->NewRangeError("invalid_array_length",
+                                           HandleVector<Object>(NULL, 0)));
+  }
   return *visitor.ToArray();
 }
 
