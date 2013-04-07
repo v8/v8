@@ -770,7 +770,7 @@ class BinaryOpStub: public PlatformCodeStub {
  private:
   Token::Value op_;
   OverwriteMode mode_;
-  bool platform_specific_bit_;  // Indicates SSE3 on IA32, VFP2 on ARM.
+  bool platform_specific_bit_;  // Indicates SSE3 on IA32.
 
   // Operand type information determined at runtime.
   BinaryOpIC::TypeInfo left_type_;

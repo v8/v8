@@ -654,81 +654,77 @@ TEST(8) {
   // single precision values around in memory.
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatureScope scope(&assm, VFP2);
+  __ mov(ip, Operand(sp));
+  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+  __ sub(fp, ip, Operand(4));
 
-    __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
-    __ sub(fp, ip, Operand(4));
+  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ vldm(ia_w, r4, d0, d3);
+  __ vldm(ia_w, r4, d4, d7);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
-    __ vldm(ia_w, r4, d0, d3);
-    __ vldm(ia_w, r4, d4, d7);
+  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ vstm(ia_w, r4, d6, d7);
+  __ vstm(ia_w, r4, d0, d5);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
-    __ vstm(ia_w, r4, d6, d7);
-    __ vstm(ia_w, r4, d0, d5);
+  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ vldm(ia_w, r4, s0, s3);
+  __ vldm(ia_w, r4, s4, s7);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
-    __ vldm(ia_w, r4, s0, s3);
-    __ vldm(ia_w, r4, s4, s7);
+  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ vstm(ia_w, r4, s6, s7);
+  __ vstm(ia_w, r4, s0, s5);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
-    __ vstm(ia_w, r4, s6, s7);
-    __ vstm(ia_w, r4, s0, s5);
+  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
-
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked();
+  CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+  Code::cast(code)->Print();
 #endif
-    F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
-    d.a = 1.1;
-    d.b = 2.2;
-    d.c = 3.3;
-    d.d = 4.4;
-    d.e = 5.5;
-    d.f = 6.6;
-    d.g = 7.7;
-    d.h = 8.8;
+  F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  d.a = 1.1;
+  d.b = 2.2;
+  d.c = 3.3;
+  d.d = 4.4;
+  d.e = 5.5;
+  d.f = 6.6;
+  d.g = 7.7;
+  d.h = 8.8;
 
-    f.a = 1.0;
-    f.b = 2.0;
-    f.c = 3.0;
-    f.d = 4.0;
-    f.e = 5.0;
-    f.f = 6.0;
-    f.g = 7.0;
-    f.h = 8.0;
+  f.a = 1.0;
+  f.b = 2.0;
+  f.c = 3.0;
+  f.d = 4.0;
+  f.e = 5.0;
+  f.f = 6.0;
+  f.g = 7.0;
+  f.h = 8.0;
 
-    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
-    USE(dummy);
+  Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+  USE(dummy);
 
-    CHECK_EQ(7.7, d.a);
-    CHECK_EQ(8.8, d.b);
-    CHECK_EQ(1.1, d.c);
-    CHECK_EQ(2.2, d.d);
-    CHECK_EQ(3.3, d.e);
-    CHECK_EQ(4.4, d.f);
-    CHECK_EQ(5.5, d.g);
-    CHECK_EQ(6.6, d.h);
+  CHECK_EQ(7.7, d.a);
+  CHECK_EQ(8.8, d.b);
+  CHECK_EQ(1.1, d.c);
+  CHECK_EQ(2.2, d.d);
+  CHECK_EQ(3.3, d.e);
+  CHECK_EQ(4.4, d.f);
+  CHECK_EQ(5.5, d.g);
+  CHECK_EQ(6.6, d.h);
 
-    CHECK_EQ(7.0, f.a);
-    CHECK_EQ(8.0, f.b);
-    CHECK_EQ(1.0, f.c);
-    CHECK_EQ(2.0, f.d);
-    CHECK_EQ(3.0, f.e);
-    CHECK_EQ(4.0, f.f);
-    CHECK_EQ(5.0, f.g);
-    CHECK_EQ(6.0, f.h);
-  }
+  CHECK_EQ(7.0, f.a);
+  CHECK_EQ(8.0, f.b);
+  CHECK_EQ(1.0, f.c);
+  CHECK_EQ(2.0, f.d);
+  CHECK_EQ(3.0, f.e);
+  CHECK_EQ(4.0, f.f);
+  CHECK_EQ(5.0, f.g);
+  CHECK_EQ(6.0, f.h);
 }
 
 
@@ -766,85 +762,81 @@ TEST(9) {
   // single precision values around in memory.
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatureScope scope(&assm, VFP2);
+  __ mov(ip, Operand(sp));
+  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+  __ sub(fp, ip, Operand(4));
 
-    __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
-    __ sub(fp, ip, Operand(4));
+  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ vldm(ia, r4, d0, d3);
+  __ add(r4, r4, Operand(4 * 8));
+  __ vldm(ia, r4, d4, d7);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
-    __ vldm(ia, r4, d0, d3);
-    __ add(r4, r4, Operand(4 * 8));
-    __ vldm(ia, r4, d4, d7);
+  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ vstm(ia, r4, d6, d7);
+  __ add(r4, r4, Operand(2 * 8));
+  __ vstm(ia, r4, d0, d5);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
-    __ vstm(ia, r4, d6, d7);
-    __ add(r4, r4, Operand(2 * 8));
-    __ vstm(ia, r4, d0, d5);
+  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ vldm(ia, r4, s0, s3);
+  __ add(r4, r4, Operand(4 * 4));
+  __ vldm(ia, r4, s4, s7);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
-    __ vldm(ia, r4, s0, s3);
-    __ add(r4, r4, Operand(4 * 4));
-    __ vldm(ia, r4, s4, s7);
+  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ vstm(ia, r4, s6, s7);
+  __ add(r4, r4, Operand(2 * 4));
+  __ vstm(ia, r4, s0, s5);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
-    __ vstm(ia, r4, s6, s7);
-    __ add(r4, r4, Operand(2 * 4));
-    __ vstm(ia, r4, s0, s5);
+  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
-
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked();
+  CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+  Code::cast(code)->Print();
 #endif
-    F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
-    d.a = 1.1;
-    d.b = 2.2;
-    d.c = 3.3;
-    d.d = 4.4;
-    d.e = 5.5;
-    d.f = 6.6;
-    d.g = 7.7;
-    d.h = 8.8;
+  F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  d.a = 1.1;
+  d.b = 2.2;
+  d.c = 3.3;
+  d.d = 4.4;
+  d.e = 5.5;
+  d.f = 6.6;
+  d.g = 7.7;
+  d.h = 8.8;
 
-    f.a = 1.0;
-    f.b = 2.0;
-    f.c = 3.0;
-    f.d = 4.0;
-    f.e = 5.0;
-    f.f = 6.0;
-    f.g = 7.0;
-    f.h = 8.0;
+  f.a = 1.0;
+  f.b = 2.0;
+  f.c = 3.0;
+  f.d = 4.0;
+  f.e = 5.0;
+  f.f = 6.0;
+  f.g = 7.0;
+  f.h = 8.0;
 
-    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
-    USE(dummy);
+  Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+  USE(dummy);
 
-    CHECK_EQ(7.7, d.a);
-    CHECK_EQ(8.8, d.b);
-    CHECK_EQ(1.1, d.c);
-    CHECK_EQ(2.2, d.d);
-    CHECK_EQ(3.3, d.e);
-    CHECK_EQ(4.4, d.f);
-    CHECK_EQ(5.5, d.g);
-    CHECK_EQ(6.6, d.h);
+  CHECK_EQ(7.7, d.a);
+  CHECK_EQ(8.8, d.b);
+  CHECK_EQ(1.1, d.c);
+  CHECK_EQ(2.2, d.d);
+  CHECK_EQ(3.3, d.e);
+  CHECK_EQ(4.4, d.f);
+  CHECK_EQ(5.5, d.g);
+  CHECK_EQ(6.6, d.h);
 
-    CHECK_EQ(7.0, f.a);
-    CHECK_EQ(8.0, f.b);
-    CHECK_EQ(1.0, f.c);
-    CHECK_EQ(2.0, f.d);
-    CHECK_EQ(3.0, f.e);
-    CHECK_EQ(4.0, f.f);
-    CHECK_EQ(5.0, f.g);
-    CHECK_EQ(6.0, f.h);
-  }
+  CHECK_EQ(7.0, f.a);
+  CHECK_EQ(8.0, f.b);
+  CHECK_EQ(1.0, f.c);
+  CHECK_EQ(2.0, f.d);
+  CHECK_EQ(3.0, f.e);
+  CHECK_EQ(4.0, f.f);
+  CHECK_EQ(5.0, f.g);
+  CHECK_EQ(6.0, f.h);
 }
 
 
@@ -882,81 +874,77 @@ TEST(10) {
   // single precision values around in memory.
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatureScope scope(&assm, VFP2);
+  __ mov(ip, Operand(sp));
+  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+  __ sub(fp, ip, Operand(4));
 
-    __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
-    __ sub(fp, ip, Operand(4));
+  __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
+  __ vldm(db_w, r4, d4, d7);
+  __ vldm(db_w, r4, d0, d3);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
-    __ vldm(db_w, r4, d4, d7);
-    __ vldm(db_w, r4, d0, d3);
+  __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
+  __ vstm(db_w, r4, d0, d5);
+  __ vstm(db_w, r4, d6, d7);
 
-    __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
-    __ vstm(db_w, r4, d0, d5);
-    __ vstm(db_w, r4, d6, d7);
+  __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
+  __ vldm(db_w, r4, s4, s7);
+  __ vldm(db_w, r4, s0, s3);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
-    __ vldm(db_w, r4, s4, s7);
-    __ vldm(db_w, r4, s0, s3);
+  __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
+  __ vstm(db_w, r4, s0, s5);
+  __ vstm(db_w, r4, s6, s7);
 
-    __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
-    __ vstm(db_w, r4, s0, s5);
-    __ vstm(db_w, r4, s6, s7);
+  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
-
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Object* code = isolate->heap()->CreateCode(
-        desc,
-        Code::ComputeFlags(Code::STUB),
-        Handle<Code>())->ToObjectChecked();
-    CHECK(code->IsCode());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked();
+  CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print();
+  Code::cast(code)->Print();
 #endif
-    F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
-    d.a = 1.1;
-    d.b = 2.2;
-    d.c = 3.3;
-    d.d = 4.4;
-    d.e = 5.5;
-    d.f = 6.6;
-    d.g = 7.7;
-    d.h = 8.8;
+  F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+  d.a = 1.1;
+  d.b = 2.2;
+  d.c = 3.3;
+  d.d = 4.4;
+  d.e = 5.5;
+  d.f = 6.6;
+  d.g = 7.7;
+  d.h = 8.8;
 
-    f.a = 1.0;
-    f.b = 2.0;
-    f.c = 3.0;
-    f.d = 4.0;
-    f.e = 5.0;
-    f.f = 6.0;
-    f.g = 7.0;
-    f.h = 8.0;
+  f.a = 1.0;
+  f.b = 2.0;
+  f.c = 3.0;
+  f.d = 4.0;
+  f.e = 5.0;
+  f.f = 6.0;
+  f.g = 7.0;
+  f.h = 8.0;
 
-    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
-    USE(dummy);
+  Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+  USE(dummy);
 
-    CHECK_EQ(7.7, d.a);
-    CHECK_EQ(8.8, d.b);
-    CHECK_EQ(1.1, d.c);
-    CHECK_EQ(2.2, d.d);
-    CHECK_EQ(3.3, d.e);
-    CHECK_EQ(4.4, d.f);
-    CHECK_EQ(5.5, d.g);
-    CHECK_EQ(6.6, d.h);
+  CHECK_EQ(7.7, d.a);
+  CHECK_EQ(8.8, d.b);
+  CHECK_EQ(1.1, d.c);
+  CHECK_EQ(2.2, d.d);
+  CHECK_EQ(3.3, d.e);
+  CHECK_EQ(4.4, d.f);
+  CHECK_EQ(5.5, d.g);
+  CHECK_EQ(6.6, d.h);
 
-    CHECK_EQ(7.0, f.a);
-    CHECK_EQ(8.0, f.b);
-    CHECK_EQ(1.0, f.c);
-    CHECK_EQ(2.0, f.d);
-    CHECK_EQ(3.0, f.e);
-    CHECK_EQ(4.0, f.f);
-    CHECK_EQ(5.0, f.g);
-    CHECK_EQ(6.0, f.h);
-  }
+  CHECK_EQ(7.0, f.a);
+  CHECK_EQ(8.0, f.b);
+  CHECK_EQ(1.0, f.c);
+  CHECK_EQ(2.0, f.d);
+  CHECK_EQ(3.0, f.e);
+  CHECK_EQ(4.0, f.f);
+  CHECK_EQ(5.0, f.g);
+  CHECK_EQ(6.0, f.h);
 }
 
 

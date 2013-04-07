@@ -2008,7 +2008,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
         (instr->representation().IsDouble() &&
          ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
           (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
-    // float->double conversion on non-VFP2 requires an extra scratch
+    // float->double conversion on soft float requires an extra scratch
     // register. For convenience, just mark the elements register as "UseTemp"
     // so that it can be used as a temp during the float->double conversion
     // after it's no longer needed after the float load.

@@ -594,23 +594,18 @@ void Deoptimizer::EntryGenerator::Generate() {
   const int kDoubleRegsSize =
       kDoubleSize * DwVfpRegister::kMaxNumAllocatableRegisters;
 
-  if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatureScope scope(masm(), VFP2);
-    // Save all allocatable VFP registers before messing with them.
-    ASSERT(kDoubleRegZero.code() == 14);
-    ASSERT(kScratchDoubleReg.code() == 15);
+  // Save all allocatable VFP registers before messing with them.
+  ASSERT(kDoubleRegZero.code() == 14);
+  ASSERT(kScratchDoubleReg.code() == 15);
 
-    // Check CPU flags for number of registers, setting the Z condition flag.
-    __ CheckFor32DRegs(ip);
+  // Check CPU flags for number of registers, setting the Z condition flag.
+  __ CheckFor32DRegs(ip);
 
-    // Push registers d0-d13, and possibly d16-d31, on the stack.
-    // If d16-d31 are not pushed, decrease the stack pointer instead.
-    __ vstm(db_w, sp, d16, d31, ne);
-    __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
-    __ vstm(db_w, sp, d0, d13);
-  } else {
-    __ sub(sp, sp, Operand(kDoubleRegsSize));
-  }
+  // Push registers d0-d13, and possibly d16-d31, on the stack.
+  // If d16-d31 are not pushed, decrease the stack pointer instead.
+  __ vstm(db_w, sp, d16, d31, ne);
+  __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
+  __ vstm(db_w, sp, d0, d13);
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
   // TODO(1588) Note that using pc with stm is deprecated, so we should perhaps
@@ -669,17 +664,14 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ str(r2, MemOperand(r1, offset));
   }
 
-  if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatureScope scope(masm(), VFP2);
-    // Copy VFP registers to
-    // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
-    int double_regs_offset = FrameDescription::double_registers_offset();
-    for (int i = 0; i < DwVfpRegister::kMaxNumAllocatableRegisters; ++i) {
-      int dst_offset = i * kDoubleSize + double_regs_offset;
-      int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
-      __ vldr(d0, sp, src_offset);
-      __ vstr(d0, r1, dst_offset);
-    }
+  // Copy VFP registers to
+  // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
+  int double_regs_offset = FrameDescription::double_registers_offset();
+  for (int i = 0; i < DwVfpRegister::kMaxNumAllocatableRegisters; ++i) {
+    int dst_offset = i * kDoubleSize + double_regs_offset;
+    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    __ vldr(d0, sp, src_offset);
+    __ vstr(d0, r1, dst_offset);
   }
 
   // Remove the bailout id, eventually return address, and the saved registers
@@ -749,21 +741,18 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ cmp(r4, r1);
   __ b(lt, &outer_push_loop);
 
-  if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatureScope scope(masm(), VFP2);
-    // Check CPU flags for number of registers, setting the Z condition flag.
-    __ CheckFor32DRegs(ip);
+  // Check CPU flags for number of registers, setting the Z condition flag.
+  __ CheckFor32DRegs(ip);
 
-    __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
-    int src_offset = FrameDescription::double_registers_offset();
-    for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-      if (i == kDoubleRegZero.code()) continue;
-      if (i == kScratchDoubleReg.code()) continue;
+  __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
+  int src_offset = FrameDescription::double_registers_offset();
+  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
+    if (i == kDoubleRegZero.code()) continue;
+    if (i == kScratchDoubleReg.code()) continue;
 
-      const DwVfpRegister reg = DwVfpRegister::from_code(i);
-      __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
-      src_offset += kDoubleSize;
-    }
+    const DwVfpRegister reg = DwVfpRegister::from_code(i);
+    __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
+    src_offset += kDoubleSize;
   }
 
   // Push state, pc, and continuation from the last output frame.

@@ -59,7 +59,6 @@ class CpuFeatures : public AllStatic {
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
     if (f == VFP3 && !FLAG_enable_vfp3) return false;
-    if (f == VFP2 && !FLAG_enable_vfp2) return false;
     if (f == SUDIV && !FLAG_enable_sudiv) return false;
     if (f == UNALIGNED_ACCESSES && !FLAG_enable_unaligned_accesses) {
       return false;
@@ -117,7 +116,6 @@ struct Register {
   static const int kNumRegisters = 16;
   static const int kMaxNumAllocatableRegisters = 8;
   static const int kSizeInBytes = 4;
-  static const int kGPRsPerNonVFP2Double = 2;
 
   inline static int NumAllocatableRegisters();
 
@@ -369,9 +367,6 @@ const DwVfpRegister d28 = { 28 };
 const DwVfpRegister d29 = { 29 };
 const DwVfpRegister d30 = { 30 };
 const DwVfpRegister d31 = { 31 };
-
-const Register sfpd_lo  = { kRegister_r6_Code };
-const Register sfpd_hi  = { kRegister_r7_Code };
 
 // Aliases for double registers.  Defined using #define instead of
 // "static const DwVfpRegister&" because Clang complains otherwise when a
