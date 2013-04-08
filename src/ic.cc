@@ -2386,8 +2386,7 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
     ic.patch(*code);
   }
 
-  Handle<JSBuiltinsObject> builtins = Handle<JSBuiltinsObject>(
-      isolate->thread_local_top()->context_->builtins(), isolate);
+  Handle<JSBuiltinsObject> builtins(isolate->js_builtins_object());
   Object* builtin = NULL;  // Initialization calms down the compiler.
   switch (op) {
     case Token::SUB:
@@ -2524,8 +2523,7 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
     }
   }
 
-  Handle<JSBuiltinsObject> builtins = Handle<JSBuiltinsObject>(
-      isolate->thread_local_top()->context_->builtins(), isolate);
+  Handle<JSBuiltinsObject> builtins(isolate->js_builtins_object());
   Object* builtin = NULL;  // Initialization calms down the compiler.
   switch (op) {
     case Token::ADD:

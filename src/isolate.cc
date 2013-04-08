@@ -1508,14 +1508,12 @@ bool Isolate::is_out_of_memory() {
 
 
 Handle<Context> Isolate::native_context() {
-  GlobalObject* global = thread_local_top()->context_->global_object();
-  return Handle<Context>(global->native_context());
+  return Handle<Context>(context()->global_object()->native_context());
 }
 
 
 Handle<Context> Isolate::global_context() {
-  GlobalObject* global = thread_local_top()->context_->global_object();
-  return Handle<Context>(global->global_context());
+  return Handle<Context>(context()->global_object()->global_context());
 }
 
 
