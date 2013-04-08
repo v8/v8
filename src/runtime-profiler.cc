@@ -389,9 +389,6 @@ void RuntimeProfiler::SetUp() {
   if (!FLAG_watch_ic_patching) {
     ClearSampleBuffer();
   }
-  // If the ticker hasn't already started, make sure to do so to get
-  // the ticks for the runtime profiler.
-  if (IsEnabled()) isolate_->logger()->EnsureTickerStarted();
 }
 
 

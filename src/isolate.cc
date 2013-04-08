@@ -1808,7 +1808,8 @@ void Isolate::Deinit() {
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
     // We must stop the logger before we tear down other components.
-    logger_->EnsureTickerStopped();
+    Sampler* sampler = logger_->sampler();
+    if (sampler && sampler->IsActive()) sampler->Stop();
 
     delete deoptimizer_data_;
     deoptimizer_data_ = NULL;

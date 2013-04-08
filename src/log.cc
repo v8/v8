@@ -1560,11 +1560,6 @@ void Logger::LogFailure() {
 }
 
 
-bool Logger::IsProfilerSamplerActive() {
-  return ticker_->IsActive();
-}
-
-
 class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
  public:
   EnumerateOptimizedFunctionsVisitor(Handle<SharedFunctionInfo>* sfis,
@@ -1934,17 +1929,6 @@ void Logger::SetCodeEventHandler(uint32_t options,
 
 Sampler* Logger::sampler() {
   return ticker_;
-}
-
-
-void Logger::EnsureTickerStarted() {
-  ASSERT(ticker_ != NULL);
-  if (!ticker_->IsActive()) ticker_->Start();
-}
-
-
-void Logger::EnsureTickerStopped() {
-  if (ticker_ != NULL && ticker_->IsActive()) ticker_->Stop();
 }
 
 

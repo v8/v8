@@ -168,9 +168,6 @@ class Logger {
   void SetCodeEventHandler(uint32_t options,
                            JitCodeEventHandler event_handler);
 
-  void EnsureTickerStarted();
-  void EnsureTickerStopped();
-
   Sampler* sampler();
 
   // Frees resources acquired in SetUp.
@@ -447,9 +444,6 @@ class Logger {
   // Logs an IntEvent regardless of whether FLAG_log is true.
   void UncheckedIntEvent(const char* name, int value);
   void UncheckedIntPtrTEvent(const char* name, intptr_t value);
-
-  // Returns whether profiler's sampler is active.
-  bool IsProfilerSamplerActive();
 
   Isolate* isolate_;
 
