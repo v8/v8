@@ -293,7 +293,7 @@ class RegExpBuilder: public ZoneObject {
 };
 
 
-class RegExpParser {
+class RegExpParser BASE_EMBEDDED {
  public:
   RegExpParser(FlatStringReader* in,
                Handle<String>* error,
@@ -423,10 +423,10 @@ class RegExpParser {
 // Forward declaration.
 class SingletonLogger;
 
-class Parser {
+class Parser BASE_EMBEDDED {
  public:
   explicit Parser(CompilationInfo* info);
-  virtual ~Parser() {
+  ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
   }
