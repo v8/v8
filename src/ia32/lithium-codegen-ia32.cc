@@ -858,8 +858,8 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     return;
   }
 
-  if (FLAG_deopt_every_n_times != 0) {
-    Handle<SharedFunctionInfo> shared(info_->shared_info());
+  if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
+    Handle<SharedFunctionInfo> shared(info()->shared_info());
     Label no_deopt;
     __ pushfd();
     __ push(eax);

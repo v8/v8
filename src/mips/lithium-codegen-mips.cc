@@ -828,7 +828,9 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   }
 
   ASSERT(FLAG_deopt_every_n_times < 2);  // Other values not supported on MIPS.
-  if (FLAG_deopt_every_n_times == 1 && info_->opt_count() == id) {
+  if (FLAG_deopt_every_n_times == 1 &&
+      !info()->IsStub() &&
+      info()->opt_count() == id) {
     __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
     return;
   }
