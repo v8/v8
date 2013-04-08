@@ -269,8 +269,10 @@ bool OS::MipsCpuHasFeature(CpuFeature feature) {
   FILE* f = NULL;
   const char* what = search_string;
 
-  if (NULL == (f = fopen(file_name, "r")))
+  if (NULL == (f = fopen(file_name, "r"))) {
+    OS::PrintError("Failed to open /proc/cpuinfo\n");
     return false;
+  }
 
   int k;
   while (EOF != (k = fgetc(f))) {
