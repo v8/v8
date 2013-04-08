@@ -1480,7 +1480,6 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 #define HEAP (v8::internal::Isolate::Current()->heap())
 #define FACTORY (v8::internal::Isolate::Current()->factory())
 #define ISOLATE (v8::internal::Isolate::Current())
-#define LOGGER (v8::internal::Isolate::Current()->logger())
 
 
 // Tells whether the native context is marked with out of memory.

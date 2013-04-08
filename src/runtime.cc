@@ -12838,7 +12838,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Log) {
   String::FlatContent format_content = format->GetFlatContent();
   RUNTIME_ASSERT(format_content.IsAscii());
   Vector<const uint8_t> chars = format_content.ToOneByteVector();
-  LOGGER->LogRuntime(isolate, Vector<const char>::cast(chars), elms);
+  isolate->logger()->LogRuntime(Vector<const char>::cast(chars), elms);
   return isolate->heap()->undefined_value();
 }
 

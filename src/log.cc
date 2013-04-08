@@ -216,9 +216,10 @@ void Profiler::Engage() {
   Start();
 
   // Register to get ticks.
-  LOGGER->ticker_->SetProfiler(this);
+  Logger* logger = isolate_->logger();
+  logger->ticker_->SetProfiler(this);
 
-  LOGGER->ProfilerBeginEvent();
+  logger->ProfilerBeginEvent();
 }
 
 
@@ -226,7 +227,7 @@ void Profiler::Disengage() {
   if (!engaged_) return;
 
   // Stop receiving ticks.
-  LOGGER->ticker_->ClearProfiler();
+  isolate_->logger()->ticker_->ClearProfiler();
 
   // Terminate the worker thread by setting running_ to false,
   // inserting a fake element in the queue and then wait for
@@ -778,11 +779,10 @@ void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
 }
 
 
-void Logger::LogRuntime(Isolate* isolate,
-                        Vector<const char> format,
+void Logger::LogRuntime(Vector<const char> format,
                         JSArray* args) {
   if (!log_->IsEnabled() || !FLAG_log_runtime) return;
-  HandleScope scope(isolate);
+  HandleScope scope(isolate_);
   LogMessageBuilder msg(this);
   for (int i = 0; i < format.length(); i++) {
     char c = format[i];
@@ -899,12 +899,12 @@ void Logger::DeleteEvent(const char* name, void* object) {
 
 
 void Logger::NewEventStatic(const char* name, void* object, size_t size) {
-  LOGGER->NewEvent(name, object, size);
+  Isolate::Current()->logger()->NewEvent(name, object, size);
 }
 
 
 void Logger::DeleteEventStatic(const char* name, void* object) {
-  LOGGER->DeleteEvent(name, object);
+  Isolate::Current()->logger()->DeleteEvent(name, object);
 }
 
 void Logger::CallbackEventInternal(const char* prefix, Name* name,

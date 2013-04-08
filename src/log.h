@@ -324,7 +324,7 @@ class Logger {
   void RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache);
 
   // Log an event reported from generated code
-  void LogRuntime(Isolate* isolate, Vector<const char> format, JSArray* args);
+  void LogRuntime(Vector<const char> format, JSArray* args);
 
   bool is_logging() {
     return logging_nesting_ > 0;
