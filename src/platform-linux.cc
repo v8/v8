@@ -38,7 +38,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 
-#if defined(__GLIBC__)
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
 #include <execinfo.h>
 #include <cxxabi.h>
 #endif
@@ -51,9 +51,6 @@
 #include <sys/stat.h>   // open
 #include <fcntl.h>      // open
 #include <unistd.h>     // sysconf
-#if defined(__GLIBC__) && !defined(__UCLIBC__)
-#include <execinfo.h>   // backtrace, backtrace_symbols
-#endif  // defined(__GLIBC__) && !defined(__UCLIBC__)
 #include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
@@ -434,7 +431,7 @@ void OS::DebugBreak() {
 
 
 void OS::DumpBacktrace() {
-#if defined(__GLIBC__)
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
   void* trace[100];
   int size = backtrace(trace, ARRAY_SIZE(trace));
   char** symbols = backtrace_symbols(trace, size);
