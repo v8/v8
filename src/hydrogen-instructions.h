@@ -3190,13 +3190,19 @@ class HConstant: public HTemplateInstruction<0> {
 
   bool InOldSpace() const { return !HEAP->InNewSpace(*handle_); }
 
+  bool IsSpecialDouble() const {
+    return has_double_value_ &&
+        (BitCast<int64_t>(double_value_) == BitCast<int64_t>(-0.0) ||
+         FixedDoubleArray::is_the_hole_nan(double_value_) ||
+         isnan(double_value_));
+  }
+
   bool ImmortalImmovable() const {
     if (has_int32_value_) {
       return false;
     }
     if (has_double_value_) {
-      if (BitCast<int64_t>(double_value_) == BitCast<int64_t>(-0.0) ||
-          isnan(double_value_)) {
+      if (IsSpecialDouble()) {
         return true;
       }
       return false;
@@ -3227,7 +3233,9 @@ class HConstant: public HTemplateInstruction<0> {
     return has_int32_value_;
   }
 
-  virtual bool EmitAtUses() { return !representation().IsDouble(); }
+  virtual bool EmitAtUses() {
+    return !representation().IsDouble() || IsSpecialDouble();
+  }
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
@@ -3245,6 +3253,16 @@ class HConstant: public HTemplateInstruction<0> {
   double DoubleValue() const {
     ASSERT(HasDoubleValue());
     return double_value_;
+  }
+  bool IsTheHole() const {
+    if (HasDoubleValue() && FixedDoubleArray::is_the_hole_nan(double_value_)) {
+      return true;
+    }
+    Heap* heap = isolate()->heap();
+    if (!handle_.is_null() && *handle_ == heap->the_hole_value()) {
+      return true;
+    }
+    return false;
   }
   bool HasNumberValue() const { return has_double_value_; }
   int32_t NumberValueAsInteger32() const {
@@ -5676,6 +5694,10 @@ class HStoreKeyed
   void SetKey(HValue* key) { SetOperandAt(1, key); }
   bool IsDehoisted() { return is_dehoisted_; }
   void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
+
+  bool IsConstantHoleStore() {
+    return value()->IsConstant() && HConstant::cast(value())->IsTheHole();
+  }
 
   virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
     ASSERT(side_effect == kChangesNewSpacePromotion);

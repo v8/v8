@@ -1495,6 +1495,8 @@ class HeapNumber: public HeapObject {
   static const int kExponentBits = 11;
   static const int kExponentBias = 1023;
   static const int kExponentShift = 20;
+  static const int kInfinityOrNanExponent =
+      (kExponentMask >> kExponentShift) - kExponentBias;
   static const int kMantissaBitsInTopWord = 20;
   static const int kNonMantissaBitsInTopWord = 12;
 

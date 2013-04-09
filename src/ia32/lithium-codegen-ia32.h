@@ -68,6 +68,7 @@ class LCodeGen BASE_EMBEDDED {
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
         frame_is_built_(false),
+        x87_stack_depth_(0),
         safepoints_(info->zone()),
         resolver_(this),
         expected_safepoint_kind_(Safepoint::kSimple) {
@@ -102,10 +103,17 @@ class LCodeGen BASE_EMBEDDED {
     return Immediate(ToInteger32(LConstantOperand::cast(op)));
   }
 
-  Handle<Object> ToHandle(LConstantOperand* op) const;
+  // Support for non-sse2 (x87) floating point stack handling.
+  // These functions maintain the depth of the stack (either 0 or 1)
+  void PushX87DoubleOperand(Operand src);
+  void PushX87FloatOperand(Operand src);
+  void ReadX87Operand(Operand dst);
+  bool X87StackNonEmpty() const { return x87_stack_depth_ > 0; }
+  void PopX87();
+  void CurrentInstructionReturnsX87Result();
+  void FlushX87StackIfNecessary(LInstruction* instr);
 
-  // A utility for instructions that return floating point values on X87.
-  void HandleX87FPReturnValue(LInstruction* instr);
+  Handle<Object> ToHandle(LConstantOperand* op) const;
 
   // The operand denoting the second word (the one with a higher address) of
   // a double stack slot.
@@ -129,6 +137,7 @@ class LCodeGen BASE_EMBEDDED {
                             IntegerSignedness signedness);
 
   void DoDeferredTaggedToI(LTaggedToI* instr);
+  void DoDeferredTaggedToINoSSE2(LTaggedToINoSSE2* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
   void DoDeferredRandom(LRandom* instr);
@@ -315,6 +324,14 @@ class LCodeGen BASE_EMBEDDED {
       LEnvironment* env,
       NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED);
 
+  void EmitNumberUntagDNoSSE2(
+      Register input,
+      Register temp,
+      bool deoptimize_on_undefined,
+      bool deoptimize_on_minus_zero,
+      LEnvironment* env,
+      NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED);
+
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.
@@ -404,6 +421,7 @@ class LCodeGen BASE_EMBEDDED {
   int osr_pc_offset_;
   int last_lazy_deopt_pc_;
   bool frame_is_built_;
+  int x87_stack_depth_;
 
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.

@@ -2518,6 +2518,28 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
 }
 
 
+void MacroAssembler::VerifyX87StackDepth(uint depth) {
+  // Make sure the floating point stack is either empty or has depth items.
+  ASSERT(depth <= 7);
+
+  // The top-of-stack (tos) is 7 if there is one item pushed.
+  int tos = (8 - depth) % 8;
+  const int kTopMask = 0x3800;
+  push(eax);
+  fwait();
+  fnstsw_ax();
+  and_(eax, kTopMask);
+  shr(eax, 11);
+  cmp(eax, Immediate(tos));
+  Label all_ok;
+  j(equal, &all_ok);
+  Check(equal, "Unexpected FPU stack depth after instruction");
+  bind(&all_ok);
+  fnclex();
+  pop(eax);
+}
+
+
 void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
     add(esp, Immediate(stack_elements * kPointerSize));

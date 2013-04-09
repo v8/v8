@@ -366,7 +366,20 @@ bool LCodeGen::GenerateBody() {
           Comment(";;; @%d: %s.", current_instruction_, instr->Mnemonic());
         }
       }
+
+      if (!CpuFeatures::IsSupported(SSE2)) {
+        FlushX87StackIfNecessary(instr);
+      }
+
       instr->CompileToNative(this);
+
+      if (!CpuFeatures::IsSupported(SSE2)) {
+        ASSERT(!instr->HasDoubleRegisterResult() || x87_stack_depth_ == 1);
+
+        if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+          __ VerifyX87StackDepth(x87_stack_depth_);
+        }
+      }
     }
   }
   EnsureSpaceForLazyDeopt();
@@ -518,6 +531,52 @@ XMMRegister LCodeGen::ToDoubleRegister(int index) const {
 
 bool LCodeGen::IsX87TopOfStack(LOperand* op) const {
   return op->IsDoubleRegister();
+}
+
+
+void LCodeGen::ReadX87Operand(Operand dst) {
+  ASSERT(x87_stack_depth_ == 1);
+  __ fst_d(dst);
+}
+
+
+void LCodeGen::PushX87DoubleOperand(Operand src) {
+  ASSERT(x87_stack_depth_ == 0);
+  x87_stack_depth_++;
+  __ fld_d(src);
+}
+
+
+void LCodeGen::PushX87FloatOperand(Operand src) {
+  ASSERT(x87_stack_depth_ == 0);
+  x87_stack_depth_++;
+  __ fld_s(src);
+}
+
+
+void LCodeGen::PopX87() {
+  ASSERT(x87_stack_depth_ == 1);
+  x87_stack_depth_--;
+  __ fstp(0);
+}
+
+
+void LCodeGen::CurrentInstructionReturnsX87Result() {
+  ASSERT(x87_stack_depth_ <= 1);
+  if (x87_stack_depth_ == 0) {
+    x87_stack_depth_ = 1;
+  }
+}
+
+
+void LCodeGen::FlushX87StackIfNecessary(LInstruction* instr) {
+  if (x87_stack_depth_ > 0) {
+    if ((instr->ClobbersDoubleRegisters() ||
+         instr->HasDoubleRegisterResult()) &&
+        !instr->HasDoubleRegisterInput()) {
+      PopX87();
+    }
+  }
 }
 
 
@@ -846,6 +905,8 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(
 void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   ASSERT(environment->HasBeenRegistered());
+  // It's an error to deoptimize with the x87 fp stack in use.
+  ASSERT(x87_stack_depth_ == 0);
   int id = environment->deoptimization_index();
   ASSERT(info()->IsOptimizing() || info()->IsStub());
   Deoptimizer::BailoutType bailout_type = info()->IsStub()
@@ -1689,40 +1750,46 @@ void LCodeGen::DoConstantI(LConstantI* instr) {
 
 
 void LCodeGen::DoConstantD(LConstantD* instr) {
-  ASSERT(instr->result()->IsDoubleRegister());
-  XMMRegister res = ToDoubleRegister(instr->result());
   double v = instr->value();
-  // Use xor to produce +0.0 in a fast and compact way, but avoid to
-  // do so if the constant is -0.0.
-  if (BitCast<uint64_t, double>(v) == 0) {
-    __ xorps(res, res);
+  uint64_t int_val = BitCast<uint64_t, double>(v);
+  int32_t lower = static_cast<int32_t>(int_val);
+  int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
+
+  if (!CpuFeatures::IsSafeForSnapshot(SSE2)) {
+    __ push(Immediate(lower));
+    __ push(Immediate(upper));
+    PushX87DoubleOperand(Operand(esp, 0));
+    __ add(Operand(esp), Immediate(kDoubleSize));
+    CurrentInstructionReturnsX87Result();
   } else {
-    Register temp = ToRegister(instr->temp());
-    uint64_t int_val = BitCast<uint64_t, double>(v);
-    int32_t lower = static_cast<int32_t>(int_val);
-    int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
-    if (CpuFeatures::IsSupported(SSE4_1)) {
-      CpuFeatureScope scope1(masm(), SSE2);
-      CpuFeatureScope scope2(masm(), SSE4_1);
-      if (lower != 0) {
-        __ Set(temp, Immediate(lower));
-        __ movd(res, Operand(temp));
-        __ Set(temp, Immediate(upper));
-        __ pinsrd(res, Operand(temp), 1);
-      } else {
-        __ xorps(res, res);
-        __ Set(temp, Immediate(upper));
-        __ pinsrd(res, Operand(temp), 1);
-      }
+    CpuFeatureScope scope1(masm(), SSE2);
+    ASSERT(instr->result()->IsDoubleRegister());
+    XMMRegister res = ToDoubleRegister(instr->result());
+    if (int_val == 0) {
+      __ xorps(res, res);
     } else {
-      CpuFeatureScope scope(masm(), SSE2);
-      __ Set(temp, Immediate(upper));
-      __ movd(res, Operand(temp));
-      __ psllq(res, 32);
-      if (lower != 0) {
-        __ Set(temp, Immediate(lower));
-        __ movd(xmm0, Operand(temp));
-        __ por(res, xmm0);
+      Register temp = ToRegister(instr->temp());
+      if (CpuFeatures::IsSupported(SSE4_1)) {
+        CpuFeatureScope scope2(masm(), SSE4_1);
+        if (lower != 0) {
+          __ Set(temp, Immediate(lower));
+          __ movd(res, Operand(temp));
+          __ Set(temp, Immediate(upper));
+          __ pinsrd(res, Operand(temp), 1);
+        } else {
+          __ xorps(res, res);
+          __ Set(temp, Immediate(upper));
+          __ pinsrd(res, Operand(temp), 1);
+        }
+      } else {
+        __ Set(temp, Immediate(upper));
+        __ movd(res, Operand(temp));
+        __ psllq(res, 32);
+        if (lower != 0) {
+          __ Set(temp, Immediate(lower));
+          __ movd(xmm0, Operand(temp));
+          __ por(res, xmm0);
+        }
       }
     }
   }
@@ -3158,16 +3225,16 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       __ movss(result, operand);
       __ cvtss2sd(result, result);
     } else {
-      __ fld_s(operand);
-      HandleX87FPReturnValue(instr);
+      PushX87FloatOperand(operand);
+      CurrentInstructionReturnsX87Result();
     }
   } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       __ movdbl(ToDoubleRegister(instr->result()), operand);
     } else {
-      __ fld_d(operand);
-      HandleX87FPReturnValue(instr);
+      PushX87DoubleOperand(operand);
+      CurrentInstructionReturnsX87Result();
     }
   } else {
     Register result(ToRegister(instr->result()));
@@ -3212,29 +3279,6 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
 }
 
 
-void LCodeGen::HandleX87FPReturnValue(LInstruction* instr) {
-  if (IsX87TopOfStack(instr->result())) {
-    // Return value is already on stack. If the value has no uses, then
-    // pop it off the FP stack. Otherwise, make sure that there are enough
-    // copies of the value on the stack to feed all of the usages, e.g.
-    // when the following instruction uses the return value in multiple
-    // inputs.
-    int count = instr->hydrogen_value()->UseCount();
-    if (count == 0) {
-      __ fstp(0);
-    } else {
-      count--;
-      ASSERT(count <= 7);
-      while (count-- > 0) {
-        __ fld(0);
-      }
-    }
-  } else {
-    __ fstp_d(ToOperand(instr->result()));
-  }
-}
-
-
 void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   if (instr->hydrogen()->RequiresHoleCheck()) {
     int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
@@ -3261,8 +3305,8 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
     XMMRegister result = ToDoubleRegister(instr->result());
     __ movdbl(result, double_load_operand);
   } else {
-    __ fld_d(double_load_operand);
-    HandleX87FPReturnValue(instr);
+    PushX87DoubleOperand(double_load_operand);
+    CurrentInstructionReturnsX87Result();
   }
 }
 
@@ -4311,12 +4355,21 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       0,
       instr->additional_index()));
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-    CpuFeatureScope scope(masm(), SSE2);
-    __ cvtsd2ss(xmm0, ToDoubleRegister(instr->value()));
-    __ movss(operand, xmm0);
+    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+      CpuFeatureScope scope(masm(), SSE2);
+      __ cvtsd2ss(xmm0, ToDoubleRegister(instr->value()));
+      __ movss(operand, xmm0);
+    } else {
+      __ fld(0);
+      __ fstp_s(operand);
+    }
   } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    CpuFeatureScope scope(masm(), SSE2);
-    __ movdbl(operand, ToDoubleRegister(instr->value()));
+    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+      CpuFeatureScope scope(masm(), SSE2);
+      __ movdbl(operand, ToDoubleRegister(instr->value()));
+    } else {
+      __ fst_d(operand);
+    }
   } else {
     Register value = ToRegister(instr->value());
     switch (elements_kind) {
@@ -4351,21 +4404,8 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
-  CpuFeatureScope scope(masm(), SSE2);
-  XMMRegister value = ToDoubleRegister(instr->value());
-
-  if (instr->NeedsCanonicalization()) {
-    Label have_value;
-
-    __ ucomisd(value, value);
-    __ j(parity_odd, &have_value);  // NaN.
-
-    ExternalReference canonical_nan_reference =
-        ExternalReference::address_of_canonical_non_hole_nan();
-    __ movdbl(value, Operand::StaticVariable(canonical_nan_reference));
-    __ bind(&have_value);
-  }
-
+  ExternalReference canonical_nan_reference =
+      ExternalReference::address_of_canonical_non_hole_nan();
   Operand double_store_operand = BuildFastArrayOperand(
       instr->elements(),
       instr->key(),
@@ -4373,7 +4413,68 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       FAST_DOUBLE_ELEMENTS,
       FixedDoubleArray::kHeaderSize - kHeapObjectTag,
       instr->additional_index());
-  __ movdbl(double_store_operand, value);
+
+  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+    CpuFeatureScope scope(masm(), SSE2);
+    XMMRegister value = ToDoubleRegister(instr->value());
+
+    if (instr->NeedsCanonicalization()) {
+      Label have_value;
+
+      __ ucomisd(value, value);
+      __ j(parity_odd, &have_value);  // NaN.
+
+      __ movdbl(value, Operand::StaticVariable(canonical_nan_reference));
+      __ bind(&have_value);
+    }
+
+    __ movdbl(double_store_operand, value);
+  } else {
+    // Can't use SSE2 in the serializer
+    if (instr->hydrogen()->IsConstantHoleStore()) {
+      // This means we should store the (double) hole. No floating point
+      // registers required.
+      double nan_double = FixedDoubleArray::hole_nan_as_double();
+      uint64_t int_val = BitCast<uint64_t, double>(nan_double);
+      int32_t lower = static_cast<int32_t>(int_val);
+      int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
+
+      __ mov(double_store_operand, Immediate(lower));
+      Operand double_store_operand2 = BuildFastArrayOperand(
+          instr->elements(),
+          instr->key(),
+          instr->hydrogen()->key()->representation(),
+          FAST_DOUBLE_ELEMENTS,
+          FixedDoubleArray::kHeaderSize - kHeapObjectTag + kPointerSize,
+          instr->additional_index());
+      __ mov(double_store_operand2, Immediate(upper));
+    } else {
+      Label no_special_nan_handling;
+      ASSERT(x87_stack_depth_ > 0);
+
+      if (instr->NeedsCanonicalization()) {
+        __ fld(0);
+        __ fld(0);
+        __ FCmp();
+
+        __ j(parity_odd, &no_special_nan_handling);
+        __ sub(esp, Immediate(kDoubleSize));
+        __ fst_d(MemOperand(esp, 0));
+        __ cmp(MemOperand(esp, sizeof(kHoleNanLower32)),
+               Immediate(kHoleNanUpper32));
+        __ add(esp, Immediate(kDoubleSize));
+        Label canonicalize;
+        __ j(not_equal, &canonicalize);
+        __ jmp(&no_special_nan_handling);
+        __ bind(&canonicalize);
+        __ fstp(0);
+        __ fld_d(Operand::StaticVariable(canonical_nan_reference));
+      }
+
+      __ bind(&no_special_nan_handling);
+      __ fst_d(double_store_operand);
+    }
+  }
 }
 
 
@@ -4805,9 +4906,6 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
       XMMRegister input_reg = ToDoubleRegister(instr->value());
       __ ucomisd(input_reg, input_reg);
     } else {
-      if (!IsX87TopOfStack(instr->value())) {
-        __ fld_d(ToOperand(instr->value()));
-      }
       __ fld(0);
       __ fld(0);
       __ FCmp();
@@ -4829,6 +4927,9 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     __ j(not_equal, &canonicalize);
     __ add(esp, Immediate(kDoubleSize));
     __ mov(reg, factory()->the_hole_value());
+    if (!use_sse2) {
+      __ fstp(0);
+    }
     __ jmp(&done);
     __ bind(&canonicalize);
     __ add(esp, Immediate(kDoubleSize));
@@ -4858,10 +4959,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ movdbl(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
   } else {
-    if (!IsX87TopOfStack(instr->value())) {
-    __ fld_d(ToOperand(instr->value()));
-    }
-    __ fstp_d(FieldOperand(reg, HeapNumber::kValueOffset));
+    __ fst_d(FieldOperand(reg, HeapNumber::kValueOffset));
   }
   __ bind(&done);
 }
@@ -4906,6 +5004,79 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
     __ AssertSmi(ToRegister(input));
   }
   __ SmiUntag(ToRegister(input));
+}
+
+
+void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
+                                      Register temp_reg,
+                                      bool deoptimize_on_undefined,
+                                      bool deoptimize_on_minus_zero,
+                                      LEnvironment* env,
+                                      NumberUntagDMode mode) {
+  Label load_smi, done;
+
+  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+    // Smi check.
+    __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
+
+    // Heap number map check.
+    __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
+           factory()->heap_number_map());
+    if (deoptimize_on_undefined) {
+      DeoptimizeIf(not_equal, env);
+    } else {
+      Label heap_number;
+      __ j(equal, &heap_number, Label::kNear);
+
+      __ cmp(input_reg, factory()->undefined_value());
+      DeoptimizeIf(not_equal, env);
+
+      // Convert undefined to NaN.
+      ExternalReference nan =
+          ExternalReference::address_of_canonical_non_hole_nan();
+      __ fld_d(Operand::StaticVariable(nan));
+      __ jmp(&done, Label::kNear);
+      __ bind(&heap_number);
+    }
+    // Heap number to x87 conversion.
+    __ fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
+    if (deoptimize_on_minus_zero) {
+      __ fldz();
+      __ FCmp();
+      __ fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
+      __ j(not_zero, &done, Label::kNear);
+
+      // Use general purpose registers to check if we have -0.0
+      __ mov(temp_reg, FieldOperand(input_reg, HeapNumber::kExponentOffset));
+      __ test(temp_reg, Immediate(HeapNumber::kSignMask));
+      __ j(zero, &done, Label::kNear);
+
+      // Pop FPU stack before deoptimizing.
+      __ fstp(0);
+      DeoptimizeIf(not_zero, env);
+    }
+    __ jmp(&done, Label::kNear);
+  } else if (mode == NUMBER_CANDIDATE_IS_SMI_OR_HOLE) {
+    __ test(input_reg, Immediate(kSmiTagMask));
+    DeoptimizeIf(not_equal, env);
+  } else if (mode == NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE) {
+    __ test(input_reg, Immediate(kSmiTagMask));
+    __ j(zero, &load_smi);
+    ExternalReference hole_nan_reference =
+        ExternalReference::address_of_the_hole_nan();
+    __ fld_d(Operand::StaticVariable(hole_nan_reference));
+    __ jmp(&done, Label::kNear);
+  } else {
+    ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
+  }
+
+  __ bind(&load_smi);
+  __ SmiUntag(input_reg);  // Untag smi before converting to float.
+  __ push(input_reg);
+  __ fild_s(Operand(esp, 0));
+  __ pop(input_reg);
+  __ SmiTag(input_reg);  // Retag smi.
+  __ bind(&done);
 }
 
 
@@ -5021,7 +5192,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
       __ fisttp_d(Operand(esp, 0));
       __ mov(input_reg, Operand(esp, 0));  // Low word of answer is the result.
       __ add(Operand(esp), Immediate(kDoubleSize));
-    } else {
+    } else if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister xmm_temp = ToDoubleRegister(instr->temp());
       __ movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
@@ -5035,6 +5206,8 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
       __ ucomisd(xmm_temp, xmm0);
       DeoptimizeIf(not_equal, instr->environment());
       DeoptimizeIf(parity_even, instr->environment());  // NaN.
+    } else {
+      UNREACHABLE();
     }
   } else if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
@@ -5079,18 +5252,169 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
 
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
-  ASSERT(input->Equals(instr->result()));
-
   Register input_reg = ToRegister(input);
+  ASSERT(input_reg.is(ToRegister(instr->result())));
 
   DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
 
+  __ JumpIfNotSmi(input_reg, deferred->entry());
+  __ SmiUntag(input_reg);
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredTaggedToINoSSE2(LTaggedToINoSSE2* instr) {
+  Label done, heap_number;
+  Register result_reg = ToRegister(instr->result());
+  Register input_reg = ToRegister(instr->value());
+
+  // Heap number map check.
+  __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
+         factory()->heap_number_map());
+  __ j(equal, &heap_number, Label::kNear);
+  // Check for undefined. Undefined is converted to zero for truncating
+  // conversions.
+  __ cmp(input_reg, factory()->undefined_value());
+  __ RecordComment("Deferred TaggedToI: cannot truncate");
+  DeoptimizeIf(not_equal, instr->environment());
+  __ xor_(result_reg, result_reg);
+  __ jmp(&done, Label::kFar);
+  __ bind(&heap_number);
+
+  // Surprisingly, all of this crazy bit manipulation is considerably
+  // faster than using the built-in x86 CPU conversion functions (about 6x).
+  Label right_exponent, adjust_bias, zero_result;
+  Register scratch = ToRegister(instr->scratch());
+  Register scratch2 = ToRegister(instr->scratch2());
+  // Get exponent word.
+  __ mov(scratch, FieldOperand(input_reg, HeapNumber::kExponentOffset));
+  // Get exponent alone in scratch2.
+  __ mov(scratch2, scratch);
+  __ and_(scratch2, HeapNumber::kExponentMask);
+  __ shr(scratch2, HeapNumber::kExponentShift);
+  if (instr->truncating()) {
+    __ j(zero, &zero_result);
+  } else {
+    __ j(not_zero, &adjust_bias);
+    __ test(scratch, Immediate(HeapNumber::kMantissaMask));
+    DeoptimizeIf(not_zero, instr->environment());
+    __ cmp(FieldOperand(input_reg, HeapNumber::kMantissaOffset), Immediate(0));
+    DeoptimizeIf(not_equal, instr->environment());
+    __ bind(&adjust_bias);
+  }
+  __ sub(scratch2, Immediate(HeapNumber::kExponentBias));
+  if (!instr->truncating()) {
+    DeoptimizeIf(negative, instr->environment());
+  } else {
+    __ j(negative, &zero_result);
+  }
+
+  // Get the second half of the double. For some exponents we don't
+  // actually need this because the bits get shifted out again, but
+  // it's probably slower to test than just to do it.
+  Register scratch3 = ToRegister(instr->scratch3());
+  __ mov(scratch3, FieldOperand(input_reg, HeapNumber::kMantissaOffset));
+  __ xor_(result_reg, result_reg);
+
+  const uint32_t non_int32_exponent = 31;
+  __ cmp(scratch2, Immediate(non_int32_exponent));
+  // If we have a match of the int32 exponent then skip some logic.
+  __ j(equal, &right_exponent, Label::kNear);
+  // If the number doesn't find in an int32, deopt.
+  DeoptimizeIf(greater, instr->environment());
+
+  // Exponent word in scratch, exponent in scratch2.  We know that 0 <= exponent
+  // < 31.
+  __ mov(result_reg, Immediate(31));
+  __ sub(result_reg, scratch2);
+
+  __ bind(&right_exponent);
+
+  // Save off exponent for negative check later.
+  __ mov(scratch2, scratch);
+
+  // Here result_reg is the shift, scratch is the exponent word.
+  // Get the top bits of the mantissa.
+  __ and_(scratch, HeapNumber::kMantissaMask);
+  // Put back the implicit 1.
+  __ or_(scratch, 1 << HeapNumber::kExponentShift);
+  // Shift up the mantissa bits to take up the space the exponent used to
+  // take. We have kExponentShift + 1 significant bits int he low end of the
+  // word.  Shift them to the top bits.
+  const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 1;
+  __ shl(scratch, shift_distance);
+  if (!instr->truncating()) {
+    // If not truncating, a non-zero value in the bottom 22 bits means a
+    // non-integral value --> trigger a deopt.
+    __ test(scratch3, Immediate((1 << (32 - shift_distance)) - 1));
+    DeoptimizeIf(not_equal, instr->environment());
+  }
+  // Shift down 22 bits to get the most significant 10 bits or the low
+  // mantissa word.
+  __ shr(scratch3, 32 - shift_distance);
+  __ or_(scratch3, scratch);
+  if (!instr->truncating()) {
+    // If truncating, a non-zero value in the bits that will be shifted away
+    // when adjusting the exponent means rounding --> deopt.
+    __ mov(scratch, 0x1);
+    ASSERT(result_reg.is(ecx));
+    __ shl_cl(scratch);
+    __ dec(scratch);
+    __ test(scratch3, scratch);
+    DeoptimizeIf(not_equal, instr->environment());
+  }
+  // Move down according to the exponent.
+  ASSERT(result_reg.is(ecx));
+  __ shr_cl(scratch3);
+  // Now the unsigned 32-bit answer is in scratch3.  We need to move it to
+  // result_reg and we may need to fix the sign.
+  Label negative_result;
+  __ xor_(result_reg, result_reg);
+  __ cmp(scratch2, result_reg);
+  __ j(less, &negative_result, Label::kNear);
+  __ cmp(scratch3, result_reg);
+  __ mov(result_reg, scratch3);
+  // If the result is > MAX_INT, result doesn't fit in signed 32-bit --> deopt.
+  DeoptimizeIf(less, instr->environment());
+  __ jmp(&done, Label::kNear);
+  __ bind(&zero_result);
+  __ xor_(result_reg, result_reg);
+  __ jmp(&done, Label::kNear);
+  __ bind(&negative_result);
+  __ sub(result_reg, scratch3);
+  if (!instr->truncating()) {
+    // -0.0 triggers a deopt.
+    DeoptimizeIf(zero, instr->environment());
+  }
+  // If the negative subtraction overflows into a positive number, there was an
+  // overflow --> deopt.
+  DeoptimizeIf(positive, instr->environment());
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoTaggedToINoSSE2(LTaggedToINoSSE2* instr) {
+  class DeferredTaggedToINoSSE2: public LDeferredCode {
+   public:
+    DeferredTaggedToINoSSE2(LCodeGen* codegen, LTaggedToINoSSE2* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredTaggedToINoSSE2(instr_); }
+    virtual LInstruction* instr() { return instr_; }
+   private:
+    LTaggedToINoSSE2* instr_;
+  };
+
+  LOperand* input = instr->value();
+  ASSERT(input->IsRegister());
+  Register input_reg = ToRegister(input);
+  ASSERT(input_reg.is(ToRegister(instr->result())));
+
+  DeferredTaggedToINoSSE2* deferred =
+      new(zone()) DeferredTaggedToINoSSE2(this, instr);
+
   // Smi check.
   __ JumpIfNotSmi(input_reg, deferred->entry());
-
-  // Smi to int32 conversion
   __ SmiUntag(input_reg);  // Untag smi.
-
   __ bind(deferred->exit());
 }
 
@@ -5103,32 +5427,31 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   LOperand* result = instr->result();
   ASSERT(result->IsDoubleRegister());
 
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope scope(masm(), SSE2);
-    Register input_reg = ToRegister(input);
-    XMMRegister result_reg = ToDoubleRegister(result);
+  Register input_reg = ToRegister(input);
+  bool deoptimize_on_minus_zero =
+      instr->hydrogen()->deoptimize_on_minus_zero();
+  Register temp_reg = deoptimize_on_minus_zero ? ToRegister(temp) : no_reg;
 
-    bool deoptimize_on_minus_zero =
-        instr->hydrogen()->deoptimize_on_minus_zero();
-    Register temp_reg = deoptimize_on_minus_zero ? ToRegister(temp) : no_reg;
-
-    NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
-    HValue* value = instr->hydrogen()->value();
-    if (value->type().IsSmi()) {
-      if (value->IsLoadKeyed()) {
-        HLoadKeyed* load = HLoadKeyed::cast(value);
-        if (load->UsesMustHandleHole()) {
-          if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-            mode = NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE;
-          } else {
-            mode = NUMBER_CANDIDATE_IS_SMI_OR_HOLE;
-          }
+  NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
+  HValue* value = instr->hydrogen()->value();
+  if (value->type().IsSmi()) {
+    if (value->IsLoadKeyed()) {
+      HLoadKeyed* load = HLoadKeyed::cast(value);
+      if (load->UsesMustHandleHole()) {
+        if (load->hole_mode() == ALLOW_RETURN_HOLE) {
+          mode = NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE;
         } else {
-          mode = NUMBER_CANDIDATE_IS_SMI;
+          mode = NUMBER_CANDIDATE_IS_SMI_OR_HOLE;
         }
+      } else {
+        mode = NUMBER_CANDIDATE_IS_SMI;
       }
     }
+  }
 
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatureScope scope(masm(), SSE2);
+    XMMRegister result_reg = ToDoubleRegister(result);
     EmitNumberUntagD(input_reg,
                      temp_reg,
                      result_reg,
@@ -5137,7 +5460,13 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
                      instr->environment(),
                      mode);
   } else {
-    UNIMPLEMENTED();
+    EmitNumberUntagDNoSSE2(input_reg,
+                           temp_reg,
+                           instr->hydrogen()->deoptimize_on_undefined(),
+                           deoptimize_on_minus_zero,
+                           instr->environment(),
+                           mode);
+    CurrentInstructionReturnsX87Result();
   }
 }
 
@@ -5409,7 +5738,128 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   __ bind(&is_smi);
   __ SmiUntag(input_reg);
   __ ClampUint8(input_reg);
+  __ bind(&done);
+}
 
+
+void LCodeGen::DoClampTToUint8NoSSE2(LClampTToUint8NoSSE2* instr) {
+  Register input_reg = ToRegister(instr->unclamped());
+  Register result_reg = ToRegister(instr->result());
+  Register scratch = ToRegister(instr->scratch());
+  Register scratch2 = ToRegister(instr->scratch2());
+  Register scratch3 = ToRegister(instr->scratch3());
+  Label is_smi, done, heap_number, valid_exponent,
+      largest_value, zero_result, maybe_nan_or_infinity;
+
+  __ JumpIfSmi(input_reg, &is_smi);
+
+  // Check for heap number
+  __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
+         factory()->heap_number_map());
+  __ j(equal, &heap_number, Label::kFar);
+
+  // Check for undefined. Undefined is converted to zero for clamping
+  // conversions.
+  __ cmp(input_reg, factory()->undefined_value());
+  DeoptimizeIf(not_equal, instr->environment());
+  __ jmp(&zero_result);
+
+  // Heap number
+  __ bind(&heap_number);
+
+  // Surprisingly, all of the hand-crafted bit-manipulations below are much
+  // faster than the x86 FPU built-in instruction, especially since "banker's
+  // rounding" would be additionally very expensive
+
+  // Get exponent word.
+  __ mov(scratch, FieldOperand(input_reg, HeapNumber::kExponentOffset));
+  __ mov(scratch3, FieldOperand(input_reg, HeapNumber::kMantissaOffset));
+
+  // Test for negative values --> clamp to zero
+  __ test(scratch, scratch);
+  __ j(negative, &zero_result);
+
+  // Get exponent alone in scratch2.
+  __ mov(scratch2, scratch);
+  __ and_(scratch2, HeapNumber::kExponentMask);
+  __ shr(scratch2, HeapNumber::kExponentShift);
+  __ j(zero, &zero_result);
+  __ sub(scratch2, Immediate(HeapNumber::kExponentBias - 1));
+  __ j(negative, &zero_result);
+
+  const uint32_t non_int8_exponent = 7;
+  __ cmp(scratch2, Immediate(non_int8_exponent + 1));
+  // If the exponent is too big, check for special values.
+  __ j(greater, &maybe_nan_or_infinity, Label::kNear);
+
+  __ bind(&valid_exponent);
+  // Exponent word in scratch, exponent in scratch2. We know that 0 <= exponent
+  // < 7. The shift bias is the number of bits to shift the mantissa such that
+  // with an exponent of 7 such the that top-most one is in bit 30, allowing
+  // detection the rounding overflow of a 255.5 to 256 (bit 31 goes from 0 to
+  // 1).
+  int shift_bias = (30 - HeapNumber::kExponentShift) - 7 - 1;
+  __ lea(result_reg, MemOperand(scratch2, shift_bias));
+  // Here result_reg (ecx) is the shift, scratch is the exponent word.  Get the
+  // top bits of the mantissa.
+  __ and_(scratch, HeapNumber::kMantissaMask);
+  // Put back the implicit 1 of the mantissa
+  __ or_(scratch, 1 << HeapNumber::kExponentShift);
+  // Shift up to round
+  __ shl_cl(scratch);
+  // Use "banker's rounding" to spec: If fractional part of number is 0.5, then
+  // use the bit in the "ones" place and add it to the "halves" place, which has
+  // the effect of rounding to even.
+  __ mov(scratch2, scratch);
+  const uint32_t one_half_bit_shift = 30 - sizeof(uint8_t) * 8;
+  const uint32_t one_bit_shift = one_half_bit_shift + 1;
+  __ and_(scratch2, Immediate((1 << one_bit_shift) - 1));
+  __ cmp(scratch2, Immediate(1 << one_half_bit_shift));
+  Label no_round;
+  __ j(less, &no_round);
+  Label round_up;
+  __ mov(scratch2, Immediate(1 << one_half_bit_shift));
+  __ j(greater, &round_up);
+  __ test(scratch3, scratch3);
+  __ j(not_zero, &round_up);
+  __ mov(scratch2, scratch);
+  __ and_(scratch2, Immediate(1 << one_bit_shift));
+  __ shr(scratch2, 1);
+  __ bind(&round_up);
+  __ add(scratch, scratch2);
+  __ j(overflow, &largest_value);
+  __ bind(&no_round);
+  __ shr(scratch, 23);
+  __ mov(result_reg, scratch);
+  __ jmp(&done, Label::kNear);
+
+  __ bind(&maybe_nan_or_infinity);
+  // Check for NaN/Infinity, all other values map to 255
+  __ cmp(scratch2, Immediate(HeapNumber::kInfinityOrNanExponent + 1));
+  __ j(not_equal, &largest_value, Label::kNear);
+
+  // Check for NaN, which differs from Infinity in that at least one mantissa
+  // bit is set.
+  __ and_(scratch, HeapNumber::kMantissaMask);
+  __ or_(scratch, FieldOperand(input_reg, HeapNumber::kMantissaOffset));
+  __ j(not_zero, &zero_result);  // M!=0 --> NaN
+  // Infinity -> Fall through to map to 255.
+
+  __ bind(&largest_value);
+  __ mov(result_reg, Immediate(255));
+  __ jmp(&done, Label::kNear);
+
+  __ bind(&zero_result);
+  __ xor_(result_reg, result_reg);
+  __ jmp(&done);
+
+  // smi
+  __ bind(&is_smi);
+  if (!input_reg.is(result_reg)) {
+    __ mov(result_reg, input_reg);
+  }
+  __ SmiUntag(result_reg);
+  __ ClampUint8(result_reg);
   __ bind(&done);
 }
 

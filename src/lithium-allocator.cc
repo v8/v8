@@ -1788,7 +1788,7 @@ STATIC_ASSERT(DoubleRegister::kMaxNumAllocatableRegisters >=
 bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
   LifetimePosition free_until_pos[DoubleRegister::kMaxNumAllocatableRegisters];
 
-  for (int i = 0; i < DoubleRegister::kMaxNumAllocatableRegisters; i++) {
+  for (int i = 0; i < num_registers_; i++) {
     free_until_pos[i] = LifetimePosition::MaxPosition();
   }
 
@@ -1880,7 +1880,7 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
   LifetimePosition use_pos[DoubleRegister::kMaxNumAllocatableRegisters];
   LifetimePosition block_pos[DoubleRegister::kMaxNumAllocatableRegisters];
 
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
+  for (int i = 0; i < num_registers_; i++) {
     use_pos[i] = block_pos[i] = LifetimePosition::MaxPosition();
   }
 
