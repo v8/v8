@@ -1811,7 +1811,8 @@ class CountOperation: public Expression {
   Token::Value op_;
   bool is_prefix_ : 1;
   bool is_monomorphic_ : 1;
-  KeyedAccessStoreMode store_mode_: 4;
+  KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
+                                         // must have extra bit.
   Expression* expression_;
   int pos_;
   const BailoutId assignment_id_;
@@ -1953,7 +1954,8 @@ class Assignment: public Expression {
   const BailoutId assignment_id_;
 
   bool is_monomorphic_ : 1;
-  KeyedAccessStoreMode store_mode_ : 4;
+  KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
+                                         // must have extra bit.
   SmallMapList receiver_types_;
 };
 
