@@ -150,9 +150,8 @@ void CpuFeatures::Probe() {
   found_by_runtime_probing_only_
       = probed_features & ~kDefaultCpuFeatures & ~platform_features;
 
-  // SSE2 and CMOV must be available on an X64 CPU.
+  // CMOV must be available on an X64 CPU.
   ASSERT(IsSupported(CPUID));
-  ASSERT(IsSupported(SSE2));
   ASSERT(IsSupported(CMOV));
 
   delete memory;
