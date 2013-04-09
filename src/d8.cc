@@ -144,6 +144,11 @@ class DumbLineEditor: public LineEditor {
 
 Handle<String> DumbLineEditor::Prompt(const char* prompt) {
   printf("%s", prompt);
+#if defined(__native_client__)
+  // Native Client libc is used to being embedded in Chrome and
+  // has trouble recognizing when to flush.
+  fflush(stdout);
+#endif
   return Shell::ReadFromStdin(isolate_);
 }
 

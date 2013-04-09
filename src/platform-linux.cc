@@ -424,6 +424,8 @@ void OS::DebugBreak() {
 # endif
 #elif defined(__mips__)
   asm("break");
+#elif defined(__native_client__)
+  asm("hlt");
 #else
   asm("int $3");
 #endif
@@ -818,12 +820,16 @@ void Thread::set_name(const char* name) {
 
 void Thread::Start() {
   pthread_attr_t* attr_ptr = NULL;
+#if defined(__native_client__)
+  // use default stack size.
+#else
   pthread_attr_t attr;
   if (stack_size_ > 0) {
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
     attr_ptr = &attr;
   }
+#endif
   int result = pthread_create(&data_->thread_, attr_ptr, ThreadEntry, this);
   CHECK_EQ(0, result);
   ASSERT(data_->thread_ != kNoThread);
@@ -1070,6 +1076,11 @@ static int GetThreadID() {
 
 
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+#if defined(__native_client__)
+  // As Native Client does not support signal handling, profiling
+  // is disabled.
+  return;
+#else
   USE(info);
   if (signal != SIGPROF) return;
   Isolate* isolate = Isolate::UncheckedCurrent();
@@ -1122,6 +1133,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #endif  // V8_HOST_ARCH_*
   sampler->SampleStack(sample);
   sampler->Tick(sample);
+#endif  // __native_client__
 }
 
 

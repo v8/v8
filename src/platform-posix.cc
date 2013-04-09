@@ -94,6 +94,12 @@ void OS::Guard(void* address, const size_t size) {
 
 
 void* OS::GetRandomMmapAddr() {
+#if defined(__native_client__)
+  // TODO(bradchen): restore randomization once Native Client gets
+  // smarter about using mmap address hints.
+  // See http://code.google.com/p/nativeclient/issues/3341
+  return NULL;
+#endif
   Isolate* isolate = Isolate::UncheckedCurrent();
   // Note that the current isolate isn't set up in a call path via
   // CpuFeatures::Probe. We don't care about randomization in this case because
