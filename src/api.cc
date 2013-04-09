@@ -5813,6 +5813,15 @@ CpuProfiler* Isolate::GetCpuProfiler() {
 }
 
 
+v8::Local<v8::Context> Isolate::GetCurrentContext() {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Handle<i::Object> current = internal_isolate->native_context();
+  if (current.is_null()) return Local<Context>();
+  i::Handle<i::Context> context = i::Handle<i::Context>::cast(current);
+  return Utils::ToLocal(context);
+}
+
+
 void V8::SetGlobalGCPrologueCallback(GCCallback callback) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::SetGlobalGCPrologueCallback()")) return;

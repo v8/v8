@@ -3036,6 +3036,9 @@ class V8EXPORT Isolate {
    */
   CpuProfiler* GetCpuProfiler();
 
+  /** Returns the context that is on the top of the stack. */
+  Local<Context> GetCurrentContext();
+
  private:
   Isolate();
   Isolate(const Isolate&);
