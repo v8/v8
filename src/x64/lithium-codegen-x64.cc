@@ -5112,11 +5112,11 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   if (instr->hydrogen()->MustAllocateDoubleAligned()) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
+  if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
+    flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE);
+  }
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-    if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
-      flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE);
-    }
     __ Allocate(size, result, temp, no_reg, deferred->entry(), flags);
   } else {
     Register size = ToRegister(instr->size());
