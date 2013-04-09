@@ -108,6 +108,7 @@ class LCodeGen;
   V(In)                                         \
   V(InstanceOf)                                 \
   V(InstanceOfKnownGlobal)                      \
+  V(InstanceSize)                               \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
   V(Uint32ToDouble)                             \
@@ -287,7 +288,6 @@ class LInstruction: public ZoneObject {
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
   bool is_call_;
-  bool is_save_doubles_;
 };
 
 
@@ -956,6 +956,19 @@ class LInstanceOfKnownGlobal: public LTemplateInstruction<1, 1, 1> {
 
  private:
   LEnvironment* lazy_deopt_env_;
+};
+
+
+class LInstanceSize: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LInstanceSize(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(InstanceSize, "instance-size")
+  DECLARE_HYDROGEN_ACCESSOR(InstanceSize)
 };
 
 

@@ -573,8 +573,8 @@ MemOperand LCodeGen::ToHighMemOperand(LOperand* op) const {
 
 void LCodeGen::WriteTranslation(LEnvironment* environment,
                                 Translation* translation,
-                                int* arguments_index,
-                                int* arguments_count) {
+                                int* pushed_arguments_index,
+                                int* pushed_arguments_count) {
   if (environment == NULL) return;
 
   // The translation includes one command per value in the environment.
@@ -586,13 +586,13 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
   // arguments index points to the first element of a sequence of tagged
   // values on the stack that represent the arguments. This needs to be
   // kept in sync with the LArgumentsElements implementation.
-  *arguments_index = -environment->parameter_count();
-  *arguments_count = environment->parameter_count();
+  *pushed_arguments_index = -environment->parameter_count();
+  *pushed_arguments_count = environment->parameter_count();
 
   WriteTranslation(environment->outer(),
                    translation,
-                   arguments_index,
-                   arguments_count);
+                   pushed_arguments_index,
+                   pushed_arguments_count);
   bool has_closure_id = !info()->closure().is_null() &&
       *info()->closure() != *environment->closure();
   int closure_id = has_closure_id
@@ -625,13 +625,20 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
   }
 
   // Inlined frames which push their arguments cause the index to be
-  // bumped and a new stack area to be used for materialization.
-  if (environment->entry() != NULL &&
-      environment->entry()->arguments_pushed()) {
-    *arguments_index = *arguments_index < 0
-        ? GetStackSlotCount()
-        : *arguments_index + *arguments_count;
-    *arguments_count = environment->entry()->arguments_count() + 1;
+  // bumped and another stack area to be used for materialization,
+  // otherwise actual argument values are unknown for inlined frames.
+  bool arguments_known = true;
+  int arguments_index = *pushed_arguments_index;
+  int arguments_count = *pushed_arguments_count;
+  if (environment->entry() != NULL) {
+    arguments_known = environment->entry()->arguments_pushed();
+    arguments_index = arguments_index < 0
+        ? GetStackSlotCount() : arguments_index + arguments_count;
+    arguments_count = environment->entry()->arguments_count() + 1;
+    if (environment->entry()->arguments_pushed()) {
+      *pushed_arguments_index = arguments_index;
+      *pushed_arguments_count = arguments_count;
+    }
   }
 
   for (int i = 0; i < translation_size; ++i) {
@@ -646,8 +653,9 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
                          environment->spilled_registers()[value->index()],
                          environment->HasTaggedValueAt(i),
                          environment->HasUint32ValueAt(i),
-                         *arguments_index,
-                         *arguments_count);
+                         arguments_known,
+                         arguments_index,
+                         arguments_count);
       } else if (
           value->IsDoubleRegister() &&
           environment->spilled_double_registers()[value->index()] != NULL) {
@@ -657,8 +665,9 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
             environment->spilled_double_registers()[value->index()],
             false,
             false,
-            *arguments_index,
-            *arguments_count);
+            arguments_known,
+            arguments_index,
+            arguments_count);
       }
     }
 
@@ -666,8 +675,9 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
                      value,
                      environment->HasTaggedValueAt(i),
                      environment->HasUint32ValueAt(i),
-                     *arguments_index,
-                     *arguments_count);
+                     arguments_known,
+                     arguments_index,
+                     arguments_count);
   }
 }
 
@@ -676,13 +686,15 @@ void LCodeGen::AddToTranslation(Translation* translation,
                                 LOperand* op,
                                 bool is_tagged,
                                 bool is_uint32,
+                                bool arguments_known,
                                 int arguments_index,
                                 int arguments_count) {
   if (op == NULL) {
     // TODO(twuerthinger): Introduce marker operands to indicate that this value
     // is not present and must be reconstructed from the deoptimizer. Currently
     // this is only used for the arguments object.
-    translation->StoreArgumentsObject(arguments_index, arguments_count);
+    translation->StoreArgumentsObject(
+        arguments_known, arguments_index, arguments_count);
   } else if (op->IsStackSlot()) {
     if (is_tagged) {
       translation->StoreStackSlot(op->index());
@@ -2493,6 +2505,14 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   // Put the result value into the result register slot and
   // restore all registers.
   __ StoreToSafepointRegisterSlot(result, result);
+}
+
+
+void LCodeGen::DoInstanceSize(LInstanceSize* instr) {
+  Register object = ToRegister(instr->object());
+  Register result = ToRegister(instr->result());
+  __ lw(result, FieldMemOperand(object, HeapObject::kMapOffset));
+  __ lbu(result, FieldMemOperand(result, Map::kInstanceSizeOffset));
 }
 
 
@@ -5275,26 +5295,31 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   DeferredAllocate* deferred =
       new(zone()) DeferredAllocate(this, instr);
 
-  Register size = ToRegister(instr->size());
   Register result = ToRegister(instr->result());
   Register scratch = ToRegister(instr->temp1());
   Register scratch2 = ToRegister(instr->temp2());
 
-  HAllocate* original_instr = instr->hydrogen();
-  if (original_instr->size()->IsConstant()) {
-    UNREACHABLE();
-  } else {
-    // Allocate memory for the object.
-    AllocationFlags flags = TAG_OBJECT;
-    if (original_instr->MustAllocateDoubleAligned()) {
-      flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
-    }
+  // Allocate memory for the object.
+  AllocationFlags flags = TAG_OBJECT;
+  if (instr->hydrogen()->MustAllocateDoubleAligned()) {
+    flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
+  }
+  if (instr->size()->IsConstantOperand()) {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
     __ AllocateInNewSpace(size,
                           result,
                           scratch,
                           scratch2,
                           deferred->entry(),
-                          TAG_OBJECT);
+                          flags);
+  } else {
+    Register size = ToRegister(instr->size());
+    __ AllocateInNewSpace(size,
+                          result,
+                          scratch,
+                          scratch2,
+                          deferred->entry(),
+                          flags);
   }
 
   __ bind(deferred->exit());
@@ -5545,21 +5570,22 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
       instr->hydrogen()->constant_properties();
 
   // Set up the parameters to the stub/runtime call.
-  __ LoadHeapObject(t0, literals);
-  __ li(a3, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ li(a2, Operand(constant_properties));
+  __ LoadHeapObject(a3, literals);
+  __ li(a2, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
+  __ li(a1, Operand(constant_properties));
   int flags = instr->hydrogen()->fast_elements()
       ? ObjectLiteral::kFastElements
       : ObjectLiteral::kNoFlags;
-  __ li(a1, Operand(Smi::FromInt(flags)));
-  __ Push(t0, a3, a2, a1);
+  __ li(a0, Operand(Smi::FromInt(flags)));
 
   // Pick the right runtime function or stub to call.
   int properties_count = constant_properties->length() / 2;
   if (instr->hydrogen()->depth() > 1) {
+    __ Push(a3, a2, a1, a0);
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
   } else if (flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
+    __ Push(a3, a2, a1, a0);
     CallRuntime(Runtime::kCreateObjectLiteralShallow, 4, instr);
   } else {
     FastCloneShallowObjectStub stub(properties_count);
