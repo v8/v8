@@ -295,19 +295,30 @@ MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
     return stringifier.Stringify(object);
   }
 
-  FlattenString(object);
-  String::FlatContent flat = object->GetFlatContent();
-  if (flat.IsAscii()) {
+  object = FlattenGetString(object);
+  ASSERT(object->IsFlat());
+  if (object->IsOneByteRepresentation()) {
+    Handle<String> result =
+        isolate->factory()->NewRawOneByteString(worst_case_length);
+    AssertNoAllocation no_alloc;
+    const uint8_t* start = object->IsSeqOneByteString()
+        ? SeqOneByteString::cast(*object)->GetChars()
+        : ExternalAsciiString::cast(*object)->GetChars();
     return StringifyString_<SeqOneByteString>(
         isolate,
-        flat.ToOneByteVector(),
-        isolate->factory()->NewRawOneByteString(worst_case_length));
+        Vector<const uint8_t>(start, object->length()),
+        result);
   } else {
-    ASSERT(flat.IsTwoByte());
+    Handle<String> result =
+        isolate->factory()->NewRawTwoByteString(worst_case_length);
+    AssertNoAllocation no_alloc;
+    const uc16* start = object->IsSeqTwoByteString()
+        ? SeqTwoByteString::cast(*object)->GetChars()
+        : ExternalTwoByteString::cast(*object)->GetChars();
     return StringifyString_<SeqTwoByteString>(
         isolate,
-        flat.ToUC16Vector(),
-        isolate->factory()->NewRawTwoByteString(worst_case_length));
+        Vector<const uc16>(start, object->length()),
+        result);
   }
 }
 
