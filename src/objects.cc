@@ -2602,13 +2602,18 @@ MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
     return start_map->CopyAsElementsKind(to_kind, OMIT_TRANSITION);
   }
 
-  Map* closest_map = FindClosestElementsTransition(start_map, to_kind);
+  return start_map->AsElementsKind(to_kind);
+}
 
-  if (closest_map->elements_kind() == to_kind) {
+
+MaybeObject* Map::AsElementsKind(ElementsKind kind) {
+  Map* closest_map = FindClosestElementsTransition(this, kind);
+
+  if (closest_map->elements_kind() == kind) {
     return closest_map;
   }
 
-  return AddMissingElementsTransitions(closest_map, to_kind);
+  return AddMissingElementsTransitions(closest_map, kind);
 }
 
 
@@ -3070,6 +3075,13 @@ void JSObject::AddFastPropertyUsingMap(Handle<JSObject> object,
   CALL_HEAP_FUNCTION_VOID(
       object->GetIsolate(),
       object->AddFastPropertyUsingMap(*map));
+}
+
+
+void JSObject::TransitionToMap(Handle<JSObject> object, Handle<Map> map) {
+  CALL_HEAP_FUNCTION_VOID(
+      object->GetIsolate(),
+      object->TransitionToMap(*map));
 }
 
 

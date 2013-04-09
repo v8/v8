@@ -1488,22 +1488,59 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* map) {
 }
 
 
-bool JSObject::TryTransitionToField(Handle<JSObject> object,
-                                    Handle<Name> key) {
-  if (!object->map()->HasTransitionArray()) return false;
-  Handle<Map> target;
-  {
-    AssertNoAllocation no_allocation;
-    TransitionArray* transitions = object->map()->transitions();
-    int transition = transitions->Search(*key);
-    if (transition == TransitionArray::kNotFound) return false;
-    PropertyDetails target_details = transitions->GetTargetDetails(transition);
-    if (target_details.type() != FIELD) return false;
-    if (target_details.attributes() != NONE) return false;
-    target = Handle<Map>(transitions->GetTarget(transition));
+MaybeObject* JSObject::TransitionToMap(Map* map) {
+  ASSERT(this->map()->inobject_properties() == map->inobject_properties());
+  ElementsKind expected_kind = this->map()->elements_kind();
+  if (map->elements_kind() != expected_kind) {
+    MaybeObject* maybe_map = map->AsElementsKind(expected_kind);
+    if (!maybe_map->To(&map)) return maybe_map;
   }
-  JSObject::AddFastPropertyUsingMap(object, target);
-  return true;
+  int total_size =
+      map->NumberOfOwnDescriptors() + map->unused_property_fields();
+  int out_of_object = total_size - map->inobject_properties();
+  if (out_of_object != properties()->length()) {
+    FixedArray* new_properties;
+    MaybeObject* maybe_properties = properties()->CopySize(out_of_object);
+    if (!maybe_properties->To(&new_properties)) return maybe_properties;
+    set_properties(new_properties);
+  }
+  set_map(map);
+  return this;
+}
+
+
+Handle<String> JSObject::ExpectedTransitionKey(Handle<Map> map) {
+  AssertNoAllocation no_gc;
+  if (!map->HasTransitionArray()) return Handle<String>::null();
+  TransitionArray* transitions = map->transitions();
+  if (!transitions->IsSimpleTransition()) return Handle<String>::null();
+  int transition = TransitionArray::kSimpleTransitionIndex;
+  PropertyDetails details = transitions->GetTargetDetails(transition);
+  Name* name = transitions->GetKey(transition);
+  if (details.type() != FIELD) return Handle<String>::null();
+  if (details.attributes() != NONE) return Handle<String>::null();
+  if (!name->IsString()) return Handle<String>::null();
+  return Handle<String>(String::cast(name));
+}
+
+
+Handle<Map> JSObject::ExpectedTransitionTarget(Handle<Map> map) {
+  ASSERT(!ExpectedTransitionKey(map).is_null());
+  return Handle<Map>(map->transitions()->GetTarget(
+      TransitionArray::kSimpleTransitionIndex));
+}
+
+
+Handle<Map> JSObject::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
+  AssertNoAllocation no_allocation;
+  if (!map->HasTransitionArray()) return Handle<Map>::null();
+  TransitionArray* transitions = map->transitions();
+  int transition = transitions->Search(*key);
+  if (transition == TransitionArray::kNotFound) return Handle<Map>::null();
+  PropertyDetails target_details = transitions->GetTargetDetails(transition);
+  if (target_details.type() != FIELD) return Handle<Map>::null();
+  if (target_details.attributes() != NONE) return Handle<Map>::null();
+  return Handle<Map>(transitions->GetTarget(transition));
 }
 
 

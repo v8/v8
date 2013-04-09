@@ -1770,10 +1770,13 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attributes);
 
+  static inline Handle<String> ExpectedTransitionKey(Handle<Map> map);
+  static inline Handle<Map> ExpectedTransitionTarget(Handle<Map> map);
+
   // Try to follow an existing transition to a field with attributes NONE. The
   // return value indicates whether the transition was successful.
-  static inline bool TryTransitionToField(Handle<JSObject> object,
-                                          Handle<Name> key);
+  static inline Handle<Map> FindTransitionToField(Handle<Map> map,
+                                                  Handle<Name> key);
 
   inline int LastAddedFieldIndex();
 
@@ -1781,6 +1784,8 @@ class JSObject: public JSReceiver {
   // passed map. This also extends the property backing store if necessary.
   static void AddFastPropertyUsingMap(Handle<JSObject> object, Handle<Map> map);
   inline MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(Map* map);
+  static void TransitionToMap(Handle<JSObject> object, Handle<Map> map);
+  inline MUST_USE_RESULT MaybeObject* TransitionToMap(Map* map);
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
@@ -5244,6 +5249,7 @@ class Map: public HeapObject {
       Descriptor* descriptor,
       int index,
       TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* AsElementsKind(ElementsKind kind);
   MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,
                                                   TransitionFlag flag);
 
