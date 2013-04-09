@@ -1213,8 +1213,11 @@ class DebugInfoSection : public DebugSection {
         w->WriteSLEB128(StandardFrameConstants::kContextOffset);
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
+
+      w->WriteULEB128(0);  // Terminate the sub program.
     }
 
+    w->WriteULEB128(0);  // Terminate the compile unit.
     size.set(static_cast<uint32_t>(w->position() - start));
     return true;
   }
@@ -1324,15 +1327,14 @@ class DebugAbbrevSection : public DebugSection {
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
       int locals = scope->StackLocalCount();
-      int total_children =
-          params + slots + context_slots + internal_slots + locals + 2;
+      // Total children is params + slots + context_slots + internal_slots +
+      // locals + 2 (__function and __context).
 
       // The extra duplication below seems to be necessary to keep
       // gdb from getting upset on OSX.
       w->WriteULEB128(current_abbreviation++);  // Abbreviation code.
       w->WriteULEB128(DW_TAG_SUBPROGRAM);
-      w->Write<uint8_t>(
-          total_children != 0 ? DW_CHILDREN_YES : DW_CHILDREN_NO);
+      w->Write<uint8_t>(DW_CHILDREN_YES);
       w->WriteULEB128(DW_AT_NAME);
       w->WriteULEB128(DW_FORM_STRING);
       w->WriteULEB128(DW_AT_LOW_PC);
@@ -1384,9 +1386,7 @@ class DebugAbbrevSection : public DebugSection {
       // The context.
       WriteVariableAbbreviation(w, current_abbreviation++, true, false);
 
-      if (total_children != 0) {
-        w->WriteULEB128(0);  // Terminate the sibling list.
-      }
+      w->WriteULEB128(0);  // Terminate the sibling list.
     }
 
     w->WriteULEB128(0);  // Terminate the table.
