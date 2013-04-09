@@ -808,7 +808,7 @@ class MacroAssembler: public Assembler {
   }
 
   // Insert code to verify that the x87 stack has the specified depth (0-7)
-  void VerifyX87StackDepth(uint depth);
+  void VerifyX87StackDepth(uint32_t depth);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support
