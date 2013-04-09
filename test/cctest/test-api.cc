@@ -13410,7 +13410,7 @@ v8::Persistent<Context> calling_context2;
 static v8::Handle<Value> GetCallingContextCallback(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
   CHECK(Context::GetCurrent() == calling_context0);
-  CHECK(Context::GetCurrent(args.GetIsolate()) == calling_context0);
+  CHECK(args.GetIsolate()->GetCurrentContext() == calling_context0);
   CHECK(Context::GetCalling() == calling_context1);
   CHECK(Context::GetEntered() == calling_context2);
   return v8::Integer::New(42);

@@ -3036,6 +3036,9 @@ class V8EXPORT Isolate {
    */
   CpuProfiler* GetCpuProfiler();
 
+  /** Returns the context that is on the top of the stack. */
+  Local<Context> GetCurrentContext();
+
  private:
   Isolate();
   Isolate(const Isolate&);
@@ -3890,9 +3893,9 @@ class V8EXPORT Context {
   /** Returns the last entered context. */
   static Local<Context> GetEntered();
 
-  /** Returns the context that is on the top of the stack. */
+  // TODO(svenpanne) Actually deprecate this.
+  /** Deprecated. Use Isolate::GetCurrentContext instead. */
   static Local<Context> GetCurrent();
-  static Local<Context> GetCurrent(Isolate* isolate);
 
   /**
    * Returns the context of the calling JavaScript code.  That is the
