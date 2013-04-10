@@ -410,6 +410,25 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 }
 
 
+// Generate code to check that a global property cell is empty. Create
+// the property cell at compilation time if no cell exists for the
+// property.
+static void GenerateCheckPropertyCell(MacroAssembler* masm,
+                                      Handle<GlobalObject> global,
+                                      Handle<Name> name,
+                                      Register scratch,
+                                      Label* miss) {
+  Handle<JSGlobalPropertyCell> cell =
+      GlobalObject::EnsurePropertyCell(global, name);
+  ASSERT(cell->value()->IsTheHole());
+  __ li(scratch, Operand(cell));
+  __ lw(scratch,
+        FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
+  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+  __ Branch(miss, ne, scratch, Operand(at));
+}
+
+
 // Generate StoreField code, value is passed in a0 register.
 // After executing generated code, the receiver_reg and name_reg
 // may be clobbered.
@@ -458,12 +477,18 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // If no property was found, and the holder (the last object in the
     // prototype chain) is in slow mode, we need to do a negative lookup on the
     // holder.
-    if (lookup->holder() == *object &&
-        !holder->HasFastProperties() &&
-        !holder->IsJSGlobalProxy() &&
-        !holder->IsJSGlobalObject()) {
-      GenerateDictionaryNegativeLookup(
-          masm, miss_restore_name, holder_reg, name, scratch1, scratch2);
+    if (lookup->holder() == *object) {
+      if (holder->IsJSGlobalObject()) {
+        GenerateCheckPropertyCell(
+            masm,
+            Handle<GlobalObject>(GlobalObject::cast(holder)),
+            name,
+            scratch1,
+            miss_restore_name);
+      } else if (!holder->HasFastProperties() && !holder->IsJSGlobalProxy()) {
+        GenerateDictionaryNegativeLookup(
+            masm, miss_restore_name, holder_reg, name, scratch1, scratch2);
+      }
     }
   }
 
@@ -924,26 +949,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   Register name_;
   Code::ExtraICState extra_ic_state_;
 };
-
-
-
-// Generate code to check that a global property cell is empty. Create
-// the property cell at compilation time if no cell exists for the
-// property.
-static void GenerateCheckPropertyCell(MacroAssembler* masm,
-                                      Handle<GlobalObject> global,
-                                      Handle<Name> name,
-                                      Register scratch,
-                                      Label* miss) {
-  Handle<JSGlobalPropertyCell> cell =
-      GlobalObject::EnsurePropertyCell(global, name);
-  ASSERT(cell->value()->IsTheHole());
-  __ li(scratch, Operand(cell));
-  __ lw(scratch,
-        FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
-  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-  __ Branch(miss, ne, scratch, Operand(at));
-}
 
 
 // Calls GenerateCheckPropertyCell for each global object in the prototype chain
