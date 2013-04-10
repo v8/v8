@@ -40,7 +40,7 @@ using i::CpuProfilesCollection;
 using i::ProfileGenerator;
 using i::ProfileNode;
 using i::ProfilerEventsProcessor;
-// using i::ScopedVector;
+using i::ScopedVector;
 using i::TokenEnumerator;
 using i::Vector;
 
@@ -396,7 +396,6 @@ TEST(DeleteCpuProfileDifferentTokens) {
 }
 
 
-#if 0
 static bool ContainsString(v8::Handle<v8::String> string,
                            const Vector<v8::Handle<v8::String> >& vector) {
   for (int i = 0; i < vector.length(); i++) {
@@ -536,5 +535,6 @@ TEST(CollectCpuProfile) {
   CheckSimpleBranch(fooNode, bazBranch, ARRAY_SIZE(bazBranch));
   const char* delayBranch[] = { "delay", "loop" };
   CheckSimpleBranch(fooNode, delayBranch, ARRAY_SIZE(delayBranch));
+
+  cpu_profiler->DeleteAllCpuProfiles();
 }
-#endif
