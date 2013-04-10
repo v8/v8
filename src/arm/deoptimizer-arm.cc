@@ -162,13 +162,15 @@ void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
                                         Code* interrupt_code,
                                         Code* replacement_code) {
   ASSERT(InterruptCodeIsPatched(unoptimized_code,
-                                 pc_after,
-                                 interrupt_code,
-                                 replacement_code));
+                                pc_after,
+                                interrupt_code,
+                                replacement_code));
   static const int kInstrSize = Assembler::kInstrSize;
   // Restore the original jump.
   CodePatcher patcher(pc_after - 3 * kInstrSize, 1);
   patcher.masm()->b(4 * kInstrSize, pl);  // ok-label is 4 instructions later.
+  ASSERT_EQ(kBranchBeforeInterrupt,
+            Memory::int32_at(pc_after - 3 * kInstrSize));
   // Restore the original call address.
   uint32_t interrupt_address_offset = Memory::uint16_at(pc_after -
       2 * kInstrSize) & 0xfff;
@@ -186,8 +188,8 @@ bool Deoptimizer::InterruptCodeIsPatched(Code* unoptimized_code,
                                          Address pc_after,
                                          Code* interrupt_code,
                                          Code* replacement_code) {
-  Address call_target_address = pc_after - kIntSize;
-  ASSERT_EQ(kBlxIp, Memory::int32_at(pc_after - kInstrSize));
+  static const int kInstrSize = Assembler::kInstrSize;
+  ASSERT(Memory::int32_at(pc_after - kInstrSize) == kBlxIp);
 
   uint32_t interrupt_address_offset =
       Memory::uint16_at(pc_after - 2 * kInstrSize) & 0xfff;
@@ -196,18 +198,16 @@ bool Deoptimizer::InterruptCodeIsPatched(Code* unoptimized_code,
   if (Assembler::IsNop(Assembler::instr_at(pc_after - 3 * kInstrSize))) {
     ASSERT(Assembler::IsLdrPcImmediateOffset(
         Assembler::instr_at(pc_after - 2 * kInstrSize)));
-    ASSERT_EQ(kBranchBeforeInterrupt,
-              Memory::int32_at(pc_after - 3 * kInstrSize));
-    ASSERT_EQ(reinterpret_cast<uint32_t>(replacement_code->entry()),
-              Memory::uint32_at(interrupt_address_pointer));
+    ASSERT(reinterpret_cast<uint32_t>(replacement_code->entry()) ==
+           Memory::uint32_at(interrupt_address_pointer));
     return true;
   } else {
     ASSERT(Assembler::IsLdrPcImmediateOffset(
         Assembler::instr_at(pc_after - 2 * kInstrSize)));
     ASSERT_EQ(kBranchBeforeInterrupt,
               Memory::int32_at(pc_after - 3 * kInstrSize));
-    ASSERT_EQ(reinterpret_cast<uint32_t>(interrupt_code->entry()),
-              Memory::uint32_at(interrupt_address_pointer));
+    ASSERT(reinterpret_cast<uint32_t>(interrupt_code->entry()) ==
+           Memory::uint32_at(interrupt_address_pointer));
     return false;
   }
 }
