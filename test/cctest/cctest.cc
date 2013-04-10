@@ -68,8 +68,11 @@ void CcTest::InitializeVM(CcTestExtensionFlags extensions) {
   EXTENSION_LIST(CHECK_EXTENSION_FLAG)
 #undef CHECK_EXTENSION_FLAG
   if (context_.IsEmpty()) {
+    v8::Isolate* isolate = default_isolate();
+    v8::HandleScope scope(isolate);
     v8::ExtensionConfiguration config(extension_count, extension_names);
-    context_ = v8::Context::New(&config);
+    v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
+    context_ = v8::Persistent<v8::Context>::New(isolate, context);
   }
   context_->Enter();
 }

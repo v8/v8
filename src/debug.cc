@@ -874,8 +874,9 @@ bool Debug::Load() {
   // Check for caught exceptions.
   if (caught_exception) return false;
 
-  // Debugger loaded.
-  debug_context_ = context;
+  // Debugger loaded, create debugger context global handle.
+  debug_context_ = Handle<Context>::cast(
+      isolate_->global_handles()->Create(*context));
 
   return true;
 }
@@ -891,7 +892,7 @@ void Debug::Unload() {
   DestroyScriptCache();
 
   // Clear debugger context global handle.
-  Isolate::Current()->global_handles()->Destroy(
+  isolate_->global_handles()->Destroy(
       reinterpret_cast<Object**>(debug_context_.location()));
   debug_context_ = Handle<Context>();
 }

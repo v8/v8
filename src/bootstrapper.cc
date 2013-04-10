@@ -303,14 +303,11 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     v8::ExtensionConfiguration* extensions) {
   HandleScope scope(isolate_);
   Genesis genesis(isolate_, global_object, global_template, extensions);
-  if (!genesis.result().is_null()) {
-    Handle<Object> ctx(isolate_->global_handles()->Create(*genesis.result()));
-    Handle<Context> env = Handle<Context>::cast(ctx);
-    if (InstallExtensions(env, extensions)) {
-      return env;
-    }
+  Handle<Context> env = genesis.result();
+  if (env.is_null() || !InstallExtensions(env, extensions)) {
+    return Handle<Context>();
   }
-  return Handle<Context>();
+  return scope.CloseAndEscape(env);
 }
 
 

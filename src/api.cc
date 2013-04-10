@@ -4863,18 +4863,14 @@ static i::Handle<i::FunctionTemplateInfo>
 }
 
 
-Persistent<Context> v8::Context::New(
+static i::Handle<i::Context> CreateEnvironment(
+    i::Isolate* isolate,
     v8::ExtensionConfiguration* extensions,
     v8::Handle<ObjectTemplate> global_template,
     v8::Handle<Value> global_object) {
-  i::Isolate::EnsureDefaultIsolate();
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Context::New()");
-  LOG_API(isolate, "Context::New");
-  ON_BAILOUT(isolate, "v8::Context::New()", return Persistent<Context>());
+  i::Handle<i::Context> env;
 
   // Enter V8 via an ENTER_V8 scope.
-  i::Handle<i::Context> env;
   {
     ENTER_V8(isolate);
     v8::Handle<ObjectTemplate> proxy_template = global_template;
@@ -4929,10 +4925,43 @@ Persistent<Context> v8::Context::New(
   }
   // Leave V8.
 
-  if (env.is_null()) {
-    return Persistent<Context>();
-  }
-  return Persistent<Context>(Utils::ToLocal(env));
+  return env;
+}
+
+
+Persistent<Context> v8::Context::New(
+    v8::ExtensionConfiguration* extensions,
+    v8::Handle<ObjectTemplate> global_template,
+    v8::Handle<Value> global_object) {
+  i::Isolate::EnsureDefaultIsolate();
+  i::Isolate* isolate = i::Isolate::Current();
+  Isolate* external_isolate = reinterpret_cast<Isolate*>(isolate);
+  EnsureInitializedForIsolate(isolate, "v8::Context::New()");
+  LOG_API(isolate, "Context::New");
+  ON_BAILOUT(isolate, "v8::Context::New()", return Persistent<Context>());
+  i::HandleScope scope(isolate);
+  i::Handle<i::Context> env =
+      CreateEnvironment(isolate, extensions, global_template, global_object);
+  if (env.is_null()) return Persistent<Context>();
+  return Persistent<Context>::New(external_isolate, Utils::ToLocal(env));
+}
+
+
+Local<Context> v8::Context::New(
+    v8::Isolate* external_isolate,
+    v8::ExtensionConfiguration* extensions,
+    v8::Handle<ObjectTemplate> global_template,
+    v8::Handle<Value> global_object) {
+  i::Isolate::EnsureDefaultIsolate();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
+  EnsureInitializedForIsolate(isolate, "v8::Context::New()");
+  LOG_API(isolate, "Context::New");
+  ON_BAILOUT(isolate, "v8::Context::New()", return Local<Context>());
+  i::HandleScope scope(isolate);
+  i::Handle<i::Context> env =
+      CreateEnvironment(isolate, extensions, global_template, global_object);
+  if (env.is_null()) return Local<Context>();
+  return Utils::ToLocal(scope.CloseAndEscape(env));
 }
 
 

@@ -3867,11 +3867,11 @@ class V8EXPORT Context {
    */
   void ReattachGlobal(Handle<Object> global_object);
 
-  /** Creates a new context.
+  /**
+   * Creates a new context and returns a handle to the newly allocated
+   * context.
    *
-   * Returns a persistent handle to the newly allocated context. This
-   * persistent handle has to be disposed when the context is no
-   * longer used so the context can be garbage collected.
+   * \param isolate The isolate in which to create the context.
    *
    * \param extensions An optional extension configuration containing
    * the extensions to be installed in the newly created context.
@@ -3885,6 +3885,14 @@ class V8EXPORT Context {
    * template. The state of the global object will be completely reset
    * and only object identify will remain.
    */
+  static Local<Context> New(
+      Isolate* isolate,
+      ExtensionConfiguration* extensions = NULL,
+      Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
+      Handle<Value> global_object = Handle<Value>());
+
+  /** Deprecated. Use Isolate version instead. */
+  // TODO(mstarzinger): Put this behind the V8_DEPRECATED guard.
   static Persistent<Context> New(
       ExtensionConfiguration* extensions = NULL,
       Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
