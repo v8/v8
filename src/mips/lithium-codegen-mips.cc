@@ -1214,6 +1214,7 @@ void LCodeGen::DoMultiplyAddD(LMultiplyAddD* instr) {
   // This is computed in-place.
   ASSERT(addend.is(ToDoubleRegister(instr->result())));
 
+  CpuFeatureScope scope(masm(), FPU);
   __ madd_d(addend, addend, multiplier, multiplicand);
 }
 
@@ -4899,8 +4900,8 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   // This 'at' value and scratch1 map value are used for tests in both clauses
   // of the if.
 
+  CpuFeatureScope scope(masm(), FPU);
   if (instr->truncating()) {
-    CpuFeatureScope scope(masm(), FPU);
     Register scratch3 = ToRegister(instr->temp2());
     FPURegister single_scratch = double_scratch.low();
     ASSERT(!scratch3.is(input_reg) &&
