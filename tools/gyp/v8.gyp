@@ -43,13 +43,16 @@
               # The dependency on v8_base should come from a transitive
               # dependency however the Android toolchain requires libv8_base.a
               # to appear before libv8_snapshot.a so it's listed explicitly.
-              'dependencies': ['v8_base', 'v8_snapshot'],
+              'dependencies': ['v8_base.<(v8_target_arch)', 'v8_snapshot'],
             },
             {
               # The dependency on v8_base should come from a transitive
               # dependency however the Android toolchain requires libv8_base.a
               # to appear before libv8_snapshot.a so it's listed explicitly.
-              'dependencies': ['v8_base', 'v8_nosnapshot'],
+              'dependencies': [
+                'v8_base.<(v8_target_arch)',
+                'v8_nosnapshot.<(v8_target_arch)',
+              ],
             }],
             ['component=="shared_library"', {
               'type': '<(component)',
@@ -105,10 +108,13 @@
           'conditions': [
             ['want_separate_host_toolset==1', {
               'toolsets': ['host', 'target'],
-              'dependencies': ['mksnapshot#host', 'js2c#host'],
+              'dependencies': [
+                'mksnapshot.<(v8_target_arch)#host',
+                'js2c#host',
+              ],
             }, {
               'toolsets': ['target'],
-              'dependencies': ['mksnapshot', 'js2c'],
+              'dependencies': ['mksnapshot.<(v8_target_arch)', 'js2c'],
             }],
             ['component=="shared_library"', {
               'defines': [
@@ -124,7 +130,7 @@
             }],
           ],
           'dependencies': [
-            'v8_base',
+            'v8_base.<(v8_target_arch)',
           ],
           'include_dirs+': [
             '../../src',
@@ -138,7 +144,7 @@
             {
               'action_name': 'run_mksnapshot',
               'inputs': [
-                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
+                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot.<(v8_target_arch)<(EXECUTABLE_SUFFIX)',
               ],
               'outputs': [
                 '<(INTERMEDIATE_DIR)/snapshot.cc',
@@ -192,10 +198,10 @@
           ],
         },
         {
-          'target_name': 'v8_nosnapshot',
+          'target_name': 'v8_nosnapshot.<(v8_target_arch)',
           'type': 'static_library',
           'dependencies': [
-            'v8_base',
+            'v8_base.<(v8_target_arch)',
           ],
           'include_dirs+': [
             '../../src',
@@ -222,7 +228,7 @@
           ]
         },
         {
-          'target_name': 'v8_base',
+          'target_name': 'v8_base.<(v8_target_arch)',
           'type': 'static_library',
           'variables': {
             'optimize': 'max',
@@ -869,11 +875,11 @@
            ]
         },
         {
-          'target_name': 'mksnapshot',
+          'target_name': 'mksnapshot.<(v8_target_arch)',
           'type': 'executable',
           'dependencies': [
-            'v8_base',
-            'v8_nosnapshot',
+            'v8_base.<(v8_target_arch)',
+            'v8_nosnapshot.<(v8_target_arch)',
           ],
           'include_dirs+': [
             '../../src',
