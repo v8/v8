@@ -1019,9 +1019,9 @@ class CodeDescription BASE_EMBEDDED {
 
 #if defined(__ELF)
 static void CreateSymbolsTable(CodeDescription* desc,
+                               Zone* zone,
                                ELF* elf,
                                int text_section_index) {
-  Zone* zone = desc->info()->zone();
   ELFSymbolTable* symtab = new(zone) ELFSymbolTable(".symtab", zone);
   ELFStringTable* strtab = new(zone) ELFStringTable(".strtab");
 
@@ -1789,8 +1789,9 @@ bool UnwindInfoSection::WriteBodyInternal(Writer* w) {
 
 #endif  // V8_TARGET_ARCH_X64
 
-static void CreateDWARFSections(CodeDescription* desc, DebugObject* obj) {
-  Zone* zone = desc->info()->zone();
+static void CreateDWARFSections(CodeDescription* desc,
+                                Zone* zone,
+                                DebugObject* obj) {
   if (desc->IsLineInfoAvailable()) {
     obj->AddSection(new(zone) DebugInfoSection(desc), zone);
     obj->AddSection(new(zone) DebugAbbrevSection(desc), zone);
@@ -1915,8 +1916,7 @@ static void UnregisterCodeEntry(JITCodeEntry* entry) {
 }
 
 
-static JITCodeEntry* CreateELFObject(CodeDescription* desc) {
-  Zone* zone = desc->info()->zone();
+static JITCodeEntry* CreateELFObject(CodeDescription* desc, Zone* zone) {
   ZoneScope zone_scope(zone, DELETE_ON_EXIT);
 #ifdef __MACH_O
   MachO mach_o;
@@ -1944,9 +1944,9 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc) {
           ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC),
       zone);
 
-  CreateSymbolsTable(desc, &elf, text_section_index);
+  CreateSymbolsTable(desc, zone, &elf, text_section_index);
 
-  CreateDWARFSections(desc, &elf);
+  CreateDWARFSections(desc, zone, &elf);
 
   elf.Write(&w);
 #endif
@@ -2083,7 +2083,8 @@ void GDBJITInterface::AddCode(const char* name,
   }
 
   AddUnwindInfo(&code_desc);
-  JITCodeEntry* entry = CreateELFObject(&code_desc);
+  Zone* zone = code->GetIsolate()->runtime_zone();
+  JITCodeEntry* entry = CreateELFObject(&code_desc, zone);
   ASSERT(!IsLineInfoTagged(entry));
 
   delete lineinfo;
