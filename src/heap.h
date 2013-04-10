@@ -209,9 +209,11 @@ namespace internal {
   V(index_string, "index")                                               \
   V(last_index_string, "lastIndex")                                      \
   V(object_string, "object")                                             \
+  V(payload_string, "payload")                                           \
   V(prototype_string, "prototype")                                       \
   V(string_string, "string")                                             \
   V(String_string, "String")                                             \
+  V(unknown_field_string, "unknownField")                                \
   V(symbol_string, "symbol")                                             \
   V(Symbol_string, "Symbol")                                             \
   V(Date_string, "Date")                                                 \

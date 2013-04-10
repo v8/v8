@@ -97,7 +97,6 @@ class LCodeGen;
   V(DoubleToI)                                  \
   V(DummyUse)                                   \
   V(ElementsKind)                               \
-  V(FastLiteral)                                \
   V(FixedArrayBaseLength)                       \
   V(FunctionLiteral)                            \
   V(GetCachedArrayIndex)                        \
@@ -2352,13 +2351,6 @@ class LAllocate: public LTemplateInstruction<1, 2, 2> {
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate, "allocate")
   DECLARE_HYDROGEN_ACCESSOR(Allocate)
-};
-
-
-class LFastLiteral: public LTemplateInstruction<1, 0, 0> {
- public:
-  DECLARE_CONCRETE_INSTRUCTION(FastLiteral, "fast-literal")
-  DECLARE_HYDROGEN_ACCESSOR(FastLiteral)
 };
 
 

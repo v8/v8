@@ -2072,6 +2072,30 @@ TEST(OptimizedPretenuringArrayLiterals) {
 }
 
 
+TEST(OptimizedPretenuringSimpleArrayLiterals) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_pretenure_literals = false;
+  CcTest::InitializeVM();
+  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope(CcTest::isolate());
+
+  AlwaysAllocateScope always_allocate;
+  v8::Local<v8::Value> res = CompileRun(
+      "function f() {"
+      "  return [1, 2, 3];"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+
+  CHECK(HEAP->InNewSpace(*o));
+}
+
+
 // Test regular array literals allocation.
 TEST(OptimizedAllocationArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;

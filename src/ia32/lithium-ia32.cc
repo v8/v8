@@ -2463,13 +2463,6 @@ LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoFastLiteral(HFastLiteral* instr) {
-  LOperand* context = UseFixed(instr->context(), esi);
-  return MarkAsCall(
-      DefineFixed(new(zone()) LFastLiteral(context), eax), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   return MarkAsCall(

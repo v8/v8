@@ -2921,12 +2921,6 @@ void HAllocate::PrintDataTo(StringStream* stream) {
 }
 
 
-HType HFastLiteral::CalculateInferredType() {
-  // TODO(mstarzinger): Be smarter, could also be JSArray here.
-  return HType::JSObject();
-}
-
-
 HType HArrayLiteral::CalculateInferredType() {
   return HType::JSArray();
 }

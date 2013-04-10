@@ -325,6 +325,14 @@ Handle<JSObject> Copy(Handle<JSObject> obj) {
 }
 
 
+Handle<JSObject> DeepCopy(Handle<JSObject> obj) {
+  Isolate* isolate = obj->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     obj->DeepCopy(isolate),
+                     JSObject);
+}
+
+
 Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info) {
   CALL_HEAP_FUNCTION(obj->GetIsolate(), obj->DefineAccessor(*info), Object);
 }

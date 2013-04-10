@@ -1198,6 +1198,11 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   static const int kUnlimitedMaxInlinedNodes = 10000;
   static const int kUnlimitedMaxInlinedNodesCumulative = 10000;
 
+  // Maximum depth and total number of elements and properties for literal
+  // graphs to be considered for fast deep-copying.
+  static const int kMaxFastLiteralDepth = 3;
+  static const int kMaxFastLiteralProperties = 8;
+
   // Simple accessors.
   void set_function_state(FunctionState* state) { function_state_ = state; }
 
@@ -1473,6 +1478,28 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   HValue* BuildContextChainWalk(Variable* var);
 
   HInstruction* BuildThisFunction();
+
+  HInstruction* BuildFastLiteral(HValue* context,
+                                 Handle<JSObject> boilerplate_object,
+                                 Handle<JSObject> original_boilerplate_object,
+                                 int size,
+                                 AllocationSiteMode mode,
+                                 BailoutId id);
+
+  void BuildEmitDeepCopy(Handle<JSObject> boilerplat_object,
+                         Handle<JSObject> object,
+                         HInstruction* result,
+                         int* offset,
+                         AllocationSiteMode mode,
+                         BailoutId id);
+
+  MUST_USE_RESULT HValue* BuildCopyObjectHeader(
+      Handle<JSObject> boilerplat_object,
+      HInstruction* target,
+      int object_offset,
+      int elements_offset,
+      int elements_size,
+      BailoutId id);
 
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);

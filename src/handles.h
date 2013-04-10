@@ -242,6 +242,8 @@ Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
 
 Handle<JSObject> Copy(Handle<JSObject> obj);
 
+Handle<JSObject> DeepCopy(Handle<JSObject> obj);
+
 Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info);
 
 Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,
