@@ -2545,8 +2545,8 @@ void Name::set_hash_field(uint32_t value) {
 
 bool Name::Equals(Name* other) {
   if (other == this) return true;
-  if (this->IsSymbol() || other->IsSymbol() ||
-      (this->IsInternalizedString() && other->IsInternalizedString())) {
+  if ((this->IsInternalizedString() && other->IsInternalizedString()) ||
+      this->IsSymbol() || other->IsSymbol()) {
     return false;
   }
   return String::cast(this)->SlowEquals(String::cast(other));
