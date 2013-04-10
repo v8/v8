@@ -2367,6 +2367,12 @@ bool Value::FullIsString() const {
 }
 
 
+bool Value::IsSymbol() const {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsSymbol()")) return false;
+  return Utils::OpenHandle(this)->IsSymbol();
+}
+
+
 bool Value::IsArray() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsArray()")) return false;
   return Utils::OpenHandle(this)->IsJSArray();
@@ -2448,6 +2454,16 @@ bool Value::IsStringObject() const {
   if (IsDeadCheck(isolate, "v8::Value::IsStringObject()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->HasSpecificClassOf(isolate->heap()->String_string());
+}
+
+
+bool Value::IsSymbolObject() const {
+  // TODO(svenpanne): these and other test functions should be written such
+  // that they do not use Isolate::Current().
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Value::IsSymbolObject()")) return false;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->HasSpecificClassOf(isolate->heap()->Symbol_string());
 }
 
 
@@ -2664,6 +2680,15 @@ void v8::String::CheckCast(v8::Value* that) {
 }
 
 
+void v8::Symbol::CheckCast(v8::Value* that) {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Symbol::Cast()")) return;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->IsSymbol(),
+           "v8::Symbol::Cast()",
+           "Could not convert to symbol");
+}
+
+
 void v8::Number::CheckCast(v8::Value* that) {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Number::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
@@ -2708,6 +2733,16 @@ void v8::StringObject::CheckCast(v8::Value* that) {
   ApiCheck(obj->HasSpecificClassOf(isolate->heap()->String_string()),
            "v8::StringObject::Cast()",
            "Could not convert to StringObject");
+}
+
+
+void v8::SymbolObject::CheckCast(v8::Value* that) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::SymbolObject::Cast()")) return;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Symbol_string()),
+           "v8::SymbolObject::Cast()",
+           "Could not convert to SymbolObject");
 }
 
 
@@ -3079,13 +3114,13 @@ PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
-  if (!key_obj->IsString()) {
+  if (!key_obj->IsName()) {
     EXCEPTION_PREAMBLE(isolate);
     key_obj = i::Execution::ToString(key_obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, static_cast<PropertyAttribute>(NONE));
   }
-  i::Handle<i::String> key_string = i::Handle<i::String>::cast(key_obj);
-  PropertyAttributes result = self->GetPropertyAttribute(*key_string);
+  i::Handle<i::Name> key_name = i::Handle<i::Name>::cast(key_obj);
+  PropertyAttributes result = self->GetPropertyAttribute(*key_name);
   if (result == ABSENT) return static_cast<PropertyAttribute>(NONE);
   return static_cast<PropertyAttribute>(result);
 }
@@ -3255,24 +3290,32 @@ Local<String> v8::Object::GetConstructorName() {
 }
 
 
-bool v8::Object::Delete(v8::Handle<String> key) {
+bool v8::Object::Delete(v8::Handle<Value> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::Delete()", return false);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  return i::JSObject::DeleteProperty(self, key_obj)->IsTrue();
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> obj = i::DeleteProperty(self, key_obj);
+  has_pending_exception = obj.is_null();
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
+  return obj->IsTrue();
 }
 
 
-bool v8::Object::Has(v8::Handle<String> key) {
+bool v8::Object::Has(v8::Handle<Value> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::Has()", return false);
   ENTER_V8(isolate);
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  return self->HasProperty(*key_obj);
+  i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> obj = i::HasProperty(self, key_obj);
+  has_pending_exception = obj.is_null();
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
+  return obj->IsTrue();
 }
 
 
@@ -4593,6 +4636,15 @@ const v8::String::ExternalAsciiStringResource*
 }
 
 
+Local<Value> Symbol::Name() const {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Symbol::Name()"))
+    return Local<Value>();
+  i::Handle<i::Symbol> sym = Utils::OpenHandle(this);
+  i::Handle<i::Object> name(sym->name(), sym->GetIsolate());
+  return Utils::ToLocal(name);
+}
+
+
 double Number::Value() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Number::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -5457,6 +5509,29 @@ Local<v8::String> v8::StringObject::StringValue() const {
 }
 
 
+Local<v8::Value> v8::SymbolObject::New(Isolate* isolate, Handle<Symbol> value) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::SymbolObject::New()");
+  LOG_API(i_isolate, "SymbolObject::New");
+  ENTER_V8(i_isolate);
+  i::Handle<i::Object> obj =
+      i_isolate->factory()->ToObject(Utils::OpenHandle(*value));
+  return Utils::ToLocal(obj);
+}
+
+
+Local<v8::Symbol> v8::SymbolObject::SymbolValue() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::SymbolObject::SymbolValue()"))
+    return Local<v8::Symbol>();
+  LOG_API(isolate, "SymbolObject::SymbolValue");
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
+  return Utils::ToLocal(
+      i::Handle<i::Symbol>(i::Symbol::cast(jsvalue->value())));
+}
+
+
 Local<v8::Value> v8::Date::New(double time) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Date::New()");
@@ -5634,6 +5709,30 @@ Local<String> v8::String::NewSymbol(const char* data, int length) {
   if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result = isolate->factory()->InternalizeUtf8String(
       i::Vector<const char>(data, length));
+  return Utils::ToLocal(result);
+}
+
+
+Local<Symbol> v8::Symbol::New(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::Symbol::New()");
+  LOG_API(i_isolate, "Symbol::New()");
+  ENTER_V8(i_isolate);
+  i::Handle<i::Symbol> result = i_isolate->factory()->NewSymbol();
+  return Utils::ToLocal(result);
+}
+
+
+Local<Symbol> v8::Symbol::New(Isolate* isolate, const char* data, int length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  EnsureInitializedForIsolate(i_isolate, "v8::Symbol::New()");
+  LOG_API(i_isolate, "Symbol::New(char)");
+  ENTER_V8(i_isolate);
+  if (length == -1) length = i::StrLength(data);
+  i::Handle<i::String> name = i_isolate->factory()->NewStringFromUtf8(
+      i::Vector<const char>(data, length));
+  i::Handle<i::Symbol> result = i_isolate->factory()->NewSymbol();
+  result->set_name(*name);
   return Utils::ToLocal(result);
 }
 

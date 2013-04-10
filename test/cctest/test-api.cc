@@ -2178,6 +2178,88 @@ THREADED_TEST(IdentityHash) {
 }
 
 
+THREADED_TEST(SymbolProperties) {
+  i::FLAG_harmony_symbols = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> obj = v8::Object::New();
+  v8::Local<v8::Symbol> sym1 = v8::Symbol::New(isolate);
+  v8::Local<v8::Symbol> sym2 = v8::Symbol::New(isolate, "my-symbol");
+
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  // Check basic symbol functionality.
+  CHECK(sym1->IsSymbol());
+  CHECK(sym2->IsSymbol());
+  CHECK(!obj->IsSymbol());
+
+  CHECK(sym1->Equals(sym1));
+  CHECK(sym2->Equals(sym2));
+  CHECK(!sym1->Equals(sym2));
+  CHECK(!sym2->Equals(sym1));
+  CHECK(sym1->StrictEquals(sym1));
+  CHECK(sym2->StrictEquals(sym2));
+  CHECK(!sym1->StrictEquals(sym2));
+  CHECK(!sym2->StrictEquals(sym1));
+
+  CHECK(sym2->Name()->Equals(v8::String::New("my-symbol")));
+
+  v8::Local<v8::Value> sym_val = sym2;
+  CHECK(sym_val->IsSymbol());
+  CHECK(sym_val->Equals(sym2));
+  CHECK(sym_val->StrictEquals(sym2));
+  CHECK(v8::Symbol::Cast(*sym_val)->Equals(sym2));
+
+  v8::Local<v8::Value> sym_obj = v8::SymbolObject::New(isolate, sym2);
+  CHECK(sym_obj->IsSymbolObject());
+  CHECK(!sym2->IsSymbolObject());
+  CHECK(!obj->IsSymbolObject());
+  CHECK(sym_obj->Equals(sym2));
+  CHECK(!sym_obj->StrictEquals(sym2));
+  CHECK(v8::SymbolObject::Cast(*sym_obj)->Equals(sym_obj));
+  CHECK(v8::SymbolObject::Cast(*sym_obj)->SymbolValue()->Equals(sym2));
+
+  // Make sure delete of a non-existent symbol property works.
+  CHECK(obj->Delete(sym1));
+  CHECK(!obj->Has(sym1));
+
+  CHECK(obj->Set(sym1, v8::Integer::New(1503)));
+  CHECK(obj->Has(sym1));
+  CHECK_EQ(1503, obj->Get(sym1)->Int32Value());
+  CHECK(obj->Set(sym1, v8::Integer::New(2002)));
+  CHECK(obj->Has(sym1));
+  CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
+  CHECK_EQ(v8::None, obj->GetPropertyAttributes(sym1));
+
+  CHECK_EQ(0, obj->GetOwnPropertyNames()->Length());
+  int num_props = obj->GetPropertyNames()->Length();
+  CHECK(obj->Set(v8::String::New("bla"), v8::Integer::New(20)));
+  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+  CHECK_EQ(num_props + 1, obj->GetPropertyNames()->Length());
+
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  // Add another property and delete it afterwards to force the object in
+  // slow case.
+  CHECK(obj->Set(sym2, v8::Integer::New(2008)));
+  CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
+  CHECK_EQ(2008, obj->Get(sym2)->Int32Value());
+  CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
+  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+
+  CHECK(obj->Has(sym1));
+  CHECK(obj->Has(sym2));
+  CHECK(obj->Delete(sym2));
+  CHECK(obj->Has(sym1));
+  CHECK(!obj->Has(sym2));
+  CHECK_EQ(2002, obj->Get(sym1)->Int32Value());
+  CHECK_EQ(1, obj->GetOwnPropertyNames()->Length());
+}
+
+
 THREADED_TEST(HiddenProperties) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
