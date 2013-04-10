@@ -51,14 +51,6 @@ TEST(StartStop) {
   processor.Join();
 }
 
-static v8::Persistent<v8::Context> env;
-
-static void InitializeVM() {
-  if (env.IsEmpty()) env = v8::Context::New();
-  v8::HandleScope scope(env->GetIsolate());
-  env->Enter();
-}
-
 static inline i::Address ToAddress(int n) {
   return reinterpret_cast<i::Address>(n);
 }
@@ -101,7 +93,7 @@ class TestSetup {
 }  // namespace
 
 TEST(CodeEvents) {
-  InitializeVM();
+  CcTest::InitializeVM();
   i::Isolate* isolate = i::Isolate::Current();
   i::Heap* heap = isolate->heap();
   i::Factory* factory = isolate->factory();
@@ -217,7 +209,7 @@ TEST(TickEvents) {
 // http://crbug/51594
 // This test must not crash.
 TEST(CrashIfStoppingLastNonExistentProfile) {
-  InitializeVM();
+  CcTest::InitializeVM();
   TestSetup test_setup;
   CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
   profiler->StartProfiling("1");
@@ -268,7 +260,7 @@ TEST(Issue1398) {
 
 
 TEST(DeleteAllCpuProfiles) {
-  InitializeVM();
+  CcTest::InitializeVM();
   TestSetup test_setup;
   CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
   CHECK_EQ(0, profiler->GetProfilesCount());

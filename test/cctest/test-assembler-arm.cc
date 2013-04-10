@@ -43,20 +43,10 @@ typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
 typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
 
 
-static v8::Persistent<v8::Context> env;
-
-
-static void InitializeVM() {
-  if (env.IsEmpty()) {
-    env = v8::Context::New();
-  }
-}
-
-
 #define __ assm.
 
 TEST(0) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -83,7 +73,7 @@ TEST(0) {
 
 
 TEST(1) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -121,7 +111,7 @@ TEST(1) {
 
 
 TEST(2) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -168,7 +158,7 @@ TEST(2) {
 
 
 TEST(3) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -224,7 +214,7 @@ TEST(3) {
 
 TEST(4) {
   // Test the VFP floating point instructions.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -363,7 +353,7 @@ TEST(4) {
 
 TEST(5) {
   // Test the ARMv7 bitfield instructions.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -400,7 +390,7 @@ TEST(5) {
 
 TEST(6) {
   // Test saturating instructions.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -444,7 +434,7 @@ static void TestRoundingMode(VCVTTypes types,
                              double value,
                              int expected,
                              bool expected_exception = false) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -622,7 +612,7 @@ TEST(7) {
 
 TEST(8) {
   // Test VFP multi load/store with ia_w.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -730,7 +720,7 @@ TEST(8) {
 
 TEST(9) {
   // Test VFP multi load/store with ia.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -842,7 +832,7 @@ TEST(9) {
 
 TEST(10) {
   // Test VFP multi load/store with db_w.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -950,7 +940,7 @@ TEST(10) {
 
 TEST(11) {
   // Test instructions using the carry flag.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -1016,7 +1006,7 @@ TEST(11) {
 
 TEST(12) {
   // Test chaining of label usages within instructions (issue 1644).
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -1031,7 +1021,7 @@ TEST(12) {
 
 TEST(13) {
   // Test VFP instructions using registers d16-d31.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 

@@ -1019,6 +1019,9 @@ class EnumSet {
   void Intersect(const EnumSet& set) { bits_ &= set.bits_; }
   T ToIntegral() const { return bits_; }
   bool operator==(const EnumSet& set) { return bits_ == set.bits_; }
+  EnumSet<E, T> operator|(const EnumSet& set) const {
+    return EnumSet<E, T>(bits_ | set.bits_);
+  }
 
  private:
   T Mask(E element) const {

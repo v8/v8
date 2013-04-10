@@ -44,24 +44,11 @@ typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 
 
-static v8::Persistent<v8::Context> env;
-
-
-static void InitializeVM() {
-  // Disable compilation of natives.
-  FLAG_disable_native_files = true;
-
-  if (env.IsEmpty()) {
-    env = v8::Context::New();
-  }
-}
-
-
 #define __ assm.
 
 
 TEST(MIPS0) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -87,7 +74,7 @@ TEST(MIPS0) {
 
 
 TEST(MIPS1) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -126,7 +113,7 @@ TEST(MIPS1) {
 
 
 TEST(MIPS2) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -268,7 +255,7 @@ TEST(MIPS2) {
 
 TEST(MIPS3) {
   // Test floating point instructions.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -360,7 +347,7 @@ TEST(MIPS3) {
 
 TEST(MIPS4) {
   // Test moves between floating point and integer registers.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -421,7 +408,7 @@ TEST(MIPS4) {
 
 TEST(MIPS5) {
   // Test conversions between doubles and integers.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -493,7 +480,7 @@ TEST(MIPS5) {
 
 TEST(MIPS6) {
   // Test simple memory loads and stores.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -566,7 +553,7 @@ TEST(MIPS6) {
 
 TEST(MIPS7) {
   // Test floating point compare and branch instructions.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -648,7 +635,7 @@ TEST(MIPS7) {
 
 TEST(MIPS8) {
   // Test ROTR and ROTRV instructions.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -753,7 +740,7 @@ TEST(MIPS8) {
 
 TEST(MIPS9) {
   // Test BRANCH improvements.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -783,7 +770,7 @@ TEST(MIPS9) {
 TEST(MIPS10) {
   // Test conversions between doubles and long integers.
   // Test hos the long ints map to FP regs pairs.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -858,7 +845,7 @@ TEST(MIPS10) {
 
 TEST(MIPS11) {
   // Test LWL, LWR, SWL and SWR instructions.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -1002,7 +989,7 @@ TEST(MIPS11) {
 
 
 TEST(MIPS12) {
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -1094,7 +1081,7 @@ TEST(MIPS12) {
 
 TEST(MIPS13) {
   // Test Cvt_d_uw and Trunc_uw_d macros.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -1157,7 +1144,7 @@ TEST(MIPS13) {
 
 TEST(MIPS14) {
   // Test round, floor, ceil, trunc, cvt.
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
@@ -1294,7 +1281,7 @@ TEST(MIPS14) {
 
 TEST(MIPS15) {
   // Test chaining of label usages within instructions (issue 1644).
-  InitializeVM();
+  CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
   Assembler assm(isolate, NULL, 0);
