@@ -787,7 +787,7 @@ class SamplerThread : public Thread {
     ScopedLock lock(mutex_);
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
+      instance_->Join();
       delete instance_;
       instance_ = NULL;
     }
@@ -802,8 +802,6 @@ class SamplerThread : public Thread {
       // profiled. We must not suspend.
       if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
         SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
-      } else {
-        if (RuntimeProfiler::WaitForSomeIsolateToEnterJS()) continue;
       }
       OS::Sleep(interval_);
     }

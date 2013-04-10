@@ -1194,7 +1194,7 @@ class SignalSender : public Thread {
     ScopedLock lock(mutex_);
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
+      instance_->Join();
       delete instance_;
       instance_ = NULL;
       RestoreSignalHandler();
@@ -1213,7 +1213,6 @@ class SignalSender : public Thread {
         SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
       } else {
         if (signal_handler_installed_) RestoreSignalHandler();
-        if (RuntimeProfiler::WaitForSomeIsolateToEnterJS()) continue;
       }
       Sleep();  // TODO(svenpanne) Figure out if OS:Sleep(interval_) is enough.
     }

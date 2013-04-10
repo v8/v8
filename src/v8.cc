@@ -275,7 +275,6 @@ void V8::InitializeOncePerProcessImpl() {
       && !Serializer::enabled()
       && CPU::SupportsCrankshaft();
   OS::PostSetUp();
-  RuntimeProfiler::GlobalSetUp();
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();
