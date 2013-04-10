@@ -1605,7 +1605,7 @@ static const HANDLE kNoThread = INVALID_HANDLE_VALUE;
 // convention.
 static unsigned int __stdcall ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
-  thread->Run();
+  thread->NotifyStartedAndRun();
   return 0;
 }
 
@@ -1622,7 +1622,8 @@ class Thread::PlatformData : public Malloced {
 // handle until it is started.
 
 Thread::Thread(const Options& options)
-    : stack_size_(options.stack_size()) {
+    : stack_size_(options.stack_size()),
+      start_semaphore_(NULL) {
   data_ = new PlatformData(kNoThread);
   set_name(options.name());
 }
@@ -2016,7 +2017,7 @@ class SamplerThread : public Thread {
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
       instance_ = new SamplerThread(sampler->interval());
-      instance_->Start();
+      instance_->StartSynchronously();
     } else {
       ASSERT(instance_->interval_ == sampler->interval());
     }

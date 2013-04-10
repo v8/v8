@@ -785,7 +785,8 @@ class Thread::PlatformData : public Malloced {
 
 Thread::Thread(const Options& options)
     : data_(new PlatformData()),
-      stack_size_(options.stack_size()) {
+      stack_size_(options.stack_size()),
+      start_semaphore_(NULL) {
   set_name(options.name());
 }
 
@@ -807,7 +808,7 @@ static void* ThreadEntry(void* arg) {
 #endif
   thread->data()->thread_ = pthread_self();
   ASSERT(thread->data()->thread_ != kNoThread);
-  thread->Run();
+  thread->NotifyStartedAndRun();
   return NULL;
 }
 
@@ -1183,7 +1184,7 @@ class SignalSender : public Thread {
       // Start a thread that will send SIGPROF signal to VM threads,
       // when CPU profiling will be enabled.
       instance_ = new SignalSender(sampler->interval());
-      instance_->Start();
+      instance_->StartSynchronously();
     } else {
       ASSERT(instance_->interval_ == sampler->interval());
     }

@@ -369,7 +369,8 @@ class Thread::PlatformData : public Malloced {
 
 Thread::Thread(const Options& options)
     : data_(new PlatformData()),
-      stack_size_(options.stack_size) {
+      stack_size_(options.stack_size),
+      start_semaphore_(NULL) {
   set_name(options.name);
   UNIMPLEMENTED();
 }

@@ -453,6 +453,59 @@ class VirtualMemory {
 
 
 // ----------------------------------------------------------------------------
+// Semaphore
+//
+// A semaphore object is a synchronization object that maintains a count. The
+// count is decremented each time a thread completes a wait for the semaphore
+// object and incremented each time a thread signals the semaphore. When the
+// count reaches zero,  threads waiting for the semaphore blocks until the
+// count becomes non-zero.
+
+class Semaphore {
+ public:
+  virtual ~Semaphore() {}
+
+  // Suspends the calling thread until the semaphore counter is non zero
+  // and then decrements the semaphore counter.
+  virtual void Wait() = 0;
+
+  // Suspends the calling thread until the counter is non zero or the timeout
+  // time has passed. If timeout happens the return value is false and the
+  // counter is unchanged. Otherwise the semaphore counter is decremented and
+  // true is returned. The timeout value is specified in microseconds.
+  virtual bool Wait(int timeout) = 0;
+
+  // Increments the semaphore counter.
+  virtual void Signal() = 0;
+};
+
+template <int InitialValue>
+struct CreateSemaphoreTrait {
+  static Semaphore* Create() {
+    return OS::CreateSemaphore(InitialValue);
+  }
+};
+
+// POD Semaphore initialized lazily (i.e. the first time Pointer() is called).
+// Usage:
+//   // The following semaphore starts at 0.
+//   static LazySemaphore<0>::type my_semaphore = LAZY_SEMAPHORE_INITIALIZER;
+//
+//   void my_function() {
+//     // Do something with my_semaphore.Pointer().
+//   }
+//
+template <int InitialValue>
+struct LazySemaphore {
+  typedef typename LazyDynamicInstance<
+      Semaphore, CreateSemaphoreTrait<InitialValue>,
+      ThreadSafeInitOnceTrait>::type type;
+};
+
+#define LAZY_SEMAPHORE_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER
+
+
+// ----------------------------------------------------------------------------
 // Thread
 //
 // Thread objects are used for creating and running threads. When the start()
@@ -489,8 +542,17 @@ class Thread {
   explicit Thread(const Options& options);
   virtual ~Thread();
 
-  // Start new thread by calling the Run() method in the new thread.
+  // Start new thread by calling the Run() method on the new thread.
   void Start();
+
+  // Start new thread and wait until Run() method is called on the new thread.
+  void StartSynchronously() {
+    start_semaphore_ = OS::CreateSemaphore(0);
+    Start();
+    start_semaphore_->Wait();
+    delete start_semaphore_;
+    start_semaphore_ = NULL;
+  }
 
   // Wait until thread terminates.
   void Join();
@@ -541,6 +603,11 @@ class Thread {
   class PlatformData;
   PlatformData* data() { return data_; }
 
+  void NotifyStartedAndRun() {
+    if (start_semaphore_) start_semaphore_->Signal();
+    Run();
+  }
+
  private:
   void set_name(const char* name);
 
@@ -548,6 +615,7 @@ class Thread {
 
   char name_[kMaxThreadNameLength];
   int stack_size_;
+  Semaphore* start_semaphore_;
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
@@ -617,59 +685,6 @@ class ScopedLock {
   Mutex* mutex_;
   DISALLOW_COPY_AND_ASSIGN(ScopedLock);
 };
-
-
-// ----------------------------------------------------------------------------
-// Semaphore
-//
-// A semaphore object is a synchronization object that maintains a count. The
-// count is decremented each time a thread completes a wait for the semaphore
-// object and incremented each time a thread signals the semaphore. When the
-// count reaches zero,  threads waiting for the semaphore blocks until the
-// count becomes non-zero.
-
-class Semaphore {
- public:
-  virtual ~Semaphore() {}
-
-  // Suspends the calling thread until the semaphore counter is non zero
-  // and then decrements the semaphore counter.
-  virtual void Wait() = 0;
-
-  // Suspends the calling thread until the counter is non zero or the timeout
-  // time has passed. If timeout happens the return value is false and the
-  // counter is unchanged. Otherwise the semaphore counter is decremented and
-  // true is returned. The timeout value is specified in microseconds.
-  virtual bool Wait(int timeout) = 0;
-
-  // Increments the semaphore counter.
-  virtual void Signal() = 0;
-};
-
-template <int InitialValue>
-struct CreateSemaphoreTrait {
-  static Semaphore* Create() {
-    return OS::CreateSemaphore(InitialValue);
-  }
-};
-
-// POD Semaphore initialized lazily (i.e. the first time Pointer() is called).
-// Usage:
-//   // The following semaphore starts at 0.
-//   static LazySemaphore<0>::type my_semaphore = LAZY_SEMAPHORE_INITIALIZER;
-//
-//   void my_function() {
-//     // Do something with my_semaphore.Pointer().
-//   }
-//
-template <int InitialValue>
-struct LazySemaphore {
-  typedef typename LazyDynamicInstance<
-      Semaphore, CreateSemaphoreTrait<InitialValue>,
-      ThreadSafeInitOnceTrait>::type type;
-};
-
-#define LAZY_SEMAPHORE_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER
 
 
 // ----------------------------------------------------------------------------

@@ -495,7 +495,8 @@ class Thread::PlatformData : public Malloced {
 
 Thread::Thread(const Options& options)
     : data_(new PlatformData),
-      stack_size_(options.stack_size()) {
+      stack_size_(options.stack_size()),
+      start_semaphore_(NULL) {
   set_name(options.name());
 }
 
@@ -530,7 +531,7 @@ static void* ThreadEntry(void* arg) {
   thread->data()->thread_ = pthread_self();
   SetThreadName(thread->name());
   ASSERT(thread->data()->thread_ != kNoThread);
-  thread->Run();
+  thread->NotifyStartedAndRun();
   return NULL;
 }
 
@@ -776,7 +777,7 @@ class SamplerThread : public Thread {
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
       instance_ = new SamplerThread(sampler->interval());
-      instance_->Start();
+      instance_->StartSynchronously();
     } else {
       ASSERT(instance_->interval_ == sampler->interval());
     }
