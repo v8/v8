@@ -672,8 +672,8 @@ static int FreeListFragmentation(PagedSpace* space, Page* p) {
     return 0;
   }
 
-  PagedSpace::SizeStats sizes;
-  space->ObtainFreeListStatistics(p, &sizes);
+  FreeList::SizeStats sizes;
+  space->CountFreeListItems(p, &sizes);
 
   intptr_t ratio;
   intptr_t ratio_threshold;
@@ -812,8 +812,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       if (!p->WasSwept()) {
         free_bytes = (p->area_size() - p->LiveBytes());
       } else {
-        PagedSpace::SizeStats sizes;
-        space->ObtainFreeListStatistics(p, &sizes);
+        FreeList::SizeStats sizes;
+        space->CountFreeListItems(p, &sizes);
         free_bytes = sizes.Total();
       }
 
