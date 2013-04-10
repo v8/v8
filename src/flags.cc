@@ -367,8 +367,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           // sense there.
           continue;
         } else {
-          fprintf(stderr, "Error: unrecognized flag %s\n"
-                  "Try --help for options\n", arg);
+          PrintF(stderr, "Error: unrecognized flag %s\n"
+                 "Try --help for options\n", arg);
           return_code = j;
           break;
         }
@@ -381,9 +381,9 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
         if (i < *argc) {
           value = argv[i++];
         } else {
-          fprintf(stderr, "Error: missing value for flag %s of type %s\n"
-                  "Try --help for options\n",
-                  arg, Type2String(flag->type()));
+          PrintF(stderr, "Error: missing value for flag %s of type %s\n"
+                 "Try --help for options\n",
+                 arg, Type2String(flag->type()));
           return_code = j;
           break;
         }
@@ -424,9 +424,9 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       if ((flag->type() == Flag::TYPE_BOOL && value != NULL) ||
           (flag->type() != Flag::TYPE_BOOL && is_bool) ||
           *endp != '\0') {
-        fprintf(stderr, "Error: illegal value for flag %s of type %s\n"
-                "Try --help for options\n",
-                arg, Type2String(flag->type()));
+        PrintF(stderr, "Error: illegal value for flag %s of type %s\n"
+               "Try --help for options\n",
+               arg, Type2String(flag->type()));
         return_code = j;
         break;
       }

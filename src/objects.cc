@@ -8003,7 +8003,7 @@ MaybeObject* String::SubString(int start, int end, PretenureFlag pretenure) {
 void String::PrintOn(FILE* file) {
   int length = this->length();
   for (int i = 0; i < length; i++) {
-    fprintf(file, "%c", Get(i));
+    PrintF(file, "%c", Get(i));
   }
 }
 

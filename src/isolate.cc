@@ -1140,7 +1140,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
         Execution::GetStackTraceLine(recv, fun, pos_obj, is_top_level);
     if (line->length() > 0) {
       line->PrintOn(out);
-      fprintf(out, "\n");
+      PrintF(out, "\n");
     }
   }
 }
@@ -1306,8 +1306,9 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
           FLAG_abort_on_uncaught_exception &&
           (report_exception || can_be_caught_externally)) {
         fatal_exception_depth++;
-        fprintf(stderr, "%s\n\nFROM\n",
-          *MessageHandler::GetLocalizedMessage(this, message_obj));
+        PrintF(stderr,
+               "%s\n\nFROM\n",
+               *MessageHandler::GetLocalizedMessage(this, message_obj));
         PrintCurrentStackTrace(stderr);
         OS::Abort();
       }

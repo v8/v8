@@ -1842,7 +1842,7 @@ extern "C" {
 #ifdef OBJECT_PRINT
   void __gdb_print_v8_object(MaybeObject* object) {
     object->Print();
-    fprintf(stdout, "\n");
+    PrintF(stdout, "\n");
   }
 #endif
 }

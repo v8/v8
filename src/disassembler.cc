@@ -50,8 +50,8 @@ void Disassembler::Dump(FILE* f, byte* begin, byte* end) {
              pc - begin,
              *pc);
     } else {
-      fprintf(f, "%" V8PRIxPTR "  %4" V8PRIdPTR "  %02x\n",
-              reinterpret_cast<uintptr_t>(pc), pc - begin, *pc);
+      PrintF(f, "%" V8PRIxPTR "  %4" V8PRIdPTR "  %02x\n",
+             reinterpret_cast<uintptr_t>(pc), pc - begin, *pc);
     }
   }
 }
@@ -101,7 +101,7 @@ static void DumpBuffer(FILE* f, StringBuilder* out) {
   if (f == NULL) {
     PrintF("%s\n", out->Finalize());
   } else {
-    fprintf(f, "%s\n", out->Finalize());
+    PrintF(f, "%s\n", out->Finalize());
   }
   out->Reset();
 }
