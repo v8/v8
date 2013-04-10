@@ -28,6 +28,7 @@
 #ifndef V8_GLOBAL_HANDLES_H_
 #define V8_GLOBAL_HANDLES_H_
 
+#include "../include/v8.h"
 #include "../include/v8-profiler.h"
 
 #include "list.h"
@@ -44,34 +45,38 @@ namespace internal {
 // An object group is treated like a single JS object: if one of object in
 // the group is alive, all objects in the same group are considered alive.
 // An object group is used to simulate object relationship in a DOM tree.
-class ObjectGroup {
- public:
-  static ObjectGroup* New(Object*** handles,
-                          size_t length,
-                          v8::RetainedObjectInfo* info) {
-    ASSERT(length > 0);
-    ObjectGroup* group = reinterpret_cast<ObjectGroup*>(
-        malloc(OFFSET_OF(ObjectGroup, objects_[length])));
-    group->length_ = length;
-    group->info_ = info;
-    CopyWords(group->objects_, handles, static_cast<int>(length));
-    return group;
+
+struct ObjectGroupConnection {
+  ObjectGroupConnection(UniqueId id, Object** object)
+      : id(id), object(object) {}
+
+  bool operator==(const ObjectGroupConnection& other) const {
+    return id == other.id;
   }
 
-  void Dispose() {
-    if (info_ != NULL) info_->Dispose();
-    free(this);
+  bool operator<(const ObjectGroupConnection& other) const {
+    return id < other.id;
   }
 
-  size_t length_;
-  v8::RetainedObjectInfo* info_;
-  Object** objects_[1];  // Variable sized array.
+  UniqueId id;
+  Object** object;
+};
 
- private:
-  void* operator new(size_t size);
-  void operator delete(void* p);
-  ~ObjectGroup();
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ObjectGroup);
+
+struct ObjectGroupRetainerInfo {
+  ObjectGroupRetainerInfo(UniqueId id, RetainedObjectInfo* info)
+      : id(id), info(info) {}
+
+  bool operator==(const ObjectGroupRetainerInfo& other) const {
+    return id == other.id;
+  }
+
+  bool operator<(const ObjectGroupRetainerInfo& other) const {
+    return id < other.id;
+  }
+
+  UniqueId id;
+  RetainedObjectInfo* info;
 };
 
 
@@ -213,6 +218,13 @@ class GlobalHandles {
                       size_t length,
                       v8::RetainedObjectInfo* info);
 
+  // Associates handle with the object group represented by id.
+  // Should be only used in GC callback function before a collection.
+  // All groups are destroyed after a garbage collection.
+  void SetObjectGroupId(Object** handle, UniqueId id);
+
+  void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info = NULL);
+
   // Add an implicit references' group.
   // Should be only used in GC callback function before a collection.
   // All groups are destroyed after a mark-compact collection.
@@ -220,8 +232,13 @@ class GlobalHandles {
                              Object*** children,
                              size_t length);
 
-  // Returns the object groups.
-  List<ObjectGroup*>* object_groups() { return &object_groups_; }
+  List<ObjectGroupConnection>* object_groups() {
+    return &object_groups_;
+  }
+
+  List<ObjectGroupRetainerInfo>* retainer_infos() {
+    return &retainer_infos_;
+  }
 
   // Returns the implicit references' groups.
   List<ImplicitRefGroup*>* implicit_ref_groups() {
@@ -270,7 +287,8 @@ class GlobalHandles {
 
   int post_gc_processing_count_;
 
-  List<ObjectGroup*> object_groups_;
+  List<ObjectGroupConnection> object_groups_;
+  List<ObjectGroupRetainerInfo> retainer_infos_;
   List<ImplicitRefGroup*> implicit_ref_groups_;
 
   friend class Isolate;

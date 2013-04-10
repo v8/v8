@@ -43,6 +43,8 @@
 
 using namespace v8::internal;
 
+using v8::UniqueId;
+
 
 TEST(MarkingDeque) {
   CcTest::InitializeVM();
@@ -306,7 +308,7 @@ static void WeakPointerCallback(v8::Isolate* isolate,
   handle.Dispose(isolate);
 }
 
-TEST(ObjectGroups) {
+TEST(ObjectGroupsOldApi) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
@@ -419,6 +421,122 @@ TEST(ObjectGroups) {
   CHECK_EQ(7, NumberOfWeakCalls);
 }
 
+TEST(ObjectGroups) {
+  FLAG_incremental_marking = false;
+  CcTest::InitializeVM();
+  GlobalHandles* global_handles = reinterpret_cast<v8::internal::Isolate*>(
+      CcTest::isolate())->global_handles();
+
+  NumberOfWeakCalls = 0;
+  v8::HandleScope handle_scope(CcTest::isolate());
+
+  Heap* heap = reinterpret_cast<v8::internal::Isolate*>(
+      CcTest::isolate())->heap();
+  Handle<Object> g1s1 =
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> g1s2 =
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> g1c1 =
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+  global_handles->MakeWeak(g1s1.location(),
+                           reinterpret_cast<void*>(1234),
+                           NULL,
+                           &WeakPointerCallback);
+  global_handles->MakeWeak(g1s2.location(),
+                           reinterpret_cast<void*>(1234),
+                           NULL,
+                           &WeakPointerCallback);
+  global_handles->MakeWeak(g1c1.location(),
+                           reinterpret_cast<void*>(1234),
+                           NULL,
+                           &WeakPointerCallback);
+
+  Handle<Object> g2s1 =
+      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> g2s2 =
+    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+  Handle<Object> g2c1 =
+    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+  global_handles->MakeWeak(g2s1.location(),
+                           reinterpret_cast<void*>(1234),
+                           NULL,
+                           &WeakPointerCallback);
+  global_handles->MakeWeak(g2s2.location(),
+                           reinterpret_cast<void*>(1234),
+                           NULL,
+                           &WeakPointerCallback);
+  global_handles->MakeWeak(g2c1.location(),
+                           reinterpret_cast<void*>(1234),
+                           NULL,
+                           &WeakPointerCallback);
+
+  Handle<Object> root = global_handles->Create(*g1s1);  // make a root.
+
+  // Connect group 1 and 2, make a cycle.
+  Handle<FixedArray>::cast(g1s2)->set(0, *g2s2);
+  Handle<FixedArray>::cast(g2s1)->set(0, *g1s1);
+
+  {
+    Object** g1_children[] = { g1c1.location() };
+    Object** g2_children[] = { g2c1.location() };
+    global_handles->SetObjectGroupId(g1s1.location(), v8::UniqueId(1));
+    global_handles->SetObjectGroupId(g1s2.location(), v8::UniqueId(1));
+    global_handles->AddImplicitReferences(
+        Handle<HeapObject>::cast(g1s1).location(), g1_children, 1);
+    global_handles->SetObjectGroupId(g2s1.location(), v8::UniqueId(2));
+    global_handles->SetObjectGroupId(g2s2.location(), v8::UniqueId(2));
+    global_handles->AddImplicitReferences(
+        Handle<HeapObject>::cast(g2s2).location(), g2_children, 1);
+  }
+  // Do a full GC
+  heap->CollectGarbage(OLD_POINTER_SPACE);
+
+  // All object should be alive.
+  CHECK_EQ(0, NumberOfWeakCalls);
+
+  // Weaken the root.
+  global_handles->MakeWeak(root.location(),
+                           reinterpret_cast<void*>(1234),
+                           NULL,
+                           &WeakPointerCallback);
+  // But make children strong roots---all the objects (except for children)
+  // should be collectable now.
+  global_handles->ClearWeakness(g1c1.location());
+  global_handles->ClearWeakness(g2c1.location());
+
+  // Groups are deleted, rebuild groups.
+  {
+    Object** g1_children[] = { g1c1.location() };
+    Object** g2_children[] = { g2c1.location() };
+    global_handles->SetObjectGroupId(g1s1.location(), v8::UniqueId(1));
+    global_handles->SetObjectGroupId(g1s2.location(), v8::UniqueId(1));
+    global_handles->AddImplicitReferences(
+        Handle<HeapObject>::cast(g1s1).location(), g1_children, 1);
+    global_handles->SetObjectGroupId(g2s1.location(), v8::UniqueId(2));
+    global_handles->SetObjectGroupId(g2s2.location(), v8::UniqueId(2));
+    global_handles->AddImplicitReferences(
+        Handle<HeapObject>::cast(g2s2).location(), g2_children, 1);
+  }
+
+  heap->CollectGarbage(OLD_POINTER_SPACE);
+
+  // All objects should be gone. 5 global handles in total.
+  CHECK_EQ(5, NumberOfWeakCalls);
+
+  // And now make children weak again and collect them.
+  global_handles->MakeWeak(g1c1.location(),
+                           reinterpret_cast<void*>(1234),
+                           NULL,
+                           &WeakPointerCallback);
+  global_handles->MakeWeak(g2c1.location(),
+                           reinterpret_cast<void*>(1234),
+                           NULL,
+                           &WeakPointerCallback);
+
+  heap->CollectGarbage(OLD_POINTER_SPACE);
+  CHECK_EQ(7, NumberOfWeakCalls);
+}
+
 
 class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
  public:
@@ -444,7 +562,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 };
 
 
-TEST(EmptyObjectGroups) {
+TEST(EmptyObjectGroupsOldApi) {
   CcTest::InitializeVM();
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
 

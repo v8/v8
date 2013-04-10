@@ -36,11 +36,6 @@ namespace v8 {
 namespace internal {
 
 
-ObjectGroup::~ObjectGroup() {
-  if (info_ != NULL) info_->Dispose();
-}
-
-
 class GlobalHandles::Node {
  public:
   // State transition diagram:
@@ -578,45 +573,77 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
 
 bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,
                                         WeakSlotCallbackWithHeap can_skip) {
-  int last = 0;
-  bool any_group_was_visited = false;
-  for (int i = 0; i < object_groups_.length(); i++) {
-    ObjectGroup* entry = object_groups_.at(i);
-    ASSERT(entry != NULL);
+  if (object_groups_.length() == 0)
+    return false;
 
-    Object*** objects = entry->objects_;
-    bool group_should_be_visited = false;
-    for (size_t j = 0; j < entry->length_; j++) {
-      Object* object = *objects[j];
-      if (object->IsHeapObject()) {
-        if (!can_skip(isolate_->heap(), &object)) {
-          group_should_be_visited = true;
-          break;
+  object_groups_.Sort();
+  retainer_infos_.Sort();
+
+  // During the iteration, some of the elements of object_groups are
+  // deleted. This is done by moving surviving elements at the front of the list
+  // and deleting from the end. This index tracks where the next surviving
+  // element should be moved.
+  int surviving_element_index = 0;
+  int info_index = 0;  // For iterating retainer_infos_.
+  int surviving_info_index = 0;
+
+  UniqueId current_group_id(0);
+  size_t current_group_start = 0;
+  bool any_group_was_visited = false;
+
+  for (int i = 0; i <= object_groups_.length(); ++i) {
+    if (i == 0)
+      current_group_id = object_groups_[i].id;
+    if (i == object_groups_.length() ||
+        current_group_id != object_groups_[i].id) {
+      // Group detected: objects in indices [current_group_start, i[.
+      bool group_should_be_visited = false;
+      for (int j = current_group_start; j < i; ++j) {
+        Object* object = *(object_groups_[j].object);
+        if (object->IsHeapObject()) {
+          if (!can_skip(isolate_->heap(), &object)) {
+            group_should_be_visited = true;
+            break;
+          }
         }
       }
-    }
 
-    if (!group_should_be_visited) {
-      object_groups_[last++] = entry;
-      continue;
-    }
+      if (!group_should_be_visited) {
+        for (int j = current_group_start; j < i; ++j)
+          object_groups_[surviving_element_index++] = object_groups_[j];
+      } else {
+        // An object in the group requires visiting, so iterate over all
+        // objects in the group.
+        for (int j = current_group_start; j < i; ++j) {
+          Object* object = *(object_groups_[j].object);
+          if (object->IsHeapObject()) {
+            v->VisitPointer(&object);
+            any_group_was_visited = true;
+          }
+        }
+      }
 
-    // An object in the group requires visiting, so iterate over all
-    // objects in the group.
-    for (size_t j = 0; j < entry->length_; ++j) {
-      Object* object = *objects[j];
-      if (object->IsHeapObject()) {
-        v->VisitPointer(&object);
-        any_group_was_visited = true;
+      if (info_index < retainer_infos_.length() &&
+          retainer_infos_[info_index].id ==
+          object_groups_[current_group_start].id) {
+        // This object group has an associated ObjectGroupRetainerInfo.
+        if (!group_should_be_visited) {
+          retainer_infos_[surviving_info_index++] =
+              retainer_infos_[info_index];
+        } else if (retainer_infos_[info_index].info != NULL) {
+          retainer_infos_[info_index].info->Dispose();
+          retainer_infos_[info_index].info = NULL;
+        }
+        ++info_index;
+      }
+      if (i < object_groups_.length()) {
+        current_group_id = object_groups_[i].id;
+        current_group_start = i;
       }
     }
-
-    // Once the entire group has been iterated over, set the object
-    // group to NULL so it won't be processed again.
-    entry->Dispose();
-    object_groups_.at(i) = NULL;
   }
-  object_groups_.Rewind(last);
+  object_groups_.Rewind(surviving_element_index);
+  retainer_infos_.Rewind(surviving_info_index);
   return any_group_was_visited;
 }
 
@@ -824,7 +851,23 @@ void GlobalHandles::AddObjectGroup(Object*** handles,
     if (info != NULL) info->Dispose();
     return;
   }
-  object_groups_.Add(ObjectGroup::New(handles, length, info));
+  for (size_t i = 0; i < length; ++i) {
+    object_groups_.Add(ObjectGroupConnection(
+        UniqueId(reinterpret_cast<intptr_t>(handles[0])), handles[i]));
+  }
+  retainer_infos_.Add(ObjectGroupRetainerInfo(
+      UniqueId(reinterpret_cast<intptr_t>(handles[0])), info));
+}
+
+void GlobalHandles::SetObjectGroupId(Object** handle,
+                                     UniqueId id) {
+  object_groups_.Add(ObjectGroupConnection(id, handle));
+}
+
+
+void GlobalHandles::SetRetainedObjectInfo(UniqueId id,
+                                          RetainedObjectInfo* info) {
+  retainer_infos_.Add(ObjectGroupRetainerInfo(id, info));
 }
 
 
@@ -843,10 +886,12 @@ void GlobalHandles::AddImplicitReferences(HeapObject** parent,
 
 
 void GlobalHandles::RemoveObjectGroups() {
-  for (int i = 0; i < object_groups_.length(); i++) {
-    object_groups_.at(i)->Dispose();
-  }
   object_groups_.Clear();
+  for (int i = 0; i < retainer_infos_.length(); ++i) {
+    if (retainer_infos_[i].info != NULL)
+      retainer_infos_[i].info->Dispose();
+  }
+  retainer_infos_.Clear();
 }
 
 

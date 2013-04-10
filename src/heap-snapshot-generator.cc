@@ -1940,17 +1940,43 @@ void NativeObjectsExplorer::FillRetainedObjects() {
   const GCType major_gc_type = kGCTypeMarkSweepCompact;
   // Record objects that are joined into ObjectGroups.
   isolate->heap()->CallGCPrologueCallbacks(major_gc_type);
-  List<ObjectGroup*>* groups = isolate->global_handles()->object_groups();
-  for (int i = 0; i < groups->length(); ++i) {
-    ObjectGroup* group = groups->at(i);
-    if (group->info_ == NULL) continue;
-    List<HeapObject*>* list = GetListMaybeDisposeInfo(group->info_);
-    for (size_t j = 0; j < group->length_; ++j) {
-      HeapObject* obj = HeapObject::cast(*group->objects_[j]);
-      list->Add(obj);
-      in_groups_.Insert(obj);
+
+  List<ObjectGroupConnection>* groups =
+      isolate->global_handles()->object_groups();
+  List<ObjectGroupRetainerInfo>* infos =
+      isolate->global_handles()->retainer_infos();
+  groups->Sort();
+  infos->Sort();
+
+  int info_ix = 0;
+  UniqueId current_group_id(0);
+  size_t current_group_start = 0;
+
+  if (groups->length() > 0) {
+    for (int i = 0; i <= groups->length(); ++i) {
+      if (i == 0)
+        current_group_id = groups->at(i).id;
+      if (i == groups->length() ||
+          current_group_id != groups->at(i).id) {
+        // Group detected: objects in indices [current_group_start, i[.
+        if (info_ix < infos->length() &&
+            infos->at(info_ix).id == groups->at(current_group_start).id) {
+          // Transfer the ownership of info.
+          List<HeapObject*>* list =
+              GetListMaybeDisposeInfo(infos->at(info_ix).info);
+          infos->at(info_ix).info = NULL;
+          for (int j = current_group_start; j < i; ++j) {
+            HeapObject* obj = HeapObject::cast(*(groups->at(j).object));
+            list->Add(obj);
+            in_groups_.Insert(obj);
+          }
+        }
+        if (i < groups->length()) {
+          current_group_id = groups->at(i).id;
+          current_group_start = i;
+        }
+      }
     }
-    group->info_ = NULL;  // Acquire info object ownership.
   }
   isolate->global_handles()->RemoveObjectGroups();
   isolate->heap()->CallGCEpilogueCallbacks(major_gc_type);

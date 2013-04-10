@@ -144,6 +144,28 @@ class Isolate;
 class Object;
 }
 
+// Generic-purpose unique identifier.
+class UniqueId {
+ public:
+  explicit UniqueId(intptr_t data)
+      : data_(data) {}
+
+  bool operator==(const UniqueId& other) const {
+    return data_ == other.data_;
+  }
+
+  bool operator!=(const UniqueId& other) const {
+    return data_ != other.data_;
+  }
+
+  bool operator<(const UniqueId& other) const {
+    return data_ < other.data_;
+  }
+
+ private:
+  intptr_t data_;
+};
+
 
 // --- Weak Handles ---
 
@@ -3503,6 +3525,8 @@ class V8EXPORT V8 {
    * for partially dependent handles only.
    * See v8-profiler.h for RetainedObjectInfo interface description.
    */
+  // TODO(marja): deprecate AddObjectGroup. Use SetObjectGroupID and
+  // SetRetainedObjectInfo instead.
   static void AddObjectGroup(Persistent<Value>* objects,
                              size_t length,
                              RetainedObjectInfo* info = NULL);
@@ -3510,6 +3534,14 @@ class V8EXPORT V8 {
                              Persistent<Value>* objects,
                              size_t length,
                              RetainedObjectInfo* info = NULL);
+
+  static void SetObjectGroupId(Isolate* isolate,
+                               const Persistent<Value>& object,
+                               UniqueId id);
+
+  static void SetRetainedObjectInfo(Isolate* isolate,
+                                    UniqueId id,
+                                    RetainedObjectInfo* info);
 
   /**
    * Allows the host application to declare implicit references between
