@@ -958,18 +958,18 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
     }
   }
 
-  if (shared->code()->stack_check_patched_for_osr()) {
+  if (shared->code()->back_edges_patched_for_osr()) {
     // At this point we either put the function on recompilation queue or
     // aborted optimization.  In either case we want to continue executing
     // the unoptimized code without running into OSR.  If the unoptimized
     // code has been patched for OSR, unpatch it.
     InterruptStub interrupt_stub;
-    Handle<Code> check_code = interrupt_stub.GetCode(isolate);
+    Handle<Code> interrupt_code = interrupt_stub.GetCode(isolate);
     Handle<Code> replacement_code =
         isolate->builtins()->OnStackReplacement();
-    Deoptimizer::RevertStackCheckCode(shared->code(),
-                                      *check_code,
-                                      *replacement_code);
+    Deoptimizer::RevertInterruptCode(shared->code(),
+                                     *interrupt_code,
+                                     *replacement_code);
   }
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();

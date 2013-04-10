@@ -9109,13 +9109,6 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 }
 
 
-void Code::SetNoStackCheckTable() {
-  // Indicate the absence of a stack-check table by a table start after the
-  // end of the instructions.  Table start must be aligned, so round up.
-  set_stack_check_table_offset(RoundUp(instruction_size(), kIntSize));
-}
-
-
 Map* Code::FindFirstMap() {
   ASSERT(is_inline_cache_stub());
   AssertNoAllocation no_allocation;
@@ -9634,18 +9627,20 @@ void Code::Disassemble(const char* name, FILE* out) {
     }
     PrintF(out, "\n");
   } else if (kind() == FUNCTION) {
-    unsigned offset = stack_check_table_offset();
-    // If there is no stack check table, the "table start" will at or after
+    unsigned offset = back_edge_table_offset();
+    // If there is no back edge table, the "table start" will be at or after
     // (due to alignment) the end of the instruction stream.
     if (static_cast<int>(offset) < instruction_size()) {
-      unsigned* address =
-          reinterpret_cast<unsigned*>(instruction_start() + offset);
-      unsigned length = address[0];
-      PrintF(out, "Stack checks (size = %u)\n", length);
-      PrintF(out, "ast_id  pc_offset\n");
-      for (unsigned i = 0; i < length; ++i) {
-        unsigned index = (2 * i) + 1;
-        PrintF(out, "%6u  %9u\n", address[index], address[index + 1]);
+      Address back_edge_cursor = instruction_start() + offset;
+      uint32_t table_length = Memory::uint32_at(back_edge_cursor);
+      PrintF(out, "Back edges (size = %u)\n", table_length);
+      PrintF(out, "ast_id  pc_offset  loop_depth\n");
+      for (uint32_t i = 0; i < table_length; ++i) {
+        uint32_t ast_id = Memory::uint32_at(back_edge_cursor);
+        uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
+        uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
+        PrintF(out, "%6u  %9u  %10u\n", ast_id, pc_offset, loop_depth);
+        back_edge_cursor += FullCodeGenerator::kBackEdgeEntrySize;
       }
       PrintF(out, "\n");
     }

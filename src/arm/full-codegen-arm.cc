@@ -314,7 +314,7 @@ void FullCodeGenerator::Generate() {
   EmitReturnSequence();
 
   // Force emit the constant pool, so it doesn't get emitted in the middle
-  // of the stack check table.
+  // of the back edge table.
   masm()->CheckConstPool(true, false);
 }
 
@@ -351,7 +351,7 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
 void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
                                                 Label* back_edge_target) {
   Comment cmnt(masm_, "[ Back edge bookkeeping");
-  // Block literal pools whilst emitting stack check code.
+  // Block literal pools whilst emitting back edge code.
   Assembler::BlockConstPoolScope block_const_pool(masm_);
   Label ok;
 

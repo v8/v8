@@ -117,45 +117,39 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
 
 static const int32_t kBranchBeforeInterrupt =  0x5a000004;
 
+// The back edge bookkeeping code matches the pattern:
+//
+//  <decrement profiling counter>
+//  2a 00 00 01       bpl ok
+//  e5 9f c? ??       ldr ip, [pc, <interrupt stub address>]
+//  e1 2f ff 3c       blx ip
+//  ok-label
+//
+// We patch the code to the following form:
+//
+//  <decrement profiling counter>
+//  e1 a0 00 00       mov r0, r0 (NOP)
+//  e5 9f c? ??       ldr ip, [pc, <on-stack replacement address>]
+//  e1 2f ff 3c       blx ip
+//  ok-label
 
-void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
-                                        Address pc_after,
-                                        Code* check_code,
-                                        Code* replacement_code) {
-  const int kInstrSize = Assembler::kInstrSize;
-  // The back edge bookkeeping code matches the pattern:
-  //
-  //  <decrement profiling counter>
-  //  2a 00 00 01       bpl ok
-  //  e5 9f c? ??       ldr ip, [pc, <stack guard address>]
-  //  e1 2f ff 3c       blx ip
-  ASSERT(Memory::int32_at(pc_after - kInstrSize) == kBlxIp);
-  ASSERT(Assembler::IsLdrPcImmediateOffset(
-      Assembler::instr_at(pc_after - 2 * kInstrSize)));
-  ASSERT_EQ(kBranchBeforeInterrupt,
-            Memory::int32_at(pc_after - 3 * kInstrSize));
-
-  // We patch the code to the following form:
-  //
-  //  <decrement profiling counter>
-  //  e1 a0 00 00       mov r0, r0 (NOP)
-  //  e5 9f c? ??       ldr ip, [pc, <on-stack replacement address>]
-  //  e1 2f ff 3c       blx ip
-  // and overwrite the constant containing the
-  // address of the stack check stub.
-
-  // Replace conditional jump with NOP.
+void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
+                                       Address pc_after,
+                                       Code* interrupt_code,
+                                       Code* replacement_code) {
+  ASSERT(!InterruptCodeIsPatched(unoptimized_code,
+                                 pc_after,
+                                 interrupt_code,
+                                 replacement_code));
+  static const int kInstrSize = Assembler::kInstrSize;
+  // Turn the jump into nops.
   CodePatcher patcher(pc_after - 3 * kInstrSize, 1);
   patcher.masm()->nop();
-
-  // Replace the stack check address in the constant pool
-  // with the entry address of the replacement code.
-  uint32_t stack_check_address_offset = Memory::uint16_at(pc_after -
+  // Replace the call address.
+  uint32_t interrupt_address_offset = Memory::uint16_at(pc_after -
       2 * kInstrSize) & 0xfff;
-  Address stack_check_address_pointer = pc_after + stack_check_address_offset;
-  ASSERT(Memory::uint32_at(stack_check_address_pointer) ==
-         reinterpret_cast<uint32_t>(check_code->entry()));
-  Memory::uint32_at(stack_check_address_pointer) =
+  Address interrupt_address_pointer = pc_after + interrupt_address_offset;
+  Memory::uint32_at(interrupt_address_pointer) =
       reinterpret_cast<uint32_t>(replacement_code->entry());
 
   unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
@@ -163,34 +157,61 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
 }
 
 
-void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
-                                         Address pc_after,
-                                         Code* check_code,
-                                         Code* replacement_code) {
-  const int kInstrSize = Assembler::kInstrSize;
-  ASSERT(Memory::int32_at(pc_after - kInstrSize) == kBlxIp);
-  ASSERT(Assembler::IsLdrPcImmediateOffset(
-      Assembler::instr_at(pc_after - 2 * kInstrSize)));
-
-  // Replace NOP with conditional jump.
+void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
+                                        Address pc_after,
+                                        Code* interrupt_code,
+                                        Code* replacement_code) {
+  ASSERT(InterruptCodeIsPatched(unoptimized_code,
+                                 pc_after,
+                                 interrupt_code,
+                                 replacement_code));
+  static const int kInstrSize = Assembler::kInstrSize;
+  // Restore the original jump.
   CodePatcher patcher(pc_after - 3 * kInstrSize, 1);
-  patcher.masm()->b(+16, pl);
-  ASSERT_EQ(kBranchBeforeInterrupt,
-            Memory::int32_at(pc_after - 3 * kInstrSize));
-
-  // Replace the stack check address in the constant pool
-  // with the entry address of the replacement code.
-  uint32_t stack_check_address_offset = Memory::uint16_at(pc_after -
+  patcher.masm()->b(4 * kInstrSize, pl);  // ok-label is 4 instructions later.
+  // Restore the original call address.
+  uint32_t interrupt_address_offset = Memory::uint16_at(pc_after -
       2 * kInstrSize) & 0xfff;
-  Address stack_check_address_pointer = pc_after + stack_check_address_offset;
-  ASSERT(Memory::uint32_at(stack_check_address_pointer) ==
-         reinterpret_cast<uint32_t>(replacement_code->entry()));
-  Memory::uint32_at(stack_check_address_pointer) =
-      reinterpret_cast<uint32_t>(check_code->entry());
+  Address interrupt_address_pointer = pc_after + interrupt_address_offset;
+  Memory::uint32_at(interrupt_address_pointer) =
+      reinterpret_cast<uint32_t>(interrupt_code->entry());
 
-  check_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, pc_after - 2 * kInstrSize, check_code);
+  interrupt_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, pc_after - 2 * kInstrSize, interrupt_code);
 }
+
+
+#ifdef DEBUG
+bool Deoptimizer::InterruptCodeIsPatched(Code* unoptimized_code,
+                                         Address pc_after,
+                                         Code* interrupt_code,
+                                         Code* replacement_code) {
+  Address call_target_address = pc_after - kIntSize;
+  ASSERT_EQ(kBlxIp, Memory::int32_at(pc_after - kInstrSize));
+
+  uint32_t interrupt_address_offset =
+      Memory::uint16_at(pc_after - 2 * kInstrSize) & 0xfff;
+  Address interrupt_address_pointer = pc_after + interrupt_address_offset;
+
+  if (Assembler::IsNop(Assembler::instr_at(pc_after - 3 * kInstrSize))) {
+    ASSERT(Assembler::IsLdrPcImmediateOffset(
+        Assembler::instr_at(pc_after - 2 * kInstrSize)));
+    ASSERT_EQ(kBranchBeforeInterrupt,
+              Memory::int32_at(pc_after - 3 * kInstrSize));
+    ASSERT_EQ(reinterpret_cast<uint32_t>(replacement_code->entry()),
+              Memory::uint32_at(interrupt_address_pointer));
+    return true;
+  } else {
+    ASSERT(Assembler::IsLdrPcImmediateOffset(
+        Assembler::instr_at(pc_after - 2 * kInstrSize)));
+    ASSERT_EQ(kBranchBeforeInterrupt,
+              Memory::int32_at(pc_after - 3 * kInstrSize));
+    ASSERT_EQ(reinterpret_cast<uint32_t>(interrupt_code->entry()),
+              Memory::uint32_at(interrupt_address_pointer));
+    return false;
+  }
+}
+#endif  // DEBUG
 
 
 static int LookupBailoutId(DeoptimizationInputData* data, BailoutId ast_id) {

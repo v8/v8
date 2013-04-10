@@ -190,23 +190,22 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // any back edge in any unoptimized frame will trigger on-stack
   // replacement for that frame.
   if (FLAG_trace_osr) {
-    PrintF("[patching stack checks in ");
+    PrintF("[patching back edges in ");
     function->PrintName();
     PrintF(" for on-stack replacement]\n");
   }
 
-  // Get the stack check stub code object to match against.  We aren't
+  // Get the interrupt stub code object to match against.  We aren't
   // prepared to generate it, but we don't expect to have to.
-  Code* stack_check_code = NULL;
+  Code* interrupt_code = NULL;
   InterruptStub interrupt_stub;
-  bool found_code = interrupt_stub.FindCodeInCache(&stack_check_code, isolate_);
+  bool found_code = interrupt_stub.FindCodeInCache(&interrupt_code, isolate_);
   if (found_code) {
     Code* replacement_code =
         isolate_->builtins()->builtin(Builtins::kOnStackReplacement);
     Code* unoptimized_code = shared->code();
-    Deoptimizer::PatchStackCheckCode(unoptimized_code,
-                                     stack_check_code,
-                                     replacement_code);
+    Deoptimizer::PatchInterruptCode(
+        unoptimized_code, interrupt_code, replacement_code);
   }
 }
 
@@ -296,9 +295,11 @@ void RuntimeProfiler::OptimizeNow() {
          function->IsMarkedForParallelRecompilation() ||
          function->IsOptimized())) {
       int nesting = shared_code->allow_osr_at_loop_nesting_level();
-      if (nesting == 0) AttemptOnStackReplacement(function);
-      int new_nesting = Min(nesting + 1, Code::kMaxLoopNestingMarker);
-      shared_code->set_allow_osr_at_loop_nesting_level(new_nesting);
+      if (nesting < Code::kMaxLoopNestingMarker) {
+        int new_nesting = nesting + 1;
+        shared_code->set_allow_osr_at_loop_nesting_level(new_nesting);
+        AttemptOnStackReplacement(function);
+      }
     }
 
     // Only record top-level code on top of the execution stack and

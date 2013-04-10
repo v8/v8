@@ -4508,13 +4508,13 @@ class Code: public HeapObject {
   inline unsigned safepoint_table_offset();
   inline void set_safepoint_table_offset(unsigned offset);
 
-  // [stack_check_table_start]: For kind FUNCTION, the offset in the
-  // instruction stream where the stack check table starts.
-  inline unsigned stack_check_table_offset();
-  inline void set_stack_check_table_offset(unsigned offset);
+  // [back_edge_table_start]: For kind FUNCTION, the offset in the
+  // instruction stream where the back edge table starts.
+  inline unsigned back_edge_table_offset();
+  inline void set_back_edge_table_offset(unsigned offset);
 
-  inline bool stack_check_patched_for_osr();
-  inline void set_stack_check_patched_for_osr(bool value);
+  inline bool back_edges_patched_for_osr();
+  inline void set_back_edges_patched_for_osr(bool value);
 
   // [check type]: For kind CALL_IC, tells how to check if the
   // receiver is valid for the given call.
@@ -4544,10 +4544,6 @@ class Code: public HeapObject {
 
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
-
-  // Mark this code object as not having a stack check table.  Assumes kind
-  // is FUNCTION.
-  void SetNoStackCheckTable();
 
   // Find the first map in an IC stub.
   Map* FindFirstMap();
@@ -4798,8 +4794,8 @@ class Code: public HeapObject {
       kStubMajorKeyFirstBit, kStubMajorKeyBits> {};  // NOLINT
 
   // KindSpecificFlags2 layout (FUNCTION)
-  class StackCheckTableOffsetField: public BitField<int, 0, 31> {};
-  class StackCheckPatchedForOSRField: public BitField<bool, 31, 1> {};
+  class BackEdgeTableOffsetField: public BitField<int, 0, 31> {};
+  class BackEdgesPatchedForOSRField: public BitField<bool, 31, 1> {};
 
   // Signed field cannot be encoded using the BitField class.
   static const int kArgumentsCountShift = 17;

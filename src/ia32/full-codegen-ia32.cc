@@ -353,13 +353,6 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   // the deoptimization input data found in the optimized code.
   RecordBackEdge(stmt->OsrEntryId());
 
-  // Loop stack checks can be patched to perform on-stack replacement. In
-  // order to decide whether or not to perform OSR we embed the loop depth
-  // in a test instruction after the call so we can extract it from the OSR
-  // builtin.
-  ASSERT(loop_depth() > 0);
-  __ test(eax, Immediate(Min(loop_depth(), Code::kMaxLoopNestingMarker)));
-
   EmitProfilingCounterReset();
 
   __ bind(&ok);

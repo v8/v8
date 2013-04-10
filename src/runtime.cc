@@ -43,6 +43,7 @@
 #include "deoptimizer.h"
 #include "date.h"
 #include "execution.h"
+#include "full-codegen.h"
 #include "global-handles.h"
 #include "isolate-inl.h"
 #include "jsregexp.h"
@@ -7609,9 +7610,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
       unoptimized->kind() == Code::FUNCTION) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
     if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr"))) {
-      isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
-      unoptimized->set_allow_osr_at_loop_nesting_level(
-          Code::kMaxLoopNestingMarker);
+      for (int i = 0; i <= Code::kMaxLoopNestingMarker; i++) {
+        unoptimized->set_allow_osr_at_loop_nesting_level(i);
+        isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
+      }
     } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("parallel"))) {
       function->MarkForParallelRecompilation();
     }
@@ -7704,25 +7706,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     ASSERT(frame->LookupCode() == *unoptimized);
     ASSERT(unoptimized->contains(frame->pc()));
 
-    // Use linear search of the unoptimized code's stack check table to find
+    // Use linear search of the unoptimized code's back edge table to find
     // the AST id matching the PC.
     Address start = unoptimized->instruction_start();
     unsigned target_pc_offset = static_cast<unsigned>(frame->pc() - start);
-    Address table_cursor = start + unoptimized->stack_check_table_offset();
+    Address table_cursor = start + unoptimized->back_edge_table_offset();
     uint32_t table_length = Memory::uint32_at(table_cursor);
     table_cursor += kIntSize;
+    uint8_t loop_depth = 0;
     for (unsigned i = 0; i < table_length; ++i) {
       // Table entries are (AST id, pc offset) pairs.
       uint32_t pc_offset = Memory::uint32_at(table_cursor + kIntSize);
       if (pc_offset == target_pc_offset) {
         ast_id = BailoutId(static_cast<int>(Memory::uint32_at(table_cursor)));
+        loop_depth = Memory::uint8_at(table_cursor + 2 * kIntSize);
         break;
       }
-      table_cursor += 2 * kIntSize;
+      table_cursor += FullCodeGenerator::kBackEdgeEntrySize;
     }
     ASSERT(!ast_id.IsNone());
     if (FLAG_trace_osr) {
-      PrintF("[replacing on-stack at AST id %d in ", ast_id.ToInt());
+      PrintF("[replacing on-stack at AST id %d, loop depth %d in ",
+              ast_id.ToInt(), loop_depth);
       function->PrintName();
       PrintF("]\n");
     }
@@ -7750,18 +7755,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     }
   }
 
-  // Revert to the original stack checks in the original unoptimized code.
+  // Revert to the original interrupt calls in the original unoptimized code.
   if (FLAG_trace_osr) {
-    PrintF("[restoring original stack checks in ");
+    PrintF("[restoring original interrupt calls in ");
     function->PrintName();
     PrintF("]\n");
   }
   InterruptStub interrupt_stub;
-  Handle<Code> check_code = interrupt_stub.GetCode(isolate);
+  Handle<Code> interrupt_code = interrupt_stub.GetCode(isolate);
   Handle<Code> replacement_code = isolate->builtins()->OnStackReplacement();
-  Deoptimizer::RevertStackCheckCode(*unoptimized,
-                                    *check_code,
-                                    *replacement_code);
+  Deoptimizer::RevertInterruptCode(*unoptimized,
+                                   *interrupt_code,
+                                   *replacement_code);
 
   // Allow OSR only at nesting level zero again.
   unoptimized->set_allow_osr_at_loop_nesting_level(0);

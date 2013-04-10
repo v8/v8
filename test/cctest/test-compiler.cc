@@ -390,7 +390,7 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
     Address pc = f->code()->instruction_start();
     int decode_size =
         Min(f->code()->instruction_size(),
-            static_cast<int>(f->code()->stack_check_table_offset()));
+            static_cast<int>(f->code()->back_edge_table_offset()));
     Address end = pc + decode_size;
 
     v8::internal::EmbeddedVector<char, 128> decode_buffer;

@@ -3799,33 +3799,33 @@ void Code::set_safepoint_table_offset(unsigned offset) {
 }
 
 
-unsigned Code::stack_check_table_offset() {
+unsigned Code::back_edge_table_offset() {
   ASSERT_EQ(FUNCTION, kind());
-  return StackCheckTableOffsetField::decode(
+  return BackEdgeTableOffsetField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
 
 
-void Code::set_stack_check_table_offset(unsigned offset) {
+void Code::set_back_edge_table_offset(unsigned offset) {
   ASSERT_EQ(FUNCTION, kind());
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = StackCheckTableOffsetField::update(previous, offset);
+  int updated = BackEdgeTableOffsetField::update(previous, offset);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
 }
 
 
-bool Code::stack_check_patched_for_osr() {
+bool Code::back_edges_patched_for_osr() {
   ASSERT_EQ(FUNCTION, kind());
-  return StackCheckPatchedForOSRField::decode(
+  return BackEdgesPatchedForOSRField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
 
 
-void Code::set_stack_check_patched_for_osr(bool value) {
+void Code::set_back_edges_patched_for_osr(bool value) {
   ASSERT_EQ(FUNCTION, kind());
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = StackCheckPatchedForOSRField::update(previous, value);
+  int updated = BackEdgesPatchedForOSRField::update(previous, value);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
 }
 
