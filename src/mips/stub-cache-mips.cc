@@ -429,29 +429,27 @@ static void GenerateCheckPropertyCell(MacroAssembler* masm,
 }
 
 
-// Generate StoreField code, value is passed in a0 register.
+// Generate StoreTransition code, value is passed in a0 register.
 // After executing generated code, the receiver_reg and name_reg
 // may be clobbered.
-void StubCompiler::GenerateStoreField(MacroAssembler* masm,
-                                      Handle<JSObject> object,
-                                      LookupResult* lookup,
-                                      Handle<Map> transition,
-                                      Handle<Name> name,
-                                      Register receiver_reg,
-                                      Register name_reg,
-                                      Register value_reg,
-                                      Register scratch1,
-                                      Register scratch2,
-                                      Label* miss_label,
-                                      Label* miss_restore_name) {
+void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
+                                           Handle<JSObject> object,
+                                           LookupResult* lookup,
+                                           Handle<Map> transition,
+                                           Handle<Name> name,
+                                           Register receiver_reg,
+                                           Register name_reg,
+                                           Register value_reg,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Label* miss_label,
+                                           Label* miss_restore_name) {
   // a0 : value.
   Label exit;
 
   // Check that the map of the object hasn't changed.
-  CompareMapMode mode = transition.is_null() ? ALLOW_ELEMENT_TRANSITION_MAPS
-                                             : REQUIRE_EXACT_MAP;
   __ CheckMap(receiver_reg, scratch1, Handle<Map>(object->map()), miss_label,
-              DO_SMI_CHECK, mode);
+              DO_SMI_CHECK, REQUIRE_EXACT_MAP);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -459,7 +457,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   }
 
   // Check that we are allowed to write this.
-  if (!transition.is_null() && object->GetPrototype()->IsJSObject()) {
+  if (object->GetPrototype()->IsJSObject()) {
     JSObject* holder;
     // holder == object indicates that no property was found.
     if (lookup->holder() != *object) {
@@ -497,7 +495,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
   // Perform map transition for the receiver if necessary.
-  if (!transition.is_null() && (object->map()->unused_property_fields() == 0)) {
+  if (object->map()->unused_property_fields() == 0) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
     __ push(receiver_reg);
@@ -510,33 +508,114 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     return;
   }
 
-  int index;
-  if (!transition.is_null()) {
-    // Update the map of the object.
-    __ li(scratch1, Operand(transition));
-    __ sw(scratch1, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
+  // Update the map of the object.
+  __ li(scratch1, Operand(transition));
+  __ sw(scratch1, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
 
-    // Update the write barrier for the map field and pass the now unused
-    // name_reg as scratch register.
-    __ RecordWriteField(receiver_reg,
-                        HeapObject::kMapOffset,
-                        scratch1,
-                        name_reg,
-                        kRAHasNotBeenSaved,
-                        kDontSaveFPRegs,
-                        OMIT_REMEMBERED_SET,
-                        OMIT_SMI_CHECK);
-    index = transition->instance_descriptors()->GetFieldIndex(
-        transition->LastAdded());
-  } else {
-    index = lookup->GetFieldIndex().field_index();
-  }
+  // Update the write barrier for the map field and pass the now unused
+  // name_reg as scratch register.
+  __ RecordWriteField(receiver_reg,
+                      HeapObject::kMapOffset,
+                      scratch1,
+                      name_reg,
+                      kRAHasNotBeenSaved,
+                      kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+
+  int index = transition->instance_descriptors()->GetFieldIndex(
+      transition->LastAdded());
 
   // Adjust for the number of properties stored in the object. Even in the
   // face of a transition we can use the old map here because the size of the
   // object and the number of in-object properties is not going to change.
   index -= object->map()->inobject_properties();
 
+  // TODO(verwaest): Share this code as a code stub.
+  if (index < 0) {
+    // Set the property straight into the object.
+    int offset = object->map()->instance_size() + (index * kPointerSize);
+    __ sw(value_reg, FieldMemOperand(receiver_reg, offset));
+
+    // Skip updating write barrier if storing a smi.
+    __ JumpIfSmi(value_reg, &exit);
+
+    // Update the write barrier for the array address.
+    // Pass the now unused name_reg as a scratch register.
+    __ mov(name_reg, value_reg);
+    __ RecordWriteField(receiver_reg,
+                        offset,
+                        name_reg,
+                        scratch1,
+                        kRAHasNotBeenSaved,
+                        kDontSaveFPRegs);
+  } else {
+    // Write to the properties array.
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
+    // Get the properties array
+    __ lw(scratch1,
+          FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
+    __ sw(value_reg, FieldMemOperand(scratch1, offset));
+
+    // Skip updating write barrier if storing a smi.
+    __ JumpIfSmi(value_reg, &exit);
+
+    // Update the write barrier for the array address.
+    // Ok to clobber receiver_reg and name_reg, since we return.
+    __ mov(name_reg, value_reg);
+    __ RecordWriteField(scratch1,
+                        offset,
+                        name_reg,
+                        receiver_reg,
+                        kRAHasNotBeenSaved,
+                        kDontSaveFPRegs);
+  }
+
+  // Return the value (register v0).
+  ASSERT(value_reg.is(a0));
+  __ bind(&exit);
+  __ mov(v0, a0);
+  __ Ret();
+}
+
+
+// Generate StoreField code, value is passed in a0 register.
+// When leaving generated code after success, the receiver_reg and name_reg
+// may be clobbered.  Upon branch to miss_label, the receiver and name
+// registers have their original values.
+void StubCompiler::GenerateStoreField(MacroAssembler* masm,
+                                      Handle<JSObject> object,
+                                      LookupResult* lookup,
+                                      Register receiver_reg,
+                                      Register name_reg,
+                                      Register value_reg,
+                                      Register scratch1,
+                                      Register scratch2,
+                                      Label* miss_label) {
+  // a0 : value
+  Label exit;
+
+  // Check that the map of the object hasn't changed.
+  __ CheckMap(receiver_reg, scratch1, Handle<Map>(object->map()), miss_label,
+              DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+
+  // Perform global security token check if needed.
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(receiver_reg, scratch1, miss_label);
+  }
+
+  // Stub never generated for non-global objects that require access
+  // checks.
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+
+  int index = lookup->GetFieldIndex().field_index();
+
+  // Adjust for the number of properties stored in the object. Even in the
+  // face of a transition we can use the old map here because the size of the
+  // object and the number of in-object properties is not going to change.
+  index -= object->map()->inobject_properties();
+
+  // TODO(verwaest): Share this code as a code stub.
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
