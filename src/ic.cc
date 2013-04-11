@@ -1586,7 +1586,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
   switch (lookup->type()) {
     case FIELD:
       return isolate()->stub_cache()->ComputeStoreField(
-          name, receiver, lookup, Handle<Map>::null(), strict_mode);
+          name, receiver, lookup, strict_mode);
     case NORMAL:
       if (receiver->IsGlobalObject()) {
         // The stub generated for the global object picks the value directly
@@ -1644,7 +1644,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
 
       if (details.type() != FIELD || details.attributes() != NONE) break;
 
-      return isolate()->stub_cache()->ComputeStoreField(
+      return isolate()->stub_cache()->ComputeStoreTransition(
           name, receiver, lookup, transition, strict_mode);
     }
     case NONEXISTENT:
@@ -1987,7 +1987,7 @@ Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
   switch (lookup->type()) {
     case FIELD:
       return isolate()->stub_cache()->ComputeKeyedStoreField(
-          name, receiver, lookup, Handle<Map>::null(), strict_mode);
+          name, receiver, lookup, strict_mode);
     case TRANSITION: {
       // Explicitly pass in the receiver map since LookupForWrite may have
       // stored something else than the receiver in the holder.
@@ -1999,7 +1999,7 @@ Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
       if (details.type() == FIELD && details.attributes() == NONE) {
-        return isolate()->stub_cache()->ComputeKeyedStoreField(
+        return isolate()->stub_cache()->ComputeKeyedStoreTransition(
             name, receiver, lookup, transition, strict_mode);
       }
       // fall through.
