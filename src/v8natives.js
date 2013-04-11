@@ -1356,11 +1356,12 @@ function ObjectConstructor(x) {
 function SetUpObject() {
   %CheckIsBootstrapping();
 
-  $Object.prototype.constructor = $Object;
   %SetCode($Object, ObjectConstructor);
   %FunctionSetName(ObjectPoisonProto, "__proto__");
   %FunctionRemovePrototype(ObjectPoisonProto);
   %SetExpectedNumberOfProperties($Object, 4);
+
+  %SetProperty($Object.prototype, "constructor", $Object, DONT_ENUM);
 
   // Set up non-enumerable functions on the Object.prototype object.
   InstallFunctions($Object.prototype, DONT_ENUM, $Array(
@@ -1788,8 +1789,8 @@ function NewFunction(arg1) {  // length == 1
 function SetUpFunction() {
   %CheckIsBootstrapping();
 
-  $Function.prototype.constructor = $Function;
   %SetCode($Function, NewFunction);
+  %SetProperty($Function.prototype, "constructor", $Function, DONT_ENUM);
 
   InstallFunctions($Function.prototype, DONT_ENUM, $Array(
     "bind", FunctionBind,
