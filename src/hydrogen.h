@@ -865,7 +865,10 @@ class FunctionState {
 class HGraphBuilder {
  public:
   explicit HGraphBuilder(CompilationInfo* info)
-      : info_(info), graph_(NULL), current_block_(NULL) {}
+      : info_(info),
+        graph_(NULL),
+        current_block_(NULL),
+        no_side_effects_scope_count_(0) {}
   virtual ~HGraphBuilder() {}
 
   HBasicBlock* current_block() const { return current_block_; }
@@ -890,6 +893,14 @@ class HGraphBuilder {
       Representation r = Representation::None());
 
   HReturn* AddReturn(HValue* value);
+
+  void IncrementInNoSideEffectsScope() {
+    no_side_effects_scope_count_++;
+  }
+
+  void DecrementInNoSideEffectsScope() {
+    no_side_effects_scope_count_--;
+  }
 
  protected:
   virtual bool BuildGraph() = 0;
@@ -1032,6 +1043,20 @@ class HGraphBuilder {
     bool finished_;
   };
 
+  class NoObservableSideEffectsScope {
+   public:
+    explicit NoObservableSideEffectsScope(HGraphBuilder* builder) :
+        builder_(builder) {
+      builder_->IncrementInNoSideEffectsScope();
+    }
+    ~NoObservableSideEffectsScope() {
+      builder_->DecrementInNoSideEffectsScope();
+    }
+
+   private:
+    HGraphBuilder* builder_;
+  };
+
   HValue* BuildNewElementsCapacity(HValue* context,
                                    HValue* old_capacity);
 
@@ -1082,6 +1107,7 @@ class HGraphBuilder {
   CompilationInfo* info_;
   HGraph* graph_;
   HBasicBlock* current_block_;
+  int no_side_effects_scope_count_;
 };
 
 

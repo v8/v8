@@ -828,6 +828,7 @@ class HValue: public ZoneObject {
     // This flag is set to true after the SetupInformativeDefinitions() pass
     // has processed this instruction.
     kIDefsProcessingDone,
+    kHasNoObservableSideEffects,
     kLastFlag = kIDefsProcessingDone
   };
 
@@ -1005,7 +1006,8 @@ class HValue: public ZoneObject {
     return gvn_flags_.ContainsAnyOf(AllSideEffectsFlagSet());
   }
   bool HasObservableSideEffects() const {
-    return gvn_flags_.ContainsAnyOf(AllObservableSideEffectsFlagSet());
+    return !CheckFlag(kHasNoObservableSideEffects) &&
+        gvn_flags_.ContainsAnyOf(AllObservableSideEffectsFlagSet());
   }
 
   GVNFlagSet DependsOnFlags() const {

@@ -147,6 +147,8 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 
   AddSimulate(BailoutId::StubEntry());
 
+  NoObservableSideEffectsScope no_effects(this);
+
   HValue* return_value = BuildCodeStub();
 
   // We might have extra expressions to pop from the stack in addition to the
@@ -298,7 +300,6 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
                                               factory->empty_string(),
                                               value,
                                               true, i));
-    AddSimulate(BailoutId::StubEntry());
   }
 
   builder.End();
@@ -332,7 +333,6 @@ HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
       GetParameter(0), GetParameter(1), GetParameter(2), NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
       true, casted_stub()->store_mode(), Representation::Tagged());
-  AddSimulate(BailoutId::StubEntry(), REMOVABLE_SIMULATE);
 
   return GetParameter(2);
 }
@@ -388,13 +388,11 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
                                             factory->elements_field_string(),
                                             new_elements, true,
                                             JSArray::kElementsOffset));
-  AddSimulate(BailoutId::StubEntry());
 
   if_builder.End();
 
   AddInstruction(new(zone) HStoreNamedField(js_array, factory->length_string(),
                                             map, true, JSArray::kMapOffset));
-  AddSimulate(BailoutId::StubEntry());
   return js_array;
 }
 

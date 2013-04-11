@@ -887,6 +887,9 @@ HGraph* HGraphBuilder::CreateGraph() {
 HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
   ASSERT(current_block() != NULL);
   current_block()->AddInstruction(instr);
+  if (no_side_effects_scope_count_ > 0) {
+    instr->SetFlag(HValue::kHasNoObservableSideEffects);
+  }
   return instr;
 }
 
@@ -894,6 +897,7 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 void HGraphBuilder::AddSimulate(BailoutId id,
                                 RemovableSimulate removable) {
   ASSERT(current_block() != NULL);
+  ASSERT(no_side_effects_scope_count_ == 0);
   current_block()->AddSimulate(id, removable);
   environment()->set_previous_ast_id(id);
 }
@@ -1041,7 +1045,6 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
                                                  HValue* length,
                                                  HValue* key,
                                                  bool is_js_array) {
-  BailoutId ast_id = environment()->previous_ast_id();
   Zone* zone = this->zone();
   IfBuilder length_checker(this);
 
@@ -1074,7 +1077,6 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
         HAdd::New(zone, context, length, graph_->GetConstant1()));
     new_length->ChangeRepresentation(Representation::Integer32());
     new_length->ClearFlag(HValue::kCanOverflow);
-    AddSimulate(ast_id, REMOVABLE_SIMULATE);
 
     Factory* factory = isolate()->factory();
     HInstruction* length_store = AddInstruction(new(zone) HStoreNamedField(
@@ -1083,7 +1085,6 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
         new_length, true,
         JSArray::kLengthOffset));
     length_store->SetGVNFlag(kChangesArrayLengths);
-    AddSimulate(ast_id, REMOVABLE_SIMULATE);
   }
 
   length_checker.BeginElse();
@@ -1210,6 +1211,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
 
   if (IsGrowStoreMode(store_mode)) {
+    NoObservableSideEffectsScope no_effects(this);
+
     elements = BuildCheckForCapacityGrow(object, elements, elements_kind,
                                          length, key, is_js_array);
     checked_key = key;
@@ -1219,6 +1222,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 
     if (is_store && (fast_elements || fast_smi_only_elements)) {
       if (store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
+        NoObservableSideEffectsScope no_effects(this);
+
         elements = BuildCopyElementsOnWrite(object, elements, elements_kind,
                                             length);
       } else {
@@ -1292,7 +1297,6 @@ void HGraphBuilder::BuildInitializeElements(HValue* elements,
       new(zone) HStoreNamedField(elements, fixed_array_length_field_name,
                                  capacity, true, FixedArray::kLengthOffset);
   AddInstruction(store_length);
-  AddSimulate(ast_id, REMOVABLE_SIMULATE);
 }
 
 
@@ -1317,7 +1321,6 @@ HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
                                  true, JSObject::kMapOffset);
   store_map->SetGVNFlag(kChangesMaps);
   AddInstruction(store_map);
-  AddSimulate(id, REMOVABLE_SIMULATE);
   return store_map;
 }
 
@@ -1410,7 +1413,6 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* context,
                                               ElementsKind elements_kind,
                                               HValue* from,
                                               HValue* to) {
-  BailoutId ast_id = current_block()->last_environment()->previous_ast_id();
   // Fast elements kinds need to be initialized in case statements below cause
   // a garbage collection.
   Factory* factory = isolate()->factory();
@@ -1428,7 +1430,6 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* context,
   HValue* key = builder.BeginBody(from, to, Token::LT);
 
   AddInstruction(new(zone) HStoreKeyed(elements, key, hole, elements_kind));
-  AddSimulate(ast_id, REMOVABLE_SIMULATE);
 
   builder.EndBody();
 }
@@ -1441,7 +1442,6 @@ void HGraphBuilder::BuildCopyElements(HValue* context,
                                       ElementsKind to_elements_kind,
                                       HValue* length,
                                       HValue* capacity) {
-  BailoutId ast_id = environment()->previous_ast_id();
   bool pre_fill_with_holes =
       IsFastDoubleElementsKind(from_elements_kind) &&
       IsFastObjectElementsKind(to_elements_kind);
@@ -1465,7 +1465,6 @@ void HGraphBuilder::BuildCopyElements(HValue* context,
 
   AddInstruction(new(zone()) HStoreKeyed(to_elements, key, element,
                                          to_elements_kind));
-  AddSimulate(ast_id, REMOVABLE_SIMULATE);
 
   builder.EndBody();
 
@@ -1485,6 +1484,8 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
                                               int length) {
   Zone* zone = this->zone();
   Factory* factory = isolate()->factory();
+
+  NoObservableSideEffectsScope no_effects(this);
 
   // All sizes here are multiples of kPointerSize.
   int size = JSArray::kSize;
@@ -1524,7 +1525,6 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
                                                   factory->empty_string(),
                                                   value,
                                                   true, i));
-        AddSimulate(id);
       } else {
         BuildStoreMap(object, value, id);
       }
@@ -1542,7 +1542,6 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
                                               factory->empty_string(),
                                               boilerplate,
                                               true, alloc_payload_offset));
-    AddSimulate(id);
   }
 
   if (length > 0) {
@@ -1556,7 +1555,6 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
                                               factory->elements_field_string(),
                                               object_elements,
                                               true, JSObject::kElementsOffset));
-    AddSimulate(id);
 
     // Copy the elements array header.
     for (int i = 0; i < FixedArrayBase::kHeaderSize; i += kPointerSize) {
@@ -1567,7 +1565,6 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
                                                 factory->empty_string(),
                                                 value,
                                                 true, i));
-      AddSimulate(id);
     }
 
     // Copy the elements array contents.
@@ -1586,7 +1583,6 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
                                            key_constant,
                                            value,
                                            kind));
-      AddSimulate(id);
     }
   }
 
@@ -10099,6 +10095,8 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     BailoutId id) {
   Zone* zone = this->zone();
 
+  NoObservableSideEffectsScope no_effects(this);
+
   HValue* size_in_bytes =
       AddInstruction(new(zone) HConstant(size, Representation::Integer32()));
   HInstruction* result =
@@ -10172,7 +10170,6 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
       AddInstruction(new(zone) HStoreNamedField(
           object_properties, factory->unknown_field_string(), value_instruction,
           true, boilerplate_object->GetInObjectPropertyOffset(i)));
-      AddSimulate(id);
       BuildEmitDeepCopy(value_object, original_value_object, target,
                         offset, DONT_TRACK_ALLOCATION_SITE, id);
     } else {
@@ -10181,7 +10178,6 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
       AddInstruction(new(zone) HStoreNamedField(
           object_properties, factory->unknown_field_string(), value_instruction,
           true, boilerplate_object->GetInObjectPropertyOffset(i)));
-      AddSimulate(id);
     }
   }
 
@@ -10196,7 +10192,6 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
                                               factory->payload_string(),
                                               original_boilerplate,
                                               true, alloc_payload_offset));
-    AddSimulate(id);
   }
 
   if (object_elements != NULL) {
@@ -10220,7 +10215,6 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
                 boilerplate_elements, key_constant, NULL, kind));
         AddInstruction(new(zone) HStoreKeyed(
                 object_elements, key_constant, value_instruction, kind));
-        AddSimulate(id);
       }
     } else if (elements->IsFixedArray()) {
       Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
@@ -10238,7 +10232,6 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
               AddInstruction(new(zone) HInnerAllocatedObject(target, *offset));
           AddInstruction(new(zone) HStoreKeyed(
               object_elements, key_constant, value_instruction, kind));
-          AddSimulate(id);
           BuildEmitDeepCopy(value_object, original_value_object, target,
               offset, DONT_TRACK_ALLOCATION_SITE, id);
         } else {
@@ -10247,7 +10240,6 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
                   boilerplate_elements, key_constant, NULL, kind));
           AddInstruction(new(zone) HStoreKeyed(
               object_elements, key_constant, value_instruction, kind));
-          AddSimulate(id);
         }
       }
     } else {
@@ -10291,7 +10283,6 @@ HValue* HOptimizedGraphBuilder::BuildCopyObjectHeader(
       elements,
       true, JSObject::kElementsOffset));
   elements_store->SetGVNFlag(kChangesElementsPointer);
-  AddSimulate(id);
 
   Handle<Object> properties_field =
       Handle<Object>(boilerplate_object->properties(), isolate());
@@ -10302,7 +10293,6 @@ HValue* HOptimizedGraphBuilder::BuildCopyObjectHeader(
                                             factory->empty_string(),
                                             properties,
                                             true, JSObject::kPropertiesOffset));
-  AddSimulate(id);
 
   if (boilerplate_object->IsJSArray()) {
     Handle<JSArray> boilerplate_array =
@@ -10317,7 +10307,6 @@ HValue* HOptimizedGraphBuilder::BuildCopyObjectHeader(
         length,
         true, JSArray::kLengthOffset));
     length_store->SetGVNFlag(kChangesArrayLengths);
-    AddSimulate(id);
   }
 
   return result;
