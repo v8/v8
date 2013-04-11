@@ -588,7 +588,7 @@ bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,
   int surviving_info_index = 0;
 
   UniqueId current_group_id(0);
-  size_t current_group_start = 0;
+  int current_group_start = 0;
   bool any_group_was_visited = false;
 
   for (int i = 0; i <= object_groups_.length(); ++i) {

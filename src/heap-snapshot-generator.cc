@@ -1948,9 +1948,9 @@ void NativeObjectsExplorer::FillRetainedObjects() {
   groups->Sort();
   infos->Sort();
 
-  int info_ix = 0;
+  int info_index = 0;
   UniqueId current_group_id(0);
-  size_t current_group_start = 0;
+  int current_group_start = 0;
 
   if (groups->length() > 0) {
     for (int i = 0; i <= groups->length(); ++i) {
@@ -1959,12 +1959,12 @@ void NativeObjectsExplorer::FillRetainedObjects() {
       if (i == groups->length() ||
           current_group_id != groups->at(i).id) {
         // Group detected: objects in indices [current_group_start, i[.
-        if (info_ix < infos->length() &&
-            infos->at(info_ix).id == groups->at(current_group_start).id) {
+        if (info_index < infos->length() &&
+            infos->at(info_index).id == groups->at(current_group_start).id) {
           // Transfer the ownership of info.
           List<HeapObject*>* list =
-              GetListMaybeDisposeInfo(infos->at(info_ix).info);
-          infos->at(info_ix).info = NULL;
+              GetListMaybeDisposeInfo(infos->at(info_index).info);
+          infos->at(info_index).info = NULL;
           for (int j = current_group_start; j < i; ++j) {
             HeapObject* obj = HeapObject::cast(*(groups->at(j).object));
             list->Add(obj);
