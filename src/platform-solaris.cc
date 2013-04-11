@@ -54,6 +54,7 @@
 
 #include "platform-posix.h"
 #include "platform.h"
+#include "simulator.h"
 #include "v8threads.h"
 #include "vm-state-inl.h"
 
@@ -666,6 +667,22 @@ static pthread_t GetThreadID() {
   return pthread_self();
 }
 
+
+class Sampler::PlatformData : public Malloced {
+ public:
+  PlatformData()
+      : vm_tid_(GetThreadID()),
+        profiled_thread_id_(ThreadId::Current()) {}
+
+  pthread_t vm_tid() const { return vm_tid_; }
+  ThreadId profiled_thread_id() { return profiled_thread_id_; }
+
+ private:
+  pthread_t vm_tid_;
+  ThreadId profiled_thread_id_;
+};
+
+
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   USE(info);
   if (signal != SIGPROF) return;
@@ -686,28 +703,42 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
   if (sample == NULL) sample = &sample_obj;
 
+#if defined(USE_SIMULATOR)
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+  ThreadId thread_id = sampler->platform_data()->profiled_thread_id();
+  Isolate::PerIsolateThreadData* per_thread_data = isolate->
+      FindPerThreadDataForThread(thread_id);
+  if (!per_thread_data) return;
+  Simulator* sim = per_thread_data->simulator();
+  // Check if there is active simulator before allocating TickSample.
+  if (!sim) return;
+#endif
+#endif  // USE_SIMULATOR
+
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
   mcontext_t& mcontext = ucontext->uc_mcontext;
   sample->state = isolate->current_vm_state();
 
+#if defined(USE_SIMULATOR)
+#if V8_TARGET_ARCH_ARM
+  sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
+  sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
+  sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::r11));
+#elif V8_TARGET_ARCH_MIPS
+  sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
+  sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
+  sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::fp));
+#endif
+#else
   sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_PC]);
   sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_SP]);
   sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_FP]);
+#endif  // USE_SIMULATOR
 
   sampler->SampleStack(sample);
   sampler->Tick(sample);
 }
-
-class Sampler::PlatformData : public Malloced {
- public:
-  PlatformData() : vm_tid_(GetThreadID()) {}
-
-  pthread_t vm_tid() const { return vm_tid_; }
-
- private:
-  pthread_t vm_tid_;
-};
 
 
 class SignalSender : public Thread {

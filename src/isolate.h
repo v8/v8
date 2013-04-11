@@ -497,6 +497,10 @@ class Isolate {
   // If one does not yet exist, return null.
   PerIsolateThreadData* FindPerThreadDataForThisThread();
 
+  // Find the PerThread for given (isolate, thread) combination
+  // If one does not yet exist, return null.
+  PerIsolateThreadData* FindPerThreadDataForThread(ThreadId thread_id);
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Get the debugger from the default isolate. Preinitializes the
   // default isolate if needed.

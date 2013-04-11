@@ -60,6 +60,7 @@
 
 #include "platform-posix.h"
 #include "platform.h"
+#include "simulator.h"
 #include "vm-state-inl.h"
 
 // Manually define these here as weak imports, rather than including execinfo.h.
@@ -744,7 +745,9 @@ Semaphore* OS::CreateSemaphore(int count) {
 
 class Sampler::PlatformData : public Malloced {
  public:
-  PlatformData() : profiled_thread_(mach_thread_self()) {}
+  PlatformData()
+      : profiled_thread_(mach_thread_self()),
+        profiled_thread_id_(ThreadId::Current()) {}
 
   ~PlatformData() {
     // Deallocate Mach port for thread.
@@ -752,12 +755,14 @@ class Sampler::PlatformData : public Malloced {
   }
 
   thread_act_t profiled_thread() { return profiled_thread_; }
+  ThreadId profiled_thread_id() { return profiled_thread_id_; }
 
  private:
   // Note: for profiled_thread_ Mach primitives are used instead of PThread's
   // because the latter doesn't provide thread manipulation primitives required.
   // For details, consult "Mac OS X Internals" book, Section 7.3.
   thread_act_t profiled_thread_;
+  ThreadId profiled_thread_id_;
 };
 
 
@@ -818,6 +823,17 @@ class SamplerThread : public Thread {
   void SampleContext(Sampler* sampler) {
     thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
     Isolate* isolate = sampler->isolate();
+#if defined(USE_SIMULATOR)
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+    ThreadId thread_id = sampler->platform_data()->profiled_thread_id();
+    Isolate::PerIsolateThreadData* per_thread_data = isolate->
+        FindPerThreadDataForThread(thread_id);
+    if (!per_thread_data) return;
+    Simulator* sim = per_thread_data->simulator();
+    // Check if there is active simulator before allocating TickSample.
+    if (!sim) return;
+#endif
+#endif  // USE_SIMULATOR
     TickSample sample_obj;
     TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
     if (sample == NULL) sample = &sample_obj;
@@ -851,9 +867,21 @@ class SamplerThread : public Thread {
                          reinterpret_cast<natural_t*>(&state),
                          &count) == KERN_SUCCESS) {
       sample->state = isolate->current_vm_state();
+#if defined(USE_SIMULATOR)
+#if V8_TARGET_ARCH_ARM
+      sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
+      sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
+      sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::r11));
+#elif V8_TARGET_ARCH_MIPS
+      sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
+      sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
+      sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::fp));
+#endif
+#else
       sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
       sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
       sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
+#endif  // USE_SIMULATOR
       sampler->SampleStack(sample);
       sampler->Tick(sample);
     }

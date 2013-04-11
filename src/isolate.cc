@@ -371,6 +371,12 @@ Isolate::PerIsolateThreadData*
 
 Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThisThread() {
   ThreadId thread_id = ThreadId::Current();
+  return FindPerThreadDataForThread(thread_id);
+}
+
+
+Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
+    ThreadId thread_id) {
   PerIsolateThreadData* per_thread = NULL;
   {
     ScopedLock lock(process_wide_mutex_);

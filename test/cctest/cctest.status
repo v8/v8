@@ -77,9 +77,6 @@ test-serialize/DeserializeFromSecondSerializationAndRunScript2: SKIP
 test-serialize/DeserializeAndRunScript2: SKIP
 test-serialize/DeserializeFromSecondSerialization: SKIP
 
-# BUG(2621): Stack traversal doesn't work properly on Arm simulator.
-test-cpu-profiler/CollectCpuProfile: SKIP
-
 ##############################################################################
 [ $arch == android_arm || $arch == android_ia32 ]
 
@@ -106,9 +103,3 @@ test-log/ProfLazyMode: SKIP
 test-debug/DebuggerAgent: SKIP
 test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
 test-sockets/Socket: SKIP
-
-##############################################################################
-[ $arch == mipsel ]
-
-# BUG(2621): Stack traversal doesn't work properly on MIPS simulator.
-test-cpu-profiler/CollectCpuProfile: SKIP
