@@ -133,8 +133,17 @@ class LCodeGen;
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
   V(MapEnumLength)                              \
+  V(MathAbs)                                    \
+  V(MathCos)                                    \
   V(MathExp)                                    \
+  V(MathFloor)                                  \
+  V(MathLog)                                    \
   V(MathMinMax)                                 \
+  V(MathPowHalf)                                \
+  V(MathRound)                                  \
+  V(MathSin)                                    \
+  V(MathSqrt)                                   \
+  V(MathTan)                                    \
   V(ModI)                                       \
   V(MulI)                                       \
   V(MultiplyAddD)                               \
@@ -177,7 +186,6 @@ class LCodeGen;
   V(TrapAllocationMemento)                      \
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
-  V(UnaryMathOperation)                         \
   V(UnknownOSRValue)                            \
   V(ValueOf)                                    \
   V(ForInPrepareMap)                            \
@@ -662,9 +670,9 @@ class LCmpIDAndBranch: public LControlInstruction<2, 0> {
 };
 
 
-class LUnaryMathOperation: public LTemplateInstruction<1, 1, 1> {
+class LMathFloor: public LTemplateInstruction<1, 1, 1> {
  public:
-  LUnaryMathOperation(LOperand* value, LOperand* temp) {
+  LMathFloor(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
   }
@@ -672,11 +680,84 @@ class LUnaryMathOperation: public LTemplateInstruction<1, 1, 1> {
   LOperand* value() { return inputs_[0]; }
   LOperand* temp() { return temps_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(UnaryMathOperation, "unary-math-operation")
+  DECLARE_CONCRETE_INSTRUCTION(MathFloor, "math-floor")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
+};
 
-  virtual void PrintDataTo(StringStream* stream);
-  BuiltinFunctionId op() const { return hydrogen()->op(); }
+
+class LMathRound: public LTemplateInstruction<1, 1, 1> {
+ public:
+  LMathRound(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-round")
+  DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
+};
+
+
+class LMathAbs: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathAbs(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathAbs, "math-abs")
+  DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
+};
+
+
+class LMathLog: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathLog(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathLog, "math-log")
+};
+
+
+class LMathSin: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathSin(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathSin, "math-sin")
+};
+
+
+class LMathCos: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathCos(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathCos, "math-cos")
+};
+
+
+class LMathTan: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathTan(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathTan, "math-tan")
 };
 
 
@@ -699,8 +780,32 @@ class LMathExp: public LTemplateInstruction<1, 1, 3> {
   LOperand* double_temp() { return temps_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathExp, "math-exp")
+};
 
-  virtual void PrintDataTo(StringStream* stream);
+
+class LMathSqrt: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathSqrt(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathSqrt, "math-sqrt")
+};
+
+
+class LMathPowHalf: public LTemplateInstruction<1, 1, 1> {
+ public:
+  LMathPowHalf(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathPowHalf, "math-pow-half")
 };
 
 
@@ -1254,7 +1359,7 @@ class LMathMinMax: public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathMinMax, "min-max")
+  DECLARE_CONCRETE_INSTRUCTION(MathMinMax, "math-min-max")
   DECLARE_HYDROGEN_ACCESSOR(MathMinMax)
 };
 
@@ -2541,6 +2646,17 @@ class LChunkBuilder BASE_EMBEDDED {
 #undef DECLARE_DO
 
   LInstruction* DoMultiplyAdd(HMul* mul, HValue* addend);
+
+  LInstruction* DoMathFloor(HUnaryMathOperation* instr);
+  LInstruction* DoMathRound(HUnaryMathOperation* instr);
+  LInstruction* DoMathAbs(HUnaryMathOperation* instr);
+  LInstruction* DoMathLog(HUnaryMathOperation* instr);
+  LInstruction* DoMathSin(HUnaryMathOperation* instr);
+  LInstruction* DoMathCos(HUnaryMathOperation* instr);
+  LInstruction* DoMathTan(HUnaryMathOperation* instr);
+  LInstruction* DoMathExp(HUnaryMathOperation* instr);
+  LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
+  LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);
 
  private:
   enum Status {
