@@ -149,6 +149,10 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--warn-unused", help="Report unused rules",
                     default=False, action="store_true")
+  result.add_option("--junitout", help="File name of the JUnit output")
+  result.add_option("--junittestsuite",
+                    help="The testsuite name in the JUnit output file",
+                    default="v8tests")
   return result
 
 
@@ -336,6 +340,9 @@ def Execute(arch, mode, args, options, suites, workspace):
   try:
     start_time = time.time()
     progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
+    if options.junitout:
+      progress_indicator = progress.JUnitTestProgressIndicator(
+          progress_indicator, options.junitout, options.junittestsuite)
 
     run_networked = not options.no_network
     if not run_networked:
