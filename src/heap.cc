@@ -3956,30 +3956,36 @@ void Heap::InitializeFunction(JSFunction* function,
 
 
 MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
-  // Allocate the prototype.  Make sure to use the object function
-  // from the function's context, since the function can be from a
-  // different context.
-  JSFunction* object_function =
-      function->context()->native_context()->object_function();
-
-  // Each function prototype gets a copy of the object function map.
-  // This avoid unwanted sharing of maps between prototypes of different
-  // constructors.
+  // Make sure to use globals from the function's context, since the function
+  // can be from a different context.
+  Context* native_context = function->context()->native_context();
+  bool needs_constructor_property;
   Map* new_map;
-  ASSERT(object_function->has_initial_map());
-  MaybeObject* maybe_map = object_function->initial_map()->Copy();
-  if (!maybe_map->To(&new_map)) return maybe_map;
+  if (function->shared()->is_generator()) {
+    // Generator prototypes can share maps since they don't have "constructor"
+    // properties.
+    new_map = native_context->generator_object_prototype_map();
+    needs_constructor_property = false;
+  } else {
+    // Each function prototype gets a fresh map to avoid unwanted sharing of
+    // maps between prototypes of different constructors.
+    JSFunction* object_function = native_context->object_function();
+    ASSERT(object_function->has_initial_map());
+    MaybeObject* maybe_map = object_function->initial_map()->Copy();
+    if (!maybe_map->To(&new_map)) return maybe_map;
+    needs_constructor_property = true;
+  }
 
   Object* prototype;
   MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
   if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
 
-  // When creating the prototype for the function we must set its
-  // constructor to the function.
-  MaybeObject* maybe_failure =
-      JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
-          constructor_string(), function, DONT_ENUM);
-  if (maybe_failure->IsFailure()) return maybe_failure;
+  if (needs_constructor_property) {
+    MaybeObject* maybe_failure =
+        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
+            constructor_string(), function, DONT_ENUM);
+    if (maybe_failure->IsFailure()) return maybe_failure;
+  }
 
   return prototype;
 }
@@ -4079,10 +4085,21 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
 
   // First create a new map with the size and number of in-object properties
   // suggested by the function.
-  int instance_size = fun->shared()->CalculateInstanceSize();
-  int in_object_properties = fun->shared()->CalculateInObjectProperties();
+  InstanceType instance_type;
+  int instance_size;
+  int in_object_properties;
+  if (fun->shared()->is_generator()) {
+    // TODO(wingo): Replace with JS_GENERATOR_OBJECT_TYPE.
+    instance_type = JS_OBJECT_TYPE;
+    instance_size = JSObject::kHeaderSize;
+    in_object_properties = 0;
+  } else {
+    instance_type = JS_OBJECT_TYPE;
+    instance_size = fun->shared()->CalculateInstanceSize();
+    in_object_properties = fun->shared()->CalculateInObjectProperties();
+  }
   Map* map;
-  MaybeObject* maybe_map = AllocateMap(JS_OBJECT_TYPE, instance_size);
+  MaybeObject* maybe_map = AllocateMap(instance_type, instance_size);
   if (!maybe_map->To(&map)) return maybe_map;
 
   // Fetch or allocate prototype.
@@ -4104,7 +4121,8 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   // the inline_new flag so we only change the map if we generate a
   // specialized construct stub.
   ASSERT(in_object_properties <= Map::kMaxPreAllocatedPropertyFields);
-  if (fun->shared()->CanGenerateInlineConstructor(prototype)) {
+  if (instance_type == JS_OBJECT_TYPE &&
+      fun->shared()->CanGenerateInlineConstructor(prototype)) {
     int count = fun->shared()->this_property_assignments_count();
     if (count > in_object_properties) {
       // Inline constructor can only handle inobject properties.
@@ -4137,7 +4155,9 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
     }
   }
 
-  fun->shared()->StartInobjectSlackTracking(map);
+  if (instance_type == JS_OBJECT_TYPE) {
+    fun->shared()->StartInobjectSlackTracking(map);
+  }
 
   return map;
 }

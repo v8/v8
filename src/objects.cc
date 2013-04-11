@@ -8558,6 +8558,7 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
   // Check the basic conditions for generating inline constructor code.
   if (!FLAG_inline_new
       || !has_only_simple_this_property_assignments()
+      || is_generator()
       || this_property_assignments_count() == 0) {
     return false;
   }
