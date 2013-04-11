@@ -117,6 +117,7 @@ function SetUpSet() {
   %CheckIsBootstrapping();
 
   %SetCode($Set, SetConstructor);
+  %FunctionSetPrototype($Set, new $Object());
   %SetProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
 
   // Set up the non-enumerable functions on the Set prototype object.
@@ -217,6 +218,7 @@ function SetUpMap() {
   %CheckIsBootstrapping();
 
   %SetCode($Map, MapConstructor);
+  %FunctionSetPrototype($Map, new $Object());
   %SetProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
 
   // Set up the non-enumerable functions on the Map prototype object.
@@ -299,6 +301,7 @@ function SetUpWeakMap() {
   %CheckIsBootstrapping();
 
   %SetCode($WeakMap, WeakMapConstructor);
+  %FunctionSetPrototype($WeakMap, new $Object());
   %SetProperty($WeakMap.prototype, "constructor", $WeakMap, DONT_ENUM);
 
   // Set up the non-enumerable functions on the WeakMap prototype object.
