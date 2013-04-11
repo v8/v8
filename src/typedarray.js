@@ -27,7 +27,13 @@
 
 "use strict";
 
+// This file relies on the fact that the following declaration has been made
+// in runtime.js:
+// var $Array = global.Array;
+
 var $ArrayBuffer = global.__ArrayBuffer;
+
+// -------------------------------------------------------------------
 
 function ArrayBufferConstructor(byteLength) { // length = 1
   if (%_IsConstructCall()) {
@@ -77,10 +83,9 @@ function ArrayBufferSlice(start, end) {
 }
 
 
-
 // -------------------------------------------------------------------
 
-(function () {
+function SetUpArrayBuffer() {
   %CheckIsBootstrapping();
 
   // Set up the Uint16Array constructor function.
@@ -94,5 +99,6 @@ function ArrayBufferSlice(start, end) {
   InstallFunctions($ArrayBuffer.prototype, DONT_ENUM, $Array(
       "slice", ArrayBufferSlice
   ));
+}
 
-})();
+SetUpArrayBuffer();

@@ -1454,8 +1454,10 @@ function ArrayIsArray(obj) {
 
 
 // -------------------------------------------------------------------
+
 function SetUpArray() {
   %CheckIsBootstrapping();
+
   // Set up non-enumerable constructor property on the Array.prototype
   // object.
   %SetProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
