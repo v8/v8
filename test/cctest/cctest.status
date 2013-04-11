@@ -106,3 +106,9 @@ test-log/ProfLazyMode: SKIP
 test-debug/DebuggerAgent: SKIP
 test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
 test-sockets/Socket: SKIP
+
+##############################################################################
+[ $arch == mipsel ]
+
+# BUG(2621): Stack traversal doesn't work properly on MIPS simulator.
+test-cpu-profiler/CollectCpuProfile: SKIP
