@@ -1793,6 +1793,8 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       break;
     case Token::DIV:
       __ divsd(left, right);
+      // Don't delete this mov. It may improve performance on some CPUs,
+      // when there is a mulsd depending on the result
       __ movaps(left, left);
       break;
     case Token::MOD:
