@@ -5331,7 +5331,13 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   __ SmiTag(size, size);
   __ push(size);
-  CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
+  if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
+    CallRuntimeFromDeferred(
+        Runtime::kAllocateInOldPointerSpace, 1, instr);
+  } else {
+    CallRuntimeFromDeferred(
+        Runtime::kAllocateInNewSpace, 1, instr);
+  }
   __ StoreToSafepointRegisterSlot(v0, result);
 }
 
