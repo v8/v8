@@ -33,6 +33,7 @@
 #include "bootstrapper.h"
 #include "codegen.h"
 #include "debug.h"
+#include "deoptimizer.h"
 #include "isolate-inl.h"
 #include "runtime-profiler.h"
 #include "simulator.h"
@@ -445,6 +446,19 @@ void StackGuard::RequestGC() {
     thread_local_.jslimit_ = thread_local_.climit_ = kInterruptLimit;
     isolate_->heap()->SetStackLimits();
   }
+}
+
+
+bool StackGuard::IsFullDeopt() {
+  ExecutionAccess access(isolate_);
+  return (thread_local_.interrupt_flags_ & FULL_DEOPT) != 0;
+}
+
+
+void StackGuard::FullDeopt() {
+  ExecutionAccess access(isolate_);
+  thread_local_.interrupt_flags_ |= FULL_DEOPT;
+  set_interrupt_limits(access);
 }
 
 
@@ -880,7 +894,6 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
     stack_guard->Continue(GC_REQUEST);
   }
 
-
   isolate->counters()->stack_interrupts()->Increment();
   isolate->counters()->runtime_profiler_ticks()->Increment();
   isolate->runtime_profiler()->OptimizeNow();
@@ -897,6 +910,10 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
   if (stack_guard->IsInterrupted()) {
     stack_guard->Continue(INTERRUPT);
     return isolate->StackOverflow();
+  }
+  if (stack_guard->IsFullDeopt()) {
+    stack_guard->Continue(FULL_DEOPT);
+    Deoptimizer::DeoptimizeAll(isolate);
   }
   return isolate->heap()->undefined_value();
 }

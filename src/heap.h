@@ -1498,6 +1498,12 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length,
                                                      PretenureFlag pretenure);
 
+  // Predicate that governs global pre-tenuring decisions based on observed
+  // promotion rates of previous collections.
+  inline bool ShouldGloballyPretenure() {
+    return new_space_high_promotion_mode_active_;
+  }
+
   inline intptr_t PromotedTotalSize() {
     return PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
   }

@@ -952,6 +952,13 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
       PrintPID("Limited new space size due to high promotion rate: %d MB\n",
                new_space_.InitialCapacity() / MB);
     }
+    // Support for global pre-tenuring uses the high promotion mode as a
+    // heuristic indicator of whether to pretenure or not, we trigger
+    // deoptimization here to take advantage of pre-tenuring as soon as
+    // possible.
+    if (FLAG_pretenure_literals) {
+      isolate_->stack_guard()->FullDeopt();
+    }
   } else if (new_space_high_promotion_mode_active_ &&
       IsStableOrDecreasingSurvivalTrend() &&
       IsLowSurvivalRate()) {
