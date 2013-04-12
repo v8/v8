@@ -6001,8 +6001,13 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     __ StoreToSafepointRegisterSlot(result, size);
   }
   __ push(size);
-  CallRuntimeFromDeferred(
-      Runtime::kAllocateInNewSpace, 1, instr, instr->context());
+  if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
+    CallRuntimeFromDeferred(
+        Runtime::kAllocateInOldPointerSpace, 1, instr, instr->context());
+  } else {
+    CallRuntimeFromDeferred(
+        Runtime::kAllocateInNewSpace, 1, instr, instr->context());
+  }
   __ StoreToSafepointRegisterSlot(result, eax);
 }
 

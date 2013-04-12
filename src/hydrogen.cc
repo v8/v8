@@ -10101,6 +10101,15 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
 
   NoObservableSideEffectsScope no_effects(this);
 
+  HAllocate::Flags flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
+  // TODO(hpayer): add support for old data space
+  if (FLAG_pretenure_literals &&
+      isolate()->heap()->ShouldGloballyPretenure() &&
+      data_size == 0) {
+    flags = static_cast<HAllocate::Flags>(
+        flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
+  }
+
   HValue* size_in_bytes =
       AddInstruction(new(zone) HConstant(total_size,
           Representation::Integer32()));
@@ -10108,7 +10117,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
       AddInstruction(new(zone) HAllocate(context,
                                          size_in_bytes,
                                          HType::JSObject(),
-                                         HAllocate::CAN_ALLOCATE_IN_NEW_SPACE));
+                                         flags));
   int offset = 0;
   BuildEmitDeepCopy(boilerplate_object, original_boilerplate_object, result,
                     &offset, mode);

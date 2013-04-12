@@ -173,7 +173,7 @@ DEFINE_bool(compiled_keyed_stores, true, "use optimizing compiler to "
 DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
-DEFINE_bool(pretenure_literals, false, "allocate literals in old space")
+DEFINE_bool(pretenure_literals, true, "allocate literals in old space")
 
 // Flags for data representation optimizations
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
