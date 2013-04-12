@@ -802,13 +802,13 @@ void HValue::ComputeInitialRange(Zone* zone) {
 
 void HInstruction::PrintTo(StringStream* stream) {
   PrintMnemonicTo(stream);
-  const char* side_effects =
-      CheckFlag(HValue::kHasNoObservableSideEffects) ? "-" : "+";
-  stream->Add("ose%s ", side_effects);
   PrintDataTo(stream);
   PrintRangeTo(stream);
   PrintChangesTo(stream);
   PrintTypeTo(stream);
+  if (CheckFlag(HValue::kHasNoObservableSideEffects)) {
+    stream->Add(" [noOSE]");
+  }
 }
 
 
