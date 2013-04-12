@@ -32,9 +32,14 @@
 #include "../include/v8-profiler.h"
 
 #include "list.h"
+#include "v8utils.h"
 
 namespace v8 {
 namespace internal {
+
+class GCTracer;
+class HeapStats;
+class ObjectVisitor;
 
 // Structure for tracking global handles.
 // A single list keeps all the allocated global handles.
