@@ -328,10 +328,9 @@ static const int kMmapFdOffset = 0;
 
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
-VirtualMemory::VirtualMemory(size_t size) {
-  address_ = ReserveRegion(size);
-  size_ = size;
-}
+
+VirtualMemory::VirtualMemory(size_t size)
+    : address_(ReserveRegion(size)), size_(size) { }
 
 
 VirtualMemory::VirtualMemory(size_t size, size_t alignment)

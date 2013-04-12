@@ -319,21 +319,28 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 // This causes VirtualMemory::Commit to not always commit the memory region
 // specified.
 
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
+VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
 
-VirtualMemory::VirtualMemory(size_t size) {
-  address_ = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
-  size_ = size;
-}
+VirtualMemory::VirtualMemory(size_t size)
+    : address_(ReserveRegion(size)), size_(size) { }
 
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
     if (0 == VirtualFree(address(), 0, MEM_RELEASE)) address_ = NULL;
   }
+}
+
+
+bool VirtualMemory::IsReserved() {
+  return address_ != NULL;
+}
+
+
+void VirtualMemory::Reset() {
+  address_ = NULL;
+  size_ = 0;
 }
 
 
@@ -362,6 +369,29 @@ bool VirtualMemory::Guard(void* address) {
     return false;
   }
   return true;
+}
+
+
+void* VirtualMemory::ReserveRegion(size_t size) {
+  return VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
+}
+
+
+bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+
+bool VirtualMemory::UncommitRegion(void* base, size_t size) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+
+bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
+  UNIMPLEMENTED();
+  return false;
 }
 
 

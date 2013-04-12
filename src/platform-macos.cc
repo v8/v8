@@ -408,9 +408,30 @@ VirtualMemory::~VirtualMemory() {
 }
 
 
+bool VirtualMemory::IsReserved() {
+  return address_ != NULL;
+}
+
+
 void VirtualMemory::Reset() {
   address_ = NULL;
   size_ = 0;
+}
+
+
+bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
+  return CommitRegion(address, size, is_executable);
+}
+
+
+bool VirtualMemory::Uncommit(void* address, size_t size) {
+  return UncommitRegion(address, size);
+}
+
+
+bool VirtualMemory::Guard(void* address) {
+  OS::Guard(address, OS::CommitPageSize());
+  return true;
 }
 
 
@@ -425,22 +446,6 @@ void* VirtualMemory::ReserveRegion(size_t size) {
   if (result == MAP_FAILED) return NULL;
 
   return result;
-}
-
-
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
-
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  return CommitRegion(address, size, is_executable);
-}
-
-
-bool VirtualMemory::Guard(void* address) {
-  OS::Guard(address, OS::CommitPageSize());
-  return true;
 }
 
 
@@ -459,11 +464,6 @@ bool VirtualMemory::CommitRegion(void* address,
 
   UpdateAllocatedSpaceLimits(address, size);
   return true;
-}
-
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  return UncommitRegion(address, size);
 }
 
 

@@ -317,6 +317,16 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 }
 
 
+VirtualMemory::VirtualMemory() {
+  UNIMPLEMENTED();
+}
+
+
+VirtualMemory::VirtualMemory(size_t size) {
+  UNIMPLEMENTED();
+}
+
+
 VirtualMemory::VirtualMemory(size_t size, void* address_hint) {
   UNIMPLEMENTED();
 }
@@ -333,6 +343,11 @@ bool VirtualMemory::IsReserved() {
 }
 
 
+void VirtualMemory::Reset() {
+  UNIMPLEMENTED();
+}
+
+
 bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
   UNIMPLEMENTED();
   return false;
@@ -346,6 +361,30 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 
 
 bool VirtualMemory::Guard(void* address) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+
+void* VirtualMemory::ReserveRegion(size_t size) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+
+bool VirtualMemory::UncommitRegion(void* base, size_t size) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+
+bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
   UNIMPLEMENTED();
   return false;
 }
