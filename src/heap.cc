@@ -970,6 +970,11 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
       PrintPID("Unlimited new space size due to low promotion rate: %d MB\n",
                new_space_.MaximumCapacity() / MB);
     }
+    // Trigger deoptimization here to turn off pre-tenuring as soon as
+    // possible.
+    if (FLAG_pretenure_literals) {
+      isolate_->stack_guard()->FullDeopt();
+    }
   }
 
   if (new_space_high_promotion_mode_active_ &&
