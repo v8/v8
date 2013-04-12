@@ -6111,7 +6111,8 @@ static bool LookupSetter(Handle<Map> map,
 static bool IsFastLiteral(Handle<JSObject> boilerplate,
                           int max_depth,
                           int* max_properties,
-                          int* total_size) {
+                          int* data_size,
+                          int* pointer_size) {
   ASSERT(max_depth >= 0 && *max_properties >= 0);
   if (max_depth == 0) return false;
 
@@ -6120,7 +6121,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
   if (elements->length() > 0 &&
       elements->map() != isolate->heap()->fixed_cow_array_map()) {
     if (boilerplate->HasFastDoubleElements()) {
-      *total_size += FixedDoubleArray::SizeFor(elements->length());
+      *data_size += FixedDoubleArray::SizeFor(elements->length());
     } else if (boilerplate->HasFastObjectElements()) {
       Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
       int length = elements->length();
@@ -6132,12 +6133,13 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
           if (!IsFastLiteral(value_object,
                              max_depth - 1,
                              max_properties,
-                             total_size)) {
+                             data_size,
+                             pointer_size)) {
             return false;
           }
         }
       }
-      *total_size += FixedArray::SizeFor(length);
+      *pointer_size += FixedArray::SizeFor(length);
     } else {
       return false;
     }
@@ -6156,14 +6158,15 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
         if (!IsFastLiteral(value_object,
                            max_depth - 1,
                            max_properties,
-                           total_size)) {
+                           data_size,
+                           pointer_size)) {
           return false;
         }
       }
     }
   }
 
-  *total_size += boilerplate->map()->instance_size();
+  *pointer_size += boilerplate->map()->instance_size();
   return true;
 }
 
@@ -6177,7 +6180,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   HInstruction* literal;
 
   // Check whether to use fast or slow deep-copying for boilerplate.
-  int total_size = 0;
+  int data_size = 0;
+  int pointer_size = 0;
   int max_properties = kMaxFastLiteralProperties;
   Handle<Object> original_boilerplate(closure->literals()->get(
       expr->literal_index()), isolate());
@@ -6185,7 +6189,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       IsFastLiteral(Handle<JSObject>::cast(original_boilerplate),
                     kMaxFastLiteralDepth,
                     &max_properties,
-                    &total_size)) {
+                    &data_size,
+                    &pointer_size)) {
     Handle<JSObject> original_boilerplate_object =
         Handle<JSObject>::cast(original_boilerplate);
     Handle<JSObject> boilerplate_object =
@@ -6194,7 +6199,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     literal = BuildFastLiteral(context,
                                boilerplate_object,
                                original_boilerplate_object,
-                               total_size,
+                               data_size,
+                               pointer_size,
                                DONT_TRACK_ALLOCATION_SITE,
                                environment()->previous_ast_id());
   } else {
@@ -6318,21 +6324,24 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       boilerplate_elements_kind);
 
   // Check whether to use fast or slow deep-copying for boilerplate.
-  int total_size = 0;
+  int data_size = 0;
+  int pointer_size = 0;
   int max_properties = kMaxFastLiteralProperties;
   if (IsFastLiteral(original_boilerplate_object,
                     kMaxFastLiteralDepth,
                     &max_properties,
-                    &total_size)) {
+                    &data_size,
+                    &pointer_size)) {
     if (mode == TRACK_ALLOCATION_SITE) {
-      total_size += AllocationSiteInfo::kSize;
+      pointer_size += AllocationSiteInfo::kSize;
     }
 
     Handle<JSObject> boilerplate_object = DeepCopy(original_boilerplate_object);
     literal = BuildFastLiteral(context,
                                boilerplate_object,
                                original_boilerplate_object,
-                               total_size,
+                               data_size,
+                               pointer_size,
                                mode,
                                environment()->previous_ast_id());
   } else {
@@ -10090,15 +10099,18 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     HValue* context,
     Handle<JSObject> boilerplate_object,
     Handle<JSObject> original_boilerplate_object,
-    int size,
+    int data_size,
+    int pointer_size,
     AllocationSiteMode mode,
     BailoutId id) {
   Zone* zone = this->zone();
+  int total_size = data_size + pointer_size;
 
   NoObservableSideEffectsScope no_effects(this);
 
   HValue* size_in_bytes =
-      AddInstruction(new(zone) HConstant(size, Representation::Integer32()));
+      AddInstruction(new(zone) HConstant(total_size,
+          Representation::Integer32()));
   HInstruction* result =
       AddInstruction(new(zone) HAllocate(context,
                                          size_in_bytes,
@@ -10107,7 +10119,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   int offset = 0;
   BuildEmitDeepCopy(boilerplate_object, original_boilerplate_object, result,
                     &offset, mode, id);
-  ASSERT_EQ(size, offset);
+  ASSERT_EQ(total_size, offset);
   return result;
 }
 

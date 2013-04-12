@@ -1508,7 +1508,8 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   HInstruction* BuildFastLiteral(HValue* context,
                                  Handle<JSObject> boilerplate_object,
                                  Handle<JSObject> original_boilerplate_object,
-                                 int size,
+                                 int data_size,
+                                 int pointer_size,
                                  AllocationSiteMode mode,
                                  BailoutId id);
 
