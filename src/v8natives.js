@@ -932,7 +932,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
 
   // Step 4 - Special handling for array index.
   var index = ToUint32(p);
-  if (index == ToNumber(p) && index != 4294967295) {
+  if (ToString(index) == p && index != 4294967295) {
     var length = obj.length;
     var length_desc = GetOwnProperty(obj, "length");
     if ((index >= length && !length_desc.isWritable()) ||
