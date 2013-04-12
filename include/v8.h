@@ -788,6 +788,17 @@ class V8EXPORT Script {
    * debugger API.
    */
   void SetData(Handle<String> data);
+
+  /**
+   * Returns the name value of one Script.
+   */
+  Handle<Value> GetScriptName();
+
+  /**
+   * Returns zero based line number of the code_pos location in the script.
+   * -1 will be returned if no information available.
+   */
+  int GetLineNumber(int code_pos);
 };
 
 

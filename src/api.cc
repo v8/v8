@@ -1852,6 +1852,34 @@ Local<Value> Script::Id() {
 }
 
 
+int Script::GetLineNumber(int code_pos) {
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Script::GetLineNumber()", return -1);
+  LOG_API(isolate, "Script::GetLineNumber");
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (obj->IsScript()) {
+    i::Handle<i::Script> script = i::Handle<i::Script>(i::Script::cast(*obj));
+    return i::GetScriptLineNumber(script, code_pos);
+  } else {
+    return -1;
+  }
+}
+
+
+Handle<Value> Script::GetScriptName() {
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Script::GetName()", return Handle<String>());
+  LOG_API(isolate, "Script::GetName");
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (obj->IsScript()) {
+    i::Object* name = i::Script::cast(*obj)->name();
+    return Utils::ToLocal(i::Handle<i::Object>(name, isolate));
+  } else {
+    return Handle<String>();
+  }
+}
+
+
 void Script::SetData(v8::Handle<String> data) {
   i::Isolate* isolate = i::Isolate::Current();
   ON_BAILOUT(isolate, "v8::Script::SetData()", return);

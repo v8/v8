@@ -83,6 +83,10 @@ endif
 ifeq ($(gdbjit), on)
   GYPFLAGS += -Dv8_enable_gdbjit=1
 endif
+# vtunejit=on
+ifeq ($(vtunejit), on)
+  GYPFLAGS += -Dv8_enable_vtunejit=1
+endif
 # vfp2=off
 ifeq ($(vfp2), off)
   GYPFLAGS += -Dv8_can_use_vfp2_instructions=false
@@ -155,6 +159,10 @@ GYPFILES = build/all.gyp build/common.gypi build/standalone.gypi \
            preparser/preparser.gyp samples/samples.gyp src/d8.gyp \
            test/cctest/cctest.gyp tools/gyp/v8.gyp
 
+# If vtunejit=on, the v8vtune.gyp will be appended.
+ifeq ($(vtunejit), on)
+  GYPFILES += src/third_party/vtune/v8vtune.gyp
+endif
 # Generates all combinations of ARCHES and MODES, e.g. "ia32.release".
 BUILDS = $(foreach mode,$(MODES),$(addsuffix .$(mode),$(ARCHES)))
 ANDROID_BUILDS = $(foreach mode,$(MODES), \
