@@ -1098,7 +1098,7 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
   if (!IsMipsSoftFloatABI) {
     *x = get_fpu_register_double(12);
     *y = get_fpu_register_double(14);
-    *z = registers_[1];
+    *z = get_register(a2);
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
@@ -1114,12 +1114,8 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
     reg_buffer[1] = get_register(a3);
     memcpy(y, buffer, sizeof(buffer));
     // Register 2 -> z.
-    memcpy(buffer, registers_ + 2, sizeof(*z));
-    memcpy(z, buffer, sizeof(*z));
-
-    // Register 2 -> y.
     reg_buffer[0] = get_register(a2);
-    memcpy(y, buffer, sizeof(*y));
+    memcpy(z, buffer, sizeof(*z));
   }
 }
 
