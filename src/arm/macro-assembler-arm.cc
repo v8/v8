@@ -3160,27 +3160,24 @@ void MacroAssembler::AllocateHeapNumberWithValue(Register result,
 // Copies a fixed number of fields of heap objects from src to dst.
 void MacroAssembler::CopyFields(Register dst,
                                 Register src,
-                                RegList temps,
+                                DwVfpRegister double_scratch,
+                                SwVfpRegister single_scratch,
                                 int field_count) {
-  // At least one bit set in the first 15 registers.
-  ASSERT((temps & ((1 << 15) - 1)) != 0);
-  ASSERT((temps & dst.bit()) == 0);
-  ASSERT((temps & src.bit()) == 0);
-  // Primitive implementation using only one temporary register.
-
-  Register tmp = no_reg;
-  // Find a temp register in temps list.
-  for (int i = 0; i < 15; i++) {
-    if ((temps & (1 << i)) != 0) {
-      tmp.set_code(i);
-      break;
-    }
+  int double_count = field_count / (DwVfpRegister::kSizeInBytes / kPointerSize);
+  for (int i = 0; i < double_count; i++) {
+    vldr(double_scratch, FieldMemOperand(src, i * DwVfpRegister::kSizeInBytes));
+    vstr(double_scratch, FieldMemOperand(dst, i * DwVfpRegister::kSizeInBytes));
   }
-  ASSERT(!tmp.is(no_reg));
 
-  for (int i = 0; i < field_count; i++) {
-    ldr(tmp, FieldMemOperand(src, i * kPointerSize));
-    str(tmp, FieldMemOperand(dst, i * kPointerSize));
+  STATIC_ASSERT(SwVfpRegister::kSizeInBytes == kPointerSize);
+  STATIC_ASSERT(2 * SwVfpRegister::kSizeInBytes == DwVfpRegister::kSizeInBytes);
+
+  int remain = field_count % (DwVfpRegister::kSizeInBytes / kPointerSize);
+  if (remain != 0) {
+    vldr(single_scratch,
+         FieldMemOperand(src, (field_count - 1) * kPointerSize));
+    vstr(single_scratch,
+         FieldMemOperand(dst, (field_count - 1) * kPointerSize));
   }
 }
 

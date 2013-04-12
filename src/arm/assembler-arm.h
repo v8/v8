@@ -212,6 +212,7 @@ const Register pc  = { kRegister_pc_Code };
 
 // Single word VFP register.
 struct SwVfpRegister {
+  static const int kSizeInBytes = 4;
   bool is_valid() const { return 0 <= code_ && code_ < 32; }
   bool is(SwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
@@ -242,6 +243,7 @@ struct DwVfpRegister {
   static const int kNumReservedRegisters = 2;
   static const int kMaxNumAllocatableRegisters = kMaxNumRegisters -
       kNumReservedRegisters;
+  static const int kSizeInBytes = 8;
 
   // Note: the number of registers can be different at snapshot and run-time.
   // Any code included in the snapshot must be able to run both with 16 or 32

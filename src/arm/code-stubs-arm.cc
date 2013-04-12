@@ -4448,7 +4448,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
       Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
 
   // Copy the JS object part.
-  __ CopyFields(r0, r4, r3.bit(), JSObject::kHeaderSize / kPointerSize);
+  __ CopyFields(r0, r4, d0, s0, JSObject::kHeaderSize / kPointerSize);
 
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);

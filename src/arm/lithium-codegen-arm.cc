@@ -5614,17 +5614,8 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 
   __ bind(&allocated);
   // Copy the content into the newly allocated memory.
-  // (Unroll copy loop once for better throughput).
-  for (int i = 0; i < size - kPointerSize; i += 2 * kPointerSize) {
-    __ ldr(r3, FieldMemOperand(r1, i));
-    __ ldr(r2, FieldMemOperand(r1, i + kPointerSize));
-    __ str(r3, FieldMemOperand(r0, i));
-    __ str(r2, FieldMemOperand(r0, i + kPointerSize));
-  }
-  if ((size % (2 * kPointerSize)) != 0) {
-    __ ldr(r3, FieldMemOperand(r1, size - kPointerSize));
-    __ str(r3, FieldMemOperand(r0, size - kPointerSize));
-  }
+  __ CopyFields(r0, r1, double_scratch0(), double_scratch0().low(),
+                size / kPointerSize);
 }
 
 
