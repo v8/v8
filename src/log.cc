@@ -127,16 +127,7 @@ DISABLE_ASAN void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
     return;
   }
 
-  const Address callback = isolate->external_callback();
-  if (callback != NULL) {
-    sample->external_callback = callback;
-    sample->has_external_callback = true;
-  } else {
-    // Sample potential return address value for frameless invocation of
-    // stubs (we'll figure out later, if this value makes sense).
-    sample->tos = Memory::Address_at(sample->sp);
-    sample->has_external_callback = false;
-  }
+  sample->external_callback = isolate->external_callback();
 
   SafeStackTraceFrameIterator it(isolate,
                                  sample->fp, sample->sp,
@@ -1492,13 +1483,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.Append(',');
   msg.AppendAddress(sample->sp);
   msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
-  if (sample->has_external_callback) {
-    msg.Append(",1,");
-    msg.AppendAddress(sample->external_callback);
-  } else {
-    msg.Append(",0,");
-    msg.AppendAddress(sample->tos);
-  }
+  msg.AppendAddress(sample->external_callback);
   msg.Append(",%d", static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");

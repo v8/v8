@@ -742,21 +742,16 @@ class TickSample {
         pc(NULL),
         sp(NULL),
         fp(NULL),
-        tos(NULL),
-        frames_count(0),
-        has_external_callback(false) {}
+        external_callback(NULL),
+        frames_count(0) {}
   StateTag state;  // The state of the VM.
   Address pc;      // Instruction pointer.
   Address sp;      // Stack pointer.
   Address fp;      // Frame pointer.
-  union {
-    Address tos;   // Top stack value (*sp).
-    Address external_callback;
-  };
+  Address external_callback;
   static const int kMaxFramesCount = 64;
   Address stack[kMaxFramesCount];  // Call stack.
   int frames_count : 8;  // Number of captured frames.
-  bool has_external_callback : 1;
 };
 
 class Sampler {

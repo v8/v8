@@ -64,7 +64,6 @@ static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame3 = NULL) {
   i::TickSample* sample = proc->TickSampleEvent();
   sample->pc = frame1;
-  sample->tos = frame1;
   sample->frames_count = 0;
   if (frame2 != NULL) {
     sample->stack[0] = frame2;
@@ -239,7 +238,6 @@ TEST(Issue1398) {
 
   i::TickSample* sample = processor.TickSampleEvent();
   sample->pc = ToAddress(0x1200);
-  sample->tos = 0;
   sample->frames_count = i::TickSample::kMaxFramesCount;
   for (int i = 0; i < sample->frames_count; ++i) {
     sample->stack[i] = ToAddress(0x1200);

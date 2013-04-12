@@ -287,7 +287,7 @@ TEST(CFromJSStackTrace) {
   //         DoTrace(EBP) [native]
   //           StackTracer::Trace
 
-  CHECK(sample.has_external_callback);
+  CHECK(sample.external_callback);
   CHECK_EQ(FUNCTION_ADDR(TraceExtension::Trace), sample.external_callback);
 
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
@@ -337,7 +337,7 @@ TEST(PureJSStackTrace) {
   //             StackTracer::Trace
   //
 
-  CHECK(sample.has_external_callback);
+  CHECK(sample.external_callback);
   CHECK_EQ(FUNCTION_ADDR(TraceExtension::JSTrace), sample.external_callback);
 
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
