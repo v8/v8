@@ -168,16 +168,6 @@ class InputStreamUtf16Buffer : public Utf16CharacterStream {
   unsigned pushback_buffer_backing_size_;
 };
 
-
-// Functions declared by allocation.h and implemented in both api.cc (for v8)
-// or here (for a stand-alone preparser).
-
-void FatalProcessOutOfMemory(const char* reason) {
-  V8_Fatal(__FILE__, __LINE__, reason);
-}
-
-bool EnableSlowAsserts() { return true; }
-
 }  // namespace internal.
 
 
@@ -204,9 +194,3 @@ PreParserData Preparse(UnicodeInputStream* input, size_t max_stack) {
 }
 
 }  // namespace v8.
-
-
-// Used by ASSERT macros and other immediate exits.
-extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
-  exit(EXIT_FAILURE);
-}
