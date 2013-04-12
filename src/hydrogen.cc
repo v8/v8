@@ -1285,12 +1285,11 @@ void HGraphBuilder::BuildInitializeElements(HValue* elements,
                                             ElementsKind kind,
                                             HValue* capacity) {
   Zone* zone = this->zone();
-  BailoutId ast_id = current_block()->last_environment()->previous_ast_id();
   Factory* factory = isolate()->factory();
   Handle<Map> map = IsFastDoubleElementsKind(kind)
       ? factory->fixed_double_array_map()
       : factory->fixed_array_map();
-  BuildStoreMap(elements, map, ast_id);
+  BuildStoreMap(elements, map);
 
   Handle<String> fixed_array_length_field_name = factory->length_field_string();
   HInstruction* store_length =
@@ -1311,8 +1310,7 @@ HValue* HGraphBuilder::BuildAllocateAndInitializeElements(HValue* context,
 
 
 HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
-                                           HValue* map,
-                                           BailoutId id) {
+                                           HValue* map) {
   Zone* zone = this->zone();
   Factory* factory = isolate()->factory();
   Handle<String> map_field_name = factory->map_field_string();
@@ -1326,12 +1324,11 @@ HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
 
 
 HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
-                                           Handle<Map> map,
-                                           BailoutId id) {
+                                           Handle<Map> map) {
   Zone* zone = this->zone();
   HValue* map_constant =
       AddInstruction(new(zone) HConstant(map, Representation::Tagged()));
-  return BuildStoreMap(object, map_constant, id);
+  return BuildStoreMap(object, map_constant);
 }
 
 
@@ -1480,7 +1477,6 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
                                               HValue* boilerplate,
                                               AllocationSiteMode mode,
                                               ElementsKind kind,
-                                              BailoutId id,
                                               int length) {
   Zone* zone = this->zone();
   Factory* factory = isolate()->factory();
@@ -1526,7 +1522,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
                                                   value,
                                                   true, i));
       } else {
-        BuildStoreMap(object, value, id);
+        BuildStoreMap(object, value);
       }
     }
   }
@@ -1536,7 +1532,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
     HValue* alloc_site =
         AddInstruction(new(zone) HInnerAllocatedObject(object, JSArray::kSize));
     Handle<Map> alloc_site_map(isolate()->heap()->allocation_site_info_map());
-    BuildStoreMap(alloc_site, alloc_site_map, id);
+    BuildStoreMap(alloc_site, alloc_site_map);
     int alloc_payload_offset = AllocationSiteInfo::kPayloadOffset;
     AddInstruction(new(zone) HStoreNamedField(alloc_site,
                                               factory->empty_string(),
@@ -6201,8 +6197,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                                original_boilerplate_object,
                                data_size,
                                pointer_size,
-                               DONT_TRACK_ALLOCATION_SITE,
-                               environment()->previous_ast_id());
+                               DONT_TRACK_ALLOCATION_SITE);
   } else {
     literal = AddInstruction(
         new(zone()) HObjectLiteral(context,
@@ -6342,8 +6337,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                                original_boilerplate_object,
                                data_size,
                                pointer_size,
-                               mode,
-                               environment()->previous_ast_id());
+                               mode);
   } else {
     literal = AddInstruction(
                   new(zone()) HArrayLiteral(context,
@@ -10101,8 +10095,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     Handle<JSObject> original_boilerplate_object,
     int data_size,
     int pointer_size,
-    AllocationSiteMode mode,
-    BailoutId id) {
+    AllocationSiteMode mode) {
   Zone* zone = this->zone();
   int total_size = data_size + pointer_size;
 
@@ -10118,8 +10111,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
                                          HAllocate::CAN_ALLOCATE_IN_NEW_SPACE));
   int offset = 0;
   BuildEmitDeepCopy(boilerplate_object, original_boilerplate_object, result,
-                    &offset, mode, id);
-  ASSERT_EQ(total_size, offset);
+                    &offset, mode);
   return result;
 }
 
@@ -10129,8 +10121,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
     Handle<JSObject> original_boilerplate_object,
     HInstruction* target,
     int* offset,
-    AllocationSiteMode mode,
-    BailoutId id) {
+    AllocationSiteMode mode) {
   Zone* zone = this->zone();
   Factory* factory = isolate()->factory();
 
@@ -10163,7 +10154,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
   *offset += object_size + elements_size;
 
   HValue* object_elements = BuildCopyObjectHeader(boilerplate_object, target,
-      object_offset, elements_offset, elements_size, id);
+      object_offset, elements_offset, elements_size);
 
   // Copy in-object properties.
   HValue* object_properties =
@@ -10183,7 +10174,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
           object_properties, factory->unknown_field_string(), value_instruction,
           true, boilerplate_object->GetInObjectPropertyOffset(i)));
       BuildEmitDeepCopy(value_object, original_value_object, target,
-                        offset, DONT_TRACK_ALLOCATION_SITE, id);
+                        offset, DONT_TRACK_ALLOCATION_SITE);
     } else {
       HInstruction* value_instruction = AddInstruction(new(zone) HConstant(
           value, Representation::Tagged()));
@@ -10198,7 +10189,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
     HValue* alloc_site =
         AddInstruction(new(zone) HInnerAllocatedObject(target, JSArray::kSize));
     Handle<Map> alloc_site_map(isolate()->heap()->allocation_site_info_map());
-    BuildStoreMap(alloc_site, alloc_site_map, id);
+    BuildStoreMap(alloc_site, alloc_site_map);
     int alloc_payload_offset = AllocationSiteInfo::kPayloadOffset;
     AddInstruction(new(zone) HStoreNamedField(alloc_site,
                                               factory->payload_string(),
@@ -10245,7 +10236,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
           AddInstruction(new(zone) HStoreKeyed(
               object_elements, key_constant, value_instruction, kind));
           BuildEmitDeepCopy(value_object, original_value_object, target,
-              offset, DONT_TRACK_ALLOCATION_SITE, id);
+              offset, DONT_TRACK_ALLOCATION_SITE);
         } else {
           HInstruction* value_instruction =
               AddInstruction(new(zone) HLoadKeyed(
@@ -10266,8 +10257,7 @@ HValue* HOptimizedGraphBuilder::BuildCopyObjectHeader(
     HInstruction* target,
     int object_offset,
     int elements_offset,
-    int elements_size,
-    BailoutId id) {
+    int elements_size) {
   ASSERT(boilerplate_object->properties()->length() == 0);
   Zone* zone = this->zone();
   Factory* factory = isolate()->factory();
@@ -10276,7 +10266,7 @@ HValue* HOptimizedGraphBuilder::BuildCopyObjectHeader(
   HValue* object_header =
       AddInstruction(new(zone) HInnerAllocatedObject(target, object_offset));
   Handle<Map> boilerplate_object_map(boilerplate_object->map());
-  BuildStoreMap(object_header, boilerplate_object_map, id);
+  BuildStoreMap(object_header, boilerplate_object_map);
 
   HInstruction* elements;
   if (elements_size == 0) {

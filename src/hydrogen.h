@@ -950,8 +950,8 @@ class HGraphBuilder {
       KeyedAccessStoreMode store_mode,
       Representation checked_index_representation = Representation::None());
 
-  HInstruction* BuildStoreMap(HValue* object, HValue* map, BailoutId id);
-  HInstruction* BuildStoreMap(HValue* object, Handle<Map> map, BailoutId id);
+  HInstruction* BuildStoreMap(HValue* object, HValue* map);
+  HInstruction* BuildStoreMap(HValue* object, Handle<Map> map);
 
   class CheckBuilder {
    public:
@@ -1099,7 +1099,6 @@ class HGraphBuilder {
                                  HValue* boilerplate,
                                  AllocationSiteMode mode,
                                  ElementsKind kind,
-                                 BailoutId id,
                                  int length);
 
  private:
@@ -1510,23 +1509,20 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                  Handle<JSObject> original_boilerplate_object,
                                  int data_size,
                                  int pointer_size,
-                                 AllocationSiteMode mode,
-                                 BailoutId id);
+                                 AllocationSiteMode mode);
 
   void BuildEmitDeepCopy(Handle<JSObject> boilerplat_object,
                          Handle<JSObject> object,
                          HInstruction* result,
                          int* offset,
-                         AllocationSiteMode mode,
-                         BailoutId id);
+                         AllocationSiteMode mode);
 
   MUST_USE_RESULT HValue* BuildCopyObjectHeader(
       Handle<JSObject> boilerplat_object,
       HInstruction* target,
       int object_offset,
       int elements_offset,
-      int elements_size,
-      BailoutId id);
+      int elements_size);
 
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);

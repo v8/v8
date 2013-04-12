@@ -217,7 +217,6 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                boilerplate,
                                                alloc_site_mode,
                                                FAST_ELEMENTS,
-                                               BailoutId::StubEntry(),
                                                0/*copy-on-write*/));
     if_fixed_cow.BeginElse();
 
@@ -227,7 +226,6 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                boilerplate,
                                                alloc_site_mode,
                                                FAST_ELEMENTS,
-                                               BailoutId::StubEntry(),
                                                length));
     if_fixed.BeginElse();
 
@@ -235,7 +233,6 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                boilerplate,
                                                alloc_site_mode,
                                                FAST_DOUBLE_ELEMENTS,
-                                               BailoutId::StubEntry(),
                                                length));
   } else {
     ElementsKind elements_kind = casted_stub()->ComputeElementsKind();
@@ -243,7 +240,6 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                boilerplate,
                                                alloc_site_mode,
                                                elements_kind,
-                                               BailoutId::StubEntry(),
                                                length));
   }
 
