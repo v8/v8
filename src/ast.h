@@ -1964,21 +1964,25 @@ class Yield: public Expression {
  public:
   DECLARE_NODE_TYPE(Yield)
 
+  Expression* generator_object() const { return generator_object_; }
   Expression* expression() const { return expression_; }
   bool is_delegating_yield() const { return is_delegating_yield_; }
   virtual int position() const { return pos_; }
 
  protected:
   Yield(Isolate* isolate,
+        Expression* generator_object,
         Expression* expression,
         bool is_delegating_yield,
         int pos)
       : Expression(isolate),
+        generator_object_(generator_object),
         expression_(expression),
         is_delegating_yield_(is_delegating_yield),
         pos_(pos) { }
 
  private:
+  Expression* generator_object_;
   Expression* expression_;
   bool is_delegating_yield_;
   int pos_;
@@ -2960,9 +2964,12 @@ class AstNodeFactory BASE_EMBEDDED {
     VISIT_AND_RETURN(Assignment, assign)
   }
 
-  Yield* NewYield(Expression* expression, bool is_delegating_yield, int pos) {
-    Yield* yield =
-        new(zone_) Yield(isolate_, expression, is_delegating_yield, pos);
+  Yield* NewYield(Expression *generator_object,
+                  Expression* expression,
+                  bool is_delegating_yield,
+                  int pos) {
+    Yield* yield = new(zone_) Yield(
+        isolate_, generator_object, expression, is_delegating_yield, pos);
     VISIT_AND_RETURN(Yield, yield)
   }
 

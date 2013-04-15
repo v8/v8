@@ -1553,6 +1553,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
     UNIMPLEMENTED();
 
   Comment cmnt(masm_, "[ Yield");
+  // TODO(wingo): Actually update the iterator state.
+  VisitForEffect(expr->generator_object());
   VisitForAccumulatorValue(expr->expression());
   // TODO(wingo): Assert that the operand stack depth is 0, at least while
   // general yield expressions are unimplemented.

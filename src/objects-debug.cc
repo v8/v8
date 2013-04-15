@@ -139,6 +139,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       JSObject::cast(this)->JSObjectVerify();
       break;
+    case JS_GENERATOR_OBJECT_TYPE:
+      JSGeneratorObject::cast(this)->JSGeneratorObjectVerify();
+      break;
     case JS_MODULE_TYPE:
       JSModule::cast(this)->JSModuleVerify();
       break;
@@ -401,6 +404,17 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
              ((BitCast<uint64_t>(value) & Double::kSignMask) != 0));
     }
   }
+}
+
+
+void JSGeneratorObject::JSGeneratorObjectVerify() {
+  // In an expression like "new g()", there can be a point where a generator
+  // object is allocated but its fields are all undefined, as it hasn't yet been
+  // initialized by the generator.  Hence these weak checks.
+  VerifyObjectField(kFunctionOffset);
+  VerifyObjectField(kContextOffset);
+  VerifyObjectField(kOperandStackOffset);
+  VerifyObjectField(kContinuationOffset);
 }
 
 

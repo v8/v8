@@ -653,6 +653,7 @@ TYPE_CHECKER(Code, CODE_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(JSGlobalPropertyCell, JS_GLOBAL_PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
+TYPE_CHECKER(JSGeneratorObject, JS_GENERATOR_OBJECT_TYPE)
 TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
 TYPE_CHECKER(JSDate, JS_DATE_TYPE)
@@ -1584,6 +1585,8 @@ int JSObject::GetHeaderSize() {
   // field operations considerably on average.
   if (type == JS_OBJECT_TYPE) return JSObject::kHeaderSize;
   switch (type) {
+    case JS_GENERATOR_OBJECT_TYPE:
+      return JSGeneratorObject::kSize;
     case JS_MODULE_TYPE:
       return JSModule::kSize;
     case JS_GLOBAL_PROXY_TYPE:
@@ -5007,6 +5010,19 @@ Address Foreign::foreign_address() {
 
 void Foreign::set_foreign_address(Address value) {
   WRITE_INTPTR_FIELD(this, kForeignAddressOffset, OffsetFrom(value));
+}
+
+
+ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
+ACCESSORS(JSGeneratorObject, context, Object, kContextOffset)
+SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
+ACCESSORS(JSGeneratorObject, operand_stack, FixedArray, kOperandStackOffset)
+
+
+JSGeneratorObject* JSGeneratorObject::cast(Object* obj) {
+  ASSERT(obj->IsJSGeneratorObject());
+  ASSERT(HeapObject::cast(obj)->Size() == JSGeneratorObject::kSize);
+  return reinterpret_cast<JSGeneratorObject*>(obj);
 }
 
 

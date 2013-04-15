@@ -488,7 +488,6 @@ class Parser BASE_EMBEDDED {
    public:
     FunctionState(Parser* parser,
                   Scope* scope,
-                  bool is_generator,
                   Isolate* isolate);
     ~FunctionState();
 
@@ -519,7 +518,17 @@ class Parser BASE_EMBEDDED {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
-    bool is_generator() const { return is_generator_; }
+    void set_generator_object_variable(Variable *variable) {
+      ASSERT(variable != NULL);
+      ASSERT(!is_generator());
+      generator_object_variable_ = variable;
+    }
+    Variable* generator_object_variable() const {
+      return generator_object_variable_;
+    }
+    bool is_generator() const {
+      return generator_object_variable_ != NULL;
+    }
 
     AstNodeFactory<AstConstructionVisitor>* factory() { return &factory_; }
 
@@ -535,13 +544,15 @@ class Parser BASE_EMBEDDED {
     // Properties count estimation.
     int expected_property_count_;
 
-    // Indicates that this function is a generator.
-    bool is_generator_;
-
     // Keeps track of assignments to properties of this. Used for
     // optimizing constructors.
     bool only_simple_this_property_assignments_;
     Handle<FixedArray> this_property_assignments_;
+
+    // For generators, the variable that holds the generator object.  This
+    // variable is used by yield expressions and return statements.  NULL
+    // indicates that this function is not a generator.
+    Variable* generator_object_variable_;
 
     Parser* parser_;
     FunctionState* outer_function_state_;

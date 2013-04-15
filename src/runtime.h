@@ -295,6 +295,9 @@ namespace internal {
   F(CreateArrayLiteral, 3, 1) \
   F(CreateArrayLiteralShallow, 3, 1) \
   \
+  /* Harmony generators */ \
+  F(CreateJSGeneratorObject, 0, 1) \
+  \
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \
   \

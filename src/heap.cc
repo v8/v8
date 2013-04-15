@@ -4101,9 +4101,8 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   int instance_size;
   int in_object_properties;
   if (fun->shared()->is_generator()) {
-    // TODO(wingo): Replace with JS_GENERATOR_OBJECT_TYPE.
-    instance_type = JS_OBJECT_TYPE;
-    instance_size = JSObject::kHeaderSize;
+    instance_type = JS_GENERATOR_OBJECT_TYPE;
+    instance_size = JSGeneratorObject::kSize;
     in_object_properties = 0;
   } else {
     instance_type = JS_OBJECT_TYPE;
@@ -4349,6 +4348,22 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
   ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
 #endif
   return result;
+}
+
+
+MaybeObject* Heap::AllocateJSGeneratorObject(JSFunction *function) {
+  ASSERT(function->shared()->is_generator());
+  Map *map;
+  if (function->has_initial_map()) {
+    map = function->initial_map();
+  } else {
+    // Allocate the initial map if absent.
+    MaybeObject* maybe_map = AllocateInitialMap(function);
+    if (!maybe_map->To(&map)) return maybe_map;
+    function->set_initial_map(map);
+  }
+  ASSERT(map->instance_type() == JS_GENERATOR_OBJECT_TYPE);
+  return AllocateJSObjectFromMap(map);
 }
 
 

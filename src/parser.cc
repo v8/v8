@@ -486,14 +486,13 @@ class Parser::BlockState BASE_EMBEDDED {
 
 Parser::FunctionState::FunctionState(Parser* parser,
                                      Scope* scope,
-                                     bool is_generator,
                                      Isolate* isolate)
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
       next_handler_index_(0),
       expected_property_count_(0),
-      is_generator_(is_generator),
       only_simple_this_property_assignments_(false),
       this_property_assignments_(isolate->factory()->empty_fixed_array()),
+      generator_object_variable_(NULL),
       parser_(parser),
       outer_function_state_(parser->current_function_state_),
       outer_scope_(parser->top_scope_),
@@ -642,9 +641,8 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     }
     ParsingModeScope parsing_mode(this, mode);
 
-    bool is_generator = false;
     // Enters 'scope'.
-    FunctionState function_state(this, scope, is_generator, isolate());
+    FunctionState function_state(this, scope, isolate());
 
     top_scope_->SetLanguageMode(info->language_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
@@ -758,8 +756,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
       scope = Scope::DeserializeScopeChain(info()->closure()->context(), scope,
                                            zone());
     }
-    bool is_generator = false;  // Top scope is not a generator.
-    FunctionState function_state(this, scope, is_generator, isolate());
+    FunctionState function_state(this, scope, isolate());
     ASSERT(scope->language_mode() != STRICT_MODE || !info()->is_classic_mode());
     ASSERT(scope->language_mode() != EXTENDED_MODE ||
            info()->is_extended_mode());
@@ -3103,8 +3100,11 @@ Expression* Parser::ParseYieldExpression(bool* ok) {
   int position = scanner().peek_location().beg_pos;
   Expect(Token::YIELD, CHECK_OK);
   bool is_yield_star = Check(Token::MUL);
+  Expression* generator_object = factory()->NewVariableProxy(
+      current_function_state_->generator_object_variable());
   Expression* expression = ParseAssignmentExpression(false, CHECK_OK);
-  return factory()->NewYield(expression, is_yield_star, position);
+  return factory()->NewYield(generator_object, expression, is_yield_star,
+                             position);
 }
 
 
@@ -4389,11 +4389,24 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
       : FunctionLiteral::kNotGenerator;
   AstProperties ast_properties;
   // Parse function body.
-  { FunctionState function_state(this, scope, is_generator, isolate());
+  { FunctionState function_state(this, scope, isolate());
     top_scope_->SetScopeName(function_name);
-    // For generators, allocating variables in contexts is currently a win
-    // because it minimizes the work needed to suspend and resume an activation.
-    if (is_generator) top_scope_->ForceContextAllocation();
+
+    if (is_generator) {
+      // For generators, allocating variables in contexts is currently a win
+      // because it minimizes the work needed to suspend and resume an
+      // activation.
+      top_scope_->ForceContextAllocation();
+
+      // Calling a generator returns a generator object.  That object is stored
+      // in a temporary variable, a definition that is used by "yield"
+      // expressions.  Presence of a variable for the generator object in the
+      // FunctionState indicates that this function is a generator.
+      Handle<String> tempname = isolate()->factory()->InternalizeOneByteString(
+          STATIC_ASCII_VECTOR(".generator_object"));
+      Variable* temp = top_scope_->DeclarationScope()->NewTemporary(tempname);
+      function_state.set_generator_object_variable(temp);
+    }
 
     //  FormalParameterList ::
     //    '(' (Identifier)*[','] ')'
@@ -4551,6 +4564,26 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                      RelocInfo::kNoPosition)),
                                      zone());
       }
+
+      // For generators, allocate and yield an iterator on function entry.
+      if (is_generator) {
+        ZoneList<Expression*>* arguments =
+            new(zone()) ZoneList<Expression*>(0, zone());
+        CallRuntime* allocation = factory()->NewCallRuntime(
+            isolate()->factory()->empty_string(),
+            Runtime::FunctionForId(Runtime::kCreateJSGeneratorObject),
+            arguments);
+        VariableProxy* init_proxy = factory()->NewVariableProxy(
+            current_function_state_->generator_object_variable());
+        Assignment* assignment = factory()->NewAssignment(
+            Token::INIT_VAR, init_proxy, allocation, RelocInfo::kNoPosition);
+        VariableProxy* get_proxy = factory()->NewVariableProxy(
+            current_function_state_->generator_object_variable());
+        Yield* yield = factory()->NewYield(
+            get_proxy, assignment, false, RelocInfo::kNoPosition);
+        body->Add(factory()->NewExpressionStatement(yield), zone());
+      }
+
       ParseSourceElements(body, Token::RBRACE, false, false, CHECK_OK);
 
       materialized_literal_count = function_state.materialized_literal_count();
