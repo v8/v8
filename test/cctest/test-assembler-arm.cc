@@ -1137,4 +1137,84 @@ TEST(13) {
   }
 }
 
+
+TEST(14) {
+  // Test the VFP Canonicalized Nan mode.
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    double left;
+    double right;
+    double add_result;
+    double sub_result;
+    double mul_result;
+    double div_result;
+  } T;
+  T t;
+
+  // Create a function that makes the four basic operations.
+  Assembler assm(isolate, NULL, 0);
+
+  // Ensure FPSCR state (as JSEntryStub does).
+  Label fpscr_done;
+  __ vmrs(r1);
+  __ tst(r1, Operand(kVFPDefaultNaNModeControlBit));
+  __ b(ne, &fpscr_done);
+  __ orr(r1, r1, Operand(kVFPDefaultNaNModeControlBit));
+  __ vmsr(r1);
+  __ bind(&fpscr_done);
+
+  __ vldr(d0, r0, OFFSET_OF(T, left));
+  __ vldr(d1, r0, OFFSET_OF(T, right));
+  __ vadd(d2, d0, d1);
+  __ vstr(d2, r0, OFFSET_OF(T, add_result));
+  __ vsub(d2, d0, d1);
+  __ vstr(d2, r0, OFFSET_OF(T, sub_result));
+  __ vmul(d2, d0, d1);
+  __ vstr(d2, r0, OFFSET_OF(T, mul_result));
+  __ vdiv(d2, d0, d1);
+  __ vstr(d2, r0, OFFSET_OF(T, div_result));
+
+  __ mov(pc, Operand(lr));
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = isolate->heap()->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>())->ToObjectChecked();
+  CHECK(code->IsCode());
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  t.left = BitCast<double>(kHoleNanInt64);
+  t.right = 1;
+  t.add_result = 0;
+  t.sub_result = 0;
+  t.mul_result = 0;
+  t.div_result = 0;
+  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  USE(dummy);
+  const uint32_t kArmNanUpper32 = 0x7ff80000;
+  const uint32_t kArmNanLower32 = 0x00000000;
+#ifdef DEBUG
+  const uint64_t kArmNanInt64 =
+      (static_cast<uint64_t>(kArmNanUpper32) << 32) | kArmNanLower32;
+  ASSERT(kArmNanInt64 != kHoleNanInt64);
+#endif
+  // With VFP2 the sign of the canonicalized Nan is undefined. So
+  // we remove the sign bit for the upper tests.
+  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.add_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.add_result) & 0xffffffffu);
+  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.sub_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.sub_result) & 0xffffffffu);
+  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.mul_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.mul_result) & 0xffffffffu);
+  CHECK_EQ(kArmNanUpper32, (BitCast<int64_t>(t.div_result) >> 32) & 0x7fffffff);
+  CHECK_EQ(kArmNanLower32, BitCast<int64_t>(t.div_result) & 0xffffffffu);
+}
+
 #undef __

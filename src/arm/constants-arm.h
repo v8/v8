@@ -403,6 +403,7 @@ const uint32_t kVFPOverflowExceptionBit = 1 << 2;
 const uint32_t kVFPUnderflowExceptionBit = 1 << 3;
 const uint32_t kVFPInexactExceptionBit = 1 << 4;
 const uint32_t kVFPFlushToZeroMask = 1 << 24;
+const uint32_t kVFPDefaultNaNModeControlBit = 1 << 25;
 
 const uint32_t kVFPNConditionFlagBit = 1 << 31;
 const uint32_t kVFPZConditionFlagBit = 1 << 30;

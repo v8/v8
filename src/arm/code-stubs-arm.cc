@@ -3497,6 +3497,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     masm->Jump(r5);
   }
 
+  __ VFPEnsureFPSCRState(r2);
+
   if (always_allocate) {
     // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
     // though (contain the result).
@@ -3658,6 +3660,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ vstm(db_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
   // Set up the reserved register for 0.0.
   __ vmov(kDoubleRegZero, 0.0);
+  __ VFPEnsureFPSCRState(r4);
 
   // Get address of argv, see stm above.
   // r0: code entry
@@ -6839,6 +6842,7 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   __ Jump(target);  // Call the C++ function.
   ASSERT_EQ(Assembler::kInstrSize + Assembler::kPcLoadDelta,
             masm->SizeOfCodeGeneratedSince(&start));
+  __ VFPEnsureFPSCRState(r2);
 }
 
 
@@ -7439,7 +7443,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
   __ StoreNumberToDoubleElements(r0, r3,
                                  // Overwrites all regs after this.
-                                 r5, r6, r7, r9, r2,
+                                 r5, r9, r6, r7, r2,
                                  &slow_elements);
   __ Ret();
 }

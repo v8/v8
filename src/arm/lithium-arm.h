@@ -2176,7 +2176,13 @@ class LStoreKeyed: public LTemplateInstruction<0, 3, 0> {
   DECLARE_HYDROGEN_ACCESSOR(StoreKeyed)
 
   virtual void PrintDataTo(StringStream* stream);
-  bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
+  bool NeedsCanonicalization() {
+    if (hydrogen()->value()->IsAdd() || hydrogen()->value()->IsSub() ||
+        hydrogen()->value()->IsMul() || hydrogen()->value()->IsDiv()) {
+      return false;
+    }
+    return hydrogen()->NeedsCanonicalization();
+  }
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 

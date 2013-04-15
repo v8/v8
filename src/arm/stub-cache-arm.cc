@@ -1621,7 +1621,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
       __ StoreNumberToDoubleElements(
-          r4, r0, elements, r3, r5, r2, r9,
+          r4, r0, elements, r5, r2, r3, r9,
           &call_builtin, argc * kDoubleSize);
 
       // Save new length.
@@ -3586,9 +3586,9 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
                                  // All registers after this are overwritten.
                                  elements_reg,
                                  scratch1,
-                                 scratch2,
                                  scratch3,
                                  scratch4,
+                                 scratch2,
                                  &transition_elements_kind);
   __ Ret();
 

@@ -773,6 +773,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   c_flag_FPSCR_ = false;
   v_flag_FPSCR_ = false;
   FPSCR_rounding_mode_ = RZ;
+  FPSCR_default_NaN_mode_ = true;
 
   inv_op_vfp_flag_ = false;
   div_zero_vfp_flag_ = false;
@@ -1868,6 +1869,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
 }
 
 
+double Simulator::canonicalizeNaN(double value) {
+  return (FPSCR_default_NaN_mode_ && isnan(value)) ?
+    FixedDoubleArray::canonical_not_the_hole_nan_as_double() : value;
+}
+
 // Stop helper functions.
 bool Simulator::isStopInstruction(Instruction* instr) {
   return (instr->Bits(27, 24) == 0xF) && (instr->SvcValue() >= kStopCode);
@@ -2728,11 +2734,13 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         // vabs
         double dm_value = get_double_from_d_register(vm);
         double dd_value = fabs(dm_value);
+        dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else if ((instr->Opc2Value() == 0x1) && (instr->Opc3Value() == 0x1)) {
         // vneg
         double dm_value = get_double_from_d_register(vm);
         double dd_value = -dm_value;
+        dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else if ((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
@@ -2748,6 +2756,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         // vsqrt
         double dm_value = get_double_from_d_register(vm);
         double dd_value = sqrt(dm_value);
+        dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else if (instr->Opc3Value() == 0x0) {
         // vmov immediate.
@@ -2769,12 +2778,14 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         double dn_value = get_double_from_d_register(vn);
         double dm_value = get_double_from_d_register(vm);
         double dd_value = dn_value - dm_value;
+        dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else {
         // vadd
         double dn_value = get_double_from_d_register(vn);
         double dm_value = get_double_from_d_register(vm);
         double dd_value = dn_value + dm_value;
+        dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       }
     } else if ((instr->Opc1Value() == 0x2) && !(instr->Opc3Value() & 0x1)) {
@@ -2786,6 +2797,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       double dn_value = get_double_from_d_register(vn);
       double dm_value = get_double_from_d_register(vm);
       double dd_value = dn_value * dm_value;
+      dd_value = canonicalizeNaN(dd_value);
       set_d_register_from_double(vd, dd_value);
     } else if ((instr->Opc1Value() == 0x0)) {
       // vmla, vmls
@@ -2803,9 +2815,13 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       // result with too high precision.
       set_d_register_from_double(vd, dn_val * dm_val);
       if (is_vmls) {
-        set_d_register_from_double(vd, dd_val - get_double_from_d_register(vd));
+        set_d_register_from_double(
+          vd,
+          canonicalizeNaN(dd_val - get_double_from_d_register(vd)));
       } else {
-        set_d_register_from_double(vd, dd_val + get_double_from_d_register(vd));
+        set_d_register_from_double(
+          vd,
+          canonicalizeNaN(dd_val + get_double_from_d_register(vd)));
       }
     } else if ((instr->Opc1Value() == 0x4) && !(instr->Opc3Value() & 0x1)) {
       // vdiv
@@ -2817,6 +2833,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       double dm_value = get_double_from_d_register(vm);
       double dd_value = dn_value / dm_value;
       div_zero_vfp_flag_ = (dm_value == 0);
+      dd_value = canonicalizeNaN(dd_value);
       set_d_register_from_double(vd, dd_value);
     } else {
       UNIMPLEMENTED();  // Not used by V8.
@@ -2850,6 +2867,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
                          (z_flag_FPSCR_ << 30) |
                          (c_flag_FPSCR_ << 29) |
                          (v_flag_FPSCR_ << 28) |
+                         (FPSCR_default_NaN_mode_ << 25) |
                          (inexact_vfp_flag_ << 4) |
                          (underflow_vfp_flag_ << 3) |
                          (overflow_vfp_flag_ << 2) |
@@ -2872,6 +2890,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         z_flag_FPSCR_ = (rt_value >> 30) & 1;
         c_flag_FPSCR_ = (rt_value >> 29) & 1;
         v_flag_FPSCR_ = (rt_value >> 28) & 1;
+        FPSCR_default_NaN_mode_ = (rt_value >> 25) & 1;
         inexact_vfp_flag_ = (rt_value >> 4) & 1;
         underflow_vfp_flag_ = (rt_value >> 3) & 1;
         overflow_vfp_flag_ = (rt_value >> 2) & 1;
