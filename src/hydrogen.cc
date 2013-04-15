@@ -10966,7 +10966,13 @@ void HOptimizedGraphBuilder::GenerateMathLog(CallRuntime* call) {
 
 
 void HOptimizedGraphBuilder::GenerateMathSqrt(CallRuntime* call) {
-  return Bailout("inlined runtime function: MathSqrt");
+  ASSERT(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  HValue* context = environment()->LookupContext();
+  HInstruction* result =
+      HUnaryMathOperation::New(zone(), context, value, kMathSqrt);
+  return ast_context()->ReturnInstruction(result, call->id());
 }
 
 
