@@ -466,12 +466,12 @@ static const char* cpu_profiler_test_source = "function loop(timeout) {\n"
 "       baz();\n"
 "    } catch (e) { }\n"
 "}\n"
-"function start() {\n"
+"function start(timeout) {\n"
 "  var start = Date.now();\n"
 "  do {\n"
 "    foo();\n"
 "    var duration = Date.now() - start;\n"
-"  } while (duration < 200);\n"
+"  } while (duration < timeout);\n"
 "  return duration;\n"
 "}\n";
 
@@ -505,7 +505,14 @@ TEST(CollectCpuProfile) {
   v8::Local<v8::String> profile_name = v8::String::New("my_profile");
 
   cpu_profiler->StartCpuProfiling(profile_name);
-  function->Call(env->Global(), 0, 0);
+  int32_t profiling_interval_ms = 200;
+#if defined(_WIN32) || defined(_WIN64)
+  // 200ms is not enough on Windows. See
+  // https://code.google.com/p/v8/issues/detail?id=2628
+  profiling_interval_ms = 500;
+#endif
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(profiling_interval_ms) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
   const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
 
   CHECK_NE(NULL, profile);
