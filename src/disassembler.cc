@@ -107,7 +107,6 @@ static void DumpBuffer(FILE* f, StringBuilder* out) {
 }
 
 
-
 static const int kOutBufferSize = 2048 + String::kMaxShortPrintLength;
 static const int kRelocInfoPosition = 57;
 
