@@ -4879,7 +4879,6 @@ class HAllocate: public HTemplateInstruction<2> {
   HAllocate(HValue* context, HValue* size, HType type, Flags flags)
       : type_(type),
         flags_(flags) {
-    ASSERT((flags & CAN_ALLOCATE_IN_OLD_DATA_SPACE) == 0);  // unimplemented
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());

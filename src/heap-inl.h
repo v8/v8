@@ -345,6 +345,16 @@ bool Heap::InOldPointerSpace(Object* object) {
 }
 
 
+bool Heap::InOldDataSpace(Address address) {
+  return old_data_space_->Contains(address);
+}
+
+
+bool Heap::InOldDataSpace(Object* object) {
+  return InOldDataSpace(reinterpret_cast<Address>(object));
+}
+
+
 bool Heap::OldGenerationAllocationLimitReached() {
   if (!incremental_marking()->IsStopped()) return false;
   return OldGenerationSpaceAvailable() < 0;

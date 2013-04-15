@@ -1264,10 +1264,14 @@ HValue* HGraphBuilder::BuildAllocateElements(HValue* context,
   total_size->ClearFlag(HValue::kCanOverflow);
 
   HAllocate::Flags flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
-  // TODO(hpayer): add support for old data space
-  if (FLAG_pretenure_literals && !IsFastDoubleElementsKind(kind)) {
-    flags = static_cast<HAllocate::Flags>(
-        flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
+  if (FLAG_pretenure_literals) {
+    if (IsFastDoubleElementsKind(kind)) {
+      flags = static_cast<HAllocate::Flags>(
+          flags | HAllocate::CAN_ALLOCATE_IN_OLD_DATA_SPACE);
+    } else {
+      flags = static_cast<HAllocate::Flags>(
+          flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
+    }
   }
   if (IsFastDoubleElementsKind(kind)) {
     flags = static_cast<HAllocate::Flags>(

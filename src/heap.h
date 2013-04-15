@@ -602,6 +602,13 @@ class Heap {
     return old_pointer_space_->allocation_limit_address();
   }
 
+  Address* OldDataSpaceAllocationTopAddress() {
+    return old_data_space_->allocation_top_address();
+  }
+  Address* OldDataSpaceAllocationLimitAddress() {
+    return old_data_space_->allocation_limit_address();
+  }
+
   // Uncommit unused semi space.
   bool UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
 
@@ -1329,6 +1336,10 @@ class Heap {
   // Returns whether the object resides in old pointer space.
   inline bool InOldPointerSpace(Address address);
   inline bool InOldPointerSpace(Object* object);
+
+  // Returns whether the object resides in old data space.
+  inline bool InOldDataSpace(Address address);
+  inline bool InOldDataSpace(Object* object);
 
   // Checks whether an address/object in the heap (including auxiliary
   // area and unused area).
