@@ -1537,11 +1537,7 @@ void VirtualMemory::Reset() {
 
 
 bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  if (CommitRegion(address, size, is_executable)) {
-    UpdateAllocatedSpaceLimits(address, static_cast<int>(size));
-    return true;
-  }
-  return false;
+  return CommitRegion(address, size, is_executable);
 }
 
 
