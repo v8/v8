@@ -747,15 +747,26 @@
               ]},
             ],
             ['OS=="win"', {
+              'variables': {
+                'gyp_generators': '<!(echo $GYP_GENERATORS)',
+              },
               'sources': [
                 '../../src/platform-win32.cc',
                 '../../src/win32-math.cc',
                 '../../src/win32-math.h',
               ],
-              'msvs_disabled_warnings': [4351, 4355, 4800],
-              'link_settings':  {
-                'libraries': [ '-lwinmm.lib', '-lws2_32.lib' ],
-              },
+              'conditions': [
+                ['gyp_generators=="make"', {
+                  'link_settings':  {
+                    'libraries': [ '-lwinmm', '-lws2_32' ],
+                  },
+                }, {
+                  'msvs_disabled_warnings': [4351, 4355, 4800],
+                  'link_settings':  {
+                    'libraries': [ '-lwinmm.lib', '-lws2_32.lib' ],
+                  },
+                }],
+              ],
             }],
             ['component=="shared_library"', {
               'defines': [
