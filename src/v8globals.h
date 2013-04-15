@@ -163,7 +163,6 @@ class RelocInfo;
 class Deserializer;
 class MessageLocation;
 class ObjectGroup;
-class TickSample;
 class VirtualMemory;
 class Mutex;
 

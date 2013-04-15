@@ -170,11 +170,6 @@ class Ticker: public Sampler {
     if (IsActive()) Stop();
   }
 
- protected:
-  virtual void DoSampleStack(TickSample* sample) {
-    StackTracer::Trace(isolate(), sample);
-  }
-
  private:
   Profiler* profiler_;
 };

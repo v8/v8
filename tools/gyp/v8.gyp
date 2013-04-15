@@ -447,6 +447,8 @@
             '../../src/runtime.h',
             '../../src/safepoint-table.cc',
             '../../src/safepoint-table.h',
+            '../../src/sampler.cc',
+            '../../src/sampler.h',
             '../../src/scanner-character-streams.cc',
             '../../src/scanner-character-streams.h',
             '../../src/scanner.cc',

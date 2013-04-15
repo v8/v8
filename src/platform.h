@@ -99,19 +99,12 @@ int random();
 #include "atomicops.h"
 #include "lazy-instance.h"
 #include "platform-tls.h"
+#include "sampler.h"
 #include "utils.h"
 #include "v8globals.h"
 
 namespace v8 {
 namespace internal {
-
-// Use AtomicWord for a machine-sized pointer. It is assumed that
-// reads and writes of naturally aligned values of this type are atomic.
-#if defined(__OpenBSD__) && defined(__i386__)
-typedef Atomic32 AtomicWord;
-#else
-typedef intptr_t AtomicWord;
-#endif
 
 class Semaphore;
 class Mutex;
@@ -724,91 +717,6 @@ class Socket {
   static uint16_t NToH(uint16_t value);
   static uint32_t HToN(uint32_t value);
   static uint32_t NToH(uint32_t value);
-};
-
-
-// ----------------------------------------------------------------------------
-// Sampler
-//
-// A sampler periodically samples the state of the VM and optionally
-// (if used for profiling) the program counter and stack pointer for
-// the thread that created it.
-
-// TickSample captures the information collected for each sample.
-class TickSample {
- public:
-  TickSample()
-      : state(OTHER),
-        pc(NULL),
-        sp(NULL),
-        fp(NULL),
-        external_callback(NULL),
-        frames_count(0) {}
-  StateTag state;  // The state of the VM.
-  Address pc;      // Instruction pointer.
-  Address sp;      // Stack pointer.
-  Address fp;      // Frame pointer.
-  Address external_callback;
-  static const int kMaxFramesCount = 64;
-  Address stack[kMaxFramesCount];  // Call stack.
-  int frames_count : 8;  // Number of captured frames.
-};
-
-class Sampler {
- public:
-  // Initialize sampler.
-  Sampler(Isolate* isolate, int interval);
-  virtual ~Sampler();
-
-  int interval() const { return interval_; }
-
-  // Performs stack sampling.
-  void SampleStack(TickSample* sample) {
-    DoSampleStack(sample);
-    IncSamplesTaken();
-  }
-
-  // This method is called for each sampling period with the current
-  // program counter.
-  virtual void Tick(TickSample* sample) = 0;
-
-  // Start and stop sampler.
-  void Start();
-  void Stop();
-
-  // Is the sampler used for profiling?
-  bool IsProfiling() const { return NoBarrier_Load(&profiling_) > 0; }
-  void IncreaseProfilingDepth() { NoBarrier_AtomicIncrement(&profiling_, 1); }
-  void DecreaseProfilingDepth() { NoBarrier_AtomicIncrement(&profiling_, -1); }
-
-  // Whether the sampler is running (that is, consumes resources).
-  bool IsActive() const { return NoBarrier_Load(&active_); }
-
-  Isolate* isolate() { return isolate_; }
-
-  // Used in tests to make sure that stack sampling is performed.
-  int samples_taken() const { return samples_taken_; }
-  void ResetSamplesTaken() { samples_taken_ = 0; }
-
-  class PlatformData;
-  PlatformData* data() { return data_; }
-
-  PlatformData* platform_data() { return data_; }
-
- protected:
-  virtual void DoSampleStack(TickSample* sample) = 0;
-
- private:
-  void SetActive(bool value) { NoBarrier_Store(&active_, value); }
-  void IncSamplesTaken() { if (++samples_taken_ < 0) samples_taken_ = 0; }
-
-  Isolate* isolate_;
-  const int interval_;
-  Atomic32 profiling_;
-  Atomic32 active_;
-  PlatformData* data_;  // Platform specific data.
-  int samples_taken_;  // Counts stack samples taken.
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
 
 
