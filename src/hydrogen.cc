@@ -6566,8 +6566,9 @@ bool HOptimizedGraphBuilder::HandlePolymorphicArrayLengthLoad(
   }
 
   AddInstruction(new(zone()) HCheckNonSmi(object));
+
   HInstruction* typecheck =
-    AddInstruction(HCheckInstanceType::NewIsJSArray(object, zone()));
+    AddInstruction(new(zone()) HCheckMaps(object, types, zone()));
   HInstruction* instr =
     HLoadNamedField::NewArrayLength(zone(), object, typecheck);
   instr->set_position(expr->position());
