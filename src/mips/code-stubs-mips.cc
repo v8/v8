@@ -807,7 +807,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
     // Get the number of bits to set in the lower part of the mantissa.
     __ Subu(scratch2, dst_mantissa,
         Operand(HeapNumber::kMantissaBitsInTopWord));
-    __ Branch(&fewer_than_20_useful_bits, lt, scratch2, Operand(zero_reg));
+    __ Branch(&fewer_than_20_useful_bits, le, scratch2, Operand(zero_reg));
     // Set the higher 20 bits of the mantissa.
     __ srlv(at, int_scratch, scratch2);
     __ or_(dst_exponent, dst_exponent, at);
@@ -891,8 +891,13 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
       // an important value too.
       __ Push(dst_exponent, dst_mantissa);
     }
-    __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
-    __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+    if (object.is(dst_mantissa)) {
+      __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
+      __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+    } else {
+      __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+      __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
+    }
 
     // Check for 0 and -0.
     Label zero;
@@ -910,8 +915,14 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     if (save_registers) {
       __ Pop(dst_exponent, dst_mantissa);
     }
-    __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
-    __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+    if (object.is(dst_mantissa)) {
+      __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
+      __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+    } else {
+      __ lw(dst_mantissa, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+      __ lw(dst_exponent, FieldMemOperand(object, HeapNumber::kExponentOffset));
+    }
+
     __ Branch(&done);
 
     __ bind(&restore_input_and_miss);

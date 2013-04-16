@@ -65,7 +65,6 @@ bool LCodeGen::GenerateCode() {
   HPhase phase("Z_Code generation", chunk());
   ASSERT(is_unused());
   status_ = GENERATING;
-  CpuFeatures::Scope scope(FPU);
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // NONE indicates that the scope shouldn't actually generate code to set up
@@ -1212,6 +1211,7 @@ void LCodeGen::DoMultiplyAddD(LMultiplyAddD* instr) {
   // This is computed in-place.
   ASSERT(addend.is(ToDoubleRegister(instr->result())));
 
+  CpuFeatures::Scope scope(FPU);
   __ madd_d(addend, addend, multiplier, multiplicand);
 }
 
@@ -1268,12 +1268,12 @@ void LCodeGen::DoMulI(LMulI* instr) {
             __ sll(result, left, shift);
           } else if (IsPowerOf2(constant_abs - 1)) {
             int32_t shift = WhichPowerOf2(constant_abs - 1);
-            __ sll(result, left, shift);
-            __ Addu(result, result, left);
+            __ sll(scratch, left, shift);
+            __ Addu(result, scratch, left);
           } else if (IsPowerOf2(constant_abs + 1)) {
             int32_t shift = WhichPowerOf2(constant_abs + 1);
-            __ sll(result, left, shift);
-            __ Subu(result, result, left);
+            __ sll(scratch, left, shift);
+            __ Subu(result, scratch, left);
           }
 
           // Correct the sign of the result is the constant is negative.
@@ -1826,7 +1826,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     CpuFeatures::Scope scope(FPU);
     DoubleRegister reg = ToDoubleRegister(instr->value());
     // Test the double value. Zero and NaN are false.
-    EmitBranchF(true_block, false_block, ne, reg, kDoubleRegZero);
+    EmitBranchF(true_block, false_block, nue, reg, kDoubleRegZero);
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->value());
@@ -2527,11 +2527,12 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
   // A minor optimization that relies on LoadRoot always emitting one
   // instruction.
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
-  Label done;
+  Label done, check;
   __ Branch(USE_DELAY_SLOT, &done, condition, v0, Operand(zero_reg));
+  __ bind(&check);
   __ LoadRoot(ToRegister(instr->result()), Heap::kTrueValueRootIndex);
+  ASSERT_EQ(1, masm()->InstructionsGeneratedSince(&check));
   __ LoadRoot(ToRegister(instr->result()), Heap::kFalseValueRootIndex);
-  ASSERT_EQ(3, masm()->InstructionsGeneratedSince(&done));
   __ bind(&done);
 }
 
@@ -3506,8 +3507,6 @@ void LCodeGen::EmitIntegerMathAbs(LUnaryMathOperation* instr) {
   Label done;
   __ Branch(USE_DELAY_SLOT, &done, ge, input, Operand(zero_reg));
   __ mov(result, input);
-  ASSERT_EQ(2, masm()->InstructionsGeneratedSince(&done));
-  __ subu(result, zero_reg, input);
   // Overflow if result is still negative, i.e. 0x80000000.
   DeoptimizeIf(lt, instr->environment(), result, Operand(zero_reg));
   __ bind(&done);
@@ -4535,10 +4534,11 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 
 // Convert unsigned integer with specified number of leading zeroes in binary
 // representation to IEEE 754 double.
-// Integer to convert is passed in register hiword.
+// Integer to convert is passed in register src.
 // Resulting double is returned in registers hiword:loword.
 // This functions does not work correctly for 0.
 static void GenerateUInt2Double(MacroAssembler* masm,
+                                Register src,
                                 Register hiword,
                                 Register loword,
                                 Register scratch,
@@ -4552,12 +4552,12 @@ static void GenerateUInt2Double(MacroAssembler* masm,
       kBitsPerInt - mantissa_shift_for_hi_word;
   masm->li(scratch, Operand(biased_exponent << HeapNumber::kExponentShift));
   if (mantissa_shift_for_hi_word > 0) {
-    masm->sll(loword, hiword, mantissa_shift_for_lo_word);
-    masm->srl(hiword, hiword, mantissa_shift_for_hi_word);
+    masm->sll(loword, src, mantissa_shift_for_lo_word);
+    masm->srl(hiword, src, mantissa_shift_for_hi_word);
     masm->Or(hiword, scratch, hiword);
   } else {
     masm->mov(loword, zero_reg);
-    masm->sll(hiword, hiword, mantissa_shift_for_hi_word);
+    masm->sll(hiword, src, mantissa_shift_for_hi_word);
     masm->Or(hiword, scratch, hiword);
   }
 
@@ -4608,17 +4608,17 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
       __ mtc1(src, dbl_scratch);
       __ Cvt_d_uw(dbl_scratch, dbl_scratch, f22);
     } else {
-      Label no_leading_zero, done;
+      Label no_leading_zero, convert_done;
       __ And(at, src, Operand(0x80000000));
       __ Branch(&no_leading_zero, ne, at, Operand(zero_reg));
 
       // Integer has one leading zeros.
-      GenerateUInt2Double(masm(), sfpd_hi, sfpd_lo, t0, 1);
-      __ Branch(&done);
+      GenerateUInt2Double(masm(), src, sfpd_hi, sfpd_lo, t0, 1);
+      __ Branch(&convert_done);
 
       __ bind(&no_leading_zero);
-      GenerateUInt2Double(masm(), sfpd_hi, sfpd_lo, t0, 0);
-      __ Branch(&done);
+      GenerateUInt2Double(masm(), src, sfpd_hi, sfpd_lo, t0, 0);
+      __ bind(&convert_done);
     }
   }
 
@@ -4861,8 +4861,8 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   // This 'at' value and scratch1 map value are used for tests in both clauses
   // of the if.
 
+  CpuFeatures::Scope scope(FPU);
   if (instr->truncating()) {
-    CpuFeatures::Scope scope(FPU);
     Register scratch3 = ToRegister(instr->temp2());
     FPURegister single_scratch = double_scratch.low();
     ASSERT(!scratch3.is(input_reg) &&
