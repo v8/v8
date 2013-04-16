@@ -2001,7 +2001,7 @@ void NativeObjectsExplorer::FillImplicitReferences() {
 
   int representative_objects_index = 0;
   UniqueId current_group_id(0);
-  size_t current_group_start = 0;
+  int current_group_start = 0;
   for (int i = 0; i <= ref_groups->length(); ++i) {
     if (i == 0)
       current_group_id = ref_groups->at(i).id;
