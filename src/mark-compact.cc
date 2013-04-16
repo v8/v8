@@ -1931,72 +1931,34 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
 
 
 void MarkCompactCollector::MarkImplicitRefGroups() {
-  Isolate* isolate = Isolate::Current();
-  List<ObjectGroupConnection>* ref_groups =
-      isolate->global_handles()->implicit_ref_groups();
-  List<ObjectGroupRepresentative>* representative_objects =
-      isolate->global_handles()->representative_objects();
+  List<ImplicitRefGroup*>* ref_groups =
+      isolate()->global_handles()->implicit_ref_groups();
 
-  if (ref_groups->length() == 0)
-    return;
+  int last = 0;
+  for (int i = 0; i < ref_groups->length(); i++) {
+    ImplicitRefGroup* entry = ref_groups->at(i);
+    ASSERT(entry != NULL);
 
-  ref_groups->Sort();
-  representative_objects->Sort();
+    if (!IsMarked(*entry->parent_)) {
+      (*ref_groups)[last++] = entry;
+      continue;
+    }
 
-  int surviving_ref_group_index = 0;
-  int surviving_representative_object_index = 0;
-
-  int representative_objects_index = 0;
-  UniqueId current_group_id(0);
-  int current_group_start = 0;
-  for (int i = 0; i <= ref_groups->length(); ++i) {
-    if (i == 0)
-      current_group_id = ref_groups->at(i).id;
-    if (i == ref_groups->length() || current_group_id != ref_groups->at(i).id) {
-      // Group detected: objects in indices [current_group_start, i[.
-
-      // Find the representative object for this group.
-      while (representative_objects_index < representative_objects->length() &&
-             representative_objects->at(representative_objects_index).id <
-             current_group_id)
-        ++representative_objects_index;
-
-      if (representative_objects_index < representative_objects->length() &&
-          representative_objects->at(representative_objects_index).id ==
-              current_group_id) {
-        HeapObject* parent =
-            *(representative_objects->at(representative_objects_index).object);
-
-        if (!IsMarked(parent)) {
-          // Nothing tbd, copy the reference group so that it can be iterated
-          // during the next call.
-          for (int j = current_group_start; j < i; ++j)
-            ref_groups->at(surviving_ref_group_index++) = ref_groups->at(j);
-          representative_objects->at(surviving_representative_object_index++) =
-              representative_objects->at(representative_objects_index);
-        } else {
-          // A parent object is marked, so mark all child heap objects.
-          for (int j = current_group_start; j < i; ++j) {
-            if ((*ref_groups->at(j).object)->IsHeapObject()) {
-              HeapObject* child = HeapObject::cast(*ref_groups->at(j).object);
-              MarkBit mark = Marking::MarkBitFrom(child);
-              MarkObject(child, mark);
-            }
-          }
-        }
-      } else {
-        // This should not happen: representative object for a group was not
-        // set!
-        UNREACHABLE();
-      }
-      if (i < ref_groups->length()) {
-        current_group_id = ref_groups->at(i).id;
-        current_group_start = i;
+    Object*** children = entry->children_;
+    // A parent object is marked, so mark all child heap objects.
+    for (size_t j = 0; j < entry->length_; ++j) {
+      if ((*children[j])->IsHeapObject()) {
+        HeapObject* child = HeapObject::cast(*children[j]);
+        MarkBit mark = Marking::MarkBitFrom(child);
+        MarkObject(child, mark);
       }
     }
+
+    // Once the entire group has been marked, dispose it because it's
+    // not needed anymore.
+    entry->Dispose();
   }
-  ref_groups->Rewind(surviving_ref_group_index);
-  representative_objects->Rewind(surviving_representative_object_index);
+  ref_groups->Rewind(last);
 }
 
 

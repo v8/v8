@@ -5925,34 +5925,6 @@ void V8::AddObjectGroup(Isolate* exported_isolate,
 }
 
 
-void V8::SetObjectGroupId(Isolate* exported_isolate,
-                          const Persistent<Value>& object,
-                          UniqueId id) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
-  isolate->global_handles()->SetObjectGroupId(
-      reinterpret_cast<i::Object**>(*object), id);
-}
-
-
-void V8::SetRetainedObjectInfo(Isolate* exported_isolate,
-                               UniqueId id,
-                               RetainedObjectInfo* info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
-  isolate->global_handles()->SetRetainedObjectInfo(id, info);
-}
-
-
-void V8::SetObjectGroupRepresentative(
-      Isolate* exported_isolate,
-      UniqueId id,
-      const Persistent<Object>& object) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
-  isolate->global_handles()->SetObjectGroupRepresentative(
-      id,
-      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*object)).location());
-}
-
-
 void V8::AddImplicitReferences(Persistent<Object> parent,
                                Persistent<Value>* children,
                                size_t length) {
@@ -5962,15 +5934,6 @@ void V8::AddImplicitReferences(Persistent<Object> parent,
   isolate->global_handles()->AddImplicitReferences(
       i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*parent)).location(),
       reinterpret_cast<i::Object***>(children), length);
-}
-
-
-void V8::AddImplicitReference(Isolate* exported_isolate,
-                              UniqueId id,
-                              const Persistent<Value>& object) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
-  isolate->global_handles()
-      ->AddImplicitReference(id, reinterpret_cast<i::Object**>(*object));
 }
 
 

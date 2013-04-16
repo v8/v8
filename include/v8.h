@@ -144,28 +144,6 @@ class Isolate;
 class Object;
 }
 
-// Generic-purpose unique identifier.
-class UniqueId {
- public:
-  explicit UniqueId(intptr_t data)
-      : data_(data) {}
-
-  bool operator==(const UniqueId& other) const {
-    return data_ == other.data_;
-  }
-
-  bool operator!=(const UniqueId& other) const {
-    return data_ != other.data_;
-  }
-
-  bool operator<(const UniqueId& other) const {
-    return data_ < other.data_;
-  }
-
- private:
-  intptr_t data_;
-};
-
 
 // --- Weak Handles ---
 
@@ -3536,8 +3514,6 @@ class V8EXPORT V8 {
    * for partially dependent handles only.
    * See v8-profiler.h for RetainedObjectInfo interface description.
    */
-  // TODO(marja): deprecate AddObjectGroup. Use SetObjectGroupID and
-  // SetRetainedObjectInfo instead.
   static void AddObjectGroup(Persistent<Value>* objects,
                              size_t length,
                              RetainedObjectInfo* info = NULL);
@@ -3546,23 +3522,6 @@ class V8EXPORT V8 {
                              size_t length,
                              RetainedObjectInfo* info = NULL);
 
-  static void SetObjectGroupId(Isolate* isolate,
-                               const Persistent<Value>& object,
-                               UniqueId id);
-
-  static void SetRetainedObjectInfo(Isolate* isolate,
-                                    UniqueId id,
-                                    RetainedObjectInfo* info);
-
-  /**
-   * Sets a representative object to a group. Used in conjunction with implicit
-   * references: If you're going to use AddImplicitReference with the group, you
-   * need to set a representative object too.
-   */
-  static void SetObjectGroupRepresentative(Isolate* isolate,
-                                           UniqueId id,
-                                           const Persistent<Object>& object);
-
   /**
    * Allows the host application to declare implicit references between
    * the objects: if |parent| is alive, all |children| are alive too.
@@ -3570,22 +3529,9 @@ class V8EXPORT V8 {
    * are removed.  It is intended to be used in the before-garbage-collection
    * callback function.
    */
-  // TODO(marja): Deprecate AddImplicitReferences. Use
-  // SetObjectGroupRepresentativeObject and AddImplicitReference instead.
   static void AddImplicitReferences(Persistent<Object> parent,
                                     Persistent<Value>* children,
                                     size_t length);
-
-  /**
-   * Allows the host application to declare implicit references. If the
-   * representative object of the object group (identified by id) is alive, the
-   * children are alive too. After each garbage collection, all implicit
-   * references are removed. It is intended to be used in the
-   * before-garbage-collection callback function.
-   */
-  static void AddImplicitReference(Isolate* isolate,
-                                   UniqueId id,
-                                   const Persistent<Value>& object);
 
   /**
    * Initializes from snapshot if possible. Otherwise, attempts to

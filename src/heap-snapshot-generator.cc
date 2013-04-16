@@ -1940,43 +1940,17 @@ void NativeObjectsExplorer::FillRetainedObjects() {
   const GCType major_gc_type = kGCTypeMarkSweepCompact;
   // Record objects that are joined into ObjectGroups.
   isolate->heap()->CallGCPrologueCallbacks(major_gc_type);
-
-  List<ObjectGroupConnection>* groups =
-      isolate->global_handles()->object_groups();
-  List<ObjectGroupRetainerInfo>* infos =
-      isolate->global_handles()->retainer_infos();
-  groups->Sort();
-  infos->Sort();
-
-  int info_index = 0;
-  UniqueId current_group_id(0);
-  int current_group_start = 0;
-
-  if (groups->length() > 0) {
-    for (int i = 0; i <= groups->length(); ++i) {
-      if (i == 0)
-        current_group_id = groups->at(i).id;
-      if (i == groups->length() ||
-          current_group_id != groups->at(i).id) {
-        // Group detected: objects in indices [current_group_start, i[.
-        if (info_index < infos->length() &&
-            infos->at(info_index).id == groups->at(current_group_start).id) {
-          // Transfer the ownership of info.
-          List<HeapObject*>* list =
-              GetListMaybeDisposeInfo(infos->at(info_index).info);
-          infos->at(info_index).info = NULL;
-          for (int j = current_group_start; j < i; ++j) {
-            HeapObject* obj = HeapObject::cast(*(groups->at(j).object));
-            list->Add(obj);
-            in_groups_.Insert(obj);
-          }
-        }
-        if (i < groups->length()) {
-          current_group_id = groups->at(i).id;
-          current_group_start = i;
-        }
-      }
+  List<ObjectGroup*>* groups = isolate->global_handles()->object_groups();
+  for (int i = 0; i < groups->length(); ++i) {
+    ObjectGroup* group = groups->at(i);
+    if (group->info_ == NULL) continue;
+    List<HeapObject*>* list = GetListMaybeDisposeInfo(group->info_);
+    for (size_t j = 0; j < group->length_; ++j) {
+      HeapObject* obj = HeapObject::cast(*group->objects_[j]);
+      list->Add(obj);
+      in_groups_.Insert(obj);
     }
+    group->info_ = NULL;  // Acquire info object ownership.
   }
   isolate->global_handles()->RemoveObjectGroups();
   isolate->heap()->CallGCEpilogueCallbacks(major_gc_type);
@@ -1988,61 +1962,24 @@ void NativeObjectsExplorer::FillRetainedObjects() {
 
 void NativeObjectsExplorer::FillImplicitReferences() {
   Isolate* isolate = Isolate::Current();
-  List<ObjectGroupConnection>* ref_groups =
+  List<ImplicitRefGroup*>* groups =
       isolate->global_handles()->implicit_ref_groups();
-  List<ObjectGroupRepresentative>* representative_objects =
-      isolate->global_handles()->representative_objects();
-
-  if (ref_groups->length() == 0)
-    return;
-
-  ref_groups->Sort();
-  representative_objects->Sort();
-
-  int representative_objects_index = 0;
-  UniqueId current_group_id(0);
-  int current_group_start = 0;
-  for (int i = 0; i <= ref_groups->length(); ++i) {
-    if (i == 0)
-      current_group_id = ref_groups->at(i).id;
-    if (i == ref_groups->length() || current_group_id != ref_groups->at(i).id) {
-      // Group detected: objects in indices [current_group_start, i[.
-
-      // Find the representative object for this group.
-      while (representative_objects_index < representative_objects->length() &&
-             representative_objects->at(representative_objects_index).id <
-             current_group_id)
-        ++representative_objects_index;
-
-      if (representative_objects_index < representative_objects->length() &&
-          representative_objects->at(representative_objects_index).id ==
-              current_group_id) {
-        HeapObject* parent =
-            *(representative_objects->at(representative_objects_index).object);
-
-        int parent_entry =
-            filler_->FindOrAddEntry(parent, native_entries_allocator_)->index();
-        ASSERT(parent_entry != HeapEntry::kNoEntry);
-
-        for (int j = current_group_start; j < i; ++j) {
-          Object* child = *(ref_groups->at(j).object);
-          HeapEntry* child_entry =
-              filler_->FindOrAddEntry(child, native_entries_allocator_);
-          filler_->SetNamedReference(
-              HeapGraphEdge::kInternal,
-              parent_entry,
-              "native",
-              child_entry);
-        }
-      } else {
-        // This should not happen: representative object for a group was not
-        // set!
-        UNREACHABLE();
-      }
-      if (i < ref_groups->length()) {
-        current_group_id = ref_groups->at(i).id;
-        current_group_start = i;
-      }
+  for (int i = 0; i < groups->length(); ++i) {
+    ImplicitRefGroup* group = groups->at(i);
+    HeapObject* parent = *group->parent_;
+    int parent_entry =
+        filler_->FindOrAddEntry(parent, native_entries_allocator_)->index();
+    ASSERT(parent_entry != HeapEntry::kNoEntry);
+    Object*** children = group->children_;
+    for (size_t j = 0; j < group->length_; ++j) {
+      Object* child = *children[j];
+      HeapEntry* child_entry =
+          filler_->FindOrAddEntry(child, native_entries_allocator_);
+      filler_->SetNamedReference(
+          HeapGraphEdge::kInternal,
+          parent_entry,
+          "native",
+          child_entry);
     }
   }
   isolate->global_handles()->RemoveImplicitRefGroups();
