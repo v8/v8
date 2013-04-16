@@ -813,6 +813,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
       break;
     default:
       UNREACHABLE();
+      return NULL;
   }
 
   holder->set_buffer(*buffer);
