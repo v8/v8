@@ -4152,12 +4152,19 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Special handling of out of memory exceptions.
   JumpIfOOM(masm, rax, kScratchRegister, throw_out_of_memory_exception);
 
-  // Retrieve the pending exception and clear the variable.
+  // Retrieve the pending exception.
   ExternalReference pending_exception_address(
       Isolate::kPendingExceptionAddress, masm->isolate());
   Operand pending_exception_operand =
       masm->ExternalOperand(pending_exception_address);
   __ movq(rax, pending_exception_operand);
+
+  // See if we just retrieved an OOM exception.
+  JumpIfOOM(masm, rax, kScratchRegister, throw_out_of_memory_exception);
+
+  // Clear the pending exception.
+  pending_exception_operand =
+      masm->ExternalOperand(pending_exception_address);
   __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
   __ movq(pending_exception_operand, rdx);
 

@@ -3534,11 +3534,18 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Special handling of out of memory exceptions.
   JumpIfOOM(masm, r0, ip, throw_out_of_memory_exception);
 
-  // Retrieve the pending exception and clear the variable.
-  __ mov(r3, Operand(isolate->factory()->the_hole_value()));
+  // Retrieve the pending exception.
   __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ ldr(r0, MemOperand(ip));
+
+  // See if we just retrieved an OOM exception.
+  JumpIfOOM(masm, r0, ip, throw_out_of_memory_exception);
+
+  // Clear the pending exception.
+  __ mov(r3, Operand(isolate->factory()->the_hole_value()));
+  __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
+                                       isolate)));
   __ str(r3, MemOperand(ip));
 
   // Special handling of termination exceptions which are uncatchable
