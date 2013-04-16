@@ -1841,11 +1841,6 @@ void Isolate::Deinit() {
     preallocated_message_space_ = NULL;
     PreallocatedMemoryThreadStop();
 
-    delete heap_profiler_;
-    heap_profiler_ = NULL;
-    delete cpu_profiler_;
-    cpu_profiler_ = NULL;
-
     if (runtime_profiler_ != NULL) {
       runtime_profiler_->TearDown();
       delete runtime_profiler_;
@@ -1853,6 +1848,11 @@ void Isolate::Deinit() {
     }
     heap_.TearDown();
     logger_->TearDown();
+
+    delete heap_profiler_;
+    heap_profiler_ = NULL;
+    delete cpu_profiler_;
+    cpu_profiler_ = NULL;
 
     // The default isolate is re-initializable due to legacy API.
     state_ = UNINITIALIZED;
@@ -2070,12 +2070,11 @@ bool Isolate::Init(Deserializer* des) {
   date_cache_ = new DateCache();
   code_stub_interface_descriptors_ =
       new CodeStubInterfaceDescriptor[CodeStub::NUMBER_OF_IDS];
+  cpu_profiler_ = new CpuProfiler(this);
+  heap_profiler_ = new HeapProfiler(heap());
 
   // Enable logging before setting up the heap
   logger_->SetUp();
-
-  cpu_profiler_ = new CpuProfiler(this);
-  heap_profiler_ = new HeapProfiler(heap());
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
