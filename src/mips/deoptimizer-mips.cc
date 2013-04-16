@@ -603,17 +603,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   const int kDoubleRegsSize =
       kDoubleSize * FPURegister::kMaxNumAllocatableRegisters;
 
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm(), FPU);
-    // Save all FPU registers before messing with them.
-    __ Subu(sp, sp, Operand(kDoubleRegsSize));
-    for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
-      FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
-      int offset = i * kDoubleSize;
-      __ sdc1(fpu_reg, MemOperand(sp, offset));
-    }
-  } else {
-    __ Subu(sp, sp, Operand(kDoubleRegsSize));
+  // Save all FPU registers before messing with them.
+  __ Subu(sp, sp, Operand(kDoubleRegsSize));
+  for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
+    FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
+    int offset = i * kDoubleSize;
+    __ sdc1(fpu_reg, MemOperand(sp, offset));
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -686,16 +681,13 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm(), FPU);
-    // Copy FPU registers to
-    // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-    for (int i = 0; i < FPURegister::NumAllocatableRegisters(); ++i) {
-      int dst_offset = i * kDoubleSize + double_regs_offset;
-      int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
-      __ ldc1(f0, MemOperand(sp, src_offset));
-      __ sdc1(f0, MemOperand(a1, dst_offset));
-    }
+  // Copy FPU registers to
+  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
+  for (int i = 0; i < FPURegister::NumAllocatableRegisters(); ++i) {
+    int dst_offset = i * kDoubleSize + double_regs_offset;
+    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    __ ldc1(f0, MemOperand(sp, src_offset));
+    __ sdc1(f0, MemOperand(a1, dst_offset));
   }
 
   // Remove the bailout id, eventually return address, and the saved registers
@@ -764,15 +756,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ bind(&outer_loop_header);
   __ Branch(&outer_push_loop, lt, t0, Operand(a1));
 
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm(), FPU);
-
-    __ lw(a1, MemOperand(a0, Deoptimizer::input_offset()));
-    for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
-      const FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
-      int src_offset = i * kDoubleSize + double_regs_offset;
-      __ ldc1(fpu_reg, MemOperand(a1, src_offset));
-    }
+  __ lw(a1, MemOperand(a0, Deoptimizer::input_offset()));
+  for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
+    const FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
+    int src_offset = i * kDoubleSize + double_regs_offset;
+    __ ldc1(fpu_reg, MemOperand(a1, src_offset));
   }
 
   // Push state, pc, and continuation from the last output frame.

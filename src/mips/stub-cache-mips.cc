@@ -1059,72 +1059,12 @@ static void StoreIntAsFloat(MacroAssembler* masm,
                             Register dst,
                             Register wordoffset,
                             Register ival,
-                            Register fval,
-                            Register scratch1,
-                            Register scratch2) {
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    __ mtc1(ival, f0);
-    __ cvt_s_w(f0, f0);
-    __ sll(scratch1, wordoffset, 2);
-    __ addu(scratch1, dst, scratch1);
-    __ swc1(f0, MemOperand(scratch1, 0));
-  } else {
-    // FPU is not available,  do manual conversions.
-
-    Label not_special, done;
-    // Move sign bit from source to destination.  This works because the sign
-    // bit in the exponent word of the double has the same position and polarity
-    // as the 2's complement sign bit in a Smi.
-    ASSERT(kBinary32SignMask == 0x80000000u);
-
-    __ And(fval, ival, Operand(kBinary32SignMask));
-    // Negate value if it is negative.
-    __ subu(scratch1, zero_reg, ival);
-    __ Movn(ival, scratch1, fval);
-
-    // We have -1, 0 or 1, which we treat specially. Register ival contains
-    // absolute value: it is either equal to 1 (special case of -1 and 1),
-    // greater than 1 (not a special case) or less than 1 (special case of 0).
-    __ Branch(&not_special, gt, ival, Operand(1));
-
-    // For 1 or -1 we need to or in the 0 exponent (biased).
-    static const uint32_t exponent_word_for_1 =
-        kBinary32ExponentBias << kBinary32ExponentShift;
-
-    __ Xor(scratch1, ival, Operand(1));
-    __ li(scratch2, exponent_word_for_1);
-    __ or_(scratch2, fval, scratch2);
-    __ Movz(fval, scratch2, scratch1);  // Only if ival is equal to 1.
-    __ Branch(&done);
-
-    __ bind(&not_special);
-    // Count leading zeros.
-    // Gets the wrong answer for 0, but we already checked for that case above.
-    Register zeros = scratch2;
-    __ Clz(zeros, ival);
-
-    // Compute exponent and or it into the exponent register.
-    __ li(scratch1, (kBitsPerInt - 1) + kBinary32ExponentBias);
-    __ subu(scratch1, scratch1, zeros);
-
-    __ sll(scratch1, scratch1, kBinary32ExponentShift);
-    __ or_(fval, fval, scratch1);
-
-    // Shift up the source chopping the top bit off.
-    __ Addu(zeros, zeros, Operand(1));
-    // This wouldn't work for 1 and -1 as the shift would be 32 which means 0.
-    __ sllv(ival, ival, zeros);
-    // And the top (top 20 bits).
-    __ srl(scratch1, ival, kBitsPerInt - kBinary32MantissaBits);
-    __ or_(fval, fval, scratch1);
-
-    __ bind(&done);
-
-    __ sll(scratch1, wordoffset, 2);
-    __ addu(scratch1, dst, scratch1);
-    __ sw(fval, MemOperand(scratch1, 0));
-  }
+                            Register scratch1) {
+  __ mtc1(ival, f0);
+  __ cvt_s_w(f0, f0);
+  __ sll(scratch1, wordoffset, 2);
+  __ addu(scratch1, dst, scratch1);
+  __ swc1(f0, MemOperand(scratch1, 0));
 }
 
 
@@ -2177,11 +2117,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
 
-  if (!CpuFeatures::IsSupported(FPU)) {
-    return Handle<Code>::null();
-  }
 
-  CpuFeatureScope scope_fpu(masm(), FPU);
   const int argc = arguments().immediate();
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
@@ -3247,36 +3183,6 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
 }
 
 
-static bool IsElementTypeSigned(ElementsKind elements_kind) {
-  switch (elements_kind) {
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-      return true;
-
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
-      return false;
-
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case DICTIONARY_ELEMENTS:
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNREACHABLE();
-      return false;
-  }
-  return false;
-}
-
-
 static void GenerateSmiKeyCheck(MacroAssembler* masm,
                                 Register key,
                                 Register scratch0,
@@ -3284,36 +3190,30 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                                 FPURegister double_scratch0,
                                 FPURegister double_scratch1,
                                 Label* fail) {
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatureScope scope(masm, FPU);
-    Label key_ok;
-    // Check for smi or a smi inside a heap number.  We convert the heap
-    // number and check if the conversion is exact and fits into the smi
-    // range.
-    __ JumpIfSmi(key, &key_ok);
-    __ CheckMap(key,
-                scratch0,
-                Heap::kHeapNumberMapRootIndex,
-                fail,
-                DONT_DO_SMI_CHECK);
-    __ ldc1(double_scratch0, FieldMemOperand(key, HeapNumber::kValueOffset));
-    __ EmitFPUTruncate(kRoundToZero,
-                       scratch0,
-                       double_scratch0,
-                       at,
-                       double_scratch1,
-                       scratch1,
-                       kCheckForInexactConversion);
+  Label key_ok;
+  // Check for smi or a smi inside a heap number.  We convert the heap
+  // number and check if the conversion is exact and fits into the smi
+  // range.
+  __ JumpIfSmi(key, &key_ok);
+  __ CheckMap(key,
+              scratch0,
+              Heap::kHeapNumberMapRootIndex,
+              fail,
+              DONT_DO_SMI_CHECK);
+  __ ldc1(double_scratch0, FieldMemOperand(key, HeapNumber::kValueOffset));
+  __ EmitFPUTruncate(kRoundToZero,
+                     scratch0,
+                     double_scratch0,
+                     at,
+                     double_scratch1,
+                     scratch1,
+                     kCheckForInexactConversion);
 
-    __ Branch(fail, ne, scratch1, Operand(zero_reg));
+  __ Branch(fail, ne, scratch1, Operand(zero_reg));
 
-    __ SmiTagCheckOverflow(key, scratch0, scratch1);
-    __ BranchOnOverflow(fail, scratch1);
-    __ bind(&key_ok);
-  } else {
-    // Check that the key is a smi.
-    __ JumpIfNotSmi(key, fail);
-  }
+  __ SmiTagCheckOverflow(key, scratch0, scratch1);
+  __ BranchOnOverflow(fail, scratch1);
+  __ bind(&key_ok);
 }
 
 
@@ -3404,29 +3304,19 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     case EXTERNAL_FLOAT_ELEMENTS:
       // Perform int-to-float conversion and store to memory.
       __ SmiUntag(t0, key);
-      StoreIntAsFloat(masm, a3, t0, t1, t2, t3, t4);
+      StoreIntAsFloat(masm, a3, t0, t1, t2);
       break;
     case EXTERNAL_DOUBLE_ELEMENTS:
       __ sll(t8, key, 2);
       __ addu(a3, a3, t8);
       // a3: effective address of the double element
       FloatingPointHelper::Destination destination;
-      if (CpuFeatures::IsSupported(FPU)) {
-        destination = FloatingPointHelper::kFPURegisters;
-      } else {
-        destination = FloatingPointHelper::kCoreRegisters;
-      }
+      destination = FloatingPointHelper::kFPURegisters;
       FloatingPointHelper::ConvertIntToDouble(
           masm, t1, destination,
           f0, t2, t3,  // These are: double_dst, dst_mantissa, dst_exponent.
           t0, f2);  // These are: scratch2, single_scratch.
-      if (destination == FloatingPointHelper::kFPURegisters) {
-        CpuFeatureScope scope(masm, FPU);
-        __ sdc1(f0, MemOperand(a3, 0));
-      } else {
-        __ sw(t2, MemOperand(a3, 0));
-        __ sw(t3, MemOperand(a3, Register::kSizeInBytes));
-      }
+      __ sdc1(f0, MemOperand(a3, 0));
       break;
     case FAST_ELEMENTS:
     case FAST_SMI_ELEMENTS:
@@ -3458,232 +3348,59 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // +/-Infinity into integer arrays basically undefined. For more
     // reproducible behavior, convert these to zero.
 
-    if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatureScope scope(masm, FPU);
 
-      __ ldc1(f0, FieldMemOperand(a0, HeapNumber::kValueOffset));
+    __ ldc1(f0, FieldMemOperand(a0, HeapNumber::kValueOffset));
 
-      if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-        __ cvt_s_d(f0, f0);
-        __ sll(t8, key, 1);
-        __ addu(t8, a3, t8);
-        __ swc1(f0, MemOperand(t8, 0));
-      } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-        __ sll(t8, key, 2);
-        __ addu(t8, a3, t8);
-        __ sdc1(f0, MemOperand(t8, 0));
-      } else {
-        __ EmitECMATruncate(t3, f0, f2, t2, t1, t5);
-
-        switch (elements_kind) {
-          case EXTERNAL_BYTE_ELEMENTS:
-          case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-            __ srl(t8, key, 1);
-            __ addu(t8, a3, t8);
-            __ sb(t3, MemOperand(t8, 0));
-            break;
-          case EXTERNAL_SHORT_ELEMENTS:
-          case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-            __ addu(t8, a3, key);
-            __ sh(t3, MemOperand(t8, 0));
-            break;
-          case EXTERNAL_INT_ELEMENTS:
-          case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-            __ sll(t8, key, 1);
-            __ addu(t8, a3, t8);
-            __ sw(t3, MemOperand(t8, 0));
-            break;
-          case EXTERNAL_PIXEL_ELEMENTS:
-          case EXTERNAL_FLOAT_ELEMENTS:
-          case EXTERNAL_DOUBLE_ELEMENTS:
-          case FAST_ELEMENTS:
-          case FAST_SMI_ELEMENTS:
-          case FAST_DOUBLE_ELEMENTS:
-          case FAST_HOLEY_ELEMENTS:
-          case FAST_HOLEY_SMI_ELEMENTS:
-          case FAST_HOLEY_DOUBLE_ELEMENTS:
-          case DICTIONARY_ELEMENTS:
-          case NON_STRICT_ARGUMENTS_ELEMENTS:
-            UNREACHABLE();
-            break;
-        }
-      }
-
-      // Entry registers are intact, a0 holds the value
-      // which is the return value.
-      __ mov(v0, a0);
-      __ Ret();
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
+      __ cvt_s_d(f0, f0);
+      __ sll(t8, key, 1);
+      __ addu(t8, a3, t8);
+      __ swc1(f0, MemOperand(t8, 0));
+    } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+      __ sll(t8, key, 2);
+      __ addu(t8, a3, t8);
+      __ sdc1(f0, MemOperand(t8, 0));
     } else {
-      // FPU is not available, do manual conversions.
+      __ EmitECMATruncate(t3, f0, f2, t2, t1, t5);
 
-      __ lw(t3, FieldMemOperand(value, HeapNumber::kExponentOffset));
-      __ lw(t4, FieldMemOperand(value, HeapNumber::kMantissaOffset));
-
-      if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-        Label done, nan_or_infinity_or_zero;
-        static const int kMantissaInHiWordShift =
-            kBinary32MantissaBits - HeapNumber::kMantissaBitsInTopWord;
-
-        static const int kMantissaInLoWordShift =
-            kBitsPerInt - kMantissaInHiWordShift;
-
-        // Test for all special exponent values: zeros, subnormal numbers, NaNs
-        // and infinities. All these should be converted to 0.
-        __ li(t5, HeapNumber::kExponentMask);
-        __ and_(t6, t3, t5);
-        __ Branch(&nan_or_infinity_or_zero, eq, t6, Operand(zero_reg));
-
-        __ xor_(t1, t6, t5);
-        __ li(t2, kBinary32ExponentMask);
-        __ Movz(t6, t2, t1);  // Only if t6 is equal to t5.
-        __ Branch(&nan_or_infinity_or_zero, eq, t1, Operand(zero_reg));
-
-        // Rebias exponent.
-        __ srl(t6, t6, HeapNumber::kExponentShift);
-        __ Addu(t6,
-                t6,
-                Operand(kBinary32ExponentBias - HeapNumber::kExponentBias));
-
-        __ li(t1, Operand(kBinary32MaxExponent));
-        __ Slt(t1, t1, t6);
-        __ And(t2, t3, Operand(HeapNumber::kSignMask));
-        __ Or(t2, t2, Operand(kBinary32ExponentMask));
-        __ Movn(t3, t2, t1);  // Only if t6 is gt kBinary32MaxExponent.
-        __ Branch(&done, gt, t6, Operand(kBinary32MaxExponent));
-
-        __ Slt(t1, t6, Operand(kBinary32MinExponent));
-        __ And(t2, t3, Operand(HeapNumber::kSignMask));
-        __ Movn(t3, t2, t1);  // Only if t6 is lt kBinary32MinExponent.
-        __ Branch(&done, lt, t6, Operand(kBinary32MinExponent));
-
-        __ And(t7, t3, Operand(HeapNumber::kSignMask));
-        __ And(t3, t3, Operand(HeapNumber::kMantissaMask));
-        __ sll(t3, t3, kMantissaInHiWordShift);
-        __ or_(t7, t7, t3);
-        __ srl(t4, t4, kMantissaInLoWordShift);
-        __ or_(t7, t7, t4);
-        __ sll(t6, t6, kBinary32ExponentShift);
-        __ or_(t3, t7, t6);
-
-        __ bind(&done);
-        __ sll(t9, key, 1);
-        __ addu(t9, a3, t9);
-        __ sw(t3, MemOperand(t9, 0));
-
-        // Entry registers are intact, a0 holds the value which is the return
-        // value.
-        __ mov(v0, a0);
-        __ Ret();
-
-        __ bind(&nan_or_infinity_or_zero);
-        __ And(t7, t3, Operand(HeapNumber::kSignMask));
-        __ And(t3, t3, Operand(HeapNumber::kMantissaMask));
-        __ or_(t6, t6, t7);
-        __ sll(t3, t3, kMantissaInHiWordShift);
-        __ or_(t6, t6, t3);
-        __ srl(t4, t4, kMantissaInLoWordShift);
-        __ or_(t3, t6, t4);
-        __ Branch(&done);
-      } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-        __ sll(t8, key, 2);
-        __ addu(t8, a3, t8);
-        // t8: effective address of destination element.
-        __ sw(t4, MemOperand(t8, 0));
-        __ sw(t3, MemOperand(t8, Register::kSizeInBytes));
-        __ mov(v0, a0);
-        __ Ret();
-      } else {
-        bool is_signed_type = IsElementTypeSigned(elements_kind);
-        int meaningfull_bits = is_signed_type ? (kBitsPerInt - 1) : kBitsPerInt;
-        int32_t min_value    = is_signed_type ? 0x80000000 : 0x00000000;
-
-        Label done, sign;
-
-        // Test for all special exponent values: zeros, subnormal numbers, NaNs
-        // and infinities. All these should be converted to 0.
-        __ li(t5, HeapNumber::kExponentMask);
-        __ and_(t6, t3, t5);
-        __ Movz(t3, zero_reg, t6);  // Only if t6 is equal to zero.
-        __ Branch(&done, eq, t6, Operand(zero_reg));
-
-        __ xor_(t2, t6, t5);
-        __ Movz(t3, zero_reg, t2);  // Only if t6 is equal to t5.
-        __ Branch(&done, eq, t6, Operand(t5));
-
-        // Unbias exponent.
-        __ srl(t6, t6, HeapNumber::kExponentShift);
-        __ Subu(t6, t6, Operand(HeapNumber::kExponentBias));
-        // If exponent is negative then result is 0.
-        __ slt(t2, t6, zero_reg);
-        __ Movn(t3, zero_reg, t2);  // Only if exponent is negative.
-        __ Branch(&done, lt, t6, Operand(zero_reg));
-
-        // If exponent is too big then result is minimal value.
-        __ slti(t1, t6, meaningfull_bits - 1);
-        __ li(t2, min_value);
-        __ Movz(t3, t2, t1);  // Only if t6 is ge meaningfull_bits - 1.
-        __ Branch(&done, ge, t6, Operand(meaningfull_bits - 1));
-
-        __ And(t5, t3, Operand(HeapNumber::kSignMask));
-        __ And(t3, t3, Operand(HeapNumber::kMantissaMask));
-        __ Or(t3, t3, Operand(1u << HeapNumber::kMantissaBitsInTopWord));
-
-        __ li(t9, HeapNumber::kMantissaBitsInTopWord);
-        __ subu(t6, t9, t6);
-        __ slt(t1, t6, zero_reg);
-        __ srlv(t2, t3, t6);
-        __ Movz(t3, t2, t1);  // Only if t6 is positive.
-        __ Branch(&sign, ge, t6, Operand(zero_reg));
-
-        __ subu(t6, zero_reg, t6);
-        __ sllv(t3, t3, t6);
-        __ li(t9, meaningfull_bits);
-        __ subu(t6, t9, t6);
-        __ srlv(t4, t4, t6);
-        __ or_(t3, t3, t4);
-
-        __ bind(&sign);
-        __ subu(t2, t3, zero_reg);
-        __ Movz(t3, t2, t5);  // Only if t5 is zero.
-
-        __ bind(&done);
-
-        // Result is in t3.
-        // This switch block should be exactly the same as above (FPU mode).
-        switch (elements_kind) {
-          case EXTERNAL_BYTE_ELEMENTS:
-          case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-            __ srl(t8, key, 1);
-            __ addu(t8, a3, t8);
-            __ sb(t3, MemOperand(t8, 0));
-            break;
-          case EXTERNAL_SHORT_ELEMENTS:
-          case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-            __ addu(t8, a3, key);
-            __ sh(t3, MemOperand(t8, 0));
-            break;
-          case EXTERNAL_INT_ELEMENTS:
-          case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-            __ sll(t8, key, 1);
-            __ addu(t8, a3, t8);
-            __ sw(t3, MemOperand(t8, 0));
-            break;
-          case EXTERNAL_PIXEL_ELEMENTS:
-          case EXTERNAL_FLOAT_ELEMENTS:
-          case EXTERNAL_DOUBLE_ELEMENTS:
-          case FAST_ELEMENTS:
-          case FAST_SMI_ELEMENTS:
-          case FAST_DOUBLE_ELEMENTS:
-          case FAST_HOLEY_ELEMENTS:
-          case FAST_HOLEY_SMI_ELEMENTS:
-          case FAST_HOLEY_DOUBLE_ELEMENTS:
-          case DICTIONARY_ELEMENTS:
-          case NON_STRICT_ARGUMENTS_ELEMENTS:
-            UNREACHABLE();
-            break;
-        }
+      switch (elements_kind) {
+        case EXTERNAL_BYTE_ELEMENTS:
+        case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+          __ srl(t8, key, 1);
+          __ addu(t8, a3, t8);
+          __ sb(t3, MemOperand(t8, 0));
+          break;
+        case EXTERNAL_SHORT_ELEMENTS:
+        case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+          __ addu(t8, a3, key);
+          __ sh(t3, MemOperand(t8, 0));
+          break;
+        case EXTERNAL_INT_ELEMENTS:
+        case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+          __ sll(t8, key, 1);
+          __ addu(t8, a3, t8);
+          __ sw(t3, MemOperand(t8, 0));
+          break;
+        case EXTERNAL_PIXEL_ELEMENTS:
+        case EXTERNAL_FLOAT_ELEMENTS:
+        case EXTERNAL_DOUBLE_ELEMENTS:
+        case FAST_ELEMENTS:
+        case FAST_SMI_ELEMENTS:
+        case FAST_DOUBLE_ELEMENTS:
+        case FAST_HOLEY_ELEMENTS:
+        case FAST_HOLEY_SMI_ELEMENTS:
+        case FAST_HOLEY_DOUBLE_ELEMENTS:
+        case DICTIONARY_ELEMENTS:
+        case NON_STRICT_ARGUMENTS_ELEMENTS:
+          UNREACHABLE();
+          break;
       }
     }
+
+    // Entry registers are intact, a0 holds the value
+    // which is the return value.
+    __ mov(v0, a0);
+    __ Ret();
   }
 
   // Slow case, key and receiver still in a0 and a1.
