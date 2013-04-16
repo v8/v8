@@ -4350,7 +4350,6 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    CpuFeatureScope scope(masm(), VFP3);
     DwVfpRegister value(ToDoubleRegister(instr->value()));
     Operand operand(key_is_constant
                     ? Operand(constant_key << element_size_shift)
@@ -5042,7 +5041,6 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
                    scratch1, scratch2, scratch3);
 
   } else {
-    CpuFeatureScope scope(masm(), VFP3);
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr->environment());
 
