@@ -996,25 +996,6 @@ void OS::SetUp() {
   uint64_t seed = Ticks() ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
-
-#ifdef __arm__
-  // When running on ARM hardware check that the EABI used by V8 and
-  // by the C code is the same.
-  bool hard_float = OS::ArmUsingHardFloat();
-  if (hard_float) {
-#if !USE_EABI_HARDFLOAT
-    PrintF("ERROR: Binary compiled with -mfloat-abi=hard but without "
-           "-DUSE_EABI_HARDFLOAT\n");
-    exit(1);
-#endif
-  } else {
-#if USE_EABI_HARDFLOAT
-    PrintF("ERROR: Binary not compiled with -mfloat-abi=hard but with "
-           "-DUSE_EABI_HARDFLOAT\n");
-    exit(1);
-#endif
-  }
-#endif
 }
 
 

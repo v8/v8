@@ -63,26 +63,21 @@ ExternalReference ExternalReference::cpu_features() {
 static unsigned CpuFeaturesImpliedByCompiler() {
   unsigned answer = 0;
 #ifdef CAN_USE_ARMV7_INSTRUCTIONS
-  answer |= 1u << ARMv7;
+  if (FLAG_enable_armv7) {
+    answer |= 1u << ARMv7;
+  }
 #endif  // CAN_USE_ARMV7_INSTRUCTIONS
 #ifdef CAN_USE_VFP3_INSTRUCTIONS
-  answer |= 1u << VFP3 | 1u << ARMv7;
+  if (FLAG_enable_vfp3) {
+    answer |= 1u << VFP3 | 1u << ARMv7;
+  }
 #endif  // CAN_USE_VFP3_INSTRUCTIONS
 #ifdef CAN_USE_VFP32DREGS
-  answer |= 1u << VFP32DREGS;
+  if (FLAG_enable_32dregs) {
+    answer |= 1u << VFP32DREGS;
+  }
 #endif  // CAN_USE_VFP32DREGS
-
-#ifdef __arm__
-  // If the compiler is allowed to use VFP then we can use VFP too in our code
-  // generation even when generating snapshots. ARMv7 and hardware floating
-  // point support implies VFPv3, see ARM DDI 0406B, page A1-6.
-#if defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(__VFP_FP__) \
-    && !defined(__SOFTFP__)
-  answer |= 1u << VFP3 | 1u << ARMv7;
-#endif  // defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(__VFP_FP__)
-        // && !defined(__SOFTFP__)
-#endif  // _arm__
-  if (answer & (1u << ARMv7)) {
+  if ((answer & (1u << ARMv7)) && FLAG_enable_unaligned_accesses) {
     answer |= 1u << UNALIGNED_ACCESSES;
   }
 
@@ -116,6 +111,8 @@ void CpuFeatures::Probe() {
 
   if (Serializer::enabled()) {
     // No probing for features if we might serialize (generate snapshot).
+    printf("   ");
+    PrintFeatures();
     return;
   }
 
@@ -144,9 +141,13 @@ void CpuFeatures::Probe() {
     supported_ |= static_cast<uint64_t>(1) << VFP32DREGS;
   }
 
+  if (FLAG_enable_unaligned_accesses) {
+    supported_ |= static_cast<uint64_t>(1) << UNALIGNED_ACCESSES;
+  }
+
 #else  // __arm__
   // Probe for additional features not already known to be available.
-  if (!IsSupported(VFP3) && OS::ArmCpuHasFeature(VFP3)) {
+  if (!IsSupported(VFP3) && FLAG_enable_vfp3 && OS::ArmCpuHasFeature(VFP3)) {
     // This implementation also sets the VFP flags if runtime
     // detection of VFP returns true. VFPv3 implies ARMv7, see ARM DDI
     // 0406B, page A1-6.
@@ -155,26 +156,28 @@ void CpuFeatures::Probe() {
         static_cast<uint64_t>(1) << ARMv7;
   }
 
-  if (!IsSupported(ARMv7) && OS::ArmCpuHasFeature(ARMv7)) {
+  if (!IsSupported(ARMv7) && FLAG_enable_armv7 && OS::ArmCpuHasFeature(ARMv7)) {
     found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << ARMv7;
   }
 
-  if (!IsSupported(SUDIV) && OS::ArmCpuHasFeature(SUDIV)) {
+  if (!IsSupported(SUDIV) && FLAG_enable_sudiv && OS::ArmCpuHasFeature(SUDIV)) {
     found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << SUDIV;
   }
 
-  if (!IsSupported(UNALIGNED_ACCESSES) && OS::ArmCpuHasFeature(ARMv7)) {
+  if (!IsSupported(UNALIGNED_ACCESSES) && FLAG_enable_unaligned_accesses
+      && OS::ArmCpuHasFeature(ARMv7)) {
     found_by_runtime_probing_only_ |=
         static_cast<uint64_t>(1) << UNALIGNED_ACCESSES;
   }
 
   if (OS::GetCpuImplementer() == QUALCOMM_IMPLEMENTER &&
-      OS::ArmCpuHasFeature(ARMv7)) {
+      FLAG_enable_movw_movt && OS::ArmCpuHasFeature(ARMv7)) {
     found_by_runtime_probing_only_ |=
         static_cast<uint64_t>(1) << MOVW_MOVT_IMMEDIATE_LOADS;
   }
 
-  if (!IsSupported(VFP32DREGS) && OS::ArmCpuHasFeature(VFP32DREGS)) {
+  if (!IsSupported(VFP32DREGS) && FLAG_enable_32dregs
+      && OS::ArmCpuHasFeature(VFP32DREGS)) {
     found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << VFP32DREGS;
   }
 
@@ -183,6 +186,79 @@ void CpuFeatures::Probe() {
 
   // Assert that VFP3 implies ARMv7.
   ASSERT(!IsSupported(VFP3) || IsSupported(ARMv7));
+}
+
+
+void CpuFeatures::PrintTarget() {
+  const char* arm_arch = NULL;
+  const char* arm_test = "";
+  const char* arm_fpu = "";
+  const char* arm_thumb = "";
+  const char* arm_float_abi = NULL;
+
+#if defined CAN_USE_ARMV7_INSTRUCTIONS
+  arm_arch = "arm v7";
+#else
+  arm_arch = "arm v6";
+#endif
+
+#ifdef __arm__
+
+# ifdef ARM_TEST
+  arm_test = " test";
+# endif
+# if defined __ARM_NEON__
+  arm_fpu = " neon";
+# elif defined CAN_USE_VFP3_INSTRUCTIONS
+  arm_fpu = " vfp3";
+# else
+  arm_fpu = " vfp2";
+# endif
+# if (defined __thumb__) || (defined __thumb2__)
+  arm_thumb = " thumb";
+# endif
+  arm_float_abi = OS::ArmUsingHardFloat() ? "hard" : "softfp";
+
+#else  // __arm__
+
+  arm_test = " simulator";
+# if defined CAN_USE_VFP3_INSTRUCTIONS
+#  if defined CAN_USE_VFP32DREGS
+  arm_fpu = " vfp3";
+#  else
+  arm_fpu = " vfp3-d16";
+#  endif
+# else
+  arm_fpu = " vfp2";
+# endif
+# if USE_EABI_HARDFLOAT == 1
+  arm_float_abi = "hard";
+# else
+  arm_float_abi = "softfp";
+# endif
+
+#endif  // __arm__
+
+  printf("target%s %s%s%s %s\n",
+         arm_test, arm_arch, arm_fpu, arm_thumb, arm_float_abi);
+}
+
+
+void CpuFeatures::PrintFeatures() {
+  printf(
+    "ARMv7=%d VFP3=%d VFP32DREGS=%d SUDIV=%d UNALIGNED_ACCESSES=%d "
+    "MOVW_MOVT_IMMEDIATE_LOADS=%d",
+    CpuFeatures::IsSupported(ARMv7),
+    CpuFeatures::IsSupported(VFP3),
+    CpuFeatures::IsSupported(VFP32DREGS),
+    CpuFeatures::IsSupported(SUDIV),
+    CpuFeatures::IsSupported(UNALIGNED_ACCESSES),
+    CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS));
+#ifdef __arm__
+    printf(" USE_EABI_HARDFLOAT=%d\n", OS::ArmUsingHardFloat());
+#else
+    printf(" USE_EABI_HARDFLOAT=%d\n", USE_EABI_HARDFLOAT);
+#endif
 }
 
 

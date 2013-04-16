@@ -55,15 +55,15 @@ class CpuFeatures : public AllStatic {
   // is enabled (snapshots must be portable).
   static void Probe();
 
+  // Display target use when compiling.
+  static void PrintTarget();
+
+  // Display features.
+  static void PrintFeatures();
+
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
-    if (f == VFP3 && !FLAG_enable_vfp3) return false;
-    if (f == SUDIV && !FLAG_enable_sudiv) return false;
-    if (f == UNALIGNED_ACCESSES && !FLAG_enable_unaligned_accesses) {
-      return false;
-    }
-    if (f == VFP32DREGS && !FLAG_enable_32dregs) return false;
     return (supported_ & (1u << f)) != 0;
   }
 

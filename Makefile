@@ -87,21 +87,13 @@ endif
 ifeq ($(vtunejit), on)
   GYPFLAGS += -Dv8_enable_vtunejit=1
 endif
-# vfp2=off
-ifeq ($(vfp2), off)
-  GYPFLAGS += -Dv8_can_use_vfp2_instructions=false
-else
-  GYPFLAGS += -Dv8_can_use_vfp2_instructions=true -Darm_fpu=vfpv2
-endif
-# vfp3=off
-ifeq ($(vfp3), off)
-  GYPFLAGS += -Dv8_can_use_vfp3_instructions=false
-else
-  GYPFLAGS += -Dv8_can_use_vfp3_instructions=true -Darm_fpu=vfpv3
-endif
 # debuggersupport=off
 ifeq ($(debuggersupport), off)
   GYPFLAGS += -Dv8_enable_debugger_support=0
+endif
+# unalignedaccess=on
+ifeq ($(unalignedaccess), on)
+  GYPFLAGS += -Dv8_can_use_unaligned_accesses=true
 endif
 # soname_version=1.2.3
 ifdef soname_version
@@ -123,13 +115,72 @@ endif
 ifeq ($(regexp), interpreted)
   GYPFLAGS += -Dv8_interpreted_regexp=1
 endif
-# hardfp=on
-ifeq ($(hardfp), on)
-  GYPFLAGS += -Dv8_use_arm_eabi_hardfloat=true
-endif
-# armv7=false
+# arm specific flags.
+# armv7=false/true
 ifeq ($(armv7), false)
   GYPFLAGS += -Darmv7=0
+else
+ifeq ($(armv7), true)
+  GYPFLAGS += -Darmv7=1
+else
+  GYPFLAGS += -Darmv7=default
+endif
+endif
+# vfp2=off. Deprecated, use armfpu=
+# vfp3=off. Deprecated, use armfpu=
+ifeq ($(vfp3), off)
+  GYPFLAGS += -Darm_fpu=vfp
+endif
+# hardfp=on/off. Deprecated, use armfloatabi
+ifeq ($(hardfp),on)
+  GYPFLAGS += -Darm_float_abi=hard
+else
+ifeq ($(hardfp),off)
+  GYPFLAGS += -Darm_float_abi=softfp
+endif
+endif
+# armneon=on/off
+ifeq ($(armneon), on)
+  GYPFLAGS += -Darm_neon=1
+endif
+# fpu: armfpu=xxx
+# xxx: vfp, vfpv3-d16, vfpv3, neon.
+ifeq ($(armfpu),)
+ifneq ($(vfp3), off)
+  GYPFLAGS += -Darm_fpu=default
+endif
+else
+  GYPFLAGS += -Darm_fpu=$(armfpu)
+endif
+# float abi: armfloatabi=softfp/hard
+ifeq ($(armfloatabi),)
+ifeq ($(hardfp),)
+  GYPFLAGS += -Darm_float_abi=default
+endif
+else
+  GYPFLAGS += -Darm_float_abi=$(armfloatabi)
+endif
+# armthumb=on/off
+ifeq ($(armthumb), off)
+  GYPFLAGS += -Darm_thumb=0
+else
+ifeq ($(armthumb), on)
+  GYPFLAGS += -Darm_thumb=1
+else
+  GYPFLAGS += -Darm_thumb=default
+endif
+endif
+# armtest=on
+# With this flag set, by default v8 will only use features implied
+# by the compiler (no probe). This is done by modifying the default
+# values of enable_armv7, enable_vfp2, enable_vfp3 and enable_32dregs.
+# Modifying these flags when launching v8 will enable the probing for
+# the specified values.
+# When using the simulator, this flag is implied.
+ifeq ($(armtest), on)
+  GYPFLAGS += -Darm_test=on
+else
+  GYPFLAGS += -Darm_test=off
 endif
 
 # ----------------- available targets: --------------------

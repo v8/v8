@@ -34,6 +34,9 @@
 #include "smart-pointers.h"
 #include "string-stream.h"
 
+#ifdef V8_TARGET_ARCH_ARM
+#include "arm/assembler-arm-inl.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -517,6 +520,12 @@ void FlagList::ResetAllFlags() {
 
 // static
 void FlagList::PrintHelp() {
+#ifdef V8_TARGET_ARCH_ARM
+  CpuFeatures::PrintTarget();
+  CpuFeatures::Probe();
+  CpuFeatures::PrintFeatures();
+#endif  // V8_TARGET_ARCH_ARM
+
   printf("Usage:\n");
   printf("  shell [options] -e string\n");
   printf("    execute string in V8\n");

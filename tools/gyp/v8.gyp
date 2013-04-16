@@ -155,40 +155,6 @@
                   '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
                 ],
               },
-              'conditions': [
-                ['v8_target_arch=="arm"', {
-                  # The following rules should be consistent with chromium's
-                  # common.gypi and V8's runtime rule to ensure they all generate
-                  # the same correct machine code. The following issue is about
-                  # V8's runtime rule about vfpv3 and neon:
-                  # http://code.google.com/p/v8/issues/detail?id=914
-                  'conditions': [
-                    ['armv7==1', {
-                      # The ARM Architecture Manual mandates VFPv3 if NEON is
-                      # available.
-                      # V8 does not use d16-d31 unless explicitly enabled
-                      # (--enable_32dregs) or detected at run-time, so for vfpv3-d16,
-                      # we can also enable vfp3 for the better performance.
-                      'conditions': [
-                        ['arm_neon!=1 and arm_fpu!="vfpv3" and arm_fpu!="vfpv3-d16"', {
-                          'variables': {
-                            'mksnapshot_flags': [
-                              '--noenable_vfp3',
-                            ],
-                          },
-                        }],
-                      ],
-                    },{ # else: armv7!=1
-                      'variables': {
-                        'mksnapshot_flags': [
-                          '--noenable_armv7',
-                          '--noenable_vfp3',
-                        ],
-                      },
-                    }],
-                  ],
-                }],
-              ],
               'action': [
                 '<@(_inputs)',
                 '<@(mksnapshot_flags)',

@@ -136,55 +136,105 @@
         'defines': [
           'V8_TARGET_ARCH_ARM',
         ],
+        'variables': {
+          'armsimulator': '<!($(echo <(CXX)) -v 2>&1 | grep -q "^Target: arm" && echo "no" || echo "yes")',
+        },
         'conditions': [
-          ['armv7==1', {
-            'defines': [
-              'CAN_USE_ARMV7_INSTRUCTIONS=1',
-            ],
-          }],
           [ 'v8_can_use_unaligned_accesses=="true"', {
             'defines': [
               'CAN_USE_UNALIGNED_ACCESSES=1',
             ],
-          }],
-          [ 'v8_can_use_unaligned_accesses=="false"', {
+          }, {
             'defines': [
               'CAN_USE_UNALIGNED_ACCESSES=0',
             ],
           }],
-          # NEON implies VFP3 and VFP3 implies VFP2.
-          [ 'v8_can_use_vfp2_instructions=="true" or arm_neon==1 or \
-             arm_fpu=="vfpv3" or arm_fpu=="vfpv3-d16"', {
-            'defines': [
-              'CAN_USE_VFP2_INSTRUCTIONS',
-            ],
-          }],
-          # NEON implies VFP3.
-          [ 'v8_can_use_vfp3_instructions=="true" or arm_neon==1 or \
-             arm_fpu=="vfpv3" or arm_fpu=="vfpv3-d16"', {
-            'defines': [
-              'CAN_USE_VFP3_INSTRUCTIONS',
-            ],
-          }],
-          [ 'v8_use_arm_eabi_hardfloat=="true"', {
-            'defines': [
-              'USE_EABI_HARDFLOAT=1',
-              'CAN_USE_VFP2_INSTRUCTIONS',
-            ],
+          ['armsimulator=="no"', {
             'target_conditions': [
               ['_toolset=="target"', {
-                'cflags': ['-mfloat-abi=hard',],
+                'conditions': [
+                  [ 'armv7==1', {
+                    'cflags': ['-march=armv7-a',],
+                  }],
+                  [ 'armv7==1 or armv7=="default"', {
+                    'conditions': [
+                      [ 'arm_neon==1', {
+                        'cflags': ['-mfpu=neon',],
+                      },
+                      {
+                        'conditions': [
+                          [ 'arm_fpu!="default"', {
+                            'cflags': ['-mfpu=<(arm_fpu)',],
+                          }],
+                        ]
+                      }],
+                    ]
+                  }],
+                  [ 'arm_float_abi!="default"', {
+                    'cflags': ['-mfloat-abi=<(arm_float_abi)',],
+                  }],
+                  [ 'arm_thumb==1', {
+                    'cflags': ['-mthumb',],
+                  }],
+                  [ 'arm_thumb==0', {
+                    'cflags': ['-marm',],
+                  }],
+                ],
               }],
             ],
-          }, {
-            'defines': [
-              'USE_EABI_HARDFLOAT=0',
+            'conditions': [
+              [ 'arm_test=="on"', {
+                'defines': [
+                  'ARM_TEST',
+                ],
+              }],
             ],
           }],
-          [ 'v8_can_use_vfp32dregs=="true"', {
+          ['armsimulator=="yes"', {
             'defines': [
-              'CAN_USE_VFP32DREGS',
+              'ARM_TEST',
             ],
+            'conditions': [
+              [ 'armv7==1 or armv7=="default"', {
+                'defines': [
+                  'CAN_USE_ARMV7_INSTRUCTIONS=1',
+                ],
+                'conditions': [
+                  [ 'arm_fpu=="default"', {
+                    'defines': [
+                      'CAN_USE_VFP3_INSTRUCTIONS',
+                    ],
+                  }],
+                  [ 'arm_fpu=="vfpv3-d16"', {
+                    'defines': [
+                      'CAN_USE_VFP3_INSTRUCTIONS',
+                    ],
+                  }],
+                  [ 'arm_fpu=="vfpv3"', {
+                    'defines': [
+                      'CAN_USE_VFP3_INSTRUCTIONS',
+                      'CAN_USE_VFP32DREGS',
+                    ],
+                  }],
+                  [ 'arm_fpu=="neon" or arm_neon==1', {
+                    'defines': [
+                      'CAN_USE_VFP3_INSTRUCTIONS',
+                      'CAN_USE_VFP32DREGS',
+                    ],
+                  }],
+                ],
+              }],
+              [ 'arm_float_abi=="hard"', {
+                'defines': [
+                  'USE_EABI_HARDFLOAT=1',
+                ],
+              }],
+              [ 'arm_float_abi=="softfp" or arm_float_abi=="default"', {
+                'defines': [
+                  'USE_EABI_HARDFLOAT=0',
+                ],
+              }],
+            ]
           }],
         ],
       }],  # v8_target_arch=="arm"

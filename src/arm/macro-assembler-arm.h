@@ -1149,7 +1149,9 @@ class MacroAssembler: public Assembler {
 
   // EABI variant for double arguments in use.
   bool use_eabi_hardfloat() {
-#if USE_EABI_HARDFLOAT
+#ifdef __arm__
+    return OS::ArmUsingHardFloat();
+#elif USE_EABI_HARDFLOAT
     return true;
 #else
     return false;
