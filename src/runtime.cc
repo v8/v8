@@ -829,7 +829,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
       *isolate->factory()->NewNumber(static_cast<double>(length)));
   Handle<ExternalArray> elements =
       isolate->factory()->NewExternalArray(
-          length, arrayType,
+          static_cast<int>(length), arrayType,
           static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   Handle<Map> map =
       isolate->factory()->GetElementsTransitionMap(holder, elementsKind);
