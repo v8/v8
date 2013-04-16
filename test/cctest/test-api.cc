@@ -2491,7 +2491,7 @@ THREADED_TEST(OldApiObjectGroups) {
     V8::AddObjectGroup(g1_objects, 2);
     V8::AddImplicitReferences(g1s1, g1_children, 1);
     V8::AddObjectGroup(g2_objects, 2);
-    V8::AddImplicitReferences(g2s2, g2_children, 1);
+    V8::AddImplicitReferences(g2s1, g2_children, 1);
   }
   // Do a single full GC, ensure incremental marking is stopped.
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
@@ -2515,7 +2515,7 @@ THREADED_TEST(OldApiObjectGroups) {
     V8::AddObjectGroup(g1_objects, 2);
     V8::AddImplicitReferences(g1s1, g1_children, 1);
     V8::AddObjectGroup(g2_objects, 2);
-    V8::AddImplicitReferences(g2s2, g2_children, 1);
+    V8::AddImplicitReferences(g2s1, g2_children, 1);
   }
 
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
@@ -2570,14 +2570,16 @@ THREADED_TEST(ApiObjectGroups) {
   CHECK(g2s1->Set(0, g1s1));
 
   {
-    Persistent<Value> g1_children[] = { g1c1 };
-    Persistent<Value> g2_children[] = { g2c1 };
-    V8::SetObjectGroupId(iso, g1s1, UniqueId(1));
-    V8::SetObjectGroupId(iso, g1s2, UniqueId(1));
-    V8::AddImplicitReferences(g1s1, g1_children, 1);
-    V8::SetObjectGroupId(iso, g2s1, UniqueId(2));
-    V8::SetObjectGroupId(iso, g2s2, UniqueId(2));
-    V8::AddImplicitReferences(g2s2, g2_children, 1);
+    UniqueId id1(reinterpret_cast<intptr_t>(*g1s1));
+    UniqueId id2(reinterpret_cast<intptr_t>(*g2s2));
+    V8::SetObjectGroupId(iso, g1s1, id1);
+    V8::SetObjectGroupId(iso, g1s2, id1);
+    V8::SetObjectGroupRepresentative(iso, id1, g1s1);
+    V8::AddImplicitReference(iso, id1, g1c1);
+    V8::SetObjectGroupId(iso, g2s1, id2);
+    V8::SetObjectGroupId(iso, g2s2, id2);
+    V8::SetObjectGroupRepresentative(iso, id2, g2s1);
+    V8::AddImplicitReference(iso, id2, g2c1);
   }
   // Do a single full GC, ensure incremental marking is stopped.
   v8::internal::Heap* heap = reinterpret_cast<v8::internal::Isolate*>(
@@ -2596,14 +2598,16 @@ THREADED_TEST(ApiObjectGroups) {
 
   // Groups are deleted, rebuild groups.
   {
-    Persistent<Value> g1_children[] = { g1c1 };
-    Persistent<Value> g2_children[] = { g2c1 };
-    V8::SetObjectGroupId(iso, g1s1, UniqueId(1));
-    V8::SetObjectGroupId(iso, g1s2, UniqueId(1));
-    V8::AddImplicitReferences(g1s1, g1_children, 1);
-    V8::SetObjectGroupId(iso, g2s1, UniqueId(2));
-    V8::SetObjectGroupId(iso, g2s2, UniqueId(2));
-    V8::AddImplicitReferences(g2s2, g2_children, 1);
+    UniqueId id1(reinterpret_cast<intptr_t>(*g1s1));
+    UniqueId id2(reinterpret_cast<intptr_t>(*g2s2));
+    V8::SetObjectGroupId(iso, g1s1, id1);
+    V8::SetObjectGroupId(iso, g1s2, id1);
+    V8::SetObjectGroupRepresentative(iso, id1, g1s1);
+    V8::AddImplicitReference(iso, id1, g1c1);
+    V8::SetObjectGroupId(iso, g2s1, id2);
+    V8::SetObjectGroupId(iso, g2s2, id2);
+    V8::SetObjectGroupRepresentative(iso, id2, g2s1);
+    V8::AddImplicitReference(iso, id2, g2c1);
   }
 
   heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
@@ -2779,22 +2783,26 @@ THREADED_TEST(ApiObjectGroupsCycle) {
   // G1: { g1s1, g2s1 }, g1s1 implicitly references g2s1, ditto for other
   // groups.
   {
-    Persistent<Value> g1_children[] = { g2s1 };
-    Persistent<Value> g2_children[] = { g3s1 };
-    Persistent<Value> g3_children[] = { g4s1 };
-    Persistent<Value> g4_children[] = { g1s1 };
-    V8::SetObjectGroupId(iso, g1s1, UniqueId(1));
-    V8::SetObjectGroupId(iso, g1s2, UniqueId(1));
-    V8::AddImplicitReferences(g1s1, g1_children, 1);
-    V8::SetObjectGroupId(iso, g2s1, UniqueId(2));
-    V8::SetObjectGroupId(iso, g2s2, UniqueId(2));
-    V8::AddImplicitReferences(g2s1, g2_children, 1);
-    V8::SetObjectGroupId(iso, g3s1, UniqueId(3));
-    V8::SetObjectGroupId(iso, g3s2, UniqueId(3));
-    V8::AddImplicitReferences(g3s1, g3_children, 1);
-    V8::SetObjectGroupId(iso, g4s1, UniqueId(4));
-    V8::SetObjectGroupId(iso, g4s2, UniqueId(4));
-    V8::AddImplicitReferences(g4s1, g4_children, 1);
+    UniqueId id1(reinterpret_cast<intptr_t>(*g1s1));
+    UniqueId id2(reinterpret_cast<intptr_t>(*g2s1));
+    UniqueId id3(reinterpret_cast<intptr_t>(*g3s1));
+    UniqueId id4(reinterpret_cast<intptr_t>(*g4s1));
+    V8::SetObjectGroupId(iso, g1s1, id1);
+    V8::SetObjectGroupId(iso, g1s2, id1);
+    V8::SetObjectGroupRepresentative(iso, id1, g1s1);
+    V8::AddImplicitReference(iso, id1, g2s1);
+    V8::SetObjectGroupId(iso, g2s1, id2);
+    V8::SetObjectGroupId(iso, g2s2, id2);
+    V8::SetObjectGroupRepresentative(iso, id2, g2s1);
+    V8::AddImplicitReference(iso, id2, g3s1);
+    V8::SetObjectGroupId(iso, g3s1, id3);
+    V8::SetObjectGroupId(iso, g3s2, id3);
+    V8::SetObjectGroupRepresentative(iso, id3, g3s1);
+    V8::AddImplicitReference(iso, id3, g4s1);
+    V8::SetObjectGroupId(iso, g4s1, id4);
+    V8::SetObjectGroupId(iso, g4s2, id4);
+    V8::SetObjectGroupRepresentative(iso, id4, g4s1);
+    V8::AddImplicitReference(iso, id4, g1s1);
   }
   // Do a single full GC
   v8::internal::Heap* heap = reinterpret_cast<v8::internal::Isolate*>(
@@ -2809,22 +2817,26 @@ THREADED_TEST(ApiObjectGroupsCycle) {
 
   // Groups are deleted, rebuild groups.
   {
-    Persistent<Value> g1_children[] = { g2s1 };
-    Persistent<Value> g2_children[] = { g3s1 };
-    Persistent<Value> g3_children[] = { g4s1 };
-    Persistent<Value> g4_children[] = { g1s1 };
-    V8::SetObjectGroupId(iso, g1s1, UniqueId(1));
-    V8::SetObjectGroupId(iso, g1s2, UniqueId(1));
-    V8::AddImplicitReferences(g1s1, g1_children, 1);
-    V8::SetObjectGroupId(iso, g2s1, UniqueId(2));
-    V8::SetObjectGroupId(iso, g2s2, UniqueId(2));
-    V8::AddImplicitReferences(g2s1, g2_children, 1);
-    V8::SetObjectGroupId(iso, g3s1, UniqueId(3));
-    V8::SetObjectGroupId(iso, g3s2, UniqueId(3));
-    V8::AddImplicitReferences(g3s1, g3_children, 1);
-    V8::SetObjectGroupId(iso, g4s1, UniqueId(4));
-    V8::SetObjectGroupId(iso, g4s2, UniqueId(4));
-    V8::AddImplicitReferences(g4s1, g4_children, 1);
+    UniqueId id1(reinterpret_cast<intptr_t>(*g1s1));
+    UniqueId id2(reinterpret_cast<intptr_t>(*g2s1));
+    UniqueId id3(reinterpret_cast<intptr_t>(*g3s1));
+    UniqueId id4(reinterpret_cast<intptr_t>(*g4s1));
+    V8::SetObjectGroupId(iso, g1s1, id1);
+    V8::SetObjectGroupId(iso, g1s2, id1);
+    V8::SetObjectGroupRepresentative(iso, id1, g1s1);
+    V8::AddImplicitReference(iso, id1, g2s1);
+    V8::SetObjectGroupId(iso, g2s1, id2);
+    V8::SetObjectGroupId(iso, g2s2, id2);
+    V8::SetObjectGroupRepresentative(iso, id2, g2s1);
+    V8::AddImplicitReference(iso, id2, g3s1);
+    V8::SetObjectGroupId(iso, g3s1, id3);
+    V8::SetObjectGroupId(iso, g3s2, id3);
+    V8::SetObjectGroupRepresentative(iso, id3, g3s1);
+    V8::AddImplicitReference(iso, id3, g4s1);
+    V8::SetObjectGroupId(iso, g4s1, id4);
+    V8::SetObjectGroupId(iso, g4s2, id4);
+    V8::SetObjectGroupRepresentative(iso, id4, g4s1);
+    V8::AddImplicitReference(iso, id4, g1s1);
   }
 
   heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);

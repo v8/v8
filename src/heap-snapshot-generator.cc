@@ -1988,24 +1988,61 @@ void NativeObjectsExplorer::FillRetainedObjects() {
 
 void NativeObjectsExplorer::FillImplicitReferences() {
   Isolate* isolate = Isolate::Current();
-  List<ImplicitRefGroup*>* groups =
+  List<ObjectGroupConnection>* ref_groups =
       isolate->global_handles()->implicit_ref_groups();
-  for (int i = 0; i < groups->length(); ++i) {
-    ImplicitRefGroup* group = groups->at(i);
-    HeapObject* parent = *group->parent_;
-    int parent_entry =
-        filler_->FindOrAddEntry(parent, native_entries_allocator_)->index();
-    ASSERT(parent_entry != HeapEntry::kNoEntry);
-    Object*** children = group->children_;
-    for (size_t j = 0; j < group->length_; ++j) {
-      Object* child = *children[j];
-      HeapEntry* child_entry =
-          filler_->FindOrAddEntry(child, native_entries_allocator_);
-      filler_->SetNamedReference(
-          HeapGraphEdge::kInternal,
-          parent_entry,
-          "native",
-          child_entry);
+  List<ObjectGroupRepresentative>* representative_objects =
+      isolate->global_handles()->representative_objects();
+
+  if (ref_groups->length() == 0)
+    return;
+
+  ref_groups->Sort();
+  representative_objects->Sort();
+
+  int representative_objects_index = 0;
+  UniqueId current_group_id(0);
+  size_t current_group_start = 0;
+  for (int i = 0; i <= ref_groups->length(); ++i) {
+    if (i == 0)
+      current_group_id = ref_groups->at(i).id;
+    if (i == ref_groups->length() || current_group_id != ref_groups->at(i).id) {
+      // Group detected: objects in indices [current_group_start, i[.
+
+      // Find the representative object for this group.
+      while (representative_objects_index < representative_objects->length() &&
+             representative_objects->at(representative_objects_index).id <
+             current_group_id)
+        ++representative_objects_index;
+
+      if (representative_objects_index < representative_objects->length() &&
+          representative_objects->at(representative_objects_index).id ==
+              current_group_id) {
+        HeapObject* parent =
+            *(representative_objects->at(representative_objects_index).object);
+
+        int parent_entry =
+            filler_->FindOrAddEntry(parent, native_entries_allocator_)->index();
+        ASSERT(parent_entry != HeapEntry::kNoEntry);
+
+        for (int j = current_group_start; j < i; ++j) {
+          Object* child = *(ref_groups->at(j).object);
+          HeapEntry* child_entry =
+              filler_->FindOrAddEntry(child, native_entries_allocator_);
+          filler_->SetNamedReference(
+              HeapGraphEdge::kInternal,
+              parent_entry,
+              "native",
+              child_entry);
+        }
+      } else {
+        // This should not happen: representative object for a group was not
+        // set!
+        UNREACHABLE();
+      }
+      if (i < ref_groups->length()) {
+        current_group_id = ref_groups->at(i).id;
+        current_group_start = i;
+      }
     }
   }
   isolate->global_handles()->RemoveImplicitRefGroups();

@@ -370,7 +370,7 @@ TEST(ObjectGroupsOldApi) {
         Handle<HeapObject>::cast(g1s1).location(), g1_children, 1);
     global_handles->AddObjectGroup(g2_objects, 2, NULL);
     global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(g2s2).location(), g2_children, 1);
+        Handle<HeapObject>::cast(g2s1).location(), g2_children, 1);
   }
   // Do a full GC
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
@@ -399,7 +399,7 @@ TEST(ObjectGroupsOldApi) {
         Handle<HeapObject>::cast(g1s1).location(), g1_children, 1);
     global_handles->AddObjectGroup(g2_objects, 2, NULL);
     global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(g2s2).location(), g2_children, 1);
+        Handle<HeapObject>::cast(g2s1).location(), g2_children, 1);
   }
 
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
@@ -477,16 +477,16 @@ TEST(ObjectGroups) {
   Handle<FixedArray>::cast(g2s1)->set(0, *g1s1);
 
   {
-    Object** g1_children[] = { g1c1.location() };
-    Object** g2_children[] = { g2c1.location() };
     global_handles->SetObjectGroupId(g1s1.location(), v8::UniqueId(1));
     global_handles->SetObjectGroupId(g1s2.location(), v8::UniqueId(1));
-    global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(g1s1).location(), g1_children, 1);
+    global_handles->SetObjectGroupRepresentative(
+        v8::UniqueId(1), reinterpret_cast<HeapObject**>(g1s1.location()));
+    global_handles->AddImplicitReference(v8::UniqueId(1), g1c1.location());
     global_handles->SetObjectGroupId(g2s1.location(), v8::UniqueId(2));
     global_handles->SetObjectGroupId(g2s2.location(), v8::UniqueId(2));
-    global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(g2s2).location(), g2_children, 1);
+    global_handles->SetObjectGroupRepresentative(
+        v8::UniqueId(2), reinterpret_cast<HeapObject**>(g2s1.location()));
+    global_handles->AddImplicitReference(v8::UniqueId(2), g2c1.location());
   }
   // Do a full GC
   heap->CollectGarbage(OLD_POINTER_SPACE);
@@ -506,16 +506,16 @@ TEST(ObjectGroups) {
 
   // Groups are deleted, rebuild groups.
   {
-    Object** g1_children[] = { g1c1.location() };
-    Object** g2_children[] = { g2c1.location() };
     global_handles->SetObjectGroupId(g1s1.location(), v8::UniqueId(1));
     global_handles->SetObjectGroupId(g1s2.location(), v8::UniqueId(1));
-    global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(g1s1).location(), g1_children, 1);
+    global_handles->SetObjectGroupRepresentative(
+        v8::UniqueId(1), reinterpret_cast<HeapObject**>(g1s1.location()));
+    global_handles->AddImplicitReference(v8::UniqueId(1), g1c1.location());
     global_handles->SetObjectGroupId(g2s1.location(), v8::UniqueId(2));
     global_handles->SetObjectGroupId(g2s2.location(), v8::UniqueId(2));
-    global_handles->AddImplicitReferences(
-        Handle<HeapObject>::cast(g2s2).location(), g2_children, 1);
+    global_handles->SetObjectGroupRepresentative(
+        v8::UniqueId(2), reinterpret_cast<HeapObject**>(g2s1.location()));
+    global_handles->AddImplicitReference(v8::UniqueId(2), g2c1.location());
   }
 
   heap->CollectGarbage(OLD_POINTER_SPACE);

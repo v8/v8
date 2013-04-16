@@ -855,8 +855,18 @@ void GlobalHandles::AddObjectGroup(Object*** handles,
     object_groups_.Add(ObjectGroupConnection(
         UniqueId(reinterpret_cast<intptr_t>(handles[0])), handles[i]));
   }
-  retainer_infos_.Add(ObjectGroupRetainerInfo(
-      UniqueId(reinterpret_cast<intptr_t>(handles[0])), info));
+  for (size_t i = 0; i < length; ++i) {
+    if ((*handles[i])->IsHeapObject()) {
+      representative_objects_.Add(ObjectGroupRepresentative(
+          UniqueId(reinterpret_cast<intptr_t>(handles[0])),
+          reinterpret_cast<HeapObject**>(handles[i])));
+      break;
+    }
+  }
+  if (info != NULL) {
+    retainer_infos_.Add(ObjectGroupRetainerInfo(
+        UniqueId(reinterpret_cast<intptr_t>(handles[0])), info));
+  }
 }
 
 void GlobalHandles::SetObjectGroupId(Object** handle,
@@ -871,6 +881,13 @@ void GlobalHandles::SetRetainedObjectInfo(UniqueId id,
 }
 
 
+void GlobalHandles::SetObjectGroupRepresentative(
+    UniqueId id,
+    HeapObject** representative_object) {
+  representative_objects_.Add(
+      ObjectGroupRepresentative(id, representative_object));
+}
+
 void GlobalHandles::AddImplicitReferences(HeapObject** parent,
                                           Object*** children,
                                           size_t length) {
@@ -880,8 +897,16 @@ void GlobalHandles::AddImplicitReferences(HeapObject** parent,
     ASSERT(!Node::FromLocation(children[i])->is_independent());
   }
 #endif
-  if (length == 0) return;
-  implicit_ref_groups_.Add(ImplicitRefGroup::New(parent, children, length));
+  for (size_t i = 0; i < length; ++i) {
+    implicit_ref_groups_.Add(ObjectGroupConnection(
+        UniqueId(reinterpret_cast<intptr_t>(parent)), children[i]));
+  }
+}
+
+
+void GlobalHandles::AddImplicitReference(UniqueId id, Object** child) {
+  ASSERT(!Node::FromLocation(child)->is_independent());
+  implicit_ref_groups_.Add(ObjectGroupConnection(id, child));
 }
 
 
@@ -896,9 +921,7 @@ void GlobalHandles::RemoveObjectGroups() {
 
 
 void GlobalHandles::RemoveImplicitRefGroups() {
-  for (int i = 0; i < implicit_ref_groups_.length(); i++) {
-    implicit_ref_groups_.at(i)->Dispose();
-  }
+  representative_objects_.Clear();
   implicit_ref_groups_.Clear();
 }
 

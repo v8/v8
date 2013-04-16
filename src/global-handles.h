@@ -47,9 +47,15 @@ class ObjectVisitor;
 // At GC the destroyed global handles are removed from the free list
 // and deallocated.
 
+// Data structures for tracking object groups and implicit references.
+
 // An object group is treated like a single JS object: if one of object in
 // the group is alive, all objects in the same group are considered alive.
 // An object group is used to simulate object relationship in a DOM tree.
+
+// An implicit references group consists of two parts: a parent object and a
+// list of children objects.  If the parent is alive, all the children are alive
+// too.
 
 struct ObjectGroupConnection {
   ObjectGroupConnection(UniqueId id, Object** object)
@@ -85,36 +91,20 @@ struct ObjectGroupRetainerInfo {
 };
 
 
-// An implicit references group consists of two parts: a parent object and
-// a list of children objects.  If the parent is alive, all the children
-// are alive too.
-class ImplicitRefGroup {
- public:
-  static ImplicitRefGroup* New(HeapObject** parent,
-                               Object*** children,
-                               size_t length) {
-    ASSERT(length > 0);
-    ImplicitRefGroup* group = reinterpret_cast<ImplicitRefGroup*>(
-        malloc(OFFSET_OF(ImplicitRefGroup, children_[length])));
-    group->parent_ = parent;
-    group->length_ = length;
-    CopyWords(group->children_, children, length);
-    return group;
+struct ObjectGroupRepresentative {
+  ObjectGroupRepresentative(UniqueId id, HeapObject** object)
+      : id(id), object(object) {}
+
+  bool operator==(const ObjectGroupRepresentative& other) const {
+    return id == other.id;
   }
 
-  void Dispose() {
-    free(this);
+  bool operator<(const ObjectGroupRepresentative& other) const {
+    return id < other.id;
   }
 
-  HeapObject** parent_;
-  size_t length_;
-  Object** children_[1];  // Variable sized array.
-
- private:
-  void* operator new(size_t size);
-  void operator delete(void* p);
-  ~ImplicitRefGroup();
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ImplicitRefGroup);
+  UniqueId id;
+  HeapObject** object;
 };
 
 
@@ -228,7 +218,16 @@ class GlobalHandles {
   // All groups are destroyed after a garbage collection.
   void SetObjectGroupId(Object** handle, UniqueId id);
 
-  void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info = NULL);
+  // Set RetainedObjectInfo for an object group. Should not be called more than
+  // once for a group. Should not be called for a group which contains no
+  // handles.
+  void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
+
+  // Sets a representative object for an object group. Should not be called more
+  // than once for a group. Should not be called for a group which contains no
+  // handles.
+  void SetObjectGroupRepresentative(UniqueId id,
+                                    HeapObject** representative_object);
 
   // Add an implicit references' group.
   // Should be only used in GC callback function before a collection.
@@ -236,6 +235,12 @@ class GlobalHandles {
   void AddImplicitReferences(HeapObject** parent,
                              Object*** children,
                              size_t length);
+
+  // Adds an implicit reference from a group (representative object of that
+  // group) to an object. Should be only used in GC callback function before a
+  // collection. All implicit references are destroyed after a mark-compact
+  // collection.
+  void AddImplicitReference(UniqueId id, Object** child);
 
   List<ObjectGroupConnection>* object_groups() {
     return &object_groups_;
@@ -245,9 +250,12 @@ class GlobalHandles {
     return &retainer_infos_;
   }
 
-  // Returns the implicit references' groups.
-  List<ImplicitRefGroup*>* implicit_ref_groups() {
+  List<ObjectGroupConnection>* implicit_ref_groups() {
     return &implicit_ref_groups_;
+  }
+
+  List<ObjectGroupRepresentative>* representative_objects() {
+    return &representative_objects_;
   }
 
   // Remove bags, this should only happen after GC.
@@ -292,9 +300,13 @@ class GlobalHandles {
 
   int post_gc_processing_count_;
 
+  // Object groups.
   List<ObjectGroupConnection> object_groups_;
   List<ObjectGroupRetainerInfo> retainer_infos_;
-  List<ImplicitRefGroup*> implicit_ref_groups_;
+  List<ObjectGroupRepresentative> representative_objects_;
+
+  // Implicit references.
+  List<ObjectGroupConnection> implicit_ref_groups_;
 
   friend class Isolate;
 
