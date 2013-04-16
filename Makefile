@@ -122,8 +122,6 @@ ifeq ($(armv7), false)
 else
 ifeq ($(armv7), true)
   GYPFLAGS += -Darmv7=1
-else
-  GYPFLAGS += -Darmv7=default
 endif
 endif
 # vfp2=off. Deprecated, use armfpu=
@@ -166,8 +164,6 @@ ifeq ($(armthumb), off)
 else
 ifeq ($(armthumb), on)
   GYPFLAGS += -Darm_thumb=1
-else
-  GYPFLAGS += -Darm_thumb=default
 endif
 endif
 # armtest=on
