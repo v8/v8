@@ -517,7 +517,6 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 
 void HGraph::Verify(bool do_full_verify) const {
   // Allow dereferencing for debug mode verification.
-  Heap::RelocationLock(isolate()->heap());
   HandleDereferenceGuard allow_handle_deref(isolate(),
                                             HandleDereferenceGuard::ALLOW);
   for (int i = 0; i < blocks_.length(); i++) {
@@ -619,6 +618,7 @@ HConstant* HGraph::GetConstant##Name() {                                       \
   if (!constant_##name##_.is_set()) {                                          \
     HConstant* constant = new(zone()) HConstant(                               \
         isolate()->factory()->name##_value(),                                  \
+        UniqueValueId(isolate()->heap()->name##_value()),                      \
         Representation::Tagged(),                                              \
         htype,                                                                 \
         false,                                                                 \
@@ -880,6 +880,7 @@ HGraph* HGraphBuilder::CreateGraph() {
   HPhase phase("H_Block building", isolate());
   set_current_block(graph()->entry_block());
   if (!BuildGraph()) return NULL;
+  graph()->FinalizeUniqueValueIds();
   return graph_;
 }
 
@@ -1693,6 +1694,19 @@ HBasicBlock* HGraph::CreateBasicBlock() {
   HBasicBlock* result = new(zone()) HBasicBlock(this);
   blocks_.Add(result, zone());
   return result;
+}
+
+
+void HGraph::FinalizeUniqueValueIds() {
+  AssertNoAllocation no_gc;
+  ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
+  for (int i = 0; i < blocks()->length(); ++i) {
+    for (HInstruction* instr = blocks()->at(i)->first();
+        instr != NULL;
+        instr = instr->next()) {
+      instr->FinalizeUniqueValueId();
+    }
+  }
 }
 
 
@@ -4327,8 +4341,6 @@ bool HOptimizedGraphBuilder::BuildGraph() {
 void HGraph::GlobalValueNumbering() {
   // Perform common subexpression elimination and loop-invariant code motion.
   if (FLAG_use_gvn) {
-    // We use objects' raw addresses for identification, so they must not move.
-    Heap::RelocationLock relocation_lock(isolate()->heap());
     HPhase phase("H_Global value numbering", this);
     HGlobalValueNumberer gvn(this, info());
     bool removed_side_effects = gvn.Analyze();
