@@ -752,17 +752,34 @@
               'variables': {
                 'gyp_generators': '<!(echo $GYP_GENERATORS)',
               },
-              'sources': [
-                '../../src/platform-win32.cc',
-                '../../src/win32-math.cc',
-                '../../src/win32-math.h',
-              ],
               'conditions': [
                 ['gyp_generators=="make"', {
+                  'variables': {
+                    'build_env': '<!(uname -o)',
+                  },
+                  'conditions': [
+                    ['build_env=="Cygwin"', {
+                      'sources': [
+                        '../../src/platform-cygwin.cc',
+                        '../../src/platform-posix.cc',
+                      ],
+                    }, {
+                      'sources': [
+                        '../../src/platform-win32.cc',
+                        '../../src/win32-math.h',
+                        '../../src/win32-math.cc',
+                      ],
+                    }],
+                  ],
                   'link_settings':  {
                     'libraries': [ '-lwinmm', '-lws2_32' ],
                   },
                 }, {
+                  'sources': [
+                    '../../src/platform-win32.cc',
+                    '../../src/win32-math.h',
+                    '../../src/win32-math.cc',
+                  ],
                   'msvs_disabled_warnings': [4351, 4355, 4800],
                   'link_settings':  {
                     'libraries': [ '-lwinmm.lib', '-lws2_32.lib' ],

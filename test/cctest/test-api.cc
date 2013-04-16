@@ -48,14 +48,6 @@
 
 static const bool kLogThreading = false;
 
-static bool IsNaN(double x) {
-#ifdef WIN32
-  return _isnan(x);
-#else
-  return isnan(x);
-#endif
-}
-
 using ::v8::AccessorInfo;
 using ::v8::Arguments;
 using ::v8::Context;
@@ -3648,7 +3640,7 @@ THREADED_TEST(ConversionException) {
   CheckUncle(&try_catch);
 
   double number_value = obj->NumberValue();
-  CHECK_NE(0, IsNaN(number_value));
+  CHECK_NE(0, isnan(number_value));
   CheckUncle(&try_catch);
 
   int64_t integer_value = obj->IntegerValue();
@@ -15749,7 +15741,7 @@ static uint64_t DoubleToBits(double value) {
 
 static double DoubleToDateTime(double input) {
   double date_limit = 864e13;
-  if (IsNaN(input) || input < -date_limit || input > date_limit) {
+  if (isnan(input) || input < -date_limit || input > date_limit) {
     return i::OS::nan_value();
   }
   return (input < 0) ? -(floor(-input)) : floor(input);
@@ -15810,7 +15802,7 @@ THREADED_TEST(QuietSignalingNaNs) {
     // Check that Number::New preserves non-NaNs and quiets SNaNs.
     v8::Handle<v8::Value> number = v8::Number::New(test_value);
     double stored_number = number->NumberValue();
-    if (!IsNaN(test_value)) {
+    if (!isnan(test_value)) {
       CHECK_EQ(test_value, stored_number);
     } else {
       uint64_t stored_bits = DoubleToBits(stored_number);
@@ -15829,7 +15821,7 @@ THREADED_TEST(QuietSignalingNaNs) {
     v8::Handle<v8::Value> date = v8::Date::New(test_value);
     double expected_stored_date = DoubleToDateTime(test_value);
     double stored_date = date->NumberValue();
-    if (!IsNaN(expected_stored_date)) {
+    if (!isnan(expected_stored_date)) {
       CHECK_EQ(expected_stored_date, stored_date);
     } else {
       uint64_t stored_bits = DoubleToBits(stored_date);
