@@ -179,8 +179,6 @@ endif
 # When using the simulator, this flag is implied.
 ifeq ($(armtest), on)
   GYPFLAGS += -Darm_test=on
-else
-  GYPFLAGS += -Darm_test=off
 endif
 
 # ----------------- available targets: --------------------

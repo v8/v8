@@ -44,7 +44,9 @@
     defined(__ARM_ARCH_7R__) || \
     defined(__ARM_ARCH_7__)
 # define CAN_USE_ARMV7_INSTRUCTIONS 1
+#ifndef CAN_USE_VFP3_INSTRUCTIONS
 # define CAN_USE_VFP3_INSTRUCTIONS
+#endif
 #endif
 
 #if defined(__ARM_ARCH_6__)   ||   \

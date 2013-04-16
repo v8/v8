@@ -44,29 +44,16 @@
     # access is allowed for all CPUs.
     'v8_can_use_unaligned_accesses%': 'default',
 
-    # Setting 'v8_can_use_vfp2_instructions' to 'true' will enable use of ARM VFP
-    # instructions in the V8 generated code. VFP instructions will be enabled
-    # both for the snapshot and for the ARM target. Leaving the default value
-    # of 'false' will avoid VFP instructions in the snapshot and use CPU feature
-    # probing when running on the target.
-    'v8_can_use_vfp2_instructions%': 'false',
-    'v8_can_use_vfp3_instructions%': 'false',
-
     # Setting 'v8_can_use_vfp32dregs' to 'true' will cause V8 to use the VFP
     # registers d16-d31 in the generated code, both in the snapshot and for the
     # ARM target. Leaving the default value of 'false' will avoid the use of
     # these registers in the snapshot and use CPU feature probing when running
     # on the target.
     'v8_can_use_vfp32dregs%': 'false',
+    'arm_test%': 'off',
 
     # Similar to vfp but on MIPS.
     'v8_can_use_fpu_instructions%': 'true',
-
-    # Setting v8_use_arm_eabi_hardfloat to true will turn on V8 support for ARM
-    # EABI calling convention where double arguments are passed in VFP
-    # registers. Note that the GCC flag '-mfloat-abi=hard' should be used as
-    # well when compiling for the ARM target.
-    'v8_use_arm_eabi_hardfloat%': 'false',
 
     # Similar to the ARM hard float ABI but on MIPS.
     'v8_use_mips_abi_hardfloat%': 'true',
