@@ -183,7 +183,7 @@ static size_t* small_handlers = NULL;
 
 
 enum Direction { FORWARD, BACKWARD };
-enum Alignment { ALIGNED, UNALIGNED };
+enum Alignment { MOVE_ALIGNED, MOVE_UNALIGNED };
 
 // Expects registers:
 // esi - source, aligned if alignment == ALIGNED
@@ -204,10 +204,10 @@ void MemMoveEmitMainLoop(MacroAssembler* masm,
   __ bind(&loop);
   // Main loop. Copy in 64 byte chunks.
   if (direction == BACKWARD) __ sub(src, Immediate(0x40));
-  __ movdq(alignment == ALIGNED, xmm0, Operand(src, 0x00));
-  __ movdq(alignment == ALIGNED, xmm1, Operand(src, 0x10));
-  __ movdq(alignment == ALIGNED, xmm2, Operand(src, 0x20));
-  __ movdq(alignment == ALIGNED, xmm3, Operand(src, 0x30));
+  __ movdq(alignment == MOVE_ALIGNED, xmm0, Operand(src, 0x00));
+  __ movdq(alignment == MOVE_ALIGNED, xmm1, Operand(src, 0x10));
+  __ movdq(alignment == MOVE_ALIGNED, xmm2, Operand(src, 0x20));
+  __ movdq(alignment == MOVE_ALIGNED, xmm3, Operand(src, 0x30));
   if (direction == FORWARD) __ add(src, Immediate(0x40));
   if (direction == BACKWARD) __ sub(dst, Immediate(0x40));
   __ movdqa(Operand(dst, 0x00), xmm0);
@@ -222,8 +222,8 @@ void MemMoveEmitMainLoop(MacroAssembler* masm,
   __ test(count, Immediate(0x20));
   __ j(zero, &move_last_31);
   if (direction == BACKWARD) __ sub(src, Immediate(0x20));
-  __ movdq(alignment == ALIGNED, xmm0, Operand(src, 0x00));
-  __ movdq(alignment == ALIGNED, xmm1, Operand(src, 0x10));
+  __ movdq(alignment == MOVE_ALIGNED, xmm0, Operand(src, 0x00));
+  __ movdq(alignment == MOVE_ALIGNED, xmm1, Operand(src, 0x10));
   if (direction == FORWARD) __ add(src, Immediate(0x20));
   if (direction == BACKWARD) __ sub(dst, Immediate(0x20));
   __ movdqa(Operand(dst, 0x00), xmm0);
@@ -234,7 +234,7 @@ void MemMoveEmitMainLoop(MacroAssembler* masm,
   __ test(count, Immediate(0x10));
   __ j(zero, move_last_15);
   if (direction == BACKWARD) __ sub(src, Immediate(0x10));
-  __ movdq(alignment == ALIGNED, xmm0, Operand(src, 0));
+  __ movdq(alignment == MOVE_ALIGNED, xmm0, Operand(src, 0));
   if (direction == FORWARD) __ add(src, Immediate(0x10));
   if (direction == BACKWARD) __ sub(dst, Immediate(0x10));
   __ movdqa(Operand(dst, 0), xmm0);
@@ -339,7 +339,7 @@ OS::MemMoveFunction CreateMemMoveFunction() {
       __ test(src, Immediate(0xF));
       __ j(not_zero, &unaligned_source);
       // Copy loop for aligned source and destination.
-      MemMoveEmitMainLoop(&masm, &move_last_15, FORWARD, ALIGNED);
+      MemMoveEmitMainLoop(&masm, &move_last_15, FORWARD, MOVE_ALIGNED);
       // At most 15 bytes to copy. Copy 16 bytes at end of string.
       __ bind(&move_last_15);
       __ and_(count, 0xF);
@@ -351,7 +351,7 @@ OS::MemMoveFunction CreateMemMoveFunction() {
 
       // Copy loop for unaligned source and aligned destination.
       __ bind(&unaligned_source);
-      MemMoveEmitMainLoop(&masm, &move_last_15, FORWARD, UNALIGNED);
+      MemMoveEmitMainLoop(&masm, &move_last_15, FORWARD, MOVE_UNALIGNED);
       __ jmp(&move_last_15);
 
       // Less than kMinMoveDistance offset between dst and src.
@@ -368,7 +368,8 @@ OS::MemMoveFunction CreateMemMoveFunction() {
       // dst is now aligned, src can't be. Main copy loop.
       __ mov(loop_count, count);
       __ shr(loop_count, 6);
-      MemMoveEmitMainLoop(&masm, &last_15_much_overlap, FORWARD, UNALIGNED);
+      MemMoveEmitMainLoop(&masm, &last_15_much_overlap,
+                          FORWARD, MOVE_UNALIGNED);
       __ bind(&last_15_much_overlap);
       __ and_(count, 0xF);
       __ j(zero, &pop_and_return);
@@ -404,7 +405,7 @@ OS::MemMoveFunction CreateMemMoveFunction() {
       __ test(src, Immediate(0xF));
       __ j(not_zero, &unaligned_source);
       // Copy loop for aligned source and destination.
-      MemMoveEmitMainLoop(&masm, &move_first_15, BACKWARD, ALIGNED);
+      MemMoveEmitMainLoop(&masm, &move_first_15, BACKWARD, MOVE_ALIGNED);
       // At most 15 bytes to copy. Copy 16 bytes at beginning of string.
       __ bind(&move_first_15);
       __ and_(count, 0xF);
@@ -418,7 +419,7 @@ OS::MemMoveFunction CreateMemMoveFunction() {
 
       // Copy loop for unaligned source and aligned destination.
       __ bind(&unaligned_source);
-      MemMoveEmitMainLoop(&masm, &move_first_15, BACKWARD, UNALIGNED);
+      MemMoveEmitMainLoop(&masm, &move_first_15, BACKWARD, MOVE_UNALIGNED);
       __ jmp(&move_first_15);
 
       // Less than kMinMoveDistance offset between dst and src.
@@ -435,7 +436,8 @@ OS::MemMoveFunction CreateMemMoveFunction() {
       // dst is now aligned, src can't be. Main copy loop.
       __ mov(loop_count, count);
       __ shr(loop_count, 6);
-      MemMoveEmitMainLoop(&masm, &first_15_much_overlap, BACKWARD, UNALIGNED);
+      MemMoveEmitMainLoop(&masm, &first_15_much_overlap,
+                          BACKWARD, MOVE_UNALIGNED);
       __ bind(&first_15_much_overlap);
       __ and_(count, 0xF);
       __ j(zero, &pop_and_return);
