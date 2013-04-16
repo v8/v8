@@ -99,7 +99,6 @@ int random();
 #include "atomicops.h"
 #include "lazy-instance.h"
 #include "platform-tls.h"
-#include "sampler.h"
 #include "utils.h"
 #include "v8globals.h"
 

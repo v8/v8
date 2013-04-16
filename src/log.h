@@ -74,6 +74,7 @@ namespace internal {
 class LogMessageBuilder;
 class Profiler;
 class Semaphore;
+struct TickSample;
 class Ticker;
 class Isolate;
 class PositionsRecorder;

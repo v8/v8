@@ -69,8 +69,7 @@ namespace v8 {
 namespace internal {
 
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) \
-    || defined(__NetBSD__) || defined(__sun) || defined(__ANDROID__)
+#if defined(USE_SIGNALS)
 
 #if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
@@ -147,34 +146,17 @@ enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
 #endif  // __ANDROID__ && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
 
-static pthread_t GetThreadID() {
-#if defined(__ANDROID__)
-  // Android's C library provides gettid(2).
-  return gettid();
-#elif defined(__linux__)
-  // Glibc doesn't provide a wrapper for gettid(2).
-  return syscall(SYS_gettid);
-#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) \
-    || defined(__sun)
-  return pthread_self();
-#endif
-}
-
-
 class Sampler::PlatformData : public Malloced {
  public:
   PlatformData()
-      : vm_tid_(GetThreadID()),
-        vm_tgid_(getpid()),
+      : vm_tid_(pthread_self()),
         profiled_thread_id_(ThreadId::Current()) {}
 
   pthread_t vm_tid() const { return vm_tid_; }
-  int vm_tgid() const { return vm_tgid_; }
   ThreadId profiled_thread_id() { return profiled_thread_id_; }
 
  private:
   pthread_t vm_tid_;
-  const int vm_tgid_;
   ThreadId profiled_thread_id_;
 };
 
@@ -440,7 +422,7 @@ class SamplerThread : public Thread {
         if (signal_handler_installed_) RestoreSignalHandler();
 #endif
       }
-      Sleep();  // TODO(svenpanne) Figure out if OS:Sleep(interval_) is enough.
+      OS::Sleep(interval_);
     }
   }
 
@@ -452,42 +434,13 @@ class SamplerThread : public Thread {
   }
 
 #if defined(USE_SIGNALS)
+
   void SampleContext(Sampler* sampler) {
     if (!signal_handler_installed_) return;
-    Sampler::PlatformData* platform_data = sampler->platform_data();
-    int tid = platform_data->vm_tid();
-    // Glibc doesn't provide a wrapper for tgkill(2).
-#if defined(ANDROID)
-    syscall(__NR_tgkill, platform_data->vm_tgid(), tid, SIGPROF);
-#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) \
-    || defined(__sun)
-    pthread_kill(tid, SIGPROF);
-#else
-    int result = syscall(SYS_tgkill, platform_data->vm_tgid(), tid, SIGPROF);
+    pthread_t tid = sampler->platform_data()->vm_tid();
+    int result = pthread_kill(tid, SIGPROF);
     USE(result);
     ASSERT(result == 0);
-#endif
-  }
-
-  void Sleep() {
-    // Convert ms to us and subtract 100 us to compensate delays
-    // occuring during signal delivery.
-    useconds_t interval = interval_ * 1000 - 100;
-#if defined(ANDROID)
-    usleep(interval);
-#else
-    int result = usleep(interval);
-#ifdef DEBUG
-    if (result != 0 && errno != EINTR) {
-      fprintf(stderr,
-              "SamplerThread usleep error; interval = %u, errno = %d\n",
-              interval,
-              errno);
-      ASSERT(result == 0 || errno == EINTR);
-    }
-#endif  // DEBUG
-    USE(result);
-#endif  // ANDROID
   }
 
 #elif defined(__MACH__)
@@ -561,10 +514,6 @@ class SamplerThread : public Thread {
     thread_resume(profiled_thread);
   }
 
-  void Sleep() {
-    OS::Sleep(interval_);
-  }
-
 #elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 
   void SampleContext(Sampler* sampler) {
@@ -622,10 +571,6 @@ class SamplerThread : public Thread {
       sampler->Tick(sample);
     }
     ResumeThread(profiled_thread);
-  }
-
-  void Sleep() {
-    OS::Sleep(interval_);
   }
 
 #endif  // USE_SIGNALS
