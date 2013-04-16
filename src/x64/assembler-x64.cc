@@ -485,9 +485,9 @@ void Assembler::GrowBuffer() {
   intptr_t pc_delta = desc.buffer - buffer_;
   intptr_t rc_delta = (desc.buffer + desc.buffer_size) -
       (buffer_ + buffer_size_);
-  memmove(desc.buffer, buffer_, desc.instr_size);
-  memmove(rc_delta + reloc_info_writer.pos(),
-          reloc_info_writer.pos(), desc.reloc_size);
+  OS::MemMove(desc.buffer, buffer_, desc.instr_size);
+  OS::MemMove(rc_delta + reloc_info_writer.pos(),
+              reloc_info_writer.pos(), desc.reloc_size);
 
   // Switch buffers.
   if (isolate() != NULL &&

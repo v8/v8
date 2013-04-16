@@ -393,7 +393,7 @@ class Logger::NameBuffer {
 
   void AppendBytes(const char* bytes, int size) {
     size = Min(size, kUtf8BufferSize - utf8_pos_);
-    memcpy(utf8_buffer_ + utf8_pos_, bytes, size);
+    OS::MemCopy(utf8_buffer_ + utf8_pos_, bytes, size);
     utf8_pos_ += size;
   }
 

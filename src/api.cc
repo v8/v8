@@ -1686,7 +1686,8 @@ ScriptData* ScriptData::New(const char* data, int length) {
   }
   // Copy the data to align it.
   unsigned* deserialized_data = i::NewArray<unsigned>(deserialized_data_length);
-  i::OS::MemCopy(deserialized_data, data, length);
+  i::CopyBytes(reinterpret_cast<char*>(deserialized_data),
+               data, static_cast<size_t>(length));
 
   return new i::ScriptDataImpl(
       i::Vector<unsigned>(deserialized_data, deserialized_data_length));
@@ -3278,7 +3279,7 @@ Local<String> v8::Object::ObjectProtoToString() {
 
       // Write prefix.
       char* ptr = buf.start();
-      memcpy(ptr, prefix, prefix_len * v8::internal::kCharSize);
+      i::OS::MemCopy(ptr, prefix, prefix_len * v8::internal::kCharSize);
       ptr += prefix_len;
 
       // Write real content.
@@ -3286,7 +3287,7 @@ Local<String> v8::Object::ObjectProtoToString() {
       ptr += str_len;
 
       // Write postfix.
-      memcpy(ptr, postfix, postfix_len * v8::internal::kCharSize);
+      i::OS::MemCopy(ptr, postfix, postfix_len * v8::internal::kCharSize);
 
       // Copy the buffer into a heap-allocated string and return it.
       Local<String> result = v8::String::New(buf.start(), buf_len);
@@ -7267,7 +7268,7 @@ char* HandleScopeImplementer::ArchiveThread(char* storage) {
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate_->handle_scope_data();
   handle_scope_data_ = *current;
-  memcpy(storage, this, sizeof(*this));
+  OS::MemCopy(storage, this, sizeof(*this));
 
   ResetAfterArchive();
   current->Initialize();
@@ -7282,7 +7283,7 @@ int HandleScopeImplementer::ArchiveSpacePerThread() {
 
 
 char* HandleScopeImplementer::RestoreThread(char* storage) {
-  memcpy(this, storage, sizeof(*this));
+  OS::MemCopy(this, storage, sizeof(*this));
   *isolate_->handle_scope_data() = handle_scope_data_;
   return storage + ArchiveSpacePerThread();
 }

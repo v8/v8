@@ -148,19 +148,23 @@ double ceiling(double x) {
 static Mutex* limit_mutex = NULL;
 
 #if defined(V8_TARGET_ARCH_IA32)
-static OS::MemCopyFunction memcopy_function = NULL;
+static void MemMoveWrapper(void* dest, const void* src, size_t size) {
+  memmove(dest, src, size);
+}
+
+// Initialize to library version so we can call this at any time during startup.
+static OS::MemMoveFunction memmove_function = &MemMoveWrapper;
+
 // Defined in codegen-ia32.cc.
-OS::MemCopyFunction CreateMemCopyFunction();
+OS::MemMoveFunction CreateMemMoveFunction();
 
 // Copy memory area to disjoint memory area.
-void OS::MemCopy(void* dest, const void* src, size_t size) {
+void OS::MemMove(void* dest, const void* src, size_t size) {
   // Note: here we rely on dependent reads being ordered. This is true
   // on all architectures we currently support.
-  (*memcopy_function)(dest, src, size);
-#ifdef DEBUG
-  CHECK_EQ(0, memcmp(dest, src, size));
-#endif
+  (*memmove_function)(dest, src, size);
 }
+
 #endif  // V8_TARGET_ARCH_IA32
 
 #ifdef _WIN64
@@ -576,7 +580,10 @@ void OS::PostSetUp() {
   // CPU.
   MathSetup();
 #if defined(V8_TARGET_ARCH_IA32)
-  memcopy_function = CreateMemCopyFunction();
+  OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
+  if (generated_memmove != NULL) {
+    memmove_function = generated_memmove;
+  }
 #endif
 }
 
@@ -1062,7 +1069,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
   if (file_mapping == NULL) return NULL;
   // Map a view of the file into memory
   void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
-  if (memory) memmove(memory, initial, size);
+  if (memory) OS::MemMove(memory, initial, size);
   return new Win32MemoryMappedFile(file, file_mapping, memory, size);
 }
 

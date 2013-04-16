@@ -12795,7 +12795,7 @@ TEST(PreCompileSerialization) {
   // Serialize.
   int serialized_data_length = sd->Length();
   char* serialized_data = i::NewArray<char>(serialized_data_length);
-  memcpy(serialized_data, sd->Data(), serialized_data_length);
+  i::OS::MemCopy(serialized_data, sd->Data(), serialized_data_length);
 
   // Deserialize.
   v8::ScriptData* deserialized_sd =
@@ -15735,14 +15735,14 @@ TEST(VisitExternalStrings) {
 
 static double DoubleFromBits(uint64_t value) {
   double target;
-  memcpy(&target, &value, sizeof(target));
+  i::OS::MemCopy(&target, &value, sizeof(target));
   return target;
 }
 
 
 static uint64_t DoubleToBits(double value) {
   uint64_t target;
-  memcpy(&target, &value, sizeof(target));
+  i::OS::MemCopy(&target, &value, sizeof(target));
   return target;
 }
 

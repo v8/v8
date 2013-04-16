@@ -32,9 +32,9 @@
 #include <string.h>
 #include <climits>
 
-#include "globals.h"
-#include "checks.h"
 #include "allocation.h"
+#include "checks.h"
+#include "globals.h"
 
 namespace v8 {
 namespace internal {
@@ -494,6 +494,7 @@ class EmbeddedVector : public Vector<T> {
   // When copying, make underlying Vector to reference our buffer.
   EmbeddedVector(const EmbeddedVector& rhs)
       : Vector<T>(rhs) {
+    // TODO(jkummerow): Refactor #includes and use OS::MemCopy() instead.
     memcpy(buffer_, rhs.buffer_, sizeof(T) * kSize);
     set_start(buffer_);
   }
@@ -501,6 +502,7 @@ class EmbeddedVector : public Vector<T> {
   EmbeddedVector& operator=(const EmbeddedVector& rhs) {
     if (this == &rhs) return *this;
     Vector<T>::operator=(rhs);
+    // TODO(jkummerow): Refactor #includes and use OS::MemCopy() instead.
     memcpy(buffer_, rhs.buffer_, sizeof(T) * kSize);
     this->set_start(buffer_);
     return *this;
@@ -876,6 +878,7 @@ struct BitCastHelper {
 
   INLINE(static Dest cast(const Source& source)) {
     Dest dest;
+    // TODO(jkummerow): Refactor #includes and use OS::MemCopy() instead.
     memcpy(&dest, &source, sizeof(dest));
     return dest;
   }

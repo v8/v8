@@ -2500,8 +2500,10 @@ HValueMap::HValueMap(Zone* zone, const HValueMap* other)
       array_(zone->NewArray<HValueMapListElement>(other->array_size_)),
       lists_(zone->NewArray<HValueMapListElement>(other->lists_size_)),
       free_list_head_(other->free_list_head_) {
-  memcpy(array_, other->array_, array_size_ * sizeof(HValueMapListElement));
-  memcpy(lists_, other->lists_, lists_size_ * sizeof(HValueMapListElement));
+  OS::MemCopy(
+      array_, other->array_, array_size_ * sizeof(HValueMapListElement));
+  OS::MemCopy(
+      lists_, other->lists_, lists_size_ * sizeof(HValueMapListElement));
 }
 
 
@@ -2627,7 +2629,7 @@ void HValueMap::ResizeLists(int new_size, Zone* zone) {
   lists_ = new_lists;
 
   if (old_lists != NULL) {
-    memcpy(lists_, old_lists, old_size * sizeof(HValueMapListElement));
+    OS::MemCopy(lists_, old_lists, old_size * sizeof(HValueMapListElement));
   }
   for (int i = old_size; i < lists_size_; ++i) {
     lists_[i].next = free_list_head_;
@@ -2673,7 +2675,7 @@ HSideEffectMap::HSideEffectMap(HSideEffectMap* other) : count_(other->count_) {
 
 HSideEffectMap& HSideEffectMap::operator= (const HSideEffectMap& other) {
   if (this != &other) {
-    memcpy(data_, other.data_, kNumberOfTrackedSideEffects * kPointerSize);
+    OS::MemCopy(data_, other.data_, kNumberOfTrackedSideEffects * kPointerSize);
   }
   return *this;
 }
@@ -2971,7 +2973,7 @@ GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
   size_t string_len = strlen(underlying_buffer) + 1;
   ASSERT(string_len <= sizeof(underlying_buffer));
   char* result = new char[strlen(underlying_buffer) + 1];
-  memcpy(result, underlying_buffer, string_len);
+  OS::MemCopy(result, underlying_buffer, string_len);
   return SmartArrayPointer<char>(result);
 }
 

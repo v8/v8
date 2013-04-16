@@ -28,6 +28,7 @@
 #include <stdarg.h>
 #include "../include/v8stdint.h"
 #include "checks.h"
+#include "platform.h"
 #include "utils.h"
 
 namespace v8 {
@@ -48,7 +49,7 @@ void SimpleStringBuilder::AddString(const char* s) {
 void SimpleStringBuilder::AddSubstring(const char* s, int n) {
   ASSERT(!is_finalized() && position_ + n <= buffer_.length());
   ASSERT(static_cast<size_t>(n) <= strlen(s));
-  memcpy(&buffer_[position_], s, n * kCharSize);
+  OS::MemCopy(&buffer_[position_], s, n * kCharSize);
   position_ += n;
 }
 

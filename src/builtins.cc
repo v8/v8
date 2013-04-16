@@ -331,9 +331,9 @@ static void MoveDoubleElements(FixedDoubleArray* dst,
                                int src_index,
                                int len) {
   if (len == 0) return;
-  memmove(dst->data_start() + dst_index,
-          src->data_start() + src_index,
-          len * kDoubleSize);
+  OS::MemMove(dst->data_start() + dst_index,
+              src->data_start() + src_index,
+              len * kDoubleSize);
 }
 
 

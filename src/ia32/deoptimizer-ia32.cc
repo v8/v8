@@ -90,9 +90,9 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
     Factory* factory = isolate->factory();
     Handle<ByteArray> new_reloc =
         factory->NewByteArray(reloc_length + padding, TENURED);
-    memcpy(new_reloc->GetDataStartAddress() + padding,
-           code->relocation_info()->GetDataStartAddress(),
-           reloc_length);
+    OS::MemCopy(new_reloc->GetDataStartAddress() + padding,
+                code->relocation_info()->GetDataStartAddress(),
+                reloc_length);
     // Create a relocation writer to write the comments in the padding
     // space. Use position 0 for everything to ensure short encoding.
     RelocInfoWriter reloc_info_writer(
@@ -177,7 +177,8 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
 
   // Move the relocation info to the beginning of the byte array.
   int new_reloc_size = reloc_end_address - reloc_info_writer.pos();
-  memmove(code->relocation_start(), reloc_info_writer.pos(), new_reloc_size);
+  OS::MemMove(
+      code->relocation_start(), reloc_info_writer.pos(), new_reloc_size);
 
   // The relocation info is in place, update the size.
   reloc_info->set_length(new_reloc_size);

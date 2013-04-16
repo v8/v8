@@ -721,7 +721,7 @@ void Simulator::CheckICache(v8::internal::HashMap* i_cache,
                  Instruction::kInstrSize) == 0);
   } else {
     // Cache miss.  Load memory into the cache.
-    memcpy(cached_line, line, CachePage::kLineLength);
+    OS::MemCopy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -903,8 +903,8 @@ double Simulator::get_double_from_register_pair(int reg) {
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
   char buffer[2 * sizeof(vfp_registers_[0])];
-  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
-  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  OS::MemCopy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  OS::MemCopy(&dm_val, buffer, 2 * sizeof(registers_[0]));
   return(dm_val);
 }
 
@@ -954,9 +954,9 @@ void Simulator::SetVFPRegister(int reg_index, const InputType& value) {
   if (register_size == 2) ASSERT(reg_index < DwVfpRegister::NumRegisters());
 
   char buffer[register_size * sizeof(vfp_registers_[0])];
-  memcpy(buffer, &value, register_size * sizeof(vfp_registers_[0]));
-  memcpy(&vfp_registers_[reg_index * register_size], buffer,
-         register_size * sizeof(vfp_registers_[0]));
+  OS::MemCopy(buffer, &value, register_size * sizeof(vfp_registers_[0]));
+  OS::MemCopy(&vfp_registers_[reg_index * register_size], buffer,
+              register_size * sizeof(vfp_registers_[0]));
 }
 
 
@@ -968,9 +968,9 @@ ReturnType Simulator::GetFromVFPRegister(int reg_index) {
 
   ReturnType value = 0;
   char buffer[register_size * sizeof(vfp_registers_[0])];
-  memcpy(buffer, &vfp_registers_[register_size * reg_index],
-         register_size * sizeof(vfp_registers_[0]));
-  memcpy(&value, buffer, register_size * sizeof(vfp_registers_[0]));
+  OS::MemCopy(buffer, &vfp_registers_[register_size * reg_index],
+              register_size * sizeof(vfp_registers_[0]));
+  OS::MemCopy(&value, buffer, register_size * sizeof(vfp_registers_[0]));
   return value;
 }
 
@@ -988,14 +988,14 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
     // otherwise allow the compiler to optimize away the copy.
     char buffer[sizeof(*x)];
     // Registers 0 and 1 -> x.
-    memcpy(buffer, registers_, sizeof(*x));
-    memcpy(x, buffer, sizeof(*x));
+    OS::MemCopy(buffer, registers_, sizeof(*x));
+    OS::MemCopy(x, buffer, sizeof(*x));
     // Registers 2 and 3 -> y.
-    memcpy(buffer, registers_ + 2, sizeof(*y));
-    memcpy(y, buffer, sizeof(*y));
+    OS::MemCopy(buffer, registers_ + 2, sizeof(*y));
+    OS::MemCopy(y, buffer, sizeof(*y));
     // Register 2 -> z.
-    memcpy(buffer, registers_ + 2, sizeof(*z));
-    memcpy(z, buffer, sizeof(*z));
+    OS::MemCopy(buffer, registers_ + 2, sizeof(*z));
+    OS::MemCopy(z, buffer, sizeof(*z));
   }
 }
 
@@ -1004,14 +1004,14 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
 void Simulator::SetFpResult(const double& result) {
   if (use_eabi_hardfloat()) {
     char buffer[2 * sizeof(vfp_registers_[0])];
-    memcpy(buffer, &result, sizeof(buffer));
+    OS::MemCopy(buffer, &result, sizeof(buffer));
     // Copy result to d0.
-    memcpy(vfp_registers_, buffer, sizeof(buffer));
+    OS::MemCopy(vfp_registers_, buffer, sizeof(buffer));
   } else {
     char buffer[2 * sizeof(registers_[0])];
-    memcpy(buffer, &result, sizeof(buffer));
+    OS::MemCopy(buffer, &result, sizeof(buffer));
     // Copy result to r0 and r1.
-    memcpy(registers_, buffer, sizeof(buffer));
+    OS::MemCopy(registers_, buffer, sizeof(buffer));
   }
 }
 
@@ -1590,12 +1590,12 @@ void Simulator::HandleVList(Instruction* instr) {
           ReadW(reinterpret_cast<int32_t>(address + 1), instr)
         };
         double d;
-        memcpy(&d, data, 8);
+        OS::MemCopy(&d, data, 8);
         set_d_register_from_double(reg, d);
       } else {
         int32_t data[2];
         double d = get_double_from_d_register(reg);
-        memcpy(data, &d, 8);
+        OS::MemCopy(data, &d, 8);
         WriteW(reinterpret_cast<int32_t>(address), data[0], instr);
         WriteW(reinterpret_cast<int32_t>(address + 1), data[1], instr);
       }
@@ -2849,9 +2849,9 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       int vd = instr->Bits(19, 16) | (instr->Bit(7) << 4);
       double dd_value = get_double_from_d_register(vd);
       int32_t data[2];
-      memcpy(data, &dd_value, 8);
+      OS::MemCopy(data, &dd_value, 8);
       data[instr->Bit(21)] = get_register(instr->RtValue());
-      memcpy(&dd_value, data, 8);
+      OS::MemCopy(&dd_value, data, 8);
       set_d_register_from_double(vd, dd_value);
     } else if ((instr->VLValue() == 0x1) &&
                (instr->VCValue() == 0x0) &&
@@ -3202,13 +3202,13 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
           if (instr->HasL()) {
             int32_t data[2];
             double d = get_double_from_d_register(vm);
-            memcpy(data, &d, 8);
+            OS::MemCopy(data, &d, 8);
             set_register(rt, data[0]);
             set_register(rn, data[1]);
           } else {
             int32_t data[] = { get_register(rt), get_register(rn) };
             double d;
-            memcpy(&d, data, 8);
+            OS::MemCopy(&d, data, 8);
             set_d_register_from_double(vm, d);
           }
         }
@@ -3231,13 +3231,13 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
             ReadW(address + 4, instr)
           };
           double val;
-          memcpy(&val, data, 8);
+          OS::MemCopy(&val, data, 8);
           set_d_register_from_double(vd, val);
         } else {
           // Store double to memory: vstr.
           int32_t data[2];
           double val = get_double_from_d_register(vd);
-          memcpy(data, &val, 8);
+          OS::MemCopy(data, &val, 8);
           WriteW(address, data[0], instr);
           WriteW(address + 4, data[1], instr);
         }
@@ -3460,9 +3460,9 @@ double Simulator::CallFP(byte* entry, double d0, double d1) {
   } else {
     int buffer[2];
     ASSERT(sizeof(buffer[0]) * 2 == sizeof(d0));
-    memcpy(buffer, &d0, sizeof(d0));
+    OS::MemCopy(buffer, &d0, sizeof(d0));
     set_dw_register(0, buffer);
-    memcpy(buffer, &d1, sizeof(d1));
+    OS::MemCopy(buffer, &d1, sizeof(d1));
     set_dw_register(2, buffer);
   }
   CallInternal(entry);

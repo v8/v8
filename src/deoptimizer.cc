@@ -2372,7 +2372,8 @@ int32_t TranslationIterator::Next() {
 Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
   int length = contents_.length();
   Handle<ByteArray> result = factory->NewByteArray(length, TENURED);
-  memcpy(result->GetDataStartAddress(), contents_.ToVector().start(), length);
+  OS::MemCopy(
+      result->GetDataStartAddress(), contents_.ToVector().start(), length);
   return result;
 }
 

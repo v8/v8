@@ -100,9 +100,9 @@ class InputStreamUtf16Buffer : public Utf16CharacterStream {
         // Hit the bottom of the allocated pushback buffer.
         // Double the buffer and continue.
         uc16* new_buffer = NewArray<uc16>(pushback_buffer_backing_size_ * 2);
-        memcpy(new_buffer + pushback_buffer_backing_size_,
-               pushback_buffer_backing_,
-               pushback_buffer_backing_size_);
+        OS::MemCopy(new_buffer + pushback_buffer_backing_size_,
+                    pushback_buffer_backing_,
+                    pushback_buffer_backing_size_);
         DeleteArray(pushback_buffer_backing_);
         buffer_cursor_ = new_buffer + pushback_buffer_backing_size_;
         pushback_buffer_backing_ = pushback_buffer_ = new_buffer;

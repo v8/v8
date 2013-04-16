@@ -98,7 +98,7 @@ class ImplicitRefGroup {
         malloc(OFFSET_OF(ImplicitRefGroup, children_[length])));
     group->parent_ = parent;
     group->length_ = length;
-    CopyWords(group->children_, children, static_cast<int>(length));
+    CopyWords(group->children_, children, length);
     return group;
   }
 

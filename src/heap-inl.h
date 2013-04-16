@@ -159,8 +159,8 @@ MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
   ASSERT_EQ(size, answer->Size());
 
   // Fill in the characters.
-  memcpy(answer->address() + SeqOneByteString::kHeaderSize,
-         str.start(), str.length());
+  OS::MemCopy(answer->address() + SeqOneByteString::kHeaderSize,
+              str.start(), str.length());
 
   return answer;
 }
@@ -192,8 +192,8 @@ MaybeObject* Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
   ASSERT_EQ(size, answer->Size());
 
   // Fill in the characters.
-  memcpy(answer->address() + SeqTwoByteString::kHeaderSize,
-         str.start(), str.length() * kUC16Size);
+  OS::MemCopy(answer->address() + SeqTwoByteString::kHeaderSize,
+              str.start(), str.length() * kUC16Size);
 
   return answer;
 }
@@ -427,7 +427,7 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   CopyWords(reinterpret_cast<Object**>(dst),
             reinterpret_cast<Object**>(src),
-            byte_size / kPointerSize);
+            static_cast<size_t>(byte_size / kPointerSize));
 }
 
 
@@ -445,7 +445,7 @@ void Heap::MoveBlock(Address dst, Address src, int byte_size) {
       *dst_slot++ = *src_slot++;
     }
   } else {
-    memmove(dst, src, byte_size);
+    OS::MemMove(dst, src, static_cast<size_t>(byte_size));
   }
 }
 
