@@ -1556,6 +1556,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
+    case JS_TYPED_ARRAY_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
     case JS_WEAK_MAP_TYPE:

@@ -219,6 +219,7 @@ namespace internal {
   F(NumberToExponential, 2, 1) \
   F(NumberToPrecision, 2, 1)
 
+
 #define RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   /* Reflection */ \
   F(FunctionSetInstanceClassName, 2, 1) \
@@ -349,6 +350,12 @@ namespace internal {
   F(ArrayBufferInitialize, 2, 1)\
   F(ArrayBufferGetByteLength, 1, 1)\
   F(ArrayBufferSliceImpl, 3, 1) \
+  \
+  F(TypedArrayInitialize, 5, 1) \
+  F(TypedArrayGetBuffer, 1, 1) \
+  F(TypedArrayGetByteLength, 1, 1) \
+  F(TypedArrayGetByteOffset, 1, 1) \
+  F(TypedArrayGetLength, 1, 1) \
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \

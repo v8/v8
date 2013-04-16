@@ -102,6 +102,9 @@ var kMessages = {
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
+  invalid_typed_array_offset:    ["Start offset is too large"],
+  invalid_typed_array_length:    ["Length is too large"],
+  invalid_typed_array_alignment: ["%0", "of", "%1", "should be a multiple of", "%3"],
   stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
   // SyntaxError

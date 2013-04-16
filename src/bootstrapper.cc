@@ -199,6 +199,8 @@ class Genesis BASE_EMBEDDED {
                                           const char* name,
                                           ElementsKind elements_kind);
   bool InstallNatives();
+
+  void InstallTypedArray(const char* name);
   bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
@@ -1258,6 +1260,14 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 }
 
 
+void Genesis::InstallTypedArray(const char* name) {
+  Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
+  InstallFunction(global, name, JS_TYPED_ARRAY_TYPE,
+                  JSTypedArray::kSize, isolate()->initial_object_prototype(),
+                  Builtins::kIllegal, true);
+}
+
+
 void Genesis::InitializeExperimentalGlobal() {
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
 
@@ -1297,6 +1307,17 @@ void Genesis::InitializeExperimentalGlobal() {
                       JSArrayBuffer::kSize,
                       isolate()->initial_object_prototype(),
                       Builtins::kIllegal, true);
+    }
+    {
+      // -- T y p e d A r r a y s
+      InstallTypedArray("__Int8Array");
+      InstallTypedArray("__Uint8Array");
+      InstallTypedArray("__Int16Array");
+      InstallTypedArray("__Uint16Array");
+      InstallTypedArray("__Int32Array");
+      InstallTypedArray("__Uint32Array");
+      InstallTypedArray("__Float32Array");
+      InstallTypedArray("__Float64Array");
     }
   }
 

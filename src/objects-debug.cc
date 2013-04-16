@@ -201,6 +201,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_ARRAY_BUFFER_TYPE:
       JSArrayBuffer::cast(this)->JSArrayBufferVerify();
       break;
+    case JS_TYPED_ARRAY_TYPE:
+      JSTypedArray::cast(this)->JSTypedArrayVerify();
+      break;
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
@@ -735,6 +738,28 @@ void JSArrayBuffer::JSArrayBufferVerify() {
   VerifyPointer(byte_length());
   CHECK(byte_length()->IsSmi() || byte_length()->IsHeapNumber()
         || byte_length()->IsUndefined());
+}
+
+
+void JSTypedArray::JSTypedArrayVerify() {
+  CHECK(IsJSTypedArray());
+  JSObjectVerify();
+  VerifyPointer(buffer());
+  CHECK(buffer()->IsJSArrayBuffer() || buffer()->IsUndefined());
+
+  VerifyPointer(byte_offset());
+  CHECK(byte_offset()->IsSmi() || byte_offset()->IsHeapNumber()
+        || byte_offset()->IsUndefined());
+
+  VerifyPointer(byte_length());
+  CHECK(byte_length()->IsSmi() || byte_length()->IsHeapNumber()
+        || byte_length()->IsUndefined());
+
+  VerifyPointer(length());
+  CHECK(length()->IsSmi() || length()->IsHeapNumber()
+        || length()->IsUndefined());
+
+  VerifyPointer(elements());
 }
 
 

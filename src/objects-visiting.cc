@@ -146,6 +146,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_BUILTINS_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
+    case JS_TYPED_ARRAY_TYPE:
       return GetVisitorIdForSize(kVisitJSObject,
                                  kVisitJSObjectGeneric,
                                  instance_size);

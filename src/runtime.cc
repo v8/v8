@@ -61,6 +61,7 @@
 #include "string-search.h"
 #include "stub-cache.h"
 #include "uri.h"
+#include "v8conversions.h"
 #include "v8threads.h"
 #include "vm-state-inl.h"
 
@@ -638,19 +639,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
 }
 
 
-static size_t ArrayBufferAllocatedLength(Isolate* isolate,
-                                         JSArrayBuffer* buffer) {
-  NoHandleAllocation hc(isolate);
-  Object* byte_length = buffer->byte_length();
-  if (byte_length->IsSmi()) {
-    return Smi::cast(byte_length)->value();
-  } else {
-    double value = HeapNumber::cast(byte_length)->value();
-    return static_cast<size_t>(value);
-  }
-}
-
-
 static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
                                     Persistent<Value> object,
                                     void* data) {
@@ -658,8 +646,8 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
   HandleScope scope(isolate);
   Handle<Object> internal_object = Utils::OpenHandle(*object);
 
-  size_t allocated_length = ArrayBufferAllocatedLength(
-      isolate, JSArrayBuffer::cast(*internal_object));
+  size_t allocated_length = NumberToSize(
+      isolate, JSArrayBuffer::cast(*internal_object)->byte_length());
   isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
       -static_cast<intptr_t>(allocated_length));
   if (data != NULL)
@@ -744,18 +732,126 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, target, 1);
   CONVERT_DOUBLE_ARG_CHECKED(first, 2);
   size_t start = static_cast<size_t>(first);
-  size_t target_length = ArrayBufferAllocatedLength(isolate, *target);
+  size_t target_length = NumberToSize(isolate, target->byte_length());
 
   if (target_length == 0)
     return isolate->heap()->undefined_value();
 
-  ASSERT(ArrayBufferAllocatedLength(isolate, *source) - target_length >= start);
+  ASSERT(NumberToSize(isolate, source->byte_length()) - target_length >= start);
   uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
   uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
   CopyBytes(target_data, source_data + start, target_length);
   return isolate->heap()->undefined_value();
 }
 
+
+enum TypedArrayId {
+  // arrayIds below should be synchromized with typedarray.js natives.
+  ARRAY_ID_UINT8 = 1,
+  ARRAY_ID_INT8 = 2,
+  ARRAY_ID_UINT16 = 3,
+  ARRAY_ID_INT16 = 4,
+  ARRAY_ID_UINT32 = 5,
+  ARRAY_ID_INT32 = 6,
+  ARRAY_ID_FLOAT32 = 7,
+  ARRAY_ID_FLOAT64 = 8
+};
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 5);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
+  CONVERT_SMI_ARG_CHECKED(arrayId, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, byte_offset_object, 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, byte_length_object, 4);
+
+  ExternalArrayType arrayType;
+  ElementsKind elementsKind;
+  size_t elementSize;
+  switch (arrayId) {
+    case ARRAY_ID_UINT8:
+      elementsKind = EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+      arrayType = kExternalUnsignedByteArray;
+      elementSize = 1;
+      break;
+    case ARRAY_ID_INT8:
+      elementsKind = EXTERNAL_BYTE_ELEMENTS;
+      arrayType = kExternalByteArray;
+      elementSize = 1;
+      break;
+    case ARRAY_ID_UINT16:
+      elementsKind = EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+      arrayType = kExternalUnsignedShortArray;
+      elementSize = 2;
+      break;
+    case ARRAY_ID_INT16:
+      elementsKind = EXTERNAL_SHORT_ELEMENTS;
+      arrayType = kExternalShortArray;
+      elementSize = 2;
+      break;
+    case ARRAY_ID_UINT32:
+      elementsKind = EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      arrayType = kExternalUnsignedIntArray;
+      elementSize = 4;
+      break;
+    case ARRAY_ID_INT32:
+      elementsKind = EXTERNAL_INT_ELEMENTS;
+      arrayType = kExternalIntArray;
+      elementSize = 4;
+      break;
+    case ARRAY_ID_FLOAT32:
+      elementsKind = EXTERNAL_FLOAT_ELEMENTS;
+      arrayType = kExternalFloatArray;
+      elementSize = 4;
+      break;
+    case ARRAY_ID_FLOAT64:
+      elementsKind = EXTERNAL_DOUBLE_ELEMENTS;
+      arrayType = kExternalDoubleArray;
+      elementSize = 8;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  holder->set_buffer(*buffer);
+  holder->set_byte_offset(*byte_offset_object);
+  holder->set_byte_length(*byte_length_object);
+
+  size_t byte_offset = NumberToSize(isolate, *byte_offset_object);
+  size_t byte_length = NumberToSize(isolate, *byte_length_object);
+  ASSERT(byte_length % elementSize == 0);
+  size_t length = byte_length / elementSize;
+
+  holder->set_length(
+      *isolate->factory()->NewNumber(static_cast<double>(length)));
+  Handle<ExternalArray> elements =
+      isolate->factory()->NewExternalArray(
+          length, arrayType,
+          static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
+  Handle<Map> map =
+      isolate->factory()->GetElementsTransitionMap(holder, elementsKind);
+  holder->set_map(*map);
+  holder->set_elements(*elements);
+  return isolate->heap()->undefined_value();
+}
+
+
+#define TYPED_ARRAY_GETTER(getter, accessor) \
+  RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayGet##getter) { \
+    HandleScope scope(isolate);                                   \
+    ASSERT(args.length() == 1);                                   \
+    CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);          \
+    return holder->accessor();                                    \
+  }
+
+TYPED_ARRAY_GETTER(Buffer, buffer)
+TYPED_ARRAY_GETTER(ByteLength, byte_length)
+TYPED_ARRAY_GETTER(ByteOffset, byte_offset)
+TYPED_ARRAY_GETTER(Length, length)
+
+#undef TYPED_ARRAY_GETTER
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetInitialize) {
   HandleScope scope(isolate);

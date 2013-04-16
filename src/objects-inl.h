@@ -676,6 +676,7 @@ bool Object::IsBoolean() {
 
 TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
 TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
+TYPE_CHECKER(JSTypedArray, JS_TYPED_ARRAY_TYPE)
 TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 
 
@@ -1605,6 +1606,8 @@ int JSObject::GetHeaderSize() {
       return JSArray::kSize;
     case JS_ARRAY_BUFFER_TYPE:
       return JSArrayBuffer::kSize;
+    case JS_TYPED_ARRAY_TYPE:
+      return JSTypedArray::kSize;
     case JS_SET_TYPE:
       return JSSet::kSize;
     case JS_MAP_TYPE:
@@ -2492,6 +2495,7 @@ CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
+CAST_ACCESSOR(JSTypedArray)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSFunctionProxy)
@@ -5205,6 +5209,12 @@ void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
 
 
 ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
+
+
+ACCESSORS(JSTypedArray, buffer, Object, kBufferOffset)
+ACCESSORS(JSTypedArray, byte_offset, Object, kByteOffsetOffset)
+ACCESSORS(JSTypedArray, byte_length, Object, kByteLengthOffset)
+ACCESSORS(JSTypedArray, length, Object, kLengthOffset)
 
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)

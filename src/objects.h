@@ -57,6 +57,7 @@
 //         - JSObject
 //           - JSArray
 //           - JSArrayBuffer
+//           - JSTypedArray
 //           - JSSet
 //           - JSMap
 //           - JSWeakMap
@@ -403,6 +404,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(JS_GLOBAL_PROXY_TYPE)                                                      \
   V(JS_ARRAY_TYPE)                                                             \
   V(JS_ARRAY_BUFFER_TYPE)                                                      \
+  V(JS_TYPED_ARRAY_TYPE)                                                       \
   V(JS_PROXY_TYPE)                                                             \
   V(JS_WEAK_MAP_TYPE)                                                          \
   V(JS_REGEXP_TYPE)                                                            \
@@ -735,6 +737,7 @@ enum InstanceType {
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
+  JS_TYPED_ARRAY_TYPE,
   JS_SET_TYPE,
   JS_MAP_TYPE,
   JS_WEAK_MAP_TYPE,
@@ -982,6 +985,7 @@ class MaybeObject BASE_EMBEDDED {
   V(Boolean)                                   \
   V(JSArray)                                   \
   V(JSArrayBuffer)                             \
+  V(JSTypedArray)                              \
   V(JSProxy)                                   \
   V(JSFunctionProxy)                           \
   V(JSSet)                                     \
@@ -8556,6 +8560,38 @@ class JSArrayBuffer: public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);
+};
+
+
+class JSTypedArray: public JSObject {
+ public:
+  // [buffer]: ArrayBuffer that this typed array views.
+  DECL_ACCESSORS(buffer, Object)
+
+  // [byte_length]: offset of typed array in bytes.
+  DECL_ACCESSORS(byte_offset, Object)
+
+  // [byte_length]: length of typed array in bytes.
+  DECL_ACCESSORS(byte_length, Object)
+
+  // [length]: length of typed array in elements.
+  DECL_ACCESSORS(length, Object)
+
+  // Casting.
+  static inline JSTypedArray* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSTypedArray)
+  DECLARE_VERIFIER(JSTypedArray)
+
+  static const int kBufferOffset = JSObject::kHeaderSize;
+  static const int kByteOffsetOffset = kBufferOffset + kPointerSize;
+  static const int kByteLengthOffset = kByteOffsetOffset + kPointerSize;
+  static const int kLengthOffset = kByteLengthOffset + kPointerSize;
+  static const int kSize = kLengthOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);
 };
 
 

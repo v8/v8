@@ -187,6 +187,8 @@ void HeapObject::HeapObjectPrint(FILE* out) {
       break;
     case JS_ARRAY_BUFFER_TYPE:
       JSArrayBuffer::cast(this)->JSArrayBufferPrint(out);
+    case JS_TYPED_ARRAY_TYPE:
+      JSTypedArray::cast(this)->JSTypedArrayPrint(out);
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
     Name::cast(this)->Name##Print(out);    \
@@ -806,6 +808,22 @@ void JSArrayBuffer::JSArrayBufferPrint(FILE* out) {
   PrintF(out, " - byte_length = ");
   byte_length()->ShortPrint(out);
   PrintF(out, "\n");
+}
+
+
+void JSTypedArray::JSTypedArrayPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSTypedArray");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - buffer =");
+  buffer()->ShortPrint(out);
+  PrintF(out, "\n - byte_offset = ");
+  byte_offset()->ShortPrint(out);
+  PrintF(out, "\n - byte_length = ");
+  byte_length()->ShortPrint(out);
+  PrintF(out, " - length = ");
+  length()->ShortPrint(out);
+  PrintF("\n");
+  PrintElements(out);
 }
 
 
