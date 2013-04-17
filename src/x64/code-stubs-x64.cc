@@ -4306,7 +4306,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 #ifdef _WIN64
     // On Win64 XMM6-XMM15 are callee-save
-    __ subq(rsp, Immediate(kCalleeSaveXMMRegisters * kFullXMMRegisterSize);
+    __ subq(rsp, Immediate(kCalleeSaveXMMRegisters * kFullXMMRegisterSize));
     __ movdqu(Operand(rsp, kFullXMMRegisterSize * 0), xmm6);
     __ movdqu(Operand(rsp, kFullXMMRegisterSize * 1), xmm7);
     __ movdqu(Operand(rsp, kFullXMMRegisterSize * 2), xmm8);
