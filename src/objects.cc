@@ -4596,6 +4596,12 @@ void JSReceiver::LocalLookup(
 
   JSObject* js_object = JSObject::cast(this);
 
+  // Check __proto__ before interceptor.
+  if (name->Equals(heap->Proto_symbol()) && !IsJSContextExtensionObject()) {
+    result->ConstantResult(js_object);
+    return;
+  }
+
   // Check for lookup interceptor except when bootstrapping.
   if (js_object->HasNamedInterceptor() &&
       !heap->isolate()->bootstrapper()->IsActive()) {

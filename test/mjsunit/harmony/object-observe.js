@@ -898,7 +898,7 @@ var q = {bar: 'no'};
 obj.__proto__ = p;
 obj.__proto__ = p;  // ignored
 obj.__proto__ = null;
-obj.__proto__ = q;  // the __proto__ accessor is gone
+obj.__proto__ = q;
 // TODO(adamk): Add tests for objects with hidden prototypes
 // once we support observing the global object.
 Object.deliverChangeRecords(observer.callback);
@@ -906,7 +906,7 @@ observer.assertCallbackRecords([
   { object: obj, name: '__proto__', type: 'prototype',
     oldValue: Object.prototype },
   { object: obj, name: '__proto__', type: 'prototype', oldValue: p },
-  { object: obj, name: '__proto__', type: 'new' },
+  { object: obj, name: '__proto__', type: 'prototype', oldValue: null },
 ]);
 
 

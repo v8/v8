@@ -485,26 +485,10 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     native_context()->set_object_function(*object_fun);
 
     // Allocate a new prototype for the object function.
-    Handle<Map> object_prototype_map =
-        factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    Handle<DescriptorArray> prototype_descriptors(
-        factory->NewDescriptorArray(0, 1));
-    DescriptorArray::WhitenessWitness witness(*prototype_descriptors);
-
-    Handle<Foreign> object_prototype(
-        factory->NewForeign(&Accessors::ObjectPrototype));
-    PropertyAttributes attribs = static_cast<PropertyAttributes>(
-        DONT_ENUM | DONT_DELETE);
-    object_prototype_map->set_instance_descriptors(*prototype_descriptors);
-
-    {  // Add __proto__.
-      CallbacksDescriptor d(heap->Proto_symbol(), *object_prototype, attribs);
-      object_prototype_map->AppendDescriptor(&d, witness);
-    }
-
-    Handle<JSObject> prototype = factory->NewJSObjectFromMap(
-        object_prototype_map,
+    Handle<JSObject> prototype = factory->NewJSObject(
+        isolate->object_function(),
         TENURED);
+
     native_context()->set_initial_object_prototype(*prototype);
     SetPrototype(object_fun, prototype);
   }

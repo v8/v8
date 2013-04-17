@@ -30,6 +30,9 @@ def FAIL_OK = FAIL, OKAY
 
 ############################### BUGS ###################################
 
+# '__proto__' should be treated as a normal property in JSON.
+S15.12.2_A1: FAIL
+
 # Sequencing of getter side effects on receiver and argument properties
 # is wrong. The receiver callback should be called before any arguments
 # are evaluated.

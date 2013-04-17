@@ -2294,6 +2294,7 @@ function TestConstructorWithProxyPrototype2(create, handler) {
   C.prototype = create(handler);
 
   var o = new C;
+  assertSame(C.prototype, o.__proto__);
   assertSame(C.prototype, Object.getPrototypeOf(o));
 }
 

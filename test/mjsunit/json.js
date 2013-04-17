@@ -453,23 +453,16 @@ falseNum.__proto__ = Number.prototype;
 falseNum.toString = function() { return 42; };
 assertEquals('"42"', JSON.stringify(falseNum));
 
-// Parse an object value as __proto__.
-var o1 = JSON.parse('{"__proto__":[]}');
-assertEquals([], o1.__proto__);
-assertEquals(["__proto__"], Object.keys(o1));
-assertEquals([], Object.getOwnPropertyDescriptor(o1, "__proto__").value);
-assertEquals(["__proto__"], Object.getOwnPropertyNames(o1));
-assertTrue(o1.hasOwnProperty("__proto__"));
-assertTrue(Object.prototype.isPrototypeOf(o1));
-
-// Parse a non-object value as __proto__.
-var o2 = JSON.parse('{"__proto__":5}');
-assertEquals(5, o2.__proto__);
-assertEquals(["__proto__"], Object.keys(o2));
-assertEquals(5, Object.getOwnPropertyDescriptor(o2, "__proto__").value);
-assertEquals(["__proto__"], Object.getOwnPropertyNames(o2));
-assertTrue(o2.hasOwnProperty("__proto__"));
-assertTrue(Object.prototype.isPrototypeOf(o2));
+// We don't currently allow plain properties called __proto__ in JSON
+// objects in JSON.parse. Instead we read them as we would JS object
+// literals. If we change that, this test should change with it.
+//
+// Parse a non-object value as __proto__. This must not create a
+// __proto__ property different from the original, and should not
+// change the original.
+var o = JSON.parse('{"__proto__":5}');
+assertEquals(Object.prototype, o.__proto__);  // __proto__ isn't changed.
+assertEquals(0, Object.keys(o).length);  // __proto__ isn't added as enumerable.
 
 var json = '{"stuff before slash\\\\stuff after slash":"whatever"}';
 assertEquals(json, JSON.stringify(JSON.parse(json)));
