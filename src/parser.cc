@@ -3286,6 +3286,16 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       }
     }
 
+    // Desugar '+foo' into 'foo*1', this enables the collection of type feedback
+    // without any special stub and the multiplication is removed later in
+    // Crankshaft's canonicalization pass.
+    if (op == Token::ADD) {
+      return factory()->NewBinaryOperation(Token::MUL,
+                                           expression,
+                                           factory()->NewNumberLiteral(1),
+                                           position);
+    }
+
     return factory()->NewUnaryOperation(op, expression, position);
 
   } else if (Token::IsCountOp(op)) {

@@ -1436,6 +1436,21 @@ HValue* HSub::Canonicalize() {
 }
 
 
+// TODO(svenpanne) Use this in other Canonicalize() functions.
+static bool IsIdentityOperation(HValue* arg1, HValue* arg2, int32_t identity) {
+  return arg1->representation().IsSpecialization() &&
+      arg2->IsInteger32Constant() &&
+      arg2->GetInteger32Constant() == identity;
+}
+
+
+HValue* HMul::Canonicalize() {
+  if (IsIdentityOperation(left(), right(), 1)) return left();
+  if (IsIdentityOperation(right(), left(), 1)) return right();
+  return this;
+}
+
+
 HValue* HChange::Canonicalize() {
   return (from().Equals(to())) ? value() : this;
 }

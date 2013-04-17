@@ -4401,6 +4401,8 @@ class HMul: public HArithmeticBinaryOperation {
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
+  virtual HValue* Canonicalize();
+
   // Only commutative if it is certain that not two objects are multiplicated.
   virtual bool IsCommutative() const {
     return !representation().IsTagged();
