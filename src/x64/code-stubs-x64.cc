@@ -4272,6 +4272,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
+
+#ifdef _WIN64
+  const int kCalleeSaveXMMRegisters = 10;
+  const int kFullXMMRegisterSize = 16;
+#endif
   {  // NOLINT. Scope block confuses linter.
     MacroAssembler::NoRootArrayScope uninitialized_root_register(masm);
     // Set up frame.
@@ -4298,8 +4303,21 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     __ push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
 #endif
     __ push(rbx);
-    // TODO(X64): On Win64, if we ever use XMM6-XMM15, the low low 64 bits are
-    // callee save as well.
+
+#ifdef _WIN64
+    // On Win64 XMM6-XMM15 are callee-save
+    __ subq(rsp, Immediate(kCalleeSaveXMMRegisters * kFullXMMRegisterSize);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 0), xmm6);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 1), xmm7);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 2), xmm8);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 3), xmm9);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 4), xmm10);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 5), xmm11);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 6), xmm12);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 7), xmm13);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 8), xmm14);
+    __ movdqu(Operand(rsp, kFullXMMRegisterSize * 9), xmm15);
+#endif
 
     // Set up the roots and smi constant registers.
     // Needs to be done before any further smi loads.
@@ -4389,6 +4407,21 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   }
 
   // Restore callee-saved registers (X64 conventions).
+#ifdef _WIN64
+  // On Win64 XMM6-XMM15 are callee-save
+  __ movdqu(xmm6, Operand(rsp, kFullXMMRegisterSize * 0));
+  __ movdqu(xmm7, Operand(rsp, kFullXMMRegisterSize * 1));
+  __ movdqu(xmm8, Operand(rsp, kFullXMMRegisterSize * 2));
+  __ movdqu(xmm8, Operand(rsp, kFullXMMRegisterSize * 3));
+  __ movdqu(xmm10, Operand(rsp, kFullXMMRegisterSize * 4));
+  __ movdqu(xmm11, Operand(rsp, kFullXMMRegisterSize * 5));
+  __ movdqu(xmm12, Operand(rsp, kFullXMMRegisterSize * 6));
+  __ movdqu(xmm13, Operand(rsp, kFullXMMRegisterSize * 7));
+  __ movdqu(xmm14, Operand(rsp, kFullXMMRegisterSize * 8));
+  __ movdqu(xmm15, Operand(rsp, kFullXMMRegisterSize * 9));
+  __ addq(rsp, Immediate(kCalleeSaveXMMRegisters * kFullXMMRegisterSize));
+#endif
+
   __ pop(rbx);
 #ifdef _WIN64
   // Callee save on in Win64 ABI, arguments/volatile in AMD64 ABI.

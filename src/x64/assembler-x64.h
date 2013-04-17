@@ -1309,6 +1309,9 @@ class Assembler : public AssemblerBase {
   void movdqa(const Operand& dst, XMMRegister src);
   void movdqa(XMMRegister dst, const Operand& src);
 
+  void movdqu(const Operand& dst, XMMRegister src);
+  void movdqu(XMMRegister dst, const Operand& src);
+
   void movapd(XMMRegister dst, XMMRegister src);
   void movaps(XMMRegister dst, XMMRegister src);
 

@@ -2601,6 +2601,26 @@ void Assembler::movdqa(XMMRegister dst, const Operand& src) {
 }
 
 
+void Assembler::movdqu(const Operand& dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0x7F);
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movdqu(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x6F);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
   ASSERT(CpuFeatures::IsSupported(SSE4_1));
   ASSERT(is_uint8(imm8));
