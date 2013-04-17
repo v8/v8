@@ -541,25 +541,20 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
   case 's':
     // Match space-characters.
     if (mode_ == ASCII) {
-      // ASCII space characters are '\t'..'\r' and ' '.
+      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
       Label success;
       __ Branch(&success, eq, current_character(), Operand(' '));
       // Check range 0x09..0x0d.
       __ Subu(a0, current_character(), Operand('\t'));
-      BranchOrBacktrack(on_no_match, hi, a0, Operand('\r' - '\t'));
+      __ Branch(&success, ls, a0, Operand('\r' - '\t'));
+      // \u00a0 (NBSP).
+      BranchOrBacktrack(on_no_match, ne, a0, Operand(0x00a0 - '\t'));
       __ bind(&success);
       return true;
     }
     return false;
   case 'S':
-    // Match non-space characters.
-    if (mode_ == ASCII) {
-      // ASCII space characters are '\t'..'\r' and ' '.
-      BranchOrBacktrack(on_no_match, eq, current_character(), Operand(' '));
-      __ Subu(a0, current_character(), Operand('\t'));
-      BranchOrBacktrack(on_no_match, ls, a0, Operand('\r' - '\t'));
-      return true;
-    }
+    // The emitted code for generic character classes is good enough.
     return false;
   case 'd':
     // Match ASCII digits ('0'..'9').

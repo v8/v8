@@ -1042,7 +1042,8 @@ Failure* Isolate::StackOverflow() {
   Handle<Object> stack_trace_limit =
       GetProperty(Handle<JSObject>::cast(error), "stackTraceLimit");
   if (!stack_trace_limit->IsNumber()) return Failure::Exception();
-  int limit = static_cast<int>(stack_trace_limit->Number());
+  double dlimit = stack_trace_limit->Number();
+  int limit = isnan(dlimit) ? 0 : static_cast<int>(dlimit);
 
   Handle<JSArray> stack_trace = CaptureSimpleStackTrace(
       exception, factory()->undefined_value(), limit);
