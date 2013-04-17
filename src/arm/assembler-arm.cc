@@ -255,10 +255,13 @@ void CpuFeatures::PrintFeatures() {
     CpuFeatures::IsSupported(UNALIGNED_ACCESSES),
     CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS));
 #ifdef __arm__
-    printf(" USE_EABI_HARDFLOAT=%d\n", OS::ArmUsingHardFloat());
+  bool eabi_hardfloat = OS::ArmUsingHardFloat();
+#elif USE_EABI_HARDFLOAT
+  bool eabi_hardfloat = true;
 #else
-    printf(" USE_EABI_HARDFLOAT=%d\n", USE_EABI_HARDFLOAT);
+  bool eabi_hardfloat = false;
 #endif
+    printf(" USE_EABI_HARDFLOAT=%d\n", eabi_hardfloat);
 }
 
 
