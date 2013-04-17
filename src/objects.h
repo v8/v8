@@ -8541,7 +8541,7 @@ class JSWeakMap: public JSObject {
 
 class JSArrayBuffer: public JSObject {
  public:
-  // [backing_store]: backing memory for thsi array
+  // [backing_store]: backing memory for this array
   DECL_ACCESSORS(backing_store, void)
 
   // [byte_length]: length in bytes
