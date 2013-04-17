@@ -466,7 +466,6 @@ class Logger {
   friend class LogMessageBuilder;
   friend class TimeLog;
   friend class Profiler;
-  friend class StackTracer;
   friend class VMState;
 
   friend class LoggerTestHelper;
@@ -504,12 +503,6 @@ class Logger {
   friend class CpuProfiler;
 };
 
-
-// Class that extracts stack trace, used for profiling.
-class StackTracer : public AllStatic {
- public:
-  static void Trace(Isolate* isolate, TickSample* sample);
-};
 
 } }  // namespace v8::internal
 

@@ -51,7 +51,6 @@ using v8::internal::Address;
 using v8::internal::Handle;
 using v8::internal::Isolate;
 using v8::internal::JSFunction;
-using v8::internal::StackTracer;
 using v8::internal::TickSample;
 
 
@@ -70,7 +69,7 @@ static void DoTrace(Address fp) {
   // sp is only used to define stack high bound
   trace_env.sample->sp =
       reinterpret_cast<Address>(trace_env.sample) - 10240;
-  StackTracer::Trace(Isolate::Current(), trace_env.sample);
+  trace_env.sample->Trace(Isolate::Current());
 }
 
 
@@ -258,7 +257,7 @@ static void CreateTraceCallerFunction(const char* func_name,
 
 // This test verifies that stack tracing works when called during
 // execution of a native function called from JS code. In this case,
-// StackTracer uses Isolate::c_entry_fp as a starting point for stack
+// TickSample::Trace uses Isolate::c_entry_fp as a starting point for stack
 // walking.
 TEST(CFromJSStackTrace) {
   // BUG(1303) Inlining of JSFuncDoTrace() in JSTrace below breaks this test.
@@ -285,7 +284,7 @@ TEST(CFromJSStackTrace) {
   //     JSFuncDoTrace() [JS] [captures EBP value and encodes it as Smi]
   //       trace(EBP) [native (extension)]
   //         DoTrace(EBP) [native]
-  //           StackTracer::Trace
+  //           TickSample::Trace
 
   CHECK(sample.external_callback);
   CHECK_EQ(FUNCTION_ADDR(TraceExtension::Trace), sample.external_callback);
@@ -300,9 +299,9 @@ TEST(CFromJSStackTrace) {
 
 
 // This test verifies that stack tracing works when called during
-// execution of JS code. However, as calling StackTracer requires
+// execution of JS code. However, as calling TickSample::Trace requires
 // entering native code, we can only emulate pure JS by erasing
-// Isolate::c_entry_fp value. In this case, StackTracer uses passed frame
+// Isolate::c_entry_fp value. In this case, TickSample::Trace uses passed frame
 // pointer value as a starting point for stack walking.
 TEST(PureJSStackTrace) {
   // This test does not pass with inlining enabled since inlined functions
@@ -334,7 +333,7 @@ TEST(PureJSStackTrace) {
   //       JSFuncDoTrace() [JS]
   //         js_trace(EBP) [native (extension)]
   //           DoTraceHideCEntryFPAddress(EBP) [native]
-  //             StackTracer::Trace
+  //             TickSample::Trace
   //
 
   CHECK(sample.external_callback);
@@ -374,7 +373,7 @@ static int CFunc(int depth) {
 
 
 // This test verifies that stack tracing doesn't crash when called on
-// pure native code. StackTracer only unrolls JS code, so we can't
+// pure native code. TickSample::Trace only unrolls JS code, so we can't
 // get any meaningful info here.
 TEST(PureCStackTrace) {
   TickSample sample;

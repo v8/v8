@@ -593,7 +593,6 @@ class JavaScriptFrame: public StandardFrame {
   inline Object* function_slot_object() const;
 
   friend class StackFrameIterator;
-  friend class StackTracer;
 };
 
 

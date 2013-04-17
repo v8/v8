@@ -52,6 +52,7 @@ struct TickSample {
         fp(NULL),
         external_callback(NULL),
         frames_count(0) {}
+  void Trace(Isolate* isolate);
   StateTag state;  // The state of the VM.
   Address pc;      // Instruction pointer.
   Address sp;      // Stack pointer.

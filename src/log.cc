@@ -112,36 +112,6 @@ class Profiler: public Thread {
 
 
 //
-// StackTracer implementation
-//
-DISABLE_ASAN void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
-  ASSERT(isolate->IsInitialized());
-
-  // Avoid collecting traces while doing GC.
-  if (sample->state == GC) return;
-
-  const Address js_entry_sp =
-      Isolate::js_entry_sp(isolate->thread_local_top());
-  if (js_entry_sp == 0) {
-    // Not executing JS now.
-    return;
-  }
-
-  sample->external_callback = isolate->external_callback();
-
-  SafeStackTraceFrameIterator it(isolate,
-                                 sample->fp, sample->sp,
-                                 sample->sp, js_entry_sp);
-  int i = 0;
-  while (!it.done() && i < TickSample::kMaxFramesCount) {
-    sample->stack[i++] = it.frame()->pc();
-    it.Advance();
-  }
-  sample->frames_count = i;
-}
-
-
-//
 // Ticker used to provide ticks to the profiler and the sliding state
 // window.
 //

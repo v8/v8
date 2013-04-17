@@ -59,6 +59,7 @@
 
 #include "v8.h"
 
+#include "frames-inl.h"
 #include "log.h"
 #include "platform.h"
 #include "simulator.h"
@@ -619,6 +620,34 @@ Mutex* SamplerThread::mutex_ = NULL;
 SamplerThread* SamplerThread::instance_ = NULL;
 
 
+//
+// StackTracer implementation
+//
+DISABLE_ASAN void TickSample::Trace(Isolate* isolate) {
+  ASSERT(isolate->IsInitialized());
+
+  // Avoid collecting traces while doing GC.
+  if (state == GC) return;
+
+  const Address js_entry_sp =
+      Isolate::js_entry_sp(isolate->thread_local_top());
+  if (js_entry_sp == 0) {
+    // Not executing JS now.
+    return;
+  }
+
+  external_callback = isolate->external_callback();
+
+  SafeStackTraceFrameIterator it(isolate, fp, sp, sp, js_entry_sp);
+  int i = 0;
+  while (!it.done() && i < TickSample::kMaxFramesCount) {
+    stack[i++] = it.frame()->pc();
+    it.Advance();
+  }
+  frames_count = i;
+}
+
+
 void Sampler::SetUp() {
   SamplerThread::SetUp();
 }
@@ -658,7 +687,7 @@ void Sampler::Stop() {
 }
 
 void Sampler::SampleStack(TickSample* sample) {
-  StackTracer::Trace(isolate_, sample);
+  sample->Trace(isolate_);
   if (++samples_taken_ < 0) samples_taken_ = 0;
 }
 
