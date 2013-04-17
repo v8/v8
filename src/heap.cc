@@ -4358,6 +4358,7 @@ MaybeObject* Heap::AllocateJSGeneratorObject(JSFunction *function) {
     MaybeObject* maybe_map = AllocateInitialMap(function);
     if (!maybe_map->To(&map)) return maybe_map;
     function->set_initial_map(map);
+    map->set_constructor(function);
   }
   ASSERT(map->instance_type() == JS_GENERATOR_OBJECT_TYPE);
   return AllocateJSObjectFromMap(map);

@@ -553,6 +553,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
       isolate->factory()->NewSharedFunctionInfo(
           lit->name(),
           lit->materialized_literal_count(),
+          lit->is_generator(),
           info->code(),
           ScopeInfo::Create(info->scope(), info->zone()));
 
@@ -1074,6 +1075,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   Handle<SharedFunctionInfo> result =
       FACTORY->NewSharedFunctionInfo(literal->name(),
                                      literal->materialized_literal_count(),
+                                     literal->is_generator(),
                                      info.code(),
                                      scope_info);
   SetFunctionInfo(result, literal, false, script);
