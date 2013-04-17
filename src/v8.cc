@@ -37,7 +37,6 @@
 #include "heap-profiler.h"
 #include "hydrogen.h"
 #include "lithium-allocator.h"
-#include "log.h"
 #include "objects.h"
 #include "once.h"
 #include "platform.h"
@@ -281,7 +280,6 @@ void V8::InitializeOncePerProcessImpl() {
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();
-  SamplerRegistry::SetUp();
   ExternalReference::SetUp();
 }
 

@@ -65,12 +65,6 @@
 #include "v8threads.h"
 
 
-namespace v8 {
-namespace internal {
-
-
-#if defined(USE_SIGNALS)
-
 #if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
 // Not all versions of Android's C library provide ucontext_t.
@@ -146,6 +140,11 @@ enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
 #endif  // __ANDROID__ && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
 
+namespace v8 {
+namespace internal {
+
+#if defined(USE_SIGNALS)
+
 class Sampler::PlatformData : public Malloced {
  public:
   PlatformData()
@@ -161,7 +160,41 @@ class Sampler::PlatformData : public Malloced {
 };
 
 
-static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+class SignalHandler : public AllStatic {
+ public:
+  static inline void EnsureInstalled() {
+    if (signal_handler_installed_) return;
+    struct sigaction sa;
+    sa.sa_sigaction = &HandleProfilerSignal;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+    signal_handler_installed_ =
+        (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
+  }
+
+  static inline void Restore() {
+    if (signal_handler_installed_) {
+      sigaction(SIGPROF, &old_signal_handler_, 0);
+      signal_handler_installed_ = false;
+    }
+  }
+
+  static inline bool Installed() {
+    return signal_handler_installed_;
+  }
+
+ private:
+  static void HandleProfilerSignal(int signal, siginfo_t* info, void* context);
+  static bool signal_handler_installed_;
+  static struct sigaction old_signal_handler_;
+};
+
+struct sigaction SignalHandler::old_signal_handler_;
+bool SignalHandler::signal_handler_installed_ = false;
+
+
+void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
+                                         void* context) {
 #if defined(__native_client__)
   // As Native Client does not support signal handling, profiling
   // is disabled.
@@ -361,82 +394,77 @@ class SamplerThread : public Thread {
   static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
   static void TearDown() { delete mutex_; }
 
-#if defined(USE_SIGNALS)
-  static void InstallSignalHandler() {
-    struct sigaction sa;
-    sa.sa_sigaction = ProfilerSignalHandler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-    signal_handler_installed_ =
-        (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
-  }
-
-  static void RestoreSignalHandler() {
-    if (signal_handler_installed_) {
-      sigaction(SIGPROF, &old_signal_handler_, 0);
-      signal_handler_installed_ = false;
-    }
-  }
-#endif
-
   static void AddActiveSampler(Sampler* sampler) {
+    bool need_to_start = false;
     ScopedLock lock(mutex_);
-    SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
       // Start a thread that will send SIGPROF signal to VM threads,
       // when CPU profiling will be enabled.
       instance_ = new SamplerThread(sampler->interval());
-      instance_->StartSynchronously();
-    } else {
-      ASSERT(instance_->interval_ == sampler->interval());
+      need_to_start = true;
     }
+
+    ASSERT(sampler->IsActive());
+    ASSERT(!instance_->active_samplers_.Contains(sampler));
+    ASSERT(instance_->interval_ == sampler->interval());
+    instance_->active_samplers_.Add(sampler);
+
+#if defined(USE_SIGNALS)
+    SignalHandler::EnsureInstalled();
+#endif
+    if (need_to_start) instance_->StartSynchronously();
   }
 
   static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::RemoveActiveSampler(sampler);
-    if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      instance_->Join();
-      delete instance_;
-      instance_ = NULL;
+    SamplerThread* instance_to_remove = NULL;
+    {
+      ScopedLock lock(mutex_);
+
+      ASSERT(sampler->IsActive());
+      bool removed = instance_->active_samplers_.RemoveElement(sampler);
+      ASSERT(removed);
+      USE(removed);
+
+      // We cannot delete the instance immediately as we need to Join() the
+      // thread but we are holding mutex_ and the thread may try to acquire it.
+      if (instance_->active_samplers_.is_empty()) {
+        instance_to_remove = instance_;
+        instance_ = NULL;
 #if defined(USE_SIGNALS)
-      RestoreSignalHandler();
+        SignalHandler::Restore();
 #endif
+      }
     }
+
+    if (!instance_to_remove) return;
+    instance_to_remove->Join();
+    delete instance_to_remove;
   }
 
   // Implement Thread::Run().
   virtual void Run() {
-    SamplerRegistry::State state;
-    while ((state = SamplerRegistry::GetState()) !=
-           SamplerRegistry::HAS_NO_SAMPLERS) {
-      // When CPU profiling is enabled both JavaScript and C++ code is
-      // profiled. We must not suspend.
-      if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
-#if defined(USE_SIGNALS)
-        if (!signal_handler_installed_) InstallSignalHandler();
-#endif
-        SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
-      } else {
-#if defined(USE_SIGNALS)
-        if (signal_handler_installed_) RestoreSignalHandler();
-#endif
+    while (true) {
+      {
+        ScopedLock lock(mutex_);
+        if (active_samplers_.is_empty()) break;
+        // When CPU profiling is enabled both JavaScript and C++ code is
+        // profiled. We must not suspend.
+        for (int i = 0; i < active_samplers_.length(); ++i) {
+          Sampler* sampler = active_samplers_.at(i);
+          if (!sampler->isolate()->IsInitialized()) continue;
+          if (!sampler->IsProfiling()) continue;
+          SampleContext(sampler);
+        }
       }
       OS::Sleep(interval_);
     }
   }
 
-  static void DoCpuProfile(Sampler* sampler, void* raw_sender) {
-    if (!sampler->isolate()->IsInitialized()) return;
-    if (!sampler->IsProfiling()) return;
-    SamplerThread* sender = reinterpret_cast<SamplerThread*>(raw_sender);
-    sender->SampleContext(sampler);
-  }
-
+ private:
 #if defined(USE_SIGNALS)
 
   void SampleContext(Sampler* sampler) {
-    if (!signal_handler_installed_) return;
+    if (!SignalHandler::Installed()) return;
     pthread_t tid = sampler->platform_data()->vm_tid();
     int result = pthread_kill(tid, SIGPROF);
     USE(result);
@@ -575,27 +603,20 @@ class SamplerThread : public Thread {
 
 #endif  // USE_SIGNALS
 
-  const int interval_;
 
   // Protects the process wide state below.
   static Mutex* mutex_;
   static SamplerThread* instance_;
-#if defined(USE_SIGNALS)
-  static bool signal_handler_installed_;
-  static struct sigaction old_signal_handler_;
-#endif
 
- private:
+  const int interval_;
+  List<Sampler*> active_samplers_;
+
   DISALLOW_COPY_AND_ASSIGN(SamplerThread);
 };
 
 
 Mutex* SamplerThread::mutex_ = NULL;
 SamplerThread* SamplerThread::instance_ = NULL;
-#if defined(USE_SIGNALS)
-struct sigaction SamplerThread::old_signal_handler_;
-bool SamplerThread::signal_handler_installed_ = false;
-#endif
 
 
 void Sampler::SetUp() {
