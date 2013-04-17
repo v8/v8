@@ -825,8 +825,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   ASSERT(byte_length % elementSize == 0);
   size_t length = byte_length / elementSize;
 
-  holder->set_length(
-      *isolate->factory()->NewNumber(static_cast<double>(length)));
+  Handle<Object> length_obj = isolate->factory()->NewNumber(length);
+  holder->set_length(*length_obj);
   Handle<ExternalArray> elements =
       isolate->factory()->NewExternalArray(
           static_cast<int>(length), arrayType,
