@@ -8557,6 +8557,18 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         return true;
       }
       break;
+    case kStringFromCharCode:
+      if (argument_count == 2 && check_type == RECEIVER_MAP_CHECK) {
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+        HValue* argument = Pop();
+        HValue* context = environment()->LookupContext();
+        Drop(1);  // Receiver.
+        HInstruction* result =
+            HStringCharFromCode::New(zone(), context, argument);
+        ast_context()->ReturnInstruction(result, expr->id());
+        return true;
+      }
+      break;
     case kMathExp:
       if (!FLAG_fast_math) break;
       // Fall through if FLAG_fast_math.

@@ -2417,11 +2417,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
 
 MUST_USE_RESULT static MaybeObject* CharFromCode(Isolate* isolate,
                                                  Object* char_code) {
-  uint32_t code;
-  if (char_code->ToArrayIndex(&code)) {
-    if (code <= 0xffff) {
-      return isolate->heap()->LookupSingleCharacterStringFromCode(code);
-    }
+  if (char_code->IsNumber()) {
+    return isolate->heap()->LookupSingleCharacterStringFromCode(
+        NumberToUint32(char_code) & 0xffff);
   }
   return isolate->heap()->empty_string();
 }
