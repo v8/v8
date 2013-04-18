@@ -144,7 +144,11 @@ int CompilationInfo::num_heap_slots() const {
 
 Code::Flags CompilationInfo::flags() const {
   if (IsStub()) {
-    return Code::ComputeFlags(Code::COMPILED_STUB);
+    return Code::ComputeFlags(code_stub()->GetCodeKind(),
+                              code_stub()->GetICState(),
+                              code_stub()->GetExtraICState(),
+                              Code::NORMAL,
+                              0);
   } else {
     return Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
   }
@@ -421,7 +425,7 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     Timer timer(this, &time_taken_to_codegen_);
     ASSERT(chunk_ != NULL);
     ASSERT(graph_ != NULL);
-    Handle<Code> optimized_code = chunk_->Codegen(Code::OPTIMIZED_FUNCTION);
+    Handle<Code> optimized_code = chunk_->Codegen();
     if (optimized_code.is_null()) {
       info()->set_bailout_reason("code generation failed");
       return AbortOptimization();

@@ -1142,7 +1142,8 @@ class Heap {
   MUST_USE_RESULT MaybeObject* CreateCode(const CodeDesc& desc,
                                           Code::Flags flags,
                                           Handle<Object> self_reference,
-                                          bool immovable = false);
+                                          bool immovable = false,
+                                          bool crankshafted = false);
 
   MUST_USE_RESULT MaybeObject* CopyCode(Code* code);
 

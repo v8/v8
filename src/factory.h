@@ -347,7 +347,8 @@ class Factory {
   Handle<Code> NewCode(const CodeDesc& desc,
                        Code::Flags flags,
                        Handle<Object> self_reference,
-                       bool immovable = false);
+                       bool immovable = false,
+                       bool crankshafted = false);
 
   Handle<Code> CopyCode(Handle<Code> code);
 

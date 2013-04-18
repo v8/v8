@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -916,10 +916,11 @@ Handle<JSObject> Factory::NewExternal(void* value) {
 Handle<Code> Factory::NewCode(const CodeDesc& desc,
                               Code::Flags flags,
                               Handle<Object> self_ref,
-                              bool immovable) {
+                              bool immovable,
+                              bool crankshafted) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->CreateCode(
-                         desc, flags, self_ref, immovable),
+                         desc, flags, self_ref, immovable, crankshafted),
                      Code);
 }
 

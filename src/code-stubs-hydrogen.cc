@@ -185,7 +185,7 @@ template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
   CodeStubGraphBuilder<Stub> builder(stub);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return chunk->Codegen();
 }
 
 
@@ -249,7 +249,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
 Handle<Code> FastCloneShallowArrayStub::GenerateCode() {
   CodeStubGraphBuilder<FastCloneShallowArrayStub> builder(this);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen(Code::COMPILED_STUB);
+  return chunk->Codegen();
 }
 
 

@@ -7653,7 +7653,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyStubFailure) {
   ASSERT(args.length() == 0);
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   ASSERT(isolate->heap()->IsAllocationAllowed());
-  ASSERT(deoptimizer->compiled_code_kind() == Code::COMPILED_STUB);
   delete deoptimizer;
   return isolate->heap()->undefined_value();
 }
@@ -7668,7 +7667,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   ASSERT(isolate->heap()->IsAllocationAllowed());
 
-  ASSERT(deoptimizer->compiled_code_kind() != Code::COMPILED_STUB);
+  ASSERT(deoptimizer->compiled_code_kind() == Code::OPTIMIZED_FUNCTION);
 
   // Make sure to materialize objects before causing any allocation.
   JavaScriptFrameIterator it(isolate);
