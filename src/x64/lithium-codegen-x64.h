@@ -83,7 +83,8 @@ class LCodeGen BASE_EMBEDDED {
   bool NeedsEagerFrame() const {
     return GetStackSlotCount() > 0 ||
         info()->is_non_deferred_calling() ||
-        !info()->IsStub();
+        !info()->IsStub() ||
+        info()->requires_frame();
   }
   bool NeedsDeferredFrame() const {
     return !NeedsEagerFrame() && info()->is_deferred_calling();
