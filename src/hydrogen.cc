@@ -1355,7 +1355,11 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 
     elements = BuildCheckForCapacityGrow(object, elements, elements_kind,
                                          length, key, is_js_array);
-    checked_key = key;
+    if (!key->type().IsSmi()) {
+      checked_key = AddInstruction(new(zone) HCheckSmiOrInt32(key));
+    } else {
+      checked_key = key;
+    }
   } else {
     checked_key = AddBoundsCheck(
         key, length, ALLOW_SMI_KEY, checked_index_representation);
