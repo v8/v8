@@ -304,7 +304,7 @@ bool LCodeGen::GenerateDeferredCode() {
       LDeferredCode* code = deferred_[i];
       __ bind(code->entry());
       if (NeedsDeferredFrame()) {
-        Comment(";;; Deferred build frame",
+        Comment(";;; Deferred build frame @%d: %s.",
                 code->instruction_index(),
                 code->instr()->Mnemonic());
         ASSERT(!frame_is_built_);
@@ -320,7 +320,7 @@ bool LCodeGen::GenerateDeferredCode() {
               code->instr()->Mnemonic());
       code->Generate();
       if (NeedsDeferredFrame()) {
-        Comment(";;; Deferred destroy frame",
+        Comment(";;; Deferred destroy frame @%d: %s.",
                 code->instruction_index(),
                 code->instr()->Mnemonic());
         ASSERT(frame_is_built_);
@@ -1043,11 +1043,9 @@ void LCodeGen::RecordPosition(int position) {
 
 
 void LCodeGen::DoLabel(LLabel* label) {
-  if (label->is_loop_header()) {
-    Comment(";;; B%d - LOOP entry", label->block_id());
-  } else {
-    Comment(";;; B%d", label->block_id());
-  }
+  Comment(";;; -------------------- B%d%s --------------------",
+          label->block_id(),
+          label->is_loop_header() ? " (loop header)" : "");
   __ bind(label->label());
   current_block_ = label->block_id();
   DoGap(label);
