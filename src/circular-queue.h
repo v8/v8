@@ -47,8 +47,7 @@ class SamplingCircularQueue {
   // Executed on the application thread.
   SamplingCircularQueue(int record_size_in_bytes,
                         int desired_chunk_size_in_bytes,
-                        int buffer_size_in_chunks,
-                        bool keep_producer_consumer_distance = true);
+                        int buffer_size_in_chunks);
   ~SamplingCircularQueue();
 
   // Enqueue returns a pointer to a memory location for storing the next
@@ -89,6 +88,7 @@ class SamplingCircularQueue {
   const int chunk_size_in_bytes_;
   const int chunk_size_;
   const int buffer_size_;
+  const int producer_consumer_distance_;
   Cell* buffer_;
   byte* positions_;
   ProducerPosition* producer_pos_;

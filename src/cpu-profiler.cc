@@ -45,18 +45,13 @@ static const int kTickSamplesBufferChunksCount = 16;
 static const int kProfilerStackSize = 64 * KB;
 
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator,
-                                                 Sampler* sampler,
-                                                 int period_in_useconds)
+ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
-      sampler_(sampler),
       running_(true),
-      period_in_useconds_(period_in_useconds),
       ticks_buffer_(sizeof(TickSampleEventRecord),
                     kTickSamplesBufferChunkSize,
-                    kTickSamplesBufferChunksCount,
-                    !Sampler::CanSampleOnProfilerEventsProcessorThread()),
+                    kTickSamplesBufferChunksCount),
       enqueue_order_(0) {
 }
 
@@ -244,42 +239,17 @@ bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
 }
 
 
-void ProfilerEventsProcessor::ProcessEventsAndDoSample(
-    unsigned* dequeue_order) {
-  int64_t stop_time = OS::Ticks() + period_in_useconds_;
-  // Keep processing existing events until we need to do next sample.
-  while (OS::Ticks() < stop_time) {
-    if (ProcessTicks(*dequeue_order)) {
-      // All ticks of the current dequeue_order are processed,
-      // proceed to the next code event.
-      ProcessCodeEvent(dequeue_order);
-    }
-  }
-  // Schedule next sample. sampler_ is NULL in tests.
-  if (sampler_)
-    sampler_->DoSample();
-}
-
-
-void ProfilerEventsProcessor::ProcessEventsAndYield(unsigned* dequeue_order) {
-  if (ProcessTicks(*dequeue_order)) {
-    // All ticks of the current dequeue_order are processed,
-    // proceed to the next code event.
-    ProcessCodeEvent(dequeue_order);
-  }
-  YieldCPU();
-}
-
-
 void ProfilerEventsProcessor::Run() {
   unsigned dequeue_order = 0;
 
   while (running_) {
-    if (Sampler::CanSampleOnProfilerEventsProcessorThread()) {
-      ProcessEventsAndDoSample(&dequeue_order);
-    } else {
-      ProcessEventsAndYield(&dequeue_order);
+    // Process ticks until we have any.
+    if (ProcessTicks(dequeue_order)) {
+      // All ticks of the current dequeue_order are processed,
+      // proceed to the next code event.
+      ProcessCodeEvent(&dequeue_order);
     }
+    YieldCPU();
   }
 
   // Process remaining tick events.
@@ -516,15 +486,13 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_ == NULL) {
     Isolate* isolate = Isolate::Current();
 
-    Sampler* sampler = reinterpret_cast<Sampler*>(isolate->logger()->ticker_);
     // Disable logging when using the new implementation.
     saved_logging_nesting_ = isolate->logger()->logging_nesting_;
     isolate->logger()->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
-    processor_ = new ProfilerEventsProcessor(generator_,
-                                             sampler,
-                                             FLAG_cpu_profiler_sampling_period);
+    processor_ = new ProfilerEventsProcessor(generator_);
     is_profiling_ = true;
+    processor_->Start();
     // Enumerate stuff we already have in the heap.
     if (isolate->heap()->HasBeenSetUp()) {
       if (!FLAG_prof_browser_mode) {
@@ -537,13 +505,12 @@ void CpuProfiler::StartProcessorIfNotStarted() {
       isolate->logger()->LogAccessorCallbacks();
     }
     // Enable stack sampling.
+    Sampler* sampler = reinterpret_cast<Sampler*>(isolate->logger()->ticker_);
     if (!sampler->IsActive()) {
       sampler->Start();
       need_to_stop_sampler_ = true;
     }
-    sampler->SetHasProcessingThread(true);
     sampler->IncreaseProfilingDepth();
-    processor_->Start();
   }
 }
 
@@ -581,7 +548,6 @@ void CpuProfiler::StopProcessor() {
   Logger* logger = Isolate::Current()->logger();
   Sampler* sampler = reinterpret_cast<Sampler*>(logger->ticker_);
   sampler->DecreaseProfilingDepth();
-  sampler->SetHasProcessingThread(false);
   if (need_to_stop_sampler_) {
     sampler->Stop();
     need_to_stop_sampler_ = false;

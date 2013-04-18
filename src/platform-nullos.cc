@@ -525,25 +525,4 @@ void ProfileSampler::Stop() {
 }
 
 
-bool Sampler::CanSampleOnProfilerEventsProcessorThread() {
-  UNIMPLEMENTED();
-  return false;
-}
-
-
-void Sampler::DoSample() {
-  UNIMPLEMENTED();
-}
-
-
-void Sampler::StartProfiling() {
-  UNIMPLEMENTED();
-}
-
-
-void Sampler::StopProfiling() {
-  UNIMPLEMENTED();
-}
-
-
 } }  // namespace v8::internal
