@@ -706,9 +706,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
   holder->set_byte_length(byte_length);
 
   v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Handle<Object> external_holder(*holder);
-  Persistent<Object> weak_handle = Persistent<Object>::New(
-      external_isolate, external_holder);
+  v8::Persistent<v8::Value> weak_handle = v8::Persistent<v8::Value>::New(
+      external_isolate, v8::Utils::ToLocal(Handle<Object>::cast(holder)));
   weak_handle.MakeWeak(external_isolate, data, ArrayBufferWeakCallback);
   weak_handle.MarkIndependent(external_isolate);
   isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
@@ -734,8 +733,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
   size_t start = static_cast<size_t>(first);
   size_t target_length = NumberToSize(isolate, target->byte_length());
 
-  if (target_length == 0)
-    return isolate->heap()->undefined_value();
+  if (target_length == 0) return isolate->heap()->undefined_value();
 
   ASSERT(NumberToSize(isolate, source->byte_length()) - target_length >= start);
   uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
