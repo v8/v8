@@ -125,7 +125,12 @@ class HBasicBlock: public ZoneObject {
 
   void Finish(HControlInstruction* last);
   void FinishExit(HControlInstruction* instruction);
-  void Goto(HBasicBlock* block, FunctionState* state = NULL);
+  void Goto(HBasicBlock* block,
+            FunctionState* state = NULL,
+            bool add_simulate = true);
+  void GotoNoSimulate(HBasicBlock* block) {
+    Goto(block, NULL, false);
+  }
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
   void AddSimulate(BailoutId ast_id,
@@ -675,6 +680,9 @@ enum ArgumentsAllowedFlag {
   ARGUMENTS_ALLOWED
 };
 
+
+class HIfContinuation;
+
 // This class is not BASE_EMBEDDED because our inlining implementation uses
 // new and delete.
 class AstContext {
@@ -699,6 +707,13 @@ class AstContext {
   // Call this function in tail position in the Visit functions for
   // expressions.
   virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id) = 0;
+
+  // Finishes the current basic block and materialize a boolean for
+  // value context, nothing for effect, generate a branch for test context.
+  // Call this function in tail position in the Visit functions for
+  // expressions that use an IfBuilder.
+  virtual void ReturnContinuation(HIfContinuation* continuation,
+                                  BailoutId ast_id) = 0;
 
   void set_for_typeof(bool for_typeof) { for_typeof_ = for_typeof; }
   bool is_for_typeof() { return for_typeof_; }
@@ -735,6 +750,8 @@ class EffectContext: public AstContext {
   virtual void ReturnValue(HValue* value);
   virtual void ReturnInstruction(HInstruction* instr, BailoutId ast_id);
   virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id);
+  virtual void ReturnContinuation(HIfContinuation* continuation,
+                                  BailoutId ast_id);
 };
 
 
@@ -748,6 +765,8 @@ class ValueContext: public AstContext {
   virtual void ReturnValue(HValue* value);
   virtual void ReturnInstruction(HInstruction* instr, BailoutId ast_id);
   virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id);
+  virtual void ReturnContinuation(HIfContinuation* continuation,
+                                  BailoutId ast_id);
 
   bool arguments_allowed() { return flag_ == ARGUMENTS_ALLOWED; }
 
@@ -773,6 +792,8 @@ class TestContext: public AstContext {
   virtual void ReturnValue(HValue* value);
   virtual void ReturnInstruction(HInstruction* instr, BailoutId ast_id);
   virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id);
+  virtual void ReturnContinuation(HIfContinuation* continuation,
+                                  BailoutId ast_id);
 
   static TestContext* cast(AstContext* context) {
     ASSERT(context->IsTest());
@@ -860,6 +881,45 @@ class FunctionState {
 };
 
 
+class HIfContinuation {
+ public:
+  HIfContinuation() { continuation_captured_ = false; }
+  ~HIfContinuation() { ASSERT(!continuation_captured_); }
+
+  void Capture(HBasicBlock* true_branch,
+               HBasicBlock* false_branch,
+               int position) {
+    ASSERT(!continuation_captured_);
+    ASSERT(true_branch != NULL || false_branch != NULL);
+    true_branch_ = true_branch;
+    false_branch_ = false_branch;
+    position_ = position;
+    continuation_captured_ = true;
+  }
+
+  void Continue(HBasicBlock** true_branch,
+                HBasicBlock** false_branch,
+                int* position) {
+    ASSERT(continuation_captured_);
+    *true_branch = true_branch_;
+    *false_branch = false_branch_;
+    if (position != NULL) *position = position_;
+    continuation_captured_ = false;
+  }
+
+  bool IsTrueReachable() { return true_branch_ != NULL; }
+  bool IsFalseReachable() { return false_branch_ != NULL; }
+  bool TrueAndFalseReachable() {
+    return IsTrueReachable() || IsFalseReachable();
+  }
+
+  bool continuation_captured_;
+  HBasicBlock* true_branch_;
+  HBasicBlock* false_branch_;
+  int position_;
+};
+
+
 class HGraphBuilder {
  public:
   explicit HGraphBuilder(CompilationInfo* info)
@@ -903,8 +963,11 @@ class HGraphBuilder {
  protected:
   virtual bool BuildGraph() = 0;
 
-  HBasicBlock* CreateBasicBlock(HEnvironment* envy);
+  HBasicBlock* CreateBasicBlock(HEnvironment* env);
   HBasicBlock* CreateLoopHeaderBlock();
+
+  HValue* BuildCheckNonSmi(HValue* object);
+  HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
 
   // Building common constructs
   HInstruction* BuildExternalArrayElementAccess(
@@ -952,7 +1015,7 @@ class HGraphBuilder {
 
   class CheckBuilder {
    public:
-    explicit CheckBuilder(HGraphBuilder* builder, BailoutId id);
+    explicit CheckBuilder(HGraphBuilder* builder);
     ~CheckBuilder() {
       if (!finished_) End();
     }
@@ -969,37 +1032,127 @@ class HGraphBuilder {
     bool finished_;
     HBasicBlock* failure_block_;
     HBasicBlock* merge_block_;
-    BailoutId id_;
   };
 
   class IfBuilder {
    public:
-    explicit IfBuilder(HGraphBuilder* builder, BailoutId id);
+    explicit IfBuilder(HGraphBuilder* builder,
+                       int position = RelocInfo::kNoPosition);
+    IfBuilder(HGraphBuilder* builder,
+              HIfContinuation* continuation);
+
     ~IfBuilder() {
       if (!finished_) End();
     }
 
-    HInstruction* BeginIf(
+    HInstruction* IfCompare(
         HValue* left,
         HValue* right,
         Token::Value token,
         Representation input_representation = Representation::Integer32());
-    HInstruction* BeginIfObjectsEqual(HValue* left, HValue* right);
-    HInstruction* BeginIfMapEquals(HValue* value, Handle<Map> map);
-    void BeginElse();
+
+    HInstruction* IfCompareMap(HValue* left, Handle<Map> map);
+
+    template<class Condition>
+    HInstruction* If(HValue *p) {
+      HControlInstruction* compare = new(zone()) Condition(p);
+      AddCompare(compare);
+      return compare;
+    }
+
+    template<class Condition, class P2>
+    HInstruction* If(HValue* p1, P2 p2) {
+      HControlInstruction* compare = new(zone()) Condition(p1, p2);
+      AddCompare(compare);
+      return compare;
+    }
+
+    template<class Condition>
+    HInstruction* OrIfCompare(
+        HValue* p1,
+        HValue* p2,
+        Token::Value token,
+        Representation input_representation = Representation::Integer32()) {
+      Or();
+      return IfCompare(p1, p2, token, input_representation);
+    }
+
+    HInstruction* OrIfCompareMap(HValue* left, Handle<Map> map) {
+      Or();
+      return IfCompareMap(left, map);
+    }
+
+    template<class Condition>
+    HInstruction* OrIf(HValue *p) {
+      Or();
+      return If<Condition>(p);
+    }
+
+    template<class Condition, class P2>
+    HInstruction* OrIf(HValue* p1, P2 p2) {
+      Or();
+      return If<Condition>(p1, p2);
+    }
+
+    template<class Condition>
+    HInstruction* AndIfCompare(
+        HValue* p1,
+        HValue* p2,
+        Token::Value token,
+        Representation input_representation = Representation::Integer32()) {
+      And();
+      return IfCompare(p1, p2, token, input_representation);
+    }
+
+    HInstruction* AndIfCompareMap(HValue* left, Handle<Map> map) {
+      And();
+      return IfCompareMap(left, map);
+    }
+
+    template<class Condition>
+    HInstruction* AndIf(HValue *p) {
+      And();
+      return If<Condition>(p);
+    }
+
+    template<class Condition, class P2>
+    HInstruction* AndIf(HValue* p1, P2 p2) {
+      And();
+      return If<Condition>(p1, p2);
+    }
+
+    void Or();
+    void And();
+
+    void CaptureContinuation(HIfContinuation* continuation);
+
+    void Then();
+    void Else();
     void End();
 
+    void Deopt();
+
    private:
+    void AddCompare(HControlInstruction* compare);
+
     Zone* zone() { return builder_->zone(); }
 
     HGraphBuilder* builder_;
-    bool finished_;
-    bool did_else_;
+    int position_;
+    bool finished_ : 1;
+    bool did_then_ : 1;
+    bool did_else_ : 1;
+    bool deopt_then_ : 1;
+    bool deopt_else_ : 1;
+    bool did_and_ : 1;
+    bool did_or_ : 1;
+    bool captured_ : 1;
+    bool needs_compare_ : 1;
     HBasicBlock* first_true_block_;
     HBasicBlock* last_true_block_;
     HBasicBlock* first_false_block_;
+    HBasicBlock* split_edge_merge_block_;
     HBasicBlock* merge_block_;
-    BailoutId id_;
   };
 
   class LoopBuilder {
@@ -1013,8 +1166,7 @@ class HGraphBuilder {
 
     LoopBuilder(HGraphBuilder* builder,
                 HValue* context,
-                Direction direction,
-                BailoutId id);
+                Direction direction);
     ~LoopBuilder() {
       ASSERT(finished_);
     }
@@ -1037,7 +1189,6 @@ class HGraphBuilder {
     HBasicBlock* body_block_;
     HBasicBlock* exit_block_;
     Direction direction_;
-    BailoutId id_;
     bool finished_;
   };
 
@@ -1063,8 +1214,7 @@ class HGraphBuilder {
 
   HValue* BuildAllocateElements(HValue* context,
                                 ElementsKind kind,
-                                HValue* capacity,
-                                BailoutId ast_id);
+                                HValue* capacity);
 
   void BuildInitializeElements(HValue* elements,
                                ElementsKind kind,
@@ -1078,15 +1228,13 @@ class HGraphBuilder {
                                     HValue* elements,
                                     ElementsKind kind,
                                     HValue* length,
-                                    HValue* new_capacity,
-                                    BailoutId ast_id);
+                                    HValue* new_capacity);
 
   void BuildFillElementsWithHole(HValue* context,
                                  HValue* elements,
                                  ElementsKind elements_kind,
                                  HValue* from,
-                                 HValue* to,
-                                 BailoutId ast_id);
+                                 HValue* to);
 
   void BuildCopyElements(HValue* context,
                          HValue* from_elements,
@@ -1094,8 +1242,7 @@ class HGraphBuilder {
                          HValue* to_elements,
                          ElementsKind to_elements_kind,
                          HValue* length,
-                         HValue* capacity,
-                         BailoutId ast_id);
+                         HValue* capacity);
 
   HValue* BuildCloneShallowArray(HContext* context,
                                  HValue* boilerplate,

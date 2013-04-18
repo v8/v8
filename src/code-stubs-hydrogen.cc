@@ -203,31 +203,32 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                           NULL,
                                           FAST_ELEMENTS));
 
-  CheckBuilder builder(this, BailoutId::StubEntry());
+  CheckBuilder builder(this);
   builder.CheckNotUndefined(boilerplate);
 
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
     HValue* elements =
         AddInstruction(new(zone) HLoadElements(boilerplate, NULL));
 
-    IfBuilder if_fixed_cow(this, BailoutId::StubEntry());
-    if_fixed_cow.BeginIfMapEquals(elements, factory->fixed_cow_array_map());
+    IfBuilder if_fixed_cow(this);
+    if_fixed_cow.IfCompareMap(elements, factory->fixed_cow_array_map());
+    if_fixed_cow.Then();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
                                                alloc_site_mode,
                                                FAST_ELEMENTS,
                                                0/*copy-on-write*/));
-    if_fixed_cow.BeginElse();
+    if_fixed_cow.Else();
 
-    IfBuilder if_fixed(this, BailoutId::StubEntry());
-    if_fixed.BeginIfMapEquals(elements, factory->fixed_array_map());
+    IfBuilder if_fixed(this);
+    if_fixed.IfCompareMap(elements, factory->fixed_array_map());
+    if_fixed.Then();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
                                                alloc_site_mode,
                                                FAST_ELEMENTS,
                                                length));
-    if_fixed.BeginElse();
-
+    if_fixed.Else();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
                                                alloc_site_mode,
@@ -264,7 +265,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
                                           NULL,
                                           FAST_ELEMENTS));
 
-  CheckBuilder builder(this, BailoutId::StubEntry());
+  CheckBuilder builder(this);
   builder.CheckNotUndefined(boilerplate);
 
   int size = JSObject::kHeaderSize + casted_stub()->length() * kPointerSize;
@@ -356,13 +357,14 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   ElementsKind to_kind = casted_stub()->to_kind();
   BuildNewSpaceArrayCheck(array_length, to_kind);
 
-  IfBuilder if_builder(this, BailoutId::StubEntry());
+  IfBuilder if_builder(this);
 
-  if_builder.BeginIf(array_length, graph()->GetConstant0(), Token::EQ);
+  if_builder.IfCompare(array_length, graph()->GetConstant0(), Token::EQ);
+  if_builder.Then();
 
   // Nothing to do, just change the map.
 
-  if_builder.BeginElse();
+  if_builder.Else();
 
   HInstruction* elements =
       AddInstruction(new(zone) HLoadElements(js_array, js_array));
@@ -375,8 +377,7 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 
   BuildCopyElements(context(), elements,
                     casted_stub()->from_kind(), new_elements,
-                    to_kind, array_length, elements_length,
-                    BailoutId::StubEntry());
+                    to_kind, array_length, elements_length);
 
   Factory* factory = isolate()->factory();
 
