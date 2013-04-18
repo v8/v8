@@ -1422,21 +1422,14 @@ HValue* HBitNot::Canonicalize() {
 }
 
 
-HValue* HAdd::Canonicalize() {
-  if (!representation().IsInteger32()) return this;
-  if (CheckUsesForFlag(kTruncatingToInt32)) ClearFlag(kCanOverflow);
+HValue* HArithmeticBinaryOperation::Canonicalize() {
+  if (representation().IsInteger32() && CheckUsesForFlag(kTruncatingToInt32)) {
+    ClearFlag(kCanOverflow);
+  }
   return this;
 }
 
 
-HValue* HSub::Canonicalize() {
-  if (!representation().IsInteger32()) return this;
-  if (CheckUsesForFlag(kTruncatingToInt32)) ClearFlag(kCanOverflow);
-  return this;
-}
-
-
-// TODO(svenpanne) Use this in other Canonicalize() functions.
 static bool IsIdentityOperation(HValue* arg1, HValue* arg2, int32_t identity) {
   return arg1->representation().IsSpecialization() &&
       arg2->IsInteger32Constant() &&
@@ -1444,10 +1437,23 @@ static bool IsIdentityOperation(HValue* arg1, HValue* arg2, int32_t identity) {
 }
 
 
+HValue* HAdd::Canonicalize() {
+  if (IsIdentityOperation(left(), right(), 0)) return left();
+  if (IsIdentityOperation(right(), left(), 0)) return right();
+  return HArithmeticBinaryOperation::Canonicalize();
+}
+
+
+HValue* HSub::Canonicalize() {
+  if (IsIdentityOperation(left(), right(), 0)) return left();
+  return HArithmeticBinaryOperation::Canonicalize();
+}
+
+
 HValue* HMul::Canonicalize() {
   if (IsIdentityOperation(left(), right(), 1)) return left();
   if (IsIdentityOperation(right(), left(), 1)) return right();
-  return this;
+  return HArithmeticBinaryOperation::Canonicalize();
 }
 
 

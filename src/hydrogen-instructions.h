@@ -3842,6 +3842,8 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
         : representation();
   }
 
+  virtual HValue* Canonicalize();
+
  private:
   virtual bool IsDeletable() const { return true; }
 };
