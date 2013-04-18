@@ -1693,7 +1693,7 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
 LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
     HCompareObjectEqAndBranch* instr) {
   LOperand* left = UseRegisterAtStart(instr->left());
-  LOperand* right = UseAtStart(instr->right());
+  LOperand* right = UseOrConstantAtStart(instr->right());
   return new(zone()) LCmpObjectEqAndBranch(left, right);
 }
 

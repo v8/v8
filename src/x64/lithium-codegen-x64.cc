@@ -2055,11 +2055,14 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
 
 void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
   Register left = ToRegister(instr->left());
-  Register right = ToRegister(instr->right());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
   int true_block = chunk_->LookupDestination(instr->true_block_id());
 
-  __ cmpq(left, right);
+  if (instr->right()->IsConstantOperand()) {
+    __ Cmp(left, ToHandle(LConstantOperand::cast(instr->right())));
+  } else {
+    __ cmpq(left, ToRegister(instr->right()));
+  }
   EmitBranch(true_block, false_block, equal);
 }
 
