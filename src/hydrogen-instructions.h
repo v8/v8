@@ -1001,6 +1001,7 @@ class HValue: public ZoneObject {
 
   bool IsInteger32Constant();
   int32_t GetInteger32Constant();
+  bool EqualsInteger32Constant(int32_t value);
 
   bool IsDefinedAfter(HBasicBlock* other) const;
 
@@ -3327,10 +3328,6 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   bool BooleanValue() const { return boolean_value_; }
-
-  bool IsUint32() {
-    return HasInteger32Value() && (Integer32Value() >= 0);
-  }
 
   virtual intptr_t Hashcode() {
     if (has_int32_value_) {

@@ -3977,8 +3977,8 @@ bool Uint32Analysis::CheckPhiOperands(HPhi* phi) {
     HValue* operand = phi->OperandAt(j);
     if (!operand->CheckFlag(HInstruction::kUint32)) {
       // Lazyly mark constants that fit into uint32 range with kUint32 flag.
-      if (operand->IsConstant() &&
-          HConstant::cast(operand)->IsUint32()) {
+      if (operand->IsInteger32Constant() &&
+          operand->GetInteger32Constant() >= 0) {
         operand->SetFlag(HInstruction::kUint32);
         continue;
       }
@@ -8801,9 +8801,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           } else if (exponent == 2.0) {
             result = HMul::New(zone(), context, left, left);
           }
-        } else if (right->IsConstant() &&
-                   HConstant::cast(right)->HasInteger32Value() &&
-                   HConstant::cast(right)->Integer32Value() == 2) {
+        } else if (right->EqualsInteger32Constant(2)) {
           result = HMul::New(zone(), context, left, left);
         }
 
