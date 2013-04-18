@@ -37,6 +37,16 @@
 namespace v8 {
 namespace internal {
 
+
+CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
+    : register_param_count_(-1),
+      stack_parameter_count_(NULL),
+      function_mode_(NOT_JS_FUNCTION_STUB_MODE),
+      register_params_(NULL),
+      deoptimization_handler_(NULL),
+      miss_handler_(IC_Utility(IC::kUnreachable), Isolate::Current()) { }
+
+
 bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {
   UnseededNumberDictionary* stubs = isolate->heap()->code_stubs();
   int index = stubs->FindEntry(GetKey());

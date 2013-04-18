@@ -61,11 +61,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
         arguments_length_(NULL),
         info_(stub, isolate),
         context_(NULL) {
-    int major_key = stub->MajorKey();
-    descriptor_ = isolate->code_stub_interface_descriptor(major_key);
-    if (descriptor_->register_param_count_ < 0) {
-      stub->InitializeInterfaceDescriptor(isolate, descriptor_);
-    }
+    descriptor_ = stub->GetInterfaceDescriptor(isolate);
     parameters_.Reset(new HParameter*[descriptor_->register_param_count_]);
   }
   virtual bool BuildGraph();
@@ -96,6 +92,9 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
 
 
 bool CodeStubGraphBuilderBase::BuildGraph() {
+  // Update the static counter each time a new code stub is generated.
+  isolate()->counters()->code_stubs()->Increment();
+
   if (FLAG_trace_hydrogen) {
     const char* name = CodeStub::MajorName(stub()->MajorKey(), false);
     PrintF("-----------------------------------------------------------\n");
@@ -176,16 +175,87 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
       : CodeStubGraphBuilderBase(Isolate::Current(), stub) {}
 
  protected:
-  virtual HValue* BuildCodeStub();
+  virtual HValue* BuildCodeStub() {
+    if (casted_stub()->IsMiss()) {
+      return BuildCodeInitializedStub();
+    } else {
+      return BuildCodeUninitializedStub();
+    }
+  }
+
+  virtual HValue* BuildCodeInitializedStub() {
+    UNIMPLEMENTED();
+    return NULL;
+  }
+
+  virtual HValue* BuildCodeUninitializedStub() {
+    // Force a deopt that falls back to the runtime.
+    HValue* undefined = graph()->GetConstantUndefined();
+    CheckBuilder builder(this);
+    builder.CheckNotUndefined(undefined);
+    builder.End();
+    return undefined;
+  }
+
   Stub* casted_stub() { return static_cast<Stub*>(stub()); }
 };
 
 
+Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(Isolate* isolate) {
+  Factory* factory = isolate->factory();
+
+  // Generate the new code.
+  MacroAssembler masm(isolate, NULL, 256);
+
+  {
+    // Update the static counter each time a new code stub is generated.
+    isolate->counters()->code_stubs()->Increment();
+
+    // Nested stubs are not allowed for leaves.
+    AllowStubCallsScope allow_scope(&masm, false);
+
+    // Generate the code for the stub.
+    masm.set_generating_stub(true);
+    NoCurrentFrameScope scope(&masm);
+    GenerateLightweightMiss(&masm);
+  }
+
+  // Create the code object.
+  CodeDesc desc;
+  masm.GetCode(&desc);
+
+  // Copy the generated code into a heap object.
+  Code::Flags flags = Code::ComputeFlags(
+      GetCodeKind(),
+      GetICState(),
+      GetExtraICState(),
+      GetStubType(), -1);
+  Handle<Code> new_object = factory->NewCode(
+      desc, flags, masm.CodeObject(), NeedsImmovableCode());
+  return new_object;
+}
+
+
 template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
-  CodeStubGraphBuilder<Stub> builder(stub);
-  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen();
+  Isolate* isolate = Isolate::Current();
+  CodeStub::Major  major_key =
+      static_cast<HydrogenCodeStub*>(stub)->MajorKey();
+  CodeStubInterfaceDescriptor* descriptor =
+      isolate->code_stub_interface_descriptor(major_key);
+  if (descriptor->register_param_count_ < 0) {
+    stub->InitializeInterfaceDescriptor(isolate, descriptor);
+  }
+  // The miss case without stack parameters can use a light-weight stub to enter
+  // the runtime that is significantly faster than using the standard
+  // stub-failure deopt mechanism.
+  if (stub->IsMiss() && descriptor->stack_parameter_count_ == NULL) {
+    return stub->GenerateLightweightMissCode(isolate);
+  } else {
+    CodeStubGraphBuilder<Stub> builder(stub);
+    LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+    return chunk->Codegen();
+  }
 }
 
 
@@ -248,9 +318,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
 
 
 Handle<Code> FastCloneShallowArrayStub::GenerateCode() {
-  CodeStubGraphBuilder<FastCloneShallowArrayStub> builder(this);
-  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-  return chunk->Codegen();
+  return DoGenerateCode(this);
 }
 
 

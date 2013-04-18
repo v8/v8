@@ -2766,6 +2766,13 @@ RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Unreachable) {
+  UNREACHABLE();
+  CHECK(false);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, ToBoolean_Patch) {
   ASSERT(args.length() == 3);
 
