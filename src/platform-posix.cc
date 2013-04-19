@@ -334,6 +334,7 @@ OS::MemMoveFunction CreateMemMoveFunction();
 
 // Copy memory area. No restrictions.
 void OS::MemMove(void* dest, const void* src, size_t size) {
+  if (size == 0) return;
   // Note: here we rely on dependent reads being ordered. This is true
   // on all architectures we currently support.
   (*memmove_function)(dest, src, size);
