@@ -1448,7 +1448,13 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.Append(',');
   msg.AppendAddress(sample->sp);
   msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
-  msg.AppendAddress(sample->external_callback);
+  if (sample->has_external_callback) {
+    msg.Append(",1,");
+    msg.AppendAddress(sample->external_callback);
+  } else {
+    msg.Append(",0,");
+    msg.AppendAddress(sample->tos);
+  }
   msg.Append(",%d", static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");
