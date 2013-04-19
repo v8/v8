@@ -196,7 +196,7 @@ class LCodeGen BASE_EMBEDDED {
   Register scratch1() { return kLithiumScratchReg2; }
   DoubleRegister double_scratch0() { return kLithiumScratchDouble; }
 
-  int GetNextEmittedBlock(int block);
+  int GetNextEmittedBlock();
   LInstruction* GetNextInstruction();
 
   void EmitClassOfTest(Label* if_true,

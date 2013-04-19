@@ -201,7 +201,7 @@ class LCodeGen BASE_EMBEDDED {
   Register scratch0() { return r9; }
   DwVfpRegister double_scratch0() { return kScratchDoubleReg; }
 
-  int GetNextEmittedBlock(int block);
+  int GetNextEmittedBlock();
   LInstruction* GetNextInstruction();
 
   void EmitClassOfTest(Label* if_true,

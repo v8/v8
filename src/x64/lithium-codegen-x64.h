@@ -162,7 +162,7 @@ class LCodeGen BASE_EMBEDDED {
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
 
-  int GetNextEmittedBlock(int block);
+  int GetNextEmittedBlock();
 
   void EmitClassOfTest(Label* if_true,
                        Label* if_false,
