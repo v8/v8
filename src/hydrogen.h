@@ -1142,8 +1142,6 @@ class HGraphBuilder {
     bool finished_ : 1;
     bool did_then_ : 1;
     bool did_else_ : 1;
-    bool deopt_then_ : 1;
-    bool deopt_else_ : 1;
     bool did_and_ : 1;
     bool did_or_ : 1;
     bool captured_ : 1;
