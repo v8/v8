@@ -2397,6 +2397,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetExpectedNumberOfProperties) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 0);
+
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
   JSFunction* function = JSFunction::cast(frame->function());
@@ -2411,11 +2412,66 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
     if (!maybe_generator->To(&generator)) return maybe_generator;
   }
   generator->set_function(function);
-  generator->set_context(isolate->heap()->undefined_value());
+  generator->set_context(Context::cast(frame->context()));
   generator->set_continuation(0);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
 
   return generator;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
+
+  JavaScriptFrameIterator stack_iterator(isolate);
+  JavaScriptFrame *frame = stack_iterator.frame();
+  Handle<JSFunction> function(JSFunction::cast(frame->function()));
+  RUNTIME_ASSERT(function->shared()->is_generator());
+
+  intptr_t offset = frame->pc() - function->code()->instruction_start();
+  ASSERT(*function == generator_object->function());
+  ASSERT(offset > 0 && Smi::IsValid(offset));
+  generator_object->set_continuation(offset);
+
+  // Generator functions force context allocation for locals, so Local0 points
+  // to the bottom of the operand stack.  Assume the stack grows down.
+  //
+  // TODO(wingo): Move these magical calculations to frames.h when the
+  // generators implementation has stabilized.
+  intptr_t stack_size_in_bytes =
+      (frame->fp() + JavaScriptFrameConstants::kLocal0Offset) -
+      (frame->sp() - kPointerSize);
+  ASSERT(IsAddressAligned(frame->fp(), kPointerSize));
+  ASSERT(IsAligned(stack_size_in_bytes, kPointerSize));
+  ASSERT(stack_size_in_bytes >= 0);
+  ASSERT(Smi::IsValid(stack_size_in_bytes));
+  unsigned stack_size = stack_size_in_bytes >> kPointerSizeLog2;
+
+  // We expect there to be at least two values on the stack: the return value of
+  // the yield expression, and the argument to this runtime call.  Neither of
+  // those should be saved.
+  ASSERT(stack_size >= 2);
+  stack_size -= 2;
+
+  if (stack_size == 0) {
+    ASSERT_EQ(generator_object->operand_stack(),
+              isolate->heap()->empty_fixed_array());
+    // If there are no operands on the stack, there shouldn't be a handler
+    // active either.  Also, the active context will be the same as the function
+    // itself, so there is no need to save the context.
+    ASSERT_EQ(frame->context(), generator_object->context());
+    ASSERT(!frame->HasHandler());
+  } else {
+    generator_object->set_context(Context::cast(frame->context()));
+    // TODO(wingo): Save the operand stack and/or the stack handlers.
+    UNIMPLEMENTED();
+  }
+
+  // The return value is the hole for a suspend return, and anything else for a
+  // resume return.
+  return isolate->heap()->the_hole_value();
 }
 
 

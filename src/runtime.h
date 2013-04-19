@@ -298,6 +298,7 @@ namespace internal {
   \
   /* Harmony generators */ \
   F(CreateJSGeneratorObject, 0, 1) \
+  F(SuspendJSGeneratorObject, 1, 1) \
   \
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \

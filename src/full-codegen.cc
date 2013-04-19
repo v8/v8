@@ -1548,30 +1548,6 @@ void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
 }
 
 
-void FullCodeGenerator::VisitYield(Yield* expr) {
-  if (expr->is_delegating_yield())
-    UNIMPLEMENTED();
-
-  Comment cmnt(masm_, "[ Yield");
-  // TODO(wingo): Actually update the iterator state.
-  VisitForEffect(expr->generator_object());
-  VisitForAccumulatorValue(expr->expression());
-  // TODO(wingo): Assert that the operand stack depth is 0, at least while
-  // general yield expressions are unimplemented.
-
-  // TODO(wingo): What follows is as in VisitReturnStatement.  Replace it with a
-  // call to a builtin that will resume the generator.
-  NestedStatement* current = nesting_stack_;
-  int stack_depth = 0;
-  int context_length = 0;
-  while (current != NULL) {
-    current = current->Exit(&stack_depth, &context_length);
-  }
-  __ Drop(stack_depth);
-  EmitReturnSequence();
-}
-
-
 void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
   VisitForStackValue(expr->exception());
