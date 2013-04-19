@@ -4027,10 +4027,10 @@ MaybeObject* JSObject::SetIdentityHash(Smi* hash, CreationFlag flag) {
 
 
 int JSObject::GetIdentityHash(Handle<JSObject> obj) {
-  CALL_AND_RETRY(obj->GetIsolate(),
-                 obj->GetIdentityHash(ALLOW_CREATION),
-                 return Smi::cast(__object__)->value(),
-                 return 0);
+  CALL_AND_RETRY_OR_DIE(obj->GetIsolate(),
+                        obj->GetIdentityHash(ALLOW_CREATION),
+                        return Smi::cast(__object__)->value(),
+                        return 0);
 }
 
 
