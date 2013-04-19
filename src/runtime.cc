@@ -4041,6 +4041,14 @@ static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
 }
 
 
+MaybeObject* Runtime::GetElementOrCharAtOrFail(Isolate* isolate,
+                                               Handle<Object> object,
+                                               uint32_t index) {
+  CALL_HEAP_FUNCTION_PASS_EXCEPTION(isolate,
+      GetElementOrCharAt(isolate, object, index));
+}
+
+
 MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
                                          Handle<Object> object,
                                          uint32_t index) {

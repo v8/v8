@@ -745,6 +745,20 @@ Handle<Object> Object::GetProperty(Handle<Object> object,
 }
 
 
+MaybeObject* Object::GetPropertyOrFail(Handle<Object> object,
+                                       Handle<Object> receiver,
+                                       LookupResult* result,
+                                       Handle<Name> key,
+                                       PropertyAttributes* attributes) {
+  Isolate* isolate = object->IsHeapObject()
+      ? Handle<HeapObject>::cast(object)->GetIsolate()
+      : Isolate::Current();
+  CALL_HEAP_FUNCTION_PASS_EXCEPTION(
+      isolate,
+      object->GetProperty(*receiver, result, *key, attributes));
+}
+
+
 MaybeObject* Object::GetProperty(Object* receiver,
                                  LookupResult* result,
                                  Name* name,
@@ -2136,6 +2150,19 @@ Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
   CALL_HEAP_FUNCTION(object->GetIsolate(),
                      object->SetProperty(*key, *value, attributes, strict_mode),
                      Object);
+}
+
+
+MaybeObject* JSReceiver::SetPropertyOrFail(
+    Handle<JSReceiver> object,
+    Handle<Name> key,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode,
+    JSReceiver::StoreFromKeyed store_mode) {
+  CALL_HEAP_FUNCTION_PASS_EXCEPTION(
+      object->GetIsolate(),
+      object->SetProperty(*key, *value, attributes, strict_mode, store_mode));
 }
 
 

@@ -877,7 +877,7 @@ MaybeObject* LoadIC::Load(State state,
         if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
 #endif
       }
-      return Accessors::FunctionGetPrototype(*object, 0);
+      return *Accessors::FunctionGetPrototype(object);
     }
   }
 
@@ -887,7 +887,7 @@ MaybeObject* LoadIC::Load(State state,
   if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
     // Rewrite to the generic keyed load stub.
     if (FLAG_use_ic) set_target(*generic_stub());
-    return Runtime::GetElementOrCharAt(isolate(), object, index);
+    return Runtime::GetElementOrCharAtOrFail(isolate(), object, index);
   }
 
   // Named lookup in the object.
@@ -922,7 +922,7 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   // Get the property.
-  return object->GetProperty(*object, &lookup, *name, &attr);
+  return Object::GetPropertyOrFail(object, object, &lookup, name, &attr);
 }
 
 
@@ -1476,8 +1476,8 @@ MaybeObject* StoreIC::Store(State state,
                             JSReceiver::StoreFromKeyed store_mode) {
   // Handle proxies.
   if (object->IsJSProxy()) {
-    return JSProxy::cast(*object)->
-        SetProperty(*name, *value, NONE, strict_mode);
+    return JSReceiver::SetPropertyOrFail(
+        Handle<JSReceiver>::cast(object), name, value, NONE, strict_mode);
   }
 
   // If the object is undefined or null it's illegal to try to set any
@@ -1509,7 +1509,8 @@ MaybeObject* StoreIC::Store(State state,
 
   // Observed objects are always modified through the runtime.
   if (FLAG_harmony_observation && receiver->map()->is_observed()) {
-    return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
+    return JSReceiver::SetPropertyOrFail(
+        receiver, name, value, NONE, strict_mode, store_mode);
   }
 
   // Use specialized code for setting the length of arrays with fast
@@ -1524,7 +1525,8 @@ MaybeObject* StoreIC::Store(State state,
         StoreArrayLengthStub(kind(), strict_mode).GetCode(isolate());
     set_target(*stub);
     TRACE_IC("StoreIC", name, state, *stub);
-    return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
+    return JSReceiver::SetPropertyOrFail(
+        receiver, name, value, NONE, strict_mode, store_mode);
   }
 
   if (receiver->IsJSGlobalProxy()) {
@@ -1537,7 +1539,8 @@ MaybeObject* StoreIC::Store(State state,
       set_target(*stub);
       TRACE_IC("StoreIC", name, state, *stub);
     }
-    return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
+    return JSReceiver::SetPropertyOrFail(
+        receiver, name, value, NONE, strict_mode, store_mode);
   }
 
   LookupResult lookup(isolate());
@@ -1553,7 +1556,8 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   // Set the property.
-  return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
+  return JSReceiver::SetPropertyOrFail(
+      receiver, name, value, NONE, strict_mode, store_mode);
 }
 
 

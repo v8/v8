@@ -694,6 +694,11 @@ class Runtime : public AllStatic {
                                                          Handle<Object> object,
                                                          uint32_t index);
 
+  MUST_USE_RESULT static MaybeObject* GetElementOrCharAtOrFail(
+      Isolate* isolate,
+      Handle<Object> object,
+      uint32_t index);
+
   MUST_USE_RESULT static MaybeObject* SetObjectProperty(
       Isolate* isolate,
       Handle<Object> object,
