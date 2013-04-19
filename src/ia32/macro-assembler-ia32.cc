@@ -2531,10 +2531,7 @@ void MacroAssembler::VerifyX87StackDepth(uint32_t depth) {
   and_(eax, kTopMask);
   shr(eax, 11);
   cmp(eax, Immediate(tos));
-  Label all_ok;
-  j(equal, &all_ok);
   Check(equal, "Unexpected FPU stack depth after instruction");
-  bind(&all_ok);
   fnclex();
   pop(eax);
 }
