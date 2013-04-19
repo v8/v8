@@ -331,7 +331,7 @@ void ArmDebugger::Debug() {
                 PrintF("\n");
               }
             }
-            for (int i = 0; i < kNumVFPDoubleRegisters; i++) {
+            for (int i = 0; i < DwVfpRegister::NumRegisters(); i++) {
               dvalue = GetVFPDoubleRegisterValue(i);
               uint64_t as_words = BitCast<uint64_t>(dvalue);
               PrintF("%3s: %f 0x%08x %08x\n",

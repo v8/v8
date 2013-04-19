@@ -36,14 +36,6 @@ namespace v8 {
 namespace internal {
 
 
-static SaveFPRegsMode GetSaveFPRegsMode() {
-  // We don't need to save floating point regs when generating the snapshot
-  return CpuFeatures::IsSafeForSnapshot(VFP32DREGS)
-      ? kSaveFPRegs
-      : kDontSaveFPRegs;
-}
-
-
 class SafepointGenerator : public CallWrapper {
  public:
   SafepointGenerator(LCodeGen* codegen,
@@ -251,7 +243,7 @@ bool LCodeGen::GeneratePrologue() {
             r0,
             r3,
             GetLinkRegisterState(),
-            GetSaveFPRegsMode());
+            kSaveFPRegs);
       }
     }
     Comment(";;; End allocate local context");
@@ -3078,7 +3070,7 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
                               value,
                               scratch,
                               GetLinkRegisterState(),
-                              GetSaveFPRegsMode(),
+                              kSaveFPRegs,
                               EMIT_REMEMBERED_SET,
                               check_needed);
   }
@@ -4267,7 +4259,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                           scratch,
                           temp,
                           GetLinkRegisterState(),
-                          GetSaveFPRegsMode(),
+                          kSaveFPRegs,
                           OMIT_REMEMBERED_SET,
                           OMIT_SMI_CHECK);
     }
@@ -4286,7 +4278,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                           value,
                           scratch,
                           GetLinkRegisterState(),
-                          GetSaveFPRegsMode(),
+                          kSaveFPRegs,
                           EMIT_REMEMBERED_SET,
                           check_needed);
     }
@@ -4301,7 +4293,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                           value,
                           object,
                           GetLinkRegisterState(),
-                          GetSaveFPRegsMode(),
+                          kSaveFPRegs,
                           EMIT_REMEMBERED_SET,
                           check_needed);
     }
@@ -4495,7 +4487,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
                    key,
                    value,
                    GetLinkRegisterState(),
-                   GetSaveFPRegsMode(),
+                   kSaveFPRegs,
                    EMIT_REMEMBERED_SET,
                    check_needed);
   }

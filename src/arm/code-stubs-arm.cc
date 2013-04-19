@@ -1651,14 +1651,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   const Register scratch = r1;
 
   if (save_doubles_ == kSaveFPRegs) {
-    // Check CPU flags for number of registers, setting the Z condition flag.
-    __ CheckFor32DRegs(scratch);
-
-    __ sub(sp, sp, Operand(kDoubleSize * DwVfpRegister::kMaxNumRegisters));
-    for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; i++) {
-      DwVfpRegister reg = DwVfpRegister::from_code(i);
-      __ vstr(reg, MemOperand(sp, i * kDoubleSize), i < 16 ? al : ne);
-    }
+    __ SaveFPRegs(sp, scratch);
   }
   const int argument_count = 1;
   const int fp_argument_count = 0;
@@ -1670,14 +1663,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       ExternalReference::store_buffer_overflow_function(masm->isolate()),
       argument_count);
   if (save_doubles_ == kSaveFPRegs) {
-    // Check CPU flags for number of registers, setting the Z condition flag.
-    __ CheckFor32DRegs(scratch);
-
-    for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; i++) {
-      DwVfpRegister reg = DwVfpRegister::from_code(i);
-      __ vldr(reg, MemOperand(sp, i * kDoubleSize), i < 16 ? al : ne);
-    }
-    __ add(sp, sp, Operand(kDoubleSize * DwVfpRegister::kMaxNumRegisters));
+    __ RestoreFPRegs(sp, scratch);
   }
   __ ldm(ia_w, sp, kCallerSaved | pc.bit());  // Also pop pc to get Ret(0).
 }
@@ -7194,6 +7180,9 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
   stub1.GetCode(isolate)->set_is_pregenerated(true);
+  // Hydrogen code stubs need stub2 at snapshot time.
+  StoreBufferOverflowStub stub2(kSaveFPRegs);
+  stub2.GetCode(isolate)->set_is_pregenerated(true);
 }
 
 

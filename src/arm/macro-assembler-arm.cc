@@ -837,14 +837,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   // Optionally save all double registers.
   if (save_doubles) {
-    // Check CPU flags for number of registers, setting the Z condition flag.
-    CheckFor32DRegs(ip);
-
-    // Push registers d0-d15, and possibly d16-d31, on the stack.
-    // If d16-d31 are not pushed, decrease the stack pointer instead.
-    vstm(db_w, sp, d16, d31, ne);
-    sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
-    vstm(db_w, sp, d0, d15);
+    SaveFPRegs(sp, ip);
     // Note that d0 will be accessible at
     //   fp - 2 * kPointerSize - DwVfpRegister::kMaxNumRegisters * kDoubleSize,
     // since the sp slot and code slot were pushed after the fp.
@@ -905,15 +898,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
     const int offset = 2 * kPointerSize;
     sub(r3, fp,
         Operand(offset + DwVfpRegister::kMaxNumRegisters * kDoubleSize));
-
-    // Check CPU flags for number of registers, setting the Z condition flag.
-    CheckFor32DRegs(ip);
-
-    // Pop registers d0-d15, and possibly d16-d31, from r3.
-    // If d16-d31 are not popped, increase r3 instead.
-    vldm(ia_w, r3, d0, d15);
-    vldm(ia_w, r3, d16, d31, ne);
-    add(r3, r3, Operand(16 * kDoubleSize), LeaveCC, eq);
+    RestoreFPRegs(r3, ip);
   }
 
   // Clear top frame.
@@ -3180,6 +3165,22 @@ void MacroAssembler::CheckFor32DRegs(Register scratch) {
   mov(scratch, Operand(ExternalReference::cpu_features()));
   ldr(scratch, MemOperand(scratch));
   tst(scratch, Operand(1u << VFP32DREGS));
+}
+
+
+void MacroAssembler::SaveFPRegs(Register location, Register scratch) {
+  CheckFor32DRegs(scratch);
+  vstm(db_w, location, d16, d31, ne);
+  sub(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
+  vstm(db_w, location, d0, d15);
+}
+
+
+void MacroAssembler::RestoreFPRegs(Register location, Register scratch) {
+  CheckFor32DRegs(scratch);
+  vldm(ia_w, location, d0, d15);
+  vldm(ia_w, location, d16, d31, ne);
+  add(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
 }
 
 
