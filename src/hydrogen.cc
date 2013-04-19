@@ -870,7 +870,6 @@ void HGraphBuilder::IfBuilder::Deopt() {
   block->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
   if (did_else_) {
     first_false_block_ = NULL;
-    did_else_ = false;
   } else {
     first_true_block_ = NULL;
   }
@@ -884,8 +883,9 @@ void HGraphBuilder::IfBuilder::End() {
       last_true_block_ = builder_->current_block();
     }
     if (first_true_block_ == NULL) {
-      // Deopt on true. Nothing to do, just continue the else block.
+      // Deopt on true. Nothing to do, just continue the false block.
     } else if (first_false_block_ == NULL) {
+      // Deopt on false. Nothing to do except switching to the true block.
       builder_->set_current_block(last_true_block_);
     } else {
       HEnvironment* merge_env = last_true_block_->last_environment()->Copy();
@@ -1315,14 +1315,17 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       IfBuilder length_checker(this);
       length_checker.IfCompare(key, length, Token::LT);
       length_checker.Then();
-      CheckBuilder negative_checker(this);
-      HValue* bounds_check = negative_checker.CheckIntegerCompare(
+      IfBuilder negative_checker(this);
+      HValue* bounds_check = negative_checker.IfCompare(
           key, graph()->GetConstant0(), Token::GTE);
-      negative_checker.End();
+      negative_checker.Then();
       HInstruction* result = BuildExternalArrayElementAccess(
           external_elements, key, val, bounds_check,
           elements_kind, is_store);
       AddInstruction(result);
+      negative_checker.Else();
+      negative_checker.Deopt();
+      negative_checker.End();
       length_checker.End();
       return result;
     } else {
