@@ -3239,7 +3239,7 @@ class HConstant: public HTemplateInstruction<0> {
     return has_double_value_ &&
         (BitCast<int64_t>(double_value_) == BitCast<int64_t>(-0.0) ||
          FixedDoubleArray::is_the_hole_nan(double_value_) ||
-         isnan(double_value_));
+         std::isnan(double_value_));
   }
 
   bool ImmortalImmovable() const {

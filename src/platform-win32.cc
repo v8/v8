@@ -188,8 +188,8 @@ double modulo(double x, double y) {
   // Workaround MS fmod bugs. ECMA-262 says:
   // dividend is finite and divisor is an infinity => result equals dividend
   // dividend is a zero and divisor is nonzero finite => result equals dividend
-  if (!(isfinite(x) && (!isfinite(y) && !isnan(y))) &&
-      !(x == 0 && (y != 0 && isfinite(y)))) {
+  if (!(std::isfinite(x) && (!std::isfinite(y) && !std::isnan(y))) &&
+      !(x == 0 && (y != 0 && std::isfinite(y)))) {
     x = fmod(x, y);
   }
   return x;

@@ -2745,7 +2745,7 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_minus_zero_value(HeapNumber::cast(obj));
-  ASSERT(signbit(minus_zero_value()->Number()) != 0);
+  ASSERT(std::signbit(minus_zero_value()->Number()) != 0);
 
   { MaybeObject* maybe_obj = AllocateHeapNumber(OS::nan_value(), TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;

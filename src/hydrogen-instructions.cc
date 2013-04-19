@@ -2139,7 +2139,7 @@ HConstant::HConstant(double double_value,
       has_int32_value_(IsInteger32(double_value)),
       has_double_value_(true),
       is_internalized_string_(false),
-      boolean_value_(double_value != 0 && !isnan(double_value)),
+      boolean_value_(double_value != 0 && !std::isnan(double_value)),
       int32_value_(DoubleToInt32(double_value)),
       double_value_(double_value) {
   Initialize(r);
@@ -3176,7 +3176,7 @@ HInstruction* HStringCharFromCode::New(
     HConstant* c_code = HConstant::cast(char_code);
     Isolate* isolate = Isolate::Current();
     if (c_code->HasNumberValue()) {
-      if (isfinite(c_code->DoubleValue())) {
+      if (std::isfinite(c_code->DoubleValue())) {
         uint32_t code = c_code->NumberValueAsInteger32() & 0xffff;
         return new(zone) HConstant(LookupSingleCharacterStringFromCode(isolate,
                                                                        code),
@@ -3209,10 +3209,10 @@ HInstruction* HUnaryMathOperation::New(
     HConstant* constant = HConstant::cast(value);
     if (!constant->HasNumberValue()) break;
     double d = constant->DoubleValue();
-    if (isnan(d)) {  // NaN poisons everything.
+    if (std::isnan(d)) {  // NaN poisons everything.
       return H_CONSTANT_DOUBLE(OS::nan_value());
     }
-    if (isinf(d)) {  // +Infinity and -Infinity.
+    if (std::isinf(d)) {  // +Infinity and -Infinity.
       switch (op) {
         case kMathSin:
         case kMathCos:
@@ -3276,7 +3276,7 @@ HInstruction* HPower::New(Zone* zone, HValue* left, HValue* right) {
     if (c_left->HasNumberValue() && c_right->HasNumberValue()) {
       double result = power_helper(c_left->DoubleValue(),
                                    c_right->DoubleValue());
-      return H_CONSTANT_DOUBLE(isnan(result) ?  OS::nan_value() : result);
+      return H_CONSTANT_DOUBLE(std::isnan(result) ?  OS::nan_value() : result);
     }
   }
   return new(zone) HPower(left, right);

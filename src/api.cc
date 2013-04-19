@@ -27,8 +27,8 @@
 
 #include "api.h"
 
-#include <math.h>  // For isnan.
 #include <string.h>  // For memcpy, strlen.
+#include <cmath>  // For isnan.
 #include "../include/v8-debug.h"
 #include "../include/v8-profiler.h"
 #include "../include/v8-testing.h"
@@ -2984,7 +2984,7 @@ bool Value::StrictEquals(Handle<Value> that) const {
     double x = obj->Number();
     double y = other->Number();
     // Must check explicitly for NaN:s on Windows, but -0 works fine.
-    return x == y && !isnan(x) && !isnan(y);
+    return x == y && !std::isnan(x) && !std::isnan(y);
   } else if (*obj == *other) {  // Also covers Booleans.
     return true;
   } else if (obj->IsSmi()) {
@@ -5568,7 +5568,7 @@ Local<v8::Value> v8::Date::New(double time) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Date::New()");
   LOG_API(isolate, "Date::New");
-  if (isnan(time)) {
+  if (std::isnan(time)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
     time = i::OS::nan_value();
   }
@@ -5772,7 +5772,7 @@ Local<Symbol> v8::Symbol::New(Isolate* isolate, const char* data, int length) {
 Local<Number> v8::Number::New(double value) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Number::New()");
-  if (isnan(value)) {
+  if (std::isnan(value)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
     value = i::OS::nan_value();
   }

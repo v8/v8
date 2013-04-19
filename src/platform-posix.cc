@@ -204,7 +204,7 @@ int64_t OS::Ticks() {
 
 
 double OS::DaylightSavingsOffset(double time) {
-  if (isnan(time)) return nan_value();
+  if (std::isnan(time)) return nan_value();
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return nan_value();
