@@ -1077,7 +1077,7 @@ HValue* HGraphBuilder::BuildCheckNonSmi(HValue* obj) {
 
 HValue* HGraphBuilder::BuildCheckMap(HValue* obj,
                                               Handle<Map> map) {
-  HCheckMaps* check = new(zone()) HCheckMaps(obj, map, zone());
+  HCheckMaps* check = HCheckMaps::New(obj, map, zone());
   AddInstruction(check);
   return check;
 }
@@ -1293,7 +1293,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       AddInstruction(new(zone) HLoadElements(object, mapcheck));
   if (is_store && (fast_elements || fast_smi_only_elements) &&
       store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
-    HCheckMaps* check_cow_map = new(zone) HCheckMaps(
+    HCheckMaps* check_cow_map = HCheckMaps::New(
         elements, isolate()->factory()->fixed_array_map(), zone);
     check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
     AddInstruction(check_cow_map);
@@ -1370,7 +1370,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
         elements = BuildCopyElementsOnWrite(object, elements, elements_kind,
                                             length);
       } else {
-        HCheckMaps* check_cow_map = new(zone) HCheckMaps(
+        HCheckMaps* check_cow_map = HCheckMaps::New(
             elements, isolate()->factory()->fixed_array_map(), zone);
         check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
         AddInstruction(check_cow_map);
@@ -6651,7 +6651,7 @@ static int ComputeLoadStoreFieldIndex(Handle<Map> type,
 
 void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
   AddInstruction(new(zone()) HCheckNonSmi(object));
-  AddInstruction(new(zone()) HCheckMaps(object, map, zone()));
+  AddInstruction(HCheckMaps::New(object, map, zone()));
 }
 
 
@@ -6780,7 +6780,7 @@ bool HOptimizedGraphBuilder::HandlePolymorphicArrayLengthLoad(
   AddInstruction(new(zone()) HCheckNonSmi(object));
 
   HInstruction* typecheck =
-    AddInstruction(new(zone()) HCheckMaps(object, types, zone()));
+    AddInstruction(HCheckMaps::New(object, types, zone()));
   HInstruction* instr =
     HLoadNamedField::NewArrayLength(zone(), object, typecheck);
   instr->set_position(expr->position());
@@ -6832,7 +6832,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
   AddInstruction(new(zone()) HCheckNonSmi(object));
   HInstruction* instr;
   if (count == types->length() && is_monomorphic_field) {
-    AddInstruction(new(zone()) HCheckMaps(object, types, zone()));
+    AddInstruction(HCheckMaps::New(object, types, zone()));
     instr = BuildLoadNamedField(object, map, &lookup);
   } else {
     HValue* context = environment()->LookupContext();
@@ -7509,8 +7509,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     Handle<Map> map,
     bool is_store,
     KeyedAccessStoreMode store_mode) {
-  HCheckMaps* mapcheck = new(zone()) HCheckMaps(object, map,
-                                                zone(), dependency);
+  HCheckMaps* mapcheck = HCheckMaps::New(object, map, zone(), dependency);
   AddInstruction(mapcheck);
   if (dependency) {
     mapcheck->ClearGVNFlag(kDependsOnElementsKind);
@@ -7567,7 +7566,7 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
   }
   if (!has_double_maps && !has_smi_or_object_maps) return NULL;
 
-  HCheckMaps* check_maps = new(zone()) HCheckMaps(object, maps, zone());
+  HCheckMaps* check_maps = HCheckMaps::New(object, maps, zone());
   AddInstruction(check_maps);
   HInstruction* instr = BuildUncheckedMonomorphicElementAccess(
       object, key, val, check_maps,
@@ -7719,7 +7718,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       HInstruction* access;
       if (IsFastElementsKind(elements_kind)) {
         if (is_store && !IsFastDoubleElementsKind(elements_kind)) {
-          AddInstruction(new(zone()) HCheckMaps(
+          AddInstruction(HCheckMaps::New(
               elements, isolate()->factory()->fixed_array_map(),
               zone(), elements_kind_branch));
         }

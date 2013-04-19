@@ -2680,39 +2680,27 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 
 class HCheckMaps: public HTemplateInstruction<2> {
  public:
-  HCheckMaps(HValue* value, Handle<Map> map, Zone* zone,
-             HValue* typecheck = NULL)
-      : map_unique_ids_(0, zone) {
-    SetOperandAt(0, value);
-    // If callers don't depend on a typecheck, they can pass in NULL. In that
-    // case we use a copy of the |value| argument as a dummy value.
-    SetOperandAt(1, typecheck != NULL ? typecheck : value);
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetFlag(kTrackSideEffectDominators);
-    SetGVNFlag(kDependsOnMaps);
-    SetGVNFlag(kDependsOnElementsKind);
-    map_set()->Add(map, zone);
-  }
-  HCheckMaps(HValue* value, SmallMapList* maps, Zone* zone)
-      : map_unique_ids_(0, zone) {
-    SetOperandAt(0, value);
-    SetOperandAt(1, value);
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetFlag(kTrackSideEffectDominators);
-    SetGVNFlag(kDependsOnMaps);
-    SetGVNFlag(kDependsOnElementsKind);
-    for (int i = 0; i < maps->length(); i++) {
-      map_set()->Add(maps->at(i), zone);
-    }
-    map_set()->Sort();
+  static HCheckMaps* New(HValue* value, Handle<Map> map, Zone* zone,
+                         HValue *typecheck = NULL) {
+    HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
+    check_map->map_set_.Add(map, zone);
+    return check_map;
   }
 
-  static HCheckMaps* NewWithTransitions(HValue* object, Handle<Map> map,
+  static HCheckMaps* New(HValue* value, SmallMapList* maps, Zone* zone,
+                         HValue *typecheck = NULL) {
+    HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
+    for (int i = 0; i < maps->length(); i++) {
+      check_map->map_set_.Add(maps->at(i), zone);
+    }
+    check_map->map_set_.Sort();
+    return check_map;
+  }
+
+  static HCheckMaps* NewWithTransitions(HValue* value, Handle<Map> map,
                                         Zone* zone) {
-    HCheckMaps* check_map = new(zone) HCheckMaps(object, map, zone);
-    SmallMapList* map_set = check_map->map_set();
+    HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, value);
+    check_map->map_set_.Add(map, zone);
 
     // Since transitioned elements maps of the initial map don't fail the map
     // check, the CheckMaps instruction doesn't need to depend on ElementsKinds.
@@ -2725,10 +2713,10 @@ class HCheckMaps: public HTemplateInstruction<2> {
       Map* transitioned_map =
           map->LookupElementsTransitionMap(kind);
       if (transitioned_map) {
-        map_set->Add(Handle<Map>(transitioned_map), zone);
+        check_map->map_set_.Add(Handle<Map>(transitioned_map), zone);
       }
     };
-    map_set->Sort();
+    check_map->map_set_.Sort();
     return check_map;
   }
 
@@ -2763,6 +2751,20 @@ class HCheckMaps: public HTemplateInstruction<2> {
   }
 
  private:
+  // Clients should use one of the static New* methods above.
+  HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
+      : map_unique_ids_(0, zone) {
+    SetOperandAt(0, value);
+    // Use the object value for the dependency if NULL is passed.
+    // TODO(titzer): do GVN flags already express this dependency?
+    SetOperandAt(1, typecheck != NULL ? typecheck : value);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetFlag(kTrackSideEffectDominators);
+    SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnElementsKind);
+  }
+
   SmallMapList map_set_;
   ZoneList<UniqueValueId> map_unique_ids_;
 };
