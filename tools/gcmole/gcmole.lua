@@ -117,31 +117,25 @@ function InvokeClangPluginForEachFile(filenames, cfg, func)
 end
 
 -------------------------------------------------------------------------------
--- SConscript parsing
+-- GYP file parsing
 
-local function ParseSConscript()
-   local f = assert(io.open("src/SConscript"), "failed to open SConscript")
-   local sconscript = f:read('*a')
+local function ParseGYPFile()
+   local f = assert(io.open("tools/gyp/v8.gyp"), "failed to open GYP file")
+   local gyp = f:read('*a')
    f:close()
 
-   local SOURCES = sconscript:match "SOURCES = {(.-)}";
+   local result = {}
 
-   local sources = {}
-
-   for condition, list in
-      SOURCES:gmatch "'([^']-)': Split%(\"\"\"(.-)\"\"\"%)" do
+   for condition, sources in
+      gyp:gmatch "'sources': %[.-### gcmole%((.-)%) ###(.-)%]" do
       local files = {}
-      for file in list:gmatch "[^%s]+" do table.insert(files, file) end
-      sources[condition] = files
+      for file in sources:gmatch "'%.%./%.%./src/([^']-%.cc)'" do
+         table.insert(files, file)
+      end
+      result[condition] = files
    end
 
-   for condition, list in SOURCES:gmatch "'([^']-)': %[(.-)%]" do
-      local files = {}
-      for file in list:gmatch "'([^']-)'" do table.insert(files, file) end
-      sources[condition] = files
-   end
-
-   return sources
+   return result
 end
 
 local function EvaluateCondition(cond, props)
@@ -165,7 +159,7 @@ local function BuildFileList(sources, props)
    return list
 end
 
-local sources = ParseSConscript()
+local sources = ParseGYPFile()
 
 local function FilesForArch(arch)
    return BuildFileList(sources, { os = 'linux',
