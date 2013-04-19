@@ -2433,7 +2433,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
   intptr_t offset = frame->pc() - function->code()->instruction_start();
   ASSERT(*function == generator_object->function());
   ASSERT(offset > 0 && Smi::IsValid(offset));
-  generator_object->set_continuation(offset);
+  generator_object->set_continuation(static_cast<int>(offset));
 
   // Generator functions force context allocation for locals, so Local0 points
   // to the bottom of the operand stack.  Assume the stack grows down.
@@ -2447,7 +2447,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
   ASSERT(IsAligned(stack_size_in_bytes, kPointerSize));
   ASSERT(stack_size_in_bytes >= 0);
   ASSERT(Smi::IsValid(stack_size_in_bytes));
-  unsigned stack_size = stack_size_in_bytes >> kPointerSizeLog2;
+  intptr_t stack_size = stack_size_in_bytes >> kPointerSizeLog2;
 
   // We expect there to be at least two values on the stack: the return value of
   // the yield expression, and the argument to this runtime call.  Neither of
