@@ -1926,6 +1926,60 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
 }
 
 
+void FullCodeGenerator::VisitYield(Yield* expr) {
+  Comment cmnt(masm_, "[ Yield");
+  // Evaluate yielded value first; the initial iterator definition depends on
+  // this.  It stays on the stack while we update the iterator.
+  VisitForStackValue(expr->expression());
+
+  switch (expr->yield_kind()) {
+    case Yield::INITIAL:
+    case Yield::SUSPEND: {
+      VisitForStackValue(expr->generator_object());
+      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ lw(context_register(),
+            MemOperand(fp, StandardFrameConstants::kContextOffset));
+
+      Label resume;
+      __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+      __ Branch(&resume, ne, result_register(), Operand(at));
+      __ pop(result_register());
+      if (expr->yield_kind() == Yield::SUSPEND) {
+        // TODO(wingo): Box into { value: VALUE, done: false }.
+      }
+      EmitReturnSequence();
+
+      __ bind(&resume);
+      context()->Plug(result_register());
+      break;
+    }
+
+    case Yield::FINAL: {
+      VisitForAccumulatorValue(expr->generator_object());
+      __ li(a1, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorClosed)));
+      __ sw(a1, FieldMemOperand(result_register(),
+                                JSGeneratorObject::kContinuationOffset));
+      __ pop(result_register());
+      // TODO(wingo): Box into { value: VALUE, done: true }.
+
+      // Exit all nested statements.
+      NestedStatement* current = nesting_stack_;
+      int stack_depth = 0;
+      int context_length = 0;
+      while (current != NULL) {
+        current = current->Exit(&stack_depth, &context_length);
+      }
+      __ Drop(stack_depth);
+      EmitReturnSequence();
+      break;
+    }
+
+    case Yield::DELEGATING:
+      UNIMPLEMENTED();
+  }
+}
+
+
 void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
