@@ -5390,9 +5390,9 @@ MaybeObject* JSObject::DefineFastAccessor(Name* name,
   LookupResult result(GetIsolate());
   LocalLookup(name, &result);
 
-  if (result.IsFound()
-      && !result.IsPropertyCallbacks()
-      && !result.IsTransition()) return GetHeap()->null_value();
+  if (result.IsFound() && !result.IsPropertyCallbacks()) {
+    return GetHeap()->null_value();
+  }
 
   // Return success if the same accessor with the same attributes already exist.
   AccessorPair* source_accessors = NULL;
