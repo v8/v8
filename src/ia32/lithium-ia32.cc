@@ -2287,6 +2287,19 @@ LOperand* LChunkBuilder::GetStoreKeyedValueOperand(HStoreKeyed* instr) {
 }
 
 
+// DoStoreKeyed and DoStoreNamedField have special considerations for allowing
+// use of a constant instead of a register.
+static bool StoreConstantValueAllowed(HValue* value) {
+  if (value->IsConstant()) {
+    HConstant* constant_value = HConstant::cast(value);
+    return constant_value->HasSmiValue()
+        || constant_value->HasDoubleValue()
+        || constant_value->ImmortalImmovable();
+  }
+  return false;
+}
+
+
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   if (!instr->is_external()) {
     ASSERT(instr->elements()->representation().IsTagged());
@@ -2314,8 +2327,17 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
         val = UseTempRegister(instr->value());
         key = UseTempRegister(instr->key());
       } else {
-        val = UseRegisterOrConstantAtStart(instr->value());
-        key = UseRegisterOrConstantAtStart(instr->key());
+        if (StoreConstantValueAllowed(instr->value())) {
+          val = UseRegisterOrConstantAtStart(instr->value());
+        } else {
+          val = UseRegisterAtStart(instr->value());
+        }
+
+        if (StoreConstantValueAllowed(instr->key())) {
+          key = UseRegisterOrConstantAtStart(instr->key());
+        } else {
+          key = UseRegisterAtStart(instr->key());
+        }
       }
       return new(zone()) LStoreKeyed(obj, key, val);
     }
@@ -2416,18 +2438,10 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
         : UseRegisterAtStart(instr->object());
   }
 
-  bool register_or_constant = false;
-  if (instr->value()->IsConstant()) {
-    HConstant* constant_value = HConstant::cast(instr->value());
-    register_or_constant = constant_value->HasInteger32Value()
-        || constant_value->HasDoubleValue()
-        || constant_value->ImmortalImmovable();
-  }
-
   LOperand* val;
   if (needs_write_barrier) {
     val = UseTempRegister(instr->value());
-  } else if (register_or_constant) {
+  } else if (StoreConstantValueAllowed(instr->value())) {
     val = UseRegisterOrConstant(instr->value());
   } else {
     val = UseRegister(instr->value());

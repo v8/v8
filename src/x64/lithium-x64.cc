@@ -2124,6 +2124,19 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 }
 
 
+// DoStoreKeyed and DoStoreNamedField have special considerations for allowing
+// use of a constant instead of a register.
+static bool StoreConstantValueAllowed(HValue* value) {
+  if (value->IsConstant()) {
+    HConstant* constant_value = HConstant::cast(value);
+    return constant_value->HasSmiValue()
+        || constant_value->HasDoubleValue()
+        || constant_value->ImmortalImmovable();
+  }
+  return false;
+}
+
+
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   bool clobbers_key = instr->key()->representation().IsTagged();
@@ -2143,11 +2156,24 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     } else {
       ASSERT(instr->value()->representation().IsTagged());
       object = UseTempRegister(instr->elements());
-      val = needs_write_barrier ? UseTempRegister(instr->value())
-          : UseRegisterOrConstantAtStart(instr->value());
-      key = (clobbers_key || needs_write_barrier)
-          ? UseTempRegister(instr->key())
-          : UseRegisterOrConstantAtStart(instr->key());
+      if (needs_write_barrier) {
+        val = UseTempRegister(instr->value());
+        key = UseTempRegister(instr->key());
+      } else {
+        if (StoreConstantValueAllowed(instr->value())) {
+          val = UseRegisterOrConstantAtStart(instr->value());
+        } else {
+          val = UseRegisterAtStart(instr->value());
+        }
+
+        if (clobbers_key) {
+          key = UseTempRegister(instr->key());
+        } else if (StoreConstantValueAllowed(instr->key())) {
+          key = UseRegisterOrConstantAtStart(instr->key());
+        } else {
+          key = UseRegisterAtStart(instr->key());
+        }
+      }
     }
 
     return new(zone()) LStoreKeyed(object, key, val);
@@ -2241,18 +2267,10 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
         : UseRegisterAtStart(instr->object());
   }
 
-  bool register_or_constant = false;
-  if (instr->value()->IsConstant()) {
-    HConstant* constant_value = HConstant::cast(instr->value());
-    register_or_constant = constant_value->HasInteger32Value()
-        || constant_value->HasDoubleValue()
-        || constant_value->ImmortalImmovable();
-  }
-
   LOperand* val;
   if (needs_write_barrier) {
     val = UseTempRegister(instr->value());
-  } else if (register_or_constant) {
+  } else if (StoreConstantValueAllowed(instr->value())) {
     val = UseRegisterOrConstant(instr->value());
   } else {
     val = UseRegister(instr->value());

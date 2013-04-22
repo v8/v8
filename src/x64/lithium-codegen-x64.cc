@@ -3954,16 +3954,16 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (instr->value()->IsConstantOperand()) {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
     if (IsInteger32Constant(operand_value)) {
-      int const_value = ToInteger32(operand_value);
-      __ movq(FieldOperand(write_register, offset), Immediate(const_value));
+      // In lithium register preparation, we made sure that the constant integer
+      // operand fits into smi range.
+      Smi* smi_value = Smi::FromInt(ToInteger32(operand_value));
+      __ Move(FieldOperand(write_register, offset), smi_value);
+    } else if (operand_value->IsRegister()) {
+      __ movq(FieldOperand(write_register, offset),
+              ToRegister(operand_value));
     } else {
-      if (operand_value->IsRegister()) {
-        __ movq(FieldOperand(write_register, offset),
-                ToRegister(operand_value));
-      } else {
-        Handle<Object> handle_value = ToHandle(operand_value);
-        __ Move(FieldOperand(write_register, offset), handle_value);
-      }
+      Handle<Object> handle_value = ToHandle(operand_value);
+      __ Move(FieldOperand(write_register, offset), handle_value);
     }
   } else {
     __ movq(FieldOperand(write_register, offset), ToRegister(instr->value()));
