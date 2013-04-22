@@ -2228,13 +2228,24 @@ void HBinaryOperation::InferRepresentation(HInferRepresentation* h_infer) {
 }
 
 
+bool HBinaryOperation::IgnoreObservedOutputRepresentation(
+    Representation current_rep) {
+  return observed_output_representation_.IsDouble() &&
+         current_rep.IsInteger32() &&
+         // Mul in Integer32 mode would be too precise.
+         !this->IsMul() &&
+         // TODO(jkummerow): Remove blacklisting of Div when the Div
+         // instruction has learned not to deopt when the remainder is
+         // non-zero but all uses are truncating.
+         !this->IsDiv() &&
+         CheckUsesForFlag(kTruncatingToInt32);
+}
+
+
 Representation HBinaryOperation::RepresentationFromInputs() {
   // Determine the worst case of observed input representations and
   // the currently assumed output representation.
   Representation rep = representation();
-  if (observed_output_representation_.is_more_general_than(rep)) {
-    rep = observed_output_representation_;
-  }
   for (int i = 1; i <= 2; ++i) {
     Representation input_rep = observed_input_representation(i);
     if (input_rep.is_more_general_than(rep)) rep = input_rep;
@@ -2251,6 +2262,13 @@ Representation HBinaryOperation::RepresentationFromInputs() {
   if (right_rep.is_more_general_than(rep) &&
       right()->CheckFlag(kFlexibleRepresentation)) {
     rep = right_rep;
+  }
+  // Consider observed output representation, but ignore it if it's Double,
+  // this instruction is not a division, and all its uses are truncating
+  // to Integer32.
+  if (observed_output_representation_.is_more_general_than(rep) &&
+      !IgnoreObservedOutputRepresentation(rep)) {
+    rep = observed_output_representation_;
   }
   return rep;
 }

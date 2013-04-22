@@ -3455,6 +3455,8 @@ class HBinaryOperation: public HTemplateInstruction<3> {
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)
 
  private:
+  bool IgnoreObservedOutputRepresentation(Representation current_rep);
+
   Representation observed_input_representation_[2];
   Representation observed_output_representation_;
 };
