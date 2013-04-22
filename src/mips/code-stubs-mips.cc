@@ -2511,12 +2511,17 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           __ Addu(scratch2, scratch1, Operand(0x40000000));
           // If not try to return a heap number.
           __ Branch(&return_heap_number, lt, scratch2, Operand(zero_reg));
-          // Check for minus zero. Return heap number for minus zero.
+          // Check for minus zero. Return heap number for minus zero if
+          // double results are allowed; otherwise transition.
           Label not_zero;
           __ Branch(&not_zero, ne, scratch1, Operand(zero_reg));
           __ mfc1(scratch2, f11);
           __ And(scratch2, scratch2, HeapNumber::kSignMask);
-          __ Branch(&return_heap_number, ne, scratch2, Operand(zero_reg));
+          __ Branch(result_type_ <= BinaryOpIC::INT32 ? &transition
+                    : &return_heap_number,
+                    ne,
+                    scratch2,
+                    Operand(zero_reg));
           __ bind(&not_zero);
 
           // Tag the result and return.
@@ -2529,21 +2534,18 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         __ bind(&return_heap_number);
         // Return a heap number, or fall through to type transition or runtime
         // call if we can't.
-        if (result_type_ >= ((op_ == Token::DIV) ? BinaryOpIC::NUMBER
-                                                 : BinaryOpIC::INT32)) {
-          // We are using FPU registers so s0 is available.
-          heap_number_result = s0;
-          BinaryOpStub_GenerateHeapResultAllocation(masm,
-                                                    heap_number_result,
-                                                    heap_number_map,
-                                                    scratch1,
-                                                    scratch2,
-                                                    &call_runtime,
-                                                    mode_);
-          __ mov(v0, heap_number_result);
-          __ sdc1(f10, FieldMemOperand(v0, HeapNumber::kValueOffset));
-          __ Ret();
-        }
+        // We are using FPU registers so s0 is available.
+        heap_number_result = s0;
+        BinaryOpStub_GenerateHeapResultAllocation(masm,
+                                                  heap_number_result,
+                                                  heap_number_map,
+                                                  scratch1,
+                                                  scratch2,
+                                                  &call_runtime,
+                                                  mode_);
+        __ mov(v0, heap_number_result);
+        __ sdc1(f10, FieldMemOperand(v0, HeapNumber::kValueOffset));
+        __ Ret();
 
         // A DIV operation expecting an integer result falls through
         // to type transition.
