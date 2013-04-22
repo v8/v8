@@ -783,6 +783,7 @@ class Isolate {
   // Out of resource exception helpers.
   Failure* StackOverflow();
   Failure* TerminateExecution();
+  void CancelTerminateExecution();
 
   // Administration
   void Iterate(ObjectVisitor* v);

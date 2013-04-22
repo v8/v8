@@ -1077,6 +1077,23 @@ Failure* Isolate::TerminateExecution() {
 }
 
 
+void Isolate::CancelTerminateExecution() {
+  if (try_catch_handler()) {
+    try_catch_handler()->has_terminated_ = false;
+  }
+  if (has_pending_exception() &&
+      pending_exception() == heap_.termination_exception()) {
+    thread_local_top()->external_caught_exception_ = false;
+    clear_pending_exception();
+  }
+  if (has_scheduled_exception() &&
+      scheduled_exception() == heap_.termination_exception()) {
+    thread_local_top()->external_caught_exception_ = false;
+    clear_scheduled_exception();
+  }
+}
+
+
 Failure* Isolate::Throw(Object* exception, MessageLocation* location) {
   DoThrow(exception, location);
   return Failure::Exception();
@@ -1990,12 +2007,14 @@ void Isolate::PropagatePendingExceptionToExternalTryCatch() {
   } else if (thread_local_top_.pending_exception_ ==
              heap()->termination_exception()) {
     try_catch_handler()->can_continue_ = false;
+    try_catch_handler()->has_terminated_ = true;
     try_catch_handler()->exception_ = heap()->null_value();
   } else {
     // At this point all non-object (failure) exceptions have
     // been dealt with so this shouldn't fail.
     ASSERT(!pending_exception()->IsFailure());
     try_catch_handler()->can_continue_ = true;
+    try_catch_handler()->has_terminated_ = false;
     try_catch_handler()->exception_ = pending_exception();
     if (!thread_local_top_.pending_message_obj_->IsTheHole()) {
       try_catch_handler()->message_ = thread_local_top_.pending_message_obj_;
