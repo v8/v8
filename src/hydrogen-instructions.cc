@@ -1683,9 +1683,15 @@ void HInstanceOf::PrintDataTo(StringStream* stream) {
 
 
 Range* HValue::InferRange(Zone* zone) {
-  // Untagged integer32 cannot be -0, all other representations can.
-  Range* result = new(zone) Range();
-  result->set_can_be_minus_zero(!representation().IsInteger32());
+  Range* result;
+  if (type().IsSmi()) {
+    result = new(zone) Range(Smi::kMinValue, Smi::kMaxValue);
+    result->set_can_be_minus_zero(false);
+  } else {
+    // Untagged integer32 cannot be -0, all other representations can.
+    result = new(zone) Range();
+    result->set_can_be_minus_zero(!representation().IsInteger32());
+  }
   return result;
 }
 
