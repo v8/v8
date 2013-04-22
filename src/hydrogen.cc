@@ -642,67 +642,6 @@ DEFINE_GET_CONSTANT(Hole, the_hole, HType::Tagged(), false)
 #undef DEFINE_GET_CONSTANT
 
 
-HGraphBuilder::CheckBuilder::CheckBuilder(HGraphBuilder* builder)
-    : builder_(builder),
-      finished_(false) {
-  HEnvironment* env = builder->environment();
-  failure_block_ = builder->CreateBasicBlock(env->Copy());
-  merge_block_ = builder->CreateBasicBlock(env->Copy());
-}
-
-
-HValue* HGraphBuilder::CheckBuilder::CheckNotUndefined(HValue* value) {
-  HEnvironment* env = builder_->environment();
-  HCompareObjectEqAndBranch* compare =
-      new(zone()) HCompareObjectEqAndBranch(
-          value,
-          builder_->graph()->GetConstantUndefined());
-  HBasicBlock* success_block = builder_->CreateBasicBlock(env->Copy());
-  HBasicBlock* failure_block = builder_->CreateBasicBlock(env->Copy());
-  compare->SetSuccessorAt(0, failure_block);
-  compare->SetSuccessorAt(1, success_block);
-  failure_block->GotoNoSimulate(failure_block_);
-  builder_->current_block()->Finish(compare);
-  builder_->set_current_block(success_block);
-  return compare;
-}
-
-
-HValue* HGraphBuilder::CheckBuilder::CheckIntegerCompare(HValue* left,
-                                                         HValue* right,
-                                                         Token::Value op) {
-  HEnvironment* env = builder_->environment();
-  HCompareIDAndBranch* compare =
-      new(zone()) HCompareIDAndBranch(left, right, op);
-  compare->AssumeRepresentation(Representation::Integer32());
-  HBasicBlock* success_block = builder_->CreateBasicBlock(env->Copy());
-  HBasicBlock* failure_block = builder_->CreateBasicBlock(env->Copy());
-  compare->SetSuccessorAt(0, success_block);
-  compare->SetSuccessorAt(1, failure_block);
-  failure_block->GotoNoSimulate(failure_block_);
-  builder_->current_block()->Finish(compare);
-  builder_->set_current_block(success_block);
-  return compare;
-}
-
-
-HValue* HGraphBuilder::CheckBuilder::CheckIntegerEq(HValue* left,
-                                                    HValue* right) {
-  return CheckIntegerCompare(left, right, Token::EQ);
-}
-
-
-void HGraphBuilder::CheckBuilder::End() {
-  ASSERT(!finished_);
-  builder_->current_block()->GotoNoSimulate(merge_block_);
-  if (failure_block_->HasPredecessor()) {
-    failure_block_->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
-  }
-  builder_->set_current_block(merge_block_);
-  finished_ = true;
-}
-
-
 HConstant* HGraph::GetInvalidContext() {
   return GetConstantInt32(&constant_invalid_context_, 0xFFFFC0C7);
 }
@@ -1323,9 +1262,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
           external_elements, key, val, bounds_check,
           elements_kind, is_store);
       AddInstruction(result);
-      negative_checker.Else();
-      negative_checker.Deopt();
-      negative_checker.End();
+      negative_checker.ElseDeopt();
       length_checker.End();
       return result;
     } else {

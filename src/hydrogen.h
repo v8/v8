@@ -1013,27 +1013,6 @@ class HGraphBuilder {
   HInstruction* BuildStoreMap(HValue* object, HValue* map);
   HInstruction* BuildStoreMap(HValue* object, Handle<Map> map);
 
-  class CheckBuilder {
-   public:
-    explicit CheckBuilder(HGraphBuilder* builder);
-    ~CheckBuilder() {
-      if (!finished_) End();
-    }
-
-    HValue* CheckNotUndefined(HValue* value);
-    HValue* CheckIntegerCompare(HValue* left, HValue* right, Token::Value op);
-    HValue* CheckIntegerEq(HValue* left, HValue* right);
-    void End();
-
-   private:
-    Zone* zone() { return builder_->zone(); }
-
-    HGraphBuilder* builder_;
-    bool finished_;
-    HBasicBlock* failure_block_;
-    HBasicBlock* merge_block_;
-  };
-
   class IfBuilder {
    public:
     explicit IfBuilder(HGraphBuilder* builder,
@@ -1064,6 +1043,17 @@ class HGraphBuilder {
     HInstruction* If(HValue* p1, P2 p2) {
       HControlInstruction* compare = new(zone()) Condition(p1, p2);
       AddCompare(compare);
+      return compare;
+    }
+
+    template<class Condition, class P2>
+    HInstruction* IfNot(HValue* p1, P2 p2) {
+      HControlInstruction* compare = new(zone()) Condition(p1, p2);
+      AddCompare(compare);
+      HBasicBlock* block0 = compare->SuccessorAt(0);
+      HBasicBlock* block1 = compare->SuccessorAt(1);
+      compare->SetSuccessorAt(0, block1);
+      compare->SetSuccessorAt(1, block0);
       return compare;
     }
 
@@ -1129,6 +1119,11 @@ class HGraphBuilder {
     void End();
 
     void Deopt();
+    void ElseDeopt() {
+      Else();
+      Deopt();
+      End();
+    }
 
    private:
     void AddCompare(HControlInstruction* compare);

@@ -191,9 +191,10 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
   virtual HValue* BuildCodeUninitializedStub() {
     // Force a deopt that falls back to the runtime.
     HValue* undefined = graph()->GetConstantUndefined();
-    CheckBuilder builder(this);
-    builder.CheckNotUndefined(undefined);
-    builder.End();
+    IfBuilder builder(this);
+    builder.IfNot<HCompareObjectEqAndBranch, HValue*>(undefined, undefined);
+    builder.Then();
+    builder.ElseDeopt();
     return undefined;
   }
 
@@ -263,6 +264,7 @@ template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Zone* zone = this->zone();
   Factory* factory = isolate()->factory();
+  HValue* undefined = graph()->GetConstantUndefined();
   AllocationSiteMode alloc_site_mode = casted_stub()->allocation_site_mode();
   FastCloneShallowArrayStub::Mode mode = casted_stub()->mode();
   int length = casted_stub()->length();
@@ -273,8 +275,9 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                           NULL,
                                           FAST_ELEMENTS));
 
-  CheckBuilder builder(this);
-  builder.CheckNotUndefined(boilerplate);
+  IfBuilder checker(this);
+  checker.IfNot<HCompareObjectEqAndBranch, HValue*>(boilerplate, undefined);
+  checker.Then();
 
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
     HValue* elements =
@@ -313,7 +316,9 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                length));
   }
 
-  return environment()->Pop();
+  HValue* result = environment()->Pop();
+  checker.ElseDeopt();
+  return result;
 }
 
 
@@ -326,6 +331,7 @@ template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   Zone* zone = this->zone();
   Factory* factory = isolate()->factory();
+  HValue* undefined = graph()->GetConstantUndefined();
 
   HInstruction* boilerplate =
       AddInstruction(new(zone) HLoadKeyed(GetParameter(0),
@@ -333,8 +339,9 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
                                           NULL,
                                           FAST_ELEMENTS));
 
-  CheckBuilder builder(this);
-  builder.CheckNotUndefined(boilerplate);
+  IfBuilder checker(this);
+  checker.IfNot<HCompareObjectEqAndBranch, HValue*>(boilerplate, undefined);
+  checker.And();
 
   int size = JSObject::kHeaderSize + casted_stub()->length() * kPointerSize;
   HValue* boilerplate_size =
@@ -342,7 +349,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HValue* size_in_words =
       AddInstruction(new(zone) HConstant(size >> kPointerSizeLog2,
                                          Representation::Integer32()));
-  builder.CheckIntegerEq(boilerplate_size, size_in_words);
+  checker.IfCompare(boilerplate_size, size_in_words, Token::EQ);
+  checker.Then();
 
   HValue* size_in_bytes =
       AddInstruction(new(zone) HConstant(size, Representation::Integer32()));
@@ -366,7 +374,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
                                               true, i));
   }
 
-  builder.End();
+  checker.ElseDeopt();
   return object;
 }
 
