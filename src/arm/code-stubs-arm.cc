@@ -2611,13 +2611,15 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
           // If not try to return a heap number.
           __ b(mi, &return_heap_number);
-          // Check for minus zero. Return heap number for minus zero.
+          // Check for minus zero. Return heap number for minus zero if
+          // double results are allowed; otherwise transition.
           Label not_zero;
           __ cmp(scratch1, Operand::Zero());
           __ b(ne, &not_zero);
           __ vmov(scratch2, d5.high());
           __ tst(scratch2, Operand(HeapNumber::kSignMask));
-          __ b(ne, &return_heap_number);
+          __ b(ne, result_type_ <= BinaryOpIC::INT32 ? &transition
+                                                     : &return_heap_number);
           __ bind(&not_zero);
 
           // Tag the result and return.
@@ -2630,22 +2632,19 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         __ bind(&return_heap_number);
         // Return a heap number, or fall through to type transition or runtime
         // call if we can't.
-        if (result_type_ >= ((op_ == Token::DIV) ? BinaryOpIC::NUMBER
-                                                 : BinaryOpIC::INT32)) {
-          // We are using vfp registers so r5 is available.
-          heap_number_result = r5;
-          BinaryOpStub_GenerateHeapResultAllocation(masm,
-                                                    heap_number_result,
-                                                    heap_number_map,
-                                                    scratch1,
-                                                    scratch2,
-                                                    &call_runtime,
-                                                    mode_);
-          __ sub(r0, heap_number_result, Operand(kHeapObjectTag));
-          __ vstr(d5, r0, HeapNumber::kValueOffset);
-          __ mov(r0, heap_number_result);
-          __ Ret();
-        }
+        // We are using vfp registers so r5 is available.
+        heap_number_result = r5;
+        BinaryOpStub_GenerateHeapResultAllocation(masm,
+                                                  heap_number_result,
+                                                  heap_number_map,
+                                                  scratch1,
+                                                  scratch2,
+                                                  &call_runtime,
+                                                  mode_);
+        __ sub(r0, heap_number_result, Operand(kHeapObjectTag));
+        __ vstr(d5, r0, HeapNumber::kValueOffset);
+        __ mov(r0, heap_number_result);
+        __ Ret();
 
         // A DIV operation expecting an integer result falls through
         // to type transition.
