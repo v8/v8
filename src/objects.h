@@ -1096,6 +1096,13 @@ class Object : public MaybeObject {
                                     Handle<Name> key,
                                     PropertyAttributes* attributes);
 
+  MUST_USE_RESULT static MaybeObject* GetPropertyOrFail(
+      Handle<Object> object,
+      Handle<Object> receiver,
+      LookupResult* result,
+      Handle<Name> key,
+      PropertyAttributes* attributes);
+
   MUST_USE_RESULT MaybeObject* GetProperty(Object* receiver,
                                            LookupResult* result,
                                            Name* key,
@@ -1569,6 +1576,15 @@ class JSReceiver: public HeapObject {
                                     Handle<Object> value,
                                     PropertyAttributes attributes,
                                     StrictModeFlag strict_mode);
+
+  MUST_USE_RESULT static MaybeObject* SetPropertyOrFail(
+      Handle<JSReceiver> object,
+      Handle<Name> key,
+      Handle<Object> value,
+      PropertyAttributes attributes,
+      StrictModeFlag strict_mode,
+      StoreFromKeyed store_from_keyed = MAY_BE_STORE_FROM_KEYED);
+
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetProperty(
       Name* key,
@@ -6281,10 +6297,14 @@ class JSGeneratorObject: public JSObject {
   // [function]: The function corresponding to this generator object.
   DECL_ACCESSORS(function, JSFunction)
 
-  // [context]: The context of the suspended computation, or undefined.
-  DECL_ACCESSORS(context, Object)
+  // [context]: The context of the suspended computation.
+  DECL_ACCESSORS(context, Context)
 
   // [continuation]: Offset into code of continuation.
+  //
+  // A positive offset indicates a suspended generator.  The special
+  // kGeneratorExecuting and kGeneratorClosed values indicate that a generator
+  // cannot be resumed.
   inline int continuation();
   inline void set_continuation(int continuation);
 
@@ -6297,6 +6317,10 @@ class JSGeneratorObject: public JSObject {
   // Dispatched behavior.
   DECLARE_PRINTER(JSGeneratorObject)
   DECLARE_VERIFIER(JSGeneratorObject)
+
+  // Magic sentinel values for the continuation.
+  static const int kGeneratorExecuting = -1;
+  static const int kGeneratorClosed = 0;
 
   // Layout description.
   static const int kFunctionOffset = JSObject::kHeaderSize;

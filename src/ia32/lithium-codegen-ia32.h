@@ -87,7 +87,8 @@ class LCodeGen BASE_EMBEDDED {
   bool NeedsEagerFrame() const {
     return GetStackSlotCount() > 0 ||
         info()->is_non_deferred_calling() ||
-        !info()->IsStub();
+        !info()->IsStub() ||
+        info()->requires_frame();
   }
   bool NeedsDeferredFrame() const {
     return !NeedsEagerFrame() && info()->is_deferred_calling();
@@ -190,7 +191,7 @@ class LCodeGen BASE_EMBEDDED {
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
 
-  int GetNextEmittedBlock(int block);
+  int GetNextEmittedBlock();
 
   void EmitClassOfTest(Label* if_true,
                        Label* if_false,

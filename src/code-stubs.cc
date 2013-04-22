@@ -37,6 +37,16 @@
 namespace v8 {
 namespace internal {
 
+
+CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
+    : register_param_count_(-1),
+      stack_parameter_count_(NULL),
+      function_mode_(NOT_JS_FUNCTION_STUB_MODE),
+      register_params_(NULL),
+      deoptimization_handler_(NULL),
+      miss_handler_(IC_Utility(IC::kUnreachable), Isolate::Current()) { }
+
+
 bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {
   UnseededNumberDictionary* stubs = isolate->heap()->code_stubs();
   int index = stubs->FindEntry(GetKey());
@@ -557,7 +567,7 @@ bool ToBooleanStub::Types::Record(Handle<Object> object) {
     ASSERT(!object->IsUndetectableObject());
     Add(HEAP_NUMBER);
     double value = HeapNumber::cast(*object)->value();
-    return value != 0 && !isnan(value);
+    return value != 0 && !std::isnan(value);
   } else {
     // We should never see an internal object at runtime here!
     UNREACHABLE();

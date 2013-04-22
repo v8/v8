@@ -83,7 +83,8 @@ class LCodeGen BASE_EMBEDDED {
   bool NeedsEagerFrame() const {
     return GetStackSlotCount() > 0 ||
         info()->is_non_deferred_calling() ||
-        !info()->IsStub();
+        !info()->IsStub() ||
+        info()->requires_frame();
   }
   bool NeedsDeferredFrame() const {
     return !NeedsEagerFrame() && info()->is_deferred_calling();
@@ -200,7 +201,7 @@ class LCodeGen BASE_EMBEDDED {
   Register scratch0() { return r9; }
   DwVfpRegister double_scratch0() { return kScratchDoubleReg; }
 
-  int GetNextEmittedBlock(int block);
+  int GetNextEmittedBlock();
   LInstruction* GetNextInstruction();
 
   void EmitClassOfTest(Label* if_true,

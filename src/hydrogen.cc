@@ -714,8 +714,6 @@ HGraphBuilder::IfBuilder::IfBuilder(HGraphBuilder* builder, int position)
       finished_(false),
       did_then_(false),
       did_else_(false),
-      deopt_then_(false),
-      deopt_else_(false),
       did_and_(false),
       did_or_(false),
       captured_(false),
@@ -736,8 +734,6 @@ HGraphBuilder::IfBuilder::IfBuilder(
       finished_(false),
       did_then_(false),
       did_else_(false),
-      deopt_then_(false),
-      deopt_else_(false),
       did_and_(false),
       did_or_(false),
       captured_(false),
@@ -874,7 +870,6 @@ void HGraphBuilder::IfBuilder::Deopt() {
   block->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
   if (did_else_) {
     first_false_block_ = NULL;
-    did_else_ = false;
   } else {
     first_true_block_ = NULL;
   }
@@ -888,8 +883,9 @@ void HGraphBuilder::IfBuilder::End() {
       last_true_block_ = builder_->current_block();
     }
     if (first_true_block_ == NULL) {
-      // Deopt on true. Nothing to do, just continue the else block.
+      // Deopt on true. Nothing to do, just continue the false block.
     } else if (first_false_block_ == NULL) {
+      // Deopt on false. Nothing to do except switching to the true block.
       builder_->set_current_block(last_true_block_);
     } else {
       HEnvironment* merge_env = last_true_block_->last_environment()->Copy();
@@ -1081,7 +1077,7 @@ HValue* HGraphBuilder::BuildCheckNonSmi(HValue* obj) {
 
 HValue* HGraphBuilder::BuildCheckMap(HValue* obj,
                                               Handle<Map> map) {
-  HCheckMaps* check = new(zone()) HCheckMaps(obj, map, zone());
+  HCheckMaps* check = HCheckMaps::New(obj, map, zone());
   AddInstruction(check);
   return check;
 }
@@ -1297,7 +1293,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       AddInstruction(new(zone) HLoadElements(object, mapcheck));
   if (is_store && (fast_elements || fast_smi_only_elements) &&
       store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
-    HCheckMaps* check_cow_map = new(zone) HCheckMaps(
+    HCheckMaps* check_cow_map = HCheckMaps::New(
         elements, isolate()->factory()->fixed_array_map(), zone);
     check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
     AddInstruction(check_cow_map);
@@ -1319,14 +1315,17 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       IfBuilder length_checker(this);
       length_checker.IfCompare(key, length, Token::LT);
       length_checker.Then();
-      CheckBuilder negative_checker(this);
-      HValue* bounds_check = negative_checker.CheckIntegerCompare(
+      IfBuilder negative_checker(this);
+      HValue* bounds_check = negative_checker.IfCompare(
           key, graph()->GetConstant0(), Token::GTE);
-      negative_checker.End();
+      negative_checker.Then();
       HInstruction* result = BuildExternalArrayElementAccess(
           external_elements, key, val, bounds_check,
           elements_kind, is_store);
       AddInstruction(result);
+      negative_checker.Else();
+      negative_checker.Deopt();
+      negative_checker.End();
       length_checker.End();
       return result;
     } else {
@@ -1371,7 +1370,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
         elements = BuildCopyElementsOnWrite(object, elements, elements_kind,
                                             length);
       } else {
-        HCheckMaps* check_cow_map = new(zone) HCheckMaps(
+        HCheckMaps* check_cow_map = HCheckMaps::New(
             elements, isolate()->factory()->fixed_array_map(), zone);
         check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
         AddInstruction(check_cow_map);
@@ -6652,7 +6651,7 @@ static int ComputeLoadStoreFieldIndex(Handle<Map> type,
 
 void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
   AddInstruction(new(zone()) HCheckNonSmi(object));
-  AddInstruction(new(zone()) HCheckMaps(object, map, zone()));
+  AddInstruction(HCheckMaps::New(object, map, zone()));
 }
 
 
@@ -6781,7 +6780,7 @@ bool HOptimizedGraphBuilder::HandlePolymorphicArrayLengthLoad(
   AddInstruction(new(zone()) HCheckNonSmi(object));
 
   HInstruction* typecheck =
-    AddInstruction(new(zone()) HCheckMaps(object, types, zone()));
+    AddInstruction(HCheckMaps::New(object, types, zone()));
   HInstruction* instr =
     HLoadNamedField::NewArrayLength(zone(), object, typecheck);
   instr->set_position(expr->position());
@@ -6833,7 +6832,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
   AddInstruction(new(zone()) HCheckNonSmi(object));
   HInstruction* instr;
   if (count == types->length() && is_monomorphic_field) {
-    AddInstruction(new(zone()) HCheckMaps(object, types, zone()));
+    AddInstruction(HCheckMaps::New(object, types, zone()));
     instr = BuildLoadNamedField(object, map, &lookup);
   } else {
     HValue* context = environment()->LookupContext();
@@ -7510,8 +7509,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     Handle<Map> map,
     bool is_store,
     KeyedAccessStoreMode store_mode) {
-  HCheckMaps* mapcheck = new(zone()) HCheckMaps(object, map,
-                                                zone(), dependency);
+  HCheckMaps* mapcheck = HCheckMaps::New(object, map, zone(), dependency);
   AddInstruction(mapcheck);
   if (dependency) {
     mapcheck->ClearGVNFlag(kDependsOnElementsKind);
@@ -7568,7 +7566,7 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
   }
   if (!has_double_maps && !has_smi_or_object_maps) return NULL;
 
-  HCheckMaps* check_maps = new(zone()) HCheckMaps(object, maps, zone());
+  HCheckMaps* check_maps = HCheckMaps::New(object, maps, zone());
   AddInstruction(check_maps);
   HInstruction* instr = BuildUncheckedMonomorphicElementAccess(
       object, key, val, check_maps,
@@ -7720,7 +7718,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       HInstruction* access;
       if (IsFastElementsKind(elements_kind)) {
         if (is_store && !IsFastDoubleElementsKind(elements_kind)) {
-          AddInstruction(new(zone()) HCheckMaps(
+          AddInstruction(HCheckMaps::New(
               elements, isolate()->factory()->fixed_array_map(),
               zone(), elements_kind_branch));
         }

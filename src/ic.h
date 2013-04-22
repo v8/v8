@@ -59,6 +59,7 @@ namespace internal {
   ICU(UnaryOp_Patch)                                  \
   ICU(BinaryOp_Patch)                                 \
   ICU(CompareIC_Miss)                                 \
+  ICU(Unreachable)                                    \
   ICU(ToBoolean_Patch)
 //
 // IC is the base class for LoadIC, StoreIC, CallIC, KeyedLoadIC,

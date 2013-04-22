@@ -65,6 +65,12 @@
 #include "v8threads.h"
 #include "vm-state-inl.h"
 
+#ifndef _STLP_VENDOR_CSTD
+// STLPort doesn't import fpclassify and isless into the std namespace.
+using std::fpclassify;
+using std::isless;
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -2391,6 +2397,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetExpectedNumberOfProperties) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 0);
+
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
   JSFunction* function = JSFunction::cast(frame->function());
@@ -2405,11 +2412,66 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
     if (!maybe_generator->To(&generator)) return maybe_generator;
   }
   generator->set_function(function);
-  generator->set_context(isolate->heap()->undefined_value());
+  generator->set_context(Context::cast(frame->context()));
   generator->set_continuation(0);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
 
   return generator;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
+
+  JavaScriptFrameIterator stack_iterator(isolate);
+  JavaScriptFrame *frame = stack_iterator.frame();
+  Handle<JSFunction> function(JSFunction::cast(frame->function()));
+  RUNTIME_ASSERT(function->shared()->is_generator());
+
+  intptr_t offset = frame->pc() - function->code()->instruction_start();
+  ASSERT(*function == generator_object->function());
+  ASSERT(offset > 0 && Smi::IsValid(offset));
+  generator_object->set_continuation(static_cast<int>(offset));
+
+  // Generator functions force context allocation for locals, so Local0 points
+  // to the bottom of the operand stack.  Assume the stack grows down.
+  //
+  // TODO(wingo): Move these magical calculations to frames.h when the
+  // generators implementation has stabilized.
+  intptr_t stack_size_in_bytes =
+      (frame->fp() + JavaScriptFrameConstants::kLocal0Offset) -
+      (frame->sp() - kPointerSize);
+  ASSERT(IsAddressAligned(frame->fp(), kPointerSize));
+  ASSERT(IsAligned(stack_size_in_bytes, kPointerSize));
+  ASSERT(stack_size_in_bytes >= 0);
+  ASSERT(Smi::IsValid(stack_size_in_bytes));
+  intptr_t stack_size = stack_size_in_bytes >> kPointerSizeLog2;
+
+  // We expect there to be at least two values on the stack: the return value of
+  // the yield expression, and the argument to this runtime call.  Neither of
+  // those should be saved.
+  ASSERT(stack_size >= 2);
+  stack_size -= 2;
+
+  if (stack_size == 0) {
+    ASSERT_EQ(generator_object->operand_stack(),
+              isolate->heap()->empty_fixed_array());
+    // If there are no operands on the stack, there shouldn't be a handler
+    // active either.  Also, the active context will be the same as the function
+    // itself, so there is no need to save the context.
+    ASSERT_EQ(frame->context(), generator_object->context());
+    ASSERT(!frame->HasHandler());
+  } else {
+    generator_object->set_context(Context::cast(frame->context()));
+    // TODO(wingo): Save the operand stack and/or the stack handlers.
+    UNIMPLEMENTED();
+  }
+
+  // The return value is the hole for a suspend return, and anything else for a
+  // resume return.
+  return isolate->heap()->the_hole_value();
 }
 
 
@@ -3963,10 +4025,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
 
   // Slow case.
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  if (isnan(value)) {
+  if (std::isnan(value)) {
     return *isolate->factory()->nan_string();
   }
-  if (isinf(value)) {
+  if (std::isinf(value)) {
     if (value < 0) {
       return *isolate->factory()->minus_infinity_string();
     }
@@ -4038,6 +4100,14 @@ static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
         string->Get(index));
   }
   return Execution::CharAt(string, index);
+}
+
+
+MaybeObject* Runtime::GetElementOrCharAtOrFail(Isolate* isolate,
+                                               Handle<Object> object,
+                                               uint32_t index) {
+  CALL_HEAP_FUNCTION_PASS_EXCEPTION(isolate,
+      GetElementOrCharAt(isolate, object, index));
 }
 
 
@@ -6604,8 +6674,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberEquals) {
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  if (isnan(x)) return Smi::FromInt(NOT_EQUAL);
-  if (isnan(y)) return Smi::FromInt(NOT_EQUAL);
+  if (std::isnan(x)) return Smi::FromInt(NOT_EQUAL);
+  if (std::isnan(y)) return Smi::FromInt(NOT_EQUAL);
   if (x == y) return Smi::FromInt(EQUAL);
   Object* result;
   if ((fpclassify(x) == FP_ZERO) && (fpclassify(y) == FP_ZERO)) {
@@ -6641,7 +6711,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberCompare) {
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  if (isnan(x) || isnan(y)) return args[2];
+  if (std::isnan(x) || std::isnan(y)) return args[2];
   if (x == y) return Smi::FromInt(EQUAL);
   if (isless(x, y)) return Smi::FromInt(LESS);
   return Smi::FromInt(GREATER);
@@ -6864,7 +6934,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan2) {
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   double result;
-  if (isinf(x) && isinf(y)) {
+  if (std::isinf(x) && std::isinf(y)) {
     // Make sure that the result in case of two infinite arguments
     // is a multiple of Pi / 4. The sign of the result is determined
     // by the first argument (x) and the sign of the second argument
@@ -6947,7 +7017,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
 
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   double result = power_helper(x, y);
-  if (isnan(result)) return isolate->heap()->nan_value();
+  if (std::isnan(result)) return isolate->heap()->nan_value();
   return isolate->heap()->AllocateHeapNumber(result);
 }
 
@@ -6964,7 +7034,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow_cfunction) {
     return Smi::FromInt(1);
   } else {
     double result = power_double_double(x, y);
-    if (isnan(result)) return isolate->heap()->nan_value();
+    if (std::isnan(result)) return isolate->heap()->nan_value();
     return isolate->heap()->AllocateHeapNumber(result);
   }
 }
@@ -7066,7 +7136,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateSetValue) {
 
   Object* value = NULL;
   bool is_value_nan = false;
-  if (isnan(time)) {
+  if (std::isnan(time)) {
     value = isolate->heap()->nan_value();
     is_value_nan = true;
   } else if (!is_utc &&

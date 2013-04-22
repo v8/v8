@@ -190,7 +190,6 @@ template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapEntrySize = 24;
   static const int kExpectedHeapSnapshotsCollectionSize = 100;
   static const int kExpectedHeapSnapshotSize = 132;
-  static const size_t kMaxSerializableSnapshotRawSize = 256 * MB;
 };
 
 template <> struct SnapshotSizeConstants<8> {
@@ -198,8 +197,6 @@ template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapEntrySize = 32;
   static const int kExpectedHeapSnapshotsCollectionSize = 152;
   static const int kExpectedHeapSnapshotSize = 160;
-  static const uint64_t kMaxSerializableSnapshotRawSize =
-      static_cast<uint64_t>(6000) * MB;
 };
 
 }  // namespace
@@ -2384,42 +2381,9 @@ const int HeapSnapshotJSONSerializer::kNodeFieldsCount = 5;
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   ASSERT(writer_ == NULL);
   writer_ = new OutputStreamWriter(stream);
-
-  HeapSnapshot* original_snapshot = NULL;
-  if (snapshot_->RawSnapshotSize() >=
-      SnapshotSizeConstants<kPointerSize>::kMaxSerializableSnapshotRawSize) {
-    // The snapshot is too big. Serialize a fake snapshot.
-    original_snapshot = snapshot_;
-    snapshot_ = CreateFakeSnapshot();
-  }
-
   SerializeImpl();
-
   delete writer_;
   writer_ = NULL;
-
-  if (original_snapshot != NULL) {
-    delete snapshot_;
-    snapshot_ = original_snapshot;
-  }
-}
-
-
-HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
-  HeapSnapshot* result = new HeapSnapshot(snapshot_->collection(),
-                                          snapshot_->title(),
-                                          snapshot_->uid());
-  result->AddRootEntry();
-  const char* text = snapshot_->collection()->names()->GetFormatted(
-      "The snapshot is too big. "
-      "Maximum snapshot size is %"  V8_PTR_PREFIX "u MB. "
-      "Actual snapshot size is %"  V8_PTR_PREFIX "u MB.",
-      SnapshotSizeConstants<kPointerSize>::kMaxSerializableSnapshotRawSize / MB,
-      (snapshot_->RawSnapshotSize() + MB - 1) / MB);
-  HeapEntry* message = result->AddEntry(HeapEntry::kString, text, 0, 4);
-  result->root()->SetIndexedReference(HeapGraphEdge::kElement, 1, message);
-  result->FillChildren();
-  return result;
 }
 
 

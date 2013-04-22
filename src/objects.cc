@@ -745,6 +745,20 @@ Handle<Object> Object::GetProperty(Handle<Object> object,
 }
 
 
+MaybeObject* Object::GetPropertyOrFail(Handle<Object> object,
+                                       Handle<Object> receiver,
+                                       LookupResult* result,
+                                       Handle<Name> key,
+                                       PropertyAttributes* attributes) {
+  Isolate* isolate = object->IsHeapObject()
+      ? Handle<HeapObject>::cast(object)->GetIsolate()
+      : Isolate::Current();
+  CALL_HEAP_FUNCTION_PASS_EXCEPTION(
+      isolate,
+      object->GetProperty(*receiver, result, *key, attributes));
+}
+
+
 MaybeObject* Object::GetProperty(Object* receiver,
                                  LookupResult* result,
                                  Name* name,
@@ -951,7 +965,7 @@ bool Object::SameValue(Object* other) {
     double this_value = Number();
     double other_value = other->Number();
     return (this_value == other_value) ||
-        (isnan(this_value) && isnan(other_value));
+        (std::isnan(this_value) && std::isnan(other_value));
   }
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
@@ -2136,6 +2150,19 @@ Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
   CALL_HEAP_FUNCTION(object->GetIsolate(),
                      object->SetProperty(*key, *value, attributes, strict_mode),
                      Object);
+}
+
+
+MaybeObject* JSReceiver::SetPropertyOrFail(
+    Handle<JSReceiver> object,
+    Handle<Name> key,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode,
+    JSReceiver::StoreFromKeyed store_mode) {
+  CALL_HEAP_FUNCTION_PASS_EXCEPTION(
+      object->GetIsolate(),
+      object->SetProperty(*key, *value, attributes, strict_mode, store_mode));
 }
 
 
@@ -4000,10 +4027,10 @@ MaybeObject* JSObject::SetIdentityHash(Smi* hash, CreationFlag flag) {
 
 
 int JSObject::GetIdentityHash(Handle<JSObject> obj) {
-  CALL_AND_RETRY(obj->GetIsolate(),
-                 obj->GetIdentityHash(ALLOW_CREATION),
-                 return Smi::cast(__object__)->value(),
-                 return 0);
+  CALL_AND_RETRY_OR_DIE(obj->GetIsolate(),
+                        obj->GetIdentityHash(ALLOW_CREATION),
+                        return Smi::cast(__object__)->value(),
+                        return 0);
 }
 
 
@@ -14391,7 +14418,7 @@ Object* JSDate::DoGetField(FieldIndex index) {
   }
 
   double time = value()->Number();
-  if (isnan(time)) return GetIsolate()->heap()->nan_value();
+  if (std::isnan(time)) return GetIsolate()->heap()->nan_value();
 
   int64_t local_time_ms = date_cache->ToLocal(static_cast<int64_t>(time));
   int days = DateCache::DaysFromTime(local_time_ms);
@@ -14410,7 +14437,7 @@ Object* JSDate::GetUTCField(FieldIndex index,
                             DateCache* date_cache) {
   ASSERT(index >= kFirstUTCField);
 
-  if (isnan(value)) return GetIsolate()->heap()->nan_value();
+  if (std::isnan(value)) return GetIsolate()->heap()->nan_value();
 
   int64_t time_ms = static_cast<int64_t>(value);
 

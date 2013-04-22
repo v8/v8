@@ -1067,7 +1067,6 @@ class HGraphBuilder {
       return compare;
     }
 
-    template<class Condition>
     HInstruction* OrIfCompare(
         HValue* p1,
         HValue* p2,
@@ -1094,7 +1093,6 @@ class HGraphBuilder {
       return If<Condition>(p1, p2);
     }
 
-    template<class Condition>
     HInstruction* AndIfCompare(
         HValue* p1,
         HValue* p2,
@@ -1142,8 +1140,6 @@ class HGraphBuilder {
     bool finished_ : 1;
     bool did_then_ : 1;
     bool did_else_ : 1;
-    bool deopt_then_ : 1;
-    bool deopt_else_ : 1;
     bool did_and_ : 1;
     bool did_or_ : 1;
     bool captured_ : 1;

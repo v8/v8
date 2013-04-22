@@ -298,6 +298,7 @@ namespace internal {
   \
   /* Harmony generators */ \
   F(CreateJSGeneratorObject, 0, 1) \
+  F(SuspendJSGeneratorObject, 1, 1) \
   \
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \
@@ -693,6 +694,11 @@ class Runtime : public AllStatic {
   MUST_USE_RESULT static MaybeObject* GetElementOrCharAt(Isolate* isolate,
                                                          Handle<Object> object,
                                                          uint32_t index);
+
+  MUST_USE_RESULT static MaybeObject* GetElementOrCharAtOrFail(
+      Isolate* isolate,
+      Handle<Object> object,
+      uint32_t index);
 
   MUST_USE_RESULT static MaybeObject* SetObjectProperty(
       Isolate* isolate,

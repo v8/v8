@@ -238,7 +238,12 @@ bool LCodeGen::GeneratePrologue() {
         __ str(r0, target);
         // Update the write barrier. This clobbers r3 and r0.
         __ RecordWriteContextSlot(
-            cp, target.offset(), r0, r3, GetLinkRegisterState(), kSaveFPRegs);
+            cp,
+            target.offset(),
+            r0,
+            r3,
+            GetLinkRegisterState(),
+            kSaveFPRegs);
       }
     }
     Comment(";;; End allocate local context");
@@ -2170,17 +2175,16 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 }
 
 
-int LCodeGen::GetNextEmittedBlock(int block) {
-  for (int i = block + 1; i < graph()->blocks()->length(); ++i) {
-    LLabel* label = chunk_->GetLabel(i);
-    if (!label->HasReplacement()) return i;
+int LCodeGen::GetNextEmittedBlock() {
+  for (int i = current_block_ + 1; i < graph()->blocks()->length(); ++i) {
+    if (!chunk_->GetLabel(i)->HasReplacement()) return i;
   }
   return -1;
 }
 
 
 void LCodeGen::EmitBranch(int left_block, int right_block, Condition cc) {
-  int next_block = GetNextEmittedBlock(current_block_);
+  int next_block = GetNextEmittedBlock();
   right_block = chunk_->LookupDestination(right_block);
   left_block = chunk_->LookupDestination(left_block);
 
@@ -2317,10 +2321,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
 
 void LCodeGen::EmitGoto(int block) {
-  block = chunk_->LookupDestination(block);
-  int next_block = GetNextEmittedBlock(current_block_);
-  if (block != next_block) {
-    __ jmp(chunk_->GetAssemblyLabel(block));
+  int destination = chunk_->LookupDestination(block);
+  if (destination != GetNextEmittedBlock()) {
+    __ jmp(chunk_->GetAssemblyLabel(destination));
   }
 }
 
@@ -3274,14 +3277,22 @@ void LCodeGen::DoLoadExternalArrayPointer(
 
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register arguments = ToRegister(instr->arguments());
-  Register length = ToRegister(instr->length());
-  Register index = ToRegister(instr->index());
   Register result = ToRegister(instr->result());
-  // There are two words between the frame pointer and the last argument.
-  // Subtracting from length accounts for one of them add one more.
-  __ sub(length, length, index);
-  __ add(length, length, Operand(1));
-  __ ldr(result, MemOperand(arguments, length, LSL, kPointerSizeLog2));
+  if (instr->length()->IsConstantOperand() &&
+      instr->index()->IsConstantOperand()) {
+    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+    int const_length = ToInteger32(LConstantOperand::cast(instr->length()));
+    int index = (const_length - const_index) + 1;
+    __ ldr(result, MemOperand(arguments, index * kPointerSize));
+  } else {
+    Register length = ToRegister(instr->length());
+    Register index = ToRegister(instr->index());
+    // There are two words between the frame pointer and the last argument.
+    // Subtracting from length accounts for one of them add one more.
+    __ sub(length, length, index);
+    __ add(length, length, Operand(1));
+    __ ldr(result, MemOperand(arguments, length, LSL, kPointerSizeLog2));
+  }
 }
 
 

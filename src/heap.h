@@ -28,7 +28,7 @@
 #ifndef V8_HEAP_H_
 #define V8_HEAP_H_
 
-#include <math.h>
+#include <cmath>
 
 #include "allocation.h"
 #include "globals.h"

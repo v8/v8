@@ -204,7 +204,7 @@ int64_t OS::Ticks() {
 
 
 double OS::DaylightSavingsOffset(double time) {
-  if (isnan(time)) return nan_value();
+  if (std::isnan(time)) return nan_value();
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return nan_value();
@@ -334,6 +334,7 @@ OS::MemMoveFunction CreateMemMoveFunction();
 
 // Copy memory area. No restrictions.
 void OS::MemMove(void* dest, const void* src, size_t size) {
+  if (size == 0) return;
   // Note: here we rely on dependent reads being ordered. This is true
   // on all architectures we currently support.
   (*memmove_function)(dest, src, size);

@@ -29,6 +29,7 @@
 #define V8_CODE_STUBS_H_
 
 #include "allocation.h"
+#include "assembler.h"
 #include "globals.h"
 #include "codegen.h"
 
@@ -260,17 +261,15 @@ class PlatformCodeStub : public CodeStub {
 
 enum StubFunctionMode { NOT_JS_FUNCTION_STUB_MODE, JS_FUNCTION_STUB_MODE };
 
+
 struct CodeStubInterfaceDescriptor {
-  CodeStubInterfaceDescriptor()
-      : register_param_count_(-1),
-        stack_parameter_count_(NULL),
-        function_mode_(NOT_JS_FUNCTION_STUB_MODE),
-        register_params_(NULL) { }
+  CodeStubInterfaceDescriptor();
   int register_param_count_;
   const Register* stack_parameter_count_;
   StubFunctionMode function_mode_;
   Register* register_params_;
   Address deoptimization_handler_;
+  ExternalReference miss_handler_;
 
   int environment_length() const {
     if (stack_parameter_count_ != NULL) {
@@ -283,8 +282,14 @@ struct CodeStubInterfaceDescriptor {
 
 class HydrogenCodeStub : public CodeStub {
  public:
-  // Retrieve the code for the stub. Generate the code if needed.
-  virtual Handle<Code> GenerateCode() = 0;
+  enum InitializationState {
+    CODE_STUB_IS_NOT_MISS,
+    CODE_STUB_IS_MISS
+  };
+
+  explicit HydrogenCodeStub(InitializationState state) {
+    is_miss_ = (state == CODE_STUB_IS_MISS);
+  }
 
   virtual Code::Kind GetCodeKind() const { return Code::STUB; }
 
@@ -292,9 +297,36 @@ class HydrogenCodeStub : public CodeStub {
     return isolate->code_stub_interface_descriptor(MajorKey());
   }
 
+  bool IsMiss() { return is_miss_; }
+
+  template<class SubClass>
+  static Handle<Code> GetUninitialized(Isolate* isolate) {
+    SubClass::GenerateAheadOfTime(isolate);
+    return SubClass().GetCode(isolate);
+  }
+
   virtual void InitializeInterfaceDescriptor(
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor) = 0;
+
+  // Retrieve the code for the stub. Generate the code if needed.
+  virtual Handle<Code> GenerateCode() = 0;
+
+  virtual int NotMissMinorKey() = 0;
+
+  Handle<Code> GenerateLightweightMissCode(Isolate* isolate);
+
+ private:
+  class MinorKeyBits: public BitField<int, 0, kStubMinorKeyBits - 1> {};
+  class IsMissBits: public BitField<bool, kStubMinorKeyBits - 1, 1> {};
+
+  void GenerateLightweightMiss(MacroAssembler* masm);
+  virtual int MinorKey() {
+    return IsMissBits::encode(is_miss_) |
+        MinorKeyBits::encode(NotMissMinorKey());
+  }
+
+  bool is_miss_;
 };
 
 
@@ -467,7 +499,8 @@ class FastCloneShallowArrayStub : public HydrogenCodeStub {
   FastCloneShallowArrayStub(Mode mode,
                             AllocationSiteMode allocation_site_mode,
                             int length)
-      : mode_(mode),
+      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS),
+        mode_(mode),
         allocation_site_mode_(allocation_site_mode),
         length_((mode == COPY_ON_WRITE_ELEMENTS) ? 0 : length) {
     ASSERT_GE(length_, 0);
@@ -513,7 +546,7 @@ class FastCloneShallowArrayStub : public HydrogenCodeStub {
   STATIC_ASSERT(kFastCloneModeCount < 16);
   STATIC_ASSERT(kMaximumClonedLength < 16);
   Major MajorKey() { return FastCloneShallowArray; }
-  int MinorKey() {
+  int NotMissMinorKey() {
     return AllocationSiteModeBits::encode(allocation_site_mode_)
         | ModeBits::encode(mode_)
         | LengthBits::encode(length_);
@@ -526,7 +559,9 @@ class FastCloneShallowObjectStub : public HydrogenCodeStub {
   // Maximum number of properties in copied object.
   static const int kMaximumClonedProperties = 6;
 
-  explicit FastCloneShallowObjectStub(int length) : length_(length) {
+  explicit FastCloneShallowObjectStub(int length)
+      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS),
+        length_(length) {
     ASSERT_GE(length_, 0);
     ASSERT_LE(length_, kMaximumClonedProperties);
   }
@@ -543,7 +578,7 @@ class FastCloneShallowObjectStub : public HydrogenCodeStub {
   int length_;
 
   Major MajorKey() { return FastCloneShallowObject; }
-  int MinorKey() { return length_; }
+  int NotMissMinorKey() { return length_; }
 
   DISALLOW_COPY_AND_ASSIGN(FastCloneShallowObjectStub);
 };
@@ -1291,19 +1326,20 @@ class KeyedLoadDictionaryElementStub : public PlatformCodeStub {
  public:
   KeyedLoadDictionaryElementStub() {}
 
-  Major MajorKey() { return KeyedLoadElement; }
-  int MinorKey() { return DICTIONARY_ELEMENTS; }
-
   void Generate(MacroAssembler* masm);
 
  private:
+  Major MajorKey() { return KeyedLoadElement; }
+  int MinorKey() { return DICTIONARY_ELEMENTS; }
+
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementStub);
 };
 
 
 class KeyedLoadFastElementStub : public HydrogenCodeStub {
  public:
-  KeyedLoadFastElementStub(bool is_js_array, ElementsKind elements_kind) {
+  KeyedLoadFastElementStub(bool is_js_array, ElementsKind elements_kind)
+      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {
     bit_field_ = ElementsKindBits::encode(elements_kind) |
         IsJSArrayBits::encode(is_js_array);
   }
@@ -1323,12 +1359,12 @@ class KeyedLoadFastElementStub : public HydrogenCodeStub {
       CodeStubInterfaceDescriptor* descriptor);
 
  private:
-  class IsJSArrayBits: public BitField<bool, 8, 1> {};
   class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
+  class IsJSArrayBits: public BitField<bool, 8, 1> {};
   uint32_t bit_field_;
 
   Major MajorKey() { return KeyedLoadElement; }
-  int MinorKey() { return bit_field_; }
+  int NotMissMinorKey() { return bit_field_; }
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadFastElementStub);
 };
@@ -1338,14 +1374,12 @@ class KeyedStoreFastElementStub : public HydrogenCodeStub {
  public:
   KeyedStoreFastElementStub(bool is_js_array,
                             ElementsKind elements_kind,
-                            KeyedAccessStoreMode mode) {
+                            KeyedAccessStoreMode mode)
+      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {
     bit_field_ = ElementsKindBits::encode(elements_kind) |
         IsJSArrayBits::encode(is_js_array) |
         StoreModeBits::encode(mode);
   }
-
-  Major MajorKey() { return KeyedStoreElement; }
-  int MinorKey() { return bit_field_; }
 
   bool is_js_array() const {
     return IsJSArrayBits::decode(bit_field_);
@@ -1371,6 +1405,9 @@ class KeyedStoreFastElementStub : public HydrogenCodeStub {
   class IsJSArrayBits: public BitField<bool,                12, 1> {};
   uint32_t bit_field_;
 
+  Major MajorKey() { return KeyedStoreElement; }
+  int NotMissMinorKey() { return bit_field_; }
+
   DISALLOW_COPY_AND_ASSIGN(KeyedStoreFastElementStub);
 };
 
@@ -1378,7 +1415,8 @@ class KeyedStoreFastElementStub : public HydrogenCodeStub {
 class TransitionElementsKindStub : public HydrogenCodeStub {
  public:
   TransitionElementsKindStub(ElementsKind from_kind,
-                             ElementsKind to_kind) {
+                             ElementsKind to_kind)
+      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {
     bit_field_ = FromKindBits::encode(from_kind) |
         ToKindBits::encode(to_kind);
   }
@@ -1403,7 +1441,7 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
   uint32_t bit_field_;
 
   Major MajorKey() { return TransitionElementsKind; }
-  int MinorKey() { return bit_field_; }
+  int NotMissMinorKey() { return bit_field_; }
 
   DISALLOW_COPY_AND_ASSIGN(TransitionElementsKindStub);
 };
@@ -1411,11 +1449,9 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 
 class ArrayNoArgumentConstructorStub : public HydrogenCodeStub {
  public:
-  ArrayNoArgumentConstructorStub() {
+  ArrayNoArgumentConstructorStub()
+      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {
   }
-
-  Major MajorKey() { return ArrayNoArgumentConstructor; }
-  int MinorKey() { return 0; }
 
   virtual Handle<Code> GenerateCode();
 
@@ -1424,17 +1460,17 @@ class ArrayNoArgumentConstructorStub : public HydrogenCodeStub {
       CodeStubInterfaceDescriptor* descriptor);
 
  private:
+  Major MajorKey() { return ArrayNoArgumentConstructor; }
+  int NotMissMinorKey() { return 0; }
+
   DISALLOW_COPY_AND_ASSIGN(ArrayNoArgumentConstructorStub);
 };
 
 
 class ArraySingleArgumentConstructorStub : public HydrogenCodeStub {
  public:
-  ArraySingleArgumentConstructorStub() {
-  }
-
-  Major MajorKey() { return ArraySingleArgumentConstructor; }
-  int MinorKey() { return 0; }
+  ArraySingleArgumentConstructorStub()
+      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {}
 
   virtual Handle<Code> GenerateCode();
 
@@ -1443,17 +1479,17 @@ class ArraySingleArgumentConstructorStub : public HydrogenCodeStub {
       CodeStubInterfaceDescriptor* descriptor);
 
  private:
+  Major MajorKey() { return ArraySingleArgumentConstructor; }
+  int NotMissMinorKey() { return 0; }
+
   DISALLOW_COPY_AND_ASSIGN(ArraySingleArgumentConstructorStub);
 };
 
 
 class ArrayNArgumentsConstructorStub : public HydrogenCodeStub {
  public:
-  ArrayNArgumentsConstructorStub() {
-  }
-
-  Major MajorKey() { return ArrayNArgumentsConstructor; }
-  int MinorKey() { return 0; }
+  ArrayNArgumentsConstructorStub()
+      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {}
 
   virtual Handle<Code> GenerateCode();
 
@@ -1462,6 +1498,9 @@ class ArrayNArgumentsConstructorStub : public HydrogenCodeStub {
       CodeStubInterfaceDescriptor* descriptor);
 
  private:
+  Major MajorKey() { return ArrayNArgumentsConstructor; }
+  int NotMissMinorKey() { return 0; }
+
   DISALLOW_COPY_AND_ASSIGN(ArrayNArgumentsConstructorStub);
 };
 
