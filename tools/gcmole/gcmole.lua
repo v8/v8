@@ -80,9 +80,14 @@ end
 -- Clang invocation
 
 local CLANG_BIN = os.getenv "CLANG_BIN"
+local CLANG_PLUGINS = os.getenv "CLANG_PLUGINS"
 
 if not CLANG_BIN or CLANG_BIN == "" then
    error "CLANG_BIN not set"
+end
+
+if not CLANG_PLUGINS or CLANG_PLUGINS == "" then
+   CLANG_PLUGINS = DIR
 end
 
 local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
@@ -92,7 +97,7 @@ local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
      end
      plugin_args = " " .. table.concat(plugin_args, " ")
    end
-   return CLANG_BIN .. "/clang -cc1 -load " .. DIR .. "/libgcmole.so"
+   return CLANG_BIN .. "/clang -cc1 -load " .. CLANG_PLUGINS .. "/libgcmole.so"
       .. " -plugin "  .. plugin
       .. (plugin_args or "")
       .. " -triple " .. triple
