@@ -5289,17 +5289,119 @@ Local<String> v8::String::Empty() {
 }
 
 
-Local<String> v8::String::New(const char* data, int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::New()");
-  LOG_API(isolate, "String::New(char)");
-  if (length == 0) return Empty();
+// anonymous namespace for string creation helper functions
+namespace {
+
+inline int StringLength(const char* string) {
+  return i::StrLength(string);
+}
+
+
+inline int StringLength(const uint8_t* string) {
+  return i::StrLength(reinterpret_cast<const char*>(string));
+}
+
+
+inline int StringLength(const uint16_t* string) {
+  int length = 0;
+  while (string[length] != '\0')
+    length++;
+  return length;
+}
+
+
+inline i::Handle<i::String> NewString(i::Factory* factory,
+                                      String::NewStringType type,
+                                      i::Vector<const char> string) {
+  if (type ==String::kInternalizedString) {
+    return factory->InternalizeUtf8String(string);
+  }
+  return factory->NewStringFromUtf8(string);
+}
+
+
+inline i::Handle<i::String> NewString(i::Factory* factory,
+                                      String::NewStringType type,
+                                      i::Vector<const uint8_t> string) {
+  if (type == String::kInternalizedString) {
+    return factory->InternalizeOneByteString(string);
+  }
+  return factory->NewStringFromOneByte(string);
+}
+
+
+inline i::Handle<i::String> NewString(i::Factory* factory,
+                                      String::NewStringType type,
+                                      i::Vector<const uint16_t> string) {
+  if (type == String::kInternalizedString) {
+    return factory->InternalizeTwoByteString(string);
+  }
+  return factory->NewStringFromTwoByte(string);
+}
+
+
+template<typename Char>
+inline Local<String> NewString(Isolate* v8_isolate,
+                               const char* location,
+                               const char* env,
+                               const Char* data,
+                               String::NewStringType type,
+                               int length) {
+  i::Isolate* isolate = reinterpret_cast<internal::Isolate*>(v8_isolate);
+  EnsureInitializedForIsolate(isolate, location);
+  LOG_API(isolate, env);
+  if (length == 0 && type != String::kUndetectableString) {
+    return String::Empty();
+  }
   ENTER_V8(isolate);
-  if (length == -1) length = i::StrLength(data);
-  i::Handle<i::String> result =
-      isolate->factory()->NewStringFromUtf8(
-          i::Vector<const char>(data, length));
+  if (length == -1) length = StringLength(data);
+  i::Handle<i::String> result = NewString(
+      isolate->factory(), type, i::Vector<const Char>(data, length));
+  if (type == String::kUndetectableString) {
+    result->MarkAsUndetectable();
+  }
   return Utils::ToLocal(result);
+}
+
+}  // anonymous namespace
+
+
+Local<String> String::NewFromUtf8(Isolate* isolate,
+                                  const char* data,
+                                  NewStringType type,
+                                  int length) {
+  return NewString(isolate,
+                   "v8::String::NewFromUtf8()",
+                   "String::NewFromUtf8",
+                   data,
+                   type,
+                   length);
+}
+
+
+Local<String> String::NewFromOneByte(Isolate* isolate,
+                                     const uint8_t* data,
+                                     NewStringType type,
+                                     int length) {
+  return NewString(isolate,
+                   "v8::String::NewFromOneByte()",
+                   "String::NewFromOneByte",
+                   data,
+                   type,
+                   length);
+}
+
+
+Local<String> String::NewFromTwoByte(Isolate* isolate,
+                                     const uint16_t* data,
+                                     NewStringType type,
+                                     int length) {
+  return NewString(isolate,
+                   "v8::String::NewFromTwoByte()",
+                   "String::NewFromTwoByte",
+                   data,
+                   type,
+                   length);
 }
 
 
@@ -5312,55 +5414,6 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
   i::Handle<i::String> result = isolate->factory()->NewConsString(left_string,
                                                                   right_string);
-  return Utils::ToLocal(result);
-}
-
-
-Local<String> v8::String::NewUndetectable(const char* data, int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::NewUndetectable()");
-  LOG_API(isolate, "String::NewUndetectable(char)");
-  ENTER_V8(isolate);
-  if (length == -1) length = i::StrLength(data);
-  i::Handle<i::String> result =
-      isolate->factory()->NewStringFromUtf8(
-          i::Vector<const char>(data, length));
-  result->MarkAsUndetectable();
-  return Utils::ToLocal(result);
-}
-
-
-static int TwoByteStringLength(const uint16_t* data) {
-  int length = 0;
-  while (data[length] != '\0') length++;
-  return length;
-}
-
-
-Local<String> v8::String::New(const uint16_t* data, int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::New()");
-  LOG_API(isolate, "String::New(uint16_)");
-  if (length == 0) return Empty();
-  ENTER_V8(isolate);
-  if (length == -1) length = TwoByteStringLength(data);
-  i::Handle<i::String> result =
-      isolate->factory()->NewStringFromTwoByte(
-          i::Vector<const uint16_t>(data, length));
-  return Utils::ToLocal(result);
-}
-
-
-Local<String> v8::String::NewUndetectable(const uint16_t* data, int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::NewUndetectable()");
-  LOG_API(isolate, "String::NewUndetectable(uint16_)");
-  ENTER_V8(isolate);
-  if (length == -1) length = TwoByteStringLength(data);
-  i::Handle<i::String> result =
-      isolate->factory()->NewStringFromTwoByte(
-          i::Vector<const uint16_t>(data, length));
-  result->MarkAsUndetectable();
   return Utils::ToLocal(result);
 }
 
@@ -5735,18 +5788,6 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   i::Handle<i::JSObject> result = i::Copy(paragon_handle);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
-  return Utils::ToLocal(result);
-}
-
-
-Local<String> v8::String::NewSymbol(const char* data, int length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::NewSymbol()");
-  LOG_API(isolate, "String::NewSymbol(char)");
-  ENTER_V8(isolate);
-  if (length == -1) length = i::StrLength(data);
-  i::Handle<i::String> result = isolate->factory()->InternalizeUtf8String(
-      i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
 }
 

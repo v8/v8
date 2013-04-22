@@ -1326,22 +1326,48 @@ class V8EXPORT String : public Primitive {
 
   V8_INLINE(static String* Cast(v8::Value* obj));
 
+  // TODO(dcarney): deprecate
   /**
    * Allocates a new string from either UTF-8 encoded or ASCII data.
    * The second parameter 'length' gives the buffer length. If omitted,
    * the function calls 'strlen' to determine the buffer length.
    */
-  static Local<String> New(const char* data, int length = -1);
+  V8_INLINE(static Local<String> New(const char* data, int length = -1));
 
+  // TODO(dcarney): deprecate
   /** Allocates a new string from 16-bit character codes.*/
-  static Local<String> New(const uint16_t* data, int length = -1);
+  V8_INLINE(static Local<String> New(const uint16_t* data, int length = -1));
 
+  // TODO(dcarney): deprecate
   /**
    * Creates an internalized string (historically called a "symbol",
    * not to be confused with ES6 symbols). Returns one if it exists already.
-   * TODO(rossberg): Deprecate me when the new string API is here.
    */
-  static Local<String> NewSymbol(const char* data, int length = -1);
+  V8_INLINE(static Local<String> NewSymbol(const char* data, int length = -1));
+
+  enum NewStringType {
+    kNormalString, kInternalizedString, kUndetectableString
+  };
+
+  /** Allocates a new string from UTF-8 data.*/
+  static Local<String> NewFromUtf8(Isolate* isolate,
+                                  const char* data,
+                                  NewStringType type = kNormalString,
+                                  int length = -1);
+
+  /** Allocates a new string from Latin-1 data.*/
+  static Local<String> NewFromOneByte(
+      Isolate* isolate,
+      const uint8_t* data,
+      NewStringType type = kNormalString,
+      int length = -1);
+
+  /** Allocates a new string from UTF-16 data.*/
+  static Local<String> NewFromTwoByte(
+      Isolate* isolate,
+      const uint16_t* data,
+      NewStringType type = kNormalString,
+      int length = -1);
 
   /**
    * Creates a new string by concatenating the left and the right strings
@@ -1396,11 +1422,15 @@ class V8EXPORT String : public Primitive {
    */
   bool CanMakeExternal();
 
+  // TODO(dcarney): deprecate
   /** Creates an undetectable string from the supplied ASCII or UTF-8 data.*/
-  static Local<String> NewUndetectable(const char* data, int length = -1);
+  V8_INLINE(
+      static Local<String> NewUndetectable(const char* data, int length = -1));
 
+  // TODO(dcarney): deprecate
   /** Creates an undetectable string from the supplied 16-bit character codes.*/
-  static Local<String> NewUndetectable(const uint16_t* data, int length = -1);
+  V8_INLINE(static Local<String> NewUndetectable(
+      const uint16_t* data, int length = -1));
 
   /**
    * Converts an object to a UTF-8-encoded character array.  Useful if
@@ -4864,6 +4894,32 @@ Local<String> String::Empty(Isolate* isolate) {
   if (!I::IsInitialized(isolate)) return Empty();
   S* slot = I::GetRoot(isolate, I::kEmptyStringRootIndex);
   return Local<String>(reinterpret_cast<String*>(slot));
+}
+
+
+Local<String> String::New(const char* data, int length) {
+  return NewFromUtf8(Isolate::GetCurrent(), data, kNormalString, length);
+}
+
+
+Local<String> String::New(const uint16_t* data, int length) {
+  return NewFromTwoByte(Isolate::GetCurrent(), data, kNormalString, length);
+}
+
+
+Local<String> String::NewSymbol(const char* data, int length) {
+  return NewFromUtf8(Isolate::GetCurrent(), data, kInternalizedString, length);
+}
+
+
+Local<String> String::NewUndetectable(const char* data, int length) {
+  return NewFromUtf8(Isolate::GetCurrent(), data, kUndetectableString, length);
+}
+
+
+Local<String> String::NewUndetectable(const uint16_t* data, int length) {
+  return NewFromTwoByte(
+      Isolate::GetCurrent(), data, kUndetectableString, length);
 }
 
 
