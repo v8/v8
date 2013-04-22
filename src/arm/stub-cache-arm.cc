@@ -1620,9 +1620,8 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ b(gt, &call_builtin);
 
       __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
-      __ StoreNumberToDoubleElements(
-          r4, r0, elements, r5, r2, r3, r9,
-          &call_builtin, argc * kDoubleSize);
+      __ StoreNumberToDoubleElements(r4, r0, elements, r5,
+                                     &call_builtin, argc * kDoubleSize);
 
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -3246,14 +3245,10 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       StoreIntAsFloat(masm, r3, r4, r5, r7);
       break;
     case EXTERNAL_DOUBLE_ELEMENTS:
+      __ vmov(s2, r5);
+      __ vcvt_f64_s32(d0, s2);
       __ add(r3, r3, Operand(key, LSL, 2));
       // r3: effective address of the double element
-      FloatingPointHelper::Destination destination;
-      destination = FloatingPointHelper::kVFPRegisters;
-      FloatingPointHelper::ConvertIntToDouble(
-          masm, r5, destination,
-          d0, r6, r7,  // These are: double_dst, dst_mantissa, dst_exponent.
-          r4, s2);  // These are: scratch2, single_scratch.
       __ vstr(d0, r3, 0);
       break;
     case FAST_ELEMENTS:
@@ -3303,7 +3298,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       // not include -kHeapObjectTag into it.
       __ sub(r5, value, Operand(kHeapObjectTag));
       __ vldr(d0, r5, HeapNumber::kValueOffset);
-      __ ECMAToInt32(r5, d0, d1, r6, r7, r9);
+      __ ECMAToInt32(r5, d0, r6, r7, r9, d1);
 
       switch (elements_kind) {
         case EXTERNAL_BYTE_ELEMENTS:
@@ -3537,9 +3532,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- r3    : scratch (elements backing store)
   //  -- r4    : scratch
   //  -- r5    : scratch
-  //  -- r6    : scratch
-  //  -- r7    : scratch
-  //  -- r9    : scratch
   // -----------------------------------
   Label miss_force_generic, transition_elements_kind, grow, slow;
   Label finish_store, check_capacity;
@@ -3550,9 +3542,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Register elements_reg = r3;
   Register scratch1 = r4;
   Register scratch2 = r5;
-  Register scratch3 = r6;
-  Register scratch4 = r7;
-  Register scratch5 = r9;
   Register length_reg = r7;
 
   // This stub is meant to be tail-jumped to, the receiver must already
@@ -3581,15 +3570,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   }
 
   __ bind(&finish_store);
-  __ StoreNumberToDoubleElements(value_reg,
-                                 key_reg,
-                                 // All registers after this are overwritten.
-                                 elements_reg,
-                                 scratch1,
-                                 scratch3,
-                                 scratch4,
-                                 scratch2,
-                                 &transition_elements_kind);
+  __ StoreNumberToDoubleElements(value_reg, key_reg, elements_reg,
+                                 scratch1, &transition_elements_kind);
   __ Ret();
 
   // Handle store cache miss, replacing the ic with the generic stub.
@@ -3636,15 +3618,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
            FieldMemOperand(elements_reg, FixedDoubleArray::kLengthOffset));
 
     __ mov(scratch1, elements_reg);
-    __ StoreNumberToDoubleElements(value_reg,
-                                   key_reg,
-                                   // All registers after this are overwritten.
-                                   scratch1,
-                                   scratch2,
-                                   scratch3,
-                                   scratch4,
-                                   scratch5,
-                                   &transition_elements_kind);
+    __ StoreNumberToDoubleElements(value_reg, key_reg, scratch1,
+                                   scratch2, &transition_elements_kind);
 
     __ mov(scratch1, Operand(kHoleNanLower32));
     __ mov(scratch2, Operand(kHoleNanUpper32));
