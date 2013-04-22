@@ -192,6 +192,11 @@ const char* LArithmeticT::Mnemonic() const {
 }
 
 
+bool LGoto::HasInterestingComment(LCodeGen* gen) const {
+  return !gen->IsNextEmittedBlock(block_id());
+}
+
+
 void LGoto::PrintDataTo(StringStream* stream) {
   stream->Add("B%d", block_id());
 }

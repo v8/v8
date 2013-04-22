@@ -341,6 +341,7 @@ void LChunk::MarkEmptyBlocks() {
 
 void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
   LInstructionGap* gap = new(graph_->zone()) LInstructionGap(block);
+  gap->set_hydrogen_value(instr->hydrogen_value());
   int index = -1;
   if (instr->IsControl()) {
     instructions_.Add(gap, zone());

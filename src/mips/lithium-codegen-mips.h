@@ -79,6 +79,15 @@ class LCodeGen BASE_EMBEDDED {
   Heap* heap() const { return isolate()->heap(); }
   Zone* zone() const { return zone_; }
 
+  // TODO(svenpanne) Use this consistently.
+  int LookupDestination(int block_id) const {
+    return chunk()->LookupDestination(block_id);
+  }
+
+  bool IsNextEmittedBlock(int block_id) const {
+    return LookupDestination(block_id) == GetNextEmittedBlock();
+  }
+
   bool NeedsEagerFrame() const {
     return GetStackSlotCount() > 0 ||
         info()->is_non_deferred_calling() ||
@@ -190,13 +199,13 @@ class LCodeGen BASE_EMBEDDED {
 
   LPlatformChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
-  HGraph* graph() const { return chunk_->graph(); }
+  HGraph* graph() const { return chunk()->graph(); }
 
   Register scratch0() { return kLithiumScratchReg; }
   Register scratch1() { return kLithiumScratchReg2; }
   DoubleRegister double_scratch0() { return kLithiumScratchDouble; }
 
-  int GetNextEmittedBlock();
+  int GetNextEmittedBlock() const;
   LInstruction* GetNextInstruction();
 
   void EmitClassOfTest(Label* if_true,
