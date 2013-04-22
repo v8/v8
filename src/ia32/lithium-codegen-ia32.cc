@@ -3196,13 +3196,21 @@ void LCodeGen::DoLoadExternalArrayPointer(
 
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register arguments = ToRegister(instr->arguments());
-  Register length = ToRegister(instr->length());
-  Operand index = ToOperand(instr->index());
   Register result = ToRegister(instr->result());
-  // There are two words between the frame pointer and the last argument.
-  // Subtracting from length accounts for one of them add one more.
-  __ sub(length, index);
-  __ mov(result, Operand(arguments, length, times_4, kPointerSize));
+  if (instr->length()->IsConstantOperand() &&
+      instr->index()->IsConstantOperand()) {
+    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+    int const_length = ToInteger32(LConstantOperand::cast(instr->length()));
+    int index = (const_length - const_index) + 1;
+    __ mov(result, Operand(arguments, index * kPointerSize));
+  } else {
+    Register length = ToRegister(instr->length());
+    Operand index = ToOperand(instr->index());
+    // There are two words between the frame pointer and the last argument.
+    // Subtracting from length accounts for one of them add one more.
+    __ sub(length, index);
+    __ mov(result, Operand(arguments, length, times_4, kPointerSize));
+  }
 }
 
 
@@ -4220,7 +4228,6 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Register object = ToRegister(instr->object());
-  Register value = ToRegister(instr->value());
   int offset = instr->offset();
 
   if (!instr->transition().is_null()) {
@@ -4246,34 +4253,42 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   HType type = instr->hydrogen()->value()->type();
   SmiCheck check_needed =
       type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
-  if (instr->is_in_object()) {
-    __ mov(FieldOperand(object, offset), value);
-    if (instr->hydrogen()->NeedsWriteBarrier()) {
-      Register temp = ToRegister(instr->temp());
-      // Update the write barrier for the object for in-object properties.
-      __ RecordWriteField(object,
-                          offset,
-                          value,
-                          temp,
-                          GetSaveFPRegsMode(),
-                          EMIT_REMEMBERED_SET,
-                          check_needed);
+
+  Register write_register = object;
+  if (!instr->is_in_object()) {
+    write_register = ToRegister(instr->temp());
+    __ mov(write_register,
+           FieldOperand(object, JSObject::kPropertiesOffset));
+  }
+
+  if (instr->value()->IsConstantOperand()) {
+    LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
+    if (IsInteger32(operand_value)) {
+      int const_value = ToInteger32(operand_value);
+      __ mov(FieldOperand(write_register, offset), Immediate(const_value));
+    } else {
+      if (operand_value->IsRegister()) {
+        __ mov(FieldOperand(write_register, offset), ToRegister(operand_value));
+      } else {
+        Handle<Object> handle_value = ToHandle(operand_value);
+        __ mov(FieldOperand(write_register, offset), handle_value);
+      }
     }
   } else {
-    Register temp = ToRegister(instr->temp());
-    __ mov(temp, FieldOperand(object, JSObject::kPropertiesOffset));
-    __ mov(FieldOperand(temp, offset), value);
-    if (instr->hydrogen()->NeedsWriteBarrier()) {
-      // Update the write barrier for the properties array.
-      // object is used as a scratch register.
-      __ RecordWriteField(temp,
-                          offset,
-                          value,
-                          object,
-                          GetSaveFPRegsMode(),
-                          EMIT_REMEMBERED_SET,
-                          check_needed);
-    }
+    __ mov(FieldOperand(write_register, offset), ToRegister(instr->value()));
+  }
+
+  if (instr->hydrogen()->NeedsWriteBarrier()) {
+    Register value = ToRegister(instr->value());
+    Register temp = instr->is_in_object() ? ToRegister(instr->temp()) : object;
+    // Update the write barrier for the object for in-object properties.
+    __ RecordWriteField(write_register,
+                        offset,
+                        value,
+                        temp,
+                        GetSaveFPRegsMode(),
+                        EMIT_REMEMBERED_SET,
+                        check_needed);
   }
 }
 
@@ -4451,7 +4466,6 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
-  Register value = ToRegister(instr->value());
   Register elements = ToRegister(instr->elements());
   Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
 
@@ -4462,9 +4476,22 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
       FAST_ELEMENTS,
       FixedArray::kHeaderSize - kHeapObjectTag,
       instr->additional_index());
-  __ mov(operand, value);
+  if (instr->value()->IsRegister()) {
+    __ mov(operand, ToRegister(instr->value()));
+  } else {
+    LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
+    if (IsInteger32(operand_value)) {
+      Smi* smi_value = Smi::FromInt(ToInteger32(operand_value));
+      __ mov(operand, Immediate(smi_value));
+    } else {
+      Handle<Object> handle_value = ToHandle(operand_value);
+      __ mov(operand, handle_value);
+    }
+  }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
+    ASSERT(instr->value()->IsRegister());
+    Register value = ToRegister(instr->value());
     ASSERT(!instr->key()->IsConstantOperand());
     HType type = instr->hydrogen()->value()->type();
     SmiCheck check_needed =

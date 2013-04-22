@@ -2297,19 +2297,21 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
         val = UseX87TopOfStack(instr->value());
       }
       LOperand* key = UseRegisterOrConstantAtStart(instr->key());
-
       return new(zone()) LStoreKeyed(object, key, val);
     } else {
       ASSERT(instr->value()->representation().IsTagged());
       bool needs_write_barrier = instr->NeedsWriteBarrier();
 
       LOperand* obj = UseRegister(instr->elements());
-      LOperand* val = needs_write_barrier
-          ? UseTempRegister(instr->value())
-          : UseRegisterAtStart(instr->value());
-      LOperand* key = needs_write_barrier
-          ? UseTempRegister(instr->key())
-          : UseRegisterOrConstantAtStart(instr->key());
+      LOperand* val;
+      LOperand* key;
+      if (needs_write_barrier) {
+        val = UseTempRegister(instr->value());
+        key = UseTempRegister(instr->key());
+      } else {
+        val = UseRegisterOrConstantAtStart(instr->value());
+        key = UseRegisterOrConstantAtStart(instr->key());
+      }
       return new(zone()) LStoreKeyed(obj, key, val);
     }
   }
@@ -2409,9 +2411,22 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
         : UseRegisterAtStart(instr->object());
   }
 
-  LOperand* val = needs_write_barrier
-      ? UseTempRegister(instr->value())
-      : UseRegister(instr->value());
+  bool register_or_constant = false;
+  if (instr->value()->IsConstant()) {
+    HConstant* constant_value = HConstant::cast(instr->value());
+    register_or_constant = constant_value->HasInteger32Value()
+        || constant_value->HasDoubleValue()
+        || constant_value->ImmortalImmovable();
+  }
+
+  LOperand* val;
+  if (needs_write_barrier) {
+    val = UseTempRegister(instr->value());
+  } else if (register_or_constant) {
+    val = UseRegisterOrConstant(instr->value());
+  } else {
+    val = UseRegister(instr->value());
+  }
 
   // We only need a scratch register if we have a write barrier or we
   // have a store into the properties array (not in-object-property).
@@ -2579,8 +2594,15 @@ LInstruction* LChunkBuilder::DoArgumentsObject(HArgumentsObject* instr) {
 LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
   info()->MarkAsRequiresFrame();
   LOperand* args = UseRegister(instr->arguments());
-  LOperand* length = UseTempRegister(instr->length());
-  LOperand* index = Use(instr->index());
+  LOperand* length;
+  LOperand* index;
+  if (instr->length()->IsConstant() && instr->index()->IsConstant()) {
+    length = UseRegisterOrConstant(instr->length());
+    index = UseOrConstant(instr->index());
+  } else {
+    length = UseTempRegister(instr->length());
+    index = Use(instr->index());
+  }
   return DefineAsRegister(new(zone()) LAccessArgumentsAt(args, length, index));
 }
 
