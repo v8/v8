@@ -162,6 +162,6 @@ if __name__ == '__main__':
 
   # Generate for the architectures supported on the given platform.
   gyp_args = list(args)
-  if platform.system() == 'linux':
+  if platform.system() == 'Linux':
     gyp_args.append('--generator-output=out')
   run_gyp(gyp_args)
