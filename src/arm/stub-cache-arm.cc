@@ -2198,7 +2198,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   __ bind(&slow);
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
-  ParameterCount expected(fun);
+  ParameterCount expected(function);
   __ InvokeFunction(function, expected, arguments(),
                     JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
 
