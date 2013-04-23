@@ -3288,9 +3288,7 @@ class HConstant: public HTemplateInstruction<0> {
     return has_int32_value_;
   }
 
-  virtual bool EmitAtUses() {
-    return !representation().IsDouble() || IsSpecialDouble();
-  }
+  virtual bool EmitAtUses() { return !representation().IsDouble(); }
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
