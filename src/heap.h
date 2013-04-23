@@ -2295,6 +2295,11 @@ class Heap {
   unsigned int gc_count_at_last_idle_gc_;
   int scavenges_since_last_idle_round_;
 
+  // If the --deopt_every_n_garbage_collections flag is set to a positive value,
+  // this variable holds the number of garbage collections since the last
+  // deoptimization triggered by garbage collection.
+  int gcs_since_last_deopt_;
+
 #ifdef VERIFY_HEAP
   int no_weak_embedded_maps_verification_scope_depth_;
 #endif
