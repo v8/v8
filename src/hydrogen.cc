@@ -509,9 +509,7 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 
 
 void HGraph::Verify(bool do_full_verify) const {
-  // Allow dereferencing for debug mode verification.
-  HandleDereferenceGuard allow_handle_deref(isolate(),
-                                            HandleDereferenceGuard::ALLOW);
+  ALLOW_HANDLE_DEREF(isolate(), "debug mode verification");
   for (int i = 0; i < blocks_.length(); i++) {
     HBasicBlock* block = blocks_.at(i);
 
@@ -6348,9 +6346,11 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                                pointer_size,
                                DONT_TRACK_ALLOCATION_SITE);
   } else {
+    Handle<FixedArray> closure_literals(closure->literals(), isolate());
     literal = AddInstruction(
         new(zone()) HObjectLiteral(context,
                                    expr->constant_properties(),
+                                   closure_literals,
                                    expr->fast_elements(),
                                    expr->literal_index(),
                                    expr->depth(),
@@ -6439,7 +6439,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   HValue* context = environment()->LookupContext();
   HInstruction* literal;
 
-  Handle<FixedArray> literals(environment()->closure()->literals());
+  Handle<FixedArray> literals(environment()->closure()->literals(), isolate());
   Handle<Object> raw_boilerplate(literals->get(expr->literal_index()),
                                  isolate());
 
@@ -6491,6 +6491,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     literal = AddInstruction(
                   new(zone()) HArrayLiteral(context,
                                             original_boilerplate_object,
+                                            literals,
                                             length,
                                             expr->literal_index(),
                                             expr->depth(),
@@ -11456,16 +11457,14 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
 
 void HTracer::TraceLithium(const char* name, LChunk* chunk) {
   ASSERT(!FLAG_parallel_recompilation);
-  HandleDereferenceGuard allow_handle_deref(chunk->isolate(),
-                                            HandleDereferenceGuard::ALLOW);
+  ALLOW_HANDLE_DEREF(chunk->isolate(), "debug output");
   Trace(name, chunk->graph(), chunk);
 }
 
 
 void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
   ASSERT(!FLAG_parallel_recompilation);
-  HandleDereferenceGuard allow_handle_deref(graph->isolate(),
-                                            HandleDereferenceGuard::ALLOW);
+  ALLOW_HANDLE_DEREF(graph->isolate(), "debug output");
   Trace(name, graph, NULL);
 }
 

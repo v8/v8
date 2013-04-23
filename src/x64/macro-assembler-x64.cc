@@ -2286,7 +2286,7 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
-  ASSERT(!source->IsFailure());
+  ALLOW_HANDLE_DEREF(isolate(), "smi check");
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
@@ -2296,7 +2296,7 @@ void MacroAssembler::Move(Register dst, Handle<Object> source) {
 
 
 void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
-  ASSERT(!source->IsFailure());
+  ALLOW_HANDLE_DEREF(isolate(), "smi check");
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
@@ -2307,6 +2307,7 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
 
 
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
+  ALLOW_HANDLE_DEREF(isolate(), "smi check");
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
@@ -2317,6 +2318,7 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 
 
 void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
+  ALLOW_HANDLE_DEREF(isolate(), "smi check");
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
@@ -2328,6 +2330,7 @@ void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
 
 
 void MacroAssembler::Push(Handle<Object> source) {
+  ALLOW_HANDLE_DEREF(isolate(), "smi check");
   if (source->IsSmi()) {
     Push(Smi::cast(*source));
   } else {
@@ -2340,6 +2343,7 @@ void MacroAssembler::Push(Handle<Object> source) {
 
 void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
+  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
         isolate()->factory()->NewJSGlobalPropertyCell(object);
@@ -2352,6 +2356,7 @@ void MacroAssembler::LoadHeapObject(Register result,
 
 
 void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
+  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
         isolate()->factory()->NewJSGlobalPropertyCell(object);
@@ -2367,6 +2372,7 @@ void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
 void MacroAssembler::LoadGlobalCell(Register dst,
                                     Handle<JSGlobalPropertyCell> cell) {
   if (dst.is(rax)) {
+    ALLOW_HANDLE_DEREF(isolate(), "embedding raw address");
     load_rax(cell.location(), RelocInfo::GLOBAL_PROPERTY_CELL);
   } else {
     movq(dst, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
@@ -3280,6 +3286,7 @@ void MacroAssembler::InvokeFunction(Register function,
 
 
 void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
+                                    const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
@@ -3295,7 +3302,6 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   // allow recompilation to take effect without changing any of the
   // call sites.
   movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-  ParameterCount expected(function->shared()->formal_parameter_count());
   InvokeCode(rdx, expected, actual, flag, call_wrapper, call_kind);
 }
 

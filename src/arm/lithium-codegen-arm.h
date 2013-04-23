@@ -276,6 +276,7 @@ class LCodeGen BASE_EMBEDDED {
   // Generate a direct call to a known function.  Expects the function
   // to be in r1.
   void CallKnownFunction(Handle<JSFunction> function,
+                         int formal_parameter_count,
                          int arity,
                          LInstruction* instr,
                          CallKind call_kind,

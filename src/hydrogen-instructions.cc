@@ -2200,13 +2200,6 @@ void HConstant::PrintDataTo(StringStream* stream) {
 }
 
 
-bool HArrayLiteral::IsCopyOnWrite() const {
-  if (!boilerplate_object_->IsJSObject()) return false;
-  return Handle<JSObject>::cast(boilerplate_object_)->elements()->map() ==
-      HEAP->fixed_cow_array_map();
-}
-
-
 void HBinaryOperation::PrintDataTo(StringStream* stream) {
   left()->PrintNameTo(stream);
   stream->Add(" ");

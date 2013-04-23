@@ -507,6 +507,29 @@ void Isolate::IterateDeferredHandles(ObjectVisitor* visitor) {
 }
 
 
+#ifdef DEBUG
+bool Isolate::IsDeferredHandle(Object** handle) {
+  // Each DeferredHandles instance keeps the handles to one job in the
+  // parallel recompilation queue, containing a list of blocks.  Each block
+  // contains kHandleBlockSize handles except for the first block, which may
+  // not be fully filled.
+  // We iterate through all the blocks to see whether the argument handle
+  // belongs to one of the blocks.  If so, it is deferred.
+  for (DeferredHandles* deferred = deferred_handles_head_;
+       deferred != NULL;
+       deferred = deferred->next_) {
+    List<Object**>* blocks = &deferred->blocks_;
+    for (int i = 0; i < blocks->length(); i++) {
+      Object** block_limit = (i == 0) ? deferred->first_block_limit_
+                                      : blocks->at(i) + kHandleBlockSize;
+      if (blocks->at(i) <= handle && handle < block_limit) return true;
+    }
+  }
+  return false;
+}
+#endif  // DEBUG
+
+
 void Isolate::RegisterTryCatchHandler(v8::TryCatch* that) {
   // The ARM simulator has a separate JS stack.  We therefore register
   // the C++ try catch handler with the simulator and get back an
@@ -1757,8 +1780,8 @@ Isolate::Isolate()
   memset(code_kind_statistics_, 0,
          sizeof(code_kind_statistics_[0]) * Code::NUMBER_OF_KINDS);
 
-  allow_compiler_thread_handle_deref_ = true;
-  allow_execution_thread_handle_deref_ = true;
+  compiler_thread_handle_deref_state_ = HandleDereferenceGuard::ALLOW;
+  execution_thread_handle_deref_state_ = HandleDereferenceGuard::ALLOW;
 #endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -2379,27 +2402,28 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
 
 
 #ifdef DEBUG
-bool Isolate::AllowHandleDereference() {
-  if (allow_execution_thread_handle_deref_ &&
-      allow_compiler_thread_handle_deref_) {
+HandleDereferenceGuard::State Isolate::HandleDereferenceGuardState() {
+  if (execution_thread_handle_deref_state_ == HandleDereferenceGuard::ALLOW &&
+      compiler_thread_handle_deref_state_ == HandleDereferenceGuard::ALLOW) {
     // Short-cut to avoid polling thread id.
-    return true;
+    return HandleDereferenceGuard::ALLOW;
   }
   if (FLAG_parallel_recompilation &&
       optimizing_compiler_thread()->IsOptimizerThread()) {
-    return allow_compiler_thread_handle_deref_;
+    return compiler_thread_handle_deref_state_;
   } else {
-    return allow_execution_thread_handle_deref_;
+    return execution_thread_handle_deref_state_;
   }
 }
 
 
-void Isolate::SetAllowHandleDereference(bool allow) {
+void Isolate::SetHandleDereferenceGuardState(
+    HandleDereferenceGuard::State state) {
   if (FLAG_parallel_recompilation &&
       optimizing_compiler_thread()->IsOptimizerThread()) {
-    allow_compiler_thread_handle_deref_ = allow;
+    compiler_thread_handle_deref_state_ = state;
   } else {
-    allow_execution_thread_handle_deref_ = allow;
+    execution_thread_handle_deref_state_ = state;
   }
 }
 #endif

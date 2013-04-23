@@ -9055,6 +9055,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
                   RelocInfo::kApplyMask;
   // Needed to find target_object and runtime_entry on X64
   Assembler* origin = desc.origin;
+  ALLOW_HANDLE_DEREF(GetIsolate(), "embedding raw addresses into code");
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {

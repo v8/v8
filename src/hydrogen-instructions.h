@@ -2226,6 +2226,8 @@ class HInvokeFunction: public HBinaryCall {
                   int argument_count)
       : HBinaryCall(context, function, argument_count),
         known_function_(known_function) {
+    formal_parameter_count_ = known_function.is_null()
+        ? 0 : known_function->shared()->formal_parameter_count();
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2235,20 +2237,25 @@ class HInvokeFunction: public HBinaryCall {
   HValue* context() { return first(); }
   HValue* function() { return second(); }
   Handle<JSFunction> known_function() { return known_function_; }
+  int formal_parameter_count() const { return formal_parameter_count_; }
 
   DECLARE_CONCRETE_INSTRUCTION(InvokeFunction)
 
  private:
   Handle<JSFunction> known_function_;
+  int formal_parameter_count_;
 };
 
 
 class HCallConstantFunction: public HCall<0> {
  public:
   HCallConstantFunction(Handle<JSFunction> function, int argument_count)
-      : HCall<0>(argument_count), function_(function) { }
+      : HCall<0>(argument_count),
+        function_(function),
+        formal_parameter_count_(function->shared()->formal_parameter_count()) {}
 
   Handle<JSFunction> function() const { return function_; }
+  int formal_parameter_count() const { return formal_parameter_count_; }
 
   bool IsApplyFunction() const {
     return function_->code() ==
@@ -2265,6 +2272,7 @@ class HCallConstantFunction: public HCall<0> {
 
  private:
   Handle<JSFunction> function_;
+  int formal_parameter_count_;
 };
 
 
@@ -2349,11 +2357,14 @@ class HCallGlobal: public HUnaryCall {
 class HCallKnownGlobal: public HCall<0> {
  public:
   HCallKnownGlobal(Handle<JSFunction> target, int argument_count)
-      : HCall<0>(argument_count), target_(target) { }
+      : HCall<0>(argument_count),
+        target_(target),
+        formal_parameter_count_(target->shared()->formal_parameter_count()) { }
 
   virtual void PrintDataTo(StringStream* stream);
 
   Handle<JSFunction> target() const { return target_; }
+  int formal_parameter_count() const { return formal_parameter_count_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -2363,6 +2374,7 @@ class HCallKnownGlobal: public HCall<0> {
 
  private:
   Handle<JSFunction> target_;
+  int formal_parameter_count_;
 };
 
 
@@ -3231,8 +3243,9 @@ class HConstant: public HTemplateInstruction<0> {
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
-      handle_ = FACTORY->NewNumber(double_value_, TENURED);
+      handle_ = isolate()->factory()->NewNumber(double_value_, TENURED);
     }
+    ALLOW_HANDLE_DEREF(isolate(), "smi check");
     ASSERT(has_int32_value_ || !handle_->IsSmi());
     return handle_;
   }
@@ -3256,8 +3269,6 @@ class HConstant: public HTemplateInstruction<0> {
     }
 
     ASSERT(!handle_.is_null());
-    HandleDereferenceGuard allow_dereference_for_immovable_check(
-        isolate(), HandleDereferenceGuard::ALLOW);
     Heap* heap = isolate()->heap();
     ASSERT(unique_id_ != UniqueValueId(heap->minus_zero_value()));
     ASSERT(unique_id_ != UniqueValueId(heap->nan_value()));
@@ -4882,6 +4893,12 @@ class HAllocateObject: public HTemplateInstruction<1> {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
     SetGVNFlag(kChangesNewSpacePromotion);
+    constructor_initial_map_ = constructor->has_initial_map()
+        ? Handle<Map>(constructor->initial_map())
+        : Handle<Map>::null();
+    // If slack tracking finished, the instance size and property counts
+    // remain unchanged so that we can allocate memory for the object.
+    ASSERT(!constructor->shared()->IsInobjectSlackTrackingInProgress());
   }
 
   // Maximum instance size for which allocations will be inlined.
@@ -4889,13 +4906,14 @@ class HAllocateObject: public HTemplateInstruction<1> {
 
   HValue* context() { return OperandAt(0); }
   Handle<JSFunction> constructor() { return constructor_; }
+  Handle<Map> constructor_initial_map() { return constructor_initial_map_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
   virtual Handle<Map> GetMonomorphicJSObjectMap() {
-    ASSERT(constructor()->has_initial_map());
-    return Handle<Map>(constructor()->initial_map());
+    ASSERT(!constructor_initial_map_.is_null());
+    return constructor_initial_map_;
   }
   virtual HType CalculateInferredType();
 
@@ -4906,6 +4924,7 @@ class HAllocateObject: public HTemplateInstruction<1> {
   //  virtual bool IsDeletable() const { return true; }
 
   Handle<JSFunction> constructor_;
+  Handle<Map> constructor_initial_map_;
 };
 
 
@@ -6053,27 +6072,35 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
  public:
   HArrayLiteral(HValue* context,
                 Handle<HeapObject> boilerplate_object,
+                Handle<FixedArray> literals,
                 int length,
                 int literal_index,
                 int depth,
                 AllocationSiteMode mode)
       : HMaterializedLiteral<1>(literal_index, depth, mode),
         length_(length),
-        boilerplate_object_(boilerplate_object) {
+        boilerplate_object_(boilerplate_object),
+        literals_(literals) {
     SetOperandAt(0, context);
     SetGVNFlag(kChangesNewSpacePromotion);
+
+    boilerplate_elements_kind_ = boilerplate_object_->IsJSObject()
+        ? Handle<JSObject>::cast(boilerplate_object_)->GetElementsKind()
+        : TERMINAL_FAST_ELEMENTS_KIND;
+
+    is_copy_on_write_ = boilerplate_object_->IsJSObject() &&
+        (Handle<JSObject>::cast(boilerplate_object_)->elements()->map() ==
+         HEAP->fixed_cow_array_map());
   }
 
   HValue* context() { return OperandAt(0); }
   ElementsKind boilerplate_elements_kind() const {
-    if (!boilerplate_object_->IsJSObject()) {
-      return TERMINAL_FAST_ELEMENTS_KIND;
-    }
-    return Handle<JSObject>::cast(boilerplate_object_)->GetElementsKind();
+    return boilerplate_elements_kind_;
   }
   Handle<HeapObject> boilerplate_object() const { return boilerplate_object_; }
+  Handle<FixedArray> literals() const { return literals_; }
   int length() const { return length_; }
-  bool IsCopyOnWrite() const;
+  bool IsCopyOnWrite() const { return is_copy_on_write_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -6085,6 +6112,9 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
  private:
   int length_;
   Handle<HeapObject> boilerplate_object_;
+  Handle<FixedArray> literals_;
+  ElementsKind boilerplate_elements_kind_;
+  bool is_copy_on_write_;
 };
 
 
@@ -6092,12 +6122,15 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
  public:
   HObjectLiteral(HValue* context,
                  Handle<FixedArray> constant_properties,
+                 Handle<FixedArray> literals,
                  bool fast_elements,
                  int literal_index,
                  int depth,
                  bool has_function)
       : HMaterializedLiteral<1>(literal_index, depth),
         constant_properties_(constant_properties),
+        constant_properties_length_(constant_properties->length()),
+        literals_(literals),
         fast_elements_(fast_elements),
         has_function_(has_function) {
     SetOperandAt(0, context);
@@ -6108,6 +6141,10 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
   }
+  int constant_properties_length() const {
+    return constant_properties_length_;
+  }
+  Handle<FixedArray> literals() const { return literals_; }
   bool fast_elements() const { return fast_elements_; }
   bool has_function() const { return has_function_; }
 
@@ -6120,8 +6157,10 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
 
  private:
   Handle<FixedArray> constant_properties_;
-  bool fast_elements_;
-  bool has_function_;
+  int constant_properties_length_;
+  Handle<FixedArray> literals_;
+  bool fast_elements_ : 1;
+  bool has_function_ : 1;
 };
 
 
@@ -6164,7 +6203,11 @@ class HFunctionLiteral: public HTemplateInstruction<1> {
   HFunctionLiteral(HValue* context,
                    Handle<SharedFunctionInfo> shared,
                    bool pretenure)
-      : shared_info_(shared), pretenure_(pretenure) {
+      : shared_info_(shared),
+        pretenure_(pretenure),
+        has_no_literals_(shared->num_literals() == 0),
+        is_generator_(shared->is_generator()),
+        language_mode_(shared->language_mode()) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
     SetGVNFlag(kChangesNewSpacePromotion);
@@ -6181,12 +6224,18 @@ class HFunctionLiteral: public HTemplateInstruction<1> {
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   bool pretenure() const { return pretenure_; }
+  bool has_no_literals() const { return has_no_literals_; }
+  bool is_generator() const { return is_generator_; }
+  LanguageMode language_mode() const { return language_mode_; }
 
  private:
   virtual bool IsDeletable() const { return true; }
 
   Handle<SharedFunctionInfo> shared_info_;
-  bool pretenure_;
+  bool pretenure_ : 1;
+  bool has_no_literals_ : 1;
+  bool is_generator_ : 1;
+  LanguageMode language_mode_;
 };
 
 

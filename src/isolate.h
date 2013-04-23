@@ -991,9 +991,9 @@ class Isolate {
 
   int* code_kind_statistics() { return code_kind_statistics_; }
 
-  bool AllowHandleDereference();
+  HandleDereferenceGuard::State HandleDereferenceGuardState();
 
-  void SetAllowHandleDereference(bool allow);
+  void SetHandleDereferenceGuardState(HandleDereferenceGuard::State state);
 #endif
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
@@ -1073,6 +1073,10 @@ class Isolate {
   void IterateDeferredHandles(ObjectVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
+
+#ifdef DEBUG
+  bool IsDeferredHandle(Object** location);
+#endif  // DEBUG
 
   OptimizingCompilerThread* optimizing_compiler_thread() {
     return &optimizing_compiler_thread_;
@@ -1292,8 +1296,8 @@ class Isolate {
   JSObject::SpillInformation js_spill_information_;
   int code_kind_statistics_[Code::NUMBER_OF_KINDS];
 
-  bool allow_compiler_thread_handle_deref_;
-  bool allow_execution_thread_handle_deref_;
+  HandleDereferenceGuard::State compiler_thread_handle_deref_state_;
+  HandleDereferenceGuard::State execution_thread_handle_deref_state_;
 #endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
