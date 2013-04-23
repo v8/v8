@@ -1992,7 +1992,8 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
   CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
-  __ InvokeFunction(function, ParameterCount(function), arguments(),
+  ParameterCount expected(function);
+  __ InvokeFunction(function, expected, arguments(),
                     JUMP_FUNCTION, NullCallWrapper(), call_kind);
 
   __ bind(&miss);
@@ -2107,7 +2108,8 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
-  __ InvokeFunction(function, ParameterCount(function), arguments(),
+  ParameterCount expected(function);
+  __ InvokeFunction(function, expected, arguments(),
                     JUMP_FUNCTION, NullCallWrapper(), call_kind);
 
   __ bind(&miss);
@@ -2291,7 +2293,8 @@ void CallStubCompiler::CompileHandlerBackend(Handle<JSFunction> function) {
   CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
-  __ InvokeFunction(function, ParameterCount(function), arguments(),
+  ParameterCount expected(function);
+  __ InvokeFunction(function, expected, arguments(),
                     JUMP_FUNCTION, NullCallWrapper(), call_kind);
 }
 
