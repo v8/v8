@@ -7690,10 +7690,12 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         }
 
         *has_side_effects |= access->HasObservableSideEffects();
+        // The caller will use has_side_effects and add correct Simulate.
+        access->SetFlag(HValue::kHasNoObservableSideEffects);
         if (position != -1) {
           access->set_position(position);
         }
-        if_jsarray->Goto(join);
+        if_jsarray->GotoNoSimulate(join);
 
         set_current_block(if_fastobject);
         length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
@@ -7713,18 +7715,19 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
             elements_kind_branch, elements_kind, is_store));
       }
       *has_side_effects |= access->HasObservableSideEffects();
+      // The caller will use has_side_effects and add correct Simulate.
+      access->SetFlag(HValue::kHasNoObservableSideEffects);
       if (position != RelocInfo::kNoPosition) access->set_position(position);
       if (!is_store) {
         Push(access);
       }
-      current_block()->Goto(join);
+      current_block()->GotoNoSimulate(join);
       set_current_block(if_false);
     }
   }
 
   // Deopt if none of the cases matched.
   current_block()->FinishExitWithDeoptimization(HDeoptimize::kNoUses);
-  join->SetJoinId(ast_id);
   set_current_block(join);
   return is_store ? NULL : Pop();
 }
