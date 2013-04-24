@@ -609,37 +609,22 @@ void Deoptimizer::EntryGenerator::Generate() {
   const int kSavedRegistersAreaSize = kNumberOfRegisters * kPointerSize +
                                       kDoubleRegsSize;
 
-  // When calling new_deoptimizer_function we need to pass the last argument
-  // on the stack on windows and in r8 on linux. The remaining arguments are
-  // all passed in registers (different ones on linux and windows though).
-
-#ifdef _WIN64
-  Register arg4 = r9;
-  Register arg3 = r8;
-  Register arg2 = rdx;
-  Register arg1 = rcx;
-#else
-  Register arg4 = rcx;
-  Register arg3 = rdx;
-  Register arg2 = rsi;
-  Register arg1 = rdi;
-#endif
-
   // We use this to keep the value of the fifth argument temporarily.
   // Unfortunately we can't store it directly in r8 (used for passing
   // this on linux), since it is another parameter passing register on windows.
   Register arg5 = r11;
 
   // Get the bailout id from the stack.
-  __ movq(arg3, Operand(rsp, kSavedRegistersAreaSize));
+  __ movq(arg_reg_3, Operand(rsp, kSavedRegistersAreaSize));
 
   // Get the address of the location in the code object if possible
   // and compute the fp-to-sp delta in register arg5.
   if (type() == EAGER) {
-    __ Set(arg4, 0);
+    __ Set(arg_reg_4, 0);
     __ lea(arg5, Operand(rsp, kSavedRegistersAreaSize + 1 * kPointerSize));
   } else {
-    __ movq(arg4, Operand(rsp, kSavedRegistersAreaSize + 1 * kPointerSize));
+    __ movq(arg_reg_4,
+            Operand(rsp, kSavedRegistersAreaSize + 1 * kPointerSize));
     __ lea(arg5, Operand(rsp, kSavedRegistersAreaSize + 2 * kPointerSize));
   }
 
@@ -649,8 +634,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6);
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  __ movq(arg1, rax);
-  __ Set(arg2, type());
+  __ movq(arg_reg_1, rax);
+  __ Set(arg_reg_2, type());
   // Args 3 and 4 are already in the right registers.
 
   // On windows put the arguments on the stack (PrepareCallCFunction
@@ -713,8 +698,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Compute the output frame in the deoptimizer.
   __ push(rax);
   __ PrepareCallCFunction(2);
-  __ movq(arg1, rax);
-  __ LoadAddress(arg2, ExternalReference::isolate_address(isolate()));
+  __ movq(arg_reg_1, rax);
+  __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate()));
   {
     AllowExternalCallThatCantCauseGC scope(masm());
     __ CallCFunction(

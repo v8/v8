@@ -1644,13 +1644,8 @@ void LCodeGen::DoDateField(LDateField* instr) {
     }
     __ bind(&runtime);
     __ PrepareCallCFunction(2);
-#ifdef _WIN64
-  __ movq(rcx, object);
-  __ movq(rdx, index, RelocInfo::NONE64);
-#else
-  __ movq(rdi, object);
-  __ movq(rsi, index, RelocInfo::NONE64);
-#endif
+    __ movq(arg_reg_1, object);
+    __ movq(arg_reg_2, index, RelocInfo::NONE64);
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ bind(&done);
@@ -3646,12 +3641,7 @@ void LCodeGen::DoPower(LPower* instr) {
   // Having marked this as a call, we can use any registers.
   // Just make sure that the input/output registers are the expected ones.
 
-  // Choose register conforming to calling convention (when bailing out).
-#ifdef _WIN64
   Register exponent = rdx;
-#else
-  Register exponent = rdi;
-#endif
   ASSERT(!instr->right()->IsRegister() ||
          ToRegister(instr->right()).is(exponent));
   ASSERT(!instr->right()->IsDoubleRegister() ||

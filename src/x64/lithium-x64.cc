@@ -1556,12 +1556,7 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   ASSERT(instr->left()->representation().IsDouble());
   LOperand* left = UseFixedDouble(instr->left(), xmm2);
   LOperand* right = exponent_type.IsDouble() ?
-      UseFixedDouble(instr->right(), xmm1) :
-#ifdef _WIN64
-      UseFixed(instr->right(), rdx);
-#else
-      UseFixed(instr->right(), rdi);
-#endif
+      UseFixedDouble(instr->right(), xmm1) : UseFixed(instr->right(), rdx);
   LPower* result = new(zone()) LPower(left, right);
   return MarkAsCall(DefineFixedDouble(result, xmm3), instr,
                     CAN_DEOPTIMIZE_EAGERLY);
@@ -1571,11 +1566,7 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
   ASSERT(instr->representation().IsDouble());
   ASSERT(instr->global_object()->representation().IsTagged());
-#ifdef _WIN64
-  LOperand* global_object = UseFixed(instr->global_object(), rcx);
-#else
-  LOperand* global_object = UseFixed(instr->global_object(), rdi);
-#endif
+  LOperand* global_object = UseFixed(instr->global_object(), arg_reg_1);
   LRandom* result = new(zone()) LRandom(global_object);
   return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
 }

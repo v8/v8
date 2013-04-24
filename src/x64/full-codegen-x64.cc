@@ -3001,16 +3001,10 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   // Return a random uint32 number in rax.
   // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
   __ PrepareCallCFunction(1);
-#ifdef _WIN64
-  __ movq(rcx,
+  __ movq(arg_reg_1,
           ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ movq(rcx, FieldOperand(rcx, GlobalObject::kNativeContextOffset));
-
-#else
-  __ movq(rdi,
-          ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ movq(rdi, FieldOperand(rdi, GlobalObject::kNativeContextOffset));
-#endif
+  __ movq(arg_reg_1,
+          FieldOperand(arg_reg_1, GlobalObject::kNativeContextOffset));
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
@@ -3108,13 +3102,8 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     }
     __ bind(&runtime);
     __ PrepareCallCFunction(2);
-#ifdef _WIN64
-  __ movq(rcx, object);
-  __ movq(rdx, index, RelocInfo::NONE64);
-#else
-  __ movq(rdi, object);
-  __ movq(rsi, index, RelocInfo::NONE64);
-#endif
+  __ movq(arg_reg_1, object);
+  __ movq(arg_reg_2, index, RelocInfo::NONE64);
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ jmp(&done);

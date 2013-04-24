@@ -648,11 +648,7 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // the stub returns.
   __ subq(Operand(rsp, 0), Immediate(5));
   __ Pushad();
-#ifdef _WIN64
-  __ movq(rcx, Operand(rsp, kNumSafepointRegisters * kPointerSize));
-#else
-  __ movq(rdi, Operand(rsp, kNumSafepointRegisters * kPointerSize));
-#endif
+  __ movq(arg_reg_1, Operand(rsp, kNumSafepointRegisters * kPointerSize));
   {  // NOLINT
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(1);

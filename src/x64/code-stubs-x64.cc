@@ -538,11 +538,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   __ PushCallerSaved(save_doubles_);
   const int argument_count = 1;
   __ PrepareCallCFunction(argument_count);
-#ifdef _WIN64
-  __ LoadAddress(rcx, ExternalReference::isolate_address(masm->isolate()));
-#else
-  __ LoadAddress(rdi, ExternalReference::isolate_address(masm->isolate()));
-#endif
+  __ LoadAddress(arg_reg_1,
+                 ExternalReference::isolate_address(masm->isolate()));
 
   AllowExternalCallThatCantCauseGC scope(masm);
   __ CallCFunction(
@@ -2012,12 +2009,7 @@ void FloatingPointHelper::NumbersToSmis(MacroAssembler* masm,
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  // Choose register conforming to calling convention (when bailing out).
-#ifdef _WIN64
   const Register exponent = rdx;
-#else
-  const Register exponent = rdi;
-#endif
   const Register base = rax;
   const Register scratch = rcx;
   const XMMRegister double_result = xmm3;
@@ -3026,20 +3018,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movq(Operand(rsp, (argument_slots_on_stack - 5) * kPointerSize), r8);
 #endif
 
-  // First four arguments are passed in registers on both Linux and Windows.
-#ifdef _WIN64
-  Register arg4 = r9;
-  Register arg3 = r8;
-  Register arg2 = rdx;
-  Register arg1 = rcx;
-#else
-  Register arg4 = rcx;
-  Register arg3 = rdx;
-  Register arg2 = rsi;
-  Register arg1 = rdi;
-#endif
-
-  // Keep track on aliasing between argX defined above and the registers used.
   // rdi: subject string
   // rbx: previous index
   // rcx: encoding of subject string (1 if ASCII 0 if two_byte);
@@ -3048,7 +3026,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // r15: original subject string
 
   // Argument 2: Previous index.
-  __ movq(arg2, rbx);
+  __ movq(arg_reg_2, rbx);
 
   // Argument 4: End of string data
   // Argument 3: Start of string data
@@ -3056,20 +3034,24 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Prepare start and end index of the input.
   // Load the length from the original sliced string if that is the case.
   __ addq(rbx, r14);
-  __ SmiToInteger32(arg3, FieldOperand(r15, String::kLengthOffset));
-  __ addq(r14, arg3);  // Using arg3 as scratch.
+  __ SmiToInteger32(arg_reg_3, FieldOperand(r15, String::kLengthOffset));
+  __ addq(r14, arg_reg_3);  // Using arg3 as scratch.
 
   // rbx: start index of the input
   // r14: end index of the input
   // r15: original subject string
   __ testb(rcx, rcx);  // Last use of rcx as encoding of subject string.
   __ j(zero, &setup_two_byte, Label::kNear);
-  __ lea(arg4, FieldOperand(rdi, r14, times_1, SeqOneByteString::kHeaderSize));
-  __ lea(arg3, FieldOperand(rdi, rbx, times_1, SeqOneByteString::kHeaderSize));
+  __ lea(arg_reg_4,
+         FieldOperand(rdi, r14, times_1, SeqOneByteString::kHeaderSize));
+  __ lea(arg_reg_3,
+         FieldOperand(rdi, rbx, times_1, SeqOneByteString::kHeaderSize));
   __ jmp(&setup_rest, Label::kNear);
   __ bind(&setup_two_byte);
-  __ lea(arg4, FieldOperand(rdi, r14, times_2, SeqTwoByteString::kHeaderSize));
-  __ lea(arg3, FieldOperand(rdi, rbx, times_2, SeqTwoByteString::kHeaderSize));
+  __ lea(arg_reg_4,
+         FieldOperand(rdi, r14, times_2, SeqTwoByteString::kHeaderSize));
+  __ lea(arg_reg_3,
+         FieldOperand(rdi, rbx, times_2, SeqTwoByteString::kHeaderSize));
   __ bind(&setup_rest);
 
   // Argument 1: Original subject string.
@@ -3077,7 +3059,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // use rbp, which points exactly to one pointer size below the previous rsp.
   // (Because creating a new stack frame pushes the previous rbp onto the stack
   // and thereby moves up rsp by one kPointerSize.)
-  __ movq(arg1, r15);
+  __ movq(arg_reg_1, r15);
 
   // Locate the code entry and call it.
   __ addq(r11, Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -4102,11 +4084,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // PerformGC. No need to use PrepareCallCFunction/CallCFunction here as the
     // stack is known to be aligned. This function takes one argument which is
     // passed in register.
-#ifdef _WIN64
-    __ movq(rcx, rax);
-#else  // _WIN64
-    __ movq(rdi, rax);
-#endif
+    __ movq(arg_reg_1, rax);
     __ movq(kScratchRegister,
             ExternalReference::perform_gc_function(masm->isolate()));
     __ call(kScratchRegister);
@@ -6494,24 +6472,16 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
 
 void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
-#ifdef _WIN64
-  Register arg3 = r8;
-  Register arg2 = rdx;
-  Register arg1 = rcx;
-#else
-  Register arg3 = rdx;
-  Register arg2 = rsi;
-  Register arg1 = rdi;
-#endif
   Register address =
-      arg1.is(regs_.address()) ? kScratchRegister : regs_.address();
+      arg_reg_1.is(regs_.address()) ? kScratchRegister : regs_.address();
   ASSERT(!address.is(regs_.object()));
-  ASSERT(!address.is(arg1));
+  ASSERT(!address.is(arg_reg_1));
   __ Move(address, regs_.address());
-  __ Move(arg1, regs_.object());
+  __ Move(arg_reg_1, regs_.object());
   // TODO(gc) Can we just set address arg2 in the beginning?
-  __ Move(arg2, address);
-  __ LoadAddress(arg3, ExternalReference::isolate_address(masm->isolate()));
+  __ Move(arg_reg_2, address);
+  __ LoadAddress(arg_reg_3,
+                 ExternalReference::isolate_address(masm->isolate()));
   int argument_count = 3;
 
   AllowExternalCallThatCantCauseGC scope(masm);
