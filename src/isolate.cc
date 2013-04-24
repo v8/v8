@@ -2243,6 +2243,7 @@ bool Isolate::Init(Deserializer* des) {
                                    DONT_TRACK_ALLOCATION_SITE, 0);
     stub.InitializeInterfaceDescriptor(
         this, code_stub_interface_descriptor(CodeStub::FastCloneShallowArray));
+    CompareNilICStub::InitializeForIsolate(this);
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();

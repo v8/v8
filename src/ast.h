@@ -339,6 +339,9 @@ class Expression: public AstNode {
   // True iff the expression is the null literal.
   bool IsNullLiteral();
 
+  // True iff the expression is the undefined literal.
+  bool IsUndefinedLiteral();
+
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
     UNREACHABLE();

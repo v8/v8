@@ -4437,28 +4437,22 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
 
   VisitForAccumulatorValue(sub_expr);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Heap::RootListIndex nil_value = nil == kNullValue ?
-      Heap::kNullValueRootIndex :
-      Heap::kUndefinedValueRootIndex;
-  __ LoadRoot(r1, nil_value);
-  __ cmp(r0, r1);
-  if (expr->op() == Token::EQ_STRICT) {
+  EqualityKind kind = expr->op() == Token::EQ_STRICT
+      ? kStrictEquality : kNonStrictEquality;
+  if (kind == kStrictEquality) {
+    Heap::RootListIndex nil_value = nil == kNullValue ?
+        Heap::kNullValueRootIndex :
+        Heap::kUndefinedValueRootIndex;
+    __ LoadRoot(r1, nil_value);
+    __ cmp(r0, r1);
     Split(eq, if_true, if_false, fall_through);
   } else {
-    Heap::RootListIndex other_nil_value = nil == kNullValue ?
-        Heap::kUndefinedValueRootIndex :
-        Heap::kNullValueRootIndex;
-    __ b(eq, if_true);
-    __ LoadRoot(r1, other_nil_value);
-    __ cmp(r0, r1);
-    __ b(eq, if_true);
-    __ JumpIfSmi(r0, if_false);
-    // It can be an undetectable object.
-    __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-    __ ldrb(r1, FieldMemOperand(r1, Map::kBitFieldOffset));
-    __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
-    __ cmp(r1, Operand(1 << Map::kIsUndetectable));
-    Split(eq, if_true, if_false, fall_through);
+    Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(),
+                                                         kNonStrictEquality,
+                                                         nil);
+    CallIC(ic, RelocInfo::CODE_TARGET, expr->CompareOperationFeedbackId());
+    __ cmp(r0, Operand(0));
+    Split(ne, if_true, if_false, fall_through);
   }
   context()->Plug(if_true, if_false);
 }

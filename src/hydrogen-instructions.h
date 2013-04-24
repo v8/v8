@@ -3949,6 +3949,10 @@ class HCompareObjectEqAndBranch: public HTemplateControlInstruction<2, 2> {
     return Representation::Tagged();
   }
 
+  virtual Representation observed_input_representation(int index) {
+    return Representation::Tagged();
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CompareObjectEqAndBranch)
 };
 

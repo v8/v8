@@ -407,6 +407,42 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
+CompareNilICStub::Types CompareNilICStub::GetPatchedICFlags(
+    Code::ExtraICState extra_ic_state,
+    Handle<Object> object,
+    bool* already_monomorphic) {
+  Types types = TypesField::decode(extra_ic_state);
+  NilValue nil = NilValueField::decode(extra_ic_state);
+  EqualityKind kind = EqualityKindField::decode(extra_ic_state);
+  ASSERT(types != CompareNilICStub::kFullCompare);
+  *already_monomorphic =
+      (types & CompareNilICStub::kCompareAgainstMonomorphicMap) != 0;
+  if (kind == kStrictEquality) {
+    if (nil == kNullValue) {
+      return CompareNilICStub::kCompareAgainstNull;
+    } else {
+      return CompareNilICStub::kCompareAgainstUndefined;
+    }
+  } else {
+    if (object->IsNull()) {
+      types = static_cast<CompareNilICStub::Types>(
+          types | CompareNilICStub::kCompareAgainstNull);
+    } else if (object->IsUndefined()) {
+      types = static_cast<CompareNilICStub::Types>(
+          types | CompareNilICStub::kCompareAgainstUndefined);
+    } else if (object->IsUndetectableObject() || !object->IsHeapObject()) {
+        types = CompareNilICStub::kFullCompare;
+    } else if ((types & CompareNilICStub::kCompareAgainstMonomorphicMap) != 0) {
+      types = CompareNilICStub::kFullCompare;
+    } else {
+      types = static_cast<CompareNilICStub::Types>(
+          types | CompareNilICStub::kCompareAgainstMonomorphicMap);
+    }
+  }
+  return types;
+}
+
+
 void InstanceofStub::PrintName(StringStream* stream) {
   const char* args = "";
   if (HasArgsInRegisters()) {

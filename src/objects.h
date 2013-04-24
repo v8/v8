@@ -4354,6 +4354,7 @@ class Code: public HeapObject {
   V(UNARY_OP_IC)          \
   V(BINARY_OP_IC)         \
   V(COMPARE_IC)           \
+  V(COMPARE_NIL_IC)       \
   V(TO_BOOLEAN_IC)
 
   enum Kind {
@@ -4465,6 +4466,8 @@ class Code: public HeapObject {
   inline Kind kind();
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
+  inline ExtraICState extended_extra_ic_state();  // Only valid for
+                                                  // non-call IC stubs.
   inline StubType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
 
@@ -4480,6 +4483,7 @@ class Code: public HeapObject {
   inline bool is_unary_op_stub() { return kind() == UNARY_OP_IC; }
   inline bool is_binary_op_stub() { return kind() == BINARY_OP_IC; }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
+  inline bool is_compare_nil_ic_stub() { return kind() == COMPARE_NIL_IC; }
   inline bool is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
@@ -4558,6 +4562,9 @@ class Code: public HeapObject {
   inline byte to_boolean_state();
   inline void set_to_boolean_state(byte value);
 
+  // [compare_nil]: For kind COMPARE_NIL_IC tells what state the stub is in.
+  byte compare_nil_state();
+
   // [has_function_cache]: For kind STUB tells whether there is a function
   // cache is passed to the stub.
   inline bool has_function_cache();
@@ -4577,6 +4584,7 @@ class Code: public HeapObject {
   // Find the first map in an IC stub.
   Map* FindFirstMap();
   void FindAllMaps(MapHandleList* maps);
+  void ReplaceFirstMap(Map* replace);
 
   // Find the first code in an IC stub.
   Code* FindFirstCode();
@@ -4629,6 +4637,7 @@ class Code: public HeapObject {
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
+  static inline ExtraICState ExtractExtendedExtraICStateFromFlags(Flags flags);
   static inline int ExtractArgumentsCountFromFlags(Flags flags);
 
   static inline Flags RemoveTypeFromFlags(Flags flags);
@@ -4768,8 +4777,11 @@ class Code: public HeapObject {
   class TypeField: public BitField<StubType, 3, 3> {};
   class CacheHolderField: public BitField<InlineCacheHolderFlag, 6, 1> {};
   class KindField: public BitField<Kind, 7, 4> {};
-  class ExtraICStateField: public BitField<ExtraICState, 11, 5> {};
-  class IsPregeneratedField: public BitField<bool, 16, 1> {};
+  class IsPregeneratedField: public BitField<bool, 11, 1> {};
+  class ExtraICStateField: public BitField<ExtraICState, 12, 5> {};
+  class ExtendedExtraICStateField: public BitField<ExtraICState, 12,
+      PlatformSmiTagging::kSmiValueSize - 12 + 1> {};  // NOLINT
+  STATIC_ASSERT(ExtraICStateField::kShift == ExtendedExtraICStateField::kShift);
 
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
@@ -4841,6 +4853,13 @@ class Code: public HeapObject {
   static const int kArgumentsBits =
       PlatformSmiTagging::kSmiValueSize - Code::kArgumentsCountShift + 1;
   static const int kMaxArguments = (1 << kArgumentsBits) - 1;
+
+  // ICs can use either argument count or ExtendedExtraIC, since their storage
+  // overlaps.
+  STATIC_ASSERT(ExtraICStateField::kShift +
+                ExtraICStateField::kSize + kArgumentsBits ==
+                ExtendedExtraICStateField::kShift +
+                ExtendedExtraICStateField::kSize);
 
   // This constant should be encodable in an ARM instruction.
   static const int kFlagsNotUsedInLookup =

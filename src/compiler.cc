@@ -147,8 +147,7 @@ Code::Flags CompilationInfo::flags() const {
     return Code::ComputeFlags(code_stub()->GetCodeKind(),
                               code_stub()->GetICState(),
                               code_stub()->GetExtraICState(),
-                              Code::NORMAL,
-                              0);
+                              Code::NORMAL, -1);
   } else {
     return Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
   }

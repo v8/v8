@@ -347,6 +347,7 @@ void IC::Clear(Address address) {
     case Code::CALL_IC: return CallIC::Clear(address, target);
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
     case Code::COMPARE_IC: return CompareIC::Clear(address, target);
+    case Code::COMPARE_NIL_IC: return CompareNilIC::Clear(address, target);
     case Code::UNARY_OP_IC:
     case Code::BINARY_OP_IC:
     case Code::TO_BOOLEAN_IC:
@@ -2767,6 +2768,93 @@ RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
   ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
   return ic.target();
+}
+
+
+Code* CompareNilIC::GetRawUninitialized(EqualityKind kind,
+                                        NilValue nil) {
+  CompareNilICStub stub(kind, nil);
+  Code* code = NULL;
+  CHECK(stub.FindCodeInCache(&code, Isolate::Current()));
+  return code;
+}
+
+
+void CompareNilIC::Clear(Address address, Code* target) {
+  if (target->ic_state() == UNINITIALIZED) return;
+  Code::ExtraICState state = target->extended_extra_ic_state();
+
+  EqualityKind kind =
+      CompareNilICStub::EqualityKindFromExtraICState(state);
+  NilValue nil =
+      CompareNilICStub::NilValueFromExtraICState(state);
+
+  SetTargetAtAddress(address, GetRawUninitialized(kind, nil));
+}
+
+
+MaybeObject* CompareNilIC::DoCompareNilSlow(EqualityKind kind,
+                                            NilValue nil,
+                                            Handle<Object> object) {
+  if (kind == kStrictEquality) {
+    if (nil == kNullValue) {
+      return Smi::FromInt(object->IsNull());
+    } else {
+      return Smi::FromInt(object->IsUndefined());
+    }
+  }
+  if (object->IsNull() || object->IsUndefined()) {
+    return Smi::FromInt(true);
+  }
+  return Smi::FromInt(object->IsUndetectableObject());
+}
+
+
+MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
+  Code::ExtraICState extra_ic_state = target()->extended_extra_ic_state();
+
+  // Extract the current supported types from the patched IC and calculate what
+  // types must be supported as a result of the miss.
+  bool already_monomorphic;
+  CompareNilICStub::Types types =
+      CompareNilICStub::GetPatchedICFlags(extra_ic_state,
+                                          object, &already_monomorphic);
+
+  EqualityKind kind =
+      CompareNilICStub::EqualityKindFromExtraICState(extra_ic_state);
+  NilValue nil =
+      CompareNilICStub::NilValueFromExtraICState(extra_ic_state);
+
+  // Find or create the specialized stub to support the new set of types.
+  CompareNilICStub stub(kind, nil, types);
+  Handle<Code> code;
+  if ((types & CompareNilICStub::kCompareAgainstMonomorphicMap) != 0) {
+    Handle<Map> monomorphic_map(already_monomorphic
+                                ? target()->FindFirstMap()
+                                : HeapObject::cast(*object)->map());
+    code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map,
+                                                      nil,
+                                                      stub.GetTypes());
+  } else {
+    code = stub.GetCode(isolate());
+  }
+
+  patch(*code);
+
+  return DoCompareNilSlow(kind, nil, object);
+}
+
+
+void CompareNilIC::patch(Code* code) {
+  set_target(code);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, CompareNilIC_Miss) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);
+  CompareNilIC ic(isolate);
+  return ic.CompareNil(object);
 }
 
 

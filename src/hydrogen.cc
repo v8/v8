@@ -603,6 +603,19 @@ HConstant* HGraph::GetConstantInt32(SetOncePointer<HConstant>* pointer,
 }
 
 
+HConstant* HGraph::GetConstantSmi(SetOncePointer<HConstant>* pointer,
+                                  int32_t value) {
+  if (!pointer->is_set()) {
+    HConstant* constant =
+        new(zone()) HConstant(Handle<Object>(Smi::FromInt(value), isolate()),
+                              Representation::Tagged());
+    constant->InsertAfter(GetConstantUndefined());
+    pointer->set(constant);
+  }
+  return pointer->get();
+}
+
+
 HConstant* HGraph::GetConstant0() {
   return GetConstantInt32(&constant_0_, 0);
 }
@@ -638,6 +651,18 @@ HConstant* HGraph::GetConstant##Name() {                                       \
 DEFINE_GET_CONSTANT(True, true, HType::Boolean(), true)
 DEFINE_GET_CONSTANT(False, false, HType::Boolean(), false)
 DEFINE_GET_CONSTANT(Hole, the_hole, HType::Tagged(), false)
+DEFINE_GET_CONSTANT(Null, null, HType::Tagged(), false)
+
+
+HConstant* HGraph::GetConstantSmi0() {
+  return GetConstantSmi(&constant_smi_0_, 0);
+}
+
+
+HConstant* HGraph::GetConstantSmi1() {
+  return GetConstantSmi(&constant_smi_1_, 1);
+}
+
 
 #undef DEFINE_GET_CONSTANT
 
@@ -770,8 +795,9 @@ void HGraphBuilder::IfBuilder::CaptureContinuation(
   HBasicBlock* true_block = last_true_block_ == NULL
       ? first_true_block_
       : last_true_block_;
-  HBasicBlock* false_block =
-      did_else_ ? builder_->current_block() : first_false_block_;
+  HBasicBlock* false_block = did_else_ && (first_false_block_ != NULL)
+      ? builder_->current_block()
+      : first_false_block_;
   continuation->Capture(true_block, false_block, position_);
   captured_ = true;
   End();
@@ -804,9 +830,21 @@ void HGraphBuilder::IfBuilder::Else() {
 
 
 void HGraphBuilder::IfBuilder::Deopt() {
-  ASSERT(!(did_then_ ^ did_else_));
   HBasicBlock* block = builder_->current_block();
   block->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
+  if (did_else_) {
+    first_false_block_ = NULL;
+  } else {
+    first_true_block_ = NULL;
+  }
+}
+
+
+void HGraphBuilder::IfBuilder::Return(HValue* value) {
+  HBasicBlock* block = builder_->current_block();
+  block->Finish(new(zone()) HReturn(value,
+                                    builder_->environment()->LookupContext(),
+                                    builder_->graph()->GetConstantMinus1()));
   if (did_else_) {
     first_false_block_ = NULL;
   } else {
@@ -1666,6 +1704,53 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
   }
 
   return object;
+}
+
+
+void HGraphBuilder::BuildCompareNil(
+    HValue* value,
+    EqualityKind kind,
+    CompareNilICStub::Types types,
+    Handle<Map> map,
+    int position,
+    HIfContinuation* continuation) {
+  IfBuilder if_nil(this, position);
+  bool needs_or = false;
+  if ((types & CompareNilICStub::kCompareAgainstNull) != 0) {
+    if (needs_or) if_nil.Or();
+    if_nil.If<HCompareObjectEqAndBranch>(value, graph()->GetConstantNull());
+    needs_or = true;
+  }
+  if ((types & CompareNilICStub::kCompareAgainstUndefined) != 0) {
+    if (needs_or) if_nil.Or();
+    if_nil.If<HCompareObjectEqAndBranch>(value,
+                                         graph()->GetConstantUndefined());
+    needs_or = true;
+  }
+  // Handle either undetectable or monomorphic, not both.
+  ASSERT(((types & CompareNilICStub::kCompareAgainstUndetectable) == 0) ||
+         ((types & CompareNilICStub::kCompareAgainstMonomorphicMap) == 0));
+  if ((types & CompareNilICStub::kCompareAgainstUndetectable) != 0) {
+    if (needs_or) if_nil.Or();
+    if_nil.If<HIsUndetectableAndBranch>(value);
+  } else {
+    if_nil.Then();
+    if_nil.Else();
+    if ((types & CompareNilICStub::kCompareAgainstMonomorphicMap) != 0) {
+      BuildCheckNonSmi(value);
+      // For ICs, the map checked below is a sentinel map that gets replaced by
+      // the monomorphic map when the code is used as a template to generate a
+      // new IC. For optimized functions, there is no sentinel map, the map
+      // emitted below is the actual monomorphic map.
+      BuildCheckMap(value, map);
+    } else {
+      if (kind == kNonStrictEquality) {
+        if_nil.Deopt();
+      }
+    }
+  }
+
+  if_nil.CaptureContinuation(continuation);
 }
 
 
@@ -10212,9 +10297,24 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   ASSERT(current_block()->HasPredecessor());
   EqualityKind kind =
       expr->op() == Token::EQ_STRICT ? kStrictEquality : kNonStrictEquality;
-  HIsNilAndBranch* instr = new(zone()) HIsNilAndBranch(value, kind, nil);
-  instr->set_position(expr->position());
-  return ast_context()->ReturnControl(instr, expr->id());
+  HIfContinuation continuation;
+  TypeFeedbackId id = expr->CompareOperationFeedbackId();
+  CompareNilICStub::Types types;
+  if (kind == kStrictEquality) {
+    if (nil == kNullValue) {
+      types = CompareNilICStub::kCompareAgainstNull;
+    } else {
+      types = CompareNilICStub::kCompareAgainstUndefined;
+    }
+  } else {
+    types = static_cast<CompareNilICStub::Types>(
+        oracle()->CompareNilTypes(id));
+    if (types == 0) types = CompareNilICStub::kFullCompare;
+  }
+  Handle<Map> map_handle(oracle()->CompareNilMonomorphicReceiverType(id));
+  BuildCompareNil(value, kind, types, map_handle,
+                  expr->position(), &continuation);
+  return ast_context()->ReturnContinuation(&continuation, expr->id());
 }
 
 

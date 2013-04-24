@@ -3634,6 +3634,12 @@ Code::ExtraICState Code::extra_ic_state() {
 }
 
 
+Code::ExtraICState Code::extended_extra_ic_state() {
+  ASSERT(is_inline_cache_stub() || ic_state() == DEBUG_STUB);
+  return ExtractExtendedExtraICStateFromFlags(flags());
+}
+
+
 Code::StubType Code::type() {
   return ExtractTypeFromFlags(flags());
 }
@@ -3663,6 +3669,7 @@ int Code::major_key() {
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
+         kind() == COMPARE_NIL_IC ||
          kind() == LOAD_IC ||
          kind() == KEYED_LOAD_IC ||
          kind() == TO_BOOLEAN_IC);
@@ -3676,6 +3683,7 @@ void Code::set_major_key(int major) {
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
+         kind() == COMPARE_NIL_IC ||
          kind() == LOAD_IC ||
          kind() == KEYED_LOAD_IC ||
          kind() == STORE_IC ||
@@ -3940,13 +3948,23 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                int argc,
                                InlineCacheHolderFlag holder) {
   ASSERT(argc <= Code::kMaxArguments);
+  // Since the extended extra ic state overlaps with the argument count
+  // for CALL_ICs, do so checks to make sure that they don't interfere.
+  ASSERT((kind != Code::CALL_IC &&
+          kind != Code::KEYED_CALL_IC) ||
+         (ExtraICStateField::encode(extra_ic_state) | true));
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind)
       | ICStateField::encode(ic_state)
       | TypeField::encode(type)
-      | ExtraICStateField::encode(extra_ic_state)
-      | (argc << kArgumentsCountShift)
+      | ExtendedExtraICStateField::encode(extra_ic_state)
       | CacheHolderField::encode(holder);
+  // TODO(danno): This is a bit of a hack right now since there are still
+  // clients of this API that pass "extra" values in for argc. These clients
+  // should be retrofitted to used ExtendedExtraICState.
+  if (kind != Code::COMPARE_NIL_IC) {
+    bits |= (argc << kArgumentsCountShift);
+  }
   return static_cast<Flags>(bits);
 }
 
@@ -3972,6 +3990,12 @@ InlineCacheState Code::ExtractICStateFromFlags(Flags flags) {
 
 Code::ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
   return ExtraICStateField::decode(flags);
+}
+
+
+Code::ExtraICState Code::ExtractExtendedExtraICStateFromFlags(
+    Flags flags) {
+  return ExtendedExtraICStateField::decode(flags);
 }
 
 
@@ -5124,7 +5148,8 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 
 
 int Code::stub_info() {
-  ASSERT(kind() == COMPARE_IC || kind() == BINARY_OP_IC || kind() == LOAD_IC);
+  ASSERT(kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
+         kind() == BINARY_OP_IC || kind() == LOAD_IC);
   Object* value = READ_FIELD(this, kTypeFeedbackInfoOffset);
   return Smi::cast(value)->value();
 }
@@ -5132,6 +5157,7 @@ int Code::stub_info() {
 
 void Code::set_stub_info(int value) {
   ASSERT(kind() == COMPARE_IC ||
+         kind() == COMPARE_NIL_IC ||
          kind() == BINARY_OP_IC ||
          kind() == STUB ||
          kind() == LOAD_IC ||

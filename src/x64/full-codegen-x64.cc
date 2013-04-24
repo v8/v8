@@ -4435,24 +4435,20 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
 
   VisitForAccumulatorValue(sub_expr);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Heap::RootListIndex nil_value = nil == kNullValue ?
-      Heap::kNullValueRootIndex :
-      Heap::kUndefinedValueRootIndex;
-  __ CompareRoot(rax, nil_value);
-  if (expr->op() == Token::EQ_STRICT) {
+  EqualityKind kind = expr->op() == Token::EQ_STRICT
+      ? kStrictEquality : kNonStrictEquality;
+  if (kind == kStrictEquality) {
+    Heap::RootListIndex nil_value = nil == kNullValue ?
+        Heap::kNullValueRootIndex :
+        Heap::kUndefinedValueRootIndex;
+    __ CompareRoot(rax, nil_value);
     Split(equal, if_true, if_false, fall_through);
   } else {
-    Heap::RootListIndex other_nil_value = nil == kNullValue ?
-        Heap::kUndefinedValueRootIndex :
-        Heap::kNullValueRootIndex;
-    __ j(equal, if_true);
-    __ CompareRoot(rax, other_nil_value);
-    __ j(equal, if_true);
-    __ JumpIfSmi(rax, if_false);
-    // It can be an undetectable object.
-    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ testb(FieldOperand(rdx, Map::kBitFieldOffset),
-             Immediate(1 << Map::kIsUndetectable));
+    Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(),
+                                                         kNonStrictEquality,
+                                                         nil);
+    CallIC(ic, RelocInfo::CODE_TARGET, expr->CompareOperationFeedbackId());
+    __ testq(rax, rax);
     Split(not_zero, if_true, if_false, fall_through);
   }
   context()->Plug(if_true, if_false);

@@ -304,10 +304,13 @@ class HGraph: public ZoneObject {
   HConstant* GetConstantUndefined() const { return undefined_constant_.get(); }
   HConstant* GetConstant0();
   HConstant* GetConstant1();
+  HConstant* GetConstantSmi0();
+  HConstant* GetConstantSmi1();
   HConstant* GetConstantMinus1();
   HConstant* GetConstantTrue();
   HConstant* GetConstantFalse();
   HConstant* GetConstantHole();
+  HConstant* GetConstantNull();
   HConstant* GetInvalidContext();
 
   HBasicBlock* CreateBasicBlock();
@@ -395,6 +398,8 @@ class HGraph: public ZoneObject {
  private:
   HConstant* GetConstantInt32(SetOncePointer<HConstant>* pointer,
                               int32_t integer_value);
+  HConstant* GetConstantSmi(SetOncePointer<HConstant>* pointer,
+                            int32_t integer_value);
 
   void MarkAsDeoptimizingRecursively(HBasicBlock* block);
   void NullifyUnreachableInstructions();
@@ -424,10 +429,13 @@ class HGraph: public ZoneObject {
   SetOncePointer<HConstant> undefined_constant_;
   SetOncePointer<HConstant> constant_0_;
   SetOncePointer<HConstant> constant_1_;
+  SetOncePointer<HConstant> constant_smi_0_;
+  SetOncePointer<HConstant> constant_smi_1_;
   SetOncePointer<HConstant> constant_minus1_;
   SetOncePointer<HConstant> constant_true_;
   SetOncePointer<HConstant> constant_false_;
   SetOncePointer<HConstant> constant_the_hole_;
+  SetOncePointer<HConstant> constant_null_;
   SetOncePointer<HConstant> constant_invalid_context_;
   SetOncePointer<HArgumentsObject> arguments_object_;
 
@@ -890,7 +898,6 @@ class HIfContinuation {
                HBasicBlock* false_branch,
                int position) {
     ASSERT(!continuation_captured_);
-    ASSERT(true_branch != NULL || false_branch != NULL);
     true_branch_ = true_branch;
     false_branch_ = false_branch;
     position_ = position;
@@ -1125,6 +1132,8 @@ class HGraphBuilder {
       End();
     }
 
+    void Return(HValue* value);
+
    private:
     void AddCompare(HControlInstruction* compare);
 
@@ -1240,6 +1249,14 @@ class HGraphBuilder {
                                  AllocationSiteMode mode,
                                  ElementsKind kind,
                                  int length);
+
+  void BuildCompareNil(
+      HValue* value,
+      EqualityKind kind,
+      CompareNilICStub::Types types,
+      Handle<Map> map,
+      int position,
+      HIfContinuation* continuation);
 
  private:
   HGraphBuilder();

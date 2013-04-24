@@ -9021,6 +9021,12 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
   VisitExternalReferences(p, p + 1);
 }
 
+byte Code::compare_nil_state() {
+  ASSERT(is_compare_nil_ic_stub());
+  return CompareNilICStub::TypesFromExtraICState(extended_extra_ic_state());
+}
+
+
 void Code::InvalidateRelocation() {
   set_relocation_info(GetHeap()->empty_byte_array());
 }
@@ -9154,6 +9160,22 @@ Map* Code::FindFirstMap() {
     if (object->IsMap()) return Map::cast(object);
   }
   return NULL;
+}
+
+
+void Code::ReplaceFirstMap(Map* replace_with) {
+  ASSERT(is_inline_cache_stub());
+  AssertNoAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    Object* object = info->target_object();
+    if (object->IsMap()) {
+      info->set_target_object(replace_with);
+      return;
+    }
+  }
+  UNREACHABLE();
 }
 
 
@@ -9352,6 +9374,7 @@ const char* Code::Kind2String(Kind kind) {
     case UNARY_OP_IC: return "UNARY_OP_IC";
     case BINARY_OP_IC: return "BINARY_OP_IC";
     case COMPARE_IC: return "COMPARE_IC";
+    case COMPARE_NIL_IC: return "COMPARE_NIL_IC";
     case TO_BOOLEAN_IC: return "TO_BOOLEAN_IC";
   }
   UNREACHABLE();

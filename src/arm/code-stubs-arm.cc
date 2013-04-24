@@ -96,6 +96,19 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
+void CompareNilICStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r0 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(CompareNilIC_Miss);
+  descriptor->miss_handler_ =
+      ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate);
+}
+
+
 static void InitializeArrayConstructorDescriptor(Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // register state

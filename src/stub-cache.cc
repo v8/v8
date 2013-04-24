@@ -110,15 +110,25 @@ Handle<JSObject> StubCache::StubHolder(Handle<JSObject> receiver,
 
 
 Handle<Code> StubCache::FindIC(Handle<Name> name,
+                               Handle<Map> stub_holder_map,
+                               Code::Kind kind,
+                               Code::StubType type,
+                               Code::ExtraICState extra_state) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(kind, extra_state, type);
+  Handle<Object> probe(stub_holder_map->FindInCodeCache(*name, flags),
+                       isolate_);
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+  return Handle<Code>::null();
+}
+
+
+Handle<Code> StubCache::FindIC(Handle<Name> name,
                                Handle<JSObject> stub_holder,
                                Code::Kind kind,
                                Code::StubType type,
                                Code::ExtraICState extra_ic_state) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(kind, extra_ic_state, type);
-  Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
-                       isolate_);
-  if (probe->IsCode()) return Handle<Code>::cast(probe);
-  return Handle<Code>::null();
+  return FindIC(name, Handle<Map>(stub_holder->map()), kind,
+                type, extra_ic_state);
 }
 
 
@@ -487,7 +497,8 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
                                            Handle<JSGlobalPropertyCell> cell,
                                            StrictModeFlag strict_mode) {
   Handle<Code> stub = FindIC(
-      name, receiver, Code::STORE_IC, Code::NORMAL, strict_mode);
+      name, Handle<JSObject>::cast(receiver),
+      Code::STORE_IC, Code::NORMAL, strict_mode);
   if (!stub.is_null()) return stub;
 
   StoreStubCompiler compiler(isolate_, strict_mode);
@@ -890,6 +901,32 @@ Handle<Code> StubCache::ComputeCallMiss(int argc,
   Handle<Code> code = compiler.CompileCallMiss(flags);
   FillCache(isolate_, code);
   return code;
+}
+
+
+Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
+                                          NilValue nil,
+                                          CompareNilICStub::Types types) {
+  CompareNilICStub stub(kNonStrictEquality, nil, types);
+
+  Handle<String> name(isolate_->heap()->empty_string());
+  if (!receiver_map->is_shared()) {
+    Handle<Code> cached_ic = FindIC(name, receiver_map, Code::COMPARE_NIL_IC,
+                                    Code::NORMAL, stub.GetExtraICState());
+    if (!cached_ic.is_null()) return cached_ic;
+  }
+
+  Handle<Code> ic = stub.GetCode(isolate_);
+  // For monomorphic maps, use the code as a template, copying and replacing
+  // the monomorphic map that checks the object's type.
+  ic = isolate_->factory()->CopyCode(ic);
+  ic->ReplaceFirstMap(*receiver_map);
+
+  if (!receiver_map->is_shared()) {
+    Map::UpdateCodeCache(receiver_map, name, ic);
+  }
+
+  return ic;
 }
 
 

@@ -160,10 +160,12 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     stack_pop_count->ClearFlag(HValue::kCanOverflow);
   }
 
-  HReturn* hreturn_instruction = new(zone) HReturn(return_value,
-                                                   context_,
-                                                   stack_pop_count);
-  current_block()->Finish(hreturn_instruction);
+  if (!current_block()->IsFinished()) {
+    HReturn* hreturn_instruction = new(zone) HReturn(return_value,
+                                                     context_,
+                                                     stack_pop_count);
+    current_block()->Finish(hreturn_instruction);
+  }
   return true;
 }
 
@@ -514,6 +516,32 @@ HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
 
 
 Handle<Code> ArrayNArgumentsConstructorStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeUninitializedStub() {
+  CompareNilICStub* stub = casted_stub();
+  HIfContinuation continuation;
+  Handle<Map> sentinel_map(graph()->isolate()->heap()->meta_map());
+  BuildCompareNil(GetParameter(0), stub->GetKind(),
+                  stub->GetTypes(), sentinel_map,
+                  RelocInfo::kNoPosition, &continuation);
+  IfBuilder if_nil(this, &continuation);
+  if_nil.Then();
+  if (continuation.IsFalseReachable()) {
+    if_nil.Else();
+    if_nil.Return(graph()->GetConstantSmi0());
+  }
+  if_nil.End();
+  return continuation.IsTrueReachable()
+      ? graph()->GetConstantSmi1()
+      : graph()->GetConstantUndefined();
+}
+
+
+Handle<Code> CompareNilICStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
