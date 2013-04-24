@@ -299,6 +299,8 @@ namespace internal {
   /* Harmony generators */ \
   F(CreateJSGeneratorObject, 0, 1) \
   F(SuspendJSGeneratorObject, 1, 1) \
+  F(ResumeJSGeneratorObject, 3, 1) \
+  F(ThrowGeneratorStateError, 1, 1) \
   \
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \
@@ -560,7 +562,9 @@ namespace internal {
   F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
-  F(FastAsciiArrayJoin, 2, 1)
+  F(FastAsciiArrayJoin, 2, 1)                                                \
+  F(GeneratorSend, 2, 1)                                                     \
+  F(GeneratorThrow, 2, 1)
 
 
 // ----------------------------------------------------------------------------

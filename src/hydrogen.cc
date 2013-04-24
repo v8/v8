@@ -11237,6 +11237,17 @@ void HOptimizedGraphBuilder::GenerateFastAsciiArrayJoin(CallRuntime* call) {
 }
 
 
+// Support for generators.
+void HOptimizedGraphBuilder::GenerateGeneratorSend(CallRuntime* call) {
+  return Bailout("inlined runtime function: GeneratorSend");
+}
+
+
+void HOptimizedGraphBuilder::GenerateGeneratorThrow(CallRuntime* call) {
+  return Bailout("inlined runtime function: GeneratorThrow");
+}
+
+
 #undef CHECK_BAILOUT
 #undef CHECK_ALIVE
 

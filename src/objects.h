@@ -6349,6 +6349,9 @@ class JSGeneratorObject: public JSObject {
   static const int kOperandStackOffset = kContinuationOffset + kPointerSize;
   static const int kSize = kOperandStackOffset + kPointerSize;
 
+  // Resume mode, for use by runtime functions.
+  enum ResumeMode { SEND, THROW };
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
 };
