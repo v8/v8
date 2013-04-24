@@ -934,7 +934,7 @@ BUILTIN(ArraySplice) {
       if (start < kMinInt || start > kMaxInt) {
         return CallJsBuiltin(isolate, "ArraySplice", args);
       }
-      relative_start = static_cast<int>(start);
+      relative_start = std::isnan(start) ? 0 : static_cast<int>(start);
     } else if (!arg1->IsUndefined()) {
       return CallJsBuiltin(isolate, "ArraySplice", args);
     }
