@@ -1940,14 +1940,14 @@ void NativeObjectsExplorer::FillRetainedObjects() {
   List<ObjectGroup*>* groups = isolate->global_handles()->object_groups();
   for (int i = 0; i < groups->length(); ++i) {
     ObjectGroup* group = groups->at(i);
-    if (group->info_ == NULL) continue;
-    List<HeapObject*>* list = GetListMaybeDisposeInfo(group->info_);
-    for (size_t j = 0; j < group->length_; ++j) {
-      HeapObject* obj = HeapObject::cast(*group->objects_[j]);
+    if (group->info == NULL) continue;
+    List<HeapObject*>* list = GetListMaybeDisposeInfo(group->info);
+    for (size_t j = 0; j < group->length; ++j) {
+      HeapObject* obj = HeapObject::cast(*group->objects[j]);
       list->Add(obj);
       in_groups_.Insert(obj);
     }
-    group->info_ = NULL;  // Acquire info object ownership.
+    group->info = NULL;  // Acquire info object ownership.
   }
   isolate->global_handles()->RemoveObjectGroups();
   isolate->heap()->CallGCEpilogueCallbacks(major_gc_type);
@@ -1963,12 +1963,12 @@ void NativeObjectsExplorer::FillImplicitReferences() {
       isolate->global_handles()->implicit_ref_groups();
   for (int i = 0; i < groups->length(); ++i) {
     ImplicitRefGroup* group = groups->at(i);
-    HeapObject* parent = *group->parent_;
+    HeapObject* parent = *group->parent;
     int parent_entry =
         filler_->FindOrAddEntry(parent, native_entries_allocator_)->index();
     ASSERT(parent_entry != HeapEntry::kNoEntry);
-    Object*** children = group->children_;
-    for (size_t j = 0; j < group->length_; ++j) {
+    Object*** children = group->children;
+    for (size_t j = 0; j < group->length; ++j) {
       Object* child = *children[j];
       HeapEntry* child_entry =
           filler_->FindOrAddEntry(child, native_entries_allocator_);

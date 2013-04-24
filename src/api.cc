@@ -6019,6 +6019,31 @@ v8::Local<v8::Context> Isolate::GetCurrentContext() {
 }
 
 
+void Isolate::SetObjectGroupId(const Persistent<Value>& object,
+                               UniqueId id) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
+  internal_isolate->global_handles()->SetObjectGroupId(
+      reinterpret_cast<i::Object**>(*object), id);
+}
+
+
+void Isolate::SetReferenceFromGroup(UniqueId id,
+                                    const Persistent<Value>& object) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
+  internal_isolate->global_handles()
+      ->SetReferenceFromGroup(id, reinterpret_cast<i::Object**>(*object));
+}
+
+
+void Isolate::SetReference(const Persistent<Object>& parent,
+                           const Persistent<Value>& child) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
+  internal_isolate->global_handles()->SetReference(
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*parent)).location(),
+      reinterpret_cast<i::Object**>(*child));
+}
+
+
 void V8::SetGlobalGCPrologueCallback(GCCallback callback) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::SetGlobalGCPrologueCallback()")) return;
@@ -7215,6 +7240,12 @@ size_t HeapProfiler::GetMemorySizeUsedByProfiler() {
 size_t HeapProfiler::GetProfilerMemorySize() {
   return reinterpret_cast<i::HeapProfiler*>(this)->
       GetMemorySizeUsedByProfiler();
+}
+
+
+void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
+                                         RetainedObjectInfo* info) {
+  reinterpret_cast<i::HeapProfiler*>(this)->SetRetainedObjectInfo(id, info);
 }
 
 

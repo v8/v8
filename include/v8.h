@@ -145,6 +145,31 @@ class Object;
 }
 
 
+/**
+ * General purpose unique identifier.
+ */
+class UniqueId {
+ public:
+  explicit UniqueId(intptr_t data)
+      : data_(data) {}
+
+  bool operator==(const UniqueId& other) const {
+    return data_ == other.data_;
+  }
+
+  bool operator!=(const UniqueId& other) const {
+    return data_ != other.data_;
+  }
+
+  bool operator<(const UniqueId& other) const {
+    return data_ < other.data_;
+  }
+
+ private:
+  intptr_t data_;
+};
+
+
 // --- Weak Handles ---
 
 
@@ -3148,6 +3173,39 @@ class V8EXPORT Isolate {
   /** Returns the context that is on the top of the stack. */
   Local<Context> GetCurrentContext();
 
+  /**
+   * Allows the host application to group objects together. If one
+   * object in the group is alive, all objects in the group are alive.
+   * After each garbage collection, object groups are removed. It is
+   * intended to be used in the before-garbage-collection callback
+   * function, for instance to simulate DOM tree connections among JS
+   * wrapper objects. Object groups for all dependent handles need to
+   * be provided for kGCTypeMarkSweepCompact collections, for all other
+   * garbage collection types it is sufficient to provide object groups
+   * for partially dependent handles only.
+   */
+  void SetObjectGroupId(const Persistent<Value>& object,
+                        UniqueId id);
+
+  /**
+   * Allows the host application to declare implicit references from an object
+   * group to an object. If the objects of the object group are alive, the child
+   * object is alive too. After each garbage collection, all implicit references
+   * are removed. It is intended to be used in the before-garbage-collection
+   * callback function.
+   */
+  void SetReferenceFromGroup(UniqueId id,
+                             const Persistent<Value>& child);
+
+  /**
+   * Allows the host application to declare implicit references from an object
+   * to another object. If the parent object is alive, the child object is alive
+   * too. After each garbage collection, all implicit references are removed. It
+   * is intended to be used in the before-garbage-collection callback function.
+   */
+  void SetReference(const Persistent<Object>& parent,
+                    const Persistent<Value>& child);
+
  private:
   Isolate();
   Isolate(const Isolate&);
@@ -3552,6 +3610,8 @@ class V8EXPORT V8 {
    * for partially dependent handles only.
    * See v8-profiler.h for RetainedObjectInfo interface description.
    */
+  // TODO(marja): deprecate AddObjectGroup. Use Isolate::SetObjectGroupId and
+  // HeapProfiler::SetRetainedObjectInfo instead.
   static void AddObjectGroup(Persistent<Value>* objects,
                              size_t length,
                              RetainedObjectInfo* info = NULL);
@@ -3567,6 +3627,8 @@ class V8EXPORT V8 {
    * are removed.  It is intended to be used in the before-garbage-collection
    * callback function.
    */
+  // TODO(marja): Deprecate AddImplicitReferences. Use
+  // Isolate::SetReferenceFromGroup instead.
   static void AddImplicitReferences(Persistent<Object> parent,
                                     Persistent<Value>* children,
                                     size_t length);
