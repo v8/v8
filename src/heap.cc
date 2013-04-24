@@ -606,7 +606,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
                           const char* gc_reason,
                           const char* collector_reason) {
   // The VM is in the GC state until exiting this function.
-  VMState state(isolate_, GC);
+  VMState<GC> state(isolate_);
 
 #ifdef DEBUG
   // Reset the allocation timeout to the GC interval, but make sure to
@@ -892,7 +892,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    VMState state(isolate_, EXTERNAL);
+    VMState<EXTERNAL> state(isolate_);
     CallGCPrologueCallbacks(gc_type);
   }
 
@@ -1014,7 +1014,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    VMState state(isolate_, EXTERNAL);
+    VMState<EXTERNAL> state(isolate_);
     CallGCEpilogueCallbacks(gc_type);
   }
 

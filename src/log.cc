@@ -658,13 +658,17 @@ void Logger::TimerEvent(StartEnd se, const char* name) {
 }
 
 
-void Logger::EnterExternal() {
-  LOG(ISOLATE, TimerEvent(START, TimerEventScope::v8_external));
+void Logger::EnterExternal(Isolate* isolate) {
+  LOG(isolate, TimerEvent(START, TimerEventScope::v8_external));
+  ASSERT(isolate->current_vm_state() == JS);
+  isolate->set_current_vm_state(EXTERNAL);
 }
 
 
-void Logger::LeaveExternal() {
-  LOG(ISOLATE, TimerEvent(END, TimerEventScope::v8_external));
+void Logger::LeaveExternal(Isolate* isolate) {
+  LOG(isolate, TimerEvent(END, TimerEventScope::v8_external));
+  ASSERT(isolate->current_vm_state() == EXTERNAL);
+  isolate->set_current_vm_state(JS);
 }
 
 
@@ -1817,7 +1821,7 @@ void Logger::LogAccessorCallbacks() {
 }
 
 
-bool Logger::SetUp() {
+bool Logger::SetUp(Isolate* isolate) {
   // Tests and EnsureInitialize() can call this twice in a row. It's harmless.
   if (is_initialized_) return true;
   is_initialized_ = true;
@@ -1833,23 +1837,13 @@ bool Logger::SetUp() {
     FLAG_prof_auto = false;
   }
 
-  // TODO(isolates): this assert introduces cyclic dependency (logger
-  // -> thread local top -> heap -> logger).
-  // ASSERT(VMState::is_outermost_external());
-
   log_->Initialize();
 
   if (FLAG_ll_prof) LogCodeInfo();
 
-  Isolate* isolate = Isolate::Current();
   ticker_ = new Ticker(isolate, kSamplingIntervalMs);
 
-  bool start_logging = FLAG_log || FLAG_log_runtime || FLAG_log_api
-    || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-    || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof
-    || FLAG_log_internal_timer_events;
-
-  if (start_logging) {
+  if (Log::InitLogAtStart()) {
     logging_nesting_ = 1;
   }
 

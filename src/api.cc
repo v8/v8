@@ -63,11 +63,9 @@
 
 #define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
-#define ENTER_V8(isolate)                                        \
-  ASSERT((isolate)->IsInitialized());                           \
-  i::VMState __state__((isolate), i::OTHER)
-#define LEAVE_V8(isolate) \
-  i::VMState __state__((isolate), i::EXTERNAL)
+#define ENTER_V8(isolate)                                          \
+  ASSERT((isolate)->IsInitialized());                              \
+  i::VMState<i::OTHER> __state__((isolate))
 
 namespace v8 {
 
@@ -131,7 +129,7 @@ static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
   i::Isolate* isolate = i::Isolate::Current();
   if (isolate->IsInitialized()) {
-    i::VMState __state__(isolate, i::OTHER);
+    i::VMState<i::OTHER> state(isolate);
     API_Fatal(location, message);
   } else {
     API_Fatal(location, message);
@@ -216,14 +214,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   const char* message = "Allocation failed - process out of memory";
-  {
-    if (isolate->IsInitialized()) {
-      LEAVE_V8(isolate);
-      callback(location, message);
-    } else {
-      callback(location, message);
-    }
-  }
+  callback(location, message);
   // If the callback returns, we stop execution.
   UNREACHABLE();
 }

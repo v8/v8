@@ -248,9 +248,8 @@ TickProcessor.VmStates = {
   JS: 0,
   GC: 1,
   COMPILER: 2,
-  PARALLEL_COMPILER: 3,
-  OTHER: 4,
-  EXTERNAL: 5
+  OTHER: 3,
+  EXTERNAL: 4
 };
 
 

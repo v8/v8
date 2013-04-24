@@ -363,7 +363,6 @@ enum StateTag {
   JS,
   GC,
   COMPILER,
-  PARALLEL_COMPILER,
   OTHER,
   EXTERNAL
 };

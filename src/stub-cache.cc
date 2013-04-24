@@ -1111,7 +1111,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   v8::AccessorInfo info(custom_args.end());
   {
     // Leaving JavaScript.
-    VMState state(isolate, EXTERNAL);
+    VMState<EXTERNAL> state(isolate);
     ExternalCallbackScope call_scope(isolate, setter_address);
     fun(v8::Utils::ToLocal(str), v8::Utils::ToLocal(value), info);
   }
@@ -1157,7 +1157,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
     v8::Handle<v8::Value> r;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       r = getter(v8::Utils::ToLocal(name), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -1220,7 +1220,7 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
     v8::Handle<v8::Value> r;
     {
       // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       r = getter(v8::Utils::ToLocal(name), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);

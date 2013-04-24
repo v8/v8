@@ -85,7 +85,7 @@ class SweeperThread;
 class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
-class VMState;
+template <StateTag Tag> class VMState;
 
 // 'void function pointer', used to roundtrip the
 // ExternalReference::ExternalReferenceRedirector since we can not include
@@ -1031,7 +1031,7 @@ class Isolate {
     return thread_local_top_.current_vm_state_;
   }
 
-  void SetCurrentVMState(StateTag state) {
+  void set_current_vm_state(StateTag state) {
     thread_local_top_.current_vm_state_ = state;
   }
 

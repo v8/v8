@@ -267,7 +267,7 @@ class GlobalHandles::Node {
       ASSERT(!object_->IsExternalTwoByteString() ||
              ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
-      VMState state(isolate, EXTERNAL);
+      VMState<EXTERNAL> state(isolate);
       if (near_death_callback_ != NULL) {
         if (IsWeakCallback::decode(flags_)) {
           WeakReferenceCallback callback =
