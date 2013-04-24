@@ -1696,7 +1696,7 @@ class HSimulate: public HInstruction {
     return Representation::None();
   }
 
-  void MergeInto(HSimulate* other);
+  void MergeWith(ZoneList<HSimulate*>* list);
   bool is_candidate_for_removal() { return removable_ == REMOVABLE_SIMULATE; }
 
   DECLARE_CONCRETE_INSTRUCTION(Simulate)

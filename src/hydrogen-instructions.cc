@@ -579,7 +579,7 @@ void HValue::Kill() {
     HValue* operand = OperandAt(i);
     if (operand == NULL) continue;
     HUseListNode* first = operand->use_list_;
-    if (first != NULL && first->value() == this && first->index() == i) {
+    if (first != NULL && first->value()->CheckFlag(kIsDead)) {
       operand->use_list_ = first->tail();
     }
   }
@@ -1749,20 +1749,25 @@ void HPhi::AddIndirectUsesTo(int* dest) {
 }
 
 
-void HSimulate::MergeInto(HSimulate* other) {
-  for (int i = 0; i < values_.length(); ++i) {
-    HValue* value = values_[i];
-    if (HasAssignedIndexAt(i)) {
-      other->AddAssignedValue(GetAssignedIndexAt(i), value);
-    } else {
-      if (other->pop_count_ > 0) {
-        other->pop_count_--;
+void HSimulate::MergeWith(ZoneList<HSimulate*>* list) {
+  while (!list->is_empty()) {
+    HSimulate* from = list->RemoveLast();
+    ZoneList<HValue*>* from_values = &from->values_;
+    for (int i = 0; i < from_values->length(); ++i) {
+      if (from->HasAssignedIndexAt(i)) {
+        AddAssignedValue(from->GetAssignedIndexAt(i),
+                         from_values->at(i));
       } else {
-        other->AddPushedValue(value);
+        if (pop_count_ > 0) {
+          pop_count_--;
+        } else {
+          AddPushedValue(from_values->at(i));
+        }
       }
     }
+    pop_count_ += from->pop_count_;
+    from->DeleteAndReplaceWith(NULL);
   }
-  other->pop_count_ += pop_count();
 }
 
 

@@ -2971,10 +2971,11 @@ void HInferRepresentation::Analyze() {
 
 
 void HGraph::MergeRemovableSimulates() {
+  ZoneList<HSimulate*> mergelist(2, zone());
   for (int i = 0; i < blocks()->length(); ++i) {
     HBasicBlock* block = blocks()->at(i);
-    // Always reset the folding candidate at the start of a block.
-    HSimulate* folding_candidate = NULL;
+    // Make sure the merge list is empty at the start of a block.
+    ASSERT(mergelist.is_empty());
     // Nasty heuristic: Never remove the first simulate in a block. This
     // just so happens to have a beneficial effect on register allocation.
     bool first = true;
@@ -2985,33 +2986,38 @@ void HGraph::MergeRemovableSimulates() {
         // in the outer environment.
         // (Before each HEnterInlined, there is a non-foldable HSimulate
         // anyway, so we get the barrier in the other direction for free.)
-        if (folding_candidate != NULL) {
-          folding_candidate->DeleteAndReplaceWith(NULL);
+        // Simply remove all accumulated simulates without merging.  This
+        // is safe because simulates after instructions with side effects
+        // are never added to the merge list.
+        while (!mergelist.is_empty()) {
+          mergelist.RemoveLast()->DeleteAndReplaceWith(NULL);
         }
-        folding_candidate = NULL;
         continue;
       }
-      // If we have an HSimulate and a candidate, perform the folding.
+      // Skip the non-simulates and the first simulate.
       if (!current->IsSimulate()) continue;
       if (first) {
         first = false;
         continue;
       }
       HSimulate* current_simulate = HSimulate::cast(current);
-      if (folding_candidate != NULL) {
-        folding_candidate->MergeInto(current_simulate);
-        folding_candidate->DeleteAndReplaceWith(NULL);
-        folding_candidate = NULL;
-      }
-      // Check if the current simulate is a candidate for folding.
-      if (current_simulate->previous()->HasObservableSideEffects() &&
-          !current_simulate->next()->IsSimulate()) {
+      if ((current_simulate->previous()->HasObservableSideEffects() &&
+           !current_simulate->next()->IsSimulate()) ||
+          !current_simulate->is_candidate_for_removal()) {
+        // This simulate is not suitable for folding.
+        // Fold the ones accumulated so far.
+        current_simulate->MergeWith(&mergelist);
         continue;
+      } else {
+        // Accumulate this simulate for folding later on.
+        mergelist.Add(current_simulate, zone());
       }
-      if (!current_simulate->is_candidate_for_removal()) {
-        continue;
-      }
-      folding_candidate = current_simulate;
+    }
+
+    if (!mergelist.is_empty()) {
+      // Merge the accumulated simulates at the end of the block.
+      HSimulate* last = mergelist.RemoveLast();
+      last->MergeWith(&mergelist);
     }
   }
 }

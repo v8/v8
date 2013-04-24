@@ -49,6 +49,7 @@ compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
 compiler/regress-funcaller: PASS, SKIP if $mode == debug
 regress/regress-2318: PASS, SKIP if $mode == debug
 regress/regress-create-exception: PASS, SKIP if $mode == debug
+regress/regress-2612: PASS, SKIP if $mode == debug
 
 ##############################################################################
 # These use a built-in that's only present in debug mode. They take
