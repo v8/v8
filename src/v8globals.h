@@ -162,7 +162,6 @@ class Variable;
 class RelocInfo;
 class Deserializer;
 class MessageLocation;
-class ObjectGroup;
 class VirtualMemory;
 class Mutex;
 
