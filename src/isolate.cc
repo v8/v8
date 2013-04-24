@@ -2051,7 +2051,7 @@ void Isolate::InitializeLoggingAndCounters() {
     logger_ = new Logger(this);
   }
   if (counters_ == NULL) {
-    counters_ = new Counters;
+    counters_ = new Counters(this);
   }
 }
 
