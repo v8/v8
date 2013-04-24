@@ -37,9 +37,6 @@ regress/regress-1119: FAIL
 # TODO(wingo): Currently fails in no-snapshot mode, hence disabled for now.
 harmony/generators-objects: SKIP
 
-# TODO(wingo): Resuming of iterators currently crashes in ARM.
-harmony/generators-iteration: SKIP if ($arch == arm || $arch == android_arm)
-
 # Issue 1719: Slow to collect arrays over several contexts.
 regress/regress-524: SKIP
 # When that bug is fixed, revert the expectation to:

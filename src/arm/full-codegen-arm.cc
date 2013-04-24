@@ -2002,12 +2002,12 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ ldr(r3, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r3,
          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Move(r2, isolate()->factory()->the_hole_value());
+  __ LoadRoot(r2, Heap::kTheHoleValueRootIndex);
   Label push_argument_holes;
   __ bind(&push_argument_holes);
   __ push(r2);
-  __ sub(r3, r3, Operand(1));
-  __ b(vc, &push_argument_holes);
+  __ sub(r3, r3, Operand(1), SetCC);
+  __ b(pl, &push_argument_holes);
 
   // Enter a new JavaScript frame, and initialize its slots as they were when
   // the generator was suspended.
@@ -2016,6 +2016,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ bl(&resume_frame);
   __ jmp(&done);
   __ bind(&resume_frame);
+  __ push(lr);  // Return address.
   __ push(fp);  // Caller's frame pointer.
   __ mov(fp, sp);
   __ push(cp);  // Callee's context.
@@ -2046,8 +2047,8 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // up the stack and the handlers.
   Label push_operand_holes, call_resume;
   __ bind(&push_operand_holes);
-  __ sub(r3, r3, Operand(1));
-  __ b(vs, &call_resume);
+  __ sub(r3, r3, Operand(1), SetCC);
+  __ b(mi, &call_resume);
   __ push(r2);
   __ b(&push_operand_holes);
   __ bind(&call_resume);
