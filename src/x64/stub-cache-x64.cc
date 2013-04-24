@@ -623,7 +623,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           ? CALL_AS_FUNCTION
           : CALL_AS_METHOD;
       Handle<JSFunction> fun = optimization.constant_function();
-      __ InvokeFunction(fun, ParameterCount(fun), arguments_,
+      ParameterCount expected(fun);
+      __ InvokeFunction(fun, expected, arguments_,
                         JUMP_FUNCTION, NullCallWrapper(), call_kind);
     }
 
