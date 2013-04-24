@@ -2609,18 +2609,21 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
       case kMathAbs:
         // Not setting representation here: it is None intentionally.
         SetFlag(kFlexibleRepresentation);
+        // TODO(svenpanne) This flag is actually only needed if representation()
+        // is tagged, and not when it is an unboxed double or unboxed integer.
         SetGVNFlag(kChangesNewSpacePromotion);
         break;
-      case kMathSqrt:
-      case kMathPowHalf:
       case kMathLog:
       case kMathSin:
       case kMathCos:
       case kMathTan:
         set_representation(Representation::Double());
+        // These operations use the TranscendentalCache, so they may allocate.
         SetGVNFlag(kChangesNewSpacePromotion);
         break;
       case kMathExp:
+      case kMathSqrt:
+      case kMathPowHalf:
         set_representation(Representation::Double());
         break;
       default:
