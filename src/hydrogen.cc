@@ -25,9 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
 #include "hydrogen.h"
 
+#include <algorithm>
+
+#include "v8.h"
 #include "codegen.h"
 #include "full-codegen.h"
 #include "hashmap.h"
@@ -8006,14 +8008,12 @@ class FunctionSorter {
 };
 
 
-static int CompareHotness(void const* a, void const* b) {
-  FunctionSorter const* function1 = reinterpret_cast<FunctionSorter const*>(a);
-  FunctionSorter const* function2 = reinterpret_cast<FunctionSorter const*>(b);
-  int diff = function1->ticks() - function2->ticks();
-  if (diff != 0) return -diff;
-  diff = function1->ast_length() - function2->ast_length();
-  if (diff != 0) return diff;
-  return function1->src_length() - function2->src_length();
+inline bool operator<(const FunctionSorter& lhs, const FunctionSorter& rhs) {
+  int diff = lhs.ticks() - rhs.ticks();
+  if (diff != 0) return diff > 0;
+  diff = lhs.ast_length() - rhs.ast_length();
+  if (diff != 0) return diff < 0;
+  return lhs.src_length() < rhs.src_length();
 }
 
 
@@ -8056,10 +8056,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     }
   }
 
-  qsort(reinterpret_cast<void*>(&order[0]),
-        ordered_functions,
-        sizeof(order[0]),
-        &CompareHotness);
+  std::sort(order, order + ordered_functions);
 
   HBasicBlock* number_block = NULL;
 
