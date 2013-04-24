@@ -2603,7 +2603,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     switch (op) {
       case kMathFloor:
       case kMathRound:
-      case kMathCeil:
         set_representation(Representation::Integer32());
         break;
       case kMathAbs:

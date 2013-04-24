@@ -1310,20 +1310,18 @@ const char* HUnaryMathOperation::OpName() const {
   switch (op()) {
     case kMathFloor: return "floor";
     case kMathRound: return "round";
-    case kMathCeil: return "ceil";
     case kMathAbs: return "abs";
     case kMathLog: return "log";
     case kMathSin: return "sin";
     case kMathCos: return "cos";
     case kMathTan: return "tan";
-    case kMathASin: return "asin";
-    case kMathACos: return "acos";
-    case kMathATan: return "atan";
     case kMathExp: return "exp";
     case kMathSqrt: return "sqrt";
-    default: break;
+    case kMathPowHalf: return "pow-half";
+    default:
+      UNREACHABLE();
+      return NULL;
   }
-  return "(unknown operation)";
 }
 
 
