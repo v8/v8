@@ -377,6 +377,14 @@ template <class T> class Persistent : public Handle<T> {
   template <class S> V8_INLINE(Persistent(S* that)) : Handle<T>(that) { }
 
   /**
+   * A constructor that creates a new global cell pointing to that. In contrast
+   * to the copy constructor, this creates a new persistent handle which needs
+   * to be separately disposed.
+   */
+  template <class S> V8_INLINE(Persistent(Isolate* isolate, Handle<S> that))
+      : Handle<T>(New(isolate, that)) { }
+
+  /**
    * "Casts" a plain handle which is known to be a persistent handle
    * to a persistent handle.
    */
