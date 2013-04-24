@@ -1980,6 +1980,97 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 }
 
 
+void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
+    Expression *value,
+    JSGeneratorObject::ResumeMode resume_mode) {
+  // The value stays in a0, and is ultimately read by the resumed generator, as
+  // if the CallRuntime(Runtime::kSuspendJSGeneratorObject) returned it.  a1
+  // will hold the generator object until the activation has been resumed.
+  VisitForStackValue(generator);
+  VisitForAccumulatorValue(value);
+  __ pop(a1);
+
+  // Check generator state.
+  Label wrong_state, done;
+  __ lw(a3, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
+  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting <= 0);
+  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed <= 0);
+  __ Branch(&wrong_state, le, a3, Operand(zero_reg));
+
+  // Load suspended function and context.
+  __ lw(cp, FieldMemOperand(a1, JSGeneratorObject::kContextOffset));
+  __ lw(t0, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
+
+  // Push holes for arguments to generator function.
+  __ lw(a3, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(a3,
+        FieldMemOperand(a3, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ LoadRoot(a2, Heap::kTheHoleValueRootIndex);
+  Label push_argument_holes;
+  __ bind(&push_argument_holes);
+  __ push(a2);
+  __ Subu(a3, a3, Operand(1));
+  __ Branch(&push_argument_holes, ge, a3, Operand(zero_reg));
+
+  // Enter a new JavaScript frame, and initialize its slots as they were when
+  // the generator was suspended.
+  Label push_frame, resume_frame;
+  __ bind(&push_frame);
+  __ Call(&resume_frame);
+  __ jmp(&done);
+  __ bind(&resume_frame);
+  __ push(ra);  // Return address.
+  __ push(fp);  // Caller's frame pointer.
+  __ mov(fp, sp);
+  __ push(cp);  // Callee's context.
+  __ push(t0);  // Callee's JS Function.
+
+  // Load the operand stack size.
+  __ lw(a3, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));
+  __ lw(a3, FieldMemOperand(a3, FixedArray::kLengthOffset));
+  __ SmiUntag(a3);
+
+  // If we are sending a value and there is no operand stack, we can jump back
+  // in directly.
+  if (resume_mode == JSGeneratorObject::SEND) {
+    Label slow_resume;
+    __ Branch(&slow_resume, ne, a3, Operand(zero_reg));
+    __ lw(a3, FieldMemOperand(t0, JSFunction::kCodeEntryOffset));
+    __ lw(a2, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
+    __ SmiUntag(a2);
+    __ Addu(a3, a3, Operand(a2));
+    __ li(a2, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
+    __ sw(a2, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
+    __ Jump(a3);
+    __ bind(&slow_resume);
+  }
+
+  // Otherwise, we push holes for the operand stack and call the runtime to fix
+  // up the stack and the handlers.
+  Label push_operand_holes, call_resume;
+  __ bind(&push_operand_holes);
+  __ Subu(a3, a3, Operand(1));
+  __ Branch(&call_resume, lt, a3, Operand(zero_reg));
+  __ push(a2);
+  __ b(&push_operand_holes);
+  __ bind(&call_resume);
+  __ push(a1);
+  __ push(result_register());
+  __ Push(Smi::FromInt(resume_mode));
+  __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
+  // Not reached: the runtime call returns elsewhere.
+  __ stop("not-reached");
+
+  // Throw error if we attempt to operate on a running generator.
+  __ bind(&wrong_state);
+  __ push(a1);
+  __ CallRuntime(Runtime::kThrowGeneratorStateError, 1);
+
+  __ bind(&done);
+  context()->Plug(result_register());
+}
+
+
 void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
