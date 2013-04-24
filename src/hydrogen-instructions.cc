@@ -2248,12 +2248,10 @@ Representation HBinaryOperation::RepresentationFromInputs() {
   Representation left_rep = left()->representation();
   Representation right_rep = right()->representation();
 
-  if (left_rep.is_more_general_than(rep) &&
-      left()->CheckFlag(kFlexibleRepresentation)) {
+  if (left_rep.is_more_general_than(rep) && !left_rep.IsTagged()) {
     rep = left_rep;
   }
-  if (right_rep.is_more_general_than(rep) &&
-      right()->CheckFlag(kFlexibleRepresentation)) {
+  if (right_rep.is_more_general_than(rep) && !right_rep.IsTagged()) {
     rep = right_rep;
   }
   // Consider observed output representation, but ignore it if it's Double,
