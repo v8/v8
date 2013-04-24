@@ -2331,7 +2331,7 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   str(r5, MemOperand(r7, kLimitOffset));
   mov(r4, r0);
   PrepareCallCFunction(1, r5);
-  mov(r0, Operand(ExternalReference::isolate_address()));
+  mov(r0, Operand(ExternalReference::isolate_address(isolate())));
   CallCFunction(
       ExternalReference::delete_handle_scope_extensions(isolate()), 1);
   mov(r0, r4);

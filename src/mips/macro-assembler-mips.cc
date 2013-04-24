@@ -4000,7 +4000,7 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   mov(s0, v0);
   mov(a0, v0);
   PrepareCallCFunction(1, s1);
-  li(a0, Operand(ExternalReference::isolate_address()));
+  li(a0, Operand(ExternalReference::isolate_address(isolate())));
   CallCFunction(ExternalReference::delete_handle_scope_extensions(isolate()),
       1);
   mov(v0, s0);

@@ -2086,7 +2086,8 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   bind(&delete_allocated_handles);
   mov(Operand::StaticVariable(limit_address), edi);
   mov(edi, eax);
-  mov(Operand(esp, 0), Immediate(ExternalReference::isolate_address()));
+  mov(Operand(esp, 0),
+      Immediate(ExternalReference::isolate_address(isolate())));
   mov(eax, Immediate(delete_extensions));
   call(eax);
   mov(eax, edi);

@@ -372,7 +372,7 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ push(receiver);
   __ push(holder);
   __ push(FieldOperand(kScratchRegister, InterceptorInfo::kDataOffset));
-  __ PushAddress(ExternalReference::isolate_address());
+  __ PushAddress(ExternalReference::isolate_address(masm->isolate()));
 }
 
 
@@ -468,7 +468,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   } else {
     __ Move(Operand(rsp, 3 * kPointerSize), call_data);
   }
-  __ movq(kScratchRegister, ExternalReference::isolate_address());
+  __ movq(kScratchRegister,
+          ExternalReference::isolate_address(masm->isolate()));
   __ movq(Operand(rsp, 4 * kPointerSize), kScratchRegister);
 
   // Prepare arguments.
@@ -1178,7 +1179,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   } else {
     __ Push(Handle<Object>(callback->data(), isolate()));
   }
-  __ PushAddress(ExternalReference::isolate_address());  // isolate
+  __ PushAddress(ExternalReference::isolate_address(isolate()));  // isolate
   __ push(name());  // name
   // Save a pointer to where we pushed the arguments pointer.  This will be
   // passed as the const ExecutableAccessorInfo& to the C++ callback.

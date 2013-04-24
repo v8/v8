@@ -818,9 +818,9 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   movq(Operand(base_reg, kLimitOffset), prev_limit_reg);
   movq(prev_limit_reg, rax);
 #ifdef _WIN64
-  LoadAddress(rcx, ExternalReference::isolate_address());
+  LoadAddress(rcx, ExternalReference::isolate_address(isolate()));
 #else
-  LoadAddress(rdi, ExternalReference::isolate_address());
+  LoadAddress(rdi, ExternalReference::isolate_address(isolate()));
 #endif
   LoadAddress(rax,
               ExternalReference::delete_handle_scope_extensions(isolate()));
