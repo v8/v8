@@ -157,6 +157,7 @@ Heap::Heap()
       ms_count_at_last_idle_notification_(0),
       gc_count_at_last_idle_gc_(0),
       scavenges_since_last_idle_round_(kIdleScavengeThreshold),
+      gcs_since_last_deopt_(0),
 #ifdef VERIFY_HEAP
       no_weak_embedded_maps_verification_scope_depth_(0),
 #endif
@@ -487,6 +488,12 @@ void Heap::GarbageCollectionEpilogue() {
   if (FLAG_gc_verbose) Print();
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
 #endif
+  if (FLAG_deopt_every_n_garbage_collections > 0) {
+    if (++gcs_since_last_deopt_ == FLAG_deopt_every_n_garbage_collections) {
+      Deoptimizer::DeoptimizeAll(isolate());
+      gcs_since_last_deopt_ = 0;
+    }
+  }
 
   isolate_->counters()->alive_after_last_gc()->Set(
       static_cast<int>(SizeOfObjects()));

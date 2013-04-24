@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,40 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
-#include "platform.h"
+var realmA = Realm.current();
+var realmB = Realm.create();
+assertEquals(0, realmA);
+assertEquals(1, realmB);
 
-namespace v8 {
-namespace internal {
+// The global objects match the realms' this binding.
+assertSame(this, Realm.global(realmA));
+assertSame(Realm.eval(realmB, "this"), Realm.global(realmB));
+assertFalse(this === Realm.global(realmB));
 
+// The global object is not accessible cross-realm.
+var x = 3;
+Realm.shared = this;
+assertThrows("Realm.eval(realmB, 'x')");
+assertSame(undefined, Realm.eval(realmB, "this.x"));
+assertSame(undefined, Realm.eval(realmB, "Realm.shared.x"));
 
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(GCExtension::GC);
-}
+Realm.eval(realmB, "Realm.global(0).y = 1");
+assertThrows("y");
+assertSame(undefined, this.y);
 
+// Can get or set other objects' properties cross-realm.
+var p = {a: 1};
+var o = {__proto__: p, b: 2};
+Realm.shared = o;
+assertSame(1, Realm.eval(realmB, "Realm.shared.a"));
+assertSame(2, Realm.eval(realmB, "Realm.shared.b"));
 
-v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
-  if (args[0]->BooleanValue()) {
-    HEAP->CollectGarbage(NEW_SPACE, "gc extension");
-  } else {
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
-  }
-  return v8::Undefined();
-}
+// Cannot get or set a prototype cross-realm.
+assertSame(undefined, Realm.eval(realmB, "Realm.shared.__proto__"));
 
+Realm.eval(realmB, "Realm.shared.__proto__ = {c: 3}");
+assertSame(1, o.a);
+assertSame(undefined, o.c);
 
-void GCExtension::Register() {
-  static char buffer[50];
-  Vector<char> temp_vector(buffer, sizeof(buffer));
-  if (FLAG_expose_gc_as != NULL && strlen(FLAG_expose_gc_as) != 0) {
-    OS::SNPrintF(temp_vector, "native function %s();", FLAG_expose_gc_as);
-  } else {
-    OS::SNPrintF(temp_vector, "native function gc();");
-  }
-
-  static GCExtension gc_extension(buffer);
-  static v8::DeclareExtension declaration(&gc_extension);
-}
-
-} }  // namespace v8::internal

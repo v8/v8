@@ -425,6 +425,12 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     Timer timer(this, &time_taken_to_codegen_);
     ASSERT(chunk_ != NULL);
     ASSERT(graph_ != NULL);
+    // Deferred handles reference objects that were accessible during
+    // graph creation.  To make sure that we don't encounter inconsistencies
+    // between graph creation and code generation, we disallow accessing
+    // objects through deferred handles during the latter, with exceptions.
+    HandleDereferenceGuard no_deref_deferred(
+        isolate(), HandleDereferenceGuard::DISALLOW_DEFERRED);
     Handle<Code> optimized_code = chunk_->Codegen();
     if (optimized_code.is_null()) {
       info()->set_bailout_reason("code generation failed");

@@ -2086,7 +2086,8 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   bind(&delete_allocated_handles);
   mov(Operand::StaticVariable(limit_address), edi);
   mov(edi, eax);
-  mov(Operand(esp, 0), Immediate(ExternalReference::isolate_address()));
+  mov(Operand(esp, 0),
+      Immediate(ExternalReference::isolate_address(isolate())));
   mov(eax, Immediate(delete_extensions));
   call(eax);
   mov(eax, edi);
@@ -2278,6 +2279,7 @@ void MacroAssembler::InvokeFunction(Register fun,
 
 
 void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
+                                    const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
@@ -2289,7 +2291,6 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   LoadHeapObject(edi, function);
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-  ParameterCount expected(function->shared()->formal_parameter_count());
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
@@ -2480,6 +2481,7 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 
 void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
+  ALLOW_HANDLE_DEREF(isolate(), "embedding raw address");
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
         isolate()->factory()->NewJSGlobalPropertyCell(object);
@@ -2491,6 +2493,7 @@ void MacroAssembler::LoadHeapObject(Register result,
 
 
 void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
+  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
         isolate()->factory()->NewJSGlobalPropertyCell(object);

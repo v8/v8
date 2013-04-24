@@ -657,18 +657,15 @@ void Deoptimizer::EntryGenerator::Generate() {
   // has created space for this). On linux pass the arguments in r8 and r9.
 #ifdef _WIN64
   __ movq(Operand(rsp, 4 * kPointerSize), arg5);
-  __ LoadAddress(arg5, ExternalReference::isolate_address());
+  __ LoadAddress(arg5, ExternalReference::isolate_address(isolate()));
   __ movq(Operand(rsp, 5 * kPointerSize), arg5);
 #else
   __ movq(r8, arg5);
-  __ LoadAddress(r9, ExternalReference::isolate_address());
+  __ LoadAddress(r9, ExternalReference::isolate_address(isolate()));
 #endif
 
-  Isolate* isolate = masm()->isolate();
-
-  {
-    AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
+  { AllowExternalCallThatCantCauseGC scope(masm());
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate()), 6);
   }
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
@@ -717,11 +714,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ push(rax);
   __ PrepareCallCFunction(2);
   __ movq(arg1, rax);
-  __ LoadAddress(arg2, ExternalReference::isolate_address());
+  __ LoadAddress(arg2, ExternalReference::isolate_address(isolate()));
   {
     AllowExternalCallThatCantCauseGC scope(masm());
     __ CallCFunction(
-        ExternalReference::compute_output_frames_function(isolate), 2);
+        ExternalReference::compute_output_frames_function(isolate()), 2);
   }
   __ pop(rax);
 

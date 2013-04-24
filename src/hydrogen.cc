@@ -509,9 +509,7 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 
 
 void HGraph::Verify(bool do_full_verify) const {
-  // Allow dereferencing for debug mode verification.
-  HandleDereferenceGuard allow_handle_deref(isolate(),
-                                            HandleDereferenceGuard::ALLOW);
+  ALLOW_HANDLE_DEREF(isolate(), "debug mode verification");
   for (int i = 0; i < blocks_.length(); i++) {
     HBasicBlock* block = blocks_.at(i);
 
@@ -640,67 +638,6 @@ DEFINE_GET_CONSTANT(False, false, HType::Boolean(), false)
 DEFINE_GET_CONSTANT(Hole, the_hole, HType::Tagged(), false)
 
 #undef DEFINE_GET_CONSTANT
-
-
-HGraphBuilder::CheckBuilder::CheckBuilder(HGraphBuilder* builder)
-    : builder_(builder),
-      finished_(false) {
-  HEnvironment* env = builder->environment();
-  failure_block_ = builder->CreateBasicBlock(env->Copy());
-  merge_block_ = builder->CreateBasicBlock(env->Copy());
-}
-
-
-HValue* HGraphBuilder::CheckBuilder::CheckNotUndefined(HValue* value) {
-  HEnvironment* env = builder_->environment();
-  HCompareObjectEqAndBranch* compare =
-      new(zone()) HCompareObjectEqAndBranch(
-          value,
-          builder_->graph()->GetConstantUndefined());
-  HBasicBlock* success_block = builder_->CreateBasicBlock(env->Copy());
-  HBasicBlock* failure_block = builder_->CreateBasicBlock(env->Copy());
-  compare->SetSuccessorAt(0, failure_block);
-  compare->SetSuccessorAt(1, success_block);
-  failure_block->GotoNoSimulate(failure_block_);
-  builder_->current_block()->Finish(compare);
-  builder_->set_current_block(success_block);
-  return compare;
-}
-
-
-HValue* HGraphBuilder::CheckBuilder::CheckIntegerCompare(HValue* left,
-                                                         HValue* right,
-                                                         Token::Value op) {
-  HEnvironment* env = builder_->environment();
-  HCompareIDAndBranch* compare =
-      new(zone()) HCompareIDAndBranch(left, right, op);
-  compare->AssumeRepresentation(Representation::Integer32());
-  HBasicBlock* success_block = builder_->CreateBasicBlock(env->Copy());
-  HBasicBlock* failure_block = builder_->CreateBasicBlock(env->Copy());
-  compare->SetSuccessorAt(0, success_block);
-  compare->SetSuccessorAt(1, failure_block);
-  failure_block->GotoNoSimulate(failure_block_);
-  builder_->current_block()->Finish(compare);
-  builder_->set_current_block(success_block);
-  return compare;
-}
-
-
-HValue* HGraphBuilder::CheckBuilder::CheckIntegerEq(HValue* left,
-                                                    HValue* right) {
-  return CheckIntegerCompare(left, right, Token::EQ);
-}
-
-
-void HGraphBuilder::CheckBuilder::End() {
-  ASSERT(!finished_);
-  builder_->current_block()->GotoNoSimulate(merge_block_);
-  if (failure_block_->HasPredecessor()) {
-    failure_block_->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
-  }
-  builder_->set_current_block(merge_block_);
-  finished_ = true;
-}
 
 
 HConstant* HGraph::GetInvalidContext() {
@@ -1323,9 +1260,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
           external_elements, key, val, bounds_check,
           elements_kind, is_store);
       AddInstruction(result);
-      negative_checker.Else();
-      negative_checker.Deopt();
-      negative_checker.End();
+      negative_checker.ElseDeopt();
       length_checker.End();
       return result;
     } else {
@@ -6411,9 +6346,11 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                                pointer_size,
                                DONT_TRACK_ALLOCATION_SITE);
   } else {
+    Handle<FixedArray> closure_literals(closure->literals(), isolate());
     literal = AddInstruction(
         new(zone()) HObjectLiteral(context,
                                    expr->constant_properties(),
+                                   closure_literals,
                                    expr->fast_elements(),
                                    expr->literal_index(),
                                    expr->depth(),
@@ -6502,7 +6439,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   HValue* context = environment()->LookupContext();
   HInstruction* literal;
 
-  Handle<FixedArray> literals(environment()->closure()->literals());
+  Handle<FixedArray> literals(environment()->closure()->literals(), isolate());
   Handle<Object> raw_boilerplate(literals->get(expr->literal_index()),
                                  isolate());
 
@@ -6554,6 +6491,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     literal = AddInstruction(
                   new(zone()) HArrayLiteral(context,
                                             original_boilerplate_object,
+                                            literals,
                                             length,
                                             expr->literal_index(),
                                             expr->depth(),
@@ -7752,10 +7690,12 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         }
 
         *has_side_effects |= access->HasObservableSideEffects();
+        // The caller will use has_side_effects and add correct Simulate.
+        access->SetFlag(HValue::kHasNoObservableSideEffects);
         if (position != -1) {
           access->set_position(position);
         }
-        if_jsarray->Goto(join);
+        if_jsarray->GotoNoSimulate(join);
 
         set_current_block(if_fastobject);
         length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
@@ -7775,18 +7715,19 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
             elements_kind_branch, elements_kind, is_store));
       }
       *has_side_effects |= access->HasObservableSideEffects();
+      // The caller will use has_side_effects and add correct Simulate.
+      access->SetFlag(HValue::kHasNoObservableSideEffects);
       if (position != RelocInfo::kNoPosition) access->set_position(position);
       if (!is_store) {
         Push(access);
       }
-      current_block()->Goto(join);
+      current_block()->GotoNoSimulate(join);
       set_current_block(if_false);
     }
   }
 
   // Deopt if none of the cases matched.
   current_block()->FinishExitWithDeoptimization(HDeoptimize::kNoUses);
-  join->SetJoinId(ast_id);
   set_current_block(join);
   return is_store ? NULL : Pop();
 }
@@ -11519,16 +11460,14 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
 
 void HTracer::TraceLithium(const char* name, LChunk* chunk) {
   ASSERT(!FLAG_parallel_recompilation);
-  HandleDereferenceGuard allow_handle_deref(chunk->isolate(),
-                                            HandleDereferenceGuard::ALLOW);
+  ALLOW_HANDLE_DEREF(chunk->isolate(), "debug output");
   Trace(name, chunk->graph(), chunk);
 }
 
 
 void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
   ASSERT(!FLAG_parallel_recompilation);
-  HandleDereferenceGuard allow_handle_deref(graph->isolate(),
-                                            HandleDereferenceGuard::ALLOW);
+  ALLOW_HANDLE_DEREF(graph->isolate(), "debug output");
   Trace(name, graph, NULL);
 }
 

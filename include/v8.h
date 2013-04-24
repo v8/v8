@@ -1326,22 +1326,48 @@ class V8EXPORT String : public Primitive {
 
   V8_INLINE(static String* Cast(v8::Value* obj));
 
+  // TODO(dcarney): deprecate
   /**
    * Allocates a new string from either UTF-8 encoded or ASCII data.
    * The second parameter 'length' gives the buffer length. If omitted,
    * the function calls 'strlen' to determine the buffer length.
    */
-  static Local<String> New(const char* data, int length = -1);
+  V8_INLINE(static Local<String> New(const char* data, int length = -1));
 
+  // TODO(dcarney): deprecate
   /** Allocates a new string from 16-bit character codes.*/
-  static Local<String> New(const uint16_t* data, int length = -1);
+  V8_INLINE(static Local<String> New(const uint16_t* data, int length = -1));
 
+  // TODO(dcarney): deprecate
   /**
    * Creates an internalized string (historically called a "symbol",
    * not to be confused with ES6 symbols). Returns one if it exists already.
-   * TODO(rossberg): Deprecate me when the new string API is here.
    */
-  static Local<String> NewSymbol(const char* data, int length = -1);
+  V8_INLINE(static Local<String> NewSymbol(const char* data, int length = -1));
+
+  enum NewStringType {
+    kNormalString, kInternalizedString, kUndetectableString
+  };
+
+  /** Allocates a new string from UTF-8 data.*/
+  static Local<String> NewFromUtf8(Isolate* isolate,
+                                  const char* data,
+                                  NewStringType type = kNormalString,
+                                  int length = -1);
+
+  /** Allocates a new string from Latin-1 data.*/
+  static Local<String> NewFromOneByte(
+      Isolate* isolate,
+      const uint8_t* data,
+      NewStringType type = kNormalString,
+      int length = -1);
+
+  /** Allocates a new string from UTF-16 data.*/
+  static Local<String> NewFromTwoByte(
+      Isolate* isolate,
+      const uint16_t* data,
+      NewStringType type = kNormalString,
+      int length = -1);
 
   /**
    * Creates a new string by concatenating the left and the right strings
@@ -1396,11 +1422,15 @@ class V8EXPORT String : public Primitive {
    */
   bool CanMakeExternal();
 
+  // TODO(dcarney): deprecate
   /** Creates an undetectable string from the supplied ASCII or UTF-8 data.*/
-  static Local<String> NewUndetectable(const char* data, int length = -1);
+  V8_INLINE(
+      static Local<String> NewUndetectable(const char* data, int length = -1));
 
+  // TODO(dcarney): deprecate
   /** Creates an undetectable string from the supplied 16-bit character codes.*/
-  static Local<String> NewUndetectable(const uint16_t* data, int length = -1);
+  V8_INLINE(static Local<String> NewUndetectable(
+      const uint16_t* data, int length = -1));
 
   /**
    * Converts an object to a UTF-8-encoded character array.  Useful if
@@ -3676,6 +3706,24 @@ class V8EXPORT V8 {
   static bool IsExecutionTerminating(Isolate* isolate = NULL);
 
   /**
+   * Resume execution capability in the given isolate, whose execution
+   * was previously forcefully terminated using TerminateExecution().
+   *
+   * When execution is forcefully terminated using TerminateExecution(),
+   * the isolate can not resume execution until all JavaScript frames
+   * have propagated the uncatchable exception which is generated.  This
+   * method allows the program embedding the engine to handle the
+   * termination event and resume execution capability, even if
+   * JavaScript frames remain on the stack.
+   *
+   * This method can be used by any thread even if that thread has not
+   * acquired the V8 lock with a Locker object.
+   *
+   * \param isolate The isolate in which to resume execution capability.
+   */
+  static void CancelTerminateExecution(Isolate* isolate);
+
+  /**
    * Releases any resources used by v8 and stops any utility threads
    * that may be running.  Note that disposing v8 is permanent, it
    * cannot be reinitialized.
@@ -3785,19 +3833,28 @@ class V8EXPORT TryCatch {
   bool HasCaught() const;
 
   /**
-   * For certain types of exceptions, it makes no sense to continue
-   * execution.
+   * For certain types of exceptions, it makes no sense to continue execution.
    *
-   * Currently, the only type of exception that can be caught by a
-   * TryCatch handler and for which it does not make sense to continue
-   * is termination exception.  Such exceptions are thrown when the
-   * TerminateExecution methods are called to terminate a long-running
-   * script.
-   *
-   * If CanContinue returns false, the correct action is to perform
-   * any C++ cleanup needed and then return.
+   * If CanContinue returns false, the correct action is to perform any C++
+   * cleanup needed and then return.  If CanContinue returns false and
+   * HasTerminated returns true, it is possible to call
+   * CancelTerminateExecution in order to continue calling into the engine.
    */
   bool CanContinue() const;
+
+  /**
+   * Returns true if an exception has been caught due to script execution
+   * being terminated.
+   *
+   * There is no JavaScript representation of an execution termination
+   * exception.  Such exceptions are thrown when the TerminateExecution
+   * methods are called to terminate a long-running script.
+   *
+   * If such an exception has been thrown, HasTerminated will return true,
+   * indicating that it is possible to call CancelTerminateExecution in order
+   * to continue calling into the engine.
+   */
+  bool HasTerminated() const;
 
   /**
    * Throws the exception caught by this TryCatch in a way that avoids
@@ -3874,6 +3931,7 @@ class V8EXPORT TryCatch {
   bool can_continue_ : 1;
   bool capture_message_ : 1;
   bool rethrow_ : 1;
+  bool has_terminated_ : 1;
 
   friend class v8::internal::Isolate;
 };
@@ -4836,6 +4894,32 @@ Local<String> String::Empty(Isolate* isolate) {
   if (!I::IsInitialized(isolate)) return Empty();
   S* slot = I::GetRoot(isolate, I::kEmptyStringRootIndex);
   return Local<String>(reinterpret_cast<String*>(slot));
+}
+
+
+Local<String> String::New(const char* data, int length) {
+  return NewFromUtf8(Isolate::GetCurrent(), data, kNormalString, length);
+}
+
+
+Local<String> String::New(const uint16_t* data, int length) {
+  return NewFromTwoByte(Isolate::GetCurrent(), data, kNormalString, length);
+}
+
+
+Local<String> String::NewSymbol(const char* data, int length) {
+  return NewFromUtf8(Isolate::GetCurrent(), data, kInternalizedString, length);
+}
+
+
+Local<String> String::NewUndetectable(const char* data, int length) {
+  return NewFromUtf8(Isolate::GetCurrent(), data, kUndetectableString, length);
+}
+
+
+Local<String> String::NewUndetectable(const uint16_t* data, int length) {
+  return NewFromTwoByte(
+      Isolate::GetCurrent(), data, kUndetectableString, length);
 }
 
 

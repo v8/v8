@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,40 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
-#include "platform.h"
+// Flags: --allow-natives-syntax --deopt_every_n_garbage_collections=1
 
-namespace v8 {
-namespace internal {
-
-
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(GCExtension::GC);
-}
-
-
-v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
-  if (args[0]->BooleanValue()) {
-    HEAP->CollectGarbage(NEW_SPACE, "gc extension");
-  } else {
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
+function foo(a, b) {
+  var l = a.length;
+  var array = new Array(l);
+  for (var k = 0; k < l; k++) {
+    array[k] = 120;
   }
-  return v8::Undefined();
-}
-
-
-void GCExtension::Register() {
-  static char buffer[50];
-  Vector<char> temp_vector(buffer, sizeof(buffer));
-  if (FLAG_expose_gc_as != NULL && strlen(FLAG_expose_gc_as) != 0) {
-    OS::SNPrintF(temp_vector, "native function %s();", FLAG_expose_gc_as);
-  } else {
-    OS::SNPrintF(temp_vector, "native function gc();");
+  var result = new Array(l);
+  for (var i = 0; i < l; i++) {
+    result[i] = array[i];
   }
-
-  static GCExtension gc_extension(buffer);
-  static v8::DeclareExtension declaration(&gc_extension);
+  return result;
 }
 
-} }  // namespace v8::internal
+a = "xxxxxxxxxxxxxxxxxxxxxxxxx";
+while (a.length < 100000) a = a + a;
+foo(a, []);
+%OptimizeFunctionOnNextCall(foo)
+foo(a, []);

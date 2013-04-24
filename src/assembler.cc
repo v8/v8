@@ -969,8 +969,8 @@ ExternalReference::ExternalReference(const Runtime::Function* f,
   : address_(Redirect(isolate, f->entry)) {}
 
 
-ExternalReference ExternalReference::isolate_address() {
-  return ExternalReference(Isolate::Current());
+ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
+  return ExternalReference(isolate);
 }
 
 

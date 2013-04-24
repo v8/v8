@@ -257,38 +257,21 @@ bool LCodeGen::GenerateBody() {
        !is_aborted() && current_instruction_ < instructions_->length();
        current_instruction_++) {
     LInstruction* instr = instructions_->at(current_instruction_);
+
+    // Don't emit code for basic blocks with a replacement.
     if (instr->IsLabel()) {
-      LLabel* label = LLabel::cast(instr);
-      emit_instructions = !label->HasReplacement();
+      emit_instructions = !LLabel::cast(instr)->HasReplacement();
+    }
+    if (!emit_instructions) continue;
+
+    if (FLAG_code_comments && instr->HasInterestingComment(this)) {
+      Comment(";;; <@%d,#%d> %s",
+              current_instruction_,
+              instr->hydrogen_value()->id(),
+              instr->Mnemonic());
     }
 
-    if (emit_instructions) {
-      if (FLAG_code_comments) {
-        HValue* hydrogen = instr->hydrogen_value();
-        if (hydrogen != NULL) {
-          if (hydrogen->IsChange()) {
-            HValue* changed_value = HChange::cast(hydrogen)->value();
-            int use_id = 0;
-            const char* use_mnemo = "dead";
-            if (hydrogen->UseCount() >= 1) {
-              HValue* use_value = hydrogen->uses().value();
-              use_id = use_value->id();
-              use_mnemo = use_value->Mnemonic();
-            }
-            Comment(";;; @%d: %s. <of #%d %s for #%d %s>",
-                    current_instruction_, instr->Mnemonic(),
-                    changed_value->id(), changed_value->Mnemonic(),
-                    use_id, use_mnemo);
-          } else {
-            Comment(";;; @%d: %s. <#%d>", current_instruction_,
-                    instr->Mnemonic(), hydrogen->id());
-          }
-        } else {
-          Comment(";;; @%d: %s.", current_instruction_, instr->Mnemonic());
-        }
-      }
-      instr->CompileToNative(this);
-    }
+    instr->CompileToNative(this);
   }
   return !is_aborted();
 }
@@ -299,11 +282,14 @@ bool LCodeGen::GenerateDeferredCode() {
   if (deferred_.length() > 0) {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
       LDeferredCode* code = deferred_[i];
+      Comment(";;; <@%d,#%d> "
+              "-------------------- Deferred %s --------------------",
+              code->instruction_index(),
+              code->instr()->hydrogen_value()->id(),
+              code->instr()->Mnemonic());
       __ bind(code->entry());
       if (NeedsDeferredFrame()) {
-        Comment(";;; Deferred build frame @%d: %s.",
-                code->instruction_index(),
-                code->instr()->Mnemonic());
+        Comment(";;; Build frame");
         ASSERT(!frame_is_built_);
         ASSERT(info()->IsStub());
         frame_is_built_ = true;
@@ -311,15 +297,11 @@ bool LCodeGen::GenerateDeferredCode() {
         __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
         __ push(scratch0());
         __ Addu(fp, sp, Operand(2 * kPointerSize));
+        Comment(";;; Deferred code");
       }
-      Comment(";;; Deferred code @%d: %s.",
-              code->instruction_index(),
-              code->instr()->Mnemonic());
       code->Generate();
       if (NeedsDeferredFrame()) {
-        Comment(";;; Deferred destroy frame @%d: %s.",
-                code->instruction_index(),
-                code->instr()->Mnemonic());
+        Comment(";;; Destroy frame");
         ASSERT(frame_is_built_);
         __ pop(at);
         __ MultiPop(cp.bit() | fp.bit() | ra.bit());
@@ -346,8 +328,10 @@ bool LCodeGen::GenerateDeoptJumpTable() {
     Abort("Generated code is too large");
   }
 
+  if (deopt_jump_table_.length() > 0) {
+    Comment(";;; -------------------- Jump table --------------------");
+  }
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
-  __ RecordComment("[ Deoptimization jump table");
   Label table_start;
   __ bind(&table_start);
   Label needs_frame_not_call;
@@ -592,7 +576,7 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
                    pushed_arguments_index,
                    pushed_arguments_count);
   bool has_closure_id = !info()->closure().is_null() &&
-      *info()->closure() != *environment->closure();
+      !info()->closure().is_identical_to(environment->closure());
   int closure_id = has_closure_id
       ? DefineDeoptimizationLiteral(environment->closure())
       : Translation::kSelfLiteralId;
@@ -904,10 +888,13 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
 
   Handle<FixedArray> literals =
       factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
-  for (int i = 0; i < deoptimization_literals_.length(); i++) {
-    literals->set(i, *deoptimization_literals_[i]);
+  { ALLOW_HANDLE_DEREF(isolate(),
+                       "copying a ZoneList of handles into a FixedArray");
+    for (int i = 0; i < deoptimization_literals_.length(); i++) {
+      literals->set(i, *deoptimization_literals_[i]);
+    }
+    data->SetLiteralArray(*literals);
   }
-  data->SetLiteralArray(*literals);
 
   data->SetOsrAstId(Smi::FromInt(info_->osr_ast_id().ToInt()));
   data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
@@ -1023,10 +1010,19 @@ void LCodeGen::RecordPosition(int position) {
 }
 
 
+static const char* LabelType(LLabel* label) {
+  if (label->is_loop_header()) return " (loop header)";
+  if (label->is_osr_entry()) return " (OSR entry)";
+  return "";
+}
+
+
 void LCodeGen::DoLabel(LLabel* label) {
-  Comment(";;; -------------------- B%d%s --------------------",
+  Comment(";;; <@%d,#%d> -------------------- B%d%s --------------------",
+          current_instruction_,
+          label->hydrogen_value()->id(),
           label->block_id(),
-          label->is_loop_header() ? " (loop header)" : "");
+          LabelType(label));
   __ bind(label->label());
   current_block_ = label->block_id();
   DoGap(label);
@@ -1480,6 +1476,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Handle<Object> value = instr->value();
+  ALLOW_HANDLE_DEREF(isolate(), "smi check");
   if (value->IsSmi()) {
     __ li(ToRegister(instr->result()), Operand(value));
   } else {
@@ -1756,7 +1753,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 }
 
 
-int LCodeGen::GetNextEmittedBlock() {
+int LCodeGen::GetNextEmittedBlock() const {
   for (int i = current_block_ + 1; i < graph()->blocks()->length(); ++i) {
     if (!chunk_->GetLabel(i)->HasReplacement()) return i;
   }
@@ -1915,9 +1912,8 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
 
 void LCodeGen::EmitGoto(int block) {
-  int destination = chunk_->LookupDestination(block);
-  if (destination != GetNextEmittedBlock()) {
-    __ jmp(chunk_->GetAssemblyLabel(destination));
+  if (!IsNextEmittedBlock(block)) {
+    __ jmp(chunk_->GetAssemblyLabel(chunk_->LookupDestination(block)));
   }
 }
 
@@ -2881,16 +2877,24 @@ void LCodeGen::DoLoadExternalArrayPointer(
 
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register arguments = ToRegister(instr->arguments());
-  Register length = ToRegister(instr->length());
-  Register index = ToRegister(instr->index());
   Register result = ToRegister(instr->result());
-  // There are two words between the frame pointer and the last argument.
-  // Subtracting from length accounts for one of them, add one more.
-  __ subu(length, length, index);
-  __ Addu(length, length, Operand(1));
-  __ sll(length, length, kPointerSizeLog2);
-  __ Addu(at, arguments, Operand(length));
-  __ lw(result, MemOperand(at, 0));
+  if (instr->length()->IsConstantOperand() &&
+      instr->index()->IsConstantOperand()) {
+    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+    int const_length = ToInteger32(LConstantOperand::cast(instr->length()));
+    int index = (const_length - const_index) + 1;
+    __ lw(result, MemOperand(arguments, index * kPointerSize));
+  } else {
+    Register length = ToRegister(instr->length());
+    Register index = ToRegister(instr->index());
+    // There are two words between the frame pointer and the last argument.
+    // Subtracting from length accounts for one of them, add one more.
+    __ subu(length, length, index);
+    __ Addu(length, length, Operand(1));
+    __ sll(length, length, kPointerSizeLog2);
+    __ Addu(at, arguments, Operand(length));
+    __ lw(result, MemOperand(at, 0));
+  }
 }
 
 
@@ -3321,12 +3325,15 @@ void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
 
 
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
+                                 int formal_parameter_count,
                                  int arity,
                                  LInstruction* instr,
                                  CallKind call_kind,
                                  A1State a1_state) {
-  bool can_invoke_directly = !function->NeedsArgumentsAdaption() ||
-      function->shared()->formal_parameter_count() == arity;
+  bool dont_adapt_arguments =
+      formal_parameter_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+  bool can_invoke_directly =
+      dont_adapt_arguments || formal_parameter_count == arity;
 
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
@@ -3341,7 +3348,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 
     // Set r0 to arguments count if adaption is not needed. Assumes that r0
     // is available to write to at this point.
-    if (!function->NeedsArgumentsAdaption()) {
+    if (dont_adapt_arguments) {
       __ li(a0, Operand(arity));
     }
 
@@ -3355,7 +3362,9 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   } else {
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
     ParameterCount count(arity);
-    __ InvokeFunction(function, count, CALL_FUNCTION, generator, call_kind);
+    ParameterCount expected(formal_parameter_count);
+    __ InvokeFunction(
+        function, expected, count, CALL_FUNCTION, generator, call_kind);
   }
 
   // Restore context.
@@ -3366,7 +3375,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
   __ mov(a0, v0);
-  CallKnownFunction(instr->function(),
+  CallKnownFunction(instr->hydrogen()->function(),
+                    instr->hydrogen()->formal_parameter_count(),
                     instr->arity(),
                     instr,
                     CALL_AS_METHOD,
@@ -3778,7 +3788,8 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   ASSERT(ToRegister(instr->function()).is(a1));
   ASSERT(instr->HasPointerMap());
 
-  if (instr->known_function().is_null()) {
+  Handle<JSFunction> known_function = instr->hydrogen()->known_function();
+  if (known_function.is_null()) {
     LPointerMap* pointers = instr->pointer_map();
     RecordPosition(pointers->position());
     SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
@@ -3786,7 +3797,8 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
     __ InvokeFunction(a1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
     __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   } else {
-    CallKnownFunction(instr->known_function(),
+    CallKnownFunction(known_function,
+                      instr->hydrogen()->formal_parameter_count(),
                       instr->arity(),
                       instr,
                       CALL_AS_METHOD,
@@ -3846,7 +3858,8 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
 
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
-  CallKnownFunction(instr->target(),
+  CallKnownFunction(instr->hydrogen()->target(),
+                    instr->hydrogen()->formal_parameter_count(),
                     instr->arity(),
                     instr,
                     CALL_AS_FUNCTION,
@@ -4888,6 +4901,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   Register reg = ToRegister(instr->value());
   Handle<JSFunction> target = instr->hydrogen()->target();
+  ALLOW_HANDLE_DEREF(isolate(), "smi check");
   if (isolate()->heap()->InNewSpace(*target)) {
     Register reg = ToRegister(instr->value());
     Handle<JSGlobalPropertyCell> cell =
@@ -5027,16 +5041,12 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
   Register scratch = ToRegister(instr->temp());
   Register scratch2 = ToRegister(instr->temp2());
   Handle<JSFunction> constructor = instr->hydrogen()->constructor();
-  Handle<Map> initial_map(constructor->initial_map());
+  Handle<Map> initial_map = instr->hydrogen()->constructor_initial_map();
   int instance_size = initial_map->instance_size();
   ASSERT(initial_map->pre_allocated_property_fields() +
          initial_map->unused_property_fields() -
          initial_map->inobject_properties() == 0);
 
-  // Allocate memory for the object.  The initial map might change when
-  // the constructor's prototype changes, but instance size and property
-  // counts remain unchanged (if slack tracking finished).
-  ASSERT(!constructor->shared()->IsInobjectSlackTrackingInProgress());
   __ Allocate(instance_size, result, scratch, scratch2, deferred->entry(),
               TAG_OBJECT);
 
@@ -5071,8 +5081,7 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
 
 void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
   Register result = ToRegister(instr->result());
-  Handle<JSFunction> constructor = instr->hydrogen()->constructor();
-  Handle<Map> initial_map(constructor->initial_map());
+  Handle<Map> initial_map = instr->hydrogen()->constructor_initial_map();
   int instance_size = initial_map->instance_size();
 
   // TODO(3095996): Get rid of this. For now, we need to make the
@@ -5155,7 +5164,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
 
 
 void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
-  Handle<FixedArray> literals(instr->environment()->closure()->literals());
+  Handle<FixedArray> literals = instr->hydrogen()->literals();
   ElementsKind boilerplate_elements_kind =
       instr->hydrogen()->boilerplate_elements_kind();
   AllocationSiteMode allocation_site_mode =
@@ -5213,7 +5222,7 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
 
 void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
-  Handle<FixedArray> literals(instr->environment()->closure()->literals());
+  Handle<FixedArray> literals = instr->hydrogen()->literals();
   Handle<FixedArray> constant_properties =
       instr->hydrogen()->constant_properties();
 
@@ -5227,7 +5236,7 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
   __ li(a0, Operand(Smi::FromInt(flags)));
 
   // Pick the right runtime function or stub to call.
-  int properties_count = constant_properties->length() / 2;
+  int properties_count = instr->hydrogen()->constant_properties_length() / 2;
   if (instr->hydrogen()->depth() > 1) {
     __ Push(a3, a2, a1, a0);
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
@@ -5305,19 +5314,17 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  Handle<SharedFunctionInfo> shared_info = instr->shared_info();
   bool pretenure = instr->hydrogen()->pretenure();
-  if (!pretenure && shared_info->num_literals() == 0) {
-    FastNewClosureStub stub(shared_info->language_mode(),
-                            shared_info->is_generator());
-    __ li(a1, Operand(shared_info));
+  if (!pretenure && instr->hydrogen()->has_no_literals()) {
+    FastNewClosureStub stub(instr->hydrogen()->language_mode(),
+                            instr->hydrogen()->is_generator());
+    __ li(a1, Operand(instr->hydrogen()->shared_info()));
     __ push(a1);
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
   } else {
-    __ li(a2, Operand(shared_info));
-    __ li(a1, Operand(pretenure
-                       ? factory()->true_value()
-                       : factory()->false_value()));
+    __ li(a2, Operand(instr->hydrogen()->shared_info()));
+    __ li(a1, Operand(pretenure ? factory()->true_value()
+                                : factory()->false_value()));
     __ Push(cp, a2, a1);
     CallRuntime(Runtime::kNewClosure, 3, instr);
   }

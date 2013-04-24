@@ -177,8 +177,8 @@ void LEnvironment::PrintTo(StringStream* stream) {
   if (deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
     stream->Add("deopt_id=%d|", deoptimization_index());
   }
-  stream->Add("[parameters=%d|", parameter_count());
-  stream->Add("[arguments_stack_height=%d|", arguments_stack_height());
+  stream->Add("parameters=%d|", parameter_count());
+  stream->Add("arguments_stack_height=%d|", arguments_stack_height());
   for (int i = 0; i < values_.length(); ++i) {
     if (i != 0) stream->Add(";");
     if (values_[i] == NULL) {
@@ -341,6 +341,7 @@ void LChunk::MarkEmptyBlocks() {
 
 void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
   LInstructionGap* gap = new(graph_->zone()) LInstructionGap(block);
+  gap->set_hydrogen_value(instr->hydrogen_value());
   int index = -1;
   if (instr->IsControl()) {
     instructions_.Add(gap, zone());

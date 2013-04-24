@@ -366,6 +366,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(EXTERNAL_INT_ARRAY_TYPE)                                                   \
   V(EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)                                          \
   V(EXTERNAL_FLOAT_ARRAY_TYPE)                                                 \
+  V(EXTERNAL_DOUBLE_ARRAY_TYPE)                                                \
   V(EXTERNAL_PIXEL_ARRAY_TYPE)                                                 \
   V(FILLER_TYPE)                                                               \
                                                                                \
@@ -8578,7 +8579,7 @@ class JSWeakMap: public JSObject {
 
 class JSArrayBuffer: public JSObject {
  public:
-  // [backing_store]: backing memory for thsi array
+  // [backing_store]: backing memory for this array
   DECL_ACCESSORS(backing_store, void)
 
   // [byte_length]: length in bytes
