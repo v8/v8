@@ -50,7 +50,7 @@ class ApiFunction;
 
 namespace internal {
 
-struct StatsCounter;
+class StatsCounter;
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 
