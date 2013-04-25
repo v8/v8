@@ -211,32 +211,27 @@ TestGenerator(function* g16() { yield "baz"; gc(); yield "qux"; },
               ["baz", "qux", undefined]);
 
 // Receivers.
-function TestReceivers() {
-  TestGenerator(
-      function g17() {
-        function* g() { yield this.x; yield this.y; }
-        var o = { start: g, x: 1, y: 2 };
-        return o.start();
-      },
-      [1, 2, undefined],
-      "foo",
-      [1, 2, undefined]);
+TestGenerator(
+    function g17() {
+      function* g() { yield this.x; yield this.y; }
+      var o = { start: g, x: 1, y: 2 };
+      return o.start();
+    },
+    [1, 2, undefined],
+    "foo",
+    [1, 2, undefined]);
 
-  TestGenerator(
-      function g18() {
-        function* g() { yield this.x; yield this.y; }
-        var iter = new g;
-        iter.x = 1;
-        iter.y = 2;
-        return iter;
-      },
-      [1, 2, undefined],
-      "foo",
-      [1, 2, undefined]);
-}
-// TODO(wingo): Enable this test.  Currently accessing "this" doesn't work as
-// prior to generators, nothing needed to heap-allocate the receiver.
-// TestReceivers();
+TestGenerator(
+    function g18() {
+      function* g() { yield this.x; yield this.y; }
+      var iter = new g;
+      iter.x = 1;
+      iter.y = 2;
+      return iter;
+    },
+    [1, 2, undefined],
+    "foo",
+    [1, 2, undefined]);
 
 function TestRecursion() {
   function TestNextRecursion() {

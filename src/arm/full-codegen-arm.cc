@@ -1998,20 +1998,25 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ ldr(cp, FieldMemOperand(r1, JSGeneratorObject::kContextOffset));
   __ ldr(r4, FieldMemOperand(r1, JSGeneratorObject::kFunctionOffset));
 
-  // Push holes for arguments to generator function.
+  // Load receiver and store as the first argument.
+  __ ldr(r2, FieldMemOperand(r1, JSGeneratorObject::kReceiverOffset));
+  __ push(r2);
+
+  // Push holes for the rest of the arguments to the generator function.
   __ ldr(r3, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r3,
          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
   __ LoadRoot(r2, Heap::kTheHoleValueRootIndex);
-  Label push_argument_holes;
+  Label push_argument_holes, push_frame;
   __ bind(&push_argument_holes);
-  __ push(r2);
   __ sub(r3, r3, Operand(1), SetCC);
-  __ b(pl, &push_argument_holes);
+  __ b(mi, &push_frame);
+  __ push(r2);
+  __ jmp(&push_argument_holes);
 
   // Enter a new JavaScript frame, and initialize its slots as they were when
   // the generator was suspended.
-  Label push_frame, resume_frame;
+  Label resume_frame;
   __ bind(&push_frame);
   __ bl(&resume_frame);
   __ jmp(&done);

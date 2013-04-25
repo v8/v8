@@ -2413,6 +2413,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
   }
   generator->set_function(function);
   generator->set_context(Context::cast(frame->context()));
+  generator->set_receiver(frame->receiver());
   generator->set_continuation(0);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
 

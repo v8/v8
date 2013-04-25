@@ -6320,6 +6320,9 @@ class JSGeneratorObject: public JSObject {
   // [context]: The context of the suspended computation.
   DECL_ACCESSORS(context, Context)
 
+  // [receiver]: The receiver of the suspended computation.
+  DECL_ACCESSORS(receiver, Object)
+
   // [continuation]: Offset into code of continuation.
   //
   // A positive offset indicates a suspended generator.  The special
@@ -6345,7 +6348,8 @@ class JSGeneratorObject: public JSObject {
   // Layout description.
   static const int kFunctionOffset = JSObject::kHeaderSize;
   static const int kContextOffset = kFunctionOffset + kPointerSize;
-  static const int kContinuationOffset = kContextOffset + kPointerSize;
+  static const int kReceiverOffset = kContextOffset + kPointerSize;
+  static const int kContinuationOffset = kReceiverOffset + kPointerSize;
   static const int kOperandStackOffset = kContinuationOffset + kPointerSize;
   static const int kSize = kOperandStackOffset + kPointerSize;
 
