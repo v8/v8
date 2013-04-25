@@ -3278,9 +3278,11 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
     } else {
       LookupResult new_lookup(isolate);
       self->LocalLookup(*name, &new_lookup, true);
-      if (new_lookup.IsDataProperty() &&
-          !Object::GetProperty(self, name)->SameValue(*old_value)) {
-        EnqueueChangeRecord(self, "updated", name, old_value);
+      if (new_lookup.IsDataProperty()) {
+        Handle<Object> new_value = Object::GetProperty(self, name);
+        if (!new_value->SameValue(*old_value)) {
+          EnqueueChangeRecord(self, "updated", name, old_value);
+        }
       }
     }
   }
@@ -3430,8 +3432,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     } else {
       LookupResult new_lookup(isolate);
       self->LocalLookup(*name, &new_lookup, true);
-      bool value_changed = new_lookup.IsDataProperty() &&
-          !old_value->SameValue(*Object::GetProperty(self, name));
+      bool value_changed = false;
+      if (new_lookup.IsDataProperty()) {
+        Handle<Object> new_value = Object::GetProperty(self, name);
+        value_changed = !old_value->SameValue(*new_value);
+      }
       if (new_lookup.GetAttributes() != old_attributes) {
         if (!value_changed) old_value = isolate->factory()->the_hole_value();
         EnqueueChangeRecord(self, "reconfigured", name, old_value);
@@ -10974,8 +10979,8 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   } else if (old_value->IsTheHole()) {
     EnqueueChangeRecord(self, "reconfigured", name, old_value);
   } else {
-    bool value_changed =
-        !old_value->SameValue(*Object::GetElement(self, index));
+    Handle<Object> new_value = Object::GetElement(self, index);
+    bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();
       EnqueueChangeRecord(self, "reconfigured", name, old_value);
