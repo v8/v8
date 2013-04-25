@@ -1543,7 +1543,8 @@ class Heap {
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
 
   intptr_t OldGenPromotionLimit(intptr_t old_gen_size) {
-    const int divisor = FLAG_stress_compaction ? 10 : 3;
+    const int divisor = FLAG_stress_compaction ? 10 :
+        new_space_high_promotion_mode_active_ ? 1 : 3;
     intptr_t limit =
         Max(old_gen_size + old_gen_size / divisor, kMinimumPromotionLimit);
     limit += new_space_.Capacity();
@@ -1553,7 +1554,8 @@ class Heap {
   }
 
   intptr_t OldGenAllocationLimit(intptr_t old_gen_size) {
-    const int divisor = FLAG_stress_compaction ? 8 : 2;
+    const int divisor = FLAG_stress_compaction ? 8 :
+        new_space_high_promotion_mode_active_ ? 1 : 2;
     intptr_t limit =
         Max(old_gen_size + old_gen_size / divisor, kMinimumAllocationLimit);
     limit += new_space_.Capacity();
