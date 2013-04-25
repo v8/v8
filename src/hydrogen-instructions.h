@@ -3249,9 +3249,9 @@ class HConstant: public HTemplateInstruction<0> {
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
-      handle_ = isolate()->factory()->NewNumber(double_value_, TENURED);
+      handle_ = FACTORY->NewNumber(double_value_, TENURED);
     }
-    ALLOW_HANDLE_DEREF(isolate(), "smi check");
+    ALLOW_HANDLE_DEREF(Isolate::Current(), "smi check");
     ASSERT(has_int32_value_ || !handle_->IsSmi());
     return handle_;
   }
