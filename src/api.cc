@@ -52,6 +52,7 @@
 #include "profile-generator-inl.h"
 #include "property-details.h"
 #include "property.h"
+#include "runtime.h"
 #include "runtime-profiler.h"
 #include "scanner-character-streams.h"
 #include "snapshot.h"
@@ -2742,6 +2743,15 @@ void v8::Array::CheckCast(Value* that) {
   ApiCheck(obj->IsJSArray(),
            "v8::Array::Cast()",
            "Could not convert to array");
+}
+
+
+void v8::ArrayBuffer::CheckCast(Value* that) {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::ArrayBuffer::Cast()")) return;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->IsJSArrayBuffer(),
+           "v8::ArrayBuffer::Cast()",
+           "Could not convert to ArrayBuffer");
 }
 
 
@@ -5780,6 +5790,46 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(result);
+}
+
+
+size_t v8::ArrayBuffer::ByteLength() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ArrayBuffer::ByteLength()")) return 0;
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  return static_cast<size_t>(obj->byte_length()->Number());
+}
+
+
+void* v8::ArrayBuffer::Data() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ArrayBuffer::Data()")) return 0;
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  return obj->backing_store();
+}
+
+
+Local<ArrayBuffer> v8::ArrayBuffer::New(size_t byte_length) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::ArrayBuffer::New(size_t)");
+  LOG_API(isolate, "v8::ArrayBuffer::New(size_t)");
+  ENTER_V8(isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      isolate->factory()->NewJSArrayBuffer();
+  i::Runtime::SetupArrayBufferAllocatingData(isolate, obj, byte_length);
+  return Utils::ToLocal(obj);
+}
+
+
+Local<ArrayBuffer> v8::ArrayBuffer::New(void* data, size_t byte_length) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::ArrayBuffer::New(void*, size_t)");
+  LOG_API(isolate, "v8::ArrayBuffer::New(void*, size_t)");
+  ENTER_V8(isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      isolate->factory()->NewJSArrayBuffer();
+  i::Runtime::SetupArrayBuffer(isolate, obj, data, byte_length);
+  return Utils::ToLocal(obj);
 }
 
 

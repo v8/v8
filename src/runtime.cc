@@ -662,6 +662,47 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
 }
 
 
+bool Runtime::SetupArrayBuffer(Isolate* isolate,
+                               Handle<JSArrayBuffer> array_buffer,
+                               void* data,
+                               size_t allocated_length) {
+  array_buffer->set_backing_store(data);
+
+  Handle<Object> byte_length =
+      isolate->factory()->NewNumber(static_cast<double>(allocated_length));
+  CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
+  array_buffer->set_byte_length(*byte_length);
+  return true;
+}
+
+
+bool Runtime::SetupArrayBufferAllocatingData(
+    Isolate* isolate,
+    Handle<JSArrayBuffer> array_buffer,
+    size_t allocated_length) {
+  void* data;
+  if (allocated_length != 0) {
+    data = malloc(allocated_length);
+    if (data == NULL) return false;
+    memset(data, 0, allocated_length);
+  } else {
+    data = NULL;
+  }
+
+  if (!SetupArrayBuffer(isolate, array_buffer, data, allocated_length))
+    return false;
+
+  v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::Persistent<v8::Value> weak_handle = v8::Persistent<v8::Value>::New(
+      external_isolate, v8::Utils::ToLocal(Handle<Object>::cast(array_buffer)));
+  weak_handle.MakeWeak(external_isolate, data, ArrayBufferWeakCallback);
+  weak_handle.MarkIndependent(external_isolate);
+  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
+
+  return true;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -685,38 +726,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
     allocated_length = static_cast<size_t>(value);
   }
 
-  void* data;
-  if (allocated_length != 0) {
-    data = malloc(allocated_length);
-
-    if (data == NULL) {
+  if (!Runtime::SetupArrayBufferAllocatingData(isolate,
+                                               holder, allocated_length)) {
       return isolate->Throw(*isolate->factory()->
           NewRangeError("invalid_array_buffer_length",
             HandleVector<Object>(NULL, 0)));
-    }
-
-    memset(data, 0, allocated_length);
-  } else {
-    data = NULL;
   }
-  holder->set_backing_store(data);
-
-  Object* byte_length;
-  {
-    MaybeObject* maybe_byte_length =
-        isolate->heap()->NumberFromDouble(
-            static_cast<double>(allocated_length));
-    if (!maybe_byte_length->ToObject(&byte_length)) return maybe_byte_length;
-  }
-  CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
-  holder->set_byte_length(byte_length);
-
-  v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Persistent<v8::Value> weak_handle = v8::Persistent<v8::Value>::New(
-      external_isolate, v8::Utils::ToLocal(Handle<Object>::cast(holder)));
-  weak_handle.MakeWeak(external_isolate, data, ArrayBufferWeakCallback);
-  weak_handle.MarkIndependent(external_isolate);
-  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
 
   return *holder;
 }

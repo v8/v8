@@ -1303,10 +1303,12 @@ void Genesis::InitializeExperimentalGlobal() {
 
   if (FLAG_harmony_typed_arrays) {
     {  // -- A r r a y B u f f e r
-      InstallFunction(global, "__ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
-                      JSArrayBuffer::kSize,
-                      isolate()->initial_object_prototype(),
-                      Builtins::kIllegal, true);
+      Handle<JSFunction> array_buffer_fun =
+          InstallFunction(global, "__ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
+                          JSArrayBuffer::kSize,
+                          isolate()->initial_object_prototype(),
+                          Builtins::kIllegal, true);
+      native_context()->set_array_buffer_fun(*array_buffer_fun);
     }
     {
       // -- T y p e d A r r a y s

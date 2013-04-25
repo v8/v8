@@ -2004,6 +2004,43 @@ class V8EXPORT Function : public Object {
 
 
 /**
+ * An instance of the built-in ArrayBuffer constructor (ES6 draft 15.13.5).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT ArrayBuffer : public Object {
+ public:
+  /**
+   * Data length in bytes.
+   */
+  size_t ByteLength() const;
+  /**
+   * Raw pointer to the array buffer data
+   */
+  void* Data() const;
+
+  /**
+   * Create a new ArrayBuffer. Allocate |byte_length| bytes.
+   * Allocated memory will be owned by a created ArrayBuffer and
+   * will be deallocated when it is garbage-collected.
+   */
+  static Local<ArrayBuffer> New(size_t byte_length);
+
+  /**
+   * Create a new ArrayBuffer over an existing memory block.
+   * The memory block will not be reclaimed when a created ArrayBuffer
+   * is garbage-collected.
+   */
+  static Local<ArrayBuffer> New(void* data, size_t byte_length);
+
+  V8_INLINE(static ArrayBuffer* Cast(Value* obj));
+
+ private:
+  ArrayBuffer();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
  * An instance of the built-in Date constructor (ECMA-262, 15.9).
  */
 class V8EXPORT Date : public Object {
@@ -4499,7 +4536,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 55;
+  static const int kContextEmbedderDataIndex = 56;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -5169,6 +5206,14 @@ Array* Array::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Array*>(value);
+}
+
+
+ArrayBuffer* ArrayBuffer::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<ArrayBuffer*>(value);
 }
 
 

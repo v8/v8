@@ -748,6 +748,16 @@ class Runtime : public AllStatic {
       Handle<Object> object,
       Handle<Object> key);
 
+  static bool SetupArrayBuffer(Isolate* isolate,
+                               Handle<JSArrayBuffer> array_buffer,
+                               void* data,
+                               size_t allocated_length);
+
+  static bool SetupArrayBufferAllocatingData(
+      Isolate* isolate,
+      Handle<JSArrayBuffer> array_buffer,
+      size_t allocated_length);
+
   // Helper functions used stubs.
   static void PerformGC(Object* result);
 

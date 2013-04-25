@@ -2253,6 +2253,73 @@ THREADED_TEST(SymbolProperties) {
 }
 
 
+THREADED_TEST(ArrayBuffer) {
+  i::FLAG_harmony_typed_arrays = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(1024);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  CHECK_EQ(1024, ab->ByteLength());
+  uint8_t* data = static_cast<uint8_t*>(ab->Data());
+  ASSERT(data != NULL);
+  env->Global()->Set(v8_str("ab"), ab);
+
+  v8::Handle<v8::Value> result = CompileRun("ab.byteLength");
+  CHECK_EQ(1024, result->Int32Value());
+
+  result = CompileRun("var u8 = new __Uint8Array(ab);"
+                      "u8[0] = 0xFF;"
+                      "u8[1] = 0xAA;"
+                      "u8.length");
+  CHECK_EQ(1024, result->Int32Value());
+  CHECK_EQ(0xFF, data[0]);
+  CHECK_EQ(0xAA, data[1]);
+  data[0] = 0xCC;
+  data[1] = 0x11;
+  result = CompileRun("u8[0] + u8[1]");
+  CHECK_EQ(0xDD, result->Int32Value());
+
+  result = CompileRun("var ab1 = new __ArrayBuffer(2);"
+                      "var u8_a = new __Uint8Array(ab1);"
+                      "u8_a[0] = 0xAA;"
+                      "u8_a[1] = 0xFF; u8_a.buffer");
+  Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::Cast(*result);
+  CHECK_EQ(2, ab1->ByteLength());
+  uint8_t* ab1_data = static_cast<uint8_t*>(ab1->Data());
+  CHECK_EQ(0xAA, ab1_data[0]);
+  CHECK_EQ(0xFF, ab1_data[1]);
+  ab1_data[0] = 0xCC;
+  ab1_data[1] = 0x11;
+  result = CompileRun("u8_a[0] + u8_a[1]");
+  CHECK_EQ(0xDD, result->Int32Value());
+
+  uint8_t* my_data = new uint8_t[100];
+  memset(my_data, 0, 100);
+  Local<v8::ArrayBuffer> ab3 = v8::ArrayBuffer::New(my_data, 100);
+  CHECK_EQ(100, ab3->ByteLength());
+  CHECK_EQ(my_data, ab3->Data());
+  env->Global()->Set(v8_str("ab3"), ab3);
+  result = CompileRun("var u8_b = new __Uint8Array(ab3);"
+                      "u8_b[0] = 0xBB;"
+                      "u8_b[1] = 0xCC;"
+                      "u8_b.length");
+  CHECK_EQ(100, result->Int32Value());
+  CHECK_EQ(0xBB, my_data[0]);
+  CHECK_EQ(0xCC, my_data[1]);
+  my_data[0] = 0xCC;
+  my_data[1] = 0x11;
+  result = CompileRun("u8_b[0] + u8_b[1]");
+  CHECK_EQ(0xDD, result->Int32Value());
+
+
+  delete[] my_data;
+}
+
+
 THREADED_TEST(HiddenProperties) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
