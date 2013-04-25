@@ -5051,12 +5051,17 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     __ dec(Operand::StaticVariable(scope_depth));
   }
 
-  // Make sure we're not trying to return 'the hole' from the runtime
-  // call as this may lead to crashes in the IC code later.
+  // Runtime functions should not return 'the hole'.  Allowing it to escape may
+  // lead to crashes in the IC code later.
   if (FLAG_debug_code) {
     Label okay;
     __ cmp(eax, masm->isolate()->factory()->the_hole_value());
     __ j(not_equal, &okay, Label::kNear);
+    // TODO(wingo): Currently SuspendJSGeneratorObject returns the hole.  Change
+    // to return another sentinel like a harmony symbol.
+    __ cmp(ebx, Immediate(ExternalReference(
+        Runtime::kSuspendJSGeneratorObject, masm->isolate())));
+    __ j(equal, &okay, Label::kNear);
     __ int3();
     __ bind(&okay);
   }
