@@ -1299,6 +1299,44 @@ void JSObject::ValidateElements() {
 }
 
 
+bool JSObject::ShouldTrackAllocationInfo() {
+  if (map()->CanTrackAllocationSite()) {
+    if (!IsJSArray()) {
+      return true;
+    }
+
+    return AllocationSiteInfo::GetMode(GetElementsKind()) ==
+        TRACK_ALLOCATION_SITE;
+  }
+  return false;
+}
+
+
+// Heuristic: We only need to create allocation site info if the boilerplate
+// elements kind is the initial elements kind.
+AllocationSiteMode AllocationSiteInfo::GetMode(
+    ElementsKind boilerplate_elements_kind) {
+  if (FLAG_track_allocation_sites &&
+      IsFastSmiElementsKind(boilerplate_elements_kind)) {
+    return TRACK_ALLOCATION_SITE;
+  }
+
+  return DONT_TRACK_ALLOCATION_SITE;
+}
+
+
+AllocationSiteMode AllocationSiteInfo::GetMode(ElementsKind from,
+                                               ElementsKind to) {
+  if (FLAG_track_allocation_sites &&
+      IsFastSmiElementsKind(from) &&
+      (IsFastObjectElementsKind(to) || IsFastDoubleElementsKind(to))) {
+    return TRACK_ALLOCATION_SITE;
+  }
+
+  return DONT_TRACK_ALLOCATION_SITE;
+}
+
+
 MaybeObject* JSObject::EnsureCanContainHeapObjectElements() {
   ValidateElements();
   ElementsKind elements_kind = map()->elements_kind();
@@ -3697,7 +3735,7 @@ void Code::set_major_key(int major) {
 
 
 bool Code::is_pregenerated() {
-  return kind() == STUB && IsPregeneratedField::decode(flags());
+  return (kind() == STUB && IsPregeneratedField::decode(flags()));
 }
 
 

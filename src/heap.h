@@ -240,6 +240,8 @@ namespace internal {
   V(elements_field_string, "%elements")                                  \
   V(length_field_string, "%length")                                      \
   V(function_class_string, "Function")                                   \
+  V(properties_field_symbol, "%properties")                              \
+  V(payload_field_symbol, "%payload")                                    \
   V(illegal_argument_string, "illegal argument")                         \
   V(MakeReferenceError_string, "MakeReferenceError")                     \
   V(MakeSyntaxError_string, "MakeSyntaxError")                           \

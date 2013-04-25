@@ -43,6 +43,7 @@
 #include "extensions/externalize-string-extension.h"
 #include "extensions/gc-extension.h"
 #include "extensions/statistics-extension.h"
+#include "code-stubs.h"
 
 namespace v8 {
 namespace internal {
@@ -862,8 +863,6 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         InstallFunction(global, "Array", JS_ARRAY_TYPE, JSArray::kSize,
                         isolate->initial_object_prototype(),
                         Builtins::kArrayCode, true);
-    array_function->shared()->set_construct_stub(
-        isolate->builtins()->builtin(Builtins::kArrayConstructCode));
     array_function->shared()->DontAdaptArguments();
 
     // This seems a bit hackish, but we need to make sure Array.length
@@ -890,6 +889,20 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // as the constructor. 'Array' property on a global object can be
     // overwritten by JS code.
     native_context()->set_array_function(*array_function);
+
+    // Cache the array maps
+    MaybeObject* cache_result = CacheInitialJSArrayMaps(*native_context(),
+                                                        *initial_map);
+    if (cache_result->IsFailure()) return false;
+
+    if (FLAG_optimize_constructed_arrays) {
+      ArrayConstructorStub array_constructor_stub(isolate);
+      array_function->shared()->set_construct_stub(
+          *array_constructor_stub.GetCode(isolate));
+    } else {
+      array_function->shared()->set_construct_stub(
+          isolate->builtins()->builtin(Builtins::kCommonArrayConstructCode));
+    }
   }
 
   {  // --- N u m b e r ---
@@ -1535,13 +1548,8 @@ Handle<JSFunction> Genesis::InstallInternalArray(
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   SetPrototype(array_function, prototype);
 
-  // TODO(mvstanton): For performance reasons, this code would have to
-  // be changed to successfully run with FLAG_optimize_constructed_arrays.
-  // The next checkin to enable FLAG_optimize_constructed_arrays by
-  // default will address this.
-  CHECK(!FLAG_optimize_constructed_arrays);
   array_function->shared()->set_construct_stub(
-      isolate()->builtins()->builtin(Builtins::kArrayConstructCode));
+      isolate()->builtins()->builtin(Builtins::kCommonArrayConstructCode));
 
   array_function->shared()->DontAdaptArguments();
 

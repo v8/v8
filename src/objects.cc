@@ -7925,31 +7925,6 @@ bool AllocationSiteInfo::GetElementsKindPayload(ElementsKind* kind) {
 }
 
 
-// Heuristic: We only need to create allocation site info if the boilerplate
-// elements kind is the initial elements kind.
-AllocationSiteMode AllocationSiteInfo::GetMode(
-    ElementsKind boilerplate_elements_kind) {
-  if (FLAG_track_allocation_sites &&
-      IsFastSmiElementsKind(boilerplate_elements_kind)) {
-    return TRACK_ALLOCATION_SITE;
-  }
-
-  return DONT_TRACK_ALLOCATION_SITE;
-}
-
-
-AllocationSiteMode AllocationSiteInfo::GetMode(ElementsKind from,
-                                               ElementsKind to) {
-  if (FLAG_track_allocation_sites &&
-      IsFastSmiElementsKind(from) &&
-      (IsFastObjectElementsKind(to) || IsFastDoubleElementsKind(to))) {
-    return TRACK_ALLOCATION_SITE;
-  }
-
-  return DONT_TRACK_ALLOCATION_SITE;
-}
-
-
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
@@ -8394,13 +8369,13 @@ MaybeObject* JSObject::OptimizeAsPrototype() {
 }
 
 
-MUST_USE_RESULT static MaybeObject* CacheInitialJSArrayMaps(
+MUST_USE_RESULT MaybeObject* CacheInitialJSArrayMaps(
     Context* native_context, Map* initial_map) {
   // Replace all of the cached initial array maps in the native context with
   // the appropriate transitioned elements kind maps.
   Heap* heap = native_context->GetHeap();
   MaybeObject* maybe_maps =
-      heap->AllocateFixedArrayWithHoles(kElementsKindCount);
+      heap->AllocateFixedArrayWithHoles(kElementsKindCount, TENURED);
   FixedArray* maps;
   if (!maybe_maps->To(&maps)) return maybe_maps;
 

@@ -96,16 +96,20 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
-static void InitializeArrayConstructorDescriptor(Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
+static void InitializeArrayConstructorDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor,
+    int constant_stack_parameter_count) {
   // register state
-  // rdi -- constructor function
+  // rax -- number of arguments
   // rbx -- type info cell with elements kind
-  // rax -- number of arguments to the constructor function
-  static Register registers[] = { rdi, rbx };
-  descriptor->register_param_count_ = 2;
-  // stack param count needs (constructor pointer, and single argument)
-  descriptor->stack_parameter_count_ = &rax;
+  static Register registers[] = { rbx };
+  descriptor->register_param_count_ = 1;
+  if (constant_stack_parameter_count != 0) {
+    // stack param count needs (constructor pointer, and single argument)
+    descriptor->stack_parameter_count_ = &rax;
+  }
+  descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
   descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
@@ -116,21 +120,21 @@ static void InitializeArrayConstructorDescriptor(Isolate* isolate,
 void ArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate, descriptor);
+  InitializeArrayConstructorDescriptor(isolate, descriptor, 0);
 }
 
 
 void ArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate, descriptor);
+  InitializeArrayConstructorDescriptor(isolate, descriptor, 1);
 }
 
 
 void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate, descriptor);
+  InitializeArrayConstructorDescriptor(isolate, descriptor, -1);
 }
 
 
@@ -3815,7 +3819,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
       TypeFeedbackCells::MonomorphicArraySentinel(isolate,
                                                   LAST_FAST_ELEMENTS_KIND);
   __ Cmp(rcx, terminal_kind_sentinel);
-  __ j(not_equal, &miss);
+  __ j(above, &miss);
   // Make sure the function is the Array() function
   __ LoadArrayFunction(rcx);
   __ cmpq(rdi, rcx);
@@ -4027,6 +4031,9 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   // It is important that the store buffer overflow stubs are generated first.
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
+  if (FLAG_optimize_constructed_arrays) {
+    ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
+  }
 }
 
 
@@ -6751,6 +6758,198 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   __ Ret();
 }
+
+
+template<class T>
+static void CreateArrayDispatch(MacroAssembler* masm) {
+  int last_index = GetSequenceIndexFromFastElementsKind(
+      TERMINAL_FAST_ELEMENTS_KIND);
+  for (int i = 0; i <= last_index; ++i) {
+    Label next;
+    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+    __ cmpl(rdx, Immediate(kind));
+    __ j(not_equal, &next);
+    T stub(kind);
+    __ TailCallStub(&stub);
+    __ bind(&next);
+  }
+
+  // If we reached this point there is a problem.
+  __ Abort("Unexpected ElementsKind in array constructor");
+}
+
+
+static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
+  // rbx - type info cell
+  // rdx - kind
+  // rax - number of arguments
+  // rdi - constructor?
+  // esp[0] - return address
+  // esp[4] - last argument
+  ASSERT(FAST_SMI_ELEMENTS == 0);
+  ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+  ASSERT(FAST_ELEMENTS == 2);
+  ASSERT(FAST_HOLEY_ELEMENTS == 3);
+  ASSERT(FAST_DOUBLE_ELEMENTS == 4);
+  ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
+
+  Handle<Object> undefined_sentinel(
+      masm->isolate()->heap()->undefined_value(),
+      masm->isolate());
+
+  // is the low bit set? If so, we are holey and that is good.
+  __ testb(rdx, Immediate(1));
+  Label normal_sequence;
+  __ j(not_zero, &normal_sequence);
+
+  // look at the first argument
+  __ movq(rcx, Operand(rsp, kPointerSize));
+  __ testq(rcx, rcx);
+  __ j(zero, &normal_sequence);
+
+  // We are going to create a holey array, but our kind is non-holey.
+  // Fix kind and retry
+  __ incl(rdx);
+  __ Cmp(rbx, undefined_sentinel);
+  __ j(equal, &normal_sequence);
+
+  // Save the resulting elements kind in type info
+  __ Integer32ToSmi(rdx, rdx);
+  __ movq(FieldOperand(rbx, kPointerSize), rdx);
+  __ SmiToInteger32(rdx, rdx);
+
+  __ bind(&normal_sequence);
+  int last_index = GetSequenceIndexFromFastElementsKind(
+      TERMINAL_FAST_ELEMENTS_KIND);
+  for (int i = 0; i <= last_index; ++i) {
+    Label next;
+    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+    __ cmpl(rdx, Immediate(kind));
+    __ j(not_equal, &next);
+    ArraySingleArgumentConstructorStub stub(kind);
+    __ TailCallStub(&stub);
+    __ bind(&next);
+  }
+
+  // If we reached this point there is a problem.
+  __ Abort("Unexpected ElementsKind in array constructor");
+}
+
+
+template<class T>
+static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
+  int to_index = GetSequenceIndexFromFastElementsKind(
+      TERMINAL_FAST_ELEMENTS_KIND);
+  for (int i = 0; i <= to_index; ++i) {
+    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+    T stub(kind);
+    stub.GetCode(isolate)->set_is_pregenerated(true);
+  }
+}
+
+
+void ArrayConstructorStubBase::GenerateStubsAheadOfTime(Isolate* isolate) {
+  ArrayConstructorStubAheadOfTimeHelper<ArrayNoArgumentConstructorStub>(
+      isolate);
+  ArrayConstructorStubAheadOfTimeHelper<ArraySingleArgumentConstructorStub>(
+      isolate);
+  ArrayConstructorStubAheadOfTimeHelper<ArrayNArgumentsConstructorStub>(
+      isolate);
+}
+
+
+
+void ArrayConstructorStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax : argc
+  //  -- rbx : type info cell
+  //  -- rdi : constructor
+  //  -- rsp[0] : return address
+  //  -- rsp[4] : last argument
+  // -----------------------------------
+  Handle<Object> undefined_sentinel(
+      masm->isolate()->heap()->undefined_value(),
+      masm->isolate());
+
+  if (FLAG_debug_code) {
+    // The array construct code is only set for the global and natives
+    // builtin Array functions which always have maps.
+
+    // Initial map for the builtin Array function should be a map.
+    __ movq(rcx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a NULL and a Smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    Condition not_smi = NegateCondition(masm->CheckSmi(rcx));
+    __ Check(not_smi, "Unexpected initial map for Array function");
+    __ CmpObjectType(rcx, MAP_TYPE, rcx);
+    __ Check(equal, "Unexpected initial map for Array function");
+
+    // We should either have undefined in ebx or a valid jsglobalpropertycell
+    Label okay_here;
+    Handle<Map> global_property_cell_map(
+        masm->isolate()->heap()->global_property_cell_map());
+    __ Cmp(rbx, undefined_sentinel);
+    __ j(equal, &okay_here);
+    __ Cmp(FieldOperand(rbx, 0), global_property_cell_map);
+    __ Assert(equal, "Expected property cell in register rbx");
+    __ bind(&okay_here);
+  }
+
+  if (FLAG_optimize_constructed_arrays) {
+    Label no_info, switch_ready;
+    // Get the elements kind and case on that.
+    __ Cmp(rbx, undefined_sentinel);
+    __ j(equal, &no_info);
+    __ movq(rdx, FieldOperand(rbx, kPointerSize));
+
+    // There is no info if the call site went megamorphic either
+
+    // TODO(mvstanton): Really? I thought if it was the array function that
+    // the cell wouldn't get stamped as megamorphic.
+    __ Cmp(rdx, TypeFeedbackCells::MegamorphicSentinel(masm->isolate()));
+    __ j(equal, &no_info);
+    __ SmiToInteger32(rdx, rdx);
+    __ jmp(&switch_ready);
+    __ bind(&no_info);
+    __ movq(rdx, Immediate(GetInitialFastElementsKind()));
+    __ bind(&switch_ready);
+
+    if (argument_count_ == ANY) {
+      Label not_zero_case, not_one_case;
+      __ testq(rax, rax);
+      __ j(not_zero, &not_zero_case);
+      CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
+
+      __ bind(&not_zero_case);
+      __ cmpl(rax, Immediate(1));
+      __ j(greater, &not_one_case);
+      CreateArrayDispatchOneArgument(masm);
+
+      __ bind(&not_one_case);
+      CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
+    } else if (argument_count_ == NONE) {
+      CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
+    } else if (argument_count_ == ONE) {
+      CreateArrayDispatchOneArgument(masm);
+    } else if (argument_count_ == MORE_THAN_ONE) {
+      CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
+    } else {
+      UNREACHABLE();
+    }
+  } else {
+    Label generic_constructor;
+    // Run the native code for the Array function called as constructor.
+    ArrayNativeCode(masm, &generic_constructor);
+
+    // Jump to the generic construct code in case the specialized code cannot
+    // handle the construction.
+    __ bind(&generic_constructor);
+    Handle<Code> generic_construct_stub =
+        masm->isolate()->builtins()->JSConstructStubGeneric();
+    __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
+  }
+}
+
 
 #undef __
 

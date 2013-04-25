@@ -125,11 +125,8 @@ CompilationInfo::~CompilationInfo() {
 
 
 int CompilationInfo::num_parameters() const {
-  if (IsStub()) {
-    return 0;
-  } else {
-    return scope()->num_parameters();
-  }
+  ASSERT(!IsStub());
+  return scope()->num_parameters();
 }
 
 

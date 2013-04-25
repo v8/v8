@@ -1381,8 +1381,10 @@ HValue* HGraphBuilder::BuildAllocateElements(HValue* context,
   total_size->ChangeRepresentation(Representation::Integer32());
   total_size->ClearFlag(HValue::kCanOverflow);
 
-  HAllocate::Flags flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
+  HAllocate::Flags flags = HAllocate::DefaultFlags(kind);
   if (FLAG_pretenure_literals) {
+    // TODO(hpayer): When pretenuring can be internalized, flags can become
+    // private to HAllocate.
     if (IsFastDoubleElementsKind(kind)) {
       flags = static_cast<HAllocate::Flags>(
           flags | HAllocate::CAN_ALLOCATE_IN_OLD_DATA_SPACE);
@@ -1390,10 +1392,6 @@ HValue* HGraphBuilder::BuildAllocateElements(HValue* context,
       flags = static_cast<HAllocate::Flags>(
           flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
     }
-  }
-  if (IsFastDoubleElementsKind(kind)) {
-    flags = static_cast<HAllocate::Flags>(
-        flags | HAllocate::ALLOCATE_DOUBLE_ALIGNED);
   }
 
   HValue* elements =
@@ -1427,6 +1425,63 @@ HValue* HGraphBuilder::BuildAllocateAndInitializeElements(HValue* context,
   HValue* new_elements = BuildAllocateElements(context, kind, capacity);
   BuildInitializeElements(new_elements, kind, capacity);
   return new_elements;
+}
+
+
+HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
+    HValue* array_map,
+    AllocationSiteMode mode,
+    HValue* allocation_site_payload,
+    HValue* length_field) {
+
+  BuildStoreMap(array, array_map);
+
+  HConstant* empty_fixed_array =
+      new(zone()) HConstant(
+          Handle<FixedArray>(isolate()->heap()->empty_fixed_array()),
+          Representation::Tagged());
+  AddInstruction(empty_fixed_array);
+
+  AddInstruction(new(zone()) HStoreNamedField(array,
+      isolate()->factory()->properties_field_symbol(),
+      empty_fixed_array,
+      true,
+      JSArray::kPropertiesOffset));
+
+  HInstruction* length_store = AddInstruction(
+      new(zone()) HStoreNamedField(array,
+                                   isolate()->factory()->length_field_string(),
+                                   length_field,
+                                   true,
+                                   JSArray::kLengthOffset));
+  length_store->SetGVNFlag(kChangesArrayLengths);
+
+  if (mode == TRACK_ALLOCATION_SITE) {
+    BuildCreateAllocationSiteInfo(array,
+                                  JSArray::kSize,
+                                  allocation_site_payload);
+  }
+
+  int elements_location = JSArray::kSize;
+  if (mode == TRACK_ALLOCATION_SITE) {
+    elements_location += AllocationSiteInfo::kSize;
+  }
+
+  HInnerAllocatedObject* elements = new(zone()) HInnerAllocatedObject(
+      array,
+      elements_location);
+  AddInstruction(elements);
+
+  HInstruction* elements_store = AddInstruction(
+      new(zone()) HStoreNamedField(
+          array,
+          isolate()->factory()->elements_field_string(),
+          elements,
+          true,
+          JSArray::kElementsOffset));
+  elements_store->SetGVNFlag(kChangesElementsPointer);
+
+  return elements;
 }
 
 
@@ -1543,13 +1598,38 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* context,
       : AddInstruction(new(zone) HConstant(nan_double,
                                            Representation::Double()));
 
-  LoopBuilder builder(this, context, LoopBuilder::kPostIncrement);
+  // Special loop unfolding case
+  static const int kLoopUnfoldLimit = 4;
+  bool unfold_loop = false;
+  int initial_capacity = JSArray::kPreallocatedArrayElements;
+  if (from->IsConstant() && to->IsConstant() &&
+      initial_capacity <= kLoopUnfoldLimit) {
+    HConstant* constant_from = HConstant::cast(from);
+    HConstant* constant_to = HConstant::cast(to);
 
-  HValue* key = builder.BeginBody(from, to, Token::LT);
+    if (constant_from->HasInteger32Value() &&
+        constant_from->Integer32Value() == 0 &&
+        constant_to->HasInteger32Value() &&
+        constant_to->Integer32Value() == initial_capacity) {
+      unfold_loop = true;
+    }
+  }
 
-  AddInstruction(new(zone) HStoreKeyed(elements, key, hole, elements_kind));
+  if (unfold_loop) {
+    for (int i = 0; i < initial_capacity; i++) {
+      HInstruction* key = AddInstruction(new(zone)
+                             HConstant(i, Representation::Integer32()));
+      AddInstruction(new(zone) HStoreKeyed(elements, key, hole, elements_kind));
+    }
+  } else {
+    LoopBuilder builder(this, context, LoopBuilder::kPostIncrement);
 
-  builder.EndBody();
+    HValue* key = builder.BeginBody(from, to, Token::LT);
+
+    AddInstruction(new(zone) HStoreKeyed(elements, key, hole, elements_kind));
+
+    builder.EndBody();
+  }
 }
 
 
@@ -1616,12 +1696,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
         : FixedArray::SizeFor(length);
   }
 
-  HAllocate::Flags allocate_flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
-  if (IsFastDoubleElementsKind(kind)) {
-    allocate_flags = static_cast<HAllocate::Flags>(
-        allocate_flags | HAllocate::ALLOCATE_DOUBLE_ALIGNED);
-  }
-
+  HAllocate::Flags allocate_flags = HAllocate::DefaultFlags(kind);
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
   HValue* size_in_bytes =
@@ -1650,15 +1725,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
 
   // Create an allocation site info if requested.
   if (mode == TRACK_ALLOCATION_SITE) {
-    HValue* alloc_site =
-        AddInstruction(new(zone) HInnerAllocatedObject(object, JSArray::kSize));
-    Handle<Map> alloc_site_map(isolate()->heap()->allocation_site_info_map());
-    BuildStoreMap(alloc_site, alloc_site_map);
-    int alloc_payload_offset = AllocationSiteInfo::kPayloadOffset;
-    AddInstruction(new(zone) HStoreNamedField(alloc_site,
-                                              factory->empty_string(),
-                                              boilerplate,
-                                              true, alloc_payload_offset));
+    BuildCreateAllocationSiteInfo(object, JSArray::kSize, boilerplate);
   }
 
   if (length > 0) {
@@ -1751,6 +1818,158 @@ void HGraphBuilder::BuildCompareNil(
   }
 
   if_nil.CaptureContinuation(continuation);
+}
+
+
+HValue* HGraphBuilder::BuildCreateAllocationSiteInfo(HValue* previous_object,
+                                                     int previous_object_size,
+                                                     HValue* payload) {
+  HInnerAllocatedObject* alloc_site = new(zone())
+        HInnerAllocatedObject(previous_object, previous_object_size);
+  AddInstruction(alloc_site);
+  Handle<Map> alloc_site_map(isolate()->heap()->allocation_site_info_map());
+  BuildStoreMap(alloc_site, alloc_site_map);
+  AddInstruction(new(zone()) HStoreNamedField(alloc_site,
+      isolate()->factory()->payload_string(),
+      payload,
+      true,
+      AllocationSiteInfo::kPayloadOffset));
+  return alloc_site;
+}
+
+
+HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
+                                              ElementsKind kind,
+                                              HValue* allocation_site_payload,
+                                              AllocationSiteMode mode) :
+        builder_(builder),
+        kind_(kind),
+        allocation_site_payload_(allocation_site_payload) {
+  if (mode == DONT_TRACK_ALLOCATION_SITE) {
+    mode_ = mode;
+  } else {
+    mode_ = AllocationSiteInfo::GetMode(kind);
+  }
+}
+
+
+HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode(HValue* context) {
+  // Get the global context, the native context, the map array
+  HInstruction* global_object = AddInstruction(new(zone())
+      HGlobalObject(context));
+  HInstruction* native_context = AddInstruction(new(zone())
+      HLoadNamedField(global_object, true, GlobalObject::kNativeContextOffset));
+  size_t offset = Context::kHeaderSize +
+      kPointerSize * Context::JS_ARRAY_MAPS_INDEX;
+  HInstruction* map_array = AddInstruction(new(zone())
+      HLoadNamedField(native_context, true, offset));
+  offset = kind_ * kPointerSize + FixedArrayBase::kHeaderSize;
+  return AddInstruction(new(zone()) HLoadNamedField(map_array, true, offset));
+}
+
+
+HValue* HGraphBuilder::JSArrayBuilder::EstablishAllocationSize(
+    HValue* length_node) {
+  HValue* context = builder()->environment()->LookupContext();
+  ASSERT(length_node != NULL);
+
+  int base_size = JSArray::kSize;
+  if (mode_ == TRACK_ALLOCATION_SITE) {
+    base_size += AllocationSiteInfo::kSize;
+  }
+
+  if (IsFastDoubleElementsKind(kind_)) {
+    base_size += FixedDoubleArray::kHeaderSize;
+  } else {
+    base_size += FixedArray::kHeaderSize;
+  }
+
+  HInstruction* elements_size_value = new(zone())
+      HConstant(elements_size(), Representation::Integer32());
+  AddInstruction(elements_size_value);
+  HInstruction* mul = HMul::New(zone(), context, length_node,
+                                elements_size_value);
+  mul->ChangeRepresentation(Representation::Integer32());
+  mul->ClearFlag(HValue::kCanOverflow);
+  AddInstruction(mul);
+
+  HInstruction* base = new(zone()) HConstant(base_size,
+                                             Representation::Integer32());
+  AddInstruction(base);
+  HInstruction* total_size = HAdd::New(zone(), context, base, mul);
+  total_size->ChangeRepresentation(Representation::Integer32());
+  total_size->ClearFlag(HValue::kCanOverflow);
+  AddInstruction(total_size);
+  return total_size;
+}
+
+
+HValue* HGraphBuilder::JSArrayBuilder::EstablishEmptyArrayAllocationSize() {
+  int base_size = JSArray::kSize;
+  if (mode_ == TRACK_ALLOCATION_SITE) {
+    base_size += AllocationSiteInfo::kSize;
+  }
+
+  base_size += IsFastDoubleElementsKind(kind_)
+      ? FixedDoubleArray::SizeFor(initial_capacity())
+      : FixedArray::SizeFor(initial_capacity());
+
+  HConstant* array_size =
+      new(zone()) HConstant(base_size, Representation::Integer32());
+  AddInstruction(array_size);
+  return array_size;
+}
+
+
+HValue* HGraphBuilder::JSArrayBuilder::AllocateEmptyArray() {
+  HValue* size_in_bytes = EstablishEmptyArrayAllocationSize();
+  HConstant* capacity =
+      new(zone()) HConstant(initial_capacity(), Representation::Integer32());
+  AddInstruction(capacity);
+  return AllocateArray(size_in_bytes,
+                       capacity,
+                       builder()->graph()->GetConstant0(),
+                       true);
+}
+
+
+HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* capacity,
+                                                     HValue* length_field,
+                                                     bool fill_with_hole) {
+  HValue* size_in_bytes = EstablishAllocationSize(capacity);
+  return AllocateArray(size_in_bytes, capacity, length_field, fill_with_hole);
+}
+
+
+HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
+                                                     HValue* capacity,
+                                                     HValue* length_field,
+                                                     bool fill_with_hole) {
+  HValue* context = builder()->environment()->LookupContext();
+
+  // Allocate (dealing with failure appropriately)
+  HAllocate::Flags flags = HAllocate::DefaultFlags(kind_);
+  HAllocate* new_object = new(zone()) HAllocate(context, size_in_bytes,
+                                                HType::JSArray(), flags);
+  AddInstruction(new_object);
+
+  // Fill in the fields: map, properties, length
+  HValue* map = EmitMapCode(context);
+  elements_location_ = builder()->BuildJSArrayHeader(new_object,
+                                                     map,
+                                                     mode_,
+                                                     allocation_site_payload_,
+                                                     length_field);
+
+  // Initialize the elements
+  builder()->BuildInitializeElements(elements_location_, kind_, capacity);
+
+  if (fill_with_hole) {
+    builder()->BuildFillElementsWithHole(context, elements_location_, kind_,
+                                         graph()->GetConstant0(), capacity);
+  }
+
+  return new_object;
 }
 
 
@@ -9297,19 +9516,31 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   } else {
     // The constructor function is both an operand to the instruction and an
     // argument to the construct call.
+    bool use_call_new_array = FLAG_optimize_constructed_arrays &&
+        !(expr->target().is_null()) &&
+        *(expr->target()) == isolate()->global_context()->array_function();
+
     CHECK_ALIVE(VisitArgument(expr->expression()));
     HValue* constructor = HPushArgument::cast(Top())->argument();
     CHECK_ALIVE(VisitArgumentList(expr->arguments()));
     HCallNew* call;
-    if (FLAG_optimize_constructed_arrays &&
-        !(expr->target().is_null()) &&
-        *(expr->target()) == isolate()->global_context()->array_function()) {
-      Handle<Object> feedback = oracle()->GetInfo(expr->CallNewFeedbackId());
-      ASSERT(feedback->IsSmi());
-      Handle<JSGlobalPropertyCell> cell =
-          isolate()->factory()->NewJSGlobalPropertyCell(feedback);
+    if (use_call_new_array) {
       AddInstruction(new(zone()) HCheckFunction(constructor,
           Handle<JSFunction>(isolate()->global_context()->array_function())));
+      Handle<Object> feedback = oracle()->GetInfo(expr->CallNewFeedbackId());
+      ASSERT(feedback->IsSmi());
+
+      // TODO(mvstanton): It would be better to use the already created global
+      // property cell that is shared by full code gen. That way, any transition
+      // information that happened after crankshaft won't be lost.  The right
+      // way to do that is to begin passing the cell to the type feedback oracle
+      // instead of just the value in the cell. Do this in a follow-up checkin.
+      Handle<JSGlobalPropertyCell> cell =
+          isolate()->factory()->NewJSGlobalPropertyCell(feedback);
+
+      // TODO(mvstanton): Here we should probably insert code to check if the
+      // type cell elements kind is different from when we compiled, and deopt
+      // in that case. Do this in a follow-up checin.
       call = new(zone()) HCallNewArray(context, constructor, argument_count,
                                        cell);
     } else {
@@ -10437,15 +10668,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
 
   // Build Allocation Site Info if desired
   if (create_allocation_site_info) {
-    HValue* alloc_site =
-        AddInstruction(new(zone) HInnerAllocatedObject(target, JSArray::kSize));
-    Handle<Map> alloc_site_map(isolate()->heap()->allocation_site_info_map());
-    BuildStoreMap(alloc_site, alloc_site_map);
-    int alloc_payload_offset = AllocationSiteInfo::kPayloadOffset;
-    AddInstruction(new(zone) HStoreNamedField(alloc_site,
-                                              factory->payload_string(),
-                                              original_boilerplate,
-                                              true, alloc_payload_offset));
+    BuildCreateAllocationSiteInfo(target, JSArray::kSize, original_boilerplate);
   }
 
   if (object_elements != NULL) {

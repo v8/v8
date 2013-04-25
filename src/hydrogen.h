@@ -36,6 +36,7 @@
 #include "hydrogen-instructions.h"
 #include "type-info.h"
 #include "zone.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -947,6 +948,10 @@ class HGraphBuilder {
 
   HGraph* CreateGraph();
 
+  // Bailout environment manipulation.
+  void Push(HValue* value) { environment()->Push(value); }
+  HValue* Pop() { return environment()->Pop(); }
+
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
   void AddSimulate(BailoutId id,
@@ -1212,6 +1217,46 @@ class HGraphBuilder {
   void BuildNewSpaceArrayCheck(HValue* length,
                                ElementsKind kind);
 
+  class JSArrayBuilder {
+   public:
+    JSArrayBuilder(HGraphBuilder* builder,
+                   ElementsKind kind,
+                   HValue* allocation_site_payload,
+                   AllocationSiteMode mode);
+
+    HValue* AllocateEmptyArray();
+    HValue* AllocateArray(HValue* capacity, HValue* length_field,
+                          bool fill_with_hole);
+    HValue* GetElementsLocation() { return elements_location_; }
+
+   private:
+    Zone* zone() const { return builder_->zone(); }
+    int elements_size() const {
+      return IsFastDoubleElementsKind(kind_) ? kDoubleSize : kPointerSize;
+    }
+    HInstruction* AddInstruction(HInstruction* instr) {
+      return builder_->AddInstruction(instr);
+    }
+    HGraphBuilder* builder() { return builder_; }
+    HGraph* graph() { return builder_->graph(); }
+    int initial_capacity() {
+      STATIC_ASSERT(JSArray::kPreallocatedArrayElements > 0);
+      return JSArray::kPreallocatedArrayElements;
+    }
+
+    HValue* EmitMapCode(HValue* context);
+    HValue* EstablishEmptyArrayAllocationSize();
+    HValue* EstablishAllocationSize(HValue* length_node);
+    HValue* AllocateArray(HValue* size_in_bytes, HValue* capacity,
+                          HValue* length_field,  bool fill_with_hole);
+
+    HGraphBuilder* builder_;
+    ElementsKind kind_;
+    AllocationSiteMode mode_;
+    HValue* allocation_site_payload_;
+    HInnerAllocatedObject* elements_location_;
+  };
+
   HValue* BuildAllocateElements(HValue* context,
                                 ElementsKind kind,
                                 HValue* capacity);
@@ -1223,6 +1268,16 @@ class HGraphBuilder {
   HValue* BuildAllocateAndInitializeElements(HValue* context,
                                              ElementsKind kind,
                                              HValue* capacity);
+
+  // array must have been allocated with enough room for
+  // 1) the JSArray, 2) a AllocationSiteInfo if mode requires it,
+  // 3) a FixedArray or FixedDoubleArray.
+  // A pointer to the Fixed(Double)Array is returned.
+  HInnerAllocatedObject* BuildJSArrayHeader(HValue* array,
+                                            HValue* array_map,
+                                            AllocationSiteMode mode,
+                                            HValue* allocation_site_payload,
+                                            HValue* length_field);
 
   HValue* BuildGrowElementsCapacity(HValue* object,
                                     HValue* elements,
@@ -1257,6 +1312,10 @@ class HGraphBuilder {
       Handle<Map> map,
       int position,
       HIfContinuation* continuation);
+
+  HValue* BuildCreateAllocationSiteInfo(HValue* previous_object,
+                                        int previous_object_size,
+                                        HValue* payload);
 
  private:
   HGraphBuilder();
@@ -1335,10 +1394,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   bool inline_bailout() { return inline_bailout_; }
 
   void AddSoftDeoptimize();
-
-  // Bailout environment manipulation.
-  void Push(HValue* value) { environment()->Push(value); }
-  HValue* Pop() { return environment()->Pop(); }
 
   void Bailout(const char* reason);
 

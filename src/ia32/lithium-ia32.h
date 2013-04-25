@@ -1486,6 +1486,7 @@ class LReturn: public LTemplateInstruction<0, 3, 0> {
   LOperand* parameter_count() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Return, "return")
+  DECLARE_HYDROGEN_ACCESSOR(Return)
 };
 
 

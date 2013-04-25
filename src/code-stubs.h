@@ -84,6 +84,7 @@ namespace internal {
   V(TransitionElementsKind)              \
   V(StoreArrayLiteralElement)            \
   V(StubFailureTrampoline)               \
+  V(ArrayConstructor)                    \
   V(ProfileEntryHook)                    \
   /* IC Handler stubs */                 \
   V(LoadField)
@@ -267,6 +268,9 @@ struct CodeStubInterfaceDescriptor {
   CodeStubInterfaceDescriptor();
   int register_param_count_;
   const Register* stack_parameter_count_;
+  // if hint_stack_parameter_count_ > 0, the code stub can optimize the
+  // return sequence. Default value is -1, which means it is ignored.
+  int hint_stack_parameter_count_;
   StubFunctionMode function_mode_;
   Register* register_params_;
   Address deoptimization_handler_;
@@ -278,7 +282,16 @@ struct CodeStubInterfaceDescriptor {
     }
     return register_param_count_;
   }
+
+  bool initialized() const { return register_param_count_ >= 0; }
 };
+
+// A helper to make up for the fact that type Register is not fully
+// defined outside of the platform directories
+#define DESCRIPTOR_GET_PARAMETER_REGISTER(descriptor, index) \
+  ((index) == (descriptor)->register_param_count_)           \
+      ? *((descriptor)->stack_parameter_count_)              \
+      : (descriptor)->register_params_[(index)]
 
 
 class HydrogenCodeStub : public CodeStub {
@@ -620,6 +633,22 @@ class InstanceofStub: public PlatformCodeStub {
   virtual void PrintName(StringStream* stream);
 
   Flags flags_;
+};
+
+
+class ArrayConstructorStub: public PlatformCodeStub {
+ public:
+  enum ArgumentCountKey { ANY, NONE, ONE, MORE_THAN_ONE };
+  ArrayConstructorStub(Isolate* isolate, int argument_count);
+  explicit ArrayConstructorStub(Isolate* isolate);
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  virtual CodeStub::Major MajorKey() { return ArrayConstructor; }
+  virtual int MinorKey() { return argument_count_; }
+
+  ArgumentCountKey argument_count_;
 };
 
 
@@ -1544,10 +1573,48 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 };
 
 
-class ArrayNoArgumentConstructorStub : public HydrogenCodeStub {
+class ArrayConstructorStubBase : public HydrogenCodeStub {
  public:
-  ArrayNoArgumentConstructorStub()
+  ArrayConstructorStubBase(ElementsKind kind, AllocationSiteMode mode)
       : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {
+    bit_field_ = ElementsKindBits::encode(kind) |
+        AllocationSiteModeBits::encode(mode == TRACK_ALLOCATION_SITE);
+  }
+
+  ElementsKind elements_kind() const {
+    return ElementsKindBits::decode(bit_field_);
+  }
+
+  AllocationSiteMode mode() const {
+    return AllocationSiteModeBits::decode(bit_field_)
+        ? TRACK_ALLOCATION_SITE
+        : DONT_TRACK_ALLOCATION_SITE;
+  }
+
+  virtual bool IsPregenerated() { return true; }
+  static void GenerateStubsAheadOfTime(Isolate* isolate);
+  static void InstallDescriptors(Isolate* isolate);
+
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kPropertyCell = 0;
+
+ private:
+  int NotMissMinorKey() { return bit_field_; }
+
+  class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
+  class AllocationSiteModeBits: public BitField<bool, 8, 1> {};
+  uint32_t bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(ArrayConstructorStubBase);
+};
+
+
+class ArrayNoArgumentConstructorStub : public ArrayConstructorStubBase {
+ public:
+  ArrayNoArgumentConstructorStub(
+      ElementsKind kind,
+      AllocationSiteMode mode = TRACK_ALLOCATION_SITE)
+      : ArrayConstructorStubBase(kind, mode) {
   }
 
   virtual Handle<Code> GenerateCode();
@@ -1558,16 +1625,18 @@ class ArrayNoArgumentConstructorStub : public HydrogenCodeStub {
 
  private:
   Major MajorKey() { return ArrayNoArgumentConstructor; }
-  int NotMissMinorKey() { return 0; }
 
   DISALLOW_COPY_AND_ASSIGN(ArrayNoArgumentConstructorStub);
 };
 
 
-class ArraySingleArgumentConstructorStub : public HydrogenCodeStub {
+class ArraySingleArgumentConstructorStub : public ArrayConstructorStubBase {
  public:
-  ArraySingleArgumentConstructorStub()
-      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {}
+  ArraySingleArgumentConstructorStub(
+      ElementsKind kind,
+      AllocationSiteMode mode = TRACK_ALLOCATION_SITE)
+      : ArrayConstructorStubBase(kind, mode) {
+  }
 
   virtual Handle<Code> GenerateCode();
 
@@ -1577,16 +1646,18 @@ class ArraySingleArgumentConstructorStub : public HydrogenCodeStub {
 
  private:
   Major MajorKey() { return ArraySingleArgumentConstructor; }
-  int NotMissMinorKey() { return 0; }
 
   DISALLOW_COPY_AND_ASSIGN(ArraySingleArgumentConstructorStub);
 };
 
 
-class ArrayNArgumentsConstructorStub : public HydrogenCodeStub {
+class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
  public:
-  ArrayNArgumentsConstructorStub()
-      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {}
+  ArrayNArgumentsConstructorStub(
+      ElementsKind kind,
+      AllocationSiteMode mode = TRACK_ALLOCATION_SITE) :
+    ArrayConstructorStubBase(kind, mode) {
+  }
 
   virtual Handle<Code> GenerateCode();
 
@@ -1596,7 +1667,6 @@ class ArrayNArgumentsConstructorStub : public HydrogenCodeStub {
 
  private:
   Major MajorKey() { return ArrayNArgumentsConstructor; }
-  int NotMissMinorKey() { return 0; }
 
   DISALLOW_COPY_AND_ASSIGN(ArrayNArgumentsConstructorStub);
 };

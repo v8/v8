@@ -1738,6 +1738,8 @@ class JSObject: public JSReceiver {
   bool HasDictionaryArgumentsElements();
   inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
 
+  inline bool ShouldTrackAllocationInfo();
+
   inline void set_map_and_elements(
       Map* map,
       FixedArrayBase* value,
@@ -7296,9 +7298,9 @@ class AllocationSiteInfo: public Struct {
 
   // Returns NULL if no AllocationSiteInfo is available for object.
   static AllocationSiteInfo* FindForJSObject(JSObject* object);
-
-  static AllocationSiteMode GetMode(ElementsKind boilerplate_elements_kind);
-  static AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
+  static inline AllocationSiteMode GetMode(
+      ElementsKind boilerplate_elements_kind);
+  static inline AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
 
   static const int kPayloadOffset = HeapObject::kHeaderSize;
   static const int kSize = kPayloadOffset + kPointerSize;
@@ -8748,6 +8750,10 @@ class JSArray: public JSObject {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArray);
 };
+
+
+MUST_USE_RESULT MaybeObject* CacheInitialJSArrayMaps(
+    Context* native_context, Map* initial_map);
 
 
 // JSRegExpResult is just a JSArray with a specific initial map.

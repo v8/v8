@@ -4954,6 +4954,19 @@ class HAllocate: public HTemplateInstruction<2> {
     SetGVNFlag(kChangesNewSpacePromotion);
   }
 
+  static Flags DefaultFlags() {
+    return CAN_ALLOCATE_IN_NEW_SPACE;
+  }
+
+  static Flags DefaultFlags(ElementsKind kind) {
+    Flags flags = CAN_ALLOCATE_IN_NEW_SPACE;
+    if (IsFastDoubleElementsKind(kind)) {
+      flags = static_cast<HAllocate::Flags>(
+          flags | HAllocate::ALLOCATE_DOUBLE_ALIGNED);
+    }
+    return flags;
+  }
+
   HValue* context() { return OperandAt(0); }
   HValue* size() { return OperandAt(1); }
 

@@ -2942,19 +2942,20 @@ void LCodeGen::DoReturn(LReturn* instr) {
   if (NeedsEagerFrame()) {
     __ mov(sp, fp);
     __ ldm(ia_w, sp, fp.bit() | lr.bit());
-
-    if (instr->has_constant_parameter_count()) {
-      int parameter_count = ToInteger32(instr->constant_parameter_count());
-      int32_t sp_delta = (parameter_count + 1) * kPointerSize;
-      if (sp_delta != 0) {
-        __ add(sp, sp, Operand(sp_delta));
-      }
-    } else {
-      Register reg = ToRegister(instr->parameter_count());
-      __ add(reg, reg, Operand(1));
-      __ add(sp, sp, Operand(reg, LSL, kPointerSizeLog2));
-    }
   }
+  if (instr->has_constant_parameter_count()) {
+    int parameter_count = ToInteger32(instr->constant_parameter_count());
+    int32_t sp_delta = (parameter_count + 1) * kPointerSize;
+    if (sp_delta != 0) {
+      __ add(sp, sp, Operand(sp_delta));
+    }
+  } else {
+    Register reg = ToRegister(instr->parameter_count());
+    // The argument count parameter is a smi
+    __ SmiUntag(reg);
+    __ add(sp, sp, Operand(reg, LSL, kPointerSizeLog2));
+  }
+
   __ Jump(lr);
 }
 
@@ -4233,10 +4234,18 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
 
   __ mov(r0, Operand(instr->arity()));
   __ mov(r2, Operand(instr->hydrogen()->property_cell()));
-  Handle<Code> array_construct_code =
-      isolate()->builtins()->ArrayConstructCode();
-
-  CallCode(array_construct_code, RelocInfo::CONSTRUCT_CALL, instr);
+  Object* cell_value = instr->hydrogen()->property_cell()->value();
+  ElementsKind kind = static_cast<ElementsKind>(Smi::cast(cell_value)->value());
+  if (instr->arity() == 0) {
+    ArrayNoArgumentConstructorStub stub(kind);
+    CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+  } else if (instr->arity() == 1) {
+    ArraySingleArgumentConstructorStub stub(kind);
+    CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+  } else {
+    ArrayNArgumentsConstructorStub stub(kind);
+    CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+  }
 }
 
 

@@ -99,7 +99,7 @@ bool LInstruction::HasDoubleRegisterResult() {
 bool LInstruction::HasDoubleRegisterInput() {
   for (int i = 0; i < InputCount(); i++) {
     LOperand* op = InputAt(i);
-    if (op->IsDoubleRegister()) {
+    if (op != NULL && op->IsDoubleRegister()) {
       return true;
     }
   }
@@ -2516,6 +2516,7 @@ LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
 LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
   info()->MarkAsDeferredCalling();
   LOperand* context = UseAny(instr->context());
+  // TODO(mvstanton): why can't size be a constant if possible?
   LOperand* size = UseTempRegister(instr->size());
   LOperand* temp = TempRegister();
   LAllocate* result = new(zone()) LAllocate(context, size, temp);
@@ -2577,7 +2578,8 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
     ASSERT(info()->IsStub());
     CodeStubInterfaceDescriptor* descriptor =
         info()->code_stub()->GetInterfaceDescriptor(info()->isolate());
-    Register reg = descriptor->register_params_[instr->index()];
+    int index = static_cast<int>(instr->index());
+    Register reg = DESCRIPTOR_GET_PARAMETER_REGISTER(descriptor, index);
     return DefineFixed(result, reg);
   }
 }

@@ -41,6 +41,7 @@ namespace internal {
 CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
     : register_param_count_(-1),
       stack_parameter_count_(NULL),
+      hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
       deoptimization_handler_(NULL),
@@ -690,6 +691,47 @@ bool ProfileEntryHookStub::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
 
   entry_hook_ = entry_hook;
   return true;
+}
+
+
+static void InstallDescriptor(Isolate* isolate, HydrogenCodeStub* stub) {
+  int major_key = stub->MajorKey();
+  CodeStubInterfaceDescriptor* descriptor =
+      isolate->code_stub_interface_descriptor(major_key);
+  if (!descriptor->initialized()) {
+    stub->InitializeInterfaceDescriptor(isolate, descriptor);
+  }
+}
+
+
+void ArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
+  ArrayNoArgumentConstructorStub stub1(GetInitialFastElementsKind());
+  InstallDescriptor(isolate, &stub1);
+  ArraySingleArgumentConstructorStub stub2(GetInitialFastElementsKind());
+  InstallDescriptor(isolate, &stub2);
+  ArrayNArgumentsConstructorStub stub3(GetInitialFastElementsKind());
+  InstallDescriptor(isolate, &stub3);
+}
+
+
+ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
+    : argument_count_(ANY) {
+  ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
+}
+
+
+ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
+                                           int argument_count) {
+  if (argument_count == 0) {
+    argument_count_ = NONE;
+  } else if (argument_count == 1) {
+    argument_count_ = ONE;
+  } else if (argument_count >= 2) {
+    argument_count_ = MORE_THAN_ONE;
+  } else {
+    UNREACHABLE();
+  }
+  ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
 

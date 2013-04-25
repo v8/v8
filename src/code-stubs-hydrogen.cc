@@ -129,9 +129,10 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     stack_parameter_count = new(zone) HParameter(param_count,
                                                  HParameter::REGISTER_PARAMETER,
                                                  Representation::Integer32());
+    stack_parameter_count->set_type(HType::Smi());
     // it's essential to bind this value to the environment in case of deopt
-    start_environment->Bind(param_count, stack_parameter_count);
     AddInstruction(stack_parameter_count);
+    start_environment->Bind(param_count, stack_parameter_count);
     arguments_length_ = stack_parameter_count;
   } else {
     ASSERT(descriptor_->environment_length() == param_count);
@@ -153,11 +154,18 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   // arguments above
   HInstruction* stack_pop_count = stack_parameter_count;
   if (descriptor_->function_mode_ == JS_FUNCTION_STUB_MODE) {
-    HInstruction* amount = graph()->GetConstant1();
-    stack_pop_count = AddInstruction(
-        HAdd::New(zone, context_, stack_parameter_count, amount));
-    stack_pop_count->ChangeRepresentation(Representation::Integer32());
-    stack_pop_count->ClearFlag(HValue::kCanOverflow);
+    if (!stack_parameter_count->IsConstant() &&
+        descriptor_->hint_stack_parameter_count_ < 0) {
+      HInstruction* amount = graph()->GetConstant1();
+      stack_pop_count = AddInstruction(
+          HAdd::New(zone, context_, stack_parameter_count, amount));
+      stack_pop_count->ChangeRepresentation(Representation::Integer32());
+      stack_pop_count->ClearFlag(HValue::kCanOverflow);
+    } else {
+      int count = descriptor_->hint_stack_parameter_count_;
+      stack_pop_count = AddInstruction(new(zone)
+          HConstant(count, Representation::Integer32()));
+    }
   }
 
   if (!current_block()->IsFinished()) {
@@ -479,10 +487,18 @@ Handle<Code> TransitionElementsKindStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
-  HInstruction* deopt = new(zone()) HSoftDeoptimize();
-  AddInstruction(deopt);
-  current_block()->MarkAsDeoptimizing();
-  return GetParameter(0);
+  // ----------- S t a t e -------------
+  //  -- Parameter 1 : type info cell
+  //  -- Parameter 0 : constructor
+  // -----------------------------------
+  // Get the right map
+  // Should be a constant
+  JSArrayBuilder array_builder(
+      this,
+      casted_stub()->elements_kind(),
+      GetParameter(ArrayConstructorStubBase::kPropertyCell),
+      casted_stub()->mode());
+  return array_builder.AllocateEmptyArray();
 }
 
 
@@ -494,10 +510,49 @@ Handle<Code> ArrayNoArgumentConstructorStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
     BuildCodeStub() {
-  HInstruction* deopt = new(zone()) HSoftDeoptimize();
-  AddInstruction(deopt);
-  current_block()->MarkAsDeoptimizing();
-  return GetParameter(0);
+  // Smi check and range check on the input arg.
+  HValue* constant_one = graph()->GetConstant1();
+  HValue* constant_zero = graph()->GetConstant0();
+
+  HInstruction* elements = AddInstruction(
+      new(zone()) HArgumentsElements(false));
+  HInstruction* argument = AddInstruction(
+      new(zone()) HAccessArgumentsAt(elements, constant_one, constant_zero));
+
+  HConstant* max_alloc_length =
+      new(zone()) HConstant(JSObject::kInitialMaxFastElementArray,
+                            Representation::Tagged());
+  AddInstruction(max_alloc_length);
+  const int initial_capacity = JSArray::kPreallocatedArrayElements;
+  HConstant* initial_capacity_node =
+      new(zone()) HConstant(initial_capacity, Representation::Tagged());
+  AddInstruction(initial_capacity_node);
+
+  // Since we're forcing Integer32 representation for this HBoundsCheck,
+  // there's no need to Smi-check the index.
+  HBoundsCheck* checked_arg = AddBoundsCheck(argument, max_alloc_length,
+                                             ALLOW_SMI_KEY,
+                                             Representation::Tagged());
+  IfBuilder if_builder(this);
+  if_builder.IfCompare(checked_arg, constant_zero, Token::EQ);
+  if_builder.Then();
+  Push(initial_capacity_node);  // capacity
+  Push(constant_zero);  // length
+  if_builder.Else();
+  Push(checked_arg);  // capacity
+  Push(checked_arg);  // length
+  if_builder.End();
+
+  // Figure out total size
+  HValue* length = Pop();
+  HValue* capacity = Pop();
+
+  JSArrayBuilder array_builder(
+      this,
+      casted_stub()->elements_kind(),
+      GetParameter(ArrayConstructorStubBase::kPropertyCell),
+      casted_stub()->mode());
+  return array_builder.AllocateArray(capacity, length, true);
 }
 
 
@@ -508,10 +563,46 @@ Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
-  HInstruction* deopt = new(zone()) HSoftDeoptimize();
-  AddInstruction(deopt);
-  current_block()->MarkAsDeoptimizing();
-  return GetParameter(0);
+  ElementsKind kind = casted_stub()->elements_kind();
+  HValue* length = GetArgumentsLength();
+
+  JSArrayBuilder array_builder(
+      this,
+      kind,
+      GetParameter(ArrayConstructorStubBase::kPropertyCell),
+      casted_stub()->mode());
+
+  // We need to fill with the hole if it's a smi array in the multi-argument
+  // case because we might have to bail out while copying arguments into
+  // the array because they aren't compatible with a smi array.
+  // If it's a double array, no problem, and if it's fast then no
+  // problem either because doubles are boxed.
+  bool fill_with_hole = IsFastSmiElementsKind(kind);
+  HValue* new_object = array_builder.AllocateArray(length,
+                                                   length,
+                                                   fill_with_hole);
+  HValue* elements = array_builder.GetElementsLocation();
+  ASSERT(elements != NULL);
+
+  // Now populate the elements correctly.
+  LoopBuilder builder(this,
+                      context(),
+                      LoopBuilder::kPostIncrement);
+  HValue* start = graph()->GetConstant0();
+  HValue* key = builder.BeginBody(start, length, Token::LT);
+  HInstruction* argument_elements = AddInstruction(
+      new(zone()) HArgumentsElements(false));
+  HInstruction* argument = AddInstruction(new(zone()) HAccessArgumentsAt(
+      argument_elements, length, key));
+
+  // Checks to prevent incompatible stores
+  if (IsFastSmiElementsKind(kind)) {
+    AddInstruction(new(zone()) HCheckSmi(argument));
+  }
+
+  AddInstruction(new(zone()) HStoreKeyed(elements, key, argument, kind));
+  builder.EndBody();
+  return new_object;
 }
 
 

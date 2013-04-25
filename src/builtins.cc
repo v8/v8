@@ -192,9 +192,8 @@ BUILTIN(EmptyFunction) {
 
 RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
   CONVERT_ARG_STUB_CALLER_ARGS(caller_args);
-  // ASSERT(args.length() == 3);
-  Handle<JSFunction> function = args.at<JSFunction>(1);
-  Handle<Object> type_info = args.at<Object>(2);
+  ASSERT(args.length() == 2);
+  Handle<Object> type_info = args.at<Object>(1);
 
   JSArray* array = NULL;
   bool holey = false;
@@ -226,8 +225,7 @@ RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
     }
   }
 
-  ASSERT(function->has_initial_map());
-  ElementsKind kind = function->initial_map()->elements_kind();
+  ElementsKind kind = GetInitialFastElementsKind();
   if (holey) {
     kind = GetHoleyElementsKind(kind);
   }
