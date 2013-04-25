@@ -1451,7 +1451,7 @@ HValue* HSub::Canonicalize() {
 HValue* HMul::Canonicalize() {
   if (IsIdentityOperation(left(), right(), 1)) return left();
   if (IsIdentityOperation(right(), left(), 1)) return right();
-  return HArithmeticBinaryOperation::Canonicalize();
+  return this;
 }
 
 
