@@ -1936,7 +1936,8 @@ void NativeObjectsExplorer::FillRetainedObjects() {
   Isolate* isolate = Isolate::Current();
   const GCType major_gc_type = kGCTypeMarkSweepCompact;
   // Record objects that are joined into ObjectGroups.
-  isolate->heap()->CallGCPrologueCallbacks(major_gc_type);
+  isolate->heap()->CallGCPrologueCallbacks(
+      major_gc_type, kGCCallbackFlagConstructRetainedObjectInfos);
   List<ObjectGroup*>* groups = isolate->global_handles()->object_groups();
   for (int i = 0; i < groups->length(); ++i) {
     ObjectGroup* group = groups->at(i);

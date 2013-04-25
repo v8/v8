@@ -893,7 +893,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     VMState<EXTERNAL> state(isolate_);
-    CallGCPrologueCallbacks(gc_type);
+    CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
   }
 
   EnsureFromSpaceIsCommitted();
@@ -1028,13 +1028,13 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 }
 
 
-void Heap::CallGCPrologueCallbacks(GCType gc_type) {
+void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
   if (gc_type == kGCTypeMarkSweepCompact && global_gc_prologue_callback_) {
     global_gc_prologue_callback_();
   }
   for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
     if (gc_type & gc_prologue_callbacks_[i].gc_type) {
-      gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+      gc_prologue_callbacks_[i].callback(gc_type, flags);
     }
   }
 }

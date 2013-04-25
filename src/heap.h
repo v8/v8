@@ -1761,7 +1761,7 @@ class Heap {
 
   inline Isolate* isolate();
 
-  void CallGCPrologueCallbacks(GCType gc_type);
+  void CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags);
   void CallGCEpilogueCallbacks(GCType gc_type);
 
   inline bool OldGenerationAllocationLimitReached();

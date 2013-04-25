@@ -3053,7 +3053,8 @@ enum GCType {
 
 enum GCCallbackFlags {
   kNoGCCallbackFlags = 0,
-  kGCCallbackFlagCompacted = 1 << 0
+  kGCCallbackFlagCompacted = 1 << 0,
+  kGCCallbackFlagConstructRetainedObjectInfos = 1 << 1
 };
 
 typedef void (*GCPrologueCallback)(GCType type, GCCallbackFlags flags);
