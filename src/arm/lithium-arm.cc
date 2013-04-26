@@ -2120,9 +2120,7 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
   LOperand* obj = UseRegisterAtStart(instr->object());
-  LOperand* temp = instr->representation().IsDouble() ? TempRegister() : NULL;
-  ASSERT(temp == NULL || FLAG_track_double_fields);
-  return DefineAsRegister(new(zone()) LLoadNamedField(obj, temp));
+  return DefineAsRegister(new(zone()) LLoadNamedField(obj));
 }
 
 

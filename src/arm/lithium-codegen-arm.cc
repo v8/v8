@@ -3085,7 +3085,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     ASSERT(!instr->hydrogen()->representation().IsDouble());
   }
   Register temp = instr->hydrogen()->representation().IsDouble()
-      ? ToRegister(instr->temp()) : ToRegister(instr->result());
+      ? scratch0() : ToRegister(instr->result());
   if (instr->hydrogen()->is_in_object()) {
     __ ldr(temp, FieldMemOperand(object, instr->hydrogen()->offset()));
   } else {
@@ -3102,8 +3102,8 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     __ vmov(flt_scratch, temp);
     __ vcvt_f64_s32(result, flt_scratch);
     __ b(&done);
-    __ sub(ip, temp, Operand(kHeapObjectTag));
-    __ vldr(result, ip, HeapNumber::kValueOffset);
+    __ bind(&load_from_heap_number);
+    __ vldr(result, FieldMemOperand(temp, HeapNumber::kValueOffset));
     __ bind(&done);
   }
 }
