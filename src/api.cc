@@ -4061,7 +4061,7 @@ bool String::IsOneByte() const {
   if (IsDeadCheck(str->GetIsolate(), "v8::String::IsOneByte()")) {
     return false;
   }
-  return str->IsOneByteConvertible();
+  return str->HasOnlyOneByteChars();
 }
 
 

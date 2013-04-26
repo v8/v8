@@ -7638,8 +7638,6 @@ class String: public Name {
   // possible.
   inline bool HasOnlyOneByteChars();
 
-  inline bool IsOneByteConvertible();
-
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls

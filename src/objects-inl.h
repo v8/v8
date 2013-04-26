@@ -357,12 +357,8 @@ bool String::IsTwoByteRepresentationUnderneath() {
 
 bool String::HasOnlyOneByteChars() {
   uint32_t type = map()->instance_type();
-  return (type & kOneByteDataHintMask) == kOneByteDataHintTag;
-}
-
-
-bool String::IsOneByteConvertible() {
-  return HasOnlyOneByteChars() || IsOneByteRepresentation();
+  return (type & kOneByteDataHintMask) == kOneByteDataHintTag ||
+         IsOneByteRepresentation();
 }
 
 

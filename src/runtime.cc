@@ -3347,8 +3347,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithString(
 
   // Shortcut for simple non-regexp global replacements
   if (regexp->TypeTag() == JSRegExp::ATOM && simple_replace) {
-    if (subject->IsOneByteConvertible() &&
-        replacement->IsOneByteConvertible()) {
+    if (subject->HasOnlyOneByteChars() &&
+        replacement->HasOnlyOneByteChars()) {
       return StringReplaceGlobalAtomRegExpWithString<SeqOneByteString>(
           isolate, subject, regexp, replacement, last_match_info);
     } else {
@@ -3530,7 +3530,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceGlobalRegExpWithString) {
   if (!subject->IsFlat()) subject = FlattenGetString(subject);
 
   if (replacement->length() == 0) {
-    if (subject->IsOneByteConvertible()) {
+    if (subject->HasOnlyOneByteChars()) {
       return StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
           isolate, subject, regexp, last_match_info);
     } else {
@@ -6389,7 +6389,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
     if (first->IsString()) return first;
   }
 
-  bool one_byte = special->IsOneByteConvertible();
+  bool one_byte = special->HasOnlyOneByteChars();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
@@ -6430,7 +6430,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
       String* element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (one_byte && !element->IsOneByteConvertible()) {
+      if (one_byte && !element->HasOnlyOneByteChars()) {
         one_byte = false;
       }
     } else {
