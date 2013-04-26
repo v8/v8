@@ -536,6 +536,11 @@ class JavaScriptFrame: public StandardFrame {
     return GetNumberOfIncomingArguments();
   }
 
+  // Access the operand stack.
+  inline Address GetOperandSlot(int index) const;
+  inline Object* GetOperand(int index) const;
+  inline int ComputeOperandsCount() const;
+
   // Debugger access.
   void SetParameterValue(int index, Object* value) const;
 
