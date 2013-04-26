@@ -3143,6 +3143,8 @@ class HPhi: public HValue {
     return true;
   }
 
+  void SimplifyConstantInputs();
+
  protected:
   virtual void DeleteFromGraph();
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -3444,10 +3446,9 @@ class HBinaryOperation: public HTemplateInstruction<3> {
     return right();
   }
 
-  void set_observed_input_representation(Representation left,
-                                         Representation right) {
-    observed_input_representation_[0] = left;
-    observed_input_representation_[1] = right;
+  void set_observed_input_representation(int index, Representation rep) {
+    ASSERT(index >= 1 && index <= 2);
+    observed_input_representation_[index - 1] = rep;
   }
 
   virtual void initialize_output_representation(Representation observed) {

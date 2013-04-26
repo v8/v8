@@ -3747,7 +3747,12 @@ void HInferRepresentation::Analyze() {
     }
   }
 
-  // (3a) Use the phi reachability information from step 2 to
+  // Simplify constant phi inputs where possible.
+  for (int i = 0; i < phi_count; ++i) {
+    phi_list->at(i)->SimplifyConstantInputs();
+  }
+
+  // Use the phi reachability information from step 2 to
   // push information about values which can't be converted to integer
   // without deoptimization through the phi use-def chains, avoiding
   // unnecessary deoptimizations later.
@@ -3764,7 +3769,7 @@ void HInferRepresentation::Analyze() {
     }
   }
 
-  // (3b) Use the phi reachability information from step 2 to
+  // Use the phi reachability information from step 2 to
   // sum up the non-phi use counts of all connected phis.
   for (int i = 0; i < phi_count; ++i) {
     HPhi* phi = phi_list->at(i);
@@ -9686,7 +9691,8 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
     info = TypeInfo::Unknown();
   }
   if (instr->IsBinaryOperation()) {
-    HBinaryOperation::cast(instr)->set_observed_input_representation(rep, rep);
+    HBinaryOperation::cast(instr)->set_observed_input_representation(1, rep);
+    HBinaryOperation::cast(instr)->set_observed_input_representation(2, rep);
   }
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
@@ -10127,7 +10133,8 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
 
   if (instr->IsBinaryOperation()) {
     HBinaryOperation* binop = HBinaryOperation::cast(instr);
-    binop->set_observed_input_representation(left_rep, right_rep);
+    binop->set_observed_input_representation(1, left_rep);
+    binop->set_observed_input_representation(2, right_rep);
     binop->initialize_output_representation(result_rep);
   }
   return instr;
@@ -10507,7 +10514,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     if (combined_rep.IsTagged() || combined_rep.IsNone()) {
       HCompareGeneric* result =
           new(zone()) HCompareGeneric(context, left, right, op);
-      result->set_observed_input_representation(left_rep, right_rep);
+      result->set_observed_input_representation(1, left_rep);
+      result->set_observed_input_representation(2, right_rep);
       result->set_position(expr->position());
       return ast_context()->ReturnInstruction(result, expr->id());
     } else {
