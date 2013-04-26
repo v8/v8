@@ -4055,14 +4055,6 @@ int String::Length() const {
   return str->length();
 }
 
-bool String::MayContainNonAscii() const {
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  if (IsDeadCheck(str->GetIsolate(), "v8::String::MayContainNonAscii()")) {
-    return false;
-  }
-  return !str->HasOnlyAsciiChars();
-}
-
 
 bool String::IsOneByte() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
@@ -4514,25 +4506,6 @@ int String::WriteAscii(char* buffer,
   isolate->string_tracker()->RecordWrite(str);
   if (options & HINT_MANY_WRITES_EXPECTED) {
     FlattenString(str);  // Flatten the string for efficiency.
-  }
-
-  if (str->HasOnlyAsciiChars()) {
-    // WriteToFlat is faster than using the StringCharacterStream.
-    if (length == -1) length = str->length() + 1;
-    int len = i::Min(length, str->length() - start);
-    i::String::WriteToFlat(*str,
-                           reinterpret_cast<uint8_t*>(buffer),
-                           start,
-                           start + len);
-    if (!(options & PRESERVE_ASCII_NULL)) {
-      for (int i = 0; i < len; i++) {
-        if (buffer[i] == '\0') buffer[i] = ' ';
-      }
-    }
-    if (!(options & NO_NULL_TERMINATION) && length > len) {
-      buffer[len] = '\0';
-    }
-    return len;
   }
 
   int end = length;

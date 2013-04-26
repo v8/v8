@@ -1183,12 +1183,10 @@ class V8EXPORT String : public Primitive {
   int Utf8Length() const;
 
   /**
-   * A fast conservative check for non-ASCII characters.  May
-   * return true even for ASCII strings, but if it returns
-   * false you can be sure that all characters are in the range
-   * 0-127.
+   * This function is no longer useful.
    */
-  bool MayContainNonAscii() const;
+  // TODO(dcarney): deprecate
+  V8_INLINE(bool MayContainNonAscii()) const { return true; }
 
   /**
    * Returns whether this string contains only one byte data.

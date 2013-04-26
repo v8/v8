@@ -355,14 +355,14 @@ bool String::IsTwoByteRepresentationUnderneath() {
 }
 
 
-bool String::HasOnlyAsciiChars() {
+bool String::HasOnlyOneByteChars() {
   uint32_t type = map()->instance_type();
-  return (type & kAsciiDataHintMask) == kAsciiDataHintTag;
+  return (type & kOneByteDataHintMask) == kOneByteDataHintTag;
 }
 
 
 bool String::IsOneByteConvertible() {
-  return HasOnlyAsciiChars() || IsOneByteRepresentation();
+  return HasOnlyOneByteChars() || IsOneByteRepresentation();
 }
 
 

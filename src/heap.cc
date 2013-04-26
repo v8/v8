@@ -3424,14 +3424,14 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
     return Failure::OutOfMemoryException(0x4);
   }
 
-  bool is_ascii_data_in_two_byte_string = false;
+  bool is_one_byte_data_in_two_byte_string = false;
   if (!is_one_byte) {
     // At least one of the strings uses two-byte representation so we
     // can't use the fast case code for short ASCII strings below, but
     // we can try to save memory if all chars actually fit in ASCII.
-    is_ascii_data_in_two_byte_string =
-        first->HasOnlyAsciiChars() && second->HasOnlyAsciiChars();
-    if (is_ascii_data_in_two_byte_string) {
+    is_one_byte_data_in_two_byte_string =
+        first->HasOnlyOneByteChars() && second->HasOnlyOneByteChars();
+    if (is_one_byte_data_in_two_byte_string) {
       isolate_->counters()->string_add_runtime_ext_to_ascii()->Increment();
     }
   }
@@ -3466,7 +3466,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
       for (int i = 0; i < second_length; i++) *dest++ = src[i];
       return result;
     } else {
-      if (is_ascii_data_in_two_byte_string) {
+      if (is_one_byte_data_in_two_byte_string) {
         Object* result;
         { MaybeObject* maybe_result = AllocateRawOneByteString(length);
           if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -3491,7 +3491,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
     }
   }
 
-  Map* map = (is_one_byte || is_ascii_data_in_two_byte_string) ?
+  Map* map = (is_one_byte || is_one_byte_data_in_two_byte_string) ?
       cons_ascii_string_map() : cons_string_map();
 
   Object* result;
@@ -3637,11 +3637,11 @@ MaybeObject* Heap::AllocateExternalStringFromTwoByte(
 
   // For small strings we check whether the resource contains only
   // one byte characters.  If yes, we use a different string map.
-  static const size_t kAsciiCheckLengthLimit = 32;
-  bool is_one_byte = length <= kAsciiCheckLengthLimit &&
+  static const size_t kOneByteCheckLengthLimit = 32;
+  bool is_one_byte = length <= kOneByteCheckLengthLimit &&
       String::IsOneByte(resource->data(), static_cast<int>(length));
   Map* map = is_one_byte ?
-      external_string_with_ascii_data_map() : external_string_map();
+      external_string_with_one_byte_data_map() : external_string_map();
   Object* result;
   { MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -4977,14 +4977,14 @@ Map* Heap::InternalizedStringMapForString(String* string) {
     case EXTERNAL_STRING_TYPE: return external_internalized_string_map();
     case EXTERNAL_ASCII_STRING_TYPE:
       return external_ascii_internalized_string_map();
-    case EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
-      return external_internalized_string_with_ascii_data_map();
+    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return external_internalized_string_with_one_byte_data_map();
     case SHORT_EXTERNAL_STRING_TYPE:
       return short_external_internalized_string_map();
     case SHORT_EXTERNAL_ASCII_STRING_TYPE:
       return short_external_ascii_internalized_string_map();
-    case SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
-      return short_external_internalized_string_with_ascii_data_map();
+    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return short_external_internalized_string_with_one_byte_data_map();
     default: return NULL;  // No match found.
   }
 }

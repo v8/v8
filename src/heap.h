@@ -95,12 +95,14 @@ namespace internal {
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_ascii_string_map, SlicedAsciiStringMap)                        \
   V(Map, external_string_map, ExternalStringMap)                               \
-  V(Map, external_string_with_ascii_data_map, ExternalStringWithAsciiDataMap)  \
+  V(Map,                                                                       \
+    external_string_with_one_byte_data_map,                                    \
+    ExternalStringWithOneByteDataMap)                                          \
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
   V(Map, short_external_string_map, ShortExternalStringMap)                    \
   V(Map,                                                                       \
-    short_external_string_with_ascii_data_map,                                 \
-    ShortExternalStringWithAsciiDataMap)                                       \
+    short_external_string_with_one_byte_data_map,                              \
+    ShortExternalStringWithOneByteDataMap)                                     \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
   V(Map, ascii_internalized_string_map, AsciiInternalizedStringMap)            \
   V(Map, cons_internalized_string_map, ConsInternalizedStringMap)              \
@@ -109,8 +111,8 @@ namespace internal {
     external_internalized_string_map,                                          \
     ExternalInternalizedStringMap)                                             \
   V(Map,                                                                       \
-    external_internalized_string_with_ascii_data_map,                          \
-    ExternalInternalizedStringWithAsciiDataMap)                                \
+    external_internalized_string_with_one_byte_data_map,                       \
+    ExternalInternalizedStringWithOneByteDataMap)                              \
   V(Map,                                                                       \
     external_ascii_internalized_string_map,                                    \
     ExternalAsciiInternalizedStringMap)                                        \
@@ -118,8 +120,8 @@ namespace internal {
     short_external_internalized_string_map,                                    \
     ShortExternalInternalizedStringMap)                                        \
   V(Map,                                                                       \
-    short_external_internalized_string_with_ascii_data_map,                    \
-    ShortExternalInternalizedStringWithAsciiDataMap)                           \
+    short_external_internalized_string_with_one_byte_data_map,                 \
+    ShortExternalInternalizedStringWithOneByteDataMap)                         \
   V(Map,                                                                       \
     short_external_ascii_internalized_string_map,                              \
     ShortExternalAsciiInternalizedStringMap)                                   \

@@ -330,10 +330,10 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(SLICED_STRING_TYPE)                                                        \
   V(EXTERNAL_STRING_TYPE)                                                      \
   V(EXTERNAL_ASCII_STRING_TYPE)                                                \
-  V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                      \
+  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                                   \
   V(SHORT_EXTERNAL_STRING_TYPE)                                                \
   V(SHORT_EXTERNAL_ASCII_STRING_TYPE)                                          \
-  V(SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                \
+  V(SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                             \
                                                                                \
   V(INTERNALIZED_STRING_TYPE)                                                  \
   V(ASCII_INTERNALIZED_STRING_TYPE)                                            \
@@ -341,10 +341,10 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(CONS_ASCII_INTERNALIZED_STRING_TYPE)                                       \
   V(EXTERNAL_INTERNALIZED_STRING_TYPE)                                         \
   V(EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE)                                   \
-  V(EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE)                         \
+  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)                      \
   V(SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE)                                   \
   V(SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE)                             \
-  V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE)                   \
+  V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)                \
                                                                                \
   V(SYMBOL_TYPE)                                                               \
   V(MAP_TYPE)                                                                  \
@@ -461,10 +461,10 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
     ExternalAsciiString::kSize,                                                \
     external_ascii_string,                                                     \
     ExternalAsciiString)                                                       \
-  V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE,                                      \
+  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE,                                   \
     ExternalTwoByteString::kSize,                                              \
-    external_string_with_ascii_data,                                           \
-    ExternalStringWithAsciiData)                                               \
+    external_string_with_one_bytei_data,                                       \
+    ExternalStringWithOneByteData)                                             \
   V(SHORT_EXTERNAL_STRING_TYPE,                                                \
     ExternalTwoByteString::kShortSize,                                         \
     short_external_string,                                                     \
@@ -473,10 +473,10 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
     ExternalAsciiString::kShortSize,                                           \
     short_external_ascii_string,                                               \
     ShortExternalAsciiString)                                                  \
-  V(SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE,                                \
+  V(SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE,                             \
     ExternalTwoByteString::kShortSize,                                         \
-    short_external_string_with_ascii_data,                                     \
-    ShortExternalStringWithAsciiData)                                          \
+    short_external_string_with_one_byte_data,                                  \
+    ShortExternalStringWithOneByteData)                                        \
                                                                                \
   V(INTERNALIZED_STRING_TYPE,                                                  \
     kVariableSizeSentinel,                                                     \
@@ -502,10 +502,10 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
     ExternalAsciiString::kSize,                                                \
     external_ascii_internalized_string,                                        \
     ExternalAsciiInternalizedString)                                           \
-  V(EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE,                         \
+  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,                      \
     ExternalTwoByteString::kSize,                                              \
-    external_internalized_string_with_ascii_data,                              \
-    ExternalInternalizedStringWithAsciiData)                                   \
+    external_internalized_string_with_one_byte_data,                           \
+    ExternalInternalizedStringWithOneByteData)                                 \
   V(SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE,                                   \
     ExternalTwoByteString::kShortSize,                                         \
     short_external_internalized_string,                                        \
@@ -514,10 +514,10 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
     ExternalAsciiString::kShortSize,                                           \
     short_external_ascii_internalized_string,                                  \
     ShortExternalAsciiInternalizedString)                                      \
-  V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE,                   \
+  V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,                \
     ExternalTwoByteString::kShortSize,                                         \
-    short_external_internalized_string_with_ascii_data,                        \
-    ShortExternalInternalizedStringWithAsciiData)                              \
+    short_external_internalized_string_with_one_byte_data,                     \
+    ShortExternalInternalizedStringWithOneByteData)                            \
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
@@ -605,9 +605,9 @@ const uint32_t kSlicedNotConsMask = kSlicedStringTag & ~kConsStringTag;
 STATIC_ASSERT(IS_POWER_OF_TWO(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
 
 // If bit 7 is clear, then bit 3 indicates whether this two-byte
-// string actually contains ASCII data.
-const uint32_t kAsciiDataHintMask = 0x08;
-const uint32_t kAsciiDataHintTag = 0x08;
+// string actually contains one byte data.
+const uint32_t kOneByteDataHintMask = 0x08;
+const uint32_t kOneByteDataHintTag = 0x08;
 
 // If bit 7 is clear and string representation indicates an external string,
 // then bit 4 indicates whether the data pointer is cached.
@@ -637,13 +637,13 @@ enum InstanceType {
   SLICED_ASCII_STRING_TYPE = kOneByteStringTag | kSlicedStringTag,
   EXTERNAL_STRING_TYPE = kTwoByteStringTag | kExternalStringTag,
   EXTERNAL_ASCII_STRING_TYPE = kOneByteStringTag | kExternalStringTag,
-  EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
-      EXTERNAL_STRING_TYPE | kAsciiDataHintTag,
+  EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
+      EXTERNAL_STRING_TYPE | kOneByteDataHintTag,
   SHORT_EXTERNAL_STRING_TYPE = EXTERNAL_STRING_TYPE | kShortExternalStringTag,
   SHORT_EXTERNAL_ASCII_STRING_TYPE =
       EXTERNAL_ASCII_STRING_TYPE | kShortExternalStringTag,
-  SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
-      EXTERNAL_STRING_WITH_ASCII_DATA_TYPE | kShortExternalStringTag,
+  SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
+      EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE | kShortExternalStringTag,
 
   INTERNALIZED_STRING_TYPE = STRING_TYPE | kInternalizedTag,
   ASCII_INTERNALIZED_STRING_TYPE = ASCII_STRING_TYPE | kInternalizedTag,
@@ -653,14 +653,14 @@ enum InstanceType {
   EXTERNAL_INTERNALIZED_STRING_TYPE = EXTERNAL_STRING_TYPE | kInternalizedTag,
   EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE =
       EXTERNAL_ASCII_STRING_TYPE | kInternalizedTag,
-  EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE =
-      EXTERNAL_STRING_WITH_ASCII_DATA_TYPE | kInternalizedTag,
+  EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE =
+      EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE | kInternalizedTag,
   SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE =
       SHORT_EXTERNAL_STRING_TYPE | kInternalizedTag,
   SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE =
       SHORT_EXTERNAL_ASCII_STRING_TYPE | kInternalizedTag,
-  SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE =
-      SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE | kInternalizedTag,
+  SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE =
+      SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE | kInternalizedTag,
 
   // Non-string names
   SYMBOL_TYPE = kNotStringTag,  // LAST_NAME_TYPE, FIRST_NONSTRING_TYPE
@@ -7636,7 +7636,7 @@ class String: public Name {
 
   // NOTE: this should be considered only a hint.  False negatives are
   // possible.
-  inline bool HasOnlyAsciiChars();
+  inline bool HasOnlyOneByteChars();
 
   inline bool IsOneByteConvertible();
 

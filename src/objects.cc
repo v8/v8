@@ -1130,21 +1130,21 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
     this->set_map_no_write_barrier(
         is_internalized
             ? (is_ascii
-                   ? heap->external_internalized_string_with_ascii_data_map()
+                   ? heap->external_internalized_string_with_one_byte_data_map()
                    : heap->external_internalized_string_map())
             : (is_ascii
-                   ? heap->external_string_with_ascii_data_map()
+                   ? heap->external_string_with_one_byte_data_map()
                    : heap->external_string_map()));
   } else {
     this->set_map_no_write_barrier(
         is_internalized
-            ? (is_ascii
-                   ? heap->
-                       short_external_internalized_string_with_ascii_data_map()
-                   : heap->short_external_internalized_string_map())
-            : (is_ascii
-                   ? heap->short_external_string_with_ascii_data_map()
-                   : heap->short_external_string_map()));
+          ? (is_ascii
+               ? heap->
+                   short_external_internalized_string_with_one_byte_data_map()
+               : heap->short_external_internalized_string_map())
+          : (is_ascii
+                 ? heap->short_external_string_with_one_byte_data_map()
+                 : heap->short_external_string_map()));
   }
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
   self->set_resource(resource);

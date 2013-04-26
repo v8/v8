@@ -5950,16 +5950,16 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   __ bind(&non_ascii);
   // At least one of the strings is two-byte. Check whether it happens
-  // to contain only ASCII characters.
+  // to contain only one byte characters.
   // r4: first instance type.
   // r5: second instance type.
-  __ tst(r4, Operand(kAsciiDataHintMask));
-  __ tst(r5, Operand(kAsciiDataHintMask), ne);
+  __ tst(r4, Operand(kOneByteDataHintMask));
+  __ tst(r5, Operand(kOneByteDataHintMask), ne);
   __ b(ne, &ascii_data);
   __ eor(r4, r4, Operand(r5));
-  STATIC_ASSERT(kOneByteStringTag != 0 && kAsciiDataHintTag != 0);
-  __ and_(r4, r4, Operand(kOneByteStringTag | kAsciiDataHintTag));
-  __ cmp(r4, Operand(kOneByteStringTag | kAsciiDataHintTag));
+  STATIC_ASSERT(kOneByteStringTag != 0 && kOneByteDataHintTag != 0);
+  __ and_(r4, r4, Operand(kOneByteStringTag | kOneByteDataHintTag));
+  __ cmp(r4, Operand(kOneByteStringTag | kOneByteDataHintTag));
   __ b(eq, &ascii_data);
 
   // Allocate a two byte cons string.

@@ -5828,17 +5828,17 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ ret(2 * kPointerSize);
   __ bind(&non_ascii);
   // At least one of the strings is two-byte. Check whether it happens
-  // to contain only ASCII characters.
+  // to contain only one byte characters.
   // ecx: first instance type AND second instance type.
   // edi: second instance type.
-  __ test(ecx, Immediate(kAsciiDataHintMask));
+  __ test(ecx, Immediate(kOneByteDataHintMask));
   __ j(not_zero, &ascii_data);
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
   __ xor_(edi, ecx);
-  STATIC_ASSERT(kOneByteStringTag != 0 && kAsciiDataHintTag != 0);
-  __ and_(edi, kOneByteStringTag | kAsciiDataHintTag);
-  __ cmp(edi, kOneByteStringTag | kAsciiDataHintTag);
+  STATIC_ASSERT(kOneByteStringTag != 0 && kOneByteDataHintTag != 0);
+  __ and_(edi, kOneByteStringTag | kOneByteDataHintTag);
+  __ cmp(edi, kOneByteStringTag | kOneByteDataHintTag);
   __ j(equal, &ascii_data);
   // Allocate a two byte cons string.
   __ AllocateTwoByteConsString(ecx, edi, no_reg, &call_runtime);
