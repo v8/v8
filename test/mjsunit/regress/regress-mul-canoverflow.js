@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,37 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VM_STATE_H_
-#define V8_VM_STATE_H_
+// Flags: --allow-natives-syntax
 
-#include "allocation.h"
-#include "isolate.h"
+function boom(a) {
+  return ((a | 0) * (a | 0)) | 0;
+}
+function boom_unoptimized(a) {
+  try {} catch(_) {}
+  return ((a | 0) * (a | 0)) | 0;
+}
 
-namespace v8 {
-namespace internal {
+boom(1, 1);
+boom(2, 2);
 
-template <StateTag Tag>
-class VMState BASE_EMBEDDED {
- public:
-  explicit inline VMState(Isolate* isolate);
-  inline ~VMState();
-
- private:
-  Isolate* isolate_;
-  StateTag previous_tag_;
-};
-
-
-class ExternalCallbackScope BASE_EMBEDDED {
- public:
-  inline ExternalCallbackScope(Isolate* isolate, Address callback);
-  inline ~ExternalCallbackScope();
- private:
-  Isolate* isolate_;
-  Address previous_callback_;
-};
-
-} }  // namespace v8::internal
-
-
-#endif  // V8_VM_STATE_H_
+%OptimizeFunctionOnNextCall(boom);
+var big_int = 0x5F00000F;
+var expected = boom_unoptimized(big_int);
+var actual = boom(big_int)
+assertEquals(expected, actual);

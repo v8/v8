@@ -930,7 +930,7 @@ void Isolate::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
   HandleScope scope(this);
   Handle<JSObject> receiver_handle(receiver);
   Handle<Object> data(AccessCheckInfo::cast(data_obj)->data(), this);
-  { VMState state(this, EXTERNAL);
+  { VMState<EXTERNAL> state(this);
     thread_local_top()->failed_access_check_callback_(
       v8::Utils::ToLocal(receiver_handle),
       type,
@@ -1009,7 +1009,7 @@ bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
   bool result = false;
   {
     // Leaving JavaScript.
-    VMState state(this, EXTERNAL);
+    VMState<EXTERNAL> state(this);
     result = callback(v8::Utils::ToLocal(receiver_handle),
                       v8::Utils::ToLocal(key_handle),
                       type,
@@ -1051,7 +1051,7 @@ bool Isolate::MayIndexedAccess(JSObject* receiver,
   bool result = false;
   {
     // Leaving JavaScript.
-    VMState state(this, EXTERNAL);
+    VMState<EXTERNAL> state(this);
     result = callback(v8::Utils::ToLocal(receiver_handle),
                       index,
                       type,
@@ -2051,7 +2051,7 @@ void Isolate::InitializeLoggingAndCounters() {
     logger_ = new Logger(this);
   }
   if (counters_ == NULL) {
-    counters_ = new Counters;
+    counters_ = new Counters(this);
   }
 }
 
@@ -2116,7 +2116,7 @@ bool Isolate::Init(Deserializer* des) {
   heap_profiler_ = new HeapProfiler(heap());
 
   // Enable logging before setting up the heap
-  logger_->SetUp();
+  logger_->SetUp(this);
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
@@ -2243,6 +2243,8 @@ bool Isolate::Init(Deserializer* des) {
                                    DONT_TRACK_ALLOCATION_SITE, 0);
     stub.InitializeInterfaceDescriptor(
         this, code_stub_interface_descriptor(CodeStub::FastCloneShallowArray));
+    CompareNilICStub::InitializeForIsolate(this);
+    ArrayConstructorStubBase::InstallDescriptors(this);
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();

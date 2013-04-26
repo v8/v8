@@ -1310,20 +1310,18 @@ const char* HUnaryMathOperation::OpName() const {
   switch (op()) {
     case kMathFloor: return "floor";
     case kMathRound: return "round";
-    case kMathCeil: return "ceil";
     case kMathAbs: return "abs";
     case kMathLog: return "log";
     case kMathSin: return "sin";
     case kMathCos: return "cos";
     case kMathTan: return "tan";
-    case kMathASin: return "asin";
-    case kMathACos: return "acos";
-    case kMathATan: return "atan";
     case kMathExp: return "exp";
     case kMathSqrt: return "sqrt";
-    default: break;
+    case kMathPowHalf: return "pow-half";
+    default:
+      UNREACHABLE();
+      return NULL;
   }
-  return "(unknown operation)";
 }
 
 
@@ -1453,7 +1451,7 @@ HValue* HSub::Canonicalize() {
 HValue* HMul::Canonicalize() {
   if (IsIdentityOperation(left(), right(), 1)) return left();
   if (IsIdentityOperation(right(), left(), 1)) return right();
-  return HArithmeticBinaryOperation::Canonicalize();
+  return this;
 }
 
 
@@ -2248,12 +2246,10 @@ Representation HBinaryOperation::RepresentationFromInputs() {
   Representation left_rep = left()->representation();
   Representation right_rep = right()->representation();
 
-  if (left_rep.is_more_general_than(rep) &&
-      left()->CheckFlag(kFlexibleRepresentation)) {
+  if (left_rep.is_more_general_than(rep) && !left_rep.IsTagged()) {
     rep = left_rep;
   }
-  if (right_rep.is_more_general_than(rep) &&
-      right()->CheckFlag(kFlexibleRepresentation)) {
+  if (right_rep.is_more_general_than(rep) && !right_rep.IsTagged()) {
     rep = right_rep;
   }
   // Consider observed output representation, but ignore it if it's Double,
@@ -2268,7 +2264,8 @@ Representation HBinaryOperation::RepresentationFromInputs() {
 
 
 void HBinaryOperation::AssumeRepresentation(Representation r) {
-  set_observed_input_representation(r, r);
+  set_observed_input_representation(1, r);
+  set_observed_input_representation(2, r);
   HValue::AssumeRepresentation(r);
 }
 
@@ -3463,6 +3460,42 @@ void HBitwise::PrintDataTo(StringStream* stream) {
   stream->Add(Token::Name(op_));
   stream->Add(" ");
   HBitwiseBinaryOperation::PrintDataTo(stream);
+}
+
+
+void HPhi::SimplifyConstantInputs() {
+  // Convert constant inputs to integers when all uses are truncating.
+  // This must happen before representation inference takes place.
+  if (!CheckUsesForFlag(kTruncatingToInt32)) return;
+  for (int i = 0; i < OperandCount(); ++i) {
+    if (!OperandAt(i)->IsConstant()) return;
+  }
+  HGraph* graph = block()->graph();
+  for (int i = 0; i < OperandCount(); ++i) {
+    HConstant* operand = HConstant::cast(OperandAt(i));
+    if (operand->HasInteger32Value()) {
+      continue;
+    } else if (operand->HasDoubleValue()) {
+      HConstant* integer_input =
+          new(graph->zone()) HConstant(DoubleToInt32(operand->DoubleValue()),
+                                       Representation::Integer32());
+      integer_input->InsertAfter(operand);
+      SetOperandAt(i, integer_input);
+    } else if (operand == graph->GetConstantTrue()) {
+      SetOperandAt(i, graph->GetConstant1());
+    } else {
+      // This catches |false|, |undefined|, strings and objects.
+      SetOperandAt(i, graph->GetConstant0());
+    }
+  }
+  // Overwrite observed input representations because they are likely Tagged.
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    HValue* use = it.value();
+    if (use->IsBinaryOperation()) {
+      HBinaryOperation::cast(use)->set_observed_input_representation(
+          it.index(), Representation::Integer32());
+    }
+  }
 }
 
 

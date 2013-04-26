@@ -2603,24 +2603,26 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     switch (op) {
       case kMathFloor:
       case kMathRound:
-      case kMathCeil:
         set_representation(Representation::Integer32());
         break;
       case kMathAbs:
         // Not setting representation here: it is None intentionally.
         SetFlag(kFlexibleRepresentation);
+        // TODO(svenpanne) This flag is actually only needed if representation()
+        // is tagged, and not when it is an unboxed double or unboxed integer.
         SetGVNFlag(kChangesNewSpacePromotion);
         break;
-      case kMathSqrt:
-      case kMathPowHalf:
       case kMathLog:
       case kMathSin:
       case kMathCos:
       case kMathTan:
         set_representation(Representation::Double());
+        // These operations use the TranscendentalCache, so they may allocate.
         SetGVNFlag(kChangesNewSpacePromotion);
         break;
       case kMathExp:
+      case kMathSqrt:
+      case kMathPowHalf:
         set_representation(Representation::Double());
         break;
       default:
@@ -3141,6 +3143,8 @@ class HPhi: public HValue {
     return true;
   }
 
+  void SimplifyConstantInputs();
+
  protected:
   virtual void DeleteFromGraph();
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -3442,10 +3446,9 @@ class HBinaryOperation: public HTemplateInstruction<3> {
     return right();
   }
 
-  void set_observed_input_representation(Representation left,
-                                         Representation right) {
-    observed_input_representation_[0] = left;
-    observed_input_representation_[1] = right;
+  void set_observed_input_representation(int index, Representation rep) {
+    ASSERT(index >= 1 && index <= 2);
+    observed_input_representation_[index - 1] = rep;
   }
 
   virtual void initialize_output_representation(Representation observed) {
@@ -3949,6 +3952,10 @@ class HCompareObjectEqAndBranch: public HTemplateControlInstruction<2, 2> {
     return Representation::Tagged();
   }
 
+  virtual Representation observed_input_representation(int index) {
+    return Representation::Tagged();
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CompareObjectEqAndBranch)
 };
 
@@ -4414,6 +4421,17 @@ class HMul: public HArithmeticBinaryOperation {
                            HValue* context,
                            HValue* left,
                            HValue* right);
+
+  static HInstruction* NewImul(Zone* zone,
+                               HValue* context,
+                               HValue* left,
+                               HValue* right) {
+    HMul* mul = new(zone) HMul(context, left, right);
+    // TODO(mstarzinger): Prevent bailout on minus zero for imul.
+    mul->AssumeRepresentation(Representation::Integer32());
+    mul->ClearFlag(HValue::kCanOverflow);
+    return mul;
+  }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
@@ -4946,6 +4964,19 @@ class HAllocate: public HTemplateInstruction<2> {
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
     SetGVNFlag(kChangesNewSpacePromotion);
+  }
+
+  static Flags DefaultFlags() {
+    return CAN_ALLOCATE_IN_NEW_SPACE;
+  }
+
+  static Flags DefaultFlags(ElementsKind kind) {
+    Flags flags = CAN_ALLOCATE_IN_NEW_SPACE;
+    if (IsFastDoubleElementsKind(kind)) {
+      flags = static_cast<HAllocate::Flags>(
+          flags | HAllocate::ALLOCATE_DOUBLE_ALIGNED);
+    }
+    return flags;
   }
 
   HValue* context() { return OperandAt(0); }

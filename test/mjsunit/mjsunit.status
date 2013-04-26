@@ -34,9 +34,6 @@ bugs/*: FAIL
 # Fails.
 regress/regress-1119: FAIL
 
-# TODO(wingo): Currently fails in no-snapshot mode, hence disabled for now.
-harmony/generators-objects: SKIP
-
 # Issue 1719: Slow to collect arrays over several contexts.
 regress/regress-524: SKIP
 # When that bug is fixed, revert the expectation to:

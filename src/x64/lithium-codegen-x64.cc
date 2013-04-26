@@ -1644,13 +1644,8 @@ void LCodeGen::DoDateField(LDateField* instr) {
     }
     __ bind(&runtime);
     __ PrepareCallCFunction(2);
-#ifdef _WIN64
-  __ movq(rcx, object);
-  __ movq(rdx, index, RelocInfo::NONE64);
-#else
-  __ movq(rdi, object);
-  __ movq(rsi, index, RelocInfo::NONE64);
-#endif
+    __ movq(arg_reg_1, object);
+    __ movq(arg_reg_2, index, RelocInfo::NONE64);
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ bind(&done);
@@ -2556,6 +2551,8 @@ void LCodeGen::DoReturn(LReturn* instr) {
            rcx);
   } else {
     Register reg = ToRegister(instr->parameter_count());
+    // The argument count parameter is a smi
+    __ SmiToInteger32(reg, reg);
     Register return_addr_reg = reg.is(rcx) ? rbx : rcx;
     __ pop(return_addr_reg);
     __ shl(reg, Immediate(kPointerSizeLog2));
@@ -3646,12 +3643,7 @@ void LCodeGen::DoPower(LPower* instr) {
   // Having marked this as a call, we can use any registers.
   // Just make sure that the input/output registers are the expected ones.
 
-  // Choose register conforming to calling convention (when bailing out).
-#ifdef _WIN64
   Register exponent = rdx;
-#else
-  Register exponent = rdi;
-#endif
   ASSERT(!instr->right()->IsRegister() ||
          ToRegister(instr->right()).is(exponent));
   ASSERT(!instr->right()->IsDoubleRegister() ||
@@ -3912,9 +3904,18 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
 
   __ Set(rax, instr->arity());
   __ Move(rbx, instr->hydrogen()->property_cell());
-  Handle<Code> array_construct_code =
-      isolate()->builtins()->ArrayConstructCode();
-  CallCode(array_construct_code, RelocInfo::CONSTRUCT_CALL, instr);
+  Object* cell_value = instr->hydrogen()->property_cell()->value();
+  ElementsKind kind = static_cast<ElementsKind>(Smi::cast(cell_value)->value());
+  if (instr->arity() == 0) {
+    ArrayNoArgumentConstructorStub stub(kind);
+    CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+  } else if (instr->arity() == 1) {
+    ArraySingleArgumentConstructorStub stub(kind);
+    CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+  } else {
+    ArrayNArgumentsConstructorStub stub(kind);
+    CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+  }
 }
 
 

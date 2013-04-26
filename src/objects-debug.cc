@@ -416,6 +416,7 @@ void JSGeneratorObject::JSGeneratorObjectVerify() {
   // initialized by the generator.  Hence these weak checks.
   VerifyObjectField(kFunctionOffset);
   VerifyObjectField(kContextOffset);
+  VerifyObjectField(kReceiverOffset);
   VerifyObjectField(kOperandStackOffset);
   VerifyObjectField(kContinuationOffset);
 }

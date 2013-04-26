@@ -163,7 +163,8 @@ Heap::Heap()
 #endif
       promotion_queue_(this),
       configured_(false),
-      chunks_queued_for_free_(NULL) {
+      chunks_queued_for_free_(NULL),
+      relocation_mutex_(NULL) {
   // Allow build-time customization of the max semispace size. Building
   // V8 with snapshots and a non-default max semispace size is much
   // easier if you can define it as part of the build environment.
@@ -606,7 +607,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
                           const char* gc_reason,
                           const char* collector_reason) {
   // The VM is in the GC state until exiting this function.
-  VMState state(isolate_, GC);
+  VMState<GC> state(isolate_);
 
 #ifdef DEBUG
   // Reset the allocation timeout to the GC interval, but make sure to
@@ -892,8 +893,8 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    VMState state(isolate_, EXTERNAL);
-    CallGCPrologueCallbacks(gc_type);
+    VMState<EXTERNAL> state(isolate_);
+    CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
   }
 
   EnsureFromSpaceIsCommitted();
@@ -1014,7 +1015,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    VMState state(isolate_, EXTERNAL);
+    VMState<EXTERNAL> state(isolate_);
     CallGCEpilogueCallbacks(gc_type);
   }
 
@@ -1028,13 +1029,13 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 }
 
 
-void Heap::CallGCPrologueCallbacks(GCType gc_type) {
+void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
   if (gc_type == kGCTypeMarkSweepCompact && global_gc_prologue_callback_) {
     global_gc_prologue_callback_();
   }
   for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
     if (gc_type & gc_prologue_callbacks_[i].gc_type) {
-      gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+      gc_prologue_callbacks_[i].callback(gc_type, flags);
     }
   }
 }
@@ -1300,6 +1301,8 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 
 void Heap::Scavenge() {
+  RelocationLock relocation_lock(this);
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
 #endif
@@ -3421,14 +3424,14 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
     return Failure::OutOfMemoryException(0x4);
   }
 
-  bool is_ascii_data_in_two_byte_string = false;
+  bool is_one_byte_data_in_two_byte_string = false;
   if (!is_one_byte) {
     // At least one of the strings uses two-byte representation so we
     // can't use the fast case code for short ASCII strings below, but
     // we can try to save memory if all chars actually fit in ASCII.
-    is_ascii_data_in_two_byte_string =
-        first->HasOnlyAsciiChars() && second->HasOnlyAsciiChars();
-    if (is_ascii_data_in_two_byte_string) {
+    is_one_byte_data_in_two_byte_string =
+        first->HasOnlyOneByteChars() && second->HasOnlyOneByteChars();
+    if (is_one_byte_data_in_two_byte_string) {
       isolate_->counters()->string_add_runtime_ext_to_ascii()->Increment();
     }
   }
@@ -3463,7 +3466,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
       for (int i = 0; i < second_length; i++) *dest++ = src[i];
       return result;
     } else {
-      if (is_ascii_data_in_two_byte_string) {
+      if (is_one_byte_data_in_two_byte_string) {
         Object* result;
         { MaybeObject* maybe_result = AllocateRawOneByteString(length);
           if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -3488,7 +3491,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
     }
   }
 
-  Map* map = (is_one_byte || is_ascii_data_in_two_byte_string) ?
+  Map* map = (is_one_byte || is_one_byte_data_in_two_byte_string) ?
       cons_ascii_string_map() : cons_string_map();
 
   Object* result;
@@ -3634,11 +3637,11 @@ MaybeObject* Heap::AllocateExternalStringFromTwoByte(
 
   // For small strings we check whether the resource contains only
   // one byte characters.  If yes, we use a different string map.
-  static const size_t kAsciiCheckLengthLimit = 32;
-  bool is_one_byte = length <= kAsciiCheckLengthLimit &&
+  static const size_t kOneByteCheckLengthLimit = 32;
+  bool is_one_byte = length <= kOneByteCheckLengthLimit &&
       String::IsOneByte(resource->data(), static_cast<int>(length));
   Map* map = is_one_byte ?
-      external_string_with_ascii_data_map() : external_string_map();
+      external_string_with_one_byte_data_map() : external_string_map();
   Object* result;
   { MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -4974,14 +4977,14 @@ Map* Heap::InternalizedStringMapForString(String* string) {
     case EXTERNAL_STRING_TYPE: return external_internalized_string_map();
     case EXTERNAL_ASCII_STRING_TYPE:
       return external_ascii_internalized_string_map();
-    case EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
-      return external_internalized_string_with_ascii_data_map();
+    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return external_internalized_string_with_one_byte_data_map();
     case SHORT_EXTERNAL_STRING_TYPE:
       return short_external_internalized_string_map();
     case SHORT_EXTERNAL_ASCII_STRING_TYPE:
       return short_external_ascii_internalized_string_map();
-    case SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
-      return short_external_internalized_string_with_ascii_data_map();
+    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return short_external_internalized_string_with_one_byte_data_map();
     default: return NULL;  // No match found.
   }
 }
@@ -6635,6 +6638,11 @@ bool Heap::SetUp() {
 
   store_buffer()->SetUp();
 
+  if (FLAG_parallel_recompilation) relocation_mutex_ = OS::CreateMutex();
+#ifdef DEBUG
+  relocation_mutex_locked_by_optimizer_thread_ = false;
+#endif  // DEBUG
+
   return true;
 }
 
@@ -6737,6 +6745,8 @@ void Heap::TearDown() {
   incremental_marking()->TearDown();
 
   isolate_->memory_allocator()->TearDown();
+
+  delete relocation_mutex_;
 }
 
 
@@ -7696,7 +7706,8 @@ void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
       if (!getter_obj->IsJSFunction()) continue;
       getter_fun = JSFunction::cast(getter_obj);
       String* key = isolate->heap()->hidden_stack_trace_string();
-      if (key != getter_fun->GetHiddenProperty(key)) continue;
+      Object* value = getter_fun->GetHiddenProperty(key);
+      if (key != value) continue;
     }
 
     budget--;
@@ -7864,6 +7875,17 @@ void Heap::CheckpointObjectStats() {
   OS::MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
   OS::MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
   ClearObjectStats();
+}
+
+
+Heap::RelocationLock::RelocationLock(Heap* heap) : heap_(heap) {
+  if (FLAG_parallel_recompilation) {
+    heap_->relocation_mutex_->Lock();
+#ifdef DEBUG
+    heap_->relocation_mutex_locked_by_optimizer_thread_ =
+        heap_->isolate()->optimizing_compiler_thread()->IsOptimizerThread();
+#endif  // DEBUG
+  }
 }
 
 } }  // namespace v8::internal

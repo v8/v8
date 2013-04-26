@@ -2777,6 +2777,8 @@ void LCodeGen::EmitReturn(LReturn* instr, bool dynamic_frame_alignment) {
     __ Ret((parameter_count + extra_value_count) * kPointerSize, ecx);
   } else {
     Register reg = ToRegister(instr->parameter_count());
+    // The argument count parameter is a smi
+    __ SmiUntag(reg);
     Register return_addr_reg = reg.is(ecx) ? ebx : ecx;
     if (dynamic_frame_alignment && FLAG_debug_code) {
       ASSERT(extra_value_count == 2);
@@ -4209,11 +4211,20 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
   ASSERT(FLAG_optimize_constructed_arrays);
 
-  __ mov(ebx, instr->hydrogen()->property_cell());
-  Handle<Code> array_construct_code =
-      isolate()->builtins()->ArrayConstructCode();
   __ Set(eax, Immediate(instr->arity()));
-  CallCode(array_construct_code, RelocInfo::CONSTRUCT_CALL, instr);
+  __ mov(ebx, instr->hydrogen()->property_cell());
+  Object* cell_value = instr->hydrogen()->property_cell()->value();
+  ElementsKind kind = static_cast<ElementsKind>(Smi::cast(cell_value)->value());
+  if (instr->arity() == 0) {
+    ArrayNoArgumentConstructorStub stub(kind);
+    CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+  } else if (instr->arity() == 1) {
+    ArraySingleArgumentConstructorStub stub(kind);
+    CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+  } else {
+    ArrayNArgumentsConstructorStub stub(kind);
+    CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+  }
 }
 
 

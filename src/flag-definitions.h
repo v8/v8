@@ -673,9 +673,6 @@ DEFINE_bool(collect_heap_spill_statistics, false,
 
 DEFINE_bool(trace_isolates, false, "trace isolate state changes")
 
-// VM state
-DEFINE_bool(log_state_changes, false, "Log state changes.")
-
 // Regexp
 DEFINE_bool(regexp_possessive_quantifier,
             false,
@@ -723,6 +720,7 @@ DEFINE_bool(log_internal_timer_events, false, "Time internal events.")
 DEFINE_bool(log_timer_events, false,
             "Time events including external callbacks.")
 DEFINE_implication(log_timer_events, log_internal_timer_events)
+DEFINE_implication(log_internal_timer_events, prof)
 
 //
 // Disassembler only flags

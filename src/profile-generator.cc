@@ -571,7 +571,12 @@ void CodeMap::MoveCode(Address from, Address to) {
 
 void CodeMap::CodeTreePrinter::Call(
     const Address& key, const CodeMap::CodeEntryInfo& value) {
-  OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
+  // For shared function entries, 'size' field is used to store their IDs.
+  if (value.entry == kSharedFunctionCodeEntry) {
+    OS::Print("%p SharedFunctionInfo %d\n", key, value.size);
+  } else {
+    OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
+  }
 }
 
 

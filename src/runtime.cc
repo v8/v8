@@ -662,6 +662,47 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
 }
 
 
+bool Runtime::SetupArrayBuffer(Isolate* isolate,
+                               Handle<JSArrayBuffer> array_buffer,
+                               void* data,
+                               size_t allocated_length) {
+  array_buffer->set_backing_store(data);
+
+  Handle<Object> byte_length =
+      isolate->factory()->NewNumber(static_cast<double>(allocated_length));
+  CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
+  array_buffer->set_byte_length(*byte_length);
+  return true;
+}
+
+
+bool Runtime::SetupArrayBufferAllocatingData(
+    Isolate* isolate,
+    Handle<JSArrayBuffer> array_buffer,
+    size_t allocated_length) {
+  void* data;
+  if (allocated_length != 0) {
+    data = malloc(allocated_length);
+    if (data == NULL) return false;
+    memset(data, 0, allocated_length);
+  } else {
+    data = NULL;
+  }
+
+  if (!SetupArrayBuffer(isolate, array_buffer, data, allocated_length))
+    return false;
+
+  v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::Persistent<v8::Value> weak_handle = v8::Persistent<v8::Value>::New(
+      external_isolate, v8::Utils::ToLocal(Handle<Object>::cast(array_buffer)));
+  weak_handle.MakeWeak(external_isolate, data, ArrayBufferWeakCallback);
+  weak_handle.MarkIndependent(external_isolate);
+  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
+
+  return true;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -685,38 +726,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
     allocated_length = static_cast<size_t>(value);
   }
 
-  void* data;
-  if (allocated_length != 0) {
-    data = malloc(allocated_length);
-
-    if (data == NULL) {
+  if (!Runtime::SetupArrayBufferAllocatingData(isolate,
+                                               holder, allocated_length)) {
       return isolate->Throw(*isolate->factory()->
           NewRangeError("invalid_array_buffer_length",
             HandleVector<Object>(NULL, 0)));
-    }
-
-    memset(data, 0, allocated_length);
-  } else {
-    data = NULL;
   }
-  holder->set_backing_store(data);
-
-  Object* byte_length;
-  {
-    MaybeObject* maybe_byte_length =
-        isolate->heap()->NumberFromDouble(
-            static_cast<double>(allocated_length));
-    if (!maybe_byte_length->ToObject(&byte_length)) return maybe_byte_length;
-  }
-  CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
-  holder->set_byte_length(byte_length);
-
-  v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Persistent<v8::Value> weak_handle = v8::Persistent<v8::Value>::New(
-      external_isolate, v8::Utils::ToLocal(Handle<Object>::cast(holder)));
-  weak_handle.MakeWeak(external_isolate, data, ArrayBufferWeakCallback);
-  weak_handle.MarkIndependent(external_isolate);
-  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
 
   return *holder;
 }
@@ -2413,6 +2428,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
   }
   generator->set_function(function);
   generator->set_context(Context::cast(frame->context()));
+  generator->set_receiver(frame->receiver());
   generator->set_continuation(0);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
 
@@ -2459,19 +2475,80 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
     ASSERT_EQ(generator_object->operand_stack(),
               isolate->heap()->empty_fixed_array());
     // If there are no operands on the stack, there shouldn't be a handler
-    // active either.  Also, the active context will be the same as the function
-    // itself, so there is no need to save the context.
-    ASSERT_EQ(frame->context(), generator_object->context());
+    // active either.
     ASSERT(!frame->HasHandler());
   } else {
-    generator_object->set_context(Context::cast(frame->context()));
     // TODO(wingo): Save the operand stack and/or the stack handlers.
     UNIMPLEMENTED();
   }
 
+  // It's possible for the context to be other than the initial context even if
+  // there is no stack handler active.  For example, this is the case in the
+  // body of a "with" statement.  Therefore we always save the context.
+  generator_object->set_context(Context::cast(frame->context()));
+
   // The return value is the hole for a suspend return, and anything else for a
   // resume return.
   return isolate->heap()->the_hole_value();
+}
+
+
+// Note that this function is the slow path for resuming generators.  It is only
+// called if the suspended activation had operands on the stack, stack handlers
+// needing rewinding, or if the resume should throw an exception.  The fast path
+// is handled directly in FullCodeGenerator::EmitGeneratorResume(), which is
+// inlined into GeneratorNext, GeneratorSend, and GeneratorThrow.
+// EmitGeneratorResumeResume is called in any case, as it needs to reconstruct
+// the stack frame and make space for arguments and operands.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  CONVERT_SMI_ARG_CHECKED(resume_mode_int, 2);
+  JavaScriptFrameIterator stack_iterator(isolate);
+  JavaScriptFrame *frame = stack_iterator.frame();
+
+  ASSERT_EQ(frame->function(), generator_object->function());
+
+  STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting <= 0);
+  STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed <= 0);
+
+  Address pc = generator_object->function()->code()->instruction_start();
+  int offset = generator_object->continuation();
+  ASSERT(offset > 0);
+  frame->set_pc(pc + offset);
+  generator_object->set_continuation(JSGeneratorObject::kGeneratorExecuting);
+
+  if (generator_object->operand_stack()->length() != 0) {
+    // TODO(wingo): Copy operand stack.  Rewind handlers.
+    UNIMPLEMENTED();
+  }
+
+  JSGeneratorObject::ResumeMode resume_mode =
+      static_cast<JSGeneratorObject::ResumeMode>(resume_mode_int);
+  switch (resume_mode) {
+    case JSGeneratorObject::SEND:
+      return *value;
+    case JSGeneratorObject::THROW:
+      return isolate->Throw(*value);
+  }
+
+  UNREACHABLE();
+  return isolate->ThrowIllegalOperation();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ThrowGeneratorStateError) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+  int continuation = generator->continuation();
+  const char *message = continuation == JSGeneratorObject::kGeneratorClosed ?
+      "generator_finished" : "generator_running";
+  Vector< Handle<Object> > argv = HandleVector<Object>(NULL, 0);
+  Handle<Object> error = isolate->factory()->NewError(message, argv);
+  return isolate->Throw(*error);
 }
 
 
@@ -6212,6 +6289,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberMod) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberImul) {
+  NoHandleAllocation ha(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
+  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
+  return isolate->heap()->NumberFromInt32(x * y);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringAdd) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 2);
@@ -8894,7 +8981,7 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
     return false;
   } else {
     // Callback set. Let it decide if code generation is allowed.
-    VMState state(isolate, EXTERNAL);
+    VMState<EXTERNAL> state(isolate);
     return callback(v8::Utils::ToLocal(context));
   }
 }

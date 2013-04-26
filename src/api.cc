@@ -52,6 +52,7 @@
 #include "profile-generator-inl.h"
 #include "property-details.h"
 #include "property.h"
+#include "runtime.h"
 #include "runtime-profiler.h"
 #include "scanner-character-streams.h"
 #include "snapshot.h"
@@ -63,11 +64,9 @@
 
 #define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
-#define ENTER_V8(isolate)                                        \
-  ASSERT((isolate)->IsInitialized());                           \
-  i::VMState __state__((isolate), i::OTHER)
-#define LEAVE_V8(isolate) \
-  i::VMState __state__((isolate), i::EXTERNAL)
+#define ENTER_V8(isolate)                                          \
+  ASSERT((isolate)->IsInitialized());                              \
+  i::VMState<i::OTHER> __state__((isolate))
 
 namespace v8 {
 
@@ -131,7 +130,7 @@ static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
   i::Isolate* isolate = i::Isolate::Current();
   if (isolate->IsInitialized()) {
-    i::VMState __state__(isolate, i::OTHER);
+    i::VMState<i::OTHER> state(isolate);
     API_Fatal(location, message);
   } else {
     API_Fatal(location, message);
@@ -216,14 +215,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   const char* message = "Allocation failed - process out of memory";
-  {
-    if (isolate->IsInitialized()) {
-      LEAVE_V8(isolate);
-      callback(location, message);
-    } else {
-      callback(location, message);
-    }
-  }
+  callback(location, message);
   // If the callback returns, we stop execution.
   UNREACHABLE();
 }
@@ -2754,6 +2746,15 @@ void v8::Array::CheckCast(Value* that) {
 }
 
 
+void v8::ArrayBuffer::CheckCast(Value* that) {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::ArrayBuffer::Cast()")) return;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->IsJSArrayBuffer(),
+           "v8::ArrayBuffer::Cast()",
+           "Could not convert to ArrayBuffer");
+}
+
+
 void v8::Date::CheckCast(v8::Value* that) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Date::Cast()")) return;
@@ -4054,14 +4055,6 @@ int String::Length() const {
   return str->length();
 }
 
-bool String::MayContainNonAscii() const {
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  if (IsDeadCheck(str->GetIsolate(), "v8::String::MayContainNonAscii()")) {
-    return false;
-  }
-  return !str->HasOnlyAsciiChars();
-}
-
 
 bool String::IsOneByte() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
@@ -4513,25 +4506,6 @@ int String::WriteAscii(char* buffer,
   isolate->string_tracker()->RecordWrite(str);
   if (options & HINT_MANY_WRITES_EXPECTED) {
     FlattenString(str);  // Flatten the string for efficiency.
-  }
-
-  if (str->HasOnlyAsciiChars()) {
-    // WriteToFlat is faster than using the StringCharacterStream.
-    if (length == -1) length = str->length() + 1;
-    int len = i::Min(length, str->length() - start);
-    i::String::WriteToFlat(*str,
-                           reinterpret_cast<uint8_t*>(buffer),
-                           start,
-                           start + len);
-    if (!(options & PRESERVE_ASCII_NULL)) {
-      for (int i = 0; i < len; i++) {
-        if (buffer[i] == '\0') buffer[i] = ' ';
-      }
-    }
-    if (!(options & NO_NULL_TERMINATION) && length > len) {
-      buffer[len] = '\0';
-    }
-    return len;
   }
 
   int end = length;
@@ -5792,6 +5766,46 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
 }
 
 
+size_t v8::ArrayBuffer::ByteLength() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ArrayBuffer::ByteLength()")) return 0;
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  return static_cast<size_t>(obj->byte_length()->Number());
+}
+
+
+void* v8::ArrayBuffer::Data() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ArrayBuffer::Data()")) return 0;
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  return obj->backing_store();
+}
+
+
+Local<ArrayBuffer> v8::ArrayBuffer::New(size_t byte_length) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::ArrayBuffer::New(size_t)");
+  LOG_API(isolate, "v8::ArrayBuffer::New(size_t)");
+  ENTER_V8(isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      isolate->factory()->NewJSArrayBuffer();
+  i::Runtime::SetupArrayBufferAllocatingData(isolate, obj, byte_length);
+  return Utils::ToLocal(obj);
+}
+
+
+Local<ArrayBuffer> v8::ArrayBuffer::New(void* data, size_t byte_length) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::ArrayBuffer::New(void*, size_t)");
+  LOG_API(isolate, "v8::ArrayBuffer::New(void*, size_t)");
+  ENTER_V8(isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      isolate->factory()->NewJSArrayBuffer();
+  i::Runtime::SetupArrayBuffer(isolate, obj, data, byte_length);
+  return Utils::ToLocal(obj);
+}
+
+
 Local<Symbol> v8::Symbol::New(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   EnsureInitializedForIsolate(i_isolate, "v8::Symbol::New()");
@@ -6025,6 +6039,31 @@ v8::Local<v8::Context> Isolate::GetCurrentContext() {
   if (current.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(current);
   return Utils::ToLocal(context);
+}
+
+
+void Isolate::SetObjectGroupId(const Persistent<Value>& object,
+                               UniqueId id) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
+  internal_isolate->global_handles()->SetObjectGroupId(
+      reinterpret_cast<i::Object**>(*object), id);
+}
+
+
+void Isolate::SetReferenceFromGroup(UniqueId id,
+                                    const Persistent<Value>& object) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
+  internal_isolate->global_handles()
+      ->SetReferenceFromGroup(id, reinterpret_cast<i::Object**>(*object));
+}
+
+
+void Isolate::SetReference(const Persistent<Object>& parent,
+                           const Persistent<Value>& child) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
+  internal_isolate->global_handles()->SetReference(
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*parent)).location(),
+      reinterpret_cast<i::Object**>(*child));
 }
 
 
@@ -7224,6 +7263,12 @@ size_t HeapProfiler::GetMemorySizeUsedByProfiler() {
 size_t HeapProfiler::GetProfilerMemorySize() {
   return reinterpret_cast<i::HeapProfiler*>(this)->
       GetMemorySizeUsedByProfiler();
+}
+
+
+void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
+                                         RetainedObjectInfo* info) {
+  reinterpret_cast<i::HeapProfiler*>(this)->SetRetainedObjectInfo(id, info);
 }
 
 

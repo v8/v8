@@ -42,6 +42,13 @@
 
 #ifdef V8_SHARED
 #include <assert.h>
+#endif  // V8_SHARED
+
+#ifndef V8_SHARED
+#include <algorithm>
+#endif  // !V8_SHARED
+
+#ifdef V8_SHARED
 #include "../include/v8-testing.h"
 #endif  // V8_SHARED
 
@@ -1573,9 +1580,8 @@ struct CounterAndKey {
 };
 
 
-int CompareKeys(const void* a, const void* b) {
-  return strcmp(static_cast<const CounterAndKey*>(a)->key,
-                static_cast<const CounterAndKey*>(b)->key);
+inline bool operator<(const CounterAndKey& lhs, const CounterAndKey& rhs) {
+  return strcmp(lhs.key, rhs.key) < 0;
 }
 #endif  // V8_SHARED
 
@@ -1595,7 +1601,7 @@ void Shell::OnExit() {
       counters[j].counter = i.CurrentValue();
       counters[j].key = i.CurrentKey();
     }
-    qsort(counters, number_of_counters, sizeof(counters[0]), CompareKeys);
+    std::sort(counters, counters + number_of_counters);
     printf("+----------------------------------------------------------------+"
            "-------------+\n");
     printf("| Name                                                           |"

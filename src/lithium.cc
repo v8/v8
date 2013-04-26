@@ -329,7 +329,6 @@ void LChunk::MarkEmptyBlocks() {
             can_eliminate = false;
           }
         }
-
         if (can_eliminate) {
           label->set_replacement(GetLabel(goto_instr->block_id()));
         }

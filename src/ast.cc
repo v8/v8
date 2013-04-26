@@ -70,6 +70,11 @@ bool Expression::IsNullLiteral() {
 }
 
 
+bool Expression::IsUndefinedLiteral() {
+  return AsLiteral() != NULL && AsLiteral()->handle()->IsUndefined();
+}
+
+
 VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
     : Expression(isolate),
       name_(var->name()),
@@ -352,12 +357,17 @@ static bool IsVoidOfLiteral(Expression* expr) {
 }
 
 
-// Check for the pattern: void <literal> equals <expression>
+// Check for the pattern: void <literal> equals <expression> or
+// undefined equals <expression>
 static bool MatchLiteralCompareUndefined(Expression* left,
                                          Token::Value op,
                                          Expression* right,
                                          Expression** expr) {
   if (IsVoidOfLiteral(left) && Token::IsEqualityOp(op)) {
+    *expr = right;
+    return true;
+  }
+  if (left->IsUndefinedLiteral() && Token::IsEqualityOp(op)) {
     *expr = right;
     return true;
   }
