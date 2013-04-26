@@ -2027,9 +2027,10 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
-  ASSERT(instr->representation().IsTagged());
   LOperand* obj = UseRegisterAtStart(instr->object());
-  return DefineAsRegister(new(zone()) LLoadNamedField(obj));
+  LOperand* temp = instr->representation().IsDouble() ? TempRegister() : NULL;
+  ASSERT(temp == NULL || FLAG_track_double_fields);
+  return DefineAsRegister(new(zone()) LLoadNamedField(obj, temp));
 }
 
 
@@ -2245,13 +2246,16 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   }
 
   bool can_be_constant = instr->value()->IsConstant() &&
-      !HConstant::cast(instr->value())->InNewSpace();
+      !HConstant::cast(instr->value())->InNewSpace() &&
+      !(FLAG_track_double_fields && instr->field_representation().IsDouble());
 
   LOperand* val;
   if (needs_write_barrier) {
     val = UseTempRegister(instr->value());
   } else if (can_be_constant) {
     val = UseRegisterOrConstant(instr->value());
+  } else if (FLAG_track_fields && instr->field_representation().IsSmi()) {
+    val = UseTempRegister(instr->value());
   } else {
     val = UseRegister(instr->value());
   }
@@ -2261,7 +2265,12 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   LOperand* temp = (!instr->is_in_object() || needs_write_barrier ||
       needs_write_barrier_for_map) ? TempRegister() : NULL;
 
-  return new(zone()) LStoreNamedField(obj, val, temp);
+  LStoreNamedField* result = new(zone()) LStoreNamedField(obj, val, temp);
+  if ((FLAG_track_fields && instr->field_representation().IsSmi()) ||
+      (FLAG_track_double_fields && instr->field_representation().IsDouble())) {
+    return AssignEnvironment(result);
+  }
+  return result;
 }
 
 

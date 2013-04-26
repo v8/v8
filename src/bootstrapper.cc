@@ -979,28 +979,32 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
       // ECMA-262, section 15.10.7.1.
       FieldDescriptor field(heap->source_string(),
                             JSRegExp::kSourceFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.2.
       FieldDescriptor field(heap->global_string(),
                             JSRegExp::kGlobalFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.3.
       FieldDescriptor field(heap->ignore_case_string(),
                             JSRegExp::kIgnoreCaseFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.4.
       FieldDescriptor field(heap->multiline_string(),
                             JSRegExp::kMultilineFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
@@ -1009,7 +1013,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
           static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
       FieldDescriptor field(heap->last_index_string(),
                             JSRegExp::kLastIndexFieldIndex,
-                            writable);
+                            writable,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
 
@@ -1161,7 +1166,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     map->set_instance_descriptors(*descriptors);
 
     {  // length
-      FieldDescriptor d(*factory->length_string(), 0, DONT_ENUM);
+      FieldDescriptor d(
+          *factory->length_string(), 0, DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d, witness);
     }
     {  // callee
@@ -1924,14 +1930,16 @@ bool Genesis::InstallNatives() {
     {
       FieldDescriptor index_field(heap()->index_string(),
                                   JSRegExpResult::kIndexIndex,
-                                  NONE);
+                                  NONE,
+                                  Representation::Tagged());
       initial_map->AppendDescriptor(&index_field, witness);
     }
 
     {
       FieldDescriptor input_field(heap()->input_string(),
                                   JSRegExpResult::kInputIndex,
-                                  NONE);
+                                  NONE,
+                                  Representation::Tagged());
       initial_map->AppendDescriptor(&input_field, witness);
     }
 
@@ -2388,6 +2396,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
           PropertyDetails d = PropertyDetails(details.attributes(),
                                               CALLBACKS,
+                                              Representation::Tagged(),
                                               details.descriptor_index());
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;

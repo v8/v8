@@ -377,11 +377,12 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
 
   for (int i = 0; i < size; i += kPointerSize) {
     HInstruction* value =
-        AddInstruction(new(zone) HLoadNamedField(boilerplate, true, i));
+        AddInstruction(new(zone) HLoadNamedField(
+            boilerplate, true, Representation::Tagged(), i));
     AddInstruction(new(zone) HStoreNamedField(object,
                                               factory->empty_string(),
-                                              value,
-                                              true, i));
+                                              value, true,
+                                              Representation::Tagged(), i));
   }
 
   checker.ElseDeopt();
@@ -470,12 +471,15 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   AddInstruction(new(zone) HStoreNamedField(js_array,
                                             factory->elements_field_string(),
                                             new_elements, true,
+                                            Representation::Tagged(),
                                             JSArray::kElementsOffset));
 
   if_builder.End();
 
   AddInstruction(new(zone) HStoreNamedField(js_array, factory->length_string(),
-                                            map, true, JSArray::kMapOffset));
+                                            map, true,
+                                            Representation::Tagged(),
+                                            JSArray::kMapOffset));
   return js_array;
 }
 

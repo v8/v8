@@ -190,6 +190,9 @@ DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
 DEFINE_bool(pretenure_literals, true, "allocate literals in old space")
+DEFINE_bool(track_fields, false, "track fields with only smi values")
+DEFINE_bool(track_double_fields, false, "track fields with double values")
+DEFINE_implication(track_double_fields, track_fields)
 
 // Flags for data representation optimizations
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")

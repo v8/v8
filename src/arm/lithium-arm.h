@@ -1520,13 +1520,15 @@ class LReturn: public LTemplateInstruction<0, 2, 0> {
 };
 
 
-class LLoadNamedField: public LTemplateInstruction<1, 1, 0> {
+class LLoadNamedField: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LLoadNamedField(LOperand* object) {
+  explicit LLoadNamedField(LOperand* object, LOperand* temp) {
     inputs_[0] = object;
+    temps_[0] = temp;
   }
 
   LOperand* object() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field")
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedField)
@@ -2142,6 +2144,9 @@ class LStoreNamedField: public LTemplateInstruction<0, 2, 1> {
   bool is_in_object() { return hydrogen()->is_in_object(); }
   int offset() { return hydrogen()->offset(); }
   Handle<Map> transition() const { return hydrogen()->transition(); }
+  Representation representation() const {
+    return hydrogen()->field_representation();
+  }
 };
 
 

@@ -58,7 +58,10 @@ PropertyDetails::PropertyDetails(Smi* smi) {
 
 
 Smi* PropertyDetails::AsSmi() {
-  return Smi::FromInt(value_);
+  // Ensure the upper 2 bits have the same value by sign extending it. This is
+  // necessary to be able to use the 31st bit of the property details.
+  int value = value_ << 1;
+  return Smi::FromInt(value >> 1);
 }
 
 
@@ -1509,21 +1512,6 @@ MaybeObject* JSObject::ResetElements() {
 }
 
 
-MaybeObject* JSObject::AddFastPropertyUsingMap(Map* map) {
-  ASSERT(this->map()->NumberOfOwnDescriptors() + 1 ==
-         map->NumberOfOwnDescriptors());
-  if (this->map()->unused_property_fields() == 0) {
-    int new_size = properties()->length() + map->unused_property_fields() + 1;
-    FixedArray* new_properties;
-    MaybeObject* maybe_properties = properties()->CopySize(new_size);
-    if (!maybe_properties->To(&new_properties)) return maybe_properties;
-    set_properties(new_properties);
-  }
-  set_map(map);
-  return this;
-}
-
-
 MaybeObject* JSObject::TransitionToMap(Map* map) {
   ASSERT(this->map()->inobject_properties() == map->inobject_properties());
   ElementsKind expected_kind = this->map()->elements_kind();
@@ -1542,6 +1530,14 @@ MaybeObject* JSObject::TransitionToMap(Map* map) {
   }
   set_map(map);
   return this;
+}
+
+
+MaybeObject* JSObject::MigrateInstance() {
+  // Converting any field to the most specific type will cause the
+  // GeneralizeFieldRepresentation algorithm to create the most general existing
+  // transition that matches the object. This achieves what is needed.
+  return GeneralizeFieldRepresentation(0, Representation::Smi());
 }
 
 
@@ -2273,6 +2269,23 @@ void DescriptorArray::SetSortedKey(int descriptor_index, int pointer) {
 }
 
 
+void DescriptorArray::SetRepresentation(int descriptor_index,
+                                        Representation representation) {
+  ASSERT(!representation.IsNone());
+  PropertyDetails details = GetDetails(descriptor_index);
+  set(ToDetailsIndex(descriptor_index),
+      details.CopyWithRepresentation(representation).AsSmi());
+}
+
+
+void DescriptorArray::InitializeRepresentations(Representation representation) {
+  int length = number_of_descriptors();
+  for (int i = 0; i < length; i++) {
+    SetRepresentation(i, representation);
+  }
+}
+
+
 Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return HeapObject::RawField(
@@ -2338,6 +2351,7 @@ void DescriptorArray::Set(int descriptor_number,
          number_of_descriptors());
   ASSERT(desc->GetDetails().descriptor_index() > 0);
 
+  ASSERT(!desc->GetDetails().representation().IsNone());
   NoIncrementalWriteBarrierSet(this,
                                ToKeyIndex(descriptor_number),
                                desc->GetKey());
@@ -2356,6 +2370,7 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   ASSERT(desc->GetDetails().descriptor_index() <=
          number_of_descriptors());
   ASSERT(desc->GetDetails().descriptor_index() > 0);
+  ASSERT(!desc->GetDetails().representation().IsNone());
 
   set(ToKeyIndex(descriptor_number), desc->GetKey());
   set(ToValueIndex(descriptor_number), desc->GetValue());
@@ -3566,6 +3581,32 @@ void Map::set_is_observed(bool is_observed) {
 
 bool Map::is_observed() {
   return IsObserved::decode(bit_field3());
+}
+
+
+void Map::deprecate() {
+  set_bit_field3(Deprecated::update(bit_field3(), true));
+}
+
+
+bool Map::is_deprecated() {
+  if (!FLAG_track_fields) return false;
+  return Deprecated::decode(bit_field3());
+}
+
+
+bool Map::CanBeDeprecated() {
+  int descriptor = LastAdded();
+  for (int i = 0; i <= descriptor; i++) {
+    PropertyDetails details = instance_descriptors()->GetDetails(i);
+    if (FLAG_track_fields && details.representation().IsSmi()) {
+      return true;
+    }
+    if (FLAG_track_double_fields && details.representation().IsDouble()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 

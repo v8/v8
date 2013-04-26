@@ -16242,7 +16242,7 @@ THREADED_TEST(InterceptorOnConstructorPrototype) {
 }
 
 
-TEST(Bug618) {
+TEST(Regress618) {
   const char* source = "function C1() {"
                        "  this.x = 23;"
                        "};"

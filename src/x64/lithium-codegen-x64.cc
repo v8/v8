@@ -96,6 +96,10 @@ void LCodeGen::FinishCode(Handle<Code> code) {
     prototype_maps_.at(i)->AddDependentCode(
         DependentCode::kPrototypeCheckGroup, code);
   }
+  for (int i = 0 ; i < transition_maps_.length(); i++) {
+    transition_maps_.at(i)->AddDependentCode(
+        DependentCode::kTransitionGroup, code);
+  }
 }
 
 
@@ -2678,12 +2682,28 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   Register object = ToRegister(instr->object());
-  Register result = ToRegister(instr->result());
+  if (!FLAG_track_double_fields) {
+    ASSERT(!instr->hydrogen()->representation().IsDouble());
+  }
+  Register temp = instr->hydrogen()->representation().IsDouble()
+      ? ToRegister(instr->temp()) : ToRegister(instr->result());
   if (instr->hydrogen()->is_in_object()) {
-    __ movq(result, FieldOperand(object, instr->hydrogen()->offset()));
+    __ movq(temp, FieldOperand(object, instr->hydrogen()->offset()));
   } else {
-    __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
-    __ movq(result, FieldOperand(result, instr->hydrogen()->offset()));
+    __ movq(temp, FieldOperand(object, JSObject::kPropertiesOffset));
+    __ movq(temp, FieldOperand(temp, instr->hydrogen()->offset()));
+  }
+
+  if (instr->hydrogen()->representation().IsDouble()) {
+    Label load_from_heap_number, done;
+    XMMRegister result = ToDoubleRegister(instr->result());
+    __ JumpIfNotSmi(temp, &load_from_heap_number);
+    __ SmiToInteger32(temp, temp);
+    __ cvtlsi2sd(result, temp);
+    __ jmp(&done);
+    __ bind(&load_from_heap_number);
+    __ movsd(result, FieldOperand(temp, HeapNumber::kValueOffset));
+    __ bind(&done);
   }
 }
 
@@ -3932,16 +3952,43 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 
 
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
+  Representation representation = instr->representation();
+
   Register object = ToRegister(instr->object());
+
   int offset = instr->offset();
 
-  if (!instr->transition().is_null()) {
+  if (FLAG_track_fields && representation.IsSmi()) {
+    if (instr->value()->IsConstantOperand()) {
+      LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
+      if (!IsInteger32Constant(operand_value)) {
+        DeoptimizeIf(no_condition, instr->environment());
+      }
+    } else {
+      Register value = ToRegister(instr->value());
+      __ Integer32ToSmi(value, value);
+    }
+  } else if (FLAG_track_double_fields && representation.IsDouble() &&
+             !instr->hydrogen()->value()->type().IsSmi() &&
+             !instr->hydrogen()->value()->type().IsHeapNumber()) {
+    Register value = ToRegister(instr->value());
+    Label do_store;
+    __ JumpIfSmi(value, &do_store);
+    Handle<Map> map(isolate()->factory()->heap_number_map());
+    DoCheckMapCommon(value, map, REQUIRE_EXACT_MAP, instr);
+    __ bind(&do_store);
+  }
+
+  Handle<Map> transition = instr->transition();
+  if (!transition.is_null()) {
+    if (transition->CanBeDeprecated()) {
+      transition_maps_.Add(transition, info()->zone());
+    }
     if (!instr->hydrogen()->NeedsWriteBarrierForMap()) {
-      __ Move(FieldOperand(object, HeapObject::kMapOffset),
-              instr->transition());
+      __ Move(FieldOperand(object, HeapObject::kMapOffset), transition);
     } else {
       Register temp = ToRegister(instr->temp());
-      __ Move(kScratchRegister, instr->transition());
+      __ Move(kScratchRegister, transition);
       __ movq(FieldOperand(object, HeapObject::kMapOffset), kScratchRegister);
       // Update the write barrier for the map field.
       __ RecordWriteField(object,

@@ -54,20 +54,6 @@ HYDROGEN_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
 
-const char* Representation::Mnemonic() const {
-  switch (kind_) {
-    case kNone: return "v";
-    case kTagged: return "t";
-    case kDouble: return "d";
-    case kInteger32: return "i";
-    case kExternal: return "x";
-    default:
-      UNREACHABLE();
-      return NULL;
-  }
-}
-
-
 int HValue::LoopWeight() const {
   const int w = FLAG_loop_weight;
   static const int weights[] = { 1, w, w*w, w*w*w, w*w*w*w };

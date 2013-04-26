@@ -4156,7 +4156,9 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       for (int i = 0; i < count; i++) {
         String* name = fun->shared()->GetThisPropertyAssignmentName(i);
         ASSERT(name->IsInternalizedString());
-        FieldDescriptor field(name, i, NONE, i + 1);
+        // TODO(verwaest): Since we cannot update the boilerplate's map yet,
+        // initialize to the worst case.
+        FieldDescriptor field(name, i, NONE, Representation::Tagged(), i + 1);
         descriptors->Set(i, &field, witness);
       }
       descriptors->Sort();
@@ -4590,6 +4592,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
     ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
     PropertyDetails d = PropertyDetails(details.attributes(),
                                         CALLBACKS,
+                                        Representation::None(),
                                         details.descriptor_index());
     Object* value = descs->GetCallbacksObject(i);
     MaybeObject* maybe_value = AllocateJSGlobalPropertyCell(value);
