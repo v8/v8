@@ -7705,7 +7705,8 @@ void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
       if (!getter_obj->IsJSFunction()) continue;
       getter_fun = JSFunction::cast(getter_obj);
       String* key = isolate->heap()->hidden_stack_trace_string();
-      if (key != getter_fun->GetHiddenProperty(key)) continue;
+      Object* value = getter_fun->GetHiddenProperty(key);
+      if (key != value) continue;
     }
 
     budget--;
