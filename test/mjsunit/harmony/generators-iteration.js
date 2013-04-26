@@ -233,6 +233,17 @@ TestGenerator(
     "foo",
     [1, 2, undefined]);
 
+TestGenerator(
+    function* g() {
+      var x = 1;
+      yield x;
+      with({x:2}) { yield x; }
+      yield x;
+    },
+    [1, 2, 1, undefined],
+    "foo",
+    [1, 2, 1, undefined]);
+
 function TestRecursion() {
   function TestNextRecursion() {
     function* g() { yield iter.next(); }

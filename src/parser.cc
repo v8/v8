@@ -2571,7 +2571,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
     stmt = ParseStatement(labels, CHECK_OK);
     with_scope->set_end_position(scanner().location().end_pos);
   }
-  return factory()->NewWithStatement(expr, stmt);
+  return factory()->NewWithStatement(with_scope, expr, stmt);
 }
 
 

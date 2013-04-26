@@ -1255,9 +1255,12 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   __ CallRuntime(Runtime::kPushWithContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 
+  Scope* saved_scope = scope();
+  scope_ = stmt->scope();
   { WithOrCatch body(this);
     Visit(stmt->statement());
   }
+  scope_ = saved_scope;
 
   // Pop context.
   LoadContextField(context_register(), Context::PREVIOUS_INDEX);

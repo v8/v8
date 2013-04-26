@@ -2475,15 +2475,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
     ASSERT_EQ(generator_object->operand_stack(),
               isolate->heap()->empty_fixed_array());
     // If there are no operands on the stack, there shouldn't be a handler
-    // active either.  Also, the active context will be the same as the function
-    // itself, so there is no need to save the context.
-    ASSERT_EQ(frame->context(), generator_object->context());
+    // active either.
     ASSERT(!frame->HasHandler());
   } else {
-    generator_object->set_context(Context::cast(frame->context()));
     // TODO(wingo): Save the operand stack and/or the stack handlers.
     UNIMPLEMENTED();
   }
+
+  // It's possible for the context to be other than the initial context even if
+  // there is no stack handler active.  For example, this is the case in the
+  // body of a "with" statement.  Therefore we always save the context.
+  generator_object->set_context(Context::cast(frame->context()));
 
   // The return value is the hole for a suspend return, and anything else for a
   // resume return.

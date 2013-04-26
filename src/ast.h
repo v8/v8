@@ -942,15 +942,18 @@ class WithStatement: public Statement {
  public:
   DECLARE_NODE_TYPE(WithStatement)
 
+  Scope* scope() { return scope_; }
   Expression* expression() const { return expression_; }
   Statement* statement() const { return statement_; }
 
  protected:
-  WithStatement(Expression* expression, Statement* statement)
-      : expression_(expression),
+  WithStatement(Scope* scope, Expression* expression, Statement* statement)
+      : scope_(scope),
+        expression_(expression),
         statement_(statement) { }
 
  private:
+  Scope* scope_;
   Expression* expression_;
   Statement* statement_;
 };
@@ -2787,9 +2790,11 @@ class AstNodeFactory BASE_EMBEDDED {
     VISIT_AND_RETURN(ReturnStatement, stmt)
   }
 
-  WithStatement* NewWithStatement(Expression* expression,
+  WithStatement* NewWithStatement(Scope* scope,
+                                  Expression* expression,
                                   Statement* statement) {
-    WithStatement* stmt = new(zone_) WithStatement(expression, statement);
+    WithStatement* stmt = new(zone_) WithStatement(
+        scope, expression, statement);
     VISIT_AND_RETURN(WithStatement, stmt)
   }
 
