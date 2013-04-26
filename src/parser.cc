@@ -662,7 +662,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           !body->at(0)->IsExpressionStatement() ||
           !body->at(0)->AsExpressionStatement()->
               expression()->IsFunctionLiteral()) {
-        ReportMessage("unable_to_parse", Vector<const char*>::empty());
+        ReportMessage("single_function_literal", Vector<const char*>::empty());
         ok = false;
       }
     }
@@ -4752,7 +4752,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
     if (args->length() == 1 && args->at(0)->AsVariableProxy() != NULL) {
       return args->at(0);
     } else {
-      ReportMessage("unable_to_parse", Vector<const char*>::empty());
+      ReportMessage("not_isvar", Vector<const char*>::empty());
       *ok = false;
       return NULL;
     }
