@@ -3199,7 +3199,7 @@ class HConstant: public HTemplateInstruction<0> {
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
-      handle_ = FACTORY->NewNumber(double_value_, TENURED);
+      handle_ = FACTORY->NewNumber(double_value_, pretenure());
     }
     ALLOW_HANDLE_DEREF(Isolate::Current(), "smi check");
     ASSERT(has_int32_value_ || !handle_->IsSmi());
@@ -3213,10 +3213,15 @@ class HConstant: public HTemplateInstruction<0> {
          std::isnan(double_value_));
   }
 
-  bool InNewSpace() {
-    if (handle().is_null()) return false;
-    ALLOW_HANDLE_DEREF(isolate(), "using raw address");
-    return isolate()->heap()->InNewSpace(*handle());
+  bool InNewSpace() const {
+    if (!handle_.is_null()) {
+      ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+      return isolate()->heap()->InNewSpace(*handle_);
+    }
+    // If the handle wasn't created yet, then we have a number.
+    // If the handle is created it'll be tenured in old space.
+    ASSERT(pretenure() == TENURED);
+    return false;
   }
 
   bool ImmortalImmovable() const {
@@ -3354,6 +3359,8 @@ class HConstant: public HTemplateInstruction<0> {
   // HeapObject the constant originated from or is null.  If the
   // constant is non-numeric, handle_ always points to a valid
   // constant HeapObject.
+  static PretenureFlag pretenure() { return TENURED; }
+
   Handle<Object> handle_;
   UniqueValueId unique_id_;
 
