@@ -91,6 +91,10 @@ bool Handle<T>::IsDereferenceAllowed(bool allow_deferred) const {
       handle < roots_array_start + Heap::kStrongRootListLength) {
     return true;
   }
+  if (isolate->optimizing_compiler_thread()->IsOptimizerThread() &&
+      !Heap::RelocationLock::IsLockedByOptimizerThread(isolate->heap())) {
+    return false;
+  }
   switch (isolate->HandleDereferenceGuardState()) {
     case HandleDereferenceGuard::ALLOW:
       return true;

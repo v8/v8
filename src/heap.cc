@@ -1300,6 +1300,8 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 
 void Heap::Scavenge() {
+  RelocationLock relocation_lock(this);
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
 #endif
@@ -6635,6 +6637,11 @@ bool Heap::SetUp() {
 
   store_buffer()->SetUp();
 
+  if (FLAG_parallel_recompilation) relocation_mutex_ = OS::CreateMutex();
+#ifdef DEBUG
+  relocation_mutex_locked_by_optimizer_thread_ = false;
+#endif  // DEBUG
+
   return true;
 }
 
@@ -6737,6 +6744,8 @@ void Heap::TearDown() {
   incremental_marking()->TearDown();
 
   isolate_->memory_allocator()->TearDown();
+
+  delete relocation_mutex_;
 }
 
 
@@ -7864,6 +7873,17 @@ void Heap::CheckpointObjectStats() {
   OS::MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
   OS::MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
   ClearObjectStats();
+}
+
+
+Heap::RelocationLock::RelocationLock(Heap* heap) : heap_(heap) {
+  if (FLAG_parallel_recompilation) {
+    heap_->relocation_mutex_->Lock();
+#ifdef DEBUG
+    heap_->relocation_mutex_locked_by_optimizer_thread_ =
+        heap_->isolate()->optimizing_compiler_thread()->IsOptimizerThread();
+#endif  // DEBUG
+  }
 }
 
 } }  // namespace v8::internal

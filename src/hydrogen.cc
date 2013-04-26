@@ -511,6 +511,7 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 
 
 void HGraph::Verify(bool do_full_verify) const {
+  Heap::RelocationLock(isolate()->heap());
   ALLOW_HANDLE_DEREF(isolate(), "debug mode verification");
   for (int i = 0; i < blocks_.length(); i++) {
     HBasicBlock* block = blocks_.at(i);

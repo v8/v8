@@ -3125,6 +3125,8 @@ void MarkCompactCollector::ProcessInvalidatedCode(ObjectVisitor* visitor) {
 
 
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
+  Heap::RelocationLock relocation_lock(heap());
+
   bool code_slots_filtering_required;
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
     code_slots_filtering_required = MarkInvalidatedCode();

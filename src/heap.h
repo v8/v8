@@ -1858,6 +1858,31 @@ class Heap {
 
   void CheckpointObjectStats();
 
+  // We don't use a ScopedLock here since we want to lock the heap
+  // only when FLAG_parallel_recompilation is true.
+  class RelocationLock {
+   public:
+    explicit RelocationLock(Heap* heap);
+
+    ~RelocationLock() {
+      if (FLAG_parallel_recompilation) {
+#ifdef DEBUG
+        heap_->relocation_mutex_locked_by_optimizer_thread_ = false;
+#endif  // DEBUG
+        heap_->relocation_mutex_->Unlock();
+      }
+    }
+
+#ifdef DEBUG
+    static bool IsLockedByOptimizerThread(Heap* heap) {
+      return heap->relocation_mutex_locked_by_optimizer_thread_;
+    }
+#endif  // DEBUG
+
+   private:
+    Heap* heap_;
+  };
+
  private:
   Heap();
 
@@ -2331,6 +2356,11 @@ class Heap {
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
 
   MemoryChunk* chunks_queued_for_free_;
+
+  Mutex* relocation_mutex_;
+#ifdef DEBUG
+  bool relocation_mutex_locked_by_optimizer_thread_;
+#endif  // DEBUG;
 
   friend class Factory;
   friend class GCTracer;
