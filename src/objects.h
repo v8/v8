@@ -8753,8 +8753,8 @@ class JSArray: public JSObject {
 };
 
 
-MUST_USE_RESULT MaybeObject* CacheInitialJSArrayMaps(
-    Context* native_context, Map* initial_map);
+Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
+                                       Handle<Map> initial_map);
 
 
 // JSRegExpResult is just a JSArray with a specific initial map.

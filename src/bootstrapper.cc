@@ -892,10 +892,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     if (FLAG_optimize_constructed_arrays) {
       // Cache the array maps, needed by ArrayConstructorStub
-      MaybeObject* cache_result = CacheInitialJSArrayMaps(*native_context(),
-                                                          *initial_map);
-      if (cache_result->IsFailure()) return false;
-
+      CacheInitialJSArrayMaps(native_context(), initial_map);
       ArrayConstructorStub array_constructor_stub(isolate);
       Handle<Code> code = array_constructor_stub.GetCode(isolate);
       array_function->shared()->set_construct_stub(*code);

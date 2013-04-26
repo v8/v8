@@ -8369,7 +8369,7 @@ MaybeObject* JSObject::OptimizeAsPrototype() {
 }
 
 
-MUST_USE_RESULT MaybeObject* CacheInitialJSArrayMaps(
+static MUST_USE_RESULT MaybeObject* CacheInitialJSArrayMaps(
     Context* native_context, Map* initial_map) {
   // Replace all of the cached initial array maps in the native context with
   // the appropriate transitioned elements kind maps.
@@ -8395,6 +8395,14 @@ MUST_USE_RESULT MaybeObject* CacheInitialJSArrayMaps(
   }
   native_context->set_js_array_maps(maps);
   return initial_map;
+}
+
+
+Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
+                                       Handle<Map> initial_map) {
+  CALL_HEAP_FUNCTION(native_context->GetIsolate(),
+                     CacheInitialJSArrayMaps(*native_context, *initial_map),
+                     Object);
 }
 
 
