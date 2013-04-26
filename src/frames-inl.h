@@ -236,7 +236,7 @@ inline int JavaScriptFrame::ComputeOperandsCount() const {
   ASSERT(IsAligned(stack_size_in_bytes, kPointerSize));
   ASSERT(type() == JAVA_SCRIPT);
   ASSERT(stack_size_in_bytes >= 0);
-  return stack_size_in_bytes >> kPointerSizeLog2;
+  return static_cast<int>(stack_size_in_bytes >> kPointerSizeLog2);
 }
 
 
