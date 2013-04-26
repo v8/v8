@@ -890,15 +890,15 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // overwritten by JS code.
     native_context()->set_array_function(*array_function);
 
-    // Cache the array maps
-    MaybeObject* cache_result = CacheInitialJSArrayMaps(*native_context(),
-                                                        *initial_map);
-    if (cache_result->IsFailure()) return false;
-
     if (FLAG_optimize_constructed_arrays) {
+      // Cache the array maps, needed by ArrayConstructorStub
+      MaybeObject* cache_result = CacheInitialJSArrayMaps(*native_context(),
+                                                          *initial_map);
+      if (cache_result->IsFailure()) return false;
+
       ArrayConstructorStub array_constructor_stub(isolate);
-      array_function->shared()->set_construct_stub(
-          *array_constructor_stub.GetCode(isolate));
+      Handle<Code> code = array_constructor_stub.GetCode(isolate);
+      array_function->shared()->set_construct_stub(*code);
     } else {
       array_function->shared()->set_construct_stub(
           isolate->builtins()->builtin(Builtins::kCommonArrayConstructCode));

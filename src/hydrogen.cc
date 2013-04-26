@@ -1860,7 +1860,7 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode(HValue* context) {
       HGlobalObject(context));
   HInstruction* native_context = AddInstruction(new(zone())
       HLoadNamedField(global_object, true, GlobalObject::kNativeContextOffset));
-  size_t offset = Context::kHeaderSize +
+  int offset = Context::kHeaderSize +
       kPointerSize * Context::JS_ARRAY_MAPS_INDEX;
   HInstruction* map_array = AddInstruction(new(zone())
       HLoadNamedField(native_context, true, offset));

@@ -163,7 +163,8 @@ Heap::Heap()
 #endif
       promotion_queue_(this),
       configured_(false),
-      chunks_queued_for_free_(NULL) {
+      chunks_queued_for_free_(NULL),
+      relocation_mutex_(NULL) {
   // Allow build-time customization of the max semispace size. Building
   // V8 with snapshots and a non-default max semispace size is much
   // easier if you can define it as part of the build environment.
