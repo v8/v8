@@ -6307,18 +6307,18 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   __ bind(&non_ascii);
   // At least one of the strings is two-byte. Check whether it happens
-  // to contain only ASCII characters.
+  // to contain only one byte characters.
   // t0: first instance type.
   // t1: second instance type.
-  // Branch to if _both_ instances have kAsciiDataHintMask set.
-  __ And(at, t0, Operand(kAsciiDataHintMask));
+  // Branch to if _both_ instances have kOneByteDataHintMask set.
+  __ And(at, t0, Operand(kOneByteDataHintMask));
   __ and_(at, at, t1);
   __ Branch(&ascii_data, ne, at, Operand(zero_reg));
   __ Xor(t0, t0, Operand(t1));
-  STATIC_ASSERT(kOneByteStringTag != 0 && kAsciiDataHintTag != 0);
-  __ And(t0, t0, Operand(kOneByteStringTag | kAsciiDataHintTag));
+  STATIC_ASSERT(kOneByteStringTag != 0 && kOneByteDataHintTag != 0);
+  __ And(t0, t0, Operand(kOneByteStringTag | kOneByteDataHintTag));
   __ Branch(&ascii_data, eq, t0,
-      Operand(kOneByteStringTag | kAsciiDataHintTag));
+      Operand(kOneByteStringTag | kOneByteDataHintTag));
 
   // Allocate a two byte cons string.
   __ AllocateTwoByteConsString(v0, t2, t0, t1, &call_runtime);
