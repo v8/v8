@@ -92,6 +92,14 @@
 #define V8_DEPRECATED(declarator) declarator
 #endif
 
+#if __GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95))
+  #define V8_UNLIKELY(condition) __builtin_expect(condition, 0)
+  #define V8_LIKELY(condition) __builtin_expect(condition, 1)
+#else
+  #define V8_UNLIKELY(condition) (condition)
+  #define V8_LIKELY(condition) (condition)
+#endif
+
 /**
  * The v8 JavaScript engine.
  */
@@ -4979,7 +4987,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   O* obj = *reinterpret_cast<O**>(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
-  if (I::GetInstanceType(obj) == I::kJSObjectType) {
+  if (V8_LIKELY(I::GetInstanceType(obj) == I::kJSObjectType)) {
     int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     return I::ReadField<void*>(obj, offset);
   }
