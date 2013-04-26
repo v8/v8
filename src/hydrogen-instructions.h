@@ -4422,6 +4422,17 @@ class HMul: public HArithmeticBinaryOperation {
                            HValue* left,
                            HValue* right);
 
+  static HInstruction* NewImul(Zone* zone,
+                               HValue* context,
+                               HValue* left,
+                               HValue* right) {
+    HMul* mul = new(zone) HMul(context, left, right);
+    // TODO(mstarzinger): Prevent bailout on minus zero for imul.
+    mul->AssumeRepresentation(Representation::Integer32());
+    mul->ClearFlag(HValue::kCanOverflow);
+    return mul;
+  }
+
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
   virtual HValue* Canonicalize();

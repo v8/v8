@@ -5679,7 +5679,8 @@ class Script: public Struct {
   V(Math, pow, MathPow)                             \
   V(Math, random, MathRandom)                       \
   V(Math, max, MathMax)                             \
-  V(Math, min, MathMin)
+  V(Math, min, MathMin)                             \
+  V(Math, imul, MathImul)
 
 
 enum BuiltinFunctionId {

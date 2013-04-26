@@ -6287,6 +6287,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberMod) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberImul) {
+  NoHandleAllocation ha(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
+  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
+  return isolate->heap()->NumberFromInt32(x * y);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringAdd) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 2);
