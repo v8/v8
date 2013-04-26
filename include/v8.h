@@ -93,8 +93,8 @@
 #endif
 
 #if __GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95))
-  #define V8_UNLIKELY(condition) __builtin_expect(condition, 0)
-  #define V8_LIKELY(condition) __builtin_expect(condition, 1)
+  #define V8_UNLIKELY(condition) __builtin_expect((condition), 0)
+  #define V8_LIKELY(condition) __builtin_expect((condition), 1)
 #else
   #define V8_UNLIKELY(condition) (condition)
   #define V8_LIKELY(condition) (condition)
