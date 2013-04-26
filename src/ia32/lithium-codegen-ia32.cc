@@ -6025,18 +6025,24 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
 
 
 void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
-  Register size = ToRegister(instr->size());
   Register result = ToRegister(instr->result());
 
-  __ SmiTag(size);
-  PushSafepointRegistersScope scope(this);
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
-  if (!size.is(result)) {
-    __ StoreToSafepointRegisterSlot(result, size);
+  __ mov(result, Immediate(Smi::FromInt(0)));
+
+  PushSafepointRegistersScope scope(this);
+  if (instr->size()->IsRegister()) {
+    Register size = ToRegister(instr->size());
+    ASSERT(!size.is(result));
+    __ SmiTag(ToRegister(instr->size()));
+    __ push(size);
+  } else {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+    __ push(Immediate(Smi::FromInt(size)));
   }
-  __ push(size);
+
   if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
     CallRuntimeFromDeferred(
         Runtime::kAllocateInOldPointerSpace, 1, instr, instr->context());

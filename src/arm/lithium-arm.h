@@ -2787,6 +2787,9 @@ class LChunkBuilder BASE_EMBEDDED {
   MUST_USE_RESULT LOperand* UseRegisterOrConstant(HValue* value);
   MUST_USE_RESULT LOperand* UseRegisterOrConstantAtStart(HValue* value);
 
+  // An input operand in a constant operand.
+  MUST_USE_RESULT LOperand* UseConstant(HValue* value);
+
   // An input operand in register, stack slot or a constant operand.
   // Will not be moved to a register even if one is freely available.
   MUST_USE_RESULT LOperand* UseAny(HValue* value);

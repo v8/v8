@@ -3265,6 +3265,12 @@ class HConstant: public HTemplateInstruction<0> {
          std::isnan(double_value_));
   }
 
+  bool InNewSpace() {
+    if (handle().is_null()) return false;
+    ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+    return isolate()->heap()->InNewSpace(*handle());
+  }
+
   bool ImmortalImmovable() const {
     if (has_int32_value_) {
       return false;

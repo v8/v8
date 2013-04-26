@@ -1494,6 +1494,7 @@ HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
   HInstruction* store_map =
       new(zone) HStoreNamedField(object, map_field_name, map,
                                  true, JSObject::kMapOffset);
+  store_map->ClearGVNFlag(kChangesInobjectFields);
   store_map->SetGVNFlag(kChangesMaps);
   AddInstruction(store_map);
   return store_map;
