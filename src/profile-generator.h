@@ -400,33 +400,6 @@ class ProfileGenerator {
  public:
   explicit ProfileGenerator(CpuProfilesCollection* profiles);
 
-  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                                 Name* name,
-                                 String* resource_name,
-                                 int line_number)) {
-    return profiles_->NewCodeEntry(tag, name, resource_name, line_number);
-  }
-
-  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                                 const char* name)) {
-    return profiles_->NewCodeEntry(tag, name);
-  }
-
-  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                                 const char* name_prefix,
-                                 Name* name)) {
-    return profiles_->NewCodeEntry(tag, name_prefix, name);
-  }
-
-  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                                 int args_count)) {
-    return profiles_->NewCodeEntry(tag, args_count);
-  }
-
-  INLINE(CodeEntry* NewCodeEntry(int security_token_id)) {
-    return profiles_->NewCodeEntry(security_token_id);
-  }
-
   void RecordTickSample(const TickSample& sample);
 
   INLINE(CodeMap* code_map()) { return &code_map_; }
