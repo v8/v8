@@ -2271,7 +2271,7 @@ THREADED_TEST(ArrayBuffer) {
   v8::Handle<v8::Value> result = CompileRun("ab.byteLength");
   CHECK_EQ(1024, result->Int32Value());
 
-  result = CompileRun("var u8 = new __Uint8Array(ab);"
+  result = CompileRun("var u8 = new Uint8Array(ab);"
                       "u8[0] = 0xFF;"
                       "u8[1] = 0xAA;"
                       "u8.length");
@@ -2283,8 +2283,8 @@ THREADED_TEST(ArrayBuffer) {
   result = CompileRun("u8[0] + u8[1]");
   CHECK_EQ(0xDD, result->Int32Value());
 
-  result = CompileRun("var ab1 = new __ArrayBuffer(2);"
-                      "var u8_a = new __Uint8Array(ab1);"
+  result = CompileRun("var ab1 = new ArrayBuffer(2);"
+                      "var u8_a = new Uint8Array(ab1);"
                       "u8_a[0] = 0xAA;"
                       "u8_a[1] = 0xFF; u8_a.buffer");
   Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::Cast(*result);
@@ -2303,7 +2303,7 @@ THREADED_TEST(ArrayBuffer) {
   CHECK_EQ(100, static_cast<int>(ab3->ByteLength()));
   CHECK_EQ(my_data, ab3->Data());
   env->Global()->Set(v8_str("ab3"), ab3);
-  result = CompileRun("var u8_b = new __Uint8Array(ab3);"
+  result = CompileRun("var u8_b = new Uint8Array(ab3);"
                       "u8_b[0] = 0xBB;"
                       "u8_b[1] = 0xCC;"
                       "u8_b.length");

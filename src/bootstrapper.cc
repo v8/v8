@@ -1320,7 +1320,7 @@ void Genesis::InitializeExperimentalGlobal() {
   if (FLAG_harmony_typed_arrays) {
     {  // -- A r r a y B u f f e r
       Handle<JSFunction> array_buffer_fun =
-          InstallFunction(global, "__ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
+          InstallFunction(global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
                           JSArrayBuffer::kSize,
                           isolate()->initial_object_prototype(),
                           Builtins::kIllegal, true);
@@ -1329,21 +1329,21 @@ void Genesis::InitializeExperimentalGlobal() {
     {
       // -- T y p e d A r r a y s
       native_context()->set_int8_array_fun(
-          *InstallTypedArray("__Int8Array"));
+          *InstallTypedArray("Int8Array"));
       native_context()->set_uint8_array_fun(
-          *InstallTypedArray("__Uint8Array"));
+          *InstallTypedArray("Uint8Array"));
       native_context()->set_int16_array_fun(
-          *InstallTypedArray("__Int16Array"));
+          *InstallTypedArray("Int16Array"));
       native_context()->set_uint16_array_fun(
-          *InstallTypedArray("__Uint16Array"));
+          *InstallTypedArray("Uint16Array"));
       native_context()->set_int32_array_fun(
-          *InstallTypedArray("__Int32Array"));
+          *InstallTypedArray("Int32Array"));
       native_context()->set_uint32_array_fun(
-          *InstallTypedArray("__Uint32Array"));
+          *InstallTypedArray("Uint32Array"));
       native_context()->set_float_array_fun(
-          *InstallTypedArray("__Float32Array"));
+          *InstallTypedArray("Float32Array"));
       native_context()->set_double_array_fun(
-          *InstallTypedArray("__Float64Array"));
+          *InstallTypedArray("Float64Array"));
     }
   }
 

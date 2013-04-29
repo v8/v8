@@ -31,7 +31,7 @@
 // in runtime.js:
 // var $Array = global.Array;
 
-var $ArrayBuffer = global.__ArrayBuffer;
+var $ArrayBuffer = global.ArrayBuffer;
 
 // -------------------------------------------------------------------
 
@@ -181,12 +181,12 @@ function SetupTypedArray(arrayId, name, constructor, elementSize) {
 }
 
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
-SetupTypedArray(1, "Uint8Array", global.__Uint8Array, 1);
-SetupTypedArray(2, "Int8Array", global.__Int8Array, 1);
-SetupTypedArray(3, "Uint16Array", global.__Uint16Array, 2);
-SetupTypedArray(4, "Int16Array", global.__Int16Array, 2);
-SetupTypedArray(5, "Uint32Array", global.__Uint32Array, 4);
-SetupTypedArray(6, "Int32Array", global.__Int32Array, 4);
-SetupTypedArray(7, "Float32Array", global.__Float32Array, 4);
-SetupTypedArray(8, "Float64Array", global.__Float64Array, 8);
+SetupTypedArray(1, "Uint8Array", global.Uint8Array, 1);
+SetupTypedArray(2, "Int8Array", global.Int8Array, 1);
+SetupTypedArray(3, "Uint16Array", global.Uint16Array, 2);
+SetupTypedArray(4, "Int16Array", global.Int16Array, 2);
+SetupTypedArray(5, "Uint32Array", global.Uint32Array, 4);
+SetupTypedArray(6, "Int32Array", global.Int32Array, 4);
+SetupTypedArray(7, "Float32Array", global.Float32Array, 4);
+SetupTypedArray(8, "Float64Array", global.Float64Array, 8);
 
