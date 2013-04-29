@@ -113,6 +113,27 @@ TestArrayBufferSlice();
 function TestTypedArray(proto, elementSize, typicalElement) {
   var ab = new ArrayBuffer(256*elementSize);
 
+  var a0 = new proto(30);
+  assertSame(elementSize, a0.BYTES_PER_ELEMENT);
+  assertSame(30, a0.length);
+  assertSame(30*elementSize, a0.byteLength);
+  assertSame(0, a0.byteOffset);
+  assertSame(30*elementSize, a0.buffer.byteLength);
+
+  var aLen0 = new proto(0);
+  assertSame(elementSize, aLen0.BYTES_PER_ELEMENT);
+  assertSame(0, aLen0.length);
+  assertSame(0, aLen0.byteLength);
+  assertSame(0, aLen0.byteOffset);
+  assertSame(0, aLen0.buffer.byteLength);
+
+  var aOverBufferLen0 = new proto(ab, 128*elementSize, 0);
+  assertSame(ab, aOverBufferLen0.buffer);
+  assertSame(elementSize, aOverBufferLen0.BYTES_PER_ELEMENT);
+  assertSame(0, aOverBufferLen0.length);
+  assertSame(0, aOverBufferLen0.byteLength);
+  assertSame(128*elementSize, aOverBufferLen0.byteOffset);
+
   var a1 = new proto(ab, 128*elementSize, 128);
   assertSame(ab, a1.buffer);
   assertSame(elementSize, a1.BYTES_PER_ELEMENT);
