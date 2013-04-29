@@ -1328,22 +1328,22 @@ void Genesis::InitializeExperimentalGlobal() {
     }
     {
       // -- T y p e d A r r a y s
-      native_context()->set_int8_array_fun(
-          *InstallTypedArray("Int8Array"));
-      native_context()->set_uint8_array_fun(
-          *InstallTypedArray("Uint8Array"));
-      native_context()->set_int16_array_fun(
-          *InstallTypedArray("Int16Array"));
-      native_context()->set_uint16_array_fun(
-          *InstallTypedArray("Uint16Array"));
-      native_context()->set_int32_array_fun(
-          *InstallTypedArray("Int32Array"));
-      native_context()->set_uint32_array_fun(
-          *InstallTypedArray("Uint32Array"));
-      native_context()->set_float_array_fun(
-          *InstallTypedArray("Float32Array"));
-      native_context()->set_double_array_fun(
-          *InstallTypedArray("Float64Array"));
+      Handle<JSFunction> int8_fun = InstallTypedArray("Int8Array");
+      native_context()->set_int8_array_fun(*int8_fun);
+      Handle<JSFunction> uint8_fun = InstallTypedArray("Uint8Array");
+      native_context()->set_uint8_array_fun(*uint8_fun);
+      Handle<JSFunction> int16_fun = InstallTypedArray("Int16Array");
+      native_context()->set_int16_array_fun(*int16_fun);
+      Handle<JSFunction> uint16_fun = InstallTypedArray("Uint16Array");
+      native_context()->set_uint16_array_fun(*uint16_fun);
+      Handle<JSFunction> int32_fun = InstallTypedArray("Int32Array");
+      native_context()->set_int32_array_fun(*int32_fun);
+      Handle<JSFunction> uint32_fun = InstallTypedArray("Uint32Array");
+      native_context()->set_uint32_array_fun(*uint32_fun);
+      Handle<JSFunction> float_fun = InstallTypedArray("Float32Array");
+      native_context()->set_float_array_fun(*float_fun);
+      Handle<JSFunction> double_fun = InstallTypedArray("Float64Array");
+      native_context()->set_double_array_fun(*double_fun);
     }
   }
 
