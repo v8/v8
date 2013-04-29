@@ -1165,14 +1165,14 @@ void LCodeGen::DoModI(LModI* instr) {
   Register result = ToRegister(instr->result());
   Label done;
 
+    // Check for x % 0.
+  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ cmp(right, Operand::Zero());
+    DeoptimizeIf(eq, instr->environment());
+  }
+
   if (CpuFeatures::IsSupported(SUDIV)) {
     CpuFeatureScope scope(masm(), SUDIV);
-    // Check for x % 0.
-    if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-      __ cmp(right, Operand::Zero());
-      DeoptimizeIf(eq, instr->environment());
-    }
-
     // Check for (kMinInt % -1).
     if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
       Label left_not_min_int;
@@ -1189,12 +1189,12 @@ void LCodeGen::DoModI(LModI* instr) {
 
     __ sdiv(result, left, right);
     __ mls(result, result, right, left);
-    __ cmp(result, Operand::Zero());
-    __ b(ne, &done);
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-       __ cmp(left, Operand::Zero());
-       DeoptimizeIf(lt, instr->environment());
+      __ cmp(result, Operand::Zero());
+      __ b(ne, &done);
+      __ cmp(left, Operand::Zero());
+      DeoptimizeIf(lt, instr->environment());
     }
   } else {
     Register scratch = scratch0();
@@ -1210,13 +1210,7 @@ void LCodeGen::DoModI(LModI* instr) {
     ASSERT(!scratch.is(right));
     ASSERT(!scratch.is(result));
 
-    Label vfp_modulo, both_positive, right_negative;
-
-    // Check for x % 0.
-    if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-      __ cmp(right, Operand::Zero());
-      DeoptimizeIf(eq, instr->environment());
-    }
+    Label vfp_modulo, right_negative;
 
     __ Move(result, left);
 
@@ -1234,7 +1228,7 @@ void LCodeGen::DoModI(LModI* instr) {
     __ JumpIfNotPowerOfTwoOrZeroAndNeg(right,
                                        scratch,
                                        &right_negative,
-                                       &both_positive);
+                                       &vfp_modulo);
     // Perform modulo operation (scratch contains right - 1).
     __ and_(result, scratch, Operand(left));
     __ b(&done);
@@ -1242,23 +1236,6 @@ void LCodeGen::DoModI(LModI* instr) {
     __ bind(&right_negative);
     // Negate right. The sign of the divisor does not matter.
     __ rsb(right, right, Operand::Zero());
-
-    __ bind(&both_positive);
-    const int kUnfolds = 3;
-    // If the right hand side is smaller than the (nonnegative)
-    // left hand side, the left hand side is the result.
-    // Else try a few subtractions of the left hand side.
-    __ mov(scratch, left);
-    for (int i = 0; i < kUnfolds; i++) {
-      // Check if the left hand side is less or equal than the
-      // the right hand side.
-      __ cmp(scratch, Operand(right));
-      __ mov(result, scratch, LeaveCC, lt);
-      __ b(lt, &done);
-      // If not, reduce the left hand side by the right hand
-      // side and check again.
-      if (i < kUnfolds - 1) __ sub(scratch, scratch, right);
-    }
 
     __ bind(&vfp_modulo);
     // Load the arguments in VFP registers.

@@ -1037,7 +1037,7 @@ void LCodeGen::DoModI(LModI* instr) {
     __ andl(dividend, Immediate(divisor - 1));
     __ bind(&done);
   } else {
-    Label done, remainder_eq_dividend, slow, do_subtraction, both_positive;
+    Label done, remainder_eq_dividend, slow, both_positive;
     Register left_reg = ToRegister(instr->left());
     Register right_reg = ToRegister(instr->right());
     Register result_reg = ToRegister(instr->result());
@@ -1073,22 +1073,9 @@ void LCodeGen::DoModI(LModI* instr) {
     __ movl(scratch, right_reg);
     __ subl(scratch, Immediate(1));
     __ testl(scratch, right_reg);
-    __ j(not_zero, &do_subtraction, Label::kNear);
+    __ j(not_zero, &slow, Label::kNear);
     __ andl(left_reg, scratch);
     __ jmp(&remainder_eq_dividend, Label::kNear);
-
-    __ bind(&do_subtraction);
-    const int kUnfolds = 3;
-    // Try a few subtractions of the dividend.
-    __ movl(scratch, left_reg);
-    for (int i = 0; i < kUnfolds; i++) {
-      // Reduce the dividend by the divisor.
-      __ subl(left_reg, right_reg);
-      // Check if the dividend is less than the divisor.
-      __ cmpl(left_reg, right_reg);
-      __ j(less, &remainder_eq_dividend, Label::kNear);
-    }
-    __ movl(left_reg, scratch);
 
     // Slow case, using idiv instruction.
     __ bind(&slow);
