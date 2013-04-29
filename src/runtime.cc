@@ -2482,7 +2482,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
   // allocation fails.
   intptr_t offset = frame->pc() - function->code()->instruction_start();
   ASSERT(offset > 0 && Smi::IsValid(offset));
-  generator_object->set_continuation(offset);
+  generator_object->set_continuation(static_cast<int>(offset));
 
   // It's possible for the context to be other than the initial context even if
   // there is no stack handler active.  For example, this is the case in the
