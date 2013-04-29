@@ -1459,7 +1459,9 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(String::New("Realm"), realm_template);
 
   // Bind the handlers for external arrays.
+#ifndef V8_SHARED
   if (!i::FLAG_harmony_typed_arrays) {
+#endif  // V8_SHARED
     PropertyAttribute attr =
         static_cast<PropertyAttribute>(ReadOnly | DontDelete);
     global_template->Set(PerIsolateData::ArrayBuffer_string(isolate),
@@ -1482,7 +1484,9 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                          CreateArrayTemplate(Float64Array), attr);
     global_template->Set(String::New("Uint8ClampedArray"),
                          CreateArrayTemplate(Uint8ClampedArray), attr);
+#ifndef V8_SHARED
   }
+#endif  // V8_SHARED
 
 #if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
@@ -1726,7 +1730,7 @@ static char* ReadLine(char* data) {
 static char* ReadWord(char* data) {
   return ReadToken(data, ' ');
 }
-#endif  // V8_SHARED
+#endif  // trueV8_SHARED
 
 
 // Reads a file into a v8 string.
