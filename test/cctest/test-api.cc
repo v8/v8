@@ -2315,7 +2315,6 @@ THREADED_TEST(ArrayBuffer) {
   result = CompileRun("u8_b[0] + u8_b[1]");
   CHECK_EQ(0xDD, result->Int32Value());
 
-
   delete[] my_data;
 }
 
@@ -12295,10 +12294,11 @@ THREADED_TEST(ExternalAllocatedMemory) {
   CHECK(!env.IsEmpty());
   const intptr_t kSize = 1024*1024;
   v8::Isolate* isolate = env->GetIsolate();
-  CHECK_EQ(cast(isolate->AdjustAmountOfExternalAllocatedMemory(kSize)),
-           cast(kSize));
-  CHECK_EQ(cast(isolate->AdjustAmountOfExternalAllocatedMemory(-kSize)),
-           cast(0));
+  int64_t baseline = cast(isolate->AdjustAmountOfExternalAllocatedMemory(0));
+  CHECK_EQ(baseline + cast(kSize),
+           cast(isolate->AdjustAmountOfExternalAllocatedMemory(kSize)));
+  CHECK_EQ(baseline,
+           cast(isolate->AdjustAmountOfExternalAllocatedMemory(-kSize)));
 }
 
 
@@ -14435,39 +14435,13 @@ static int ExternalArrayElementSize(v8::ExternalArrayType array_type) {
 
 
 template <class ExternalArrayClass, class ElementType>
-static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
-                                    int64_t low,
-                                    int64_t high) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  const int kElementCount = 40;
-  int element_size = ExternalArrayElementSize(array_type);
-  ElementType* array_data =
-      static_cast<ElementType*>(malloc(kElementCount * element_size));
-  i::Handle<ExternalArrayClass> array =
-      i::Handle<ExternalArrayClass>::cast(
-          FACTORY->NewExternalArray(kElementCount, array_type, array_data));
-  // Force GC to trigger verification.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  for (int i = 0; i < kElementCount; i++) {
-    array->set(i, static_cast<ElementType>(i));
-  }
-  // Force GC to trigger verification.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  for (int i = 0; i < kElementCount; i++) {
-    CHECK_EQ(static_cast<int64_t>(i),
-             static_cast<int64_t>(array->get_scalar(i)));
-    CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array_data[i]));
-  }
-
-  v8::Handle<v8::Object> obj = v8::Object::New();
+static void ObjectWithExternalArrayTestHelper(
+    Handle<Context> context,
+    v8::Handle<Object> obj,
+    int element_count,
+    v8::ExternalArrayType array_type,
+    int64_t low, int64_t high) {
   i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
-  // Set the elements to be the external array.
-  obj->SetIndexedPropertiesToExternalArrayData(array_data,
-                                               array_type,
-                                               kElementCount);
-  CHECK_EQ(
-      1, static_cast<int>(jsobj->GetElement(1)->ToObjectChecked()->Number()));
   obj->Set(v8_str("field"), v8::Int32::New(1503));
   context->Global()->Set(v8_str("ext_array"), obj);
   v8::Handle<v8::Value> result = CompileRun("ext_array.field");
@@ -14584,7 +14558,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                   "  caught_exception = true;"
                   "}"
                   "caught_exception;",
-                  kElementCount);
+                  element_count);
   result = CompileRun(test_buf.start());
   CHECK_EQ(false, result->BooleanValue());
 
@@ -14597,7 +14571,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                   "  caught_exception = true;"
                   "}"
                   "caught_exception;",
-                  kElementCount);
+                  element_count);
   result = CompileRun(test_buf.start());
   CHECK_EQ(false, result->BooleanValue());
 
@@ -14698,9 +14672,12 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
     CHECK_EQ(true, result->BooleanValue());
   }
 
-  for (int i = 0; i < kElementCount; i++) {
+  i::Handle<ExternalArrayClass> array(
+      ExternalArrayClass::cast(jsobj->elements()));
+  for (int i = 0; i < element_count; i++) {
     array->set(i, static_cast<ElementType>(i));
   }
+
   // Test complex assignments
   result = CompileRun("function ee_op_test_complex_func(sum) {"
                       " for (var i = 0; i < 40; ++i) {"
@@ -14757,6 +14734,48 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
 
   result = CompileRun("ext_array[1] = 23;");
   CHECK_EQ(23, result->Int32Value());
+}
+
+
+template <class ExternalArrayClass, class ElementType>
+static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
+                                    int64_t low,
+                                    int64_t high) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  const int kElementCount = 40;
+  int element_size = ExternalArrayElementSize(array_type);
+  ElementType* array_data =
+      static_cast<ElementType*>(malloc(kElementCount * element_size));
+  i::Handle<ExternalArrayClass> array =
+      i::Handle<ExternalArrayClass>::cast(
+          FACTORY->NewExternalArray(kElementCount, array_type, array_data));
+  // Force GC to trigger verification.
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  for (int i = 0; i < kElementCount; i++) {
+    array->set(i, static_cast<ElementType>(i));
+  }
+  // Force GC to trigger verification.
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  for (int i = 0; i < kElementCount; i++) {
+    CHECK_EQ(static_cast<int64_t>(i),
+             static_cast<int64_t>(array->get_scalar(i)));
+    CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array_data[i]));
+  }
+
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  // Set the elements to be the external array.
+  obj->SetIndexedPropertiesToExternalArrayData(array_data,
+                                               array_type,
+                                               kElementCount);
+  CHECK_EQ(
+      1, static_cast<int>(jsobj->GetElement(1)->ToObjectChecked()->Number()));
+
+  ObjectWithExternalArrayTestHelper<ExternalArrayClass, ElementType>(
+      context.local(), obj, kElementCount, array_type, low, high);
+
+  v8::Handle<v8::Value> result;
 
   // Test more complex manipulations which cause eax to contain values
   // that won't be completely overwritten by loads from the arrays.
@@ -15071,6 +15090,87 @@ TEST(ExternalArrayLimits) {
   ExternalArrayLimitTestHelper(v8::kExternalDoubleArray, 0xffffffff);
   ExternalArrayLimitTestHelper(v8::kExternalPixelArray, 0x40000000);
   ExternalArrayLimitTestHelper(v8::kExternalPixelArray, 0xffffffff);
+}
+
+
+template <typename ElementType, typename TypedArray,
+          class ExternalArrayClass>
+void TypedArrayTestHelper(v8::ExternalArrayType array_type,
+                          int64_t low, int64_t high) {
+  const int kElementCount = 50;
+  i::FLAG_harmony_typed_arrays = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::ArrayBuffer> ab =
+      v8::ArrayBuffer::New((kElementCount+2)*sizeof(ElementType));
+  Local<TypedArray> ta =
+      TypedArray::New(ab, 2*sizeof(ElementType), kElementCount);
+  CHECK_EQ(kElementCount, static_cast<int>(ta->Length()));
+  CHECK_EQ(2*sizeof(ElementType), static_cast<int>(ta->ByteOffset()));
+  CHECK_EQ(kElementCount*sizeof(ElementType),
+           static_cast<int>(ta->ByteLength()));
+  CHECK_EQ(ab, ta->Buffer());
+
+  ElementType* data = static_cast<ElementType*>(ab->Data()) + 2;
+  for (int i = 0; i < kElementCount; i++) {
+    data[i] = static_cast<ElementType>(i);
+  }
+
+  ObjectWithExternalArrayTestHelper<ExternalArrayClass, ElementType>(
+      env.local(), ta, kElementCount, array_type, low, high);
+}
+
+
+THREADED_TEST(Uint8Array) {
+  TypedArrayTestHelper<uint8_t, v8::Uint8Array, i::ExternalUnsignedByteArray>(
+      v8::kExternalUnsignedByteArray, 0, 0xFF);
+}
+
+
+THREADED_TEST(Int8Array) {
+  TypedArrayTestHelper<int8_t, v8::Int8Array, i::ExternalByteArray>(
+      v8::kExternalByteArray, -0x80, 0x7F);
+}
+
+
+THREADED_TEST(Uint16Array) {
+  TypedArrayTestHelper<uint16_t,
+                       v8::Uint16Array,
+                       i::ExternalUnsignedShortArray>(
+      v8::kExternalUnsignedShortArray, 0, 0xFFFF);
+}
+
+
+THREADED_TEST(Int16Array) {
+  TypedArrayTestHelper<int16_t, v8::Int16Array, i::ExternalShortArray>(
+      v8::kExternalShortArray, -0x8000, 0x7FFF);
+}
+
+
+THREADED_TEST(Uint32Array) {
+  TypedArrayTestHelper<uint32_t, v8::Uint32Array, i::ExternalUnsignedIntArray>(
+      v8::kExternalUnsignedIntArray, 0, UINT_MAX);
+}
+
+
+THREADED_TEST(Int32Array) {
+  TypedArrayTestHelper<int32_t, v8::Int32Array, i::ExternalIntArray>(
+      v8::kExternalIntArray, INT_MIN, INT_MAX);
+}
+
+
+THREADED_TEST(Float32Array) {
+  TypedArrayTestHelper<float, v8::Float32Array, i::ExternalFloatArray>(
+      v8::kExternalFloatArray, -500, 500);
+}
+
+
+THREADED_TEST(Float64Array) {
+  TypedArrayTestHelper<double, v8::Float64Array, i::ExternalDoubleArray>(
+      v8::kExternalDoubleArray, -500, 500);
 }
 
 

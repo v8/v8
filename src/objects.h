@@ -8707,6 +8707,8 @@ class JSTypedArray: public JSObject {
   // Casting.
   static inline JSTypedArray* cast(Object* obj);
 
+  ExternalArrayType type();
+
   // Dispatched behavior.
   DECLARE_PRINTER(JSTypedArray)
   DECLARE_VERIFIER(JSTypedArray)

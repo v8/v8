@@ -201,7 +201,7 @@ class Genesis BASE_EMBEDDED {
                                           ElementsKind elements_kind);
   bool InstallNatives();
 
-  void InstallTypedArray(const char* name);
+  Handle<JSFunction> InstallTypedArray(const char* name);
   bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
@@ -1276,11 +1276,11 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 }
 
 
-void Genesis::InstallTypedArray(const char* name) {
+Handle<JSFunction> Genesis::InstallTypedArray(const char* name) {
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
-  InstallFunction(global, name, JS_TYPED_ARRAY_TYPE,
-                  JSTypedArray::kSize, isolate()->initial_object_prototype(),
-                  Builtins::kIllegal, true);
+  return InstallFunction(global, name, JS_TYPED_ARRAY_TYPE,
+      JSTypedArray::kSize, isolate()->initial_object_prototype(),
+      Builtins::kIllegal, true);
 }
 
 
@@ -1328,14 +1328,22 @@ void Genesis::InitializeExperimentalGlobal() {
     }
     {
       // -- T y p e d A r r a y s
-      InstallTypedArray("__Int8Array");
-      InstallTypedArray("__Uint8Array");
-      InstallTypedArray("__Int16Array");
-      InstallTypedArray("__Uint16Array");
-      InstallTypedArray("__Int32Array");
-      InstallTypedArray("__Uint32Array");
-      InstallTypedArray("__Float32Array");
-      InstallTypedArray("__Float64Array");
+      native_context()->set_int8_array_fun(
+          *InstallTypedArray("__Int8Array"));
+      native_context()->set_uint8_array_fun(
+          *InstallTypedArray("__Uint8Array"));
+      native_context()->set_int16_array_fun(
+          *InstallTypedArray("__Int16Array"));
+      native_context()->set_uint16_array_fun(
+          *InstallTypedArray("__Uint16Array"));
+      native_context()->set_int32_array_fun(
+          *InstallTypedArray("__Int32Array"));
+      native_context()->set_uint32_array_fun(
+          *InstallTypedArray("__Uint32Array"));
+      native_context()->set_float_array_fun(
+          *InstallTypedArray("__Float32Array"));
+      native_context()->set_double_array_fun(
+          *InstallTypedArray("__Float64Array"));
     }
   }
 

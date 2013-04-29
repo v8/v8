@@ -2047,6 +2047,170 @@ class V8EXPORT ArrayBuffer : public Object {
 
 
 /**
+ * A base class for an instance of TypedArray series of constructors
+ * (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT TypedArray : public Object {
+ public:
+  /**
+   * Returns underlying ArrayBuffer.
+   */
+  Local<ArrayBuffer> Buffer();
+  /**
+   * Byte offset in |Buffer|
+   */
+  size_t ByteOffset();
+  /**
+   * Numbe of elements in this typed array.
+   */
+  size_t Length();
+  /**
+   * Size of typed array in bytes (e.g. for Int16Array, 2*|Length|).
+   */
+  size_t ByteLength();
+  /**
+   * Base address of typed array.
+   */
+  void* BaseAddress();
+
+  V8_INLINE(static TypedArray* Cast(Value* obj));
+
+ private:
+  TypedArray();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Uint8Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Uint8Array : public TypedArray {
+ public:
+  static Local<Uint8Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Uint8Array* Cast(Value* obj));
+
+ private:
+  Uint8Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Int8Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Int8Array : public TypedArray {
+ public:
+  static Local<Int8Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Int8Array* Cast(Value* obj));
+
+ private:
+  Int8Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Uint16Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Uint16Array : public TypedArray {
+ public:
+  static Local<Uint16Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Uint16Array* Cast(Value* obj));
+
+ private:
+  Uint16Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Int16Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Int16Array : public TypedArray {
+ public:
+  static Local<Int16Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Int16Array* Cast(Value* obj));
+
+ private:
+  Int16Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Uint32Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Uint32Array : public TypedArray {
+ public:
+  static Local<Uint32Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Uint32Array* Cast(Value* obj));
+
+ private:
+  Uint32Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Int32Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Int32Array : public TypedArray {
+ public:
+  static Local<Int32Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Int32Array* Cast(Value* obj));
+
+ private:
+  Int32Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Float32Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Float32Array : public TypedArray {
+ public:
+  static Local<Float32Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Float32Array* Cast(Value* obj));
+
+ private:
+  Float32Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of Float64Array constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Float64Array : public TypedArray {
+ public:
+  static Local<Float64Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Float64Array* Cast(Value* obj));
+
+ private:
+  Float64Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
  * An instance of the built-in Date constructor (ECMA-262, 15.9).
  */
 class V8EXPORT Date : public Object {
@@ -4543,7 +4707,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 56;
+  static const int kContextEmbedderDataIndex = 64;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -5221,6 +5385,78 @@ ArrayBuffer* ArrayBuffer::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<ArrayBuffer*>(value);
+}
+
+
+TypedArray* TypedArray::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<TypedArray*>(value);
+}
+
+
+Uint8Array* Uint8Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Uint8Array*>(value);
+}
+
+
+Int8Array* Int8Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Int8Array*>(value);
+}
+
+
+Uint16Array* Uint16Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Uint16Array*>(value);
+}
+
+
+Int16Array* Int16Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Int16Array*>(value);
+}
+
+
+Uint32Array* Uint32Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Uint32Array*>(value);
+}
+
+
+Int32Array* Int32Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Int32Array*>(value);
+}
+
+
+Float32Array* Float32Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Float32Array*>(value);
+}
+
+
+Float64Array* Float64Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Float64Array*>(value);
 }
 
 

@@ -13372,6 +13372,31 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
   return result_double;
 }
 
+ExternalArrayType JSTypedArray::type() {
+  switch (elements()->map()->instance_type()) {
+    case EXTERNAL_BYTE_ARRAY_TYPE:
+      return kExternalByteArray;
+    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      return kExternalUnsignedByteArray;
+    case EXTERNAL_SHORT_ARRAY_TYPE:
+      return kExternalShortArray;
+    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      return kExternalUnsignedShortArray;
+    case EXTERNAL_INT_ARRAY_TYPE:
+      return kExternalIntArray;
+    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      return kExternalUnsignedIntArray;
+    case EXTERNAL_FLOAT_ARRAY_TYPE:
+      return kExternalFloatArray;
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
+      return kExternalDoubleArray;
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
+      return kExternalPixelArray;
+    default:
+      return static_cast<ExternalArrayType>(-1);
+  }
+}
+
 
 Object* ExternalPixelArray::SetValue(uint32_t index, Object* value) {
   uint8_t clamped_value = 0;
