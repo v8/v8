@@ -276,8 +276,6 @@ enum BuiltinExtraArguments {
   V(APPLY_PREPARE, 1)                    \
   V(APPLY_OVERFLOW, 1)
 
-MaybeObject* ArrayConstructor_StubFailure(Arguments args, Isolate* isolate);
-
 class BuiltinFunctionTable;
 class ObjectVisitor;
 
