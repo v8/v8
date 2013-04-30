@@ -168,6 +168,7 @@ void StackFrameIterator::Reset() {
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp_)));
     type = StackFrame::ComputeType(isolate(), &state);
   }
+  if (SingletonFor(type) == NULL) return;
   frame_ = SingletonFor(type, &state);
 }
 
