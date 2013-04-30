@@ -30,6 +30,7 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "bootstrapper.h"
+#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "regexp-macro-assembler.h"
 #include "stub-cache.h"
