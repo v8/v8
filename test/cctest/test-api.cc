@@ -12187,6 +12187,7 @@ static bool MatchPointers(void* key1, void* key2) {
 
 TEST(SetJitCodeEventHandler) {
   i::FLAG_stress_compaction = true;
+  i::FLAG_incremental_marking = false;
   const char* script =
     "function bar() {"
     "  var sum = 0;"

@@ -8922,9 +8922,14 @@ static MUST_USE_RESULT MaybeObject* CacheInitialJSArrayMaps(
        i < kFastElementsKindCount; ++i) {
     Map* new_map;
     ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
-    MaybeObject* maybe_new_map =
-        current_map->CopyAsElementsKind(next_kind, INSERT_TRANSITION);
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    if (current_map->HasElementsTransition()) {
+      new_map = current_map->elements_transition_map();
+      ASSERT(new_map->elements_kind() == next_kind);
+    } else {
+      MaybeObject* maybe_new_map =
+          current_map->CopyAsElementsKind(next_kind, INSERT_TRANSITION);
+      if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    }
     maps->set(next_kind, new_map);
     current_map = new_map;
   }
