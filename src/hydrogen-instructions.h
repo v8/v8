@@ -3186,20 +3186,25 @@ class HConstant: public HTemplateInstruction<0> {
   HConstant(Handle<Object> handle, Representation r);
   HConstant(int32_t value,
             Representation r,
+            bool is_not_in_new_space = true,
             Handle<Object> optional_handle = Handle<Object>::null());
   HConstant(double value,
             Representation r,
+            bool is_not_in_new_space = true,
             Handle<Object> optional_handle = Handle<Object>::null());
   HConstant(Handle<Object> handle,
             UniqueValueId unique_id,
             Representation r,
             HType type,
             bool is_internalized_string,
+            bool is_not_in_new_space,
             bool boolean_value);
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
-      handle_ = FACTORY->NewNumber(double_value_, pretenure());
+      // Default arguments to is_not_in_new_space depend on this heap number
+      // to be tenured so that it's guaranteed not be be located in new space.
+      handle_ = FACTORY->NewNumber(double_value_, TENURED);
     }
     ALLOW_HANDLE_DEREF(Isolate::Current(), "smi check");
     ASSERT(has_int32_value_ || !handle_->IsSmi());
@@ -3213,15 +3218,8 @@ class HConstant: public HTemplateInstruction<0> {
          std::isnan(double_value_));
   }
 
-  bool InNewSpace() const {
-    if (!handle_.is_null()) {
-      ALLOW_HANDLE_DEREF(isolate(), "using raw address");
-      return isolate()->heap()->InNewSpace(*handle_);
-    }
-    // If the handle wasn't created yet, then we have a number.
-    // If the handle is created it'll be tenured in old space.
-    ASSERT(pretenure() == TENURED);
-    return false;
+  bool NotInNewSpace() const {
+    return is_not_in_new_space_;
   }
 
   bool ImmortalImmovable() const {
@@ -3359,8 +3357,6 @@ class HConstant: public HTemplateInstruction<0> {
   // HeapObject the constant originated from or is null.  If the
   // constant is non-numeric, handle_ always points to a valid
   // constant HeapObject.
-  static PretenureFlag pretenure() { return TENURED; }
-
   Handle<Object> handle_;
   UniqueValueId unique_id_;
 
@@ -3372,6 +3368,7 @@ class HConstant: public HTemplateInstruction<0> {
   bool has_int32_value_ : 1;
   bool has_double_value_ : 1;
   bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
+  bool is_not_in_new_space_ : 1;
   bool boolean_value_ : 1;
   int32_t int32_value_;
   double double_value_;

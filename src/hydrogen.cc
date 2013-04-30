@@ -641,6 +641,7 @@ HConstant* HGraph::GetConstant##Name() {                                       \
         Representation::Tagged(),                                              \
         htype,                                                                 \
         false,                                                                 \
+        true,                                                                  \
         boolean_value);                                                        \
     constant->InsertAfter(GetConstantUndefined());                             \
     constant_##name##_.set(constant);                                          \

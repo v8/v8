@@ -2423,7 +2423,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   }
 
   bool can_be_constant = instr->value()->IsConstant() &&
-      !HConstant::cast(instr->value())->InNewSpace() &&
+      HConstant::cast(instr->value())->NotInNewSpace() &&
       !(FLAG_track_double_fields && instr->field_representation().IsDouble());
 
   LOperand* val;

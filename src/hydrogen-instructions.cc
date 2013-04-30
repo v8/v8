@@ -2062,7 +2062,12 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     has_int32_value_(false),
     has_double_value_(false),
     is_internalized_string_(false),
+    is_not_in_new_space_(true),
     boolean_value_(handle->BooleanValue()) {
+  if (handle_->IsHeapObject()) {
+    Heap* heap = Handle<HeapObject>::cast(handle)->GetHeap();
+    is_not_in_new_space_ = !heap->InNewSpace(*handle);
+  }
   if (handle_->IsNumber()) {
     double n = handle_->Number();
     has_int32_value_ = IsInteger32(n);
@@ -2091,12 +2096,14 @@ HConstant::HConstant(Handle<Object> handle,
                      Representation r,
                      HType type,
                      bool is_internalize_string,
+                     bool is_not_in_new_space,
                      bool boolean_value)
     : handle_(handle),
       unique_id_(unique_id),
       has_int32_value_(false),
       has_double_value_(false),
       is_internalized_string_(is_internalize_string),
+      is_not_in_new_space_(is_not_in_new_space),
       boolean_value_(boolean_value),
       type_from_value_(type) {
   ASSERT(!handle.is_null());
@@ -2108,12 +2115,14 @@ HConstant::HConstant(Handle<Object> handle,
 
 HConstant::HConstant(int32_t integer_value,
                      Representation r,
+                     bool is_not_in_new_space,
                      Handle<Object> optional_handle)
     : handle_(optional_handle),
       unique_id_(),
       has_int32_value_(true),
       has_double_value_(true),
       is_internalized_string_(false),
+      is_not_in_new_space_(is_not_in_new_space),
       boolean_value_(integer_value != 0),
       int32_value_(integer_value),
       double_value_(FastI2D(integer_value)) {
@@ -2123,12 +2132,14 @@ HConstant::HConstant(int32_t integer_value,
 
 HConstant::HConstant(double double_value,
                      Representation r,
+                     bool is_not_in_new_space,
                      Handle<Object> optional_handle)
     : handle_(optional_handle),
       unique_id_(),
       has_int32_value_(IsInteger32(double_value)),
       has_double_value_(true),
       is_internalized_string_(false),
+      is_not_in_new_space_(is_not_in_new_space),
       boolean_value_(double_value != 0 && !std::isnan(double_value)),
       int32_value_(DoubleToInt32(double_value)),
       double_value_(double_value) {
@@ -2148,26 +2159,35 @@ void HConstant::Initialize(Representation r) {
 HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   if (r.IsInteger32() && !has_int32_value_) return NULL;
   if (r.IsDouble() && !has_double_value_) return NULL;
-  if (has_int32_value_) return new(zone) HConstant(int32_value_, r, handle_);
-  if (has_double_value_) return new(zone) HConstant(double_value_, r, handle_);
+  if (has_int32_value_) {
+    return new(zone) HConstant(int32_value_, r, is_not_in_new_space_, handle_);
+  }
+  if (has_double_value_) {
+    return new(zone) HConstant(double_value_, r, is_not_in_new_space_, handle_);
+  }
   ASSERT(!handle_.is_null());
   return new(zone) HConstant(handle_,
                              unique_id_,
                              r,
                              type_from_value_,
                              is_internalized_string_,
+                             is_not_in_new_space_,
                              boolean_value_);
 }
 
 
 HConstant* HConstant::CopyToTruncatedInt32(Zone* zone) const {
   if (has_int32_value_) {
-    return new(zone) HConstant(
-        int32_value_, Representation::Integer32(), handle_);
+    return new(zone) HConstant(int32_value_,
+                               Representation::Integer32(),
+                               is_not_in_new_space_,
+                               handle_);
   }
   if (has_double_value_) {
-    return new(zone) HConstant(
-        DoubleToInt32(double_value_), Representation::Integer32(), handle_);
+    return new(zone) HConstant(DoubleToInt32(double_value_),
+                               Representation::Integer32(),
+                               is_not_in_new_space_,
+                               handle_);
   }
   return NULL;
 }
