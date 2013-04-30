@@ -30,7 +30,6 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "bootstrapper.h"
-#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "regexp-macro-assembler.h"
 #include "stub-cache.h"
@@ -4107,23 +4106,22 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Call C function.
 #ifdef _WIN64
-  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9.
-  // Pass argv and argc as two parameters. The arguments object will
-  // be created by stubs declared by DECLARE_RUNTIME_FUNCTION().
+  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9
+  // Store Arguments object on stack, below the 4 WIN64 ABI parameter slots.
+  __ movq(StackSpaceOperand(0), r14);  // argc.
+  __ movq(StackSpaceOperand(1), r15);  // argv.
   if (result_size_ < 2) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax).
-    __ movq(rcx, r14);  // argc.
-    __ movq(rdx, r15);  // argv.
-    __ movq(r8, ExternalReference::isolate_address(masm->isolate()));
+    __ lea(rcx, StackSpaceOperand(0));
+    __ LoadAddress(rdx, ExternalReference::isolate_address(masm->isolate()));
   } else {
     ASSERT_EQ(2, result_size_);
     // Pass a pointer to the result location as the first argument.
     __ lea(rcx, StackSpaceOperand(2));
     // Pass a pointer to the Arguments object as the second argument.
-    __ movq(rdx, r14);  // argc.
-    __ movq(r8, r15);   // argv.
-    __ movq(r9, ExternalReference::isolate_address(masm->isolate()));
+    __ lea(rdx, StackSpaceOperand(0));
+    __ LoadAddress(r8, ExternalReference::isolate_address(masm->isolate()));
   }
 
 #else  // _WIN64

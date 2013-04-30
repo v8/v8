@@ -26,8 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) \
-    || defined(__NetBSD__) || defined(__sun) || defined(__ANDROID__) \
-    || defined(__native_client__)
+    || defined(__NetBSD__) || defined(__sun) || defined(__ANDROID__)
 
 #define USE_SIGNALS
 
