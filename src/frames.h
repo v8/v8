@@ -969,9 +969,11 @@ typedef JavaScriptFrameIteratorTemp<SafeStackFrameIterator>
 
 class SafeStackTraceFrameIterator: public SafeJavaScriptFrameIterator {
  public:
-  explicit SafeStackTraceFrameIterator(Isolate* isolate,
-                                       Address fp, Address sp,
-                                       Address low_bound, Address high_bound);
+  SafeStackTraceFrameIterator(Isolate* isolate,
+                              Address fp,
+                              Address sp,
+                              Address low_bound,
+                              Address high_bound);
   void Advance();
 };
 
