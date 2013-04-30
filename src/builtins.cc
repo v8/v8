@@ -1617,6 +1617,11 @@ static void Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm) {
 }
 
 
+static void Generate_CompareNilIC_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateCompareNilICDebugBreak(masm);
+}
+
+
 static void Generate_Return_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateReturnDebugBreak(masm);
 }

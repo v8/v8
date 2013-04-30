@@ -1644,6 +1644,9 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
       case Code::KEYED_STORE_IC:
         return isolate->builtins()->KeyedStoreIC_DebugBreak();
 
+      case Code::COMPARE_NIL_IC:
+        return isolate->builtins()->CompareNilIC_DebugBreak();
+
       default:
         UNREACHABLE();
     }

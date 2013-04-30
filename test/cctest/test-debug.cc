@@ -1090,6 +1090,15 @@ TEST(DebugStub) {
           Builtins::kKeyedLoadIC_DebugBreak));
 #endif
 
+  CheckDebugBreakFunction(
+      &env,
+      "function f6(a){return a==null;}",
+      "f6",
+      0,
+      v8::internal::RelocInfo::CODE_TARGET,
+      Isolate::Current()->builtins()->builtin(
+          Builtins::kCompareNilIC_DebugBreak));
+
   // Check the debug break code stubs for call ICs with different number of
   // parameters.
   Handle<Code> debug_break_0 = v8::internal::ComputeCallDebugBreak(0);

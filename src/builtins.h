@@ -230,6 +230,8 @@ enum BuiltinExtraArguments {
                                                DEBUG_BREAK)                   \
   V(KeyedStoreIC_DebugBreak,                   KEYED_STORE_IC, DEBUG_STUB,    \
                                                DEBUG_BREAK)                   \
+  V(CompareNilIC_DebugBreak,                   COMPARE_NIL_IC, DEBUG_STUB,    \
+                                               DEBUG_BREAK)                   \
   V(Slot_DebugBreak,                           BUILTIN, DEBUG_STUB,           \
                                                DEBUG_BREAK)                   \
   V(PlainReturn_LiveEdit,                      BUILTIN, DEBUG_STUB,           \
