@@ -110,7 +110,9 @@ var kMessages = {
   stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
   // SyntaxError
-  unable_to_parse:               ["Parse error"],
+  paren_in_arg_string:           ["Function arg string contains parenthesis"],
+  not_isvar:                     ["builtin %IS_VAR: not a variable"],
+  single_function_literal:       ["Single function literal required"],
   invalid_regexp_flags:          ["Invalid flags supplied to RegExp constructor '", "%0", "'"],
   invalid_regexp:                ["Invalid RegExp pattern /", "%0", "/"],
   illegal_break:                 ["Illegal break statement"],

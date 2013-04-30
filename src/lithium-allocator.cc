@@ -56,9 +56,11 @@ static inline LifetimePosition Max(LifetimePosition a, LifetimePosition b) {
 }
 
 
-UsePosition::UsePosition(LifetimePosition pos, LOperand* operand)
+UsePosition::UsePosition(LifetimePosition pos,
+                         LOperand* operand,
+                         LOperand* hint)
     : operand_(operand),
-      hint_(NULL),
+      hint_(hint),
       pos_(pos),
       next_(NULL),
       requires_reg_(false),
@@ -449,13 +451,14 @@ void LiveRange::AddUseInterval(LifetimePosition start,
 }
 
 
-UsePosition* LiveRange::AddUsePosition(LifetimePosition pos,
-                                       LOperand* operand,
-                                       Zone* zone) {
+void LiveRange::AddUsePosition(LifetimePosition pos,
+                               LOperand* operand,
+                               LOperand* hint,
+                               Zone* zone) {
   LAllocator::TraceAlloc("Add to live range %d use position %d\n",
                          id_,
                          pos.Value());
-  UsePosition* use_pos = new(zone) UsePosition(pos, operand);
+  UsePosition* use_pos = new(zone) UsePosition(pos, operand, hint);
   UsePosition* prev = NULL;
   UsePosition* current = first_pos_;
   while (current != NULL && current->pos().Value() < pos.Value()) {
@@ -470,8 +473,6 @@ UsePosition* LiveRange::AddUsePosition(LifetimePosition pos,
     use_pos->next_ = prev->next_;
     prev->next_ = use_pos;
   }
-
-  return use_pos;
 }
 
 
@@ -725,14 +726,14 @@ void LAllocator::Define(LifetimePosition position,
   if (range->IsEmpty() || range->Start().Value() > position.Value()) {
     // Can happen if there is a definition without use.
     range->AddUseInterval(position, position.NextInstruction(), zone_);
-    range->AddUsePosition(position.NextInstruction(), NULL, zone_);
+    range->AddUsePosition(position.NextInstruction(), NULL, NULL, zone_);
   } else {
     range->ShortenTo(position);
   }
 
   if (operand->IsUnallocated()) {
     LUnallocated* unalloc_operand = LUnallocated::cast(operand);
-    range->AddUsePosition(position, unalloc_operand, zone_)->set_hint(hint);
+    range->AddUsePosition(position, unalloc_operand, hint, zone_);
   }
 }
 
@@ -745,7 +746,7 @@ void LAllocator::Use(LifetimePosition block_start,
   if (range == NULL) return;
   if (operand->IsUnallocated()) {
     LUnallocated* unalloc_operand = LUnallocated::cast(operand);
-    range->AddUsePosition(position, unalloc_operand, zone_)->set_hint(hint);
+    range->AddUsePosition(position, unalloc_operand, hint, zone_);
   }
   range->AddUseInterval(block_start, position, zone_);
 }

@@ -1459,28 +1459,34 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(String::New("Realm"), realm_template);
 
   // Bind the handlers for external arrays.
-  PropertyAttribute attr =
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-  global_template->Set(PerIsolateData::ArrayBuffer_string(isolate),
-                       CreateArrayBufferTemplate(ArrayBuffer), attr);
-  global_template->Set(String::New("Int8Array"),
-                       CreateArrayTemplate(Int8Array), attr);
-  global_template->Set(String::New("Uint8Array"),
-                       CreateArrayTemplate(Uint8Array), attr);
-  global_template->Set(String::New("Int16Array"),
-                       CreateArrayTemplate(Int16Array), attr);
-  global_template->Set(String::New("Uint16Array"),
-                       CreateArrayTemplate(Uint16Array), attr);
-  global_template->Set(String::New("Int32Array"),
-                       CreateArrayTemplate(Int32Array), attr);
-  global_template->Set(String::New("Uint32Array"),
-                       CreateArrayTemplate(Uint32Array), attr);
-  global_template->Set(String::New("Float32Array"),
-                       CreateArrayTemplate(Float32Array), attr);
-  global_template->Set(String::New("Float64Array"),
-                       CreateArrayTemplate(Float64Array), attr);
-  global_template->Set(String::New("Uint8ClampedArray"),
-                       CreateArrayTemplate(Uint8ClampedArray), attr);
+#ifndef V8_SHARED
+  if (!i::FLAG_harmony_typed_arrays) {
+#endif  // V8_SHARED
+    PropertyAttribute attr =
+        static_cast<PropertyAttribute>(ReadOnly | DontDelete);
+    global_template->Set(PerIsolateData::ArrayBuffer_string(isolate),
+                         CreateArrayBufferTemplate(ArrayBuffer), attr);
+    global_template->Set(String::New("Int8Array"),
+                         CreateArrayTemplate(Int8Array), attr);
+    global_template->Set(String::New("Uint8Array"),
+                         CreateArrayTemplate(Uint8Array), attr);
+    global_template->Set(String::New("Int16Array"),
+                         CreateArrayTemplate(Int16Array), attr);
+    global_template->Set(String::New("Uint16Array"),
+                         CreateArrayTemplate(Uint16Array), attr);
+    global_template->Set(String::New("Int32Array"),
+                         CreateArrayTemplate(Int32Array), attr);
+    global_template->Set(String::New("Uint32Array"),
+                         CreateArrayTemplate(Uint32Array), attr);
+    global_template->Set(String::New("Float32Array"),
+                         CreateArrayTemplate(Float32Array), attr);
+    global_template->Set(String::New("Float64Array"),
+                         CreateArrayTemplate(Float64Array), attr);
+    global_template->Set(String::New("Uint8ClampedArray"),
+                         CreateArrayTemplate(Uint8ClampedArray), attr);
+#ifndef V8_SHARED
+  }
+#endif  // V8_SHARED
 
 #if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
@@ -1724,7 +1730,7 @@ static char* ReadLine(char* data) {
 static char* ReadWord(char* data) {
   return ReadToken(data, ' ');
 }
-#endif  // V8_SHARED
+#endif  // trueV8_SHARED
 
 
 // Reads a file into a v8 string.

@@ -201,7 +201,7 @@ class Genesis BASE_EMBEDDED {
                                           ElementsKind elements_kind);
   bool InstallNatives();
 
-  void InstallTypedArray(const char* name);
+  Handle<JSFunction> InstallTypedArray(const char* name);
   bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
@@ -979,28 +979,32 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
       // ECMA-262, section 15.10.7.1.
       FieldDescriptor field(heap->source_string(),
                             JSRegExp::kSourceFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.2.
       FieldDescriptor field(heap->global_string(),
                             JSRegExp::kGlobalFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.3.
       FieldDescriptor field(heap->ignore_case_string(),
                             JSRegExp::kIgnoreCaseFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.4.
       FieldDescriptor field(heap->multiline_string(),
                             JSRegExp::kMultilineFieldIndex,
-                            final);
+                            final,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
     {
@@ -1009,7 +1013,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
           static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
       FieldDescriptor field(heap->last_index_string(),
                             JSRegExp::kLastIndexFieldIndex,
-                            writable);
+                            writable,
+                            Representation::Tagged());
       initial_map->AppendDescriptor(&field, witness);
     }
 
@@ -1161,7 +1166,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     map->set_instance_descriptors(*descriptors);
 
     {  // length
-      FieldDescriptor d(*factory->length_string(), 0, DONT_ENUM);
+      FieldDescriptor d(
+          *factory->length_string(), 0, DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d, witness);
     }
     {  // callee
@@ -1270,11 +1276,11 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 }
 
 
-void Genesis::InstallTypedArray(const char* name) {
+Handle<JSFunction> Genesis::InstallTypedArray(const char* name) {
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
-  InstallFunction(global, name, JS_TYPED_ARRAY_TYPE,
-                  JSTypedArray::kSize, isolate()->initial_object_prototype(),
-                  Builtins::kIllegal, true);
+  return InstallFunction(global, name, JS_TYPED_ARRAY_TYPE,
+      JSTypedArray::kSize, isolate()->initial_object_prototype(),
+      Builtins::kIllegal, true);
 }
 
 
@@ -1314,7 +1320,7 @@ void Genesis::InitializeExperimentalGlobal() {
   if (FLAG_harmony_typed_arrays) {
     {  // -- A r r a y B u f f e r
       Handle<JSFunction> array_buffer_fun =
-          InstallFunction(global, "__ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
+          InstallFunction(global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
                           JSArrayBuffer::kSize,
                           isolate()->initial_object_prototype(),
                           Builtins::kIllegal, true);
@@ -1322,14 +1328,22 @@ void Genesis::InitializeExperimentalGlobal() {
     }
     {
       // -- T y p e d A r r a y s
-      InstallTypedArray("__Int8Array");
-      InstallTypedArray("__Uint8Array");
-      InstallTypedArray("__Int16Array");
-      InstallTypedArray("__Uint16Array");
-      InstallTypedArray("__Int32Array");
-      InstallTypedArray("__Uint32Array");
-      InstallTypedArray("__Float32Array");
-      InstallTypedArray("__Float64Array");
+      Handle<JSFunction> int8_fun = InstallTypedArray("Int8Array");
+      native_context()->set_int8_array_fun(*int8_fun);
+      Handle<JSFunction> uint8_fun = InstallTypedArray("Uint8Array");
+      native_context()->set_uint8_array_fun(*uint8_fun);
+      Handle<JSFunction> int16_fun = InstallTypedArray("Int16Array");
+      native_context()->set_int16_array_fun(*int16_fun);
+      Handle<JSFunction> uint16_fun = InstallTypedArray("Uint16Array");
+      native_context()->set_uint16_array_fun(*uint16_fun);
+      Handle<JSFunction> int32_fun = InstallTypedArray("Int32Array");
+      native_context()->set_int32_array_fun(*int32_fun);
+      Handle<JSFunction> uint32_fun = InstallTypedArray("Uint32Array");
+      native_context()->set_uint32_array_fun(*uint32_fun);
+      Handle<JSFunction> float_fun = InstallTypedArray("Float32Array");
+      native_context()->set_float_array_fun(*float_fun);
+      Handle<JSFunction> double_fun = InstallTypedArray("Float64Array");
+      native_context()->set_double_array_fun(*double_fun);
     }
   }
 
@@ -1924,14 +1938,16 @@ bool Genesis::InstallNatives() {
     {
       FieldDescriptor index_field(heap()->index_string(),
                                   JSRegExpResult::kIndexIndex,
-                                  NONE);
+                                  NONE,
+                                  Representation::Tagged());
       initial_map->AppendDescriptor(&index_field, witness);
     }
 
     {
       FieldDescriptor input_field(heap()->input_string(),
                                   JSRegExpResult::kInputIndex,
-                                  NONE);
+                                  NONE,
+                                  Representation::Tagged());
       initial_map->AppendDescriptor(&input_field, witness);
     }
 
@@ -2388,6 +2404,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
           PropertyDetails d = PropertyDetails(details.attributes(),
                                               CALLBACKS,
+                                              Representation::Tagged(),
                                               details.descriptor_index());
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;

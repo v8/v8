@@ -536,6 +536,11 @@ class JavaScriptFrame: public StandardFrame {
     return GetNumberOfIncomingArguments();
   }
 
+  // Access the operand stack.
+  inline Address GetOperandSlot(int index) const;
+  inline Object* GetOperand(int index) const;
+  inline int ComputeOperandsCount() const;
+
   // Debugger access.
   void SetParameterValue(int index, Object* value) const;
 
@@ -964,9 +969,11 @@ typedef JavaScriptFrameIteratorTemp<SafeStackFrameIterator>
 
 class SafeStackTraceFrameIterator: public SafeJavaScriptFrameIterator {
  public:
-  explicit SafeStackTraceFrameIterator(Isolate* isolate,
-                                       Address fp, Address sp,
-                                       Address low_bound, Address high_bound);
+  SafeStackTraceFrameIterator(Isolate* isolate,
+                              Address fp,
+                              Address sp,
+                              Address low_bound,
+                              Address high_bound);
   void Advance();
 };
 

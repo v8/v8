@@ -234,7 +234,7 @@ TestGenerator(
     [1, 2, undefined]);
 
 TestGenerator(
-    function* g() {
+    function* g19() {
       var x = 1;
       yield x;
       with({x:2}) { yield x; }
@@ -243,6 +243,32 @@ TestGenerator(
     [1, 2, 1, undefined],
     "foo",
     [1, 2, 1, undefined]);
+
+TestGenerator(
+    function* g20() { yield (1 + (yield 2) + 3); },
+    [2, NaN, undefined],
+    "foo",
+    [2, "1foo3", undefined]);
+
+TestGenerator(
+    function* g21() { return (1 + (yield 2) + 3); },
+    [2, NaN],
+    "foo",
+    [2, "1foo3"]);
+
+TestGenerator(
+    function* g22() { yield (1 + (yield 2) + 3); yield (4 + (yield 5) + 6); },
+    [2, NaN, 5, NaN, undefined],
+    "foo",
+    [2, "1foo3", 5, "4foo6", undefined]);
+
+TestGenerator(
+    function* g23() {
+      return (yield (1 + (yield 2) + 3)) + (yield (4 + (yield 5) + 6));
+    },
+    [2, NaN, 5, NaN, NaN],
+    "foo",
+    [2, "1foo3", 5, "4foo6", "foofoo"]);
 
 function TestRecursion() {
   function TestNextRecursion() {

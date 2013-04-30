@@ -249,6 +249,7 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
         boilerplate, KEEP_INOBJECT_PROPERTIES, length / 2);
   }
 
+  // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index +=2) {
     Handle<Object> key(constant_properties->get(index+0), isolate);
     Handle<Object> value(constant_properties->get(index+1), isolate);
@@ -2310,6 +2311,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
     PropertyDetails new_details(
         static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
         details.type(),
+        Representation::None(),
         details.dictionary_index());
     function->property_dictionary()->DetailsAtPut(entry, new_details);
   }
@@ -2437,50 +2439,50 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
-  HandleScope scope(isolate);
+  NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
+  CONVERT_ARG_CHECKED(JSGeneratorObject, generator_object, 0);
 
   JavaScriptFrameIterator stack_iterator(isolate);
-  JavaScriptFrame *frame = stack_iterator.frame();
-  Handle<JSFunction> function(JSFunction::cast(frame->function()));
+  JavaScriptFrame* frame = stack_iterator.frame();
+  JSFunction* function = JSFunction::cast(frame->function());
   RUNTIME_ASSERT(function->shared()->is_generator());
+  ASSERT_EQ(function, generator_object->function());
 
-  intptr_t offset = frame->pc() - function->code()->instruction_start();
-  ASSERT(*function == generator_object->function());
-  ASSERT(offset > 0 && Smi::IsValid(offset));
-  generator_object->set_continuation(static_cast<int>(offset));
+  // We expect there to be at least two values on the operand stack: the return
+  // value of the yield expression, and the argument to this runtime call.
+  // Neither of those should be saved.
+  int operands_count = frame->ComputeOperandsCount();
+  ASSERT(operands_count >= 2);
+  operands_count -= 2;
 
-  // Generator functions force context allocation for locals, so Local0 points
-  // to the bottom of the operand stack.  Assume the stack grows down.
-  //
-  // TODO(wingo): Move these magical calculations to frames.h when the
-  // generators implementation has stabilized.
-  intptr_t stack_size_in_bytes =
-      (frame->fp() + JavaScriptFrameConstants::kLocal0Offset) -
-      (frame->sp() - kPointerSize);
-  ASSERT(IsAddressAligned(frame->fp(), kPointerSize));
-  ASSERT(IsAligned(stack_size_in_bytes, kPointerSize));
-  ASSERT(stack_size_in_bytes >= 0);
-  ASSERT(Smi::IsValid(stack_size_in_bytes));
-  intptr_t stack_size = stack_size_in_bytes >> kPointerSizeLog2;
-
-  // We expect there to be at least two values on the stack: the return value of
-  // the yield expression, and the argument to this runtime call.  Neither of
-  // those should be saved.
-  ASSERT(stack_size >= 2);
-  stack_size -= 2;
-
-  if (stack_size == 0) {
+  if (operands_count == 0) {
     ASSERT_EQ(generator_object->operand_stack(),
               isolate->heap()->empty_fixed_array());
     // If there are no operands on the stack, there shouldn't be a handler
     // active either.
     ASSERT(!frame->HasHandler());
   } else {
-    // TODO(wingo): Save the operand stack and/or the stack handlers.
-    UNIMPLEMENTED();
+    if (frame->HasHandler()) {
+      // TODO(wingo): Unwind the stack handlers.
+      UNIMPLEMENTED();
+    }
+
+    FixedArray* operand_stack;
+    MaybeObject* alloc = isolate->heap()->AllocateFixedArray(operands_count);
+    if (!alloc->To(&operand_stack)) return alloc;
+
+    for (int i = 0; i < operands_count; i++) {
+      operand_stack->set(i, frame->GetOperand(i));
+    }
+    generator_object->set_operand_stack(operand_stack);
   }
+
+  // Set continuation down here to avoid side effects if the operand stack
+  // allocation fails.
+  intptr_t offset = frame->pc() - function->code()->instruction_start();
+  ASSERT(offset > 0 && Smi::IsValid(offset));
+  generator_object->set_continuation(static_cast<int>(offset));
 
   // It's possible for the context to be other than the initial context even if
   // there is no stack handler active.  For example, this is the case in the
@@ -2501,13 +2503,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
 // EmitGeneratorResumeResume is called in any case, as it needs to reconstruct
 // the stack frame and make space for arguments and operands.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
-  HandleScope scope(isolate);
+  NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  CONVERT_ARG_CHECKED(JSGeneratorObject, generator_object, 0);
+  CONVERT_ARG_CHECKED(Object, value, 1);
   CONVERT_SMI_ARG_CHECKED(resume_mode_int, 2);
   JavaScriptFrameIterator stack_iterator(isolate);
-  JavaScriptFrame *frame = stack_iterator.frame();
+  JavaScriptFrame* frame = stack_iterator.frame();
 
   ASSERT_EQ(frame->function(), generator_object->function());
 
@@ -2520,18 +2522,26 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   frame->set_pc(pc + offset);
   generator_object->set_continuation(JSGeneratorObject::kGeneratorExecuting);
 
-  if (generator_object->operand_stack()->length() != 0) {
-    // TODO(wingo): Copy operand stack.  Rewind handlers.
-    UNIMPLEMENTED();
+  FixedArray* operand_stack = generator_object->operand_stack();
+  int operands_count = operand_stack->length();
+  if (operands_count != 0) {
+    // TODO(wingo): Rewind stack handlers.  However until
+    // SuspendJSGeneratorObject unwinds them, we won't see frames with stack
+    // handlers here.
+    for (int i = 0; i < operands_count; i++) {
+      ASSERT_EQ(frame->GetOperand(i), isolate->heap()->the_hole_value());
+      Memory::Object_at(frame->GetOperandSlot(i)) = operand_stack->get(i);
+    }
+    generator_object->set_operand_stack(isolate->heap()->empty_fixed_array());
   }
 
   JSGeneratorObject::ResumeMode resume_mode =
       static_cast<JSGeneratorObject::ResumeMode>(resume_mode_int);
   switch (resume_mode) {
     case JSGeneratorObject::SEND:
-      return *value;
+      return value;
     case JSGeneratorObject::THROW:
-      return isolate->Throw(*value);
+      return isolate->Throw(value);
   }
 
   UNREACHABLE();
@@ -2544,7 +2554,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ThrowGeneratorStateError) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
   int continuation = generator->continuation();
-  const char *message = continuation == JSGeneratorObject::kGeneratorClosed ?
+  const char* message = continuation == JSGeneratorObject::kGeneratorClosed ?
       "generator_finished" : "generator_running";
   Vector< Handle<Object> > argv = HandleVector<Object>(NULL, 0);
   Handle<Object> error = isolate->factory()->NewError(message, argv);
@@ -3339,8 +3349,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithString(
 
   // Shortcut for simple non-regexp global replacements
   if (regexp->TypeTag() == JSRegExp::ATOM && simple_replace) {
-    if (subject->IsOneByteConvertible() &&
-        replacement->IsOneByteConvertible()) {
+    if (subject->HasOnlyOneByteChars() &&
+        replacement->HasOnlyOneByteChars()) {
       return StringReplaceGlobalAtomRegExpWithString<SeqOneByteString>(
           isolate, subject, regexp, replacement, last_match_info);
     } else {
@@ -3522,7 +3532,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceGlobalRegExpWithString) {
   if (!subject->IsFlat()) subject = FlattenGetString(subject);
 
   if (replacement->length() == 0) {
-    if (subject->IsOneByteConvertible()) {
+    if (subject->HasOnlyOneByteChars()) {
       return StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
           isolate, subject, regexp, last_match_info);
     } else {
@@ -6381,7 +6391,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
     if (first->IsString()) return first;
   }
 
-  bool one_byte = special->IsOneByteConvertible();
+  bool one_byte = special->HasOnlyOneByteChars();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
@@ -6422,7 +6432,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
       String* element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (one_byte && !element->IsOneByteConvertible()) {
+      if (one_byte && !element->HasOnlyOneByteChars()) {
         one_byte = false;
       }
     } else {
@@ -7570,20 +7580,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
 }
 
 
-static void TrySettingInlineConstructStub(Isolate* isolate,
-                                          Handle<JSFunction> function) {
-  Handle<Object> prototype = isolate->factory()->null_value();
-  if (function->has_instance_prototype()) {
-    prototype = Handle<Object>(function->instance_prototype(), isolate);
-  }
-  if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
-    ConstructStubCompiler compiler(isolate);
-    Handle<Code> code = compiler.CompileConstructStub(function);
-    function->shared()->set_construct_stub(*code);
-  }
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -7647,13 +7643,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
     shared->CompleteInobjectSlackTracking();
   }
 
-  bool first_allocation = !shared->live_objects_may_exist();
   Handle<JSObject> result = isolate->factory()->NewJSObject(function);
   RETURN_IF_EMPTY_HANDLE(isolate, result);
-  // Delay setting the stub if inobject slack tracking is in progress.
-  if (first_allocation && !shared->IsInobjectSlackTrackingInProgress()) {
-    TrySettingInlineConstructStub(isolate, function);
-  }
 
   isolate->counters()->constructed_objects()->Increment();
   isolate->counters()->constructed_objects_runtime()->Increment();
@@ -7668,7 +7659,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FinalizeInstanceSize) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   function->shared()->CompleteInobjectSlackTracking();
-  TrySettingInlineConstructStub(isolate, function);
 
   return isolate->heap()->undefined_value();
 }
@@ -10144,7 +10134,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
       }
     }
     details->set(0, element_or_char);
-    details->set(1, PropertyDetails(NONE, NORMAL).AsSmi());
+    details->set(
+        1, PropertyDetails(NONE, NORMAL, Representation::None()).AsSmi());
     return *isolate->factory()->NewJSArrayWithElements(details);
   }
 
@@ -13333,7 +13324,7 @@ MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
     { MaybeObject* maybe_dictionary = name_dictionary->Add(
           String::cast(name_string),
           Smi::FromInt(i),
-          PropertyDetails(NONE, NORMAL));
+          PropertyDetails(NONE, NORMAL, Representation::None()));
       if (!maybe_dictionary->ToObject(&dictionary)) {
         // Non-recoverable failure.  Calling code must restart heap
         // initialization.

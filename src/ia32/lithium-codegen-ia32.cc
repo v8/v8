@@ -113,6 +113,10 @@ void LCodeGen::FinishCode(Handle<Code> code) {
     prototype_maps_.at(i)->AddDependentCode(
         DependentCode::kPrototypeCheckGroup, code);
   }
+  for (int i = 0 ; i < transition_maps_.length(); i++) {
+    transition_maps_.at(i)->AddDependentCode(
+        DependentCode::kTransitionGroup, code);
+  }
 }
 
 
@@ -1230,7 +1234,7 @@ void LCodeGen::DoModI(LModI* instr) {
     __ and_(dividend, divisor - 1);
     __ bind(&done);
   } else {
-    Label done, remainder_eq_dividend, slow, do_subtraction, both_positive;
+    Label done, remainder_eq_dividend, slow, both_positive;
     Register left_reg = ToRegister(instr->left());
     Register right_reg = ToRegister(instr->right());
     Register result_reg = ToRegister(instr->result());
@@ -1266,22 +1270,9 @@ void LCodeGen::DoModI(LModI* instr) {
     __ mov(scratch, right_reg);
     __ sub(Operand(scratch), Immediate(1));
     __ test(scratch, Operand(right_reg));
-    __ j(not_zero, &do_subtraction, Label::kNear);
+    __ j(not_zero, &slow, Label::kNear);
     __ and_(left_reg, Operand(scratch));
     __ jmp(&remainder_eq_dividend, Label::kNear);
-
-    __ bind(&do_subtraction);
-    const int kUnfolds = 3;
-    // Try a few subtractions of the dividend.
-    __ mov(scratch, left_reg);
-    for (int i = 0; i < kUnfolds; i++) {
-      // Reduce the dividend by the divisor.
-      __ sub(left_reg, Operand(right_reg));
-      // Check if the dividend is less than the divisor.
-      __ cmp(left_reg, Operand(right_reg));
-      __ j(less, &remainder_eq_dividend, Label::kNear);
-    }
-    __ mov(left_reg, scratch);
 
     // Slow case, using idiv instruction.
     __ bind(&slow);
@@ -2957,12 +2948,41 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   Register object = ToRegister(instr->object());
-  Register result = ToRegister(instr->result());
+  if (!FLAG_track_double_fields) {
+    ASSERT(!instr->hydrogen()->representation().IsDouble());
+  }
+  Register temp = instr->hydrogen()->representation().IsDouble()
+      ? ToRegister(instr->temp()) : ToRegister(instr->result());
   if (instr->hydrogen()->is_in_object()) {
-    __ mov(result, FieldOperand(object, instr->hydrogen()->offset()));
+    __ mov(temp, FieldOperand(object, instr->hydrogen()->offset()));
   } else {
-    __ mov(result, FieldOperand(object, JSObject::kPropertiesOffset));
-    __ mov(result, FieldOperand(result, instr->hydrogen()->offset()));
+    __ mov(temp, FieldOperand(object, JSObject::kPropertiesOffset));
+    __ mov(temp, FieldOperand(temp, instr->hydrogen()->offset()));
+  }
+
+  if (instr->hydrogen()->representation().IsDouble()) {
+    Label load_from_heap_number, done;
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatureScope scope(masm(), SSE2);
+      XMMRegister result = ToDoubleRegister(instr->result());
+      __ JumpIfNotSmi(temp, &load_from_heap_number);
+      __ SmiUntag(temp);
+      __ cvtsi2sd(result, Operand(temp));
+      __ jmp(&done);
+      __ bind(&load_from_heap_number);
+      __ movdbl(result, FieldOperand(temp, HeapNumber::kValueOffset));
+    } else {
+      __ JumpIfNotSmi(temp, &load_from_heap_number);
+      __ SmiUntag(temp);
+      __ push(temp);
+      __ fild_s(Operand(esp, 0));
+      __ pop(temp);
+      __ jmp(&done);
+      __ bind(&load_from_heap_number);
+      PushX87DoubleOperand(FieldOperand(temp, HeapNumber::kValueOffset));
+      CurrentInstructionReturnsX87Result();
+    }
+    __ bind(&done);
   }
 }
 
@@ -4241,16 +4261,47 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 
 
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
+  Representation representation = instr->representation();
+
   Register object = ToRegister(instr->object());
+
   int offset = instr->offset();
 
-  if (!instr->transition().is_null()) {
+  if (FLAG_track_fields && representation.IsSmi()) {
+    if (instr->value()->IsConstantOperand()) {
+      LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
+      if (!IsInteger32(operand_value)) {
+        DeoptimizeIf(no_condition, instr->environment());
+      }
+    } else {
+      Register value = ToRegister(instr->value());
+      __ SmiTag(value);
+      if (!instr->hydrogen()->value()->range()->IsInSmiRange()) {
+        DeoptimizeIf(overflow, instr->environment());
+      }
+    }
+  } else if (FLAG_track_double_fields && representation.IsDouble() &&
+             !instr->hydrogen()->value()->type().IsSmi() &&
+             !instr->hydrogen()->value()->type().IsHeapNumber()) {
+    Register value = ToRegister(instr->value());
+    Label do_store;
+    __ JumpIfSmi(value, &do_store);
+    Handle<Map> map(isolate()->factory()->heap_number_map());
+    DoCheckMapCommon(value, map, REQUIRE_EXACT_MAP, instr);
+    __ bind(&do_store);
+  }
+
+  Handle<Map> transition = instr->transition();
+  if (!transition.is_null()) {
+    if (transition->CanBeDeprecated()) {
+      transition_maps_.Add(transition, info()->zone());
+    }
     if (!instr->hydrogen()->NeedsWriteBarrierForMap()) {
-      __ mov(FieldOperand(object, HeapObject::kMapOffset), instr->transition());
+      __ mov(FieldOperand(object, HeapObject::kMapOffset), transition);
     } else {
       Register temp = ToRegister(instr->temp());
       Register temp_map = ToRegister(instr->temp_map());
-      __ mov(temp_map, instr->transition());
+      __ mov(temp_map, transition);
       __ mov(FieldOperand(object, HeapObject::kMapOffset), temp_map);
       // Update the write barrier for the map field.
       __ RecordWriteField(object,
@@ -6025,18 +6076,24 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
 
 
 void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
-  Register size = ToRegister(instr->size());
   Register result = ToRegister(instr->result());
 
-  __ SmiTag(size);
-  PushSafepointRegistersScope scope(this);
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
   // contained in the register pointer map.
-  if (!size.is(result)) {
-    __ StoreToSafepointRegisterSlot(result, size);
+  __ mov(result, Immediate(Smi::FromInt(0)));
+
+  PushSafepointRegistersScope scope(this);
+  if (instr->size()->IsRegister()) {
+    Register size = ToRegister(instr->size());
+    ASSERT(!size.is(result));
+    __ SmiTag(ToRegister(instr->size()));
+    __ push(size);
+  } else {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+    __ push(Immediate(Smi::FromInt(size)));
   }
-  __ push(size);
+
   if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
     CallRuntimeFromDeferred(
         Runtime::kAllocateInOldPointerSpace, 1, instr, instr->context());

@@ -124,6 +124,14 @@ enum BindingFlags {
   V(INSTANTIATE_FUN_INDEX, JSFunction, instantiate_fun) \
   V(CONFIGURE_INSTANCE_FUN_INDEX, JSFunction, configure_instance_fun) \
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun) \
+  V(UINT8_ARRAY_FUN_INDEX, JSFunction, uint8_array_fun) \
+  V(INT8_ARRAY_FUN_INDEX, JSFunction, int8_array_fun) \
+  V(UINT16_ARRAY_FUN_INDEX, JSFunction, uint16_array_fun) \
+  V(INT16_ARRAY_FUN_INDEX, JSFunction, int16_array_fun) \
+  V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun) \
+  V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun) \
+  V(FLOAT_ARRAY_FUN_INDEX, JSFunction, float_array_fun) \
+  V(DOUBLE_ARRAY_FUN_INDEX, JSFunction, double_array_fun) \
   V(FUNCTION_MAP_INDEX, Map, function_map) \
   V(STRICT_MODE_FUNCTION_MAP_INDEX, Map, strict_mode_function_map) \
   V(FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, function_without_prototype_map) \
@@ -278,6 +286,14 @@ class Context: public FixedArray {
     INSTANTIATE_FUN_INDEX,
     CONFIGURE_INSTANCE_FUN_INDEX,
     ARRAY_BUFFER_FUN_INDEX,
+    UINT8_ARRAY_FUN_INDEX,
+    INT8_ARRAY_FUN_INDEX,
+    UINT16_ARRAY_FUN_INDEX,
+    INT16_ARRAY_FUN_INDEX,
+    UINT32_ARRAY_FUN_INDEX,
+    INT32_ARRAY_FUN_INDEX,
+    FLOAT_ARRAY_FUN_INDEX,
+    DOUBLE_ARRAY_FUN_INDEX,
     MESSAGE_LISTENERS_INDEX,
     MAKE_MESSAGE_FUN_INDEX,
     GET_STACK_TRACE_LINE_INDEX,

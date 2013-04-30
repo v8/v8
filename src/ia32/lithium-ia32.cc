@@ -601,6 +601,11 @@ LOperand* LChunkBuilder::UseRegisterOrConstantAtStart(HValue* value) {
 }
 
 
+LOperand* LChunkBuilder::UseConstant(HValue* value) {
+  return chunk_->DefineConstantOperand(HConstant::cast(value));
+}
+
+
 LOperand* LChunkBuilder::UseAny(HValue* value) {
   return value->IsConstant()
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
@@ -2166,9 +2171,10 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
-  ASSERT(instr->representation().IsTagged());
   LOperand* obj = UseRegisterAtStart(instr->object());
-  return DefineAsRegister(new(zone()) LLoadNamedField(obj));
+  LOperand* temp = instr->representation().IsDouble() ? TempRegister() : NULL;
+  ASSERT(temp == NULL || FLAG_track_double_fields);
+  return DefineAsRegister(new(zone()) LLoadNamedField(obj, temp));
 }
 
 
@@ -2287,19 +2293,6 @@ LOperand* LChunkBuilder::GetStoreKeyedValueOperand(HStoreKeyed* instr) {
 }
 
 
-// DoStoreKeyed and DoStoreNamedField have special considerations for allowing
-// use of a constant instead of a register.
-static bool StoreConstantValueAllowed(HValue* value) {
-  if (value->IsConstant()) {
-    HConstant* constant_value = HConstant::cast(value);
-    return constant_value->HasSmiValue()
-        || constant_value->HasDoubleValue()
-        || constant_value->ImmortalImmovable();
-  }
-  return false;
-}
-
-
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   if (!instr->is_external()) {
     ASSERT(instr->elements()->representation().IsTagged());
@@ -2327,17 +2320,8 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
         val = UseTempRegister(instr->value());
         key = UseTempRegister(instr->key());
       } else {
-        if (StoreConstantValueAllowed(instr->value())) {
-          val = UseRegisterOrConstantAtStart(instr->value());
-        } else {
-          val = UseRegisterAtStart(instr->value());
-        }
-
-        if (StoreConstantValueAllowed(instr->key())) {
-          key = UseRegisterOrConstantAtStart(instr->key());
-        } else {
-          key = UseRegisterAtStart(instr->key());
-        }
+        val = UseRegisterOrConstantAtStart(instr->value());
+        key = UseRegisterOrConstantAtStart(instr->key());
       }
       return new(zone()) LStoreKeyed(obj, key, val);
     }
@@ -2438,11 +2422,17 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
         : UseRegisterAtStart(instr->object());
   }
 
+  bool can_be_constant = instr->value()->IsConstant() &&
+      HConstant::cast(instr->value())->NotInNewSpace() &&
+      !(FLAG_track_double_fields && instr->field_representation().IsDouble());
+
   LOperand* val;
   if (needs_write_barrier) {
     val = UseTempRegister(instr->value());
-  } else if (StoreConstantValueAllowed(instr->value())) {
+  } else if (can_be_constant) {
     val = UseRegisterOrConstant(instr->value());
+  } else if (FLAG_track_fields && instr->field_representation().IsSmi()) {
+    val = UseTempRegister(instr->value());
   } else {
     val = UseRegister(instr->value());
   }
@@ -2455,7 +2445,13 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   // We need a temporary register for write barrier of the map field.
   LOperand* temp_map = needs_write_barrier_for_map ? TempRegister() : NULL;
 
-  return new(zone()) LStoreNamedField(obj, val, temp, temp_map);
+  LStoreNamedField* result =
+      new(zone()) LStoreNamedField(obj, val, temp, temp_map);
+  if ((FLAG_track_fields && instr->field_representation().IsSmi()) ||
+      (FLAG_track_double_fields && instr->field_representation().IsDouble())) {
+    return AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -2516,8 +2512,9 @@ LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
 LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
   info()->MarkAsDeferredCalling();
   LOperand* context = UseAny(instr->context());
-  // TODO(mvstanton): why can't size be a constant if possible?
-  LOperand* size = UseTempRegister(instr->size());
+  LOperand* size = instr->size()->IsConstant()
+      ? UseConstant(instr->size())
+      : UseTempRegister(instr->size());
   LOperand* temp = TempRegister();
   LAllocate* result = new(zone()) LAllocate(context, size, temp);
   return AssignPointerMap(DefineAsRegister(result));

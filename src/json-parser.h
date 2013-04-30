@@ -404,7 +404,13 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
             JSObject::TransitionToMap(json_object, map);
             int length = properties.length();
             for (int i = 0; i < length; i++) {
-              json_object->FastPropertyAtPut(i, *properties[i]);
+              Handle<Object> value = properties[i];
+              Representation representation =
+                  map->instance_descriptors()->GetDetails(i).representation();
+              if (representation.IsDouble() && value->IsSmi()) {
+                // TODO(verwaest): Allocate heap number.
+              }
+              json_object->FastPropertyAtPut(i, *value);
             }
             transitioning = false;
           }
@@ -416,7 +422,16 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
         if (value.is_null()) return ReportUnexpectedCharacter();
 
         properties.Add(value, zone());
-        if (transitioning) continue;
+        if (transitioning) {
+          int field = properties.length() - 1;
+          Representation expected_representation =
+              map->instance_descriptors()->GetDetails(field).representation();
+          if (!value->FitsRepresentation(expected_representation)) {
+            map = Map::GeneralizeRepresentation(
+                map, field, value->OptimalRepresentation());
+          }
+          continue;
+        }
       } else {
         key = ParseJsonInternalizedString();
         if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
@@ -438,7 +453,13 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
       JSObject::TransitionToMap(json_object, map);
       int length = properties.length();
       for (int i = 0; i < length; i++) {
-        json_object->FastPropertyAtPut(i, *properties[i]);
+        Handle<Object> value = properties[i];
+        Representation representation =
+            map->instance_descriptors()->GetDetails(i).representation();
+        if (representation.IsDouble() && value->IsSmi()) {
+          // TODO(verwaest): Allocate heap number.
+        }
+        json_object->FastPropertyAtPut(i, *value);
       }
     }
   }

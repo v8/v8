@@ -291,6 +291,7 @@ class StubCache {
 
   Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
                                     CodeHandleList* handlers,
+                                    int number_of_valid_maps,
                                     Handle<Name> name);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().

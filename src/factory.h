@@ -315,6 +315,8 @@ class Factory {
 
   Handle<JSArrayBuffer> NewJSArrayBuffer();
 
+  Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type);
+
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 
   // Change the type of the argument into a JS object/function and reinitialize.

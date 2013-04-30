@@ -4414,6 +4414,19 @@ void MacroAssembler::CheckPageFlag(
 }
 
 
+void MacroAssembler::CheckMapDeprecated(Handle<Map> map,
+                                        Register scratch,
+                                        Label* if_deprecated) {
+  if (map->CanBeDeprecated()) {
+    Move(scratch, map);
+    movq(scratch, FieldOperand(scratch, Map::kBitField3Offset));
+    SmiToInteger32(scratch, scratch);
+    and_(scratch, Immediate(Map::Deprecated::kMask));
+    j(not_zero, if_deprecated);
+  }
+}
+
+
 void MacroAssembler::JumpIfBlack(Register object,
                                  Register bitmap_scratch,
                                  Register mask_scratch,

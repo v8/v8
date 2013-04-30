@@ -31,7 +31,7 @@
 // in runtime.js:
 // var $Array = global.Array;
 
-var $ArrayBuffer = global.__ArrayBuffer;
+var $ArrayBuffer = global.ArrayBuffer;
 
 // -------------------------------------------------------------------
 
@@ -85,42 +85,54 @@ function ArrayBufferSlice(start, end) {
 // --------------- Typed Arrays ---------------------
 
 function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
-  return function (buffer, byteOffset, length) {
-    if (%_IsConstructCall()) {
-      if (!IS_ARRAYBUFFER(buffer)) {
-        throw MakeTypeError("Type error!");
-      }
-      var offset = IS_UNDEFINED(byteOffset)
-        ? 0 : offset = TO_POSITIVE_INTEGER(byteOffset);
+  function ConstructByArrayBuffer(obj, buffer, byteOffset, length) {
+    var offset = IS_UNDEFINED(byteOffset)
+      ? 0 : offset = TO_POSITIVE_INTEGER(byteOffset);
 
-      if (offset % elementSize !== 0) {
+    if (offset % elementSize !== 0) {
+      throw MakeRangeError("invalid_typed_array_alignment",
+          "start offset", name, elementSize);
+    }
+    var bufferByteLength = %ArrayBufferGetByteLength(buffer);
+    if (offset >= bufferByteLength) {
+      throw MakeRangeError("invalid_typed_array_offset");
+    }
+
+    var newByteLength;
+    var newLength;
+    if (IS_UNDEFINED(length)) {
+      if (bufferByteLength % elementSize !== 0) {
         throw MakeRangeError("invalid_typed_array_alignment",
-            "start offset", name, elementSize);
+          "byte length", name, elementSize);
       }
-      var bufferByteLength = %ArrayBufferGetByteLength(buffer);
-      if (offset >= bufferByteLength) {
-        throw MakeRangeError("invalid_typed_array_offset");
-      }
-
-      var newByteLength;
-      var newLength;
-      if (IS_UNDEFINED(length)) {
-        if (bufferByteLength % elementSize !== 0) {
-          throw MakeRangeError("invalid_typed_array_alignment",
-            "byte length", name, elementSize);
-        }
-        newByteLength = bufferByteLength - offset;
-        newLength = newByteLength / elementSize;
-      } else {
-        var newLength = TO_POSITIVE_INTEGER(length);
-        newByteLength = newLength * elementSize;
-      }
-      if (newByteLength > bufferByteLength) {
-        throw MakeRangeError("invalid_typed_array_length");
-      }
-      %TypedArrayInitialize(this, arrayId, buffer, offset, newByteLength);
+      newByteLength = bufferByteLength - offset;
+      newLength = newByteLength / elementSize;
     } else {
-      return new constructor(buffer, byteOffset, length);
+      var newLength = TO_POSITIVE_INTEGER(length);
+      newByteLength = newLength * elementSize;
+    }
+    if (newByteLength > bufferByteLength) {
+      throw MakeRangeError("invalid_typed_array_length");
+    }
+    %TypedArrayInitialize(obj, arrayId, buffer, offset, newByteLength);
+  }
+
+  function ConstructByLength(obj, length) {
+    var l = IS_UNDEFINED(length) ? 0 : TO_POSITIVE_INTEGER(length);
+    var byteLength = l * elementSize;
+    var buffer = new $ArrayBuffer(byteLength);
+    %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
+  }
+
+  return function (arg1, arg2, arg3) {
+    if (%_IsConstructCall()) {
+      if (IS_ARRAYBUFFER(arg1)) {
+        ConstructByArrayBuffer(this, arg1, arg2, arg3);
+      } else {
+        ConstructByLength(this, arg1);
+      }
+    } else {
+      return new constructor(arg1, arg2, arg3);
     }
   }
 }
@@ -164,9 +176,10 @@ function SetUpArrayBuffer() {
 SetUpArrayBuffer();
 
 function SetupTypedArray(arrayId, name, constructor, elementSize) {
-  var f = CreateTypedArrayConstructor(name, elementSize,
-                                      arrayId, constructor);
-  %SetCode(constructor, f);
+  %CheckIsBootstrapping();
+  var fun = CreateTypedArrayConstructor(name, elementSize,
+                                        arrayId, constructor);
+  %SetCode(constructor, fun);
   %FunctionSetPrototype(constructor, new $Object());
 
   %SetProperty(constructor.prototype,
@@ -181,12 +194,12 @@ function SetupTypedArray(arrayId, name, constructor, elementSize) {
 }
 
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
-SetupTypedArray(1, "Uint8Array", global.__Uint8Array, 1);
-SetupTypedArray(2, "Int8Array", global.__Int8Array, 1);
-SetupTypedArray(3, "Uint16Array", global.__Uint16Array, 2);
-SetupTypedArray(4, "Int16Array", global.__Int16Array, 2);
-SetupTypedArray(5, "Uint32Array", global.__Uint32Array, 4);
-SetupTypedArray(6, "Int32Array", global.__Int32Array, 4);
-SetupTypedArray(7, "Float32Array", global.__Float32Array, 4);
-SetupTypedArray(8, "Float64Array", global.__Float64Array, 8);
+SetupTypedArray(1, "Uint8Array", global.Uint8Array, 1);
+SetupTypedArray(2, "Int8Array", global.Int8Array, 1);
+SetupTypedArray(3, "Uint16Array", global.Uint16Array, 2);
+SetupTypedArray(4, "Int16Array", global.Int16Array, 2);
+SetupTypedArray(5, "Uint32Array", global.Uint32Array, 4);
+SetupTypedArray(6, "Int32Array", global.Int32Array, 4);
+SetupTypedArray(7, "Float32Array", global.Float32Array, 4);
+SetupTypedArray(8, "Float64Array", global.Float64Array, 8);
 

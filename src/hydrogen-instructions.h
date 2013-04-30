@@ -304,58 +304,6 @@ class Range: public ZoneObject {
 };
 
 
-class Representation {
- public:
-  enum Kind {
-    kNone,
-    kInteger32,
-    kDouble,
-    kTagged,
-    kExternal,
-    kNumRepresentations
-  };
-
-  Representation() : kind_(kNone) { }
-
-  static Representation None() { return Representation(kNone); }
-  static Representation Tagged() { return Representation(kTagged); }
-  static Representation Integer32() { return Representation(kInteger32); }
-  static Representation Double() { return Representation(kDouble); }
-  static Representation External() { return Representation(kExternal); }
-
-  static Representation FromKind(Kind kind) { return Representation(kind); }
-
-  bool Equals(const Representation& other) {
-    return kind_ == other.kind_;
-  }
-
-  bool is_more_general_than(const Representation& other) {
-    ASSERT(kind_ != kExternal);
-    ASSERT(other.kind_ != kExternal);
-    return kind_ > other.kind_;
-  }
-
-  Kind kind() const { return static_cast<Kind>(kind_); }
-  bool IsNone() const { return kind_ == kNone; }
-  bool IsTagged() const { return kind_ == kTagged; }
-  bool IsInteger32() const { return kind_ == kInteger32; }
-  bool IsDouble() const { return kind_ == kDouble; }
-  bool IsExternal() const { return kind_ == kExternal; }
-  bool IsSpecialization() const {
-    return kind_ == kInteger32 || kind_ == kDouble;
-  }
-  const char* Mnemonic() const;
-
- private:
-  explicit Representation(Kind k) : kind_(k) { }
-
-  // Make sure kind fits in int8.
-  STATIC_ASSERT(kNumRepresentations <= (1 << kBitsPerByte));
-
-  int8_t kind_;
-};
-
-
 class UniqueValueId {
  public:
   UniqueValueId() : raw_address_(NULL) { }
@@ -3238,19 +3186,24 @@ class HConstant: public HTemplateInstruction<0> {
   HConstant(Handle<Object> handle, Representation r);
   HConstant(int32_t value,
             Representation r,
+            bool is_not_in_new_space = true,
             Handle<Object> optional_handle = Handle<Object>::null());
   HConstant(double value,
             Representation r,
+            bool is_not_in_new_space = true,
             Handle<Object> optional_handle = Handle<Object>::null());
   HConstant(Handle<Object> handle,
             UniqueValueId unique_id,
             Representation r,
             HType type,
             bool is_internalized_string,
+            bool is_not_in_new_space,
             bool boolean_value);
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
+      // Default arguments to is_not_in_new_space depend on this heap number
+      // to be tenured so that it's guaranteed not be be located in new space.
       handle_ = FACTORY->NewNumber(double_value_, TENURED);
     }
     ALLOW_HANDLE_DEREF(Isolate::Current(), "smi check");
@@ -3263,6 +3216,10 @@ class HConstant: public HTemplateInstruction<0> {
         (BitCast<int64_t>(double_value_) == BitCast<int64_t>(-0.0) ||
          FixedDoubleArray::is_the_hole_nan(double_value_) ||
          std::isnan(double_value_));
+  }
+
+  bool NotInNewSpace() const {
+    return is_not_in_new_space_;
   }
 
   bool ImmortalImmovable() const {
@@ -3411,6 +3368,7 @@ class HConstant: public HTemplateInstruction<0> {
   bool has_int32_value_ : 1;
   bool has_double_value_ : 1;
   bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
+  bool is_not_in_new_space_ : 1;
   bool boolean_value_ : 1;
   int32_t int32_value_;
   double double_value_;
@@ -5265,15 +5223,24 @@ class HStoreContextSlot: public HTemplateInstruction<2> {
 
 class HLoadNamedField: public HTemplateInstruction<2> {
  public:
-  HLoadNamedField(HValue* object, bool is_in_object, int offset,
-                  HValue* typecheck = NULL)
+  HLoadNamedField(HValue* object, bool is_in_object,
+                  Representation field_representation,
+                  int offset, HValue* typecheck = NULL)
       : is_in_object_(is_in_object),
+        field_representation_(field_representation),
         offset_(offset) {
     ASSERT(object != NULL);
     SetOperandAt(0, object);
     SetOperandAt(1, typecheck != NULL ? typecheck : object);
 
-    set_representation(Representation::Tagged());
+    if (FLAG_track_fields && field_representation.IsSmi()) {
+      set_type(HType::Smi());
+      set_representation(Representation::Tagged());
+    } else if (FLAG_track_double_fields && field_representation.IsDouble()) {
+      set_representation(field_representation);
+    } else {
+      set_representation(Representation::Tagged());
+    }
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
     if (is_in_object) {
@@ -5286,8 +5253,10 @@ class HLoadNamedField: public HTemplateInstruction<2> {
   static HLoadNamedField* NewArrayLength(Zone* zone, HValue* object,
                                          HValue* typecheck,
                                          HType type = HType::Tagged()) {
+    Representation representation =
+        type.IsSmi() ? Representation::Smi() : Representation::Tagged();
     HLoadNamedField* result = new(zone) HLoadNamedField(
-        object, true, JSArray::kLengthOffset, typecheck);
+        object, true, representation, JSArray::kLengthOffset, typecheck);
     result->set_type(type);
     result->SetGVNFlag(kDependsOnArrayLengths);
     result->ClearGVNFlag(kDependsOnInobjectFields);
@@ -5302,6 +5271,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
 
   bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
   bool is_in_object() const { return is_in_object_; }
+  Representation field_representation() const { return representation_; }
   int offset() const { return offset_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -5321,6 +5291,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
   virtual bool IsDeletable() const { return true; }
 
   bool is_in_object_;
+  Representation field_representation_;
   int offset_;
 };
 
@@ -5618,9 +5589,11 @@ class HStoreNamedField: public HTemplateInstruction<2> {
                    Handle<String> name,
                    HValue* val,
                    bool in_object,
+                   Representation field_representation,
                    int offset)
       : name_(name),
         is_in_object_(in_object),
+        field_representation_(field_representation),
         offset_(offset),
         transition_unique_id_(),
         new_space_dominator_(NULL) {
@@ -5638,6 +5611,9 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField)
 
   virtual Representation RequiredInputRepresentation(int index) {
+    if (FLAG_track_fields && index == 1 && field_representation_.IsSmi()) {
+      return Representation::Integer32();
+    }
     return Representation::Tagged();
   }
   virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
@@ -5658,7 +5634,8 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {
-    return StoringValueNeedsWriteBarrier(value()) &&
+    return (!FLAG_track_fields || !field_representation_.IsSmi()) &&
+        StoringValueNeedsWriteBarrier(value()) &&
         ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
@@ -5670,9 +5647,14 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     transition_unique_id_ = UniqueValueId(transition_);
   }
 
+  Representation field_representation() const {
+    return field_representation_;
+  }
+
  private:
   Handle<String> name_;
   bool is_in_object_;
+  Representation field_representation_;
   int offset_;
   Handle<Map> transition_;
   UniqueValueId transition_unique_id_;
