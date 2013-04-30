@@ -86,8 +86,7 @@ function ArrayBufferSlice(start, end) {
 
 function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
   function ConstructByArrayBuffer(obj, buffer, byteOffset, length) {
-    var offset = IS_UNDEFINED(byteOffset)
-      ? 0 : offset = TO_POSITIVE_INTEGER(byteOffset);
+    var offset = IS_UNDEFINED(byteOffset) ? 0 : TO_POSITIVE_INTEGER(byteOffset);
 
     if (offset % elementSize !== 0) {
       throw MakeRangeError("invalid_typed_array_alignment",
