@@ -1108,67 +1108,6 @@ class V8EXPORT Value : public Data {
    */
   bool IsRegExp() const;
 
-
-  /**
-   * Returns true if this value is an ArrayBuffer.
-   * This is an experimental feature.
-   */
-  bool IsArrayBuffer() const;
-
-  /**
-   * Returns true if this value is one of TypedArrays.
-   * This is an experimental feature.
-   */
-  bool IsTypedArray() const;
-
-  /**
-   * Returns true if this value is an Uint8Array.
-   * This is an experimental feature.
-   */
-  bool IsUint8Array() const;
-
-  /**
-   * Returns true if this value is an Int8Array.
-   * This is an experimental feature.
-   */
-  bool IsInt8Array() const;
-
-  /**
-   * Returns true if this value is an Uint16Array.
-   * This is an experimental feature.
-   */
-  bool IsUint16Array() const;
-
-  /**
-   * Returns true if this value is an Int16Array.
-   * This is an experimental feature.
-   */
-  bool IsInt16Array() const;
-
-  /**
-   * Returns true if this value is an Uint32Array.
-   * This is an experimental feature.
-   */
-  bool IsUint32Array() const;
-
-  /**
-   * Returns true if this value is an Int32Array.
-   * This is an experimental feature.
-   */
-  bool IsInt32Array() const;
-
-  /**
-   * Returns true if this value is a Float32Array.
-   * This is an experimental feature.
-   */
-  bool IsFloat32Array() const;
-
-  /**
-   * Returns true if this value is a Float64Array.
-   * This is an experimental feature.
-   */
-  bool IsFloat64Array() const;
-
   Local<Boolean> ToBoolean() const;
   Local<Number> ToNumber() const;
   Local<String> ToString() const;

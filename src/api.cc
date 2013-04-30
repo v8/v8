@@ -2409,45 +2409,6 @@ bool Value::IsArray() const {
 }
 
 
-bool Value::IsArrayBuffer() const {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsArrayBuffer()"))
-    return false;
-  return Utils::OpenHandle(this)->IsJSArrayBuffer();
-}
-
-
-bool Value::IsTypedArray() const {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsArrayBuffer()"))
-    return false;
-  return Utils::OpenHandle(this)->IsJSTypedArray();
-}
-
-
-#define TYPED_ARRAY_LIST(F) \
-F(Uint8Array, kExternalUnsignedByteArray) \
-F(Int8Array, kExternalByteArray) \
-F(Uint16Array, kExternalUnsignedShortArray) \
-F(Int16Array, kExternalShortArray) \
-F(Uint32Array, kExternalUnsignedIntArray) \
-F(Int32Array, kExternalIntArray) \
-F(Float32Array, kExternalFloatArray) \
-F(Float64Array, kExternalDoubleArray)
-
-
-#define VALUE_IS_TYPED_ARRAY(TypedArray, type_const)                          \
-  bool Value::Is##TypedArray() const {                                        \
-    if (IsDeadCheck(i::Isolate::Current(), "v8::Value::Is" #TypedArray "()")) \
-      return false;                                                           \
-    i::Handle<i::Object> obj = Utils::OpenHandle(this);                       \
-    if (!obj->IsJSTypedArray()) return false;                                 \
-    return i::JSTypedArray::cast(*obj)->type() == type_const;                 \
-  }
-
-TYPED_ARRAY_LIST(VALUE_IS_TYPED_ARRAY)
-
-#undef VALUE_IS_TYPED_ARRAY
-
-
 bool Value::IsObject() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsObject()")) return false;
   return Utils::OpenHandle(this)->IsJSObject();
@@ -2815,7 +2776,14 @@ void v8::TypedArray::CheckCast(Value* that) {
   }
 
 
-TYPED_ARRAY_LIST(CHECK_TYPED_ARRAY_CAST)
+CHECK_TYPED_ARRAY_CAST(Uint8Array, kExternalUnsignedByteArray)
+CHECK_TYPED_ARRAY_CAST(Int8Array, kExternalByteArray)
+CHECK_TYPED_ARRAY_CAST(Uint16Array, kExternalUnsignedShortArray)
+CHECK_TYPED_ARRAY_CAST(Int16Array, kExternalShortArray)
+CHECK_TYPED_ARRAY_CAST(Uint32Array, kExternalUnsignedIntArray)
+CHECK_TYPED_ARRAY_CAST(Int32Array, kExternalIntArray)
+CHECK_TYPED_ARRAY_CAST(Float32Array, kExternalFloatArray)
+CHECK_TYPED_ARRAY_CAST(Float64Array, kExternalDoubleArray)
 
 #undef CHECK_TYPED_ARRAY_CAST
 

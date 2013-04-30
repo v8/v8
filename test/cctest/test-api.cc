@@ -15174,31 +15174,6 @@ THREADED_TEST(Float64Array) {
       v8::kExternalDoubleArray, -500, 500);
 }
 
-#define IS_TYPED_ARRAY_TEST(TypedArray) \
-  THREADED_TEST(Is##TypedArray) {                                             \
-    i::FLAG_harmony_typed_arrays = true;                                      \
-    LocalContext env;                                                         \
-    v8::Isolate* isolate = env->GetIsolate();                                 \
-    v8::HandleScope handle_scope(isolate);                                    \
-                                                                              \
-    Handle<Value> result = CompileRun(                                        \
-        "var ab = new ArrayBuffer(128);"                                      \
-        "new " #TypedArray "(ab)");                                           \
-    CHECK(result->Is##TypedArray());                                          \
-  }
-
-IS_TYPED_ARRAY_TEST(Uint8Array)
-IS_TYPED_ARRAY_TEST(Int8Array)
-IS_TYPED_ARRAY_TEST(Uint16Array)
-IS_TYPED_ARRAY_TEST(Int16Array)
-IS_TYPED_ARRAY_TEST(Uint32Array)
-IS_TYPED_ARRAY_TEST(Int32Array)
-IS_TYPED_ARRAY_TEST(Float32Array)
-IS_TYPED_ARRAY_TEST(Float64Array)
-
-#undef IS_TYPED_ARRAY_TEST
-
-
 
 THREADED_TEST(ScriptContextDependence) {
   LocalContext c1;
