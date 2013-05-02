@@ -431,15 +431,7 @@ Handle<Code> StubCache::ComputeStoreTransition(Handle<Name> name,
                                                StrictModeFlag strict_mode) {
   Handle<Code> stub = FindIC(
       name, receiver, Code::STORE_IC, Code::MAP_TRANSITION, strict_mode);
-  if (!stub.is_null()) {
-    MapHandleList embedded_maps;
-    stub->FindAllMaps(&embedded_maps);
-    for (int i = 0; i < embedded_maps.length(); i++) {
-      if (embedded_maps.at(i).is_identical_to(transition)) {
-        return stub;
-      }
-    }
-  }
+  if (!stub.is_null()) return stub;
 
   StoreStubCompiler compiler(isolate_, strict_mode);
   Handle<Code> code =
@@ -589,15 +581,7 @@ Handle<Code> StubCache::ComputeKeyedStoreTransition(
     StrictModeFlag strict_mode) {
   Handle<Code> stub = FindIC(
       name, receiver, Code::KEYED_STORE_IC, Code::MAP_TRANSITION, strict_mode);
-  if (!stub.is_null()) {
-    MapHandleList embedded_maps;
-    stub->FindAllMaps(&embedded_maps);
-    for (int i = 0; i < embedded_maps.length(); i++) {
-      if (embedded_maps.at(i).is_identical_to(transition)) {
-        return stub;
-      }
-    }
-  }
+  if (!stub.is_null()) return stub;
 
   KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
   Handle<Code> code =

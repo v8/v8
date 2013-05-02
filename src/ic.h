@@ -184,7 +184,7 @@ class IC {
                   Handle<JSObject> receiver,
                   Handle<String> name,
                   Handle<Code> code);
-  virtual void UpdateMegamorphicCache(Map* map, String* name, Code* code);
+  virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
   virtual Handle<Code> megamorphic_stub() {
     UNREACHABLE();
     return Handle<Code>::null();
@@ -471,7 +471,7 @@ class KeyedLoadIC: public LoadIC {
   virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
                                           Handle<JSObject> receiver,
                                           Handle<String> name);
-  virtual void UpdateMegamorphicCache(Map* map, String* name, Code* code) { }
+  virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
  private:
   // Stub accessors.
@@ -620,7 +620,7 @@ class KeyedStoreIC: public StoreIC {
                                                StrictModeFlag strict_mode,
                                                Handle<JSObject> receiver,
                                                Handle<String> name);
-  virtual void UpdateMegamorphicCache(Map* map, String* name, Code* code) { }
+  virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
   virtual Handle<Code> megamorphic_stub() {
     return isolate()->builtins()->KeyedStoreIC_Generic();

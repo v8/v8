@@ -182,13 +182,13 @@ Address IC::OriginalCodeAddress() const {
 static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
                                                    Object* receiver,
                                                    Object* name) {
-  // If the code is NORMAL, it handles dictionary mode objects. Such stubs do
-  // not check maps, but do positive/negative lookups.
-  if (target->type() != Code::NORMAL) {
-    Map* map = target->FindFirstMap();
-    if (map != NULL && map->is_deprecated()) {
-      return true;
-    }
+  if (target->is_keyed_load_stub() ||
+      target->is_keyed_call_stub() ||
+      target->is_keyed_store_stub()) {
+    // Determine whether the failure is due to a name failure.
+    if (!name->IsName()) return false;
+    Name* stub_name = target->FindFirstName();
+    if (Name::cast(name) != stub_name) return false;
   }
 
   InlineCacheHolderFlag cache_holder =
@@ -217,10 +217,30 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
   int index = map->IndexInCodeCache(name, target);
   if (index >= 0) {
     map->RemoveFromCodeCache(String::cast(name), target, index);
+    // For loads, handlers are stored in addition to the ICs on the map. Remove
+    // those, too.
+    if (target->is_load_stub() || target->is_keyed_load_stub()) {
+      Code* handler = target->FindFirstCode();
+      index = map->IndexInCodeCache(name, handler);
+      if (index >= 0) {
+        map->RemoveFromCodeCache(String::cast(name), handler, index);
+      }
+    }
     return true;
   }
 
-  return false;
+  // If the IC is shared between multiple receivers (slow dictionary mode), then
+  // the map cannot be deprecated and the stub invalidated.
+  if (cache_holder != OWN_MAP) return false;
+
+  // The stub is not in the cache. We've ruled out all other kinds of failure
+  // except for proptotype chain changes, a deprecated map, or a map that's
+  // different from the one that the stub expects. If the map hasn't changed,
+  // assume it's a prototype failure. Treat deprecated maps in the same way as
+  // prototype failures (stay monomorphic if possible).
+  Map* old_map = target->FindFirstMap();
+  if (old_map == NULL) return false;
+  return old_map == map || old_map->is_deprecated();
 }
 
 
@@ -230,22 +250,13 @@ IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
   if (state != MONOMORPHIC || !name->IsString()) return state;
   if (receiver->IsUndefined() || receiver->IsNull()) return state;
 
-  // For keyed load/store/call, the most likely cause of cache failure is
-  // that the key has changed.  We do not distinguish between
-  // prototype and non-prototype failures for keyed access.
   Code::Kind kind = target->kind();
-  if (kind == Code::KEYED_LOAD_IC ||
-      kind == Code::KEYED_STORE_IC ||
-      kind == Code::KEYED_CALL_IC) {
-    return MONOMORPHIC;
-  }
-
   // Remove the target from the code cache if it became invalid
   // because of changes in the prototype chain to avoid hitting it
   // again.
   // Call stubs handle this later to allow extra IC state
   // transitions.
-  if (kind != Code::CALL_IC &&
+  if (kind != Code::CALL_IC && kind != Code::KEYED_CALL_IC &&
       TryRemoveInvalidPrototypeDependentStub(target, receiver, name)) {
     return MONOMORPHIC_PROTOTYPE_FAILURE;
   }
@@ -724,8 +735,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
         TryUpdateExtraICState(lookup, object, &extra_ic_state)) {
       code = ComputeMonomorphicStub(lookup, state, extra_ic_state,
                                     object, name);
-    } else if (kind_ == Code::CALL_IC &&
-               TryRemoveInvalidPrototypeDependentStub(target(),
+    } else if (TryRemoveInvalidPrototypeDependentStub(target(),
                                                       *object,
                                                       *name)) {
       state = MONOMORPHIC_PROTOTYPE_FAILURE;
@@ -748,15 +758,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
     case UNINITIALIZED:
     case MONOMORPHIC_PROTOTYPE_FAILURE:
     case PREMONOMORPHIC:
-      set_target(*code);
-      break;
     case MONOMORPHIC:
-      if (code->ic_state() != MONOMORPHIC) {
-        Map* map = target()->FindFirstMap();
-        if (map != NULL) {
-          UpdateMegamorphicCache(map, *name, target());
-        }
-      }
       set_target(*code);
       break;
     case MEGAMORPHIC: {
@@ -986,14 +988,25 @@ bool IC::UpdatePolymorphicIC(State state,
   CodeHandleList handlers;
 
   int number_of_valid_maps;
+  int handler_to_overwrite = -1;
+  Handle<Map> new_receiver_map(receiver->map());
   {
     AssertNoAllocation no_gc;
     target()->FindAllMaps(&receiver_maps);
     int number_of_maps = receiver_maps.length();
     number_of_valid_maps = number_of_maps;
+
     for (int i = 0; i < number_of_maps; i++) {
-      if (receiver_maps.at(i)->is_deprecated()) {
+      Handle<Map> map = receiver_maps.at(i);
+      // Filter out deprecated maps to ensure its instances get migrated.
+      if (map->is_deprecated()) {
         number_of_valid_maps--;
+      // If the receiver map is already in the polymorphic IC, this indicates
+      // there was a prototoype chain failure. In that case, just overwrite the
+      // handler.
+      } else if (map.is_identical_to(new_receiver_map)) {
+        number_of_valid_maps--;
+        handler_to_overwrite = i;
       }
     }
 
@@ -1007,14 +1020,16 @@ bool IC::UpdatePolymorphicIC(State state,
     target()->FindAllCode(&handlers, receiver_maps.length());
   }
 
-  if (!AddOneReceiverMapIfMissing(&receiver_maps,
-                                  Handle<Map>(receiver->map()))) {
-    return false;
+  number_of_valid_maps++;
+  if (handler_to_overwrite >= 0) {
+    handlers.InsertAt(handler_to_overwrite, code);
+  } else {
+    receiver_maps.Add(new_receiver_map);
+    handlers.Add(code);
   }
 
-  handlers.Add(code);
   Handle<Code> ic = isolate()->stub_cache()->ComputePolymorphicIC(
-      &receiver_maps, &handlers, number_of_valid_maps + 1, name);
+      &receiver_maps, &handlers, number_of_valid_maps, name);
   set_target(*ic);
   return true;
 }
@@ -1101,38 +1116,9 @@ void IC::PatchCache(State state,
           if (UpdatePolymorphicIC(state, strict_mode, receiver, name, code)) {
             break;
           }
-        }
-        if (target()->type() != Code::NORMAL) {
-          if (target()->is_load_stub()) {
+
+          if (target()->type() != Code::NORMAL) {
             CopyICToMegamorphicCache(name);
-          } else if (target()->is_store_stub()) {
-            // Ensure that the IC stays monomorphic when replacing a monomorphic
-            // IC for a deprecated map.
-            // TODO(verwaest): Remove this code once polymorphic store ICs are
-            // implemented. Updating the polymorphic IC will keep it monomorphic
-            // by filtering deprecated maps.
-            MapHandleList maps;
-            Code* handler = target();
-            handler->FindAllMaps(&maps);
-            for (int i = 0; i < Min(1, maps.length()); i++) {
-              if (maps.at(i)->is_deprecated()) {
-                UpdateMonomorphicIC(receiver, code, name);
-                return;
-              }
-            }
-            if (maps.length() > 0) {
-              if (receiver->map() == *maps.at(0)) {
-                UpdateMonomorphicIC(receiver, code, name);
-                return;
-              }
-              UpdateMegamorphicCache(*maps.at(0), *name, handler);
-            }
-          } else {
-            Code* handler = target();
-            Map* map = handler->FindFirstMap();
-            if (map != NULL) {
-              UpdateMegamorphicCache(map, *name, handler);
-            }
           }
         }
 
@@ -1235,7 +1221,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-void IC::UpdateMegamorphicCache(Map* map, String* name, Code* code) {
+void IC::UpdateMegamorphicCache(Map* map, Name* name, Code* code) {
   // Cache code holding map should be consistent with
   // GenerateMonomorphicCacheProbe.
   isolate()->stub_cache()->Set(name, map, code);
@@ -1497,7 +1483,8 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
 static bool LookupForWrite(Handle<JSObject> receiver,
                            Handle<String> name,
                            Handle<Object> value,
-                           LookupResult* lookup) {
+                           LookupResult* lookup,
+                           IC::State* state) {
   Handle<JSObject> holder = receiver;
   receiver->Lookup(*name, lookup);
   if (lookup->IsFound()) {
@@ -1534,7 +1521,21 @@ static bool LookupForWrite(Handle<JSObject> receiver,
   PropertyDetails target_details =
       lookup->GetTransitionDetails(receiver->map());
   if (target_details.IsReadOnly()) return false;
-  return value->FitsRepresentation(target_details.representation());
+
+  // If the value that's being stored does not fit in the field that the
+  // instance would transition to, create a new transition that fits the value.
+  // This has to be done before generating the IC, since that IC will embed the
+  // transition target.
+  // Ensure the instance and its map were migrated before trying to update the
+  // transition target.
+  ASSERT(!receiver->map()->is_deprecated());
+  if (!value->FitsRepresentation(target_details.representation())) {
+    Handle<Map> target(lookup->GetTransitionMapFromMap(receiver->map()));
+    Map::GeneralizeRepresentation(
+        target, target->LastAdded(), value->OptimalRepresentation());
+    *state = MONOMORPHIC_PROTOTYPE_FAILURE;
+  }
+  return true;
 }
 
 
@@ -1618,7 +1619,7 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   LookupResult lookup(isolate());
-  if (LookupForWrite(receiver, name, value, &lookup)) {
+  if (LookupForWrite(receiver, name, value, &lookup, &state)) {
     if (FLAG_use_ic) {
       UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
     }

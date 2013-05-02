@@ -4629,6 +4629,9 @@ class Code: public HeapObject {
   Code* FindFirstCode();
   void FindAllCode(CodeHandleList* code_list, int length);
 
+  // Find the first name in an IC stub.
+  Name* FindFirstName();
+
   class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
   class ExtraICStateKeyedAccessStoreMode:
       public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
