@@ -2431,7 +2431,8 @@ F(Int16Array, kExternalShortArray) \
 F(Uint32Array, kExternalUnsignedIntArray) \
 F(Int32Array, kExternalIntArray) \
 F(Float32Array, kExternalFloatArray) \
-F(Float64Array, kExternalDoubleArray)
+F(Float64Array, kExternalDoubleArray) \
+F(Uint8ClampedArray, kExternalPixelArray)
 
 
 #define VALUE_IS_TYPED_ARRAY(TypedArray, type_const)                          \
@@ -5976,6 +5977,8 @@ i::Handle<i::JSTypedArray> NewTypedArray(
 
 TYPED_ARRAY_NEW(Uint8Array, uint8_t, kExternalUnsignedByteArray,
                 i::EXTERNAL_UNSIGNED_BYTE_ELEMENTS)
+TYPED_ARRAY_NEW(Uint8ClampedArray, uint8_t, kExternalPixelArray,
+                i::EXTERNAL_PIXEL_ELEMENTS)
 TYPED_ARRAY_NEW(Int8Array, int8_t, kExternalByteArray,
                 i::EXTERNAL_BYTE_ELEMENTS)
 TYPED_ARRAY_NEW(Uint16Array, uint16_t, kExternalUnsignedShortArray,

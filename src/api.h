@@ -173,6 +173,7 @@ class RegisteredExtension {
   V(ArrayBuffer, JSArrayBuffer)                \
   V(TypedArray, JSTypedArray)                  \
   V(Uint8Array, JSTypedArray)                  \
+  V(Uint8ClampedArray, JSTypedArray)           \
   V(Int8Array, JSTypedArray)                   \
   V(Uint16Array, JSTypedArray)                 \
   V(Int16Array, JSTypedArray)                  \
@@ -221,6 +222,8 @@ class Utils {
   static inline Local<TypedArray> ToLocal(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<Uint8Array> ToLocalUint8Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Uint8ClampedArray> ToLocalUint8ClampedArray(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<Int8Array> ToLocalInt8Array(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
@@ -322,6 +325,7 @@ MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
 
 MAKE_TO_LOCAL_TYPED_ARRAY(Uint8Array, kExternalUnsignedByteArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Uint8ClampedArray, kExternalPixelArray)
 MAKE_TO_LOCAL_TYPED_ARRAY(Int8Array, kExternalByteArray)
 MAKE_TO_LOCAL_TYPED_ARRAY(Uint16Array, kExternalUnsignedShortArray)
 MAKE_TO_LOCAL_TYPED_ARRAY(Int16Array, kExternalShortArray)

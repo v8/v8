@@ -201,4 +201,4 @@ SetupTypedArray(5, "Uint32Array", global.Uint32Array, 4);
 SetupTypedArray(6, "Int32Array", global.Int32Array, 4);
 SetupTypedArray(7, "Float32Array", global.Float32Array, 4);
 SetupTypedArray(8, "Float64Array", global.Float64Array, 8);
-
+SetupTypedArray(9, "Uint8ClampedArray", global.Uint8ClampedArray, 1);

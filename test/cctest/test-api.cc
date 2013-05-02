@@ -15174,6 +15174,13 @@ THREADED_TEST(Float64Array) {
       v8::kExternalDoubleArray, -500, 500);
 }
 
+
+THREADED_TEST(Uint8ClampedArray) {
+  TypedArrayTestHelper<uint8_t, v8::Uint8ClampedArray, i::ExternalPixelArray>(
+      v8::kExternalPixelArray, 0, 0xFF);
+}
+
+
 #define IS_TYPED_ARRAY_TEST(TypedArray) \
   THREADED_TEST(Is##TypedArray) {                                             \
     i::FLAG_harmony_typed_arrays = true;                                      \
@@ -15195,6 +15202,7 @@ IS_TYPED_ARRAY_TEST(Uint32Array)
 IS_TYPED_ARRAY_TEST(Int32Array)
 IS_TYPED_ARRAY_TEST(Float32Array)
 IS_TYPED_ARRAY_TEST(Float64Array)
+IS_TYPED_ARRAY_TEST(Uint8ClampedArray)
 
 #undef IS_TYPED_ARRAY_TEST
 

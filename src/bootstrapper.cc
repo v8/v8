@@ -1344,7 +1344,9 @@ void Genesis::InitializeExperimentalGlobal() {
       native_context()->set_float_array_fun(*float_fun);
       Handle<JSFunction> double_fun = InstallTypedArray("Float64Array");
       native_context()->set_double_array_fun(*double_fun);
-    }
+      Handle<JSFunction> uint8c_fun = InstallTypedArray("Uint8ClampedArray");
+      native_context()->set_uint8c_array_fun(*uint8c_fun);
+     }
   }
 
   if (FLAG_harmony_generators) {

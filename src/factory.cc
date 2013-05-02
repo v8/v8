@@ -1092,6 +1092,10 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
       typed_array_fun = native_context->double_array_fun();
       break;
 
+    case kExternalPixelArray:
+      typed_array_fun = native_context->uint8c_array_fun();
+      break;
+
     default:
       UNREACHABLE();
       return Handle<JSTypedArray>();

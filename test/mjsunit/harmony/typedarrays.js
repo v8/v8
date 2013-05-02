@@ -215,6 +215,28 @@ TestTypedArray(Uint32Array, 4, 0xFFFFFFFF);
 TestTypedArray(Int32Array, 4, -0x7FFFFFFF);
 TestTypedArray(Float32Array, 4, 0.5);
 TestTypedArray(Float64Array, 8, 0.5);
+TestTypedArray(Uint8ClampedArray, 1, 0xFF);
+
+function TestTypedArrayOutOfRange(constructor, value, result) {
+  var a = new constructor(1);
+  a[0] = value;
+  assertSame(result, a[0]);
+}
+
+TestTypedArrayOutOfRange(Uint8Array, 0x1FA, 0xFA);
+TestTypedArrayOutOfRange(Uint8Array, -1, 0xFF);
+TestTypedArrayOutOfRange(Int8Array, 0x1FA, 0x7A - 0x80);
+
+TestTypedArrayOutOfRange(Uint16Array, 0x1FFFA, 0xFFFA);
+TestTypedArrayOutOfRange(Uint16Array, -1, 0xFFFF);
+TestTypedArrayOutOfRange(Int16Array, 0x1FFFA, 0x7FFA - 0x8000);
+
+TestTypedArrayOutOfRange(Uint32Array, 0x1FFFFFFFA, 0xFFFFFFFA);
+TestTypedArrayOutOfRange(Uint32Array, -1, 0xFFFFFFFF);
+TestTypedArrayOutOfRange(Int16Array, 0x1FFFFFFFA, 0x7FFFFFFA - 0x80000000);
+
+TestTypedArrayOutOfRange(Uint8ClampedArray, 0x1FA, 0xFF);
+TestTypedArrayOutOfRange(Uint8ClampedArray, -1, 0);
 
 
 // General tests for properties
@@ -233,7 +255,13 @@ function TestEnumerable(func, obj) {
 }
 TestEnumerable(ArrayBuffer, new ArrayBuffer());
 TestEnumerable(Uint8Array);
-
+TestEnumerable(Int8Array);
+TestEnumerable(Uint16Array);
+TestEnumerable(Int16Array);
+TestEnumerable(Uint32Array);
+TestEnumerable(Int32Array);
+TestEnumerable(Float32Array);
+TestEnumerable(Uint8ClampedArray);
 
 // Test arbitrary properties on ArrayBuffer
 function TestArbitrary(m) {

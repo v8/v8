@@ -1128,6 +1128,12 @@ class V8EXPORT Value : public Data {
   bool IsUint8Array() const;
 
   /**
+   * Returns true if this value is an Uint8ClampedArray.
+   * This is an experimental feature.
+   */
+  bool IsUint8ClampedArray() const;
+
+  /**
    * Returns true if this value is an Int8Array.
    * This is an experimental feature.
    */
@@ -2158,6 +2164,21 @@ class V8EXPORT Uint8Array : public TypedArray {
   static void CheckCast(Value* obj);
 };
 
+
+/**
+ * An instance of Uint8ClampedArray constructor (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT Uint8ClampedArray : public TypedArray {
+ public:
+  static Local<Uint8ClampedArray> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  V8_INLINE(static Uint8ClampedArray* Cast(Value* obj));
+
+ private:
+  Uint8ClampedArray();
+  static void CheckCast(Value* obj);
+};
 
 /**
  * An instance of Int8Array constructor (ES6 draft 15.13.6).
@@ -4768,7 +4789,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 64;
+  static const int kContextEmbedderDataIndex = 65;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;

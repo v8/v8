@@ -132,6 +132,7 @@ enum BindingFlags {
   V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun) \
   V(FLOAT_ARRAY_FUN_INDEX, JSFunction, float_array_fun) \
   V(DOUBLE_ARRAY_FUN_INDEX, JSFunction, double_array_fun) \
+  V(UINT8C_ARRAY_FUN_INDEX, JSFunction, uint8c_array_fun) \
   V(FUNCTION_MAP_INDEX, Map, function_map) \
   V(STRICT_MODE_FUNCTION_MAP_INDEX, Map, strict_mode_function_map) \
   V(FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, function_without_prototype_map) \
@@ -294,6 +295,7 @@ class Context: public FixedArray {
     INT32_ARRAY_FUN_INDEX,
     FLOAT_ARRAY_FUN_INDEX,
     DOUBLE_ARRAY_FUN_INDEX,
+    UINT8C_ARRAY_FUN_INDEX,
     MESSAGE_LISTENERS_INDEX,
     MAKE_MESSAGE_FUN_INDEX,
     GET_STACK_TRACE_LINE_INDEX,

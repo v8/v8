@@ -774,7 +774,8 @@ enum TypedArrayId {
   ARRAY_ID_UINT32 = 5,
   ARRAY_ID_INT32 = 6,
   ARRAY_ID_FLOAT32 = 7,
-  ARRAY_ID_FLOAT64 = 8
+  ARRAY_ID_FLOAT64 = 8,
+  ARRAY_ID_UINT8C = 9
 };
 
 
@@ -830,6 +831,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
       elementsKind = EXTERNAL_DOUBLE_ELEMENTS;
       arrayType = kExternalDoubleArray;
       elementSize = 8;
+      break;
+    case ARRAY_ID_UINT8C:
+      elementsKind = EXTERNAL_PIXEL_ELEMENTS;
+      arrayType = kExternalPixelArray;
+      elementSize = 1;
       break;
     default:
       UNREACHABLE();
