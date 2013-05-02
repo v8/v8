@@ -105,4 +105,4 @@ test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
 test-sockets/Socket: SKIP
 
 # Profiling doesn't work on Native Client.
-test-cpu-profiler/*
+test-cpu-profiler/*: SKIP
