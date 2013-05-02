@@ -1059,45 +1059,40 @@ void StubCache::Clear() {
 
 
 void StubCache::CollectMatchingMaps(SmallMapList* types,
-                                    Name* name,
+                                    Handle<Name> name,
                                     Code::Flags flags,
                                     Handle<Context> native_context,
                                     Zone* zone) {
   for (int i = 0; i < kPrimaryTableSize; i++) {
-    if (primary_[i].key == name) {
+    if (primary_[i].key == *name) {
       Map* map = primary_[i].map;
       // Map can be NULL, if the stub is constant function call
       // with a primitive receiver.
       if (map == NULL) continue;
 
-      int offset = PrimaryOffset(name, flags, map);
+      int offset = PrimaryOffset(*name, flags, map);
       if (entry(primary_, offset) == &primary_[i] &&
           !TypeFeedbackOracle::CanRetainOtherContext(map, *native_context)) {
-        types->Add(Handle<Map>(map), zone);
+        types->AddMapIfMissing(Handle<Map>(map), zone);
       }
     }
   }
 
   for (int i = 0; i < kSecondaryTableSize; i++) {
-    if (secondary_[i].key == name) {
+    if (secondary_[i].key == *name) {
       Map* map = secondary_[i].map;
       // Map can be NULL, if the stub is constant function call
       // with a primitive receiver.
       if (map == NULL) continue;
 
       // Lookup in primary table and skip duplicates.
-      int primary_offset = PrimaryOffset(name, flags, map);
-      Entry* primary_entry = entry(primary_, primary_offset);
-      if (primary_entry->key == name) {
-        Map* primary_map = primary_entry->map;
-        if (map == primary_map) continue;
-      }
+      int primary_offset = PrimaryOffset(*name, flags, map);
 
       // Lookup in secondary table and add matches.
-      int offset = SecondaryOffset(name, flags, primary_offset);
+      int offset = SecondaryOffset(*name, flags, primary_offset);
       if (entry(secondary_, offset) == &secondary_[i] &&
           !TypeFeedbackOracle::CanRetainOtherContext(map, *native_context)) {
-        types->Add(Handle<Map>(map), zone);
+        types->AddMapIfMissing(Handle<Map>(map), zone);
       }
     }
   }

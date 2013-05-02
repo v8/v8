@@ -277,6 +277,14 @@ class SmallMapList {
   bool is_empty() const { return list_.is_empty(); }
   int length() const { return list_.length(); }
 
+  void AddMapIfMissing(Handle<Map> map, Zone* zone) {
+    map = Map::CurrentMapForDeprecated(map);
+    for (int i = 0; i < length(); ++i) {
+      if (at(i).is_identical_to(map)) return;
+    }
+    Add(map, zone);
+  }
+
   void Add(Handle<Map> handle, Zone* zone) {
     list_.Add(handle.location(), zone);
   }

@@ -311,7 +311,7 @@ class StubCache {
 
   // Collect all maps that match the name and flags.
   void CollectMatchingMaps(SmallMapList* types,
-                           Name* name,
+                           Handle<Name> name,
                            Code::Flags flags,
                            Handle<Context> native_context,
                            Zone* zone);

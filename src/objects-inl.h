@@ -3610,6 +3610,12 @@ bool Map::CanBeDeprecated() {
 }
 
 
+Handle<Map> Map::CurrentMapForDeprecated(Handle<Map> map) {
+  if (!map->is_deprecated()) return map;
+  return GeneralizeRepresentation(map, 0, Representation::Smi());
+}
+
+
 void Map::NotifyLeafMapLayoutChange() {
   dependent_code()->DeoptimizeDependentCodeGroup(
       GetIsolate(),
