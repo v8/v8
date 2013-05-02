@@ -6077,6 +6077,19 @@ Local<Integer> v8::Integer::NewFromUnsigned(uint32_t value, Isolate* isolate) {
 }
 
 
+#ifdef DEBUG
+v8::AssertNoGCScope::AssertNoGCScope(v8::Isolate* isolate)
+  : isolate_(isolate),
+    last_state_(i::EnterAllocationScope(
+        reinterpret_cast<i::Isolate*>(isolate), false)) {
+}
+
+v8::AssertNoGCScope::~AssertNoGCScope() {
+  i::ExitAllocationScope(reinterpret_cast<i::Isolate*>(isolate_), last_state_);
+}
+#endif
+
+
 void V8::IgnoreOutOfMemoryException() {
   EnterIsolateIfNeeded()->set_ignore_out_of_memory(true);
 }

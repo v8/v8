@@ -1476,6 +1476,7 @@ class Heap {
 
 #ifdef DEBUG
   bool IsAllocationAllowed() { return allocation_allowed_; }
+  inline void set_allow_allocation(bool allocation_allowed);
   inline bool allow_allocation(bool enable);
 
   bool disallow_allocation_failure() {
@@ -2691,6 +2692,13 @@ class DescriptorLookupCache {
 // { AssertNoAllocation nogc;
 //   ...
 // }
+
+#ifdef DEBUG
+inline bool EnterAllocationScope(Isolate* isolate, bool allow_allocation);
+inline void ExitAllocationScope(Isolate* isolate, bool last_state);
+#endif
+
+
 class AssertNoAllocation {
  public:
   inline AssertNoAllocation();
@@ -2698,8 +2706,7 @@ class AssertNoAllocation {
 
 #ifdef DEBUG
  private:
-  bool old_state_;
-  bool active_;
+  bool last_state_;
 #endif
 };
 
@@ -2711,8 +2718,7 @@ class DisableAssertNoAllocation {
 
 #ifdef DEBUG
  private:
-  bool old_state_;
-  bool active_;
+  bool last_state_;
 #endif
 };
 

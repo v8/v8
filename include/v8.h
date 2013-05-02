@@ -3877,6 +3877,24 @@ class V8EXPORT PersistentHandleVisitor {  // NOLINT
 
 
 /**
+ * Asserts that no action is performed that could cause a handle's value
+ * to be modified. Useful when otherwise unsafe handle operations need to
+ * be performed.
+ */
+class V8EXPORT AssertNoGCScope {
+#ifndef DEBUG
+  V8_INLINE(AssertNoGCScope(Isolate* isolate)) {}
+#else
+  AssertNoGCScope(Isolate* isolate);
+  ~AssertNoGCScope();
+ private:
+  Isolate* isolate_;
+  bool last_state_;
+#endif
+};
+
+
+/**
  * Container class for static utility functions.
  */
 class V8EXPORT V8 {
