@@ -240,7 +240,8 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(Isolate* isolate) {
       GetCodeKind(),
       GetICState(),
       GetExtraICState(),
-      GetStubType(), -1);
+      GetStubType(),
+      GetStubFlags());
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
@@ -406,6 +407,36 @@ HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
 
 
 Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template<>
+HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
+  Representation representation = casted_stub()->representation();
+  HInstruction* load = AddInstruction(new(zone()) HLoadNamedField(
+      GetParameter(0), casted_stub()->is_inobject(),
+      representation, casted_stub()->offset()));
+  return load;
+}
+
+
+Handle<Code> LoadFieldStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template<>
+HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
+  Representation representation = casted_stub()->representation();
+  HInstruction* load = AddInstruction(new(zone()) HLoadNamedField(
+      GetParameter(0), casted_stub()->is_inobject(),
+      representation, casted_stub()->offset()));
+  return load;
+}
+
+
+Handle<Code> KeyedLoadFieldStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 

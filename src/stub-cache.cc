@@ -223,8 +223,7 @@ Handle<Code> StubCache::ComputeLoadField(Handle<Name> name,
                                          Handle<JSObject> holder,
                                          PropertyIndex field) {
   if (receiver.is_identical_to(holder)) {
-    LoadFieldStub stub(LoadStubCompiler::receiver(),
-                       field.is_inobject(holder),
+    LoadFieldStub stub(field.is_inobject(holder),
                        field.translate(holder));
     return stub.GetCode(isolate());
   }
@@ -339,9 +338,8 @@ Handle<Code> StubCache::ComputeKeyedLoadField(Handle<Name> name,
                                               Handle<JSObject> holder,
                                               PropertyIndex field) {
   if (receiver.is_identical_to(holder)) {
-    LoadFieldStub stub(KeyedLoadStubCompiler::receiver(),
-                       field.is_inobject(holder),
-                       field.translate(holder));
+    KeyedLoadFieldStub stub(field.is_inobject(holder),
+                            field.translate(holder));
     return stub.GetCode(isolate());
   }
 
@@ -1504,8 +1502,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadField(Handle<JSObject> object,
 
   Register reg = HandlerFrontendHeader(object, receiver(), holder, name, &miss);
 
-  LoadFieldStub stub(reg, field.is_inobject(holder), field.translate(holder));
-  GenerateTailCall(masm(), stub.GetCode(isolate()));
+  GenerateLoadField(reg, holder, field);
 
   __ bind(&miss);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
@@ -1590,10 +1587,7 @@ void BaseLoadStubCompiler::GenerateLoadPostInterceptor(
   if (lookup->IsField()) {
     PropertyIndex field = lookup->GetFieldIndex();
     if (interceptor_holder.is_identical_to(holder)) {
-      LoadFieldStub stub(interceptor_reg,
-                         field.is_inobject(holder),
-                         field.translate(holder));
-      GenerateTailCall(masm(), stub.GetCode(isolate()));
+      GenerateLoadField(interceptor_reg, holder, field);
     } else {
       // We found FIELD property in prototype chain of interceptor's holder.
       // Retrieve a field from field's holder.

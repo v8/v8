@@ -1196,10 +1196,17 @@ void BaseLoadStubCompiler::NonexistentHandlerFrontend(
 
 void BaseLoadStubCompiler::GenerateLoadField(Register reg,
                                              Handle<JSObject> holder,
-                                             PropertyIndex index) {
-  // Get the value from the properties.
-  GenerateFastPropertyLoad(masm(), rax, reg, holder, index);
-  __ ret(0);
+                                             PropertyIndex field) {
+  if (!reg.is(receiver())) __ movq(receiver(), reg);
+  if (kind() == Code::LOAD_IC) {
+    LoadFieldStub stub(field.is_inobject(holder),
+                       field.translate(holder));
+    GenerateTailCall(masm(), stub.GetCode(isolate()));
+  } else {
+    KeyedLoadFieldStub stub(field.is_inobject(holder),
+                            field.translate(holder));
+    GenerateTailCall(masm(), stub.GetCode(isolate()));
+  }
 }
 
 
