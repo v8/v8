@@ -679,7 +679,8 @@ void BasicJsonStringifier::SerializeStringUnchecked_(const SrcChar* src,
     if (DoNotEscape(c)) {
       *(dest++) = static_cast<DestChar>(c);
     } else {
-      const char* chars = &JsonEscapeTable[c * kJsonEscapeTableEntrySize];
+      const uint8_t* chars = reinterpret_cast<const uint8_t*>(
+          &JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
       while (*chars != '\0') *(dest++) = *(chars++);
     }
   }
@@ -719,9 +720,8 @@ void BasicJsonStringifier::SerializeString_(Handle<String> string) {
       if (DoNotEscape(c)) {
         Append_<is_ascii, Char>(c);
       } else {
-        Append_<is_ascii, uint8_t>(
-            reinterpret_cast<const uint8_t*>(
-                &JsonEscapeTable[c * kJsonEscapeTableEntrySize]));
+        Append_<is_ascii, uint8_t>(reinterpret_cast<const uint8_t*>(
+            &JsonEscapeTable[c * kJsonEscapeTableEntrySize]));
       }
       // If GC moved the string, we need to refresh the vector.
       if (*string != string_location) {
