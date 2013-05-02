@@ -93,7 +93,7 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
           "start offset", name, elementSize);
     }
     var bufferByteLength = %ArrayBufferGetByteLength(buffer);
-    if (offset >= bufferByteLength) {
+    if (offset > bufferByteLength) {
       throw MakeRangeError("invalid_typed_array_offset");
     }
 
