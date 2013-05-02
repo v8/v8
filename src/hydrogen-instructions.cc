@@ -1958,6 +1958,10 @@ void HPhi::DeleteFromGraph() {
 void HPhi::InitRealUses(int phi_id) {
   // Initialize real uses.
   phi_id_ = phi_id;
+  // Compute a conservative approximation of truncating uses before inferring
+  // representations. The proper, exact computation will be done later, when
+  // inserting representation changes.
+  SetFlag(kTruncatingToInt32);
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
@@ -1966,6 +1970,9 @@ void HPhi::InitRealUses(int phi_id) {
       if (FLAG_trace_representation) {
         PrintF("#%d Phi is used by real #%d %s as %s\n",
                id(), value->id(), value->Mnemonic(), rep.Mnemonic());
+      }
+      if (!value->IsSimulate() && !value->CheckFlag(kTruncatingToInt32)) {
+        ClearFlag(kTruncatingToInt32);
       }
     }
   }

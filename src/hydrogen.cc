@@ -3763,7 +3763,39 @@ void HInferRepresentation::Analyze() {
     }
   }
 
+  // Set truncation flags for groups of connected phis. This is a conservative
+  // approximation; the flag will be properly re-computed after representations
+  // have been determined.
+  if (phi_count > 0) {
+    BitVector* done = new(zone()) BitVector(phi_count, graph_->zone());
+    for (int i = 0; i < phi_count; ++i) {
+      if (done->Contains(i)) continue;
+
+      // Check if all uses of all connected phis in this group are truncating.
+      bool all_uses_everywhere_truncating = true;
+      for (BitVector::Iterator it(connected_phis.at(i));
+           !it.Done();
+           it.Advance()) {
+        int index = it.Current();
+        all_uses_everywhere_truncating &=
+            phi_list->at(index)->CheckFlag(HInstruction::kTruncatingToInt32);
+        done->Add(index);
+      }
+      if (all_uses_everywhere_truncating) {
+        continue;  // Great, nothing to do.
+      }
+      // Clear truncation flag of this group of connected phis.
+      for (BitVector::Iterator it(connected_phis.at(i));
+           !it.Done();
+           it.Advance()) {
+        int index = it.Current();
+        phi_list->at(index)->ClearFlag(HInstruction::kTruncatingToInt32);
+      }
+    }
+  }
+
   // Simplify constant phi inputs where possible.
+  // This step uses kTruncatingToInt32 flags of phis.
   for (int i = 0; i < phi_count; ++i) {
     phi_list->at(i)->SimplifyConstantInputs();
   }
