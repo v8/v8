@@ -110,7 +110,7 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
       var newLength = TO_POSITIVE_INTEGER(length);
       newByteLength = newLength * elementSize;
     }
-    if (newByteLength > bufferByteLength) {
+    if (offset + newByteLength > bufferByteLength) {
       throw MakeRangeError("invalid_typed_array_length");
     }
     %TypedArrayInitialize(obj, arrayId, buffer, offset, newByteLength);

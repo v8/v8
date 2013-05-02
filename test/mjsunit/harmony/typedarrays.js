@@ -192,6 +192,9 @@ function TestTypedArray(proto, elementSize, typicalElement) {
   }
 
   assertThrows(function () { new proto(ab, 256*elementSize); }, RangeError);
+  assertThrows(
+      function () { new proto(ab, 128*elementSize, 192); },
+      RangeError);
 
   if (elementSize !== 1) {
     assertThrows(function() { new proto(ab, 128*elementSize - 1, 10); },
