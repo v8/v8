@@ -4075,36 +4075,50 @@ void HGraph::InsertRepresentationChanges() {
   // int32-phis allow truncation and iteratively remove the ones that
   // are used in an operation that does not allow a truncating
   // conversion.
-  // TODO(fschneider): Replace this with a worklist-based iteration.
+  ZoneList<HPhi*> worklist(8, zone());
+
   for (int i = 0; i < phi_list()->length(); i++) {
     HPhi* phi = phi_list()->at(i);
     if (phi->representation().IsInteger32()) {
       phi->SetFlag(HValue::kTruncatingToInt32);
     }
   }
-  bool change = true;
-  while (change) {
-    change = false;
-    for (int i = 0; i < phi_list()->length(); i++) {
-      HPhi* phi = phi_list()->at(i);
-      if (!phi->CheckFlag(HValue::kTruncatingToInt32)) continue;
-      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-        // If a Phi is used as a non-truncating int32 or as a double,
-        // clear its "truncating" flag.
-        HValue* use = it.value();
-        Representation input_representation =
-            use->RequiredInputRepresentation(it.index());
-        if ((input_representation.IsInteger32() &&
-             !use->CheckFlag(HValue::kTruncatingToInt32)) ||
-            input_representation.IsDouble()) {
-          if (FLAG_trace_representation) {
-            PrintF("#%d Phi is not truncating because of #%d %s\n",
-                   phi->id(), it.value()->id(), it.value()->Mnemonic());
-          }
-          phi->ClearFlag(HValue::kTruncatingToInt32);
-          change = true;
-          break;
+
+  for (int i = 0; i < phi_list()->length(); i++) {
+    HPhi* phi = phi_list()->at(i);
+    for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+      // If a Phi is used as a non-truncating int32 or as a double,
+      // clear its "truncating" flag.
+      HValue* use = it.value();
+      Representation input_representation =
+          use->RequiredInputRepresentation(it.index());
+      if ((input_representation.IsInteger32() &&
+           !use->CheckFlag(HValue::kTruncatingToInt32)) ||
+          input_representation.IsDouble()) {
+        if (FLAG_trace_representation) {
+          PrintF("#%d Phi is not truncating because of #%d %s\n",
+                 phi->id(), it.value()->id(), it.value()->Mnemonic());
         }
+        phi->ClearFlag(HValue::kTruncatingToInt32);
+        worklist.Add(phi, zone());
+        break;
+      }
+    }
+  }
+
+  while (!worklist.is_empty()) {
+    HPhi* current = worklist.RemoveLast();
+    for (int i = 0; i < current->OperandCount(); ++i) {
+      HValue* input = current->OperandAt(i);
+      if (input->IsPhi() &&
+          input->representation().IsInteger32() &&
+          input->CheckFlag(HValue::kTruncatingToInt32)) {
+        if (FLAG_trace_representation) {
+          PrintF("#%d Phi is not truncating because of #%d %s\n",
+                 input->id(), current->id(), current->Mnemonic());
+        }
+        input->ClearFlag(HValue::kTruncatingToInt32);
+        worklist.Add(HPhi::cast(input), zone());
       }
     }
   }
