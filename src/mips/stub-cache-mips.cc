@@ -1308,9 +1308,17 @@ void BaseLoadStubCompiler::NonexistentHandlerFrontend(
 
 void BaseLoadStubCompiler::GenerateLoadField(Register reg,
                                              Handle<JSObject> holder,
-                                             PropertyIndex index) {
-  GenerateFastPropertyLoad(masm(), v0, reg, holder, index);
-  __ Ret();
+                                             PropertyIndex field) {
+  if (!reg.is(receiver())) __ mov(receiver(), reg);
+  if (kind() == Code::LOAD_IC) {
+    LoadFieldStub stub(field.is_inobject(holder),
+                       field.translate(holder));
+    GenerateTailCall(masm(), stub.GetCode(isolate()));
+  } else {
+    KeyedLoadFieldStub stub(field.is_inobject(holder),
+                            field.translate(holder));
+    GenerateTailCall(masm(), stub.GetCode(isolate()));
+  }
 }
 
 
