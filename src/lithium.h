@@ -182,8 +182,7 @@ class LUnallocated: public LOperand {
 
   // BitFields for all unallocated operands.
   class BasicPolicyField     : public BitField<BasicPolicy,     3,  1> {};
-  // TODO(mstarzinger): Bump this from 15 bit to 18 bit in a follow-up CL.
-  class VirtualRegisterField : public BitField<unsigned,        4, 15> {};
+  class VirtualRegisterField : public BitField<unsigned,        4, 18> {};
 
   // BitFields specific to BasicPolicy::FIXED_SLOT.
   class FixedSlotIndexField  : public BitField<int,            22, 10> {};
