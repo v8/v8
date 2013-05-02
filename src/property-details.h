@@ -99,14 +99,18 @@ class Representation {
 
   static Representation FromKind(Kind kind) { return Representation(kind); }
 
-  bool Equals(const Representation& other) {
+  bool Equals(const Representation& other) const {
     return kind_ == other.kind_;
   }
 
-  bool is_more_general_than(const Representation& other) {
+  bool is_more_general_than(const Representation& other) const {
     ASSERT(kind_ != kExternal);
     ASSERT(other.kind_ != kExternal);
     return kind_ > other.kind_;
+  }
+
+  bool fits_into(const Representation& other) const {
+    return other.is_more_general_than(*this) || other.Equals(*this);
   }
 
   Representation generalize(Representation other) {

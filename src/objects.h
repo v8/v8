@@ -2809,6 +2809,11 @@ class DescriptorArray: public FixedArray {
                                      int new_size,
                                      DescriptorArray* other);
 
+  bool IsMoreGeneralThan(int verbatim,
+                         int valid,
+                         int new_size,
+                         DescriptorArray* other);
+
   MUST_USE_RESULT MaybeObject* CopyUpTo(int enumeration_index);
 
   // Sort the instance descriptors by the hash codes of their keys.
