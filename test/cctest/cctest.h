@@ -87,13 +87,16 @@ class CcTest {
     default_isolate_ = default_isolate;
   }
   static v8::Isolate* default_isolate() { return default_isolate_; }
-  static v8::Isolate* isolate() { return context_->GetIsolate(); }
-  static v8::Handle<v8::Context> env() { return context_; }
+  static v8::Isolate* isolate() { return context()->GetIsolate(); }
+  static v8::Handle<v8::Context> env() { return context(); }
 
   // Helper function to initialize the VM.
   static void InitializeVM(CcTestExtensionFlags extensions = NO_EXTENSIONS);
 
  private:
+  static v8::Handle<v8::Context> context() {
+      return *reinterpret_cast<v8::Handle<v8::Context>*>(&context_);
+  }
   TestFunction* callback_;
   const char* file_;
   const char* name_;
@@ -195,7 +198,7 @@ class RegisterThreadedTest {
   const char* name_;
 };
 
-
+namespace v8 {
 // A LocalContext holds a reference to a v8::Context.
 class LocalContext {
  public:
@@ -219,14 +222,15 @@ class LocalContext {
   bool IsReady() { return !context_.IsEmpty(); }
 
   v8::Local<v8::Context> local() {
-    return v8::Local<v8::Context>::New(context_);
+    return v8::Local<v8::Context>::New(isolate_, context_);
   }
 
  private:
   v8::Persistent<v8::Context> context_;
   v8::Isolate* isolate_;
 };
-
+}
+typedef v8::LocalContext LocalContext;
 
 static inline v8::Local<v8::Value> v8_num(double x) {
   return v8::Number::New(x);

@@ -28,6 +28,8 @@
 #include <stdlib.h>
 #include <limits>
 
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "accessors.h"

@@ -28,6 +28,11 @@
 #include <signal.h>
 
 #include "sys/stat.h"
+
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+
 #include "v8.h"
 
 #include "debug.h"

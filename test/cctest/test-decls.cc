@@ -27,6 +27,11 @@
 
 #include <stdlib.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "heap.h"
@@ -124,7 +129,7 @@ void DeclarationContext::InitializeIfNeeded() {
   context_ = Context::New(0, function->InstanceTemplate(), Local<Value>());
   context_->Enter();
   is_initialized_ = true;
-  PostInitializeContext(context_);
+  PostInitializeContext(Local<Context>::New(Isolate::GetCurrent(), context_));
 }
 
 

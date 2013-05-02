@@ -40,6 +40,11 @@
 #include <string.h>
 #include <sys/stat.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #ifdef V8_SHARED
 #include <assert.h>
 #endif  // V8_SHARED
@@ -124,8 +129,8 @@ class PerIsolateData {
   }
 
 #define DEFINE_STRING_GETTER(name, value) \
-  static Persistent<String> name##_string(Isolate* isolate) { \
-    return Get(isolate)->name##_string_; \
+  static Handle<String> name##_string(Isolate* isolate) { \
+    return Handle<String>(*Get(isolate)->name##_string_); \
   }
   FOR_EACH_STRING(DEFINE_STRING_GETTER)
 #undef DEFINE_STRING_GETTER
@@ -245,7 +250,7 @@ bool Shell::ExecuteString(Isolate* isolate,
   } else {
     PerIsolateData* data = PerIsolateData::Get(isolate);
     Local<Context> realm =
-        Local<Context>::New(data->realms_[data->realm_current_]);
+        Local<Context>::New(isolate, data->realms_[data->realm_current_]);
     realm->Enter();
     Handle<Value> result = script->Run();
     realm->Exit();
@@ -272,7 +277,7 @@ bool Shell::ExecuteString(Isolate* isolate,
 #if !defined(V8_SHARED)
         } else {
           v8::TryCatch try_catch;
-          Context::Scope context_scope(utility_context_);
+          Context::Scope context_scope(isolate, utility_context_);
           Handle<Object> global = utility_context_->Global();
           Handle<Value> fun = global->Get(String::New("Stringify"));
           Handle<Value> argv[1] = { result };
@@ -421,7 +426,7 @@ Handle<Value> Shell::RealmEval(const Arguments& args) {
   }
   Handle<Script> script = Script::New(args[1]->ToString());
   if (script.IsEmpty()) return Undefined(isolate);
-  Local<Context> realm = Local<Context>::New(data->realms_[index]);
+  Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
   realm->Enter();
   Handle<Value> result = script->Run();
   realm->Exit();
@@ -435,7 +440,7 @@ Handle<Value> Shell::RealmSharedGet(Local<String> property,
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (data->realm_shared_.IsEmpty()) return Undefined(isolate);
-  return data->realm_shared_;
+  return Local<Value>::New(isolate, data->realm_shared_);
 }
 
 void Shell::RealmSharedSet(Local<String> property,
@@ -1180,7 +1185,7 @@ Handle<Array> Shell::GetCompletions(Isolate* isolate,
                                     Handle<String> text,
                                     Handle<String> full) {
   HandleScope handle_scope(isolate);
-  Context::Scope context_scope(utility_context_);
+  Context::Scope context_scope(isolate, utility_context_);
   Handle<Object> global = utility_context_->Global();
   Handle<Value> fun = global->Get(String::New("GetCompletions"));
   static const int kArgc = 3;
@@ -1191,8 +1196,10 @@ Handle<Array> Shell::GetCompletions(Isolate* isolate,
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-Handle<Object> Shell::DebugMessageDetails(Handle<String> message) {
-  Context::Scope context_scope(utility_context_);
+Handle<Object> Shell::DebugMessageDetails(Isolate* isolate,
+                                          Handle<String> message) {
+  HandleScope handle_scope(isolate);
+  Context::Scope context_scope(isolate, utility_context_);
   Handle<Object> global = utility_context_->Global();
   Handle<Value> fun = global->Get(String::New("DebugMessageDetails"));
   static const int kArgc = 1;
@@ -1202,8 +1209,10 @@ Handle<Object> Shell::DebugMessageDetails(Handle<String> message) {
 }
 
 
-Handle<Value> Shell::DebugCommandToJSONRequest(Handle<String> command) {
-  Context::Scope context_scope(utility_context_);
+Handle<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
+                                               Handle<String> command) {
+  HandleScope handle_scope(isolate);
+  Context::Scope context_scope(isolate, utility_context_);
   Handle<Object> global = utility_context_->Global();
   Handle<Value> fun = global->Get(String::New("DebugCommandToJSONRequest"));
   static const int kArgc = 1;
@@ -1214,7 +1223,9 @@ Handle<Value> Shell::DebugCommandToJSONRequest(Handle<String> command) {
 
 
 void Shell::DispatchDebugMessages() {
-  v8::Context::Scope scope(Shell::evaluation_context_);
+  Isolate* isolate = v8::Isolate::GetCurrent();
+  HandleScope handle_scope(isolate);
+  v8::Context::Scope scope(isolate, Shell::evaluation_context_);
   v8::Debug::ProcessDebugMessages();
 }
 #endif  // ENABLE_DEBUGGER_SUPPORT
@@ -1327,7 +1338,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   // utility, evaluation and debug context can all access each other.
   utility_context_->SetSecurityToken(Undefined(isolate));
   evaluation_context_->SetSecurityToken(Undefined(isolate));
-  Context::Scope utility_scope(utility_context_);
+  Context::Scope utility_scope(isolate, utility_context_);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (i::FLAG_debugger) printf("JavaScript debugger enabled\n");
@@ -1550,7 +1561,8 @@ Persistent<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   Persistent<Context> context = Context::New(NULL, global_template);
   ASSERT(!context.IsEmpty());
-  Context::Scope scope(context);
+  HandleScope handle_scope(isolate);
+  Context::Scope scope(isolate, context);
 
 #ifndef V8_SHARED
   i::JSArguments js_args = i::FLAG_js_arguments;
@@ -1730,7 +1742,7 @@ static char* ReadLine(char* data) {
 static char* ReadWord(char* data) {
   return ReadToken(data, ' ');
 }
-#endif  // trueV8_SHARED
+#endif  // V8_SHARED
 
 
 // Reads a file into a v8 string.
@@ -1746,7 +1758,7 @@ Handle<String> Shell::ReadFile(Isolate* isolate, const char* name) {
 
 void Shell::RunShell(Isolate* isolate) {
   Locker locker(isolate);
-  Context::Scope context_scope(evaluation_context_);
+  Context::Scope context_scope(isolate, evaluation_context_);
   PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
   HandleScope outer_scope(isolate);
   Handle<String> name = String::New("(d8)");
@@ -1799,7 +1811,7 @@ void ShellThread::Run() {
     HandleScope outer_scope(isolate_);
     Persistent<Context> thread_context =
         Shell::CreateEvaluationContext(isolate_);
-    Context::Scope context_scope(thread_context);
+    Context::Scope context_scope(isolate_, thread_context);
     PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate_));
 
     while ((ptr != NULL) && (*ptr != '\0')) {
@@ -1902,7 +1914,7 @@ void SourceGroup::ExecuteInThread() {
       PerIsolateData data(isolate);
       Persistent<Context> context = Shell::CreateEvaluationContext(isolate);
       {
-        Context::Scope cscope(context);
+        Context::Scope cscope(isolate, context);
         PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
         Execute(isolate);
       }
@@ -2111,7 +2123,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 #endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
     }
     {
-      Context::Scope cscope(context);
+      Context::Scope cscope(isolate, context);
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
       options.isolate_sources[0].Execute(isolate);
     }

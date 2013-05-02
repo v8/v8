@@ -27,6 +27,9 @@
 //
 // Tests of profiles generator and utilities.
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 #include "profile-generator-inl.h"
 #include "cctest.h"
@@ -876,7 +879,7 @@ TEST(RecordStackTraceAtStartProfiling) {
     env = v8::Context::New(&config);
   }
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  env->Enter();
+  (*env)->Enter();
 
   CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
   CHECK_EQ(0, profiler->GetProfilesCount());

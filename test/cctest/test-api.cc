@@ -32,6 +32,11 @@
 #include <unistd.h>  // getpid
 #endif  // WIN32
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+
 #include "v8.h"
 
 #include "api.h"
@@ -162,8 +167,8 @@ THREADED_TEST(Handles) {
 
 
 THREADED_TEST(IsolateOfContext) {
-  v8::Persistent<Context> env = Context::New();
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::Handle<Context> env = Context::New(v8::Isolate::GetCurrent());
 
   CHECK(!env->InContext());
   CHECK(env->GetIsolate() == v8::Isolate::GetCurrent());
@@ -173,8 +178,6 @@ THREADED_TEST(IsolateOfContext) {
   env->Exit();
   CHECK(!env->InContext());
   CHECK(env->GetIsolate() == v8::Isolate::GetCurrent());
-
-  env.Dispose(env->GetIsolate());
 }
 
 
@@ -2319,6 +2322,9 @@ THREADED_TEST(ArrayBuffer) {
 }
 
 
+
+
+
 THREADED_TEST(HiddenProperties) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2546,8 +2552,8 @@ THREADED_TEST(OldApiObjectGroups) {
   Persistent<Object> root = Persistent<Object>::New(iso, g1s1);  // make a root.
 
   // Connect group 1 and 2, make a cycle.
-  CHECK(g1s2->Set(0, g2s2));
-  CHECK(g2s1->Set(0, g1s1));
+  CHECK(g1s2->Set(0, Handle<Object>(*g2s2)));
+  CHECK(g2s1->Set(0, Handle<Object>(*g1s1)));
 
   {
     Persistent<Value> g1_objects[] = { g1s1, g1s2 };
@@ -2632,8 +2638,8 @@ THREADED_TEST(ApiObjectGroups) {
   Persistent<Object> root = Persistent<Object>::New(iso, g1s1);  // make a root.
 
   // Connect group 1 and 2, make a cycle.
-  CHECK(g1s2->Set(0, g2s2));
-  CHECK(g2s1->Set(0, g1s1));
+  CHECK(g1s2->Set(0, Local<Value>(*g2s2)));
+  CHECK(g2s1->Set(0, Local<Value>(*g1s1)));
 
   {
     UniqueId id1(reinterpret_cast<intptr_t>(*g1s1));
@@ -2954,11 +2960,11 @@ TEST(OldApiObjectGroupsCycleForScavenger) {
     Persistent<Value> g2_objects[] = { g2s1, g2s2 };
     Persistent<Value> g3_objects[] = { g3s1, g3s2 };
     V8::AddObjectGroup(g1_objects, 2);
-    g1s1->Set(v8_str("x"), g2s1);
+    g1s1->Set(v8_str("x"), Handle<Object>(*g2s1));
     V8::AddObjectGroup(g2_objects, 2);
-    g2s1->Set(v8_str("x"), g3s1);
+    g2s1->Set(v8_str("x"), Handle<Object>(*g3s1));
     V8::AddObjectGroup(g3_objects, 2);
-    g3s1->Set(v8_str("x"), g1s1);
+    g3s1->Set(v8_str("x"), Handle<Object>(*g1s1));
   }
 
   HEAP->CollectGarbage(i::NEW_SPACE);
@@ -2983,11 +2989,11 @@ TEST(OldApiObjectGroupsCycleForScavenger) {
     Persistent<Value> g2_objects[] = { g2s1, g2s2 };
     Persistent<Value> g3_objects[] = { g3s1, g3s2 };
     V8::AddObjectGroup(g1_objects, 2);
-    g1s1->Set(v8_str("x"), g2s1);
+    g1s1->Set(v8_str("x"), Handle<Object>(*g2s1));
     V8::AddObjectGroup(g2_objects, 2);
-    g2s1->Set(v8_str("x"), g3s1);
+    g2s1->Set(v8_str("x"), Handle<Object>(*g3s1));
     V8::AddObjectGroup(g3_objects, 2);
-    g3s1->Set(v8_str("x"), g1s1);
+    g3s1->Set(v8_str("x"), Handle<Object>(*g1s1));
   }
 
   HEAP->CollectGarbage(i::NEW_SPACE);
@@ -3049,13 +3055,13 @@ TEST(ApiObjectGroupsCycleForScavenger) {
     g3s2.MarkPartiallyDependent(iso);
     iso->SetObjectGroupId(g1s1, UniqueId(1));
     iso->SetObjectGroupId(g1s2, UniqueId(1));
-    g1s1->Set(v8_str("x"), g2s1);
+    g1s1->Set(v8_str("x"), Local<Value>(*g2s1));
     iso->SetObjectGroupId(g2s1, UniqueId(2));
     iso->SetObjectGroupId(g2s2, UniqueId(2));
-    g2s1->Set(v8_str("x"), g3s1);
+    g2s1->Set(v8_str("x"), Local<Value>(*g3s1));
     iso->SetObjectGroupId(g3s1, UniqueId(3));
     iso->SetObjectGroupId(g3s2, UniqueId(3));
-    g3s1->Set(v8_str("x"), g1s1);
+    g3s1->Set(v8_str("x"), Local<Value>(*g1s1));
   }
 
   v8::internal::Heap* heap = reinterpret_cast<v8::internal::Isolate*>(
@@ -3080,13 +3086,13 @@ TEST(ApiObjectGroupsCycleForScavenger) {
     g3s2.MarkPartiallyDependent(isolate);
     iso->SetObjectGroupId(g1s1, UniqueId(1));
     iso->SetObjectGroupId(g1s2, UniqueId(1));
-    g1s1->Set(v8_str("x"), g2s1);
+    g1s1->Set(v8_str("x"), Local<Value>(*g2s1));
     iso->SetObjectGroupId(g2s1, UniqueId(2));
     iso->SetObjectGroupId(g2s2, UniqueId(2));
-    g2s1->Set(v8_str("x"), g3s1);
+    g2s1->Set(v8_str("x"), Local<Value>(*g3s1));
     iso->SetObjectGroupId(g3s1, UniqueId(3));
     iso->SetObjectGroupId(g3s2, UniqueId(3));
-    g3s1->Set(v8_str("x"), g1s1);
+    g3s1->Set(v8_str("x"), Local<Value>(*g1s1));
   }
 
   heap->CollectGarbage(i::NEW_SPACE);
@@ -4540,7 +4546,7 @@ THREADED_TEST(SimplePropertyWrite) {
   for (int i = 0; i < 10; i++) {
     CHECK(xValue.IsEmpty());
     script->Run();
-    CHECK_EQ(v8_num(4), xValue);
+    CHECK_EQ(v8_num(4), Handle<Value>(*xValue));
     xValue.Dispose(context->GetIsolate());
     xValue = v8::Persistent<Value>();
   }
@@ -4557,7 +4563,7 @@ THREADED_TEST(SetterOnly) {
   for (int i = 0; i < 10; i++) {
     CHECK(xValue.IsEmpty());
     script->Run();
-    CHECK_EQ(v8_num(4), xValue);
+    CHECK_EQ(v8_num(4), Handle<Value>(*xValue));
     xValue.Dispose(context->GetIsolate());
     xValue = v8::Persistent<Value>();
   }
@@ -5448,7 +5454,7 @@ THREADED_TEST(GlobalObjectTemplate) {
   global_template->Set(v8_str("JSNI_Log"),
                        v8::FunctionTemplate::New(HandleLogDelegator));
   v8::Persistent<Context> context = Context::New(0, global_template);
-  Context::Scope context_scope(context);
+  Context::Scope context_scope(v8::Isolate::GetCurrent(), context);
   Script::Compile(v8_str("JSNI_Log('LOG')"))->Run();
   context.Dispose(context->GetIsolate());
 }
@@ -5465,7 +5471,8 @@ THREADED_TEST(SimpleExtensions) {
   v8::RegisterExtension(new Extension("simpletest", kSimpleExtensionSource));
   const char* extension_names[] = { "simpletest" };
   v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Handle<Context> context = Context::New(&extensions);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   Context::Scope lock(context);
   v8::Handle<Value> result = Script::Compile(v8_str("Foo()"))->Run();
   CHECK_EQ(result, v8::Integer::New(4));
@@ -5477,7 +5484,8 @@ THREADED_TEST(NullExtensions) {
   v8::RegisterExtension(new Extension("nulltest", NULL));
   const char* extension_names[] = { "nulltest" };
   v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Handle<Context> context = Context::New(&extensions);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   Context::Scope lock(context);
   v8::Handle<Value> result = Script::Compile(v8_str("1+3"))->Run();
   CHECK_EQ(result, v8::Integer::New(4));
@@ -5496,7 +5504,8 @@ THREADED_TEST(ExtensionMissingSourceLength) {
                                       kEmbeddedExtensionSource));
   const char* extension_names[] = { "srclentest_fail" };
   v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Handle<Context> context = Context::New(&extensions);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   CHECK_EQ(0, *context);
 }
 
@@ -5512,7 +5521,8 @@ THREADED_TEST(ExtensionWithSourceLength) {
                                         source_len));
     const char* extension_names[1] = { extension_name.start() };
     v8::ExtensionConfiguration extensions(1, extension_names);
-    v8::Handle<Context> context = Context::New(&extensions);
+    v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
     if (source_len == kEmbeddedExtensionSourceValidLen) {
       Context::Scope lock(context);
       v8::Handle<Value> result = Script::Compile(v8_str("Ret54321()"))->Run();
@@ -5548,7 +5558,8 @@ THREADED_TEST(UseEvalFromExtension) {
   v8::RegisterExtension(new Extension("evaltest2", kEvalExtensionSource2));
   const char* extension_names[] = { "evaltest1", "evaltest2" };
   v8::ExtensionConfiguration extensions(2, extension_names);
-  v8::Handle<Context> context = Context::New(&extensions);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   Context::Scope lock(context);
   v8::Handle<Value> result = Script::Compile(v8_str("UseEval1()"))->Run();
   CHECK_EQ(result, v8::Integer::New(42));
@@ -5581,7 +5592,8 @@ THREADED_TEST(UseWithFromExtension) {
   v8::RegisterExtension(new Extension("withtest2", kWithExtensionSource2));
   const char* extension_names[] = { "withtest1", "withtest2" };
   v8::ExtensionConfiguration extensions(2, extension_names);
-  v8::Handle<Context> context = Context::New(&extensions);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   Context::Scope lock(context);
   v8::Handle<Value> result = Script::Compile(v8_str("UseWith1()"))->Run();
   CHECK_EQ(result, v8::Integer::New(87));
@@ -5595,7 +5607,8 @@ THREADED_TEST(AutoExtensions) {
   Extension* extension = new Extension("autotest", kSimpleExtensionSource);
   extension->set_auto_enable(true);
   v8::RegisterExtension(extension);
-  v8::Handle<Context> context = Context::New();
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent());
   Context::Scope lock(context);
   v8::Handle<Value> result = Script::Compile(v8_str("Foo()"))->Run();
   CHECK_EQ(result, v8::Integer::New(4));
@@ -5614,7 +5627,8 @@ THREADED_TEST(SyntaxErrorExtensions) {
                                       kSyntaxErrorInExtensionSource));
   const char* extension_names[] = { "syntaxerror" };
   v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Handle<Context> context = Context::New(&extensions);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   CHECK(context.IsEmpty());
 }
 
@@ -5631,7 +5645,8 @@ THREADED_TEST(ExceptionExtensions) {
                                       kExceptionInExtensionSource));
   const char* extension_names[] = { "exception" };
   v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Handle<Context> context = Context::New(&extensions);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   CHECK(context.IsEmpty());
 }
 
@@ -5652,7 +5667,8 @@ THREADED_TEST(NativeCallInExtensions) {
                                       kNativeCallInExtensionSource));
   const char* extension_names[] = { "nativecall" };
   v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Handle<Context> context = Context::New(&extensions);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   Context::Scope lock(context);
   v8::Handle<Value> result = Script::Compile(v8_str(kNativeCallTest))->Run();
   CHECK_EQ(result, v8::Integer::New(3));
@@ -5688,7 +5704,8 @@ THREADED_TEST(NativeFunctionDeclaration) {
                                                     "native function foo();"));
   const char* extension_names[] = { name };
   v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Handle<Context> context = Context::New(&extensions);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   Context::Scope lock(context);
   v8::Handle<Value> result = Script::Compile(v8_str("foo(42);"))->Run();
   CHECK_EQ(result, v8::Integer::New(42));
@@ -5703,7 +5720,8 @@ THREADED_TEST(NativeFunctionDeclarationError) {
                                                     "native\nfunction foo();"));
   const char* extension_names[] = { name };
   v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Handle<Context> context(Context::New(&extensions));
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   CHECK(context.IsEmpty());
 }
 
@@ -5718,7 +5736,8 @@ THREADED_TEST(NativeFunctionDeclarationErrorEscape) {
       "nativ\\u0065 function foo();"));
   const char* extension_names[] = { name };
   v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Handle<Context> context(Context::New(&extensions));
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   CHECK(context.IsEmpty());
 }
 
@@ -5858,7 +5877,8 @@ TEST(ErrorReporting) {
   v8::RegisterExtension(new Extension("B", "", 1, bDeps));
   last_location = NULL;
   v8::ExtensionConfiguration config(1, bDeps);
-  v8::Handle<Context> context = Context::New(&config);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &config);
   CHECK(context.IsEmpty());
   CHECK_NE(last_location, NULL);
 }
@@ -5974,7 +5994,8 @@ THREADED_TEST(WeakReference) {
                                  v8::External::New(whammy));
   const char* extension_list[] = { "v8/gc" };
   v8::ExtensionConfiguration extensions(1, extension_list);
-  v8::Persistent<Context> context = Context::New(&extensions);
+  v8::Handle<Context> context =
+      Context::New(v8::Isolate::GetCurrent(), &extensions);
   Context::Scope context_scope(context);
 
   v8::Handle<v8::Object> interceptor = templ->NewInstance();
@@ -5991,7 +6012,6 @@ THREADED_TEST(WeakReference) {
   v8::Handle<Value> result = CompileRun(code);
   CHECK_EQ(4.0, result->NumberValue());
   delete whammy;
-  context.Dispose(context->GetIsolate());
 }
 
 
@@ -6005,8 +6025,9 @@ static void DisposeAndSetFlag(v8::Isolate* isolate,
 
 
 THREADED_TEST(IndependentWeakHandle) {
-  v8::Persistent<Context> context = Context::New();
-  v8::Isolate* iso = context->GetIsolate();
+  v8::Isolate* iso = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(iso);
+  v8::Handle<Context> context = Context::New(iso);
   Context::Scope context_scope(context);
 
   v8::Persistent<v8::Object> object_a, object_b;
@@ -6062,8 +6083,9 @@ static void ForceMarkSweep(v8::Isolate* isolate,
 
 
 THREADED_TEST(GCFromWeakCallbacks) {
-  v8::Persistent<Context> context = Context::New();
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
+  v8::Handle<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
 
   static const int kNumberOfGCTypes = 2;
@@ -6099,9 +6121,10 @@ static void RevivingCallback(v8::Isolate* isolate,
 
 
 THREADED_TEST(IndependentHandleRevival) {
-  v8::Persistent<Context> context = Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
+  v8::Handle<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
-  v8::Isolate* isolate = context->GetIsolate();
 
   v8::Persistent<v8::Object> object;
   {
@@ -7156,8 +7179,8 @@ TEST(SecurityHandler) {
   global_template->SetAccessCheckCallbacks(NamedSecurityTestCallback,
                                            IndexedSecurityTestCallback);
   // Create an environment
-  v8::Persistent<Context> context0 =
-    Context::New(NULL, global_template);
+  v8::Handle<Context> context0 =
+    Context::New(v8::Isolate::GetCurrent(), NULL, global_template);
   context0->Enter();
 
   v8::Handle<v8::Object> global0 = context0->Global();
@@ -7172,8 +7195,8 @@ TEST(SecurityHandler) {
   // Create another environment, should fail security checks.
   v8::HandleScope scope1(v8::Isolate::GetCurrent());
 
-  v8::Persistent<Context> context1 =
-    Context::New(NULL, global_template);
+  v8::Handle<Context> context1 =
+    Context::New(v8::Isolate::GetCurrent(), NULL, global_template);
   context1->Enter();
 
   v8::Handle<v8::Object> global1 = context1->Global();
@@ -7205,17 +7228,14 @@ TEST(SecurityHandler) {
   }
 
   context1->Exit();
-  context1.Dispose(context1->GetIsolate());
-
   context0->Exit();
-  context0.Dispose(context0->GetIsolate());
 }
 
 
 THREADED_TEST(SecurityChecks) {
   LocalContext env1;
   v8::HandleScope handle_scope(env1->GetIsolate());
-  v8::Persistent<Context> env2 = Context::New();
+  v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
 
   Local<Value> foo = v8_str("foo");
   Local<Value> bar = v8_str("bar");
@@ -7251,8 +7271,6 @@ THREADED_TEST(SecurityChecks) {
     Function::Cast(*spy2)->Call(env2->Global(), 0, NULL);
     CHECK(try_catch.HasCaught());
   }
-
-  env2.Dispose(env2->GetIsolate());
 }
 
 
@@ -7260,7 +7278,7 @@ THREADED_TEST(SecurityChecks) {
 THREADED_TEST(SecurityChecksForPrototypeChain) {
   LocalContext current;
   v8::HandleScope scope(current->GetIsolate());
-  v8::Persistent<Context> other = Context::New();
+  v8::Handle<Context> other = Context::New(current->GetIsolate());
 
   // Change context to be able to get to the Object function in the
   // other context without hitting the security checks.
@@ -7321,14 +7339,13 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
     CHECK(!access_f3->Run()->Equals(v8_num(101)));
     CHECK(access_f3->Run()->IsUndefined());
   }
-  other.Dispose(other->GetIsolate());
 }
 
 
 THREADED_TEST(CrossDomainDelete) {
   LocalContext env1;
   v8::HandleScope handle_scope(env1->GetIsolate());
-  v8::Persistent<Context> env2 = Context::New();
+  v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
 
   Local<Value> foo = v8_str("foo");
   Local<Value> bar = v8_str("bar");
@@ -7353,15 +7370,13 @@ THREADED_TEST(CrossDomainDelete) {
   Local<Value> v = env1->Global()->Get(v8_str("prop"));
   CHECK(v->IsNumber());
   CHECK_EQ(3, v->Int32Value());
-
-  env2.Dispose(env2->GetIsolate());
 }
 
 
 THREADED_TEST(CrossDomainIsPropertyEnumerable) {
   LocalContext env1;
   v8::HandleScope handle_scope(env1->GetIsolate());
-  v8::Persistent<Context> env2 = Context::New();
+  v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
 
   Local<Value> foo = v8_str("foo");
   Local<Value> bar = v8_str("bar");
@@ -7388,15 +7403,13 @@ THREADED_TEST(CrossDomainIsPropertyEnumerable) {
     Local<Value> result = Script::Compile(test)->Run();
     CHECK(result->IsFalse());
   }
-
-  env2.Dispose(env2->GetIsolate());
 }
 
 
 THREADED_TEST(CrossDomainForIn) {
   LocalContext env1;
   v8::HandleScope handle_scope(env1->GetIsolate());
-  v8::Persistent<Context> env2 = Context::New();
+  v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
 
   Local<Value> foo = v8_str("foo");
   Local<Value> bar = v8_str("bar");
@@ -7422,14 +7435,13 @@ THREADED_TEST(CrossDomainForIn) {
                    "return true;})()");
     CHECK(result->IsTrue());
   }
-  env2.Dispose(env2->GetIsolate());
 }
 
 
 TEST(ContextDetachGlobal) {
   LocalContext env1;
   v8::HandleScope handle_scope(env1->GetIsolate());
-  v8::Persistent<Context> env2 = Context::New();
+  v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
 
   Local<v8::Object> global1 = env1->Global();
 
@@ -7456,8 +7468,10 @@ TEST(ContextDetachGlobal) {
   // env2 has a new global object.
   CHECK(!env2->Global()->Equals(global2));
 
-  v8::Persistent<Context> env3 =
-      Context::New(0, v8::Handle<v8::ObjectTemplate>(), global2);
+  v8::Handle<Context> env3 = Context::New(env1->GetIsolate(),
+                                          0,
+                                          v8::Handle<v8::ObjectTemplate>(),
+                                          global2);
   env3->SetSecurityToken(v8_str("bar"));
   env3->Enter();
 
@@ -7484,9 +7498,6 @@ TEST(ContextDetachGlobal) {
     Local<Value> r = global3->Get(v8_str("prop2"));
     CHECK(r->IsUndefined());
   }
-
-  env2.Dispose(env2->GetIsolate());
-  env3.Dispose(env3->GetIsolate());
 }
 
 
@@ -7495,7 +7506,7 @@ TEST(DetachAndReattachGlobal) {
   v8::HandleScope scope(env1->GetIsolate());
 
   // Create second environment.
-  v8::Persistent<Context> env2 = Context::New();
+  v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
 
   Local<Value> foo = v8_str("foo");
 
@@ -7527,8 +7538,10 @@ TEST(DetachAndReattachGlobal) {
   CHECK(result->IsUndefined());
 
   // Reuse global2 for env3.
-  v8::Persistent<Context> env3 =
-      Context::New(0, v8::Handle<v8::ObjectTemplate>(), global2);
+  v8::Handle<Context> env3 = Context::New(env1->GetIsolate(),
+                                          0,
+                                          v8::Handle<v8::ObjectTemplate>(),
+                                          global2);
   CHECK_EQ(global2, env3->Global());
 
   // Start by using the same security token for env3 as for env1 and env2.
@@ -7563,9 +7576,6 @@ TEST(DetachAndReattachGlobal) {
   result = CompileRun("other.p");
   CHECK(result->IsInt32());
   CHECK_EQ(42, result->Int32Value());
-
-  env2.Dispose(env2->GetIsolate());
-  env3.Dispose(env3->GetIsolate());
 }
 
 
@@ -9634,7 +9644,7 @@ static v8::Handle<Value> InterceptorLoadXICGetter(Local<String> name,
                                                  const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
   return v8_str("x")->Equals(name)
-      ? v8::Integer::New(42) : v8::Handle<v8::Value>();
+      ? v8::Handle<v8::Value>(v8::Integer::New(42)) : v8::Handle<v8::Value>();
 }
 
 
@@ -12653,7 +12663,7 @@ THREADED_TEST(TurnOnAccessCheck) {
                                            v8::Handle<v8::Value>(),
                                            false);
   v8::Persistent<Context> context = Context::New(NULL, global_template);
-  Context::Scope context_scope(context);
+  Context::Scope context_scope(v8::Isolate::GetCurrent(), context);
 
   // Set up a property and a number of functions.
   context->Global()->Set(v8_str("a"), v8_num(1));
@@ -12734,7 +12744,7 @@ THREADED_TEST(TurnOnAccessCheckAndRecompile) {
                                            v8::Handle<v8::Value>(),
                                            false);
   v8::Persistent<Context> context = Context::New(NULL, global_template);
-  Context::Scope context_scope(context);
+  Context::Scope context_scope(v8::Isolate::GetCurrent(), context);
 
   // Set up a property and a number of functions.
   context->Global()->Set(v8_str("a"), v8_num(1));
@@ -16886,8 +16896,8 @@ TEST(RunTwoIsolatesOnSingleThread) {
   v8::Persistent<v8::Context> context1 = v8::Context::New();
 
   {
-    v8::Context::Scope cscope(context1);
     v8::HandleScope scope(isolate1);
+    v8::Context::Scope cscope(isolate1, context1);
     // Run something in new isolate.
     CompileRun("var foo = 'isolate 1';");
     ExpectString("function f() { return foo; }; f()", "isolate 1");
@@ -16900,8 +16910,8 @@ TEST(RunTwoIsolatesOnSingleThread) {
   {
     v8::Isolate::Scope iscope(isolate2);
     context2 = v8::Context::New();
-    v8::Context::Scope cscope(context2);
     v8::HandleScope scope(isolate2);
+    v8::Context::Scope cscope(isolate2, context2);
 
     // Run something in new isolate.
     CompileRun("var foo = 'isolate 2';");
@@ -16909,8 +16919,8 @@ TEST(RunTwoIsolatesOnSingleThread) {
   }
 
   {
-    v8::Context::Scope cscope(context1);
     v8::HandleScope scope(isolate1);
+    v8::Context::Scope cscope(isolate1, context1);
     // Now again in isolate 1
     ExpectString("function f() { return foo; }; f()", "isolate 1");
   }
@@ -16921,8 +16931,8 @@ TEST(RunTwoIsolatesOnSingleThread) {
   v8::Persistent<v8::Context> context_default = v8::Context::New();
 
   {
-    v8::Context::Scope cscope(context_default);
     v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::Context::Scope cscope(v8::Isolate::GetCurrent(), context_default);
     // Variables in other isolates should be not available, verify there
     // is an exception.
     ExpectTrue("function f() {"
@@ -16941,14 +16951,14 @@ TEST(RunTwoIsolatesOnSingleThread) {
 
   {
     v8::Isolate::Scope iscope(isolate2);
-    v8::Context::Scope cscope(context2);
     v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::Context::Scope cscope(isolate2, context2);
     ExpectString("function f() { return foo; }; f()", "isolate 2");
   }
 
   {
-    v8::Context::Scope cscope(context1);
     v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::Context::Scope cscope(v8::Isolate::GetCurrent(), context1);
     ExpectString("function f() { return foo; }; f()", "isolate 1");
   }
 
@@ -16973,8 +16983,8 @@ TEST(RunTwoIsolatesOnSingleThread) {
 
   // Check that default isolate still runs.
   {
-    v8::Context::Scope cscope(context_default);
     v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::Context::Scope cscope(v8::Isolate::GetCurrent(), context_default);
     ExpectTrue("function f() { return isDefaultIsolate; }; f()");
   }
 }
@@ -17049,7 +17059,7 @@ TEST(IsolateDifferentContexts) {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     context = v8::Context::New();
-    v8::Context::Scope context_scope(context);
+    v8::Context::Scope context_scope(isolate, context);
     Local<Value> v = CompileRun("2");
     CHECK(v->IsNumber());
     CHECK_EQ(2, static_cast<int>(v->NumberValue()));
@@ -17058,7 +17068,7 @@ TEST(IsolateDifferentContexts) {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     context = v8::Context::New();
-    v8::Context::Scope context_scope(context);
+    v8::Context::Scope context_scope(isolate, context);
     Local<Value> v = CompileRun("22");
     CHECK(v->IsNumber());
     CHECK_EQ(22, static_cast<int>(v->NumberValue()));
@@ -17333,7 +17343,7 @@ class Visitor42 : public v8::PersistentHandleVisitor {
       v8::Persistent<v8::Object> visited =
           v8::Persistent<v8::Object>::Cast(value);
       CHECK_EQ(42, visited.WrapperClassId(v8::Isolate::GetCurrent()));
-      CHECK_EQ(object_, visited);
+      CHECK_EQ(Handle<Value>(*object_), Handle<Value>(*visited));
       ++counter_;
     }
   }
@@ -17548,11 +17558,11 @@ static void CheckContextId(v8::Handle<Object> object, int expected) {
 
 THREADED_TEST(CreationContext) {
   HandleScope handle_scope(v8::Isolate::GetCurrent());
-  Persistent<Context> context1 = Context::New();
+  Handle<Context> context1 = Context::New(v8::Isolate::GetCurrent());
   InstallContextId(context1, 1);
-  Persistent<Context> context2 = Context::New();
+  Handle<Context> context2 = Context::New(v8::Isolate::GetCurrent());
   InstallContextId(context2, 2);
-  Persistent<Context> context3 = Context::New();
+  Handle<Context> context3 = Context::New(v8::Isolate::GetCurrent());
   InstallContextId(context3, 3);
 
   Local<v8::FunctionTemplate> tmpl = v8::FunctionTemplate::New();
@@ -17626,16 +17636,12 @@ THREADED_TEST(CreationContext) {
     CHECK(instance2->CreationContext() == context2);
     CheckContextId(instance2, 2);
   }
-
-  context1.Dispose(context1->GetIsolate());
-  context2.Dispose(context2->GetIsolate());
-  context3.Dispose(context3->GetIsolate());
 }
 
 
 THREADED_TEST(CreationContextOfJsFunction) {
   HandleScope handle_scope(v8::Isolate::GetCurrent());
-  Persistent<Context> context = Context::New();
+  Handle<Context> context = Context::New(v8::Isolate::GetCurrent());
   InstallContextId(context, 1);
 
   Local<Object> function;
@@ -17646,8 +17652,6 @@ THREADED_TEST(CreationContextOfJsFunction) {
 
   CHECK(function->CreationContext() == context);
   CheckContextId(function, 1);
-
-  context.Dispose(context->GetIsolate());
 }
 
 

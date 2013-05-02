@@ -27,6 +27,10 @@
 
 #include <stdlib.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "compilation-cache.h"
@@ -1293,13 +1297,13 @@ TEST(TestInternalWeakLists) {
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  v8::Persistent<v8::Context> ctx[kNumTestContexts];
+  v8::Handle<v8::Context> ctx[kNumTestContexts];
 
   CHECK_EQ(0, CountNativeContexts());
 
   // Create a number of global contests which gets linked together.
   for (int i = 0; i < kNumTestContexts; i++) {
-    ctx[i] = v8::Context::New();
+    ctx[i] = v8::Context::New(v8::Isolate::GetCurrent());
 
     bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
 
@@ -1366,7 +1370,9 @@ TEST(TestInternalWeakLists) {
 
   // Dispose the native contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
-    ctx[i].Dispose(ctx[i]->GetIsolate());
+    // TODO(dcarney): is there a better way to do this?
+    i::Object** unsafe = reinterpret_cast<i::Object**>(*ctx[i]);
+    *unsafe = HEAP->undefined_value();
     ctx[i].Clear();
 
     // Scavenge treats these references as strong.
@@ -1430,14 +1436,14 @@ TEST(TestInternalWeakListsTraverseWithGC) {
   static const int kNumTestContexts = 10;
 
   HandleScope scope(isolate);
-  v8::Persistent<v8::Context> ctx[kNumTestContexts];
+  v8::Handle<v8::Context> ctx[kNumTestContexts];
 
   CHECK_EQ(0, CountNativeContexts());
 
   // Create an number of contexts and check the length of the weak list both
   // with and without GCs while iterating the list.
   for (int i = 0; i < kNumTestContexts; i++) {
-    ctx[i] = v8::Context::New();
+    ctx[i] = v8::Context::New(v8::Isolate::GetCurrent());
     CHECK_EQ(i + 1, CountNativeContexts());
     CHECK_EQ(i + 1, CountNativeContextsWithGC(isolate, i / 2 + 1));
   }

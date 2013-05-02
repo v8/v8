@@ -29,6 +29,9 @@
 
 #include <ctype.h>
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "v8.h"
 
 #include "cctest.h"
@@ -1196,7 +1199,8 @@ class GraphWithImplicitRefs {
       objects_[i] =
           v8::Persistent<v8::Object>::New(isolate_, v8::Object::New());
     }
-    (*env)->Global()->Set(v8_str("root_object"), objects_[0]);
+    (*env)->Global()->Set(v8_str("root_object"),
+                          v8::Local<v8::Value>::New(isolate_, objects_[0]));
   }
   ~GraphWithImplicitRefs() {
     instance_ = NULL;
