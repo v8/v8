@@ -203,8 +203,29 @@ function TestTypedArray(proto, elementSize, typicalElement) {
     assertThrows(function() { new proto(unalignedArrayBuffer)}, RangeError);
     assertThrows(function() { new proto(unalignedArrayBuffer, 5*elementSize)},
                  RangeError);
+    assertThrows(function() { new proto() }, TypeError);
   }
 
+  var aFromString = new proto("30");
+  assertSame(elementSize, aFromString.BYTES_PER_ELEMENT);
+  assertSame(30, aFromString.length);
+  assertSame(30*elementSize, aFromString.byteLength);
+  assertSame(0, aFromString.byteOffset);
+  assertSame(30*elementSize, aFromString.buffer.byteLength);
+
+  var jsArray = [];
+  for (i = 0; i < 30; i++) {
+    jsArray.push(typicalElement);
+  }
+  var aFromArray = new proto(jsArray);
+  assertSame(elementSize, aFromArray.BYTES_PER_ELEMENT);
+  assertSame(30, aFromArray.length);
+  assertSame(30*elementSize, aFromArray.byteLength);
+  assertSame(0, aFromArray.byteOffset);
+  assertSame(30*elementSize, aFromArray.buffer.byteLength);
+  for (i = 0; i < 30; i++) {
+    assertSame(typicalElement, aFromArray[i]);
+  }
 }
 
 TestTypedArray(Uint8Array, 1, 0xFF);

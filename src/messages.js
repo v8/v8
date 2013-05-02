@@ -101,6 +101,8 @@ var kMessages = {
   observe_type_non_string:       ["Invalid changeRecord with non-string 'type' property"],
   observe_notify_non_notifier:   ["notify called on non-notifier object"],
   proto_poison_pill:             ["Generic use of __proto__ accessor not allowed"],
+  parameterless_typed_array_constr:
+                                 ["%0"," constructor should have at least one argument."],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],

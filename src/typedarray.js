@@ -123,12 +123,27 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
     %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
   }
 
+  function ConstructByArrayLike(obj, arrayLike) {
+    var length = arrayLike.length;
+    var l =  IS_UNDEFINED(length) ? 0 : TO_POSITIVE_INTEGER(length);
+    var byteLength = l * elementSize;
+    var buffer = new $ArrayBuffer(byteLength);
+    %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
+    for (var i = 0; i < l; i++) {
+      obj[i] = arrayLike[i];
+    }
+  }
+
   return function (arg1, arg2, arg3) {
     if (%_IsConstructCall()) {
       if (IS_ARRAYBUFFER(arg1)) {
         ConstructByArrayBuffer(this, arg1, arg2, arg3);
-      } else {
+      } else if (IS_NUMBER(arg1) || IS_STRING(arg1) || IS_BOOLEAN(arg1)) {
         ConstructByLength(this, arg1);
+      } else if (!IS_UNDEFINED(arg1)){
+        ConstructByArrayLike(this, arg1);
+      } else {
+        throw MakeTypeError("parameterless_typed_array_constr", name);
       }
     } else {
       return new constructor(arg1, arg2, arg3);
