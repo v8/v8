@@ -625,13 +625,13 @@ LOperand* LAllocator::AllocateFixed(LUnallocated* operand,
                                     bool is_tagged) {
   TraceAlloc("Allocating fixed reg for op %d\n", operand->virtual_register());
   ASSERT(operand->HasFixedPolicy());
-  if (operand->policy() == LUnallocated::FIXED_SLOT) {
-    operand->ConvertTo(LOperand::STACK_SLOT, operand->fixed_index());
-  } else if (operand->policy() == LUnallocated::FIXED_REGISTER) {
-    int reg_index = operand->fixed_index();
+  if (operand->HasFixedSlotPolicy()) {
+    operand->ConvertTo(LOperand::STACK_SLOT, operand->fixed_slot_index());
+  } else if (operand->HasFixedRegisterPolicy()) {
+    int reg_index = operand->fixed_register_index();
     operand->ConvertTo(LOperand::REGISTER, reg_index);
-  } else if (operand->policy() == LUnallocated::FIXED_DOUBLE_REGISTER) {
-    int reg_index = operand->fixed_index();
+  } else if (operand->HasFixedDoubleRegisterPolicy()) {
+    int reg_index = operand->fixed_register_index();
     operand->ConvertTo(LOperand::DOUBLE_REGISTER, reg_index);
   } else {
     UNREACHABLE();
@@ -846,7 +846,7 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
         bool is_tagged = HasTaggedValue(cur_input->virtual_register());
         AllocateFixed(cur_input, gap_index + 1, is_tagged);
         AddConstraintsGapMove(gap_index, input_copy, cur_input);
-      } else if (cur_input->policy() == LUnallocated::WRITABLE_REGISTER) {
+      } else if (cur_input->HasWritableRegisterPolicy()) {
         // The live range of writable input registers always goes until the end
         // of the instruction.
         ASSERT(!cur_input->IsUsedAtStart());
