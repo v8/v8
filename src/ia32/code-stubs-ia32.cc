@@ -4775,6 +4775,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Handle<Object> terminal_kind_sentinel =
       TypeFeedbackCells::MonomorphicArraySentinel(isolate,
                                                   LAST_FAST_ELEMENTS_KIND);
+  __ JumpIfNotSmi(ecx, &miss);
   __ cmp(ecx, Immediate(terminal_kind_sentinel));
   __ j(above, &miss);
   // Load the global or builtins object from the current context

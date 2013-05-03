@@ -4750,6 +4750,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Handle<Object> terminal_kind_sentinel =
       TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
                                                   LAST_FAST_ELEMENTS_KIND);
+  __ JumpIfNotSmi(r3, &miss);
   __ cmp(r3, Operand(terminal_kind_sentinel));
   __ b(gt, &miss);
   // Make sure the function is the Array() function
