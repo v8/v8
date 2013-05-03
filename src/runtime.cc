@@ -2197,6 +2197,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionMarkNameShouldPrintAsAnonymous) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionIsGenerator) {
+  NoHandleAllocation ha(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, f, 0);
+  return isolate->heap()->ToBoolean(f->shared()->is_generator());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionRemovePrototype) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 1);
