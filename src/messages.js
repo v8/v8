@@ -103,6 +103,7 @@ var kMessages = {
   proto_poison_pill:             ["Generic use of __proto__ accessor not allowed"],
   parameterless_typed_array_constr:
                                  ["%0"," constructor should have at least one argument."],
+  not_typed_array:               ["this is not a typed array."],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],

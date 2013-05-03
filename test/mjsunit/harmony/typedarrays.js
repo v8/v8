@@ -323,6 +323,7 @@ function TestTypedArrayOutOfRange(constructor, value, result) {
 
 TestTypedArrayOutOfRange(Uint8Array, 0x1FA, 0xFA);
 TestTypedArrayOutOfRange(Uint8Array, -1, 0xFF);
+
 TestTypedArrayOutOfRange(Int8Array, 0x1FA, 0x7A - 0x80);
 
 TestTypedArrayOutOfRange(Uint16Array, 0x1FFFA, 0xFFFA);
@@ -331,10 +332,43 @@ TestTypedArrayOutOfRange(Int16Array, 0x1FFFA, 0x7FFA - 0x8000);
 
 TestTypedArrayOutOfRange(Uint32Array, 0x1FFFFFFFA, 0xFFFFFFFA);
 TestTypedArrayOutOfRange(Uint32Array, -1, 0xFFFFFFFF);
-TestTypedArrayOutOfRange(Int16Array, 0x1FFFFFFFA, 0x7FFFFFFA - 0x80000000);
+TestTypedArrayOutOfRange(Int32Array, 0x1FFFFFFFA, 0x7FFFFFFA - 0x80000000);
 
 TestTypedArrayOutOfRange(Uint8ClampedArray, 0x1FA, 0xFF);
 TestTypedArrayOutOfRange(Uint8ClampedArray, -1, 0);
+
+var typedArrayConstructors = [
+  Uint8Array,
+  Int8Array,
+  Uint16Array,
+  Int16Array,
+  Uint32Array,
+  Int32Array,
+  Uint8ClampedArray,
+  Float32Array,
+  Float64Array];
+
+function TestPropertyTypeChecks(constructor) {
+  var a = new constructor();
+  function CheckProperty(name) {
+    var d = Object.getOwnPropertyDescriptor(constructor.prototype, name);
+    var o = {}
+    assertThrows(function() {d.get.call(o);}, TypeError);
+    d.get.call(a); // shouldn't throw
+    for (var i = 0 ; i < typedArrayConstructors.length; i++) {
+      d.get.call(new typedArrayConstructors[i](10));
+    }
+  }
+
+  CheckProperty("buffer");
+  CheckProperty("byteOffset");
+  CheckProperty("byteLength");
+  CheckProperty("length");
+}
+
+for(i = 0; i < typedArrayConstructors.lenght; i++) {
+  TestPropertyTypeChecks(typedArrayConstructors[i]);
+}
 
 
 // General tests for properties
@@ -352,14 +386,9 @@ function TestEnumerable(func, obj) {
     assertArrayEquals([], props(obj));
 }
 TestEnumerable(ArrayBuffer, new ArrayBuffer());
-TestEnumerable(Uint8Array);
-TestEnumerable(Int8Array);
-TestEnumerable(Uint16Array);
-TestEnumerable(Int16Array);
-TestEnumerable(Uint32Array);
-TestEnumerable(Int32Array);
-TestEnumerable(Float32Array);
-TestEnumerable(Uint8ClampedArray);
+for(i = 0; i < typedArrayConstructors.lenght; i++) {
+  TestEnumerable(typedArrayConstructors[i]);
+}
 
 // Test arbitrary properties on ArrayBuffer
 function TestArbitrary(m) {
@@ -373,6 +402,11 @@ function TestArbitrary(m) {
   }
 }
 TestArbitrary(new ArrayBuffer(256));
+for(i = 0; i < typedArrayConstructors.lenght; i++) {
+  TestArbitary(new typedArrayConstructors[i](10));
+}
+
+
 
 // Test direct constructor call
 assertTrue(ArrayBuffer() instanceof ArrayBuffer);
