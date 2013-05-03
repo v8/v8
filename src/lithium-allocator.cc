@@ -377,7 +377,7 @@ bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
   LifetimePosition start = Start();
   LifetimePosition other_start = other->Start();
   if (start.Value() == other_start.Value()) {
-    UsePosition* pos = FirstPosWithHint();
+    UsePosition* pos = first_pos();
     if (pos == NULL) return false;
     UsePosition* other_pos = other->first_pos();
     if (other_pos == NULL) return true;
