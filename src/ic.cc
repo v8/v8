@@ -1022,7 +1022,7 @@ bool IC::UpdatePolymorphicIC(State state,
 
   number_of_valid_maps++;
   if (handler_to_overwrite >= 0) {
-    handlers.InsertAt(handler_to_overwrite, code);
+    handlers.Set(handler_to_overwrite, code);
   } else {
     receiver_maps.Add(new_receiver_map);
     handlers.Add(code);
