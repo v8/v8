@@ -3514,35 +3514,12 @@ void HPhi::SimplifyConstantInputs() {
 
 void HPhi::InferRepresentation(HInferRepresentation* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
-  // If there are non-Phi uses, and all of them have observed the same
-  // representation, than that's what this Phi is going to use.
-  Representation new_rep = RepresentationObservedByAllNonPhiUses();
-  if (!new_rep.IsNone()) {
-    UpdateRepresentation(new_rep, h_infer, "unanimous use observations");
-    return;
-  }
-  new_rep = RepresentationFromInputs();
+  Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
   new_rep = RepresentationFromUses();
   UpdateRepresentation(new_rep, h_infer, "uses");
   new_rep = RepresentationFromUseRequirements();
   UpdateRepresentation(new_rep, h_infer, "use requirements");
-}
-
-
-Representation HPhi::RepresentationObservedByAllNonPhiUses() {
-  int non_phi_use_count = 0;
-  for (int i = Representation::kInteger32;
-       i < Representation::kNumRepresentations; ++i) {
-    non_phi_use_count += non_phi_uses_[i];
-  }
-  if (non_phi_use_count <= 1) return Representation::None();
-  for (int i = 0; i < Representation::kNumRepresentations; ++i) {
-    if (non_phi_uses_[i] == non_phi_use_count) {
-      return Representation::FromKind(static_cast<Representation::Kind>(i));
-    }
-  }
-  return Representation::None();
 }
 
 

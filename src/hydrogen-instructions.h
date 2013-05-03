@@ -3013,7 +3013,6 @@ class HPhi: public HValue {
 
   virtual Range* InferRange(Zone* zone);
   virtual void InferRepresentation(HInferRepresentation* h_infer);
-  Representation RepresentationObservedByAllNonPhiUses();
   Representation RepresentationFromUseRequirements();
   virtual Representation RequiredInputRepresentation(int index) {
     return representation();
