@@ -3166,41 +3166,6 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 }
 
 
-void LCodeGen::DoLoadElements(LLoadElements* instr) {
-  Register result = ToRegister(instr->result());
-  Register input = ToRegister(instr->object());
-  __ mov(result, FieldOperand(input, JSObject::kElementsOffset));
-  if (FLAG_debug_code) {
-    Label done, ok, fail;
-    __ cmp(FieldOperand(result, HeapObject::kMapOffset),
-           Immediate(factory()->fixed_array_map()));
-    __ j(equal, &done, Label::kNear);
-    __ cmp(FieldOperand(result, HeapObject::kMapOffset),
-           Immediate(factory()->fixed_cow_array_map()));
-    __ j(equal, &done, Label::kNear);
-    Register temp((result.is(eax)) ? ebx : eax);
-    __ push(temp);
-    __ mov(temp, FieldOperand(result, HeapObject::kMapOffset));
-    __ movzx_b(temp, FieldOperand(temp, Map::kBitField2Offset));
-    __ and_(temp, Map::kElementsKindMask);
-    __ shr(temp, Map::kElementsKindShift);
-    __ cmp(temp, GetInitialFastElementsKind());
-    __ j(less, &fail, Label::kNear);
-    __ cmp(temp, TERMINAL_FAST_ELEMENTS_KIND);
-    __ j(less_equal, &ok, Label::kNear);
-    __ cmp(temp, FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
-    __ j(less, &fail, Label::kNear);
-    __ cmp(temp, LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
-    __ j(less_equal, &ok, Label::kNear);
-    __ bind(&fail);
-    __ Abort("Check for fast or external elements failed.");
-    __ bind(&ok);
-    __ pop(temp);
-    __ bind(&done);
-  }
-}
-
-
 void LCodeGen::DoLoadExternalArrayPointer(
     LLoadExternalArrayPointer* instr) {
   Register result = ToRegister(instr->result());

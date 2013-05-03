@@ -1025,6 +1025,8 @@ class HGraphBuilder {
   HInstruction* BuildStoreMap(HValue* object, HValue* map);
   HInstruction* BuildStoreMap(HValue* object, Handle<Map> map);
 
+  HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck = NULL);
+
   class IfBuilder {
    public:
     explicit IfBuilder(HGraphBuilder* builder,

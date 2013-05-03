@@ -1271,8 +1271,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   bool fast_smi_only_elements = IsFastSmiElementsKind(elements_kind);
   bool fast_elements = IsFastObjectElementsKind(elements_kind);
-  HValue* elements =
-      AddInstruction(new(zone) HLoadElements(object, mapcheck));
+  HValue* elements = AddLoadElements(object, mapcheck);
   if (is_store && (fast_elements || fast_smi_only_elements) &&
       store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
     HCheckMaps* check_cow_map = HCheckMaps::New(
@@ -1521,6 +1520,18 @@ HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
 }
 
 
+HLoadNamedField* HGraphBuilder::AddLoadElements(HValue* object,
+    HValue* typecheck) {
+  HLoadNamedField* instr = new(zone()) HLoadNamedField(object, true,
+      Representation::Tagged(), JSObject::kElementsOffset, typecheck);
+  AddInstruction(instr);
+  instr->SetGVNFlag(kDependsOnElementsPointer);
+  instr->ClearGVNFlag(kDependsOnMaps);
+  instr->ClearGVNFlag(kDependsOnInobjectFields);
+  return instr;
+}
+
+
 HValue* HGraphBuilder::BuildNewElementsCapacity(HValue* context,
                                                 HValue* old_capacity) {
   Zone* zone = this->zone();
@@ -1744,8 +1755,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
   if (length > 0) {
     // Get hold of the elements array of the boilerplate and setup the
     // elements pointer in the resulting object.
-    HValue* boilerplate_elements =
-        AddInstruction(new(zone) HLoadElements(boilerplate, NULL));
+    HValue* boilerplate_elements = AddLoadElements(boilerplate);
     HValue* object_elements =
         AddInstruction(new(zone) HInnerAllocatedObject(object, elems_offset));
     AddInstruction(new(zone) HStoreNamedField(object,
@@ -6876,7 +6886,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // of the property values and is the value of the entire expression.
   Push(literal);
 
-  HLoadElements* elements = NULL;
+  HInstruction* elements = NULL;
 
   for (int i = 0; i < length; i++) {
     Expression* subexpr = subexprs->at(i);
@@ -6888,10 +6898,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     HValue* value = Pop();
     if (!Smi::IsValid(i)) return Bailout("Non-smi key in array literal");
 
-    // Pass in literal as dummy depedency, since  the receiver always has
-    // elements.
-    elements = new(zone()) HLoadElements(literal, literal);
-    AddInstruction(elements);
+    elements = AddLoadElements(literal);
 
     HValue* key = AddInstruction(
         new(zone()) HConstant(Handle<Object>(Smi::FromInt(i), isolate()),
@@ -8006,8 +8013,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
   HInstruction* elements_kind_instr =
       AddInstruction(new(zone()) HElementsKind(object));
-  HInstruction* elements =
-      AddInstruction(new(zone()) HLoadElements(object, checkspec));
+  HInstruction* elements = AddLoadElements(object, checkspec);
   HLoadExternalArrayPointer* external_elements = NULL;
   HInstruction* checked_key = NULL;
 

@@ -291,8 +291,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   checker.Then();
 
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
-    HValue* elements =
-        AddInstruction(new(zone) HLoadElements(boilerplate, NULL));
+    HValue* elements = AddLoadElements(boilerplate);
 
     IfBuilder if_fixed_cow(this);
     if_fixed_cow.IfCompareMap(elements, factory->fixed_cow_array_map());
@@ -484,8 +483,7 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 
   if_builder.Else();
 
-  HInstruction* elements =
-      AddInstruction(new(zone) HLoadElements(js_array, js_array));
+  HInstruction* elements = AddLoadElements(js_array);
 
   HInstruction* elements_length =
       AddInstruction(new(zone) HFixedArrayBaseLength(elements));

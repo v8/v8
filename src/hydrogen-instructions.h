@@ -135,7 +135,6 @@ class LChunkBuilder;
   V(IsUndetectableAndBranch)                   \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
-  V(LoadElements)                              \
   V(LoadExternalArrayPointer)                  \
   V(LoadFunctionPrototype)                     \
   V(LoadGlobalCell)                            \
@@ -2582,39 +2581,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
   virtual bool IsDeletable() const { return true; }
 
   BuiltinFunctionId op_;
-};
-
-
-class HLoadElements: public HTemplateInstruction<2> {
- public:
-  HLoadElements(HValue* value, HValue* typecheck) {
-    SetOperandAt(0, value);
-    SetOperandAt(1, typecheck != NULL ? typecheck : value);
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnElementsPointer);
-  }
-
-  HValue* value() { return OperandAt(0); }
-  HValue* typecheck() {
-    ASSERT(HasTypeCheck());
-    return OperandAt(1);
-  }
-  bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadElements)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-
- private:
-  virtual bool IsDeletable() const { return true; }
 };
 
 

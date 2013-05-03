@@ -2857,38 +2857,6 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 }
 
 
-void LCodeGen::DoLoadElements(LLoadElements* instr) {
-  Register result = ToRegister(instr->result());
-  Register input = ToRegister(instr->object());
-  Register scratch = scratch0();
-
-  __ lw(result, FieldMemOperand(input, JSObject::kElementsOffset));
-  if (FLAG_debug_code) {
-    Label done, fail;
-    __ lw(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
-    __ LoadRoot(at, Heap::kFixedArrayMapRootIndex);
-    __ Branch(USE_DELAY_SLOT, &done, eq, scratch, Operand(at));
-    __ LoadRoot(at, Heap::kFixedCOWArrayMapRootIndex);  // In the delay slot.
-    __ Branch(&done, eq, scratch, Operand(at));
-    // |scratch| still contains |input|'s map.
-    __ lbu(scratch, FieldMemOperand(scratch, Map::kBitField2Offset));
-    __ Ext(scratch, scratch, Map::kElementsKindShift,
-           Map::kElementsKindBitCount);
-    __ Branch(&fail, lt, scratch,
-              Operand(GetInitialFastElementsKind()));
-    __ Branch(&done, le, scratch,
-              Operand(TERMINAL_FAST_ELEMENTS_KIND));
-    __ Branch(&fail, lt, scratch,
-              Operand(FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND));
-    __ Branch(&done, le, scratch,
-              Operand(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND));
-    __ bind(&fail);
-    __ Abort("Check for fast or external elements failed.");
-    __ bind(&done);
-  }
-}
-
-
 void LCodeGen::DoLoadExternalArrayPointer(
     LLoadExternalArrayPointer* instr) {
   Register to_reg = ToRegister(instr->result());
