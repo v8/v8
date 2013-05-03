@@ -229,13 +229,6 @@ bool LiveRange::CanBeSpilled(LifetimePosition pos) {
 }
 
 
-UsePosition* LiveRange::FirstPosWithHint() const {
-  UsePosition* pos = first_pos_;
-  while (pos != NULL && !pos->HasHint()) pos = pos->next();
-  return pos;
-}
-
-
 LOperand* LiveRange::CreateAssignedOperand(Zone* zone) {
   LOperand* op = NULL;
   if (HasRegisterAssigned()) {
@@ -1813,26 +1806,23 @@ bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
     free_until_pos[cur_reg] = Min(free_until_pos[cur_reg], next_intersection);
   }
 
-  UsePosition* hinted_use = current->FirstPosWithHint();
-  if (hinted_use != NULL) {
-    LOperand* hint = hinted_use->hint();
-    if (hint->IsRegister() || hint->IsDoubleRegister()) {
-      int register_index = hint->index();
-      TraceAlloc(
-          "Found reg hint %s (free until [%d) for live range %d (end %d[).\n",
-          RegisterName(register_index),
-          free_until_pos[register_index].Value(),
-          current->id(),
-          current->End().Value());
+  LOperand* hint = current->FirstHint();
+  if (hint != NULL && (hint->IsRegister() || hint->IsDoubleRegister())) {
+    int register_index = hint->index();
+    TraceAlloc(
+        "Found reg hint %s (free until [%d) for live range %d (end %d[).\n",
+        RegisterName(register_index),
+        free_until_pos[register_index].Value(),
+        current->id(),
+        current->End().Value());
 
-      // The desired register is free until the end of the current live range.
-      if (free_until_pos[register_index].Value() >= current->End().Value()) {
-        TraceAlloc("Assigning preferred reg %s to live range %d\n",
-                   RegisterName(register_index),
-                   current->id());
-        SetLiveRangeAssignedRegister(current, register_index, mode_, zone_);
-        return true;
-      }
+    // The desired register is free until the end of the current live range.
+    if (free_until_pos[register_index].Value() >= current->End().Value()) {
+      TraceAlloc("Assigning preferred reg %s to live range %d\n",
+                 RegisterName(register_index),
+                 current->id());
+      SetLiveRangeAssignedRegister(current, register_index, mode_, zone_);
+      return true;
     }
   }
 

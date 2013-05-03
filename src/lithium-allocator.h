@@ -328,10 +328,10 @@ class LiveRange: public ZoneObject {
     return assigned_register_ != kInvalidAssignment;
   }
   bool IsSpilled() const { return spilled_; }
-  UsePosition* FirstPosWithHint() const;
 
   LOperand* FirstHint() const {
-    UsePosition* pos = FirstPosWithHint();
+    UsePosition* pos = first_pos_;
+    while (pos != NULL && !pos->HasHint()) pos = pos->next();
     if (pos != NULL) return pos->hint();
     return NULL;
   }
