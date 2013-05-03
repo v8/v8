@@ -679,7 +679,7 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
       } else {
         CHECK(result->IsString());
         v8::Handle<v8::String> function_name(result->ToString());
-        function_name->WriteAscii(last_function_hit);
+        function_name->WriteUtf8(last_function_hit);
       }
     }
 
@@ -714,7 +714,7 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
       } else {
         CHECK(result->IsString());
         v8::Handle<v8::String> script_name(result->ToString());
-        script_name->WriteAscii(last_script_name_hit);
+        script_name->WriteUtf8(last_script_name_hit);
       }
     }
 
@@ -730,7 +730,7 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
         result = result->ToString();
         CHECK(result->IsString());
         v8::Handle<v8::String> script_data(result->ToString());
-        script_data->WriteAscii(last_script_data_hit);
+        script_data->WriteUtf8(last_script_data_hit);
       }
     }
 
@@ -750,7 +750,7 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
       result = result->ToString();
       CHECK(result->IsString());
       v8::Handle<v8::String> script_data(result->ToString());
-      script_data->WriteAscii(last_script_data_hit);
+      script_data->WriteUtf8(last_script_data_hit);
     }
   }
 }
@@ -6385,7 +6385,7 @@ static void DebugEventDebugBreak(
       } else {
         CHECK(result->IsString());
         v8::Handle<v8::String> function_name(result->ToString());
-        function_name->WriteAscii(last_function_hit);
+        function_name->WriteUtf8(last_function_hit);
       }
     }
 
@@ -7187,7 +7187,7 @@ static void DebugEventBreakDeoptimize(v8::DebugEvent event,
         char fn[80];
         CHECK(result->IsString());
         v8::Handle<v8::String> function_name(result->ToString());
-        function_name->WriteAscii(fn);
+        function_name->WriteUtf8(fn);
         if (strcmp(fn, "bar") == 0) {
           i::Deoptimizer::DeoptimizeAll(v8::internal::Isolate::Current());
           debug_event_break_deoptimize_done = true;

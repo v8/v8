@@ -1443,8 +1443,7 @@ class V8EXPORT String : public Primitive {
   /**
    * This function is no longer useful.
    */
-  // TODO(dcarney): deprecate
-  V8_INLINE(bool MayContainNonAscii()) const { return true; }
+  V8_DEPRECATED(V8_INLINE(bool MayContainNonAscii()) const) { return true; }
 
   /**
    * Returns whether this string contains only one byte data.
@@ -1489,10 +1488,10 @@ class V8EXPORT String : public Primitive {
             int length = -1,
             int options = NO_OPTIONS) const;
   // ASCII characters.
-  int WriteAscii(char* buffer,
-                 int start = 0,
-                 int length = -1,
-                 int options = NO_OPTIONS) const;
+  V8_DEPRECATED(int WriteAscii(char* buffer,
+                               int start = 0,
+                               int length = -1,
+                               int options = NO_OPTIONS) const);
   // One byte characters.
   int WriteOneByte(uint8_t* buffer,
                    int start = 0,

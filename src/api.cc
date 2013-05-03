@@ -3350,7 +3350,7 @@ Local<String> v8::Object::ObjectProtoToString() {
       const char* postfix = "]";
 
       int prefix_len = i::StrLength(prefix);
-      int str_len = str->Length();
+      int str_len = str->Utf8Length();
       int postfix_len = i::StrLength(postfix);
 
       int buf_len = prefix_len + str_len + postfix_len;
@@ -3362,7 +3362,7 @@ Local<String> v8::Object::ObjectProtoToString() {
       ptr += prefix_len;
 
       // Write real content.
-      str->WriteAscii(ptr, 0, str_len);
+      str->WriteUtf8(ptr, str_len);
       ptr += str_len;
 
       // Write postfix.
@@ -6502,9 +6502,10 @@ String::AsciiValue::AsciiValue(v8::Handle<v8::Value> obj)
   TryCatch try_catch;
   Handle<String> str = obj->ToString();
   if (str.IsEmpty()) return;
-  length_ = str->Length();
+  length_ = str->Utf8Length();
   str_ = i::NewArray<char>(length_ + 1);
-  str->WriteAscii(str_);
+  str->WriteUtf8(str_);
+  ASSERT(i::String::NonAsciiStart(str_, length_) >= length_);
 }
 
 

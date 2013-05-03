@@ -292,8 +292,8 @@ THREADED_TEST(HulIgennem) {
   v8::HandleScope scope(env->GetIsolate());
   v8::Handle<v8::Primitive> undef = v8::Undefined();
   Local<String> undef_str = undef->ToString();
-  char* value = i::NewArray<char>(undef_str->Length() + 1);
-  undef_str->WriteAscii(value);
+  char* value = i::NewArray<char>(undef_str->Utf8Length() + 1);
+  undef_str->WriteUtf8(value);
   CHECK_EQ(0, strcmp(value, "undefined"));
   i::DeleteArray(value);
 }
@@ -6565,7 +6565,7 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteAscii(buf);
+  len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf));
   CHECK_EQ(5, len);
   len = str->Write(wbuf);
   CHECK_EQ(5, len);
@@ -6575,7 +6575,7 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteAscii(buf, 0, 4);
+  len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf), 0, 4);
   CHECK_EQ(4, len);
   len = str->Write(wbuf, 0, 4);
   CHECK_EQ(4, len);
@@ -6585,7 +6585,7 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteAscii(buf, 0, 5);
+  len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf), 0, 5);
   CHECK_EQ(5, len);
   len = str->Write(wbuf, 0, 5);
   CHECK_EQ(5, len);
@@ -6595,7 +6595,7 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteAscii(buf, 0, 6);
+  len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf), 0, 6);
   CHECK_EQ(5, len);
   len = str->Write(wbuf, 0, 6);
   CHECK_EQ(5, len);
@@ -6605,7 +6605,7 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteAscii(buf, 4, -1);
+  len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf), 4, -1);
   CHECK_EQ(1, len);
   len = str->Write(wbuf, 4, -1);
   CHECK_EQ(1, len);
@@ -6615,7 +6615,7 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteAscii(buf, 4, 6);
+  len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf), 4, 6);
   CHECK_EQ(1, len);
   len = str->Write(wbuf, 4, 6);
   CHECK_EQ(1, len);
@@ -6624,7 +6624,7 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteAscii(buf, 4, 1);
+  len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf), 4, 1);
   CHECK_EQ(1, len);
   len = str->Write(wbuf, 4, 1);
   CHECK_EQ(1, len);
@@ -6634,7 +6634,7 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteAscii(buf, 3, 1);
+  len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf), 3, 1);
   CHECK_EQ(1, len);
   len = str->Write(wbuf, 3, 1);
   CHECK_EQ(1, len);
@@ -6656,7 +6656,10 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   buf[5] = 'X';
-  len = str->WriteAscii(buf, 0, 6, String::NO_NULL_TERMINATION);
+  len = str->WriteOneByte(reinterpret_cast<uint8_t*>(buf),
+                          0,
+                          6,
+                          String::NO_NULL_TERMINATION);
   CHECK_EQ(5, len);
   CHECK_EQ('X', buf[5]);
   CHECK_EQ(0, strncmp("abcde", buf, 5));
@@ -6687,18 +6690,13 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, strcmp(utf8buf, "abcde"));
 
   memset(buf, 0x1, sizeof(buf));
-  len = str3->WriteAscii(buf);
-  CHECK_EQ(7, len);
-  CHECK_EQ(0, strcmp("abc def", buf));
-
-  memset(buf, 0x1, sizeof(buf));
-  len = str3->WriteAscii(buf, 0, -1, String::PRESERVE_ASCII_NULL);
+  len = str3->WriteOneByte(reinterpret_cast<uint8_t*>(buf));
   CHECK_EQ(7, len);
   CHECK_EQ(0, strcmp("abc", buf));
   CHECK_EQ(0, buf[3]);
   CHECK_EQ(0, strcmp("def", buf + 4));
 
-  CHECK_EQ(0, str->WriteAscii(NULL, 0, 0, String::NO_NULL_TERMINATION));
+  CHECK_EQ(0, str->WriteOneByte(NULL, 0, 0, String::NO_NULL_TERMINATION));
   CHECK_EQ(0, str->WriteUtf8(NULL, 0, 0, String::NO_NULL_TERMINATION));
   CHECK_EQ(0, str->Write(NULL, 0, 0, String::NO_NULL_TERMINATION));
 }
@@ -8248,7 +8246,7 @@ static bool NamedAccessFlatten(Local<v8::Object> global,
   CHECK(name->IsString());
 
   memset(buf, 0x1, sizeof(buf));
-  len = name.As<String>()->WriteAscii(buf);
+  len = name.As<String>()->WriteOneByte(reinterpret_cast<uint8_t*>(buf));
   CHECK_EQ(4, len);
 
   uint16_t buf2[100];

@@ -76,12 +76,12 @@ Debug::~Debug() {
 
 static void PrintLn(v8::Local<v8::Value> value) {
   v8::Local<v8::String> s = value->ToString();
-  ScopedVector<char> data(s->Length() + 1);
+  ScopedVector<char> data(s->Utf8Length() + 1);
   if (data.start() == NULL) {
     V8::FatalProcessOutOfMemory("PrintLn");
     return;
   }
-  s->WriteAscii(data.start());
+  s->WriteUtf8(data.start());
   PrintF("%s\n", data.start());
 }
 

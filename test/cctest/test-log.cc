@@ -569,9 +569,9 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   // The result either be a "true" literal or problem description.
   if (!result->IsTrue()) {
     v8::Local<v8::String> s = result->ToString();
-    i::ScopedVector<char> data(s->Length() + 1);
+    i::ScopedVector<char> data(s->Utf8Length() + 1);
     CHECK_NE(NULL, data.start());
-    s->WriteAscii(data.start());
+    s->WriteUtf8(data.start());
     printf("%s\n", data.start());
     // Make sure that our output is written prior crash due to CHECK failure.
     fflush(stdout);
