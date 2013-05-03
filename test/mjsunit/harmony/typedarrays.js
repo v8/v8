@@ -68,8 +68,16 @@ TestByteLengthNotWritable();
 
 function TestSlice(expectedResultLen, initialLen, start, end) {
   var ab = new ArrayBuffer(initialLen);
+  var a1 = new Uint8Array(ab);
+  for (var i = 0; i < a1.length; i++) {
+    a1[i] = 0xCA;
+  }
   var slice = ab.slice(start, end);
   assertSame(expectedResultLen, slice.byteLength);
+  var a2 = new Uint8Array(slice);
+  for (var i = 0; i < a2.length; i++) {
+    assertSame(0xCA, a2[i]);
+  }
 }
 
 function TestArrayBufferSlice() {
@@ -254,6 +262,58 @@ TestTypedArray(Int32Array, 4, -0x7FFFFFFF);
 TestTypedArray(Float32Array, 4, 0.5);
 TestTypedArray(Float64Array, 8, 0.5);
 TestTypedArray(Uint8ClampedArray, 1, 0xFF);
+
+function SubarrayTestCase(constructor, item, expectedResultLen, expectedStartIndex,
+                          initialLen, start, end) {
+  var a = new constructor(initialLen);
+  var s = a.subarray(start, end);
+  assertSame(constructor, s.constructor);
+  assertSame(expectedResultLen, s.length);
+  if (s.length > 0) {
+    s[0] = item;
+    assertSame(item, a[expectedStartIndex]);
+  }
+}
+
+function TestSubArray(constructor, item) {
+  SubarrayTestCase(constructor, item, 512, 512, 1024, 512, 1024);
+  SubarrayTestCase(constructor, item, 512, 512, 1024, 512);
+
+  SubarrayTestCase(constructor, item, 0, undefined, 0, 1, 20);
+  SubarrayTestCase(constructor, item, 100, 0,       100, 0, 100);
+  SubarrayTestCase(constructor, item, 100, 0,       100,  0, 1000);
+  SubarrayTestCase(constructor, item, 0, undefined, 100, 5, 1);
+
+  SubarrayTestCase(constructor, item, 1, 89,        100, -11, -10);
+  SubarrayTestCase(constructor, item, 9, 90,        100, -10, 99);
+  SubarrayTestCase(constructor, item, 0, undefined, 100, -10, 80);
+  SubarrayTestCase(constructor, item, 10,80,        100, 80, -10);
+
+  SubarrayTestCase(constructor, item, 10,90,        100, 90, "100");
+  SubarrayTestCase(constructor, item, 10,90,        100, "90", "100");
+
+  SubarrayTestCase(constructor, item, 0, undefined, 100, 90, "abc");
+  SubarrayTestCase(constructor, item, 10,0,         100, "abc", 10);
+
+  SubarrayTestCase(constructor, item, 10,0,         100, 0.96, 10.96);
+  SubarrayTestCase(constructor, item, 10,0,         100, 0.96, 10.01);
+  SubarrayTestCase(constructor, item, 10,0,         100, 0.01, 10.01);
+  SubarrayTestCase(constructor, item, 10,0,         100, 0.01, 10.96);
+
+
+  SubarrayTestCase(constructor, item, 10,90,        100, 90);
+  SubarrayTestCase(constructor, item, 10,90,        100, -10);
+}
+
+TestSubArray(Uint8Array, 0xFF);
+TestSubArray(Int8Array, -0x7F);
+TestSubArray(Uint16Array, 0xFFFF);
+TestSubArray(Int16Array, -0x7FFF);
+TestSubArray(Uint32Array, 0xFFFFFFFF);
+TestSubArray(Int32Array, -0x7FFFFFFF);
+TestSubArray(Float32Array, 0.5);
+TestSubArray(Float64Array, 0.5);
+TestSubArray(Uint8ClampedArray, 0xFF);
 
 function TestTypedArrayOutOfRange(constructor, value, result) {
   var a = new constructor(1);

@@ -167,6 +167,33 @@ function TypedArrayGetLength() {
   return %TypedArrayGetLength(this);
 }
 
+function CreateSubArray(elementSize, constructor) {
+  return function(begin, end) {
+    var srcLength = %TypedArrayGetLength(this);
+    var beginInt = TO_INTEGER(begin);
+    if (beginInt < 0) {
+      beginInt = MathMax(0, srcLength + beginInt);
+    } else {
+      beginInt = MathMin(srcLength, beginInt);
+    }
+
+    var endInt = IS_UNDEFINED(end) ? srcLength : TO_INTEGER(end);
+    if (endInt < 0) {
+      endInt = MathMax(0, srcLength + endInt);
+    } else {
+      endInt = MathMin(endInt, srcLength);
+    }
+    if (endInt < beginInt) {
+      endInt = beginInt;
+    }
+    var newLength = endInt - beginInt;
+    var beginByteOffset =
+        %TypedArrayGetByteOffset(this) + beginInt * elementSize;
+    return new constructor(%TypedArrayGetBuffer(this),
+                           beginByteOffset, newLength);
+  }
+}
+
 
 // -------------------------------------------------------------------
 
@@ -205,6 +232,10 @@ function SetupTypedArray(arrayId, name, constructor, elementSize) {
   InstallGetter(constructor.prototype, "byteOffset", TypedArrayGetByteOffset);
   InstallGetter(constructor.prototype, "byteLength", TypedArrayGetByteLength);
   InstallGetter(constructor.prototype, "length", TypedArrayGetLength);
+
+  InstallFunctions(constructor.prototype, DONT_ENUM, $Array(
+        "subarray", CreateSubArray(elementSize, constructor)
+  ));
 }
 
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
