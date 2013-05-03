@@ -329,6 +329,10 @@ class LiveRange: public ZoneObject {
   }
   bool IsSpilled() const { return spilled_; }
 
+  LOperand* current_hint_operand() const {
+    ASSERT(current_hint_operand_ == FirstHint());
+    return current_hint_operand_;
+  }
   LOperand* FirstHint() const {
     UsePosition* pos = first_pos_;
     while (pos != NULL && !pos->HasHint()) pos = pos->next();
@@ -398,6 +402,8 @@ class LiveRange: public ZoneObject {
   // This is used as a cache, it doesn't affect correctness.
   mutable UseInterval* current_interval_;
   UsePosition* last_processed_use_;
+  // This is used as a cache, it's invalid outside of BuildLiveRanges.
+  LOperand* current_hint_operand_;
   LOperand* spill_operand_;
   int spill_start_index_;
 };

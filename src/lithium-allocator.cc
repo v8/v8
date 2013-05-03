@@ -140,6 +140,7 @@ LiveRange::LiveRange(int id, Zone* zone)
       next_(NULL),
       current_interval_(NULL),
       last_processed_use_(NULL),
+      current_hint_operand_(NULL),
       spill_operand_(new(zone) LOperand()),
       spill_start_index_(kMaxInt) { }
 
@@ -452,9 +453,11 @@ void LiveRange::AddUsePosition(LifetimePosition pos,
                          id_,
                          pos.Value());
   UsePosition* use_pos = new(zone) UsePosition(pos, operand, hint);
+  UsePosition* prev_hint = NULL;
   UsePosition* prev = NULL;
   UsePosition* current = first_pos_;
   while (current != NULL && current->pos().Value() < pos.Value()) {
+    prev_hint = current->HasHint() ? current : prev_hint;
     prev = current;
     current = current->next();
   }
@@ -465,6 +468,10 @@ void LiveRange::AddUsePosition(LifetimePosition pos,
   } else {
     use_pos->next_ = prev->next_;
     prev->next_ = use_pos;
+  }
+
+  if (prev_hint == NULL && use_pos->HasHint()) {
+    current_hint_operand_ = hint;
   }
 }
 
@@ -918,7 +925,7 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
         if (phi != NULL) {
           // This is a phi resolving move.
           if (!phi->block()->IsLoopHeader()) {
-            hint = LiveRangeFor(phi->id())->FirstHint();
+            hint = LiveRangeFor(phi->id())->current_hint_operand();
           }
         } else {
           if (to->IsUnallocated()) {
