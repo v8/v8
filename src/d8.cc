@@ -1758,9 +1758,9 @@ Handle<String> Shell::ReadFile(Isolate* isolate, const char* name) {
 
 void Shell::RunShell(Isolate* isolate) {
   Locker locker(isolate);
+  HandleScope outer_scope(isolate);
   Context::Scope context_scope(isolate, evaluation_context_);
   PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-  HandleScope outer_scope(isolate);
   Handle<String> name = String::New("(d8)");
   LineEditor* console = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
