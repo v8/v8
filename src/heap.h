@@ -1531,6 +1531,14 @@ class Heap {
     return new_space_high_promotion_mode_active_;
   }
 
+  inline PretenureFlag GetPretenureMode() {
+    return new_space_high_promotion_mode_active_ ? TENURED : NOT_TENURED;
+  }
+
+  inline Address* NewSpaceHighPromotionModeActiveAddress() {
+    return reinterpret_cast<Address*>(&new_space_high_promotion_mode_active_);
+  }
+
   inline intptr_t PromotedTotalSize() {
     return PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
   }
@@ -1609,7 +1617,8 @@ class Heap {
   static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
 
   MUST_USE_RESULT MaybeObject* NumberToString(
-      Object* number, bool check_number_string_cache = true);
+      Object* number, bool check_number_string_cache = true,
+      PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* Uint32ToString(
       uint32_t value, bool check_number_string_cache = true);
 
@@ -1976,7 +1985,8 @@ class Heap {
 
   // Indicates that the new space should be kept small due to high promotion
   // rates caused by the mutator allocating a lot of long-lived objects.
-  bool new_space_high_promotion_mode_active_;
+  // TODO(hpayer): change to bool if no longer accessed from generated code
+  intptr_t new_space_high_promotion_mode_active_;
 
   // Limit that triggers a global GC on the next (normally caused) GC.  This
   // is checked when we have already decided to do a GC to help determine

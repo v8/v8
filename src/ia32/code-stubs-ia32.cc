@@ -5838,8 +5838,33 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ mov(FieldOperand(ecx, ConsString::kLengthOffset), ebx);
   __ mov(FieldOperand(ecx, ConsString::kHashFieldOffset),
          Immediate(String::kEmptyHashField));
+
+  Label skip_write_barrier, after_writing;
+  ExternalReference high_promotion_mode = ExternalReference::
+      new_space_high_promotion_mode_active_address(masm->isolate());
+  __ test(Operand::StaticVariable(high_promotion_mode), Immediate(1));
+  __ j(zero, &skip_write_barrier);
+
+  __ mov(FieldOperand(ecx, ConsString::kFirstOffset), eax);
+  __ RecordWriteField(ecx,
+                     ConsString::kFirstOffset,
+                     eax,
+                     ebx,
+                     kDontSaveFPRegs);
+  __ mov(FieldOperand(ecx, ConsString::kSecondOffset), edx);
+  __ RecordWriteField(ecx,
+                     ConsString::kSecondOffset,
+                     edx,
+                     ebx,
+                     kDontSaveFPRegs);
+  __ jmp(&after_writing);
+
+  __ bind(&skip_write_barrier);
   __ mov(FieldOperand(ecx, ConsString::kFirstOffset), eax);
   __ mov(FieldOperand(ecx, ConsString::kSecondOffset), edx);
+
+  __ bind(&after_writing);
+
   __ mov(eax, ecx);
   __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
@@ -7371,8 +7396,10 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(edx), REG(eax), REG(edi), EMIT_REMEMBERED_SET},
   // StoreArrayLiteralElementStub::Generate
   { REG(ebx), REG(eax), REG(ecx), EMIT_REMEMBERED_SET},
-  // FastNewClosureStub
+  // FastNewClosureStub and StringAddStub::Generate
   { REG(ecx), REG(edx), REG(ebx), EMIT_REMEMBERED_SET},
+  // StringAddStub::Generate
+  { REG(ecx), REG(eax), REG(ebx), EMIT_REMEMBERED_SET},
   // Null termination.
   { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
 };

@@ -5958,8 +5958,36 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ AllocateAsciiConsString(r7, r6, r4, r5, &call_runtime);
   __ bind(&allocated);
   // Fill the fields of the cons string.
+  Label skip_write_barrier, after_writing;
+  ExternalReference high_promotion_mode = ExternalReference::
+      new_space_high_promotion_mode_active_address(masm->isolate());
+  __ mov(r4, Operand(high_promotion_mode));
+  __ ldr(r4, MemOperand(r4, 0));
+  __ cmp(r4, Operand::Zero());
+  __ b(eq, &skip_write_barrier);
+
+  __ str(r0, FieldMemOperand(r7, ConsString::kFirstOffset));
+  __ RecordWriteField(r7,
+                      ConsString::kFirstOffset,
+                      r0,
+                      r4,
+                      kLRHasNotBeenSaved,
+                      kDontSaveFPRegs);
+  __ str(r1, FieldMemOperand(r7, ConsString::kSecondOffset));
+  __ RecordWriteField(r7,
+                      ConsString::kSecondOffset,
+                      r1,
+                      r4,
+                      kLRHasNotBeenSaved,
+                      kDontSaveFPRegs);
+  __ jmp(&after_writing);
+
+  __ bind(&skip_write_barrier);
   __ str(r0, FieldMemOperand(r7, ConsString::kFirstOffset));
   __ str(r1, FieldMemOperand(r7, ConsString::kSecondOffset));
+
+  __ bind(&after_writing);
+
   __ mov(r0, Operand(r7));
   __ IncrementCounter(counters->string_add_native(), 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
@@ -6805,6 +6833,9 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(r5), REG(r0), REG(r6), EMIT_REMEMBERED_SET },
   // FastNewClosureStub::Generate
   { REG(r2), REG(r4), REG(r1), EMIT_REMEMBERED_SET },
+  // StringAddStub::Generate
+  { REG(r7), REG(r1), REG(r4), EMIT_REMEMBERED_SET },
+  { REG(r7), REG(r0), REG(r4), EMIT_REMEMBERED_SET },
   // Null termination.
   { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
 };
