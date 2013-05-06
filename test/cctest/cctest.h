@@ -83,19 +83,21 @@ class CcTest {
   const char* name() { return name_; }
   const char* dependency() { return dependency_; }
   bool enabled() { return enabled_; }
-  static void set_default_isolate(v8::Isolate* default_isolate) {
-    default_isolate_ = default_isolate;
-  }
   static v8::Isolate* default_isolate() { return default_isolate_; }
-  static v8::Isolate* isolate() { return context()->GetIsolate(); }
-  static v8::Handle<v8::Context> env() { return context(); }
+
+  static v8::Handle<v8::Context> env() {
+    return v8::Local<v8::Context>::New(default_isolate_, context_);
+  }
+
+  static v8::Isolate* isolate() { return default_isolate_; }
 
   // Helper function to initialize the VM.
   static void InitializeVM(CcTestExtensionFlags extensions = NO_EXTENSIONS);
 
  private:
-  static v8::Handle<v8::Context> context() {
-      return *reinterpret_cast<v8::Handle<v8::Context>*>(&context_);
+  friend int main(int argc, char** argv);
+  static void set_default_isolate(v8::Isolate* default_isolate) {
+    default_isolate_ = default_isolate;
   }
   TestFunction* callback_;
   const char* file_;
