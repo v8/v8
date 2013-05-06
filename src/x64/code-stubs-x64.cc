@@ -2351,6 +2351,7 @@ void ArrayLengthStub::Generate(MacroAssembler* masm) {
     //  -- rsp[0] : return address
     // -----------------------------------
     __ Cmp(rax, masm->isolate()->factory()->length_symbol());
+    __ j(not_equal, &miss);
     receiver = rdx;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -2378,6 +2379,7 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
     //  -- rsp[0] : return address
     // -----------------------------------
     __ Cmp(rax, masm->isolate()->factory()->prototype_symbol());
+    __ j(not_equal, &miss);
     receiver = rdx;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -2405,6 +2407,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     //  -- rsp[0] : return address
     // -----------------------------------
     __ Cmp(rax, masm->isolate()->factory()->length_symbol());
+    __ j(not_equal, &miss);
     receiver = rdx;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -2443,6 +2446,7 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
   Register scratch = rbx;
   if (kind() == Code::KEYED_STORE_IC) {
     __ Cmp(rcx, masm->isolate()->factory()->length_symbol());
+    __ j(not_equal, &miss);
   }
 
   // Check that the receiver isn't a smi.

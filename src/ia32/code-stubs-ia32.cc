@@ -3323,7 +3323,7 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
   Register value = eax;
   Register scratch = ebx;
 
-  if (kind() == Code::KEYED_LOAD_IC) {
+  if (kind() == Code::KEYED_STORE_IC) {
     __ cmp(ecx, Immediate(masm->isolate()->factory()->length_symbol()));
     __ j(not_equal, &miss);
   }
