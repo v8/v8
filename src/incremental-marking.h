@@ -110,7 +110,10 @@ class IncrementalMarking {
   static const intptr_t kMarkingSpeedAccelleration = 2;
   static const intptr_t kMaxMarkingSpeed = 1000;
 
-  void OldSpaceStep(intptr_t allocated);
+  void OldSpaceStep(intptr_t allocated) {
+    Step(allocated * kFastMarking / kInitialMarkingSpeed,
+         GC_VIA_STACK_GUARD);
+  }
 
   void Step(intptr_t allocated, CompletionAction action);
 
