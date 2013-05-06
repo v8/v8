@@ -872,6 +872,8 @@ bool EnterAllocationScope(Isolate* isolate, bool allow_allocation) {
   bool active = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
   bool last_state = isolate->heap()->IsAllocationAllowed();
   if (active) {
+    // TODO(yangguo): Make HandleDereferenceGuard avoid isolate mutation in the
+    // same way if running on the optimizer thread.
     isolate->heap()->set_allow_allocation(allow_allocation);
   }
   return last_state;
@@ -879,7 +881,10 @@ bool EnterAllocationScope(Isolate* isolate, bool allow_allocation) {
 
 
 void ExitAllocationScope(Isolate* isolate, bool last_state) {
-  isolate->heap()->set_allow_allocation(last_state);
+  bool active = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
+  if (active) {
+    isolate->heap()->set_allow_allocation(last_state);
+  }
 }
 
 
