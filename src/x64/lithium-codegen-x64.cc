@@ -4372,6 +4372,7 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
 
   __ cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
   __ j(above, deferred->entry());
+  __ movsxlq(char_code, char_code);
   __ LoadRoot(result, Heap::kSingleCharacterStringCacheRootIndex);
   __ movq(result, FieldOperand(result,
                                char_code, times_pointer_size,
