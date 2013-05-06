@@ -1317,36 +1317,36 @@ void Genesis::InitializeExperimentalGlobal() {
     }
   }
 
+  if (FLAG_harmony_array_buffer) {
+    // -- A r r a y B u f f e r
+    Handle<JSFunction> array_buffer_fun =
+        InstallFunction(global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
+                        JSArrayBuffer::kSize,
+                        isolate()->initial_object_prototype(),
+                        Builtins::kIllegal, true);
+    native_context()->set_array_buffer_fun(*array_buffer_fun);
+  }
+
   if (FLAG_harmony_typed_arrays) {
-    {  // -- A r r a y B u f f e r
-      Handle<JSFunction> array_buffer_fun =
-          InstallFunction(global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
-                          JSArrayBuffer::kSize,
-                          isolate()->initial_object_prototype(),
-                          Builtins::kIllegal, true);
-      native_context()->set_array_buffer_fun(*array_buffer_fun);
-    }
-    {
-      // -- T y p e d A r r a y s
-      Handle<JSFunction> int8_fun = InstallTypedArray("Int8Array");
-      native_context()->set_int8_array_fun(*int8_fun);
-      Handle<JSFunction> uint8_fun = InstallTypedArray("Uint8Array");
-      native_context()->set_uint8_array_fun(*uint8_fun);
-      Handle<JSFunction> int16_fun = InstallTypedArray("Int16Array");
-      native_context()->set_int16_array_fun(*int16_fun);
-      Handle<JSFunction> uint16_fun = InstallTypedArray("Uint16Array");
-      native_context()->set_uint16_array_fun(*uint16_fun);
-      Handle<JSFunction> int32_fun = InstallTypedArray("Int32Array");
-      native_context()->set_int32_array_fun(*int32_fun);
-      Handle<JSFunction> uint32_fun = InstallTypedArray("Uint32Array");
-      native_context()->set_uint32_array_fun(*uint32_fun);
-      Handle<JSFunction> float_fun = InstallTypedArray("Float32Array");
-      native_context()->set_float_array_fun(*float_fun);
-      Handle<JSFunction> double_fun = InstallTypedArray("Float64Array");
-      native_context()->set_double_array_fun(*double_fun);
-      Handle<JSFunction> uint8c_fun = InstallTypedArray("Uint8ClampedArray");
-      native_context()->set_uint8c_array_fun(*uint8c_fun);
-     }
+    // -- T y p e d A r r a y s
+    Handle<JSFunction> int8_fun = InstallTypedArray("Int8Array");
+    native_context()->set_int8_array_fun(*int8_fun);
+    Handle<JSFunction> uint8_fun = InstallTypedArray("Uint8Array");
+    native_context()->set_uint8_array_fun(*uint8_fun);
+    Handle<JSFunction> int16_fun = InstallTypedArray("Int16Array");
+    native_context()->set_int16_array_fun(*int16_fun);
+    Handle<JSFunction> uint16_fun = InstallTypedArray("Uint16Array");
+    native_context()->set_uint16_array_fun(*uint16_fun);
+    Handle<JSFunction> int32_fun = InstallTypedArray("Int32Array");
+    native_context()->set_int32_array_fun(*int32_fun);
+    Handle<JSFunction> uint32_fun = InstallTypedArray("Uint32Array");
+    native_context()->set_uint32_array_fun(*uint32_fun);
+    Handle<JSFunction> float_fun = InstallTypedArray("Float32Array");
+    native_context()->set_float_array_fun(*float_fun);
+    Handle<JSFunction> double_fun = InstallTypedArray("Float64Array");
+    native_context()->set_double_array_fun(*double_fun);
+    Handle<JSFunction> uint8c_fun = InstallTypedArray("Uint8ClampedArray");
+    native_context()->set_uint8c_array_fun(*uint8c_fun);
   }
 
   if (FLAG_harmony_generators) {
@@ -1990,6 +1990,11 @@ bool Genesis::InstallExperimentalNatives() {
     if (FLAG_harmony_observation &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
                "native object-observe.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
+    if (FLAG_harmony_array_buffer &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native arraybuffer.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
     if (FLAG_harmony_typed_arrays &&

@@ -31,56 +31,7 @@
 // in runtime.js:
 // var $Array = global.Array;
 
-var $ArrayBuffer = global.ArrayBuffer;
 
-// -------------------------------------------------------------------
-
-function ArrayBufferConstructor(byteLength) { // length = 1
-  if (%_IsConstructCall()) {
-    var l = TO_POSITIVE_INTEGER(byteLength);
-    %ArrayBufferInitialize(this, l);
-  } else {
-    return new $ArrayBuffer(byteLength);
-  }
-}
-
-function ArrayBufferGetByteLength() {
-  if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['ArrayBuffer.prototype.byteLength', this]);
-  }
-  return %ArrayBufferGetByteLength(this);
-}
-
-// ES6 Draft 15.13.5.5.3
-function ArrayBufferSlice(start, end) {
-  if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['ArrayBuffer.prototype.slice', this]);
-  }
-
-  var relativeStart = TO_INTEGER(start);
-  var first;
-  if (relativeStart < 0) {
-    first = MathMax(this.byteLength + relativeStart, 0);
-  } else {
-    first = MathMin(relativeStart, this.byteLength);
-  }
-  var relativeEnd = IS_UNDEFINED(end) ? this.byteLength : TO_INTEGER(end);
-  var fin;
-  if (relativeEnd < 0) {
-    fin = MathMax(this.byteLength + relativeEnd, 0);
-  } else {
-    fin = MathMin(relativeEnd, this.byteLength);
-  }
-
-  var newLen = fin - first;
-  // TODO(dslomov): implement inheritance
-  var result = new $ArrayBuffer(newLen);
-
-  %ArrayBufferSliceImpl(this, result, first);
-  return result;
-}
 
 // --------------- Typed Arrays ---------------------
 
@@ -119,7 +70,7 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
   function ConstructByLength(obj, length) {
     var l = IS_UNDEFINED(length) ? 0 : TO_POSITIVE_INTEGER(length);
     var byteLength = l * elementSize;
-    var buffer = new $ArrayBuffer(byteLength);
+    var buffer = new global.ArrayBuffer(byteLength);
     %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
   }
 
@@ -196,25 +147,6 @@ function CreateSubArray(elementSize, constructor) {
 
 
 // -------------------------------------------------------------------
-
-function SetUpArrayBuffer() {
-  %CheckIsBootstrapping();
-
-  // Set up the ArrayBuffer constructor function.
-  %SetCode($ArrayBuffer, ArrayBufferConstructor);
-  %FunctionSetPrototype($ArrayBuffer, new $Object());
-
-  // Set up the constructor property on the ArrayBuffer prototype object.
-  %SetProperty($ArrayBuffer.prototype, "constructor", $ArrayBuffer, DONT_ENUM);
-
-  InstallGetter($ArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLength);
-
-  InstallFunctions($ArrayBuffer.prototype, DONT_ENUM, $Array(
-      "slice", ArrayBufferSlice
-  ));
-}
-
-SetUpArrayBuffer();
 
 function SetupTypedArray(arrayId, name, constructor, elementSize) {
   %CheckIsBootstrapping();

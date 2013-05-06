@@ -2257,6 +2257,7 @@ THREADED_TEST(SymbolProperties) {
 
 
 THREADED_TEST(ArrayBuffer) {
+  i::FLAG_harmony_array_buffer = true;
   i::FLAG_harmony_typed_arrays = true;
 
   LocalContext env;
@@ -15107,6 +15108,7 @@ template <typename ElementType, typename TypedArray,
 void TypedArrayTestHelper(v8::ExternalArrayType array_type,
                           int64_t low, int64_t high) {
   const int kElementCount = 50;
+  i::FLAG_harmony_array_buffer = true;
   i::FLAG_harmony_typed_arrays = true;
 
   LocalContext env;
@@ -15191,6 +15193,7 @@ THREADED_TEST(Uint8ClampedArray) {
 
 #define IS_TYPED_ARRAY_TEST(TypedArray) \
   THREADED_TEST(Is##TypedArray) {                                             \
+    i::FLAG_harmony_array_buffer = true;                                      \
     i::FLAG_harmony_typed_arrays = true;                                      \
     LocalContext env;                                                         \
     v8::Isolate* isolate = env->GetIsolate();                                 \

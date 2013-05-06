@@ -166,6 +166,9 @@ DEFINE_bool(harmony_observation, false,
             "enable harmony object observation (implies harmony collections")
 DEFINE_bool(harmony_typed_arrays, false,
             "enable harmony typed arrays")
+DEFINE_bool(harmony_array_buffer, false,
+            "enable harmony array buffer")
+DEFINE_implication(harmony_typed_arrays, harmony_array_buffer)
 DEFINE_bool(harmony_generators, false, "enable harmony generators")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 DEFINE_implication(harmony, harmony_scoping)
