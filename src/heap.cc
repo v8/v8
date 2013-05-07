@@ -4160,7 +4160,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
         ASSERT(name->IsInternalizedString());
         // TODO(verwaest): Since we cannot update the boilerplate's map yet,
         // initialize to the worst case.
-        FieldDescriptor field(name, i, NONE, Representation::Tagged(), i + 1);
+        FieldDescriptor field(name, i, NONE, Representation::Tagged());
         descriptors->Set(i, &field, witness);
       }
       descriptors->Sort();
@@ -4589,13 +4589,10 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
   DescriptorArray* descs = map->instance_descriptors();
-  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
     ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
-    PropertyDetails d = PropertyDetails(details.attributes(),
-                                        CALLBACKS,
-                                        Representation::None(),
-                                        details.descriptor_index());
+    PropertyDetails d = PropertyDetails(details.attributes(), CALLBACKS, i + 1);
     Object* value = descs->GetCallbacksObject(i);
     MaybeObject* maybe_value = AllocateJSGlobalPropertyCell(value);
     if (!maybe_value->ToObject(&value)) return maybe_value;

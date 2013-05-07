@@ -142,8 +142,7 @@ TEST(StressJS) {
 
   CallbacksDescriptor d(*name,
                         *foreign,
-                        static_cast<PropertyAttributes>(0),
-                        v8::internal::PropertyDetails::kInitialIndex);
+                        static_cast<PropertyAttributes>(0));
   map->AppendDescriptor(&d, witness);
 
   // Add the Foo constructor the global object.

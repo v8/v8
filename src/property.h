@@ -64,11 +64,6 @@ class Descriptor BASE_EMBEDDED {
   void Print(FILE* out);
 #endif
 
-  void SetEnumerationIndex(int index) {
-    details_ = PropertyDetails(details_.attributes(), details_.type(),
-                               details_.representation(), index);
-  }
-
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
  private:
@@ -94,11 +89,10 @@ class Descriptor BASE_EMBEDDED {
              Object* value,
              PropertyAttributes attributes,
              PropertyType type,
-             Representation representation,
-             int index)
+             Representation representation)
       : key_(key),
         value_(value),
-        details_(attributes, type, representation, index) { }
+        details_(attributes, type, representation) { }
 
   friend class DescriptorArray;
 };
@@ -109,10 +103,9 @@ class FieldDescriptor: public Descriptor {
   FieldDescriptor(Name* key,
                   int field_index,
                   PropertyAttributes attributes,
-                  Representation representation,
-                  int index = 0)
+                  Representation representation)
       : Descriptor(key, Smi::FromInt(field_index), attributes,
-                   FIELD, representation, index) {}
+                   FIELD, representation) {}
 };
 
 
@@ -120,10 +113,9 @@ class ConstantFunctionDescriptor: public Descriptor {
  public:
   ConstantFunctionDescriptor(Name* key,
                              JSFunction* function,
-                             PropertyAttributes attributes,
-                             int index)
-      : Descriptor(key, function, attributes,
-                   CONSTANT_FUNCTION, Representation::Tagged(), index) {}
+                             PropertyAttributes attributes)
+      : Descriptor(key, function, attributes, CONSTANT_FUNCTION,
+                   Representation::Tagged()) {}
 };
 
 
@@ -131,10 +123,9 @@ class CallbacksDescriptor:  public Descriptor {
  public:
   CallbacksDescriptor(Name* key,
                       Object* foreign,
-                      PropertyAttributes attributes,
-                      int index = 0)
+                      PropertyAttributes attributes)
       : Descriptor(key, foreign, attributes, CALLBACKS,
-                   Representation::Tagged(), index) {}
+                   Representation::Tagged()) {}
 };
 
 

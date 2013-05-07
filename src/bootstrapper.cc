@@ -2409,7 +2409,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
   if (from->HasFastProperties()) {
     Handle<DescriptorArray> descs =
         Handle<DescriptorArray>(from->map()->instance_descriptors());
-    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    for (int i = 0; i < from->map()->NumberOfOwnDescriptors(); i++) {
       PropertyDetails details = descs->GetDetails(i);
       switch (details.type()) {
         case FIELD: {
@@ -2443,10 +2443,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           // Add to dictionary.
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
-          PropertyDetails d = PropertyDetails(details.attributes(),
-                                              CALLBACKS,
-                                              Representation::Tagged(),
-                                              details.descriptor_index());
+          PropertyDetails d = PropertyDetails(
+              details.attributes(), CALLBACKS, i + 1);
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;
         }

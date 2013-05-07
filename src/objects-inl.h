@@ -58,10 +58,7 @@ PropertyDetails::PropertyDetails(Smi* smi) {
 
 
 Smi* PropertyDetails::AsSmi() {
-  // Ensure the upper 2 bits have the same value by sign extending it. This is
-  // necessary to be able to use the 31st bit of the property details.
-  int value = value_ << 1;
-  return Smi::FromInt(value >> 1);
+  return Smi::FromInt(value_);
 }
 
 
@@ -2347,9 +2344,6 @@ void DescriptorArray::Set(int descriptor_number,
                           const WhitenessWitness&) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
-  ASSERT(desc->GetDetails().descriptor_index() <=
-         number_of_descriptors());
-  ASSERT(desc->GetDetails().descriptor_index() > 0);
 
   ASSERT(!desc->GetDetails().representation().IsNone());
   NoIncrementalWriteBarrierSet(this,
@@ -2367,9 +2361,6 @@ void DescriptorArray::Set(int descriptor_number,
 void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
-  ASSERT(desc->GetDetails().descriptor_index() <=
-         number_of_descriptors());
-  ASSERT(desc->GetDetails().descriptor_index() > 0);
   ASSERT(!desc->GetDetails().representation().IsNone());
 
   set(ToKeyIndex(descriptor_number), desc->GetKey());
@@ -2381,9 +2372,7 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
 void DescriptorArray::Append(Descriptor* desc,
                              const WhitenessWitness& witness) {
   int descriptor_number = number_of_descriptors();
-  int enumeration_index = descriptor_number + 1;
   SetNumberOfDescriptors(descriptor_number + 1);
-  desc->SetEnumerationIndex(enumeration_index);
   Set(descriptor_number, desc, witness);
 
   uint32_t hash = desc->GetKey()->Hash();
@@ -2402,9 +2391,7 @@ void DescriptorArray::Append(Descriptor* desc,
 
 void DescriptorArray::Append(Descriptor* desc) {
   int descriptor_number = number_of_descriptors();
-  int enumeration_index = descriptor_number + 1;
   SetNumberOfDescriptors(descriptor_number + 1);
-  desc->SetEnumerationIndex(enumeration_index);
   Set(descriptor_number, desc);
 
   uint32_t hash = desc->GetKey()->Hash();
@@ -4152,23 +4139,6 @@ static MaybeObject* EnsureHasTransitionArray(Map* map) {
 
 void Map::InitializeDescriptors(DescriptorArray* descriptors) {
   int len = descriptors->number_of_descriptors();
-#ifdef DEBUG
-  ASSERT(len <= DescriptorArray::kMaxNumberOfDescriptors);
-
-  bool used_indices[DescriptorArray::kMaxNumberOfDescriptors];
-  for (int i = 0; i < len; ++i) used_indices[i] = false;
-
-  // Ensure that all enumeration indexes between 1 and length occur uniquely in
-  // the descriptor array.
-  for (int i = 0; i < len; ++i) {
-    int enum_index = descriptors->GetDetails(i).descriptor_index() -
-                     PropertyDetails::kInitialIndex;
-    ASSERT(0 <= enum_index && enum_index < len);
-    ASSERT(!used_indices[enum_index]);
-    used_indices[enum_index] = true;
-  }
-#endif
-
   set_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(len);
 }

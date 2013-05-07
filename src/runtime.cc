@@ -2316,8 +2316,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
 
     CallbacksDescriptor new_desc(name,
         instance_desc->GetValue(index),
-        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
-        details.descriptor_index());
+        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY));
 
     // Create a new map featuring the new field descriptors array.
     Map* new_map;
@@ -2335,7 +2334,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
     PropertyDetails new_details(
         static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
         details.type(),
-        Representation::None(),
         details.dictionary_index());
     function->property_dictionary()->DetailsAtPut(entry, new_details);
   }

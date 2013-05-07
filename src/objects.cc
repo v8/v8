@@ -657,8 +657,8 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
     ASSERT(enumeration_index > 0);
   }
 
-  details = PropertyDetails(details.attributes(), details.type(),
-                            Representation::None(), enumeration_index);
+  details = PropertyDetails(
+      details.attributes(), details.type(), enumeration_index);
 
   if (IsGlobalObject()) {
     JSGlobalPropertyCell* cell =
@@ -1775,7 +1775,7 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
 
   // Allocate new instance descriptors with (name, index) added
   FieldDescriptor new_field(
-      name, index, attributes, value->OptimalRepresentation(), 0);
+      name, index, attributes, value->OptimalRepresentation());
 
   ASSERT(index < map()->inobject_properties() ||
          (index - map()->inobject_properties()) < properties()->length() ||
@@ -1814,7 +1814,7 @@ MaybeObject* JSObject::AddConstantFunctionProperty(
     JSFunction* function,
     PropertyAttributes attributes) {
   // Allocate new instance descriptors with (name, function) added
-  ConstantFunctionDescriptor d(name, function, attributes, 0);
+  ConstantFunctionDescriptor d(name, function, attributes);
 
   TransitionFlag flag =
       // Do not add transitions to  global objects.
@@ -1850,8 +1850,7 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
       // Assign an enumeration index to the property and update
       // SetNextEnumerationIndex.
       int index = dict->NextEnumerationIndex();
-      PropertyDetails details = PropertyDetails(
-          attributes, NORMAL, Representation::None(), index);
+      PropertyDetails details = PropertyDetails(attributes, NORMAL, index);
       dict->SetNextEnumerationIndex(index + 1);
       dict->SetEntry(entry, name, store_value, details);
       return value;
@@ -1863,8 +1862,7 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
     }
     JSGlobalPropertyCell::cast(store_value)->set_value(value);
   }
-  PropertyDetails details = PropertyDetails(
-      attributes, NORMAL, Representation::None());
+  PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
   Object* result;
   { MaybeObject* maybe_result = dict->Add(name, store_value, details);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -2005,8 +2003,7 @@ MaybeObject* JSObject::ReplaceSlowProperty(Name* name,
     new_enumeration_index = dictionary->DetailsAt(old_index).dictionary_index();
   }
 
-  PropertyDetails new_details(
-      attributes, NORMAL, Representation::None(), new_enumeration_index);
+  PropertyDetails new_details(attributes, NORMAL, new_enumeration_index);
   return SetNormalizedProperty(name, value, new_details);
 }
 
@@ -2073,7 +2070,7 @@ MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
 
   int index = map()->NextFreePropertyIndex();
   FieldDescriptor new_field(
-      name, index, attributes, new_value->OptimalRepresentation(), 0);
+      name, index, attributes, new_value->OptimalRepresentation());
 
   // Make a new map for the object.
   Map* new_map;
@@ -3758,8 +3755,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   MaybeObject* result = *value;
   switch (lookup.type()) {
     case NORMAL: {
-      PropertyDetails details = PropertyDetails(
-          attributes, NORMAL, Representation::None());
+      PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
       result = self->SetNormalizedProperty(*name, *value, details);
       break;
     }
@@ -4218,10 +4214,8 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
     PropertyDetails details = descs->GetDetails(i);
     switch (details.type()) {
       case CONSTANT_FUNCTION: {
-        PropertyDetails d = PropertyDetails(details.attributes(),
-                                            NORMAL,
-                                            Representation::None(),
-                                            details.descriptor_index());
+        PropertyDetails d = PropertyDetails(
+            details.attributes(), NORMAL, i + 1);
         Object* value = descs->GetConstantFunction(i);
         MaybeObject* maybe_dictionary =
             dictionary->Add(descs->GetKey(i), value, d);
@@ -4229,10 +4223,8 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
         break;
       }
       case FIELD: {
-        PropertyDetails d = PropertyDetails(details.attributes(),
-                                            NORMAL,
-                                            Representation::None(),
-                                            details.descriptor_index());
+        PropertyDetails d = PropertyDetails(
+            details.attributes(), NORMAL, i + 1);
         Object* value = FastPropertyAt(descs->GetFieldIndex(i));
         MaybeObject* maybe_dictionary =
             dictionary->Add(descs->GetKey(i), value, d);
@@ -4241,10 +4233,8 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
       }
       case CALLBACKS: {
         Object* value = descs->GetCallbacksObject(i);
-        PropertyDetails d = PropertyDetails(details.attributes(),
-                                            CALLBACKS,
-                                            Representation::None(),
-                                            details.descriptor_index());
+        PropertyDetails d = PropertyDetails(
+            details.attributes(), CALLBACKS, i + 1);
         MaybeObject* maybe_dictionary =
             dictionary->Add(descs->GetKey(i), value, d);
         if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
@@ -4380,8 +4370,7 @@ MaybeObject* JSObject::NormalizeElements() {
       ASSERT(old_map->has_fast_smi_or_object_elements());
       value = FixedArray::cast(array)->get(i);
     }
-    PropertyDetails details = PropertyDetails(
-        NONE, NORMAL, Representation::None());
+    PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
     if (!value->IsTheHole()) {
       Object* result;
       MaybeObject* maybe_result =
@@ -5452,8 +5441,7 @@ static bool UpdateGetterSetterInDictionary(
       if (details.attributes() != attributes) {
         dictionary->DetailsAtPut(
             entry,
-            PropertyDetails(
-                attributes, CALLBACKS, Representation::None(), index));
+            PropertyDetails(attributes, CALLBACKS, index));
       }
       AccessorPair::cast(result)->SetComponents(getter, setter);
       return true;
@@ -5614,8 +5602,7 @@ bool JSObject::CanSetCallback(Name* name) {
 MaybeObject* JSObject::SetElementCallback(uint32_t index,
                                           Object* structure,
                                           PropertyAttributes attributes) {
-  PropertyDetails details = PropertyDetails(
-      attributes, CALLBACKS, Representation::None());
+  PropertyDetails details = PropertyDetails(attributes, CALLBACKS, 0);
 
   // Normalize elements to make this operation simple.
   SeededNumberDictionary* dictionary;
@@ -5673,8 +5660,7 @@ MaybeObject* JSObject::SetPropertyCallback(Name* name,
   }
 
   // Update the dictionary with the new CALLBACKS property.
-  PropertyDetails details = PropertyDetails(
-      attributes, CALLBACKS, Representation::None());
+  PropertyDetails details = PropertyDetails(attributes, CALLBACKS, 0);
   maybe_ok = SetNormalizedProperty(name, structure, details);
   if (maybe_ok->IsFailure()) return maybe_ok;
 
@@ -6336,7 +6322,6 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
 
   int old_size = NumberOfOwnDescriptors();
   int new_size = old_size + 1;
-  descriptor->SetEnumerationIndex(new_size);
 
   if (flag == INSERT_TRANSITION &&
       owns_descriptors() &&
@@ -6421,9 +6406,7 @@ MaybeObject* Map::CopyReplaceDescriptor(DescriptorArray* descriptors,
   int new_size = NumberOfOwnDescriptors();
   ASSERT(0 <= insertion_index && insertion_index < new_size);
 
-  PropertyDetails details = descriptors->GetDetails(insertion_index);
-  ASSERT_LE(details.descriptor_index(), new_size);
-  descriptor->SetEnumerationIndex(details.descriptor_index());
+  ASSERT_LT(insertion_index, new_size);
 
   DescriptorArray* new_descriptors;
   MaybeObject* maybe_descriptors = DescriptorArray::Allocate(new_size);
@@ -7319,8 +7302,7 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
       FieldDescriptor d(key,
                         current_offset++,
                         details.attributes(),
-                        representation,
-                        descriptor + 1);
+                        representation);
       result->Set(descriptor, &d, witness);
     } else {
       result->CopyFrom(descriptor, other, descriptor, witness);
@@ -7335,8 +7317,7 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
       FieldDescriptor d(key,
                         current_offset++,
                         details.attributes(),
-                        details.representation(),
-                        descriptor + 1);
+                        details.representation());
       result->Set(descriptor, &d, witness);
     } else {
       result->CopyFrom(descriptor, other, descriptor, witness);
@@ -11201,8 +11182,8 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
       // is read-only (a declared const that has not been initialized).  If a
       // value is being defined we skip attribute checks completely.
       if (set_mode == DEFINE_PROPERTY) {
-        details = PropertyDetails(attributes, NORMAL, Representation::None(),
-                                  details.dictionary_index());
+        details = PropertyDetails(
+            attributes, NORMAL, details.dictionary_index());
         dictionary->DetailsAtPut(entry, details);
       } else if (details.IsReadOnly() && !element->IsTheHole()) {
         if (strict_mode == kNonStrictMode) {
@@ -11254,8 +11235,7 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
       }
     }
     FixedArrayBase* new_dictionary;
-    PropertyDetails details = PropertyDetails(
-        attributes, NORMAL, Representation::None());
+    PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
     MaybeObject* maybe = dictionary->AddNumberEntry(index, *value, details);
     if (!maybe->To(&new_dictionary)) return maybe;
     if (*dictionary != SeededNumberDictionary::cast(new_dictionary)) {
@@ -13249,8 +13229,7 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
   }
 
   uint32_t result = pos;
-  PropertyDetails no_details = PropertyDetails(
-      NONE, NORMAL, Representation::None());
+  PropertyDetails no_details = PropertyDetails(NONE, NORMAL, 0);
   Heap* heap = GetHeap();
   while (undefs > 0) {
     if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
@@ -13633,7 +13612,7 @@ MaybeObject* GlobalObject::EnsurePropertyCell(Name* name) {
           heap->AllocateJSGlobalPropertyCell(heap->the_hole_value());
       if (!maybe_cell->ToObject(&cell)) return maybe_cell;
     }
-    PropertyDetails details(NONE, NORMAL, Representation::None());
+    PropertyDetails details(NONE, NORMAL, 0);
     details = details.AsDeleted();
     Object* dictionary;
     { MaybeObject* maybe_dictionary =
@@ -14076,8 +14055,7 @@ MaybeObject* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
       int enum_index = Smi::cast(enumeration_order->get(pos++))->value();
       PropertyDetails details = DetailsAt(i);
       PropertyDetails new_details = PropertyDetails(
-          details.attributes(), details.type(),
-          Representation::None(), enum_index);
+          details.attributes(), details.type(), enum_index);
       DetailsAtPut(i, new_details);
     }
   }
@@ -14143,8 +14121,7 @@ MaybeObject* Dictionary<Shape, Key>::AtPut(Key key, Object* value) {
   { MaybeObject* maybe_k = Shape::AsObject(this->GetHeap(), key);
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
-  PropertyDetails details = PropertyDetails(
-      NONE, NORMAL, Representation::None());
+  PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
 
   return Dictionary<Shape, Key>::cast(obj)->AddEntry(key, value, details,
       Dictionary<Shape, Key>::Hash(key));
@@ -14155,8 +14132,6 @@ template<typename Shape, typename Key>
 MaybeObject* Dictionary<Shape, Key>::Add(Key key,
                                          Object* value,
                                          PropertyDetails details) {
-  ASSERT(details.dictionary_index() == details.descriptor_index());
-
   // Valdate key is absent.
   SLOW_ASSERT((this->FindEntry(key) == Dictionary<Shape, Key>::kNotFound));
   // Check whether the dictionary should be extended.
@@ -14190,8 +14165,7 @@ MaybeObject* Dictionary<Shape, Key>::AddEntry(Key key,
     // Assign an enumeration index to the property and update
     // SetNextEnumerationIndex.
     int index = NextEnumerationIndex();
-    details = PropertyDetails(details.attributes(), details.type(),
-                              Representation::None(), index);
+    details = PropertyDetails(details.attributes(), details.type(), index);
     SetNextEnumerationIndex(index + 1);
   }
   SetEntry(entry, k, value, details);
@@ -14233,7 +14207,7 @@ MaybeObject* SeededNumberDictionary::AddNumberEntry(uint32_t key,
 MaybeObject* UnseededNumberDictionary::AddNumberEntry(uint32_t key,
                                                       Object* value) {
   SLOW_ASSERT(this->FindEntry(key) == kNotFound);
-  return Add(key, value, PropertyDetails(NONE, NORMAL, Representation::None()));
+  return Add(key, value, PropertyDetails(NONE, NORMAL, 0));
 }
 
 
@@ -14278,7 +14252,6 @@ MaybeObject* SeededNumberDictionary::Set(uint32_t key,
   // Preserve enumeration index.
   details = PropertyDetails(details.attributes(),
                             details.type(),
-                            Representation::None(),
                             DetailsAt(entry).dictionary_index());
   MaybeObject* maybe_object_key =
       SeededNumberDictionaryShape::AsObject(GetHeap(), key);
@@ -14531,15 +14504,13 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
       }
 
       PropertyDetails details = DetailsAt(i);
-      ASSERT(details.descriptor_index() == details.dictionary_index());
-      int enumeration_index = details.descriptor_index();
+      int enumeration_index = details.dictionary_index();
       PropertyType type = details.type();
 
       if (value->IsJSFunction()) {
         ConstantFunctionDescriptor d(key,
                                      JSFunction::cast(value),
-                                     details.attributes(),
-                                     enumeration_index);
+                                     details.attributes());
         descriptors->Set(enumeration_index - 1, &d, witness);
       } else if (type == NORMAL) {
         if (current_offset < inobject_props) {
@@ -14554,14 +14525,12 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
                           current_offset++,
                           details.attributes(),
                           // TODO(verwaest): value->OptimalRepresentation();
-                          Representation::Tagged(),
-                          enumeration_index);
+                          Representation::Tagged());
         descriptors->Set(enumeration_index - 1, &d, witness);
       } else if (type == CALLBACKS) {
         CallbacksDescriptor d(key,
                               value,
-                              details.attributes(),
-                              enumeration_index);
+                              details.attributes());
         descriptors->Set(enumeration_index - 1, &d, witness);
       } else {
         UNREACHABLE();

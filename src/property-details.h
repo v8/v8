@@ -154,20 +154,21 @@ class PropertyDetails BASE_EMBEDDED {
  public:
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
-                  Representation representation,
-                  int index = 0) {
+                  int index) {
     value_ = TypeField::encode(type)
         | AttributesField::encode(attributes)
-        | RepresentationField::encode(EncodeRepresentation(representation))
         | DictionaryStorageField::encode(index);
 
     ASSERT(type == this->type());
     ASSERT(attributes == this->attributes());
-    if (representation.IsNone()) {
-      ASSERT(index == this->dictionary_index());
-    } else {
-      ASSERT(index == this->descriptor_index());
-    }
+  }
+
+  PropertyDetails(PropertyAttributes attributes,
+                  PropertyType type,
+                  Representation representation) {
+    value_ = TypeField::encode(type)
+        | AttributesField::encode(attributes)
+        | RepresentationField::encode(EncodeRepresentation(representation));
   }
 
   int pointer() { return DescriptorPointer::decode(value_); }
@@ -183,17 +184,10 @@ class PropertyDetails BASE_EMBEDDED {
   inline Smi* AsSmi();
 
   static uint8_t EncodeRepresentation(Representation representation) {
-    ASSERT(representation.kind() <= Representation::kTagged);
-    if (representation.kind() < Representation::kInteger32) {
-      return representation.kind();
-    } else {
-      return representation.kind() - 1;
-    }
+    return representation.kind();
   }
 
   static Representation DecodeRepresentation(uint32_t bits) {
-    ASSERT(bits <= Representation::kTagged);
-    if (bits >= Representation::kInteger32) bits += 1;
     return Representation::FromKind(static_cast<Representation::Kind>(bits));
   }
 
@@ -205,10 +199,6 @@ class PropertyDetails BASE_EMBEDDED {
 
   int dictionary_index() {
     return DictionaryStorageField::decode(value_);
-  }
-
-  int descriptor_index() {
-    return DescriptorStorageField::decode(value_);
   }
 
   Representation representation() {
@@ -232,9 +222,8 @@ class PropertyDetails BASE_EMBEDDED {
   class AttributesField:          public BitField<PropertyAttributes, 3,  3> {};
   class DeletedField:             public BitField<uint32_t,           6,  1> {};
   class DictionaryStorageField:   public BitField<uint32_t,           7, 24> {};
-  class DescriptorStorageField:   public BitField<uint32_t,           7, 11> {};
-  class DescriptorPointer:        public BitField<uint32_t,          18, 11> {};
-  class RepresentationField:      public BitField<uint32_t,          29,  2> {};
+  class DescriptorPointer:        public BitField<uint32_t,           7, 11> {};
+  class RepresentationField:      public BitField<uint32_t,          18,  3> {};
 
   static const int kInitialIndex = 1;
 
