@@ -8733,6 +8733,7 @@ class JSTypedArray: public JSObject {
   static inline JSTypedArray* cast(Object* obj);
 
   ExternalArrayType type();
+  size_t element_size();
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSTypedArray)

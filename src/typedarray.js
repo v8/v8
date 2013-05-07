@@ -145,6 +145,22 @@ function CreateSubArray(elementSize, constructor) {
   }
 }
 
+function TypedArraySet(obj, offset) {
+  var intOffset = IS_UNDEFINED(offset) ? 0 : TO_POSITIVE_INTEGER(offset);
+  if (%TypedArraySetFastCases(this, obj, intOffset))
+    return;
+
+  var l = obj.length;
+  if (IS_UNDEFINED(l)) {
+    throw MakeTypeError("invalid_argument");
+  }
+  if (intOffset + l > this.length) {
+    throw MakeRangeError("typed_array_set_source_too_large");
+  }
+  for (var i = 0; i < l; i++) {
+    this[intOffset + i] = obj[i];
+  }
+}
 
 // -------------------------------------------------------------------
 
@@ -166,7 +182,8 @@ function SetupTypedArray(arrayId, name, constructor, elementSize) {
   InstallGetter(constructor.prototype, "length", TypedArrayGetLength);
 
   InstallFunctions(constructor.prototype, DONT_ENUM, $Array(
-        "subarray", CreateSubArray(elementSize, constructor)
+        "subarray", CreateSubArray(elementSize, constructor),
+        "set", TypedArraySet
   ));
 }
 

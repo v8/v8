@@ -13431,6 +13431,33 @@ ExternalArrayType JSTypedArray::type() {
 }
 
 
+size_t JSTypedArray::element_size() {
+  switch (elements()->map()->instance_type()) {
+    case EXTERNAL_BYTE_ARRAY_TYPE:
+      return 1;
+    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      return 1;
+    case EXTERNAL_SHORT_ARRAY_TYPE:
+      return 2;
+    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      return 2;
+    case EXTERNAL_INT_ARRAY_TYPE:
+      return 4;
+    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      return 4;
+    case EXTERNAL_FLOAT_ARRAY_TYPE:
+      return 4;
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
+      return 8;
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
+      return 1;
+    default:
+      UNREACHABLE();
+      return 0;
+  }
+}
+
+
 Object* ExternalPixelArray::SetValue(uint32_t index, Object* value) {
   uint8_t clamped_value = 0;
   if (index < static_cast<uint32_t>(length())) {

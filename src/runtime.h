@@ -361,6 +361,7 @@ namespace internal {
   F(TypedArrayGetByteLength, 1, 1) \
   F(TypedArrayGetByteOffset, 1, 1) \
   F(TypedArrayGetLength, 1, 1) \
+  F(TypedArraySetFastCases, 3, 1) \
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \
