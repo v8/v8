@@ -982,6 +982,11 @@ class HGraphBuilder {
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
 
   // Building common constructs
+  HLoadNamedField* DoBuildLoadNamedField(HValue* object,
+                                         bool inobject,
+                                         Representation representation,
+                                         int offset);
+
   HInstruction* BuildExternalArrayElementAccess(
       HValue* external_elements,
       HValue* checked_key,

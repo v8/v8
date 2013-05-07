@@ -103,6 +103,11 @@ class Representation {
     return kind_ == other.kind_;
   }
 
+  bool IsCompatibleForLoad(const Representation& other) const {
+    return (IsDouble() && other.IsDouble()) ||
+        (!IsDouble() && !other.IsDouble());
+  }
+
   bool is_more_general_than(const Representation& other) const {
     ASSERT(kind_ != kExternal);
     ASSERT(other.kind_ != kExternal);

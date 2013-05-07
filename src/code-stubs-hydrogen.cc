@@ -413,7 +413,7 @@ Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
   Representation representation = casted_stub()->representation();
-  HInstruction* load = AddInstruction(new(zone()) HLoadNamedField(
+  HInstruction* load = AddInstruction(DoBuildLoadNamedField(
       GetParameter(0), casted_stub()->is_inobject(),
       representation, casted_stub()->offset()));
   return load;
@@ -428,7 +428,7 @@ Handle<Code> LoadFieldStub::GenerateCode() {
 template<>
 HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
   Representation representation = casted_stub()->representation();
-  HInstruction* load = AddInstruction(new(zone()) HLoadNamedField(
+  HInstruction* load = AddInstruction(DoBuildLoadNamedField(
       GetParameter(0), casted_stub()->is_inobject(),
       representation, casted_stub()->offset()));
   return load;

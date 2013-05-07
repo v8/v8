@@ -99,3 +99,22 @@ assertFalse(%HaveSameMap(o6, o7));
 // Smi, double, object.
 o6.c = {};
 assertTrue(%HaveSameMap(o6, o7));
+
+function poly_load(o, b) {
+  var v = o.field;
+  if (b) {
+    return v + 10;
+  }
+  return o;
+}
+
+var of1 = {a:0};
+of1.field = {};
+var of2 = {b:0};
+of2.field = 10;
+
+poly_load(of1, false);
+poly_load(of1, false);
+poly_load(of2, true);
+%OptimizeFunctionOnNextCall(poly_load);
+assertEquals("[object Object]10", poly_load(of1, true));
