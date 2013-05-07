@@ -138,9 +138,10 @@ static void InitializeArrayConstructorDescriptor(
     int constant_stack_parameter_count) {
   // register state
   // r0 -- number of arguments
+  // r1 -- function
   // r2 -- type info cell with elements kind
-  static Register registers[] = { r2 };
-  descriptor->register_param_count_ = 1;
+  static Register registers[] = { r1, r2 };
+  descriptor->register_param_count_ = 2;
   if (constant_stack_parameter_count != 0) {
     // stack param count needs (constructor pointer, and single argument)
     descriptor->stack_parameter_count_ = &r0;
@@ -7361,14 +7362,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Get the elements kind and case on that.
     __ cmp(r2, Operand(undefined_sentinel));
     __ b(eq, &no_info);
-    __ ldr(r3, FieldMemOperand(r2, kPointerSize));
-
-    // There is no info if the call site went megamorphic either
-    // TODO(mvstanton): Really? I thought if it was the array function that
-    // the cell wouldn't get stamped as megamorphic.
-    __ cmp(r3,
-           Operand(TypeFeedbackCells::MegamorphicSentinel(masm->isolate())));
-    __ b(eq, &no_info);
+    __ ldr(r3, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+    __ JumpIfNotSmi(r3, &no_info);
     __ SmiUntag(r3);
     __ jmp(&switch_ready);
     __ bind(&no_info);

@@ -82,6 +82,24 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HContext* context() { return context_; }
   Isolate* isolate() { return info_.isolate(); }
 
+  class ArrayContextChecker {
+   public:
+    ArrayContextChecker(HGraphBuilder* builder, HValue* constructor,
+                        HValue* array_function)
+        : checker_(builder) {
+      checker_.If<HCompareObjectEqAndBranch, HValue*>(constructor,
+                                                      array_function);
+      checker_.Then();
+    }
+
+    ~ArrayContextChecker() {
+      checker_.ElseDeopt();
+      checker_.End();
+    }
+   private:
+    IfBuilder checker_;
+  };
+
  private:
   SmartArrayPointer<HParameter*> parameters_;
   HValue* arguments_length_;
@@ -524,6 +542,10 @@ HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
   //  -- Parameter 1 : type info cell
   //  -- Parameter 0 : constructor
   // -----------------------------------
+  HInstruction* array_function = BuildGetArrayFunction(context());
+  ArrayContextChecker(this,
+                      GetParameter(ArrayConstructorStubBase::kConstructor),
+                      array_function);
   // Get the right map
   // Should be a constant
   JSArrayBuilder array_builder(
@@ -543,6 +565,10 @@ Handle<Code> ArrayNoArgumentConstructorStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
     BuildCodeStub() {
+  HInstruction* array_function = BuildGetArrayFunction(context());
+  ArrayContextChecker(this,
+                      GetParameter(ArrayConstructorStubBase::kConstructor),
+                      array_function);
   // Smi check and range check on the input arg.
   HValue* constant_one = graph()->GetConstant1();
   HValue* constant_zero = graph()->GetConstant0();
@@ -596,6 +622,10 @@ Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
+  HInstruction* array_function = BuildGetArrayFunction(context());
+  ArrayContextChecker(this,
+                      GetParameter(ArrayConstructorStubBase::kConstructor),
+                      array_function);
   ElementsKind kind = casted_stub()->elements_kind();
   HValue* length = GetArgumentsLength();
 

@@ -1324,6 +1324,9 @@ class HGraphBuilder {
                                         int previous_object_size,
                                         HValue* payload);
 
+  HInstruction* BuildGetNativeContext(HValue* context);
+  HInstruction* BuildGetArrayFunction(HValue* context);
+
  private:
   HGraphBuilder();
   CompilationInfo* info_;

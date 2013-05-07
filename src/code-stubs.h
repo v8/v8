@@ -1652,7 +1652,8 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
   static void InstallDescriptors(Isolate* isolate);
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
-  static const int kPropertyCell = 0;
+  static const int kConstructor = 0;
+  static const int kPropertyCell = 1;
 
  private:
   int NotMissMinorKey() { return bit_field_; }
