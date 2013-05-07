@@ -6435,6 +6435,17 @@ class JSGeneratorObject: public JSObject {
   // Resume mode, for use by runtime functions.
   enum ResumeMode { SEND, THROW };
 
+  // Yielding from a generator returns an object with the following inobject
+  // properties.  See Context::generator_result_map() for the map.
+  static const int kResultValuePropertyIndex = 0;
+  static const int kResultDonePropertyIndex = 1;
+  static const int kResultPropertyCount = 2;
+
+  static const int kResultValuePropertyOffset = JSObject::kHeaderSize;
+  static const int kResultDonePropertyOffset =
+      kResultValuePropertyOffset + kPointerSize;
+  static const int kResultSize = kResultDonePropertyOffset + kPointerSize;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
 };

@@ -180,6 +180,7 @@ enum BindingFlags {
     strict_mode_generator_function_map) \
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, \
     generator_object_prototype_map) \
+  V(GENERATOR_RESULT_MAP_INDEX, Map, generator_result_map) \
   V(RANDOM_SEED_INDEX, ByteArray, random_seed)
 
 // JSFunctions are pairs (context, function code), sometimes also called
@@ -323,6 +324,7 @@ class Context: public FixedArray {
     GENERATOR_FUNCTION_MAP_INDEX,
     STRICT_MODE_GENERATOR_FUNCTION_MAP_INDEX,
     GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,
+    GENERATOR_RESULT_MAP_INDEX,
     RANDOM_SEED_INDEX,
 
     // Properties from here are treated as weak references by the full GC.

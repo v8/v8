@@ -1387,6 +1387,40 @@ void Genesis::InitializeExperimentalGlobal() {
         *generator_object_prototype);
     native_context()->set_generator_object_prototype_map(
         *generator_object_prototype_map);
+
+    // Create a map for generator result objects.
+    ASSERT(object_map->inobject_properties() == 0);
+    STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
+    Handle<Map> generator_result_map = factory()->CopyMap(object_map,
+        JSGeneratorObject::kResultPropertyCount);
+    ASSERT(generator_result_map->inobject_properties() ==
+        JSGeneratorObject::kResultPropertyCount);
+
+    Handle<DescriptorArray> descriptors = factory()->NewDescriptorArray(0,
+        JSGeneratorObject::kResultPropertyCount);
+    DescriptorArray::WhitenessWitness witness(*descriptors);
+    generator_result_map->set_instance_descriptors(*descriptors);
+
+    Handle<String> value_string = factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("value"));
+    FieldDescriptor value_descr(*value_string,
+                                JSGeneratorObject::kResultValuePropertyIndex,
+                                NONE,
+                                Representation::Tagged());
+    generator_result_map->AppendDescriptor(&value_descr, witness);
+
+    Handle<String> done_string = factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("done"));
+    FieldDescriptor done_descr(*done_string,
+                               JSGeneratorObject::kResultDonePropertyIndex,
+                               NONE,
+                               Representation::Tagged());
+    generator_result_map->AppendDescriptor(&done_descr, witness);
+
+    generator_result_map->set_unused_property_fields(0);
+    ASSERT_EQ(JSGeneratorObject::kResultSize,
+              generator_result_map->instance_size());
+    native_context()->set_generator_result_map(*generator_result_map);
   }
 }
 

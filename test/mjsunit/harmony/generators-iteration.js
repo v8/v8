@@ -31,19 +31,36 @@
 
 var GeneratorFunction = (function*(){yield 1;}).__proto__.constructor;
 
+function TestGeneratorResultPrototype() {
+  function* g() { yield 1; }
+  var iter = g();
+  var result = iter.next();
+
+  assertSame(Object.prototype, Object.getPrototypeOf(result));
+  property_names = Object.getOwnPropertyNames(result);
+  property_names.sort();
+  assertEquals(["done", "value"], property_names);
+  assertEquals({ value: 1, done: false }, result);
+}
+TestGeneratorResultPrototype()
+
 function TestGenerator(g, expected_values_for_next,
                        send_val, expected_values_for_send) {
   function testNext(thunk) {
     var iter = thunk();
     for (var i = 0; i < expected_values_for_next.length; i++) {
-      assertEquals(expected_values_for_next[i], iter.next());
+      assertEquals({ value: expected_values_for_next[i],
+                     done: i == expected_values_for_next.length - 1 },
+                   iter.next());
     }
     assertThrows(function() { iter.next(); }, Error);
   }
   function testSend(thunk) {
     var iter = thunk();
     for (var i = 0; i < expected_values_for_send.length; i++) {
-      assertEquals(expected_values_for_send[i], iter.send(send_val));
+      assertEquals({ value: expected_values_for_send[i],
+                     done: i == expected_values_for_send.length - 1 },
+                   iter.send(send_val));
     }
     assertThrows(function() { iter.send(send_val); }, Error);
   }
@@ -51,7 +68,9 @@ function TestGenerator(g, expected_values_for_next,
     for (var i = 0; i < expected_values_for_next.length; i++) {
       var iter = thunk();
       for (var j = 0; j < i; j++) {
-        assertEquals(expected_values_for_next[j], iter.next());
+        assertEquals({ value: expected_values_for_next[j],
+                       done: j == expected_values_for_next.length - 1 },
+                     iter.next());
       }
       function Sentinel() {}
       assertThrows(function () { iter.throw(new Sentinel); }, Sentinel);
