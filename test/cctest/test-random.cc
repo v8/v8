@@ -39,8 +39,6 @@
 
 using namespace v8::internal;
 
-static v8::Persistent<v8::Context> env;
-
 
 void SetSeeds(Handle<ByteArray> seeds, uint32_t state0, uint32_t state1) {
   for (int i = 0; i < 4; i++) {
@@ -73,11 +71,12 @@ void TestSeeds(Handle<JSFunction> fun,
 
 
 TEST(CrankshaftRandom) {
-  if (env.IsEmpty()) env = v8::Context::New();
+  v8::V8::Initialize();
   // Skip test if crankshaft is disabled.
   if (!V8::UseCrankshaft()) return;
-  v8::HandleScope scope(env->GetIsolate());
-  env->Enter();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
+  v8::Context::Scope context_scope(v8::Context::New(isolate));
 
   Handle<Context> context(Isolate::Current()->context());
   Handle<JSObject> global(context->global_object());

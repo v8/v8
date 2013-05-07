@@ -328,13 +328,18 @@ int main(int argc, char** argv) {
   }
 #endif
   i::Serializer::Enable();
-  Persistent<Context> context = v8::Context::New();
+  Isolate* isolate = Isolate::GetCurrent();
+  Persistent<Context> context;
+  {
+    HandleScope handle_scope(isolate);
+    context.Reset(isolate, Context::New(isolate));
+  }
+
   if (context.IsEmpty()) {
     fprintf(stderr,
             "\nException thrown while compiling natives - see above.\n\n");
     exit(1);
   }
-  Isolate* isolate = context->GetIsolate();
   if (i::FLAG_extra_code != NULL) {
     context->Enter();
     // Capture 100 frames if anything happens.
