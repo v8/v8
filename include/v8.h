@@ -690,6 +690,11 @@ template <class T> class Persistent // NOLINT
   // TODO(dcarney): remove before cutover
   V8_INLINE(uint16_t WrapperClassId(Isolate* isolate) const);
 
+  /**
+   * Disposes the current contents of the handle and replaces it.
+   */
+  V8_INLINE(void Reset(Isolate* isolate, const Handle<T>& other));
+
 #ifndef V8_USE_UNSAFE_HANDLES
 
 #ifndef V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
@@ -5377,6 +5382,22 @@ void Persistent<T>::MarkPartiallyDependent(Isolate* isolate) {
 template <class T>
 void Persistent<T>::SetWrapperClassId(uint16_t class_id) {
   SetWrapperClassId(Isolate::GetCurrent(), class_id);
+}
+
+template <class T>
+void Persistent<T>::Reset(Isolate* isolate, const Handle<T>& other) {
+  Dispose(isolate);
+#ifdef V8_USE_UNSAFE_HANDLES
+  *this = *New(isolate, other);
+#else
+  if (other.IsEmpty()) {
+    this->val_ = NULL;
+    return;
+  }
+  internal::Object** p = reinterpret_cast<internal::Object**>(other.val_);
+  this->val_ = reinterpret_cast<T*>(
+      V8::GlobalizeReference(reinterpret_cast<internal::Isolate*>(isolate), p));
+#endif
 }
 
 template <class T>

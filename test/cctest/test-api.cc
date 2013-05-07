@@ -2487,6 +2487,58 @@ THREADED_TEST(GlobalHandle) {
 }
 
 
+THREADED_TEST(ResettingGlobalHandle) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::internal::GlobalHandles* global_handles = NULL;
+  int initial_handle_count = 0;
+  v8::Persistent<String> global;
+  {
+    v8::HandleScope scope(isolate);
+    Local<String> str = v8_str("str");
+    global_handles =
+        reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
+    initial_handle_count = global_handles->NumberOfGlobalHandles();
+    global = v8::Persistent<String>::New(isolate, str);
+  }
+  CHECK_EQ(global->Length(), 3);
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count + 1);
+  {
+    v8::HandleScope scope(isolate);
+    Local<String> str = v8_str("longer");
+    global.Reset(isolate, str);
+  }
+  CHECK_EQ(global->Length(), 6);
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count + 1);
+  global.Dispose(isolate);
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count);
+}
+
+
+THREADED_TEST(ResettingGlobalHandleToEmpty) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::internal::GlobalHandles* global_handles = NULL;
+  int initial_handle_count = 0;
+  v8::Persistent<String> global;
+  {
+    v8::HandleScope scope(isolate);
+    Local<String> str = v8_str("str");
+    global_handles =
+        reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
+    initial_handle_count = global_handles->NumberOfGlobalHandles();
+    global = v8::Persistent<String>::New(isolate, str);
+  }
+  CHECK_EQ(global->Length(), 3);
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count + 1);
+  {
+    v8::HandleScope scope(isolate);
+    Local<String> empty;
+    global.Reset(isolate, empty);
+  }
+  CHECK(global.IsEmpty());
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count);
+}
+
+
 THREADED_TEST(LocalHandle) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
