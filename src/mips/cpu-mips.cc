@@ -65,10 +65,23 @@ void CPU::FlushICache(void* start, size_t size) {
 
 #if !defined (USE_SIMULATOR)
 #if defined(ANDROID)
-  // Bionic cacheflush can typically run in userland, avoiding kernel call.
-  char *end = reinterpret_cast<char *>(start) + size;
-  cacheflush(
-    reinterpret_cast<intptr_t>(start), reinterpret_cast<intptr_t>(end), 0);
+  // Workaround for a deserializer bug. Bionic usermode cacheflush
+  // fails in deserializer for a size of Page::kPageSize (1MB),
+  // because that region contains protected pages. Switch to kernel
+  // cacheflush in this case.
+  if (size >= static_cast<size_t>(Page::kPageSize)) {
+    int res;
+    // See http://www.linux-mips.org/wiki/Cacheflush_Syscall.
+    res = syscall(__NR_cacheflush, start, size, ICACHE);
+    if (res) {
+      V8_Fatal(__FILE__, __LINE__, "Failed to flush the instruction cache");
+    }
+  } else {
+    // Bionic cacheflush can typically run in userland, avoiding kernel call.
+    char *end = reinterpret_cast<char *>(start) + size;
+    cacheflush(
+      reinterpret_cast<intptr_t>(start), reinterpret_cast<intptr_t>(end), 0);
+  }
 #else  // ANDROID
   int res;
   // See http://www.linux-mips.org/wiki/Cacheflush_Syscall.
