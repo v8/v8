@@ -67,7 +67,7 @@ TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
       isolate_(isolate),
       zone_(zone) {
   BuildDictionary(code);
-  ASSERT(reinterpret_cast<Address>(*dictionary_.location()) != kHandleZapValue);
+  ASSERT(dictionary_->IsDictionary());
 }
 
 
