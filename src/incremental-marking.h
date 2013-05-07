@@ -75,7 +75,9 @@ class IncrementalMarking {
 
   bool WorthActivating();
 
-  void Start();
+  enum CompactionFlag { ALLOW_COMPACTION, PREVENT_COMPACTION };
+
+  void Start(CompactionFlag flag = ALLOW_COMPACTION);
 
   void Stop();
 
@@ -222,8 +224,6 @@ class IncrementalMarking {
   int64_t SpaceLeftInOldSpace();
 
   void ResetStepCounters();
-
-  enum CompactionFlag { ALLOW_COMPACTION, PREVENT_COMPACTION };
 
   void StartMarking(CompactionFlag flag);
 
