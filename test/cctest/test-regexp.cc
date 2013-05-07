@@ -711,17 +711,19 @@ typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
 class ContextInitializer {
  public:
   ContextInitializer()
-      : scope_(v8::Isolate::GetCurrent()),
-        env_(v8::Context::New(v8::Isolate::GetCurrent())),
+      : env_(),
+        scope_(v8::Isolate::GetCurrent()),
         zone_(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT) {
+    env_ = v8::Context::New();
     env_->Enter();
   }
   ~ContextInitializer() {
     env_->Exit();
+    env_.Dispose(env_->GetIsolate());
   }
  private:
+  v8::Persistent<v8::Context> env_;
   v8::HandleScope scope_;
-  v8::Handle<v8::Context> env_;
   v8::internal::ZoneScope zone_;
 };
 

@@ -1539,8 +1539,7 @@ void Shell::InitializeDebugger(Isolate* isolate) {
   Locker lock(isolate);
   HandleScope scope(isolate);
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  utility_context_.Reset(isolate,
-                         Context::New(isolate, NULL, global_template));
+  utility_context_ = Context::New(NULL, global_template);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Start the debugger agent if requested.
@@ -1553,17 +1552,17 @@ void Shell::InitializeDebugger(Isolate* isolate) {
 }
 
 
-Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
+Persistent<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
 #ifndef V8_SHARED
   // This needs to be a critical section since this is not thread-safe
   i::ScopedLock lock(context_mutex_);
 #endif  // V8_SHARED
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  HandleScope handle_scope(isolate);
-  Local<Context> context = Context::New(isolate, NULL, global_template);
+  Persistent<Context> context = Context::New(NULL, global_template);
   ASSERT(!context.IsEmpty());
-  Context::Scope scope(context);
+  HandleScope handle_scope(isolate);
+  Context::Scope scope(isolate, context);
 
 #ifndef V8_SHARED
   i::JSArguments js_args = i::FLAG_js_arguments;
@@ -1579,7 +1578,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   context->Global()->Set(String::New("arguments"),
                          Utils::ToLocal(arguments_jsarray));
 #endif  // V8_SHARED
-  return handle_scope.Close(context);
+  return context;
 }
 
 
@@ -1810,9 +1809,9 @@ void ShellThread::Run() {
     // Prepare the context for this thread.
     Locker locker(isolate_);
     HandleScope outer_scope(isolate_);
-    Local<Context> thread_context =
+    Persistent<Context> thread_context =
         Shell::CreateEvaluationContext(isolate_);
-    Context::Scope context_scope(thread_context);
+    Context::Scope context_scope(isolate_, thread_context);
     PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate_));
 
     while ((ptr != NULL) && (*ptr != '\0')) {
@@ -1834,6 +1833,7 @@ void ShellThread::Run() {
       Shell::ExecuteString(isolate_, str, String::New(filename), false, false);
     }
 
+    thread_context.Dispose(thread_context->GetIsolate());
     ptr = next_line;
   }
 }
@@ -1910,16 +1910,15 @@ void SourceGroup::ExecuteInThread() {
     {
       Isolate::Scope iscope(isolate);
       Locker lock(isolate);
+      HandleScope scope(isolate);
+      PerIsolateData data(isolate);
+      Persistent<Context> context = Shell::CreateEvaluationContext(isolate);
       {
-        HandleScope scope(isolate);
-        PerIsolateData data(isolate);
-        Local<Context> context = Shell::CreateEvaluationContext(isolate);
-        {
-          Context::Scope cscope(context);
-          PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-          Execute(isolate);
-        }
+        Context::Scope cscope(isolate, context);
+        PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
+        Execute(isolate);
       }
+      context.Dispose(isolate);
       if (Shell::options.send_idle_notification) {
         const int kLongIdlePauseInMs = 1000;
         V8::ContextDisposedNotification();
@@ -2110,27 +2109,26 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 #endif  // V8_SHARED
   {  // NOLINT
     Locker lock(isolate);
-    {
-      HandleScope scope(isolate);
-      Local<Context> context = CreateEvaluationContext(isolate);
-      if (options.last_run) {
-        // Keep using the same context in the interactive shell.
-        evaluation_context_.Reset(isolate, context);
+    HandleScope scope(isolate);
+    Persistent<Context> context = CreateEvaluationContext(isolate);
+    if (options.last_run) {
+      // Keep using the same context in the interactive shell.
+      evaluation_context_ = context;
 #if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
-        // If the interactive debugger is enabled make sure to activate
-        // it before running the files passed on the command line.
-        if (i::FLAG_debugger) {
-          InstallUtilityScript(isolate);
-        }
+      // If the interactive debugger is enabled make sure to activate
+      // it before running the files passed on the command line.
+      if (i::FLAG_debugger) {
+        InstallUtilityScript(isolate);
+      }
 #endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
-      }
-      {
-        Context::Scope cscope(context);
-        PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-        options.isolate_sources[0].Execute(isolate);
-      }
+    }
+    {
+      Context::Scope cscope(isolate, context);
+      PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
+      options.isolate_sources[0].Execute(isolate);
     }
     if (!options.last_run) {
+      context.Dispose(isolate);
       if (options.send_idle_notification) {
         const int kLongIdlePauseInMs = 1000;
         V8::ContextDisposedNotification();

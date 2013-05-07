@@ -4609,11 +4609,11 @@ class V8EXPORT Context {
       Handle<Value> global_object = Handle<Value>());
 
   /** Deprecated. Use Isolate version instead. */
-  V8_DEPRECATED(
-      static Persistent<Context> New(
-          ExtensionConfiguration* extensions = NULL,
-          Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
-          Handle<Value> global_object = Handle<Value>()));
+  // TODO(mstarzinger): Put this behind the V8_DEPRECATED guard.
+  static Persistent<Context> New(
+      ExtensionConfiguration* extensions = NULL,
+      Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
+      Handle<Value> global_object = Handle<Value>());
 
   /** Returns the last entered context. */
   static Local<Context> GetEntered();

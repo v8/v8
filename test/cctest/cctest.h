@@ -207,14 +207,8 @@ class LocalContext {
   LocalContext(v8::ExtensionConfiguration* extensions = 0,
                v8::Handle<v8::ObjectTemplate> global_template =
                    v8::Handle<v8::ObjectTemplate>(),
-               v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>()) {
-    v8::Isolate* isolate = v8::Isolate::GetCurrent();
-    HandleScope scope(isolate);
-    context_.Reset(isolate,
-                   Context::New(isolate,
-                                extensions,
-                                global_template,
-                                global_object));
+               v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>())
+    : context_(v8::Context::New(extensions, global_template, global_object)) {
     context_->Enter();
     // We can't do this later perhaps because of a fatal error.
     isolate_ = context_->GetIsolate();

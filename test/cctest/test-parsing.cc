@@ -176,10 +176,9 @@ class ScriptResource : public v8::String::ExternalAsciiStringResource {
 
 
 TEST(Preparsing) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope handles(isolate);
-  v8::Local<v8::Context> context = v8::Context::New(isolate);
-  v8::Context::Scope context_scope(context);
+  v8::HandleScope handles(v8::Isolate::GetCurrent());
+  v8::Persistent<v8::Context> context = v8::Context::New();
+  v8::Context::Scope context_scope(v8::Isolate::GetCurrent(), context);
   int marker;
   i::Isolate::Current()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
@@ -543,10 +542,9 @@ void TestCharacterStream(const char* ascii_source,
 
 
 TEST(CharacterStreams) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope handles(isolate);
-  v8::Local<v8::Context> context = v8::Context::New(isolate);
-  v8::Context::Scope context_scope(context);
+  v8::HandleScope handles(v8::Isolate::GetCurrent());
+  v8::Persistent<v8::Context> context = v8::Context::New();
+  v8::Context::Scope context_scope(v8::Isolate::GetCurrent(), context);
 
   TestCharacterStream("abc\0\n\r\x7f", 7);
   static const unsigned kBigStringSize = 4096;

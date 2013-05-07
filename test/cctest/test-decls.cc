@@ -118,8 +118,7 @@ DeclarationContext::DeclarationContext()
 
 void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;
-  Isolate* isolate = Isolate::GetCurrent();
-  HandleScope scope(isolate);
+  HandleScope scope(Isolate::GetCurrent());
   Local<FunctionTemplate> function = FunctionTemplate::New();
   Local<Value> data = External::New(this);
   GetHolder(function)->SetNamedPropertyHandler(&HandleGet,
@@ -127,14 +126,10 @@ void DeclarationContext::InitializeIfNeeded() {
                                                &HandleQuery,
                                                0, 0,
                                                data);
-  context_.Reset(isolate,
-                 Context::New(isolate,
-                              0,
-                              function->InstanceTemplate(),
-                              Local<Value>()));
+  context_ = Context::New(0, function->InstanceTemplate(), Local<Value>());
   context_->Enter();
   is_initialized_ = true;
-  PostInitializeContext(Local<Context>::New(isolate, context_));
+  PostInitializeContext(Local<Context>::New(Isolate::GetCurrent(), context_));
 }
 
 
@@ -704,14 +699,14 @@ TEST(ExistsInHiddenPrototype) {
 
 class SimpleContext {
  public:
-  SimpleContext()
-      : handle_scope_(Isolate::GetCurrent()),
-        context_(Context::New(Isolate::GetCurrent())) {
+  SimpleContext() {
+    context_ = Context::New();
     context_->Enter();
   }
 
-  ~SimpleContext() {
+  virtual ~SimpleContext() {
     context_->Exit();
+    context_.Dispose(context_->GetIsolate());
   }
 
   void Check(const char* source,
@@ -742,8 +737,7 @@ class SimpleContext {
   }
 
  private:
-  HandleScope handle_scope_;
-  Local<Context> context_;
+  Persistent<Context> context_;
 };
 
 

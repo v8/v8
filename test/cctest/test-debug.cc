@@ -136,16 +136,12 @@ class DebugLocalContext {
       v8::Handle<v8::ObjectTemplate> global_template =
           v8::Handle<v8::ObjectTemplate>(),
       v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>())
-      : scope_(v8::Isolate::GetCurrent()),
-        context_(
-          v8::Context::New(v8::Isolate::GetCurrent(),
-                           extensions,
-                           global_template,
-                           global_object)) {
+      : context_(v8::Context::New(extensions, global_template, global_object)) {
     context_->Enter();
   }
   inline ~DebugLocalContext() {
     context_->Exit();
+    context_.Dispose(context_->GetIsolate());
   }
   inline v8::Context* operator->() { return *context_; }
   inline v8::Context* operator*() { return *context_; }
@@ -170,8 +166,7 @@ class DebugLocalContext {
   }
 
  private:
-  v8::HandleScope scope_;
-  v8::Local<v8::Context> context_;
+  v8::Persistent<v8::Context> context_;
 };
 
 
@@ -4239,8 +4234,7 @@ static const char* kSimpleExtensionSource =
 // http://crbug.com/28933
 // Test that debug break is disabled when bootstrapper is active.
 TEST(NoBreakWhenBootstrapping) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope scope(isolate);
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
 
   // Register a debug event listener which sets the break flag and counts.
   v8::Debug::SetDebugEventListener(DebugEventCounter);
@@ -4255,8 +4249,8 @@ TEST(NoBreakWhenBootstrapping) {
                                             kSimpleExtensionSource));
     const char* extension_names[] = { "simpletest" };
     v8::ExtensionConfiguration extensions(1, extension_names);
-    v8::HandleScope handle_scope(isolate);
-    v8::Context::New(isolate, &extensions);
+    v8::Persistent<v8::Context> context = v8::Context::New(&extensions);
+    context.Dispose(context->GetIsolate());
   }
   // Check that no DebugBreak events occured during the context creation.
   CHECK_EQ(0, break_point_hit_count);
@@ -6241,7 +6235,7 @@ TEST(ScriptNameAndData) {
 }
 
 
-static v8::Handle<v8::Context> expected_context;
+static v8::Persistent<v8::Context> expected_context;
 static v8::Handle<v8::Value> expected_context_data;
 
 
@@ -6299,7 +6293,7 @@ TEST(ContextData) {
   // Enter and run function in the first context.
   {
     v8::Context::Scope context_scope(context_1);
-    expected_context = context_1;
+    expected_context = v8::Persistent<v8::Context>(*context_1);
     expected_context_data = data_1;
     v8::Local<v8::Function> f = CompileFunction(source, "f");
     f->Call(context_1->Global(), 0, NULL);
@@ -6309,7 +6303,7 @@ TEST(ContextData) {
   // Enter and run function in the second context.
   {
     v8::Context::Scope context_scope(context_2);
-    expected_context = context_2;
+    expected_context = v8::Persistent<v8::Context>(*context_2);
     expected_context_data = data_2;
     v8::Local<v8::Function> f = CompileFunction(source, "f");
     f->Call(context_2->Global(), 0, NULL);
@@ -6460,7 +6454,7 @@ static void ExecuteScriptForContextCheck() {
   // Enter and run function in the context.
   {
     v8::Context::Scope context_scope(context_1);
-    expected_context = v8::Local<v8::Context>(*context_1);
+    expected_context = v8::Persistent<v8::Context>(*context_1);
     expected_context_data = data_1;
     v8::Local<v8::Function> f = CompileFunction(source, "f");
     f->Call(context_1->Global(), 0, NULL);
@@ -6619,6 +6613,7 @@ TEST(ScriptCollectedEventContext) {
   v8::internal::Debug* debug =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->debug();
   script_collected_message_count = 0;
+  v8::HandleScope scope(isolate);
 
   { // Scope for the DebugLocalContext.
     DebugLocalContext env;
@@ -6631,15 +6626,17 @@ TEST(ScriptCollectedEventContext) {
     HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
     v8::Debug::SetMessageHandler2(ScriptCollectedMessageHandler);
-    v8::Script::Compile(v8::String::New("eval('a=1')"))->Run();
-    v8::Script::Compile(v8::String::New("eval('a=2')"))->Run();
+    {
+      v8::Script::Compile(v8::String::New("eval('a=1')"))->Run();
+      v8::Script::Compile(v8::String::New("eval('a=2')"))->Run();
+    }
   }
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
-  CHECK_EQ(4, script_collected_message_count);
+  CHECK_EQ(2, script_collected_message_count);
 
   v8::Debug::SetMessageHandler2(NULL);
 }
@@ -7092,14 +7089,15 @@ static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
 
 // Check that event details contain context where debug event occured.
 TEST(DebugEventContext) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope scope(isolate);
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   expected_callback_data = v8::Int32::New(2010);
   v8::Debug::SetDebugEventListener2(DebugEventContextChecker,
                                     expected_callback_data);
-  expected_context = v8::Context::New(isolate);
-  v8::Context::Scope context_scope(expected_context);
+  expected_context = v8::Context::New();
+  v8::Context::Scope context_scope(
+      v8::Isolate::GetCurrent(), expected_context);
   v8::Script::Compile(v8::String::New("(function(){debugger;})();"))->Run();
+  expected_context.Dispose(expected_context->GetIsolate());
   expected_context.Clear();
   v8::Debug::SetDebugEventListener(NULL);
   expected_context_data = v8::Handle<v8::Value>();

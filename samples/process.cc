@@ -168,7 +168,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
   // is what we need for the reference to remain after we return from
   // this method. That persistent handle has to be disposed in the
   // destructor.
-  context_.Reset(GetIsolate(), Context::New(GetIsolate(), NULL, global));
+  context_ = Context::New(NULL, global);
 
   // Enter the new context so all the following operations take place
   // within it.

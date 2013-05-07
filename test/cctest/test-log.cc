@@ -67,7 +67,7 @@ class ScopedLoggerInitializer {
         // Need to run this prior to creating the scope.
         trick_to_run_init_flags_(init_flags_(prof_lazy)),
         scope_(v8::Isolate::GetCurrent()),
-        env_(v8::Context::New(v8::Isolate::GetCurrent())),
+        env_(*v8::Context::New()),
         logger_(i::Isolate::Current()->logger()) {
     env_->Enter();
   }
