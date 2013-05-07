@@ -1062,14 +1062,14 @@ Handle<Value> Shell::ArraySet(const Arguments& args) {
 
 
 void Shell::ExternalArrayWeakCallback(v8::Isolate* isolate,
-                                      Persistent<Value> object,
-                                      void* data) {
+                                      Persistent<Object>* object,
+                                      uint8_t* data) {
   HandleScope scope(isolate);
-  int32_t length = object->ToObject()->Get(
+  int32_t length = (*object)->Get(
       PerIsolateData::byteLength_string(isolate))->Uint32Value();
   isolate->AdjustAmountOfExternalAllocatedMemory(-length);
-  delete[] static_cast<uint8_t*>(data);
-  object.Dispose(isolate);
+  delete[] data;
+  object->Dispose(isolate);
 }
 
 

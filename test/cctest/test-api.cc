@@ -2510,12 +2510,11 @@ class WeakCallCounter {
 
 
 static void WeakPointerCallback(v8::Isolate* isolate,
-                                Persistent<Value> handle,
-                                void* id) {
-  WeakCallCounter* counter = reinterpret_cast<WeakCallCounter*>(id);
+                                Persistent<Object>* handle,
+                                WeakCallCounter* counter) {
   CHECK_EQ(1234, counter->id());
   counter->increment();
-  handle.Dispose(isolate);
+  handle->Dispose(isolate);
 }
 
 
@@ -2538,16 +2537,16 @@ THREADED_TEST(OldApiObjectGroups) {
     g1s1 = Persistent<Object>::New(iso, Object::New());
     g1s2 = Persistent<Object>::New(iso, Object::New());
     g1c1 = Persistent<Object>::New(iso, Object::New());
-    g1s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g1s2.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g1c1.MakeWeak(iso, &counter, &WeakPointerCallback);
 
     g2s1 = Persistent<Object>::New(iso, Object::New());
     g2s2 = Persistent<Object>::New(iso, Object::New());
     g2c1 = Persistent<Object>::New(iso, Object::New());
-    g2s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g2s2.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g2c1.MakeWeak(iso, &counter, &WeakPointerCallback);
   }
 
   Persistent<Object> root = Persistent<Object>::New(iso, g1s1);  // make a root.
@@ -2573,7 +2572,7 @@ THREADED_TEST(OldApiObjectGroups) {
   CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MakeWeak(iso, &counter, &WeakPointerCallback);
   // But make children strong roots---all the objects (except for children)
   // should be collectable now.
   g1c1.ClearWeak(iso);
@@ -2597,8 +2596,8 @@ THREADED_TEST(OldApiObjectGroups) {
   CHECK_EQ(5, counter.NumberOfWeakCalls());
 
   // And now make children weak again and collect them.
-  g1c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-  g2c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  g1c1.MakeWeak(iso, &counter, &WeakPointerCallback);
+  g2c1.MakeWeak(iso, &counter, &WeakPointerCallback);
 
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(7, counter.NumberOfWeakCalls());
@@ -2624,16 +2623,16 @@ THREADED_TEST(ApiObjectGroups) {
     g1s1 = Persistent<Object>::New(iso, Object::New());
     g1s2 = Persistent<Object>::New(iso, Object::New());
     g1c1 = Persistent<Object>::New(iso, Object::New());
-    g1s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g1s2.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g1c1.MakeWeak(iso, &counter, &WeakPointerCallback);
 
     g2s1 = Persistent<Object>::New(iso, Object::New());
     g2s2 = Persistent<Object>::New(iso, Object::New());
     g2c1 = Persistent<Object>::New(iso, Object::New());
-    g2s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g2s2.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g2c1.MakeWeak(iso, &counter, &WeakPointerCallback);
   }
 
   Persistent<Object> root = Persistent<Object>::New(iso, g1s1);  // make a root.
@@ -2661,7 +2660,7 @@ THREADED_TEST(ApiObjectGroups) {
   CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MakeWeak(iso, &counter, &WeakPointerCallback);
   // But make children strong roots---all the objects (except for children)
   // should be collectable now.
   g1c1.ClearWeak(iso);
@@ -2685,8 +2684,8 @@ THREADED_TEST(ApiObjectGroups) {
   CHECK_EQ(5, counter.NumberOfWeakCalls());
 
   // And now make children weak again and collect them.
-  g1c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-  g2c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  g1c1.MakeWeak(iso, &counter, &WeakPointerCallback);
+  g2c1.MakeWeak(iso, &counter, &WeakPointerCallback);
 
   heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(7, counter.NumberOfWeakCalls());
@@ -2713,29 +2712,29 @@ THREADED_TEST(OldApiObjectGroupsCycle) {
     HandleScope scope(iso);
     g1s1 = Persistent<Object>::New(iso, Object::New());
     g1s2 = Persistent<Object>::New(iso, Object::New());
-    g1s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g1s2.MakeWeak(iso, &counter, &WeakPointerCallback);
     CHECK(g1s1.IsWeak(iso));
     CHECK(g1s2.IsWeak(iso));
 
     g2s1 = Persistent<Object>::New(iso, Object::New());
     g2s2 = Persistent<Object>::New(iso, Object::New());
-    g2s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g2s2.MakeWeak(iso, &counter, &WeakPointerCallback);
     CHECK(g2s1.IsWeak(iso));
     CHECK(g2s2.IsWeak(iso));
 
     g3s1 = Persistent<Object>::New(iso, Object::New());
     g3s2 = Persistent<Object>::New(iso, Object::New());
-    g3s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g3s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g3s2.MakeWeak(iso, &counter, &WeakPointerCallback);
     CHECK(g3s1.IsWeak(iso));
     CHECK(g3s2.IsWeak(iso));
 
     g4s1 = Persistent<Object>::New(iso, Object::New());
     g4s2 = Persistent<Object>::New(iso, Object::New());
-    g4s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g4s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g4s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g4s2.MakeWeak(iso, &counter, &WeakPointerCallback);
     CHECK(g4s1.IsWeak(iso));
     CHECK(g4s2.IsWeak(iso));
   }
@@ -2770,7 +2769,7 @@ THREADED_TEST(OldApiObjectGroupsCycle) {
   CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MakeWeak(iso, &counter, &WeakPointerCallback);
 
   // Groups are deleted, rebuild groups.
   {
@@ -2819,29 +2818,29 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     HandleScope scope(iso);
     g1s1 = Persistent<Object>::New(iso, Object::New());
     g1s2 = Persistent<Object>::New(iso, Object::New());
-    g1s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g1s2.MakeWeak(iso, &counter, &WeakPointerCallback);
     CHECK(g1s1.IsWeak(iso));
     CHECK(g1s2.IsWeak(iso));
 
     g2s1 = Persistent<Object>::New(iso, Object::New());
     g2s2 = Persistent<Object>::New(iso, Object::New());
-    g2s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g2s2.MakeWeak(iso, &counter, &WeakPointerCallback);
     CHECK(g2s1.IsWeak(iso));
     CHECK(g2s2.IsWeak(iso));
 
     g3s1 = Persistent<Object>::New(iso, Object::New());
     g3s2 = Persistent<Object>::New(iso, Object::New());
-    g3s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g3s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g3s2.MakeWeak(iso, &counter, &WeakPointerCallback);
     CHECK(g3s1.IsWeak(iso));
     CHECK(g3s2.IsWeak(iso));
 
     g4s1 = Persistent<Object>::New(iso, Object::New());
     g4s2 = Persistent<Object>::New(iso, Object::New());
-    g4s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g4s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g4s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g4s2.MakeWeak(iso, &counter, &WeakPointerCallback);
     CHECK(g4s1.IsWeak(iso));
     CHECK(g4s2.IsWeak(iso));
   }
@@ -2878,7 +2877,7 @@ THREADED_TEST(ApiObjectGroupsCycle) {
   CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MakeWeak(iso, &counter, &WeakPointerCallback);
 
   // Groups are deleted, rebuild groups.
   {
@@ -2929,18 +2928,18 @@ TEST(OldApiObjectGroupsCycleForScavenger) {
     HandleScope scope(iso);
     g1s1 = Persistent<Object>::New(iso, Object::New());
     g1s2 = Persistent<Object>::New(iso, Object::New());
-    g1s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g1s2.MakeWeak(iso, &counter, &WeakPointerCallback);
 
     g2s1 = Persistent<Object>::New(iso, Object::New());
     g2s2 = Persistent<Object>::New(iso, Object::New());
-    g2s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g2s2.MakeWeak(iso, &counter, &WeakPointerCallback);
 
     g3s1 = Persistent<Object>::New(iso, Object::New());
     g3s2 = Persistent<Object>::New(iso, Object::New());
-    g3s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g3s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g3s2.MakeWeak(iso, &counter, &WeakPointerCallback);
   }
 
   // Make a root.
@@ -2974,7 +2973,7 @@ TEST(OldApiObjectGroupsCycleForScavenger) {
   CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MakeWeak(iso, &counter, &WeakPointerCallback);
   root.MarkPartiallyDependent(iso);
 
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -3026,18 +3025,18 @@ TEST(ApiObjectGroupsCycleForScavenger) {
     HandleScope scope(iso);
     g1s1 = Persistent<Object>::New(iso, Object::New());
     g1s2 = Persistent<Object>::New(iso, Object::New());
-    g1s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g1s2.MakeWeak(iso, &counter, &WeakPointerCallback);
 
     g2s1 = Persistent<Object>::New(iso, Object::New());
     g2s2 = Persistent<Object>::New(iso, Object::New());
-    g2s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g2s2.MakeWeak(iso, &counter, &WeakPointerCallback);
 
     g3s1 = Persistent<Object>::New(iso, Object::New());
     g3s2 = Persistent<Object>::New(iso, Object::New());
-    g3s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g3s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s1.MakeWeak(iso, &counter, &WeakPointerCallback);
+    g3s2.MakeWeak(iso, &counter, &WeakPointerCallback);
   }
 
   // Make a root.
@@ -3073,7 +3072,7 @@ TEST(ApiObjectGroupsCycleForScavenger) {
   CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MakeWeak(iso, &counter, &WeakPointerCallback);
   root.MarkPartiallyDependent(iso);
 
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -5959,11 +5958,10 @@ class Whammy {
 };
 
 static void HandleWeakReference(v8::Isolate* isolate,
-                                v8::Persistent<v8::Value> obj,
-                                void* data) {
-  Snorkel* snorkel = reinterpret_cast<Snorkel*>(data);
+                                v8::Persistent<v8::Value>* obj,
+                                Snorkel* snorkel) {
   delete snorkel;
-  obj.ClearWeak(isolate);
+  obj->ClearWeak(isolate);
 }
 
 v8::Handle<Value> WhammyPropertyGetter(Local<String> name,
@@ -5978,7 +5976,9 @@ v8::Handle<Value> WhammyPropertyGetter(Local<String> name,
       v8::Persistent<v8::Object>::New(info.GetIsolate(), obj);
   if (!prev.IsEmpty()) {
     prev->Set(v8_str("next"), obj);
-    prev.MakeWeak(info.GetIsolate(), new Snorkel(), &HandleWeakReference);
+    prev.MakeWeak<Value, Snorkel>(info.GetIsolate(),
+                                  new Snorkel(),
+                                  &HandleWeakReference);
     whammy->objects_[whammy->cursor_].Clear();
   }
   whammy->objects_[whammy->cursor_] = global;
@@ -6017,11 +6017,10 @@ THREADED_TEST(WeakReference) {
 
 
 static void DisposeAndSetFlag(v8::Isolate* isolate,
-                              v8::Persistent<v8::Value> obj,
-                              void* data) {
-  obj.Dispose(isolate);
-  obj.Clear();
-  *(reinterpret_cast<bool*>(data)) = true;
+                              v8::Persistent<v8::Object>* obj,
+                              bool* data) {
+  obj->Dispose(isolate);
+  *(data) = true;
 }
 
 
@@ -6064,21 +6063,19 @@ static void InvokeMarkSweep() {
 
 
 static void ForceScavenge(v8::Isolate* isolate,
-                          v8::Persistent<v8::Value> obj,
-                          void* data) {
-  obj.Dispose(isolate);
-  obj.Clear();
-  *(reinterpret_cast<bool*>(data)) = true;
+                          v8::Persistent<v8::Object>* obj,
+                          bool* data) {
+  obj->Dispose(isolate);
+  *(data) = true;
   InvokeScavenge();
 }
 
 
 static void ForceMarkSweep(v8::Isolate* isolate,
-                           v8::Persistent<v8::Value> obj,
-                           void* data) {
-  obj.Dispose(isolate);
-  obj.Clear();
-  *(reinterpret_cast<bool*>(data)) = true;
+                           v8::Persistent<v8::Object>* obj,
+                           bool* data) {
+  obj->Dispose(isolate);
+  *(data) = true;
   InvokeMarkSweep();
 }
 
@@ -6090,7 +6087,8 @@ THREADED_TEST(GCFromWeakCallbacks) {
   Context::Scope context_scope(context);
 
   static const int kNumberOfGCTypes = 2;
-  v8::NearDeathCallback gc_forcing_callback[kNumberOfGCTypes] =
+  typedef v8::WeakReferenceCallbacks<v8::Object, bool>::Revivable Callback;
+  Callback gc_forcing_callback[kNumberOfGCTypes] =
       {&ForceScavenge, &ForceMarkSweep};
 
   typedef void (*GCInvoker)();
@@ -6114,10 +6112,10 @@ THREADED_TEST(GCFromWeakCallbacks) {
 
 
 static void RevivingCallback(v8::Isolate* isolate,
-                             v8::Persistent<v8::Value> obj,
-                             void* data) {
-  obj.ClearWeak(isolate);
-  *(reinterpret_cast<bool*>(data)) = true;
+                             v8::Persistent<v8::Object>* obj,
+                             bool* data) {
+  obj->ClearWeak(isolate);
+  *(data) = true;
 }
 
 
@@ -11812,11 +11810,11 @@ v8::Persistent<v8::Object> some_object;
 v8::Persistent<v8::Object> bad_handle;
 
 void NewPersistentHandleCallback(v8::Isolate* isolate,
-                                 v8::Persistent<v8::Value> handle,
+                                 v8::Persistent<v8::Value>* handle,
                                  void*) {
   v8::HandleScope scope(isolate);
   bad_handle = v8::Persistent<v8::Object>::New(isolate, some_object);
-  handle.Dispose(isolate);
+  handle->Dispose(isolate);
 }
 
 
@@ -11835,7 +11833,9 @@ THREADED_TEST(NewPersistentHandleFromWeakCallback) {
   // global handle nodes are processed by PostGarbageCollectionProcessing
   // in reverse allocation order, so if second allocated handle is deleted,
   // weak callback of the first handle would be able to 'reallocate' it.
-  handle1.MakeWeak(isolate, NULL, NewPersistentHandleCallback);
+  handle1.MakeWeak<v8::Value, void>(isolate,
+                                    NULL,
+                                    NewPersistentHandleCallback);
   handle2.Dispose(isolate);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 }
@@ -11844,11 +11844,11 @@ THREADED_TEST(NewPersistentHandleFromWeakCallback) {
 v8::Persistent<v8::Object> to_be_disposed;
 
 void DisposeAndForceGcCallback(v8::Isolate* isolate,
-                               v8::Persistent<v8::Value> handle,
+                               v8::Persistent<v8::Value>* handle,
                                void*) {
   to_be_disposed.Dispose(isolate);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  handle.Dispose(isolate);
+  handle->Dispose(isolate);
 }
 
 
@@ -11862,23 +11862,23 @@ THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
     handle1 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
     handle2 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
   }
-  handle1.MakeWeak(isolate, NULL, DisposeAndForceGcCallback);
+  handle1.MakeWeak<v8::Value, void>(isolate, NULL, DisposeAndForceGcCallback);
   to_be_disposed = handle2;
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 }
 
 void DisposingCallback(v8::Isolate* isolate,
-                       v8::Persistent<v8::Value> handle,
+                       v8::Persistent<v8::Value>* handle,
                        void*) {
-  handle.Dispose(isolate);
+  handle->Dispose(isolate);
 }
 
 void HandleCreatingCallback(v8::Isolate* isolate,
-                            v8::Persistent<v8::Value> handle,
+                            v8::Persistent<v8::Value>* handle,
                             void*) {
   v8::HandleScope scope(isolate);
   v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
-  handle.Dispose(isolate);
+  handle->Dispose(isolate);
 }
 
 
@@ -11893,8 +11893,8 @@ THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
     handle2 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
     handle1 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
   }
-  handle2.MakeWeak(isolate, NULL, DisposingCallback);
-  handle3.MakeWeak(isolate, NULL, HandleCreatingCallback);
+  handle2.MakeWeak<v8::Value, void>(isolate, NULL, DisposingCallback);
+  handle3.MakeWeak<v8::Value, void>(isolate, NULL, HandleCreatingCallback);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 }
 

@@ -628,7 +628,7 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 void V8::MakeWeak(i::Isolate* isolate,
                   i::Object** object,
                   void* parameters,
-                  WeakReferenceCallback weak_reference_callback,
+                  RevivableCallback weak_reference_callback,
                   NearDeathCallback near_death_callback) {
   ASSERT(isolate == i::Isolate::Current());
   LOG_API(isolate, "MakeWeak");

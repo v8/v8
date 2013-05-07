@@ -191,8 +191,13 @@ class UniqueId {
  * \param object the weak global object to be reclaimed by the garbage collector
  * \param parameter the value passed in when making the weak global object
  */
-typedef void (*WeakReferenceCallback)(Persistent<Value> object,
-                                      void* parameter);
+template<typename T, typename P>
+class WeakReferenceCallbacks {
+ public:
+  typedef void (*Revivable)(Isolate* isolate,
+                            Persistent<T>* object,
+                            P* parameter);
+};
 
 // TODO(svenpanne) Temporary definition until Chrome is in sync.
 typedef void (*NearDeathCallback)(Isolate* isolate,
@@ -598,8 +603,17 @@ template <class T> class Persistent // NOLINT
   // TODO(dcarney): remove before cutover
   V8_INLINE(void Dispose(Isolate* isolate));
 
-  V8_INLINE(void MakeWeak(void* parameters,
-                              WeakReferenceCallback callback));
+  template<typename S, typename P>
+  V8_INLINE(void MakeWeak(
+      Isolate* isolate,
+      P* parameters,
+      typename WeakReferenceCallbacks<S, P>::Revivable callback));
+
+  template<typename P>
+  V8_INLINE(void MakeWeak(
+      Isolate* isolate,
+      P* parameters,
+      typename WeakReferenceCallbacks<T, P>::Revivable callback));
 
   /**
    * Make the reference to this object weak.  When only weak handles
@@ -4363,10 +4377,11 @@ class V8EXPORT V8 {
                                                internal::Object** handle);
   static void DisposeGlobal(internal::Isolate* isolate,
                             internal::Object** global_handle);
+  typedef WeakReferenceCallbacks<Value, void>::Revivable RevivableCallback;
   static void MakeWeak(internal::Isolate* isolate,
                        internal::Object** global_handle,
                        void* data,
-                       WeakReferenceCallback weak_reference_callback,
+                       RevivableCallback weak_reference_callback,
                        NearDeathCallback near_death_callback);
   static void ClearWeak(internal::Isolate* isolate,
                         internal::Object** global_handle);
@@ -5282,14 +5297,30 @@ void Persistent<T>::Dispose(Isolate* isolate) {
 
 
 template <class T>
-void Persistent<T>::MakeWeak(void* parameters, WeakReferenceCallback callback) {
-  Isolate* isolate = Isolate::GetCurrent();
+template <typename S, typename P>
+void Persistent<T>::MakeWeak(
+    Isolate* isolate,
+    P* parameters,
+    typename WeakReferenceCallbacks<S, P>::Revivable callback) {
+  TYPE_CHECK(S, T);
+  typedef typename WeakReferenceCallbacks<Value, void>::Revivable Revivable;
   V8::MakeWeak(reinterpret_cast<internal::Isolate*>(isolate),
                reinterpret_cast<internal::Object**>(this->val_),
                parameters,
-               callback,
+               reinterpret_cast<Revivable>(callback),
                NULL);
 }
+
+
+template <class T>
+template <typename P>
+void Persistent<T>::MakeWeak(
+    Isolate* isolate,
+    P* parameters,
+    typename WeakReferenceCallbacks<T, P>::Revivable callback) {
+  MakeWeak<T, P>(isolate, parameters, callback);
+}
+
 
 template <class T>
 void Persistent<T>::MakeWeak(Isolate* isolate,

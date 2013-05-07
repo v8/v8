@@ -416,8 +416,8 @@ class Shell : public i::AllStatic {
                                            ExternalArrayType type,
                                            int32_t element_size);
   static void ExternalArrayWeakCallback(Isolate* isolate,
-                                        Persistent<Value> object,
-                                        void* data);
+                                        Persistent<Object>* object,
+                                        uint8_t* data);
 };
 
 

@@ -653,11 +653,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
 
 
 static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
-                                    Persistent<Value> object,
+                                    Persistent<Value>* object,
                                     void* data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(external_isolate);
   HandleScope scope(isolate);
-  Handle<Object> internal_object = Utils::OpenHandle(*object);
+  Handle<Object> internal_object = Utils::OpenHandle(**object);
 
   size_t allocated_length = NumberToSize(
       isolate, JSArrayBuffer::cast(*internal_object)->byte_length());
@@ -665,7 +665,7 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
       -static_cast<intptr_t>(allocated_length));
   if (data != NULL)
     free(data);
-  object.Dispose(external_isolate);
+  object->Dispose(external_isolate);
 }
 
 

@@ -396,10 +396,10 @@ TEST(GlobalHandles) {
 static bool WeakPointerCleared = false;
 
 static void TestWeakGlobalHandleCallback(v8::Isolate* isolate,
-                                         v8::Persistent<v8::Value> handle,
+                                         v8::Persistent<v8::Value>* handle,
                                          void* id) {
   if (1234 == reinterpret_cast<intptr_t>(id)) WeakPointerCleared = true;
-  handle.Dispose(isolate);
+  handle->Dispose(isolate);
 }
 
 
@@ -427,8 +427,8 @@ TEST(WeakGlobalHandlesScavenge) {
 
   global_handles->MakeWeak(h2.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &TestWeakGlobalHandleCallback);
+                           &TestWeakGlobalHandleCallback,
+                           NULL);
 
   // Scavenge treats weak pointers as normal roots.
   heap->PerformScavenge();
@@ -474,8 +474,8 @@ TEST(WeakGlobalHandlesMark) {
 
   global_handles->MakeWeak(h2.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &TestWeakGlobalHandleCallback);
+                           &TestWeakGlobalHandleCallback,
+                           NULL);
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
@@ -511,8 +511,8 @@ TEST(DeleteWeakGlobalHandle) {
 
   global_handles->MakeWeak(h.location(),
                            reinterpret_cast<void*>(1234),
-                           NULL,
-                           &TestWeakGlobalHandleCallback);
+                           &TestWeakGlobalHandleCallback,
+                           NULL);
 
   // Scanvenge does not recognize weak reference.
   heap->PerformScavenge();

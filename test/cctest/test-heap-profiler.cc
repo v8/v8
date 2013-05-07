@@ -1586,9 +1586,9 @@ bool HasWeakGlobalHandle() {
 
 
 static void PersistentHandleCallback(v8::Isolate* isolate,
-                                     v8::Persistent<v8::Value> handle,
+                                     v8::Persistent<v8::Value>* handle,
                                      void*) {
-  handle.Dispose(isolate);
+  handle->Dispose(isolate);
 }
 
 
@@ -1600,7 +1600,9 @@ TEST(WeakGlobalHandle) {
 
   v8::Persistent<v8::Object> handle =
       v8::Persistent<v8::Object>::New(env->GetIsolate(), v8::Object::New());
-  handle.MakeWeak(env->GetIsolate(), NULL, PersistentHandleCallback);
+  handle.MakeWeak<v8::Value, void>(env->GetIsolate(),
+                                   NULL,
+                                   PersistentHandleCallback);
 
   CHECK(HasWeakGlobalHandle());
 }
