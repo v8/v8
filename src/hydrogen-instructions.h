@@ -2353,15 +2353,20 @@ class HCallNewArray: public HCallNew {
               Handle<JSGlobalPropertyCell> type_cell)
       : HCallNew(context, constructor, argument_count),
         type_cell_(type_cell) {
+    elements_kind_ = static_cast<ElementsKind>(
+        Smi::cast(type_cell->value())->value());
   }
 
   Handle<JSGlobalPropertyCell> property_cell() const {
     return type_cell_;
   }
 
+  ElementsKind elements_kind() const { return elements_kind_; }
+
   DECLARE_CONCRETE_INSTRUCTION(CallNewArray)
 
  private:
+  ElementsKind elements_kind_;
   Handle<JSGlobalPropertyCell> type_cell_;
 };
 
