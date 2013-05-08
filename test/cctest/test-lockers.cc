@@ -622,15 +622,14 @@ TEST(LockUnlockLockDefaultIsolateMultithreaded) {
 #else
   const int kNThreads = 100;
 #endif
-  Persistent<v8::Context> context;
+  Local<v8::Context> context;
   i::List<JoinableThread*> threads(kNThreads);
   {
     v8::Locker locker_(CcTest::default_isolate());
     v8::HandleScope handle_scope(CcTest::default_isolate());
-    context = v8::Context::New();
+    context = v8::Context::New(CcTest::default_isolate());
     for (int i = 0; i < kNThreads; i++) {
-      threads.Add(new LockUnlockLockDefaultIsolateThread(
-          v8::Local<v8::Context>::New(CcTest::default_isolate(), context)));
+      threads.Add(new LockUnlockLockDefaultIsolateThread(context));
     }
   }
   StartJoinAndDeleteThreads(threads);
@@ -675,9 +674,9 @@ class IsolateGenesisThread : public JoinableThread {
       v8::Isolate::Scope isolate_scope(isolate);
       CHECK(!i::Isolate::Current()->has_installed_extensions());
       v8::ExtensionConfiguration extensions(count_, extension_names_);
-      v8::Persistent<v8::Context> context = v8::Context::New(&extensions);
+      v8::HandleScope handle_scope(isolate);
+      v8::Context::New(isolate, &extensions);
       CHECK(i::Isolate::Current()->has_installed_extensions());
-      context.Dispose(isolate);
     }
     isolate->Dispose();
   }

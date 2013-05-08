@@ -1661,9 +1661,15 @@ static int NumberOfGlobalObjects() {
 // optimized code.
 TEST(LeakNativeContextViaMap) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
-  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope outer_scope(isolate);
+  v8::Persistent<v8::Context> ctx1;
+  v8::Persistent<v8::Context> ctx2;
+  {
+    v8::HandleScope scope(isolate);
+    ctx1.Reset(isolate, v8::Context::New(isolate));
+    ctx2.Reset(isolate, v8::Context::New(isolate));
+  }
   ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
@@ -1699,9 +1705,15 @@ TEST(LeakNativeContextViaMap) {
 // optimized code.
 TEST(LeakNativeContextViaFunction) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
-  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope outer_scope(isolate);
+  v8::Persistent<v8::Context> ctx1;
+  v8::Persistent<v8::Context> ctx2;
+  {
+    v8::HandleScope scope(isolate);
+    ctx1.Reset(isolate, v8::Context::New(isolate));
+    ctx2.Reset(isolate, v8::Context::New(isolate));
+  }
   ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
@@ -1735,9 +1747,15 @@ TEST(LeakNativeContextViaFunction) {
 
 TEST(LeakNativeContextViaMapKeyed) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
-  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope outer_scope(isolate);
+  v8::Persistent<v8::Context> ctx1;
+  v8::Persistent<v8::Context> ctx2;
+  {
+    v8::HandleScope scope(isolate);
+    ctx1.Reset(isolate, v8::Context::New(isolate));
+    ctx2.Reset(isolate, v8::Context::New(isolate));
+  }
   ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
@@ -1771,9 +1789,15 @@ TEST(LeakNativeContextViaMapKeyed) {
 
 TEST(LeakNativeContextViaMapProto) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
-  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
-  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope outer_scope(isolate);
+  v8::Persistent<v8::Context> ctx1;
+  v8::Persistent<v8::Context> ctx2;
+  {
+    v8::HandleScope scope(isolate);
+    ctx1.Reset(isolate, v8::Context::New(isolate));
+    ctx2.Reset(isolate, v8::Context::New(isolate));
+  }
   ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
