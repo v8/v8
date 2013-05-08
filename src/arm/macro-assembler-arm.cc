@@ -1939,7 +1939,7 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
   ExternalReference high_promotion_mode = ExternalReference::
       new_space_high_promotion_mode_active_address(isolate());
   mov(scratch1, Operand(high_promotion_mode));
-  ldr(scratch1, MemOperand(r4, 0));
+  ldr(scratch1, MemOperand(scratch1, 0));
   cmp(scratch1, Operand::Zero());
   b(eq, &allocate_new_space);
 
