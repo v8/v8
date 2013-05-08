@@ -7261,8 +7261,21 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
       AddInstruction(HCheckMaps::New(object, types, zone()));
       HInstruction* instr = BuildStoreNamedField(
           object, name, value, map, &lookup);
+      AddInstruction(instr);
       instr->set_position(expr->position());
-      return ast_context()->ReturnInstruction(instr, expr->id());
+      // The HSimulate for the store should not see the stored value in
+      // effect contexts (it is not materialized at expr->id() in the
+      // unoptimized code).
+      if (instr->HasObservableSideEffects()) {
+        if (ast_context()->IsEffect()) {
+          AddSimulate(expr->id(), REMOVABLE_SIMULATE);
+        } else {
+          Push(value);
+          AddSimulate(expr->id(), REMOVABLE_SIMULATE);
+          Drop(1);
+        }
+      }
+      return ast_context()->ReturnValue(value);
     }
   }
 

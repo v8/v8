@@ -1338,6 +1338,7 @@ void LAllocator::BuildLiveRanges() {
 
 #ifdef DEBUG
     if (block_id == 0) {
+      ALLOW_HANDLE_DEREF(isolate(), "Printing debug information");
       BitVector::Iterator iterator(live);
       bool found = false;
       while (!iterator.Done()) {
