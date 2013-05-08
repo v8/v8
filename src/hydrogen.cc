@@ -7353,14 +7353,15 @@ void HOptimizedGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     // Keyed store.
     CHECK_ALIVE(VisitForValue(prop->key()));
     CHECK_ALIVE(VisitForValue(expr->value()));
-    HValue* value = Pop();
-    HValue* key = Pop();
-    HValue* object = Pop();
+    HValue* value = environment()->ExpressionStackAt(0);
+    HValue* key = environment()->ExpressionStackAt(1);
+    HValue* object = environment()->ExpressionStackAt(2);
     bool has_side_effects = false;
     HandleKeyedElementAccess(object, key, value, expr, expr->AssignmentId(),
                              expr->position(),
                              true,  // is_store
                              &has_side_effects);
+    Drop(3);
     Push(value);
     AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
     return ast_context()->ReturnValue(Pop());
