@@ -3357,16 +3357,27 @@ class HBinaryOperation: public HTemplateInstruction<3> {
   HValue* left() { return OperandAt(1); }
   HValue* right() { return OperandAt(2); }
 
-  // TODO(kasperl): Move these helpers to the IA-32 Lithium
-  // instruction sequence builder.
-  HValue* LeastConstantOperand() {
-    if (IsCommutative() && left()->IsConstant()) return right();
-    return left();
+  // True if switching left and right operands likely generates better code.
+  bool AreOperandsBetterSwitched() {
+    if (!IsCommutative()) return false;
+
+    // Constant operands are better off on the right, they can be inlined in
+    // many situations on most platforms.
+    if (left()->IsConstant()) return true;
+    if (right()->IsConstant()) return false;
+
+    // Otherwise, if there is only one use of the right operand, it would be
+    // better off on the left for platforms that only have 2-arg arithmetic
+    // ops (e.g ia32, x64) that clobber the left operand.
+    return (right()->UseCount() == 1);
   }
 
-  HValue* MostConstantOperand() {
-    if (IsCommutative() && left()->IsConstant()) return left();
-    return right();
+  HValue* BetterLeftOperand() {
+    return AreOperandsBetterSwitched() ? right() : left();
+  }
+
+  HValue* BetterRightOperand() {
+    return AreOperandsBetterSwitched() ? left() : right();
   }
 
   void set_observed_input_representation(int index, Representation rep) {
