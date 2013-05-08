@@ -632,7 +632,7 @@ class IndentedScope BASE_EMBEDDED {
     ast_printer_->inc_indent();
   }
 
-  IndentedScope(AstPrinter* printer, const char* txt, AstNode* node = NULL)
+  IndentedScope(AstPrinter* printer, const char* txt)
       : ast_printer_(printer) {
     ast_printer_->PrintIndented(txt);
     ast_printer_->Print("\n");
@@ -707,7 +707,7 @@ void AstPrinter::PrintLabelsIndented(const char* info, ZoneStringList* labels) {
 
 
 void AstPrinter::PrintIndentedVisit(const char* s, AstNode* node) {
-  IndentedScope indent(this, s, node);
+  IndentedScope indent(this, s);
   Visit(node);
 }
 
@@ -1059,7 +1059,7 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
 
 
 void AstPrinter::VisitAssignment(Assignment* node) {
-  IndentedScope indent(this, Token::Name(node->op()), node);
+  IndentedScope indent(this, Token::Name(node->op()));
   Visit(node->target());
   Visit(node->value());
 }
@@ -1076,7 +1076,7 @@ void AstPrinter::VisitThrow(Throw* node) {
 
 
 void AstPrinter::VisitProperty(Property* node) {
-  IndentedScope indent(this, "PROPERTY", node);
+  IndentedScope indent(this, "PROPERTY");
   Visit(node->obj());
   Literal* literal = node->key()->AsLiteral();
   if (literal != NULL && literal->handle()->IsInternalizedString()) {
@@ -1122,14 +1122,14 @@ void AstPrinter::VisitCountOperation(CountOperation* node) {
 
 
 void AstPrinter::VisitBinaryOperation(BinaryOperation* node) {
-  IndentedScope indent(this, Token::Name(node->op()), node);
+  IndentedScope indent(this, Token::Name(node->op()));
   Visit(node->left());
   Visit(node->right());
 }
 
 
 void AstPrinter::VisitCompareOperation(CompareOperation* node) {
-  IndentedScope indent(this, Token::Name(node->op()), node);
+  IndentedScope indent(this, Token::Name(node->op()));
   Visit(node->left());
   Visit(node->right());
 }
