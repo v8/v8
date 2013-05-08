@@ -7293,7 +7293,6 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
     Name* key = GetKey(descriptor);
     PropertyDetails details = GetDetails(descriptor);
     PropertyDetails other_details = other->GetDetails(descriptor);
-    ASSERT(details.attributes() == other_details.attributes());
 
     if (details.type() == FIELD || other_details.type() == FIELD ||
         (details.type() == CONSTANT_FUNCTION &&
@@ -7303,7 +7302,7 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
           details.representation().generalize(other_details.representation());
       FieldDescriptor d(key,
                         current_offset++,
-                        details.attributes(),
+                        other_details.attributes(),
                         representation);
       result->Set(descriptor, &d, witness);
     } else {
