@@ -4473,7 +4473,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
         KeyedLookupCache* keyed_lookup_cache = isolate->keyed_lookup_cache();
         int offset = keyed_lookup_cache->Lookup(receiver_map, key);
         if (offset != -1) {
-          Object* value = receiver->FastPropertyAt(offset);
+          // Doubles are not cached, so raw read the value.
+          Object* value = receiver->RawFastPropertyAt(offset);
           return value->IsTheHole()
               ? isolate->heap()->undefined_value()
               : value;
@@ -4484,8 +4485,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
         receiver->LocalLookup(key, &result);
         if (result.IsField()) {
           int offset = result.GetFieldIndex().field_index();
-          keyed_lookup_cache->Update(receiver_map, key, offset);
-          return receiver->FastPropertyAt(offset);
+          // Do not track double fields in the keyed lookup cache. Reading
+          // double values requires boxing.
+          if (!FLAG_track_double_fields ||
+              !result.representation().IsDouble()) {
+            keyed_lookup_cache->Update(receiver_map, key, offset);
+          }
+          return receiver->FastPropertyAt(result.representation(), offset);
         }
       } else {
         // Attempt dictionary lookup.
@@ -4661,6 +4667,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
       return lookup.holder()->GetNormalizedProperty(&lookup);
     case FIELD:
       return lookup.holder()->FastPropertyAt(
+          lookup.representation(),
           lookup.GetFieldIndex().field_index());
     case CONSTANT_FUNCTION:
       return lookup.GetConstantFunction();
@@ -10177,14 +10184,18 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
         return heap->undefined_value();
       }
       return value;
-    case FIELD:
-      value =
+    case FIELD: {
+      Object* value;
+      MaybeObject* maybe_value =
           JSObject::cast(result->holder())->FastPropertyAt(
+              result->representation(),
               result->GetFieldIndex().field_index());
+      if (!maybe_value->To(&value)) return maybe_value;
       if (value->IsTheHole()) {
         return heap->undefined_value();
       }
       return value;
+    }
     case CONSTANT_FUNCTION:
       return result->GetConstantFunction();
     case CALLBACKS: {

@@ -118,3 +118,146 @@ poly_load(of1, false);
 poly_load(of2, true);
 %OptimizeFunctionOnNextCall(poly_load);
 assertEquals("[object Object]10", poly_load(of1, true));
+
+// Ensure small object literals with doubles do not share double storage.
+function object_literal() { return {"a":1.5}; }
+var o8 = object_literal();
+var o9 = object_literal();
+o8.a = 4.6
+assertEquals(1.5, o9.a);
+
+// Ensure double storage is not leaked in the case of polymorphic loads.
+function load_poly(o) {
+  return o.a;
+}
+
+var o10 = { "a": 1.6 };
+var o11 = { "b": 1, "a": 1.7 };
+load_poly(o10);
+load_poly(o10);
+load_poly(o11);
+%OptimizeFunctionOnNextCall(load_poly);
+var val = load_poly(o10);
+o10.a = 19.5;
+assertFalse(o10.a == val);
+
+// Ensure polymorphic loads only go monomorphic when the representations are
+// compatible.
+
+// Check polymorphic load from double + object fields.
+function load_mono(o) {
+  return o.a1;
+}
+
+var object = {"x": 1};
+var o10 = { "a1": 1.6 };
+var o11 = { "a1": object, "b": 1 };
+load_mono(o10);
+load_mono(o10);
+load_mono(o11);
+%OptimizeFunctionOnNextCall(load_mono);
+assertEquals(object, load_mono(o11));
+
+// Check polymorphic load from smi + object fields.
+function load_mono2(o) {
+  return o.a2;
+}
+
+var o12 = { "a2": 5 };
+var o13 = { "a2": object, "b": 1 };
+load_mono2(o12);
+load_mono2(o12);
+load_mono2(o13);
+%OptimizeFunctionOnNextCall(load_mono2);
+assertEquals(object, load_mono2(o13));
+
+// Check polymorphic load from double + double fields.
+function load_mono3(o) {
+  return o.a3;
+}
+
+var o14 = { "a3": 1.6 };
+var o15 = { "a3": 1.8, "b": 1 };
+load_mono3(o14);
+load_mono3(o14);
+load_mono3(o15);
+%OptimizeFunctionOnNextCall(load_mono3);
+assertEquals(1.6, load_mono3(o14));
+assertEquals(1.8, load_mono3(o15));
+
+// Check that JSON parsing respects existing representations.
+var o16 = JSON.parse('{"a":1.5}');
+var o17 = JSON.parse('{"a":100}');
+assertTrue(%HaveSameMap(o16, o17));
+var o17_a = o17.a;
+assertEquals(100, o17_a);
+o17.a = 200;
+assertEquals(100, o17_a);
+assertEquals(200, o17.a);
+
+// Ensure normalizing results in ignored representations.
+var o18 = {};
+o18.field1 = 100;
+o18.field2 = 1;
+o18.to_delete = 100;
+
+var o19 = {};
+o19.field1 = 100;
+o19.field2 = 1.6;
+o19.to_delete = 100;
+
+assertFalse(%HaveSameMap(o18, o19));
+
+delete o18.to_delete;
+delete o19.to_delete;
+
+assertTrue(%HaveSameMap(o18, o19));
+assertEquals(1, o18.field2);
+assertEquals(1.6, o19.field2);
+
+// Test megamorphic keyed stub behaviour in combination with representations.
+var some_object20 = {"a":1};
+var o20 = {};
+o20.smi = 1;
+o20.dbl = 1.5;
+o20.obj = some_object20;
+
+function keyed_load(o, k) {
+  return o[k];
+}
+
+function keyed_store(o, k, v) {
+  return o[k] = v;
+}
+
+var smi20 = keyed_load(o20, "smi");
+var dbl20 = keyed_load(o20, "dbl");
+var obj20 = keyed_load(o20, "obj");
+keyed_load(o20, "smi");
+keyed_load(o20, "dbl");
+keyed_load(o20, "obj");
+keyed_load(o20, "smi");
+keyed_load(o20, "dbl");
+keyed_load(o20, "obj");
+
+assertEquals(1, smi20);
+assertEquals(1.5, dbl20);
+assertEquals(some_object20, obj20);
+
+keyed_store(o20, "smi", 100);
+keyed_store(o20, "dbl", 100);
+keyed_store(o20, "obj", 100);
+keyed_store(o20, "smi", 100);
+keyed_store(o20, "dbl", 100);
+keyed_store(o20, "obj", 100);
+keyed_store(o20, "smi", 100);
+keyed_store(o20, "dbl", 100);
+keyed_store(o20, "obj", 100);
+
+assertEquals(1, smi20);
+assertEquals(1.5, dbl20);
+assertEquals(some_object20, obj20);
+
+assertEquals(100, o20.smi);
+assertEquals(100, o20.dbl);
+assertEquals(100, o20.dbl);

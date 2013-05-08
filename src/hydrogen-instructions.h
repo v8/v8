@@ -206,6 +206,7 @@ class LChunkBuilder;
   V(Calls)                                     \
   V(InobjectFields)                            \
   V(BackingStoreFields)                        \
+  V(DoubleFields)                              \
   V(ElementsKind)                              \
   V(ElementsPointer)                           \
   V(ArrayElements)                             \
@@ -5218,11 +5219,16 @@ class HLoadNamedField: public HTemplateInstruction<2> {
       set_representation(Representation::Tagged());
     }
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
-    if (is_in_object) {
+    if (FLAG_track_double_fields && representation().IsDouble()) {
+      ASSERT(is_in_object);
+      ASSERT(offset == HeapNumber::kValueOffset);
+      SetGVNFlag(kDependsOnDoubleFields);
+    } else if (is_in_object) {
       SetGVNFlag(kDependsOnInobjectFields);
+      SetGVNFlag(kDependsOnMaps);
     } else {
       SetGVNFlag(kDependsOnBackingStoreFields);
+      SetGVNFlag(kDependsOnMaps);
     }
   }
 
@@ -5562,7 +5568,7 @@ class HLoadKeyedGeneric: public HTemplateInstruction<3> {
 class HStoreNamedField: public HTemplateInstruction<2> {
  public:
   HStoreNamedField(HValue* obj,
-                   Handle<String> name,
+                   Handle<Name> name,
                    HValue* val,
                    bool in_object,
                    Representation field_representation,
@@ -5576,18 +5582,25 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     SetFlag(kTrackSideEffectDominators);
-    SetGVNFlag(kDependsOnNewSpacePromotion);
-    if (is_in_object_) {
+    if (FLAG_track_double_fields && field_representation.IsDouble()) {
+      SetGVNFlag(kChangesDoubleFields);
+    } else if (is_in_object_) {
       SetGVNFlag(kChangesInobjectFields);
+      SetGVNFlag(kDependsOnNewSpacePromotion);
     } else {
       SetGVNFlag(kChangesBackingStoreFields);
+      SetGVNFlag(kDependsOnNewSpacePromotion);
     }
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField)
 
   virtual Representation RequiredInputRepresentation(int index) {
-    if (FLAG_track_fields && index == 1 && field_representation_.IsSmi()) {
+    if (FLAG_track_double_fields &&
+        index == 1 && field_representation_.IsDouble()) {
+      return field_representation_;
+    } else if (FLAG_track_fields &&
+               index == 1 && field_representation_.IsSmi()) {
       return Representation::Integer32();
     }
     return Representation::Tagged();
@@ -5601,7 +5614,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HValue* object() { return OperandAt(0); }
   HValue* value() { return OperandAt(1); }
 
-  Handle<String> name() const { return name_; }
+  Handle<Name> name() const { return name_; }
   bool is_in_object() const { return is_in_object_; }
   int offset() const { return offset_; }
   Handle<Map> transition() const { return transition_; }
@@ -5610,7 +5623,11 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {
+    ASSERT(!(FLAG_track_double_fields && field_representation_.IsDouble()) ||
+           transition_.is_null());
     return (!FLAG_track_fields || !field_representation_.IsSmi()) &&
+        // If there is a transition, a new storage object needs to be allocated.
+        !(FLAG_track_double_fields && field_representation_.IsDouble()) &&
         StoringValueNeedsWriteBarrier(value()) &&
         ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
@@ -5628,7 +5645,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   }
 
  private:
-  Handle<String> name_;
+  Handle<Name> name_;
   bool is_in_object_;
   Representation field_representation_;
   int offset_;
@@ -6117,12 +6134,14 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
                  bool fast_elements,
                  int literal_index,
                  int depth,
+                 bool may_store_doubles,
                  bool has_function)
       : HMaterializedLiteral<1>(literal_index, depth),
         constant_properties_(constant_properties),
         constant_properties_length_(constant_properties->length()),
         literals_(literals),
         fast_elements_(fast_elements),
+        may_store_doubles_(may_store_doubles),
         has_function_(has_function) {
     SetOperandAt(0, context);
     SetGVNFlag(kChangesNewSpacePromotion);
@@ -6137,6 +6156,7 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
   }
   Handle<FixedArray> literals() const { return literals_; }
   bool fast_elements() const { return fast_elements_; }
+  bool may_store_doubles() const { return may_store_doubles_; }
   bool has_function() const { return has_function_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -6151,6 +6171,7 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
   int constant_properties_length_;
   Handle<FixedArray> literals_;
   bool fast_elements_ : 1;
+  bool may_store_doubles_ : 1;
   bool has_function_ : 1;
 };
 

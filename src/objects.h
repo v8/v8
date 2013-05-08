@@ -1080,6 +1080,10 @@ class Object : public MaybeObject {
     return true;
   }
 
+  inline MaybeObject* AllocateNewStorageFor(Heap* heap,
+                                            Representation representation,
+                                            PretenureFlag tenure = NOT_TENURED);
+
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
   inline bool HasValidElements();
@@ -1828,8 +1832,8 @@ class JSObject: public JSReceiver {
 
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
-  static void TransitionToMap(Handle<JSObject> object, Handle<Map> map);
-  inline MUST_USE_RESULT MaybeObject* TransitionToMap(Map* map);
+  static void AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map);
+  inline MUST_USE_RESULT MaybeObject* AllocateStorageForMap(Map* map);
 
   static void MigrateInstance(Handle<JSObject> instance);
   inline MUST_USE_RESULT MaybeObject* MigrateInstance();
@@ -2135,10 +2139,12 @@ class JSObject: public JSReceiver {
 
   // Add a property to a fast-case object using a map transition to
   // new_map.
-  MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(Map* new_map,
-                                                       Name* name,
-                                                       Object* value,
-                                                       int field_index);
+  MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(
+      Map* new_map,
+      Name* name,
+      Object* value,
+      int field_index,
+      Representation representation);
 
   // Add a constant function property to a fast-case object.
   // This leaves a CONSTANT_TRANSITION in the old map, and
@@ -2247,8 +2253,11 @@ class JSObject: public JSReceiver {
       int unused_property_fields);
 
   // Access fast-case object properties at index.
-  inline Object* FastPropertyAt(int index);
-  inline Object* FastPropertyAtPut(int index, Object* value);
+  MUST_USE_RESULT inline MaybeObject* FastPropertyAt(
+      Representation representation,
+      int index);
+  inline Object* RawFastPropertyAt(int index);
+  inline void FastPropertyAtPut(int index, Object* value);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
@@ -5199,7 +5208,8 @@ class Map: public HeapObject {
 
   int NumberOfFields();
 
-  bool InstancesNeedRewriting(int target_number_of_fields,
+  bool InstancesNeedRewriting(Map* target,
+                              int target_number_of_fields,
                               int target_inobject,
                               int target_unused);
   static Handle<Map> GeneralizeRepresentation(

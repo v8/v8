@@ -1241,7 +1241,8 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
   switch (lookup->type()) {
     case FIELD:
       return isolate()->stub_cache()->ComputeLoadField(
-          name, receiver, holder, lookup->GetFieldIndex());
+          name, receiver, holder,
+          lookup->GetFieldIndex(), lookup->representation());
     case CONSTANT_FUNCTION: {
       Handle<JSFunction> constant(lookup->GetConstantFunction());
       return isolate()->stub_cache()->ComputeLoadConstant(
@@ -1283,7 +1284,7 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         PropertyIndex lengthIndex =
           PropertyIndex::NewHeaderIndex(JSArray::kLengthOffset / kPointerSize);
         return isolate()->stub_cache()->ComputeLoadField(
-            name, receiver, holder, lengthIndex);
+            name, receiver, holder, lengthIndex, Representation::Tagged());
       }
       // TODO(dcarney): Handle correctly.
       if (callback->IsDeclaredAccessorInfo()) break;
@@ -1450,7 +1451,8 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
   switch (lookup->type()) {
     case FIELD:
       return isolate()->stub_cache()->ComputeKeyedLoadField(
-          name, receiver, holder, lookup->GetFieldIndex());
+          name, receiver, holder,
+          lookup->GetFieldIndex(), lookup->representation());
     case CONSTANT_FUNCTION: {
       Handle<JSFunction> constant(lookup->GetConstantFunction(), isolate());
       return isolate()->stub_cache()->ComputeKeyedLoadConstant(
@@ -2260,11 +2262,24 @@ RUNTIME_FUNCTION(MaybeObject*, SharedStoreIC_ExtendStorage) {
   int new_unused = transition->unused_property_fields();
   int new_size = old_storage->length() + new_unused + 1;
   Object* result;
-  { MaybeObject* maybe_result = old_storage->CopySize(new_size);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = old_storage->CopySize(new_size);
+  if (!maybe_result->ToObject(&result)) return maybe_result;
+
   FixedArray* new_storage = FixedArray::cast(result);
-  new_storage->set(old_storage->length(), value);
+
+  Object* to_store = value;
+
+  if (FLAG_track_double_fields) {
+    DescriptorArray* descriptors = transition->instance_descriptors();
+    PropertyDetails details = descriptors->GetDetails(transition->LastAdded());
+    if (details.representation().IsDouble()) {
+      MaybeObject* maybe_storage =
+          isolate->heap()->AllocateHeapNumber(value->Number());
+      if (!maybe_storage->To(&to_store)) return maybe_storage;
+    }
+  }
+
+  new_storage->set(old_storage->length(), to_store);
 
   // Set the new property value and do the map transition.
   object->set_properties(new_storage);
@@ -2303,6 +2318,24 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure) {
                   args.at<Object>(1),
                   args.at<Object>(2),
                   MISS);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
+  NoHandleAllocation na(isolate);
+  ASSERT(args.length() == 3);
+  StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
+  Handle<Object> object = args.at<Object>(0);
+  Handle<Object> key = args.at<Object>(1);
+  Handle<Object> value = args.at<Object>(2);
+  StrictModeFlag strict_mode = Code::GetStrictMode(extra_ic_state);
+  return Runtime::SetObjectProperty(isolate,
+                                    object,
+                                    key,
+                                    value,
+                                    NONE,
+                                    strict_mode);
 }
 
 

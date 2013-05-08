@@ -1414,7 +1414,7 @@ TEST(GetHeapValue) {
       GetProperty(obj, v8::HeapGraphEdge::kProperty, "n_prop");
   v8::Local<v8::Number> js_n_prop =
       js_obj->Get(v8_str("n_prop")).As<v8::Number>();
-  CHECK(js_n_prop == n_prop->GetHeapValue());
+  CHECK(js_n_prop->NumberValue() == n_prop->GetHeapValue()->NumberValue());
 }
 
 

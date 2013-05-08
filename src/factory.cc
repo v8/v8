@@ -660,6 +660,14 @@ Handle<Object> Factory::NewNumberFromUint(uint32_t value,
 }
 
 
+Handle<HeapNumber> Factory::NewHeapNumber(double value,
+                                          PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateHeapNumber(value, pretenure), HeapNumber);
+}
+
+
 Handle<JSObject> Factory::NewNeanderObject() {
   CALL_HEAP_FUNCTION(
       isolate(),

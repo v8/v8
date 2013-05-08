@@ -2955,42 +2955,27 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
+  int offset = instr->hydrogen()->offset();
   Register object = ToRegister(instr->object());
-  if (!FLAG_track_double_fields) {
-    ASSERT(!instr->hydrogen()->representation().IsDouble());
-  }
-  Register temp = instr->hydrogen()->representation().IsDouble()
-      ? ToRegister(instr->temp()) : ToRegister(instr->result());
-  if (instr->hydrogen()->is_in_object()) {
-    __ mov(temp, FieldOperand(object, instr->hydrogen()->offset()));
-  } else {
-    __ mov(temp, FieldOperand(object, JSObject::kPropertiesOffset));
-    __ mov(temp, FieldOperand(temp, instr->hydrogen()->offset()));
-  }
-
-  if (instr->hydrogen()->representation().IsDouble()) {
-    Label load_from_heap_number, done;
+  if (FLAG_track_double_fields &&
+      instr->hydrogen()->representation().IsDouble()) {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister result = ToDoubleRegister(instr->result());
-      __ JumpIfNotSmi(temp, &load_from_heap_number);
-      __ SmiUntag(temp);
-      __ cvtsi2sd(result, Operand(temp));
-      __ jmp(&done);
-      __ bind(&load_from_heap_number);
-      __ movdbl(result, FieldOperand(temp, HeapNumber::kValueOffset));
+      __ movdbl(result, FieldOperand(object, offset));
     } else {
-      __ JumpIfNotSmi(temp, &load_from_heap_number);
-      __ SmiUntag(temp);
-      __ push(temp);
-      __ fild_s(Operand(esp, 0));
-      __ pop(temp);
-      __ jmp(&done);
-      __ bind(&load_from_heap_number);
-      PushX87DoubleOperand(FieldOperand(temp, HeapNumber::kValueOffset));
+      PushX87DoubleOperand(FieldOperand(object, offset));
       CurrentInstructionReturnsX87Result();
     }
-    __ bind(&done);
+    return;
+  }
+
+  Register result = ToRegister(instr->result());
+  if (instr->hydrogen()->is_in_object()) {
+    __ mov(result, FieldOperand(object, offset));
+  } else {
+    __ mov(result, FieldOperand(object, JSObject::kPropertiesOffset));
+    __ mov(result, FieldOperand(result, offset));
   }
 }
 
@@ -4240,6 +4225,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   int offset = instr->offset();
 
+  Handle<Map> transition = instr->transition();
+
   if (FLAG_track_fields && representation.IsSmi()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
@@ -4253,18 +4240,20 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         DeoptimizeIf(overflow, instr->environment());
       }
     }
-  } else if (FLAG_track_double_fields && representation.IsDouble() &&
-             !instr->hydrogen()->value()->type().IsSmi() &&
-             !instr->hydrogen()->value()->type().IsHeapNumber()) {
-    Register value = ToRegister(instr->value());
-    Label do_store;
-    __ JumpIfSmi(value, &do_store);
-    Handle<Map> map(isolate()->factory()->heap_number_map());
-    DoCheckMapCommon(value, map, REQUIRE_EXACT_MAP, instr);
-    __ bind(&do_store);
+  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+    ASSERT(transition.is_null());
+    ASSERT(instr->is_in_object());
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatureScope scope(masm(), SSE2);
+      XMMRegister value = ToDoubleRegister(instr->value());
+      __ movdbl(FieldOperand(object, offset), value);
+    } else {
+      __ fstp_d(FieldOperand(object, offset));
+    }
+    return;
   }
 
-  Handle<Map> transition = instr->transition();
   if (!transition.is_null()) {
     if (transition->CanBeDeprecated()) {
       transition_maps_.Add(transition, info()->zone());
@@ -4310,6 +4299,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ mov(FieldOperand(write_register, offset), ToRegister(operand_value));
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
+      ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
       __ mov(FieldOperand(write_register, offset), handle_value);
     }
   } else {
@@ -6157,7 +6147,8 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
   // Set up the parameters to the stub/runtime call and pick the right
   // runtime function or stub to call.
   int properties_count = instr->hydrogen()->constant_properties_length() / 2;
-  if (instr->hydrogen()->depth() > 1) {
+  if ((FLAG_track_double_fields && instr->hydrogen()->may_store_doubles()) ||
+      instr->hydrogen()->depth() > 1) {
     __ PushHeapObject(literals);
     __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
     __ push(Immediate(constant_properties));

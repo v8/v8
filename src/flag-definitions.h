@@ -231,6 +231,8 @@ DEFINE_bool(trace_gvn, false, "trace global value numbering")
 DEFINE_bool(trace_representation, false, "trace representation types")
 DEFINE_bool(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
+DEFINE_bool(trace_migration, false, "trace object migration")
+DEFINE_bool(trace_generalization, false, "trace map generalization")
 DEFINE_bool(stress_pointer_maps, false, "pointer map for every instruction")
 DEFINE_bool(stress_environments, false, "environment for every instruction")
 DEFINE_int(deopt_every_n_times,

@@ -1463,15 +1463,13 @@ class LReturn: public LTemplateInstruction<0, 2, 0> {
 };
 
 
-class LLoadNamedField: public LTemplateInstruction<1, 1, 1> {
+class LLoadNamedField: public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LLoadNamedField(LOperand* object, LOperand* temp) {
+  explicit LLoadNamedField(LOperand* object) {
     inputs_[0] = object;
-    temps_[0] = temp;
   }
 
   LOperand* object() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field")
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedField)

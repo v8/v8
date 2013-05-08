@@ -45,6 +45,7 @@ namespace internal {
   ICU(KeyedCallIC_Miss)                               \
   ICU(StoreIC_Miss)                                   \
   ICU(StoreIC_ArrayLength)                            \
+  ICU(StoreIC_Slow)                                   \
   ICU(SharedStoreIC_ExtendStorage)                    \
   ICU(KeyedStoreIC_Miss)                              \
   ICU(KeyedStoreIC_MissForceGeneric)                  \
@@ -504,6 +505,7 @@ class StoreIC: public IC {
   }
 
   // Code generators for stub routines. Only called once at startup.
+  static void GenerateSlow(MacroAssembler* masm);
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,

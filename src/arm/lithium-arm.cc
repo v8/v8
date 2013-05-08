@@ -2318,17 +2318,22 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
         : UseRegisterAtStart(instr->object());
   }
 
-  LOperand* val =
-      needs_write_barrier ||
-      (FLAG_track_fields && instr->field_representation().IsSmi())
-          ? UseTempRegister(instr->value()) : UseRegister(instr->value());
+  LOperand* val;
+  if (needs_write_barrier ||
+      (FLAG_track_fields && instr->field_representation().IsSmi())) {
+    val = UseTempRegister(instr->value());
+  } else if (FLAG_track_double_fields &&
+             instr->field_representation().IsDouble()) {
+    val = UseRegisterAtStart(instr->value());
+  } else {
+    val = UseRegister(instr->value());
+  }
 
   // We need a temporary register for write barrier of the map field.
   LOperand* temp = needs_write_barrier_for_map ? TempRegister() : NULL;
 
   LStoreNamedField* result = new(zone()) LStoreNamedField(obj, val, temp);
-  if ((FLAG_track_fields && instr->field_representation().IsSmi()) ||
-      (FLAG_track_double_fields && instr->field_representation().IsDouble())) {
+  if (FLAG_track_fields && instr->field_representation().IsSmi()) {
     return AssignEnvironment(result);
   }
   return result;

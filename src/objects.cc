@@ -815,11 +815,14 @@ MaybeObject* Object::GetProperty(Object* receiver,
       value = result->holder()->GetNormalizedProperty(result);
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? heap->undefined_value() : value;
-    case FIELD:
-      value = result->holder()->FastPropertyAt(
+    case FIELD: {
+      MaybeObject* maybe_result = result->holder()->FastPropertyAt(
+          result->representation(),
           result->GetFieldIndex().field_index());
+      if (!maybe_result->To(&value)) return maybe_result;
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? heap->undefined_value() : value;
+    }
     case CONSTANT_FUNCTION:
       return result->GetConstantFunction();
     case CALLBACKS:
@@ -1711,7 +1714,15 @@ String* JSReceiver::constructor_name() {
 MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
                                                Name* name,
                                                Object* value,
-                                               int field_index) {
+                                               int field_index,
+                                               Representation representation) {
+  // This method is used to transition to a field. If we are transitioning to a
+  // double field, allocate new storage.
+  Object* storage;
+  MaybeObject* maybe_storage =
+      value->AllocateNewStorageFor(GetHeap(), representation);
+  if (!maybe_storage->To(&storage)) return maybe_storage;
+
   if (map()->unused_property_fields() == 0) {
     int new_unused = new_map->unused_property_fields();
     FixedArray* values;
@@ -1721,8 +1732,11 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
 
     set_properties(values);
   }
+
   set_map(new_map);
-  return FastPropertyAtPut(field_index, value);
+
+  FastPropertyAtPut(field_index, storage);
+  return value;
 }
 
 
@@ -1774,8 +1788,8 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
   int index = map()->NextFreePropertyIndex();
 
   // Allocate new instance descriptors with (name, index) added
-  FieldDescriptor new_field(
-      name, index, attributes, value->OptimalRepresentation());
+  Representation representation = value->OptimalRepresentation();
+  FieldDescriptor new_field(name, index, attributes, representation);
 
   ASSERT(index < map()->inobject_properties() ||
          (index - map()->inobject_properties()) < properties()->length() ||
@@ -1783,6 +1797,7 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
 
   FixedArray* values = NULL;
 
+  // TODO(verwaest): Merge with AddFastPropertyUsingMap.
   if (map()->unused_property_fields() == 0) {
     // Make room for the new value
     MaybeObject* maybe_values =
@@ -1792,9 +1807,16 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
 
   TransitionFlag flag = INSERT_TRANSITION;
 
+  Heap* heap = isolate->heap();
+
   Map* new_map;
   MaybeObject* maybe_new_map = map()->CopyAddDescriptor(&new_field, flag);
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+
+  Object* storage;
+  MaybeObject* maybe_storage =
+      value->AllocateNewStorageFor(heap, representation);
+  if (!maybe_storage->To(&storage)) return maybe_storage;
 
   if (map()->unused_property_fields() == 0) {
     ASSERT(values != NULL);
@@ -1805,7 +1827,9 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
   }
 
   set_map(new_map);
-  return FastPropertyAtPut(index, value);
+
+  FastPropertyAtPut(index, storage);
+  return value;
 }
 
 
@@ -2068,9 +2092,9 @@ MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
     return ReplaceSlowProperty(name, new_value, attributes);
   }
 
+  Representation representation = new_value->OptimalRepresentation();
   int index = map()->NextFreePropertyIndex();
-  FieldDescriptor new_field(
-      name, index, attributes, new_value->OptimalRepresentation());
+  FieldDescriptor new_field(name, index, attributes, representation);
 
   // Make a new map for the object.
   Map* new_map;
@@ -2088,6 +2112,12 @@ MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
     if (!maybe_new_properties->To(&new_properties)) return maybe_new_properties;
   }
 
+  Heap* heap = GetHeap();
+  Object* storage;
+  MaybeObject* maybe_storage =
+      new_value->AllocateNewStorageFor(heap, representation);
+  if (!maybe_storage->To(&storage)) return maybe_storage;
+
   // Update pointers to commit changes.
   // Object points to the new map.
   new_map->set_unused_property_fields(new_unused_property_fields);
@@ -2095,7 +2125,8 @@ MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
   if (new_properties != NULL) {
     set_properties(new_properties);
   }
-  return FastPropertyAtPut(index, new_value);
+  FastPropertyAtPut(index, new_value);
+  return new_value;
 }
 
 
@@ -2163,13 +2194,28 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
 }
 
 
-bool Map::InstancesNeedRewriting(int target_number_of_fields,
+bool Map::InstancesNeedRewriting(Map* target,
+                                 int target_number_of_fields,
                                  int target_inobject,
                                  int target_unused) {
   // If fields were added (or removed), rewrite the instance.
   int number_of_fields = NumberOfFields();
   ASSERT(target_number_of_fields >= number_of_fields);
   if (target_number_of_fields != number_of_fields) return true;
+
+  if (FLAG_track_double_fields) {
+    // If smi descriptors were replaced by double descriptors, rewrite.
+    DescriptorArray* old_desc = instance_descriptors();
+    DescriptorArray* new_desc = target->instance_descriptors();
+    int limit = NumberOfOwnDescriptors();
+    for (int i = 0; i < limit; i++) {
+      if (new_desc->GetDetails(i).representation().IsDouble() &&
+          old_desc->GetDetails(i).representation().IsSmi()) {
+        return true;
+      }
+    }
+  }
+
   // If no fields were added, and no inobject properties were removed, setting
   // the map is sufficient.
   if (target_inobject == inobject_properties()) return false;
@@ -2209,7 +2255,8 @@ MaybeObject* JSObject::MigrateToMap(Map* new_map) {
   int unused = new_map->unused_property_fields();
 
   // Nothing to do if no functions were converted to fields.
-  if (!old_map->InstancesNeedRewriting(number_of_fields, inobject, unused)) {
+  if (!old_map->InstancesNeedRewriting(
+          new_map, number_of_fields, inobject, unused)) {
     set_map(new_map);
     return this;
   }
@@ -2232,7 +2279,21 @@ MaybeObject* JSObject::MigrateToMap(Map* new_map) {
            old_details.type() == FIELD);
     Object* value = old_details.type() == CONSTANT_FUNCTION
         ? old_descriptors->GetValue(i)
-        : FastPropertyAt(old_descriptors->GetFieldIndex(i));
+        : RawFastPropertyAt(old_descriptors->GetFieldIndex(i));
+    if (FLAG_track_double_fields &&
+        old_details.representation().IsSmi() &&
+        details.representation().IsDouble()) {
+      // Objects must be allocated in the old object space, since the
+      // overall number of HeapNumbers needed for the conversion might
+      // exceed the capacity of new space, and we would fail repeatedly
+      // trying to migrate the instance.
+      MaybeObject* maybe_storage =
+          value->AllocateNewStorageFor(heap, details.representation(), TENURED);
+      if (!maybe_storage->To(&value)) return maybe_storage;
+    }
+    ASSERT(!(FLAG_track_double_fields &&
+             details.representation().IsDouble() &&
+             value->IsSmi()));
     int target_index = new_descriptors->GetFieldIndex(i) - inobject;
     if (target_index < 0) target_index += total_size;
     array->set(target_index, value);
@@ -2297,6 +2358,10 @@ MaybeObject* Map::CopyGeneralizeAllRepresentations() {
 
   new_map->instance_descriptors()->InitializeRepresentations(
       Representation::Tagged());
+  if (FLAG_trace_generalization) {
+    PrintF("failed generalization %p -> %p\n",
+           static_cast<void*>(this), static_cast<void*>(new_map));
+  }
   return new_map;
 }
 
@@ -2462,7 +2527,13 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
           verbatim, valid, descriptors, old_descriptors)) {
     Representation updated_representation =
         updated_descriptors->GetDetails(modify_index).representation();
-    if (new_representation.fits_into(updated_representation)) return updated;
+    if (new_representation.fits_into(updated_representation)) {
+      if (FLAG_trace_generalization) {
+        PrintF("migrating to existing map %p -> %p\n",
+               static_cast<void*>(this), static_cast<void*>(updated));
+      }
+      return updated;
+    }
   }
 
   DescriptorArray* new_descriptors;
@@ -2486,6 +2557,13 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
   int descriptor = split_descriptors;
   split_map->DeprecateTarget(
       old_descriptors->GetKey(descriptor), new_descriptors);
+
+  if (FLAG_trace_generalization) {
+    PrintF("migrating to new map %p -> %p (%i steps)\n",
+           static_cast<void*>(this),
+           static_cast<void*>(new_descriptors),
+           descriptors - descriptor);
+  }
 
   Map* new_map = split_map;
   // Add missing transitions.
@@ -3029,7 +3107,7 @@ void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
     // occur as fields.
     if (result->IsField() &&
         result->IsReadOnly() &&
-        FastPropertyAt(result->GetFieldIndex().field_index())->IsTheHole()) {
+        RawFastPropertyAt(result->GetFieldIndex().field_index())->IsTheHole()) {
       result->DisallowCaching();
     }
     return;
@@ -3462,14 +3540,19 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
 }
 
 
-void JSObject::TransitionToMap(Handle<JSObject> object, Handle<Map> map) {
+void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
   CALL_HEAP_FUNCTION_VOID(
       object->GetIsolate(),
-      object->TransitionToMap(*map));
+      object->AllocateStorageForMap(*map));
 }
 
 
 void JSObject::MigrateInstance(Handle<JSObject> object) {
+  if (FLAG_trace_migration) {
+    PrintF("migrating instance %p (%p)\n",
+           static_cast<void*>(*object),
+           static_cast<void*>(object->map()));
+  }
   CALL_HEAP_FUNCTION_VOID(
       object->GetIsolate(),
       object->MigrateInstance());
@@ -3478,10 +3561,10 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
 
 Handle<Map> Map::GeneralizeRepresentation(Handle<Map> map,
                                           int modify_index,
-                                          Representation new_representation) {
+                                          Representation representation) {
   CALL_HEAP_FUNCTION(
       map->GetIsolate(),
-      map->GeneralizeRepresentation(modify_index, new_representation),
+      map->GeneralizeRepresentation(modify_index, representation),
       Map);
 }
 
@@ -3581,9 +3664,21 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
             lookup->holder()->GeneralizeFieldRepresentation(
                 lookup->GetDescriptorIndex(), value->OptimalRepresentation());
         if (maybe_failure->IsFailure()) return maybe_failure;
+        DescriptorArray* desc = lookup->holder()->map()->instance_descriptors();
+        int descriptor = lookup->GetDescriptorIndex();
+        representation = desc->GetDetails(descriptor).representation();
       }
-      result = lookup->holder()->FastPropertyAtPut(
+      if (FLAG_track_double_fields && representation.IsDouble()) {
+        HeapNumber* storage =
+            HeapNumber::cast(lookup->holder()->RawFastPropertyAt(
+                lookup->GetFieldIndex().field_index()));
+        storage->set_value(value->Number());
+        result = *value;
+        break;
+      }
+      lookup->holder()->FastPropertyAtPut(
           lookup->GetFieldIndex().field_index(), *value);
+      result = *value;
       break;
     }
     case CONSTANT_FUNCTION:
@@ -3612,7 +3707,8 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
 
       if (details.type() == FIELD) {
         if (attributes == details.attributes()) {
-          if (!value->FitsRepresentation(details.representation())) {
+          Representation representation = details.representation();
+          if (!value->FitsRepresentation(representation)) {
             MaybeObject* maybe_map = transition_map->GeneralizeRepresentation(
                 descriptor, value->OptimalRepresentation());
             if (!maybe_map->To(&transition_map)) return maybe_map;
@@ -3622,10 +3718,13 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
                   lookup->holder()->MigrateToMap(Map::cast(back));
               if (maybe_failure->IsFailure()) return maybe_failure;
             }
+            DescriptorArray* desc = transition_map->instance_descriptors();
+            int descriptor = transition_map->LastAdded();
+            representation = desc->GetDetails(descriptor).representation();
           }
           int field_index = descriptors->GetFieldIndex(descriptor);
           result = lookup->holder()->AddFastPropertyUsingMap(
-              transition_map, *name, *value, field_index);
+              transition_map, *name, *value, field_index, representation);
         } else {
           result = lookup->holder()->ConvertDescriptorToField(
               *name, *value, attributes);
@@ -3765,9 +3864,20 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
         MaybeObject* maybe_failure = self->GeneralizeFieldRepresentation(
             lookup.GetDescriptorIndex(), value->OptimalRepresentation());
         if (maybe_failure->IsFailure()) return maybe_failure;
+        DescriptorArray* desc = self->map()->instance_descriptors();
+        int descriptor = lookup.GetDescriptorIndex();
+        representation = desc->GetDetails(descriptor).representation();
       }
-      result = self->FastPropertyAtPut(
-          lookup.GetFieldIndex().field_index(), *value);
+      if (FLAG_track_double_fields && representation.IsDouble()) {
+        HeapNumber* storage =
+            HeapNumber::cast(self->RawFastPropertyAt(
+                lookup.GetFieldIndex().field_index()));
+        storage->set_value(value->Number());
+        result = *value;
+        break;
+      }
+      self->FastPropertyAtPut(lookup.GetFieldIndex().field_index(), *value);
+      result = *value;
       break;
     }
     case CONSTANT_FUNCTION:
@@ -3792,7 +3902,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
 
       if (details.type() == FIELD) {
         if (attributes == details.attributes()) {
-          if (!value->FitsRepresentation(details.representation())) {
+          Representation representation = details.representation();
+          if (!value->FitsRepresentation(representation)) {
             MaybeObject* maybe_map = transition_map->GeneralizeRepresentation(
                 descriptor, value->OptimalRepresentation());
             if (!maybe_map->To(&transition_map)) return maybe_map;
@@ -3801,10 +3912,13 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
               MaybeObject* maybe_failure = self->MigrateToMap(Map::cast(back));
               if (maybe_failure->IsFailure()) return maybe_failure;
             }
+            DescriptorArray* desc = transition_map->instance_descriptors();
+            int descriptor = transition_map->LastAdded();
+            representation = desc->GetDetails(descriptor).representation();
           }
           int field_index = descriptors->GetFieldIndex(descriptor);
           result = self->AddFastPropertyUsingMap(
-              transition_map, *name, *value, field_index);
+              transition_map, *name, *value, field_index, representation);
         } else {
           result = self->ConvertDescriptorToField(*name, *value, attributes);
         }
@@ -4223,9 +4337,9 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
         break;
       }
       case FIELD: {
-        PropertyDetails d = PropertyDetails(
-            details.attributes(), NORMAL, i + 1);
-        Object* value = FastPropertyAt(descs->GetFieldIndex(i));
+        PropertyDetails d =
+            PropertyDetails(details.attributes(), NORMAL, i + 1);
+        Object* value = RawFastPropertyAt(descs->GetFieldIndex(i));
         MaybeObject* maybe_dictionary =
             dictionary->Add(descs->GetKey(i), value, d);
         if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
@@ -4603,8 +4717,10 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
       if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_string() &&
           sorted_index < map()->NumberOfOwnDescriptors()) {
         ASSERT(descriptors->GetType(sorted_index) == FIELD);
-        inline_value =
-            this->FastPropertyAt(descriptors->GetFieldIndex(sorted_index));
+        MaybeObject* maybe_value = this->FastPropertyAt(
+            descriptors->GetDetails(sorted_index).representation(),
+            descriptors->GetFieldIndex(sorted_index));
+        if (!maybe_value->To(&inline_value)) return maybe_value;
       } else {
         inline_value = GetHeap()->undefined_value();
       }
@@ -4673,8 +4789,7 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
       if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_string() &&
           sorted_index < map()->NumberOfOwnDescriptors()) {
         ASSERT(descriptors->GetType(sorted_index) == FIELD);
-        this->FastPropertyAtPut(descriptors->GetFieldIndex(sorted_index),
-                                value);
+        FastPropertyAtPut(descriptors->GetFieldIndex(sorted_index), value);
         return this;
       }
     }
@@ -5150,6 +5265,11 @@ MUST_USE_RESULT MaybeObject* JSObject::DeepCopy(Isolate* isolate) {
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return isolate->StackOverflow();
 
+  if (map()->is_deprecated()) {
+    MaybeObject* maybe_failure = MigrateInstance();
+    if (maybe_failure->IsFailure()) return maybe_failure;
+  }
+
   Heap* heap = isolate->heap();
   Object* result;
   { MaybeObject* maybe_result = heap->CopyJSObject(this);
@@ -5159,27 +5279,24 @@ MUST_USE_RESULT MaybeObject* JSObject::DeepCopy(Isolate* isolate) {
 
   // Deep copy local properties.
   if (copy->HasFastProperties()) {
-    FixedArray* properties = copy->properties();
-    for (int i = 0; i < properties->length(); i++) {
-      Object* value = properties->get(i);
+    DescriptorArray* descriptors = copy->map()->instance_descriptors();
+    int limit = copy->map()->NumberOfOwnDescriptors();
+    for (int i = 0; i < limit; i++) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (details.type() != FIELD) continue;
+      int index = descriptors->GetFieldIndex(i);
+      Object* value = RawFastPropertyAt(index);
       if (value->IsJSObject()) {
         JSObject* js_object = JSObject::cast(value);
-        { MaybeObject* maybe_result = js_object->DeepCopy(isolate);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
-        }
-        properties->set(i, result);
+        MaybeObject* maybe_copy = js_object->DeepCopy(isolate);
+        if (!maybe_copy->To(&value)) return maybe_copy;
+      } else {
+        Representation representation = details.representation();
+        MaybeObject* maybe_storage =
+            value->AllocateNewStorageFor(heap, representation);
+        if (!maybe_storage->To(&value)) return maybe_storage;
       }
-    }
-    int nof = copy->map()->inobject_properties();
-    for (int i = 0; i < nof; i++) {
-      Object* value = copy->InObjectPropertyAt(i);
-      if (value->IsJSObject()) {
-        JSObject* js_object = JSObject::cast(value);
-        { MaybeObject* maybe_result = js_object->DeepCopy(isolate);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
-        }
-        copy->InObjectPropertyAtPut(i, result);
-      }
+      copy->FastPropertyAtPut(index, value);
     }
   } else {
     { MaybeObject* maybe_result =
@@ -6004,7 +6121,14 @@ Object* JSObject::SlowReverseLookup(Object* value) {
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < number_of_own_descriptors; i++) {
       if (descs->GetType(i) == FIELD) {
-        if (FastPropertyAt(descs->GetFieldIndex(i)) == value) {
+        Object* property = RawFastPropertyAt(descs->GetFieldIndex(i));
+        if (FLAG_track_double_fields &&
+            descs->GetDetails(i).representation().IsDouble()) {
+          ASSERT(property->IsHeapNumber());
+          if (value->IsNumber() && property->Number() == value->Number()) {
+            return descs->GetKey(i);
+          }
+        } else if (property == value) {
           return descs->GetKey(i);
         }
       } else if (descs->GetType(i) == CONSTANT_FUNCTION) {
@@ -6034,6 +6158,7 @@ MaybeObject* Map::RawCopy(int instance_size) {
   new_bit_field3 = OwnsDescriptors::update(new_bit_field3, true);
   new_bit_field3 = NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
   new_bit_field3 = EnumLengthBits::update(new_bit_field3, kInvalidEnumCache);
+  new_bit_field3 = Deprecated::update(new_bit_field3, false);
   result->set_bit_field3(new_bit_field3);
   return result;
 }

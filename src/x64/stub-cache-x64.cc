@@ -343,11 +343,13 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 }
 
 
-void StubCompiler::DoGenerateFastPropertyLoad(MacroAssembler* masm,
-                                              Register dst,
-                                              Register src,
-                                              bool inobject,
-                                              int index) {
+void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
+                                            Register dst,
+                                            Register src,
+                                            bool inobject,
+                                            int index,
+                                            Representation representation) {
+  ASSERT(!FLAG_track_double_fields || !representation.IsDouble());
   int offset = index * kPointerSize;
   if (!inobject) {
     // Calculate the offset into the properties array.
@@ -745,8 +747,10 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                                            Register value_reg,
                                            Register scratch1,
                                            Register scratch2,
+                                           Register unused,
                                            Label* miss_label,
-                                           Label* miss_restore_name) {
+                                           Label* miss_restore_name,
+                                           Label* slow) {
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, Handle<Map>(object->map()),
               miss_label, DO_SMI_CHECK, REQUIRE_EXACT_MAP);
@@ -765,16 +769,6 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   // Ensure no transitions to deprecated maps are followed.
   __ CheckMapDeprecated(transition, scratch1, miss_label);
 
-  if (FLAG_track_fields && representation.IsSmi()) {
-    __ JumpIfNotSmi(value_reg, miss_label);
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
-    Label do_store;
-    __ JumpIfSmi(value_reg, &do_store);
-    __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
-                miss_label, DONT_DO_SMI_CHECK, REQUIRE_EXACT_MAP);
-    __ bind(&do_store);
-  }
-
   // Check that we are allowed to write this.
   if (object->GetPrototype()->IsJSObject()) {
     JSObject* holder;
@@ -790,7 +784,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     }
     Register holder_reg = CheckPrototypes(
         object, receiver_reg, Handle<JSObject>(holder), name_reg,
-        scratch1, scratch2, name, miss_restore_name);
+        scratch1, scratch2, name, miss_restore_name, SKIP_RECEIVER);
     // If no property was found, and the holder (the last object in the
     // prototype chain) is in slow mode, we need to do a negative lookup on the
     // holder.
@@ -807,6 +801,28 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
             masm, miss_restore_name, holder_reg, name, scratch1, scratch2);
       }
     }
+  }
+
+  Register storage_reg = name_reg;
+
+  if (FLAG_track_fields && representation.IsSmi()) {
+    __ JumpIfNotSmi(value_reg, miss_restore_name);
+  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+    Label do_store, heap_number;
+    __ AllocateHeapNumber(storage_reg, scratch1, slow);
+
+    __ JumpIfNotSmi(value_reg, &heap_number);
+    __ SmiToInteger32(scratch1, value_reg);
+    __ cvtlsi2sd(xmm0, scratch1);
+    __ jmp(&do_store);
+
+    __ bind(&heap_number);
+    __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
+                miss_restore_name, DONT_DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+    __ movsd(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
+
+    __ bind(&do_store);
+    __ movsd(FieldOperand(storage_reg, HeapNumber::kValueOffset), xmm0);
   }
 
   // Stub never generated for non-global objects that require access
@@ -834,12 +850,11 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   __ Move(scratch1, transition);
   __ movq(FieldOperand(receiver_reg, HeapObject::kMapOffset), scratch1);
 
-  // Update the write barrier for the map field and pass the now unused
-  // name_reg as scratch register.
+  // Update the write barrier for the map field.
   __ RecordWriteField(receiver_reg,
                       HeapObject::kMapOffset,
                       scratch1,
-                      name_reg,
+                      scratch2,
                       kDontSaveFPRegs,
                       OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
@@ -856,12 +871,20 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
-    __ movq(FieldOperand(receiver_reg, offset), value_reg);
+    if (FLAG_track_double_fields && representation.IsDouble()) {
+      __ movq(FieldOperand(receiver_reg, offset), storage_reg);
+    } else {
+      __ movq(FieldOperand(receiver_reg, offset), value_reg);
+    }
 
     if (!FLAG_track_fields || !representation.IsSmi()) {
       // Update the write barrier for the array address.
       // Pass the value being stored in the now unused name_reg.
-      __ movq(name_reg, value_reg);
+      if (!FLAG_track_double_fields || !representation.IsDouble()) {
+        __ movq(name_reg, value_reg);
+      } else {
+        ASSERT(storage_reg.is(name_reg));
+      }
       __ RecordWriteField(
           receiver_reg, offset, name_reg, scratch1, kDontSaveFPRegs);
     }
@@ -870,12 +893,20 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array (optimistically).
     __ movq(scratch1, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-    __ movq(FieldOperand(scratch1, offset), value_reg);
+    if (FLAG_track_double_fields && representation.IsDouble()) {
+      __ movq(FieldOperand(scratch1, offset), storage_reg);
+    } else {
+      __ movq(FieldOperand(scratch1, offset), value_reg);
+    }
 
     if (!FLAG_track_fields || !representation.IsSmi()) {
       // Update the write barrier for the array address.
       // Pass the value being stored in the now unused name_reg.
-      __ movq(name_reg, value_reg);
+      if (!FLAG_track_double_fields || !representation.IsDouble()) {
+        __ movq(name_reg, value_reg);
+      } else {
+        ASSERT(storage_reg.is(name_reg));
+      }
       __ RecordWriteField(
           scratch1, offset, name_reg, receiver_reg, kDontSaveFPRegs);
     }
@@ -923,11 +954,35 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   if (FLAG_track_fields && representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
-    Label do_store;
-    __ JumpIfSmi(value_reg, &do_store);
+    // Load the double storage.
+    if (index < 0) {
+      int offset = object->map()->instance_size() + (index * kPointerSize);
+      __ movq(scratch1, FieldOperand(receiver_reg, offset));
+    } else {
+      __ movq(scratch1,
+              FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
+      int offset = index * kPointerSize + FixedArray::kHeaderSize;
+      __ movq(scratch1, FieldOperand(scratch1, offset));
+    }
+
+    // Store the value into the storage.
+    Label do_store, heap_number;
+    __ JumpIfNotSmi(value_reg, &heap_number);
+    __ SmiToInteger32(scratch2, value_reg);
+    __ cvtlsi2sd(xmm0, scratch2);
+    __ jmp(&do_store);
+
+    __ bind(&heap_number);
     __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
                 miss_label, DONT_DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+    __ movsd(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
+
     __ bind(&do_store);
+    __ movsd(FieldOperand(scratch1, HeapNumber::kValueOffset), xmm0);
+    // Return the value (register rax).
+    ASSERT(value_reg.is(rax));
+    __ ret(0);
+    return;
   }
 
   // TODO(verwaest): Share this code as a code stub.
@@ -1196,15 +1251,18 @@ void BaseLoadStubCompiler::NonexistentHandlerFrontend(
 
 void BaseLoadStubCompiler::GenerateLoadField(Register reg,
                                              Handle<JSObject> holder,
-                                             PropertyIndex field) {
+                                             PropertyIndex field,
+                                             Representation representation) {
   if (!reg.is(receiver())) __ movq(receiver(), reg);
   if (kind() == Code::LOAD_IC) {
     LoadFieldStub stub(field.is_inobject(holder),
-                       field.translate(holder));
+                       field.translate(holder),
+                       representation);
     GenerateTailCall(masm(), stub.GetCode(isolate()));
   } else {
     KeyedLoadFieldStub stub(field.is_inobject(holder),
-                            field.translate(holder));
+                            field.translate(holder),
+                            representation);
     GenerateTailCall(masm(), stub.GetCode(isolate()));
   }
 }
@@ -1461,7 +1519,8 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
   Register reg = CheckPrototypes(object, rdx, holder, rbx, rax, rdi,
                                  name, &miss);
 
-  GenerateFastPropertyLoad(masm(), rdi, reg, holder, index);
+  GenerateFastPropertyLoad(masm(), rdi, reg, index.is_inobject(holder),
+                           index.translate(holder), Representation::Tagged());
 
   // Check that the function really is a function.
   __ JumpIfSmi(rdi, &miss);

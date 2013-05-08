@@ -781,8 +781,9 @@ class HandlerStub: public HICStub {
 
 class LoadFieldStub: public HandlerStub {
  public:
-  LoadFieldStub(bool inobject, int index) : HandlerStub() {
-    Initialize(Code::LOAD_IC, inobject, index);
+  LoadFieldStub(bool inobject, int index, Representation representation)
+      : HandlerStub() {
+    Initialize(Code::LOAD_IC, inobject, index, representation);
   }
 
   virtual Handle<Code> GenerateCode();
@@ -792,6 +793,7 @@ class LoadFieldStub: public HandlerStub {
       CodeStubInterfaceDescriptor* descriptor);
 
   Representation representation() {
+    if (unboxed_double()) return Representation::Double();
     return Representation::Tagged();
   }
 
@@ -810,21 +812,31 @@ class LoadFieldStub: public HandlerStub {
     return FixedArray::kHeaderSize + offset;
   }
 
+  bool unboxed_double() {
+    return UnboxedDoubleBits::decode(bit_field_);
+  }
+
   virtual Code::StubType GetStubType() { return Code::FIELD; }
 
  protected:
   LoadFieldStub() : HandlerStub() { }
 
-  void Initialize(Code::Kind kind, bool inobject, int index) {
+  void Initialize(Code::Kind kind,
+                  bool inobject,
+                  int index,
+                  Representation representation) {
+    bool unboxed_double = FLAG_track_double_fields && representation.IsDouble();
     bit_field_ = KindBits::encode(kind)
         | InobjectBits::encode(inobject)
-        | IndexBits::encode(index);
+        | IndexBits::encode(index)
+        | UnboxedDoubleBits::encode(unboxed_double);
   }
 
  private:
   STATIC_ASSERT(KindBits::kSize == 4);
   class InobjectBits: public BitField<bool, 4, 1> {};
   class IndexBits: public BitField<int, 5, 11> {};
+  class UnboxedDoubleBits: public BitField<bool, 16, 1> {};
   virtual CodeStub::Major MajorKey() { return LoadField; }
   virtual int NotMissMinorKey() { return bit_field_; }
 
@@ -834,8 +846,9 @@ class LoadFieldStub: public HandlerStub {
 
 class KeyedLoadFieldStub: public LoadFieldStub {
  public:
-  KeyedLoadFieldStub(bool inobject, int index) : LoadFieldStub() {
-    Initialize(Code::KEYED_LOAD_IC, inobject, index);
+  KeyedLoadFieldStub(bool inobject, int index, Representation representation)
+      : LoadFieldStub() {
+    Initialize(Code::KEYED_LOAD_IC, inobject, index, representation);
   }
 
   virtual void InitializeInterfaceDescriptor(

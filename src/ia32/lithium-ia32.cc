@@ -2183,9 +2183,7 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
   LOperand* obj = UseRegisterAtStart(instr->object());
-  LOperand* temp = instr->representation().IsDouble() ? TempRegister() : NULL;
-  ASSERT(temp == NULL || FLAG_track_double_fields);
-  return DefineAsRegister(new(zone()) LLoadNamedField(obj, temp));
+  return DefineAsRegister(new(zone()) LLoadNamedField(obj));
 }
 
 
@@ -2438,6 +2436,13 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     val = UseRegisterOrConstant(instr->value());
   } else if (FLAG_track_fields && instr->field_representation().IsSmi()) {
     val = UseTempRegister(instr->value());
+  } else if (FLAG_track_double_fields &&
+             instr->field_representation().IsDouble()) {
+    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+      val = UseRegisterAtStart(instr->value());
+    } else {
+      val = UseX87TopOfStack(instr->value());
+    }
   } else {
     val = UseRegister(instr->value());
   }
@@ -2445,15 +2450,14 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   // We only need a scratch register if we have a write barrier or we
   // have a store into the properties array (not in-object-property).
   LOperand* temp = (!instr->is_in_object() || needs_write_barrier ||
-      needs_write_barrier_for_map) ? TempRegister() : NULL;
+                    needs_write_barrier_for_map) ? TempRegister() : NULL;
 
   // We need a temporary register for write barrier of the map field.
   LOperand* temp_map = needs_write_barrier_for_map ? TempRegister() : NULL;
 
   LStoreNamedField* result =
       new(zone()) LStoreNamedField(obj, val, temp, temp_map);
-  if ((FLAG_track_fields && instr->field_representation().IsSmi()) ||
-      (FLAG_track_double_fields && instr->field_representation().IsDouble())) {
+  if (FLAG_track_fields && instr->field_representation().IsSmi()) {
     return AssignEnvironment(result);
   }
   return result;

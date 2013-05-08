@@ -259,6 +259,8 @@ class LookupResult BASE_EMBEDDED {
 
   Representation representation() {
     ASSERT(IsFound());
+    ASSERT(!IsTransition());
+    ASSERT(details_.type() != NONEXISTENT);
     return details_.representation();
   }
 
@@ -346,7 +348,7 @@ class LookupResult BASE_EMBEDDED {
   Object* GetLazyValue() {
     switch (type()) {
       case FIELD:
-        return holder()->FastPropertyAt(GetFieldIndex().field_index());
+        return holder()->RawFastPropertyAt(GetFieldIndex().field_index());
       case NORMAL: {
         Object* value;
         value = holder()->property_dictionary()->ValueAt(GetDictionaryEntry());

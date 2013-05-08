@@ -283,6 +283,16 @@ bool Object::HasValidElements() {
   return IsFixedArray() || IsFixedDoubleArray() || IsExternalArray();
 }
 
+
+MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
+                                           Representation representation,
+                                           PretenureFlag tenure) {
+  if (!FLAG_track_double_fields) return this;
+  if (!representation.IsDouble()) return this;
+  return heap->AllocateHeapNumber(Number(), tenure);
+}
+
+
 StringShape::StringShape(String* str)
   : type_(str->map()->instance_type()) {
   set_valid();
@@ -1509,7 +1519,7 @@ MaybeObject* JSObject::ResetElements() {
 }
 
 
-MaybeObject* JSObject::TransitionToMap(Map* map) {
+MaybeObject* JSObject::AllocateStorageForMap(Map* map) {
   ASSERT(this->map()->inobject_properties() == map->inobject_properties());
   ElementsKind expected_kind = this->map()->elements_kind();
   if (map->elements_kind() != expected_kind) {
@@ -1699,10 +1709,17 @@ void JSObject::SetInternalField(int index, Smi* value) {
 }
 
 
+MaybeObject* JSObject::FastPropertyAt(Representation representation,
+                                      int index) {
+  Object* raw_value = RawFastPropertyAt(index);
+  return raw_value->AllocateNewStorageFor(GetHeap(), representation);
+}
+
+
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
-Object* JSObject::FastPropertyAt(int index) {
+Object* JSObject::RawFastPropertyAt(int index) {
   // Adjust for the number of properties stored in the object.
   index -= map()->inobject_properties();
   if (index < 0) {
@@ -1715,7 +1732,7 @@ Object* JSObject::FastPropertyAt(int index) {
 }
 
 
-Object* JSObject::FastPropertyAtPut(int index, Object* value) {
+void JSObject::FastPropertyAtPut(int index, Object* value) {
   // Adjust for the number of properties stored in the object.
   index -= map()->inobject_properties();
   if (index < 0) {
@@ -1726,7 +1743,6 @@ Object* JSObject::FastPropertyAtPut(int index, Object* value) {
     ASSERT(index < properties()->length());
     properties()->set(index, value);
   }
-  return value;
 }
 
 

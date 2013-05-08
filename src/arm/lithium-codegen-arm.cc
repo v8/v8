@@ -3057,31 +3057,20 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
+  int offset = instr->hydrogen()->offset();
   Register object = ToRegister(instr->object());
-  if (!FLAG_track_double_fields) {
-    ASSERT(!instr->hydrogen()->representation().IsDouble());
-  }
-  Register temp = instr->hydrogen()->representation().IsDouble()
-      ? scratch0() : ToRegister(instr->result());
-  if (instr->hydrogen()->is_in_object()) {
-    __ ldr(temp, FieldMemOperand(object, instr->hydrogen()->offset()));
-  } else {
-    __ ldr(temp, FieldMemOperand(object, JSObject::kPropertiesOffset));
-    __ ldr(temp, FieldMemOperand(temp, instr->hydrogen()->offset()));
+  if (instr->hydrogen()->representation().IsDouble()) {
+    DwVfpRegister result = ToDoubleRegister(instr->result());
+    __ vldr(result, FieldMemOperand(object, offset));
+    return;
   }
 
-  if (instr->hydrogen()->representation().IsDouble()) {
-    Label load_from_heap_number, done;
-    DwVfpRegister result = ToDoubleRegister(instr->result());
-    SwVfpRegister flt_scratch = double_scratch0().low();
-    __ JumpIfNotSmi(temp, &load_from_heap_number);
-    __ SmiUntag(temp);
-    __ vmov(flt_scratch, temp);
-    __ vcvt_f64_s32(result, flt_scratch);
-    __ b(&done);
-    __ bind(&load_from_heap_number);
-    __ vldr(result, FieldMemOperand(temp, HeapNumber::kValueOffset));
-    __ bind(&done);
+  Register result = ToRegister(instr->result());
+  if (instr->hydrogen()->is_in_object()) {
+    __ ldr(result, FieldMemOperand(object, offset));
+  } else {
+    __ ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
+    __ ldr(result, FieldMemOperand(result, offset));
   }
 }
 
@@ -4230,29 +4219,26 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Representation representation = instr->representation();
 
   Register object = ToRegister(instr->object());
-  Register value = ToRegister(instr->value());
-  ASSERT(!object.is(value));
   Register scratch = scratch0();
   int offset = instr->offset();
 
+  Handle<Map> transition = instr->transition();
+
   if (FLAG_track_fields && representation.IsSmi()) {
+    Register value = ToRegister(instr->value());
     __ SmiTag(value, value, SetCC);
     if (!instr->hydrogen()->value()->range()->IsInSmiRange()) {
       DeoptimizeIf(vs, instr->environment());
     }
-  } else if (FLAG_track_double_fields && representation.IsDouble() &&
-             !instr->hydrogen()->value()->type().IsSmi() &&
-             !instr->hydrogen()->value()->type().IsHeapNumber()) {
-    Label do_store;
-    __ JumpIfSmi(value, &do_store);
-    Handle<Map> map(isolate()->factory()->heap_number_map());
-
-    __ ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
-    DoCheckMapCommon(scratch, map, REQUIRE_EXACT_MAP, instr->environment());
-    __ bind(&do_store);
+  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+    ASSERT(transition.is_null());
+    ASSERT(instr->is_in_object());
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    DwVfpRegister value = ToDoubleRegister(instr->value());
+    __ vstr(value, FieldMemOperand(object, offset));
+    return;
   }
 
-  Handle<Map> transition = instr->transition();
   if (!transition.is_null()) {
     if (transition->CanBeDeprecated()) {
       transition_maps_.Add(transition, info()->zone());
@@ -4274,6 +4260,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   // Do the store.
+  Register value = ToRegister(instr->value());
+  ASSERT(!object.is(value));
   HType type = instr->hydrogen()->value()->type();
   SmiCheck check_needed =
       type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
@@ -5562,7 +5550,8 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
 
   // Pick the right runtime function or stub to call.
   int properties_count = instr->hydrogen()->constant_properties_length() / 2;
-  if (instr->hydrogen()->depth() > 1) {
+  if ((FLAG_track_double_fields && instr->hydrogen()->may_store_doubles()) ||
+      instr->hydrogen()->depth() > 1) {
     __ Push(r3, r2, r1, r0);
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
   } else if (flags != ObjectLiteral::kFastElements ||

@@ -2403,7 +2403,7 @@ TEST(Regress2211) {
     // Check size.
     DescriptorArray* descriptors = internal_obj->map()->instance_descriptors();
     ObjectHashTable* hashtable = ObjectHashTable::cast(
-        internal_obj->FastPropertyAt(descriptors->GetFieldIndex(0)));
+        internal_obj->RawFastPropertyAt(descriptors->GetFieldIndex(0)));
     // HashTable header (5) and 4 initial entries (8).
     CHECK_LE(hashtable->SizeFor(hashtable->length()), 13 * kPointerSize);
   }
