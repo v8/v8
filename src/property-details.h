@@ -108,6 +108,10 @@ class Representation {
         (!IsDouble() && !other.IsDouble());
   }
 
+  bool IsCompatibleForStore(const Representation& other) const {
+    return Equals(other);
+  }
+
   bool is_more_general_than(const Representation& other) const {
     ASSERT(kind_ != kExternal);
     ASSERT(other.kind_ != kExternal);

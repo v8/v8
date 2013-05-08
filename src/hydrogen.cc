@@ -7218,6 +7218,54 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
     HValue* value,
     SmallMapList* types,
     Handle<String> name) {
+  // Use monomorphic store if property lookup results in the same field index
+  // and compatible representation for all maps. Requires special map check on
+  // the set of all handled maps.
+  if (types->length() <= kMaxStorePolymorphism) {
+    int previous_field_offset = 0;
+    bool previous_field_is_in_object = false;
+    Representation previous_representation = Representation::None();
+
+    Handle<Map> map;
+    LookupResult lookup(isolate());
+    int count;
+    for (count = 0; count < types->length(); ++count) {
+      map = types->at(count);
+      if (!ComputeLoadStoreField(map, name, &lookup, false) ||
+          lookup.IsTransition()) {
+        break;
+      }
+      Representation representation = lookup.representation();
+      int index = ComputeLoadStoreFieldIndex(map, &lookup);
+      bool is_in_object = index < 0;
+      int offset = index * kPointerSize;
+      if (index < 0) {
+        offset += map->instance_size();
+      } else {
+        offset += FixedArray::kHeaderSize;
+      }
+      if (count == 0) {
+        previous_field_offset = offset;
+        previous_field_is_in_object = is_in_object;
+        previous_representation = representation;
+      } else if (offset != previous_field_offset ||
+                 is_in_object != previous_field_is_in_object ||
+                 !representation.IsCompatibleForStore(
+                     previous_representation)) {
+        break;
+      }
+    }
+
+    if (types->length() == count) {
+      AddInstruction(new(zone()) HCheckNonSmi(object));
+      AddInstruction(HCheckMaps::New(object, types, zone()));
+      HInstruction* instr = BuildStoreNamedField(
+          object, name, value, map, &lookup);
+      instr->set_position(expr->position());
+      return ast_context()->ReturnInstruction(instr, expr->id());
+    }
+  }
+
   // TODO(ager): We should recognize when the prototype chains for different
   // maps are identical. In that case we can avoid repeatedly generating the
   // same prototype map checks.
