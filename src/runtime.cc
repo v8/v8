@@ -2577,6 +2577,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
   generator->set_receiver(frame->receiver());
   generator->set_continuation(0);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
+  generator->set_stack_handler_index(-1);
 
   return generator;
 }
@@ -2603,23 +2604,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
   if (operands_count == 0) {
     ASSERT_EQ(generator_object->operand_stack(),
               isolate->heap()->empty_fixed_array());
+    ASSERT_EQ(generator_object->stack_handler_index(), -1);
     // If there are no operands on the stack, there shouldn't be a handler
     // active either.
     ASSERT(!frame->HasHandler());
   } else {
-    if (frame->HasHandler()) {
-      // TODO(wingo): Unwind the stack handlers.
-      UNIMPLEMENTED();
-    }
-
-    FixedArray* operand_stack;
+    int stack_handler_index = -1;
     MaybeObject* alloc = isolate->heap()->AllocateFixedArray(operands_count);
+    FixedArray* operand_stack;
     if (!alloc->To(&operand_stack)) return alloc;
-
-    for (int i = 0; i < operands_count; i++) {
-      operand_stack->set(i, frame->GetOperand(i));
-    }
+    frame->SaveOperandStack(operand_stack, &stack_handler_index);
     generator_object->set_operand_stack(operand_stack);
+    generator_object->set_stack_handler_index(stack_handler_index);
   }
 
   // Set continuation down here to avoid side effects if the operand stack
@@ -2669,14 +2665,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   FixedArray* operand_stack = generator_object->operand_stack();
   int operands_count = operand_stack->length();
   if (operands_count != 0) {
-    // TODO(wingo): Rewind stack handlers.  However until
-    // SuspendJSGeneratorObject unwinds them, we won't see frames with stack
-    // handlers here.
-    for (int i = 0; i < operands_count; i++) {
-      ASSERT_EQ(frame->GetOperand(i), isolate->heap()->the_hole_value());
-      Memory::Object_at(frame->GetOperandSlot(i)) = operand_stack->get(i);
-    }
+    frame->RestoreOperandStack(operand_stack,
+                               generator_object->stack_handler_index());
     generator_object->set_operand_stack(isolate->heap()->empty_fixed_array());
+    generator_object->set_stack_handler_index(-1);
   }
 
   JSGeneratorObject::ResumeMode resume_mode =

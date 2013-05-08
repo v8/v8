@@ -6410,8 +6410,13 @@ class JSGeneratorObject: public JSObject {
   inline int continuation();
   inline void set_continuation(int continuation);
 
-  // [operands]: Saved operand stack.
+  // [operand_stack]: Saved operand stack.
   DECL_ACCESSORS(operand_stack, FixedArray)
+
+  // [stack_handler_index]: Index of first stack handler in operand_stack, or -1
+  // if the captured activation had no stack handler.
+  inline int stack_handler_index();
+  inline void set_stack_handler_index(int stack_handler_index);
 
   // Casting.
   static inline JSGeneratorObject* cast(Object* obj);
@@ -6430,7 +6435,9 @@ class JSGeneratorObject: public JSObject {
   static const int kReceiverOffset = kContextOffset + kPointerSize;
   static const int kContinuationOffset = kReceiverOffset + kPointerSize;
   static const int kOperandStackOffset = kContinuationOffset + kPointerSize;
-  static const int kSize = kOperandStackOffset + kPointerSize;
+  static const int kStackHandlerIndexOffset =
+      kOperandStackOffset + kPointerSize;
+  static const int kSize = kStackHandlerIndexOffset + kPointerSize;
 
   // Resume mode, for use by runtime functions.
   enum ResumeMode { SEND, THROW };

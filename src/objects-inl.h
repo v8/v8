@@ -5108,6 +5108,7 @@ ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
 ACCESSORS(JSGeneratorObject, receiver, Object, kReceiverOffset)
 SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
 ACCESSORS(JSGeneratorObject, operand_stack, FixedArray, kOperandStackOffset)
+SMI_ACCESSORS(JSGeneratorObject, stack_handler_index, kStackHandlerIndexOffset)
 
 
 JSGeneratorObject* JSGeneratorObject::cast(Object* obj) {

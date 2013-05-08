@@ -98,6 +98,12 @@ inline StackHandler::Kind StackHandler::kind() const {
 }
 
 
+inline unsigned StackHandler::index() const {
+  const int offset = StackHandlerConstants::kStateOffset;
+  return IndexField::decode(Memory::unsigned_at(address() + offset));
+}
+
+
 inline Object** StackHandler::context_address() const {
   const int offset = StackHandlerConstants::kContextOffset;
   return reinterpret_cast<Object**>(address() + offset);
@@ -216,8 +222,9 @@ Object* JavaScriptFrame::GetParameter(int index) const {
 inline Address JavaScriptFrame::GetOperandSlot(int index) const {
   Address base = fp() + JavaScriptFrameConstants::kLocal0Offset;
   ASSERT(IsAddressAligned(base, kPointerSize));
-  ASSERT(type() == JAVA_SCRIPT);
-  ASSERT(index < ComputeOperandsCount());
+  ASSERT_EQ(type(), JAVA_SCRIPT);
+  ASSERT_LT(index, ComputeOperandsCount());
+  ASSERT_LE(0, index);
   // Operand stack grows down.
   return base - index * kPointerSize;
 }
