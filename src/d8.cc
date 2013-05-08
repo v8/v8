@@ -2175,7 +2175,7 @@ int Shell::Main(int argc, char* argv[]) {
   {
     Initialize(isolate);
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
-    vTune::InitilizeVtuneForV8();
+    vTune::InitializeVtuneForV8();
 #endif
     PerIsolateData data(isolate);
     InitializeDebugger(isolate);

@@ -267,7 +267,7 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
 
 }  // namespace internal
 
-void InitilizeVtuneForV8() {
+void InitializeVtuneForV8() {
   if (v8::V8::Initialize()) {
     v8::V8::SetFlagsFromString("--nocompact_code_space",
                               (int)strlen("--nocompact_code_space"));
