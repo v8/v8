@@ -6183,6 +6183,8 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 
     set_transitions(transitions);
     result->SetBackPointer(this);
+  } else {
+    descriptors->InitializeRepresentations(Representation::Tagged());
   }
 
   return result;
@@ -6220,6 +6222,8 @@ MaybeObject* Map::CopyInstallDescriptors(int new_descriptor,
 
     set_transitions(transitions);
     result->SetBackPointer(this);
+  } else {
+    descriptors->InitializeRepresentations(Representation::Tagged());
   }
 
   return result;
@@ -6293,8 +6297,6 @@ MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
   MaybeObject* maybe_descriptors =
       descriptors->CopyUpTo(number_of_own_descriptors);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
-
-  new_descriptors->InitializeRepresentations(Representation::Tagged());
 
   return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION, 0);
 }
