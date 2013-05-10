@@ -934,7 +934,6 @@ class HGraphBuilder {
       : info_(info),
         graph_(NULL),
         current_block_(NULL),
-        no_side_effects_scope_environment_delta_(0),
         no_side_effects_scope_count_(0) {}
   virtual ~HGraphBuilder() {}
 
@@ -966,31 +965,11 @@ class HGraphBuilder {
   HReturn* AddReturn(HValue* value);
 
   void IncrementInNoSideEffectsScope() {
-    if (no_side_effects_scope_count_ == 0) {
-      no_side_effects_scope_environment_delta_ =
-          environment()->push_count() - environment()->pop_count();
-    }
     no_side_effects_scope_count_++;
   }
 
   void DecrementInNoSideEffectsScope() {
     no_side_effects_scope_count_--;
-    if (no_side_effects_scope_count_ == 0) {
-      // No-side-effects scope should not change push-pop delta.
-      ASSERT_EQ(no_side_effects_scope_environment_delta_,
-                environment()->push_count() - environment()->pop_count());
-      no_side_effects_scope_environment_delta_ = 0;
-    }
-  }
-
-  bool SafeToAddPhiInNoSideEffectsScope() {
-    // Pops and pushes after a simulate are not visible in LChunkBuilder.
-    // If the number of pops is greater than the number pushes then the
-    // environment in HGraphBuilder is shorter then the corresponding
-    // environment in LChunkBuilder. This causes non-observable phis
-    // to be pushed in the environment, which breaks deoptimization.
-    return no_side_effects_scope_count_ == 0 ||
-           no_side_effects_scope_environment_delta_ >= 0;
   }
 
  protected:
@@ -1353,7 +1332,6 @@ class HGraphBuilder {
   CompilationInfo* info_;
   HGraph* graph_;
   HBasicBlock* current_block_;
-  int no_side_effects_scope_environment_delta_;
   int no_side_effects_scope_count_;
 };
 
