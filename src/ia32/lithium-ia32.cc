@@ -1538,7 +1538,8 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
     }
 
     return (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
-            instr->CheckFlag(HValue::kCanBeDivByZero))
+            instr->CheckFlag(HValue::kCanBeDivByZero) ||
+            instr->CheckFlag(HValue::kCanOverflow))
         ? AssignEnvironment(result)
         : result;
   } else if (instr->representation().IsTagged()) {
