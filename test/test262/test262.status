@@ -41,10 +41,6 @@ def FAIL_OK = FAIL, OKAY
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=2413
 15.5.4.9_CE: FAIL
 
-# Missing 'that' parameter should be treated as an implicit 'undefined' when
-# String.prototype.localeCompare is called.
-15.5.4.9_3: FAIL
-
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
 # This tests precision of Math functions.  The implementation for those
