@@ -2588,6 +2588,7 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
       // during GC. Its descriptor array is too large, but it will be
       // overwritten during retry anyway.
       Handle<Map>(new_map);
+      return maybe_map;
     }
   }
 
