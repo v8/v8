@@ -1775,13 +1775,11 @@ function NewFunction(arg1) {  // length == 1
   var body = (n > 0) ? ToString(%_Arguments(n - 1)) : '';
   var source = '(function(' + p + ') {\n' + body + '\n})';
 
-  // The call to SetNewFunctionAttributes will ensure the prototype
-  // property of the resulting function is enumerable (ECMA262, 15.3.5.2).
   var global_receiver = %GlobalReceiver(global);
   var f = %_CallFunction(global_receiver, %CompileString(source, true));
 
   %FunctionMarkNameShouldPrintAsAnonymous(f);
-  return %SetNewFunctionAttributes(f);
+  return f;
 }
 
 
