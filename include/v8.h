@@ -695,6 +695,16 @@ template <class T> class Persistent // NOLINT
    */
   V8_INLINE(void Reset(Isolate* isolate, const Handle<T>& other));
 
+  /**
+   * Returns the underlying raw pointer and clears the handle. The caller is
+   * responsible of eventually destroying the underlying object (by creating a
+   * Persistent handle which points to it and Disposing it). In the future,
+   * destructing a Persistent will also Dispose it. With this function, the
+   * embedder can let the Persistent go out of scope without it getting
+   * disposed.
+   */
+  V8_INLINE(T* ClearAndLeak());
+
 #ifndef V8_USE_UNSAFE_HANDLES
 
 #ifndef V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
@@ -5383,6 +5393,7 @@ void Persistent<T>::SetWrapperClassId(uint16_t class_id) {
   SetWrapperClassId(Isolate::GetCurrent(), class_id);
 }
 
+
 template <class T>
 void Persistent<T>::Reset(Isolate* isolate, const Handle<T>& other) {
   Dispose(isolate);
@@ -5398,6 +5409,21 @@ void Persistent<T>::Reset(Isolate* isolate, const Handle<T>& other) {
       V8::GlobalizeReference(reinterpret_cast<internal::Isolate*>(isolate), p));
 #endif
 }
+
+
+template <class T>
+T* Persistent<T>::ClearAndLeak() {
+  T* old;
+#ifdef V8_USE_UNSAFE_HANDLES
+  old = **this;
+  *this = Persistent<T>();
+#else
+  old = val_;
+  val_ = NULL;
+#endif
+  return old;
+}
+
 
 template <class T>
 void Persistent<T>::SetWrapperClassId(Isolate* isolate, uint16_t class_id) {

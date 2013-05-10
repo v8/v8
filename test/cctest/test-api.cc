@@ -2539,6 +2539,30 @@ THREADED_TEST(ResettingGlobalHandleToEmpty) {
 }
 
 
+THREADED_TEST(ClearAndLeakGlobal) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::internal::GlobalHandles* global_handles = NULL;
+  int initial_handle_count = 0;
+  v8::Persistent<String> global;
+  {
+    v8::HandleScope scope(isolate);
+    Local<String> str = v8_str("str");
+    global_handles =
+        reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
+    initial_handle_count = global_handles->NumberOfGlobalHandles();
+    global = v8::Persistent<String>::New(isolate, str);
+  }
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count + 1);
+  String* str = global.ClearAndLeak();
+  CHECK(global.IsEmpty());
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count + 1);
+  v8::Persistent<String>* new_global =
+      reinterpret_cast<v8::Persistent<String>*>(&str);
+  new_global->Dispose();
+  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count);
+}
+
+
 THREADED_TEST(LocalHandle) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
