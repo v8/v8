@@ -1678,6 +1678,7 @@ Range* HChange::InferRange(Zone* zone) {
       !value()->CheckFlag(HInstruction::kUint32) &&
       input_range != NULL && input_range->IsInSmiRange()) {
     set_type(HType::Smi());
+    ClearGVNFlag(kChangesNewSpacePromotion);
   }
   Range* result = (input_range != NULL)
       ? input_range->Copy(zone)
