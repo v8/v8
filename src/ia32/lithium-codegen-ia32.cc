@@ -6069,67 +6069,6 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
 }
 
 
-void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
-  ASSERT(ToRegister(instr->context()).is(esi));
-  Handle<FixedArray> literals = instr->hydrogen()->literals();
-  ElementsKind boilerplate_elements_kind =
-      instr->hydrogen()->boilerplate_elements_kind();
-  AllocationSiteMode allocation_site_mode =
-      instr->hydrogen()->allocation_site_mode();
-
-  // Deopt if the array literal boilerplate ElementsKind is of a type different
-  // than the expected one. The check isn't necessary if the boilerplate has
-  // already been converted to TERMINAL_FAST_ELEMENTS_KIND.
-  if (CanTransitionToMoreGeneralFastElementsKind(
-          boilerplate_elements_kind, true)) {
-    __ LoadHeapObject(eax, instr->hydrogen()->boilerplate_object());
-    __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-    // Load the map's "bit field 2". We only need the first byte,
-    // but the following masking takes care of that anyway.
-    __ mov(ebx, FieldOperand(ebx, Map::kBitField2Offset));
-    // Retrieve elements_kind from bit field 2.
-    __ and_(ebx, Map::kElementsKindMask);
-    __ cmp(ebx, boilerplate_elements_kind << Map::kElementsKindShift);
-    DeoptimizeIf(not_equal, instr->environment());
-  }
-
-  // Set up the parameters to the stub/runtime call and pick the right
-  // runtime function or stub to call. Boilerplate already exists,
-  // constant elements are never accessed, pass an empty fixed array.
-  int length = instr->hydrogen()->length();
-  if (instr->hydrogen()->IsCopyOnWrite()) {
-    ASSERT(instr->hydrogen()->depth() == 1);
-    __ LoadHeapObject(eax, literals);
-    __ mov(ebx, Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
-    __ mov(ecx, Immediate(isolate()->factory()->empty_fixed_array()));
-    FastCloneShallowArrayStub::Mode mode =
-        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS;
-    FastCloneShallowArrayStub stub(mode, DONT_TRACK_ALLOCATION_SITE, length);
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  } else if (instr->hydrogen()->depth() > 1) {
-    __ PushHeapObject(literals);
-    __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
-    __ push(Immediate(isolate()->factory()->empty_fixed_array()));
-    CallRuntime(Runtime::kCreateArrayLiteral, 3, instr);
-  } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ PushHeapObject(literals);
-    __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
-    __ push(Immediate(isolate()->factory()->empty_fixed_array()));
-    CallRuntime(Runtime::kCreateArrayLiteralShallow, 3, instr);
-  } else {
-    __ LoadHeapObject(eax, literals);
-    __ mov(ebx, Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
-    __ mov(ecx, Immediate(isolate()->factory()->empty_fixed_array()));
-    FastCloneShallowArrayStub::Mode mode =
-        boilerplate_elements_kind == FAST_DOUBLE_ELEMENTS
-        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
-    FastCloneShallowArrayStub stub(mode, allocation_site_mode, length);
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
-}
-
-
 void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
   ASSERT(ToRegister(instr->value()).is(eax));
   __ push(eax);

@@ -6925,14 +6925,46 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                                pointer_size,
                                mode);
   } else {
+    NoObservableSideEffectsScope no_effects(this);
+    // Boilerplate already exists and constant elements are never accessed,
+    // pass an empty fixed array to the runtime function instead.
+    Handle<FixedArray> constants = isolate()->factory()->empty_fixed_array();
+    int literal_index = expr->literal_index();
+
+    // TODO(mstarzinger): The following check and deopt is actually obsolete
+    // but test cases for the tick processor fails because profile differs.
+
+    // Deopt if the array literal boilerplate ElementsKind is of a type
+    // different than the expected one. The check isn't necessary if the
+    // boilerplate has already been converted to TERMINAL_FAST_ELEMENTS_KIND.
+    if (CanTransitionToMoreGeneralFastElementsKind(
+            boilerplate_elements_kind, true)) {
+      IfBuilder builder(this);
+      HValue* boilerplate = AddInstruction(new(zone())
+          HConstant(original_boilerplate_object, Representation::Tagged()));
+      HValue* elements_kind = AddInstruction(new(zone())
+          HElementsKind(boilerplate));
+      HValue* expected_kind = AddInstruction(new(zone())
+          HConstant(boilerplate_elements_kind, Representation::Integer32()));
+      builder.IfCompare(elements_kind, expected_kind, Token::EQ);
+      builder.Then();
+      builder.ElseDeopt();
+    }
+
+    AddInstruction(new(zone()) HPushArgument(AddInstruction(
+        new(zone()) HConstant(literals, Representation::Tagged()))));
+    AddInstruction(new(zone()) HPushArgument(AddInstruction(
+        new(zone()) HConstant(literal_index, Representation::Tagged()))));
+    AddInstruction(new(zone()) HPushArgument(AddInstruction(
+        new(zone()) HConstant(constants, Representation::Tagged()))));
+
+    Runtime::FunctionId function_id = (expr->depth() > 1)
+        ? Runtime::kCreateArrayLiteral : Runtime::kCreateArrayLiteralShallow;
     literal = AddInstruction(
-                  new(zone()) HArrayLiteral(context,
-                                            original_boilerplate_object,
-                                            literals,
-                                            length,
-                                            expr->literal_index(),
-                                            expr->depth(),
-                                            mode));
+        new(zone()) HCallRuntime(context,
+                                 isolate()->factory()->empty_string(),
+                                 Runtime::FunctionForId(function_id),
+                                 3));
   }
 
   // The array is expected in the bailout environment during computation

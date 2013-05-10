@@ -5152,66 +5152,6 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
 }
 
 
-void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
-  Handle<FixedArray> literals = instr->hydrogen()->literals();
-  ElementsKind boilerplate_elements_kind =
-      instr->hydrogen()->boilerplate_elements_kind();
-  AllocationSiteMode allocation_site_mode =
-      instr->hydrogen()->allocation_site_mode();
-
-  // Deopt if the array literal boilerplate ElementsKind is of a type different
-  // than the expected one. The check isn't necessary if the boilerplate has
-  // already been converted to TERMINAL_FAST_ELEMENTS_KIND.
-  if (CanTransitionToMoreGeneralFastElementsKind(
-          boilerplate_elements_kind, true)) {
-    __ LoadHeapObject(rax, instr->hydrogen()->boilerplate_object());
-    __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-    // Load the map's "bit field 2".
-    __ movb(rbx, FieldOperand(rbx, Map::kBitField2Offset));
-    // Retrieve elements_kind from bit field 2.
-    __ and_(rbx, Immediate(Map::kElementsKindMask));
-    __ cmpb(rbx, Immediate(boilerplate_elements_kind <<
-                           Map::kElementsKindShift));
-    DeoptimizeIf(not_equal, instr->environment());
-  }
-
-  // Set up the parameters to the stub/runtime call and pick the right
-  // runtime function or stub to call. Boilerplate already exists,
-  // constant elements are never accessed, pass an empty fixed array.
-  int length = instr->hydrogen()->length();
-  if (instr->hydrogen()->IsCopyOnWrite()) {
-    ASSERT(instr->hydrogen()->depth() == 1);
-    __ LoadHeapObject(rax, literals);
-    __ Move(rbx, Smi::FromInt(instr->hydrogen()->literal_index()));
-    __ Move(rcx, isolate()->factory()->empty_fixed_array());
-    FastCloneShallowArrayStub::Mode mode =
-        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS;
-    FastCloneShallowArrayStub stub(mode, DONT_TRACK_ALLOCATION_SITE, length);
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  } else if (instr->hydrogen()->depth() > 1) {
-    __ PushHeapObject(literals);
-    __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
-    __ Push(isolate()->factory()->empty_fixed_array());
-    CallRuntime(Runtime::kCreateArrayLiteral, 3, instr);
-  } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
-    __ PushHeapObject(literals);
-    __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
-    __ Push(isolate()->factory()->empty_fixed_array());
-    CallRuntime(Runtime::kCreateArrayLiteralShallow, 3, instr);
-  } else {
-    __ LoadHeapObject(rax, literals);
-    __ Move(rbx, Smi::FromInt(instr->hydrogen()->literal_index()));
-    __ Move(rcx, isolate()->factory()->empty_fixed_array());
-    FastCloneShallowArrayStub::Mode mode =
-        boilerplate_elements_kind == FAST_DOUBLE_ELEMENTS
-        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
-    FastCloneShallowArrayStub stub(mode, allocation_site_mode, length);
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-  }
-}
-
-
 void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
   ASSERT(ToRegister(instr->value()).is(rax));
   __ push(rax);

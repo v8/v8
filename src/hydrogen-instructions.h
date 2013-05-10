@@ -70,7 +70,6 @@ class LChunkBuilder;
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
   V(ArgumentsObject)                           \
-  V(ArrayLiteral)                              \
   V(Bitwise)                                   \
   V(BitNot)                                    \
   V(BlockEntry)                                \
@@ -6077,56 +6076,6 @@ class HMaterializedLiteral: public HTemplateInstruction<V> {
   int literal_index_;
   int depth_;
   AllocationSiteMode allocation_site_mode_;
-};
-
-
-class HArrayLiteral: public HMaterializedLiteral<1> {
- public:
-  HArrayLiteral(HValue* context,
-                Handle<HeapObject> boilerplate_object,
-                Handle<FixedArray> literals,
-                int length,
-                int literal_index,
-                int depth,
-                AllocationSiteMode mode)
-      : HMaterializedLiteral<1>(literal_index, depth, mode),
-        length_(length),
-        boilerplate_object_(boilerplate_object),
-        literals_(literals) {
-    SetOperandAt(0, context);
-    SetGVNFlag(kChangesNewSpacePromotion);
-
-    boilerplate_elements_kind_ = boilerplate_object_->IsJSObject()
-        ? Handle<JSObject>::cast(boilerplate_object_)->GetElementsKind()
-        : TERMINAL_FAST_ELEMENTS_KIND;
-
-    is_copy_on_write_ = boilerplate_object_->IsJSObject() &&
-        (Handle<JSObject>::cast(boilerplate_object_)->elements()->map() ==
-         HEAP->fixed_cow_array_map());
-  }
-
-  HValue* context() { return OperandAt(0); }
-  ElementsKind boilerplate_elements_kind() const {
-    return boilerplate_elements_kind_;
-  }
-  Handle<HeapObject> boilerplate_object() const { return boilerplate_object_; }
-  Handle<FixedArray> literals() const { return literals_; }
-  int length() const { return length_; }
-  bool IsCopyOnWrite() const { return is_copy_on_write_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(ArrayLiteral)
-
- private:
-  int length_;
-  Handle<HeapObject> boilerplate_object_;
-  Handle<FixedArray> literals_;
-  ElementsKind boilerplate_elements_kind_;
-  bool is_copy_on_write_;
 };
 
 

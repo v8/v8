@@ -3008,11 +3008,6 @@ void HAllocate::PrintDataTo(StringStream* stream) {
 }
 
 
-HType HArrayLiteral::CalculateInferredType() {
-  return HType::JSArray();
-}
-
-
 HType HRegExpLiteral::CalculateInferredType() {
   return HType::JSObject();
 }

@@ -2398,11 +2398,6 @@ LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
-  return MarkAsCall(DefineFixed(new(zone()) LArrayLiteral, r0), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
   return MarkAsCall(DefineFixed(new(zone()) LRegExpLiteral, r0), instr);
 }
