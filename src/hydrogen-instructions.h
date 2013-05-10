@@ -150,7 +150,6 @@ class LChunkBuilder;
   V(Mod)                                       \
   V(Mul)                                       \
   V(NumericConstraint)                         \
-  V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
   V(OuterContext)                              \
   V(Parameter)                                 \
@@ -6131,56 +6130,6 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
 };
 
 
-class HObjectLiteral: public HMaterializedLiteral<1> {
- public:
-  HObjectLiteral(HValue* context,
-                 Handle<FixedArray> constant_properties,
-                 Handle<FixedArray> literals,
-                 bool fast_elements,
-                 int literal_index,
-                 int depth,
-                 bool may_store_doubles,
-                 bool has_function)
-      : HMaterializedLiteral<1>(literal_index, depth),
-        constant_properties_(constant_properties),
-        constant_properties_length_(constant_properties->length()),
-        literals_(literals),
-        fast_elements_(fast_elements),
-        may_store_doubles_(may_store_doubles),
-        has_function_(has_function) {
-    SetOperandAt(0, context);
-    SetGVNFlag(kChangesNewSpacePromotion);
-  }
-
-  HValue* context() { return OperandAt(0); }
-  Handle<FixedArray> constant_properties() const {
-    return constant_properties_;
-  }
-  int constant_properties_length() const {
-    return constant_properties_length_;
-  }
-  Handle<FixedArray> literals() const { return literals_; }
-  bool fast_elements() const { return fast_elements_; }
-  bool may_store_doubles() const { return may_store_doubles_; }
-  bool has_function() const { return has_function_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral)
-
- private:
-  Handle<FixedArray> constant_properties_;
-  int constant_properties_length_;
-  Handle<FixedArray> literals_;
-  bool fast_elements_ : 1;
-  bool may_store_doubles_ : 1;
-  bool has_function_ : 1;
-};
-
-
 class HRegExpLiteral: public HMaterializedLiteral<1> {
  public:
   HRegExpLiteral(HValue* context,
@@ -6301,8 +6250,13 @@ class HToFastProperties: public HUnaryOperation {
   explicit HToFastProperties(HValue* value) : HUnaryOperation(value) {
     // This instruction is not marked as having side effects, but
     // changes the map of the input operand. Use it only when creating
-    // object literals.
-    ASSERT(value->IsObjectLiteral());
+    // object literals via a runtime call.
+    ASSERT(value->IsCallRuntime());
+#ifdef DEBUG
+    const Runtime::Function* function = HCallRuntime::cast(value)->function();
+    ASSERT(function->function_id == Runtime::kCreateObjectLiteral ||
+           function->function_id == Runtime::kCreateObjectLiteralShallow);
+#endif
     set_representation(Representation::Tagged());
   }
 

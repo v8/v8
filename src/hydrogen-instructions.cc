@@ -3013,11 +3013,6 @@ HType HArrayLiteral::CalculateInferredType() {
 }
 
 
-HType HObjectLiteral::CalculateInferredType() {
-  return HType::JSObject();
-}
-
-
 HType HRegExpLiteral::CalculateInferredType() {
   return HType::JSObject();
 }
