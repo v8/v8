@@ -117,7 +117,6 @@ class LCodeGen;
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
-  V(LoadElements)                               \
   V(LoadExternalArrayPointer)                   \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
@@ -1370,6 +1369,11 @@ class LAddI: public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
+  static bool UseLea(HAdd* add) {
+    return !add->CheckFlag(HValue::kCanOverflow) &&
+        add->BetterLeftOperand()->UseCount() > 1;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
 };
@@ -1490,15 +1494,18 @@ class LReturn: public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LLoadNamedField: public LTemplateInstruction<1, 1, 1> {
+class LLoadNamedField: public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LLoadNamedField(LOperand* object, LOperand* temp) {
+  explicit LLoadNamedField(LOperand* object) {
     inputs_[0] = object;
-    temps_[0] = temp;
+  }
+
+  virtual bool ClobbersDoubleRegisters() const {
+    return !CpuFeatures::IsSupported(SSE2) &&
+        !hydrogen()->representation().IsDouble();
   }
 
   LOperand* object() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field")
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedField)
@@ -1549,18 +1556,6 @@ class LLoadFunctionPrototype: public LTemplateInstruction<1, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadFunctionPrototype, "load-function-prototype")
   DECLARE_HYDROGEN_ACCESSOR(LoadFunctionPrototype)
-};
-
-
-class LLoadElements: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LLoadElements(LOperand* object) {
-    inputs_[0] = object;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadElements, "load-elements")
 };
 
 

@@ -31,70 +31,20 @@
 // in runtime.js:
 // var $Array = global.Array;
 
-var $ArrayBuffer = global.ArrayBuffer;
 
-// -------------------------------------------------------------------
-
-function ArrayBufferConstructor(byteLength) { // length = 1
-  if (%_IsConstructCall()) {
-    var l = TO_POSITIVE_INTEGER(byteLength);
-    %ArrayBufferInitialize(this, l);
-  } else {
-    return new $ArrayBuffer(byteLength);
-  }
-}
-
-function ArrayBufferGetByteLength() {
-  if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['ArrayBuffer.prototype.byteLength', this]);
-  }
-  return %ArrayBufferGetByteLength(this);
-}
-
-// ES6 Draft 15.13.5.5.3
-function ArrayBufferSlice(start, end) {
-  if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['ArrayBuffer.prototype.slice', this]);
-  }
-
-  var relativeStart = TO_INTEGER(start);
-  var first;
-  if (relativeStart < 0) {
-    first = MathMax(this.byteLength + relativeStart, 0);
-  } else {
-    first = MathMin(relativeStart, this.byteLength);
-  }
-  var relativeEnd = IS_UNDEFINED(end) ? this.byteLength : TO_INTEGER(end);
-  var fin;
-  if (relativeEnd < 0) {
-    fin = MathMax(this.byteLength + relativeEnd, 0);
-  } else {
-    fin = MathMin(relativeEnd, this.byteLength);
-  }
-
-  var newLen = fin - first;
-  // TODO(dslomov): implement inheritance
-  var result = new $ArrayBuffer(newLen);
-
-  %ArrayBufferSliceImpl(this, result, first);
-  return result;
-}
 
 // --------------- Typed Arrays ---------------------
 
 function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
   function ConstructByArrayBuffer(obj, buffer, byteOffset, length) {
-    var offset = IS_UNDEFINED(byteOffset)
-      ? 0 : offset = TO_POSITIVE_INTEGER(byteOffset);
+    var offset = IS_UNDEFINED(byteOffset) ? 0 : TO_POSITIVE_INTEGER(byteOffset);
 
     if (offset % elementSize !== 0) {
       throw MakeRangeError("invalid_typed_array_alignment",
           "start offset", name, elementSize);
     }
     var bufferByteLength = %ArrayBufferGetByteLength(buffer);
-    if (offset >= bufferByteLength) {
+    if (offset > bufferByteLength) {
       throw MakeRangeError("invalid_typed_array_offset");
     }
 
@@ -111,7 +61,7 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
       var newLength = TO_POSITIVE_INTEGER(length);
       newByteLength = newLength * elementSize;
     }
-    if (newByteLength > bufferByteLength) {
+    if (offset + newByteLength > bufferByteLength) {
       throw MakeRangeError("invalid_typed_array_length");
     }
     %TypedArrayInitialize(obj, arrayId, buffer, offset, newByteLength);
@@ -120,16 +70,31 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
   function ConstructByLength(obj, length) {
     var l = IS_UNDEFINED(length) ? 0 : TO_POSITIVE_INTEGER(length);
     var byteLength = l * elementSize;
+    var buffer = new global.ArrayBuffer(byteLength);
+    %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
+  }
+
+  function ConstructByArrayLike(obj, arrayLike) {
+    var length = arrayLike.length;
+    var l =  IS_UNDEFINED(length) ? 0 : TO_POSITIVE_INTEGER(length);
+    var byteLength = l * elementSize;
     var buffer = new $ArrayBuffer(byteLength);
     %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
+    for (var i = 0; i < l; i++) {
+      obj[i] = arrayLike[i];
+    }
   }
 
   return function (arg1, arg2, arg3) {
     if (%_IsConstructCall()) {
       if (IS_ARRAYBUFFER(arg1)) {
         ConstructByArrayBuffer(this, arg1, arg2, arg3);
-      } else {
+      } else if (IS_NUMBER(arg1) || IS_STRING(arg1) || IS_BOOLEAN(arg1)) {
         ConstructByLength(this, arg1);
+      } else if (!IS_UNDEFINED(arg1)){
+        ConstructByArrayLike(this, arg1);
+      } else {
+        throw MakeTypeError("parameterless_typed_array_constr", name);
       }
     } else {
       return new constructor(arg1, arg2, arg3);
@@ -153,27 +118,51 @@ function TypedArrayGetLength() {
   return %TypedArrayGetLength(this);
 }
 
+function CreateSubArray(elementSize, constructor) {
+  return function(begin, end) {
+    var srcLength = %TypedArrayGetLength(this);
+    var beginInt = TO_INTEGER(begin);
+    if (beginInt < 0) {
+      beginInt = MathMax(0, srcLength + beginInt);
+    } else {
+      beginInt = MathMin(srcLength, beginInt);
+    }
 
-// -------------------------------------------------------------------
-
-function SetUpArrayBuffer() {
-  %CheckIsBootstrapping();
-
-  // Set up the ArrayBuffer constructor function.
-  %SetCode($ArrayBuffer, ArrayBufferConstructor);
-  %FunctionSetPrototype($ArrayBuffer, new $Object());
-
-  // Set up the constructor property on the ArrayBuffer prototype object.
-  %SetProperty($ArrayBuffer.prototype, "constructor", $ArrayBuffer, DONT_ENUM);
-
-  InstallGetter($ArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLength);
-
-  InstallFunctions($ArrayBuffer.prototype, DONT_ENUM, $Array(
-      "slice", ArrayBufferSlice
-  ));
+    var endInt = IS_UNDEFINED(end) ? srcLength : TO_INTEGER(end);
+    if (endInt < 0) {
+      endInt = MathMax(0, srcLength + endInt);
+    } else {
+      endInt = MathMin(endInt, srcLength);
+    }
+    if (endInt < beginInt) {
+      endInt = beginInt;
+    }
+    var newLength = endInt - beginInt;
+    var beginByteOffset =
+        %TypedArrayGetByteOffset(this) + beginInt * elementSize;
+    return new constructor(%TypedArrayGetBuffer(this),
+                           beginByteOffset, newLength);
+  }
 }
 
-SetUpArrayBuffer();
+function TypedArraySet(obj, offset) {
+  var intOffset = IS_UNDEFINED(offset) ? 0 : TO_POSITIVE_INTEGER(offset);
+  if (%TypedArraySetFastCases(this, obj, intOffset))
+    return;
+
+  var l = obj.length;
+  if (IS_UNDEFINED(l)) {
+    throw MakeTypeError("invalid_argument");
+  }
+  if (intOffset + l > this.length) {
+    throw MakeRangeError("typed_array_set_source_too_large");
+  }
+  for (var i = 0; i < l; i++) {
+    this[intOffset + i] = obj[i];
+  }
+}
+
+// -------------------------------------------------------------------
 
 function SetupTypedArray(arrayId, name, constructor, elementSize) {
   %CheckIsBootstrapping();
@@ -191,6 +180,11 @@ function SetupTypedArray(arrayId, name, constructor, elementSize) {
   InstallGetter(constructor.prototype, "byteOffset", TypedArrayGetByteOffset);
   InstallGetter(constructor.prototype, "byteLength", TypedArrayGetByteLength);
   InstallGetter(constructor.prototype, "length", TypedArrayGetLength);
+
+  InstallFunctions(constructor.prototype, DONT_ENUM, $Array(
+        "subarray", CreateSubArray(elementSize, constructor),
+        "set", TypedArraySet
+  ));
 }
 
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
@@ -202,4 +196,4 @@ SetupTypedArray(5, "Uint32Array", global.Uint32Array, 4);
 SetupTypedArray(6, "Int32Array", global.Int32Array, 4);
 SetupTypedArray(7, "Float32Array", global.Float32Array, 4);
 SetupTypedArray(8, "Float64Array", global.Float64Array, 8);
-
+SetupTypedArray(9, "Uint8ClampedArray", global.Uint8ClampedArray, 1);

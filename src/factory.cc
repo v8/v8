@@ -660,6 +660,14 @@ Handle<Object> Factory::NewNumberFromUint(uint32_t value,
 }
 
 
+Handle<HeapNumber> Factory::NewHeapNumber(double value,
+                                          PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateHeapNumber(value, pretenure), HeapNumber);
+}
+
+
 Handle<JSObject> Factory::NewNeanderObject() {
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -1090,6 +1098,10 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
 
     case kExternalDoubleArray:
       typed_array_fun = native_context->double_array_fun();
+      break;
+
+    case kExternalPixelArray:
+      typed_array_fun = native_context->uint8c_array_fun();
       break;
 
     default:

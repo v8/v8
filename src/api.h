@@ -173,6 +173,7 @@ class RegisteredExtension {
   V(ArrayBuffer, JSArrayBuffer)                \
   V(TypedArray, JSTypedArray)                  \
   V(Uint8Array, JSTypedArray)                  \
+  V(Uint8ClampedArray, JSTypedArray)           \
   V(Int8Array, JSTypedArray)                   \
   V(Uint16Array, JSTypedArray)                 \
   V(Int16Array, JSTypedArray)                  \
@@ -221,6 +222,8 @@ class Utils {
   static inline Local<TypedArray> ToLocal(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<Uint8Array> ToLocalUint8Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Uint8ClampedArray> ToLocalUint8ClampedArray(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<Int8Array> ToLocalInt8Array(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
@@ -291,12 +294,21 @@ v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
 }
 
 
+class InternalHandleHelper {
+ public:
+  template<class From, class To>
+  static inline Local<To> Convert(v8::internal::Handle<From> obj) {
+    return Local<To>(reinterpret_cast<To*>(obj.location()));
+  }
+};
+
+
 // Implementations of ToLocal
 
 #define MAKE_TO_LOCAL(Name, From, To)                                       \
   Local<v8::To> Utils::Name(v8::internal::Handle<v8::internal::From> obj) { \
     ASSERT(obj.is_null() || !obj->IsTheHole());                             \
-    return Local<To>(reinterpret_cast<To*>(obj.location()));                \
+    return InternalHandleHelper::Convert<v8::internal::From, v8::To>(obj);  \
   }
 
 
@@ -305,8 +317,8 @@ v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
       v8::internal::Handle<v8::internal::JSTypedArray> obj) {               \
     ASSERT(obj.is_null() || !obj->IsTheHole());                             \
     ASSERT(obj->type() == typeConst);                                       \
-    return Local<v8::TypedArray>(                                           \
-        reinterpret_cast<v8::TypedArray*>(obj.location()));                 \
+    return InternalHandleHelper::                                           \
+        Convert<v8::internal::JSTypedArray, v8::TypedArray>(obj);           \
   }
 
 
@@ -322,6 +334,7 @@ MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
 
 MAKE_TO_LOCAL_TYPED_ARRAY(Uint8Array, kExternalUnsignedByteArray)
+MAKE_TO_LOCAL_TYPED_ARRAY(Uint8ClampedArray, kExternalPixelArray)
 MAKE_TO_LOCAL_TYPED_ARRAY(Int8Array, kExternalByteArray)
 MAKE_TO_LOCAL_TYPED_ARRAY(Uint16Array, kExternalUnsignedShortArray)
 MAKE_TO_LOCAL_TYPED_ARRAY(Int16Array, kExternalShortArray)

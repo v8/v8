@@ -25,27 +25,60 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Flags: --allow-natives-syntax
 
-#include "cctest.h"
-
-using namespace v8;
-
-// This test fails if properties on the prototype of the global object appear
-// as declared globals.
-TEST(StrictUndeclaredGlobalVariable) {
-  HandleScope scope(Isolate::GetCurrent());
-  v8::Local<v8::String> var_name = v8_str("x");
-  v8::LocalContext context;
-  v8::TryCatch try_catch;
-  v8::Local<v8::Script> script = v8_compile("\"use strict\"; x = 42;");
-  v8::Handle<v8::Object> proto = v8::Object::New();
-  v8::Handle<v8::Object> global =
-      context->Global()->GetPrototype().As<v8::Object>();
-  proto->Set(var_name, v8_num(100));
-  global->SetPrototype(proto);
-  script->Run();
-  CHECK(try_catch.HasCaught());
-  v8::String::Utf8Value exception(try_catch.Exception());
-  CHECK_EQ("ReferenceError: x is not defined", *exception);
+function a() {
+  var sum = 0;
+  for (var i = 0; i < 500; ++i) {
+    sum = (i + sum) | 0;
+  }
+  return sum;
 }
+
+function b() {
+  var sum = 0;
+  for (var i = -500; i < 0; ++i) {
+    sum = (i + sum) | 0;
+  }
+  return sum;
+}
+
+function c() {
+  var sum = 0;
+  for (var i = 0; i < 500; ++i) {
+    sum += (i + -0x7fffffff) | 0;
+  }
+  return sum;
+}
+
+function d() {
+  var sum = 0;
+  for (var i = -501; i < 0; ++i) {
+    sum += (i + 501) | 0;
+  }
+  return sum;
+}
+
+a();
+a();
+%OptimizeFunctionOnNextCall(a);
+assertEquals(124750, a());
+assertEquals(124750, a());
+
+b();
+b();
+%OptimizeFunctionOnNextCall(b);
+assertEquals(-125250, b());
+assertEquals(-125250, b());
+
+c();
+c();
+%OptimizeFunctionOnNextCall(c);
+assertEquals(-1073741698750, c());
+assertEquals(-1073741698750, c());
+
+d();
+d();
+%OptimizeFunctionOnNextCall(d);
+assertEquals(125250, d());
+assertEquals(125250, d());

@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(dcarney): remove
+#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
+
 #include "api.h"
 
 #include <string.h>  // For memcpy, strlen.
@@ -625,7 +628,7 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 void V8::MakeWeak(i::Isolate* isolate,
                   i::Object** object,
                   void* parameters,
-                  WeakReferenceCallback weak_reference_callback,
+                  RevivableCallback weak_reference_callback,
                   NearDeathCallback near_death_callback) {
   ASSERT(isolate == i::Isolate::Current());
   LOG_API(isolate, "MakeWeak");
@@ -2409,6 +2412,46 @@ bool Value::IsArray() const {
 }
 
 
+bool Value::IsArrayBuffer() const {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsArrayBuffer()"))
+    return false;
+  return Utils::OpenHandle(this)->IsJSArrayBuffer();
+}
+
+
+bool Value::IsTypedArray() const {
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsArrayBuffer()"))
+    return false;
+  return Utils::OpenHandle(this)->IsJSTypedArray();
+}
+
+
+#define TYPED_ARRAY_LIST(F) \
+F(Uint8Array, kExternalUnsignedByteArray) \
+F(Int8Array, kExternalByteArray) \
+F(Uint16Array, kExternalUnsignedShortArray) \
+F(Int16Array, kExternalShortArray) \
+F(Uint32Array, kExternalUnsignedIntArray) \
+F(Int32Array, kExternalIntArray) \
+F(Float32Array, kExternalFloatArray) \
+F(Float64Array, kExternalDoubleArray) \
+F(Uint8ClampedArray, kExternalPixelArray)
+
+
+#define VALUE_IS_TYPED_ARRAY(TypedArray, type_const)                          \
+  bool Value::Is##TypedArray() const {                                        \
+    if (IsDeadCheck(i::Isolate::Current(), "v8::Value::Is" #TypedArray "()")) \
+      return false;                                                           \
+    i::Handle<i::Object> obj = Utils::OpenHandle(this);                       \
+    if (!obj->IsJSTypedArray()) return false;                                 \
+    return i::JSTypedArray::cast(*obj)->type() == type_const;                 \
+  }
+
+TYPED_ARRAY_LIST(VALUE_IS_TYPED_ARRAY)
+
+#undef VALUE_IS_TYPED_ARRAY
+
+
 bool Value::IsObject() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsObject()")) return false;
   return Utils::OpenHandle(this)->IsJSObject();
@@ -2776,14 +2819,7 @@ void v8::TypedArray::CheckCast(Value* that) {
   }
 
 
-CHECK_TYPED_ARRAY_CAST(Uint8Array, kExternalUnsignedByteArray)
-CHECK_TYPED_ARRAY_CAST(Int8Array, kExternalByteArray)
-CHECK_TYPED_ARRAY_CAST(Uint16Array, kExternalUnsignedShortArray)
-CHECK_TYPED_ARRAY_CAST(Int16Array, kExternalShortArray)
-CHECK_TYPED_ARRAY_CAST(Uint32Array, kExternalUnsignedIntArray)
-CHECK_TYPED_ARRAY_CAST(Int32Array, kExternalIntArray)
-CHECK_TYPED_ARRAY_CAST(Float32Array, kExternalFloatArray)
-CHECK_TYPED_ARRAY_CAST(Float64Array, kExternalDoubleArray)
+TYPED_ARRAY_LIST(CHECK_TYPED_ARRAY_CAST)
 
 #undef CHECK_TYPED_ARRAY_CAST
 
@@ -3314,7 +3350,7 @@ Local<String> v8::Object::ObjectProtoToString() {
       const char* postfix = "]";
 
       int prefix_len = i::StrLength(prefix);
-      int str_len = str->Length();
+      int str_len = str->Utf8Length();
       int postfix_len = i::StrLength(postfix);
 
       int buf_len = prefix_len + str_len + postfix_len;
@@ -3326,7 +3362,7 @@ Local<String> v8::Object::ObjectProtoToString() {
       ptr += prefix_len;
 
       // Write real content.
-      str->WriteAscii(ptr, 0, str_len);
+      str->WriteUtf8(ptr, str_len);
       ptr += str_len;
 
       // Write postfix.
@@ -5944,6 +5980,8 @@ i::Handle<i::JSTypedArray> NewTypedArray(
 
 TYPED_ARRAY_NEW(Uint8Array, uint8_t, kExternalUnsignedByteArray,
                 i::EXTERNAL_UNSIGNED_BYTE_ELEMENTS)
+TYPED_ARRAY_NEW(Uint8ClampedArray, uint8_t, kExternalPixelArray,
+                i::EXTERNAL_PIXEL_ELEMENTS)
 TYPED_ARRAY_NEW(Int8Array, int8_t, kExternalByteArray,
                 i::EXTERNAL_BYTE_ELEMENTS)
 TYPED_ARRAY_NEW(Uint16Array, uint16_t, kExternalUnsignedShortArray,
@@ -6037,6 +6075,19 @@ Local<Integer> v8::Integer::NewFromUnsigned(uint32_t value, Isolate* isolate) {
   i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);
   return Utils::IntegerToLocal(result);
 }
+
+
+#ifdef DEBUG
+v8::AssertNoGCScope::AssertNoGCScope(v8::Isolate* isolate)
+  : isolate_(isolate),
+    last_state_(i::EnterAllocationScope(
+        reinterpret_cast<i::Isolate*>(isolate), false)) {
+}
+
+v8::AssertNoGCScope::~AssertNoGCScope() {
+  i::ExitAllocationScope(reinterpret_cast<i::Isolate*>(isolate_), last_state_);
+}
+#endif
 
 
 void V8::IgnoreOutOfMemoryException() {
@@ -6451,9 +6502,10 @@ String::AsciiValue::AsciiValue(v8::Handle<v8::Value> obj)
   TryCatch try_catch;
   Handle<String> str = obj->ToString();
   if (str.IsEmpty()) return;
-  length_ = str->Length();
+  length_ = str->Utf8Length();
   str_ = i::NewArray<char>(length_ + 1);
-  str->WriteAscii(str_);
+  str->WriteUtf8(str_);
+  ASSERT(i::String::NonAsciiStart(str_, length_) >= length_);
 }
 
 

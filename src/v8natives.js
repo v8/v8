@@ -1665,7 +1665,6 @@ function FunctionSourceString(func) {
     func = %GetCallTrap(func);
   }
 
-  // TODO(wingo): Print source using function* for generators.
   if (!IS_FUNCTION(func)) {
     throw new $TypeError('Function.prototype.toString is not generic');
   }
@@ -1684,7 +1683,8 @@ function FunctionSourceString(func) {
   var name = %FunctionNameShouldPrintAsAnonymous(func)
       ? 'anonymous'
       : %FunctionGetName(func);
-  return 'function ' + name + source;
+  var head = %FunctionIsGenerator(func) ? 'function* ' : 'function ';
+  return head + name + source;
 }
 
 

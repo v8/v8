@@ -1674,19 +1674,27 @@ void LCodeGen::DoThrow(LThrow* instr) {
 void LCodeGen::DoAddI(LAddI* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
-  ASSERT(left->Equals(instr->result()));
 
-  if (right->IsConstantOperand()) {
-    __ addl(ToRegister(left),
-            Immediate(ToInteger32(LConstantOperand::cast(right))));
-  } else if (right->IsRegister()) {
-    __ addl(ToRegister(left), ToRegister(right));
+  if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
+    if (right->IsConstantOperand()) {
+      int32_t offset = ToInteger32(LConstantOperand::cast(right));
+      __ lea(ToRegister(instr->result()), MemOperand(ToRegister(left), offset));
+    } else {
+      Operand address(ToRegister(left), ToRegister(right), times_1, 0);
+      __ lea(ToRegister(instr->result()), address);
+    }
   } else {
-    __ addl(ToRegister(left), ToOperand(right));
-  }
-
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-    DeoptimizeIf(overflow, instr->environment());
+    if (right->IsConstantOperand()) {
+      __ addl(ToRegister(left),
+              Immediate(ToInteger32(LConstantOperand::cast(right))));
+    } else if (right->IsRegister()) {
+      __ addl(ToRegister(left), ToRegister(right));
+    } else {
+      __ addl(ToRegister(left), ToOperand(right));
+    }
+    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+      DeoptimizeIf(overflow, instr->environment());
+    }
   }
 }
 
@@ -2668,29 +2676,21 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
+  int offset = instr->hydrogen()->offset();
   Register object = ToRegister(instr->object());
-  if (!FLAG_track_double_fields) {
-    ASSERT(!instr->hydrogen()->representation().IsDouble());
-  }
-  Register temp = instr->hydrogen()->representation().IsDouble()
-      ? ToRegister(instr->temp()) : ToRegister(instr->result());
-  if (instr->hydrogen()->is_in_object()) {
-    __ movq(temp, FieldOperand(object, instr->hydrogen()->offset()));
-  } else {
-    __ movq(temp, FieldOperand(object, JSObject::kPropertiesOffset));
-    __ movq(temp, FieldOperand(temp, instr->hydrogen()->offset()));
+  if (FLAG_track_double_fields &&
+      instr->hydrogen()->representation().IsDouble()) {
+    XMMRegister result = ToDoubleRegister(instr->result());
+    __ movsd(result, FieldOperand(object, offset));
+    return;
   }
 
-  if (instr->hydrogen()->representation().IsDouble()) {
-    Label load_from_heap_number, done;
-    XMMRegister result = ToDoubleRegister(instr->result());
-    __ JumpIfNotSmi(temp, &load_from_heap_number);
-    __ SmiToInteger32(temp, temp);
-    __ cvtlsi2sd(result, temp);
-    __ jmp(&done);
-    __ bind(&load_from_heap_number);
-    __ movsd(result, FieldOperand(temp, HeapNumber::kValueOffset));
-    __ bind(&done);
+  Register result = ToRegister(instr->result());
+  if (instr->hydrogen()->is_in_object()) {
+    __ movq(result, FieldOperand(object, offset));
+  } else {
+    __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
+    __ movq(result, FieldOperand(result, offset));
   }
 }
 
@@ -2851,41 +2851,6 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 
   // All done.
   __ bind(&done);
-}
-
-
-void LCodeGen::DoLoadElements(LLoadElements* instr) {
-  Register result = ToRegister(instr->result());
-  Register input = ToRegister(instr->object());
-  __ movq(result, FieldOperand(input, JSObject::kElementsOffset));
-  if (FLAG_debug_code) {
-    Label done, ok, fail;
-    __ CompareRoot(FieldOperand(result, HeapObject::kMapOffset),
-                   Heap::kFixedArrayMapRootIndex);
-    __ j(equal, &done, Label::kNear);
-    __ CompareRoot(FieldOperand(result, HeapObject::kMapOffset),
-                   Heap::kFixedCOWArrayMapRootIndex);
-    __ j(equal, &done, Label::kNear);
-    Register temp((result.is(rax)) ? rbx : rax);
-    __ push(temp);
-    __ movq(temp, FieldOperand(result, HeapObject::kMapOffset));
-    __ movzxbq(temp, FieldOperand(temp, Map::kBitField2Offset));
-    __ and_(temp, Immediate(Map::kElementsKindMask));
-    __ shr(temp, Immediate(Map::kElementsKindShift));
-    __ cmpl(temp, Immediate(GetInitialFastElementsKind()));
-    __ j(less, &fail, Label::kNear);
-    __ cmpl(temp, Immediate(TERMINAL_FAST_ELEMENTS_KIND));
-    __ j(less_equal, &ok, Label::kNear);
-    __ cmpl(temp, Immediate(FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND));
-    __ j(less, &fail, Label::kNear);
-    __ cmpl(temp, Immediate(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND));
-    __ j(less_equal, &ok, Label::kNear);
-    __ bind(&fail);
-    __ Abort("Check for fast or external elements failed");
-    __ bind(&ok);
-    __ pop(temp);
-    __ bind(&done);
-  }
 }
 
 
@@ -3911,8 +3876,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
 
   __ Set(rax, instr->arity());
   __ Move(rbx, instr->hydrogen()->property_cell());
-  Object* cell_value = instr->hydrogen()->property_cell()->value();
-  ElementsKind kind = static_cast<ElementsKind>(Smi::cast(cell_value)->value());
+  ElementsKind kind = instr->hydrogen()->elements_kind();
   if (instr->arity() == 0) {
     ArrayNoArgumentConstructorStub stub(kind);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
@@ -3945,6 +3909,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   int offset = instr->offset();
 
+  Handle<Map> transition = instr->transition();
+
   if (FLAG_track_fields && representation.IsSmi()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
@@ -3955,18 +3921,15 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       Register value = ToRegister(instr->value());
       __ Integer32ToSmi(value, value);
     }
-  } else if (FLAG_track_double_fields && representation.IsDouble() &&
-             !instr->hydrogen()->value()->type().IsSmi() &&
-             !instr->hydrogen()->value()->type().IsHeapNumber()) {
-    Register value = ToRegister(instr->value());
-    Label do_store;
-    __ JumpIfSmi(value, &do_store);
-    Handle<Map> map(isolate()->factory()->heap_number_map());
-    DoCheckMapCommon(value, map, REQUIRE_EXACT_MAP, instr);
-    __ bind(&do_store);
+  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+    ASSERT(transition.is_null());
+    ASSERT(instr->is_in_object());
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    XMMRegister value = ToDoubleRegister(instr->value());
+    __ movsd(FieldOperand(object, offset), value);
+    return;
   }
 
-  Handle<Map> transition = instr->transition();
   if (!transition.is_null()) {
     if (transition->CanBeDeprecated()) {
       transition_maps_.Add(transition, info()->zone());
@@ -4011,6 +3974,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
               ToRegister(operand_value));
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
+      ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
       __ Move(FieldOperand(write_register, offset), handle_value);
     }
   } else {
@@ -4803,6 +4767,8 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
       } else {
         mode = NUMBER_CANDIDATE_IS_SMI;
       }
+    } else {
+      mode = NUMBER_CANDIDATE_IS_SMI;
     }
   }
 
@@ -5261,7 +5227,8 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
   // Set up the parameters to the stub/runtime call and pick the right
   // runtime function or stub to call.
   int properties_count = instr->hydrogen()->constant_properties_length() / 2;
-  if (instr->hydrogen()->depth() > 1) {
+  if ((FLAG_track_double_fields && instr->hydrogen()->may_store_doubles()) ||
+      instr->hydrogen()->depth() > 1) {
     __ PushHeapObject(literals);
     __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
     __ Push(constant_properties);

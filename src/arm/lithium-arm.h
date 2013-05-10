@@ -122,7 +122,6 @@ class LCodeGen;
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
-  V(LoadElements)                               \
   V(LoadExternalArrayPointer)                   \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
@@ -1571,18 +1570,6 @@ class LLoadFunctionPrototype: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadFunctionPrototype, "load-function-prototype")
   DECLARE_HYDROGEN_ACCESSOR(LoadFunctionPrototype)
-};
-
-
-class LLoadElements: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LLoadElements(LOperand* object) {
-    inputs_[0] = object;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadElements, "load-elements")
 };
 
 
