@@ -752,6 +752,7 @@ void HGraphBuilder::IfBuilder::AddCompare(HControlInstruction* compare) {
       compare->SetSuccessorAt(1, split_edge);
     }
     split_edge->GotoNoSimulate(split_edge_merge_block_);
+    ASSERT(builder_->SafeToAddPhiInNoSideEffectsScope());
   } else {
     compare->SetSuccessorAt(0, first_true_block_);
     compare->SetSuccessorAt(1, first_false_block_);
@@ -769,6 +770,7 @@ void HGraphBuilder::IfBuilder::Or() {
     split_edge_merge_block_ =
         builder_->CreateBasicBlock(env->Copy());
     first_true_block_->GotoNoSimulate(split_edge_merge_block_);
+    ASSERT(builder_->SafeToAddPhiInNoSideEffectsScope());
     first_true_block_ = split_edge_merge_block_;
   }
   builder_->set_current_block(first_false_block_);
@@ -783,6 +785,7 @@ void HGraphBuilder::IfBuilder::And() {
   if (split_edge_merge_block_ == NULL) {
     split_edge_merge_block_ = builder_->CreateBasicBlock(env->Copy());
     first_false_block_->GotoNoSimulate(split_edge_merge_block_);
+    ASSERT(builder_->SafeToAddPhiInNoSideEffectsScope());
     first_false_block_ = split_edge_merge_block_;
   }
   builder_->set_current_block(first_true_block_);
@@ -814,6 +817,7 @@ void HGraphBuilder::IfBuilder::Then() {
     // Handle if's without any expressions, they jump directly to the "else"
     // branch.
     builder_->current_block()->GotoNoSimulate(first_false_block_);
+    ASSERT(builder_->SafeToAddPhiInNoSideEffectsScope());
     first_true_block_ = NULL;
   }
   builder_->set_current_block(first_true_block_);
@@ -876,6 +880,7 @@ void HGraphBuilder::IfBuilder::End() {
       ASSERT(!last_false_block->IsFinished());
       last_true_block_->GotoNoSimulate(merge_block_);
       last_false_block->GotoNoSimulate(merge_block_);
+      ASSERT(builder_->SafeToAddPhiInNoSideEffectsScope());
       builder_->set_current_block(merge_block_);
     }
   }
@@ -908,6 +913,7 @@ HValue* HGraphBuilder::LoopBuilder::BeginBody(
   phi_->ChangeRepresentation(Representation::Integer32());
   env->Push(initial);
   builder_->current_block()->GotoNoSimulate(header_block_);
+  ASSERT(builder_->SafeToAddPhiInNoSideEffectsScope());
 
   HEnvironment* body_env = env->Copy();
   HEnvironment* exit_env = env->Copy();
@@ -962,6 +968,7 @@ void HGraphBuilder::LoopBuilder::EndBody() {
   // Push the new increment value on the expression stack to merge into the phi.
   builder_->environment()->Push(increment_);
   builder_->current_block()->GotoNoSimulate(header_block_);
+  ASSERT(builder_->SafeToAddPhiInNoSideEffectsScope());
   header_block_->loop_information()->RegisterBackEdge(body_block_);
 
   builder_->set_current_block(exit_block_);
@@ -8181,6 +8188,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
           access->set_position(position);
         }
         if_jsarray->GotoNoSimulate(join);
+        ASSERT(SafeToAddPhiInNoSideEffectsScope());
 
         set_current_block(if_fastobject);
         length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
@@ -8207,6 +8215,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         Push(access);
       }
       current_block()->GotoNoSimulate(join);
+      ASSERT(SafeToAddPhiInNoSideEffectsScope());
       set_current_block(if_false);
     }
   }
