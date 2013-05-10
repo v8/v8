@@ -2137,6 +2137,7 @@ const char* Representation::Mnemonic() const {
     case kSmi: return "s";
     case kDouble: return "d";
     case kInteger32: return "i";
+    case kHeapObject: return "h";
     case kExternal: return "x";
     default:
       UNREACHABLE();
@@ -2499,10 +2500,10 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
                                            Representation new_representation) {
   Map* old_map = this;
   DescriptorArray* old_descriptors = old_map->instance_descriptors();
-  Representation old_reprepresentation =
+  Representation old_representation =
       old_descriptors->GetDetails(modify_index).representation();
 
-  if (old_reprepresentation.IsNone()) {
+  if (old_representation.IsNone()) {
     UNREACHABLE();
     old_descriptors->SetRepresentation(modify_index, new_representation);
     return this;
@@ -2528,9 +2529,14 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
     Representation updated_representation =
         updated_descriptors->GetDetails(modify_index).representation();
     if (new_representation.fits_into(updated_representation)) {
-      if (FLAG_trace_generalization) {
-        PrintF("migrating to existing map %p -> %p\n",
-               static_cast<void*>(this), static_cast<void*>(updated));
+      if (FLAG_trace_generalization &&
+          !(modify_index == 0 && new_representation.IsSmi())) {
+        PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
+        PrintF("migrating to existing map %p(%s) -> %p(%s)\n",
+               static_cast<void*>(this),
+               old_details.representation().Mnemonic(),
+               static_cast<void*>(updated),
+               updated_representation.Mnemonic());
       }
       return updated;
     }
@@ -2541,10 +2547,13 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
       verbatim, valid, descriptors, old_descriptors);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
-  old_reprepresentation =
+  old_representation =
       new_descriptors->GetDetails(modify_index).representation();
-  new_representation = new_representation.generalize(old_reprepresentation);
-  new_descriptors->SetRepresentation(modify_index, new_representation);
+  Representation updated_representation =
+      new_representation.generalize(old_representation);
+  if (!updated_representation.Equals(old_representation)) {
+    new_descriptors->SetRepresentation(modify_index, updated_representation);
+  }
 
   Map* split_map = root_map->FindLastMatchMap(
       verbatim, descriptors, new_descriptors);
@@ -2558,10 +2567,14 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
   split_map->DeprecateTarget(
       old_descriptors->GetKey(descriptor), new_descriptors);
 
-  if (FLAG_trace_generalization) {
-    PrintF("migrating to new map %p -> %p (%i steps)\n",
+  if (FLAG_trace_generalization &&
+      !(modify_index == 0 && new_representation.IsSmi())) {
+    PrintF("migrating to new map %i: %p(%s) -> %p(%s) (%i steps)\n",
+           modify_index,
            static_cast<void*>(this),
+           old_representation.Mnemonic(),
            static_cast<void*>(new_descriptors),
+           updated_representation.Mnemonic(),
            descriptors - descriptor);
   }
 

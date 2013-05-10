@@ -1066,6 +1066,13 @@ class Object : public MaybeObject {
       return Representation::Smi();
     } else if (FLAG_track_double_fields && IsHeapNumber()) {
       return Representation::Double();
+    } else if (FLAG_track_heap_object_fields && !IsUndefined()) {
+      // Don't track undefined as heapobject because it's also used as temporary
+      // value for computed fields that may turn out to be Smi. That combination
+      // will go tagged, so go tagged immediately.
+      // TODO(verwaest): Change once we track computed boilerplate fields.
+      ASSERT(IsHeapObject());
+      return Representation::HeapObject();
     } else {
       return Representation::Tagged();
     }
@@ -1076,6 +1083,8 @@ class Object : public MaybeObject {
       return IsSmi();
     } else if (FLAG_track_double_fields && representation.IsDouble()) {
       return IsNumber();
+    } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+      return IsHeapObject();
     }
     return true;
   }

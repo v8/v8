@@ -4229,6 +4229,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (!instr->hydrogen()->value()->range()->IsInSmiRange()) {
       DeoptimizeIf(vs, instr->environment());
     }
+  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+    Register value = ToRegister(instr->value());
+    if (!instr->hydrogen()->value()->type().IsHeapObject()) {
+      __ tst(value, Operand(kSmiTagMask));
+      DeoptimizeIf(eq, instr->environment());
+    }
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     ASSERT(transition.is_null());
     ASSERT(instr->is_in_object());

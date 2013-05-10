@@ -5218,6 +5218,10 @@ class HLoadNamedField: public HTemplateInstruction<2> {
       set_representation(Representation::Tagged());
     } else if (FLAG_track_double_fields && field_representation.IsDouble()) {
       set_representation(field_representation);
+    } else if (FLAG_track_heap_object_fields &&
+               field_representation.IsHeapObject()) {
+      set_type(HType::NonPrimitive());
+      set_representation(Representation::Tagged());
     } else {
       set_representation(Representation::Tagged());
     }

@@ -3608,6 +3608,10 @@ bool Map::CanBeDeprecated() {
     if (FLAG_track_double_fields && details.representation().IsDouble()) {
       return true;
     }
+    if (FLAG_track_heap_object_fields &&
+        details.representation().IsHeapObject()) {
+      return true;
+    }
   }
   return false;
 }
