@@ -3000,7 +3000,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
     // Put down constant pool marker "Undefined instruction".
     // The data size helps disassembly know what to print.
-    emit(kConstantPoolMarker | EncodeConstantPoolLength(size_after_marker));
+    emit(kConstantPoolMarker |
+         EncodeConstantPoolLength(size_after_marker / kPointerSize));
 
     if (require_64_bit_align) {
       emit(kConstantPoolMarker);
