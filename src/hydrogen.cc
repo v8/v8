@@ -1048,6 +1048,7 @@ HBasicBlock* HGraphBuilder::CreateLoopHeaderBlock() {
 
 
 HValue* HGraphBuilder::BuildCheckNonSmi(HValue* obj) {
+  if (obj->type().IsHeapObject()) return obj;
   HCheckNonSmi* check = new(zone()) HCheckNonSmi(obj);
   AddInstruction(check);
   return check;
@@ -7015,14 +7016,14 @@ static Representation ComputeLoadStoreRepresentation(Handle<Map> type,
 
 
 void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
-  AddInstruction(new(zone()) HCheckNonSmi(object));
+  BuildCheckNonSmi(object);
   AddInstruction(HCheckMaps::New(object, map, zone()));
 }
 
 
 void HOptimizedGraphBuilder::AddCheckMapsWithTransitions(HValue* object,
                                                          Handle<Map> map) {
-  AddInstruction(new(zone()) HCheckNonSmi(object));
+  BuildCheckNonSmi(object);
   AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
 }
 
@@ -7167,7 +7168,7 @@ bool HOptimizedGraphBuilder::HandlePolymorphicArrayLengthLoad(
     if (types->at(i)->instance_type() != JS_ARRAY_TYPE) return false;
   }
 
-  AddInstruction(new(zone()) HCheckNonSmi(object));
+  BuildCheckNonSmi(object);
 
   HInstruction* typecheck =
     AddInstruction(HCheckMaps::New(object, types, zone()));
@@ -7187,7 +7188,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
   if (HandlePolymorphicArrayLengthLoad(expr, object, types, name))
     return;
 
-  AddInstruction(new(zone()) HCheckNonSmi(object));
+  BuildCheckNonSmi(object);
 
   // Use monomorphic load if property lookup results in the same field index
   // for all maps. Requires special map check on the set of all handled maps.
@@ -7265,7 +7266,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
     LookupResult lookup(isolate());
     if (ComputeLoadStoreField(map, name, &lookup, true)) {
       if (count == 0) {
-        AddInstruction(new(zone()) HCheckNonSmi(object));  // Only needed once.
+        BuildCheckNonSmi(object);
         join = graph()->CreateBasicBlock();
       }
       ++count;
@@ -8011,7 +8012,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     KeyedAccessStoreMode store_mode,
     bool* has_side_effects) {
   *has_side_effects = false;
-  AddInstruction(new(zone()) HCheckNonSmi(object));
+  BuildCheckNonSmi(object);
   SmallMapList* maps = prop->GetReceiverTypes();
   bool todo_external_array = false;
 
@@ -8235,7 +8236,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
                        : BuildLoadKeyedGeneric(obj, key);
       AddInstruction(instr);
     } else {
-      AddInstruction(new(zone()) HCheckNonSmi(obj));
+      BuildCheckNonSmi(obj);
       instr = BuildMonomorphicElementAccess(
           obj, key, val, NULL, map, is_store, expr->GetStoreMode());
     }
@@ -8370,7 +8371,7 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   HInstruction* instr = NULL;
   if (expr->IsStringLength()) {
     HValue* string = Pop();
-    AddInstruction(new(zone()) HCheckNonSmi(string));
+    BuildCheckNonSmi(string);
     AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
     instr = HStringLength::New(zone(), string);
   } else if (expr->IsStringAccess()) {
@@ -8385,7 +8386,7 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
 
   } else if (expr->IsFunctionPrototype()) {
     HValue* function = Pop();
-    AddInstruction(new(zone()) HCheckNonSmi(function));
+    BuildCheckNonSmi(function);
     instr = new(zone()) HLoadFunctionPrototype(function);
 
   } else if (expr->key()->IsPropertyName()) {
@@ -8559,7 +8560,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
         empty_smi_block->Goto(number_block);
         set_current_block(not_smi_block);
       } else {
-        AddInstruction(new(zone()) HCheckNonSmi(receiver));
+        BuildCheckNonSmi(receiver);
       }
     }
     HBasicBlock* if_true = graph()->CreateBasicBlock();
@@ -10186,7 +10187,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
       return new(zone()) HConstant(s->Get(i), Representation::Integer32());
     }
   }
-  AddInstruction(new(zone()) HCheckNonSmi(string));
+  BuildCheckNonSmi(string);
   AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
   HInstruction* length = HStringLength::New(zone(), string);
   AddInstruction(length);
@@ -10272,9 +10273,9 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   switch (expr->op()) {
     case Token::ADD:
       if (left_info.IsString() && right_info.IsString()) {
-        AddInstruction(new(zone()) HCheckNonSmi(left));
+        BuildCheckNonSmi(left);
         AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
-        AddInstruction(new(zone()) HCheckNonSmi(right));
+        BuildCheckNonSmi(right);
         AddInstruction(HCheckInstanceType::NewIsString(right, zone()));
         instr = HStringAdd::New(zone(), context, left, right);
       } else {
@@ -10680,9 +10681,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
           result->set_position(expr->position());
           return ast_context()->ReturnControl(result, expr->id());
         } else {
-          AddInstruction(new(zone()) HCheckNonSmi(left));
+          BuildCheckNonSmi(left);
           AddInstruction(HCheckInstanceType::NewIsSpecObject(left, zone()));
-          AddInstruction(new(zone()) HCheckNonSmi(right));
+          BuildCheckNonSmi(right);
           AddInstruction(HCheckInstanceType::NewIsSpecObject(right, zone()));
           HCompareObjectEqAndBranch* result =
               new(zone()) HCompareObjectEqAndBranch(left, right);
@@ -10695,9 +10696,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     }
   } else if (overall_type_info.IsInternalizedString() &&
              Token::IsEqualityOp(op)) {
-    AddInstruction(new(zone()) HCheckNonSmi(left));
+    BuildCheckNonSmi(left);
     AddInstruction(HCheckInstanceType::NewIsInternalizedString(left, zone()));
-    AddInstruction(new(zone()) HCheckNonSmi(right));
+    BuildCheckNonSmi(right);
     AddInstruction(HCheckInstanceType::NewIsInternalizedString(right, zone()));
     HCompareObjectEqAndBranch* result =
         new(zone()) HCompareObjectEqAndBranch(left, right);
