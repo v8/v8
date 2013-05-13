@@ -1369,11 +1369,6 @@ class LAddI: public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
-  static bool UseLea(HAdd* add) {
-    return !add->CheckFlag(HValue::kCanOverflow) &&
-        add->BetterLeftOperand()->UseCount() > 1;
-  }
-
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
 };
