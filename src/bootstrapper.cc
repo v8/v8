@@ -455,9 +455,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   function_map_writable_prototype_ = CreateFunctionMap(ADD_WRITEABLE_PROTOTYPE);
 
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
 
-  Handle<String> object_name = Handle<String>(heap->Object_string());
+  Handle<String> object_name = factory->Object_string();
 
   {  // --- O b j e c t ---
     Handle<JSFunction> object_fun =
@@ -834,7 +833,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
-  Handle<String> object_name = Handle<String>(heap->Object_string());
+  Handle<String> object_name = factory->Object_string();
   CHECK_NOT_EMPTY_HANDLE(isolate,
                          JSObject::SetLocalPropertyIgnoreAttributes(
                              inner_global, object_name,

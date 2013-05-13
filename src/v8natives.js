@@ -1356,6 +1356,7 @@ function ObjectConstructor(x) {
 function SetUpObject() {
   %CheckIsBootstrapping();
 
+  %SetNativeFlag($Object);
   %SetCode($Object, ObjectConstructor);
   %FunctionSetName(ObjectPoisonProto, "__proto__");
   %FunctionRemovePrototype(ObjectPoisonProto);

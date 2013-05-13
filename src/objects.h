@@ -6125,6 +6125,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that code for this function cannot be cached.
   DECL_BOOLEAN_ACCESSORS(dont_cache)
 
+  // Indicates that code for this function cannot be flushed.
+  DECL_BOOLEAN_ACCESSORS(dont_flush)
+
   // Indicates that this function is a generator.
   DECL_BOOLEAN_ACCESSORS(is_generator)
 
@@ -6354,6 +6357,7 @@ class SharedFunctionInfo: public HeapObject {
     kDontOptimize,
     kDontInline,
     kDontCache,
+    kDontFlush,
     kIsGenerator,
     kCompilerHintsCount  // Pseudo entry
   };
