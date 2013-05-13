@@ -1789,6 +1789,7 @@ class V8EXPORT String : public Primitive {
    */
   class V8EXPORT AsciiValue {
    public:
+    // TODO(dcarney): deprecate
     explicit AsciiValue(Handle<v8::Value> obj);
     ~AsciiValue();
     char* operator*() { return str_; }
