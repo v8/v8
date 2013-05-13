@@ -1306,7 +1306,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
         accumulator->Add("<JS Function");
       }
       accumulator->Add(" (SharedFunctionInfo %p)",
-                       reinterpret_cast<intptr_t>(function->shared()));
+                       reinterpret_cast<void*>(function->shared()));
       accumulator->Put('>');
       break;
     }
