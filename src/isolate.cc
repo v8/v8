@@ -2443,6 +2443,44 @@ HTracer* Isolate::GetHTracer() {
 }
 
 
+Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
+  Context* native_context = context()->native_context();
+  Object* maybe_map_array = native_context->js_array_maps();
+  if (!maybe_map_array->IsUndefined()) {
+    Object* maybe_transitioned_map =
+        FixedArray::cast(maybe_map_array)->get(kind);
+    if (!maybe_transitioned_map->IsUndefined()) {
+      return Map::cast(maybe_transitioned_map);
+    }
+  }
+  return NULL;
+}
+
+
+bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
+  Map* root_array_map =
+      get_initial_js_array_map(GetInitialFastElementsKind());
+  ASSERT(root_array_map != NULL);
+  JSObject* initial_array_proto = JSObject::cast(*initial_array_prototype());
+
+  // Check that the array prototype hasn't been altered WRT empty elements.
+  if (root_array_map->prototype() != initial_array_proto) return false;
+  if (initial_array_proto->elements() != heap()->empty_fixed_array()) {
+    return false;
+  }
+
+  // Check that the object prototype hasn't been altered WRT empty elements.
+  JSObject* initial_object_proto = JSObject::cast(*initial_object_prototype());
+  Object* root_array_map_proto = initial_array_proto->GetPrototype();
+  if (root_array_map_proto != initial_object_proto) return false;
+  if (initial_object_proto->elements() != heap()->empty_fixed_array()) {
+    return false;
+  }
+
+  return initial_object_proto->GetPrototype()->IsNull();
+}
+
+
 CodeStubInterfaceDescriptor*
     Isolate::code_stub_interface_descriptor(int index) {
   return code_stub_interface_descriptors_ + index;

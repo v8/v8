@@ -1123,6 +1123,7 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(
     HValue* load_dependency,
     ElementsKind elements_kind,
     bool is_store,
+    LoadKeyedHoleMode load_mode,
     KeyedAccessStoreMode store_mode) {
   Zone* zone = this->zone();
   if (is_store) {
@@ -1149,7 +1150,8 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(
   return new(zone) HLoadKeyed(elements,
                               checked_key,
                               load_dependency,
-                              elements_kind);
+                              elements_kind,
+                              load_mode);
 }
 
 
@@ -1256,6 +1258,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     bool is_js_array,
     ElementsKind elements_kind,
     bool is_store,
+    LoadKeyedHoleMode load_mode,
     KeyedAccessStoreMode store_mode,
     Representation checked_index_representation) {
   ASSERT(!IsExternalArrayElementsKind(elements_kind) || !is_js_array);
@@ -1361,7 +1364,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   return AddInstruction(
       BuildFastElementAccess(elements, checked_key, val, mapcheck,
-                             elements_kind, is_store, store_mode));
+                             elements_kind, is_store, load_mode, store_mode));
 }
 
 
@@ -2100,6 +2103,7 @@ HGraph::HGraph(CompilationInfo* info)
       is_recursive_(false),
       use_optimistic_licm_(false),
       has_soft_deoptimize_(false),
+      depends_on_empty_array_proto_elements_(false),
       type_change_checksum_(0) {
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
@@ -7985,10 +7989,23 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
   if (dependency) {
     mapcheck->ClearGVNFlag(kDependsOnElementsKind);
   }
+
+  // Loads from a "stock" fast holey double arrays can elide the hole check.
+  LoadKeyedHoleMode load_mode = NEVER_RETURN_HOLE;
+  if (*map == isolate()->get_initial_js_array_map(FAST_HOLEY_DOUBLE_ELEMENTS) &&
+      isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
+    Handle<JSObject> prototype(JSObject::cast(map->prototype()), isolate());
+    Handle<JSObject> object_prototype = isolate()->initial_object_prototype();
+    AddInstruction(
+        new(zone()) HCheckPrototypeMaps(prototype, object_prototype, zone()));
+    load_mode = ALLOW_RETURN_HOLE;
+    graph()->MarkDependsOnEmptyArrayProtoElements();
+  }
+
   return BuildUncheckedMonomorphicElementAccess(
       object, key, val,
       mapcheck, map->instance_type() == JS_ARRAY_TYPE,
-      map->elements_kind(), is_store, store_mode);
+      map->elements_kind(), is_store, load_mode, store_mode);
 }
 
 
@@ -8043,7 +8060,7 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
       object, key, val, check_maps,
       most_general_consolidated_map->instance_type() == JS_ARRAY_TYPE,
       most_general_consolidated_map->elements_kind(),
-      false, STANDARD_STORE);
+      false, NEVER_RETURN_HOLE, STANDARD_STORE);
   return instr;
 }
 
@@ -8216,7 +8233,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind_branch,
-            elements_kind, is_store, STANDARD_STORE));
+            elements_kind, is_store, NEVER_RETURN_HOLE, STANDARD_STORE));
         if (!is_store) {
           Push(access);
         }
@@ -8234,7 +8251,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind_branch,
-            elements_kind, is_store, STANDARD_STORE));
+            elements_kind, is_store, NEVER_RETURN_HOLE, STANDARD_STORE));
       } else if (elements_kind == DICTIONARY_ELEMENTS) {
         if (is_store) {
           access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));

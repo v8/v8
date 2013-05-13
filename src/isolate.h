@@ -835,6 +835,9 @@ class Isolate {
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)            \
   Handle<type> name() {                                             \
     return Handle<type>(context()->native_context()->name(), this); \
+  }                                                                 \
+  bool is_##name(type* value) {                                     \
+    return context()->native_context()->is_##name(value);           \
   }
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
@@ -1066,6 +1069,10 @@ class Isolate {
     }
     date_cache_ = date_cache;
   }
+
+  Map* get_initial_js_array_map(ElementsKind kind);
+
+  bool IsFastArrayConstructorPrototypeChainIntact();
 
   CodeStubInterfaceDescriptor*
       code_stub_interface_descriptor(int index);

@@ -475,6 +475,10 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
         TENURED);
 
     native_context()->set_initial_object_prototype(*prototype);
+    // For bootstrapping set the array prototype to be the same as the object
+    // prototype, otherwise the missing initial_array_prototype will cause
+    // assertions during startup.
+    native_context()->set_initial_array_prototype(*prototype);
     SetPrototype(object_fun, prototype);
   }
 
@@ -2365,6 +2369,10 @@ bool Genesis::ConfigureGlobalObjects(
   }
 
   SetObjectPrototype(global_proxy, inner_global);
+
+  native_context()->set_initial_array_prototype(
+      JSArray::cast(native_context()->array_function()->prototype()));
+
   return true;
 }
 

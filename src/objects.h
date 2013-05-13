@@ -4977,7 +4977,10 @@ class DependentCode: public FixedArray {
     // described by this map changes shape (and transitions to a new map),
     // possibly invalidating the assumptions embedded in the code.
     kPrototypeCheckGroup,
-    kGroupCount = kPrototypeCheckGroup + 1
+    // Group of code that depends on elements not being added to objects with
+    // this map.
+    kElementsCantBeAddedGroup,
+    kGroupCount = kElementsCantBeAddedGroup + 1
   };
 
   // Array for holding the index of the first code object of each group.
@@ -5508,6 +5511,8 @@ class Map: public HeapObject {
 
   inline void AddDependentCode(DependentCode::DependencyGroup group,
                                Handle<Code> code);
+
+  bool IsMapInArrayPrototypeChain();
 
   // Dispatched behavior.
   DECLARE_PRINTER(Map)

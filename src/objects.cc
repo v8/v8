@@ -3020,6 +3020,20 @@ Map* Map::LookupElementsTransitionMap(ElementsKind to_kind) {
 }
 
 
+bool Map::IsMapInArrayPrototypeChain() {
+  Isolate* isolate = GetIsolate();
+  if (isolate->initial_array_prototype()->map() == this) {
+    return true;
+  }
+
+  if (isolate->initial_object_prototype()->map() == this) {
+    return true;
+  }
+
+  return false;
+}
+
+
 static MaybeObject* AddMissingElementsTransitions(Map* map,
                                                   ElementsKind to_kind) {
   ASSERT(IsFastElementsKind(map->elements_kind()));
@@ -11164,6 +11178,18 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
                                       bool check_prototype) {
   ASSERT(HasFastSmiOrObjectElements() ||
          HasFastArgumentsElements());
+
+  // Array optimizations rely on the prototype lookups of Array objects always
+  // returning undefined. If there is a store to the initial prototype object,
+  // make sure all of these optimizations are invalidated.
+  Isolate* isolate(GetIsolate());
+  if (isolate->is_initial_object_prototype(this) ||
+      isolate->is_initial_array_prototype(this)) {
+    HandleScope scope(GetIsolate());
+    map()->dependent_code()->DeoptimizeDependentCodeGroup(
+        GetIsolate(),
+        DependentCode::kElementsCantBeAddedGroup);
+  }
 
   FixedArray* backing_store = FixedArray::cast(elements());
   if (backing_store->map() == GetHeap()->non_strict_arguments_elements_map()) {

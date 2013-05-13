@@ -5492,6 +5492,7 @@ class HLoadKeyed
   virtual void PrintDataTo(StringStream* stream);
 
   bool UsesMustHandleHole() const;
+  bool AllUsesCanTreatHoleAsNaN() const;
   bool RequiresHoleCheck() const;
 
   virtual Range* InferRange(Zone* zone);

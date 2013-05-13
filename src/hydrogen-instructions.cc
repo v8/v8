@@ -2682,7 +2682,12 @@ bool HLoadKeyed::UsesMustHandleHole() const {
     return false;
   }
 
-  if (hole_mode() == ALLOW_RETURN_HOLE) return true;
+  if (hole_mode() == ALLOW_RETURN_HOLE) {
+    if (IsFastDoubleElementsKind(elements_kind())) {
+      return AllUsesCanTreatHoleAsNaN();
+    }
+    return true;
+  }
 
   if (IsFastDoubleElementsKind(elements_kind())) {
     return false;
@@ -2691,6 +2696,22 @@ bool HLoadKeyed::UsesMustHandleHole() const {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
     if (!use->IsChange()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+bool HLoadKeyed::AllUsesCanTreatHoleAsNaN() const {
+  if (!IsFastDoubleElementsKind(elements_kind())) {
+    return false;
+  }
+
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    HValue* use = it.value();
+    if (use->CheckFlag(HValue::kDeoptimizeOnUndefined)) {
       return false;
     }
   }
