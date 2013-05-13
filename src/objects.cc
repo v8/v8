@@ -1291,20 +1291,23 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       break;
     }
     case JS_FUNCTION_TYPE: {
-      Object* fun_name = JSFunction::cast(this)->shared()->name();
+      JSFunction* function = JSFunction::cast(this);
+      Object* fun_name = function->shared()->DebugName();
       bool printed = false;
       if (fun_name->IsString()) {
         String* str = String::cast(fun_name);
         if (str->length() > 0) {
           accumulator->Add("<JS Function ");
           accumulator->Put(str);
-          accumulator->Put('>');
           printed = true;
         }
       }
       if (!printed) {
-        accumulator->Add("<JS Function>");
+        accumulator->Add("<JS Function");
       }
+      accumulator->Add(" (SharedFunctionInfo %p)",
+                       reinterpret_cast<intptr_t>(function->shared()));
+      accumulator->Put('>');
       break;
     }
     case JS_GENERATOR_OBJECT_TYPE: {
@@ -1341,6 +1344,9 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
                        global_object ? "Global Object: " : "",
                        vowel ? "n" : "");
                 accumulator->Put(str);
+                accumulator->Add(" with %smap 0x%p",
+                    map_of_this->is_deprecated() ? "deprecated " : "",
+                    map_of_this);
                 printed = true;
               }
             }
@@ -1456,9 +1462,17 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<ExternalDoubleArray[%u]>",
                        ExternalDoubleArray::cast(this)->length());
       break;
-    case SHARED_FUNCTION_INFO_TYPE:
-      accumulator->Add("<SharedFunctionInfo>");
+    case SHARED_FUNCTION_INFO_TYPE: {
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(this);
+      SmartArrayPointer<char> debug_name =
+          shared->DebugName()->ToCString();
+      if (debug_name[0] != 0) {
+        accumulator->Add("<SharedFunctionInfo %s>", *debug_name);
+      } else {
+        accumulator->Add("<SharedFunctionInfo>");
+      }
       break;
+    }
     case JS_MESSAGE_OBJECT_TYPE:
       accumulator->Add("<JSMessageObject>");
       break;
@@ -8371,12 +8385,13 @@ bool String::MarkAsUndetectable() {
 }
 
 
-bool String::IsUtf8EqualTo(Vector<const char> str) {
+bool String::IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match) {
   int slen = length();
   // Can't check exact length equality, but we can check bounds.
   int str_len = str.length();
-  if (str_len < slen ||
-      str_len > slen*static_cast<int>(unibrow::Utf8::kMaxEncodedSize)) {
+  if (!allow_prefix_match &&
+      (str_len < slen ||
+          str_len > slen*static_cast<int>(unibrow::Utf8::kMaxEncodedSize))) {
     return false;
   }
   int i;
@@ -8396,7 +8411,7 @@ bool String::IsUtf8EqualTo(Vector<const char> str) {
     utf8_data += cursor;
     remaining_in_str -= cursor;
   }
-  return i == slen && remaining_in_str == 0;
+  return (allow_prefix_match || i == slen) && remaining_in_str == 0;
 }
 
 
@@ -9016,6 +9031,18 @@ void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
 }
 
 
+void SharedFunctionInfo::ClearOptimizedCodeMap(const char* reason) {
+  if (!optimized_code_map()->IsSmi()) {
+    if (FLAG_trace_opt) {
+      PrintF("[clearing optimizing code map (%s) for ", reason);
+      ShortPrint();
+      PrintF("]\n");
+    }
+    set_optimized_code_map(Smi::FromInt(0));
+  }
+}
+
+
 bool JSFunction::CompileLazy(Handle<JSFunction> function,
                              ClearExceptionFlag flag) {
   bool result = true;
@@ -9226,6 +9253,26 @@ void JSFunction::PrintName(FILE* out) {
 
 Context* JSFunction::NativeContextFromLiterals(FixedArray* literals) {
   return Context::cast(literals->get(JSFunction::kLiteralNativeContextIndex));
+}
+
+
+bool JSFunction::PassesHydrogenFilter() {
+  String* name = shared()->DebugName();
+  if (*FLAG_hydrogen_filter != '\0') {
+    Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
+    if (filter[0] != '-' && name->IsUtf8EqualTo(filter)) return true;
+    if (filter[0] == '-' &&
+        !name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+      return true;
+    }
+    if (filter[filter.length() - 1] == '*' &&
+        name->IsUtf8EqualTo(filter.SubVector(0, filter.length() - 1), true)) {
+      return true;
+    }
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -9483,8 +9530,9 @@ void SharedFunctionInfo::DisableOptimization(const char* reason) {
     code()->set_optimizable(false);
   }
   if (FLAG_trace_opt) {
-    PrintF("[disabled optimization for %s, reason: %s]\n",
-           *DebugName()->ToCString(), reason);
+    PrintF("[disabled optimization for ");
+    ShortPrint();
+    PrintF(", reason: %s]\n", reason);
   }
 }
 
@@ -9638,6 +9686,11 @@ int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context) {
       if (optimized_code_map->get(i) == native_context) {
         return i + 1;
       }
+    }
+    if (FLAG_trace_opt) {
+      PrintF("[didn't find optimized code in optimized code map for ");
+      ShortPrint();
+      PrintF("]\n");
     }
   }
   return -1;

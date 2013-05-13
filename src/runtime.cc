@@ -8011,7 +8011,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
     Deoptimizer::DeoptimizeFunction(*function);
   }
   // Flush optimized code cache for this function.
-  function->shared()->ClearOptimizedCodeMap();
+  function->shared()->ClearOptimizedCodeMap("notify deoptimized");
 
   return isolate->heap()->undefined_value();
 }

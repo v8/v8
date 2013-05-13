@@ -53,7 +53,7 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
 
   // The optimized code is going to be patched, so we cannot use it
   // any more.  Play safe and reset the whole cache.
-  function->shared()->ClearOptimizedCodeMap();
+  function->shared()->ClearOptimizedCodeMap("deoptimized function");
 
   // Get the optimized code.
   Code* code = function->code();
