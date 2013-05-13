@@ -426,6 +426,8 @@ bool Range::MulAndCheckOverflow(Range* other) {
 
 
 const char* HType::ToString() {
+  // Note: The c1visualizer syntax for locals allows only a sequence of the
+  // following characters: A-Za-z0-9_-|:
   switch (type_) {
     case kTagged: return "tagged";
     case kTaggedPrimitive: return "primitive";
@@ -440,7 +442,7 @@ const char* HType::ToString() {
     case kUninitialized: return "uninitialized";
   }
   UNREACHABLE();
-  return "Unreachable code";
+  return "unreachable";
 }
 
 
@@ -694,16 +696,18 @@ void HValue::SetBlock(HBasicBlock* block) {
 
 void HValue::PrintTypeTo(StringStream* stream) {
   if (!representation().IsTagged() || type().Equals(HType::Tagged())) return;
-  stream->Add(" type[%s]", type().ToString());
+  stream->Add(" type:%s", type().ToString());
 }
 
 
 void HValue::PrintRangeTo(StringStream* stream) {
   if (range() == NULL || range()->IsMostGeneric()) return;
-  stream->Add(" range[%d,%d,m0=%d]",
+  // Note: The c1visualizer syntax for locals allows only a sequence of the
+  // following characters: A-Za-z0-9_-|:
+  stream->Add(" range:%d_%d%s",
               range()->lower(),
               range()->upper(),
-              static_cast<int>(range()->CanBeMinusZero()));
+              range()->CanBeMinusZero() ? "_m0" : "");
 }
 
 
@@ -1894,14 +1898,17 @@ void HPhi::PrintTo(StringStream* stream) {
     value->PrintNameTo(stream);
     stream->Add(" ");
   }
-  stream->Add(" uses%d_%di_%dd_%dt",
+  stream->Add(" uses:%d_%di_%dd_%dt",
               UseCount(),
               int32_non_phi_uses() + int32_indirect_uses(),
               double_non_phi_uses() + double_indirect_uses(),
               tagged_non_phi_uses() + tagged_indirect_uses());
-  stream->Add("%s%s]",
+  stream->Add("%s%s",
               is_live() ? "_live" : "",
               IsConvertibleToInteger() ? "" : "_ncti");
+  PrintRangeTo(stream);
+  PrintTypeTo(stream);
+  stream->Add("]");
 }
 
 
