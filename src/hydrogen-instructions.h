@@ -4414,6 +4414,8 @@ class HMod: public HArithmeticBinaryOperation {
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
+  virtual HValue* Canonicalize();
+
   DECLARE_CONCRETE_INSTRUCTION(Mod)
 
  protected:
@@ -4425,6 +4427,7 @@ class HMod: public HArithmeticBinaryOperation {
   HMod(HValue* context, HValue* left, HValue* right)
       : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanBeDivByZero);
+    SetFlag(kCanOverflow);
   }
 };
 
@@ -4447,6 +4450,8 @@ class HDiv: public HArithmeticBinaryOperation {
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+
+  virtual HValue* Canonicalize();
 
   DECLARE_CONCRETE_INSTRUCTION(Div)
 

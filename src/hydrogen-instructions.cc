@@ -1445,6 +1445,16 @@ HValue* HMul::Canonicalize() {
 }
 
 
+HValue* HMod::Canonicalize() {
+  return this;
+}
+
+
+HValue* HDiv::Canonicalize() {
+  return this;
+}
+
+
 HValue* HChange::Canonicalize() {
   return (from().Equals(to())) ? value() : this;
 }
@@ -1773,20 +1783,22 @@ Range* HMul::InferRange(Zone* zone) {
 
 Range* HDiv::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
+    Range* a = left()->range();
+    Range* b = right()->range();
     Range* result = new(zone) Range();
-    if (left()->range()->CanBeMinusZero()) {
+    if (a->CanBeMinusZero()) {
       result->set_can_be_minus_zero(true);
     }
 
-    if (left()->range()->CanBeZero() && right()->range()->CanBeNegative()) {
+    if (a->CanBeZero() && b->CanBeNegative()) {
       result->set_can_be_minus_zero(true);
     }
 
-    if (right()->range()->Includes(-1) && left()->range()->Includes(kMinInt)) {
-      SetFlag(HValue::kCanOverflow);
+    if (!a->Includes(kMinInt) || !b->Includes(-1)) {
+      ClearFlag(HValue::kCanOverflow);
     }
 
-    if (!right()->range()->CanBeZero()) {
+    if (!b->CanBeZero()) {
       ClearFlag(HValue::kCanBeDivByZero);
     }
     return result;
@@ -1799,16 +1811,17 @@ Range* HDiv::InferRange(Zone* zone) {
 Range* HMod::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
+    Range* b = right()->range();
     Range* result = new(zone) Range();
     if (a->CanBeMinusZero() || a->CanBeNegative()) {
       result->set_can_be_minus_zero(true);
     }
 
-    if (right()->range()->Includes(-1) && left()->range()->Includes(kMinInt)) {
-      SetFlag(HValue::kCanOverflow);
+    if (!a->Includes(kMinInt) || !b->Includes(-1)) {
+      ClearFlag(HValue::kCanOverflow);
     }
 
-    if (!right()->range()->CanBeZero()) {
+    if (!b->CanBeZero()) {
       ClearFlag(HValue::kCanBeDivByZero);
     }
     return result;
