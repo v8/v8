@@ -566,6 +566,12 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
+  // We do not (yet?) flush code for generator functions, because we don't know
+  // if there are still live activations (generator objects) on the heap.
+  if (shared_info->is_generator()) {
+    return false;
+  }
+
   // If this is a full script wrapped in a function we do not flush the code.
   if (shared_info->is_toplevel()) {
     return false;
