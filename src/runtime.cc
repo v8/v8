@@ -7973,6 +7973,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   JavaScriptFrame* frame = it.frame();
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
+  Handle<Code> optimized_code(function->code());
   RUNTIME_ASSERT(type != Deoptimizer::EAGER || function->IsOptimized());
 
   // Avoid doing too much work when running with --always-opt and keep
@@ -8010,8 +8011,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   } else {
     Deoptimizer::DeoptimizeFunction(*function);
   }
-  // Flush optimized code cache for this function.
-  function->shared()->ClearOptimizedCodeMap("notify deoptimized");
+  // Evict optimized code for this function from the cache so that it doesn't
+  // get used for new closures.
+  function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
+                                                "notify deoptimized");
 
   return isolate->heap()->undefined_value();
 }

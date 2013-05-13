@@ -55,12 +55,11 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
   ASSERT(function->IsOptimized());
   ASSERT(function->FunctionsInFunctionListShareSameCode());
 
-  // The optimized code is going to be patched, so we cannot use it
-  // any more.  Play safe and reset the whole cache.
-  function->shared()->ClearOptimizedCodeMap("deoptimized function");
-
   // Get the optimized code.
   Code* code = function->code();
+
+  // The optimized code is going to be patched, so we cannot use it any more.
+  function->shared()->EvictFromOptimizedCodeMap(code, "deoptimized function");
 
   // Invalidate the relocation information, as it will become invalid by the
   // code patching below, and is not needed any more.

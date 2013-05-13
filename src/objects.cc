@@ -9034,11 +9034,46 @@ void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
 void SharedFunctionInfo::ClearOptimizedCodeMap(const char* reason) {
   if (!optimized_code_map()->IsSmi()) {
     if (FLAG_trace_opt) {
-      PrintF("[clearing optimizing code map (%s) for ", reason);
+      PrintF("[clearing entire optimizing code map (%s) for ", reason);
       ShortPrint();
       PrintF("]\n");
     }
     set_optimized_code_map(Smi::FromInt(0));
+  }
+}
+
+
+void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
+                                                   const char* reason) {
+  if (optimized_code_map()->IsSmi()) return;
+
+  int i;
+  bool removed_entry = false;
+  FixedArray* code_map = FixedArray::cast(optimized_code_map());
+  for (i = 0; i < code_map->length(); i += kEntryLength) {
+    ASSERT(code_map->get(i)->IsNativeContext());
+    if (Code::cast(code_map->get(i + 1)) == optimized_code) {
+      if (FLAG_trace_opt) {
+        PrintF("[clearing optimizing code map (%s) for ", reason);
+        ShortPrint();
+        PrintF("]\n");
+      }
+      removed_entry = true;
+      break;
+    }
+  }
+  while (i < (code_map->length() - kEntryLength)) {
+    code_map->set(i, code_map->get(i + kEntryLength));
+    code_map->set(i + 1, code_map->get(i + 1 + kEntryLength));
+    code_map->set(i + 2, code_map->get(i + 2 + kEntryLength));
+    i += kEntryLength;
+  }
+  if (removed_entry) {
+    if (code_map->length() > kEntryLength) {
+      RightTrimFixedArray<FROM_MUTATOR>(GetHeap(), code_map, kEntryLength);
+    } else {
+      ClearOptimizedCodeMap(reason);
+    }
   }
 }
 

@@ -5822,6 +5822,9 @@ class SharedFunctionInfo: public HeapObject {
   // Clear optimized code map.
   void ClearOptimizedCodeMap(const char* reason);
 
+  // Removed a specific optimized code object from the optimized code map.
+  void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
+
   // Add a new entry to the optimized code map.
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                     Handle<Context> native_context,
