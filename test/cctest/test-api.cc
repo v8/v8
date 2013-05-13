@@ -12081,6 +12081,13 @@ static void RunLoopInNewEnv() {
 
 
 TEST(SetFunctionEntryHook) {
+  // FunctionEntryHook does not work well with experimental natives.
+  // Experimental natives are compiled during snapshot deserialization.
+  // This test breaks because InstallGetter (function from snapshot that
+  // only gets called from experimental natives) is compiled with entry hooks.
+  i::FLAG_harmony_typed_arrays = false;
+  i::FLAG_harmony_array_buffer = false;
+
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_use_inlining = false;
 

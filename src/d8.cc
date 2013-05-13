@@ -2169,6 +2169,10 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
+#ifndef V8_SHARED
+  i::FLAG_harmony_array_buffer = true;
+  i::FLAG_harmony_typed_arrays = true;
+#endif
   int result = 0;
   Isolate* isolate = Isolate::GetCurrent();
   DumbLineEditor dumb_line_editor(isolate);
