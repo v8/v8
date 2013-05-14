@@ -232,37 +232,37 @@ void BinaryOpStub::Generate(MacroAssembler* masm) {
 void BinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
   switch (op_) {
     case Token::ADD:
-      __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::ADD, CALL_FUNCTION);
       break;
     case Token::SUB:
-      __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::SUB, CALL_FUNCTION);
       break;
     case Token::MUL:
-      __ InvokeBuiltin(Builtins::MUL, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::MUL, CALL_FUNCTION);
       break;
     case Token::DIV:
-      __ InvokeBuiltin(Builtins::DIV, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::DIV, CALL_FUNCTION);
       break;
     case Token::MOD:
-      __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::MOD, CALL_FUNCTION);
       break;
     case Token::BIT_OR:
-      __ InvokeBuiltin(Builtins::BIT_OR, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::BIT_OR, CALL_FUNCTION);
       break;
     case Token::BIT_AND:
-      __ InvokeBuiltin(Builtins::BIT_AND, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::BIT_AND, CALL_FUNCTION);
       break;
     case Token::BIT_XOR:
-      __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::BIT_XOR, CALL_FUNCTION);
       break;
     case Token::SAR:
-      __ InvokeBuiltin(Builtins::SAR, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::SAR, CALL_FUNCTION);
       break;
     case Token::SHR:
-      __ InvokeBuiltin(Builtins::SHR, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::SHR, CALL_FUNCTION);
       break;
     case Token::SHL:
-      __ InvokeBuiltin(Builtins::SHL, JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::SHL, CALL_FUNCTION);
       break;
     default:
       UNREACHABLE();

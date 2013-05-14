@@ -1227,6 +1227,14 @@ void BinaryOpStub::GenerateTypeTransitionWithSavedArgs(MacroAssembler* masm) {
 }
 
 
+static void BinaryOpStub_GenerateRegisterArgsPop(MacroAssembler* masm) {
+  __ pop(ecx);
+  __ pop(eax);
+  __ pop(edx);
+  __ push(ecx);
+}
+
+
 static void BinaryOpStub_GenerateSmiCode(
     MacroAssembler* masm,
     Label* slow,
@@ -1662,7 +1670,6 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
-      GenerateRegisterArgsPush(masm);
       break;
     case Token::MOD:
     case Token::BIT_OR:
@@ -1671,11 +1678,19 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
     case Token::SAR:
     case Token::SHL:
     case Token::SHR:
+      BinaryOpStub_GenerateRegisterArgsPop(masm);
       break;
     default:
       UNREACHABLE();
   }
-  GenerateCallRuntime(masm);
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(edx);
+    __ push(eax);
+    GenerateCallRuntime(masm);
+  }
+  __ ret(0);
 }
 
 
@@ -1700,7 +1715,8 @@ void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
   __ CmpObjectType(right, FIRST_NONSTRING_TYPE, ecx);
   __ j(above_equal, &call_runtime, Label::kNear);
 
-  StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
+  StringAddStub string_add_stub((StringAddFlags)
+                                (ERECT_FRAME | NO_STRING_CHECK_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_stub);
 
@@ -1892,7 +1908,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
-      GenerateRegisterArgsPush(masm);
       break;
     case Token::MOD:
       return;  // Handled above.
@@ -1902,11 +1917,19 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
     case Token::SAR:
     case Token::SHL:
     case Token::SHR:
+      BinaryOpStub_GenerateRegisterArgsPop(masm);
       break;
     default:
       UNREACHABLE();
   }
-  GenerateCallRuntime(masm);
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(edx);
+    __ push(eax);
+    GenerateCallRuntime(masm);
+  }
+  __ ret(0);
 }
 
 
@@ -2109,7 +2132,6 @@ void BinaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
     case Token::MUL:
     case Token::DIV:
     case Token::MOD:
-      GenerateRegisterArgsPush(masm);
       break;
     case Token::BIT_OR:
     case Token::BIT_AND:
@@ -2117,11 +2139,19 @@ void BinaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
     case Token::SAR:
     case Token::SHL:
     case Token::SHR:
+      BinaryOpStub_GenerateRegisterArgsPop(masm);
       break;
     default:
       UNREACHABLE();
   }
-  GenerateCallRuntime(masm);
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(edx);
+    __ push(eax);
+    GenerateCallRuntime(masm);
+  }
+  __ ret(0);
 }
 
 
@@ -2287,7 +2317,6 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
-      GenerateRegisterArgsPush(masm);
       break;
     case Token::MOD:
     case Token::BIT_OR:
@@ -2296,11 +2325,19 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     case Token::SAR:
     case Token::SHL:
     case Token::SHR:
+      BinaryOpStub_GenerateRegisterArgsPop(masm);
       break;
     default:
       UNREACHABLE();
   }
-  GenerateCallRuntime(masm);
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(edx);
+    __ push(eax);
+    GenerateCallRuntime(masm);
+  }
+  __ ret(0);
 }
 
 
@@ -2317,7 +2354,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);
   __ j(above_equal, &left_not_string, Label::kNear);
 
-  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
+  StringAddStub string_add_left_stub((StringAddFlags)
+      (ERECT_FRAME | NO_STRING_CHECK_LEFT_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_left_stub);
 
@@ -2327,7 +2365,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ CmpObjectType(right, FIRST_NONSTRING_TYPE, ecx);
   __ j(above_equal, &call_runtime, Label::kNear);
 
-  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+  StringAddStub string_add_right_stub((StringAddFlags)
+      (ERECT_FRAME | NO_STRING_CHECK_RIGHT_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_right_stub);
 
@@ -5737,7 +5776,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ mov(edx, Operand(esp, 1 * kPointerSize));  // Second argument.
 
   // Make sure that both arguments are strings if not known in advance.
-  if (flags_ == NO_STRING_ADD_FLAGS) {
+  if ((flags_ & NO_STRING_ADD_FLAGS) != 0) {
     __ JumpIfSmi(eax, &call_runtime);
     __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ebx);
     __ j(above_equal, &call_runtime);
@@ -6045,12 +6084,49 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ Drop(2);
   // Just jump to runtime to add the two strings.
   __ bind(&call_runtime);
-  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
+  if ((flags_ & ERECT_FRAME) != 0) {
+    GenerateRegisterArgsPop(masm, ecx);
+    // Build a frame
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      GenerateRegisterArgsPush(masm);
+      __ CallRuntime(Runtime::kStringAdd, 2);
+    }
+    __ ret(0);
+  } else {
+    __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
+  }
 
   if (call_builtin.is_linked()) {
     __ bind(&call_builtin);
-    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
+    if ((flags_ & ERECT_FRAME) != 0) {
+      GenerateRegisterArgsPop(masm, ecx);
+      // Build a frame
+      {
+        FrameScope scope(masm, StackFrame::INTERNAL);
+        GenerateRegisterArgsPush(masm);
+        __ InvokeBuiltin(builtin_id, CALL_FUNCTION);
+      }
+      __ ret(0);
+    } else {
+      __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
+    }
   }
+}
+
+
+void StringAddStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
+  __ push(eax);
+  __ push(edx);
+}
+
+
+void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm,
+                                            Register temp) {
+  __ pop(temp);
+  __ pop(edx);
+  __ pop(eax);
+  __ push(temp);
 }
 
 

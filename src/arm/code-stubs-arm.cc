@@ -2162,8 +2162,12 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   GenerateTypeTransition(masm);
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2188,7 +2192,8 @@ void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
   __ CompareObjectType(right, r2, r2, FIRST_NONSTRING_TYPE);
   __ b(ge, &call_runtime);
 
-  StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
+  StringAddStub string_add_stub((StringAddFlags)
+                                (ERECT_FRAME | NO_STRING_CHECK_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_stub);
 
@@ -2459,8 +2464,12 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   }
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2507,8 +2516,12 @@ void BinaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
   GenerateTypeTransition(masm);
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2531,8 +2544,12 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   }
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2548,7 +2565,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ CompareObjectType(left, r2, r2, FIRST_NONSTRING_TYPE);
   __ b(ge, &left_not_string);
 
-  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
+  StringAddStub string_add_left_stub((StringAddFlags)
+      (ERECT_FRAME | NO_STRING_CHECK_LEFT_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_left_stub);
 
@@ -2558,7 +2576,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ CompareObjectType(right, r2, r2, FIRST_NONSTRING_TYPE);
   __ b(ge, &call_runtime);
 
-  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+  StringAddStub string_add_right_stub((StringAddFlags)
+      (ERECT_FRAME | NO_STRING_CHECK_RIGHT_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_right_stub);
 
@@ -5822,7 +5841,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));  // Second argument.
 
   // Make sure that both arguments are strings if not known in advance.
-  if (flags_ == NO_STRING_ADD_FLAGS) {
+  if ((flags_ & NO_STRING_ADD_FLAGS) != 0) {
     __ JumpIfEitherSmi(r0, r1, &call_runtime);
     // Load instance types.
     __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -6114,12 +6133,46 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to add the two strings.
   __ bind(&call_runtime);
-  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
+  if ((flags_ & ERECT_FRAME) != 0) {
+    GenerateRegisterArgsPop(masm);
+    // Build a frame
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      GenerateRegisterArgsPush(masm);
+      __ CallRuntime(Runtime::kStringAdd, 2);
+    }
+    __ Ret();
+  } else {
+    __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
+  }
 
   if (call_builtin.is_linked()) {
     __ bind(&call_builtin);
-    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
+    if ((flags_ & ERECT_FRAME) != 0) {
+      GenerateRegisterArgsPop(masm);
+      // Build a frame
+      {
+        FrameScope scope(masm, StackFrame::INTERNAL);
+        GenerateRegisterArgsPush(masm);
+        __ InvokeBuiltin(builtin_id, CALL_FUNCTION);
+      }
+      __ Ret();
+    } else {
+      __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
+    }
   }
+}
+
+
+void StringAddStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
+  __ push(r0);
+  __ push(r1);
+}
+
+
+void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm) {
+  __ pop(r1);
+  __ pop(r0);
 }
 
 
