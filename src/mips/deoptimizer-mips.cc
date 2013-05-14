@@ -1,3 +1,4 @@
+
 // Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -51,13 +52,12 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
   ASSERT(function->IsOptimized());
   ASSERT(function->FunctionsInFunctionListShareSameCode());
 
-  // The optimized code is going to be patched, so we cannot use it
-  // any more.  Play safe and reset the whole cache.
-  function->shared()->ClearOptimizedCodeMap("deoptimized function");
-
   // Get the optimized code.
   Code* code = function->code();
   Address code_start_address = code->instruction_start();
+
+  // The optimized code is going to be patched, so we cannot use it any more.
+  function->shared()->EvictFromOptimizedCodeMap(code, "deoptimized function");
 
   // Invalidate the relocation information, as it will become invalid by the
   // code patching below, and is not needed any more.
