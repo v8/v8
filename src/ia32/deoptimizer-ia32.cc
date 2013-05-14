@@ -659,9 +659,14 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   // Set the continuation for the topmost frame.
   if (is_topmost && bailout_type_ != DEBUGGER) {
     Builtins* builtins = isolate_->builtins();
-    Code* continuation = (bailout_type_ == EAGER)
-        ? builtins->builtin(Builtins::kNotifyDeoptimized)
-        : builtins->builtin(Builtins::kNotifyLazyDeoptimized);
+    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
+    if (bailout_type_ == LAZY) {
+      continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
+    } else if (bailout_type_ == SOFT) {
+      continuation = builtins->builtin(Builtins::kNotifySoftDeoptimized);
+    } else {
+      ASSERT(bailout_type_ == EAGER);
+    }
     output_frame->SetContinuation(
         reinterpret_cast<uint32_t>(continuation->entry()));
   }
@@ -740,7 +745,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Get the address of the location in the code object if possible
   // and compute the fp-to-sp delta in register edx.
-  if (type() == EAGER) {
+  if (type() == EAGER || type() == SOFT) {
     __ Set(ecx, Immediate(0));
     __ lea(edx, Operand(esp, kSavedRegistersAreaSize + 1 * kPointerSize));
   } else {
@@ -793,7 +798,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ fnclex();
 
   // Remove the bailout id and the double registers from the stack.
-  if (type() == EAGER) {
+  if (type() == EAGER || type() == SOFT) {
     __ add(esp, Immediate(kDoubleRegsSize + kPointerSize));
   } else {
     __ add(esp, Immediate(kDoubleRegsSize + 2 * kPointerSize));
