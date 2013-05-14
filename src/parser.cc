@@ -3113,12 +3113,7 @@ Expression* Parser::ParseYieldExpression(bool* ok) {
   Expression* generator_object = factory()->NewVariableProxy(
       current_function_state_->generator_object_variable());
   Expression* expression = ParseAssignmentExpression(false, CHECK_OK);
-  Yield* yield =
-      factory()->NewYield(generator_object, expression, kind, position);
-  if (kind == Yield::DELEGATING) {
-    yield->set_index(current_function_state_->NextHandlerIndex());
-  }
-  return yield;
+  return factory()->NewYield(generator_object, expression, kind, position);
 }
 
 
