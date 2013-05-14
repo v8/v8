@@ -1961,8 +1961,102 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       break;
     }
 
-    case Yield::DELEGATING:
-      UNIMPLEMENTED();
+    case Yield::DELEGATING: {
+      VisitForStackValue(expr->generator_object());
+
+      // Initial stack layout is as follows:
+      // [sp + 1 * kPointerSize] iter
+      // [sp + 0 * kPointerSize] g
+
+      Label l_catch, l_try, l_resume, l_send, l_call, l_loop;
+      // Initial send value is undefined.
+      __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+      __ b(&l_send);
+
+      // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
+      __ bind(&l_catch);
+      handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
+      __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
+      __ push(r3);                                       // iter
+      __ push(r0);                                       // exception
+      __ mov(r0, r3);                                    // iter
+      __ push(r0);                                       // push LoadIC state
+      __ LoadRoot(r2, Heap::kthrow_stringRootIndex);     // "throw"
+      Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(throw_ic);                                  // iter.throw in r0
+      __ add(sp, sp, Operand(kPointerSize));             // drop LoadIC state
+      __ jmp(&l_call);
+
+      // try { received = yield result.value }
+      __ bind(&l_try);
+      __ pop(r0);                                        // result.value
+      __ PushTryHandler(StackHandler::CATCH, expr->index());
+      const int handler_size = StackHandlerConstants::kSize;
+      __ push(r0);                                       // result.value
+      __ ldr(r3, MemOperand(sp, (0 + 1) * kPointerSize + handler_size));  // g
+      __ push(r3);                                       // g
+      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ ldr(context_register(),
+             MemOperand(fp, StandardFrameConstants::kContextOffset));
+      __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
+      __ b(ne, &l_resume);
+      EmitReturnIteratorResult(false);
+      __ bind(&l_resume);                                // received in r0
+      __ PopTryHandler();
+
+      // receiver = iter; f = iter.send; arg = received;
+      __ bind(&l_send);
+      __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
+      __ push(r3);                                       // iter
+      __ push(r0);                                       // received
+      __ mov(r0, r3);                                    // iter
+      __ push(r0);                                       // push LoadIC state
+      __ LoadRoot(r2, Heap::ksend_stringRootIndex);      // "send"
+      Handle<Code> send_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(send_ic);                                   // iter.send in r0
+      __ add(sp, sp, Operand(kPointerSize));             // drop LoadIC state
+
+      // result = f.call(receiver, arg);
+      __ bind(&l_call);
+      Label l_call_runtime;
+      __ JumpIfSmi(r0, &l_call_runtime);
+      __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
+      __ b(ne, &l_call_runtime);
+      __ mov(r1, r0);
+      ParameterCount count(1);
+      __ InvokeFunction(r1, count, CALL_FUNCTION,
+                        NullCallWrapper(), CALL_AS_METHOD);
+      __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+      __ jmp(&l_loop);
+      __ bind(&l_call_runtime);
+      __ push(r0);
+      __ CallRuntime(Runtime::kCall, 3);
+
+      // val = result.value; if (!result.done) goto l_try;
+      __ bind(&l_loop);
+      // result.value
+      __ push(r0);                                       // save result
+      __ LoadRoot(r2, Heap::kvalue_stringRootIndex);     // "value"
+      Handle<Code> value_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(value_ic);                                  // result.value in r0
+      __ pop(r1);                                        // result
+      __ push(r0);                                       // result.value
+      __ mov(r0, r1);                                    // result
+      __ push(r0);                                       // push LoadIC state
+      __ LoadRoot(r2, Heap::kdone_stringRootIndex);      // "done"
+      Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(done_ic);                                   // result.done in r0
+      __ add(sp, sp, Operand(kPointerSize));             // drop LoadIC state
+      ToBooleanStub stub(r0);
+      __ CallStub(&stub);
+      __ cmp(r0, Operand(0));
+      __ b(eq, &l_try);
+
+      // result.value
+      __ pop(r0);                                        // result.value
+      context()->DropAndPlug(2, r0);                     // drop iter and g
+      break;
+    }
   }
 }
 
