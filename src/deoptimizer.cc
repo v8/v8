@@ -50,22 +50,23 @@ static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
 
 DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
     : allocator_(allocator),
-      eager_deoptimization_entry_code_entries_(-1),
-      lazy_deoptimization_entry_code_entries_(-1),
-      eager_deoptimization_entry_code_(AllocateCodeChunk(allocator)),
-      lazy_deoptimization_entry_code_(AllocateCodeChunk(allocator)),
       current_(NULL),
 #ifdef ENABLE_DEBUGGER_SUPPORT
       deoptimized_frame_info_(NULL),
 #endif
-      deoptimizing_code_list_(NULL) { }
+      deoptimizing_code_list_(NULL) {
+  for (int i = 0; i < Deoptimizer::kBailoutTypesWithCodeEntry; ++i) {
+    deopt_entry_code_entries_[i] = -1;
+    deopt_entry_code_[i] = AllocateCodeChunk(allocator);
+  }
+}
 
 
 DeoptimizerData::~DeoptimizerData() {
-  allocator_->Free(eager_deoptimization_entry_code_);
-  eager_deoptimization_entry_code_ = NULL;
-  allocator_->Free(lazy_deoptimization_entry_code_);
-  lazy_deoptimization_entry_code_ = NULL;
+  for (int i = 0; i < Deoptimizer::kBailoutTypesWithCodeEntry; ++i) {
+    allocator_->Free(deopt_entry_code_[i]);
+    deopt_entry_code_[i] = NULL;
+  }
 
   DeoptimizingCodeListNode* current = deoptimizing_code_list_;
   while (current != NULL) {
@@ -488,6 +489,7 @@ bool Deoptimizer::TraceEnabledFor(BailoutType deopt_type,
                                   StackFrame::Type frame_type) {
   switch (deopt_type) {
     case EAGER:
+    case SOFT:
     case LAZY:
     case DEBUGGER:
       return (frame_type == StackFrame::STUB)
@@ -504,6 +506,7 @@ bool Deoptimizer::TraceEnabledFor(BailoutType deopt_type,
 const char* Deoptimizer::MessageFor(BailoutType type) {
   switch (type) {
     case EAGER:
+    case SOFT:
     case LAZY:
       return "DEOPT";
     case DEBUGGER:
@@ -545,6 +548,13 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   }
   if (function != NULL && function->IsOptimized()) {
     function->shared()->increment_deopt_count();
+    if (bailout_type_ == Deoptimizer::SOFT) {
+      // Soft deopts shouldn't count against the overall re-optimization count
+      // that can eventually lead to disabling optimization for a function.
+      int opt_count = function->shared()->opt_count();
+      if (opt_count > 0) opt_count--;
+      function->shared()->set_opt_count(opt_count);
+    }
   }
   compiled_code_ = FindOptimizedCode(function, optimized_code);
   StackFrame::Type frame_type = function == NULL
@@ -562,6 +572,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
 Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
                                      Code* optimized_code) {
   switch (bailout_type_) {
+    case Deoptimizer::SOFT:
     case Deoptimizer::EAGER:
       ASSERT(from_ == NULL);
       return function->code();
@@ -597,7 +608,9 @@ void Deoptimizer::Trace() {
          bailout_id_,
          reinterpret_cast<intptr_t>(from_),
          fp_to_sp_delta_ - (2 * kPointerSize));
-  if (bailout_type_ == EAGER) compiled_code_->PrintDeoptLocation(bailout_id_);
+  if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
+    compiled_code_->PrintDeoptLocation(bailout_id_);
+  }
 }
 
 
@@ -639,9 +652,8 @@ Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
     ASSERT(mode == CALCULATE_ENTRY_ADDRESS);
   }
   DeoptimizerData* data = isolate->deoptimizer_data();
-  MemoryChunk* base = (type == EAGER)
-      ? data->eager_deoptimization_entry_code_
-      : data->lazy_deoptimization_entry_code_;
+  ASSERT(type < kBailoutTypesWithCodeEntry);
+  MemoryChunk* base = data->deopt_entry_code_[type];
   return base->area_start() + (id * table_entry_size_);
 }
 
@@ -650,9 +662,7 @@ int Deoptimizer::GetDeoptimizationId(Isolate* isolate,
                                      Address addr,
                                      BailoutType type) {
   DeoptimizerData* data = isolate->deoptimizer_data();
-  MemoryChunk* base = (type == EAGER)
-      ? data->eager_deoptimization_entry_code_
-      : data->lazy_deoptimization_entry_code_;
+  MemoryChunk* base = data->deopt_entry_code_[type];
   Address start = base->area_start();
   if (base == NULL ||
       addr < start ||
@@ -2206,11 +2216,9 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   // cause us to emit relocation information for the external
   // references. This is fine because the deoptimizer's code section
   // isn't meant to be serialized at all.
-  ASSERT(type == EAGER || type == LAZY);
+  ASSERT(type == EAGER || type == SOFT || type == LAZY);
   DeoptimizerData* data = isolate->deoptimizer_data();
-  int entry_count = (type == EAGER)
-      ? data->eager_deoptimization_entry_code_entries_
-      : data->lazy_deoptimization_entry_code_entries_;
+  int entry_count = data->deopt_entry_code_entries_[type];
   if (max_entry_id < entry_count) return;
   entry_count = Max(entry_count, Deoptimizer::kMinNumberOfEntries);
   while (max_entry_id >= entry_count) entry_count *= 2;
@@ -2223,9 +2231,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   masm.GetCode(&desc);
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
-  MemoryChunk* chunk = (type == EAGER)
-      ? data->eager_deoptimization_entry_code_
-      : data->lazy_deoptimization_entry_code_;
+  MemoryChunk* chunk = data->deopt_entry_code_[type];
   ASSERT(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
          desc.instr_size);
   chunk->CommitArea(desc.instr_size);
@@ -2233,11 +2239,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
       static_cast<size_t>(desc.instr_size));
   CPU::FlushICache(chunk->area_start(), desc.instr_size);
 
-  if (type == EAGER) {
-    data->eager_deoptimization_entry_code_entries_ = entry_count;
-  } else {
-    data->lazy_deoptimization_entry_code_entries_ = entry_count;
-  }
+  data->deopt_entry_code_entries_[type] = entry_count;
 }
 
 

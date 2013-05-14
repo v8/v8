@@ -10147,12 +10147,15 @@ void Code::PrintDeoptLocation(int bailout_id) {
     RelocInfo* info = it.rinfo();
     if (info->rmode() == RelocInfo::COMMENT) {
       last_comment = reinterpret_cast<const char*>(info->data());
-    } else if (last_comment != NULL &&
-               bailout_id == Deoptimizer::GetDeoptimizationId(
-                   GetIsolate(), info->target_address(), Deoptimizer::EAGER)) {
-      CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
-      PrintF("            %s\n", last_comment);
-      return;
+    } else if (last_comment != NULL) {
+      if ((bailout_id == Deoptimizer::GetDeoptimizationId(
+              GetIsolate(), info->target_address(), Deoptimizer::EAGER)) ||
+          (bailout_id == Deoptimizer::GetDeoptimizationId(
+              GetIsolate(), info->target_address(), Deoptimizer::SOFT))) {
+        CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
+        PrintF("            %s\n", last_comment);
+        return;
+      }
     }
   }
 }

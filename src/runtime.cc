@@ -7974,7 +7974,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
   Handle<Code> optimized_code(function->code());
-  RUNTIME_ASSERT(type != Deoptimizer::EAGER || function->IsOptimized());
+  RUNTIME_ASSERT((type != Deoptimizer::EAGER &&
+                  type != Deoptimizer::SOFT) || function->IsOptimized());
 
   // Avoid doing too much work when running with --always-opt and keep
   // the optimized code around.
