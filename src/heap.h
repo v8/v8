@@ -273,7 +273,11 @@ namespace internal {
   V(minus_infinity_string, "-Infinity")                                  \
   V(hidden_stack_trace_string, "v8::hidden_stack_trace")                 \
   V(query_colon_string, "(?:)")                                          \
-  V(Generator_string, "Generator")
+  V(Generator_string, "Generator")                                       \
+  V(send_string, "send")                                                 \
+  V(throw_string, "throw")                                               \
+  V(done_string, "done")                                                 \
+  V(value_string, "value")
 
 // Forward declarations.
 class GCTracer;

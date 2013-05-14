@@ -320,6 +320,16 @@ TestGenerator(
     "foo",
     [2, "1foo3", 5, "4foo6", "foofoo"]);
 
+// Delegating yield
+TestGenerator(
+    function* g26() {
+      function* g() { var x = yield 1; yield 2; yield x; return 3; }
+      yield* g();
+    },
+    [1, 2, undefined, undefined],
+    "foo",
+    [1, 2, "foo", undefined]);
+
 function TestTryCatch() {
   function* g() { yield 1; try { yield 2; } catch (e) { yield e; } yield 3; }
   function Sentinel() {}
@@ -359,6 +369,7 @@ function TestTryCatch() {
   assertThrows(function() { iter.throw(new Sentinel); }, Sentinel);
   assertThrows(function() { iter.next(); }, Error);
 
+  // ***
   iter = g();
   assertIteratorResult(1, false, iter.next());
   assertIteratorResult(2, false, iter.next());
@@ -372,6 +383,15 @@ function TestTryCatch() {
   assertIteratorResult(2, false, iter.next());
   assertIteratorResult(3, false, iter.next());
   assertIteratorResult(undefined, true, iter.next());
+  assertThrows(function() { iter.next(); }, Error);
+
+  // same as *** above with delegate
+  iter = (function* () { yield* g(); })();
+  assertIteratorResult(1, false, iter.next());
+  assertIteratorResult(2, false, iter.next());
+  var exn = new Sentinel;
+  assertIteratorResult(exn, false, iter.throw(exn));
+  assertThrows(function() { iter.throw(new Sentinel); }, Sentinel);
   assertThrows(function() { iter.next(); }, Error);
 }
 TestTryCatch();
@@ -406,6 +426,7 @@ function TestTryFinally() {
   assertThrows(function() { iter.next(); }, Sentinel);
   assertThrows(function() { iter.next(); }, Error);
 
+  // ***
   iter = g();
   assertIteratorResult(1, false, iter.next());
   assertIteratorResult(2, false, iter.next());
@@ -434,6 +455,14 @@ function TestTryFinally() {
   assertIteratorResult(3, false, iter.next());
   assertIteratorResult(4, false, iter.next());
   assertIteratorResult(undefined, true, iter.next());
+  assertThrows(function() { iter.next(); }, Error);
+
+  // same as *** above with delegate
+  iter = (function* () { yield* g(); })();
+  assertIteratorResult(1, false, iter.next());
+  assertIteratorResult(2, false, iter.next());
+  assertIteratorResult(3, false, iter.throw(new Sentinel));
+  assertThrows(function() { iter.throw(new Sentinel2); }, Sentinel2);
   assertThrows(function() { iter.next(); }, Error);
 }
 TestTryFinally();
@@ -489,6 +518,7 @@ function TestNestedTry() {
   assertIteratorResult(undefined, true, iter.next());
   assertThrows(function() { iter.next(); }, Error);
 
+  // ***
   iter = g();
   assertIteratorResult(1, false, iter.next());
   assertIteratorResult(2, false, iter.next());
@@ -504,6 +534,16 @@ function TestNestedTry() {
   var exn = new Sentinel;
   assertIteratorResult(exn, false, iter.throw(exn));
   assertIteratorResult(3, false, iter.next());
+  assertIteratorResult(4, false, iter.throw(new Sentinel2));
+  assertThrows(function() { iter.next(); }, Sentinel2);
+  assertThrows(function() { iter.next(); }, Error);
+
+  // same as *** above with delegate
+  iter = (function* () { yield* g(); })();
+  assertIteratorResult(1, false, iter.next());
+  assertIteratorResult(2, false, iter.next());
+  var exn = new Sentinel;
+  assertIteratorResult(exn, false, iter.throw(exn));
   assertIteratorResult(4, false, iter.throw(new Sentinel2));
   assertThrows(function() { iter.next(); }, Sentinel2);
   assertThrows(function() { iter.next(); }, Error);
