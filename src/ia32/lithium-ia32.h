@@ -108,7 +108,6 @@ class LCodeGen;
   V(Uint32ToDouble)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
-  V(IsNilAndBranch)                             \
   V(IsObjectAndBranch)                          \
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
@@ -829,26 +828,6 @@ class LCmpConstantEqAndBranch: public LControlInstruction<1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CmpConstantEqAndBranch,
                                "cmp-constant-eq-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareConstantEqAndBranch)
-};
-
-
-class LIsNilAndBranch: public LControlInstruction<1, 1> {
- public:
-  LIsNilAndBranch(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNilAndBranch, "is-nil-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(IsNilAndBranch)
-
-  EqualityKind kind() const { return hydrogen()->kind(); }
-  NilValue nil() const { return hydrogen()->nil(); }
-
-  virtual void PrintDataTo(StringStream* stream);
 };
 
 

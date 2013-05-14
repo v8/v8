@@ -2033,48 +2033,6 @@ void LCodeGen::DoCmpConstantEqAndBranch(LCmpConstantEqAndBranch* instr) {
 }
 
 
-
-void LCodeGen::DoIsNilAndBranch(LIsNilAndBranch* instr) {
-  Register scratch = scratch0();
-  Register reg = ToRegister(instr->value());
-  int false_block = chunk_->LookupDestination(instr->false_block_id());
-
-  // If the expression is known to be untagged or a smi, then it's definitely
-  // not null, and it can't be a an undetectable object.
-  if (instr->hydrogen()->representation().IsSpecialization() ||
-      instr->hydrogen()->type().IsSmi()) {
-    EmitGoto(false_block);
-    return;
-  }
-
-  int true_block = chunk_->LookupDestination(instr->true_block_id());
-
-  Heap::RootListIndex nil_value = instr->nil() == kNullValue ?
-      Heap::kNullValueRootIndex :
-      Heap::kUndefinedValueRootIndex;
-  __ LoadRoot(at, nil_value);
-  if (instr->kind() == kStrictEquality) {
-    EmitBranch(true_block, false_block, eq, reg, Operand(at));
-  } else {
-    Heap::RootListIndex other_nil_value = instr->nil() == kNullValue ?
-        Heap::kUndefinedValueRootIndex :
-        Heap::kNullValueRootIndex;
-    Label* true_label = chunk_->GetAssemblyLabel(true_block);
-    Label* false_label = chunk_->GetAssemblyLabel(false_block);
-    __ Branch(USE_DELAY_SLOT, true_label, eq, reg, Operand(at));
-    __ LoadRoot(at, other_nil_value);  // In the delay slot.
-    __ Branch(USE_DELAY_SLOT, true_label, eq, reg, Operand(at));
-    __ JumpIfSmi(reg, false_label);  // In the delay slot.
-    // Check for undetectable objects by looking in the bit field in
-    // the map. The object has already been smi checked.
-    __ lw(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
-    __ lbu(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-    __ And(scratch, scratch, 1 << Map::kIsUndetectable);
-    EmitBranch(true_block, false_block, ne, scratch, Operand(zero_reg));
-  }
-}
-
-
 Condition LCodeGen::EmitIsObject(Register input,
                                  Register temp1,
                                  Register temp2,

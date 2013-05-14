@@ -2419,48 +2419,6 @@ void LCodeGen::DoCmpConstantEqAndBranch(LCmpConstantEqAndBranch* instr) {
 }
 
 
-void LCodeGen::DoIsNilAndBranch(LIsNilAndBranch* instr) {
-  Register scratch = scratch0();
-  Register reg = ToRegister(instr->value());
-  int false_block = chunk_->LookupDestination(instr->false_block_id());
-
-  // If the expression is known to be untagged or a smi, then it's definitely
-  // not null, and it can't be a an undetectable object.
-  if (instr->hydrogen()->representation().IsSpecialization() ||
-      instr->hydrogen()->type().IsSmi()) {
-    EmitGoto(false_block);
-    return;
-  }
-
-  int true_block = chunk_->LookupDestination(instr->true_block_id());
-  Heap::RootListIndex nil_value = instr->nil() == kNullValue ?
-      Heap::kNullValueRootIndex :
-      Heap::kUndefinedValueRootIndex;
-  __ LoadRoot(ip, nil_value);
-  __ cmp(reg, ip);
-  if (instr->kind() == kStrictEquality) {
-    EmitBranch(true_block, false_block, eq);
-  } else {
-    Heap::RootListIndex other_nil_value = instr->nil() == kNullValue ?
-        Heap::kUndefinedValueRootIndex :
-        Heap::kNullValueRootIndex;
-    Label* true_label = chunk_->GetAssemblyLabel(true_block);
-    Label* false_label = chunk_->GetAssemblyLabel(false_block);
-    __ b(eq, true_label);
-    __ LoadRoot(ip, other_nil_value);
-    __ cmp(reg, ip);
-    __ b(eq, true_label);
-    __ JumpIfSmi(reg, false_label);
-    // Check for undetectable objects by looking in the bit field in
-    // the map. The object has already been smi checked.
-    __ ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
-    __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-    __ tst(scratch, Operand(1 << Map::kIsUndetectable));
-    EmitBranch(true_block, false_block, ne);
-  }
-}
-
-
 Condition LCodeGen::EmitIsObject(Register input,
                                  Register temp1,
                                  Label* is_not_object,

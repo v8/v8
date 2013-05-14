@@ -127,7 +127,6 @@ class LChunkBuilder;
   V(InstanceSize)                              \
   V(InvokeFunction)                            \
   V(IsConstructCallAndBranch)                  \
-  V(IsNilAndBranch)                            \
   V(IsObjectAndBranch)                         \
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
@@ -3918,31 +3917,6 @@ class HCompareConstantEqAndBranch: public HUnaryControlInstruction {
  private:
   const Token::Value op_;
   const int right_;
-};
-
-
-class HIsNilAndBranch: public HUnaryControlInstruction {
- public:
-  HIsNilAndBranch(HValue* value, EqualityKind kind, NilValue nil)
-      : HUnaryControlInstruction(value, NULL, NULL), kind_(kind), nil_(nil) { }
-
-  EqualityKind kind() const { return kind_; }
-  NilValue nil() const { return nil_; }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual Representation observed_input_representation(int index) {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNilAndBranch)
-
- private:
-  EqualityKind kind_;
-  NilValue nil_;
 };
 
 

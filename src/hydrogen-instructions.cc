@@ -1254,14 +1254,6 @@ void HUnaryControlInstruction::PrintDataTo(StringStream* stream) {
 }
 
 
-void HIsNilAndBranch::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(kind() == kStrictEquality ? " === " : " == ");
-  stream->Add(nil() == kNullValue ? "null" : "undefined");
-  HControlInstruction::PrintDataTo(stream);
-}
-
-
 void HReturn::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" (pop ");

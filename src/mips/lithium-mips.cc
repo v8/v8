@@ -217,15 +217,6 @@ void LCmpIDAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void LIsNilAndBranch::PrintDataTo(StringStream* stream) {
-  stream->Add("if ");
-  value()->PrintTo(stream);
-  stream->Add(kind() == kStrictEquality ? " === " : " == ");
-  stream->Add(nil() == kNullValue ? "null" : "undefined");
-  stream->Add(" then B%d else B%d", true_block_id(), false_block_id());
-}
-
-
 void LIsObjectAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_object(");
   value()->PrintTo(stream);
@@ -1589,12 +1580,6 @@ LInstruction* LChunkBuilder::DoCompareConstantEqAndBranch(
     HCompareConstantEqAndBranch* instr) {
   return new(zone()) LCmpConstantEqAndBranch(
       UseRegisterAtStart(instr->value()));
-}
-
-
-LInstruction* LChunkBuilder::DoIsNilAndBranch(HIsNilAndBranch* instr) {
-  ASSERT(instr->value()->representation().IsTagged());
-  return new(zone()) LIsNilAndBranch(UseRegisterAtStart(instr->value()));
 }
 
 
