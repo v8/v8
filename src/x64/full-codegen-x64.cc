@@ -1958,12 +1958,13 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
       __ jmp(&l_send);
 
-      // catch (e) { receiver = iter; f = iter.throw; arg = e; }
+      // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
       __ bind(&l_catch);
       handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
-      __ push(Operand(rsp, 1 * kPointerSize));           // iter
+      __ movq(rcx, Operand(rsp, 1 * kPointerSize));       // iter
+      __ push(rcx);                                      // iter
       __ push(rax);                                      // exception
-      __ movq(rax, Operand(rsp, 3 * kPointerSize));      // iter
+      __ movq(rax, rcx);                                 // iter
       __ LoadRoot(rcx, Heap::kthrow_stringRootIndex);    // "throw"
       Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(throw_ic);                                  // iter.throw in rax
@@ -1987,9 +1988,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       // receiver = iter; f = iter.send; arg = received;
       __ bind(&l_send);
-      __ push(Operand(rsp, 1 * kPointerSize));           // iter
+      __ movq(rcx, Operand(rsp, 1 * kPointerSize));      // iter
+      __ push(rcx);                                      // iter
       __ push(rax);                                      // received
-      __ movq(rax, Operand(rsp, 3 * kPointerSize));      // iter
+      __ movq(rax, rcx);                                 // iter
       __ LoadRoot(rcx, Heap::ksend_stringRootIndex);     // "send"
       Handle<Code> send_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(send_ic);                                   // iter.send in rax

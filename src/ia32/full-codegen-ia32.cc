@@ -1934,12 +1934,12 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ mov(eax, isolate()->factory()->undefined_value());
       __ jmp(&l_send);
 
-      // catch (e) { receiver = iter; f = iter.throw; arg = e; }
+      // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
       __ bind(&l_catch);
       handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
-      __ push(Operand(esp, 1 * kPointerSize));           // iter
+      __ mov(edx, Operand(esp, 1 * kPointerSize));       // iter
+      __ push(edx);                                      // iter
       __ push(eax);                                      // exception
-      __ mov(edx, Operand(esp, 3 * kPointerSize));       // iter
       __ mov(ecx, isolate()->factory()->throw_string());  // "throw"
       Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(throw_ic);                                  // iter.throw in eax
@@ -1963,12 +1963,12 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       // receiver = iter; f = iter.send; arg = received;
       __ bind(&l_send);
-      __ push(Operand(esp, 1 * kPointerSize));           // iter
+      __ mov(edx, Operand(esp, 1 * kPointerSize));       // iter
+      __ push(edx);                                      // iter
       __ push(eax);                                      // received
-      __ mov(edx, Operand(esp, 3 * kPointerSize));       // iter
       __ mov(ecx, isolate()->factory()->send_string());  // "send"
       Handle<Code> send_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(send_ic);                                   // iter.send in rax
+      CallIC(send_ic);                                   // iter.send in eax
 
       // result = f.call(receiver, arg);
       __ bind(&l_call);
@@ -1993,13 +1993,13 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ mov(edx, eax);                                  // result
       __ mov(ecx, isolate()->factory()->value_string());  // "value"
       Handle<Code> value_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(value_ic);                                  // result.value in rax
+      CallIC(value_ic);                                  // result.value in eax
       __ pop(ebx);                                       // result
       __ push(eax);                                      // result.value
       __ mov(edx, ebx);                                  // result
       __ mov(ecx, isolate()->factory()->done_string());  // "done"
       Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(done_ic);                                   // result.done in rax
+      CallIC(done_ic);                                   // result.done in eax
       ToBooleanStub stub(eax);
       __ push(eax);
       __ CallStub(&stub);

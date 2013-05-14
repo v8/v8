@@ -1973,13 +1973,13 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
       __ b(&l_send);
 
-      // catch (e) { receiver = iter; f = iter.throw; arg = e; }
+      // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
       __ bind(&l_catch);
       handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
       __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
       __ push(r3);                                       // iter
       __ push(r0);                                       // exception
-      __ ldr(r0, MemOperand(sp, 3 * kPointerSize));      // iter
+      __ mov(r0, r3);                                    // iter
       __ push(r0);                                       // push LoadIC state
       __ LoadRoot(r2, Heap::kthrow_stringRootIndex);     // "throw"
       Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
@@ -2009,7 +2009,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
       __ push(r3);                                       // iter
       __ push(r0);                                       // received
-      __ ldr(r0, MemOperand(sp, 3 * kPointerSize));      // iter
+      __ mov(r0, r3);                                    // iter
       __ push(r0);                                       // push LoadIC state
       __ LoadRoot(r2, Heap::ksend_stringRootIndex);      // "send"
       Handle<Code> send_ic = isolate()->builtins()->LoadIC_Initialize();
