@@ -793,6 +793,7 @@ class HValue: public ZoneObject {
     kDeoptimizeOnUndefined,
     kIsArguments,
     kTruncatingToInt32,
+    // Set after an instruction is killed.
     kIsDead,
     // Instructions that are allowed to produce full range unsigned integer
     // values are marked with kUint32 flag. If arithmetic shift or a load from
@@ -808,6 +809,8 @@ class HValue: public ZoneObject {
     // has processed this instruction.
     kIDefsProcessingDone,
     kHasNoObservableSideEffects,
+    // Indicates the instruction is live during dead code elimination.
+    kIsLive,
     kLastFlag = kIDefsProcessingDone
   };
 
@@ -1070,8 +1073,9 @@ class HValue: public ZoneObject {
     UNREACHABLE();
   }
 
-  bool IsDead() const {
-    return HasNoUses() && !HasObservableSideEffects() && IsDeletable();
+  // Check if this instruction has some reason that prevents elimination.
+  bool CannotBeEliminated() const {
+    return HasObservableSideEffects() || !IsDeletable();
   }
 
 #ifdef DEBUG
@@ -2968,7 +2972,6 @@ class HPhi: public HValue {
       : inputs_(2, zone),
         merged_index_(merged_index),
         phi_id_(-1),
-        is_live_(false),
         is_convertible_to_integer_(true) {
     for (int i = 0; i < Representation::kNumRepresentations; i++) {
       non_phi_uses_[i] = 0;
@@ -2993,7 +2996,7 @@ class HPhi: public HValue {
   void AddInput(HValue* value);
   bool HasRealUses();
 
-  bool IsReceiver() { return merged_index_ == 0; }
+  bool IsReceiver() const { return merged_index_ == 0; }
 
   int merged_index() const { return merged_index_; }
 
@@ -3028,8 +3031,6 @@ class HPhi: public HValue {
     return indirect_uses_[Representation::kDouble];
   }
   int phi_id() { return phi_id_; }
-  bool is_live() { return is_live_; }
-  void set_is_live(bool b) { is_live_ = b; }
 
   static HPhi* cast(HValue* value) {
     ASSERT(value->IsPhi());
@@ -3061,6 +3062,9 @@ class HPhi: public HValue {
 
   void SimplifyConstantInputs();
 
+  // TODO(titzer): we can't eliminate the receiver for generating backtraces
+  virtual bool IsDeletable() const { return !IsReceiver(); }
+
  protected:
   virtual void DeleteFromGraph();
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -3079,7 +3083,6 @@ class HPhi: public HValue {
   int non_phi_uses_[Representation::kNumRepresentations];
   int indirect_uses_[Representation::kNumRepresentations];
   int phi_id_;
-  bool is_live_;
   bool is_convertible_to_integer_;
 };
 

@@ -277,17 +277,15 @@ class HGraph: public ZoneObject {
   void GlobalValueNumbering();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
-  void EliminateUnreachablePhis();
   void Canonicalize();
   void OrderBlocks();
   void AssignDominators();
   void SetupInformativeDefinitions();
   void EliminateRedundantBoundsChecks();
   void DehoistSimpleArrayIndexComputations();
-  void DeadCodeElimination();
   void RestoreActualValues();
+  void DeadCodeElimination(const char *phase_name);
   void PropagateDeoptimizingMark();
-  void EliminateUnusedInstructions();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
@@ -410,6 +408,9 @@ class HGraph: public ZoneObject {
   HConstant* GetConstantSmi(SetOncePointer<HConstant>* pointer,
                             int32_t integer_value);
 
+  void MarkLive(HValue* ref, HValue* instr, ZoneList<HValue*>* worklist);
+  void MarkLiveInstructions();
+  void RemoveDeadInstructions();
   void MarkAsDeoptimizingRecursively(HBasicBlock* block);
   void NullifyUnreachableInstructions();
   void InsertTypeConversions(HInstruction* instr);

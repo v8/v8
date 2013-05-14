@@ -104,7 +104,6 @@ void HBasicBlock::AddPhi(HPhi* phi) {
 void HBasicBlock::RemovePhi(HPhi* phi) {
   ASSERT(phi->block() == this);
   ASSERT(phis_.Contains(phi));
-  ASSERT(phi->HasNoUses() || !phi->is_live());
   phi->Kill();
   phis_.RemoveElement(phi);
   phi->SetBlock(NULL);
@@ -2615,50 +2614,6 @@ void HGraph::EliminateRedundantPhis() {
 }
 
 
-void HGraph::EliminateUnreachablePhis() {
-  HPhase phase("H_Unreachable phi elimination", this);
-
-  // Initialize worklist.
-  ZoneList<HPhi*> phi_list(blocks_.length(), zone());
-  ZoneList<HPhi*> worklist(blocks_.length(), zone());
-  for (int i = 0; i < blocks_.length(); ++i) {
-    for (int j = 0; j < blocks_[i]->phis()->length(); j++) {
-      HPhi* phi = blocks_[i]->phis()->at(j);
-      phi_list.Add(phi, zone());
-      // We can't eliminate phis in the receiver position in the environment
-      // because in case of throwing an error we need this value to
-      // construct a stack trace.
-      if (phi->HasRealUses() || phi->IsReceiver())  {
-        phi->set_is_live(true);
-        worklist.Add(phi, zone());
-      }
-    }
-  }
-
-  // Iteratively mark live phis.
-  while (!worklist.is_empty()) {
-    HPhi* phi = worklist.RemoveLast();
-    for (int i = 0; i < phi->OperandCount(); i++) {
-      HValue* operand = phi->OperandAt(i);
-      if (operand->IsPhi() && !HPhi::cast(operand)->is_live()) {
-        HPhi::cast(operand)->set_is_live(true);
-        worklist.Add(HPhi::cast(operand), zone());
-      }
-    }
-  }
-
-  // Remove unreachable phis.
-  for (int i = 0; i < phi_list.length(); i++) {
-    HPhi* phi = phi_list[i];
-    if (!phi->is_live()) {
-      HBasicBlock* block = phi->block();
-      block->RemovePhi(phi);
-      block->RecordDeletedPhi(phi->merged_index());
-    }
-  }
-}
-
-
 bool HGraph::CheckArgumentsPhiUses() {
   int block_count = blocks_.length();
   for (int i = 0; i < block_count; ++i) {
@@ -4919,7 +4874,11 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
         "Unsupported phi use of arguments"));
     return false;
   }
-  if (FLAG_eliminate_dead_phis) EliminateUnreachablePhis();
+
+  // Remove dead code and phis
+  if (FLAG_dead_code_elimination) {
+    DeadCodeElimination("H_Eliminate early dead code");
+  }
   CollectPhis();
 
   if (has_osr_loop_entry()) {
@@ -4967,7 +4926,9 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
     EliminateRedundantBoundsChecks();
   }
   if (FLAG_array_index_dehoisting) DehoistSimpleArrayIndexComputations();
-  if (FLAG_dead_code_elimination) DeadCodeElimination();
+  if (FLAG_dead_code_elimination) {
+    DeadCodeElimination("H_Eliminate late dead code");
+  }
 
   RestoreActualValues();
 
@@ -5444,35 +5405,98 @@ void HGraph::DehoistSimpleArrayIndexComputations() {
 }
 
 
-void HGraph::DeadCodeElimination() {
-  HPhase phase("H_Dead code elimination", this);
-  ZoneList<HInstruction*> worklist(blocks_.length(), zone());
+void HGraph::DeadCodeElimination(const char* phase_name) {
+  HPhase phase(phase_name, this);
+  MarkLiveInstructions();
+  RemoveDeadInstructions();
+}
+
+
+void HGraph::MarkLiveInstructions() {
+  ZoneList<HValue*> worklist(blocks_.length(), zone());
+
+  // Mark initial root instructions for dead code elimination.
   for (int i = 0; i < blocks()->length(); ++i) {
-    for (HInstruction* instr = blocks()->at(i)->first();
+    HBasicBlock* block = blocks()->at(i);
+    for (HInstruction* instr = block->first();
          instr != NULL;
          instr = instr->next()) {
-      if (instr->IsDead()) worklist.Add(instr, zone());
+      if (instr->CannotBeEliminated()) MarkLive(NULL, instr, &worklist);
+    }
+    for (int j = 0; j < block->phis()->length(); j++) {
+      HPhi* phi = block->phis()->at(j);
+      if (phi->CannotBeEliminated()) MarkLive(NULL, phi, &worklist);
     }
   }
 
+  // Transitively mark all inputs of live instructions live.
   while (!worklist.is_empty()) {
-    HInstruction* instr = worklist.RemoveLast();
-    // This happens when an instruction is used multiple times as operand. That
-    // in turn could happen through GVN.
-    if (!instr->IsLinked()) continue;
+    HValue* instr = worklist.RemoveLast();
+    for (int i = 0; i < instr->OperandCount(); ++i) {
+      MarkLive(instr, instr->OperandAt(i), &worklist);
+    }
+  }
+}
+
+
+void HGraph::MarkLive(HValue *ref, HValue* instr,
+    ZoneList<HValue*>* worklist) {
+  if (!instr->CheckFlag(HValue::kIsLive)) {
+    instr->SetFlag(HValue::kIsLive);
+    worklist->Add(instr, zone());
+
     if (FLAG_trace_dead_code_elimination) {
       HeapStringAllocator allocator;
       StringStream stream(&allocator);
-      instr->PrintNameTo(&stream);
-      stream.Add(" = ");
+      if (ref != NULL) {
+        ref->PrintTo(&stream);
+      } else {
+        stream.Add("root ");
+      }
+      stream.Add(" -> ");
       instr->PrintTo(&stream);
-      PrintF("[removing dead instruction %s]\n", *stream.ToCString());
+      PrintF("[MarkLive %s]\n", *stream.ToCString());
     }
-    instr->DeleteAndReplaceWith(NULL);
-    for (int i = 0; i < instr->OperandCount(); ++i) {
-      HValue* operand = instr->OperandAt(i);
-      if (operand->IsDead()) worklist.Add(HInstruction::cast(operand), zone());
+  }
+}
+
+
+void HGraph::RemoveDeadInstructions() {
+  ZoneList<HPhi*> dead_phis(blocks_.length(), zone());
+
+  // Remove any instruction not marked kIsLive.
+  for (int i = 0; i < blocks()->length(); ++i) {
+    HBasicBlock* block = blocks()->at(i);
+    for (HInstruction* instr = block->first();
+         instr != NULL;
+         instr = instr->next()) {
+      if (!instr->CheckFlag(HValue::kIsLive)) {
+        // Instruction has not been marked live; assume it is dead and remove.
+        // TODO(titzer): we don't remove constants because some special ones
+        // might be used by later phases and are assumed to be in the graph
+        if (!instr->IsConstant()) instr->DeleteAndReplaceWith(NULL);
+      } else {
+        // Clear the liveness flag to leave the graph clean for the next DCE.
+        instr->ClearFlag(HValue::kIsLive);
+      }
     }
+    // Collect phis that are dead and remove them in the next pass.
+    for (int j = 0; j < block->phis()->length(); j++) {
+      HPhi* phi = block->phis()->at(j);
+      if (!phi->CheckFlag(HValue::kIsLive)) {
+        dead_phis.Add(phi, zone());
+      } else {
+        phi->ClearFlag(HValue::kIsLive);
+      }
+    }
+  }
+
+  // Process phis separately to avoid simultaneously mutating the phi list.
+  while (!dead_phis.is_empty()) {
+    HPhi* phi = dead_phis.RemoveLast();
+    HBasicBlock* block = phi->block();
+    phi->DeleteAndReplaceWith(NULL);
+    block->RecordDeletedPhi(phi->merged_index());
   }
 }
 
