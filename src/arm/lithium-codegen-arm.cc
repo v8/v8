@@ -2898,9 +2898,11 @@ void LCodeGen::DoReturn(LReturn* instr) {
       count++;
     }
   }
+  int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ mov(sp, fp);
     __ ldm(ia_w, sp, fp.bit() | lr.bit());
+    no_frame_start = masm_->pc_offset();
   }
   if (instr->has_constant_parameter_count()) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());
@@ -2916,6 +2918,10 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
 
   __ Jump(lr);
+
+  if (no_frame_start != -1) {
+    info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
+  }
 }
 
 

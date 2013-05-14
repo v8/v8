@@ -210,6 +210,7 @@ bool LCodeGen::GeneratePrologue() {
     frame_is_built_ = true;
     __ push(ebp);  // Caller's frame pointer.
     __ mov(ebp, esp);
+    info()->AddNoFrameRange(0, masm_->pc_offset());
     __ push(esi);  // Callee's context.
     if (info()->IsStub()) {
       __ push(Immediate(Smi::FromInt(StackFrame::STUB)));
@@ -2806,9 +2807,11 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ mov(edx, Operand(ebp,
       JavaScriptFrameConstants::kDynamicAlignmentStateOffset));
   }
+  int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ mov(esp, ebp);
     __ pop(ebp);
+    no_frame_start = masm_->pc_offset();
   }
   if (dynamic_frame_alignment_) {
     Label no_padding;
@@ -2820,6 +2823,9 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
 
   EmitReturn(instr, false);
+  if (no_frame_start != -1) {
+    info()->AddNoFrameRange(no_frame_start, masm_->pc_offset());
+  }
 }
 
 

@@ -157,6 +157,7 @@ void FullCodeGenerator::Generate() {
   __ movq(rbp, rsp);
   __ push(rsi);  // Callee's context.
   __ push(rdi);  // Callee's JS Function.
+  info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();
@@ -406,6 +407,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     // patch with the code required by the debugger.
     __ movq(rsp, rbp);
     __ pop(rbp);
+    int no_frame_start = masm_->pc_offset();
 
     int arguments_bytes = (info_->scope()->num_parameters() + 1) * kPointerSize;
     __ Ret(arguments_bytes, rcx);
@@ -423,6 +425,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     ASSERT(Assembler::kJSReturnSequenceLength <=
            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
+    info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
   }
 }
 

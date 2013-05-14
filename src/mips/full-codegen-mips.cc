@@ -179,6 +179,7 @@ void FullCodeGenerator::Generate() {
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
   // Adjust fp to point to caller's fp.
   __ Addu(fp, sp, Operand(2 * kPointerSize));
+  info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();
@@ -438,9 +439,11 @@ void FullCodeGenerator::EmitReturnSequence() {
       CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
       __ RecordJSReturn();
       masm_->mov(sp, fp);
+      int no_frame_start = masm_->pc_offset();
       masm_->MultiPop(static_cast<RegList>(fp.bit() | ra.bit()));
       masm_->Addu(sp, sp, Operand(sp_delta));
       masm_->Jump(ra);
+      info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
     }
 
 #ifdef DEBUG

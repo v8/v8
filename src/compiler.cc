@@ -103,6 +103,8 @@ void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
   code_stub_ = NULL;
   prologue_offset_ = kPrologueOffsetNotSet;
   opt_count_ = shared_info().is_null() ? 0 : shared_info()->opt_count();
+  no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
+                   ? new List<OffsetRange>(2) : NULL;
   if (mode == STUB) {
     mode_ = STUB;
     return;
@@ -121,6 +123,7 @@ void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
 
 CompilationInfo::~CompilationInfo() {
   delete deferred_handles_;
+  delete no_frame_ranges_;
 }
 
 
@@ -568,6 +571,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
         *info->code(),
         *result,
+        info,
         String::cast(script->name())));
     GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
                    script,
@@ -580,6 +584,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
         *info->code(),
         *result,
+        info,
         isolate->heap()->empty_string()));
     GDBJIT(AddCode(Handle<String>(), script, info->code(), info));
   }
@@ -807,6 +812,10 @@ static void InstallCodeCommon(CompilationInfo* info) {
   // reset this bit when lazy compiling the code again.
   if (shared->optimization_disabled()) code->set_optimizable(false);
 
+  if (shared->code() == *code) {
+    // Do not send compilation event for the same code twice.
+    return;
+  }
   Compiler::RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 }
 
@@ -1151,6 +1160,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
               CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
                               *shared,
+                              info,
                               String::cast(script->name()),
                               line_num));
     } else {
@@ -1158,6 +1168,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
               CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
                               *shared,
+                              info,
                               shared->DebugName()));
     }
   }
