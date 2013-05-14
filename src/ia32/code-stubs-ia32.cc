@@ -1633,7 +1633,9 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
     BinaryOpStub_GenerateSmiCode(
         masm, &call_runtime, ALLOW_HEAPNUMBER_RESULTS, op_);
   }
-  __ bind(&call_runtime);
+
+  // Code falls through if the result is not returned as either a smi or heap
+  // number.
   switch (op_) {
     case Token::ADD:
     case Token::SUB:
@@ -1653,6 +1655,27 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
+
+  __ bind(&call_runtime);
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+      GenerateRegisterArgsPush(masm);
+      break;
+    case Token::MOD:
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SAR:
+    case Token::SHL:
+    case Token::SHR:
+      break;
+    default:
+      UNREACHABLE();
+  }
+  GenerateCallRuntime(masm);
 }
 
 
