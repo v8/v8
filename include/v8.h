@@ -3841,25 +3841,29 @@ struct JitCodeEvent {
   // CODE_ADD_LINE_POS_INFO and CODE_END_LINE_INFO_RECORDING events.
   void* user_data;
 
+  struct name_t {
+    // Name of the object associated with the code, note that the string is not
+    // zero-terminated.
+    const char* str;
+    // Number of chars in str.
+    size_t len;
+  };
+
+  struct line_info_t {
+    // PC offset
+    size_t offset;
+    // Code postion
+    size_t pos;
+    // The position type.
+    PositionType position_type;
+  };
+
   union {
     // Only valid for CODE_ADDED.
-    struct {
-      // Name of the object associated with the code, note that the string is
-      // not zero-terminated.
-      const char* str;
-      // Number of chars in str.
-      size_t len;
-    } name;
+    struct name_t name;
 
     // Only valid for CODE_ADD_LINE_POS_INFO
-    struct {
-      // PC offset
-      size_t offset;
-      // Code postion
-      size_t pos;
-      // The position type.
-      PositionType position_type;
-    } line_info;
+    struct line_info_t line_info;
 
     // New location of instructions. Only valid for CODE_MOVED.
     void* new_code_start;
