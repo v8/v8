@@ -2020,7 +2020,14 @@ MaybeObject* KeyedStoreIC::Store(State state,
 
   bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded() &&
       !(FLAG_harmony_observation && object->IsJSObject() &&
-          JSObject::cast(*object)->map()->is_observed());
+        JSObject::cast(*object)->map()->is_observed());
+  if (use_ic && !object->IsSmi()) {
+    // Don't use ICs for maps of the objects in Array's prototype chain. We
+    // expect to be able to trap element sets to objects with those maps in the
+    // runtime to enable optimization of element hole access.
+    Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
+    if (heap_object->map()->IsMapInArrayPrototypeChain()) use_ic = false;
+  }
   ASSERT(!(use_ic && object->IsJSGlobalProxy()));
 
   if (use_ic) {

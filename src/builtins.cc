@@ -845,7 +845,7 @@ BUILTIN(ArraySlice) {
       if (start < kMinInt || start > kMaxInt) {
         return CallJsBuiltin(isolate, "ArraySlice", args);
       }
-      relative_start = static_cast<int>(start);
+      relative_start = std::isnan(start) ? 0 : static_cast<int>(start);
     } else if (!arg1->IsUndefined()) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
@@ -858,7 +858,7 @@ BUILTIN(ArraySlice) {
         if (end < kMinInt || end > kMaxInt) {
           return CallJsBuiltin(isolate, "ArraySlice", args);
         }
-        relative_end = static_cast<int>(end);
+        relative_end = std::isnan(end) ? 0 : static_cast<int>(end);
       } else if (!arg2->IsUndefined()) {
         return CallJsBuiltin(isolate, "ArraySlice", args);
       }

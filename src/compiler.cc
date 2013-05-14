@@ -216,9 +216,8 @@ void OptimizingCompiler::RecordOptimizationStats() {
   double ms_optimize = static_cast<double>(time_taken_to_optimize_) / 1000;
   double ms_codegen = static_cast<double>(time_taken_to_codegen_) / 1000;
   if (FLAG_trace_opt) {
-    PrintF("[optimizing: ");
-    function->PrintName();
-    PrintF(" / %" V8PRIxPTR, reinterpret_cast<intptr_t>(*function));
+    PrintF("[optimizing ");
+    function->ShortPrint();
     PrintF(" - took %0.3f, %0.3f, %0.3f ms]\n", ms_creategraph, ms_optimize,
            ms_codegen);
   }
@@ -315,15 +314,9 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   }
 
   // Take --hydrogen-filter into account.
-  Handle<String> name = info()->function()->debug_name();
-  if (*FLAG_hydrogen_filter != '\0') {
-    Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
-    if ((filter[0] == '-'
-         && name->IsUtf8EqualTo(filter.SubVector(1, filter.length())))
-        || (filter[0] != '-' && !name->IsUtf8EqualTo(filter))) {
+  if (!info()->closure()->PassesHydrogenFilter()) {
       info()->SetCode(code);
       return SetLastStatus(BAILED_OUT);
-    }
   }
 
   // Recompile the unoptimized version of the code if the current version
@@ -360,6 +353,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   ASSERT(info()->shared_info()->has_deoptimization_support());
 
   if (FLAG_trace_hydrogen) {
+    Handle<String> name = info()->function()->debug_name();
     PrintF("-----------------------------------------------------------\n");
     PrintF("Compiling method %s using hydrogen\n", *name->ToCString());
     isolate()->GetHTracer()->TraceCompilation(info());
@@ -843,9 +837,9 @@ static bool InstallCodeFromOptimizedCodeMap(CompilationInfo* info) {
     int index = shared->SearchOptimizedCodeMap(*native_context);
     if (index > 0) {
       if (FLAG_trace_opt) {
-        PrintF("[found optimized code for: ");
-        function->PrintName();
-        PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(*function));
+        PrintF("[found optimized code for ");
+        function->ShortPrint();
+        PrintF("]\n");
       }
       // Caching of optimized code enabled and optimized code found.
       shared->InstallFromOptimizedCodeMap(*function, index);

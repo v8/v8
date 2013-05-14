@@ -281,12 +281,12 @@ class Genesis BASE_EMBEDDED {
   Handle<Context> result_;
   Handle<Context> native_context_;
 
-  // Function instance maps. Function literal maps are created initially with
-  // a read only prototype for the processing of JS builtins. Later the function
-  // instance maps are replaced in order to make prototype writable.
-  // These are the final, writable prototype, maps.
-  Handle<Map> function_instance_map_writable_prototype_;
-  Handle<Map> strict_mode_function_instance_map_writable_prototype_;
+  // Function maps. Function maps are created initially with a read only
+  // prototype for the processing of JS builtins. Later the function maps are
+  // replaced in order to make prototype writable. These are the final, writable
+  // prototype, maps.
+  Handle<Map> function_map_writable_prototype_;
+  Handle<Map> strict_mode_function_map_writable_prototype_;
   Handle<JSFunction> throw_type_error_function;
 
   BootstrapperActive active_;
@@ -437,12 +437,6 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   // Allocate the map for function instances. Maps are allocated first and their
   // prototypes patched later, once empty function is created.
 
-  // Please note that the prototype property for function instances must be
-  // writable.
-  Handle<Map> function_instance_map =
-      CreateFunctionMap(ADD_WRITEABLE_PROTOTYPE);
-  native_context()->set_function_instance_map(*function_instance_map);
-
   // Functions with this map will not have a 'prototype' property, and
   // can not be used as constructors.
   Handle<Map> function_without_prototype_map =
@@ -458,13 +452,11 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
   // The final map for functions. Writeable prototype.
   // This map is installed in MakeFunctionInstancePrototypeWritable.
-  function_instance_map_writable_prototype_ =
-      CreateFunctionMap(ADD_WRITEABLE_PROTOTYPE);
+  function_map_writable_prototype_ = CreateFunctionMap(ADD_WRITEABLE_PROTOTYPE);
 
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
 
-  Handle<String> object_name = Handle<String>(heap->Object_string());
+  Handle<String> object_name = factory->Object_string();
 
   {  // --- O b j e c t ---
     Handle<JSFunction> object_fun =
@@ -482,6 +474,10 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
         TENURED);
 
     native_context()->set_initial_object_prototype(*prototype);
+    // For bootstrapping set the array prototype to be the same as the object
+    // prototype, otherwise the missing initial_array_prototype will cause
+    // assertions during startup.
+    native_context()->set_initial_array_prototype(*prototype);
     SetPrototype(object_fun, prototype);
   }
 
@@ -509,10 +505,9 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
   // Set prototypes for the function maps.
   native_context()->function_map()->set_prototype(*empty_function);
-  native_context()->function_instance_map()->set_prototype(*empty_function);
   native_context()->function_without_prototype_map()->
       set_prototype(*empty_function);
-  function_instance_map_writable_prototype_->set_prototype(*empty_function);
+  function_map_writable_prototype_->set_prototype(*empty_function);
 
   // Allocate the function map first and then patch the prototype later
   Handle<Map> empty_function_map = CreateFunctionMap(DONT_ADD_PROTOTYPE);
@@ -601,12 +596,6 @@ Handle<Map> Genesis::CreateStrictModeFunctionMap(
 
 
 void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
-  // Allocate map for the strict mode function instances.
-  Handle<Map> strict_mode_function_instance_map =
-      CreateStrictModeFunctionMap(ADD_WRITEABLE_PROTOTYPE, empty);
-  native_context()->set_strict_mode_function_instance_map(
-      *strict_mode_function_instance_map);
-
   // Allocate map for the prototype-less strict mode instances.
   Handle<Map> strict_mode_function_without_prototype_map =
       CreateStrictModeFunctionMap(DONT_ADD_PROTOTYPE, empty);
@@ -623,15 +612,13 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
 
   // The final map for the strict mode functions. Writeable prototype.
   // This map is installed in MakeFunctionInstancePrototypeWritable.
-  strict_mode_function_instance_map_writable_prototype_ =
+  strict_mode_function_map_writable_prototype_ =
       CreateStrictModeFunctionMap(ADD_WRITEABLE_PROTOTYPE, empty);
 
   // Complete the callbacks.
-  PoisonArgumentsAndCaller(strict_mode_function_instance_map);
   PoisonArgumentsAndCaller(strict_mode_function_without_prototype_map);
   PoisonArgumentsAndCaller(strict_mode_function_map);
-  PoisonArgumentsAndCaller(
-      strict_mode_function_instance_map_writable_prototype_);
+  PoisonArgumentsAndCaller(strict_mode_function_map_writable_prototype_);
 }
 
 
@@ -846,7 +833,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
-  Handle<String> object_name = Handle<String>(heap->Object_string());
+  Handle<String> object_name = factory->Object_string();
   CHECK_NOT_EMPTY_HANDLE(isolate,
                          JSObject::SetLocalPropertyIgnoreAttributes(
                              inner_global, object_name,
@@ -2381,6 +2368,10 @@ bool Genesis::ConfigureGlobalObjects(
   }
 
   SetObjectPrototype(global_proxy, inner_global);
+
+  native_context()->set_initial_array_prototype(
+      JSArray::cast(native_context()->array_function()->prototype()));
+
   return true;
 }
 
@@ -2522,14 +2513,13 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
   // The maps with writable prototype are created in CreateEmptyFunction
   // and CreateStrictModeFunctionMaps respectively. Initially the maps are
   // created with read-only prototype for JS builtins processing.
-  ASSERT(!function_instance_map_writable_prototype_.is_null());
-  ASSERT(!strict_mode_function_instance_map_writable_prototype_.is_null());
+  ASSERT(!function_map_writable_prototype_.is_null());
+  ASSERT(!strict_mode_function_map_writable_prototype_.is_null());
 
   // Replace function instance maps to make prototype writable.
-  native_context()->set_function_map(
-    *function_instance_map_writable_prototype_);
+  native_context()->set_function_map(*function_map_writable_prototype_);
   native_context()->set_strict_mode_function_map(
-    *strict_mode_function_instance_map_writable_prototype_);
+      *strict_mode_function_map_writable_prototype_);
 }
 
 
