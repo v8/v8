@@ -918,7 +918,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       List<OffsetRange>* ranges = pc_entry->no_frame_ranges();
       if (ranges) {
         Code* code = Code::cast(HeapObject::FromAddress(start));
-        int pc_offset = sample.pc - code->instruction_start();
+        int pc_offset = static_cast<int>(sample.pc - code->instruction_start());
         for (int i = 0; i < ranges->length(); i++) {
           OffsetRange& range = ranges->at(i);
           if (range.from <= pc_offset && pc_offset < range.to) {
