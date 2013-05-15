@@ -5035,7 +5035,7 @@ class HLoadKeyed
              IsFastDoubleElementsKind(elements_kind));
 
       if (IsFastSmiOrObjectElementsKind(elements_kind)) {
-        if (IsFastSmiElementsKind(elements_kind)) {
+        if (elements_kind == FAST_SMI_ELEMENTS) {
           set_type(HType::Smi());
         }
 
