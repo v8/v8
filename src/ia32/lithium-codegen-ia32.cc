@@ -3325,7 +3325,8 @@ Operand LCodeGen::BuildFastArrayOperand(
     uint32_t offset,
     uint32_t additional_index) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
-  int shift_size = ElementsKindToShiftSize(elements_kind);
+  int element_shift_size = ElementsKindToShiftSize(elements_kind);
+  int shift_size = element_shift_size;
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
@@ -3343,7 +3344,7 @@ Operand LCodeGen::BuildFastArrayOperand(
     return Operand(elements_pointer_reg,
                    ToRegister(key),
                    scale_factor,
-                   offset + (additional_index << shift_size));
+                   offset + (additional_index << element_shift_size));
   }
 }
 
