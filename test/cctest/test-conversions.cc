@@ -250,12 +250,15 @@ TEST(ExponentNumberStr) {
 }
 
 
+class OneBit1: public BitField<uint32_t, 0, 1> {};
+class OneBit2: public BitField<uint32_t, 7, 1> {};
+class EightBit1: public BitField<uint32_t, 0, 8> {};
+class EightBit2: public BitField<uint32_t, 13, 8> {};
+
 TEST(BitField) {
   uint32_t x;
 
   // One bit bit field can hold values 0 and 1.
-  class OneBit1: public BitField<uint32_t, 0, 1> {};
-  class OneBit2: public BitField<uint32_t, 7, 1> {};
   CHECK(!OneBit1::is_valid(static_cast<uint32_t>(-1)));
   CHECK(!OneBit2::is_valid(static_cast<uint32_t>(-1)));
   for (int i = 0; i < 2; i++) {
@@ -271,8 +274,6 @@ TEST(BitField) {
   CHECK(!OneBit2::is_valid(2));
 
   // Eight bit bit field can hold values from 0 tp 255.
-  class EightBit1: public BitField<uint32_t, 0, 8> {};
-  class EightBit2: public BitField<uint32_t, 13, 8> {};
   CHECK(!EightBit1::is_valid(static_cast<uint32_t>(-1)));
   CHECK(!EightBit2::is_valid(static_cast<uint32_t>(-1)));
   for (int i = 0; i < 256; i++) {
@@ -288,17 +289,18 @@ TEST(BitField) {
 }
 
 
+class UpperBits: public BitField64<int, 61, 3> {};
+class MiddleBits: public BitField64<int, 31, 2> {};
+
 TEST(BitField64) {
   uint64_t x;
 
   // Test most significant bits.
-  class UpperBits: public BitField64<int, 61, 3> {};
   x = V8_2PART_UINT64_C(0xE0000000, 00000000);
   CHECK(x == UpperBits::encode(7));
   CHECK_EQ(7, UpperBits::decode(x));
 
   // Test the 32/64-bit boundary bits.
-  class MiddleBits: public BitField64<int, 31, 2> {};
   x = V8_2PART_UINT64_C(0x00000001, 80000000);
   CHECK(x == MiddleBits::encode(3));
   CHECK_EQ(3, MiddleBits::decode(x));
