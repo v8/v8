@@ -13560,7 +13560,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
     // Ordering is irrelevant, since we are going to sort anyway.
     SeededNumberDictionary* dict = element_dictionary();
     if (IsJSArray() || dict->requires_slow_elements() ||
-        dict->max_number_key() >= limit) {
+        dict->max_number_key() >= limit || map()->is_observed()) {
       return PrepareSlowElementsForSort(limit);
     }
     // Convert to fast elements.
