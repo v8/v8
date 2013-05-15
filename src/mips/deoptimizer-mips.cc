@@ -531,9 +531,14 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   // Set the continuation for the topmost frame.
   if (is_topmost && bailout_type_ != DEBUGGER) {
     Builtins* builtins = isolate_->builtins();
-    Code* continuation = (bailout_type_ == EAGER)
-        ? builtins->builtin(Builtins::kNotifyDeoptimized)
-        : builtins->builtin(Builtins::kNotifyLazyDeoptimized);
+    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
+    if (bailout_type_ == LAZY) {
+      continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
+    } else if (bailout_type_ == SOFT) {
+      continuation = builtins->builtin(Builtins::kNotifySoftDeoptimized);
+    } else {
+      ASSERT(bailout_type_ == EAGER);
+    }
     output_frame->SetContinuation(
         reinterpret_cast<uint32_t>(continuation->entry()));
   }
@@ -627,7 +632,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Get the address of the location in the code object if possible (a3) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register t0.
-  if (type() == EAGER) {
+  if (type() == EAGER || type() == SOFT) {
     __ mov(a3, zero_reg);
     // Correct one word for bailout id.
     __ Addu(t0, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
@@ -690,7 +695,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Remove the bailout id, eventually return address, and the saved registers
   // from the stack.
-  if (type() == EAGER || type() == OSR) {
+  if (type() == EAGER || type() == SOFT || type() == OSR) {
     __ Addu(sp, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
   } else {
     __ Addu(sp, sp, Operand(kSavedRegistersAreaSize + (2 * kPointerSize)));
@@ -807,7 +812,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   for (int i = 0; i < count(); i++) {
     Label start;
     __ bind(&start);
-    if (type() != EAGER) {
+    if (type() != EAGER && type() != SOFT) {
       // Emulate ia32 like call by pushing return address to stack.
       __ addiu(sp, sp, -2 * kPointerSize);
       __ sw(ra, MemOperand(sp, 1 * kPointerSize));
