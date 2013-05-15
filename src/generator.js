@@ -65,17 +65,6 @@ function GeneratorObjectThrow(exn) {
   return %_GeneratorThrow(this, exn);
 }
 
-function GeneratorFunctionPrototypeConstructor(x) {
-  if (%_IsConstructCall()) {
-    throw MakeTypeError('not_constructor', ['GeneratorFunctionPrototype']);
-  }
-}
-
-function GeneratorFunctionConstructor(arg1) {  // length == 1
-  return NewFunction(arguments, 'function*');
-}
-
-
 function SetUpGenerators() {
   %CheckIsBootstrapping();
   var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
@@ -87,11 +76,9 @@ function SetUpGenerators() {
   %SetProperty(GeneratorObjectPrototype, "constructor",
                GeneratorFunctionPrototype, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetPrototype(GeneratorFunctionPrototype, $Function.prototype);
-  %SetCode(GeneratorFunctionPrototype, GeneratorFunctionPrototypeConstructor);
   %SetProperty(GeneratorFunctionPrototype, "constructor",
                GeneratorFunction, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetPrototype(GeneratorFunction, $Function);
-  %SetCode(GeneratorFunction, GeneratorFunctionConstructor);
 }
 
 SetUpGenerators();
