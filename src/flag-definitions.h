@@ -464,6 +464,7 @@ DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again (during full gc)")
 DEFINE_bool(flush_code_incrementally, true,
             "flush code that we expect not to use again (incrementally)")
+DEFINE_bool(trace_code_flushing, false, "trace code flushing progress")
 DEFINE_bool(age_code, true,
             "track un-executed functions to age code and flush only "
             "old code")

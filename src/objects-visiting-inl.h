@@ -311,15 +311,17 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   if (shared->ic_age() != heap->global_ic_age()) {
     shared->ResetForNewContext(heap->global_ic_age());
   }
-  if (FLAG_cache_optimized_code) {
-    // Flush optimized code map on major GC.
-    // TODO(mstarzinger): We may experiment with rebuilding it or with
-    // retaining entries which should survive as we iterate through
-    // optimized functions anyway.
-    shared->ClearOptimizedCodeMap("during full gc");
-  }
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->is_code_flushing_enabled()) {
+    if (FLAG_cache_optimized_code && !shared->optimized_code_map()->IsSmi()) {
+      // Add the shared function info holding an optimized code map to
+      // the code flusher for processing of code maps after marking.
+      collector->code_flusher()->AddOptimizedCodeMap(shared);
+      // Treat all references within the code map weakly by marking the
+      // code map itself but not pushing it onto the marking deque.
+      FixedArray* code_map = FixedArray::cast(shared->optimized_code_map());
+      StaticVisitor::MarkObjectWithoutPush(heap, code_map);
+    }
     if (IsFlushable(heap, shared)) {
       // This function's code looks flushable. But we have to postpone
       // the decision until we see all functions that point to the same
@@ -331,6 +333,12 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
       // Treat the reference to the code object weakly.
       VisitSharedFunctionInfoWeakCode(heap, object);
       return;
+    }
+  } else {
+    if (FLAG_cache_optimized_code && !shared->optimized_code_map()->IsSmi()) {
+      // Flush optimized code map on major GCs without code flushing,
+      // needed because cached code doesn't contain breakpoints.
+      shared->ClearOptimizedCodeMap();
     }
   }
   VisitSharedFunctionInfoStrongCode(heap, object);

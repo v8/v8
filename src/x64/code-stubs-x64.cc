@@ -287,8 +287,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // The optimized code map must never be empty, so check the first elements.
   Label install_optimized;
   // Speculatively move code object into edx.
-  __ movq(rdx, FieldOperand(rbx, FixedArray::kHeaderSize + kPointerSize));
-  __ cmpq(rcx, FieldOperand(rbx, FixedArray::kHeaderSize));
+  __ movq(rdx, FieldOperand(rbx, SharedFunctionInfo::kFirstCodeSlot));
+  __ cmpq(rcx, FieldOperand(rbx, SharedFunctionInfo::kFirstContextSlot));
   __ j(equal, &install_optimized);
 
   // Iterate through the rest of map backwards. rdx holds an index.
@@ -298,9 +298,9 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ SmiToInteger32(rdx, rdx);
   __ bind(&loop);
   // Do not double check first entry.
-  __ cmpq(rdx, Immediate(SharedFunctionInfo::kEntryLength));
+  __ cmpq(rdx, Immediate(SharedFunctionInfo::kSecondEntryIndex));
   __ j(equal, &restore);
-  __ subq(rdx, Immediate(SharedFunctionInfo::kEntryLength));  // Skip an entry.
+  __ subq(rdx, Immediate(SharedFunctionInfo::kEntryLength));
   __ cmpq(rcx, FieldOperand(rbx,
                             rdx,
                             times_pointer_size,

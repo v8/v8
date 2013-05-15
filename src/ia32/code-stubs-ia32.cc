@@ -292,8 +292,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Map must never be empty, so check the first elements.
   Label install_optimized;
   // Speculatively move code object into edx.
-  __ mov(edx, FieldOperand(ebx, FixedArray::kHeaderSize + kPointerSize));
-  __ cmp(ecx, FieldOperand(ebx, FixedArray::kHeaderSize));
+  __ mov(edx, FieldOperand(ebx, SharedFunctionInfo::kFirstCodeSlot));
+  __ cmp(ecx, FieldOperand(ebx, SharedFunctionInfo::kFirstContextSlot));
   __ j(equal, &install_optimized);
 
   // Iterate through the rest of map backwards.  edx holds an index as a Smi.
@@ -302,10 +302,9 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ mov(edx, FieldOperand(ebx, FixedArray::kLengthOffset));
   __ bind(&loop);
   // Do not double check first entry.
-  __ cmp(edx, Immediate(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
+  __ cmp(edx, Immediate(Smi::FromInt(SharedFunctionInfo::kSecondEntryIndex)));
   __ j(equal, &restore);
-  __ sub(edx, Immediate(Smi::FromInt(
-      SharedFunctionInfo::kEntryLength)));  // Skip an entry.
+  __ sub(edx, Immediate(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
   __ cmp(ecx, CodeGenerator::FixedArrayElementOperand(ebx, edx, 0));
   __ j(not_equal, &loop, Label::kNear);
   // Hit: fetch the optimized code.

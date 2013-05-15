@@ -309,8 +309,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // The optimized code map must never be empty, so check the first elements.
   Label install_optimized;
   // Speculatively move code object into t0.
-  __ lw(t0, FieldMemOperand(a1, FixedArray::kHeaderSize + kPointerSize));
-  __ lw(t1, FieldMemOperand(a1, FixedArray::kHeaderSize));
+  __ lw(t0, FieldMemOperand(a1, SharedFunctionInfo::kFirstCodeSlot));
+  __ lw(t1, FieldMemOperand(a1, SharedFunctionInfo::kFirstContextSlot));
   __ Branch(&install_optimized, eq, a2, Operand(t1));
 
   // Iterate through the rest of map backwards.  t0 holds an index as a Smi.
@@ -318,11 +318,9 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ lw(t0, FieldMemOperand(a1, FixedArray::kLengthOffset));
   __ bind(&loop);
   // Do not double check first entry.
-
   __ Branch(&install_unoptimized, eq, t0,
-            Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
-  __ Subu(t0, t0, Operand(
-      Smi::FromInt(SharedFunctionInfo::kEntryLength)));  // Skip an entry.
+            Operand(Smi::FromInt(SharedFunctionInfo::kSecondEntryIndex)));
+  __ Subu(t0, t0, Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
   __ Addu(t1, a1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ sll(at, t0, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(t1, t1, Operand(at));

@@ -5807,7 +5807,7 @@ class SharedFunctionInfo: public HeapObject {
   inline void ReplaceCode(Code* code);
 
   // [optimized_code_map]: Map from native context to optimized code
-  // and a shared literals array or Smi 0 if none.
+  // and a shared literals array or Smi(0) if none.
   DECL_ACCESSORS(optimized_code_map, Object)
 
   // Returns index i of the entry with the specified context. At position
@@ -5820,17 +5820,34 @@ class SharedFunctionInfo: public HeapObject {
   void InstallFromOptimizedCodeMap(JSFunction* function, int index);
 
   // Clear optimized code map.
-  void ClearOptimizedCodeMap(const char* reason);
+  void ClearOptimizedCodeMap();
 
   // Removed a specific optimized code object from the optimized code map.
   void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
 
+  // Trims the optimized code map after entries have been removed.
+  void TrimOptimizedCodeMap(int shrink_by);
+
+  // Zaps the contents of backing optimized code map.
+  void ZapOptimizedCodeMap();
+
   // Add a new entry to the optimized code map.
+  MUST_USE_RESULT MaybeObject* AddToOptimizedCodeMap(Context* native_context,
+                                                     Code* code,
+                                                     FixedArray* literals);
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                     Handle<Context> native_context,
                                     Handle<Code> code,
                                     Handle<FixedArray> literals);
+
+  // Layout description of the optimized code map.
+  static const int kNextMapIndex = 0;
+  static const int kEntriesStart = 1;
   static const int kEntryLength = 3;
+  static const int kFirstContextSlot = FixedArray::kHeaderSize + kPointerSize;
+  static const int kFirstCodeSlot = FixedArray::kHeaderSize + 2 * kPointerSize;
+  static const int kSecondEntryIndex = kEntryLength + kEntriesStart;
+  static const int kInitialLength = kEntriesStart + kEntryLength;
 
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
