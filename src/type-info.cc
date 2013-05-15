@@ -192,13 +192,14 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
   Handle<Object> map_or_code = GetInfo(expr->PropertyFeedbackId());
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    Map* first_map = code->FindFirstMap();
-    ASSERT(first_map != NULL);
-    return CanRetainOtherContext(first_map, *native_context_)
+    Handle<Map> first_map(code->FindFirstMap());
+    ASSERT(!first_map.is_null());
+    first_map = Map::CurrentMapForDeprecated(first_map);
+    return CanRetainOtherContext(*first_map, *native_context_)
         ? Handle<Map>::null()
-        : Handle<Map>(first_map);
+        : first_map;
   }
-  return Handle<Map>::cast(map_or_code);
+  return Map::CurrentMapForDeprecated(Handle<Map>::cast(map_or_code));
 }
 
 
@@ -208,13 +209,14 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(
   Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    Map* first_map = code->FindFirstMap();
-    ASSERT(first_map != NULL);
-    return CanRetainOtherContext(first_map, *native_context_)
+    Handle<Map> first_map(code->FindFirstMap());
+    ASSERT(!first_map.is_null());
+    first_map = Map::CurrentMapForDeprecated(first_map);
+    return CanRetainOtherContext(*first_map, *native_context_)
         ? Handle<Map>::null()
-        : Handle<Map>(first_map);
+        : first_map;
   }
-  return Handle<Map>::cast(map_or_code);
+  return Map::CurrentMapForDeprecated(Handle<Map>::cast(map_or_code));
 }
 
 
@@ -223,7 +225,9 @@ Handle<Map> TypeFeedbackOracle::CompareNilMonomorphicReceiverType(
   Handle<Object> maybe_code = GetInfo(id);
   if (maybe_code->IsCode()) {
     Map* first_map = Handle<Code>::cast(maybe_code)->FindFirstMap();
-    if (first_map != NULL) return Handle<Map>(first_map);
+    if (first_map != NULL) {
+      return Map::CurrentMapForDeprecated(Handle<Map>(first_map));
+    }
   }
   return Handle<Map>();
 }
@@ -347,7 +351,8 @@ ElementsKind TypeFeedbackOracle::GetCallNewElementsKind(CallNew* expr) {
 Handle<Map> TypeFeedbackOracle::GetObjectLiteralStoreMap(
     ObjectLiteral::Property* prop) {
   ASSERT(ObjectLiteralStoreIsMonomorphic(prop));
-  return Handle<Map>::cast(GetInfo(prop->key()->LiteralFeedbackId()));
+  return Map::CurrentMapForDeprecated(
+      Handle<Map>::cast(GetInfo(prop->key()->LiteralFeedbackId())));
 }
 
 
@@ -426,11 +431,12 @@ Handle<Map> TypeFeedbackOracle::GetCompareMap(CompareOperation* expr) {
   if (state != CompareIC::KNOWN_OBJECT) {
     return Handle<Map>::null();
   }
-  Map* first_map = code->FindFirstMap();
-  ASSERT(first_map != NULL);
-  return CanRetainOtherContext(first_map, *native_context_)
+  Handle<Map> first_map(code->FindFirstMap());
+  ASSERT(!first_map.is_null());
+  first_map = Map::CurrentMapForDeprecated(first_map);
+  return CanRetainOtherContext(*first_map, *native_context_)
       ? Handle<Map>::null()
-      : Handle<Map>(first_map);
+      : first_map;
 }
 
 
