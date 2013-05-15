@@ -1571,7 +1571,6 @@ class Heap {
     intptr_t limit =
         Max(old_gen_size + old_gen_size / divisor, kMinimumPromotionLimit);
     limit += new_space_.Capacity();
-    limit *= old_gen_limit_factor_;
     intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
     return Min(limit, halfway_to_the_max);
   }
@@ -1582,7 +1581,6 @@ class Heap {
     intptr_t limit =
         Max(old_gen_size + old_gen_size / divisor, kMinimumAllocationLimit);
     limit += new_space_.Capacity();
-    limit *= old_gen_limit_factor_;
     intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
     return Min(limit, halfway_to_the_max);
   }
@@ -2001,10 +1999,6 @@ class Heap {
   // checked before expanding a paged space in the old generation and on
   // every allocation in large object space.
   intptr_t old_gen_allocation_limit_;
-
-  // Sometimes the heuristics dictate that those limits are increased.  This
-  // variable records that fact.
-  int old_gen_limit_factor_;
 
   // Used to adjust the limits that control the timing of the next GC.
   intptr_t size_of_old_gen_at_last_old_space_gc_;

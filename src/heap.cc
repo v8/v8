@@ -120,7 +120,6 @@ Heap::Heap()
       new_space_high_promotion_mode_active_(false),
       old_gen_promotion_limit_(kMinimumPromotionLimit),
       old_gen_allocation_limit_(kMinimumAllocationLimit),
-      old_gen_limit_factor_(1),
       size_of_old_gen_at_last_old_space_gc_(0),
       external_allocation_limit_(0),
       amount_of_external_allocated_memory_(0),
@@ -912,25 +911,10 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);
     sweep_generation_++;
-    bool high_survival_rate_during_scavenges = IsHighSurvivalRate() &&
-        IsStableOrIncreasingSurvivalTrend();
 
     UpdateSurvivalRateTrend(start_new_space_size);
 
     size_of_old_gen_at_last_old_space_gc_ = PromotedSpaceSizeOfObjects();
-
-    if (high_survival_rate_during_scavenges &&
-        IsStableOrIncreasingSurvivalTrend()) {
-      // Stable high survival rates of young objects both during partial and
-      // full collection indicate that mutator is either building or modifying
-      // a structure with a long lifetime.
-      // In this case we aggressively raise old generation memory limits to
-      // postpone subsequent mark-sweep collection and thus trade memory
-      // space for the mutation speed.
-      old_gen_limit_factor_ = 2;
-    } else {
-      old_gen_limit_factor_ = 1;
-    }
 
     old_gen_promotion_limit_ =
         OldGenPromotionLimit(size_of_old_gen_at_last_old_space_gc_);
@@ -5895,7 +5879,6 @@ void Heap::ReportHeapStatistics(const char* title) {
          old_gen_promotion_limit_);
   PrintF("old_gen_allocation_limit_ %" V8_PTR_PREFIX "d\n",
          old_gen_allocation_limit_);
-  PrintF("old_gen_limit_factor_ %d\n", old_gen_limit_factor_);
 
   PrintF("\n");
   PrintF("Number of handles : %d\n", HandleScope::NumberOfHandles(isolate_));
