@@ -103,6 +103,7 @@ class LChunkBuilder;
   V(CompareConstantEqAndBranch)                \
   V(Constant)                                  \
   V(Context)                                   \
+  V(DebugBreak)                                \
   V(DeclareGlobals)                            \
   V(DeleteProperty)                            \
   V(Deoptimize)                                \
@@ -1460,6 +1461,17 @@ class HSoftDeoptimize: public HTemplateInstruction<0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(SoftDeoptimize)
+};
+
+
+// Inserts an int3/stop break instruction for debugging purposes.
+class HDebugBreak: public HTemplateInstruction<0> {
+ public:
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(DebugBreak)
 };
 
 

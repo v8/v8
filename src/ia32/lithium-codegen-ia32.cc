@@ -3500,6 +3500,11 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 }
 
 
+void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
+  __ int3();
+}
+
+
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
   LOperand* argument = instr->value();
   EmitPushTaggedOperand(argument);

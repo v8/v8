@@ -89,6 +89,7 @@ class LCodeGen;
   V(ConstantI)                                  \
   V(ConstantT)                                  \
   V(Context)                                    \
+  V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
   V(DeleteProperty)                             \
   V(Deoptimize)                                 \
@@ -652,6 +653,12 @@ class LMultiplyAddD: public LTemplateInstruction<1, 3, 0> {
   LOperand* multiplicand() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MultiplyAddD, "multiply-add-d")
+};
+
+
+class LDebugBreak: public LTemplateInstruction<0, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(DebugBreak, "break")
 };
 
 
