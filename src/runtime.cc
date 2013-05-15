@@ -795,51 +795,41 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   CONVERT_ARG_HANDLE_CHECKED(Object, byte_length_object, 4);
 
   ExternalArrayType arrayType;
-  ElementsKind elementsKind;
   size_t elementSize;
   switch (arrayId) {
     case ARRAY_ID_UINT8:
-      elementsKind = EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
       arrayType = kExternalUnsignedByteArray;
       elementSize = 1;
       break;
     case ARRAY_ID_INT8:
-      elementsKind = EXTERNAL_BYTE_ELEMENTS;
       arrayType = kExternalByteArray;
       elementSize = 1;
       break;
     case ARRAY_ID_UINT16:
-      elementsKind = EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
       arrayType = kExternalUnsignedShortArray;
       elementSize = 2;
       break;
     case ARRAY_ID_INT16:
-      elementsKind = EXTERNAL_SHORT_ELEMENTS;
       arrayType = kExternalShortArray;
       elementSize = 2;
       break;
     case ARRAY_ID_UINT32:
-      elementsKind = EXTERNAL_UNSIGNED_INT_ELEMENTS;
       arrayType = kExternalUnsignedIntArray;
       elementSize = 4;
       break;
     case ARRAY_ID_INT32:
-      elementsKind = EXTERNAL_INT_ELEMENTS;
       arrayType = kExternalIntArray;
       elementSize = 4;
       break;
     case ARRAY_ID_FLOAT32:
-      elementsKind = EXTERNAL_FLOAT_ELEMENTS;
       arrayType = kExternalFloatArray;
       elementSize = 4;
       break;
     case ARRAY_ID_FLOAT64:
-      elementsKind = EXTERNAL_DOUBLE_ELEMENTS;
       arrayType = kExternalDoubleArray;
       elementSize = 8;
       break;
     case ARRAY_ID_UINT8C:
-      elementsKind = EXTERNAL_PIXEL_ELEMENTS;
       arrayType = kExternalPixelArray;
       elementSize = 1;
       break;
@@ -864,9 +854,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
       isolate->factory()->NewExternalArray(
           static_cast<int>(length), arrayType,
           static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
-  Handle<Map> map =
-      isolate->factory()->GetElementsTransitionMap(holder, elementsKind);
-  holder->set_map(*map);
   holder->set_elements(*elements);
   return isolate->heap()->undefined_value();
 }

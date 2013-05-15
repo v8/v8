@@ -2501,6 +2501,54 @@ bool Heap::CreateInitialMaps() {
   }
   set_external_double_array_map(Map::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalByteArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_byte_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateEmptyExternalArray(kExternalUnsignedByteArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_unsigned_byte_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalShortArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_short_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(
+      kExternalUnsignedShortArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_unsigned_short_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalIntArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_int_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateEmptyExternalArray(kExternalUnsignedIntArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_unsigned_int_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalFloatArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_float_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalDoubleArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_double_array(ExternalArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateEmptyExternalArray(kExternalPixelArray);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_external_pixel_array(ExternalArray::cast(obj));
+
   { MaybeObject* maybe_obj = AllocateMap(CODE_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
@@ -3231,6 +3279,40 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
       return kUndefinedValueRootIndex;
   }
 }
+
+Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
+    ElementsKind elementsKind) {
+  switch (elementsKind) {
+    case EXTERNAL_BYTE_ELEMENTS:
+      return kEmptyExternalByteArrayRootIndex;
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      return kEmptyExternalUnsignedByteArrayRootIndex;
+    case EXTERNAL_SHORT_ELEMENTS:
+      return kEmptyExternalShortArrayRootIndex;
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      return kEmptyExternalUnsignedShortArrayRootIndex;
+    case EXTERNAL_INT_ELEMENTS:
+      return kEmptyExternalIntArrayRootIndex;
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      return kEmptyExternalUnsignedIntArrayRootIndex;
+    case EXTERNAL_FLOAT_ELEMENTS:
+      return kEmptyExternalFloatArrayRootIndex;
+    case EXTERNAL_DOUBLE_ELEMENTS:
+      return kEmptyExternalDoubleArrayRootIndex;
+    case EXTERNAL_PIXEL_ELEMENTS:
+      return kEmptyExternalPixelArrayRootIndex;
+    default:
+      UNREACHABLE();
+      return kUndefinedValueRootIndex;
+  }
+}
+
+ExternalArray* Heap::EmptyExternalArrayForMap(Map* map) {
+  return ExternalArray::cast(
+      roots_[RootIndexForEmptyExternalArray(map->elements_kind())]);
+}
+
+
 
 
 MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
@@ -4236,7 +4318,8 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   InitializeJSObjectFromMap(JSObject::cast(obj),
                             FixedArray::cast(properties),
                             map);
-  ASSERT(JSObject::cast(obj)->HasFastElements());
+  ASSERT(JSObject::cast(obj)->HasFastElements() ||
+         JSObject::cast(obj)->HasExternalArrayElements());
   return obj;
 }
 
@@ -5198,6 +5281,10 @@ MaybeObject* Heap::AllocateEmptyFixedArray() {
       fixed_array_map());
   reinterpret_cast<FixedArray*>(result)->set_length(0);
   return result;
+}
+
+MaybeObject* Heap::AllocateEmptyExternalArray(ExternalArrayType array_type) {
+  return AllocateExternalArray(0, array_type, NULL, TENURED);
 }
 
 

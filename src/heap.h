@@ -128,7 +128,6 @@ namespace internal {
   V(Map, short_external_ascii_string_map, ShortExternalAsciiStringMap)         \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
   V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
-  V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \
   V(Map, external_byte_array_map, ExternalByteArrayMap)                        \
   V(Map, external_unsigned_byte_array_map, ExternalUnsignedByteArrayMap)       \
   V(Map, external_short_array_map, ExternalShortArrayMap)                      \
@@ -137,6 +136,21 @@ namespace internal {
   V(Map, external_unsigned_int_array_map, ExternalUnsignedIntArrayMap)         \
   V(Map, external_float_array_map, ExternalFloatArrayMap)                      \
   V(Map, external_double_array_map, ExternalDoubleArrayMap)                    \
+  V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \
+  V(ExternalArray, empty_external_byte_array,                                  \
+      EmptyExternalByteArray)                                                  \
+  V(ExternalArray, empty_external_unsigned_byte_array,                         \
+      EmptyExternalUnsignedByteArray)                                          \
+  V(ExternalArray, empty_external_short_array, EmptyExternalShortArray)        \
+  V(ExternalArray, empty_external_unsigned_short_array,                        \
+      EmptyExternalUnsignedShortArray)                                         \
+  V(ExternalArray, empty_external_int_array, EmptyExternalIntArray)            \
+  V(ExternalArray, empty_external_unsigned_int_array,                          \
+      EmptyExternalUnsignedIntArray)                                           \
+  V(ExternalArray, empty_external_float_array, EmptyExternalFloatArray)        \
+  V(ExternalArray, empty_external_double_array, EmptyExternalDoubleArray)      \
+  V(ExternalArray, empty_external_pixel_array,                                 \
+      EmptyExternalPixelArray)                                                 \
   V(Map, non_strict_arguments_elements_map, NonStrictArgumentsElementsMap)     \
   V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, catch_context_map, CatchContextMap)                                   \
@@ -1628,6 +1642,9 @@ class Heap {
   RootListIndex RootIndexForExternalArrayType(
       ExternalArrayType array_type);
 
+  RootListIndex RootIndexForEmptyExternalArray(ElementsKind kind);
+  ExternalArray* EmptyExternalArrayForMap(Map* map);
+
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
 
   // Copy block of memory from src to dst. Size of block should be aligned
@@ -2137,6 +2154,10 @@ class Heap {
 
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
+
+  // Allocate empty external array of given type.
+  MUST_USE_RESULT MaybeObject* AllocateEmptyExternalArray(
+      ExternalArrayType array_type);
 
   // Allocate empty fixed double array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedDoubleArray();

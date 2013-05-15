@@ -5953,10 +5953,6 @@ i::Handle<i::JSTypedArray> NewTypedArray(
       isolate->factory()->NewExternalArray(
           static_cast<int>(length), array_type,
           static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
-  i::Handle<i::Map> map =
-      isolate->factory()->GetElementsTransitionMap(
-          obj, elements_kind);
-  obj->set_map(*map);
   obj->set_elements(*elements);
   return obj;
 }
