@@ -15883,9 +15883,12 @@ static uint32_t* ComputeStackLimit(uint32_t size) {
 }
 
 
+// We need at least 165kB for an x64 debug build with clang and ASAN.
+static const int stack_breathing_room = 256 * i::KB;
+
+
 TEST(SetResourceConstraints) {
-  static const int K = 1024;
-  uint32_t* set_limit = ComputeStackLimit(128 * K);
+  uint32_t* set_limit = ComputeStackLimit(stack_breathing_room);
 
   // Set stack limit.
   v8::ResourceConstraints constraints;
@@ -15909,8 +15912,7 @@ TEST(SetResourceConstraintsInThread) {
   uint32_t* set_limit;
   {
     v8::Locker locker(CcTest::default_isolate());
-    static const int K = 1024;
-    set_limit = ComputeStackLimit(128 * K);
+    set_limit = ComputeStackLimit(stack_breathing_room);
 
     // Set stack limit.
     v8::ResourceConstraints constraints;
