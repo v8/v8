@@ -5158,6 +5158,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ bind(&megamorphic);
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
   __ sw(at, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
+  __ jmp(&done);
 
   // An uninitialized cache is patched with the function or sentinel to
   // indicate the ElementsKind if function is the Array constructor.
