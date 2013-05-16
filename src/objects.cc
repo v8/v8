@@ -9844,9 +9844,10 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
   VisitExternalReferences(p, p + 1);
 }
 
-byte Code::compare_nil_state() {
+byte Code::compare_nil_types() {
   ASSERT(is_compare_nil_ic_stub());
-  return CompareNilICStub::TypesFromExtraICState(extended_extra_ic_state());
+  return CompareNilICStub::ExtractTypesFromExtraICState(
+      extended_extra_ic_state());
 }
 
 

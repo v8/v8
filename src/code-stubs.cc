@@ -408,41 +408,50 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
-CompareNilICStub::Types CompareNilICStub::GetPatchedICFlags(
-    Code::ExtraICState extra_ic_state,
-    Handle<Object> object,
-    bool* already_monomorphic) {
-  Types types = TypesField::decode(extra_ic_state);
-  NilValue nil = NilValueField::decode(extra_ic_state);
-  EqualityKind kind = EqualityKindField::decode(extra_ic_state);
-  ASSERT(types != CompareNilICStub::kFullCompare);
-  *already_monomorphic =
-      (types & CompareNilICStub::kCompareAgainstMonomorphicMap) != 0;
-  if (kind == kStrictEquality) {
-    if (nil == kNullValue) {
-      return CompareNilICStub::kCompareAgainstNull;
-    } else {
-      return CompareNilICStub::kCompareAgainstUndefined;
-    }
+void CompareNilICStub::Record(Handle<Object> object) {
+  ASSERT(types_ != Types::FullCompare());
+  if (equality_kind_ == kStrictEquality) {
+    // When testing for strict equality only one value will evaluate to true
+    types_.RemoveAll();
+    types_.Add((nil_value_ == kNullValue) ? NULL_TYPE:
+                                            UNDEFINED);
   } else {
     if (object->IsNull()) {
-      types = static_cast<CompareNilICStub::Types>(
-          types | CompareNilICStub::kCompareAgainstNull);
+      types_.Add(NULL_TYPE);
     } else if (object->IsUndefined()) {
-      types = static_cast<CompareNilICStub::Types>(
-          types | CompareNilICStub::kCompareAgainstUndefined);
+      types_.Add(UNDEFINED);
     } else if (object->IsUndetectableObject() ||
                object->IsOddball() ||
                !object->IsHeapObject()) {
-        types = CompareNilICStub::kFullCompare;
-    } else if ((types & CompareNilICStub::kCompareAgainstMonomorphicMap) != 0) {
-      types = CompareNilICStub::kFullCompare;
+      types_ = Types::FullCompare();
+    } else if (IsMonomorphic()) {
+      types_ = Types::FullCompare();
     } else {
-      types = static_cast<CompareNilICStub::Types>(
-          types | CompareNilICStub::kCompareAgainstMonomorphicMap);
+      types_.Add(MONOMORPHIC_MAP);
     }
   }
-  return types;
+}
+
+
+void CompareNilICStub::PrintName(StringStream* stream) {
+  stream->Add("CompareNilICStub_");
+  types_.Print(stream);
+  stream->Add((nil_value_ == kNullValue) ? "(NullValue|":
+                                           "(UndefinedValue|");
+  stream->Add((equality_kind_ == kStrictEquality) ? "StrictEquality)":
+                                                    "NonStrictEquality)");
+}
+
+
+void CompareNilICStub::Types::Print(StringStream* stream) const {
+  stream->Add("(");
+  SimpleListPrinter printer(stream);
+  if (IsEmpty()) printer.Add("None");
+  if (Contains(UNDEFINED)) printer.Add("Undefined");
+  if (Contains(NULL_TYPE)) printer.Add("Null");
+  if (Contains(MONOMORPHIC_MAP)) printer.Add("MonomorphicMap");
+  if (Contains(UNDETECTABLE)) printer.Add("Undetectable");
+  stream->Add(")");
 }
 
 
@@ -552,15 +561,18 @@ void ToBooleanStub::PrintName(StringStream* stream) {
 
 
 void ToBooleanStub::Types::Print(StringStream* stream) const {
-  if (IsEmpty()) stream->Add("None");
-  if (Contains(UNDEFINED)) stream->Add("Undefined");
-  if (Contains(BOOLEAN)) stream->Add("Bool");
-  if (Contains(NULL_TYPE)) stream->Add("Null");
-  if (Contains(SMI)) stream->Add("Smi");
-  if (Contains(SPEC_OBJECT)) stream->Add("SpecObject");
-  if (Contains(STRING)) stream->Add("String");
-  if (Contains(SYMBOL)) stream->Add("Symbol");
-  if (Contains(HEAP_NUMBER)) stream->Add("HeapNumber");
+  stream->Add("(");
+  SimpleListPrinter printer(stream);
+  if (IsEmpty()) printer.Add("None");
+  if (Contains(UNDEFINED)) printer.Add("Undefined");
+  if (Contains(BOOLEAN)) printer.Add("Bool");
+  if (Contains(NULL_TYPE)) printer.Add("Null");
+  if (Contains(SMI)) printer.Add("Smi");
+  if (Contains(SPEC_OBJECT)) printer.Add("SpecObject");
+  if (Contains(STRING)) printer.Add("String");
+  if (Contains(SYMBOL)) printer.Add("Symbol");
+  if (Contains(HEAP_NUMBER)) printer.Add("HeapNumber");
+  stream->Add(")");
 }
 
 

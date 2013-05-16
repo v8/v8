@@ -1812,27 +1812,27 @@ void HGraphBuilder::BuildCompareNil(
     HIfContinuation* continuation) {
   IfBuilder if_nil(this, position);
   bool needs_or = false;
-  if ((types & CompareNilICStub::kCompareAgainstNull) != 0) {
+  if (types.Contains(CompareNilICStub::NULL_TYPE)) {
     if (needs_or) if_nil.Or();
     if_nil.If<HCompareObjectEqAndBranch>(value, graph()->GetConstantNull());
     needs_or = true;
   }
-  if ((types & CompareNilICStub::kCompareAgainstUndefined) != 0) {
+  if (types.Contains(CompareNilICStub::UNDEFINED)) {
     if (needs_or) if_nil.Or();
     if_nil.If<HCompareObjectEqAndBranch>(value,
                                          graph()->GetConstantUndefined());
     needs_or = true;
   }
   // Handle either undetectable or monomorphic, not both.
-  ASSERT(((types & CompareNilICStub::kCompareAgainstUndetectable) == 0) ||
-         ((types & CompareNilICStub::kCompareAgainstMonomorphicMap) == 0));
-  if ((types & CompareNilICStub::kCompareAgainstUndetectable) != 0) {
+  ASSERT(!types.Contains(CompareNilICStub::UNDETECTABLE) ||
+         !types.Contains(CompareNilICStub::MONOMORPHIC_MAP));
+  if (types.Contains(CompareNilICStub::UNDETECTABLE)) {
     if (needs_or) if_nil.Or();
     if_nil.If<HIsUndetectableAndBranch>(value);
   } else {
     if_nil.Then();
     if_nil.Else();
-    if ((types & CompareNilICStub::kCompareAgainstMonomorphicMap) != 0) {
+    if (types.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
       BuildCheckNonSmi(value);
       // For ICs, the map checked below is a sentinel map that gets replaced by
       // the monomorphic map when the code is used as a template to generate a
@@ -10823,15 +10823,13 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   TypeFeedbackId id = expr->CompareOperationFeedbackId();
   CompareNilICStub::Types types;
   if (kind == kStrictEquality) {
-    if (nil == kNullValue) {
-      types = CompareNilICStub::kCompareAgainstNull;
-    } else {
-      types = CompareNilICStub::kCompareAgainstUndefined;
-    }
+    types.Add((nil == kNullValue) ? CompareNilICStub::NULL_TYPE :
+                                    CompareNilICStub::UNDEFINED);
   } else {
-    types = static_cast<CompareNilICStub::Types>(
-        oracle()->CompareNilTypes(id));
-    if (types == 0) types = CompareNilICStub::kFullCompare;
+    types = CompareNilICStub::Types(oracle()->CompareNilTypes(id));
+    if (types.IsEmpty()) {
+      types = CompareNilICStub::Types::FullCompare();
+    }
   }
   Handle<Map> map_handle(oracle()->CompareNilMonomorphicReceiverType(id));
   BuildCompareNil(value, kind, types, map_handle,

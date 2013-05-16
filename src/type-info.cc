@@ -643,9 +643,9 @@ byte TypeFeedbackOracle::CompareNilTypes(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
   if (object->IsCode() &&
       Handle<Code>::cast(object)->is_compare_nil_ic_stub()) {
-    return Handle<Code>::cast(object)->compare_nil_state();
+    return Handle<Code>::cast(object)->compare_nil_types();
   } else {
-    return CompareNilICStub::kFullCompare;
+    return CompareNilICStub::Types::FullCompare().ToIntegral();
   }
 }
 
