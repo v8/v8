@@ -268,6 +268,8 @@ DEFINE_bool(lookup_sample_by_shared, true,
             "info, not JSFunction itself")
 DEFINE_bool(cache_optimized_code, true,
             "cache optimized code for closures")
+DEFINE_bool(flush_optimized_code_cache, true,
+            "flushes the cache of optimized code for closures on every GC")
 DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
 DEFINE_bool(inline_accessors, true, "inline JavaScript accessors")
