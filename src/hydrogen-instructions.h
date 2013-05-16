@@ -1251,7 +1251,7 @@ class HInstruction: public HValue {
   HInstruction* previous() const { return previous_; }
 
   virtual void PrintTo(StringStream* stream);
-  virtual void PrintDataTo(StringStream* stream) { }
+  virtual void PrintDataTo(StringStream* stream);
 
   bool IsLinked() const { return block() != NULL; }
   void Unlink();

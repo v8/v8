@@ -5439,8 +5439,7 @@ void HGraph::MarkLiveInstructions() {
 }
 
 
-void HGraph::MarkLive(HValue *ref, HValue* instr,
-    ZoneList<HValue*>* worklist) {
+void HGraph::MarkLive(HValue* ref, HValue* instr, ZoneList<HValue*>* worklist) {
   if (!instr->CheckFlag(HValue::kIsLive)) {
     instr->SetFlag(HValue::kIsLive);
     worklist->Add(instr, zone());
@@ -5448,6 +5447,7 @@ void HGraph::MarkLive(HValue *ref, HValue* instr,
     if (FLAG_trace_dead_code_elimination) {
       HeapStringAllocator allocator;
       StringStream stream(&allocator);
+      ALLOW_HANDLE_DEREF(isolate(), "debug mode printing");
       if (ref != NULL) {
         ref->PrintTo(&stream);
       } else {
@@ -10329,7 +10329,7 @@ bool HOptimizedGraphBuilder::MatchRotateRight(HValue* left,
 }
 
 
-bool CanBeZero(HValue *right) {
+bool CanBeZero(HValue* right) {
   if (right->IsConstant()) {
     HConstant* right_const = HConstant::cast(right);
     if (right_const->HasInteger32Value() &&

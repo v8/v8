@@ -806,6 +806,14 @@ void HInstruction::PrintTo(StringStream* stream) {
 }
 
 
+void HInstruction::PrintDataTo(StringStream *stream) {
+  for (int i = 0; i < OperandCount(); ++i) {
+    if (i > 0) stream->Add(" ");
+    OperandAt(i)->PrintNameTo(stream);
+  }
+}
+
+
 void HInstruction::PrintMnemonicTo(StringStream* stream) {
   stream->Add("%s ", Mnemonic());
 }
