@@ -267,7 +267,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   if (FLAG_trace_osr) {
     PrintF("[on-stack replacement: begin 0x%08" V8PRIxPTR " ",
            reinterpret_cast<intptr_t>(function_));
-    function_->PrintName();
+    PrintFunctionName();
     PrintF(" => node=%u, frame=%d->%d]\n",
            ast_id,
            input_frame_size,
@@ -362,7 +362,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     PrintF("[on-stack replacement translation %s: 0x%08" V8PRIxPTR " ",
            ok ? "finished" : "aborted",
            reinterpret_cast<intptr_t>(function_));
-    function_->PrintName();
+    PrintFunctionName();
     PrintF(" => pc=0x%0" V8PRIxPTR "]\n", output_[0]->GetPc());
   }
 }

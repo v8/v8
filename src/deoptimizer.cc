@@ -505,14 +505,11 @@ bool Deoptimizer::TraceEnabledFor(BailoutType deopt_type,
 
 const char* Deoptimizer::MessageFor(BailoutType type) {
   switch (type) {
-    case EAGER:
-    case SOFT:
-    case LAZY:
-      return "DEOPT";
-    case DEBUGGER:
-      return "DEOPT FOR DEBUGGER";
-    case OSR:
-      return "OSR";
+    case EAGER: return "eager";
+    case SOFT: return "soft";
+    case LAZY: return "lazy";
+    case DEBUGGER: return "debugger";
+    case OSR: return "OSR";
   }
   UNREACHABLE();
   return NULL;
@@ -561,7 +558,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       ? StackFrame::STUB
       : StackFrame::JAVA_SCRIPT;
   trace_ = TraceEnabledFor(type, frame_type);
-  if (trace_) Trace();
   ASSERT(HEAP->allow_allocation(false));
   unsigned size = ComputeInputFrameSize();
   input_ = new(size) FrameDescription(size, function);
@@ -598,19 +594,6 @@ Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
   }
   UNREACHABLE();
   return NULL;
-}
-
-
-void Deoptimizer::Trace() {
-  PrintF("**** %s: ", Deoptimizer::MessageFor(bailout_type_));
-  PrintFunctionName();
-  PrintF(" at id #%u, address 0x%" V8PRIxPTR ", frame size %d\n",
-         bailout_id_,
-         reinterpret_cast<intptr_t>(from_),
-         fp_to_sp_delta_ - (2 * kPointerSize));
-  if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
-    compiled_code_->PrintDeoptLocation(bailout_id_);
-  }
 }
 
 
@@ -723,11 +706,14 @@ void Deoptimizer::DoComputeOutputFrames() {
   // Print some helpful diagnostic information.
   int64_t start = OS::Ticks();
   if (trace_) {
-    PrintF("[deoptimizing%s: begin 0x%08" V8PRIxPTR " ",
-           (bailout_type_ == LAZY ? " (lazy)" : ""),
+    PrintF("[deoptimizing (DEOPT %s): begin 0x%08" V8PRIxPTR " ",
+           MessageFor(bailout_type_),
            reinterpret_cast<intptr_t>(function_));
     PrintFunctionName();
-    PrintF(" @%d]\n", bailout_id_);
+    PrintF(" @%d, FP to SP delta: %d]\n", bailout_id_, fp_to_sp_delta_);
+    if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
+      compiled_code_->PrintDeoptLocation(bailout_id_);
+    }
   }
 
   // Determine basic deoptimization information.  The optimized frame is
@@ -804,11 +790,13 @@ void Deoptimizer::DoComputeOutputFrames() {
     double ms = static_cast<double>(OS::Ticks() - start) / 1000;
     int index = output_count_ - 1;  // Index of the topmost frame.
     JSFunction* function = output_[index]->GetFunction();
-    PrintF("[deoptimizing: end 0x%08" V8PRIxPTR " ",
+    PrintF("[deoptimizing (%s): end 0x%08" V8PRIxPTR " ",
+           MessageFor(bailout_type_),
            reinterpret_cast<intptr_t>(function));
-    if (function != NULL) function->PrintName();
-    PrintF(" => node=%d, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
+    PrintFunctionName();
+    PrintF(" @%d => node=%d, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
            " took %0.3f ms]\n",
+           bailout_id_,
            node_id.ToInt(),
            output_[index]->GetPc(),
            FullCodeGenerator::State2String(

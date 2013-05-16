@@ -335,7 +335,6 @@ class Deoptimizer : public Malloced {
               int fp_to_sp_delta,
               Code* optimized_code);
   Code* FindOptimizedCode(JSFunction* function, Code* optimized_code);
-  void Trace();
   void PrintFunctionName();
   void DeleteFrameDescriptions();
 
