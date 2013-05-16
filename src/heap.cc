@@ -118,7 +118,8 @@ Heap::Heap()
       disallow_allocation_failure_(false),
 #endif  // DEBUG
       new_space_high_promotion_mode_active_(false),
-      old_generation_allocation_limit_(kMinimumOldGenerationAllocationLimit),
+      old_gen_promotion_limit_(kMinimumPromotionLimit),
+      old_gen_allocation_limit_(kMinimumAllocationLimit),
       size_of_old_gen_at_last_old_space_gc_(0),
       external_allocation_limit_(0),
       amount_of_external_allocated_memory_(0),
@@ -281,7 +282,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   }
 
   // Is enough data promoted to justify a global GC?
-  if (OldGenerationAllocationLimitReached()) {
+  if (OldGenerationPromotionLimitReached()) {
     isolate_->counters()->gc_compactor_caused_by_promoted_data()->Increment();
     *reason = "promotion limit reached";
     return MARK_COMPACTOR;
@@ -915,8 +916,10 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
     size_of_old_gen_at_last_old_space_gc_ = PromotedSpaceSizeOfObjects();
 
-    old_generation_allocation_limit_ =
-        OldGenerationAllocationLimit(size_of_old_gen_at_last_old_space_gc_);
+    old_gen_promotion_limit_ =
+        OldGenPromotionLimit(size_of_old_gen_at_last_old_space_gc_);
+    old_gen_allocation_limit_ =
+        OldGenAllocationLimit(size_of_old_gen_at_last_old_space_gc_);
 
     old_gen_exhausted_ = false;
   } else {
@@ -5959,8 +5962,10 @@ void Heap::ReportHeapStatistics(const char* title) {
   USE(title);
   PrintF(">>>>>> =============== %s (%d) =============== >>>>>>\n",
          title, gc_count_);
-  PrintF("old_generation_allocation_limit_ %" V8_PTR_PREFIX "d\n",
-         old_generation_allocation_limit_);
+  PrintF("old_gen_promotion_limit_ %" V8_PTR_PREFIX "d\n",
+         old_gen_promotion_limit_);
+  PrintF("old_gen_allocation_limit_ %" V8_PTR_PREFIX "d\n",
+         old_gen_allocation_limit_);
 
   PrintF("\n");
   PrintF("Number of handles : %d\n", HandleScope::NumberOfHandles(isolate_));
