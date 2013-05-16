@@ -1068,13 +1068,22 @@ observer.assertCallbackRecords([
 reset();
 var array = [1, 2];
 Object.observe(array, observer.callback);
+Array.observe(array, observer2.callback);
 array.push(3, 4);
+array.push(5);
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
   { object: array, name: '2', type: 'new' },
   { object: array, name: 'length', type: 'updated', oldValue: 2 },
   { object: array, name: '3', type: 'new' },
   { object: array, name: 'length', type: 'updated', oldValue: 3 },
+  { object: array, name: '4', type: 'new' },
+  { object: array, name: 'length', type: 'updated', oldValue: 4 },
+]);
+Object.deliverChangeRecords(observer2.callback);
+observer2.assertCallbackRecords([
+  { object: array, type: 'splice', index: 2, removed: [], addedCount: 2 },
+  { object: array, type: 'splice', index: 4, removed: [], addedCount: 1 }
 ]);
 
 // Pop

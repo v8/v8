@@ -166,7 +166,7 @@ function EndPerformChange(objectInfo, type) {
                        objectInfo);
 }
 
-function ensureObserverRemoved(objectInfo, callback) {
+function EnsureObserverRemoved(objectInfo, callback) {
   function remove(observerList) {
     for (var i = 0; i < observerList.length; i++) {
       if (observerList[i].callback === callback) {
@@ -219,7 +219,7 @@ function ObjectObserve(object, callback, accept) {
   if (IS_UNDEFINED(objectInfo)) objectInfo = CreateObjectInfo(object);
   %SetIsObserved(object, true);
 
-  ensureObserverRemoved(objectInfo, callback);
+  EnsureObserverRemoved(objectInfo, callback);
 
   var observer = CreateObserver(callback, accept);
   if (ObserverIsActive(observer, objectInfo))
@@ -240,7 +240,7 @@ function ObjectUnobserve(object, callback) {
   if (IS_UNDEFINED(objectInfo))
     return object;
 
-  ensureObserverRemoved(objectInfo, callback);
+  EnsureObserverRemoved(objectInfo, callback);
 
   if (objectInfo.changeObservers.length === 0 &&
       objectInfo.inactiveObservers.length === 0) {
@@ -248,6 +248,17 @@ function ObjectUnobserve(object, callback) {
   }
 
   return object;
+}
+
+function ArrayObserve(object, callback) {
+  return ObjectObserve(object, callback, ['new',
+                                          'updated',
+                                          'deleted',
+                                          'splice']);
+}
+
+function ArrayUnobserve(object, callback) {
+  return ObjectUnobserve(object, callback);
 }
 
 function EnqueueChangeRecord(changeRecord, observers) {
@@ -269,6 +280,39 @@ function EnqueueChangeRecord(changeRecord, observers) {
       observerInfo.pendingChangeRecords.push(changeRecord);
     }
   }
+}
+
+function BeginPerformSplice(array) {
+  var objectInfo = objectInfoMap.get(array);
+  if (!IS_UNDEFINED(objectInfo))
+    BeginPerformChange(objectInfo, 'splice');
+}
+
+function EndPerformSplice(array) {
+  var objectInfo = objectInfoMap.get(array);
+  if (!IS_UNDEFINED(objectInfo))
+    EndPerformChange(objectInfo, 'splice');
+}
+
+function EnqueueSpliceRecord(array, index, removed, deleteCount, addedCount) {
+  var objectInfo = objectInfoMap.get(array);
+  if (IS_UNDEFINED(objectInfo) || objectInfo.changeObservers.length === 0)
+    return;
+
+  var changeRecord = {
+    type: 'splice',
+    object: array,
+    index: index,
+    removed: removed,
+    addedCount: addedCount
+  };
+
+  changeRecord.removed.length = deleteCount;
+  // TODO(rafaelw): This breaks spec-compliance. Re-enable when freezing isn't
+  // slow.
+  // ObjectFreeze(changeRecord);
+  // ObjectFreeze(changeRecord.removed);
+  EnqueueChangeRecord(changeRecord, objectInfo.changeObservers);
 }
 
 function NotifyChange(type, object, name, oldValue) {
@@ -404,6 +448,10 @@ function SetupObjectObserve() {
     "getNotifier", ObjectGetNotifier,
     "observe", ObjectObserve,
     "unobserve", ObjectUnobserve
+  ));
+  InstallFunctions($Array, DONT_ENUM, $Array(
+    "observe", ArrayObserve,
+    "unobserve", ArrayUnobserve
   ));
   InstallFunctions(notifierPrototype, DONT_ENUM, $Array(
     "notify", ObjectNotifierNotify,
