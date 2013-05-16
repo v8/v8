@@ -676,7 +676,7 @@ bool Runtime::SetupArrayBuffer(Isolate* isolate,
   array_buffer->set_backing_store(data);
 
   Handle<Object> byte_length =
-      isolate->factory()->NewNumberFromSize(allocated_length);
+      isolate->factory()->NewNumber(static_cast<double>(allocated_length));
   CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
   array_buffer->set_byte_length(*byte_length);
   return true;
