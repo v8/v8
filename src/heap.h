@@ -1585,6 +1585,11 @@ class Heap {
     intptr_t limit =
         Max(old_gen_size + old_gen_size / divisor, kMinimumPromotionLimit);
     limit += new_space_.Capacity();
+    // TODO(hpayer): Can be removed when when pretenuring is supported for all
+    // allocation sites.
+    if (IsHighSurvivalRate() && IsStableOrIncreasingSurvivalTrend()) {
+      limit *= 2;
+    }
     intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
     return Min(limit, halfway_to_the_max);
   }
@@ -1595,6 +1600,11 @@ class Heap {
     intptr_t limit =
         Max(old_gen_size + old_gen_size / divisor, kMinimumAllocationLimit);
     limit += new_space_.Capacity();
+    // TODO(hpayer): Can be removed when when pretenuring is supported for all
+    // allocation sites.
+    if (IsHighSurvivalRate() && IsStableOrIncreasingSurvivalTrend()) {
+      limit *= 2;
+    }
     intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
     return Min(limit, halfway_to_the_max);
   }
