@@ -261,3 +261,48 @@ assertEquals(some_object20, obj20);
 assertEquals(100, o20.smi);
 assertEquals(100, o20.dbl);
 assertEquals(100, o20.dbl);
+
+function attr_mismatch_obj(v, writable) {
+  var o = {};
+  o.some_value = v;
+  Object.defineProperty(o, "second_value", {value:10, writable:writable});
+  return o;
+}
+
+function is_writable(o, p) {
+  return Object.getOwnPropertyDescriptor(o,p).writable;
+}
+
+var writable = attr_mismatch_obj(10, true);
+var non_writable1 = attr_mismatch_obj(10.5, false);
+assertTrue(is_writable(writable,"second_value"));
+assertFalse(is_writable(non_writable1,"second_value"));
+writable.some_value = 20.5;
+assertTrue(is_writable(writable,"second_value"));
+var non_writable2 = attr_mismatch_obj(10.5, false);
+assertTrue(%HaveSameMap(non_writable1, non_writable2));
+
+function test_f(v) {
+  var o = {};
+  o.vbf = v;
+  o.func = test_f;
+  return o;
+}
+
+function test_fic(o) {
+  return o.vbf;
+}
+
+var ftest1 = test_f(10);
+var ftest2 = test_f(10);
+var ftest3 = test_f(10.5);
+var ftest4 = test_f(10);
+assertFalse(%HaveSameMap(ftest1, ftest3));
+assertTrue(%HaveSameMap(ftest3, ftest4));
+ftest2.func = is_writable;
+test_fic(ftest1);
+test_fic(ftest2);
+test_fic(ftest3);
+test_fic(ftest4);
+assertTrue(%HaveSameMap(ftest1, ftest3));
+assertTrue(%HaveSameMap(ftest3, ftest4));

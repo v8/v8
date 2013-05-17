@@ -2437,6 +2437,7 @@ Map* Map::FindRootMap() {
 }
 
 
+// Returns NULL if the updated map is incompatible.
 Map* Map::FindUpdatedMap(int verbatim,
                          int length,
                          DescriptorArray* descriptors) {
@@ -2452,6 +2453,17 @@ Map* Map::FindUpdatedMap(int verbatim,
     int transition = transitions->Search(name);
     if (transition == TransitionArray::kNotFound) break;
     current = transitions->GetTarget(transition);
+    PropertyDetails details = descriptors->GetDetails(i);
+    PropertyDetails target_details =
+        current->instance_descriptors()->GetDetails(i);
+    if (details.attributes() != target_details.attributes()) return NULL;
+    if (details.type() == CALLBACKS) {
+      if (target_details.type() != CALLBACKS) return NULL;
+      if (descriptors->GetValue(i) !=
+              current->instance_descriptors()->GetValue(i)) {
+        return NULL;
+      }
+    }
   }
 
   return current;
@@ -2534,6 +2546,8 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
 
   Map* updated = root_map->FindUpdatedMap(
       verbatim, descriptors, old_descriptors);
+  if (updated == NULL) return CopyGeneralizeAllRepresentations();
+
   // Check the state of the root map.
   DescriptorArray* updated_descriptors = updated->instance_descriptors();
 
@@ -7509,18 +7523,12 @@ bool DescriptorArray::IsMoreGeneralThan(int verbatim,
   for (int descriptor = verbatim; descriptor < valid; descriptor++) {
     PropertyDetails details = GetDetails(descriptor);
     PropertyDetails other_details = other->GetDetails(descriptor);
-    if (details.type() != other_details.type()) {
-      if (details.type() != FIELD ||
-          other_details.type() != CONSTANT_FUNCTION) {
-        return false;
-      }
-    } else if (details.type() == CONSTANT_FUNCTION) {
-      if (GetValue(descriptor) != other->GetValue(descriptor)) {
-        return false;
-      }
-    } else if (!other_details.representation().fits_into(
-                   details.representation())) {
+    if (!other_details.representation().fits_into(details.representation())) {
       return false;
+    }
+    if (details.type() == CONSTANT_FUNCTION) {
+      if (other_details.type() != CONSTANT_FUNCTION) return false;
+      if (GetValue(descriptor) != other->GetValue(descriptor)) return false;
     }
   }
 
