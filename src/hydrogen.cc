@@ -10934,9 +10934,11 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
       boilerplate_object->map()->instance_descriptors());
   int limit = boilerplate_object->map()->NumberOfOwnDescriptors();
 
+  int copied_fields = 0;
   for (int i = 0; i < limit; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.type() != FIELD) continue;
+    copied_fields++;
     int index = descriptors->GetFieldIndex(i);
     int property_offset = boilerplate_object->GetInObjectPropertyOffset(index);
     Handle<Name> name(descriptors->GetKey(i));
@@ -10973,6 +10975,16 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
           object_properties, name, value_instruction, true,
           Representation::Tagged(), property_offset));
     }
+  }
+
+  int inobject_properties = boilerplate_object->map()->inobject_properties();
+  HInstruction* value_instruction = AddInstruction(new(zone) HConstant(
+      factory->one_pointer_filler_map(), Representation::Tagged()));
+  for (int i = copied_fields; i < inobject_properties; i++) {
+    AddInstruction(new(zone) HStoreNamedField(
+        object_properties, factory->unknown_field_string(), value_instruction,
+        true, Representation::Tagged(),
+        boilerplate_object->GetInObjectPropertyOffset(i)));
   }
 
   // Build Allocation Site Info if desired
