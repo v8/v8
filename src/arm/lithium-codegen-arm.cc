@@ -1448,7 +1448,6 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   const Register left = ToRegister(instr->left());
   const Register right = ToRegister(instr->right());
-  const Register scratch = scratch0();
   const Register result = ToRegister(instr->result());
 
   // Check for x / 0.
@@ -1497,8 +1496,8 @@ void LCodeGen::DoDivI(LDivI* instr) {
   // to be tagged to Smis. If that is not possible, deoptimize.
   DeferredDivI* deferred = new(zone()) DeferredDivI(this, instr);
 
-  __ TrySmiTag(left, &deoptimize, scratch);
-  __ TrySmiTag(right, &deoptimize, scratch);
+  __ TrySmiTag(left, &deoptimize);
+  __ TrySmiTag(right, &deoptimize);
 
   __ b(al, deferred->entry());
   __ bind(deferred->exit());
@@ -1950,7 +1949,7 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
   Label done;
 
   // If the object is a smi return the object.
-  __ tst(input, Operand(kSmiTagMask));
+  __ SmiTst(input);
   __ Move(result, input, eq);
   __ b(eq, &done);
 
@@ -1975,7 +1974,7 @@ void LCodeGen::DoDateField(LDateField* instr) {
   ASSERT(!scratch.is(scratch0()));
   ASSERT(!scratch.is(object));
 
-  __ tst(object, Operand(kSmiTagMask));
+  __ SmiTst(object);
   DeoptimizeIf(eq, instr->environment());
   __ CompareObjectType(object, scratch, scratch, JS_DATE_TYPE);
   DeoptimizeIf(ne, instr->environment());
@@ -2261,7 +2260,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ JumpIfSmi(reg, true_label);
       } else if (expected.NeedsMap()) {
         // If we need a map later and have a Smi -> deopt.
-        __ tst(reg, Operand(kSmiTagMask));
+        __ SmiTst(reg);
         DeoptimizeIf(eq, instr->environment());
       }
 
@@ -2497,7 +2496,7 @@ void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
   Register input_reg = EmitLoadRegister(instr->value(), ip);
-  __ tst(input_reg, Operand(kSmiTagMask));
+  __ SmiTst(input_reg);
   EmitBranch(true_block, false_block, eq);
 }
 
@@ -3368,8 +3367,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
     if (instr->hydrogen()->key()->representation().IsTagged()) {
-      __ add(scratch, elements,
-             Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+      __ add(scratch, elements, Operand::PointerOffsetFromSmiKey(key));
     } else {
       __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
     }
@@ -3380,7 +3378,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
     if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
-      __ tst(result, Operand(kSmiTagMask));
+      __ SmiTst(result);
       DeoptimizeIf(ne, instr->environment());
     } else {
       __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
@@ -3523,7 +3521,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ b(eq, &global_object);
 
   // Deoptimize if the receiver is not a JS object.
-  __ tst(receiver, Operand(kSmiTagMask));
+  __ SmiTst(receiver);
   DeoptimizeIf(eq, instr->environment());
   __ CompareObjectType(receiver, scratch, scratch, FIRST_SPEC_OBJECT_TYPE);
   DeoptimizeIf(lt, instr->environment());
@@ -4221,7 +4219,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     Register value = ToRegister(instr->value());
     if (!instr->hydrogen()->value()->type().IsHeapObject()) {
-      __ tst(value, Operand(kSmiTagMask));
+      __ SmiTst(value);
       DeoptimizeIf(eq, instr->environment());
     }
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
@@ -4458,8 +4456,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
     if (instr->hydrogen()->key()->representation().IsTagged()) {
-      __ add(scratch, elements,
-             Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+      __ add(scratch, elements, Operand::PointerOffsetFromSmiKey(key));
     } else {
       __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
     }
@@ -5144,14 +5141,14 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->value();
-  __ tst(ToRegister(input), Operand(kSmiTagMask));
+  __ SmiTst(ToRegister(input));
   DeoptimizeIf(ne, instr->environment());
 }
 
 
 void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
   LOperand* input = instr->value();
-  __ tst(ToRegister(input), Operand(kSmiTagMask));
+  __ SmiTst(ToRegister(input));
   DeoptimizeIf(eq, instr->environment());
 }
 
@@ -5830,7 +5827,7 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   __ cmp(r0, null_value);
   DeoptimizeIf(eq, instr->environment());
 
-  __ tst(r0, Operand(kSmiTagMask));
+  __ SmiTst(r0);
   DeoptimizeIf(eq, instr->environment());
 
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
@@ -5898,8 +5895,7 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
   __ cmp(index, Operand::Zero());
   __ b(lt, &out_of_object);
 
-  STATIC_ASSERT(kPointerSizeLog2 > kSmiTagSize);
-  __ add(scratch, object, Operand(index, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(scratch, object, Operand::PointerOffsetFromSmiKey(index));
   __ ldr(result, FieldMemOperand(scratch, JSObject::kHeaderSize));
 
   __ b(&done);
@@ -5907,7 +5903,8 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
   __ bind(&out_of_object);
   __ ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
   // Index is equal to negated out of object property index plus 1.
-  __ sub(scratch, result, Operand(index, LSL, kPointerSizeLog2 - kSmiTagSize));
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  __ sub(scratch, result, Operand::PointerOffsetFromSmiKey(index));
   __ ldr(result, FieldMemOperand(scratch,
                                  FixedArray::kHeaderSize - kPointerSize));
   __ bind(&done);

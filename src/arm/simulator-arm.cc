@@ -2698,6 +2698,7 @@ void Simulator::DecodeType7(Instruction* instr) {
 // vmov :Rt = Sn
 // vcvt: Dd = Sm
 // vcvt: Sd = Dm
+// vcvt.f64.s32 Dd, Dd, #<fbits>
 // Dd = vabs(Dm)
 // Dd = vneg(Dm)
 // Dd = vadd(Dn, Dm)
@@ -2746,6 +2747,13 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
       } else if ((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) {
         DecodeVCVTBetweenFloatingPointAndInteger(instr);
+      } else if ((instr->Opc2Value() == 0xA) && (instr->Opc3Value() == 0x3) &&
+                 (instr->Bit(8) == 1)) {
+        // vcvt.f64.s32 Dd, Dd, #<fbits>
+        int fraction_bits = 32 - ((instr->Bit(5) << 4) | instr->Bits(3, 0));
+        int fixed_value = get_sinteger_from_s_register(vd * 2);
+        double divide = 1 << fraction_bits;
+        set_d_register_from_double(vd, fixed_value / divide);
       } else if (((instr->Opc2Value() >> 1) == 0x6) &&
                  (instr->Opc3Value() & 0x1)) {
         DecodeVCVTBetweenFloatingPointAndInteger(instr);
