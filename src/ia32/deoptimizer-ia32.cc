@@ -482,197 +482,6 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
 }
 
 
-void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
-                                   int frame_index) {
-  BailoutId node_id = BailoutId(iterator->Next());
-  JSFunction* function;
-  if (frame_index != 0) {
-    function = JSFunction::cast(ComputeLiteral(iterator->Next()));
-  } else {
-    int closure_id = iterator->Next();
-    USE(closure_id);
-    ASSERT_EQ(Translation::kSelfLiteralId, closure_id);
-    function = function_;
-  }
-  unsigned height = iterator->Next();
-  unsigned height_in_bytes = height * kPointerSize;
-  if (trace_) {
-    PrintF("  translating ");
-    function->PrintName();
-    PrintF(" => node=%d, height=%d\n", node_id.ToInt(), height_in_bytes);
-  }
-
-  // The 'fixed' part of the frame consists of the incoming parameters and
-  // the part described by JavaScriptFrameConstants.
-  unsigned fixed_frame_size = ComputeFixedSize(function);
-  unsigned input_frame_size = input_->GetFrameSize();
-  unsigned output_frame_size = height_in_bytes + fixed_frame_size;
-
-  // Allocate and store the output frame description.
-  FrameDescription* output_frame =
-      new(output_frame_size) FrameDescription(output_frame_size, function);
-  output_frame->SetFrameType(StackFrame::JAVA_SCRIPT);
-
-  bool is_bottommost = (0 == frame_index);
-  bool is_topmost = (output_count_ - 1 == frame_index);
-  ASSERT(frame_index >= 0 && frame_index < output_count_);
-  ASSERT(output_[frame_index] == NULL);
-  output_[frame_index] = output_frame;
-
-  // Compute the incoming parameter translation.
-  int parameter_count = function->shared()->formal_parameter_count() + 1;
-  unsigned output_offset = output_frame_size;
-  unsigned input_offset = input_frame_size;
-
-  unsigned alignment_state_offset =
-    input_offset - parameter_count * kPointerSize -
-    StandardFrameConstants::kFixedFrameSize -
-    kPointerSize;
-  ASSERT(JavaScriptFrameConstants::kDynamicAlignmentStateOffset ==
-    JavaScriptFrameConstants::kLocal0Offset);
-
-  // The top address for the bottommost output frame can be computed from
-  // the input frame pointer and the output frame's height.  For all
-  // subsequent output frames, it can be computed from the previous one's
-  // top address and the current frame's size.
-  uint32_t top_address;
-  if (is_bottommost) {
-    int32_t alignment_state = input_->GetFrameSlot(alignment_state_offset);
-    has_alignment_padding_ =
-      (alignment_state == kAlignmentPaddingPushed) ? 1 : 0;
-    // 2 = context and function in the frame.
-    // If the optimized frame had alignment padding, adjust the frame pointer
-    // to point to the new position of the old frame pointer after padding
-    // is removed. Subtract 2 * kPointerSize for the context and function slots.
-    top_address = input_->GetRegister(ebp.code()) - (2 * kPointerSize) -
-        height_in_bytes + has_alignment_padding_ * kPointerSize;
-  } else {
-    top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
-  }
-  output_frame->SetTop(top_address);
-
-  for (int i = 0; i < parameter_count; ++i) {
-    output_offset -= kPointerSize;
-    DoTranslateCommand(iterator, frame_index, output_offset);
-  }
-  input_offset -= (parameter_count * kPointerSize);
-
-  // There are no translation commands for the caller's pc and fp, the
-  // context, and the function.  Synthesize their values and set them up
-  // explicitly.
-  //
-  // The caller's pc for the bottommost output frame is the same as in the
-  // input frame.  For all subsequent output frames, it can be read from the
-  // previous one.  This frame's pc can be computed from the non-optimized
-  // function code and AST id of the bailout.
-  output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
-  intptr_t value;
-  if (is_bottommost) {
-    value = input_->GetFrameSlot(input_offset);
-  } else {
-    value = output_[frame_index - 1]->GetPc();
-  }
-  output_frame->SetFrameSlot(output_offset, value);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; caller's pc\n",
-           top_address + output_offset, output_offset, value);
-  }
-
-  // The caller's frame pointer for the bottommost output frame is the same
-  // as in the input frame.  For all subsequent output frames, it can be
-  // read from the previous one.  Also compute and set this frame's frame
-  // pointer.
-  output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
-  if (is_bottommost) {
-    value = input_->GetFrameSlot(input_offset);
-  } else {
-    value = output_[frame_index - 1]->GetFp();
-  }
-  output_frame->SetFrameSlot(output_offset, value);
-  intptr_t fp_value = top_address + output_offset;
-  ASSERT(!is_bottommost ||
-    (input_->GetRegister(ebp.code()) + has_alignment_padding_ * kPointerSize) ==
-    fp_value);
-  output_frame->SetFp(fp_value);
-  if (is_topmost) output_frame->SetRegister(ebp.code(), fp_value);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; caller's fp\n",
-           fp_value, output_offset, value);
-  }
-  ASSERT(!is_bottommost || !has_alignment_padding_ ||
-    (fp_value & kPointerSize) != 0);
-
-  // For the bottommost output frame the context can be gotten from the input
-  // frame. For all subsequent output frames it can be gotten from the function
-  // so long as we don't inline functions that need local contexts.
-  output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
-  if (is_bottommost) {
-    value = input_->GetFrameSlot(input_offset);
-  } else {
-    value = reinterpret_cast<uint32_t>(function->context());
-  }
-  output_frame->SetFrameSlot(output_offset, value);
-  output_frame->SetContext(value);
-  if (is_topmost) output_frame->SetRegister(esi.code(), value);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; context\n",
-           top_address + output_offset, output_offset, value);
-  }
-
-  // The function was mentioned explicitly in the BEGIN_FRAME.
-  output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
-  value = reinterpret_cast<uint32_t>(function);
-  // The function for the bottommost output frame should also agree with the
-  // input frame.
-  ASSERT(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
-  output_frame->SetFrameSlot(output_offset, value);
-  if (trace_) {
-    PrintF("    0x%08x: [top + %d] <- 0x%08x ; function\n",
-           top_address + output_offset, output_offset, value);
-  }
-
-  // Translate the rest of the frame.
-  for (unsigned i = 0; i < height; ++i) {
-    output_offset -= kPointerSize;
-    DoTranslateCommand(iterator, frame_index, output_offset);
-  }
-  ASSERT(0 == output_offset);
-
-  // Compute this frame's PC, state, and continuation.
-  Code* non_optimized_code = function->shared()->code();
-  FixedArray* raw_data = non_optimized_code->deoptimization_data();
-  DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
-  Address start = non_optimized_code->instruction_start();
-  unsigned pc_and_state = GetOutputInfo(data, node_id, function->shared());
-  unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
-  uint32_t pc_value = reinterpret_cast<uint32_t>(start + pc_offset);
-  output_frame->SetPc(pc_value);
-
-  FullCodeGenerator::State state =
-      FullCodeGenerator::StateField::decode(pc_and_state);
-  output_frame->SetState(Smi::FromInt(state));
-
-  // Set the continuation for the topmost frame.
-  if (is_topmost && bailout_type_ != DEBUGGER) {
-    Builtins* builtins = isolate_->builtins();
-    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
-    if (bailout_type_ == LAZY) {
-      continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
-    } else if (bailout_type_ == SOFT) {
-      continuation = builtins->builtin(Builtins::kNotifySoftDeoptimized);
-    } else {
-      ASSERT(bailout_type_ == EAGER);
-    }
-    output_frame->SetContinuation(
-        reinterpret_cast<uint32_t>(continuation->entry()));
-  }
-}
-
-
 void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   // Set the register values. The values are not important as there are no
   // callee saved registers in JavaScript frames, so all registers are
@@ -712,6 +521,20 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
     double double_value = input_->GetDoubleRegister(i);
     output_frame->SetDoubleRegister(i, double_value);
   }
+}
+
+
+bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+  int parameter_count = function->shared()->formal_parameter_count() + 1;
+  unsigned input_frame_size = input_->GetFrameSize();
+  unsigned alignment_state_offset =
+      input_frame_size - parameter_count * kPointerSize -
+      StandardFrameConstants::kFixedFrameSize -
+      kPointerSize;
+  ASSERT(JavaScriptFrameConstants::kDynamicAlignmentStateOffset ==
+      JavaScriptFrameConstants::kLocal0Offset);
+  int32_t alignment_state = input_->GetFrameSlot(alignment_state_offset);
+  return (alignment_state == kAlignmentPaddingPushed);
 }
 
 
