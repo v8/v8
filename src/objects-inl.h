@@ -1484,10 +1484,17 @@ void JSObject::initialize_properties() {
 
 
 void JSObject::initialize_elements() {
-  ASSERT(map()->has_fast_smi_or_object_elements() ||
-         map()->has_fast_double_elements());
-  ASSERT(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
-  WRITE_FIELD(this, kElementsOffset, GetHeap()->empty_fixed_array());
+  if (map()->has_fast_smi_or_object_elements() ||
+      map()->has_fast_double_elements()) {
+    ASSERT(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
+    WRITE_FIELD(this, kElementsOffset, GetHeap()->empty_fixed_array());
+  } else if (map()->has_external_array_elements()) {
+    ExternalArray* empty_array = GetHeap()->EmptyExternalArrayForMap(map());
+    ASSERT(!GetHeap()->InNewSpace(empty_array));
+    WRITE_FIELD(this, kElementsOffset, empty_array);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 

@@ -621,7 +621,6 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
       } else {
         ASSERT(storage_reg.is(name_reg));
       }
-      __ mov(name_reg, value_reg);
       __ RecordWriteField(scratch1,
                           offset,
                           name_reg,

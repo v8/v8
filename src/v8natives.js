@@ -1767,7 +1767,9 @@ function NewFunction(arg1) {  // length == 1
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
     // compile. We avoid this problem by checking for this early on.
-    if (p.indexOf(')') != -1) throw MakeSyntaxError('paren_in_arg_string',[]);
+    if (%_CallFunction(p, ')', StringIndexOf) != -1) {
+      throw MakeSyntaxError('paren_in_arg_string',[]);
+    }
     // If the formal parameters include an unbalanced block comment, the
     // function must be rejected. Since JavaScript does not allow nested
     // comments we can include a trailing block comment to catch this.

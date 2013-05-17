@@ -89,6 +89,7 @@ class LCodeGen;
   V(ConstantI)                                  \
   V(ConstantT)                                  \
   V(Context)                                    \
+  V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
   V(DeleteProperty)                             \
   V(Deoptimize)                                 \
@@ -114,7 +115,6 @@ class LCodeGen;
   V(Uint32ToDouble)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
-  V(IsNilAndBranch)                             \
   V(IsObjectAndBranch)                          \
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
@@ -822,26 +822,6 @@ class LCmpConstantEqAndBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LIsNilAndBranch: public LControlInstruction<1, 1> {
- public:
-  LIsNilAndBranch(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNilAndBranch, "is-nil-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(IsNilAndBranch)
-
-  EqualityKind kind() const { return hydrogen()->kind(); }
-  NilValue nil() const { return hydrogen()->nil(); }
-
-  virtual void PrintDataTo(StringStream* stream);
-};
-
-
 class LIsObjectAndBranch: public LControlInstruction<1, 0> {
  public:
   explicit LIsObjectAndBranch(LOperand* value) {
@@ -1190,6 +1170,12 @@ class LBranch: public LControlInstruction<1, 0> {
   DECLARE_HYDROGEN_ACCESSOR(Branch)
 
   virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LDebugBreak: public LTemplateInstruction<0, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(DebugBreak, "break")
 };
 
 

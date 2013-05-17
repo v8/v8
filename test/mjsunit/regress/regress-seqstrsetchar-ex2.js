@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,36 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
-#include "v8.h"
+String.fromCharCode(0xFFF, 0xFFF);
+String.fromCharCode(0x7C, 0x7C);
+%OptimizeFunctionOnNextCall(String.fromCharCode);
+String.fromCharCode(0x7C, 0x7C);
+String.fromCharCode(0xFFF, 0xFFF);
 
-#if defined(V8_TARGET_ARCH_MIPS)
-
-#include "assembler.h"
-#include "assembler-mips.h"
-#include "assembler-mips-inl.h"
-#include "frames-inl.h"
-#include "mips/assembler-mips-inl.h"
-#include "macro-assembler.h"
-#include "macro-assembler-mips.h"
-
-namespace v8 {
-namespace internal {
-
-
-Address ExitFrame::ComputeStackPointer(Address fp) {
-  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
-}
-
-
-Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
-Register JavaScriptFrame::context_register() { return cp; }
-
-
-Register StubFailureTrampolineFrame::fp_register() { return v8::internal::fp; }
-Register StubFailureTrampolineFrame::context_register() { return cp; }
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_MIPS

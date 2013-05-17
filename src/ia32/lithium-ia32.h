@@ -84,6 +84,7 @@ class LCodeGen;
   V(ConstantI)                                  \
   V(ConstantT)                                  \
   V(Context)                                    \
+  V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
   V(DeleteProperty)                             \
   V(Deoptimize)                                 \
@@ -108,7 +109,6 @@ class LCodeGen;
   V(Uint32ToDouble)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
-  V(IsNilAndBranch)                             \
   V(IsObjectAndBranch)                          \
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
@@ -570,6 +570,12 @@ class LArgumentsElements: public LTemplateInstruction<1, 0, 0> {
 };
 
 
+class LDebugBreak: public LTemplateInstruction<0, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(DebugBreak, "break")
+};
+
+
 class LModI: public LTemplateInstruction<1, 2, 1> {
  public:
   LModI(LOperand* left, LOperand* right, LOperand* temp) {
@@ -829,26 +835,6 @@ class LCmpConstantEqAndBranch: public LControlInstruction<1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CmpConstantEqAndBranch,
                                "cmp-constant-eq-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareConstantEqAndBranch)
-};
-
-
-class LIsNilAndBranch: public LControlInstruction<1, 1> {
- public:
-  LIsNilAndBranch(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNilAndBranch, "is-nil-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(IsNilAndBranch)
-
-  EqualityKind kind() const { return hydrogen()->kind(); }
-  NilValue nil() const { return hydrogen()->nil(); }
-
-  virtual void PrintDataTo(StringStream* stream);
 };
 
 

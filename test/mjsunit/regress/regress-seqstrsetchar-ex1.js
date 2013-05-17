@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,36 +25,36 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
-#include "v8.h"
-
-#if defined(V8_TARGET_ARCH_MIPS)
-
-#include "assembler.h"
-#include "assembler-mips.h"
-#include "assembler-mips-inl.h"
-#include "frames-inl.h"
-#include "mips/assembler-mips-inl.h"
-#include "macro-assembler.h"
-#include "macro-assembler-mips.h"
-
-namespace v8 {
-namespace internal {
-
-
-Address ExitFrame::ComputeStackPointer(Address fp) {
-  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
+// stubbed version of ToNumber
+function ToNumber(x) {
+  return 311;
 }
 
+// Reduced version of String.fromCharCode;
+// does not actually do the same calculation but exhibits untagging bug.
+function StringFromCharCode(code) {
+  var n = %_ArgumentsLength();
+  var one_byte = %NewString(n, true);
+  var i;
+  for (i = 0; i < n; i++) {
+    var code = %_Arguments(i);
+    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
+    if (code > 0xff) break;
+  }
 
-Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
-Register JavaScriptFrame::context_register() { return cp; }
+  var two_byte = %NewString(n - i, false);
+  for (var j = 0; i < n; i++, j++) {
+    var code = %_Arguments(i);
+    %_TwoByteSeqStringSetChar(two_byte, j, code);
+  }
+  return one_byte + two_byte;
+}
 
+StringFromCharCode(0xFFF, 0xFFF);
+StringFromCharCode(0x7C, 0x7C);
+%OptimizeFunctionOnNextCall(StringFromCharCode);
+StringFromCharCode(0x7C, 0x7C);
+StringFromCharCode(0xFFF, 0xFFF);
 
-Register StubFailureTrampolineFrame::fp_register() { return v8::internal::fp; }
-Register StubFailureTrampolineFrame::context_register() { return cp; }
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_MIPS

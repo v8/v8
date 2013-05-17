@@ -2814,7 +2814,6 @@ TEST(Regress169209) {
 
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
-  // Force experimental natives to compile to normalize heap layout.
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 

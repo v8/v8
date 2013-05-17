@@ -307,8 +307,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // The optimized code map must never be empty, so check the first elements.
   Label install_optimized;
   // Speculatively move code object into r4.
-  __ ldr(r4, FieldMemOperand(r1, FixedArray::kHeaderSize + kPointerSize));
-  __ ldr(r5, FieldMemOperand(r1, FixedArray::kHeaderSize));
+  __ ldr(r4, FieldMemOperand(r1, SharedFunctionInfo::kFirstCodeSlot));
+  __ ldr(r5, FieldMemOperand(r1, SharedFunctionInfo::kFirstContextSlot));
   __ cmp(r2, r5);
   __ b(eq, &install_optimized);
 
@@ -317,11 +317,9 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ ldr(r4, FieldMemOperand(r1, FixedArray::kLengthOffset));
   __ bind(&loop);
   // Do not double check first entry.
-
-  __ cmp(r4, Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
+  __ cmp(r4, Operand(Smi::FromInt(SharedFunctionInfo::kSecondEntryIndex)));
   __ b(eq, &install_unoptimized);
-  __ sub(r4, r4, Operand(
-      Smi::FromInt(SharedFunctionInfo::kEntryLength)));  // Skip an entry.
+  __ sub(r4, r4, Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
   __ add(r5, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ add(r5, r5, Operand(r4, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ ldr(r5, MemOperand(r5));
@@ -2162,8 +2160,12 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   GenerateTypeTransition(masm);
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2188,7 +2190,8 @@ void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
   __ CompareObjectType(right, r2, r2, FIRST_NONSTRING_TYPE);
   __ b(ge, &call_runtime);
 
-  StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
+  StringAddStub string_add_stub((StringAddFlags)
+                                (ERECT_FRAME | NO_STRING_CHECK_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_stub);
 
@@ -2459,8 +2462,12 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   }
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2507,8 +2514,12 @@ void BinaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
   GenerateTypeTransition(masm);
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2531,8 +2542,12 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   }
 
   __ bind(&call_runtime);
-  GenerateRegisterArgsPush(masm);
-  GenerateCallRuntime(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    GenerateRegisterArgsPush(masm);
+    GenerateCallRuntime(masm);
+  }
+  __ Ret();
 }
 
 
@@ -2548,7 +2563,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ CompareObjectType(left, r2, r2, FIRST_NONSTRING_TYPE);
   __ b(ge, &left_not_string);
 
-  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
+  StringAddStub string_add_left_stub((StringAddFlags)
+      (ERECT_FRAME | NO_STRING_CHECK_LEFT_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_left_stub);
 
@@ -2558,7 +2574,8 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   __ CompareObjectType(right, r2, r2, FIRST_NONSTRING_TYPE);
   __ b(ge, &call_runtime);
 
-  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+  StringAddStub string_add_right_stub((StringAddFlags)
+      (ERECT_FRAME | NO_STRING_CHECK_RIGHT_IN_STUB));
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_right_stub);
 
@@ -4771,6 +4788,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ bind(&megamorphic);
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ str(ip, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+  __ jmp(&done);
 
   // An uninitialized cache is patched with the function or sentinel to
   // indicate the ElementsKind if function is the Array constructor.
@@ -5822,7 +5840,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));  // Second argument.
 
   // Make sure that both arguments are strings if not known in advance.
-  if (flags_ == NO_STRING_ADD_FLAGS) {
+  if ((flags_ & NO_STRING_ADD_FLAGS) != 0) {
     __ JumpIfEitherSmi(r0, r1, &call_runtime);
     // Load instance types.
     __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -6114,12 +6132,46 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to add the two strings.
   __ bind(&call_runtime);
-  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
+  if ((flags_ & ERECT_FRAME) != 0) {
+    GenerateRegisterArgsPop(masm);
+    // Build a frame
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      GenerateRegisterArgsPush(masm);
+      __ CallRuntime(Runtime::kStringAdd, 2);
+    }
+    __ Ret();
+  } else {
+    __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
+  }
 
   if (call_builtin.is_linked()) {
     __ bind(&call_builtin);
-    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
+    if ((flags_ & ERECT_FRAME) != 0) {
+      GenerateRegisterArgsPop(masm);
+      // Build a frame
+      {
+        FrameScope scope(masm, StackFrame::INTERNAL);
+        GenerateRegisterArgsPush(masm);
+        __ InvokeBuiltin(builtin_id, CALL_FUNCTION);
+      }
+      __ Ret();
+    } else {
+      __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
+    }
   }
+}
+
+
+void StringAddStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
+  __ push(r0);
+  __ push(r1);
+}
+
+
+void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm) {
+  __ pop(r1);
+  __ pop(r0);
 }
 
 

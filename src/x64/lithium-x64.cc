@@ -219,15 +219,6 @@ void LCmpIDAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void LIsNilAndBranch::PrintDataTo(StringStream* stream) {
-  stream->Add("if ");
-  value()->PrintTo(stream);
-  stream->Add(kind() == kStrictEquality ? " === " : " == ");
-  stream->Add(nil() == kNullValue ? "null" : "undefined");
-  stream->Add(" then B%d else B%d", true_block_id(), false_block_id());
-}
-
-
 void LIsObjectAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_object(");
   value()->PrintTo(stream);
@@ -976,6 +967,11 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDebugBreak(HDebugBreak* instr) {
+  return new(zone()) LDebugBreak();
+}
+
+
 LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
   HValue* value = instr->value();
   if (value->EmitAtUses()) {
@@ -1638,13 +1634,6 @@ LInstruction* LChunkBuilder::DoCompareConstantEqAndBranch(
     HCompareConstantEqAndBranch* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   return new(zone()) LCmpConstantEqAndBranch(value);
-}
-
-
-LInstruction* LChunkBuilder::DoIsNilAndBranch(HIsNilAndBranch* instr) {
-  ASSERT(instr->value()->representation().IsTagged());
-  LOperand* temp = instr->kind() == kStrictEquality ? NULL : TempRegister();
-  return new(zone()) LIsNilAndBranch(UseRegisterAtStart(instr->value()), temp);
 }
 
 

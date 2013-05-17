@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,36 +25,65 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-#include "v8.h"
-
-#if defined(V8_TARGET_ARCH_MIPS)
-
-#include "assembler.h"
-#include "assembler-mips.h"
-#include "assembler-mips-inl.h"
-#include "frames-inl.h"
-#include "mips/assembler-mips-inl.h"
-#include "macro-assembler.h"
-#include "macro-assembler-mips.h"
-
-namespace v8 {
-namespace internal {
-
-
-Address ExitFrame::ComputeStackPointer(Address fp) {
-  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
+function dead1(a, b) {
+    a * b;
+    a << b;
+    a >> b;
+    a >>> b;
+    a | b;
+    a & b;
+    a ^ b;
+    return a;
 }
 
+function dead2(a, b) {
+    (a | 0) * b;
+    (a | 0) << b;
+    (a | 0) >> b;
+    (a | 0) >>> b;
+    (a | 0) | b;
+    (a | 0) & b;
+    (a | 0) ^ b;
+    return a;
+}
 
-Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
-Register JavaScriptFrame::context_register() { return cp; }
+function dead3(a, b) {
+    a == 2 ? (a * b) : (b * a); // dead
+    return a;
+}
 
+function dead4(a) {
+    var z = 3;
+    for (i = 0; i < 3; i++) {
+        z * 3; // dead
+    }
+    return a;
+}
 
-Register StubFailureTrampolineFrame::fp_register() { return v8::internal::fp; }
-Register StubFailureTrampolineFrame::context_register() { return cp; }
+function dead5(a) {
+    var z = 3;
+    for (i = 0; i < 3; i++) {
+        z * 3; // dead
+        z++;
+    }
+    var w = z * a;
+    return a; // w is dead
+}
 
+assertTrue(dead1(33, 32) == 33);
+assertTrue(dead2(33, 32) == 33);
+assertTrue(dead3(33, 32) == 33);
+assertTrue(dead4(33) == 33);
+assertTrue(dead5(33) == 33);
 
-} }  // namespace v8::internal
+assertTrue(dead1(34, 7) == 34);
+assertTrue(dead2(34, 7) == 34);
+assertTrue(dead3(34, 7) == 34);
+assertTrue(dead4(34) == 34);
+assertTrue(dead5(34) == 34);
 
-#endif  // V8_TARGET_ARCH_MIPS
+assertTrue(dead1(3.4, 0.1) == 3.4);
+assertTrue(dead2(3.4, 0.1) == 3.4);
+assertTrue(dead3(3.4, 0.1) == 3.4);
+assertTrue(dead4(3.4) == 3.4);
+assertTrue(dead5(3.4) == 3.4);

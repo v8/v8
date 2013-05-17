@@ -335,7 +335,6 @@ class Deoptimizer : public Malloced {
               int fp_to_sp_delta,
               Code* optimized_code);
   Code* FindOptimizedCode(JSFunction* function, Code* optimized_code);
-  void Trace();
   void PrintFunctionName();
   void DeleteFrameDescriptions();
 
@@ -406,6 +405,10 @@ class Deoptimizer : public Malloced {
   // Fill the given output frame's double registers with the original values
   // from the input frame's double registers.
   void CopyDoubleRegisters(FrameDescription* output_frame);
+
+  // Determines whether the input frame contains alignment padding by looking
+  // at the dynamic alignment state slot inside the frame.
+  bool HasAlignmentPadding(JSFunction* function);
 
   Isolate* isolate_;
   JSFunction* function_;

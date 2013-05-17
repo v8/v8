@@ -2186,7 +2186,7 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
   Address new_end = elms->address() + FixedArray::SizeFor(len - to_trim);
 
   if (trim_mode != FROM_GC || Heap::ShouldZapGarbage()) {
-      ZapEndOfFixedArray(new_end, to_trim);
+    ZapEndOfFixedArray(new_end, to_trim);
   }
 
   int size_delta = to_trim * kPointerSize;
@@ -2437,6 +2437,7 @@ Map* Map::FindRootMap() {
 }
 
 
+// Returns NULL if the updated map is incompatible.
 Map* Map::FindUpdatedMap(int verbatim,
                          int length,
                          DescriptorArray* descriptors) {
@@ -2452,6 +2453,17 @@ Map* Map::FindUpdatedMap(int verbatim,
     int transition = transitions->Search(name);
     if (transition == TransitionArray::kNotFound) break;
     current = transitions->GetTarget(transition);
+    PropertyDetails details = descriptors->GetDetails(i);
+    PropertyDetails target_details =
+        current->instance_descriptors()->GetDetails(i);
+    if (details.attributes() != target_details.attributes()) return NULL;
+    if (details.type() == CALLBACKS) {
+      if (target_details.type() != CALLBACKS) return NULL;
+      if (descriptors->GetValue(i) !=
+              current->instance_descriptors()->GetValue(i)) {
+        return NULL;
+      }
+    }
   }
 
   return current;
@@ -2534,6 +2546,8 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
 
   Map* updated = root_map->FindUpdatedMap(
       verbatim, descriptors, old_descriptors);
+  if (updated == NULL) return CopyGeneralizeAllRepresentations();
+
   // Check the state of the root map.
   DescriptorArray* updated_descriptors = updated->instance_descriptors();
 
@@ -7509,18 +7523,12 @@ bool DescriptorArray::IsMoreGeneralThan(int verbatim,
   for (int descriptor = verbatim; descriptor < valid; descriptor++) {
     PropertyDetails details = GetDetails(descriptor);
     PropertyDetails other_details = other->GetDetails(descriptor);
-    if (details.type() != other_details.type()) {
-      if (details.type() != FIELD ||
-          other_details.type() != CONSTANT_FUNCTION) {
-        return false;
-      }
-    } else if (details.type() == CONSTANT_FUNCTION) {
-      if (GetValue(descriptor) != other->GetValue(descriptor)) {
-        return false;
-      }
-    } else if (!other_details.representation().fits_into(
-                   details.representation())) {
+    if (!other_details.representation().fits_into(details.representation())) {
       return false;
+    }
+    if (details.type() == CONSTANT_FUNCTION) {
+      if (other_details.type() != CONSTANT_FUNCTION) return false;
+      if (GetValue(descriptor) != other->GetValue(descriptor)) return false;
     }
   }
 
@@ -8976,33 +8984,46 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<Context> native_context,
     Handle<Code> code,
     Handle<FixedArray> literals) {
+  CALL_HEAP_FUNCTION_VOID(
+      shared->GetIsolate(),
+      shared->AddToOptimizedCodeMap(*native_context, *code, *literals));
+}
+
+
+MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
+                                                       Code* code,
+                                                       FixedArray* literals) {
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
   ASSERT(native_context->IsNativeContext());
   STATIC_ASSERT(kEntryLength == 3);
-  Object* value = shared->optimized_code_map();
-  Handle<FixedArray> new_code_map;
+  Heap* heap = GetHeap();
+  FixedArray* new_code_map;
+  Object* value = optimized_code_map();
   if (value->IsSmi()) {
     // No optimized code map.
     ASSERT_EQ(0, Smi::cast(value)->value());
     // Crate 3 entries per context {context, code, literals}.
-    new_code_map = FACTORY->NewFixedArray(kEntryLength);
-    new_code_map->set(0, *native_context);
-    new_code_map->set(1, *code);
-    new_code_map->set(2, *literals);
+    MaybeObject* maybe = heap->AllocateFixedArray(kInitialLength);
+    if (!maybe->To(&new_code_map)) return maybe;
+    new_code_map->set(kEntriesStart + 0, native_context);
+    new_code_map->set(kEntriesStart + 1, code);
+    new_code_map->set(kEntriesStart + 2, literals);
   } else {
     // Copy old map and append one new entry.
-    Handle<FixedArray> old_code_map(FixedArray::cast(value));
-    ASSERT_EQ(-1, shared->SearchOptimizedCodeMap(*native_context));
+    FixedArray* old_code_map = FixedArray::cast(value);
+    ASSERT_EQ(-1, SearchOptimizedCodeMap(native_context));
     int old_length = old_code_map->length();
     int new_length = old_length + kEntryLength;
-    new_code_map = FACTORY->NewFixedArray(new_length);
-    old_code_map->CopyTo(0, *new_code_map, 0, old_length);
-    new_code_map->set(old_length, *native_context);
-    new_code_map->set(old_length + 1, *code);
-    new_code_map->set(old_length + 2, *literals);
+    MaybeObject* maybe = old_code_map->CopySize(new_length);
+    if (!maybe->To(&new_code_map)) return maybe;
+    new_code_map->set(old_length + 0, native_context);
+    new_code_map->set(old_length + 1, code);
+    new_code_map->set(old_length + 2, literals);
+    // Zap the old map for the sake of the heap verifier.
+    if (Heap::ShouldZapGarbage()) ZapOptimizedCodeMap();
   }
 #ifdef DEBUG
-  for (int i = 0; i < new_code_map->length(); i += kEntryLength) {
+  for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
     ASSERT(new_code_map->get(i)->IsNativeContext());
     ASSERT(new_code_map->get(i + 1)->IsCode());
     ASSERT(Code::cast(new_code_map->get(i + 1))->kind() ==
@@ -9010,14 +9031,14 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     ASSERT(new_code_map->get(i + 2)->IsFixedArray());
   }
 #endif
-  shared->set_optimized_code_map(*new_code_map);
+  set_optimized_code_map(new_code_map);
+  return new_code_map;
 }
 
 
 void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
                                                      int index) {
-  ASSERT(index > 0);
-  ASSERT(optimized_code_map()->IsFixedArray());
+  ASSERT(index > kEntriesStart);
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
   if (!bound()) {
     FixedArray* cached_literals = FixedArray::cast(code_map->get(index + 1));
@@ -9031,15 +9052,18 @@ void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
 }
 
 
-void SharedFunctionInfo::ClearOptimizedCodeMap(const char* reason) {
-  if (!optimized_code_map()->IsSmi()) {
-    if (FLAG_trace_opt) {
-      PrintF("[clearing entire optimizing code map (%s) for ", reason);
-      ShortPrint();
-      PrintF("]\n");
-    }
-    set_optimized_code_map(Smi::FromInt(0));
+void SharedFunctionInfo::ClearOptimizedCodeMap() {
+  FixedArray* code_map = FixedArray::cast(optimized_code_map());
+
+  // If the next map link slot is already used then the function was
+  // enqueued with code flushing and we remove it now.
+  if (!code_map->get(kNextMapIndex)->IsUndefined()) {
+    CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
+    flusher->EvictOptimizedCodeMap(this);
   }
+
+  ASSERT(code_map->get(kNextMapIndex)->IsUndefined());
+  set_optimized_code_map(Smi::FromInt(0));
 }
 
 
@@ -9050,11 +9074,11 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
   int i;
   bool removed_entry = false;
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
-  for (i = 0; i < code_map->length(); i += kEntryLength) {
+  for (i = kEntriesStart; i < code_map->length(); i += kEntryLength) {
     ASSERT(code_map->get(i)->IsNativeContext());
     if (Code::cast(code_map->get(i + 1)) == optimized_code) {
       if (FLAG_trace_opt) {
-        PrintF("[clearing optimizing code map (%s) for ", reason);
+        PrintF("[evicting entry from optimizing code map (%s) for ", reason);
         ShortPrint();
         PrintF("]\n");
       }
@@ -9069,12 +9093,32 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
     i += kEntryLength;
   }
   if (removed_entry) {
-    if (code_map->length() > kEntryLength) {
-      RightTrimFixedArray<FROM_MUTATOR>(GetHeap(), code_map, kEntryLength);
-    } else {
-      ClearOptimizedCodeMap(reason);
+    // Always trim even when array is cleared because of heap verifier.
+    RightTrimFixedArray<FROM_MUTATOR>(GetHeap(), code_map, kEntryLength);
+    if (code_map->length() == kEntriesStart) {
+      ClearOptimizedCodeMap();
     }
   }
+}
+
+
+void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
+  FixedArray* code_map = FixedArray::cast(optimized_code_map());
+  ASSERT(shrink_by % kEntryLength == 0);
+  ASSERT(shrink_by <= code_map->length() - kEntriesStart);
+  // Always trim even when array is cleared because of heap verifier.
+  RightTrimFixedArray<FROM_GC>(GetHeap(), code_map, shrink_by);
+  if (code_map->length() == kEntriesStart) {
+    ClearOptimizedCodeMap();
+  }
+}
+
+
+void SharedFunctionInfo::ZapOptimizedCodeMap() {
+  FixedArray* code_map = FixedArray::cast(optimized_code_map());
+  MemsetPointer(code_map->data_start(),
+                GetHeap()->the_hole_value(),
+                code_map->length());
 }
 
 
@@ -9717,7 +9761,7 @@ int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context) {
   if (!value->IsSmi()) {
     FixedArray* optimized_code_map = FixedArray::cast(value);
     int length = optimized_code_map->length();
-    for (int i = 0; i < length; i += 3) {
+    for (int i = kEntriesStart; i < length; i += kEntryLength) {
       if (optimized_code_map->get(i) == native_context) {
         return i + 1;
       }
@@ -9808,9 +9852,10 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
   VisitExternalReferences(p, p + 1);
 }
 
-byte Code::compare_nil_state() {
+byte Code::compare_nil_types() {
   ASSERT(is_compare_nil_ic_stub());
-  return CompareNilICStub::TypesFromExtraICState(extended_extra_ic_state());
+  return CompareNilICStub::ExtractTypesFromExtraICState(
+      extended_extra_ic_state());
 }
 
 
@@ -13524,7 +13569,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
     // Ordering is irrelevant, since we are going to sort anyway.
     SeededNumberDictionary* dict = element_dictionary();
     if (IsJSArray() || dict->requires_slow_elements() ||
-        dict->max_number_key() >= limit) {
+        dict->max_number_key() >= limit || map()->is_observed()) {
       return PrepareSlowElementsForSort(limit);
     }
     // Convert to fast elements.

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,36 +25,49 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+// Test some dead code elimination scenarios
 
-#include "v8.h"
-
-#if defined(V8_TARGET_ARCH_MIPS)
-
-#include "assembler.h"
-#include "assembler-mips.h"
-#include "assembler-mips-inl.h"
-#include "frames-inl.h"
-#include "mips/assembler-mips-inl.h"
-#include "macro-assembler.h"
-#include "macro-assembler-mips.h"
-
-namespace v8 {
-namespace internal {
-
-
-Address ExitFrame::ComputeStackPointer(Address fp) {
-  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
+function dead1(x, y) {
+    var a = x | 0, b = y | 0;
+    a * b;
+    a << b;
+    a >> b;
+    a >>> b;
+    a | b;
+    a & b;
+    a ^ b;
+    return x;
 }
 
+function dead2(x, y) {
+    var a = x | 0, b = y | 0;
+    (a | 0) * b;
+    (a | 0) << b;
+    (a | 0) >> b;
+    (a | 0) >>> b;
+    (a | 0) | b;
+    (a | 0) & b;
+    (a | 0) ^ b;
+    return x;
+}
 
-Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
-Register JavaScriptFrame::context_register() { return cp; }
+function dead3(a, b) {
+    a == 2 ? (a * b) : (b * a); // dead
+    return a;
+}
 
+assertTrue(dead1(33, 32) == 33);
+assertTrue(dead1(33, 32) == 33);
+%OptimizeFunctionOnNextCall(dead1);
+assertTrue(dead1(33, 32) == 33);
 
-Register StubFailureTrampolineFrame::fp_register() { return v8::internal::fp; }
-Register StubFailureTrampolineFrame::context_register() { return cp; }
+assertTrue(dead2(34, 11) == 34);
+assertTrue(dead2(34, 11) == 34);
+%OptimizeFunctionOnNextCall(dead2);
+assertTrue(dead2(34, 11) == 34);
 
-
-} }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_MIPS
+assertTrue(dead3(35, 12) == 35);
+assertTrue(dead3(35, 12) == 35);
+%OptimizeFunctionOnNextCall(dead3);
+assertTrue(dead3(35, 12) == 35);

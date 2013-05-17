@@ -650,7 +650,6 @@ void HValue::SetOperandAt(int index, HValue* value) {
 void HValue::DeleteAndReplaceWith(HValue* other) {
   // We replace all uses first, so Delete can assert that there are none.
   if (other != NULL) ReplaceAllUsesWith(other);
-  ASSERT(HasNoUses());
   Kill();
   DeleteFromGraph();
 }
@@ -803,6 +802,14 @@ void HInstruction::PrintTo(StringStream* stream) {
   PrintTypeTo(stream);
   if (CheckFlag(HValue::kHasNoObservableSideEffects)) {
     stream->Add(" [noOSE]");
+  }
+}
+
+
+void HInstruction::PrintDataTo(StringStream *stream) {
+  for (int i = 0; i < OperandCount(); ++i) {
+    if (i > 0) stream->Add(" ");
+    OperandAt(i)->PrintNameTo(stream);
   }
 }
 
@@ -1250,14 +1257,6 @@ void HControlInstruction::PrintDataTo(StringStream* stream) {
 
 void HUnaryControlInstruction::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  HControlInstruction::PrintDataTo(stream);
-}
-
-
-void HIsNilAndBranch::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(kind() == kStrictEquality ? " === " : " == ");
-  stream->Add(nil() == kNullValue ? "null" : "undefined");
   HControlInstruction::PrintDataTo(stream);
 }
 
@@ -1916,9 +1915,7 @@ void HPhi::PrintTo(StringStream* stream) {
               int32_non_phi_uses() + int32_indirect_uses(),
               double_non_phi_uses() + double_indirect_uses(),
               tagged_non_phi_uses() + tagged_indirect_uses());
-  stream->Add("%s%s",
-              is_live() ? "_live" : "",
-              IsConvertibleToInteger() ? "" : "_ncti");
+  if (!IsConvertibleToInteger()) stream->Add("_ncti");
   PrintRangeTo(stream);
   PrintTypeTo(stream);
   stream->Add("]");
