@@ -4048,13 +4048,11 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
   // Make sure to use globals from the function's context, since the function
   // can be from a different context.
   Context* native_context = function->context()->native_context();
-  bool needs_constructor_property;
   Map* new_map;
   if (function->shared()->is_generator()) {
     // Generator prototypes can share maps since they don't have "constructor"
     // properties.
     new_map = native_context->generator_object_prototype_map();
-    needs_constructor_property = false;
   } else {
     // Each function prototype gets a fresh map to avoid unwanted sharing of
     // maps between prototypes of different constructors.
@@ -4062,14 +4060,13 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
     ASSERT(object_function->has_initial_map());
     MaybeObject* maybe_map = object_function->initial_map()->Copy();
     if (!maybe_map->To(&new_map)) return maybe_map;
-    needs_constructor_property = true;
   }
 
   Object* prototype;
   MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
   if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
 
-  if (needs_constructor_property) {
+  if (!function->shared()->is_generator()) {
     MaybeObject* maybe_failure =
         JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
             constructor_string(), function, DONT_ENUM);
@@ -4209,7 +4206,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   // the inline_new flag so we only change the map if we generate a
   // specialized construct stub.
   ASSERT(in_object_properties <= Map::kMaxPreAllocatedPropertyFields);
-  if (instance_type == JS_OBJECT_TYPE &&
+  if (!fun->shared()->is_generator() &&
       fun->shared()->CanGenerateInlineConstructor(prototype)) {
     int count = fun->shared()->this_property_assignments_count();
     if (count > in_object_properties) {
@@ -4245,7 +4242,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
     }
   }
 
-  if (instance_type == JS_OBJECT_TYPE) {
+  if (!fun->shared()->is_generator()) {
     fun->shared()->StartInobjectSlackTracking(map);
   }
 
