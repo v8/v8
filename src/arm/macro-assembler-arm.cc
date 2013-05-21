@@ -2262,7 +2262,9 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
-                                              int stack_space) {
+                                              int stack_space,
+                                              bool returns_handle,
+                                              int return_value_offset) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
   const int kNextOffset = 0;
@@ -2308,13 +2310,20 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
+  Label return_value_loaded;
 
-  // If result is non-zero, dereference to get the result value
-  // otherwise set it to undefined.
-  cmp(r0, Operand::Zero());
-  LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
-  ldr(r0, MemOperand(r0), ne);
-
+  if (returns_handle) {
+    Label load_return_value;
+    cmp(r0, Operand::Zero());
+    b(eq, &load_return_value);
+    // derefernce returned value
+    ldr(r0, MemOperand(r0));
+    b(&return_value_loaded);
+    bind(&load_return_value);
+  }
+  // load value from ReturnValue
+  ldr(r0, MemOperand(fp, return_value_offset*kPointerSize));
+  bind(&return_value_loaded);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   str(r4, MemOperand(r7, kNextOffset));

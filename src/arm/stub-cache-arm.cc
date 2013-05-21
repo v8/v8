@@ -852,7 +852,7 @@ static void CompileCallLoadPropertyWithInterceptor(
 }
 
 
-static const int kFastApiCallArguments = 4;
+static const int kFastApiCallArguments = FunctionCallbackArguments::kArgsLength;
 
 // Reserves space for the extra arguments to API function in the
 // caller's frame.
@@ -881,10 +881,11 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //  -- sp[4]              : callee JS function
   //  -- sp[8]              : call data
   //  -- sp[12]             : isolate
-  //  -- sp[16]             : last JS argument
+  //  -- sp[16]             : ReturnValue
+  //  -- sp[20]             : last JS argument
   //  -- ...
-  //  -- sp[(argc + 3) * 4] : first JS argument
-  //  -- sp[(argc + 4) * 4] : receiver
+  //  -- sp[(argc + 4) * 4] : first JS argument
+  //  -- sp[(argc + 5) * 4] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -901,11 +902,13 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
     __ Move(r6, call_data);
   }
   __ mov(r7, Operand(ExternalReference::isolate_address(masm->isolate())));
-  // Store JS function, call data and isolate.
+  // Store JS function, call data, isolate and ReturnValue.
   __ stm(ib, sp, r5.bit() | r6.bit() | r7.bit());
+  __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
+  __ str(r5, MemOperand(sp, 4 * kPointerSize));
 
   // Prepare arguments.
-  __ add(r2, sp, Operand(3 * kPointerSize));
+  __ add(r2, sp, Operand(4 * kPointerSize));
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -931,13 +934,17 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
 
   const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
+  bool returns_handle =
+      !CallbackTable::ReturnsVoid(masm->isolate(), function_address);
   ApiFunction fun(function_address);
   ExternalReference ref = ExternalReference(&fun,
                                             ExternalReference::DIRECT_API_CALL,
                                             masm->isolate());
   AllowExternalCallThatCantCauseGC scope(masm);
-
-  __ CallApiFunctionAndReturn(ref, kStackUnwindSpace);
+  __ CallApiFunctionAndReturn(ref,
+                              kStackUnwindSpace,
+                              returns_handle,
+                              kFastApiCallArguments + 1);
 }
 
 
@@ -1413,7 +1420,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ Push(reg, scratch3());
   __ mov(scratch3(),
          Operand(ExternalReference::isolate_address(isolate())));
-  __ Push(scratch3(), name());
+  __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
+  __ Push(scratch3(), scratch4(), name());
   __ mov(r0, sp);  // r0 = Handle<Name>
 
   const int kApiStackSpace = 1;
@@ -1425,12 +1433,17 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ str(scratch2(), MemOperand(sp, 1 * kPointerSize));
   __ add(r1, sp, Operand(1 * kPointerSize));  // r1 = AccessorInfo&
 
-  const int kStackUnwindSpace = 5;
+  const int kStackUnwindSpace = kFastApiCallArguments + 1;
   Address getter_address = v8::ToCData<Address>(callback->getter());
+  bool returns_handle =
+      !CallbackTable::ReturnsVoid(isolate(), getter_address);
   ApiFunction fun(getter_address);
   ExternalReference ref = ExternalReference(
       &fun, ExternalReference::DIRECT_GETTER_CALL, isolate());
-  __ CallApiFunctionAndReturn(ref, kStackUnwindSpace);
+  __ CallApiFunctionAndReturn(ref,
+                              kStackUnwindSpace,
+                              returns_handle,
+                              3);
 }
 
 

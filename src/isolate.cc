@@ -1752,7 +1752,8 @@ Isolate::Isolate()
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
-      sweeper_thread_(NULL) {
+      sweeper_thread_(NULL),
+      callback_table_(NULL) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 

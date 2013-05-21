@@ -144,6 +144,17 @@ class Value;
 template <class T> class Handle;
 template <class T> class Local;
 template <class T> class Persistent;
+class FunctionTemplate;
+class ObjectTemplate;
+class Data;
+class AccessorInfo;
+template<typename T> class PropertyCallbackInfo;
+class StackTrace;
+class StackFrame;
+class Isolate;
+class DeclaredAccessorDescriptor;
+class ObjectOperationDescriptor;
+class RawOperationDescriptor;
 
 namespace internal {
 class Arguments;
@@ -151,6 +162,10 @@ class Heap;
 class HeapObject;
 class Isolate;
 class Object;
+template<typename T>
+class CustomArguments;
+class PropertyCallbackArguments;
+class FunctionCallbackArguments;
 }
 
 
@@ -1936,11 +1951,18 @@ enum ExternalArrayType {
  */
 typedef Handle<Value> (*AccessorGetter)(Local<String> property,
                                         const AccessorInfo& info);
+typedef void (*AccessorGetterCallback)(
+    Local<String> property,
+    const PropertyCallbackInfo<Value>& info);
 
 
 typedef void (*AccessorSetter)(Local<String> property,
                                Local<Value> value,
                                const AccessorInfo& info);
+typedef void (*AccessorSetterCallback)(
+    Local<String> property,
+    Local<Value> value,
+    const PropertyCallbackInfo<void>& info);
 
 
 /**
@@ -2010,9 +2032,16 @@ class V8EXPORT Object : public Value {
 
   bool Delete(uint32_t index);
 
+  // TODO(dcarney): deprecate
   bool SetAccessor(Handle<String> name,
                    AccessorGetter getter,
                    AccessorSetter setter = 0,
+                   Handle<Value> data = Handle<Value>(),
+                   AccessControl settings = DEFAULT,
+                   PropertyAttribute attribute = None);
+  bool SetAccessor(Handle<String> name,
+                   AccessorGetterCallback getter,
+                   AccessorSetterCallback setter = 0,
                    Handle<Value> data = Handle<Value>(),
                    AccessControl settings = DEFAULT,
                    PropertyAttribute attribute = None);
@@ -2704,13 +2733,36 @@ class V8EXPORT Template : public Data {
 };
 
 
+template<typename T>
+class V8EXPORT ReturnValue {
+ public:
+  V8_INLINE(explicit ReturnValue(internal::Object** slot));
+  // Handle setters
+  V8_INLINE(void Set(const Persistent<T>& handle));
+  V8_INLINE(void Set(const Handle<T> handle));
+  // TODO(dcarney): implement
+  // Fast primitive setters
+//  V8_INLINE(void Set(Isolate* isolate, bool));
+//  V8_INLINE(void Set(Isolate* isolate, float i));
+//  V8_INLINE(void Set(Isolate* isolate, double i));
+//  V8_INLINE(void Set(Isolate* isolate, int32_t i));
+//  V8_INLINE(void Set(Isolate* isolate, uint32_t i));
+  // Fast JS primitive setters
+//  V8_INLINE(void SetNull(Isolate* isolate));
+//  V8_INLINE(void SetUndefined(Isolate* isolate));
+ private:
+  internal::Object** value_;
+};
+
+
 /**
  * The argument information given to function call callbacks.  This
  * class provides access to information about the context of the call,
  * including the receiver, the number and values of arguments, and
  * the holder of the function.
  */
-class V8EXPORT Arguments {
+template<typename T>
+class V8EXPORT FunctionCallbackInfo {
  public:
   V8_INLINE(int Length() const);
   V8_INLINE(Local<Value> operator[](int i) const);
@@ -2720,15 +2772,20 @@ class V8EXPORT Arguments {
   V8_INLINE(bool IsConstructCall() const);
   V8_INLINE(Local<Value> Data() const);
   V8_INLINE(Isolate* GetIsolate() const);
+  V8_INLINE(ReturnValue<T> GetReturnValue() const);
+  // This shouldn't be public, but the arm compiler needs it.
+  static const int kArgsLength = 5;
 
- private:
-  static const int kIsolateIndex = 0;
-  static const int kDataIndex = -1;
-  static const int kCalleeIndex = -2;
-  static const int kHolderIndex = -3;
+ protected:
+  friend class internal::FunctionCallbackArguments;
+  friend class internal::CustomArguments<FunctionCallbackInfo>;
+  static const int kReturnValueIndex = 0;
+  static const int kIsolateIndex = -1;
+  static const int kDataIndex = -2;
+  static const int kCalleeIndex = -3;
+  static const int kHolderIndex = -4;
 
-  friend class ImplementationUtilities;
-  V8_INLINE(Arguments(internal::Object** implicit_args,
+  V8_INLINE(FunctionCallbackInfo(internal::Object** implicit_args,
                    internal::Object** values,
                    int length,
                    bool is_construct_call));
@@ -2739,25 +2796,56 @@ class V8EXPORT Arguments {
 };
 
 
+class V8EXPORT Arguments : public FunctionCallbackInfo<Value> {
+ private:
+  friend class internal::FunctionCallbackArguments;
+  V8_INLINE(Arguments(internal::Object** implicit_args,
+                      internal::Object** values,
+                      int length,
+                      bool is_construct_call));
+};
+
 /**
- * The information passed to an accessor callback about the context
+ * The information passed to a property callback about the context
  * of the property access.
  */
-class V8EXPORT AccessorInfo {
+template<typename T>
+class V8EXPORT PropertyCallbackInfo {
  public:
-  V8_INLINE(AccessorInfo(internal::Object** args))
-      : args_(args) { }
   V8_INLINE(Isolate* GetIsolate() const);
   V8_INLINE(Local<Value> Data() const);
   V8_INLINE(Local<Object> This() const);
   V8_INLINE(Local<Object> Holder() const);
+  V8_INLINE(ReturnValue<T> GetReturnValue() const);
+  // This shouldn't be public, but the arm compiler needs it.
+  static const int kArgsLength = 5;
 
- private:
+ protected:
+  friend class MacroAssembler;
+  friend class internal::PropertyCallbackArguments;
+  friend class internal::CustomArguments<PropertyCallbackInfo>;
+  static const int kThisIndex = 0;
+  static const int kHolderIndex = -1;
+  static const int kDataIndex = -2;
+  static const int kIsolateIndex = -3;
+  static const int kReturnValueIndex = -4;
+
+  V8_INLINE(PropertyCallbackInfo(internal::Object** args))
+      : args_(args) { }
   internal::Object** args_;
 };
 
 
+class V8EXPORT AccessorInfo : public PropertyCallbackInfo<Value> {
+ private:
+  friend class internal::PropertyCallbackArguments;
+  V8_INLINE(AccessorInfo(internal::Object** args))
+      : PropertyCallbackInfo<Value>(args) { }
+};
+
+
 typedef Handle<Value> (*InvocationCallback)(const Arguments& args);
+typedef void (*FunctionCallback)(const FunctionCallbackInfo<Value>& info);
 
 /**
  * NamedProperty[Getter|Setter] are used as interceptors on object.
@@ -2765,6 +2853,9 @@ typedef Handle<Value> (*InvocationCallback)(const Arguments& args);
  */
 typedef Handle<Value> (*NamedPropertyGetter)(Local<String> property,
                                              const AccessorInfo& info);
+typedef void (*NamedPropertyGetterCallback)(
+    Local<String> property,
+    const PropertyCallbackInfo<Value>& info);
 
 
 /**
@@ -2774,6 +2865,11 @@ typedef Handle<Value> (*NamedPropertyGetter)(Local<String> property,
 typedef Handle<Value> (*NamedPropertySetter)(Local<String> property,
                                              Local<Value> value,
                                              const AccessorInfo& info);
+typedef void (*NamedPropertySetterCallback)(
+    Local<String> property,
+    Local<Value> value,
+    const PropertyCallbackInfo<Value>& info);
+
 
 /**
  * Returns a non-empty handle if the interceptor intercepts the request.
@@ -2782,6 +2878,9 @@ typedef Handle<Value> (*NamedPropertySetter)(Local<String> property,
  */
 typedef Handle<Integer> (*NamedPropertyQuery)(Local<String> property,
                                               const AccessorInfo& info);
+typedef void (*NamedPropertyQueryCallback)(
+    Local<String> property,
+    const PropertyCallbackInfo<Integer>& info);
 
 
 /**
@@ -2791,12 +2890,18 @@ typedef Handle<Integer> (*NamedPropertyQuery)(Local<String> property,
  */
 typedef Handle<Boolean> (*NamedPropertyDeleter)(Local<String> property,
                                                 const AccessorInfo& info);
+typedef void (*NamedPropertyDeleterCallback)(
+    Local<String> property,
+    const PropertyCallbackInfo<Boolean>& info);
+
 
 /**
  * Returns an array containing the names of the properties the named
  * property getter intercepts.
  */
 typedef Handle<Array> (*NamedPropertyEnumerator)(const AccessorInfo& info);
+typedef void (*NamedPropertyEnumeratorCallback)(
+    const PropertyCallbackInfo<Array>& info);
 
 
 /**
@@ -2805,6 +2910,9 @@ typedef Handle<Array> (*NamedPropertyEnumerator)(const AccessorInfo& info);
  */
 typedef Handle<Value> (*IndexedPropertyGetter)(uint32_t index,
                                                const AccessorInfo& info);
+typedef void (*IndexedPropertyGetterCallback)(
+    uint32_t index,
+    const PropertyCallbackInfo<Value>& info);
 
 
 /**
@@ -2814,6 +2922,10 @@ typedef Handle<Value> (*IndexedPropertyGetter)(uint32_t index,
 typedef Handle<Value> (*IndexedPropertySetter)(uint32_t index,
                                                Local<Value> value,
                                                const AccessorInfo& info);
+typedef void (*IndexedPropertySetterCallback)(
+    uint32_t index,
+    Local<Value> value,
+    const PropertyCallbackInfo<Value>& info);
 
 
 /**
@@ -2822,6 +2934,10 @@ typedef Handle<Value> (*IndexedPropertySetter)(uint32_t index,
  */
 typedef Handle<Integer> (*IndexedPropertyQuery)(uint32_t index,
                                                 const AccessorInfo& info);
+typedef void (*IndexedPropertyQueryCallback)(
+    uint32_t index,
+    const PropertyCallbackInfo<Integer>& info);
+
 
 /**
  * Returns a non-empty handle if the deleter intercepts the request.
@@ -2830,12 +2946,18 @@ typedef Handle<Integer> (*IndexedPropertyQuery)(uint32_t index,
  */
 typedef Handle<Boolean> (*IndexedPropertyDeleter)(uint32_t index,
                                                   const AccessorInfo& info);
+typedef void (*IndexedPropertyDeleterCallback)(
+    uint32_t index,
+    const PropertyCallbackInfo<Boolean>& info);
+
 
 /**
  * Returns an array containing the indices of the properties the
  * indexed property getter intercepts.
  */
 typedef Handle<Array> (*IndexedPropertyEnumerator)(const AccessorInfo& info);
+typedef void (*IndexedPropertyEnumeratorCallback)(
+    const PropertyCallbackInfo<Array>& info);
 
 
 /**
@@ -2965,11 +3087,18 @@ typedef bool (*IndexedSecurityCallback)(Local<Object> host,
 class V8EXPORT FunctionTemplate : public Template {
  public:
   /** Creates a function template.*/
+  // TODO(dcarney): deprecate
   static Local<FunctionTemplate> New(
       InvocationCallback callback = 0,
       Handle<Value> data = Handle<Value>(),
       Handle<Signature> signature = Handle<Signature>(),
       int length = 0);
+  static Local<FunctionTemplate> New(
+      FunctionCallback callback,  // TODO(dcarney): add back default param.
+      Handle<Value> data = Handle<Value>(),
+      Handle<Signature> signature = Handle<Signature>(),
+      int length = 0);
+
   /** Returns the unique function instance in the current execution context.*/
   Local<Function> GetFunction();
 
@@ -2978,7 +3107,10 @@ class V8EXPORT FunctionTemplate : public Template {
    * callback is called whenever the function created from this
    * FunctionTemplate is called.
    */
+  // TODO(dcarney): deprecate
   void SetCallHandler(InvocationCallback callback,
+                      Handle<Value> data = Handle<Value>());
+  void SetCallHandler(FunctionCallback callback,
                       Handle<Value> data = Handle<Value>());
 
   /** Set the predefined length property for the FunctionTemplate. */
@@ -3031,21 +3163,6 @@ class V8EXPORT FunctionTemplate : public Template {
 
  private:
   FunctionTemplate();
-  void SetNamedInstancePropertyHandler(NamedPropertyGetter getter,
-                                       NamedPropertySetter setter,
-                                       NamedPropertyQuery query,
-                                       NamedPropertyDeleter remover,
-                                       NamedPropertyEnumerator enumerator,
-                                       Handle<Value> data);
-  void SetIndexedInstancePropertyHandler(IndexedPropertyGetter getter,
-                                         IndexedPropertySetter setter,
-                                         IndexedPropertyQuery query,
-                                         IndexedPropertyDeleter remover,
-                                         IndexedPropertyEnumerator enumerator,
-                                         Handle<Value> data);
-  void SetInstanceCallAsFunctionHandler(InvocationCallback callback,
-                                        Handle<Value> data);
-
   friend class Context;
   friend class ObjectTemplate;
 };
@@ -3094,9 +3211,18 @@ class V8EXPORT ObjectTemplate : public Template {
    *   defined by FunctionTemplate::HasInstance()), an implicit TypeError is
    *   thrown and no callback is invoked.
    */
+  // TODO(dcarney): deprecate
   void SetAccessor(Handle<String> name,
                    AccessorGetter getter,
                    AccessorSetter setter = 0,
+                   Handle<Value> data = Handle<Value>(),
+                   AccessControl settings = DEFAULT,
+                   PropertyAttribute attribute = None,
+                   Handle<AccessorSignature> signature =
+                       Handle<AccessorSignature>());
+  void SetAccessor(Handle<String> name,
+                   AccessorGetterCallback getter,
+                   AccessorSetterCallback setter = 0,
                    Handle<Value> data = Handle<Value>(),
                    AccessControl settings = DEFAULT,
                    PropertyAttribute attribute = None,
@@ -3128,12 +3254,20 @@ class V8EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
+  // TODO(dcarney): deprecate
   void SetNamedPropertyHandler(NamedPropertyGetter getter,
                                NamedPropertySetter setter = 0,
                                NamedPropertyQuery query = 0,
                                NamedPropertyDeleter deleter = 0,
                                NamedPropertyEnumerator enumerator = 0,
                                Handle<Value> data = Handle<Value>());
+  void SetNamedPropertyHandler(
+      NamedPropertyGetterCallback getter,
+      NamedPropertySetterCallback setter = 0,
+      NamedPropertyQueryCallback query = 0,
+      NamedPropertyDeleterCallback deleter = 0,
+      NamedPropertyEnumeratorCallback enumerator = 0,
+      Handle<Value> data = Handle<Value>());
 
   /**
    * Sets an indexed property handler on the object template.
@@ -3151,12 +3285,20 @@ class V8EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
+  // TODO(dcarney): deprecate
   void SetIndexedPropertyHandler(IndexedPropertyGetter getter,
                                  IndexedPropertySetter setter = 0,
                                  IndexedPropertyQuery query = 0,
                                  IndexedPropertyDeleter deleter = 0,
                                  IndexedPropertyEnumerator enumerator = 0,
                                  Handle<Value> data = Handle<Value>());
+  void SetIndexedPropertyHandler(
+      IndexedPropertyGetterCallback getter,
+      IndexedPropertySetterCallback setter = 0,
+      IndexedPropertyQueryCallback query = 0,
+      IndexedPropertyDeleterCallback deleter = 0,
+      IndexedPropertyEnumeratorCallback enumerator = 0,
+      Handle<Value> data = Handle<Value>());
 
   /**
    * Sets the callback to be used when calling instances created from
@@ -3164,7 +3306,10 @@ class V8EXPORT ObjectTemplate : public Template {
    * behave like normal JavaScript objects that cannot be called as a
    * function.
    */
+  // TODO(dcarney): deprecate
   void SetCallAsFunctionHandler(InvocationCallback callback,
+                                Handle<Value> data = Handle<Value>());
+  void SetCallAsFunctionHandler(FunctionCallback callback,
                                 Handle<Value> data = Handle<Value>());
 
   /**
@@ -5455,54 +5600,90 @@ uint16_t Persistent<T>::WrapperClassId(Isolate* isolate) const {
   return *reinterpret_cast<uint16_t*>(addr);
 }
 
-Arguments::Arguments(internal::Object** implicit_args,
-                     internal::Object** values, int length,
-                     bool is_construct_call)
+template<typename T>
+ReturnValue<T>::ReturnValue(internal::Object** slot) : value_(slot) {}
+
+template<typename T>
+void ReturnValue<T>::Set(const Persistent<T>& handle) {
+  *value_ = *reinterpret_cast<internal::Object**>(*handle);
+}
+
+template<typename T>
+void ReturnValue<T>::Set(const Handle<T> handle) {
+  *value_ = *reinterpret_cast<internal::Object**>(*handle);
+}
+
+template<typename T>
+FunctionCallbackInfo<T>::FunctionCallbackInfo(internal::Object** implicit_args,
+                                              internal::Object** values,
+                                              int length,
+                                              bool is_construct_call)
     : implicit_args_(implicit_args),
       values_(values),
       length_(length),
       is_construct_call_(is_construct_call) { }
 
 
-Local<Value> Arguments::operator[](int i) const {
+Arguments::Arguments(internal::Object** args,
+                     internal::Object** values,
+                     int length,
+                     bool is_construct_call)
+    : FunctionCallbackInfo<Value>(args, values, length, is_construct_call) { }
+
+
+template<typename T>
+Local<Value> FunctionCallbackInfo<T>::operator[](int i) const {
   if (i < 0 || length_ <= i) return Local<Value>(*Undefined());
   return Local<Value>(reinterpret_cast<Value*>(values_ - i));
 }
 
 
-Local<Function> Arguments::Callee() const {
+template<typename T>
+Local<Function> FunctionCallbackInfo<T>::Callee() const {
   return Local<Function>(reinterpret_cast<Function*>(
       &implicit_args_[kCalleeIndex]));
 }
 
 
-Local<Object> Arguments::This() const {
+template<typename T>
+Local<Object> FunctionCallbackInfo<T>::This() const {
   return Local<Object>(reinterpret_cast<Object*>(values_ + 1));
 }
 
 
-Local<Object> Arguments::Holder() const {
+template<typename T>
+Local<Object> FunctionCallbackInfo<T>::Holder() const {
   return Local<Object>(reinterpret_cast<Object*>(
       &implicit_args_[kHolderIndex]));
 }
 
 
-Local<Value> Arguments::Data() const {
+template<typename T>
+Local<Value> FunctionCallbackInfo<T>::Data() const {
   return Local<Value>(reinterpret_cast<Value*>(&implicit_args_[kDataIndex]));
 }
 
 
-Isolate* Arguments::GetIsolate() const {
+template<typename T>
+Isolate* FunctionCallbackInfo<T>::GetIsolate() const {
   return *reinterpret_cast<Isolate**>(&implicit_args_[kIsolateIndex]);
 }
 
 
-bool Arguments::IsConstructCall() const {
+template<typename T>
+ReturnValue<T> FunctionCallbackInfo<T>::GetReturnValue() const {
+  return ReturnValue<T>(&implicit_args_[kReturnValueIndex]);
+}
+
+
+template<typename T>
+bool FunctionCallbackInfo<T>::IsConstructCall() const {
   return is_construct_call_;
 }
 
 
-int Arguments::Length() const {
+template<typename T>
+int FunctionCallbackInfo<T>::Length() const {
   return length_;
 }
 
@@ -5891,23 +6072,33 @@ External* External::Cast(v8::Value* value) {
 }
 
 
-Isolate* AccessorInfo::GetIsolate() const {
-  return *reinterpret_cast<Isolate**>(&args_[-3]);
+template<typename T>
+Isolate* PropertyCallbackInfo<T>::GetIsolate() const {
+  return *reinterpret_cast<Isolate**>(&args_[kIsolateIndex]);
 }
 
 
-Local<Value> AccessorInfo::Data() const {
-  return Local<Value>(reinterpret_cast<Value*>(&args_[-2]));
+template<typename T>
+Local<Value> PropertyCallbackInfo<T>::Data() const {
+  return Local<Value>(reinterpret_cast<Value*>(&args_[kDataIndex]));
 }
 
 
-Local<Object> AccessorInfo::This() const {
-  return Local<Object>(reinterpret_cast<Object*>(&args_[0]));
+template<typename T>
+Local<Object> PropertyCallbackInfo<T>::This() const {
+  return Local<Object>(reinterpret_cast<Object*>(&args_[kThisIndex]));
 }
 
 
-Local<Object> AccessorInfo::Holder() const {
-  return Local<Object>(reinterpret_cast<Object*>(&args_[-1]));
+template<typename T>
+Local<Object> PropertyCallbackInfo<T>::Holder() const {
+  return Local<Object>(reinterpret_cast<Object*>(&args_[kHolderIndex]));
+}
+
+
+template<typename T>
+ReturnValue<T> PropertyCallbackInfo<T>::GetReturnValue() const {
+  return ReturnValue<T>(&args_[kReturnValueIndex]);
 }
 
 

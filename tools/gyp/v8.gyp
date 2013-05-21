@@ -208,6 +208,7 @@
         '../../src/api.cc',
         '../../src/api.h',
         '../../src/apiutils.h',
+        '../../src/arguments.cc',
         '../../src/arguments.h',
         '../../src/assembler.cc',
         '../../src/assembler.h',
