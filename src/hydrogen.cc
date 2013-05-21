@@ -1832,7 +1832,7 @@ void HGraphBuilder::BuildCompareNil(
   } else {
     if_nil.Then();
     if_nil.Else();
-    if (types.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
+    if (!map.is_null() && types.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
       BuildCheckNonSmi(value);
       // For ICs, the map checked below is a sentinel map that gets replaced by
       // the monomorphic map when the code is used as a template to generate a

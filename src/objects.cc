@@ -2537,6 +2537,7 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
   int descriptors = old_map->NumberOfOwnDescriptors();
   Map* root_map = old_map->FindRootMap();
 
+  // Check the state of the root map.
   if (!old_map->EquivalentToForTransition(root_map)) {
     return CopyGeneralizeAllRepresentations();
   }
@@ -2547,7 +2548,6 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
       verbatim, descriptors, old_descriptors);
   if (updated == NULL) return CopyGeneralizeAllRepresentations();
 
-  // Check the state of the root map.
   DescriptorArray* updated_descriptors = updated->instance_descriptors();
 
   int valid = updated->NumberOfOwnDescriptors();
@@ -2621,6 +2621,34 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
 
   new_map->set_owns_descriptors(true);
   return new_map;
+}
+
+
+Map* Map::CurrentMapForDeprecated() {
+  AssertNoAllocation no_allocation;
+  if (!is_deprecated()) return this;
+
+  DescriptorArray* old_descriptors = instance_descriptors();
+
+  int descriptors = NumberOfOwnDescriptors();
+  Map* root_map = FindRootMap();
+
+  // Check the state of the root map.
+  if (!EquivalentToForTransition(root_map)) return NULL;
+  int verbatim = root_map->NumberOfOwnDescriptors();
+
+  Map* updated = root_map->FindUpdatedMap(
+      verbatim, descriptors, old_descriptors);
+  if (updated == NULL) return NULL;
+
+  DescriptorArray* updated_descriptors = updated->instance_descriptors();
+  int valid = updated->NumberOfOwnDescriptors();
+  if (!updated_descriptors->IsMoreGeneralThan(
+          verbatim, valid, descriptors, old_descriptors)) {
+    return NULL;
+  }
+
+  return updated;
 }
 
 
