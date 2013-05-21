@@ -5363,7 +5363,9 @@ static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
     } else if (sub->right()->IsConstant()) {
       subexpression = sub->left();
       constant = HConstant::cast(sub->right());
-    } return;
+    } else {
+      return;
+    }
   } else {
     return;
   }
