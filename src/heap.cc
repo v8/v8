@@ -5933,7 +5933,7 @@ bool Heap::IdleGlobalGC() {
 
 void Heap::Print() {
   if (!HasBeenSetUp()) return;
-  isolate()->PrintStack();
+  isolate()->PrintStack(stdout);
   AllSpaces spaces(this);
   for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
     space->Print();

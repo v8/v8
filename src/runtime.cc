@@ -8991,7 +8991,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrint) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugTrace) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 0);
-  isolate->PrintStack();
+  isolate->PrintStack(stdout);
   return isolate->heap()->undefined_value();
 }
 
@@ -13099,7 +13099,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Abort) {
   ASSERT(args.length() == 2);
   OS::PrintError("abort: %s\n",
                  reinterpret_cast<char*>(args[0]) + args.smi_at(1));
-  isolate->PrintStack();
+  isolate->PrintStack(stderr);
   OS::Abort();
   UNREACHABLE();
   return NULL;
