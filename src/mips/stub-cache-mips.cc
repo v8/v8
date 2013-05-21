@@ -935,9 +935,13 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   bool returns_handle =
       !CallbackTable::ReturnsVoid(masm->isolate(), function_address);
   ApiFunction fun(function_address);
+  ExternalReference::Type type =
+      returns_handle ?
+          ExternalReference::DIRECT_API_CALL :
+          ExternalReference::DIRECT_API_CALL_NEW;
   ExternalReference ref =
       ExternalReference(&fun,
-                        ExternalReference::DIRECT_API_CALL,
+                        type,
                         masm->isolate());
   AllowExternalCallThatCantCauseGC scope(masm);
   __ CallApiFunctionAndReturn(ref,
@@ -1450,8 +1454,12 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   bool returns_handle =
       !CallbackTable::ReturnsVoid(isolate(), getter_address);
   ApiFunction fun(getter_address);
-  ExternalReference ref = ExternalReference(
-      &fun, ExternalReference::DIRECT_GETTER_CALL, isolate());
+  ExternalReference::Type type =
+      returns_handle ?
+          ExternalReference::DIRECT_GETTER_CALL :
+          ExternalReference::DIRECT_GETTER_CALL_NEW;
+
+  ExternalReference ref = ExternalReference(&fun, type, isolate());
   __ CallApiFunctionAndReturn(ref,
                               kStackUnwindSpace,
                               returns_handle,

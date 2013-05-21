@@ -3980,10 +3980,6 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
     PopSafepointRegisters();
   }
 
-  // As mentioned above, on MIPS a pointer is returned - we need to dereference
-  // it to get the actual return value (which is also a pointer).
-  lw(v0, MemOperand(v0));
-
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
@@ -3991,11 +3987,15 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
 
   if (returns_handle) {
     Label load_return_value;
+
+    // As mentioned above, on MIPS a pointer is returned - we need to
+    // dereference it to get the actual return value (which is also a pointer).
+    lw(v0, MemOperand(v0));
+
     Branch(&load_return_value, eq, v0, Operand(zero_reg));
     // Dereference returned value.
     lw(v0, MemOperand(v0));
-    b(&return_value_loaded);
-    nop();
+    Branch(&return_value_loaded);
     bind(&load_return_value);
   }
   // Load value from ReturnValue.
