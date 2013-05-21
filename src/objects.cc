@@ -1801,7 +1801,9 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
   int index = map()->NextFreePropertyIndex();
 
   // Allocate new instance descriptors with (name, index) added
-  Representation representation = value->OptimalRepresentation();
+  Representation representation = IsJSContextExtensionObject()
+      ? Representation::Tagged() : value->OptimalRepresentation();
+
   FieldDescriptor new_field(name, index, attributes, representation);
 
   ASSERT(index < map()->inobject_properties() ||
@@ -2105,7 +2107,8 @@ MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
     return ReplaceSlowProperty(name, new_value, attributes);
   }
 
-  Representation representation = new_value->OptimalRepresentation();
+  Representation representation = IsJSContextExtensionObject()
+      ? Representation::Tagged() : new_value->OptimalRepresentation();
   int index = map()->NextFreePropertyIndex();
   FieldDescriptor new_field(name, index, attributes, representation);
 
