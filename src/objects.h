@@ -2297,9 +2297,6 @@ class JSObject: public JSReceiver {
   static Handle<Object> PreventExtensions(Handle<JSObject> object);
   MUST_USE_RESULT MaybeObject* PreventExtensions();
 
-  // ES5 Object.freeze
-  MUST_USE_RESULT MaybeObject* Freeze(Isolate* isolate);
-
   // Copy object
   MUST_USE_RESULT MaybeObject* DeepCopy(Isolate* isolate);
 
@@ -2837,13 +2834,7 @@ class DescriptorArray: public FixedArray {
                          int new_size,
                          DescriptorArray* other);
 
-  MUST_USE_RESULT MaybeObject* CopyUpTo(int enumeration_index) {
-    return CopyUpToAddAttributes(enumeration_index, NONE);
-  }
-
-  MUST_USE_RESULT MaybeObject* CopyUpToAddAttributes(
-      int enumeration_index,
-      PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* CopyUpTo(int enumeration_index);
 
   // Sort the instance descriptors by the hash codes of their keys.
   void Sort();
@@ -3378,10 +3369,8 @@ class Dictionary: public HashTable<Shape, Key> {
   }
 
   // Returns a new array for dictionary usage. Might return Failure.
-  MUST_USE_RESULT static MaybeObject* Allocate(
-      Heap* heap,
-      int at_least_space_for,
-      PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT static MaybeObject* Allocate(Heap* heap,
+                                               int at_least_space_for);
 
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
@@ -5082,7 +5071,6 @@ class Map: public HeapObject {
   class OwnsDescriptors:            public BitField<bool, 25,  1> {};
   class IsObserved:                 public BitField<bool, 26,  1> {};
   class Deprecated:                 public BitField<bool, 27,  1> {};
-  class IsFrozen:                   public BitField<bool, 28,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -5385,8 +5373,6 @@ class Map: public HeapObject {
   inline void set_owns_descriptors(bool is_shared);
   inline bool is_observed();
   inline void set_is_observed(bool is_observed);
-  inline void freeze();
-  inline bool is_frozen();
   inline void deprecate();
   inline bool is_deprecated();
   inline bool CanBeDeprecated();
@@ -5401,9 +5387,9 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
       DescriptorArray* descriptors,
+      Name* name,
       TransitionFlag flag,
-      Name* name = NULL,
-      SimpleTransitionFlag simple_flag = FULL_TRANSITION);
+      int descriptor_index);
   MUST_USE_RESULT MaybeObject* CopyInstallDescriptors(
       int new_descriptor,
       DescriptorArray* descriptors);

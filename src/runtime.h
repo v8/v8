@@ -303,9 +303,6 @@ namespace internal {
   F(ResumeJSGeneratorObject, 3, 1) \
   F(ThrowGeneratorStateError, 1, 1) \
   \
-  /* ES5 */ \
-  F(ObjectFreeze, 1, 1) \
-  \
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \
   \
@@ -426,7 +423,6 @@ namespace internal {
   F(HasFastDoubleElements, 1, 1) \
   F(HasFastHoleyElements, 1, 1) \
   F(HasDictionaryElements, 1, 1) \
-  F(HasNonStrictArgumentsElements, 1, 1) \
   F(HasExternalPixelElements, 1, 1) \
   F(HasExternalArrayElements, 1, 1) \
   F(HasExternalByteElements, 1, 1) \

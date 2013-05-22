@@ -2964,17 +2964,6 @@ bool Heap::CreateInitialObjects() {
   }
   set_observation_state(JSObject::cast(obj));
 
-  { MaybeObject* maybe_obj = AllocateSymbol();
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_frozen_symbol(Symbol::cast(obj));
-
-  { MaybeObject* maybe_obj = SeededNumberDictionary::Allocate(this, 0, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  SeededNumberDictionary::cast(obj)->set_requires_slow_elements();
-  set_empty_slow_element_dictionary(SeededNumberDictionary::cast(obj));
-
   // Handling of script id generation is in FACTORY->NewScript.
   set_last_script_id(undefined_value());
 
