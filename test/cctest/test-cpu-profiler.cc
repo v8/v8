@@ -608,7 +608,9 @@ TEST(SampleWhenFrameIsNotSetup) {
   CheckChildrenNames(root, names);
 
   const v8::CpuProfileNode* startNode = FindChild(root, "start");
-  if (startNode->GetChildrenCount() > 0) {
+  // On slow machines there may be no meaningfull samples at all, skip the
+  // check there.
+  if (startNode && startNode->GetChildrenCount() > 0) {
     CHECK_EQ(1, startNode->GetChildrenCount());
     const v8::CpuProfileNode* delayNode = FindChild(startNode, "delay");
     if (delayNode->GetChildrenCount() > 0) {

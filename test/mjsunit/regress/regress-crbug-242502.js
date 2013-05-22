@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,25 +25,42 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_APIUTILS_H_
-#define V8_APIUTILS_H_
+// Flags: --expose-gc --allow-natives-syntax
 
-namespace v8 {
-class ImplementationUtilities {
- public:
-  static int GetNameCount(ExtensionConfiguration* that) {
-    return that->name_count_;
-  }
+function f() {
+  return 23;
+}
 
-  static const char** GetNames(ExtensionConfiguration* that) {
-    return that->names_;
-  }
+function call(o) {
+  return o['']();
+}
 
-  // Introduce an alias for the handle scope data to allow non-friends
-  // to access the HandleScope data.
-  typedef v8::HandleScope::Data HandleScopeData;
-};
+function test() {
+  var o1 = %ToFastProperties(Object.create({ foo:1 }, { '': { value:f }}));
+  var o2 = %ToFastProperties(Object.create({ bar:1 }, { '': { value:f }}));
+  var o3 = %ToFastProperties(Object.create({ baz:1 }, { '': { value:f }}));
+  var o4 = %ToFastProperties(Object.create({ qux:1 }, { '': { value:f }}));
+  var o5 = %ToFastProperties(Object.create({ loo:1 }, { '': { value:f }}));
+  // Called twice on o1 to turn monomorphic.
+  assertEquals(23, call(o1));
+  assertEquals(23, call(o1));
+  // Called on four other objects to turn megamorphic.
+  assertEquals(23, call(o2));
+  assertEquals(23, call(o3));
+  assertEquals(23, call(o4));
+  assertEquals(23, call(o5));
+  return o1;
+}
 
-}  // namespace v8
+// Fill stub cache with entries.
+test();
 
-#endif  // V8_APIUTILS_H_
+// Clear stub cache during GC.
+gc();
+
+// Turn IC megamorphic again.
+var oboom = test();
+
+// Optimize with previously cleared stub cache.
+%OptimizeFunctionOnNextCall(call);
+assertEquals(23, call(oboom));

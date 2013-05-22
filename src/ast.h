@@ -278,7 +278,9 @@ class SmallMapList {
   int length() const { return list_.length(); }
 
   void AddMapIfMissing(Handle<Map> map, Zone* zone) {
-    map = Map::CurrentMapForDeprecated(map);
+    Map* updated = map->CurrentMapForDeprecated();
+    if (updated == NULL) return;
+    map = Handle<Map>(updated);
     for (int i = 0; i < length(); ++i) {
       if (at(i).is_identical_to(map)) return;
     }

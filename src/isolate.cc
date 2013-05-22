@@ -835,7 +835,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
 }
 
 
-void Isolate::PrintStack() {
+void Isolate::PrintStack(FILE* out) {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
 
@@ -850,7 +850,7 @@ void Isolate::PrintStack() {
     StringStream accumulator(allocator);
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
-    accumulator.OutputToStdOut();
+    accumulator.OutputToFile(out);
     InitializeLoggingAndCounters();
     accumulator.Log();
     incomplete_message_ = NULL;
@@ -865,7 +865,7 @@ void Isolate::PrintStack() {
       "\n\nAttempt to print stack while printing stack (double fault)\n");
     OS::PrintError(
       "If you are lucky you may find a partial stack dump on stdout.\n\n");
-    incomplete_message_->OutputToStdOut();
+    incomplete_message_->OutputToFile(out);
   }
 }
 
@@ -1752,7 +1752,8 @@ Isolate::Isolate()
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
-      sweeper_thread_(NULL) {
+      sweeper_thread_(NULL),
+      callback_table_(NULL) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 

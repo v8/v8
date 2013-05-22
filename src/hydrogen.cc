@@ -1832,7 +1832,7 @@ void HGraphBuilder::BuildCompareNil(
   } else {
     if_nil.Then();
     if_nil.Else();
-    if (types.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
+    if (!map.is_null() && types.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
       BuildCheckNonSmi(value);
       // For ICs, the map checked below is a sentinel map that gets replaced by
       // the monomorphic map when the code is used as a template to generate a
@@ -5363,7 +5363,9 @@ static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
     } else if (sub->right()->IsConstant()) {
       subexpression = sub->left();
       constant = HConstant::cast(sub->right());
-    } return;
+    } else {
+      return;
+    }
   } else {
     return;
   }
@@ -10497,7 +10499,7 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
       if ((is_logical_and && left_constant->BooleanValue()) ||
           (!is_logical_and && !left_constant->BooleanValue())) {
         Drop(1);  // left_value.
-        CHECK_BAILOUT(VisitForValue(expr->right()));
+        CHECK_ALIVE(VisitForValue(expr->right()));
       }
       return ast_context()->ReturnValue(Pop());
     }

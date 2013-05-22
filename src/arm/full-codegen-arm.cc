@@ -1198,7 +1198,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Get the current entry of the array into register r3.
   __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ ldr(r3, MemOperand(r2, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r3, MemOperand::PointerAddressFromSmiKey(r2, r0));
 
   // Get the expected map from the stack or a smi in the
   // permanent slow case into register r2.
@@ -2263,23 +2263,18 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   // BinaryOpStub::GenerateSmiSmiOperation for comments.
   switch (op) {
     case Token::SAR:
-      __ b(&stub_call);
       __ GetLeastBitsFromSmi(scratch1, right, 5);
       __ mov(right, Operand(left, ASR, scratch1));
       __ bic(right, right, Operand(kSmiTagMask));
       break;
     case Token::SHL: {
-      __ b(&stub_call);
       __ SmiUntag(scratch1, left);
       __ GetLeastBitsFromSmi(scratch2, right, 5);
       __ mov(scratch1, Operand(scratch1, LSL, scratch2));
-      __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
-      __ b(mi, &stub_call);
-      __ SmiTag(right, scratch1);
+      __ TrySmiTag(right, scratch1, &stub_call);
       break;
     }
     case Token::SHR: {
-      __ b(&stub_call);
       __ SmiUntag(scratch1, left);
       __ GetLeastBitsFromSmi(scratch2, right, 5);
       __ mov(scratch1, Operand(scratch1, LSR, scratch2));
@@ -2858,7 +2853,7 @@ void FullCodeGenerator::EmitIsSmi(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ tst(r0, Operand(kSmiTagMask));
+  __ SmiTst(r0);
   Split(eq, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -2879,7 +2874,7 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ tst(r0, Operand(kSmiTagMask | 0x80000000));
+  __ NonNegativeSmiTst(r0);
   Split(eq, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -3006,16 +3001,13 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ LoadInstanceDescriptors(r1, r4);
   // r4: descriptor array.
   // r3: valid entries in the descriptor array.
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kPointerSize == 4);
   __ mov(ip, Operand(DescriptorArray::kDescriptorSize));
   __ mul(r3, r3, ip);
   // Calculate location of the first key name.
   __ add(r4, r4, Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
   // Calculate the end of the descriptor array.
   __ mov(r2, r4);
-  __ add(r2, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r2, r2, Operand::PointerOffsetFromSmiKey(r3));
 
   // Loop through all the keys in the descriptor array. If one of these is the
   // string "valueOf" the result is false.
@@ -3783,12 +3775,11 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
 
   Label done, not_found;
   // tmp now holds finger offset as a smi.
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ ldr(r2, FieldMemOperand(cache, JSFunctionResultCache::kFingerOffset));
   // r2 now holds finger offset as a smi.
   __ add(r3, cache, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   // r3 now points to the start of fixed array elements.
-  __ ldr(r2, MemOperand(r3, r2, LSL, kPointerSizeLog2 - kSmiTagSize, PreIndex));
+  __ ldr(r2, MemOperand::PointerAddressFromSmiKey(r3, r2, PreIndex));
   // Note side effect of PreIndex: r3 now points to the key of the pair.
   __ cmp(key, r2);
   __ b(ne, &not_found);
@@ -4751,9 +4742,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
   __ push(result_register());
   // Cook return address in link register to stack (smi encoded Code* delta)
   __ sub(r1, lr, Operand(masm_->CodeObject()));
-  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ add(r1, r1, Operand(r1));  // Convert to smi.
+  __ SmiTag(r1);
 
   // Store result register while executing finally block.
   __ push(r1);
@@ -4807,8 +4796,7 @@ void FullCodeGenerator::ExitFinallyBlock() {
 
   // Uncook return address and return.
   __ pop(result_register());
-  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
-  __ mov(r1, Operand(r1, ASR, 1));  // Un-smi-tag value.
+  __ SmiUntag(r1);
   __ add(pc, r1, Operand(masm_->CodeObject()));
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,25 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_APIUTILS_H_
-#define V8_APIUTILS_H_
+// Flags: --allow-natives-syntax
 
-namespace v8 {
-class ImplementationUtilities {
- public:
-  static int GetNameCount(ExtensionConfiguration* that) {
-    return that->name_count_;
-  }
+var non_const_true = true;
 
-  static const char** GetNames(ExtensionConfiguration* that) {
-    return that->names_;
-  }
+function f() {
+  return (non_const_true || true && g());
+}
 
-  // Introduce an alias for the handle scope data to allow non-friends
-  // to access the HandleScope data.
-  typedef v8::HandleScope::Data HandleScopeData;
-};
+function g() {
+  for (;;) {}
+}
 
-}  // namespace v8
-
-#endif  // V8_APIUTILS_H_
+assertTrue(f());
+assertTrue(f());
+%OptimizeFunctionOnNextCall(f);
+assertTrue(f());

@@ -51,6 +51,7 @@ namespace v8 {
 namespace internal {
 
 class Bootstrapper;
+class CallbackTable;
 class CodeGenerator;
 class CodeRange;
 struct CodeStubInterfaceDescriptor;
@@ -724,7 +725,7 @@ class Isolate {
   void PrintCurrentStackTrace(FILE* out);
   void PrintStackTrace(FILE* out, char* thread_data);
   void PrintStack(StringStream* accumulator);
-  void PrintStack();
+  void PrintStack(FILE* out);
   Handle<String> StackTraceString();
   NO_INLINE(void PushStackTraceAndDie(unsigned int magic,
                                       Object* object,
@@ -1102,6 +1103,13 @@ class Isolate {
     return sweeper_thread_;
   }
 
+  CallbackTable* callback_table() {
+    return callback_table_;
+  }
+  void set_callback_table(CallbackTable* callback_table) {
+    callback_table_ = callback_table;
+  }
+
   HStatistics* GetHStatistics();
   HTracer* GetHTracer();
 
@@ -1339,6 +1347,7 @@ class Isolate {
   OptimizingCompilerThread optimizing_compiler_thread_;
   MarkingThread** marking_thread_;
   SweeperThread** sweeper_thread_;
+  CallbackTable* callback_table_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

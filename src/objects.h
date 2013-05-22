@@ -254,6 +254,7 @@ enum CreationFlag {
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag {
   INSERT_TRANSITION,
+  OMIT_TRANSITION_KEEP_REPRESENTATIONS,
   OMIT_TRANSITION
 };
 
@@ -2200,7 +2201,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
       Name* name,
       Object* new_value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      TransitionFlag flag = OMIT_TRANSITION);
 
   MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
   MUST_USE_RESULT MaybeObject* GeneralizeFieldRepresentation(
@@ -5377,9 +5379,8 @@ class Map: public HeapObject {
   // Returns a non-deprecated version of the input. If the input was not
   // deprecated, it is directly returned. Otherwise, the non-deprecated version
   // is found by re-transitioning from the root of the transition tree using the
-  // descriptor array of the map. New maps (and transitions) may be created if
-  // no new (more general) version exists.
-  static inline Handle<Map> CurrentMapForDeprecated(Handle<Map> map);
+  // descriptor array of the map. Returns NULL if no updated map is found.
+  Map* CurrentMapForDeprecated();
 
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();

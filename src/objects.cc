@@ -339,13 +339,12 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     JSObject* self = JSObject::cast(receiver);
     Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("load", self, name));
-    CustomArguments args(isolate, data->data(), self, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments args(isolate, data->data(), self, this);
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = call_fun(v8::Utils::ToLocal(key), info);
+      result = args.Call(call_fun, v8::Utils::ToLocal(key));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) {
@@ -1802,7 +1801,9 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
   int index = map()->NextFreePropertyIndex();
 
   // Allocate new instance descriptors with (name, index) added
-  Representation representation = value->OptimalRepresentation();
+  Representation representation = IsJSContextExtensionObject()
+      ? Representation::Tagged() : value->OptimalRepresentation();
+
   FieldDescriptor new_field(name, index, attributes, representation);
 
   ASSERT(index < map()->inobject_properties() ||
@@ -2055,8 +2056,8 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
   Map* old_target = old_map->GetTransition(transition_index);
   Object* result;
 
-  MaybeObject* maybe_result =
-      ConvertDescriptorToField(name, new_value, attributes);
+  MaybeObject* maybe_result = ConvertDescriptorToField(
+      name, new_value, attributes, OMIT_TRANSITION_KEEP_REPRESENTATIONS);
   if (!maybe_result->To(&result)) return maybe_result;
 
   if (!HasFastProperties()) return result;
@@ -2097,7 +2098,8 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
 
 MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
                                                 Object* new_value,
-                                                PropertyAttributes attributes) {
+                                                PropertyAttributes attributes,
+                                                TransitionFlag flag) {
   if (map()->unused_property_fields() == 0 &&
       TooManyFastProperties(properties()->length(), MAY_BE_STORE_FROM_KEYED)) {
     Object* obj;
@@ -2106,14 +2108,14 @@ MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
     return ReplaceSlowProperty(name, new_value, attributes);
   }
 
-  Representation representation = new_value->OptimalRepresentation();
+  Representation representation = IsJSContextExtensionObject()
+      ? Representation::Tagged() : new_value->OptimalRepresentation();
   int index = map()->NextFreePropertyIndex();
   FieldDescriptor new_field(name, index, attributes, representation);
 
   // Make a new map for the object.
   Map* new_map;
-  MaybeObject* maybe_new_map = map()->CopyInsertDescriptor(&new_field,
-                                                           OMIT_TRANSITION);
+  MaybeObject* maybe_new_map = map()->CopyInsertDescriptor(&new_field, flag);
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
   // Make new properties array if necessary.
@@ -2538,6 +2540,7 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
   int descriptors = old_map->NumberOfOwnDescriptors();
   Map* root_map = old_map->FindRootMap();
 
+  // Check the state of the root map.
   if (!old_map->EquivalentToForTransition(root_map)) {
     return CopyGeneralizeAllRepresentations();
   }
@@ -2548,7 +2551,6 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
       verbatim, descriptors, old_descriptors);
   if (updated == NULL) return CopyGeneralizeAllRepresentations();
 
-  // Check the state of the root map.
   DescriptorArray* updated_descriptors = updated->instance_descriptors();
 
   int valid = updated->NumberOfOwnDescriptors();
@@ -2625,6 +2627,34 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
 }
 
 
+Map* Map::CurrentMapForDeprecated() {
+  AssertNoAllocation no_allocation;
+  if (!is_deprecated()) return this;
+
+  DescriptorArray* old_descriptors = instance_descriptors();
+
+  int descriptors = NumberOfOwnDescriptors();
+  Map* root_map = FindRootMap();
+
+  // Check the state of the root map.
+  if (!EquivalentToForTransition(root_map)) return NULL;
+  int verbatim = root_map->NumberOfOwnDescriptors();
+
+  Map* updated = root_map->FindUpdatedMap(
+      verbatim, descriptors, old_descriptors);
+  if (updated == NULL) return NULL;
+
+  DescriptorArray* updated_descriptors = updated->instance_descriptors();
+  int valid = updated->NumberOfOwnDescriptors();
+  if (!updated_descriptors->IsMoreGeneralThan(
+          verbatim, valid, descriptors, old_descriptors)) {
+    return NULL;
+  }
+
+  return updated;
+}
+
+
 MaybeObject* JSObject::SetPropertyWithInterceptor(
     Name* name,
     Object* value,
@@ -2640,8 +2670,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   if (!interceptor->setter()->IsUndefined()) {
     LOG(isolate, ApiNamedPropertyAccess("interceptor-named-set", this, name));
-    CustomArguments args(isolate, interceptor->data(), this, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
     v8::NamedPropertySetter setter =
         v8::ToCData<v8::NamedPropertySetter>(interceptor->setter());
     v8::Handle<v8::Value> result;
@@ -2652,9 +2681,9 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
                                   isolate->heap()->undefined_value() :
                                   value,
                                   isolate);
-      result = setter(v8::Utils::ToLocal(name_handle),
-                      v8::Utils::ToLocal(value_unhole),
-                      info);
+      result = args.Call(setter,
+                         v8::Utils::ToLocal(name_handle),
+                         v8::Utils::ToLocal(value_unhole));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
@@ -2754,14 +2783,14 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     if (call_fun == NULL) return value;
     Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("store", this, name));
-    CustomArguments args(isolate, data->data(), this, JSObject::cast(holder));
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments
+      args(isolate, data->data(), this, JSObject::cast(holder));
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      call_fun(v8::Utils::ToLocal(key),
-               v8::Utils::ToLocal(value_handle),
-               info);
+      args.Call(call_fun,
+                v8::Utils::ToLocal(key),
+                v8::Utils::ToLocal(value_handle));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
@@ -4063,8 +4092,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
   Handle<JSObject> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(String::cast(name));
-  CustomArguments args(isolate, interceptor->data(), receiver, this);
-  v8::AccessorInfo info(args.end());
+  PropertyCallbackArguments args(isolate, interceptor->data(), receiver, this);
   if (!interceptor->query()->IsUndefined()) {
     v8::NamedPropertyQuery query =
         v8::ToCData<v8::NamedPropertyQuery>(interceptor->query());
@@ -4074,7 +4102,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = query(v8::Utils::ToLocal(name_handle), info);
+      result = args.Call(query, v8::Utils::ToLocal(name_handle));
     }
     if (!result.IsEmpty()) {
       ASSERT(result->IsInt32());
@@ -4089,7 +4117,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = getter(v8::Utils::ToLocal(name_handle), info);
+      result = args.Call(getter, v8::Utils::ToLocal(name_handle));
     }
     if (!result.IsEmpty()) return DONT_ENUM;
   }
@@ -4204,8 +4232,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSReceiver> hreceiver(receiver);
   Handle<JSObject> holder(this);
-  CustomArguments args(isolate, interceptor->data(), receiver, this);
-  v8::AccessorInfo info(args.end());
+  PropertyCallbackArguments args(isolate, interceptor->data(), receiver, this);
   if (!interceptor->query()->IsUndefined()) {
     v8::IndexedPropertyQuery query =
         v8::ToCData<v8::IndexedPropertyQuery>(interceptor->query());
@@ -4215,7 +4242,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = query(index, info);
+      result = args.Call(query, index);
     }
     if (!result.IsEmpty())
       return static_cast<PropertyAttributes>(result->Int32Value());
@@ -4228,7 +4255,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = getter(index, info);
+      result = args.Call(getter, index);
     }
     if (!result.IsEmpty()) return NONE;
   }
@@ -4892,13 +4919,12 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(Name* name) {
         v8::ToCData<v8::NamedPropertyDeleter>(interceptor->deleter());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-delete", *this_handle, name));
-    CustomArguments args(isolate, interceptor->data(), this, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
     v8::Handle<v8::Boolean> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = deleter(v8::Utils::ToLocal(name_handle), info);
+      result = args.Call(deleter, v8::Utils::ToLocal(name_handle));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
@@ -4929,13 +4955,12 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   Handle<JSObject> this_handle(this);
   LOG(isolate,
       ApiIndexedPropertyAccess("interceptor-indexed-delete", this, index));
-  CustomArguments args(isolate, interceptor->data(), this, this);
-  v8::AccessorInfo info(args.end());
+  PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
   v8::Handle<v8::Boolean> result;
   {
     // Leaving JavaScript.
     VMState<EXTERNAL> state(isolate);
-    result = deleter(index, info);
+    result = args.Call(deleter, index);
   }
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (!result.IsEmpty()) {
@@ -6364,7 +6389,7 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 
     set_transitions(transitions);
     result->SetBackPointer(this);
-  } else {
+  } else if (flag != OMIT_TRANSITION_KEEP_REPRESENTATIONS) {
     descriptors->InitializeRepresentations(Representation::Tagged());
   }
 
@@ -6372,6 +6397,8 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 }
 
 
+// Since this method is used to rewrite an existing transition tree, it can
+// always insert transitions without checking.
 MaybeObject* Map::CopyInstallDescriptors(int new_descriptor,
                                          DescriptorArray* descriptors) {
   ASSERT(descriptors->IsSortedNoDuplicates());
@@ -6394,18 +6421,14 @@ MaybeObject* Map::CopyInstallDescriptors(int new_descriptor,
   result->set_unused_property_fields(unused_property_fields);
   result->set_owns_descriptors(false);
 
-  if (CanHaveMoreTransitions()) {
-    Name* name = descriptors->GetKey(new_descriptor);
-    TransitionArray* transitions;
-    MaybeObject* maybe_transitions =
-        AddTransition(name, result, SIMPLE_TRANSITION);
-    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  Name* name = descriptors->GetKey(new_descriptor);
+  TransitionArray* transitions;
+  MaybeObject* maybe_transitions =
+      AddTransition(name, result, SIMPLE_TRANSITION);
+  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
 
-    set_transitions(transitions);
-    result->SetBackPointer(this);
-  } else {
-    descriptors->InitializeRepresentations(Representation::Tagged());
-  }
+  set_transitions(transitions);
+  result->SetBackPointer(this);
 
   return result;
 }
@@ -11132,13 +11155,12 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
         v8::ToCData<v8::IndexedPropertySetter>(interceptor->setter());
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-set", this, index));
-    CustomArguments args(isolate, interceptor->data(), this, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = setter(index, v8::Utils::ToLocal(value_handle), info);
+      result = args.Call(setter, index, v8::Utils::ToLocal(value_handle));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
@@ -11175,13 +11197,13 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key = isolate->factory()->NumberToString(number);
     LOG(isolate, ApiNamedPropertyAccess("load", *self, *key));
-    CustomArguments args(isolate, data->data(), *self, *holder_handle);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments
+        args(isolate, data->data(), *self, *holder_handle);
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = call_fun(v8::Utils::ToLocal(key), info);
+      result = args.Call(call_fun, v8::Utils::ToLocal(key));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) return isolate->heap()->undefined_value();
@@ -11242,14 +11264,14 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key(isolate->factory()->NumberToString(number));
     LOG(isolate, ApiNamedPropertyAccess("store", *self, *key));
-    CustomArguments args(isolate, data->data(), *self, *holder_handle);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments
+        args(isolate, data->data(), *self, *holder_handle);
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      call_fun(v8::Utils::ToLocal(key),
-               v8::Utils::ToLocal(value_handle),
-               info);
+      args.Call(call_fun,
+                v8::Utils::ToLocal(key),
+                v8::Utils::ToLocal(value_handle));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
@@ -12133,13 +12155,13 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
         v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-get", this, index));
-    CustomArguments args(isolate, interceptor->data(), receiver, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments
+        args(isolate, interceptor->data(), receiver, this);
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = getter(index, info);
+      result = args.Call(getter, index);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
@@ -12443,13 +12465,13 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
         v8::ToCData<v8::NamedPropertyGetter>(interceptor->getter());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-get", *holder_handle, name));
-    CustomArguments args(isolate, interceptor->data(), receiver, this);
-    v8::AccessorInfo info(args.end());
+    PropertyCallbackArguments
+        args(isolate, interceptor->data(), receiver, this);
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
-      result = getter(v8::Utils::ToLocal(name_handle), info);
+      result = args.Call(getter, v8::Utils::ToLocal(name_handle));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {

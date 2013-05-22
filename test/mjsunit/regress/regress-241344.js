@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,25 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_APIUTILS_H_
-#define V8_APIUTILS_H_
+// Create a JSON string for an object with indexed properties.
+// Parsing that string creates a sparse array that grows dense.
 
-namespace v8 {
-class ImplementationUtilities {
- public:
-  static int GetNameCount(ExtensionConfiguration* that) {
-    return that->name_count_;
-  }
+var jsonstring = '{"0":0.1, "10000":0.4, ';
+for (var i = 1; i < 9999; i++) {
+  jsonstring += '"' + i + '":0.2, ';
+}
+jsonstring += '"9999":0.3}';
 
-  static const char** GetNames(ExtensionConfiguration* that) {
-    return that->names_;
-  }
-
-  // Introduce an alias for the handle scope data to allow non-friends
-  // to access the HandleScope data.
-  typedef v8::HandleScope::Data HandleScopeData;
-};
-
-}  // namespace v8
-
-#endif  // V8_APIUTILS_H_
+var jsonobject = JSON.parse(jsonstring);
+for (var i = 1; i < 9999; i++) {
+  assertEquals(0.2, jsonobject[i]);
+}
