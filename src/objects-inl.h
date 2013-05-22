@@ -1505,9 +1505,19 @@ MaybeObject* JSObject::ResetElements() {
 
 MaybeObject* JSObject::AllocateStorageForMap(Map* map) {
   ASSERT(this->map()->inobject_properties() == map->inobject_properties());
-  ElementsKind expected_kind = this->map()->elements_kind();
-  if (map->elements_kind() != expected_kind) {
-    MaybeObject* maybe_map = map->AsElementsKind(expected_kind);
+  ElementsKind obj_kind = this->map()->elements_kind();
+  ElementsKind map_kind = map->elements_kind();
+  if (map_kind != obj_kind) {
+    ElementsKind to_kind = map_kind;
+    if (IsMoreGeneralElementsKindTransition(map_kind, obj_kind) ||
+        IsDictionaryElementsKind(obj_kind)) {
+      to_kind = obj_kind;
+    }
+    MaybeObject* maybe_obj =
+        IsDictionaryElementsKind(to_kind) ? NormalizeElements()
+                                          : TransitionElementsKind(to_kind);
+    if (maybe_obj->IsFailure()) return maybe_obj;
+    MaybeObject* maybe_map = map->AsElementsKind(to_kind);
     if (!maybe_map->To(&map)) return maybe_map;
   }
   int total_size =
