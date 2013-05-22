@@ -10499,7 +10499,7 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
       if ((is_logical_and && left_constant->BooleanValue()) ||
           (!is_logical_and && !left_constant->BooleanValue())) {
         Drop(1);  // left_value.
-        CHECK_BAILOUT(VisitForValue(expr->right()));
+        CHECK_ALIVE(VisitForValue(expr->right()));
       }
       return ast_context()->ReturnValue(Pop());
     }
