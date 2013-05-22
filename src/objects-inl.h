@@ -1030,10 +1030,7 @@ int Smi::value() {
 
 Smi* Smi::FromInt(int value) {
   ASSERT(Smi::IsValid(value));
-  int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-  intptr_t tagged_value =
-      (static_cast<intptr_t>(value) << smi_shift_bits) | kSmiTag;
-  return reinterpret_cast<Smi*>(tagged_value);
+  return reinterpret_cast<Smi*>(Internals::IntToSmi(value));
 }
 
 
@@ -1111,28 +1108,8 @@ Failure* Failure::Construct(Type type, intptr_t value) {
 
 
 bool Smi::IsValid(intptr_t value) {
-#ifdef DEBUG
-  bool in_range = (value >= kMinValue) && (value <= kMaxValue);
-#endif
-
-#ifdef V8_TARGET_ARCH_X64
-  // To be representable as a long smi, the value must be a 32-bit integer.
-  bool result = (value == static_cast<int32_t>(value));
-#else
-  // To be representable as an tagged small integer, the two
-  // most-significant bits of 'value' must be either 00 or 11 due to
-  // sign-extension. To check this we add 01 to the two
-  // most-significant bits, and check if the most-significant bit is 0
-  //
-  // CAUTION: The original code below:
-  // bool result = ((value + 0x40000000) & 0x80000000) == 0;
-  // may lead to incorrect results according to the C language spec, and
-  // in fact doesn't work correctly with gcc4.1.1 in some cases: The
-  // compiler may produce undefined results in case of signed integer
-  // overflow. The computation must be done w/ unsigned ints.
-  bool result = (static_cast<uintptr_t>(value + 0x40000000U) < 0x80000000U);
-#endif
-  ASSERT(result == in_range);
+  bool result = Internals::IsValidSmi(value);
+  ASSERT_EQ(result, value >= kMinValue && value <= kMaxValue);
   return result;
 }
 

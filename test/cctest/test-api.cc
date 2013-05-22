@@ -1010,6 +1010,98 @@ THREADED_TEST(SimpleCallback) {
 }
 
 
+template<typename T>
+void FastReturnValueCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
+
+// constant return values
+static const int32_t kFastReturnValueInt32 = 471;
+static const uint32_t kFastReturnValueUint32 = 571;
+static const double kFastReturnValueDouble = 2.7;
+// variable return values
+static bool fast_return_value_bool = false;
+static bool fast_return_value_void_is_null = false;
+
+template<>
+void FastReturnValueCallback<int32_t>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(info.GetIsolate(), kFastReturnValueInt32);
+}
+
+template<>
+void FastReturnValueCallback<uint32_t>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(info.GetIsolate(), kFastReturnValueUint32);
+}
+
+template<>
+void FastReturnValueCallback<double>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(info.GetIsolate(), kFastReturnValueDouble);
+}
+
+template<>
+void FastReturnValueCallback<bool>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(info.GetIsolate(), fast_return_value_bool);
+}
+
+template<>
+void FastReturnValueCallback<void>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  if (fast_return_value_void_is_null) {
+    info.GetReturnValue().SetNull(info.GetIsolate());
+  } else {
+    info.GetReturnValue().SetUndefined(info.GetIsolate());
+  }
+}
+
+template<typename T>
+Handle<Value> TestFastReturnValues() {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
+  v8::FunctionCallback callback = &FastReturnValueCallback<T>;
+  object_template->Set("callback", v8::FunctionTemplate::New(callback));
+  v8::Local<v8::Object> object = object_template->NewInstance();
+  (*env)->Global()->Set(v8_str("callback_object"), object);
+  return scope.Close(CompileRun("callback_object.callback()"));
+}
+
+THREADED_TEST(FastReturnValues) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  v8::Handle<v8::Value> value;
+  // check int_32
+  value = TestFastReturnValues<int32_t>();
+  CHECK(value->IsInt32());
+  CHECK_EQ(kFastReturnValueInt32, value->Int32Value());
+  // check uint32_t
+  value = TestFastReturnValues<uint32_t>();
+  CHECK(value->IsInt32());
+  CHECK_EQ(kFastReturnValueUint32, value->Int32Value());
+  // check double
+  value = TestFastReturnValues<double>();
+  CHECK(value->IsNumber());
+  CHECK_EQ(kFastReturnValueDouble, value->ToNumber()->Value());
+  // check bool values
+  for (int i = 0; i < 2; i++) {
+    fast_return_value_bool = i == 0;
+    value = TestFastReturnValues<bool>();
+    CHECK(value->IsBoolean());
+    CHECK_EQ(fast_return_value_bool, value->ToBoolean()->Value());
+  }
+  // check oddballs
+  for (int i = 0; i < 2; i++) {
+    fast_return_value_void_is_null = i == 0;
+    value = TestFastReturnValues<void>();
+    if (fast_return_value_void_is_null) {
+      CHECK(value->IsNull());
+    } else {
+      CHECK(value->IsUndefined());
+    }
+  }
+}
+
+
 THREADED_TEST(FunctionTemplateSetLength) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

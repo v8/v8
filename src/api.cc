@@ -6207,12 +6207,19 @@ Local<Symbol> v8::Symbol::New(Isolate* isolate, const char* data, int length) {
 Local<Number> v8::Number::New(double value) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Number::New()");
+  return Number::New(reinterpret_cast<Isolate*>(isolate), value);
+}
+
+
+Local<Number> v8::Number::New(Isolate* isolate, double value) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ASSERT(internal_isolate->IsInitialized());
   if (std::isnan(value)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
     value = i::OS::nan_value();
   }
-  ENTER_V8(isolate);
-  i::Handle<i::Object> result = isolate->factory()->NewNumber(value);
+  ENTER_V8(internal_isolate);
+  i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);
   return Utils::NumberToLocal(result);
 }
 

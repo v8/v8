@@ -1879,6 +1879,7 @@ class V8EXPORT Number : public Primitive {
  public:
   double Value() const;
   static Local<Number> New(double value);
+  static Local<Number> New(Isolate* isolate, double value);
   V8_INLINE(static Number* Cast(v8::Value* obj));
  private:
   Number();
@@ -2740,16 +2741,14 @@ class V8EXPORT ReturnValue {
   // Handle setters
   V8_INLINE(void Set(const Persistent<T>& handle));
   V8_INLINE(void Set(const Handle<T> handle));
-  // TODO(dcarney): implement
   // Fast primitive setters
-//  V8_INLINE(void Set(Isolate* isolate, bool));
-//  V8_INLINE(void Set(Isolate* isolate, float i));
-//  V8_INLINE(void Set(Isolate* isolate, double i));
-//  V8_INLINE(void Set(Isolate* isolate, int32_t i));
-//  V8_INLINE(void Set(Isolate* isolate, uint32_t i));
+  V8_INLINE(void Set(Isolate* isolate, bool value));
+  V8_INLINE(void Set(Isolate* isolate, double i));
+  V8_INLINE(void Set(Isolate* isolate, int32_t i));
+  V8_INLINE(void Set(Isolate* isolate, uint32_t i));
   // Fast JS primitive setters
-//  V8_INLINE(void SetNull(Isolate* isolate));
-//  V8_INLINE(void SetUndefined(Isolate* isolate));
+  V8_INLINE(void SetNull(Isolate* isolate));
+  V8_INLINE(void SetUndefined(Isolate* isolate));
  private:
   internal::Object** value_;
 };
@@ -5141,6 +5140,14 @@ const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
 
 template <size_t ptr_size> struct SmiTagging;
 
+template<int kSmiShiftSize>
+V8_INLINE(internal::Object* IntToSmi(int value)) {
+  int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
+  intptr_t tagged_value =
+      (static_cast<intptr_t>(value) << smi_shift_bits) | kSmiTag;
+  return reinterpret_cast<internal::Object*>(tagged_value);
+}
+
 // Smi constants for 32-bit systems.
 template <> struct SmiTagging<4> {
   static const int kSmiShiftSize = 0;
@@ -5149,6 +5156,23 @@ template <> struct SmiTagging<4> {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
     // Throw away top 32 bits and shift down (requires >> to be sign extending).
     return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> shift_bits;
+  }
+  V8_INLINE(static internal::Object* IntToSmi(int value)) {
+    return internal::IntToSmi<kSmiShiftSize>(value);
+  }
+  V8_INLINE(static bool IsValidSmi(intptr_t value)) {
+    // To be representable as an tagged small integer, the two
+    // most-significant bits of 'value' must be either 00 or 11 due to
+    // sign-extension. To check this we add 01 to the two
+    // most-significant bits, and check if the most-significant bit is 0
+    //
+    // CAUTION: The original code below:
+    // bool result = ((value + 0x40000000) & 0x80000000) == 0;
+    // may lead to incorrect results according to the C language spec, and
+    // in fact doesn't work correctly with gcc4.1.1 in some cases: The
+    // compiler may produce undefined results in case of signed integer
+    // overflow. The computation must be done w/ unsigned ints.
+    return static_cast<uintptr_t>(value + 0x40000000U) < 0x80000000U;
   }
 };
 
@@ -5160,6 +5184,13 @@ template <> struct SmiTagging<8> {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
     // Shift down and throw away top 32 bits.
     return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
+  }
+  V8_INLINE(static internal::Object* IntToSmi(int value)) {
+    return internal::IntToSmi<kSmiShiftSize>(value);
+  }
+  V8_INLINE(static bool IsValidSmi(intptr_t value)) {
+    // To be representable as a long smi, the value must be a 32-bit integer.
+    return (value == static_cast<int32_t>(value));
   }
 };
 
@@ -5223,6 +5254,14 @@ class Internals {
 
   V8_INLINE(static int SmiValue(internal::Object* value)) {
     return PlatformSmiTagging::SmiToInt(value);
+  }
+
+  V8_INLINE(static internal::Object* IntToSmi(int value)) {
+    return PlatformSmiTagging::IntToSmi(value);
+  }
+
+  V8_INLINE(static bool IsValidSmi(intptr_t value)) {
+    return PlatformSmiTagging::IsValidSmi(value);
   }
 
   V8_INLINE(static int GetInstanceType(internal::Object* obj)) {
@@ -5600,6 +5639,7 @@ uint16_t Persistent<T>::WrapperClassId(Isolate* isolate) const {
   return *reinterpret_cast<uint16_t*>(addr);
 }
 
+
 template<typename T>
 ReturnValue<T>::ReturnValue(internal::Object** slot) : value_(slot) {}
 
@@ -5612,6 +5652,51 @@ template<typename T>
 void ReturnValue<T>::Set(const Handle<T> handle) {
   *value_ = *reinterpret_cast<internal::Object**>(*handle);
 }
+
+template<typename T>
+void ReturnValue<T>::Set(Isolate* isolate, double i) {
+  Set(Number::New(isolate, i));
+}
+
+template<typename T>
+void ReturnValue<T>::Set(Isolate* isolate, int32_t i) {
+  typedef internal::Internals I;
+  if (V8_LIKELY(I::IsValidSmi(i))) {
+    *value_ = I::IntToSmi(i);
+    return;
+  }
+  Set(Integer::New(i, isolate));
+}
+
+template<typename T>
+void ReturnValue<T>::Set(Isolate* isolate, uint32_t i) {
+  typedef internal::Internals I;
+  if (V8_LIKELY(I::IsValidSmi(i))) {
+    *value_ = I::IntToSmi(i);
+    return;
+  }
+  Set(Integer::NewFromUnsigned(i, isolate));
+}
+
+template<typename T>
+void ReturnValue<T>::Set(Isolate* isolate, bool value) {
+  typedef internal::Internals I;
+  *value_ = *I::GetRoot(
+      isolate, value ? I::kTrueValueRootIndex : I::kFalseValueRootIndex);
+}
+
+template<typename T>
+void ReturnValue<T>::SetNull(Isolate* isolate) {
+  typedef internal::Internals I;
+  *value_ = *I::GetRoot(isolate, I::kNullValueRootIndex);
+}
+
+template<typename T>
+void ReturnValue<T>::SetUndefined(Isolate* isolate) {
+  typedef internal::Internals I;
+  *value_ = *I::GetRoot(isolate, I::kUndefinedValueRootIndex);
+}
+
 
 template<typename T>
 FunctionCallbackInfo<T>::FunctionCallbackInfo(internal::Object** implicit_args,
