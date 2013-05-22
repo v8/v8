@@ -5593,6 +5593,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
       SetGVNFlag(kChangesBackingStoreFields);
       SetGVNFlag(kDependsOnNewSpacePromotion);
     }
+    SetFlag(kDeoptimizeOnUndefined);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField)
