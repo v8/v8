@@ -2735,7 +2735,7 @@ class V8EXPORT Template : public Data {
 
 
 template<typename T>
-class V8EXPORT ReturnValue {
+class ReturnValue {
  public:
   V8_INLINE(explicit ReturnValue(internal::Object** slot));
   // Handle setters
@@ -2763,7 +2763,7 @@ class V8EXPORT ReturnValue {
  * the holder of the function.
  */
 template<typename T>
-class V8EXPORT FunctionCallbackInfo {
+class FunctionCallbackInfo {
  public:
   V8_INLINE(int Length() const);
   V8_INLINE(Local<Value> operator[](int i) const);
@@ -2811,7 +2811,7 @@ class V8EXPORT Arguments : public FunctionCallbackInfo<Value> {
  * of the property access.
  */
 template<typename T>
-class V8EXPORT PropertyCallbackInfo {
+class PropertyCallbackInfo {
  public:
   V8_INLINE(Isolate* GetIsolate() const);
   V8_INLINE(Local<Value> Data() const);
