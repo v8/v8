@@ -194,7 +194,7 @@ DEFINE_bool(clever_optimizations,
             "Optimize object size, Array shift, DOM strings and string +")
 DEFINE_bool(pretenure_literals, true, "allocate literals in old space")
 DEFINE_bool(track_fields, true, "track fields with only smi values")
-DEFINE_bool(track_double_fields, true, "track fields with double values")
+DEFINE_bool(track_double_fields, false, "track fields with double values")
 DEFINE_bool(track_heap_object_fields, true, "track fields with heap values")
 DEFINE_implication(track_double_fields, track_fields)
 DEFINE_implication(track_heap_object_fields, track_fields)
