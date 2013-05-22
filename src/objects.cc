@@ -5408,17 +5408,12 @@ MUST_USE_RESULT MaybeObject* JSObject::Freeze(Isolate* isolate) {
       GetElementsCapacityAndUsage(&capacity, &used);
       MaybeObject* maybe_dict = SeededNumberDictionary::Allocate(heap, used);
       if (!maybe_dict->To(&new_element_dictionary)) return maybe_dict;
-      // Make sure that we never go back to fast case.
-      new_element_dictionary->set_requires_slow_elements();
 
       // Move elements to a dictionary; avoid calling NormalizeElements to avoid
       // unnecessary transitions.
       maybe_dict = CopyFastElementsToDictionary(isolate, elements(), length,
                                                 new_element_dictionary);
       if (!maybe_dict->To(&new_element_dictionary)) return maybe_dict;
-
-      // Freeze all the elements in the dictionary.
-      FreezeDictionary(new_element_dictionary);
     } else {
       // No existing elements, use a pre-allocated empty backing store
       new_element_dictionary = heap->empty_slow_element_dictionary();
@@ -5470,8 +5465,17 @@ MUST_USE_RESULT MaybeObject* JSObject::Freeze(Isolate* isolate) {
   }
 
   ASSERT(map()->has_dictionary_elements());
-  if (new_element_dictionary != NULL)
+  if (new_element_dictionary != NULL) {
     set_elements(new_element_dictionary);
+  }
+
+  if (elements() != heap->empty_slow_element_dictionary()) {
+    SeededNumberDictionary* dictionary = element_dictionary();
+    // Make sure we never go back to the fast case
+    dictionary->set_requires_slow_elements();
+    // Freeze all elements in the dictionary
+    FreezeDictionary(dictionary);
+  }
 
   return this;
 }

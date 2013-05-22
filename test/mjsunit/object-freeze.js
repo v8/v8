@@ -253,3 +253,9 @@ var func = function(arg) {
 };
 func('hello', 'world');
 func('goodbye', 'world');
+
+// Freezing sparse arrays
+var sparseArr = [0, 1];
+sparseArr[10000] = 10000;
+Object.freeze(sparseArr);
+assertTrue(Object.isFrozen(sparseArr));
