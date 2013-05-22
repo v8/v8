@@ -9043,7 +9043,10 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
     new_code_map->set(old_length + 1, code);
     new_code_map->set(old_length + 2, literals);
     // Zap the old map for the sake of the heap verifier.
-    if (Heap::ShouldZapGarbage()) ZapOptimizedCodeMap();
+    if (Heap::ShouldZapGarbage()) {
+      Object** data = old_code_map->data_start();
+      MemsetPointer(data, heap->the_hole_value(), old_length);
+    }
   }
 #ifdef DEBUG
   for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
@@ -9134,14 +9137,6 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
   if (code_map->length() == kEntriesStart) {
     ClearOptimizedCodeMap();
   }
-}
-
-
-void SharedFunctionInfo::ZapOptimizedCodeMap() {
-  FixedArray* code_map = FixedArray::cast(optimized_code_map());
-  MemsetPointer(code_map->data_start(),
-                GetHeap()->the_hole_value(),
-                code_map->length());
 }
 
 

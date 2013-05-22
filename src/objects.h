@@ -5829,9 +5829,6 @@ class SharedFunctionInfo: public HeapObject {
   // Trims the optimized code map after entries have been removed.
   void TrimOptimizedCodeMap(int shrink_by);
 
-  // Zaps the contents of backing optimized code map.
-  void ZapOptimizedCodeMap();
-
   // Add a new entry to the optimized code map.
   MUST_USE_RESULT MaybeObject* AddToOptimizedCodeMap(Context* native_context,
                                                      Code* code,
