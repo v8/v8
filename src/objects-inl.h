@@ -3592,6 +3592,16 @@ bool Map::is_deprecated() {
 }
 
 
+void Map::freeze() {
+  set_bit_field3(IsFrozen::update(bit_field3(), true));
+}
+
+
+bool Map::is_frozen() {
+  return IsFrozen::decode(bit_field3());
+}
+
+
 bool Map::CanBeDeprecated() {
   int descriptor = LastAdded();
   for (int i = 0; i <= descriptor; i++) {
