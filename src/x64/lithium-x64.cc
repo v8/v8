@@ -1825,7 +1825,16 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
       if (instr->value()->type().IsSmi()) {
-        return DefineSameAsFirst(new(zone()) LSmiUntag(value, false));
+        LInstruction* result =
+            DefineSameAsFirst(new(zone()) LSmiUntag(value, false));
+        if (instr->value()->IsLoadKeyed()) {
+          HLoadKeyed* load_keyed = HLoadKeyed::cast(instr->value());
+          if (load_keyed->UsesMustHandleHole() &&
+              load_keyed->hole_mode() == NEVER_RETURN_HOLE) {
+            return AssignEnvironment(result);
+          }
+        }
+        return result;
       } else {
         bool truncating = instr->CanTruncateToInt32();
         LOperand* xmm_temp = truncating ? NULL : FixedTemp(xmm1);

@@ -5026,14 +5026,30 @@ void LCodeGen::DoSmiTag(LSmiTag* instr) {
 
 void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
   LOperand* input = instr->value();
+  Register result = ToRegister(input);
   ASSERT(input->IsRegister() && input->Equals(instr->result()));
   if (instr->needs_check()) {
-    __ test(ToRegister(input), Immediate(kSmiTagMask));
+    __ test(result, Immediate(kSmiTagMask));
     DeoptimizeIf(not_zero, instr->environment());
+  } else if (instr->hydrogen()->value()->IsLoadKeyed()) {
+    HLoadKeyed* load = HLoadKeyed::cast(instr->hydrogen()->value());
+    if (load->UsesMustHandleHole()) {
+      __ test(result, Immediate(kSmiTagMask));
+      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
+        Label done;
+        __ j(equal, &done);
+        __ xor_(result, result);
+        __ bind(&done);
+      } else {
+        DeoptimizeIf(not_zero, instr->environment());
+      }
+    } else {
+      __ AssertSmi(result);
+    }
   } else {
-    __ AssertSmi(ToRegister(input));
+    __ AssertSmi(result);
   }
-  __ SmiUntag(ToRegister(input));
+  __ SmiUntag(result);
 }
 
 

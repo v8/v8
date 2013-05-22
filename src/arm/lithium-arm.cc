@@ -1900,6 +1900,13 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       if (instr->value()->type().IsSmi()) {
         value = UseRegisterAtStart(instr->value());
         res = DefineAsRegister(new(zone()) LSmiUntag(value, false));
+        if (instr->value()->IsLoadKeyed()) {
+          HLoadKeyed* load_keyed = HLoadKeyed::cast(instr->value());
+          if (load_keyed->UsesMustHandleHole() &&
+              load_keyed->hole_mode() == NEVER_RETURN_HOLE) {
+            res = AssignEnvironment(res);
+          }
+        }
       } else {
         value = UseRegister(instr->value());
         LOperand* temp1 = TempRegister();
