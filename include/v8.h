@@ -2750,6 +2750,8 @@ class V8EXPORT ReturnValue {
   V8_INLINE(void SetNull(Isolate* isolate));
   V8_INLINE(void SetUndefined(Isolate* isolate));
  private:
+  V8_INLINE(void SetTrue(Isolate* isolate));
+  V8_INLINE(void SetFalse(Isolate* isolate));
   internal::Object** value_;
 };
 
@@ -5680,9 +5682,23 @@ void ReturnValue<T>::Set(Isolate* isolate, uint32_t i) {
 
 template<typename T>
 void ReturnValue<T>::Set(Isolate* isolate, bool value) {
+  if (value) {
+    SetTrue(isolate);
+  } else {
+    SetFalse(isolate);
+  }
+}
+
+template<typename T>
+void ReturnValue<T>::SetTrue(Isolate* isolate) {
   typedef internal::Internals I;
-  *value_ = *I::GetRoot(
-      isolate, value ? I::kTrueValueRootIndex : I::kFalseValueRootIndex);
+  *value_ = *I::GetRoot(isolate, I::kTrueValueRootIndex);
+}
+
+template<typename T>
+void ReturnValue<T>::SetFalse(Isolate* isolate) {
+  typedef internal::Internals I;
+  *value_ = *I::GetRoot(isolate, I::kFalseValueRootIndex);
 }
 
 template<typename T>
