@@ -254,6 +254,7 @@ enum CreationFlag {
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag {
   INSERT_TRANSITION,
+  OMIT_TRANSITION_KEEP_REPRESENTATIONS,
   OMIT_TRANSITION
 };
 
@@ -2200,7 +2201,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
       Name* name,
       Object* new_value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      TransitionFlag flag = OMIT_TRANSITION);
 
   MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
   MUST_USE_RESULT MaybeObject* GeneralizeFieldRepresentation(

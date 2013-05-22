@@ -2056,8 +2056,8 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
   Map* old_target = old_map->GetTransition(transition_index);
   Object* result;
 
-  MaybeObject* maybe_result =
-      ConvertDescriptorToField(name, new_value, attributes);
+  MaybeObject* maybe_result = ConvertDescriptorToField(
+      name, new_value, attributes, OMIT_TRANSITION_KEEP_REPRESENTATIONS);
   if (!maybe_result->To(&result)) return maybe_result;
 
   if (!HasFastProperties()) return result;
@@ -2098,7 +2098,8 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
 
 MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
                                                 Object* new_value,
-                                                PropertyAttributes attributes) {
+                                                PropertyAttributes attributes,
+                                                TransitionFlag flag) {
   if (map()->unused_property_fields() == 0 &&
       TooManyFastProperties(properties()->length(), MAY_BE_STORE_FROM_KEYED)) {
     Object* obj;
@@ -2114,8 +2115,7 @@ MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
 
   // Make a new map for the object.
   Map* new_map;
-  MaybeObject* maybe_new_map = map()->CopyInsertDescriptor(&new_field,
-                                                           OMIT_TRANSITION);
+  MaybeObject* maybe_new_map = map()->CopyInsertDescriptor(&new_field, flag);
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
   // Make new properties array if necessary.
@@ -6389,7 +6389,7 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 
     set_transitions(transitions);
     result->SetBackPointer(this);
-  } else {
+  } else if (flag != OMIT_TRANSITION_KEEP_REPRESENTATIONS) {
     descriptors->InitializeRepresentations(Representation::Tagged());
   }
 
@@ -6397,6 +6397,8 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 }
 
 
+// Since this method is used to rewrite an existing transition tree, it can
+// always insert transitions without checking.
 MaybeObject* Map::CopyInstallDescriptors(int new_descriptor,
                                          DescriptorArray* descriptors) {
   ASSERT(descriptors->IsSortedNoDuplicates());
@@ -6419,18 +6421,14 @@ MaybeObject* Map::CopyInstallDescriptors(int new_descriptor,
   result->set_unused_property_fields(unused_property_fields);
   result->set_owns_descriptors(false);
 
-  if (CanHaveMoreTransitions()) {
-    Name* name = descriptors->GetKey(new_descriptor);
-    TransitionArray* transitions;
-    MaybeObject* maybe_transitions =
-        AddTransition(name, result, SIMPLE_TRANSITION);
-    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  Name* name = descriptors->GetKey(new_descriptor);
+  TransitionArray* transitions;
+  MaybeObject* maybe_transitions =
+      AddTransition(name, result, SIMPLE_TRANSITION);
+  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
 
-    set_transitions(transitions);
-    result->SetBackPointer(this);
-  } else {
-    descriptors->InitializeRepresentations(Representation::Tagged());
-  }
+  set_transitions(transitions);
+  result->SetBackPointer(this);
 
   return result;
 }

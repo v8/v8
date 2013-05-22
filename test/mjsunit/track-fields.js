@@ -306,3 +306,22 @@ test_fic(ftest3);
 test_fic(ftest4);
 assertTrue(%HaveSameMap(ftest1, ftest3));
 assertTrue(%HaveSameMap(ftest3, ftest4));
+
+// Test representations and transition conversions.
+function read_first_double(o) {
+  return o.first_double;
+}
+var df1 = {};
+df1.first_double=1.6;
+read_first_double(df1);
+read_first_double(df1);
+function some_function1() { return 10; }
+var df2 = {};
+df2.first_double = 1.7;
+df2.second_function = some_function1;
+function some_function2() { return 20; }
+var df3 = {};
+df3.first_double = 1.7;
+df3.second_function = some_function2;
+df1.first_double = 10;
+read_first_double(df1);
