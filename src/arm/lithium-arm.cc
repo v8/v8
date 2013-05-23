@@ -2252,7 +2252,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
       val = UseTempRegister(instr->value());
       key = UseRegisterOrConstantAtStart(instr->key());
     } else {
-      ASSERT(instr->value()->representation().IsTagged());
+      ASSERT(instr->value()->representation().IsSmiOrTagged());
       object = UseTempRegister(instr->elements());
       val = needs_write_barrier ? UseTempRegister(instr->value())
           : UseRegisterAtStart(instr->value());

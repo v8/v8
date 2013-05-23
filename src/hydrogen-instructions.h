@@ -5723,6 +5723,9 @@ class HStoreKeyed
     } else if (IsFastDoubleElementsKind(elements_kind)) {
       SetGVNFlag(kChangesDoubleArrayElements);
       SetFlag(kDeoptimizeOnUndefined);
+    } else if (IsFastSmiElementsKind(elements_kind)) {
+      SetGVNFlag(kChangesArrayElements);
+      SetFlag(kDeoptimizeOnUndefined);
     } else {
       SetGVNFlag(kChangesArrayElements);
     }
@@ -5749,6 +5752,10 @@ class HStoreKeyed
     ASSERT_EQ(index, 2);
     if (IsDoubleOrFloatElementsKind(elements_kind())) {
       return Representation::Double();
+    }
+
+    if (IsFastSmiElementsKind(elements_kind())) {
+      return Representation::Smi();
     }
 
     return is_external() ? Representation::Integer32()
