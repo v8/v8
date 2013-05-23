@@ -2502,7 +2502,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(1024);
-  CHECK_EQ(1024, ab->ByteLength());
+  CHECK_EQ(1024, static_cast<int>(ab->ByteLength()));
   CHECK(!ab->IsExternal());
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 
