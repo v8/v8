@@ -2103,9 +2103,11 @@ void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
 
   if (instr->right()->IsConstantOperand()) {
-    __ Cmp(left, ToHandle(LConstantOperand::cast(instr->right())));
+    Handle<Object> right = ToHandle(LConstantOperand::cast(instr->right()));
+    __ CmpObject(left, right);
   } else {
-    __ cmpq(left, ToRegister(instr->right()));
+    Register right = ToRegister(instr->right());
+    __ cmpq(left, right);
   }
   EmitBranch(true_block, false_block, equal);
 }
@@ -4974,15 +4976,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   Register reg = ToRegister(instr->value());
   Handle<JSFunction> target = instr->hydrogen()->target();
-  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
-  if (isolate()->heap()->InNewSpace(*target)) {
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(target);
-    __ movq(kScratchRegister, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
-    __ cmpq(reg, Operand(kScratchRegister, 0));
-  } else {
-    __ Cmp(reg, target);
-  }
+  __ CmpHeapObject(reg, target);
   DeoptimizeIf(not_equal, instr->environment());
 }
 

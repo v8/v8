@@ -788,6 +788,7 @@ class MacroAssembler: public Assembler {
   // Load a heap object and handle the case of new-space objects by
   // indirecting via a global cell.
   void LoadHeapObject(Register result, Handle<HeapObject> object);
+  void CmpHeapObject(Register reg, Handle<HeapObject> object);
   void PushHeapObject(Handle<HeapObject> object);
 
   void LoadObject(Register result, Handle<Object> object) {
@@ -796,6 +797,15 @@ class MacroAssembler: public Assembler {
       LoadHeapObject(result, Handle<HeapObject>::cast(object));
     } else {
       Move(result, object);
+    }
+  }
+
+  void CmpObject(Register reg, Handle<Object> object) {
+    ALLOW_HANDLE_DEREF(isolate(), "heap object check");
+    if (object->IsHeapObject()) {
+      CmpHeapObject(reg, Handle<HeapObject>::cast(object));
+    } else {
+      Cmp(reg, object);
     }
   }
 

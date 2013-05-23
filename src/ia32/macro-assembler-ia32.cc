@@ -2504,6 +2504,18 @@ void MacroAssembler::LoadHeapObject(Register result,
 }
 
 
+void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
+  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<JSGlobalPropertyCell> cell =
+        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    cmp(reg, Operand::Cell(cell));
+  } else {
+    cmp(reg, object);
+  }
+}
+
+
 void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
   ALLOW_HANDLE_DEREF(isolate(), "using raw address");
   if (isolate()->heap()->InNewSpace(*object)) {

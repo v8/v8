@@ -272,6 +272,7 @@ class MacroAssembler: public Assembler {
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
+  void CmpHeapObject(Register reg, Handle<HeapObject> object);
   void PushHeapObject(Handle<HeapObject> object);
 
   void LoadObject(Register result, Handle<Object> object) {
@@ -280,6 +281,15 @@ class MacroAssembler: public Assembler {
       LoadHeapObject(result, Handle<HeapObject>::cast(object));
     } else {
       Set(result, Immediate(object));
+    }
+  }
+
+  void CmpObject(Register reg, Handle<Object> object) {
+    ALLOW_HANDLE_DEREF(isolate(), "heap object check");
+    if (object->IsHeapObject()) {
+      CmpHeapObject(reg, Handle<HeapObject>::cast(object));
+    } else {
+      cmp(reg, Immediate(object));
     }
   }
 
