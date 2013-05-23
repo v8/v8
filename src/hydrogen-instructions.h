@@ -6272,6 +6272,7 @@ class HSeqStringSetChar: public HTemplateInstruction<3> {
     SetOperandAt(0, string);
     SetOperandAt(1, index);
     SetOperandAt(2, value);
+    set_representation(Representation::Tagged());
   }
 
   String::Encoding encoding() { return encoding_; }
@@ -6280,7 +6281,8 @@ class HSeqStringSetChar: public HTemplateInstruction<3> {
   HValue* value() { return OperandAt(2); }
 
   virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
+    return (index == 0) ? Representation::Tagged()
+                        : Representation::Integer32();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar)

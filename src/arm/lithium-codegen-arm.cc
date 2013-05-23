@@ -2008,11 +2008,34 @@ void LCodeGen::DoDateField(LDateField* instr) {
 
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
-  SeqStringSetCharGenerator::Generate(masm(),
-                                      instr->encoding(),
-                                      ToRegister(instr->string()),
-                                      ToRegister(instr->index()),
-                                      ToRegister(instr->value()));
+  Register string = ToRegister(instr->string());
+  Register index = ToRegister(instr->index());
+  Register value = ToRegister(instr->value());
+  String::Encoding encoding = instr->encoding();
+
+  if (FLAG_debug_code) {
+    __ ldr(ip, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ ldrb(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
+
+    __ and_(ip, ip, Operand(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ cmp(ip, Operand(encoding == String::ONE_BYTE_ENCODING
+                           ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(eq, "Unexpected string type");
+  }
+
+  __ add(ip,
+         string,
+         Operand(SeqString::kHeaderSize - kHeapObjectTag));
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ strb(value, MemOperand(ip, index));
+  } else {
+    // MemOperand with ip as the base register is not allowed for strh, so
+    // we do the address calculation explicitly.
+    __ add(ip, ip, Operand(index, LSL, 1));
+    __ strh(value, MemOperand(ip));
+  }
 }
 
 

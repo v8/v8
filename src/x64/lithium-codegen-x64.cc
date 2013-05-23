@@ -1672,11 +1672,32 @@ void LCodeGen::DoDateField(LDateField* instr) {
 
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
-  SeqStringSetCharGenerator::Generate(masm(),
-                                      instr->encoding(),
-                                      ToRegister(instr->string()),
-                                      ToRegister(instr->index()),
-                                      ToRegister(instr->value()));
+  Register string = ToRegister(instr->string());
+  Register index = ToRegister(instr->index());
+  Register value = ToRegister(instr->value());
+  String::Encoding encoding = instr->encoding();
+
+  if (FLAG_debug_code) {
+    __ push(value);
+    __ movq(value, FieldOperand(string, HeapObject::kMapOffset));
+    __ movzxbq(value, FieldOperand(value, Map::kInstanceTypeOffset));
+
+    __ andb(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ cmpq(value, Immediate(encoding == String::ONE_BYTE_ENCODING
+                                 ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(equal, "Unexpected string type");
+    __ pop(value);
+  }
+
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ movb(FieldOperand(string, index, times_1, SeqString::kHeaderSize),
+            value);
+  } else {
+    __ movw(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
+            value);
+  }
 }
 
 

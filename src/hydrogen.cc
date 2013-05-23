@@ -11463,9 +11463,6 @@ void HOptimizedGraphBuilder::GenerateTwoByteSeqStringSetChar(
   HValue* value = Pop();
   HValue* index = Pop();
   HValue* string = Pop();
-  HValue* context = environment()->LookupContext();
-  HInstruction* char_code = BuildStringCharCodeAt(context, string, index);
-  AddInstruction(char_code);
   HSeqStringSetChar* result = new(zone()) HSeqStringSetChar(
       String::TWO_BYTE_ENCODING, string, index, value);
   return ast_context()->ReturnInstruction(result, call->id());
