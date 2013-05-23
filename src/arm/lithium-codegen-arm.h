@@ -161,8 +161,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
 
-  void DoCheckMapCommon(Register map_reg, Handle<Map> map,
-                        CompareMapMode mode, LEnvironment* env);
+  void DoCheckMapCommon(Register map_reg, Handle<Map> map, LEnvironment* env);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);

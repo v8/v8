@@ -3069,7 +3069,7 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
     bool last = (i == map_count - 1);
     Handle<Map> map = instr->hydrogen()->types()->at(i);
     Label check_passed;
-    __ CompareMap(object, map, &check_passed, ALLOW_ELEMENT_TRANSITION_MAPS);
+    __ CompareMap(object, map, &check_passed);
     if (last && !need_generic) {
       DeoptimizeIf(not_equal, instr->environment());
       __ bind(&check_passed);
@@ -5752,10 +5752,9 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 
 void LCodeGen::DoCheckMapCommon(Register reg,
                                 Handle<Map> map,
-                                CompareMapMode mode,
                                 LInstruction* instr) {
   Label success;
-  __ CompareMap(reg, map, &success, mode);
+  __ CompareMap(reg, map, &success);
   DeoptimizeIf(not_equal, instr->environment());
   __ bind(&success);
 }
@@ -5770,11 +5769,11 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   SmallMapList* map_set = instr->hydrogen()->map_set();
   for (int i = 0; i < map_set->length() - 1; i++) {
     Handle<Map> map = map_set->at(i);
-    __ CompareMap(reg, map, &success, REQUIRE_EXACT_MAP);
+    __ CompareMap(reg, map, &success);
     __ j(equal, &success);
   }
   Handle<Map> map = map_set->last();
-  DoCheckMapCommon(reg, map, REQUIRE_EXACT_MAP, instr);
+  DoCheckMapCommon(reg, map, instr);
   __ bind(&success);
 }
 
@@ -5966,7 +5965,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   } else {
     for (int i = 0; i < prototypes->length(); i++) {
       __ LoadHeapObject(reg, prototypes->at(i));
-      DoCheckMapCommon(reg, maps->at(i), ALLOW_ELEMENT_TRANSITION_MAPS, instr);
+      DoCheckMapCommon(reg, maps->at(i), instr);
     }
   }
 }

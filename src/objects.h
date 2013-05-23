@@ -150,11 +150,6 @@
 namespace v8 {
 namespace internal {
 
-enum CompareMapMode {
-  REQUIRE_EXACT_MAP,
-  ALLOW_ELEMENT_TRANSITION_MAPS
-};
-
 enum KeyedAccessStoreMode {
   STANDARD_STORE,
   STORE_TRANSITION_SMI_TO_OBJECT,

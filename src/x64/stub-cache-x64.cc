@@ -763,7 +763,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                                            Label* slow) {
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, Handle<Map>(object->map()),
-              miss_label, DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+              miss_label, DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -830,7 +830,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
     __ bind(&heap_number);
     __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
-                miss_restore_name, DONT_DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+                miss_restore_name, DONT_DO_SMI_CHECK);
     __ movsd(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
 
     __ bind(&do_store);
@@ -947,7 +947,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Label* miss_label) {
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, Handle<Map>(object->map()),
-              miss_label, DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+              miss_label, DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -992,9 +992,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     __ bind(&heap_number);
     __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
-                miss_label, DONT_DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+                miss_label, DONT_DO_SMI_CHECK);
     __ movsd(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
-
     __ bind(&do_store);
     __ movsd(FieldOperand(scratch1, HeapNumber::kValueOffset), xmm0);
     // Return the value (register rax).
@@ -1134,8 +1133,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
         __ movq(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
       }
       if (!current.is_identical_to(first) || check == CHECK_ALL_MAPS) {
-        __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK,
-                    ALLOW_ELEMENT_TRANSITION_MAPS);
+        __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK);
       }
 
       // Check access rights to the global object.  This has to happen after
@@ -1170,8 +1168,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
 
   if (!holder.is_identical_to(first) || check == CHECK_ALL_MAPS) {
     // Check the holder map.
-    __ CheckMap(reg, Handle<Map>(holder->map()),
-                miss, DONT_DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+    __ CheckMap(reg, Handle<Map>(holder->map()), miss, DONT_DO_SMI_CHECK);
   }
 
   // Perform security check for access to the global object.
@@ -2674,8 +2671,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
   Label miss;
 
   // Check that the map of the object hasn't changed.
-  __ CheckMap(receiver(), Handle<Map>(object->map()), &miss,
-              DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+  __ CheckMap(receiver(), Handle<Map>(object->map()), &miss, DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
