@@ -1542,6 +1542,13 @@ MaybeObject* JSObject::MigrateInstance() {
 }
 
 
+MaybeObject* JSObject::TryMigrateInstance() {
+  Map* new_map = map()->CurrentMapForDeprecated();
+  if (new_map == NULL) return Smi::FromInt(0);
+  return MigrateToMap(new_map);
+}
+
+
 Handle<String> JSObject::ExpectedTransitionKey(Handle<Map> map) {
   AssertNoAllocation no_gc;
   if (!map->HasTransitionArray()) return Handle<String>::null();

@@ -6692,6 +6692,12 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
                           int* max_properties,
                           int* data_size,
                           int* pointer_size) {
+  if (boilerplate->map()->is_deprecated()) {
+    Handle<Object> result =
+        JSObject::TryMigrateInstance(boilerplate);
+    if (result->IsSmi()) return false;
+  }
+
   ASSERT(max_depth >= 0 && *max_properties >= 0);
   if (max_depth == 0) return false;
 

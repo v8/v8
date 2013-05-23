@@ -1843,6 +1843,9 @@ class JSObject: public JSReceiver {
   static void MigrateInstance(Handle<JSObject> instance);
   inline MUST_USE_RESULT MaybeObject* MigrateInstance();
 
+  static Handle<Object> TryMigrateInstance(Handle<JSObject> instance);
+  inline MUST_USE_RESULT MaybeObject* TryMigrateInstance();
+
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       Name* key,

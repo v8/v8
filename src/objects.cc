@@ -3644,6 +3644,19 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
 }
 
 
+Handle<Object> JSObject::TryMigrateInstance(Handle<JSObject> object) {
+  if (FLAG_trace_migration) {
+    PrintF("migrating instance (no new maps) %p (%p)\n",
+           static_cast<void*>(*object),
+           static_cast<void*>(object->map()));
+  }
+  CALL_HEAP_FUNCTION(
+      object->GetIsolate(),
+      object->MigrateInstance(),
+      Object);
+}
+
+
 Handle<Map> Map::GeneralizeRepresentation(Handle<Map> map,
                                           int modify_index,
                                           Representation representation) {
