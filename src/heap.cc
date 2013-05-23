@@ -938,7 +938,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     // maximum capacity indicates that most objects will be promoted.
     // To decrease scavenger pauses and final mark-sweep pauses, we
     // have to limit maximal capacity of the young generation.
-    new_space_high_promotion_mode_active_ = true;
+    SetNewSpaceHighPromotionModeActive(true);
     if (FLAG_trace_gc) {
       PrintPID("Limited new space size due to high promotion rate: %d MB\n",
                new_space_.InitialCapacity() / MB);
@@ -947,7 +947,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     // heuristic indicator of whether to pretenure or not, we trigger
     // deoptimization here to take advantage of pre-tenuring as soon as
     // possible.
-    if (FLAG_pretenure_literals) {
+    if (FLAG_pretenuring) {
       isolate_->stack_guard()->FullDeopt();
     }
   } else if (new_space_high_promotion_mode_active_ &&
@@ -956,14 +956,14 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     // Decreasing low survival rates might indicate that the above high
     // promotion mode is over and we should allow the young generation
     // to grow again.
-    new_space_high_promotion_mode_active_ = false;
+    SetNewSpaceHighPromotionModeActive(false);
     if (FLAG_trace_gc) {
       PrintPID("Unlimited new space size due to low promotion rate: %d MB\n",
                new_space_.MaximumCapacity() / MB);
     }
     // Trigger deoptimization here to turn off pre-tenuring as soon as
     // possible.
-    if (FLAG_pretenure_literals) {
+    if (FLAG_pretenuring) {
       isolate_->stack_guard()->FullDeopt();
     }
   }

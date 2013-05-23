@@ -2078,11 +2078,11 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 // Test pretenuring of array literals allocated with HAllocate.
 TEST(OptimizedPretenuringArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_pretenure_literals = true;
   CcTest::InitializeVM();
   if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
+  HEAP->SetNewSpaceHighPromotionModeActive(true);
 
   AlwaysAllocateScope always_allocate;
   v8::Local<v8::Value> res = CompileRun(
@@ -2104,7 +2104,7 @@ TEST(OptimizedPretenuringArrayLiterals) {
 
 TEST(OptimizedPretenuringSimpleArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_pretenure_literals = false;
+  i::FLAG_pretenuring = false;
   CcTest::InitializeVM();
   if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;

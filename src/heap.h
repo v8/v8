@@ -1549,7 +1549,12 @@ class Heap {
   // Predicate that governs global pre-tenuring decisions based on observed
   // promotion rates of previous collections.
   inline bool ShouldGloballyPretenure() {
-    return new_space_high_promotion_mode_active_;
+    return FLAG_pretenuring && new_space_high_promotion_mode_active_;
+  }
+
+  // This is only needed for testing high promotion mode.
+  void SetNewSpaceHighPromotionModeActive(bool mode) {
+    new_space_high_promotion_mode_active_ = mode;
   }
 
   inline PretenureFlag GetPretenureMode() {

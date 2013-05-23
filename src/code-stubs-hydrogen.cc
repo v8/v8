@@ -383,7 +383,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HValue* size_in_bytes =
       AddInstruction(new(zone) HConstant(size, Representation::Integer32()));
   HAllocate::Flags flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
-  if (FLAG_pretenure_literals) {
+  if (isolate()->heap()->ShouldGloballyPretenure()) {
     flags = static_cast<HAllocate::Flags>(
        flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
   }

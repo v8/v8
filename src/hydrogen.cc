@@ -1391,7 +1391,7 @@ HValue* HGraphBuilder::BuildAllocateElements(HValue* context,
   total_size->ClearFlag(HValue::kCanOverflow);
 
   HAllocate::Flags flags = HAllocate::DefaultFlags(kind);
-  if (FLAG_pretenure_literals) {
+  if (isolate()->heap()->ShouldGloballyPretenure()) {
     // TODO(hpayer): When pretenuring can be internalized, flags can become
     // private to HAllocate.
     if (IsFastDoubleElementsKind(kind)) {
@@ -10867,8 +10867,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
 
   HAllocate::Flags flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
   // TODO(hpayer): add support for old data space
-  if (FLAG_pretenure_literals &&
-      isolate()->heap()->ShouldGloballyPretenure() &&
+  if (isolate()->heap()->ShouldGloballyPretenure() &&
       data_size == 0) {
     flags = static_cast<HAllocate::Flags>(
         flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
