@@ -1812,6 +1812,13 @@ LInstruction* LChunkBuilder::DoForceRepresentation(HForceRepresentation* bad) {
 LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   Representation from = instr->from();
   Representation to = instr->to();
+  if (from.IsSmi()) {
+    if (to.IsTagged()) {
+      LOperand* value = UseRegister(instr->value());
+      return DefineSameAsFirst(new(zone()) LDummyUse(value));
+    }
+    from = Representation::Tagged();
+  }
   // Only mark conversions that might need to allocate as calling rather than
   // all changes. This makes simple, non-allocating conversion not have to force
   // building a stack frame.
@@ -1821,6 +1828,11 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = UseRegister(instr->value());
       LNumberUntagD* res = new(zone()) LNumberUntagD(value);
       return AssignEnvironment(DefineAsRegister(res));
+    } else if (to.IsSmi()) {
+      HValue* val = instr->value();
+      LOperand* value = UseRegisterAtStart(val);
+      return AssignEnvironment(
+          DefineSameAsFirst(new(zone()) LCheckSmi(value)));
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
@@ -1852,10 +1864,15 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LUnallocated* result_temp = TempRegister();
       LNumberTagD* result = new(zone()) LNumberTagD(value, temp);
       return AssignPointerMap(Define(result, result_temp));
+    } else if (to.IsSmi()) {
+      LOperand* value = UseRegister(instr->value());
+      return AssignEnvironment(
+          DefineAsRegister(new(zone()) LDoubleToSmi(value)));
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
-      return AssignEnvironment(DefineAsRegister(new(zone()) LDoubleToI(value)));
+      return AssignEnvironment(
+          DefineAsRegister(new(zone()) LDoubleToI(value)));
     }
   } else if (from.IsInteger32()) {
     info()->MarkAsDeferredCalling();
@@ -1872,6 +1889,15 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
         LNumberTagI* result = new(zone()) LNumberTagI(value);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
       }
+    } else if (to.IsSmi()) {
+      HValue* val = instr->value();
+      LOperand* value = UseRegister(val);
+      LInstruction* result =
+          DefineAsRegister(new(zone()) LInteger32ToSmi(value));
+      if (val->HasRange() && val->range()->IsInSmiRange()) {
+        return result;
+      }
+      return AssignEnvironment(result);
     } else {
       if (instr->value()->CheckFlag(HInstruction::kUint32)) {
         LOperand* temp = FixedTemp(xmm1);
@@ -1911,13 +1937,13 @@ LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
 
 LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  return AssignEnvironment(new(zone()) LCheckSmi(value));
+  return AssignEnvironment(DefineSameAsFirst(new(zone()) LCheckSmi(value)));
 }
 
 
 LInstruction* LChunkBuilder::DoCheckSmiOrInt32(HCheckSmiOrInt32* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  return AssignEnvironment(new(zone()) LCheckSmi(value));
+  return AssignEnvironment(DefineSameAsFirst(new(zone()) LCheckSmi(value)));
 }
 
 

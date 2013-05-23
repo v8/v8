@@ -518,13 +518,18 @@ DwVfpRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
 
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  ASSERT(chunk_->LookupLiteralRepresentation(op).IsTagged());
+  ASSERT(chunk_->LookupLiteralRepresentation(op).IsSmiOrTagged());
   return constant->handle();
 }
 
 
 bool LCodeGen::IsInteger32(LConstantOperand* op) const {
   return chunk_->LookupLiteralRepresentation(op).IsInteger32();
+}
+
+
+bool LCodeGen::IsSmi(LConstantOperand* op) const {
+  return chunk_->LookupLiteralRepresentation(op).IsSmi();
 }
 
 
@@ -2207,7 +2212,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
   Representation r = instr->hydrogen()->value()->representation();
-  if (r.IsInteger32()) {
+  if (r.IsInteger32() || r.IsSmi()) {
     Register reg = ToRegister(instr->value());
     __ cmp(reg, Operand::Zero());
     EmitBranch(true_block, false_block, ne);
@@ -4210,13 +4215,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Handle<Map> transition = instr->transition();
 
-  if (FLAG_track_fields && representation.IsSmi()) {
-    Register value = ToRegister(instr->value());
-    __ SmiTag(value, value, SetCC);
-    if (!instr->hydrogen()->value()->range()->IsInSmiRange()) {
-      DeoptimizeIf(vs, instr->environment());
-    }
-  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+  if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     Register value = ToRegister(instr->value());
     if (!instr->hydrogen()->value()->type().IsHeapObject()) {
       __ SmiTst(value);
@@ -4702,6 +4701,19 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
+void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
+  LOperand* input = instr->value();
+  ASSERT(input->IsRegister());
+  LOperand* output = instr->result();
+  ASSERT(output->IsRegister());
+  __ SmiTag(ToRegister(output), ToRegister(input), SetCC);
+  if (!instr->hydrogen()->value()->HasRange() ||
+      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
+    DeoptimizeIf(vs, instr->environment());
+  }
+}
+
+
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
@@ -5139,7 +5151,33 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   DwVfpRegister double_input = ToDoubleRegister(instr->value());
   DwVfpRegister double_scratch = double_scratch0();
 
-  Label done;
+  if (instr->truncating()) {
+    Register scratch3 = ToRegister(instr->temp2());
+    __ ECMAToInt32(result_reg, double_input,
+                   scratch1, scratch2, scratch3, double_scratch);
+  } else {
+    __ TryDoubleToInt32Exact(result_reg, double_input, double_scratch);
+    // Deoptimize if the input wasn't a int32 (inside a double).
+    DeoptimizeIf(ne, instr->environment());
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      Label done;
+      __ cmp(result_reg, Operand::Zero());
+      __ b(ne, &done);
+      __ vmov(scratch1, double_input.high());
+      __ tst(scratch1, Operand(HeapNumber::kSignMask));
+      DeoptimizeIf(ne, instr->environment());
+      __ bind(&done);
+    }
+  }
+}
+
+
+void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
+  Register result_reg = ToRegister(instr->result());
+  Register scratch1 = scratch0();
+  Register scratch2 = ToRegister(instr->temp());
+  DwVfpRegister double_input = ToDoubleRegister(instr->value());
+  DwVfpRegister double_scratch = double_scratch0();
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
@@ -5149,8 +5187,18 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     __ TryDoubleToInt32Exact(result_reg, double_input, double_scratch);
     // Deoptimize if the input wasn't a int32 (inside a double).
     DeoptimizeIf(ne, instr->environment());
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      Label done;
+      __ cmp(result_reg, Operand::Zero());
+      __ b(ne, &done);
+      __ vmov(scratch1, double_input.high());
+      __ tst(scratch1, Operand(HeapNumber::kSignMask));
+      DeoptimizeIf(ne, instr->environment());
+      __ bind(&done);
+    }
   }
-    __ bind(&done);
+  __ SmiTag(result_reg, SetCC);
+  DeoptimizeIf(vs, instr->environment());
 }
 
 

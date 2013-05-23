@@ -5209,7 +5209,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
 
     if (FLAG_track_fields && field_representation.IsSmi()) {
       set_type(HType::Smi());
-      set_representation(Representation::Tagged());
+      set_representation(field_representation);
     } else if (FLAG_track_double_fields && field_representation.IsDouble()) {
       set_representation(field_representation);
     } else if (FLAG_track_heap_object_fields &&
@@ -5604,7 +5604,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
       return field_representation_;
     } else if (FLAG_track_fields &&
                index == 1 && field_representation_.IsSmi()) {
-      return Representation::Integer32();
+      return field_representation_;
     }
     return Representation::Tagged();
   }

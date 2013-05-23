@@ -435,6 +435,12 @@ bool LCodeGen::IsInteger32Constant(LConstantOperand* op) const {
 }
 
 
+bool LCodeGen::IsSmiConstant(LConstantOperand* op) const {
+  return op->IsConstantOperand() &&
+      chunk_->LookupLiteralRepresentation(op).IsSmi();
+}
+
+
 bool LCodeGen::IsTaggedConstant(LConstantOperand* op) const {
   return op->IsConstantOperand() &&
       chunk_->LookupLiteralRepresentation(op).IsTagged();
@@ -456,7 +462,7 @@ double LCodeGen::ToDouble(LConstantOperand* op) const {
 
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  ASSERT(chunk_->LookupLiteralRepresentation(op).IsTagged());
+  ASSERT(chunk_->LookupLiteralRepresentation(op).IsSmiOrTagged());
   return constant->handle();
 }
 
@@ -1876,6 +1882,10 @@ void LCodeGen::DoBranch(LBranch* instr) {
   if (r.IsInteger32()) {
     Register reg = ToRegister(instr->value());
     __ testl(reg, reg);
+    EmitBranch(true_block, false_block, not_zero);
+  } else if (r.IsSmi()) {
+    Register reg = ToRegister(instr->value());
+    __ testq(reg, reg);
     EmitBranch(true_block, false_block, not_zero);
   } else if (r.IsDouble()) {
     XMMRegister reg = ToDoubleRegister(instr->value());
@@ -3905,12 +3915,9 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (FLAG_track_fields && representation.IsSmi()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-      if (!IsInteger32Constant(operand_value)) {
+      if (!IsSmiConstant(operand_value)) {
         DeoptimizeIf(no_condition, instr->environment());
       }
-    } else {
-      Register value = ToRegister(instr->value());
-      __ Integer32ToSmi(value, value);
     }
   } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     if (instr->value()->IsConstantOperand()) {
@@ -3968,12 +3975,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   if (instr->value()->IsConstantOperand()) {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-    if (IsInteger32Constant(operand_value)) {
-      // In lithium register preparation, we made sure that the constant integer
-      // operand fits into smi range.
-      Smi* smi_value = Smi::FromInt(ToInteger32(operand_value));
-      __ Move(FieldOperand(write_register, offset), smi_value);
-    } else if (operand_value->IsRegister()) {
+    if (operand_value->IsRegister()) {
       __ movq(FieldOperand(write_register, offset),
               ToRegister(operand_value));
     } else {
@@ -4434,6 +4436,18 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
+void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
+  LOperand* input = instr->value();
+  ASSERT(input->IsRegister());
+  LOperand* output = instr->result();
+  __ Integer32ToSmi(ToRegister(output), ToRegister(input));
+  if (!instr->hydrogen()->value()->HasRange() ||
+      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
+}
+
+
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
@@ -4838,6 +4852,41 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
       __ bind(&done);
     }
   }
+}
+
+
+void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
+  LOperand* input = instr->value();
+  ASSERT(input->IsDoubleRegister());
+  LOperand* result = instr->result();
+  ASSERT(result->IsRegister());
+  CpuFeatureScope scope(masm(), SSE2);
+
+  XMMRegister input_reg = ToDoubleRegister(input);
+  Register result_reg = ToRegister(result);
+
+  Label done;
+  __ cvttsd2si(result_reg, input_reg);
+  __ cvtlsi2sd(xmm0, result_reg);
+  __ ucomisd(xmm0, input_reg);
+  DeoptimizeIf(not_equal, instr->environment());
+  DeoptimizeIf(parity_even, instr->environment());  // NaN.
+
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    // The integer converted back is equal to the original. We
+    // only have to test if we got -0 as an input.
+    __ testl(result_reg, result_reg);
+    __ j(not_zero, &done, Label::kNear);
+    __ movmskpd(result_reg, input_reg);
+    // Bit 0 contains the sign of the double in input_reg.
+    // If input was positive, we are ok and return 0, otherwise
+    // deoptimize.
+    __ andl(result_reg, Immediate(1));
+    DeoptimizeIf(not_zero, instr->environment());
+    __ bind(&done);
+  }
+  __ Integer32ToSmi(result_reg, result_reg);
+  DeoptimizeIf(overflow, instr->environment());
 }
 
 

@@ -126,6 +126,7 @@ class LCodeGen BASE_EMBEDDED {
   MemOperand ToHighMemOperand(LOperand* op) const;
 
   bool IsInteger32(LConstantOperand* op) const;
+  bool IsSmi(LConstantOperand* op) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
 
   // Try to generate code for the entire chunk, but it may fail if the

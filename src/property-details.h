@@ -131,6 +131,7 @@ class Representation {
   bool IsNone() const { return kind_ == kNone; }
   bool IsTagged() const { return kind_ == kTagged; }
   bool IsSmi() const { return kind_ == kSmi; }
+  bool IsSmiOrTagged() const { return IsSmi() || IsTagged(); }
   bool IsInteger32() const { return kind_ == kInteger32; }
   bool IsDouble() const { return kind_ == kDouble; }
   bool IsHeapObject() const { return kind_ == kHeapObject; }

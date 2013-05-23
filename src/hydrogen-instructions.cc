@@ -1687,7 +1687,7 @@ Range* HValue::InferRange(Zone* zone) {
 Range* HChange::InferRange(Zone* zone) {
   Range* input_range = value()->range();
   if (from().IsInteger32() &&
-      to().IsTagged() &&
+      to().IsSmiOrTagged() &&
       !value()->CheckFlag(HInstruction::kUint32) &&
       input_range != NULL && input_range->IsInSmiRange()) {
     set_type(HType::Smi());
@@ -3563,7 +3563,7 @@ Representation HPhi::RepresentationFromInputs() {
       HPhi* hint_value = HUnknownOSRValue::cast(value)->incoming_value();
       if (hint_value != NULL) {
         Representation hint = hint_value->representation();
-        if (hint.IsTagged()) return hint;
+        if (hint.IsSmiOrTagged()) return hint;
         if (hint.IsDouble()) double_occurred = true;
         if (hint.IsInteger32()) int32_occurred = true;
       }
@@ -3571,7 +3571,7 @@ Representation HPhi::RepresentationFromInputs() {
     }
     if (value->representation().IsDouble()) double_occurred = true;
     if (value->representation().IsInteger32()) int32_occurred = true;
-    if (value->representation().IsTagged()) {
+    if (value->representation().IsSmiOrTagged()) {
       if (value->IsConstant()) {
         HConstant* constant = HConstant::cast(value);
         if (constant->IsConvertibleToInteger()) {

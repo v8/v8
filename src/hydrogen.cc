@@ -4399,7 +4399,9 @@ void HGraph::ComputeMinusZeroChecks() {
         Representation from = change->value()->representation();
         ASSERT(from.Equals(change->from()));
         if (from.IsInteger32()) {
-          ASSERT(change->to().IsTagged() || change->to().IsDouble());
+          ASSERT(change->to().IsTagged() ||
+                 change->to().IsDouble() ||
+                 change->to().IsSmi());
           ASSERT(visited.IsEmpty());
           PropagateMinusZeroChecks(change->value(), &visited);
           visited.Clear();
