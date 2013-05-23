@@ -918,6 +918,8 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   // object and the number of in-object properties is not going to change.
   index -= object->map()->inobject_properties();
 
+  SmiCheck smi_check = representation.IsTagged()
+      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   // TODO(verwaest): Share this code as a code stub.
   if (index < 0) {
     // Set the property straight into the object.
@@ -940,7 +942,9 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                           offset,
                           name_reg,
                           scratch1,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   } else {
     // Write to the properties array.
@@ -965,7 +969,9 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                           offset,
                           name_reg,
                           receiver_reg,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   }
 
@@ -1061,6 +1067,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   ASSERT(!FLAG_track_double_fields || !representation.IsDouble());
   // TODO(verwaest): Share this code as a code stub.
+  SmiCheck smi_check = representation.IsTagged()
+      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
@@ -1074,7 +1082,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                           offset,
                           name_reg,
                           scratch1,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   } else {
     // Write to the properties array.
@@ -1091,7 +1101,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                           offset,
                           name_reg,
                           receiver_reg,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   }
 
