@@ -2422,7 +2422,7 @@ class HFixedArrayBaseLength: public HUnaryOperation {
  public:
   explicit HFixedArrayBaseLength(HValue* value) : HUnaryOperation(value) {
     set_type(HType::Smi());
-    set_representation(Representation::Tagged());
+    set_representation(Representation::Smi());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnArrayLengths);
   }
@@ -5419,9 +5419,11 @@ class HLoadKeyed
       if (IsFastSmiOrObjectElementsKind(elements_kind)) {
         if (IsFastSmiElementsKind(elements_kind)) {
           set_type(HType::Smi());
+          set_representation(Representation::Smi());
+        } else {
+          set_representation(Representation::Tagged());
         }
 
-        set_representation(Representation::Tagged());
         SetGVNFlag(kDependsOnArrayElements);
       } else {
         set_representation(Representation::Double());

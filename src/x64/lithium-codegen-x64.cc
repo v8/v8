@@ -4913,6 +4913,13 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
 }
 
 
+void LCodeGen::DoCheckSmiAndReturn(LCheckSmiAndReturn* instr) {
+  LOperand* input = instr->value();
+  Condition cc = masm()->CheckSmi(ToRegister(input));
+  DeoptimizeIf(NegateCondition(cc), instr->environment());
+}
+
+
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->value();
   Condition cc = masm()->CheckSmi(ToRegister(input));

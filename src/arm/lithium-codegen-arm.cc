@@ -5224,6 +5224,13 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
 }
 
 
+void LCodeGen::DoCheckSmiAndReturn(LCheckSmiAndReturn* instr) {
+  LOperand* input = instr->value();
+  __ SmiTst(ToRegister(input));
+  DeoptimizeIf(ne, instr->environment());
+}
+
+
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->value();
   __ SmiTst(ToRegister(input));

@@ -1910,7 +1910,14 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   if (from.IsSmi()) {
     if (to.IsTagged()) {
       LOperand* value = UseRegister(instr->value());
-      return DefineSameAsFirst(new(zone()) LDummyUse(value));
+      // For now, always deopt on hole.
+      if (instr->value()->IsLoadKeyed() &&
+          HLoadKeyed::cast(instr->value())->UsesMustHandleHole()) {
+        return AssignEnvironment(
+            DefineSameAsFirst(new(zone()) LCheckSmiAndReturn(value)));
+      } else {
+        return DefineSameAsFirst(new(zone()) LDummyUse(value));
+      }
     }
     from = Representation::Tagged();
   }
@@ -1933,9 +1940,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       }
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
-      LOperand* value = UseRegisterAtStart(val);
+      LOperand* value = UseRegister(val);
       return AssignEnvironment(
-          DefineSameAsFirst(new(zone()) LCheckSmi(value)));
+          DefineSameAsFirst(new(zone()) LCheckSmiAndReturn(value)));
     } else {
       ASSERT(to.IsInteger32());
       if (instr->value()->type().IsSmi()) {
@@ -2058,13 +2065,13 @@ LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
 
 LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
   LOperand* value = UseAtStart(instr->value());
-  return AssignEnvironment(DefineSameAsFirst(new(zone()) LCheckSmi(value)));
+  return AssignEnvironment(new(zone()) LCheckSmi(value));
 }
 
 
 LInstruction* LChunkBuilder::DoCheckSmiOrInt32(HCheckSmiOrInt32* instr) {
   LOperand* value = UseAtStart(instr->value());
-  return AssignEnvironment(DefineSameAsFirst(new(zone()) LCheckSmi(value)));
+  return AssignEnvironment(new(zone()) LCheckSmi(value));
 }
 
 
