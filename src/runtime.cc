@@ -658,28 +658,37 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
   Isolate* isolate = reinterpret_cast<Isolate*>(external_isolate);
   HandleScope scope(isolate);
   Handle<Object> internal_object = Utils::OpenHandle(**object);
+  Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(*internal_object));
 
-  size_t allocated_length = NumberToSize(
-      isolate, JSArrayBuffer::cast(*internal_object)->byte_length());
-  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<intptr_t>(allocated_length));
-  if (data != NULL)
+  if (!array_buffer->is_external()) {
+    size_t allocated_length = NumberToSize(
+        isolate, array_buffer->byte_length());
+    isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
+        -static_cast<intptr_t>(allocated_length));
     free(data);
+  }
   object->Dispose(external_isolate);
 }
 
 
-bool Runtime::SetupArrayBuffer(Isolate* isolate,
+void Runtime::SetupArrayBuffer(Isolate* isolate,
                                Handle<JSArrayBuffer> array_buffer,
+                               bool is_external,
                                void* data,
                                size_t allocated_length) {
+  ASSERT(array_buffer->GetInternalFieldCount() ==
+      v8::ArrayBuffer::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBuffer::kInternalFieldCount; i++) {
+    array_buffer->SetInternalField(i, Smi::FromInt(0));
+  }
   array_buffer->set_backing_store(data);
+  array_buffer->set_flag(Smi::FromInt(0));
+  array_buffer->set_is_external(is_external);
 
   Handle<Object> byte_length =
       isolate->factory()->NewNumberFromSize(allocated_length);
   CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
   array_buffer->set_byte_length(*byte_length);
-  return true;
 }
 
 
@@ -696,8 +705,7 @@ bool Runtime::SetupArrayBufferAllocatingData(
     data = NULL;
   }
 
-  if (!SetupArrayBuffer(isolate, array_buffer, data, allocated_length))
-    return false;
+  SetupArrayBuffer(isolate, array_buffer, false, data, allocated_length);
 
   v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Persistent<v8::Value> weak_handle = v8::Persistent<v8::Value>::New(

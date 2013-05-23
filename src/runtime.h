@@ -754,8 +754,9 @@ class Runtime : public AllStatic {
       Handle<Object> object,
       Handle<Object> key);
 
-  static bool SetupArrayBuffer(Isolate* isolate,
+  static void SetupArrayBuffer(Isolate* isolate,
                                Handle<JSArrayBuffer> array_buffer,
+                               bool is_external,
                                void* data,
                                size_t allocated_length);
 

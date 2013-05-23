@@ -8763,6 +8763,12 @@ class JSArrayBuffer: public JSObject {
   // [byte_length]: length in bytes
   DECL_ACCESSORS(byte_length, Object)
 
+  // [flags]
+  DECL_ACCESSORS(flag, Smi)
+
+  inline bool is_external();
+  inline void set_is_external(bool value);
+
   // Casting.
   static inline JSArrayBuffer* cast(Object* obj);
 
@@ -8772,9 +8778,13 @@ class JSArrayBuffer: public JSObject {
 
   static const int kBackingStoreOffset = JSObject::kHeaderSize;
   static const int kByteLengthOffset = kBackingStoreOffset + kPointerSize;
-  static const int kSize = kByteLengthOffset + kPointerSize;
+  static const int kFlagOffset = kByteLengthOffset + kPointerSize;
+  static const int kSize = kFlagOffset + kPointerSize;
 
  private:
+  // Bit position in a flag
+  static const int kIsExternalBit = 0;
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);
 };
 

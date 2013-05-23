@@ -6016,19 +6016,37 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
 }
 
 
+bool v8::ArrayBuffer::IsExternal() const {
+  return Utils::OpenHandle(this)->is_external();
+}
+
+v8::ArrayBufferContents::~ArrayBufferContents() {
+  free(data_);
+  data_ = NULL;
+  byte_length_ = 0;
+}
+
+
+void v8::ArrayBuffer::Externalize(ArrayBufferContents* contents) {
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  ApiCheck(!obj->is_external(),
+            "v8::ArrayBuffer::Externalize",
+            "ArrayBuffer already externalized");
+  obj->set_is_external(true);
+  size_t byte_length = static_cast<size_t>(obj->byte_length()->Number());
+  ApiCheck(contents->data_ == NULL,
+           "v8::ArrayBuffer::Externalize",
+           "Externalizing into non-empty ArrayBufferContents");
+  contents->data_ = obj->backing_store();
+  contents->byte_length_ = byte_length;
+}
+
+
 size_t v8::ArrayBuffer::ByteLength() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::ArrayBuffer::ByteLength()")) return 0;
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->byte_length()->Number());
-}
-
-
-void* v8::ArrayBuffer::Data() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::ArrayBuffer::Data()")) return 0;
-  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
-  return obj->backing_store();
 }
 
 
@@ -6051,7 +6069,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(void* data, size_t byte_length) {
   ENTER_V8(isolate);
   i::Handle<i::JSArrayBuffer> obj =
       isolate->factory()->NewJSArrayBuffer();
-  i::Runtime::SetupArrayBuffer(isolate, obj, data, byte_length);
+  i::Runtime::SetupArrayBuffer(isolate, obj, true, data, byte_length);
   return Utils::ToLocal(obj);
 }
 

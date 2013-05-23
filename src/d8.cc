@@ -1048,6 +1048,16 @@ static char* ReadChars(Isolate* isolate, const char* name, int* size_out) {
   return chars;
 }
 
+static void ReadBufferWeakCallback(v8::Isolate* isolate,
+                                   Persistent<Value>* object,
+                                   uint8_t* data) {
+  size_t byte_length = ArrayBuffer::Cast(**object)->ByteLength();
+  isolate->AdjustAmountOfExternalAllocatedMemory(
+      -static_cast<intptr_t>(byte_length));
+
+  delete[] data;
+  object->Dispose(isolate);
+}
 
 Handle<Value> Shell::ReadBuffer(const Arguments& args) {
   ASSERT(sizeof(char) == sizeof(uint8_t));  // NOLINT
@@ -1057,14 +1067,19 @@ Handle<Value> Shell::ReadBuffer(const Arguments& args) {
     return Throw("Error loading file");
   }
 
+  Isolate* isolate = args.GetIsolate();
   uint8_t* data = reinterpret_cast<uint8_t*>(
       ReadChars(args.GetIsolate(), *filename, &length));
   if (data == NULL) {
     return Throw("Error reading file");
   }
-  Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(length);
-  memcpy(buffer->Data(), data, length);
-  delete[] data;
+  Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(data, length);
+  v8::Persistent<v8::Value> weak_handle =
+      v8::Persistent<v8::Value>::New(isolate, buffer);
+  weak_handle.MakeWeak(isolate, data, ReadBufferWeakCallback);
+  weak_handle.MarkIndependent();
+  isolate->AdjustAmountOfExternalAllocatedMemory(length);
+
   return buffer;
 }
 
