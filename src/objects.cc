@@ -4507,6 +4507,42 @@ MaybeObject* JSObject::TransformToFastProperties(int unused_property_fields) {
 }
 
 
+static MUST_USE_RESULT MaybeObject* CopyFastElementsToDictionary(
+    Isolate* isolate,
+    FixedArrayBase* array,
+    int length,
+    SeededNumberDictionary* dictionary) {
+  Heap* heap = isolate->heap();
+  bool has_double_elements = array->IsFixedDoubleArray();
+  for (int i = 0; i < length; i++) {
+    Object* value = NULL;
+    if (has_double_elements) {
+      FixedDoubleArray* double_array = FixedDoubleArray::cast(array);
+      if (double_array->is_the_hole(i)) {
+        value = isolate->heap()->the_hole_value();
+      } else {
+        // Objects must be allocated in the old object space, since the
+        // overall number of HeapNumbers needed for the conversion might
+        // exceed the capacity of new space, and we would fail repeatedly
+        // trying to convert the FixedDoubleArray.
+        MaybeObject* maybe_value_object =
+            heap->AllocateHeapNumber(double_array->get_scalar(i), TENURED);
+        if (!maybe_value_object->ToObject(&value)) return maybe_value_object;
+      }
+    } else {
+      value = FixedArray::cast(array)->get(i);
+    }
+    if (!value->IsTheHole()) {
+      PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
+      MaybeObject* maybe_result =
+          dictionary->AddNumberEntry(i, value, details);
+      if (!maybe_result->To(&dictionary)) return maybe_result;
+    }
+  }
+  return dictionary;
+}
+
+
 Handle<SeededNumberDictionary> JSObject::NormalizeElements(
     Handle<JSObject> object) {
   CALL_HEAP_FUNCTION(object->GetIsolate(),
@@ -4538,44 +4574,14 @@ MaybeObject* JSObject::NormalizeElements() {
   int old_capacity = 0;
   int used_elements = 0;
   GetElementsCapacityAndUsage(&old_capacity, &used_elements);
-  SeededNumberDictionary* dictionary = NULL;
-  { Object* object;
-    MaybeObject* maybe =
-        SeededNumberDictionary::Allocate(GetHeap(), used_elements);
-    if (!maybe->ToObject(&object)) return maybe;
-    dictionary = SeededNumberDictionary::cast(object);
-  }
+  SeededNumberDictionary* dictionary;
+  MaybeObject* maybe_dictionary =
+      SeededNumberDictionary::Allocate(GetHeap(), used_elements);
+  if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 
-  // Copy the elements to the new backing store.
-  bool has_double_elements = array->IsFixedDoubleArray();
-  for (int i = 0; i < length; i++) {
-    Object* value = NULL;
-    if (has_double_elements) {
-      FixedDoubleArray* double_array = FixedDoubleArray::cast(array);
-      if (double_array->is_the_hole(i)) {
-        value = GetIsolate()->heap()->the_hole_value();
-      } else {
-        // Objects must be allocated in the old object space, since the
-        // overall number of HeapNumbers needed for the conversion might
-        // exceed the capacity of new space, and we would fail repeatedly
-        // trying to convert the FixedDoubleArray.
-        MaybeObject* maybe_value_object =
-            GetHeap()->AllocateHeapNumber(double_array->get_scalar(i), TENURED);
-        if (!maybe_value_object->ToObject(&value)) return maybe_value_object;
-      }
-    } else {
-      ASSERT(old_map->has_fast_smi_or_object_elements());
-      value = FixedArray::cast(array)->get(i);
-    }
-    PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
-    if (!value->IsTheHole()) {
-      Object* result;
-      MaybeObject* maybe_result =
-          dictionary->AddNumberEntry(i, value, details);
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-      dictionary = SeededNumberDictionary::cast(result);
-    }
-  }
+  maybe_dictionary = CopyFastElementsToDictionary(
+      GetIsolate(), array, length, dictionary);
+  if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 
   // Switch to using the dictionary as the backing storage for elements.
   if (is_arguments) {
@@ -4583,11 +4589,11 @@ MaybeObject* JSObject::NormalizeElements() {
   } else {
     // Set the new map first to satify the elements type assert in
     // set_elements().
-    Object* new_map;
+    Map* new_map;
     MaybeObject* maybe = GetElementsTransitionMap(GetIsolate(),
                                                   DICTIONARY_ELEMENTS);
-    if (!maybe->ToObject(&new_map)) return maybe;
-    set_map(Map::cast(new_map));
+    if (!maybe->To(&new_map)) return maybe;
+    set_map(new_map);
     set_elements(dictionary);
   }
 
@@ -5331,6 +5337,7 @@ MaybeObject* JSObject::PreventExtensions() {
 
   // Do a map transition, other objects with this map may still
   // be extensible.
+  // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
   Map* new_map;
   MaybeObject* maybe = map()->Copy();
   if (!maybe->To(&new_map)) return maybe;
@@ -5339,6 +5346,145 @@ MaybeObject* JSObject::PreventExtensions() {
   set_map(new_map);
   ASSERT(!map()->is_extensible());
   return new_map;
+}
+
+
+template<typename Dictionary>
+static void FreezeDictionary(Dictionary* dictionary) {
+  int capacity = dictionary->Capacity();
+  for (int i = 0; i < capacity; i++) {
+    Object* k = dictionary->KeyAt(i);
+    if (dictionary->IsKey(k)) {
+      PropertyDetails details = dictionary->DetailsAt(i);
+      int attrs = DONT_DELETE;
+      // READ_ONLY is an invalid attribute for JS setters/getters.
+      if (details.type() != CALLBACKS ||
+          !dictionary->ValueAt(i)->IsAccessorPair()) {
+        attrs |= READ_ONLY;
+      }
+      details = details.CopyAddAttributes(
+          static_cast<PropertyAttributes>(attrs));
+      dictionary->DetailsAtPut(i, details);
+    }
+  }
+}
+
+
+MUST_USE_RESULT MaybeObject* JSObject::Freeze(Isolate* isolate) {
+  // Freezing non-strict arguments should be handled elsewhere.
+  ASSERT(!HasNonStrictArgumentsElements());
+
+  Heap* heap = isolate->heap();
+
+  if (map()->is_frozen()) return this;
+
+  if (IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(this,
+                               heap->undefined_value(),
+                               v8::ACCESS_KEYS)) {
+    isolate->ReportFailedAccessCheck(this, v8::ACCESS_KEYS);
+    return heap->false_value();
+  }
+
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return this;
+    ASSERT(proto->IsJSGlobalObject());
+    return JSObject::cast(proto)->Freeze(isolate);
+  }
+
+  // It's not possible to freeze objects with external array elements
+  if (HasExternalArrayElements()) {
+    HandleScope scope(isolate);
+    Handle<Object> object(this, isolate);
+    Handle<Object> error  =
+        isolate->factory()->NewTypeError(
+            "cant_prevent_ext_external_array_elements",
+            HandleVector(&object, 1));
+    return isolate->Throw(*error);
+  }
+
+  SeededNumberDictionary* new_element_dictionary = NULL;
+  if (!elements()->IsDictionary()) {
+    int length = IsJSArray()
+        ? Smi::cast(JSArray::cast(this)->length())->value()
+        : elements()->length();
+    if (length > 0) {
+      int capacity = 0;
+      int used = 0;
+      GetElementsCapacityAndUsage(&capacity, &used);
+      MaybeObject* maybe_dict = SeededNumberDictionary::Allocate(heap, used);
+      if (!maybe_dict->To(&new_element_dictionary)) return maybe_dict;
+
+      // Move elements to a dictionary; avoid calling NormalizeElements to avoid
+      // unnecessary transitions.
+      maybe_dict = CopyFastElementsToDictionary(isolate, elements(), length,
+                                                new_element_dictionary);
+      if (!maybe_dict->To(&new_element_dictionary)) return maybe_dict;
+    } else {
+      // No existing elements, use a pre-allocated empty backing store
+      new_element_dictionary = heap->empty_slow_element_dictionary();
+    }
+  }
+
+  LookupResult result(isolate);
+  map()->LookupTransition(this, heap->frozen_symbol(), &result);
+  if (result.IsTransition()) {
+    Map* transition_map = result.GetTransitionTarget();
+    ASSERT(transition_map->has_dictionary_elements());
+    ASSERT(transition_map->is_frozen());
+    ASSERT(!transition_map->is_extensible());
+    set_map(transition_map);
+  } else if (HasFastProperties() && map()->CanHaveMoreTransitions()) {
+    // Create a new descriptor array with fully-frozen properties
+    int num_descriptors = map()->NumberOfOwnDescriptors();
+    DescriptorArray* new_descriptors;
+    MaybeObject* maybe_descriptors =
+        map()->instance_descriptors()->CopyUpToAddAttributes(num_descriptors,
+                                                             FROZEN);
+    if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
+
+    Map* new_map;
+    MaybeObject* maybe_new_map = map()->CopyReplaceDescriptors(
+        new_descriptors, INSERT_TRANSITION, heap->frozen_symbol());
+    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    new_map->freeze();
+    new_map->set_is_extensible(false);
+    new_map->set_elements_kind(DICTIONARY_ELEMENTS);
+    set_map(new_map);
+  } else {
+    // Slow path: need to normalize properties for safety
+    MaybeObject* maybe = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+    if (maybe->IsFailure()) return maybe;
+
+    // Create a new map, since other objects with this map may be extensible.
+    // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
+    Map* new_map;
+    MaybeObject* maybe_copy = map()->Copy();
+    if (!maybe_copy->To(&new_map)) return maybe_copy;
+    new_map->freeze();
+    new_map->set_is_extensible(false);
+    new_map->set_elements_kind(DICTIONARY_ELEMENTS);
+    set_map(new_map);
+
+    // Freeze dictionary-mode properties
+    FreezeDictionary(property_dictionary());
+  }
+
+  ASSERT(map()->has_dictionary_elements());
+  if (new_element_dictionary != NULL) {
+    set_elements(new_element_dictionary);
+  }
+
+  if (elements() != heap->empty_slow_element_dictionary()) {
+    SeededNumberDictionary* dictionary = element_dictionary();
+    // Make sure we never go back to the fast case
+    dictionary->set_requires_slow_elements();
+    // Freeze all elements in the dictionary
+    FreezeDictionary(dictionary);
+  }
+
+  return this;
 }
 
 
@@ -6366,9 +6512,9 @@ MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
 
 
 MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
-                                         Name* name,
                                          TransitionFlag flag,
-                                         int descriptor_index) {
+                                         Name* name,
+                                         SimpleTransitionFlag simple_flag) {
   ASSERT(descriptors->IsSortedNoDuplicates());
 
   Map* result;
@@ -6379,14 +6525,8 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 
   if (flag == INSERT_TRANSITION && CanHaveMoreTransitions()) {
     TransitionArray* transitions;
-    SimpleTransitionFlag simple_flag =
-        (descriptor_index == descriptors->number_of_descriptors() - 1)
-         ? SIMPLE_TRANSITION
-         : FULL_TRANSITION;
-    ASSERT(name == descriptors->GetKey(descriptor_index));
     MaybeObject* maybe_transitions = AddTransition(name, result, simple_flag);
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
-
     set_transitions(transitions);
     result->SetBackPointer(this);
   } else if (flag != OMIT_TRANSITION_KEEP_REPRESENTATIONS) {
@@ -6502,7 +6642,7 @@ MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
       descriptors->CopyUpTo(number_of_own_descriptors);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
-  return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION, 0);
+  return CopyReplaceDescriptors(new_descriptors, OMIT_TRANSITION);
 }
 
 
@@ -6514,7 +6654,7 @@ MaybeObject* Map::Copy() {
       descriptors->CopyUpTo(number_of_own_descriptors);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
-  return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION, 0);
+  return CopyReplaceDescriptors(new_descriptors, OMIT_TRANSITION);
 }
 
 
@@ -6555,9 +6695,7 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
   }
 
   Name* key = descriptor->GetKey();
-  int insertion_index = new_descriptors->number_of_descriptors() - 1;
-
-  return CopyReplaceDescriptors(new_descriptors, key, flag, insertion_index);
+  return CopyReplaceDescriptors(new_descriptors, flag, key, SIMPLE_TRANSITION);
 }
 
 
@@ -6578,7 +6716,8 @@ MaybeObject* Map::CopyInsertDescriptor(Descriptor* descriptor,
 }
 
 
-MaybeObject* DescriptorArray::CopyUpTo(int enumeration_index) {
+MaybeObject* DescriptorArray::CopyUpToAddAttributes(
+    int enumeration_index, PropertyAttributes attributes) {
   if (enumeration_index == 0) return GetHeap()->empty_descriptor_array();
 
   int size = enumeration_index;
@@ -6588,8 +6727,21 @@ MaybeObject* DescriptorArray::CopyUpTo(int enumeration_index) {
   if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
   DescriptorArray::WhitenessWitness witness(descriptors);
 
-  for (int i = 0; i < size; ++i) {
-    descriptors->CopyFrom(i, this, i, witness);
+  if (attributes != NONE) {
+    for (int i = 0; i < size; ++i) {
+      Object* value = GetValue(i);
+      PropertyDetails details = GetDetails(i);
+      // READ_ONLY is an invalid attribute for JS setters/getters.
+      if (details.type() == CALLBACKS && value->IsAccessorPair()) {
+        attributes = static_cast<PropertyAttributes>(attributes & ~READ_ONLY);
+      }
+      Descriptor desc(GetKey(i), value, details.CopyAddAttributes(attributes));
+      descriptors->Set(i, &desc, witness);
+    }
+  } else {
+    for (int i = 0; i < size; ++i) {
+      descriptors->CopyFrom(i, this, i, witness);
+    }
   }
 
   if (number_of_descriptors() != enumeration_index) descriptors->Sort();
@@ -6630,7 +6782,11 @@ MaybeObject* Map::CopyReplaceDescriptor(DescriptorArray* descriptors,
   // Re-sort if descriptors were removed.
   if (new_size != descriptors->length()) new_descriptors->Sort();
 
-  return CopyReplaceDescriptors(new_descriptors, key, flag, insertion_index);
+  SimpleTransitionFlag simple_flag =
+      (insertion_index == descriptors->number_of_descriptors() - 1)
+      ? SIMPLE_TRANSITION
+      : FULL_TRANSITION;
+  return CopyReplaceDescriptors(new_descriptors, flag, key, simple_flag);
 }
 
 
@@ -13383,13 +13539,13 @@ template class Dictionary<SeededNumberDictionaryShape, uint32_t>;
 template class Dictionary<UnseededNumberDictionaryShape, uint32_t>;
 
 template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
-    Allocate(Heap* heap, int at_least_space_for);
+    Allocate(Heap* heap, int at_least_space_for, PretenureFlag pretenure);
 
 template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
-    Allocate(Heap* heap, int at_least_space_for);
+    Allocate(Heap* heap, int at_least_space_for, PretenureFlag pretenure);
 
 template MaybeObject* Dictionary<NameDictionaryShape, Name*>::
-    Allocate(Heap* heap, int n);
+    Allocate(Heap* heap, int n, PretenureFlag pretenure);
 
 template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::AtPut(
     uint32_t, Object*);
@@ -14333,10 +14489,15 @@ MaybeObject* MapCache::Put(FixedArray* array, Map* value) {
 
 template<typename Shape, typename Key>
 MaybeObject* Dictionary<Shape, Key>::Allocate(Heap* heap,
-                                              int at_least_space_for) {
+                                              int at_least_space_for,
+                                              PretenureFlag pretenure) {
   Object* obj;
   { MaybeObject* maybe_obj =
-        HashTable<Shape, Key>::Allocate(heap, at_least_space_for);
+      HashTable<Shape, Key>::Allocate(
+          heap,
+          at_least_space_for,
+          HashTable<Shape, Key>::USE_DEFAULT_MINIMUM_CAPACITY,
+          pretenure);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   // Initialize the next enumeration index.

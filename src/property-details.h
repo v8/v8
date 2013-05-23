@@ -39,7 +39,7 @@ enum PropertyAttributes {
   DONT_ENUM         = v8::DontEnum,
   DONT_DELETE       = v8::DontDelete,
 
-  SEALED            = DONT_ENUM | DONT_DELETE,
+  SEALED            = DONT_DELETE,
   FROZEN            = SEALED | READ_ONLY,
 
   SYMBOLIC          = 8,  // Used to filter symbol names
@@ -180,6 +180,11 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails CopyWithRepresentation(Representation representation) {
     return PropertyDetails(value_, representation);
   }
+  PropertyDetails CopyAddAttributes(PropertyAttributes new_attributes) {
+    new_attributes =
+        static_cast<PropertyAttributes>(attributes() | new_attributes);
+    return PropertyDetails(value_, new_attributes);
+  }
 
   // Conversion for storing details as Object*.
   explicit inline PropertyDetails(Smi* smi);
@@ -236,6 +241,9 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails(int value, Representation representation) {
     value_ = RepresentationField::update(
         value, EncodeRepresentation(representation));
+  }
+  PropertyDetails(int value, PropertyAttributes attributes) {
+    value_ = AttributesField::update(value, attributes);
   }
 
   uint32_t value_;

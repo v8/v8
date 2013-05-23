@@ -181,7 +181,10 @@ namespace internal {
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
   V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)                 \
   V(JSObject, observation_state, ObservationState)                             \
-  V(Map, external_map, ExternalMap)
+  V(Map, external_map, ExternalMap)                                            \
+  V(Symbol, frozen_symbol, FrozenSymbol)                                       \
+  V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
+      EmptySlowElementDictionary)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
