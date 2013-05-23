@@ -1858,6 +1858,12 @@ class HSimulate: public HInstruction {
     // use lists are correctly updated.
     SetOperandAt(values_.length() - 1, value);
   }
+  bool HasValueForIndex(int index) {
+    for (int i = 0; i < assigned_indexes_.length(); ++i) {
+      if (assigned_indexes_[i] == index) return true;
+    }
+    return false;
+  }
   BailoutId ast_id_;
   int pop_count_;
   ZoneList<HValue*> values_;

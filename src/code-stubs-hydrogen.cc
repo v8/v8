@@ -148,7 +148,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
                                                  HParameter::REGISTER_PARAMETER,
                                                  Representation::Integer32());
     stack_parameter_count->set_type(HType::Smi());
-    // it's essential to bind this value to the environment in case of deopt
+    // It's essential to bind this value to the environment in case of deopt.
     AddInstruction(stack_parameter_count);
     start_environment->Bind(param_count, stack_parameter_count);
     arguments_length_ = stack_parameter_count;
@@ -169,7 +169,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   HValue* return_value = BuildCodeStub();
 
   // We might have extra expressions to pop from the stack in addition to the
-  // arguments above
+  // arguments above.
   HInstruction* stack_pop_count = stack_parameter_count;
   if (descriptor_->function_mode_ == JS_FUNCTION_STUB_MODE) {
     if (!stack_parameter_count->IsConstant() &&

@@ -2016,8 +2016,9 @@ void HSimulate::MergeWith(ZoneList<HSimulate*>* list) {
     ZoneList<HValue*>* from_values = &from->values_;
     for (int i = 0; i < from_values->length(); ++i) {
       if (from->HasAssignedIndexAt(i)) {
-        AddAssignedValue(from->GetAssignedIndexAt(i),
-                         from_values->at(i));
+        int index = from->GetAssignedIndexAt(i);
+        if (HasValueForIndex(index)) continue;
+        AddAssignedValue(index, from_values->at(i));
       } else {
         if (pop_count_ > 0) {
           pop_count_--;
@@ -2038,13 +2039,13 @@ void HSimulate::PrintDataTo(StringStream* stream) {
   if (values_.length() > 0) {
     if (pop_count_ > 0) stream->Add(" /");
     for (int i = values_.length() - 1; i >= 0; --i) {
-      if (i > 0) stream->Add(",");
       if (HasAssignedIndexAt(i)) {
         stream->Add(" var[%d] = ", GetAssignedIndexAt(i));
       } else {
         stream->Add(" push ");
       }
       values_[i]->PrintNameTo(stream);
+      if (i > 0) stream->Add(",");
     }
   }
 }

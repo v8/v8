@@ -157,7 +157,7 @@ HSimulate* HBasicBlock::CreateSimulate(BailoutId ast_id,
   HSimulate* instr =
       new(zone()) HSimulate(ast_id, pop_count, zone(), removable);
   // Order of pushed values: newest (top of stack) first. This allows
-  // HSimulate::MergeInto() to easily append additional pushed values
+  // HSimulate::MergeWith() to easily append additional pushed values
   // that are older (from further down the stack).
   for (int i = 0; i < push_count; ++i) {
     instr->AddPushedValue(environment->ExpressionStackAt(i));
