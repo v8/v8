@@ -773,20 +773,22 @@ void BasicJsonStringifier::SerializeString_(Handle<String> string) {
           length);
     }
   } else {
-    String* string_location = *string;
-    Vector<const Char> vector = GetCharVector<Char>(string);
+    String* string_location = NULL;
+    Vector<const Char> vector(NULL, 0);
     for (int i = 0; i < length; i++) {
+      // If GC moved the string, we need to refresh the vector.
+      if (*string != string_location) {
+        AssertNoAllocation no_gc;
+        // This does not actually prevent the string from being relocated later.
+        vector = GetCharVector<Char>(string);
+        string_location = *string;
+      }
       Char c = vector[i];
       if (DoNotEscape(c)) {
         Append_<is_ascii, Char>(c);
       } else {
         Append_<is_ascii, uint8_t>(reinterpret_cast<const uint8_t*>(
             &JsonEscapeTable[c * kJsonEscapeTableEntrySize]));
-      }
-      // If GC moved the string, we need to refresh the vector.
-      if (*string != string_location) {
-        vector = GetCharVector<Char>(string);
-        string_location = *string;
       }
     }
   }
@@ -825,17 +827,16 @@ Vector<const uc16> BasicJsonStringifier::GetCharVector(Handle<String> string) {
 
 
 void BasicJsonStringifier::SerializeString(Handle<String> object) {
-  FlattenString(object);
-  String::FlatContent flat = object->GetFlatContent();
+  object = FlattenGetString(object);
   if (is_ascii_) {
-    if (flat.IsAscii()) {
+    if (object->IsOneByteRepresentation()) {
       SerializeString_<true, uint8_t>(object);
     } else {
       ChangeEncoding();
       SerializeString(object);
     }
   } else {
-    if (flat.IsAscii()) {
+    if (object->IsOneByteRepresentation()) {
       SerializeString_<false, uint8_t>(object);
     } else {
       SerializeString_<false, uc16>(object);

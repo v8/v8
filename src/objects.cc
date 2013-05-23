@@ -7841,6 +7841,7 @@ bool String::LooksValid() {
 
 
 String::FlatContent String::GetFlatContent() {
+  ASSERT(!GetHeap()->allow_allocation(false));
   int length = this->length();
   StringShape shape(this);
   String* string = this;
@@ -8067,6 +8068,8 @@ void FlatStringReader::PostGarbageCollection() {
   if (str_ == NULL) return;
   Handle<String> str(str_);
   ASSERT(str->IsFlat());
+  AssertNoAllocation no_gc;
+  // This does not actually prevent the vector from being relocated later.
   String::FlatContent content = str->GetFlatContent();
   ASSERT(content.IsFlat());
   is_ascii_ = content.IsAscii();
@@ -8618,6 +8621,7 @@ bool String::IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match) {
 bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
   int slen = length();
   if (str.length() != slen) return false;
+  AssertNoAllocation no_gc;
   FlatContent content = GetFlatContent();
   if (content.IsAscii()) {
     return CompareChars(content.ToOneByteVector().start(),
@@ -8633,6 +8637,7 @@ bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
 bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   int slen = length();
   if (str.length() != slen) return false;
+  AssertNoAllocation no_gc;
   FlatContent content = GetFlatContent();
   if (content.IsTwoByte()) {
     return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;

@@ -5663,11 +5663,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIEscape) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
   Handle<String> string = FlattenGetString(source);
-  String::FlatContent content = string->GetFlatContent();
-  ASSERT(content.IsFlat());
-  Handle<String> result =
-      content.IsAscii() ? URIEscape::Escape<uint8_t>(isolate, source)
-                        : URIEscape::Escape<uc16>(isolate, source);
+  ASSERT(string->IsFlat());
+  Handle<String> result = string->IsOneByteRepresentationUnderneath()
+      ? URIEscape::Escape<uint8_t>(isolate, source)
+      : URIEscape::Escape<uc16>(isolate, source);
   if (result.is_null()) return Failure::OutOfMemoryException(0x12);
   return *result;
 }
@@ -5678,10 +5677,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIUnescape) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
   Handle<String> string = FlattenGetString(source);
-  String::FlatContent content = string->GetFlatContent();
-  ASSERT(content.IsFlat());
-  return content.IsAscii() ? *URIUnescape::Unescape<uint8_t>(isolate, source)
-                           : *URIUnescape::Unescape<uc16>(isolate, source);
+  ASSERT(string->IsFlat());
+  return string->IsOneByteRepresentationUnderneath()
+      ? *URIUnescape::Unescape<uint8_t>(isolate, source)
+      : *URIUnescape::Unescape<uc16>(isolate, source);
 }
 
 
@@ -6210,6 +6209,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     elements = Handle<FixedArray>(FixedArray::cast(obj), isolate);
+    AssertNoAllocation no_gc;
     String::FlatContent content = s->GetFlatContent();
     if (content.IsAscii()) {
       Vector<const uint8_t> chars = content.ToOneByteVector();
@@ -7076,6 +7076,7 @@ static Object* FlatStringCompare(String* x, String* y) {
     equal_prefix_result = Smi::FromInt(LESS);
   }
   int r;
+  AssertNoAllocation no_gc;
   String::FlatContent x_content = x->GetFlatContent();
   String::FlatContent y_content = y->GetFlatContent();
   if (x_content.IsAscii()) {
@@ -13295,6 +13296,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Log) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(String, format, 0);
   CONVERT_ARG_CHECKED(JSArray, elms, 1);
+  AssertNoAllocation no_gc;
   String::FlatContent format_content = format->GetFlatContent();
   RUNTIME_ASSERT(format_content.IsAscii());
   Vector<const uint8_t> chars = format_content.ToOneByteVector();
