@@ -1569,44 +1569,23 @@ class Heap {
     return PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
   }
 
-  // True if we have reached the allocation limit in the old generation that
-  // should force the next GC (caused normally) to be a full one.
-  inline bool OldGenerationPromotionLimitReached() {
-    return PromotedTotalSize() > old_gen_promotion_limit_;
-  }
-
   inline intptr_t OldGenerationSpaceAvailable() {
-    return old_gen_allocation_limit_ - PromotedTotalSize();
+    return old_generation_allocation_limit_ - PromotedTotalSize();
   }
 
   inline intptr_t OldGenerationCapacityAvailable() {
     return max_old_generation_size_ - PromotedTotalSize();
   }
 
-  static const intptr_t kMinimumPromotionLimit = 5 * Page::kPageSize;
-  static const intptr_t kMinimumAllocationLimit =
+  static const intptr_t kMinimumOldGenerationAllocationLimit =
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
 
-  intptr_t OldGenPromotionLimit(intptr_t old_gen_size) {
+  intptr_t OldGenerationAllocationLimit(intptr_t old_gen_size) {
     const int divisor = FLAG_stress_compaction ? 10 :
         new_space_high_promotion_mode_active_ ? 1 : 3;
     intptr_t limit =
-        Max(old_gen_size + old_gen_size / divisor, kMinimumPromotionLimit);
-    limit += new_space_.Capacity();
-    // TODO(hpayer): Can be removed when when pretenuring is supported for all
-    // allocation sites.
-    if (IsHighSurvivalRate() && IsStableOrIncreasingSurvivalTrend()) {
-      limit *= 2;
-    }
-    intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
-    return Min(limit, halfway_to_the_max);
-  }
-
-  intptr_t OldGenAllocationLimit(intptr_t old_gen_size) {
-    const int divisor = FLAG_stress_compaction ? 8 :
-        new_space_high_promotion_mode_active_ ? 1 : 2;
-    intptr_t limit =
-        Max(old_gen_size + old_gen_size / divisor, kMinimumAllocationLimit);
+        Max(old_gen_size + old_gen_size / divisor,
+            kMinimumOldGenerationAllocationLimit);
     limit += new_space_.Capacity();
     // TODO(hpayer): Can be removed when when pretenuring is supported for all
     // allocation sites.
@@ -1687,21 +1666,13 @@ class Heap {
 
     if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
 
-    intptr_t total_promoted = PromotedTotalSize();
-
-    intptr_t adjusted_promotion_limit =
-        old_gen_promotion_limit_ - new_space_.Capacity();
-
-    if (total_promoted >= adjusted_promotion_limit) return true;
-
     intptr_t adjusted_allocation_limit =
-        old_gen_allocation_limit_ - new_space_.Capacity() / 5;
+        old_generation_allocation_limit_ - new_space_.Capacity();
 
-    if (PromotedSpaceSizeOfObjects() >= adjusted_allocation_limit) return true;
+    if (PromotedTotalSize() >= adjusted_allocation_limit) return true;
 
     return false;
   }
-
 
   void UpdateNewSpaceReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
@@ -2027,13 +1998,9 @@ class Heap {
 
   // Limit that triggers a global GC on the next (normally caused) GC.  This
   // is checked when we have already decided to do a GC to help determine
-  // which collector to invoke.
-  intptr_t old_gen_promotion_limit_;
-
-  // Limit that triggers a global GC as soon as is reasonable.  This is
-  // checked before expanding a paged space in the old generation and on
-  // every allocation in large object space.
-  intptr_t old_gen_allocation_limit_;
+  // which collector to invoke, before expanding a paged space in the old
+  // generation and on every allocation in large object space.
+  intptr_t old_generation_allocation_limit_;
 
   // Used to adjust the limits that control the timing of the next GC.
   intptr_t size_of_old_gen_at_last_old_space_gc_;
@@ -2051,7 +2018,7 @@ class Heap {
 
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
-  int old_gen_exhausted_;
+  bool old_gen_exhausted_;
 
   Object* native_contexts_list_;
 
