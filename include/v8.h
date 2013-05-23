@@ -4541,8 +4541,7 @@ class V8EXPORT V8 {
 
   static internal::Object** GlobalizeReference(internal::Isolate* isolate,
                                                internal::Object** handle);
-  static void DisposeGlobal(internal::Isolate* isolate,
-                            internal::Object** global_handle);
+  static void DisposeGlobal(internal::Object** global_handle);
   typedef WeakReferenceCallbacks<Value, void>::Revivable RevivableCallback;
   static void MakeWeak(internal::Isolate* isolate,
                        internal::Object** global_handle,
@@ -5486,18 +5485,17 @@ bool Persistent<T>::IsWeak(Isolate* isolate) const {
 
 template <class T>
 void Persistent<T>::Dispose() {
-  Dispose(Isolate::GetCurrent());
+  if (this->IsEmpty()) return;
+  V8::DisposeGlobal(reinterpret_cast<internal::Object**>(this->val_));
+#ifndef V8_USE_UNSAFE_HANDLES
+  val_ = 0;
+#endif
 }
 
 
 template <class T>
 void Persistent<T>::Dispose(Isolate* isolate) {
-  if (this->IsEmpty()) return;
-  V8::DisposeGlobal(reinterpret_cast<internal::Isolate*>(isolate),
-                    reinterpret_cast<internal::Object**>(this->val_));
-#ifndef V8_USE_UNSAFE_HANDLES
-  val_ = 0;
-#endif
+  Dispose();
 }
 
 
