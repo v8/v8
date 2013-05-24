@@ -500,13 +500,18 @@ DoubleRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
 
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  ASSERT(chunk_->LookupLiteralRepresentation(op).IsTagged());
+  ASSERT(chunk_->LookupLiteralRepresentation(op).IsSmiOrTagged());
   return constant->handle();
 }
 
 
 bool LCodeGen::IsInteger32(LConstantOperand* op) const {
   return chunk_->LookupLiteralRepresentation(op).IsInteger32();
+}
+
+
+bool LCodeGen::IsSmi(LConstantOperand* op) const {
+  return chunk_->LookupLiteralRepresentation(op).IsSmi();
 }
 
 
@@ -1837,7 +1842,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
   Representation r = instr->hydrogen()->value()->representation();
-  if (r.IsInteger32()) {
+  if (r.IsInteger32() || r.IsSmi()) {
     Register reg = ToRegister(instr->value());
     EmitBranch(true_block, false_block, ne, reg, Operand(zero_reg));
   } else if (r.IsDouble()) {
@@ -3898,13 +3903,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Handle<Map> transition = instr->transition();
 
-  if (FLAG_track_fields && representation.IsSmi()) {
-    Register value = ToRegister(instr->value());
-    __ SmiTagCheckOverflow(value, value, scratch);
-    if (!instr->hydrogen()->value()->range()->IsInSmiRange()) {
-      DeoptimizeIf(lt, instr->environment(), scratch, Operand(zero_reg));
-    }
-  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+  if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     Register value = ToRegister(instr->value());
     if (!instr->hydrogen()->value()->type().IsHeapObject()) {
       __ And(scratch, value, Operand(kSmiTagMask));
@@ -4407,6 +4406,21 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
+void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
+  LOperand* input = instr->value();
+  ASSERT(input->IsRegister());
+  LOperand* output = instr->result();
+  ASSERT(output->IsRegister());
+  Register scratch = scratch0();
+
+  __ SmiTagCheckOverflow(ToRegister(output), ToRegister(input), scratch);
+  if (!instr->hydrogen()->value()->HasRange() ||
+      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
+    DeoptimizeIf(lt, instr->environment(), scratch, Operand(zero_reg));
+  }
+}
+
+
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
@@ -4866,7 +4880,59 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
     // Deopt if the operation did not succeed (except_flag != 0).
     DeoptimizeIf(ne, instr->environment(), except_flag, Operand(zero_reg));
+
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      Label done;
+      __ Branch(&done, ne, result_reg, Operand(zero_reg));
+      __ mfc1(scratch1, double_input.high());
+      __ And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
+      DeoptimizeIf(ne, instr->environment(), scratch1, Operand(zero_reg));
+      __ bind(&done);
+    }
   }
+}
+
+
+void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
+  Register result_reg = ToRegister(instr->result());
+  Register scratch1 = scratch0();
+  Register scratch2 = ToRegister(instr->temp());
+  DoubleRegister double_input = ToDoubleRegister(instr->value());
+
+  if (instr->truncating()) {
+    Register scratch3 = ToRegister(instr->temp2());
+    FPURegister single_scratch = double_scratch0().low();
+    __ EmitECMATruncate(result_reg,
+                        double_input,
+                        single_scratch,
+                        scratch1,
+                        scratch2,
+                        scratch3);
+  } else {
+    Register except_flag = scratch2;
+
+    __ EmitFPUTruncate(kRoundToMinusInf,
+                       result_reg,
+                       double_input,
+                       scratch1,
+                       double_scratch0(),
+                       except_flag,
+                       kCheckForInexactConversion);
+
+    // Deopt if the operation did not succeed (except_flag != 0).
+    DeoptimizeIf(ne, instr->environment(), except_flag, Operand(zero_reg));
+
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      Label done;
+      __ Branch(&done, ne, result_reg, Operand(zero_reg));
+      __ mfc1(scratch1, double_input.high());
+      __ And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
+      DeoptimizeIf(ne, instr->environment(), scratch1, Operand(zero_reg));
+      __ bind(&done);
+    }
+  }
+  __ SmiTagCheckOverflow(result_reg, result_reg, scratch1);
+  DeoptimizeIf(lt, instr->environment(), scratch1, Operand(zero_reg));
 }
 
 
