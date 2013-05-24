@@ -5467,7 +5467,9 @@ class HLoadKeyed
              IsFastDoubleElementsKind(elements_kind));
 
       if (IsFastSmiOrObjectElementsKind(elements_kind)) {
-        if (IsFastSmiElementsKind(elements_kind)) {
+        if (IsFastSmiElementsKind(elements_kind) &&
+            (!IsHoleyElementsKind(elements_kind) ||
+             mode == NEVER_RETURN_HOLE)) {
           set_type(HType::Smi());
           set_representation(Representation::Smi());
         } else {
@@ -5773,6 +5775,7 @@ class HStoreKeyed
   virtual Representation RequiredInputRepresentation(int index) {
     // kind_fast:       tagged[int32] = tagged
     // kind_double:     tagged[int32] = double
+    // kind_smi   :     tagged[int32] = smi
     // kind_external: external[int32] = (double | int32)
     if (index == 0) {
       return is_external() ? Representation::External()
@@ -5801,6 +5804,9 @@ class HStoreKeyed
 
   virtual Representation observed_input_representation(int index) {
     if (index < 2) return RequiredInputRepresentation(index);
+    if (IsFastSmiElementsKind(elements_kind())) {
+      return Representation::Smi();
+    }
     if (IsDoubleOrFloatElementsKind(elements_kind())) {
       return Representation::Double();
     }

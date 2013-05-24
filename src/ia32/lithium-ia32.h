@@ -2182,7 +2182,6 @@ class LSmiUntag: public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SmiUntag, "smi-untag")
-  DECLARE_HYDROGEN_ACCESSOR(Change);
 
   bool needs_check() const { return needs_check_; }
 

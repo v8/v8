@@ -3648,7 +3648,10 @@ void LCodeGen::DoPower(LPower* instr) {
   ASSERT(ToDoubleRegister(instr->left()).is(xmm2));
   ASSERT(ToDoubleRegister(instr->result()).is(xmm3));
 
-  if (exponent_type.IsTagged()) {
+  if (exponent_type.IsSmi()) {
+    MathPowStub stub(MathPowStub::TAGGED);
+    __ CallStub(&stub);
+  } else if (exponent_type.IsTagged()) {
     Label no_deopt;
     __ JumpIfSmi(exponent, &no_deopt);
     __ CmpObjectType(exponent, HEAP_NUMBER_TYPE, rcx);
@@ -4645,21 +4648,6 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
   if (instr->needs_check()) {
     Condition is_smi = __ CheckSmi(input);
     DeoptimizeIf(NegateCondition(is_smi), instr->environment());
-  } else if (instr->hydrogen()->value()->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(instr->hydrogen()->value());
-    if (load->UsesMustHandleHole()) {
-      Condition cc = masm()->CheckSmi(input);
-      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-        Label done;
-        __ j(cc, &done);
-        __ xor_(input, input);
-        __ bind(&done);
-      } else {
-        DeoptimizeIf(NegateCondition(cc), instr->environment());
-      }
-    } else {
-      __ AssertSmi(input);
-    }
   } else {
     __ AssertSmi(input);
   }

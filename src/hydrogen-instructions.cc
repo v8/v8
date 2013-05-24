@@ -2716,7 +2716,7 @@ bool HLoadKeyed::UsesMustHandleHole() const {
 
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
-    if (!use->IsChange()) {
+    if (!use->IsChange() || !HChange::cast(use)->to().IsDouble()) {
       return false;
     }
   }

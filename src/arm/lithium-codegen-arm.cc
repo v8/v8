@@ -3952,7 +3952,10 @@ void LCodeGen::DoPower(LPower* instr) {
   ASSERT(ToDoubleRegister(instr->left()).is(d1));
   ASSERT(ToDoubleRegister(instr->result()).is(d3));
 
-  if (exponent_type.IsTagged()) {
+  if (exponent_type.IsSmi()) {
+    MathPowStub stub(MathPowStub::TAGGED);
+    __ CallStub(&stub);
+  } else if (exponent_type.IsTagged()) {
     Label no_deopt;
     __ JumpIfSmi(r2, &no_deopt);
     __ ldr(r7, FieldMemOperand(r2, HeapObject::kMapOffset));
@@ -4942,21 +4945,6 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
     // If the input is a HeapObject, SmiUntag will set the carry flag.
     __ SmiUntag(result, input, SetCC);
     DeoptimizeIf(cs, instr->environment());
-  } else if (instr->hydrogen()->value()->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(instr->hydrogen()->value());
-    if (load->UsesMustHandleHole()) {
-      __ SmiUntag(result, input, SetCC);
-      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-        Label done;
-        __ b(cc, &done);
-        __ mov(result, Operand(Smi::FromInt(0)));
-        __ bind(&done);
-      } else {
-        DeoptimizeIf(cs, instr->environment());
-      }
-    } else {
-      __ SmiUntag(result, input);
-    }
   } else {
     __ SmiUntag(result, input);
   }
