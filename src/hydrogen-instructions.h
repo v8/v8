@@ -93,7 +93,6 @@ class LChunkBuilder;
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
-  V(CheckSmiOrInt32)                           \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareIDAndBranch)                        \
@@ -1721,7 +1720,7 @@ class HChange: public HUnaryOperation {
     SetFlag(kUseGVN);
     if (deoptimize_on_undefined) SetFlag(kDeoptimizeOnUndefined);
     if (is_truncating) SetFlag(kTruncatingToInt32);
-    if (value->type().IsSmi()) {
+    if (value->representation().IsSmi() || value->type().IsSmi()) {
       set_type(HType::Smi());
     } else {
       set_type(HType::TaggedNumber());
@@ -2952,38 +2951,6 @@ class HCheckSmi: public HUnaryOperation {
 };
 
 
-class HCheckSmiOrInt32: public HUnaryOperation {
- public:
-  explicit HCheckSmiOrInt32(HValue* value) : HUnaryOperation(value) {
-    SetFlag(kFlexibleRepresentation);
-    SetFlag(kUseGVN);
-  }
-
-  virtual int RedefinedOperandIndex() { return 0; }
-  virtual Representation RequiredInputRepresentation(int index) {
-    return representation();
-  }
-  virtual void InferRepresentation(HInferRepresentation* h_infer);
-
-  virtual Representation observed_input_representation(int index) {
-    return Representation::Integer32();
-  }
-
-  virtual HValue* Canonicalize() {
-    if (representation().IsTagged() && !value()->type().IsSmi()) {
-      return this;
-    } else {
-      return value();
-    }
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckSmiOrInt32)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
 class HPhi: public HValue {
  public:
   HPhi(int merged_index, Zone* zone)
@@ -3578,8 +3545,7 @@ class HBoundsCheckBaseIndexInformation;
 class HBoundsCheck: public HTemplateInstruction<2> {
  public:
   // Normally HBoundsCheck should be created using the
-  // HGraphBuilder::AddBoundsCheck() helper, which also guards the index with
-  // a HCheckSmiOrInt32 check.
+  // HGraphBuilder::AddBoundsCheck() helper.
   // However when building stubs, where we know that the arguments are Int32,
   // it makes sense to invoke this constructor directly.
   HBoundsCheck(HValue* index,
@@ -5459,7 +5425,7 @@ class ArrayInstructionInterface {
 
   static Representation KeyedAccessIndexRequirement(Representation r) {
     return r.IsInteger32() ? Representation::Integer32()
-                           : Representation::Tagged();
+                           : Representation::Smi();
   }
 };
 

@@ -2922,7 +2922,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     // gets replaced during bound check elimination with the index argument
     // to the bounds check, which can be tagged, so that case must be
     // handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -2995,7 +2995,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
     // representation for the key to be an integer, the input gets replaced
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -3037,7 +3037,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     // gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that
     // case must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -4042,20 +4042,20 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 
   if (instr->length()->IsRegister()) {
     Register reg = ToRegister(instr->length());
-    if (!instr->hydrogen()->length()->representation().IsTagged()) {
+    if (!instr->hydrogen()->length()->representation().IsSmi()) {
       __ AssertZeroExtended(reg);
     }
     if (instr->index()->IsConstantOperand()) {
       int constant_index =
           ToInteger32(LConstantOperand::cast(instr->index()));
-      if (instr->hydrogen()->length()->representation().IsTagged()) {
+      if (instr->hydrogen()->length()->representation().IsSmi()) {
         __ Cmp(reg, Smi::FromInt(constant_index));
       } else {
         __ cmpq(reg, Immediate(constant_index));
       }
     } else {
       Register reg2 = ToRegister(instr->index());
-      if (!instr->hydrogen()->index()->representation().IsTagged()) {
+      if (!instr->hydrogen()->index()->representation().IsSmi()) {
         __ AssertZeroExtended(reg2);
       }
       __ cmpq(reg, reg2);
@@ -4065,7 +4065,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     if (instr->index()->IsConstantOperand()) {
       int constant_index =
           ToInteger32(LConstantOperand::cast(instr->index()));
-      if (instr->hydrogen()->length()->representation().IsTagged()) {
+      if (instr->hydrogen()->length()->representation().IsSmi()) {
         __ Cmp(length, Smi::FromInt(constant_index));
       } else {
         __ cmpq(length, Immediate(constant_index));
@@ -4088,7 +4088,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     // gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that case
     // must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -4152,7 +4152,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     // input gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that case
     // must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -4195,7 +4195,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     // input gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that case
     // must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value

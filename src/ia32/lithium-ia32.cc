@@ -2068,12 +2068,6 @@ LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckSmiOrInt32(HCheckSmiOrInt32* instr) {
-  LOperand* value = UseAtStart(instr->value());
-  return AssignEnvironment(new(zone()) LCheckSmi(value));
-}
-
-
 LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
   // If the target is in new space, we'll emit a global cell compare and so
   // want the value in a register.  If the target gets promoted before we
@@ -2144,7 +2138,7 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
     } else {
       return DefineX87TOS(new(zone()) LConstantD(NULL));
     }
-  } else if (r.IsTagged()) {
+  } else if (r.IsSmiOrTagged()) {
     return DefineAsRegister(new(zone()) LConstantT);
   } else {
     UNREACHABLE();
@@ -2261,7 +2255,7 @@ LInstruction* LChunkBuilder::DoLoadExternalArrayPointer(
 
 LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   ASSERT(instr->key()->representation().IsInteger32() ||
-         instr->key()->representation().IsTagged());
+         instr->key()->representation().IsSmi());
   ElementsKind elements_kind = instr->elements_kind();
   bool clobbers_key = ExternalArrayOpRequiresTemp(
       instr->key()->representation(), elements_kind);
@@ -2330,7 +2324,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   if (!instr->is_external()) {
     ASSERT(instr->elements()->representation().IsTagged());
     ASSERT(instr->key()->representation().IsInteger32() ||
-           instr->key()->representation().IsTagged());
+           instr->key()->representation().IsSmi());
 
     if (instr->value()->representation().IsDouble()) {
       LOperand* object = UseRegisterAtStart(instr->elements());

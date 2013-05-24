@@ -3364,7 +3364,7 @@ Operand LCodeGen::BuildFastArrayOperand(
                        + offset);
   } else {
     // Take the tag bit into account while computing the shift size.
-    if (key_representation.IsTagged() && (shift_size >= 1)) {
+    if (key_representation.IsSmi() && (shift_size >= 1)) {
       shift_size -= kSmiTagSize;
     }
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
@@ -4359,7 +4359,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->index()->IsConstantOperand()) {
     int constant_index =
         ToInteger32(LConstantOperand::cast(instr->index()));
-    if (instr->hydrogen()->length()->representation().IsTagged()) {
+    if (instr->hydrogen()->length()->representation().IsSmi()) {
       __ cmp(ToOperand(instr->length()),
              Immediate(Smi::FromInt(constant_index)));
     } else {

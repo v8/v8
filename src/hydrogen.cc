@@ -1003,14 +1003,6 @@ HBoundsCheck* HGraphBuilder::AddBoundsCheck(HValue* index,
                                             HValue* length,
                                             BoundsCheckKeyMode key_mode,
                                             Representation r) {
-  if (!index->type().IsSmi()) {
-    index = new(graph()->zone()) HCheckSmiOrInt32(index);
-    AddInstruction(HCheckSmiOrInt32::cast(index));
-  }
-  if (!length->type().IsSmi()) {
-    length = new(graph()->zone()) HCheckSmiOrInt32(length);
-    AddInstruction(HCheckSmiOrInt32::cast(length));
-  }
   HBoundsCheck* result = new(graph()->zone()) HBoundsCheck(
       index, length, key_mode, r);
   AddInstruction(result);
@@ -1333,11 +1325,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 
     elements = BuildCheckForCapacityGrow(object, elements, elements_kind,
                                          length, key, is_js_array);
-    if (!key->type().IsSmi()) {
-      checked_key = AddInstruction(new(zone) HCheckSmiOrInt32(key));
-    } else {
-      checked_key = key;
-    }
+    checked_key = key;
   } else {
     checked_key = AddBoundsCheck(
         key, length, ALLOW_SMI_KEY, checked_index_representation);

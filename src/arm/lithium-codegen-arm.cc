@@ -3276,7 +3276,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     key = ToRegister(instr->key());
   }
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
-  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
   int additional_offset = instr->additional_index() << element_size_shift;
 
@@ -3348,7 +3348,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   Register scratch = scratch0();
 
   int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
-  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
   int constant_key = 0;
   if (key_is_constant) {
@@ -3393,7 +3393,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     // representation for the key to be an integer, the input gets replaced
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ add(scratch, elements, Operand::PointerOffsetFromSmiKey(key));
     } else {
       __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
@@ -4329,7 +4329,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->index()->IsConstantOperand()) {
     int constant_index =
         ToInteger32(LConstantOperand::cast(instr->index()));
-    if (instr->hydrogen()->length()->representation().IsTagged()) {
+    if (instr->hydrogen()->length()->representation().IsSmi()) {
       __ mov(ip, Operand(Smi::FromInt(constant_index)));
     } else {
       __ mov(ip, Operand(constant_index));
@@ -4357,7 +4357,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     key = ToRegister(instr->key());
   }
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
-  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
   int additional_offset = instr->additional_index() << element_size_shift;
 
@@ -4430,7 +4430,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     key = ToRegister(instr->key());
   }
   int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
-  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
   Operand operand = key_is_constant
       ? Operand((constant_key << element_size_shift) +
@@ -4476,7 +4476,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     // representation for the key to be an integer, the input gets replaced
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ add(scratch, elements, Operand::PointerOffsetFromSmiKey(key));
     } else {
       __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));

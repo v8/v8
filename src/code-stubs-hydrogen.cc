@@ -410,7 +410,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), NULL, NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
-      false, NEVER_RETURN_HOLE, STANDARD_STORE, Representation::Tagged());
+      false, NEVER_RETURN_HOLE, STANDARD_STORE, Representation::Smi());
   return load;
 }
 
@@ -456,7 +456,7 @@ HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
       GetParameter(0), GetParameter(1), GetParameter(2), NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
       true, NEVER_RETURN_HOLE, casted_stub()->store_mode(),
-      Representation::Tagged());
+      Representation::Smi());
 
   return GetParameter(2);
 }
@@ -572,11 +572,9 @@ HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
       new(zone()) HConstant(initial_capacity, Representation::Tagged());
   AddInstruction(initial_capacity_node);
 
-  // Since we're forcing Integer32 representation for this HBoundsCheck,
-  // there's no need to Smi-check the index.
   HBoundsCheck* checked_arg = AddBoundsCheck(argument, max_alloc_length,
                                              ALLOW_SMI_KEY,
-                                             Representation::Tagged());
+                                             Representation::Smi());
   IfBuilder if_builder(this);
   if_builder.IfCompare(checked_arg, constant_zero, Token::EQ);
   if_builder.Then();

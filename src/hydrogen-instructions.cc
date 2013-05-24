@@ -1143,16 +1143,15 @@ void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
   HValue* actual_length = length()->ActualValue();
   HValue* actual_index = index()->ActualValue();
   if (key_mode_ == DONT_ALLOW_SMI_KEY ||
-      !actual_length->representation().IsTagged()) {
+      !actual_length->representation().IsSmiOrTagged()) {
     r = Representation::Integer32();
-  } else if (actual_index->representation().IsTagged() ||
-      (actual_index->IsConstant() &&
-       HConstant::cast(actual_index)->HasSmiValue())) {
-    // If the index is tagged, or a constant that holds a Smi, allow the length
-    // to be tagged, since it is usually already tagged from loading it out of
-    // the length field of a JSArray. This allows for direct comparison without
-    // untagging.
-    r = Representation::Tagged();
+  } else if (actual_index->representation().IsSmiOrTagged() ||
+             (actual_index->IsConstant() &&
+              HConstant::cast(actual_index)->HasSmiValue())) {
+    // If the index is smi, or a constant that holds a Smi, allow the length to
+    // be smi, since it is usually already smi from loading it out of the length
+    // field of a JSArray. This allows for direct comparison without untagging.
+    r = Representation::Smi();
   } else {
     r = Representation::Integer32();
   }
@@ -2942,15 +2941,6 @@ HType HCheckNonSmi::CalculateInferredType() {
 
 HType HCheckSmi::CalculateInferredType() {
   return HType::Smi();
-}
-
-
-void HCheckSmiOrInt32::InferRepresentation(HInferRepresentation* h_infer) {
-  ASSERT(CheckFlag(kFlexibleRepresentation));
-  ASSERT(UseCount() == 1);
-  HUseIterator use = uses();
-  Representation r = use.value()->RequiredInputRepresentation(use.index());
-  UpdateRepresentation(r, h_infer, "checksmiorint32");
 }
 
 
