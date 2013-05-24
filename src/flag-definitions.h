@@ -377,6 +377,8 @@ DEFINE_bool(stack_trace_on_abort, true,
             "print a stack trace if an assertion failure occurs")
 
 // codegen-ia32.cc / codegen-arm.cc
+DEFINE_bool(trace_codegen, false,
+            "print name of functions for which code is generated")
 DEFINE_bool(trace, false, "trace function calls")
 DEFINE_bool(mask_constants_with_cookie,
             true,
@@ -636,8 +638,6 @@ DEFINE_bool(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
 
 // codegen-ia32.cc / codegen-arm.cc
-DEFINE_bool(trace_codegen, false,
-            "print name of functions for which code is generated")
 DEFINE_bool(print_source, false, "pretty print source code")
 DEFINE_bool(print_builtin_source, false,
             "pretty print source code for builtins")

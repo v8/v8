@@ -304,10 +304,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
     int len = String::cast(script->source())->length();
     isolate->counters()->total_full_codegen_source_size()->Increment(len);
   }
-  if (FLAG_trace_codegen) {
-    PrintF("Full Compiler - ");
-  }
-  CodeGenerator::MakeCodePrologue(info);
+  CodeGenerator::MakeCodePrologue(info, "full");
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(info->isolate(), NULL, kInitialBufferSize);
 #ifdef ENABLE_GDB_JIT_INTERFACE
