@@ -982,7 +982,7 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 
 template<typename Callback>
 static Local<FunctionTemplate> FunctionTemplateNew(
-    Callback callback_in,
+    Callback callback,
     v8::Handle<Value> data,
     v8::Handle<Signature> signature,
     int length) {
@@ -998,10 +998,8 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   int next_serial_number = isolate->next_serial_number();
   isolate->set_next_serial_number(next_serial_number + 1);
   obj->set_serial_number(i::Smi::FromInt(next_serial_number));
-  if (callback_in != 0) {
+  if (callback != 0) {
     if (data.IsEmpty()) data = v8::Undefined();
-    InvocationCallback callback =
-        i::CallbackTable::Register(isolate, callback_in);
     Utils::ToLocal(obj)->SetCallHandler(callback, data);
   }
   obj->set_length(length);
@@ -1225,7 +1223,7 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 
 template<typename Callback>
 static void FunctionTemplateSetCallHandler(FunctionTemplate* function_template,
-                                           Callback callback,
+                                           Callback callback_in,
                                            v8::Handle<Value> data) {
   i::Isolate* isolate = Utils::OpenHandle(function_template)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetCallHandler()")) return;
@@ -1235,6 +1233,8 @@ static void FunctionTemplateSetCallHandler(FunctionTemplate* function_template,
       isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
+  InvocationCallback callback =
+      i::CallbackTable::Register(isolate, callback_in);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));

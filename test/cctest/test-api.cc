@@ -40,6 +40,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "arguments.h"
 #include "isolate.h"
 #include "compilation-cache.h"
 #include "execution.h"
@@ -907,6 +908,12 @@ static void TestFunctionTemplateInitializer(Handler handler) {
     for (int i = 0; i < 30; i++) {
       CHECK_EQ(102, script->Run()->Int32Value());
     }
+  }
+  // Blow away handler database
+  i::Isolate* isolate = i::Isolate::Current();
+  if (isolate->callback_table() != NULL) {
+    delete isolate->callback_table();
+    isolate->set_callback_table(NULL);
   }
   // Use SetCallHandler to initialize a function template, should work like the
   // previous one.
