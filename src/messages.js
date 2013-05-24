@@ -906,8 +906,8 @@ function CallSiteGetPosition() {
 
 function CallSiteIsConstructor() {
   var receiver = this[CallSiteReceiverKey];
-  var constructor =
-      IS_OBJECT(receiver) ? %GetDataProperty(receiver, "constructor") : null;
+  var constructor = (receiver != null && IS_OBJECT(receiver))
+                        ? %GetDataProperty(receiver, "constructor") : null;
   if (!constructor) return false;
   return this[CallSiteFunctionKey] === constructor;
 }
