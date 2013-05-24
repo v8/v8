@@ -1781,6 +1781,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
+      if (val->type().IsSmi()) {
+        return DefineSameAsFirst(new(zone()) LDummyUse(value));
+      }
       return AssignEnvironment(
           DefineSameAsFirst(new(zone()) LCheckSmiAndReturn(value)));
     } else {
