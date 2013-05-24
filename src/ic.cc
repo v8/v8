@@ -2892,7 +2892,7 @@ void CompareNilIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   Code::ExtraICState state = target->extended_extra_ic_state();
 
-  CompareNilICStub stub(state, CompareNilICStub::CODE_STUB_IS_MISS);
+  CompareNilICStub stub(state, HydrogenCodeStub::UNINITIALIZED);
   stub.ClearTypes();
 
   Code* code = NULL;

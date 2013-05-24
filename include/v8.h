@@ -2325,6 +2325,33 @@ class V8EXPORT Function : public Object {
   static void CheckCast(Value* obj);
 };
 
+/**
+ * The contents of an |ArrayBuffer|. Externalization of |ArrayBuffer|
+ * populates an instance of this class with a pointer to data and byte length.
+ *
+ * |ArrayBufferContents| is the owner of its data. When an instance of
+ * this class is destructed, the |Data| is freed.
+ *
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT ArrayBufferContents {
+ public:
+  ArrayBufferContents() : data_(NULL), byte_length_(0) {}
+  ~ArrayBufferContents();
+
+  void* Data() const { return data_; }
+  size_t ByteLength() const { return byte_length_; }
+
+ private:
+  void* data_;
+  size_t byte_length_;
+
+  friend class ArrayBuffer;
+};
+
+#ifndef V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT
+#define V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT 2
+#endif
 
 /**
  * An instance of the built-in ArrayBuffer constructor (ES6 draft 15.13.5).
@@ -2336,26 +2363,39 @@ class V8EXPORT ArrayBuffer : public Object {
    * Data length in bytes.
    */
   size_t ByteLength() const;
-  /**
-   * Raw pointer to the array buffer data
-   */
-  void* Data() const;
 
   /**
    * Create a new ArrayBuffer. Allocate |byte_length| bytes.
    * Allocated memory will be owned by a created ArrayBuffer and
-   * will be deallocated when it is garbage-collected.
+   * will be deallocated when it is garbage-collected,
+   * unless the object is externalized.
    */
   static Local<ArrayBuffer> New(size_t byte_length);
 
   /**
    * Create a new ArrayBuffer over an existing memory block.
+   * The created array buffer is immediately in externalized state.
    * The memory block will not be reclaimed when a created ArrayBuffer
    * is garbage-collected.
    */
   static Local<ArrayBuffer> New(void* data, size_t byte_length);
 
+  /**
+   * Returns true if ArrayBuffer is extrenalized, that is, does not
+   * own its memory block.
+   */
+  bool IsExternal() const;
+
+  /**
+   * Pass the ownership of this ArrayBuffer's backing store to
+   * a given ArrayBufferContents.
+   */
+  void Externalize(ArrayBufferContents* contents);
+
   V8_INLINE(static ArrayBuffer* Cast(Value* obj));
+
+
+  static const int kInternalFieldCount = V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT;
 
  private:
   ArrayBuffer();
@@ -4541,8 +4581,7 @@ class V8EXPORT V8 {
 
   static internal::Object** GlobalizeReference(internal::Isolate* isolate,
                                                internal::Object** handle);
-  static void DisposeGlobal(internal::Isolate* isolate,
-                            internal::Object** global_handle);
+  static void DisposeGlobal(internal::Object** global_handle);
   typedef WeakReferenceCallbacks<Value, void>::Revivable RevivableCallback;
   static void MakeWeak(internal::Isolate* isolate,
                        internal::Object** global_handle,
@@ -5231,7 +5270,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 127;
+  static const int kEmptyStringRootIndex = 129;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -5486,18 +5525,17 @@ bool Persistent<T>::IsWeak(Isolate* isolate) const {
 
 template <class T>
 void Persistent<T>::Dispose() {
-  Dispose(Isolate::GetCurrent());
+  if (this->IsEmpty()) return;
+  V8::DisposeGlobal(reinterpret_cast<internal::Object**>(this->val_));
+#ifndef V8_USE_UNSAFE_HANDLES
+  val_ = 0;
+#endif
 }
 
 
 template <class T>
 void Persistent<T>::Dispose(Isolate* isolate) {
-  if (this->IsEmpty()) return;
-  V8::DisposeGlobal(reinterpret_cast<internal::Isolate*>(isolate),
-                    reinterpret_cast<internal::Object**>(this->val_));
-#ifndef V8_USE_UNSAFE_HANDLES
-  val_ = 0;
-#endif
+  Dispose();
 }
 
 

@@ -1320,10 +1320,12 @@ void Genesis::InitializeExperimentalGlobal() {
   if (FLAG_harmony_array_buffer) {
     // -- A r r a y B u f f e r
     Handle<JSFunction> array_buffer_fun =
-        InstallFunction(global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
-                        JSArrayBuffer::kSize,
-                        isolate()->initial_object_prototype(),
-                        Builtins::kIllegal, true, true);
+        InstallFunction(
+            global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
+            JSArrayBuffer::kSize +
+              v8::ArrayBuffer::kInternalFieldCount * kPointerSize,
+            isolate()->initial_object_prototype(),
+            Builtins::kIllegal, true, true);
     native_context()->set_array_buffer_fun(*array_buffer_fun);
   }
 

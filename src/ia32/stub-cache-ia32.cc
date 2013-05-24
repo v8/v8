@@ -783,7 +783,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                                            Label* slow) {
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, Handle<Map>(object->map()),
-              miss_label, DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+              miss_label, DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -859,7 +859,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
     __ bind(&heap_number);
     __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
-                miss_restore_name, DONT_DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+                miss_restore_name, DONT_DO_SMI_CHECK);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
       __ movdbl(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
@@ -918,6 +918,8 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   // object and the number of in-object properties is not going to change.
   index -= object->map()->inobject_properties();
 
+  SmiCheck smi_check = representation.IsTagged()
+      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   // TODO(verwaest): Share this code as a code stub.
   if (index < 0) {
     // Set the property straight into the object.
@@ -940,7 +942,9 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                           offset,
                           name_reg,
                           scratch1,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   } else {
     // Write to the properties array.
@@ -965,7 +969,9 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                           offset,
                           name_reg,
                           receiver_reg,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   }
 
@@ -988,7 +994,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Label* miss_label) {
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, Handle<Map>(object->map()),
-              miss_label, DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+              miss_label, DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -1039,7 +1045,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ jmp(&do_store);
     __ bind(&heap_number);
     __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
-                miss_label, DONT_DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+                miss_label, DONT_DO_SMI_CHECK);
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope use_sse2(masm, SSE2);
       __ movdbl(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
@@ -1061,6 +1067,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   ASSERT(!FLAG_track_double_fields || !representation.IsDouble());
   // TODO(verwaest): Share this code as a code stub.
+  SmiCheck smi_check = representation.IsTagged()
+      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
@@ -1074,7 +1082,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                           offset,
                           name_reg,
                           scratch1,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   } else {
     // Write to the properties array.
@@ -1091,7 +1101,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                           offset,
                           name_reg,
                           receiver_reg,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   }
 
@@ -1187,8 +1199,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
       bool in_new_space = heap()->InNewSpace(*prototype);
       Handle<Map> current_map(current->map());
       if (!current.is_identical_to(first) || check == CHECK_ALL_MAPS) {
-        __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK,
-                    ALLOW_ELEMENT_TRANSITION_MAPS);
+        __ CheckMap(reg, current_map, miss, DONT_DO_SMI_CHECK);
       }
 
       // Check access rights to the global object.  This has to happen after
@@ -1229,8 +1240,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
 
   if (!holder.is_identical_to(first) || check == CHECK_ALL_MAPS) {
     // Check the holder map.
-    __ CheckMap(reg, Handle<Map>(holder->map()),
-                miss, DONT_DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+    __ CheckMap(reg, Handle<Map>(holder->map()), miss, DONT_DO_SMI_CHECK);
   }
 
   // Perform security check for access to the global object.
@@ -2886,8 +2896,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
   Label miss;
 
   // Check that the map of the object hasn't changed.
-  __ CheckMap(receiver(), Handle<Map>(object->map()),
-              &miss, DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+  __ CheckMap(receiver(), Handle<Map>(object->map()), &miss, DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {

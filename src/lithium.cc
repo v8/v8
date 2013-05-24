@@ -455,10 +455,7 @@ Handle<Code> LChunk::Codegen() {
   MarkEmptyBlocks();
 
   if (generator.GenerateCode()) {
-    if (FLAG_trace_codegen) {
-      PrintF("Crankshaft Compiler - ");
-    }
-    CodeGenerator::MakeCodePrologue(info());
+    CodeGenerator::MakeCodePrologue(info(), "optimized");
     Code::Flags flags = info()->flags();
     Handle<Code> code =
         CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());

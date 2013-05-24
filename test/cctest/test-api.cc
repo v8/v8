@@ -40,6 +40,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "arguments.h"
 #include "isolate.h"
 #include "compilation-cache.h"
 #include "execution.h"
@@ -820,12 +821,20 @@ static v8::Handle<Value> handle_call(const v8::Arguments& args) {
   return v8_num(102);
 }
 
+static v8::Handle<Value> handle_call_2(const v8::Arguments& args) {
+  return handle_call(args);
+}
+
 static v8::Handle<Value> handle_call_indirect(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
   CheckReturnValue(args);
   args.GetReturnValue().Set(v8_str("bad value"));
   args.GetReturnValue().Set(v8_num(102));
   return v8::Handle<Value>();
+}
+
+static v8::Handle<Value> handle_call_indirect_2(const v8::Arguments& args) {
+  return handle_call_indirect(args);
 }
 
 static void handle_callback(const v8::FunctionCallbackInfo<Value>& info) {
@@ -835,6 +844,9 @@ static void handle_callback(const v8::FunctionCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(v8_num(102));
 }
 
+static void handle_callback_2(const v8::FunctionCallbackInfo<Value>& info) {
+  return handle_callback(info);
+}
 
 static v8::Handle<Value> construct_call(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
@@ -894,7 +906,8 @@ static void Return239Callback(
 
 
 template<typename Handler>
-static void TestFunctionTemplateInitializer(Handler handler) {
+static void TestFunctionTemplateInitializer(Handler handler,
+                                            Handler handler_2) {
   // Test constructor calls.
   {
     LocalContext env;
@@ -952,9 +965,9 @@ static void TestFunctionTemplateAccessor(Constructor constructor,
 
 
 THREADED_TEST(FunctionTemplate) {
-  TestFunctionTemplateInitializer(handle_call);
-  TestFunctionTemplateInitializer(handle_call_indirect);
-  TestFunctionTemplateInitializer(handle_callback);
+  TestFunctionTemplateInitializer(handle_call, handle_call_2);
+  TestFunctionTemplateInitializer(handle_call_indirect, handle_call_indirect_2);
+  TestFunctionTemplateInitializer(handle_callback, handle_callback_2);
 
   TestFunctionTemplateAccessor(construct_call, Return239);
   TestFunctionTemplateAccessor(construct_call_indirect, Return239Indirect);
@@ -2493,7 +2506,7 @@ THREADED_TEST(SymbolProperties) {
 }
 
 
-THREADED_TEST(ArrayBuffer) {
+THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   i::FLAG_harmony_array_buffer = true;
   i::FLAG_harmony_typed_arrays = true;
 
@@ -2502,10 +2515,16 @@ THREADED_TEST(ArrayBuffer) {
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(1024);
+  CHECK_EQ(1024, static_cast<int>(ab->ByteLength()));
+  CHECK(!ab->IsExternal());
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 
-  CHECK_EQ(1024, static_cast<int>(ab->ByteLength()));
-  uint8_t* data = static_cast<uint8_t*>(ab->Data());
+  v8::ArrayBufferContents ab_contents;
+  ab->Externalize(&ab_contents);
+  CHECK(ab->IsExternal());
+
+  CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
+  uint8_t* data = static_cast<uint8_t*>(ab_contents.Data());
   ASSERT(data != NULL);
   env->Global()->Set(v8_str("ab"), ab);
 
@@ -2523,27 +2542,73 @@ THREADED_TEST(ArrayBuffer) {
   data[1] = 0x11;
   result = CompileRun("u8[0] + u8[1]");
   CHECK_EQ(0xDD, result->Int32Value());
+}
 
-  result = CompileRun("var ab1 = new ArrayBuffer(2);"
-                      "var u8_a = new Uint8Array(ab1);"
-                      "u8_a[0] = 0xAA;"
-                      "u8_a[1] = 0xFF; u8_a.buffer");
+
+THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
+  i::FLAG_harmony_array_buffer = true;
+  i::FLAG_harmony_typed_arrays = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+
+  v8::Handle<v8::Value> result =
+      CompileRun("var ab1 = new ArrayBuffer(2);"
+                 "var u8_a = new Uint8Array(ab1);"
+                 "u8_a[0] = 0xAA;"
+                 "u8_a[1] = 0xFF; u8_a.buffer");
   Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::Cast(*result);
   CHECK_EQ(2, static_cast<int>(ab1->ByteLength()));
-  uint8_t* ab1_data = static_cast<uint8_t*>(ab1->Data());
-  CHECK_EQ(0xAA, ab1_data[0]);
+  CHECK(!ab1->IsExternal());
+  v8::ArrayBufferContents ab1_contents;
+  ab1->Externalize(&ab1_contents);
+  CHECK(ab1->IsExternal());
+
+  result = CompileRun("ab1.byteLength");
+  CHECK_EQ(2, result->Int32Value());
+  result = CompileRun("u8_a[0]");
+  CHECK_EQ(0xAA, result->Int32Value());
+  result = CompileRun("u8_a[1]");
+  CHECK_EQ(0xFF, result->Int32Value());
+  result = CompileRun("var u8_b = new Uint8Array(ab1);"
+                      "u8_b[0] = 0xBB;"
+                      "u8_a[0]");
+  CHECK_EQ(0xBB, result->Int32Value());
+  result = CompileRun("u8_b[1]");
+  CHECK_EQ(0xFF, result->Int32Value());
+
+  CHECK_EQ(2, static_cast<int>(ab1_contents.ByteLength()));
+  uint8_t* ab1_data = static_cast<uint8_t*>(ab1_contents.Data());
+  CHECK_EQ(0xBB, ab1_data[0]);
   CHECK_EQ(0xFF, ab1_data[1]);
   ab1_data[0] = 0xCC;
   ab1_data[1] = 0x11;
   result = CompileRun("u8_a[0] + u8_a[1]");
   CHECK_EQ(0xDD, result->Int32Value());
+}
 
-  uint8_t* my_data = new uint8_t[100];
-  memset(my_data, 0, 100);
-  Local<v8::ArrayBuffer> ab3 = v8::ArrayBuffer::New(my_data, 100);
+
+THREADED_TEST(ArrayBuffer_External) {
+  i::FLAG_harmony_array_buffer = true;
+  i::FLAG_harmony_typed_arrays = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  i::ScopedVector<uint8_t> my_data(100);
+  memset(my_data.start(), 0, 100);
+  Local<v8::ArrayBuffer> ab3 = v8::ArrayBuffer::New(my_data.start(), 100);
   CHECK_EQ(100, static_cast<int>(ab3->ByteLength()));
-  CHECK_EQ(my_data, ab3->Data());
+  CHECK(ab3->IsExternal());
+
   env->Global()->Set(v8_str("ab3"), ab3);
+
+  v8::Handle<v8::Value> result = CompileRun("ab3.byteLength");
+  CHECK_EQ(100, result->Int32Value());
+
   result = CompileRun("var u8_b = new Uint8Array(ab3);"
                       "u8_b[0] = 0xBB;"
                       "u8_b[1] = 0xCC;"
@@ -2555,12 +2620,7 @@ THREADED_TEST(ArrayBuffer) {
   my_data[1] = 0x11;
   result = CompileRun("u8_b[0] + u8_b[1]");
   CHECK_EQ(0xDD, result->Int32Value());
-
-  delete[] my_data;
 }
-
-
-
 
 
 THREADED_TEST(HiddenProperties) {
@@ -15460,12 +15520,14 @@ void TypedArrayTestHelper(v8::ExternalArrayType array_type,
   i::FLAG_harmony_array_buffer = true;
   i::FLAG_harmony_typed_arrays = true;
 
+  i::ScopedVector<ElementType> backing_store(kElementCount+2);
+
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  Local<v8::ArrayBuffer> ab =
-      v8::ArrayBuffer::New((kElementCount+2)*sizeof(ElementType));
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(
+      backing_store.start(), (kElementCount+2)*sizeof(ElementType));
   Local<TypedArray> ta =
       TypedArray::New(ab, 2*sizeof(ElementType), kElementCount);
   CHECK_EQ(kElementCount, static_cast<int>(ta->Length()));
@@ -15474,7 +15536,7 @@ void TypedArrayTestHelper(v8::ExternalArrayType array_type,
            static_cast<int>(ta->ByteLength()));
   CHECK_EQ(ab, ta->Buffer());
 
-  ElementType* data = static_cast<ElementType*>(ab->Data()) + 2;
+  ElementType* data = backing_store.start() + 2;
   for (int i = 0; i < kElementCount; i++) {
     data[i] = static_cast<ElementType>(i);
   }

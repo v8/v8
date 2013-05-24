@@ -1542,6 +1542,13 @@ MaybeObject* JSObject::MigrateInstance() {
 }
 
 
+MaybeObject* JSObject::TryMigrateInstance() {
+  Map* new_map = map()->CurrentMapForDeprecated();
+  if (new_map == NULL) return Smi::FromInt(0);
+  return MigrateToMap(new_map);
+}
+
+
 Handle<String> JSObject::ExpectedTransitionKey(Handle<Map> map) {
   AssertNoAllocation no_gc;
   if (!map->HasTransitionArray()) return Handle<String>::null();
@@ -3592,6 +3599,16 @@ bool Map::is_deprecated() {
 }
 
 
+void Map::freeze() {
+  set_bit_field3(IsFrozen::update(bit_field3(), true));
+}
+
+
+bool Map::is_frozen() {
+  return IsFrozen::decode(bit_field3());
+}
+
+
 bool Map::CanBeDeprecated() {
   int descriptor = LastAdded();
   for (int i = 0; i <= descriptor; i++) {
@@ -5303,13 +5320,23 @@ void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
 
 
 ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
+ACCESSORS_TO_SMI(JSArrayBuffer, flag, kFlagOffset)
+
+
+bool JSArrayBuffer::is_external() {
+  return BooleanBit::get(flag(), kIsExternalBit);
+}
+
+
+void JSArrayBuffer::set_is_external(bool value) {
+  set_flag(BooleanBit::set(flag(), kIsExternalBit, value));
+}
 
 
 ACCESSORS(JSTypedArray, buffer, Object, kBufferOffset)
 ACCESSORS(JSTypedArray, byte_offset, Object, kByteOffsetOffset)
 ACCESSORS(JSTypedArray, byte_length, Object, kByteLengthOffset)
 ACCESSORS(JSTypedArray, length, Object, kLengthOffset)
-
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 

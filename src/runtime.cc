@@ -658,28 +658,37 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
   Isolate* isolate = reinterpret_cast<Isolate*>(external_isolate);
   HandleScope scope(isolate);
   Handle<Object> internal_object = Utils::OpenHandle(**object);
+  Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(*internal_object));
 
-  size_t allocated_length = NumberToSize(
-      isolate, JSArrayBuffer::cast(*internal_object)->byte_length());
-  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<intptr_t>(allocated_length));
-  if (data != NULL)
+  if (!array_buffer->is_external()) {
+    size_t allocated_length = NumberToSize(
+        isolate, array_buffer->byte_length());
+    isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
+        -static_cast<intptr_t>(allocated_length));
     free(data);
+  }
   object->Dispose(external_isolate);
 }
 
 
-bool Runtime::SetupArrayBuffer(Isolate* isolate,
+void Runtime::SetupArrayBuffer(Isolate* isolate,
                                Handle<JSArrayBuffer> array_buffer,
+                               bool is_external,
                                void* data,
                                size_t allocated_length) {
+  ASSERT(array_buffer->GetInternalFieldCount() ==
+      v8::ArrayBuffer::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBuffer::kInternalFieldCount; i++) {
+    array_buffer->SetInternalField(i, Smi::FromInt(0));
+  }
   array_buffer->set_backing_store(data);
+  array_buffer->set_flag(Smi::FromInt(0));
+  array_buffer->set_is_external(is_external);
 
   Handle<Object> byte_length =
       isolate->factory()->NewNumberFromSize(allocated_length);
   CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
   array_buffer->set_byte_length(*byte_length);
-  return true;
 }
 
 
@@ -696,8 +705,7 @@ bool Runtime::SetupArrayBufferAllocatingData(
     data = NULL;
   }
 
-  if (!SetupArrayBuffer(isolate, array_buffer, data, allocated_length))
-    return false;
+  SetupArrayBuffer(isolate, array_buffer, false, data, allocated_length);
 
   v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Persistent<v8::Value> weak_handle = v8::Persistent<v8::Value>::New(
@@ -2689,6 +2697,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ThrowGeneratorStateError) {
   Vector< Handle<Object> > argv = HandleVector<Object>(NULL, 0);
   Handle<Object> error = isolate->factory()->NewError(message, argv);
   return isolate->Throw(*error);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectFreeze) {
+  NoHandleAllocation ha(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  return object->Freeze(isolate);
 }
 
 
@@ -5647,11 +5663,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIEscape) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
   Handle<String> string = FlattenGetString(source);
-  String::FlatContent content = string->GetFlatContent();
-  ASSERT(content.IsFlat());
-  Handle<String> result =
-      content.IsAscii() ? URIEscape::Escape<uint8_t>(isolate, source)
-                        : URIEscape::Escape<uc16>(isolate, source);
+  ASSERT(string->IsFlat());
+  Handle<String> result = string->IsOneByteRepresentationUnderneath()
+      ? URIEscape::Escape<uint8_t>(isolate, source)
+      : URIEscape::Escape<uc16>(isolate, source);
   if (result.is_null()) return Failure::OutOfMemoryException(0x12);
   return *result;
 }
@@ -5662,10 +5677,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIUnescape) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
   Handle<String> string = FlattenGetString(source);
-  String::FlatContent content = string->GetFlatContent();
-  ASSERT(content.IsFlat());
-  return content.IsAscii() ? *URIUnescape::Unescape<uint8_t>(isolate, source)
-                           : *URIUnescape::Unescape<uc16>(isolate, source);
+  ASSERT(string->IsFlat());
+  return string->IsOneByteRepresentationUnderneath()
+      ? *URIUnescape::Unescape<uint8_t>(isolate, source)
+      : *URIUnescape::Unescape<uc16>(isolate, source);
 }
 
 
@@ -6194,6 +6209,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     elements = Handle<FixedArray>(FixedArray::cast(obj), isolate);
+    AssertNoAllocation no_gc;
     String::FlatContent content = s->GetFlatContent();
     if (content.IsAscii()) {
       Vector<const uint8_t> chars = content.ToOneByteVector();
@@ -7060,6 +7076,7 @@ static Object* FlatStringCompare(String* x, String* y) {
     equal_prefix_result = Smi::FromInt(LESS);
   }
   int r;
+  AssertNoAllocation no_gc;
   String::FlatContent x_content = x->GetFlatContent();
   String::FlatContent y_content = y->GetFlatContent();
   if (x_content.IsAscii()) {
@@ -13279,6 +13296,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Log) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(String, format, 0);
   CONVERT_ARG_CHECKED(JSArray, elms, 1);
+  AssertNoAllocation no_gc;
   String::FlatContent format_content = format->GetFlatContent();
   RUNTIME_ASSERT(format_content.IsAscii());
   Vector<const uint8_t> chars = format_content.ToOneByteVector();
@@ -13305,6 +13323,7 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastSmiOrObjectElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastDoubleElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastHoleyElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(DictionaryElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(NonStrictArgumentsElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalPixelElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalArrayElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalByteElements)

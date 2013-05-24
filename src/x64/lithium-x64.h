@@ -76,6 +76,7 @@ class LCodeGen;
   V(CheckNonSmi)                                \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
+  V(CheckSmiAndReturn)                          \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
@@ -95,6 +96,7 @@ class LCodeGen;
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
+  V(DoubleToSmi)                                \
   V(DummyUse)                                   \
   V(ElementsKind)                               \
   V(FixedArrayBaseLength)                       \
@@ -112,6 +114,7 @@ class LCodeGen;
   V(InstanceSize)                               \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
+  V(Integer32ToSmi)                             \
   V(Uint32ToDouble)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
@@ -1887,6 +1890,19 @@ class LInteger32ToDouble: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LInteger32ToSmi: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LInteger32ToSmi(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Integer32ToSmi, "int32-to-smi")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
+};
+
+
 class LUint32ToDouble: public LTemplateInstruction<1, 1, 1> {
  public:
   explicit LUint32ToDouble(LOperand* value, LOperand* temp) {
@@ -1958,6 +1974,19 @@ class LDoubleToI: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LDoubleToSmi: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LDoubleToSmi(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DoubleToSmi, "double-to-smi")
+  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
+};
+
+
 // Truncating conversion from a tagged value to an int32.
 class LTaggedToI: public LTemplateInstruction<1, 1, 1> {
  public:
@@ -2011,6 +2040,7 @@ class LSmiUntag: public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
   bool needs_check() const { return needs_check_; }
 
+  DECLARE_HYDROGEN_ACCESSOR(Change);
   DECLARE_CONCRETE_INSTRUCTION(SmiUntag, "smi-untag")
 
  private:
@@ -2274,6 +2304,18 @@ class LCheckSmi: public LTemplateInstruction<0, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckSmi, "check-smi")
+};
+
+
+class LCheckSmiAndReturn: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LCheckSmiAndReturn(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckSmiAndReturn, "check-smi-and-return")
 };
 
 

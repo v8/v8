@@ -70,6 +70,7 @@ class LCodeGen;
   V(CheckNonSmi)                                \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
+  V(CheckSmiAndReturn)                          \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
@@ -90,6 +91,7 @@ class LCodeGen;
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
+  V(DoubleToSmi)                                \
   V(DummyUse)                                   \
   V(ElementsKind)                               \
   V(FixedArrayBaseLength)                       \
@@ -106,6 +108,7 @@ class LCodeGen;
   V(InstanceSize)                               \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
+  V(Integer32ToSmi)                             \
   V(Uint32ToDouble)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
@@ -1593,7 +1596,7 @@ inline static bool ExternalArrayOpRequiresTemp(
   // Operations that require the key to be divided by two to be converted into
   // an index cannot fold the scale operation into a load and need an extra
   // temp register to do the work.
-  return key_representation.IsTagged() &&
+  return key_representation.IsSmi() &&
       (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
        elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
        elements_kind == EXTERNAL_PIXEL_ELEMENTS);
@@ -1998,6 +2001,19 @@ class LInteger32ToDouble: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LInteger32ToSmi: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LInteger32ToSmi(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Integer32ToSmi, "int32-to-smi")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
+};
+
+
 class LUint32ToDouble: public LTemplateInstruction<1, 1, 1> {
  public:
   explicit LUint32ToDouble(LOperand* value, LOperand* temp) {
@@ -2066,6 +2082,19 @@ class LDoubleToI: public LTemplateInstruction<1, 1, 1> {
   DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
+};
+
+
+class LDoubleToSmi: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LDoubleToSmi(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DoubleToSmi, "double-to-smi")
+  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
 };
 
 
@@ -2153,6 +2182,7 @@ class LSmiUntag: public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SmiUntag, "smi-untag")
+  DECLARE_HYDROGEN_ACCESSOR(Change);
 
   bool needs_check() const { return needs_check_; }
 
@@ -2441,6 +2471,18 @@ class LCheckSmi: public LTemplateInstruction<0, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckSmi, "check-smi")
+};
+
+
+class LCheckSmiAndReturn: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LCheckSmiAndReturn(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckSmiAndReturn, "check-smi-and-return")
 };
 
 

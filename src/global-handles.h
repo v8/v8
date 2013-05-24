@@ -128,7 +128,7 @@ class GlobalHandles {
   Handle<Object> Create(Object* value);
 
   // Destroy a global handle.
-  void Destroy(Object** location);
+  static void Destroy(Object** location);
 
   typedef WeakReferenceCallbacks<v8::Value, void>::Revivable RevivableCallback;
 

@@ -39,7 +39,7 @@ enum PropertyAttributes {
   DONT_ENUM         = v8::DontEnum,
   DONT_DELETE       = v8::DontDelete,
 
-  SEALED            = DONT_ENUM | DONT_DELETE,
+  SEALED            = DONT_DELETE,
   FROZEN            = SEALED | READ_ONLY,
 
   SYMBOLIC          = 8,  // Used to filter symbol names
@@ -131,6 +131,7 @@ class Representation {
   bool IsNone() const { return kind_ == kNone; }
   bool IsTagged() const { return kind_ == kTagged; }
   bool IsSmi() const { return kind_ == kSmi; }
+  bool IsSmiOrTagged() const { return IsSmi() || IsTagged(); }
   bool IsInteger32() const { return kind_ == kInteger32; }
   bool IsDouble() const { return kind_ == kDouble; }
   bool IsHeapObject() const { return kind_ == kHeapObject; }
@@ -179,6 +180,11 @@ class PropertyDetails BASE_EMBEDDED {
 
   PropertyDetails CopyWithRepresentation(Representation representation) {
     return PropertyDetails(value_, representation);
+  }
+  PropertyDetails CopyAddAttributes(PropertyAttributes new_attributes) {
+    new_attributes =
+        static_cast<PropertyAttributes>(attributes() | new_attributes);
+    return PropertyDetails(value_, new_attributes);
   }
 
   // Conversion for storing details as Object*.
@@ -236,6 +242,9 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails(int value, Representation representation) {
     value_ = RepresentationField::update(
         value, EncodeRepresentation(representation));
+  }
+  PropertyDetails(int value, PropertyAttributes attributes) {
+    value_ = AttributesField::update(value, attributes);
   }
 
   uint32_t value_;

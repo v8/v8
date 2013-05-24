@@ -462,7 +462,7 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, scratch1, Handle<Map>(object->map()), miss_label,
-              DO_SMI_CHECK, REQUIRE_EXACT_MAP);
+              DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -581,6 +581,8 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   index -= object->map()->inobject_properties();
 
   // TODO(verwaest): Share this code as a code stub.
+  SmiCheck smi_check = representation.IsTagged()
+      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
@@ -606,7 +608,9 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                           name_reg,
                           scratch1,
                           kLRHasNotBeenSaved,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   } else {
     // Write to the properties array.
@@ -636,7 +640,9 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                           name_reg,
                           receiver_reg,
                           kLRHasNotBeenSaved,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   }
 
@@ -665,7 +671,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver_reg, scratch1, Handle<Map>(object->map()), miss_label,
-              DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+              DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -723,6 +729,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   }
 
   // TODO(verwaest): Share this code as a code stub.
+  SmiCheck smi_check = representation.IsTagged()
+      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   if (index < 0) {
     // Set the property straight into the object.
     int offset = object->map()->instance_size() + (index * kPointerSize);
@@ -740,7 +748,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                           name_reg,
                           scratch1,
                           kLRHasNotBeenSaved,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   } else {
     // Write to the properties array.
@@ -762,7 +772,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                           name_reg,
                           receiver_reg,
                           kLRHasNotBeenSaved,
-                          kDontSaveFPRegs);
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          smi_check);
     }
   }
 
@@ -1247,8 +1259,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
       if (!current.is_identical_to(first) || check == CHECK_ALL_MAPS) {
         Handle<Map> current_map(current->map());
         // CheckMap implicitly loads the map of |reg| into |map_reg|.
-        __ CheckMap(reg, map_reg, current_map, miss, DONT_DO_SMI_CHECK,
-                    ALLOW_ELEMENT_TRANSITION_MAPS);
+        __ CheckMap(reg, map_reg, current_map, miss, DONT_DO_SMI_CHECK);
       } else {
         __ ldr(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
       }
@@ -1285,7 +1296,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   if (!holder.is_identical_to(first) || check == CHECK_ALL_MAPS) {
     // Check the holder map.
     __ CheckMap(reg, scratch1, Handle<Map>(holder->map()), miss,
-                DONT_DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+                DONT_DO_SMI_CHECK);
   }
 
   // Perform security check for access to the global object.
@@ -2797,7 +2808,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 
   // Check that the map of the object hasn't changed.
   __ CheckMap(receiver(), scratch1(), Handle<Map>(object->map()), &miss,
-              DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+              DO_SMI_CHECK);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {

@@ -645,11 +645,8 @@ void V8::ClearWeak(i::Isolate* isolate, i::Object** obj) {
 }
 
 
-void V8::DisposeGlobal(i::Isolate* isolate, i::Object** obj) {
-  ASSERT(isolate == i::Isolate::Current());
-  LOG_API(isolate, "DisposeGlobal");
-  if (!isolate->IsInitialized()) return;
-  isolate->global_handles()->Destroy(obj);
+void V8::DisposeGlobal(i::Object** obj) {
+  i::GlobalHandles::Destroy(obj);
 }
 
 // --- H a n d l e s ---
@@ -985,7 +982,7 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 
 template<typename Callback>
 static Local<FunctionTemplate> FunctionTemplateNew(
-    Callback callback_in,
+    Callback callback,
     v8::Handle<Value> data,
     v8::Handle<Signature> signature,
     int length) {
@@ -1001,10 +998,8 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   int next_serial_number = isolate->next_serial_number();
   isolate->set_next_serial_number(next_serial_number + 1);
   obj->set_serial_number(i::Smi::FromInt(next_serial_number));
-  if (callback_in != 0) {
+  if (callback != 0) {
     if (data.IsEmpty()) data = v8::Undefined();
-    InvocationCallback callback =
-        i::CallbackTable::Register(isolate, callback_in);
     Utils::ToLocal(obj)->SetCallHandler(callback, data);
   }
   obj->set_length(length);
@@ -1228,7 +1223,7 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 
 template<typename Callback>
 static void FunctionTemplateSetCallHandler(FunctionTemplate* function_template,
-                                           Callback callback,
+                                           Callback callback_in,
                                            v8::Handle<Value> data) {
   i::Isolate* isolate = Utils::OpenHandle(function_template)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetCallHandler()")) return;
@@ -1238,6 +1233,8 @@ static void FunctionTemplateSetCallHandler(FunctionTemplate* function_template,
       isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
+  InvocationCallback callback =
+      i::CallbackTable::Register(isolate, callback_in);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
@@ -6019,19 +6016,37 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
 }
 
 
+bool v8::ArrayBuffer::IsExternal() const {
+  return Utils::OpenHandle(this)->is_external();
+}
+
+v8::ArrayBufferContents::~ArrayBufferContents() {
+  free(data_);
+  data_ = NULL;
+  byte_length_ = 0;
+}
+
+
+void v8::ArrayBuffer::Externalize(ArrayBufferContents* contents) {
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  ApiCheck(!obj->is_external(),
+            "v8::ArrayBuffer::Externalize",
+            "ArrayBuffer already externalized");
+  obj->set_is_external(true);
+  size_t byte_length = static_cast<size_t>(obj->byte_length()->Number());
+  ApiCheck(contents->data_ == NULL,
+           "v8::ArrayBuffer::Externalize",
+           "Externalizing into non-empty ArrayBufferContents");
+  contents->data_ = obj->backing_store();
+  contents->byte_length_ = byte_length;
+}
+
+
 size_t v8::ArrayBuffer::ByteLength() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::ArrayBuffer::ByteLength()")) return 0;
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->byte_length()->Number());
-}
-
-
-void* v8::ArrayBuffer::Data() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::ArrayBuffer::Data()")) return 0;
-  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
-  return obj->backing_store();
 }
 
 
@@ -6054,7 +6069,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(void* data, size_t byte_length) {
   ENTER_V8(isolate);
   i::Handle<i::JSArrayBuffer> obj =
       isolate->factory()->NewJSArrayBuffer();
-  i::Runtime::SetupArrayBuffer(isolate, obj, data, byte_length);
+  i::Runtime::SetupArrayBuffer(isolate, obj, true, data, byte_length);
   return Utils::ToLocal(obj);
 }
 

@@ -252,6 +252,14 @@ void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
 }
 
 
+void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
+                       FmtElm arg2, FmtElm arg3, FmtElm arg4) {
+  const char argc = 5;
+  FmtElm argv[argc] = { arg0, arg1, arg2, arg3, arg4 };
+  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
+}
+
+
 SmartArrayPointer<const char> StringStream::ToCString() const {
   char* str = NewArray<char>(length_ + 1);
   OS::MemCopy(str, buffer_, length_);

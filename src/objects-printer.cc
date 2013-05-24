@@ -889,6 +889,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
          has_only_simple_this_property_assignments());
   PrintF(out, "\n - this_property_assignments = ");
   this_property_assignments()->ShortPrint(out);
+  PrintF(out, "\n - optimized_code_map = ");
+  optimized_code_map()->ShortPrint(out);
   PrintF(out, "\n");
 }
 

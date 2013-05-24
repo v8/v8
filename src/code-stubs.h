@@ -277,7 +277,6 @@ struct CodeStubInterfaceDescriptor {
   StubFunctionMode function_mode_;
   Register* register_params_;
   Address deoptimization_handler_;
-  ExternalReference miss_handler_;
 
   int environment_length() const {
     if (stack_parameter_count_ != NULL) {
@@ -287,6 +286,24 @@ struct CodeStubInterfaceDescriptor {
   }
 
   bool initialized() const { return register_param_count_ >= 0; }
+
+  void SetMissHandler(ExternalReference handler) {
+    miss_handler_ = handler;
+    has_miss_handler_ = true;
+  }
+
+  ExternalReference miss_handler() {
+    ASSERT(has_miss_handler_);
+    return miss_handler_;
+  }
+
+  bool has_miss_handler() {
+    return has_miss_handler_;
+  }
+
+ private:
+  ExternalReference miss_handler_;
+  bool has_miss_handler_;
 };
 
 // A helper to make up for the fact that type Register is not fully
@@ -300,12 +317,12 @@ struct CodeStubInterfaceDescriptor {
 class HydrogenCodeStub : public CodeStub {
  public:
   enum InitializationState {
-    CODE_STUB_IS_NOT_MISS,
-    CODE_STUB_IS_MISS
+    UNINITIALIZED,
+    INITIALIZED
   };
 
-  explicit HydrogenCodeStub(InitializationState state) {
-    is_miss_ = (state == CODE_STUB_IS_MISS);
+  explicit HydrogenCodeStub(InitializationState state = INITIALIZED) {
+    is_uninitialized_ = (state == UNINITIALIZED);
   }
 
   virtual Code::Kind GetCodeKind() const { return Code::STUB; }
@@ -314,7 +331,7 @@ class HydrogenCodeStub : public CodeStub {
     return isolate->code_stub_interface_descriptor(MajorKey());
   }
 
-  bool IsMiss() { return is_miss_; }
+  bool IsUninitialized() { return is_uninitialized_; }
 
   template<class SubClass>
   static Handle<Code> GetUninitialized(Isolate* isolate) {
@@ -339,11 +356,11 @@ class HydrogenCodeStub : public CodeStub {
 
   void GenerateLightweightMiss(MacroAssembler* masm);
   virtual int MinorKey() {
-    return IsMissBits::encode(is_miss_) |
+    return IsMissBits::encode(is_uninitialized_) |
         MinorKeyBits::encode(NotMissMinorKey());
   }
 
-  bool is_miss_;
+  bool is_uninitialized_;
 };
 
 
@@ -516,8 +533,7 @@ class FastCloneShallowArrayStub : public HydrogenCodeStub {
   FastCloneShallowArrayStub(Mode mode,
                             AllocationSiteMode allocation_site_mode,
                             int length)
-      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS),
-        mode_(mode),
+      : mode_(mode),
         allocation_site_mode_(allocation_site_mode),
         length_((mode == COPY_ON_WRITE_ELEMENTS) ? 0 : length) {
     ASSERT_GE(length_, 0);
@@ -577,8 +593,7 @@ class FastCloneShallowObjectStub : public HydrogenCodeStub {
   static const int kMaximumClonedProperties = 6;
 
   explicit FastCloneShallowObjectStub(int length)
-      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS),
-        length_(length) {
+      : length_(length) {
     ASSERT_GE(length_, 0);
     ASSERT_LE(length_, kMaximumClonedProperties);
   }
@@ -763,7 +778,7 @@ class HICStub: public HydrogenCodeStub {
   virtual InlineCacheState GetICState() { return MONOMORPHIC; }
 
  protected:
-  HICStub() : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) { }
+  HICStub() { }
   class KindBits: public BitField<Code::Kind, 0, 4> {};
   virtual Code::Kind kind() const = 0;
 };
@@ -1076,14 +1091,15 @@ class CompareNilICStub : public HydrogenCodeStub  {
   // boolean flags we need to store. :-P
   STATIC_ASSERT(NUMBER_OF_TYPES <= 6);
 
-  CompareNilICStub(EqualityKind kind, NilValue nil, Types types)
-      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS), types_(types) {
+  CompareNilICStub(EqualityKind kind, NilValue nil, Types types = Types())
+      : types_(types) {
     equality_kind_ = kind;
     nil_value_ = nil;
   }
 
-  explicit CompareNilICStub(Code::ExtraICState ic_state)
-      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {
+  CompareNilICStub(Code::ExtraICState ic_state,
+                   InitializationState init_state = INITIALIZED)
+      : HydrogenCodeStub(init_state) {
     equality_kind_ = EqualityKindField::decode(ic_state);
     nil_value_ = NilValueField::decode(ic_state);
     types_ = Types(ExtractTypesFromExtraICState(ic_state));
@@ -1092,7 +1108,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
   static Handle<Code> GetUninitialized(Isolate* isolate,
                                        EqualityKind kind,
                                        NilValue nil) {
-    return CompareNilICStub(kind, nil, CODE_STUB_IS_MISS).GetCode(isolate);
+    return CompareNilICStub(kind, nil, UNINITIALIZED).GetCode(isolate);
   }
 
   virtual void InitializeInterfaceDescriptor(
@@ -1100,8 +1116,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
       CodeStubInterfaceDescriptor* descriptor);
 
   static void InitializeForIsolate(Isolate* isolate) {
-    CompareNilICStub compare_stub(kStrictEquality, kNullValue,
-                                  CODE_STUB_IS_MISS);
+    CompareNilICStub compare_stub(kStrictEquality, kNullValue, UNINITIALIZED);
     compare_stub.InitializeInterfaceDescriptor(
         isolate,
         isolate->code_stub_interface_descriptor(CodeStub::CompareNilIC));
@@ -1148,16 +1163,9 @@ class CompareNilICStub : public HydrogenCodeStub  {
 
   CompareNilICStub(EqualityKind kind, NilValue nil,
                    InitializationState init_state)
-      : HydrogenCodeStub(init_state), types_(0) {
+      : HydrogenCodeStub(init_state) {
     equality_kind_ = kind;
     nil_value_ = nil;
-  }
-
-  CompareNilICStub(Code::ExtraICState ic_state, InitializationState init_state)
-      : HydrogenCodeStub(init_state) {
-    equality_kind_ = EqualityKindField::decode(ic_state);
-    nil_value_ = NilValueField::decode(ic_state);
-    types_ = Types(ExtractTypesFromExtraICState(ic_state));
   }
 
   class EqualityKindField : public BitField<EqualityKind, NUMBER_OF_TYPES, 1> {
@@ -1567,8 +1575,7 @@ class KeyedLoadDictionaryElementStub : public PlatformCodeStub {
 
 class KeyedLoadFastElementStub : public HydrogenCodeStub {
  public:
-  KeyedLoadFastElementStub(bool is_js_array, ElementsKind elements_kind)
-      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {
+  KeyedLoadFastElementStub(bool is_js_array, ElementsKind elements_kind) {
     bit_field_ = ElementsKindBits::encode(elements_kind) |
         IsJSArrayBits::encode(is_js_array);
   }
@@ -1603,8 +1610,7 @@ class KeyedStoreFastElementStub : public HydrogenCodeStub {
  public:
   KeyedStoreFastElementStub(bool is_js_array,
                             ElementsKind elements_kind,
-                            KeyedAccessStoreMode mode)
-      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {
+                            KeyedAccessStoreMode mode) {
     bit_field_ = ElementsKindBits::encode(elements_kind) |
         IsJSArrayBits::encode(is_js_array) |
         StoreModeBits::encode(mode);
@@ -1644,8 +1650,7 @@ class KeyedStoreFastElementStub : public HydrogenCodeStub {
 class TransitionElementsKindStub : public HydrogenCodeStub {
  public:
   TransitionElementsKindStub(ElementsKind from_kind,
-                             ElementsKind to_kind)
-      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {
+                             ElementsKind to_kind) {
     bit_field_ = FromKindBits::encode(from_kind) |
         ToKindBits::encode(to_kind);
   }
@@ -1678,8 +1683,7 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 
 class ArrayConstructorStubBase : public HydrogenCodeStub {
  public:
-  ArrayConstructorStubBase(ElementsKind kind, AllocationSiteMode mode)
-      : HydrogenCodeStub(CODE_STUB_IS_NOT_MISS) {
+  ArrayConstructorStubBase(ElementsKind kind, AllocationSiteMode mode) {
     bit_field_ = ElementsKindBits::encode(kind) |
         AllocationSiteModeBits::encode(mode == TRACK_ALLOCATION_SITE);
   }

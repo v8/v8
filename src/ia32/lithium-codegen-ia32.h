@@ -111,6 +111,7 @@ class LCodeGen BASE_EMBEDDED {
   bool IsX87TopOfStack(LOperand* op) const;
 
   bool IsInteger32(LConstantOperand* op) const;
+  bool IsSmi(LConstantOperand* op) const;
   Immediate ToInteger32Immediate(LOperand* op) const {
     return Immediate(ToInteger32(LConstantOperand::cast(op)));
   }
@@ -160,8 +161,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
 
-  void DoCheckMapCommon(Register reg, Handle<Map> map,
-                        CompareMapMode mode, LInstruction* instr);
+  void DoCheckMapCommon(Register reg, Handle<Map> map, LInstruction* instr);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);

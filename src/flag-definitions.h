@@ -192,7 +192,7 @@ DEFINE_bool(compiled_keyed_stores, true, "use optimizing compiler to "
 DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
-DEFINE_bool(pretenure_literals, true, "allocate literals in old space")
+DEFINE_bool(pretenuring, true, "allocate objects in old space")
 DEFINE_bool(track_fields, true, "track fields with only smi values")
 DEFINE_bool(track_double_fields, true, "track fields with double values")
 DEFINE_bool(track_heap_object_fields, true, "track fields with heap values")
@@ -258,7 +258,7 @@ DEFINE_bool(unreachable_code_elimination, false,
             "eliminate unreachable code (hidden behind soft deopts)")
 DEFINE_bool(track_allocation_sites, true,
             "Use allocation site info to reduce transitions")
-DEFINE_bool(optimize_constructed_arrays, false,
+DEFINE_bool(optimize_constructed_arrays, true,
             "Use allocation site info on constructed arrays")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
@@ -377,6 +377,8 @@ DEFINE_bool(stack_trace_on_abort, true,
             "print a stack trace if an assertion failure occurs")
 
 // codegen-ia32.cc / codegen-arm.cc
+DEFINE_bool(trace_codegen, false,
+            "print name of functions for which code is generated")
 DEFINE_bool(trace, false, "trace function calls")
 DEFINE_bool(mask_constants_with_cookie,
             true,
@@ -636,8 +638,6 @@ DEFINE_bool(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
 
 // codegen-ia32.cc / codegen-arm.cc
-DEFINE_bool(trace_codegen, false,
-            "print name of functions for which code is generated")
 DEFINE_bool(print_source, false, "pretty print source code")
 DEFINE_bool(print_builtin_source, false,
             "pretty print source code for builtins")

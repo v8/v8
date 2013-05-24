@@ -435,6 +435,12 @@ bool LCodeGen::IsInteger32Constant(LConstantOperand* op) const {
 }
 
 
+bool LCodeGen::IsSmiConstant(LConstantOperand* op) const {
+  return op->IsConstantOperand() &&
+      chunk_->LookupLiteralRepresentation(op).IsSmi();
+}
+
+
 bool LCodeGen::IsTaggedConstant(LConstantOperand* op) const {
   return op->IsConstantOperand() &&
       chunk_->LookupLiteralRepresentation(op).IsTagged();
@@ -456,7 +462,7 @@ double LCodeGen::ToDouble(LConstantOperand* op) const {
 
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  ASSERT(chunk_->LookupLiteralRepresentation(op).IsTagged());
+  ASSERT(chunk_->LookupLiteralRepresentation(op).IsSmiOrTagged());
   return constant->handle();
 }
 
@@ -1666,11 +1672,32 @@ void LCodeGen::DoDateField(LDateField* instr) {
 
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
-  SeqStringSetCharGenerator::Generate(masm(),
-                                      instr->encoding(),
-                                      ToRegister(instr->string()),
-                                      ToRegister(instr->index()),
-                                      ToRegister(instr->value()));
+  Register string = ToRegister(instr->string());
+  Register index = ToRegister(instr->index());
+  Register value = ToRegister(instr->value());
+  String::Encoding encoding = instr->encoding();
+
+  if (FLAG_debug_code) {
+    __ push(value);
+    __ movq(value, FieldOperand(string, HeapObject::kMapOffset));
+    __ movzxbq(value, FieldOperand(value, Map::kInstanceTypeOffset));
+
+    __ andb(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ cmpq(value, Immediate(encoding == String::ONE_BYTE_ENCODING
+                                 ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(equal, "Unexpected string type");
+    __ pop(value);
+  }
+
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ movb(FieldOperand(string, index, times_1, SeqString::kHeaderSize),
+            value);
+  } else {
+    __ movw(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
+            value);
+  }
 }
 
 
@@ -1877,6 +1904,10 @@ void LCodeGen::DoBranch(LBranch* instr) {
     Register reg = ToRegister(instr->value());
     __ testl(reg, reg);
     EmitBranch(true_block, false_block, not_zero);
+  } else if (r.IsSmi()) {
+    Register reg = ToRegister(instr->value());
+    __ testq(reg, reg);
+    EmitBranch(true_block, false_block, not_zero);
   } else if (r.IsDouble()) {
     XMMRegister reg = ToDoubleRegister(instr->value());
     __ xorps(xmm0, xmm0);
@@ -2072,9 +2103,11 @@ void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
 
   if (instr->right()->IsConstantOperand()) {
-    __ Cmp(left, ToHandle(LConstantOperand::cast(instr->right())));
+    Handle<Object> right = ToHandle(LConstantOperand::cast(instr->right()));
+    __ CmpObject(left, right);
   } else {
-    __ cmpq(left, ToRegister(instr->right()));
+    Register right = ToRegister(instr->right());
+    __ cmpq(left, right);
   }
   EmitBranch(true_block, false_block, equal);
 }
@@ -2767,7 +2800,7 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
     bool last = (i == map_count - 1);
     Handle<Map> map = instr->hydrogen()->types()->at(i);
     Label check_passed;
-    __ CompareMap(object, map, &check_passed, ALLOW_ELEMENT_TRANSITION_MAPS);
+    __ CompareMap(object, map, &check_passed);
     if (last && !need_generic) {
       DeoptimizeIf(not_equal, instr->environment());
       __ bind(&check_passed);
@@ -2889,7 +2922,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     // gets replaced during bound check elimination with the index argument
     // to the bounds check, which can be tagged, so that case must be
     // handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -2962,7 +2995,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
     // representation for the key to be an integer, the input gets replaced
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -3004,7 +3037,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     // gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that
     // case must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -3905,12 +3938,9 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (FLAG_track_fields && representation.IsSmi()) {
     if (instr->value()->IsConstantOperand()) {
       LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-      if (!IsInteger32Constant(operand_value)) {
+      if (!IsSmiConstant(operand_value)) {
         DeoptimizeIf(no_condition, instr->environment());
       }
-    } else {
-      Register value = ToRegister(instr->value());
-      __ Integer32ToSmi(value, value);
     }
   } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     if (instr->value()->IsConstantOperand()) {
@@ -3968,12 +3998,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   if (instr->value()->IsConstantOperand()) {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-    if (IsInteger32Constant(operand_value)) {
-      // In lithium register preparation, we made sure that the constant integer
-      // operand fits into smi range.
-      Smi* smi_value = Smi::FromInt(ToInteger32(operand_value));
-      __ Move(FieldOperand(write_register, offset), smi_value);
-    } else if (operand_value->IsRegister()) {
+    if (operand_value->IsRegister()) {
       __ movq(FieldOperand(write_register, offset),
               ToRegister(operand_value));
     } else {
@@ -4017,20 +4042,20 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 
   if (instr->length()->IsRegister()) {
     Register reg = ToRegister(instr->length());
-    if (!instr->hydrogen()->length()->representation().IsTagged()) {
+    if (!instr->hydrogen()->length()->representation().IsSmi()) {
       __ AssertZeroExtended(reg);
     }
     if (instr->index()->IsConstantOperand()) {
       int constant_index =
           ToInteger32(LConstantOperand::cast(instr->index()));
-      if (instr->hydrogen()->length()->representation().IsTagged()) {
+      if (instr->hydrogen()->length()->representation().IsSmi()) {
         __ Cmp(reg, Smi::FromInt(constant_index));
       } else {
         __ cmpq(reg, Immediate(constant_index));
       }
     } else {
       Register reg2 = ToRegister(instr->index());
-      if (!instr->hydrogen()->index()->representation().IsTagged()) {
+      if (!instr->hydrogen()->index()->representation().IsSmi()) {
         __ AssertZeroExtended(reg2);
       }
       __ cmpq(reg, reg2);
@@ -4040,7 +4065,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     if (instr->index()->IsConstantOperand()) {
       int constant_index =
           ToInteger32(LConstantOperand::cast(instr->index()));
-      if (instr->hydrogen()->length()->representation().IsTagged()) {
+      if (instr->hydrogen()->length()->representation().IsSmi()) {
         __ Cmp(length, Smi::FromInt(constant_index));
       } else {
         __ cmpq(length, Immediate(constant_index));
@@ -4063,7 +4088,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     // gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that case
     // must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -4127,7 +4152,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     // input gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that case
     // must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -4170,7 +4195,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     // input gets replaced during bound check elimination with the index
     // argument to the bounds check, which can be tagged, so that case
     // must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ SmiToInteger64(key_reg, key_reg);
     } else if (instr->hydrogen()->IsDehoisted()) {
       // Sign extend key because it could be a 32 bit negative value
@@ -4434,6 +4459,18 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 }
 
 
+void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
+  LOperand* input = instr->value();
+  ASSERT(input->IsRegister());
+  LOperand* output = instr->result();
+  __ Integer32ToSmi(ToRegister(output), ToRegister(input));
+  if (!instr->hydrogen()->value()->HasRange() ||
+      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
+}
+
+
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
@@ -4606,6 +4643,21 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
   if (instr->needs_check()) {
     Condition is_smi = __ CheckSmi(input);
     DeoptimizeIf(NegateCondition(is_smi), instr->environment());
+  } else if (instr->hydrogen()->value()->IsLoadKeyed()) {
+    HLoadKeyed* load = HLoadKeyed::cast(instr->hydrogen()->value());
+    if (load->UsesMustHandleHole()) {
+      Condition cc = masm()->CheckSmi(input);
+      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
+        Label done;
+        __ j(cc, &done);
+        __ xor_(input, input);
+        __ bind(&done);
+      } else {
+        DeoptimizeIf(NegateCondition(cc), instr->environment());
+      }
+    } else {
+      __ AssertSmi(input);
+    }
   } else {
     __ AssertSmi(input);
   }
@@ -4826,6 +4878,48 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 }
 
 
+void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
+  LOperand* input = instr->value();
+  ASSERT(input->IsDoubleRegister());
+  LOperand* result = instr->result();
+  ASSERT(result->IsRegister());
+  CpuFeatureScope scope(masm(), SSE2);
+
+  XMMRegister input_reg = ToDoubleRegister(input);
+  Register result_reg = ToRegister(result);
+
+  Label done;
+  __ cvttsd2si(result_reg, input_reg);
+  __ cvtlsi2sd(xmm0, result_reg);
+  __ ucomisd(xmm0, input_reg);
+  DeoptimizeIf(not_equal, instr->environment());
+  DeoptimizeIf(parity_even, instr->environment());  // NaN.
+
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    // The integer converted back is equal to the original. We
+    // only have to test if we got -0 as an input.
+    __ testl(result_reg, result_reg);
+    __ j(not_zero, &done, Label::kNear);
+    __ movmskpd(result_reg, input_reg);
+    // Bit 0 contains the sign of the double in input_reg.
+    // If input was positive, we are ok and return 0, otherwise
+    // deoptimize.
+    __ andl(result_reg, Immediate(1));
+    DeoptimizeIf(not_zero, instr->environment());
+    __ bind(&done);
+  }
+  __ Integer32ToSmi(result_reg, result_reg);
+  DeoptimizeIf(overflow, instr->environment());
+}
+
+
+void LCodeGen::DoCheckSmiAndReturn(LCheckSmiAndReturn* instr) {
+  LOperand* input = instr->value();
+  Condition cc = masm()->CheckSmi(ToRegister(input));
+  DeoptimizeIf(NegateCondition(cc), instr->environment());
+}
+
+
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->value();
   Condition cc = masm()->CheckSmi(ToRegister(input));
@@ -4889,25 +4983,16 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   Register reg = ToRegister(instr->value());
   Handle<JSFunction> target = instr->hydrogen()->target();
-  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
-  if (isolate()->heap()->InNewSpace(*target)) {
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(target);
-    __ movq(kScratchRegister, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
-    __ cmpq(reg, Operand(kScratchRegister, 0));
-  } else {
-    __ Cmp(reg, target);
-  }
+  __ CmpHeapObject(reg, target);
   DeoptimizeIf(not_equal, instr->environment());
 }
 
 
 void LCodeGen::DoCheckMapCommon(Register reg,
                                 Handle<Map> map,
-                                CompareMapMode mode,
                                 LInstruction* instr) {
   Label success;
-  __ CompareMap(reg, map, &success, mode);
+  __ CompareMap(reg, map, &success);
   DeoptimizeIf(not_equal, instr->environment());
   __ bind(&success);
 }
@@ -4922,11 +5007,11 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   SmallMapList* map_set = instr->hydrogen()->map_set();
   for (int i = 0; i < map_set->length() - 1; i++) {
     Handle<Map> map = map_set->at(i);
-    __ CompareMap(reg, map, &success, REQUIRE_EXACT_MAP);
+    __ CompareMap(reg, map, &success);
     __ j(equal, &success);
   }
   Handle<Map> map = map_set->last();
-  DoCheckMapCommon(reg, map, REQUIRE_EXACT_MAP, instr);
+  DoCheckMapCommon(reg, map, instr);
   __ bind(&success);
 }
 
@@ -4995,7 +5080,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   } else {
     for (int i = 0; i < prototypes->length(); i++) {
       __ LoadHeapObject(reg, prototypes->at(i));
-      DoCheckMapCommon(reg, maps->at(i), ALLOW_ELEMENT_TRANSITION_MAPS, instr);
+      DoCheckMapCommon(reg, maps->at(i), instr);
     }
   }
 }

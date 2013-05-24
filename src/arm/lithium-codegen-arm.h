@@ -126,6 +126,7 @@ class LCodeGen BASE_EMBEDDED {
   MemOperand ToHighMemOperand(LOperand* op) const;
 
   bool IsInteger32(LConstantOperand* op) const;
+  bool IsSmi(LConstantOperand* op) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
 
   // Try to generate code for the entire chunk, but it may fail if the
@@ -160,8 +161,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
 
-  void DoCheckMapCommon(Register map_reg, Handle<Map> map,
-                        CompareMapMode mode, LEnvironment* env);
+  void DoCheckMapCommon(Register map_reg, Handle<Map> map, LEnvironment* env);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);

@@ -37,7 +37,7 @@
 
 // support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
 support_smi_only_arrays = true;
-optimize_constructed_arrays = false;
+optimize_constructed_arrays = true;
 
 if (support_smi_only_arrays) {
   print("Tests include smi-only arrays.");

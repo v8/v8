@@ -2105,32 +2105,16 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
 void MacroAssembler::CompareMap(Register obj,
                                 Register scratch,
                                 Handle<Map> map,
-                                Label* early_success,
-                                CompareMapMode mode) {
+                                Label* early_success) {
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  CompareMap(scratch, map, early_success, mode);
+  CompareMap(scratch, map, early_success);
 }
 
 
 void MacroAssembler::CompareMap(Register obj_map,
                                 Handle<Map> map,
-                                Label* early_success,
-                                CompareMapMode mode) {
+                                Label* early_success) {
   cmp(obj_map, Operand(map));
-  if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
-    ElementsKind kind = map->elements_kind();
-    if (IsFastElementsKind(kind)) {
-      bool packed = IsFastPackedElementsKind(kind);
-      Map* current_map = *map;
-      while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
-        kind = GetNextMoreGeneralFastElementsKind(kind, packed);
-        current_map = current_map->LookupElementsTransitionMap(kind);
-        if (!current_map) break;
-        b(eq, early_success);
-        cmp(obj_map, Operand(Handle<Map>(current_map)));
-      }
-    }
-  }
 }
 
 
@@ -2138,14 +2122,13 @@ void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
                               Label* fail,
-                              SmiCheckType smi_check_type,
-                              CompareMapMode mode) {
+                              SmiCheckType smi_check_type) {
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
 
   Label success;
-  CompareMap(obj, scratch, map, &success, mode);
+  CompareMap(obj, scratch, map, &success);
   b(ne, fail);
   bind(&success);
 }
