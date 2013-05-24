@@ -714,9 +714,9 @@ LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
 
 LInstruction* LChunkBuilder::DoShift(Token::Value op,
                                      HBitwiseBinaryOperation* instr) {
-  if (instr->representation().IsTagged()) {
-    ASSERT(instr->left()->representation().IsTagged());
-    ASSERT(instr->right()->representation().IsTagged());
+  if (instr->representation().IsSmiOrTagged()) {
+    ASSERT(instr->left()->representation().IsSmiOrTagged());
+    ASSERT(instr->right()->representation().IsSmiOrTagged());
 
     LOperand* left = UseFixed(instr->left(), a1);
     LOperand* right = UseFixed(instr->right(), a0);
@@ -784,8 +784,8 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
          op == Token::SUB);
   HValue* left = instr->left();
   HValue* right = instr->right();
-  ASSERT(left->representation().IsTagged());
-  ASSERT(right->representation().IsTagged());
+  ASSERT(left->representation().IsSmiOrTagged());
+  ASSERT(right->representation().IsSmiOrTagged());
   LOperand* left_operand = UseFixed(left, a1);
   LOperand* right_operand = UseFixed(right, a0);
   LArithmeticT* result =
@@ -1304,9 +1304,9 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
     LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
     return DefineAsRegister(new(zone()) LBitI(left, right));
   } else {
-    ASSERT(instr->representation().IsTagged());
-    ASSERT(instr->left()->representation().IsTagged());
-    ASSERT(instr->right()->representation().IsTagged());
+    ASSERT(instr->representation().IsSmiOrTagged());
+    ASSERT(instr->left()->representation().IsSmiOrTagged());
+    ASSERT(instr->right()->representation().IsSmiOrTagged());
 
     LOperand* left = UseFixed(instr->left(), a1);
     LOperand* right = UseFixed(instr->right(), a0);
@@ -1377,7 +1377,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
     } else {
       return DefineAsRegister(mod);
     }
-  } else if (instr->representation().IsTagged()) {
+  } else if (instr->representation().IsSmiOrTagged()) {
     return DoArithmeticT(Token::MOD, instr);
   } else {
     ASSERT(instr->representation().IsDouble());
@@ -1490,7 +1490,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     }
     return DoArithmeticD(Token::ADD, instr);
   } else {
-    ASSERT(instr->representation().IsTagged());
+    ASSERT(instr->representation().IsSmiOrTagged());
     return DoArithmeticT(Token::ADD, instr);
   }
 }
@@ -1762,12 +1762,6 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   if (from.IsSmi()) {
     if (to.IsTagged()) {
       LOperand* value = UseRegister(instr->value());
-      // For now, always deopt on hole.
-      if (instr->value()->IsLoadKeyed() &&
-          HLoadKeyed::cast(instr->value())->UsesMustHandleHole()) {
-        return AssignEnvironment(
-            DefineSameAsFirst(new(zone()) LCheckSmiAndReturn(value)));
-      }
       return DefineSameAsFirst(new(zone()) LDummyUse(value));
     }
     from = Representation::Tagged();
@@ -1793,13 +1787,6 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       if (instr->value()->type().IsSmi()) {
         value = UseRegisterAtStart(instr->value());
         res = DefineAsRegister(new(zone()) LSmiUntag(value, false));
-        if (instr->value()->IsLoadKeyed()) {
-          HLoadKeyed* load_keyed = HLoadKeyed::cast(instr->value());
-          if (load_keyed->UsesMustHandleHole() &&
-              load_keyed->hole_mode() == NEVER_RETURN_HOLE) {
-            res = AssignEnvironment(res);
-          }
-        }
       } else {
         value = UseRegister(instr->value());
         LOperand* temp1 = TempRegister();
