@@ -1,3 +1,18 @@
+2013-05-24: Version 3.19.4
+
+        Fixed edge case in stack trace formatting. (Chromium issue 237617)
+
+        Fixed embedded new-space pointer in LCmpObjectEqAndBranch. (Chromium
+	issue 240032)
+
+        Made Object.freeze fast (issue 1858, Chromium issue 115960)
+
+        Fixed bogus deopt in BuildEmitDeepCopy for holey arrays. (Chromium issue
+        242924)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-05-22: Version 3.19.3
 
         Performance and stability improvements on all platforms.
