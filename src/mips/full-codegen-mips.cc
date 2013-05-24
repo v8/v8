@@ -3445,19 +3445,56 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
+                                                  Register index,
+                                                  Register value,
+                                                  uint32_t encoding_mask) {
+  __ And(at, index, Operand(kSmiTagMask));
+  __ Check(eq, "Non-smi index", at, Operand(zero_reg));
+  __ And(at, value, Operand(kSmiTagMask));
+  __ Check(eq, "Non-smi value", at, Operand(zero_reg));
+
+  __ lw(at, FieldMemOperand(string, String::kLengthOffset));
+  __ Check(lt, "Index is too large", index, Operand(at));
+
+  __ Check(ge, "Index is negative", index, Operand(zero_reg));
+
+  __ lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
+  __ lbu(at, FieldMemOperand(at, Map::kInstanceTypeOffset));
+
+  __ And(at, at, Operand(kStringRepresentationMask | kStringEncodingMask));
+  __ Subu(at, at, Operand(encoding_mask));
+  __ Check(eq, "Unexpected string type", at, Operand(zero_reg));
+}
+
+
 void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
 
+  Register string = v0;
+  Register index = a1;
+  Register value = a2;
+
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ pop(a2);
-  __ pop(a1);
+  __ pop(value);
+  __ pop(index);
   VisitForAccumulatorValue(args->at(0));  // string
 
-  static const String::Encoding encoding = String::ONE_BYTE_ENCODING;
-  SeqStringSetCharGenerator::Generate(masm_, encoding, v0, a1, a2);
-  context()->Plug(v0);
+  if (FLAG_debug_code) {
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
+  }
+
+  __ SmiUntag(value, value);
+  __ Addu(at,
+          string,
+          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+  __ SmiUntag(index);
+  __ Addu(at, at, index);
+  __ sb(value, MemOperand(at));
+  context()->Plug(string);
 }
 
 
@@ -3465,15 +3502,29 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
 
+  Register string = v0;
+  Register index = a1;
+  Register value = a2;
+
   VisitForStackValue(args->at(1));  // index
   VisitForStackValue(args->at(2));  // value
-  __ pop(a2);
-  __ pop(a1);
+  __ pop(value);
+  __ pop(index);
   VisitForAccumulatorValue(args->at(0));  // string
 
-  static const String::Encoding encoding = String::TWO_BYTE_ENCODING;
-  SeqStringSetCharGenerator::Generate(masm_, encoding, v0, a1, a2);
-  context()->Plug(v0);
+  if (FLAG_debug_code) {
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
+  }
+
+  __ SmiUntag(value, value);
+  __ Addu(at,
+          string,
+          Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  __ Addu(at, at, index);
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  __ sh(value, MemOperand(at));
+    context()->Plug(string);
 }
 
 

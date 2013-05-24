@@ -1605,11 +1605,35 @@ void LCodeGen::DoDateField(LDateField* instr) {
 
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
-  SeqStringSetCharGenerator::Generate(masm(),
-                                      instr->encoding(),
-                                      ToRegister(instr->string()),
-                                      ToRegister(instr->index()),
-                                      ToRegister(instr->value()));
+  Register string = ToRegister(instr->string());
+  Register index = ToRegister(instr->index());
+  Register value = ToRegister(instr->value());
+  Register scratch = scratch0();
+  String::Encoding encoding = instr->encoding();
+
+  if (FLAG_debug_code) {
+    __ lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ lbu(at, FieldMemOperand(at, Map::kInstanceTypeOffset));
+
+    __ And(at, at, Operand(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ Subu(at, at, Operand(encoding == String::ONE_BYTE_ENCODING
+                                ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(eq, "Unexpected string type", at, Operand(zero_reg));
+  }
+
+  __ Addu(scratch,
+          string,
+          Operand(SeqString::kHeaderSize - kHeapObjectTag));
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    __ Addu(at, scratch, index);
+    __ sb(value, MemOperand(at));
+  } else {
+    __ sll(at, index, 1);
+    __ Addu(at, scratch, at);
+    __ sh(value, MemOperand(at));
+  }
 }
 
 
