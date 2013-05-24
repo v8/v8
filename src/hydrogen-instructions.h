@@ -5235,6 +5235,10 @@ class HObjectAccess {
 
   void PrintTo(StringStream* stream);
 
+  inline bool Equals(HObjectAccess that) const {
+    return value_ == that.value_;  // portion and offset must match
+  }
+
  protected:
   void SetGVNFlags(HValue *instr, bool is_store);
 
@@ -5308,9 +5312,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
 
   bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
   HObjectAccess access() const { return access_; }
-  bool is_in_object() const { return access_.IsInobject(); }
   Representation field_representation() const { return representation_; }
-  int offset() const { return access_.offset(); }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -5322,7 +5324,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
  protected:
   virtual bool DataEquals(HValue* other) {
     HLoadNamedField* b = HLoadNamedField::cast(other);
-    return is_in_object() == b->is_in_object() && offset() == b->offset();
+    return access_.Equals(b->access_);
   }
 
  private:
@@ -5661,9 +5663,6 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HValue* value() { return OperandAt(1); }
 
   HObjectAccess access() const { return access_; }
-  Handle<String> name() const { return access_.name(); }
-  bool is_in_object() const { return access_.IsInobject(); }
-  int offset() const { return access_.offset(); }
   Handle<Map> transition() const { return transition_; }
   UniqueValueId transition_unique_id() const { return transition_unique_id_; }
   void set_transition(Handle<Map> map) { transition_ = map; }
