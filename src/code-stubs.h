@@ -1084,6 +1084,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
     }
 
     void Print(StringStream* stream) const;
+    void TraceTransition(Types to) const;
   };
 
   // At most 6 different types can be distinguished, because the Code object

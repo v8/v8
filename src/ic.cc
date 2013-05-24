@@ -2928,7 +2928,9 @@ MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
   // types must be supported as a result of the miss.
   bool already_monomorphic = stub.IsMonomorphic();
 
+  CompareNilICStub::Types old_types = stub.GetTypes();
   stub.Record(object);
+  old_types.TraceTransition(stub.GetTypes());
 
   EqualityKind kind = stub.GetKind();
   NilValue nil = stub.GetNilValue();

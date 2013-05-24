@@ -434,6 +434,23 @@ void CompareNilICStub::Record(Handle<Object> object) {
 }
 
 
+void CompareNilICStub::Types::TraceTransition(Types to) const {
+  #ifdef DEBUG
+  if (!FLAG_trace_ic) return;
+  char buffer[100];
+  NoAllocationStringAllocator allocator(buffer,
+                                        static_cast<unsigned>(sizeof(buffer)));
+  StringStream stream(&allocator);
+  stream.Add("[CompareNilIC : ");
+  Print(&stream);
+  stream.Add("=>");
+  to.Print(&stream);
+  stream.Add("]\n");
+  stream.OutputToStdOut();
+  #endif
+}
+
+
 void CompareNilICStub::PrintName(StringStream* stream) {
   stream->Add("CompareNilICStub_");
   types_.Print(stream);
@@ -578,17 +595,19 @@ void ToBooleanStub::Types::Print(StringStream* stream) const {
 
 
 void ToBooleanStub::Types::TraceTransition(Types to) const {
+  #ifdef DEBUG
   if (!FLAG_trace_ic) return;
   char buffer[100];
   NoAllocationStringAllocator allocator(buffer,
                                         static_cast<unsigned>(sizeof(buffer)));
   StringStream stream(&allocator);
-  stream.Add("[ToBooleanIC (");
+  stream.Add("[ToBooleanIC : ");
   Print(&stream);
-  stream.Add("->");
+  stream.Add("=>");
   to.Print(&stream);
-  stream.Add(")]\n");
+  stream.Add("]\n");
   stream.OutputToStdOut();
+  #endif
 }
 
 
