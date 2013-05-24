@@ -3464,10 +3464,9 @@ void MacroAssembler::CompareMapAndBranch(Register obj,
                                          Handle<Map> map,
                                          Label* early_success,
                                          Condition cond,
-                                         Label* branch_to,
-                                         CompareMapMode mode) {
+                                         Label* branch_to) {
   lw(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  CompareMapAndBranch(scratch, map, early_success, cond, branch_to, mode);
+  CompareMapAndBranch(scratch, map, early_success, cond, branch_to);
 }
 
 
@@ -3475,25 +3474,8 @@ void MacroAssembler::CompareMapAndBranch(Register obj_map,
                                          Handle<Map> map,
                                          Label* early_success,
                                          Condition cond,
-                                         Label* branch_to,
-                                         CompareMapMode mode) {
-  Operand right = Operand(map);
-  if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
-    ElementsKind kind = map->elements_kind();
-    if (IsFastElementsKind(kind)) {
-      bool packed = IsFastPackedElementsKind(kind);
-      Map* current_map = *map;
-      while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
-        kind = GetNextMoreGeneralFastElementsKind(kind, packed);
-        current_map = current_map->LookupElementsTransitionMap(kind);
-        if (!current_map) break;
-        Branch(early_success, eq, obj_map, right);
-        right = Operand(Handle<Map>(current_map));
-      }
-    }
-  }
-
-  Branch(branch_to, cond, obj_map, right);
+                                         Label* branch_to) {
+  Branch(branch_to, cond, obj_map, Operand(map));
 }
 
 
@@ -3501,13 +3483,12 @@ void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
                               Label* fail,
-                              SmiCheckType smi_check_type,
-                              CompareMapMode mode) {
+                              SmiCheckType smi_check_type) {
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
   Label success;
-  CompareMapAndBranch(obj, scratch, map, &success, ne, fail, mode);
+  CompareMapAndBranch(obj, scratch, map, &success, ne, fail);
   bind(&success);
 }
 

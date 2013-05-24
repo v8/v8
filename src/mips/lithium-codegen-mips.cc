@@ -2763,9 +2763,7 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
     bool last = (i == map_count - 1);
     Handle<Map> map = instr->hydrogen()->types()->at(i);
     Label check_passed;
-    __ CompareMapAndBranch(
-        object_map, map, &check_passed,
-        eq, &check_passed, ALLOW_ELEMENT_TRANSITION_MAPS);
+    __ CompareMapAndBranch(object_map, map, &check_passed, eq, &check_passed);
     if (last && !need_generic) {
       DeoptimizeIf(al, instr->environment());
       __ bind(&check_passed);
@@ -5010,10 +5008,9 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 
 void LCodeGen::DoCheckMapCommon(Register map_reg,
                                 Handle<Map> map,
-                                CompareMapMode mode,
                                 LEnvironment* env) {
   Label success;
-  __ CompareMapAndBranch(map_reg, map, &success, eq, &success, mode);
+  __ CompareMapAndBranch(map_reg, map, &success, eq, &success);
   DeoptimizeIf(al, env);
   __ bind(&success);
 }
@@ -5029,11 +5026,10 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   __ lw(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
   for (int i = 0; i < map_set->length() - 1; i++) {
     Handle<Map> map = map_set->at(i);
-    __ CompareMapAndBranch(
-        map_reg, map, &success, eq, &success, REQUIRE_EXACT_MAP);
+    __ CompareMapAndBranch(map_reg, map, &success, eq, &success);
   }
   Handle<Map> map = map_set->last();
-  DoCheckMapCommon(map_reg, map, REQUIRE_EXACT_MAP, instr->environment());
+  DoCheckMapCommon(map_reg, map, instr->environment());
   __ bind(&success);
 }
 
@@ -5105,10 +5101,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
     for (int i = 0; i < prototypes->length(); i++) {
       __ LoadHeapObject(prototype_reg, prototypes->at(i));
       __ lw(map_reg, FieldMemOperand(prototype_reg, HeapObject::kMapOffset));
-      DoCheckMapCommon(map_reg,
-                       maps->at(i),
-                       ALLOW_ELEMENT_TRANSITION_MAPS,
-                       instr->environment());
+      DoCheckMapCommon(map_reg, maps->at(i), instr->environment());
     }
   }
 }
