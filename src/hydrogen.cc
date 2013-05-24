@@ -10763,9 +10763,11 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
             AddInstruction(new(zone) HConstant(i, Representation::Integer32()));
         HInstruction* value_instruction =
             AddInstruction(new(zone) HLoadKeyed(
-                boilerplate_elements, key_constant, NULL, kind));
-        AddInstruction(new(zone) HStoreKeyed(
+                boilerplate_elements, key_constant, NULL, kind,
+                ALLOW_RETURN_HOLE));
+        HInstruction* store = AddInstruction(new(zone) HStoreKeyed(
                 object_elements, key_constant, value_instruction, kind));
+        store->ClearFlag(HValue::kDeoptimizeOnUndefined);
       }
     } else if (elements->IsFixedArray()) {
       Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
@@ -10788,7 +10790,8 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
         } else {
           HInstruction* value_instruction =
               AddInstruction(new(zone) HLoadKeyed(
-                  boilerplate_elements, key_constant, NULL, kind));
+                  boilerplate_elements, key_constant, NULL, kind,
+                  ALLOW_RETURN_HOLE));
           AddInstruction(new(zone) HStoreKeyed(
               object_elements, key_constant, value_instruction, kind));
         }
