@@ -821,12 +821,20 @@ static v8::Handle<Value> handle_call(const v8::Arguments& args) {
   return v8_num(102);
 }
 
+static v8::Handle<Value> handle_call_2(const v8::Arguments& args) {
+  return handle_call(args);
+}
+
 static v8::Handle<Value> handle_call_indirect(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
   CheckReturnValue(args);
   args.GetReturnValue().Set(v8_str("bad value"));
   args.GetReturnValue().Set(v8_num(102));
   return v8::Handle<Value>();
+}
+
+static v8::Handle<Value> handle_call_indirect_2(const v8::Arguments& args) {
+  return handle_call_indirect(args);
 }
 
 static void handle_callback(const v8::FunctionCallbackInfo<Value>& info) {
@@ -836,6 +844,9 @@ static void handle_callback(const v8::FunctionCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(v8_num(102));
 }
 
+static void handle_callback_2(const v8::FunctionCallbackInfo<Value>& info) {
+  return handle_callback(info);
+}
 
 static v8::Handle<Value> construct_call(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
@@ -895,7 +906,8 @@ static void Return239Callback(
 
 
 template<typename Handler>
-static void TestFunctionTemplateInitializer(Handler handler) {
+static void TestFunctionTemplateInitializer(Handler handler,
+                                            Handler handler_2) {
   // Test constructor calls.
   {
     LocalContext env;
@@ -908,12 +920,6 @@ static void TestFunctionTemplateInitializer(Handler handler) {
     for (int i = 0; i < 30; i++) {
       CHECK_EQ(102, script->Run()->Int32Value());
     }
-  }
-  // Blow away handler database
-  i::Isolate* isolate = i::Isolate::Current();
-  if (isolate->callback_table() != NULL) {
-    delete isolate->callback_table();
-    isolate->set_callback_table(NULL);
   }
   // Use SetCallHandler to initialize a function template, should work like the
   // previous one.
@@ -959,9 +965,9 @@ static void TestFunctionTemplateAccessor(Constructor constructor,
 
 
 THREADED_TEST(FunctionTemplate) {
-  TestFunctionTemplateInitializer(handle_call);
-  TestFunctionTemplateInitializer(handle_call_indirect);
-  TestFunctionTemplateInitializer(handle_callback);
+  TestFunctionTemplateInitializer(handle_call, handle_call_2);
+  TestFunctionTemplateInitializer(handle_call_indirect, handle_call_indirect_2);
+  TestFunctionTemplateInitializer(handle_callback, handle_callback_2);
 
   TestFunctionTemplateAccessor(construct_call, Return239);
   TestFunctionTemplateAccessor(construct_call_indirect, Return239Indirect);
