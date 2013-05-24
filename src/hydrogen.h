@@ -992,11 +992,6 @@ class HGraphBuilder {
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
 
   // Building common constructs
-  HLoadNamedField* DoBuildLoadNamedField(HValue* object,
-                                         bool inobject,
-                                         Representation representation,
-                                         int offset);
-
   HInstruction* BuildExternalArrayElementAccess(
       HValue* external_elements,
       HValue* checked_key,
@@ -1039,8 +1034,24 @@ class HGraphBuilder {
       KeyedAccessStoreMode store_mode,
       Representation checked_index_representation = Representation::None());
 
-  HInstruction* BuildStoreMap(HValue* object, HValue* map);
-  HInstruction* BuildStoreMap(HValue* object, Handle<Map> map);
+  HLoadNamedField* AddLoad(
+      HValue *object,
+      HObjectAccess access,
+      HValue *typecheck = NULL,
+      Representation representation = Representation::Tagged());
+
+  HLoadNamedField* BuildLoadNamedField(
+      HValue* object,
+      HObjectAccess access,
+      Representation representation);
+
+  HStoreNamedField* AddStore(
+      HValue *object,
+      HObjectAccess access,
+      HValue *val,
+      Representation representation = Representation::Tagged());
+
+  HStoreNamedField* AddStoreMapConstant(HValue *object, Handle<Map>);
 
   HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck = NULL);
 
@@ -1692,9 +1703,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                    bool is_store,
                                    bool* has_side_effects);
 
-  HLoadNamedField* BuildLoadNamedField(HValue* object,
-                                       Handle<Map> map,
-                                       LookupResult* result);
   HInstruction* BuildLoadNamedGeneric(HValue* object,
                                       Handle<String> name,
                                       Property* expr);

@@ -341,6 +341,7 @@ Handle<Code> StubCache::ComputeKeyedLoadField(Handle<Name> name,
                                               PropertyIndex field,
                                               Representation representation) {
   if (receiver.is_identical_to(holder)) {
+    // TODO(titzer): this should use an HObjectAccess
     KeyedLoadFieldStub stub(field.is_inobject(holder),
                             field.translate(holder),
                             representation);

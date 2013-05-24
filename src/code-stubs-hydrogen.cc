@@ -358,7 +358,6 @@ Handle<Code> FastCloneShallowArrayStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   Zone* zone = this->zone();
-  Factory* factory = isolate()->factory();
   HValue* undefined = graph()->GetConstantUndefined();
 
   HInstruction* boilerplate =
@@ -387,20 +386,13 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
     flags = static_cast<HAllocate::Flags>(
        flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
   }
-  HInstruction* object =
-      AddInstruction(new(zone) HAllocate(context(),
-                                         size_in_bytes,
-                                         HType::JSObject(),
-                                         flags));
+
+  HInstruction* object = AddInstruction(new(zone)
+      HAllocate(context(), size_in_bytes, HType::JSObject(), flags));
 
   for (int i = 0; i < size; i += kPointerSize) {
-    HInstruction* value =
-        AddInstruction(new(zone) HLoadNamedField(
-            boilerplate, true, Representation::Tagged(), i));
-    AddInstruction(new(zone) HStoreNamedField(object,
-                                              factory->empty_string(),
-                                              value, true,
-                                              Representation::Tagged(), i));
+    HObjectAccess access = HObjectAccess::ForJSObjectOffset(i);
+    AddStore(object, access, AddLoad(boilerplate, access));
   }
 
   checker.ElseDeopt();
@@ -430,11 +422,11 @@ Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
-  Representation representation = casted_stub()->representation();
-  HInstruction* load = AddInstruction(DoBuildLoadNamedField(
-      GetParameter(0), casted_stub()->is_inobject(),
-      representation, casted_stub()->offset()));
-  return load;
+  HObjectAccess access = casted_stub()->is_inobject() ?
+      HObjectAccess::ForJSObjectOffset(casted_stub()->offset()) :
+      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset());
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access,
+      casted_stub()->representation()));
 }
 
 
@@ -445,11 +437,11 @@ Handle<Code> LoadFieldStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
-  Representation representation = casted_stub()->representation();
-  HInstruction* load = AddInstruction(DoBuildLoadNamedField(
-      GetParameter(0), casted_stub()->is_inobject(),
-      representation, casted_stub()->offset()));
-  return load;
+  HObjectAccess access = casted_stub()->is_inobject() ?
+      HObjectAccess::ForJSObjectOffset(casted_stub()->offset()) :
+      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset());
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access,
+      casted_stub()->representation()));
 }
 
 
@@ -487,8 +479,8 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   AddInstruction(new(zone) HTrapAllocationMemento(js_array));
 
   HInstruction* array_length =
-      AddInstruction(HLoadNamedField::NewArrayLength(
-            zone, js_array, js_array, HType::Smi()));
+      AddLoad(js_array, HObjectAccess::ForArrayLength());
+  array_length->set_type(HType::Smi());
 
   ElementsKind to_kind = casted_stub()->to_kind();
   BuildNewSpaceArrayCheck(array_length, to_kind);
@@ -514,20 +506,12 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
                     casted_stub()->from_kind(), new_elements,
                     to_kind, array_length, elements_length);
 
-  Factory* factory = isolate()->factory();
-
-  AddInstruction(new(zone) HStoreNamedField(js_array,
-                                            factory->elements_field_string(),
-                                            new_elements, true,
-                                            Representation::Tagged(),
-                                            JSArray::kElementsOffset));
+  AddStore(js_array, HObjectAccess::ForElementsPointer(), new_elements);
 
   if_builder.End();
 
-  AddInstruction(new(zone) HStoreNamedField(js_array, factory->length_string(),
-                                            map, true,
-                                            Representation::Tagged(),
-                                            JSArray::kMapOffset));
+  AddStore(js_array, HObjectAccess::ForMap(), map);
+
   return js_array;
 }
 

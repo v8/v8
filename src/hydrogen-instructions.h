@@ -5201,14 +5201,114 @@ class HStoreContextSlot: public HTemplateInstruction<2> {
 };
 
 
+// Represents an access to a portion of an object, such as the map pointer,
+// array elements pointer, etc, but not accesses to array elements themselves.
+class HObjectAccess {
+ public:
+  inline bool IsInobject() const {
+    return portion() != kBackingStore;
+  }
+
+  inline int offset() const {
+    return OffsetField::decode(value_);
+  }
+
+  inline Handle<String> name() const {
+    return name_;
+  }
+
+  static HObjectAccess ForHeapNumberValue() {
+    return HObjectAccess(kDouble, HeapNumber::kValueOffset);
+  }
+
+  static HObjectAccess ForElementsPointer() {
+    return HObjectAccess(kElementsPointer, JSObject::kElementsOffset);
+  }
+
+  static HObjectAccess ForArrayLength() {
+    return HObjectAccess(kArrayLengths, JSArray::kLengthOffset);
+  }
+
+  static HObjectAccess ForFixedArrayLength() {
+    return HObjectAccess(kArrayLengths, FixedArray::kLengthOffset);
+  }
+
+  static HObjectAccess ForPropertiesPointer() {
+    return HObjectAccess(kInobject, JSObject::kPropertiesOffset);
+  }
+
+  static HObjectAccess ForMap() {
+    return HObjectAccess(kMaps, JSObject::kMapOffset);
+  }
+
+  static HObjectAccess ForAllocationSitePayload() {
+    return HObjectAccess(kInobject, AllocationSiteInfo::kPayloadOffset);
+  }
+
+  // Create an access to an offset in a fixed array header.
+  static HObjectAccess ForFixedArrayHeader(int offset);
+
+  // Create an access to an in-object property in a JSObject.
+  static HObjectAccess ForJSObjectOffset(int offset);
+
+  // Create an access to an in-object property in a JSArray.
+  static HObjectAccess ForJSArrayOffset(int offset);
+
+  // Create an access to the backing store of an object.
+  static HObjectAccess ForBackingStoreOffset(int offset);
+
+  // Create an access to a resolved field (in-object or backing store).
+  static HObjectAccess ForField(Handle<Map> map,
+      LookupResult *lookup, Handle<String> name = Handle<String>::null());
+
+  void PrintTo(StringStream* stream);
+
+ protected:
+  void SetGVNFlags(HValue *instr, bool is_store);
+
+ private:
+  // internal use only; different parts of an object or array
+  enum Portion {
+    kMaps,             // map of an object
+    kArrayLengths,     // the length of an array
+    kElementsPointer,  // elements pointer
+    kBackingStore,     // some field in the backing store
+    kDouble,           // some double field
+    kInobject          // some other in-object field
+  };
+
+  HObjectAccess(Portion portion, int offset,
+      Handle<String> name = Handle<String>::null())
+    : value_(PortionField::encode(portion) | OffsetField::encode(offset)),
+      name_(name) {
+    ASSERT(this->offset() == offset);    // offset should decode correctly
+    ASSERT(this->portion() == portion);  // portion should decode correctly
+  }
+
+  class PortionField : public BitField<Portion, 0, 3> {};
+  class OffsetField : public BitField<int, 3, 29> {};
+
+  uint32_t value_;  // encodes both portion and offset
+  Handle<String> name_;
+
+  friend class HLoadNamedField;
+  friend class HStoreNamedField;
+
+  inline Portion portion() const {
+    return PortionField::decode(value_);
+  }
+};
+
+
 class HLoadNamedField: public HTemplateInstruction<2> {
  public:
-  HLoadNamedField(HValue* object, bool is_in_object,
-                  Representation field_representation,
-                  int offset, HValue* typecheck = NULL)
-      : is_in_object_(is_in_object),
-        field_representation_(field_representation),
-        offset_(offset) {
+  HLoadNamedField(HValue* object,
+                  HObjectAccess access,
+                  HValue* typecheck = NULL,
+                  Representation field_representation
+                      = Representation::Tagged())
+      : access_(access),
+        field_representation_(field_representation) {
     ASSERT(object != NULL);
     SetOperandAt(0, object);
     SetOperandAt(1, typecheck != NULL ? typecheck : object);
@@ -5225,31 +5325,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
     } else {
       set_representation(Representation::Tagged());
     }
-    SetFlag(kUseGVN);
-    if (FLAG_track_double_fields && representation().IsDouble()) {
-      ASSERT(is_in_object);
-      ASSERT(offset == HeapNumber::kValueOffset);
-      SetGVNFlag(kDependsOnDoubleFields);
-    } else if (is_in_object) {
-      SetGVNFlag(kDependsOnInobjectFields);
-      SetGVNFlag(kDependsOnMaps);
-    } else {
-      SetGVNFlag(kDependsOnBackingStoreFields);
-      SetGVNFlag(kDependsOnMaps);
-    }
-  }
-
-  static HLoadNamedField* NewArrayLength(Zone* zone, HValue* object,
-                                         HValue* typecheck,
-                                         HType type = HType::Tagged()) {
-    Representation representation =
-        type.IsSmi() ? Representation::Smi() : Representation::Tagged();
-    HLoadNamedField* result = new(zone) HLoadNamedField(
-        object, true, representation, JSArray::kLengthOffset, typecheck);
-    result->set_type(type);
-    result->SetGVNFlag(kDependsOnArrayLengths);
-    result->ClearGVNFlag(kDependsOnInobjectFields);
-    return result;
+    access.SetGVNFlags(this, false);
   }
 
   HValue* object() { return OperandAt(0); }
@@ -5259,9 +5335,10 @@ class HLoadNamedField: public HTemplateInstruction<2> {
   }
 
   bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
-  bool is_in_object() const { return is_in_object_; }
+  HObjectAccess access() const { return access_; }
+  bool is_in_object() const { return access_.IsInobject(); }
   Representation field_representation() const { return representation_; }
-  int offset() const { return offset_; }
+  int offset() const { return access_.offset(); }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -5273,15 +5350,14 @@ class HLoadNamedField: public HTemplateInstruction<2> {
  protected:
   virtual bool DataEquals(HValue* other) {
     HLoadNamedField* b = HLoadNamedField::cast(other);
-    return is_in_object_ == b->is_in_object_ && offset_ == b->offset_;
+    return is_in_object() == b->is_in_object() && offset() == b->offset();
   }
 
  private:
   virtual bool IsDeletable() const { return true; }
 
-  bool is_in_object_;
+  HObjectAccess access_;
   Representation field_representation_;
-  int offset_;
 };
 
 
@@ -5578,30 +5654,17 @@ class HLoadKeyedGeneric: public HTemplateInstruction<3> {
 class HStoreNamedField: public HTemplateInstruction<2> {
  public:
   HStoreNamedField(HValue* obj,
-                   Handle<Name> name,
+                   HObjectAccess access,
                    HValue* val,
-                   bool in_object,
-                   Representation field_representation,
-                   int offset)
-      : name_(name),
-        is_in_object_(in_object),
+                   Representation field_representation
+                       = Representation::Tagged())
+      : access_(access),
         field_representation_(field_representation),
-        offset_(offset),
         transition_unique_id_(),
         new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
-    SetFlag(kTrackSideEffectDominators);
-    if (FLAG_track_double_fields && field_representation.IsDouble()) {
-      SetGVNFlag(kChangesDoubleFields);
-    } else if (is_in_object_) {
-      SetGVNFlag(kChangesInobjectFields);
-      SetGVNFlag(kDependsOnNewSpacePromotion);
-    } else {
-      SetGVNFlag(kChangesBackingStoreFields);
-      SetGVNFlag(kDependsOnNewSpacePromotion);
-    }
-    SetFlag(kDeoptimizeOnUndefined);
+    access.SetGVNFlags(this, true);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField)
@@ -5625,9 +5688,10 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HValue* object() { return OperandAt(0); }
   HValue* value() { return OperandAt(1); }
 
-  Handle<Name> name() const { return name_; }
-  bool is_in_object() const { return is_in_object_; }
-  int offset() const { return offset_; }
+  HObjectAccess access() const { return access_; }
+  Handle<String> name() const { return access_.name(); }
+  bool is_in_object() const { return access_.IsInobject(); }
+  int offset() const { return access_.offset(); }
   Handle<Map> transition() const { return transition_; }
   UniqueValueId transition_unique_id() const { return transition_unique_id_; }
   void set_transition(Handle<Map> map) { transition_ = map; }
@@ -5656,10 +5720,8 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   }
 
  private:
-  Handle<Name> name_;
-  bool is_in_object_;
+  HObjectAccess access_;
   Representation field_representation_;
-  int offset_;
   Handle<Map> transition_;
   UniqueValueId transition_unique_id_;
   HValue* new_space_dominator_;
