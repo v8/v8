@@ -3000,6 +3000,9 @@ class HPhi: public HValue {
   int tagged_non_phi_uses() const {
     return non_phi_uses_[Representation::kTagged];
   }
+  int smi_non_phi_uses() const {
+    return non_phi_uses_[Representation::kSmi];
+  }
   int int32_non_phi_uses() const {
     return non_phi_uses_[Representation::kInteger32];
   }
@@ -3008,6 +3011,9 @@ class HPhi: public HValue {
   }
   int tagged_indirect_uses() const {
     return indirect_uses_[Representation::kTagged];
+  }
+  int smi_indirect_uses() const {
+    return indirect_uses_[Representation::kSmi];
   }
   int int32_indirect_uses() const {
     return indirect_uses_[Representation::kInteger32];

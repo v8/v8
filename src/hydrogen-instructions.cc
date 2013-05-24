@@ -108,10 +108,12 @@ Representation HValue::RepresentationFromUses() {
   int tagged_count = use_count[Representation::kTagged];
   int double_count = use_count[Representation::kDouble];
   int int32_count = use_count[Representation::kInteger32];
+  int smi_count = use_count[Representation::kSmi];
 
   if (tagged_count > 0) return Representation::Tagged();
   if (double_count > 0) return Representation::Double();
   if (int32_count > 0) return Representation::Integer32();
+  if (smi_count > 0) return Representation::Smi();
 
   return Representation::None();
 }
@@ -1909,8 +1911,9 @@ void HPhi::PrintTo(StringStream* stream) {
     value->PrintNameTo(stream);
     stream->Add(" ");
   }
-  stream->Add(" uses:%d_%di_%dd_%dt",
+  stream->Add(" uses:%d_%ds_%di_%dd_%dt",
               UseCount(),
+              smi_non_phi_uses() + smi_indirect_uses(),
               int32_non_phi_uses() + int32_indirect_uses(),
               double_non_phi_uses() + double_indirect_uses(),
               tagged_non_phi_uses() + tagged_indirect_uses());
@@ -1989,8 +1992,9 @@ void HPhi::InitRealUses(int phi_id) {
 
 void HPhi::AddNonPhiUsesFrom(HPhi* other) {
   if (FLAG_trace_representation) {
-    PrintF("adding to #%d Phi uses of #%d Phi: i%d d%d t%d\n",
+    PrintF("adding to #%d Phi uses of #%d Phi: s%d i%d d%d t%d\n",
            id(), other->id(),
+           other->non_phi_uses_[Representation::kSmi],
            other->non_phi_uses_[Representation::kInteger32],
            other->non_phi_uses_[Representation::kDouble],
            other->non_phi_uses_[Representation::kTagged]);
@@ -3546,21 +3550,24 @@ void HPhi::InferRepresentation(HInferRepresentation* h_infer) {
 Representation HPhi::RepresentationFromInputs() {
   bool double_occurred = false;
   bool int32_occurred = false;
+  bool smi_occurred = false;
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* value = OperandAt(i);
     if (value->IsUnknownOSRValue()) {
       HPhi* hint_value = HUnknownOSRValue::cast(value)->incoming_value();
       if (hint_value != NULL) {
         Representation hint = hint_value->representation();
-        if (hint.IsSmiOrTagged()) return hint;
+        if (hint.IsTagged()) return hint;
         if (hint.IsDouble()) double_occurred = true;
         if (hint.IsInteger32()) int32_occurred = true;
+        if (hint.IsSmi()) smi_occurred = true;
       }
       continue;
     }
     if (value->representation().IsDouble()) double_occurred = true;
     if (value->representation().IsInteger32()) int32_occurred = true;
-    if (value->representation().IsSmiOrTagged()) {
+    if (value->representation().IsSmi()) smi_occurred = true;
+    if (value->representation().IsTagged()) {
       if (value->IsConstant()) {
         HConstant* constant = HConstant::cast(value);
         if (constant->IsConvertibleToInteger()) {
@@ -3579,8 +3586,8 @@ Representation HPhi::RepresentationFromInputs() {
   }
 
   if (double_occurred) return Representation::Double();
-
   if (int32_occurred) return Representation::Integer32();
+  if (smi_occurred) return Representation::Smi();
 
   return Representation::None();
 }
