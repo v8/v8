@@ -45,7 +45,8 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
       deoptimization_handler_(NULL),
-      miss_handler_(IC_Utility(IC::kUnreachable), Isolate::Current()) { }
+      miss_handler_(IC_Utility(IC::kUnreachable), Isolate::Current()),
+      has_miss_handler_(false) { }
 
 
 bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {

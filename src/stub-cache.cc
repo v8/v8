@@ -919,6 +919,7 @@ Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
   }
 
   Handle<Code> ic = stub.GetCode(isolate_);
+
   // For monomorphic maps, use the code as a template, copying and replacing
   // the monomorphic map that checks the object's type.
   ic = isolate_->factory()->CopyCode(ic);

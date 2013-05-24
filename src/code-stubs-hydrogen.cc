@@ -204,10 +204,10 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
 
  protected:
   virtual HValue* BuildCodeStub() {
-    if (casted_stub()->IsMiss()) {
-      return BuildCodeInitializedStub();
-    } else {
+    if (casted_stub()->IsUninitialized()) {
       return BuildCodeUninitializedStub();
+    } else {
+      return BuildCodeInitializedStub();
     }
   }
 
@@ -276,16 +276,17 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   if (descriptor->register_param_count_ < 0) {
     stub->InitializeInterfaceDescriptor(isolate, descriptor);
   }
-  // The miss case without stack parameters can use a light-weight stub to enter
+
+  // If we are uninitialized we can use a light-weight stub to enter
   // the runtime that is significantly faster than using the standard
   // stub-failure deopt mechanism.
-  if (stub->IsMiss() && descriptor->stack_parameter_count_ == NULL) {
+  if (stub->IsUninitialized() && descriptor->has_miss_handler()) {
+    ASSERT(descriptor->stack_parameter_count_ == NULL);
     return stub->GenerateLightweightMissCode(isolate);
-  } else {
-    CodeStubGraphBuilder<Stub> builder(stub);
-    LChunk* chunk = OptimizeGraph(builder.CreateGraph());
-    return chunk->Codegen();
   }
+  CodeStubGraphBuilder<Stub> builder(stub);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen();
 }
 
 
@@ -658,7 +659,7 @@ Handle<Code> ArrayNArgumentsConstructorStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeUninitializedStub() {
+HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
   CompareNilICStub* stub = casted_stub();
   HIfContinuation continuation;
   Handle<Map> sentinel_map(graph()->isolate()->heap()->meta_map());
