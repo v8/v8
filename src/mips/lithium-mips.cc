@@ -1763,6 +1763,12 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   if (from.IsSmi()) {
     if (to.IsTagged()) {
       LOperand* value = UseRegister(instr->value());
+      // For now, always deopt on hole.
+      if (instr->value()->IsLoadKeyed() &&
+          HLoadKeyed::cast(instr->value())->UsesMustHandleHole()) {
+        return AssignEnvironment(
+            DefineSameAsFirst(new(zone()) LCheckSmiAndReturn(value)));
+      }
       return DefineSameAsFirst(new(zone()) LDummyUse(value));
     }
     from = Representation::Tagged();
@@ -1775,9 +1781,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       return AssignEnvironment(DefineAsRegister(res));
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
-      LOperand* value = UseRegisterAtStart(val);
+      LOperand* value = UseRegister(val);
       return AssignEnvironment(
-          DefineSameAsFirst(new(zone()) LCheckSmi(value)));
+          DefineSameAsFirst(new(zone()) LCheckSmiAndReturn(value)));
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = NULL;
