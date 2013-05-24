@@ -2076,7 +2076,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
     if (instr->representation().IsDouble()) {
       obj = UseTempRegister(instr->elements());
     } else {
-      ASSERT(instr->representation().IsTagged());
+      ASSERT(instr->representation().IsSmiOrTagged());
       obj = UseRegisterAtStart(instr->elements());
     }
     result = new(zone()) LLoadKeyed(obj, key);
