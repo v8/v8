@@ -3944,7 +3944,9 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   // (4 bytes) will be placed. This is also built into the Simulator.
   // Set up the pointer to the returned value (a0). It was allocated in
   // EnterExitFrame.
-  addiu(a0, fp, ExitFrameConstants::kStackSpaceOffset);
+  if (returns_handle) {
+    addiu(a0, fp, ExitFrameConstants::kStackSpaceOffset);
+  }
 
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).
