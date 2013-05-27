@@ -5076,7 +5076,9 @@ void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
                                       NumberUntagDMode mode) {
   Label load_smi, done;
 
-  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+  STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
+                NUMBER_CANDIDATE_IS_ANY_TAGGED);
+  if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
 
@@ -5086,17 +5088,23 @@ void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
     if (deoptimize_on_undefined) {
       DeoptimizeIf(not_equal, env);
     } else {
-      Label heap_number;
+      Label heap_number, convert;
       __ j(equal, &heap_number, Label::kNear);
 
+      // Convert undefined (or hole) to NaN.
       __ cmp(input_reg, factory()->undefined_value());
+      if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE) {
+        __ j(equal, &convert, Label::kNear);
+        __ cmp(input_reg, factory()->the_hole_value());
+      }
       DeoptimizeIf(not_equal, env);
 
-      // Convert undefined to NaN.
+      __ bind(&convert);
       ExternalReference nan =
           ExternalReference::address_of_canonical_non_hole_nan();
       __ fld_d(Operand::StaticVariable(nan));
       __ jmp(&done, Label::kNear);
+
       __ bind(&heap_number);
     }
     // Heap number to x87 conversion.
@@ -5116,16 +5124,6 @@ void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
       __ fstp(0);
       DeoptimizeIf(not_zero, env);
     }
-    __ jmp(&done, Label::kNear);
-  } else if (mode == NUMBER_CANDIDATE_IS_SMI_OR_HOLE) {
-    __ test(input_reg, Immediate(kSmiTagMask));
-    DeoptimizeIf(not_equal, env);
-  } else if (mode == NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE) {
-    __ test(input_reg, Immediate(kSmiTagMask));
-    __ j(zero, &load_smi);
-    ExternalReference hole_nan_reference =
-        ExternalReference::address_of_the_hole_nan();
-    __ fld_d(Operand::StaticVariable(hole_nan_reference));
     __ jmp(&done, Label::kNear);
   } else {
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
@@ -5150,7 +5148,9 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 NumberUntagDMode mode) {
   Label load_smi, done;
 
-  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+  STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
+                NUMBER_CANDIDATE_IS_ANY_TAGGED);
+  if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
 
@@ -5160,13 +5160,18 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     if (deoptimize_on_undefined) {
       DeoptimizeIf(not_equal, env);
     } else {
-      Label heap_number;
+      Label heap_number, convert;
       __ j(equal, &heap_number, Label::kNear);
 
+      // Convert undefined (and hole) to NaN.
       __ cmp(input_reg, factory()->undefined_value());
+      if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE) {
+        __ j(equal, &convert, Label::kNear);
+        __ cmp(input_reg, factory()->the_hole_value());
+      }
       DeoptimizeIf(not_equal, env);
 
-      // Convert undefined to NaN.
+      __ bind(&convert);
       ExternalReference nan =
           ExternalReference::address_of_canonical_non_hole_nan();
       __ movdbl(result_reg, Operand::StaticVariable(nan));
@@ -5185,16 +5190,6 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       __ test_b(temp_reg, 1);
       DeoptimizeIf(not_zero, env);
     }
-    __ jmp(&done, Label::kNear);
-  } else if (mode == NUMBER_CANDIDATE_IS_SMI_OR_HOLE) {
-    __ test(input_reg, Immediate(kSmiTagMask));
-    DeoptimizeIf(not_equal, env);
-  } else if (mode == NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE) {
-    __ test(input_reg, Immediate(kSmiTagMask));
-    __ j(zero, &load_smi);
-    ExternalReference hole_nan_reference =
-        ExternalReference::address_of_the_hole_nan();
-    __ movdbl(result_reg, Operand::StaticVariable(hole_nan_reference));
     __ jmp(&done, Label::kNear);
   } else {
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
@@ -5495,20 +5490,12 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 
   NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
   HValue* value = instr->hydrogen()->value();
-  if (value->type().IsSmi()) {
-    if (value->IsLoadKeyed()) {
-      HLoadKeyed* load = HLoadKeyed::cast(value);
-      if (load->UsesMustHandleHole()) {
-        if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-          mode = NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE;
-        } else {
-          mode = NUMBER_CANDIDATE_IS_SMI_OR_HOLE;
-        }
-      } else {
-        mode = NUMBER_CANDIDATE_IS_SMI;
-      }
-    } else {
-      mode = NUMBER_CANDIDATE_IS_SMI;
+  if (value->representation().IsSmi()) {
+    mode = NUMBER_CANDIDATE_IS_SMI;
+  } else if (value->IsLoadKeyed()) {
+    HLoadKeyed* load = HLoadKeyed::cast(value);
+    if (load->UsesMustHandleHole()) {
+      mode = NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE;
     }
   }
 

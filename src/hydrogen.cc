@@ -3988,8 +3988,8 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   // This must happen after inferring representations.
   MergeRemovableSimulates();
 
-  MarkDeoptimizeOnUndefined();
   InsertRepresentationChanges();
+  MarkDeoptimizeOnUndefined();
 
   InitializeInferredTypes();
 

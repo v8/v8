@@ -1718,7 +1718,9 @@ class HChange: public HUnaryOperation {
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
-    if (deoptimize_on_undefined) SetFlag(kDeoptimizeOnUndefined);
+    if (deoptimize_on_undefined || to.IsTagged()) {
+      SetFlag(kDeoptimizeOnUndefined);
+    }
     if (is_truncating) SetFlag(kTruncatingToInt32);
     if (value->representation().IsSmi() || value->type().IsSmi()) {
       set_type(HType::Smi());
