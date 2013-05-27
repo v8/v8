@@ -1936,8 +1936,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       if (val->type().IsSmi()) {
         return DefineSameAsFirst(new(zone()) LDummyUse(value));
       }
-      return AssignEnvironment(
-          DefineSameAsFirst(new(zone()) LCheckSmiAndReturn(value)));
+      return AssignEnvironment(DefineSameAsFirst(new(zone()) LCheckSmi(value)));
     } else {
       ASSERT(to.IsInteger32());
       if (instr->value()->type().IsSmi()) {
@@ -2046,12 +2045,6 @@ LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
   LUnallocated* temp = TempRegister();
   LCheckPrototypeMaps* result = new(zone()) LCheckPrototypeMaps(temp);
   return AssignEnvironment(result);
-}
-
-
-LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
-  LOperand* value = UseAtStart(instr->value());
-  return AssignEnvironment(new(zone()) LCheckSmi(value));
 }
 
 

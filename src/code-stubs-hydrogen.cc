@@ -640,11 +640,6 @@ HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
   HInstruction* argument = AddInstruction(new(zone()) HAccessArgumentsAt(
       argument_elements, length, key));
 
-  // Checks to prevent incompatible stores
-  if (IsFastSmiElementsKind(kind)) {
-    AddInstruction(new(zone()) HCheckSmi(argument));
-  }
-
   AddInstruction(new(zone()) HStoreKeyed(elements, key, argument, kind));
   builder.EndBody();
   return new_object;

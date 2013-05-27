@@ -1098,11 +1098,6 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(
     switch (elements_kind) {
       case FAST_SMI_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
-        if (!val->type().IsSmi()) {
-          // Smi-only arrays need a smi check.
-          AddInstruction(new(zone) HCheckSmi(val));
-        }
-        // Fall through.
       case FAST_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -1289,14 +1284,17 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
          fast_elements ||
          IsFastDoubleElementsKind(elements_kind));
 
+  // In case val is stored into a fast smi array, assure that the value is a smi
+  // before manipulating the backing store. Otherwise the actual store may
+  // deopt, leaving the backing store in an invalid state.
   if (is_store && IsFastSmiElementsKind(elements_kind) &&
       !val->type().IsSmi()) {
-    AddInstruction(new(zone) HCheckSmi(val));
+    val = AddInstruction(new(zone) HForceRepresentation(
+        val, Representation::Smi()));
   }
 
   if (IsGrowStoreMode(store_mode)) {
     NoObservableSideEffectsScope no_effects(this);
-
     elements = BuildCheckForCapacityGrow(object, elements, elements_kind,
                                          length, key, is_js_array);
     checked_key = key;
@@ -6937,11 +6935,6 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     switch (boilerplate_elements_kind) {
       case FAST_SMI_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
-        if (!value->type().IsSmi()) {
-          // Smi-only arrays need a smi check.
-          AddInstruction(new(zone()) HCheckSmi(value));
-          // Fall through.
-        }
       case FAST_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:

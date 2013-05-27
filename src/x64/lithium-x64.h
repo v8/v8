@@ -76,7 +76,6 @@ class LCodeGen;
   V(CheckNonSmi)                                \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
-  V(CheckSmiAndReturn)                          \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
@@ -2291,7 +2290,7 @@ class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 1> {
 };
 
 
-class LCheckSmi: public LTemplateInstruction<0, 1, 0> {
+class LCheckSmi: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LCheckSmi(LOperand* value) {
     inputs_[0] = value;
@@ -2300,18 +2299,6 @@ class LCheckSmi: public LTemplateInstruction<0, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckSmi, "check-smi")
-};
-
-
-class LCheckSmiAndReturn: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LCheckSmiAndReturn(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckSmiAndReturn, "check-smi-and-return")
 };
 
 

@@ -92,7 +92,6 @@ class LChunkBuilder;
   V(CheckMaps)                                 \
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
-  V(CheckSmi)                                  \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareIDAndBranch)                        \
@@ -1714,7 +1713,8 @@ class HChange: public HUnaryOperation {
           bool is_truncating,
           bool deoptimize_on_undefined)
       : HUnaryOperation(value) {
-    ASSERT(!value->representation().IsNone() && !to.IsNone());
+    ASSERT(!value->representation().IsNone());
+    ASSERT(!to.IsNone());
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
@@ -2925,29 +2925,6 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   ZoneList<Handle<Map> > maps_;
   UniqueValueId first_prototype_unique_id_;
   UniqueValueId last_prototype_unique_id_;
-};
-
-
-class HCheckSmi: public HUnaryOperation {
- public:
-  explicit HCheckSmi(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual HType CalculateInferredType();
-
-#ifdef DEBUG
-  virtual void Verify();
-#endif
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckSmi)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
 };
 
 
