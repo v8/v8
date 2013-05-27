@@ -1386,8 +1386,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   } else {
     __ push(Immediate(Handle<Object>(callback->data(), isolate())));
   }
-  __ push(Immediate(reinterpret_cast<int>(isolate())));
   __ push(Immediate(isolate()->factory()->undefined_value()));  // ReturnValue
+  __ push(Immediate(reinterpret_cast<int>(isolate())));
 
   // Save a pointer to where we pushed the arguments pointer.  This will be
   // passed as the const ExecutableAccessorInfo& to the C++ callback.
@@ -1420,7 +1420,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ CallApiFunctionAndReturn(getter_address,
                               kStackSpace,
                               returns_handle,
-                              4);
+                              5);
 }
 
 
