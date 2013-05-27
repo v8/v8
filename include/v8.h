@@ -2779,8 +2779,8 @@ class ReturnValue {
  public:
   V8_INLINE(explicit ReturnValue(internal::Object** slot));
   // Handle setters
-  V8_INLINE(void Set(const Persistent<T>& handle));
-  V8_INLINE(void Set(const Handle<T> handle));
+  template <typename S> V8_INLINE(void Set(const Persistent<S>& handle));
+  template <typename S> V8_INLINE(void Set(const Handle<S> handle));
   // Fast primitive setters
   V8_INLINE(void Set(bool value));
   V8_INLINE(void Set(double i));
@@ -5684,12 +5684,16 @@ template<typename T>
 ReturnValue<T>::ReturnValue(internal::Object** slot) : value_(slot) {}
 
 template<typename T>
-void ReturnValue<T>::Set(const Persistent<T>& handle) {
+template<typename S>
+void ReturnValue<T>::Set(const Persistent<S>& handle) {
+  TYPE_CHECK(T, S);
   *value_ = *reinterpret_cast<internal::Object**>(*handle);
 }
 
 template<typename T>
-void ReturnValue<T>::Set(const Handle<T> handle) {
+template<typename S>
+void ReturnValue<T>::Set(const Handle<S> handle) {
+  TYPE_CHECK(T, S);
   *value_ = *reinterpret_cast<internal::Object**>(*handle);
 }
 

@@ -1074,6 +1074,12 @@ void FastReturnValueCallback<void>(
   }
 }
 
+template<>
+void FastReturnValueCallback<Object>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(Object::New());
+}
+
 template<typename T>
 Handle<Value> TestFastReturnValues() {
   LocalContext env;
@@ -1118,6 +1124,8 @@ THREADED_TEST(FastReturnValues) {
       CHECK(value->IsUndefined());
     }
   }
+  value = TestFastReturnValues<Object>();
+  CHECK(value->IsObject());
 }
 
 
