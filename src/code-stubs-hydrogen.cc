@@ -411,7 +411,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), NULL, NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
-      false, NEVER_RETURN_HOLE, STANDARD_STORE, Representation::Smi());
+      false, NEVER_RETURN_HOLE, STANDARD_STORE);
   return load;
 }
 
@@ -456,8 +456,7 @@ HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
   BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), GetParameter(2), NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
-      true, NEVER_RETURN_HOLE, casted_stub()->store_mode(),
-      Representation::Smi());
+      true, NEVER_RETURN_HOLE, casted_stub()->store_mode());
 
   return GetParameter(2);
 }
@@ -573,9 +572,8 @@ HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
       new(zone()) HConstant(initial_capacity, Representation::Tagged());
   AddInstruction(initial_capacity_node);
 
-  HBoundsCheck* checked_arg = AddBoundsCheck(argument, max_alloc_length,
-                                             ALLOW_SMI_KEY,
-                                             Representation::Smi());
+  HBoundsCheck* checked_arg = AddBoundsCheck(
+      argument, max_alloc_length, ALLOW_SMI_KEY);
   IfBuilder if_builder(this);
   if_builder.IfCompare(checked_arg, constant_zero, Token::EQ);
   if_builder.Then();

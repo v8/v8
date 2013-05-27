@@ -978,10 +978,9 @@ void HGraphBuilder::AddSimulate(BailoutId id,
 
 HBoundsCheck* HGraphBuilder::AddBoundsCheck(HValue* index,
                                             HValue* length,
-                                            BoundsCheckKeyMode key_mode,
-                                            Representation r) {
+                                            BoundsCheckKeyMode key_mode) {
   HBoundsCheck* result = new(graph()->zone()) HBoundsCheck(
-      index, length, key_mode, r);
+      index, length, key_mode);
   AddInstruction(result);
   return result;
 }
@@ -1221,8 +1220,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     ElementsKind elements_kind,
     bool is_store,
     LoadKeyedHoleMode load_mode,
-    KeyedAccessStoreMode store_mode,
-    Representation checked_index_representation) {
+    KeyedAccessStoreMode store_mode) {
   ASSERT(!IsExternalArrayElementsKind(elements_kind) || !is_js_array);
   Zone* zone = this->zone();
   // No GVNFlag is necessary for ElementsKind if there is an explicit dependency
@@ -1278,8 +1276,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       return result;
     } else {
       ASSERT(store_mode == STANDARD_STORE);
-      checked_key = AddBoundsCheck(
-          key, length, ALLOW_SMI_KEY, checked_index_representation);
+      checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
       HLoadExternalArrayPointer* external_elements =
           new(zone) HLoadExternalArrayPointer(elements);
       AddInstruction(external_elements);
@@ -1304,8 +1301,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
                                          length, key, is_js_array);
     checked_key = key;
   } else {
-    checked_key = AddBoundsCheck(
-        key, length, ALLOW_SMI_KEY, checked_index_representation);
+    checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
 
     if (is_store && (fast_elements || fast_smi_only_elements)) {
       if (store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
@@ -1477,9 +1473,8 @@ void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
   AddInstruction(max_size_constant);
   // Since we're forcing Integer32 representation for this HBoundsCheck,
   // there's no need to Smi-check the index.
-  AddInstruction(new(zone)
-                 HBoundsCheck(length, max_size_constant,
-                              DONT_ALLOW_SMI_KEY, Representation::Integer32()));
+  AddInstruction(new(zone) HBoundsCheck(
+      length, max_size_constant, DONT_ALLOW_SMI_KEY));
 }
 
 

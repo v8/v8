@@ -963,8 +963,7 @@ class HGraphBuilder {
   HBoundsCheck* AddBoundsCheck(
       HValue* index,
       HValue* length,
-      BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY,
-      Representation r = Representation::None());
+      BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY);
 
   HReturn* AddReturn(HValue* value);
 
@@ -1025,8 +1024,7 @@ class HGraphBuilder {
       ElementsKind elements_kind,
       bool is_store,
       LoadKeyedHoleMode load_mode,
-      KeyedAccessStoreMode store_mode,
-      Representation checked_index_representation = Representation::None());
+      KeyedAccessStoreMode store_mode);
 
   HLoadNamedField* AddLoad(
       HValue *object,
