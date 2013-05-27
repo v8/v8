@@ -296,3 +296,21 @@ assertEquals(42, obj.accessor);
 accessorDidRun = false;
 obj.accessor = 'ignored value';
 assertTrue(accessorDidRun);
+
+// Test for regression in mixed accessor/data property objects.
+// The strict function is one such object.
+assertTrue(Object.isFrozen(Object.freeze(function(){"use strict";})));
+
+// Also test a simpler case
+obj = {};
+Object.defineProperty(obj, 'accessor', {
+  get: function() { return 42 },
+  set: function() { accessorDidRun = true },
+  configurable: true,
+  enumerable: true
+});
+obj.data = 'foo';
+assertTrue(%HasFastProperties(obj));
+Object.freeze(obj);
+assertTrue(%HasFastProperties(obj));
+assertTrue(Object.isFrozen(obj));
