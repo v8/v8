@@ -506,7 +506,7 @@ Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
 
 
 bool LCodeGen::IsInteger32(LConstantOperand* op) const {
-  return chunk_->LookupLiteralRepresentation(op).IsInteger32();
+  return chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
 }
 
 
