@@ -3227,7 +3227,7 @@ class HConstant: public HTemplateInstruction<0> {
     return int32_value_;
   }
   bool HasSmiValue() const {
-    return HasInteger32Value() && Smi::IsValid(Integer32Value());
+    return has_smi_value_;
   }
   bool HasDoubleValue() const { return has_double_value_; }
   double DoubleValue() const {
@@ -3327,6 +3327,7 @@ class HConstant: public HTemplateInstruction<0> {
   // int32_value_ and double_value_ hold valid, safe representations
   // of the constant.  has_int32_value_ implies has_double_value_ but
   // not the converse.
+  bool has_smi_value_ : 1;
   bool has_int32_value_ : 1;
   bool has_double_value_ : 1;
   bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
@@ -3394,6 +3395,16 @@ class HBinaryOperation: public HTemplateInstruction<3> {
   virtual void InferRepresentation(HInferRepresentation* h_infer);
   virtual Representation RepresentationFromInputs();
   virtual void AssumeRepresentation(Representation r);
+
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentation* h_infer,
+                                    const char* reason) {
+    // By default, binary operations don't handle Smis.
+    if (new_rep.IsSmi()) {
+      new_rep = Representation::Integer32();
+    }
+    HValue::UpdateRepresentation(new_rep, h_infer, reason);
+  }
 
   virtual bool IsCommutative() const { return false; }
 
@@ -3556,22 +3567,13 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   // it makes sense to invoke this constructor directly.
   HBoundsCheck(HValue* index,
                HValue* length,
-               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY,
-               Representation r = Representation::None())
+               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY)
     : key_mode_(key_mode), skip_check_(false),
       base_(NULL), offset_(0), scale_(0),
       responsibility_direction_(DIRECTION_NONE) {
     SetOperandAt(0, index);
     SetOperandAt(1, length);
-    if (r.IsNone()) {
-      // In the normal compilation pipeline the representation is flexible
-      // (see InferRepresentation).
-      SetFlag(kFlexibleRepresentation);
-    } else {
-      // When compiling stubs we want to set the representation explicitly
-      // so the compilation pipeline can skip the HInferRepresentation phase.
-      set_representation(r);
-    }
+    SetFlag(kFlexibleRepresentation);
     SetFlag(kUseGVN);
   }
 
@@ -3718,7 +3720,9 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
                                     HInferRepresentation* h_infer,
                                     const char* reason) {
     // We only generate either int32 or generic tagged bitwise operations.
-    if (new_rep.IsDouble()) new_rep = Representation::Integer32();
+    if (new_rep.IsSmi() || new_rep.IsDouble()) {
+      new_rep = Representation::Integer32();
+    }
     HValue::UpdateRepresentation(new_rep, h_infer, reason);
   }
 

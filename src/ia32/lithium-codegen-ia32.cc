@@ -603,7 +603,7 @@ double LCodeGen::ToDouble(LConstantOperand* op) const {
 
 
 bool LCodeGen::IsInteger32(LConstantOperand* op) const {
-  return chunk_->LookupLiteralRepresentation(op).IsInteger32();
+  return chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
 }
 
 
@@ -2127,7 +2127,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
   CpuFeatureScope scope(masm(), SSE2);
 
   Representation r = instr->hydrogen()->value()->representation();
-  if (r.IsInteger32() || r.IsSmi()) {
+  if (r.IsSmiOrInteger32()) {
     Register reg = ToRegister(instr->value());
     __ test(reg, Operand(reg));
     EmitBranch(true_block, false_block, not_zero);

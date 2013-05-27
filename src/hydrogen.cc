@@ -603,19 +603,6 @@ HConstant* HGraph::GetConstantInt32(SetOncePointer<HConstant>* pointer,
 }
 
 
-HConstant* HGraph::GetConstantSmi(SetOncePointer<HConstant>* pointer,
-                                  int32_t value) {
-  if (!pointer->is_set()) {
-    HConstant* constant =
-        new(zone()) HConstant(Handle<Object>(Smi::FromInt(value), isolate()),
-                              Representation::Tagged());
-    constant->InsertAfter(GetConstantUndefined());
-    pointer->set(constant);
-  }
-  return pointer->get();
-}
-
-
 HConstant* HGraph::GetConstant0() {
   return GetConstantInt32(&constant_0_, 0);
 }
@@ -653,16 +640,6 @@ DEFINE_GET_CONSTANT(True, true, HType::Boolean(), true)
 DEFINE_GET_CONSTANT(False, false, HType::Boolean(), false)
 DEFINE_GET_CONSTANT(Hole, the_hole, HType::Tagged(), false)
 DEFINE_GET_CONSTANT(Null, null, HType::Tagged(), false)
-
-
-HConstant* HGraph::GetConstantSmi0() {
-  return GetConstantSmi(&constant_smi_0_, 0);
-}
-
-
-HConstant* HGraph::GetConstantSmi1() {
-  return GetConstantSmi(&constant_smi_1_, 1);
-}
 
 
 #undef DEFINE_GET_CONSTANT
@@ -1562,6 +1539,12 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* context,
     }
   }
 
+  // Since we're about to store a hole value, the store instruction below must
+  // assume an elements kind that supports heap object values.
+  if (IsFastSmiOrObjectElementsKind(elements_kind)) {
+    elements_kind = FAST_HOLEY_ELEMENTS;
+  }
+
   if (unfold_loop) {
     for (int i = 0; i < initial_capacity; i++) {
       HInstruction* key = AddInstruction(new(zone)
@@ -1608,8 +1591,11 @@ void HGraphBuilder::BuildCopyElements(HValue* context,
                                             from_elements_kind,
                                             ALLOW_RETURN_HOLE));
 
-  AddInstruction(new(zone()) HStoreKeyed(to_elements, key, element,
-                                         to_elements_kind));
+  ElementsKind holey_kind = IsFastSmiElementsKind(to_elements_kind)
+      ? FAST_HOLEY_ELEMENTS : to_elements_kind;
+  HInstruction* holey_store = AddInstruction(
+      new(zone()) HStoreKeyed(to_elements, key, element, holey_kind));
+  holey_store->ClearFlag(HValue::kDeoptimizeOnUndefined);
 
   builder.EndBody();
 
