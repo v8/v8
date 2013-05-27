@@ -1,3 +1,14 @@
+2013-05-27: Version 3.19.5
+
+        Reset regexp parser flag after scanning ahead for capture groups.
+        (issue 2690)
+
+        Removed flakiness in test-cpu-profiler/SampleWhenFrameIsNotSetup.
+        (issue 2628)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-05-24: Version 3.19.4
 
         Fixed edge case in stack trace formatting. (Chromium issue 237617)
