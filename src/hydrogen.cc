@@ -39,6 +39,7 @@
 #include "scopeinfo.h"
 #include "scopes.h"
 #include "stub-cache.h"
+#include "typing.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/lithium-codegen-ia32.h"
@@ -1934,11 +1935,10 @@ HStoreNamedField* HGraphBuilder::AddStoreMapConstant(HValue *object,
 }
 
 
-HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info,
-                                               TypeFeedbackOracle* oracle)
+HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
     : HGraphBuilder(info),
       function_state_(NULL),
-      initial_function_state_(this, info, oracle, NORMAL_RETURN),
+      initial_function_state_(this, info, NORMAL_RETURN),
       ast_context_(NULL),
       break_scope_(NULL),
       inlined_count_(0),
@@ -3510,11 +3510,9 @@ void HGraph::ComputeMinusZeroChecks() {
 // a (possibly inlined) function.
 FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
                              CompilationInfo* info,
-                             TypeFeedbackOracle* oracle,
                              InliningKind inlining_kind)
     : owner_(owner),
       compilation_info_(info),
-      oracle_(oracle),
       call_context_(NULL),
       inlining_kind_(inlining_kind),
       function_return_(NULL),
@@ -3531,11 +3529,9 @@ FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
       if_false->MarkAsInlineReturnTarget();
       TestContext* outer_test_context = TestContext::cast(owner->ast_context());
       Expression* cond = outer_test_context->condition();
-      TypeFeedbackOracle* outer_oracle = outer_test_context->oracle();
       // The AstContext constructor pushed on the context stack.  This newed
       // instance is the reason that AstContext can't be BASE_EMBEDDED.
-      test_context_ =
-          new TestContext(owner, cond, outer_oracle, if_true, if_false);
+      test_context_ = new TestContext(owner, cond, if_true, if_false);
     } else {
       function_return_ = owner->graph()->CreateBasicBlock();
       function_return()->MarkAsInlineReturnTarget();
@@ -3769,8 +3765,7 @@ void TestContext::BuildBranch(HValue* value) {
   }
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
-  TypeFeedbackId test_id = condition()->test_id();
-  ToBooleanStub::Types expected(oracle()->ToBooleanTypes(test_id));
+  ToBooleanStub::Types expected(condition()->to_boolean_types());
   HBranch* test = new(zone()) HBranch(value, empty_true, empty_false, expected);
   builder->current_block()->Finish(test);
 
@@ -3825,7 +3820,7 @@ void HOptimizedGraphBuilder::VisitForTypeOf(Expression* expr) {
 void HOptimizedGraphBuilder::VisitForControl(Expression* expr,
                                              HBasicBlock* true_block,
                                              HBasicBlock* false_block) {
-  TestContext for_test(this, expr, oracle(), true_block, false_block);
+  TestContext for_test(this, expr, true_block, false_block);
   Visit(expr);
 }
 
@@ -4834,9 +4829,8 @@ void HOptimizedGraphBuilder::VisitContinueStatement(
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   int drop_extra = 0;
-  HBasicBlock* continue_block = break_scope()->Get(stmt->target(),
-                                                   CONTINUE,
-                                                   &drop_extra);
+  HBasicBlock* continue_block = break_scope()->Get(
+      stmt->target(), BreakAndContinueScope::CONTINUE, &drop_extra);
   Drop(drop_extra);
   current_block()->Goto(continue_block);
   set_current_block(NULL);
@@ -4848,9 +4842,8 @@ void HOptimizedGraphBuilder::VisitBreakStatement(BreakStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   int drop_extra = 0;
-  HBasicBlock* break_block = break_scope()->Get(stmt->target(),
-                                                BREAK,
-                                                &drop_extra);
+  HBasicBlock* break_block = break_scope()->Get(
+      stmt->target(), BreakAndContinueScope::BREAK, &drop_extra);
   Drop(drop_extra);
   current_block()->Goto(break_block);
   set_current_block(NULL);
@@ -4941,6 +4934,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+
   // We only optimize switch statements with smi-literal smi comparisons,
   // with a bounded number of clauses.
   const int kCaseClauseLimit = 128;
@@ -4950,6 +4944,11 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     return Bailout("SwitchStatement: too many clauses");
   }
 
+  ASSERT(stmt->switch_type() != SwitchStatement::UNKNOWN_SWITCH);
+  if (stmt->switch_type() == SwitchStatement::GENERIC_SWITCH) {
+    return Bailout("SwitchStatement: mixed or non-literal switch labels");
+  }
+
   HValue* context = environment()->LookupContext();
 
   CHECK_ALIVE(VisitForValue(stmt->tag()));
@@ -4957,34 +4956,11 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   HValue* tag_value = Pop();
   HBasicBlock* first_test_block = current_block();
 
-  SwitchType switch_type = UNKNOWN_SWITCH;
-
-  // 1. Extract clause type
-  for (int i = 0; i < clause_count; ++i) {
-    CaseClause* clause = clauses->at(i);
-    if (clause->is_default()) continue;
-
-    if (switch_type == UNKNOWN_SWITCH) {
-      if (clause->label()->IsSmiLiteral()) {
-        switch_type = SMI_SWITCH;
-      } else if (clause->label()->IsStringLiteral()) {
-        switch_type = STRING_SWITCH;
-      } else {
-        return Bailout("SwitchStatement: non-literal switch label");
-      }
-    } else if ((switch_type == STRING_SWITCH &&
-                !clause->label()->IsStringLiteral()) ||
-               (switch_type == SMI_SWITCH &&
-                !clause->label()->IsSmiLiteral())) {
-      return Bailout("SwitchStatement: mixed label types are not supported");
-    }
-  }
-
   HUnaryControlInstruction* string_check = NULL;
   HBasicBlock* not_string_block = NULL;
 
   // Test switch's tag value if all clauses are string literals
-  if (switch_type == STRING_SWITCH) {
+  if (stmt->switch_type() == SwitchStatement::STRING_SWITCH) {
     string_check = new(zone()) HIsStringAndBranch(tag_value);
     first_test_block = graph()->CreateBasicBlock();
     not_string_block = graph()->CreateBasicBlock();
@@ -4996,16 +4972,13 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     set_current_block(first_test_block);
   }
 
-  // 2. Build all the tests, with dangling true branches
+  // 1. Build all the tests, with dangling true branches
   BailoutId default_id = BailoutId::None();
   for (int i = 0; i < clause_count; ++i) {
     CaseClause* clause = clauses->at(i);
     if (clause->is_default()) {
       default_id = clause->EntryId();
       continue;
-    }
-    if (switch_type == SMI_SWITCH) {
-      clause->RecordTypeFeedback(oracle());
     }
 
     // Generate a compare and branch.
@@ -5017,7 +4990,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 
     HControlInstruction* compare;
 
-    if (switch_type == SMI_SWITCH) {
+    if (stmt->switch_type() == SwitchStatement::SMI_SWITCH) {
       if (!clause->IsSmiCompare()) {
         // Finish with deoptimize and add uses of enviroment values to
         // account for invisible uses.
@@ -5055,7 +5028,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     last_block = CreateJoin(last_block, not_string_block, join_id);
   }
 
-  // 3. Loop over the clauses and the linked list of tests in lockstep,
+  // 2. Loop over the clauses and the linked list of tests in lockstep,
   // translating the clause bodies.
   HBasicBlock* curr_test_block = first_test_block;
   HBasicBlock* fall_through_block = NULL;
@@ -5342,7 +5315,7 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
     return Bailout("ForInStatement optimization is disabled");
   }
 
-  if (!oracle()->IsForInFastCase(stmt)) {
+  if (stmt->for_in_type() != ForInStatement::FAST_FOR_IN) {
     return Bailout("ForInStatement is not fast case");
   }
 
@@ -5483,8 +5456,7 @@ void HOptimizedGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
 static Handle<SharedFunctionInfo> SearchSharedFunctionInfo(
     Code* unoptimized_code, FunctionLiteral* expr) {
   int start_position = expr->start_position();
-  RelocIterator it(unoptimized_code);
-  for (; !it.done(); it.next()) {
+  for (RelocIterator it(unoptimized_code); !it.done(); it.next()) {
     RelocInfo* rinfo = it.rinfo();
     if (rinfo->rmode() != RelocInfo::EMBEDDED_OBJECT) continue;
     Object* obj = rinfo->target_object();
@@ -5505,8 +5477,7 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   Handle<SharedFunctionInfo> shared_info =
-      SearchSharedFunctionInfo(info()->shared_info()->code(),
-                               expr);
+      SearchSharedFunctionInfo(info()->shared_info()->code(), expr);
   if (shared_info.is_null()) {
     shared_info = Compiler::BuildFunctionInfo(expr, info()->script());
   }
@@ -5938,7 +5909,6 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::COMPUTED:
         if (key->handle()->IsInternalizedString()) {
           if (property->emit_store()) {
-            property->RecordTypeFeedback(oracle());
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
             Handle<Map> map = property->GetReceiverType();
@@ -6474,7 +6444,6 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
 void HOptimizedGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
   Property* prop = expr->target()->AsProperty();
   ASSERT(prop != NULL);
-  expr->RecordTypeFeedback(oracle(), zone());
   CHECK_ALIVE(VisitForValue(prop->obj()));
 
   if (prop->key()->IsPropertyName()) {
@@ -6672,8 +6641,6 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     return ast_context()->ReturnValue(Pop());
 
   } else if (prop != NULL) {
-    prop->RecordTypeFeedback(oracle(), zone());
-
     if (prop->key()->IsPropertyName()) {
       // Named property.
       CHECK_ALIVE(VisitForValue(prop->obj()));
@@ -6755,7 +6722,6 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       Push(load);
       if (has_side_effects) AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);
 
-
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* right = Pop();
       HValue* left = Pop();
@@ -6766,7 +6732,6 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         AddSimulate(operation->id(), REMOVABLE_SIMULATE);
       }
 
-      expr->RecordTypeFeedback(oracle(), zone());
       HandleKeyedElementAccess(obj, key, instr, expr, expr->AssignmentId(),
                                RelocInfo::kNoPosition,
                                true,  // is_store
@@ -7506,7 +7471,6 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  expr->RecordTypeFeedback(oracle(), zone());
 
   if (TryArgumentsAccess(expr)) return;
 
@@ -7997,19 +7961,15 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
   // After this point, we've made a decision to inline this function (so
   // TryInline should always return true).
 
-  // Save the pending call context and type feedback oracle. Set up new ones
-  // for the inlined function.
+  // Type-check the inlined function.
   ASSERT(target_shared->has_deoptimization_support());
-  Handle<Code> unoptimized_code(target_shared->code());
-  TypeFeedbackOracle target_oracle(
-      unoptimized_code,
-      Handle<Context>(target->context()->native_context()),
-      isolate(),
-      zone());
+  AstTyper::Type(&target_info);
+
+  // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it
   // in two different places.
   FunctionState* target_state = new FunctionState(
-      this, &target_info, &target_oracle, inlining_kind);
+      this, &target_info, inlining_kind);
 
   HConstant* undefined = graph()->GetConstantUndefined();
   bool undefined_receiver = HEnvironment::UseUndefinedReceiver(
@@ -8083,6 +8043,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
   // Update inlined nodes count.
   inlined_count_ += nodes_added;
 
+  Handle<Code> unoptimized_code(target_shared->code());
   ASSERT(unoptimized_code->kind() == Code::FUNCTION);
   Handle<TypeFeedbackInfo> type_info(
       TypeFeedbackInfo::cast(unoptimized_code->type_feedback_info()));
@@ -8299,7 +8260,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         HValue* context = environment()->LookupContext();
         ASSERT(!expr->holder().is_null());
         AddInstruction(new(zone()) HCheckPrototypeMaps(
-            oracle()->GetPrototypeForPrimitiveCheck(STRING_CHECK),
+            Call::GetPrototypeForPrimitiveCheck(STRING_CHECK,
+                expr->holder()->GetIsolate()),
             expr->holder(),
             zone()));
         HInstruction* char_code =
@@ -8614,8 +8576,6 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     }
 
     // Named function call.
-    expr->RecordTypeFeedback(oracle(), CALL_AS_METHOD);
-
     if (TryCallApply(expr)) return;
 
     CHECK_ALIVE(VisitForValue(prop->obj()));
@@ -8681,7 +8641,6 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     }
 
   } else {
-    expr->RecordTypeFeedback(oracle(), CALL_AS_FUNCTION);
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
     bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
 
@@ -8817,7 +8776,6 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  expr->RecordTypeFeedback(oracle());
   int argument_count = expr->arguments()->length() + 1;  // Plus constructor.
   HValue* context = environment()->LookupContext();
 
@@ -8877,8 +8835,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
       // information that happened after crankshaft won't be lost.  The right
       // way to do that is to begin passing the cell to the type feedback oracle
       // instead of just the value in the cell. Do this in a follow-up checkin.
-      Handle<Object> feedback = oracle()->GetInfo(expr->CallNewFeedbackId());
-      ASSERT(feedback->IsSmi());
+      Handle<Smi> feedback = expr->allocation_elements_kind();
       Handle<JSGlobalPropertyCell> cell =
           isolate()->factory()->NewJSGlobalPropertyCell(feedback);
 
@@ -8966,6 +8923,7 @@ void HOptimizedGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
   }
 }
 
+
 void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
   Property* prop = expr->expression()->AsProperty();
   VariableProxy* proxy = expr->expression()->AsVariableProxy();
@@ -9022,7 +8980,7 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
   HValue* context = environment()->LookupContext();
   HInstruction* instr =
       HMul::New(zone(), context, value, graph()->GetConstantMinus1());
-  TypeInfo info = oracle()->UnaryType(expr);
+  TypeInfo info = expr->type();
   Representation rep = ToRepresentation(info);
   if (info.IsUninitialized()) {
     AddSoftDeoptimize();
@@ -9039,7 +8997,7 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
-  TypeInfo info = oracle()->UnaryType(expr);
+  TypeInfo info = expr->type();
   if (info.IsUninitialized()) {
     AddSoftDeoptimize();
   }
@@ -9096,7 +9054,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     bool returns_original_input,
     CountOperation* expr) {
   // The input to the count operation is on top of the expression stack.
-  TypeInfo info = oracle()->IncrementType(expr);
+  TypeInfo info = expr->type();
   Representation rep = ToRepresentation(info);
   if (rep.IsTagged()) {
     rep = Representation::Integer32();
@@ -9210,7 +9168,6 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
   } else {
     // Argument of the count operation is a property.
     ASSERT(prop != NULL);
-    prop->RecordTypeFeedback(oracle(), zone());
 
     if (prop->key()->IsPropertyName()) {
       // Named property.
@@ -9293,7 +9250,6 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
       after = BuildIncrement(returns_original_input, expr);
       input = environment()->ExpressionStackAt(0);
 
-      expr->RecordTypeFeedback(oracle(), zone());
       HandleKeyedElementAccess(obj, key, after, expr, expr->AssignmentId(),
                                RelocInfo::kNoPosition,
                                true,  // is_store
@@ -9402,8 +9358,10 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
     HValue* left,
     HValue* right) {
   HValue* context = environment()->LookupContext();
-  TypeInfo left_info, right_info, result_info, combined_info;
-  oracle()->BinaryType(expr, &left_info, &right_info, &result_info);
+  TypeInfo left_info = expr->left_type();
+  TypeInfo right_info = expr->right_type();
+  TypeInfo result_info = expr->result_type();
+  TypeInfo combined_info;
   Representation left_rep = ToRepresentation(left_info);
   Representation right_rep = ToRepresentation(right_info);
   Representation result_rep = ToRepresentation(result_info);
@@ -9561,8 +9519,7 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     // We need an extra block to maintain edge-split form.
     HBasicBlock* empty_block = graph()->CreateBasicBlock();
     HBasicBlock* eval_right = graph()->CreateBasicBlock();
-    TypeFeedbackId test_id = expr->left()->test_id();
-    ToBooleanStub::Types expected(oracle()->ToBooleanTypes(test_id));
+    ToBooleanStub::Types expected(expr->left()->to_boolean_types());
     HBranch* test = is_logical_and
       ? new(zone()) HBranch(left_value, eval_right, empty_block, expected)
       : new(zone()) HBranch(left_value, empty_block, eval_right, expected);
@@ -9730,16 +9687,17 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  TypeInfo left_type, right_type, overall_type_info;
-  oracle()->CompareType(expr, &left_type, &right_type, &overall_type_info);
-  Representation combined_rep = ToRepresentation(overall_type_info);
+  TypeInfo left_type = expr->left_type();
+  TypeInfo right_type = expr->right_type();
+  TypeInfo overall_type = expr->overall_type();
+  Representation combined_rep = ToRepresentation(overall_type);
   Representation left_rep = ToRepresentation(left_type);
   Representation right_rep = ToRepresentation(right_type);
   // Check if this expression was ever executed according to type feedback.
   // Note that for the special typeof/null/undefined cases we get unknown here.
-  if (overall_type_info.IsUninitialized()) {
+  if (overall_type.IsUninitialized()) {
     AddSoftDeoptimize();
-    overall_type_info = left_type = right_type = TypeInfo::Unknown();
+    overall_type = left_type = right_type = TypeInfo::Unknown();
   }
 
   CHECK_ALIVE(VisitForValue(expr->left()));
@@ -9811,12 +9769,12 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     HIn* result = new(zone()) HIn(context, left, right);
     result->set_position(expr->position());
     return ast_context()->ReturnInstruction(result, expr->id());
-  } else if (overall_type_info.IsNonPrimitive()) {
+  } else if (overall_type.IsNonPrimitive()) {
     switch (op) {
       case Token::EQ:
       case Token::EQ_STRICT: {
         // Can we get away with map check and not instance type check?
-        Handle<Map> map = oracle()->GetCompareMap(expr);
+        Handle<Map> map = expr->map();
         if (!map.is_null()) {
           AddCheckMapsWithTransitions(left, map);
           AddCheckMapsWithTransitions(right, map);
@@ -9838,7 +9796,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       default:
         return Bailout("Unsupported non-primitive compare");
     }
-  } else if (overall_type_info.IsInternalizedString() &&
+  } else if (overall_type.IsInternalizedString() &&
              Token::IsEqualityOp(op)) {
     BuildCheckNonSmi(left);
     AddInstruction(HCheckInstanceType::NewIsInternalizedString(left, zone()));
@@ -9876,18 +9834,15 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   EqualityKind kind =
       expr->op() == Token::EQ_STRICT ? kStrictEquality : kNonStrictEquality;
   HIfContinuation continuation;
-  TypeFeedbackId id = expr->CompareOperationFeedbackId();
   CompareNilICStub::Types types;
   if (kind == kStrictEquality) {
     types.Add((nil == kNullValue) ? CompareNilICStub::NULL_TYPE :
                                     CompareNilICStub::UNDEFINED);
   } else {
-    types = CompareNilICStub::Types(oracle()->CompareNilTypes(id));
-    if (types.IsEmpty()) {
-      types = CompareNilICStub::Types::FullCompare();
-    }
+    types = CompareNilICStub::Types(expr->compare_nil_types());
+    if (types.IsEmpty()) types = CompareNilICStub::Types::FullCompare();
   }
-  Handle<Map> map_handle(oracle()->CompareNilMonomorphicReceiverType(id));
+  Handle<Map> map_handle = expr->map();
   BuildCompareNil(value, kind, types, map_handle,
                   expr->position(), &continuation);
   return ast_context()->ReturnContinuation(&continuation, expr->id());

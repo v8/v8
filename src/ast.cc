@@ -30,6 +30,7 @@
 #include <cmath>  // For isfinite.
 #include "builtins.h"
 #include "code-stubs.h"
+#include "contexts.h"
 #include "conversions.h"
 #include "hashmap.h"
 #include "parser.h"
@@ -181,9 +182,9 @@ LanguageMode FunctionLiteral::language_mode() const {
 }
 
 
-ObjectLiteral::Property::Property(Literal* key,
-                                  Expression* value,
-                                  Isolate* isolate) {
+ObjectLiteralProperty::ObjectLiteralProperty(Literal* key,
+                                             Expression* value,
+                                             Isolate* isolate) {
   emit_store_ = true;
   key_ = key;
   value_ = value;
@@ -201,7 +202,8 @@ ObjectLiteral::Property::Property(Literal* key,
 }
 
 
-ObjectLiteral::Property::Property(bool is_getter, FunctionLiteral* value) {
+ObjectLiteralProperty::ObjectLiteralProperty(bool is_getter,
+                                             FunctionLiteral* value) {
   emit_store_ = true;
   value_ = value;
   kind_ = is_getter ? GETTER : SETTER;
@@ -415,6 +417,16 @@ bool FunctionDeclaration::IsInlineable() const {
 // ----------------------------------------------------------------------------
 // Recording of type feedback
 
+void ForInStatement::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  for_in_type_ = static_cast<ForInType>(oracle->ForInType(this));
+}
+
+
+void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
+  to_boolean_types_ = oracle->ToBooleanTypes(test_id());
+}
+
+
 void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                                   Zone* zone) {
   // Record type feedback from the oracle in the AST.
@@ -486,6 +498,7 @@ void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
   }
   store_mode_ = oracle->GetStoreMode(id);
+  type_ = oracle->IncrementType(this);
 }
 
 
@@ -575,6 +588,32 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 }
 
 
+Handle<JSObject> Call::GetPrototypeForPrimitiveCheck(
+    CheckType check, Isolate* isolate) {
+  v8::internal::Context* native_context = isolate->context()->native_context();
+  JSFunction* function = NULL;
+  switch (check) {
+    case RECEIVER_MAP_CHECK:
+      UNREACHABLE();
+      break;
+    case STRING_CHECK:
+      function = native_context->string_function();
+      break;
+    case SYMBOL_CHECK:
+      function = native_context->symbol_function();
+      break;
+    case NUMBER_CHECK:
+      function = native_context->number_function();
+      break;
+    case BOOLEAN_CHECK:
+      function = native_context->boolean_function();
+      break;
+  }
+  ASSERT(function != NULL);
+  return Handle<JSObject>(JSObject::cast(function->instance_prototype()));
+}
+
+
 void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                               CallKind call_kind) {
   is_monomorphic_ = oracle->CallIsMonomorphic(this);
@@ -606,8 +645,7 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
         map = receiver_types_.at(0);
       } else {
         ASSERT(check_type_ != RECEIVER_MAP_CHECK);
-        holder_ = Handle<JSObject>(
-            oracle->GetPrototypeForPrimitiveCheck(check_type_));
+        holder_ = GetPrototypeForPrimitiveCheck(check_type_, oracle->isolate());
         map = Handle<Map>(holder_->map());
       }
       is_monomorphic_ = ComputeTarget(map, name);
@@ -622,6 +660,12 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     target_ = oracle->GetCallNewTarget(this);
     elements_kind_ = oracle->GetCallNewElementsKind(this);
   }
+  Handle<Object> alloc_elements_kind = oracle->GetInfo(CallNewFeedbackId());
+//  if (alloc_elements_kind->IsSmi())
+//    alloc_elements_kind_ = Handle<Smi>::cast(alloc_elements_kind);
+  alloc_elements_kind_ = alloc_elements_kind->IsSmi()
+      ? Handle<Smi>::cast(alloc_elements_kind)
+      : handle(Smi::FromInt(GetInitialFastElementsKind()), oracle->isolate());
 }
 
 
@@ -629,6 +673,30 @@ void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   receiver_type_ = oracle->ObjectLiteralStoreIsMonomorphic(this)
       ? oracle->GetObjectLiteralStoreMap(this)
       : Handle<Map>::null();
+}
+
+
+void UnaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  type_ = oracle->UnaryType(this);
+}
+
+
+void BinaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  oracle->BinaryType(this, &left_type_, &right_type_, &result_type_);
+}
+
+
+void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  oracle->CompareType(this, &left_type_, &right_type_, &overall_type_);
+  if (!overall_type_.IsUninitialized() && overall_type_.IsNonPrimitive() &&
+      (op_ == Token::EQ || op_ == Token::EQ_STRICT)) {
+    map_ = oracle->GetCompareMap(this);
+  } else {
+    // May be a compare to nil.
+    map_ = oracle->CompareNilMonomorphicReceiverType(this);
+    if (op_ != Token::EQ_STRICT)
+      compare_nil_types_ = oracle->CompareNilTypes(this);
+  }
 }
 
 

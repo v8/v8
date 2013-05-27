@@ -36,6 +36,7 @@
 #include "deoptimizer.h"
 #include "full-codegen.h"
 #include "gdb-jit.h"
+#include "typing.h"
 #include "hydrogen.h"
 #include "isolate-inl.h"
 #include "lithium.h"
@@ -361,11 +362,11 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
     PrintF("Compiling method %s using hydrogen\n", *name->ToCString());
     isolate()->GetHTracer()->TraceCompilation(info());
   }
-  Handle<Context> native_context(
-      info()->closure()->context()->native_context());
-  oracle_ = new(info()->zone()) TypeFeedbackOracle(
-      code, native_context, isolate(), info()->zone());
-  graph_builder_ = new(info()->zone()) HOptimizedGraphBuilder(info(), oracle_);
+
+  // Type-check the function.
+  AstTyper::Type(info());
+
+  graph_builder_ = new(info()->zone()) HOptimizedGraphBuilder(info());
 
   Timer t(this, &time_taken_to_create_graph_);
   graph_ = graph_builder_->CreateGraph();

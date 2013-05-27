@@ -672,7 +672,7 @@ class ArrayConstructorStub: public PlatformCodeStub {
 
 class MathPowStub: public PlatformCodeStub {
  public:
-  enum ExponentType { INTEGER, DOUBLE, TAGGED, ON_STACK};
+  enum ExponentType { INTEGER, DOUBLE, TAGGED, ON_STACK };
 
   explicit MathPowStub(ExponentType exponent_type)
       : exponent_type_(exponent_type) { }
