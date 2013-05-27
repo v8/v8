@@ -325,6 +325,8 @@
         '../../src/hydrogen-instructions.h',
         '../../src/hydrogen.cc',
         '../../src/hydrogen.h',
+        '../../src/hydrogen-gvn.cc',
+        '../../src/hydrogen-gvn.h',
         '../../src/ic-inl.h',
         '../../src/ic.cc',
         '../../src/ic.h',
