@@ -4667,7 +4667,9 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
   Label load_smi, heap_number, done;
 
-  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+  STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
+                NUMBER_CANDIDATE_IS_ANY_TAGGED);
+  if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ UntagAndJumpIfSmi(scratch, input_reg, &load_smi);
 
@@ -4677,13 +4679,18 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     if (deoptimize_on_undefined) {
       DeoptimizeIf(ne, env, scratch, Operand(at));
     } else {
-      Label heap_number;
+      Label heap_number, convert;
       __ Branch(&heap_number, eq, scratch, Operand(at));
 
+      // Convert undefined (and hole) to NaN.
       __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+      if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE) {
+        __ Branch(&convert, eq, input_reg, Operand(at));
+        __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+      }
       DeoptimizeIf(ne, env, input_reg, Operand(at));
 
-      // Convert undefined to NaN.
+      __ bind(&convert);
       __ LoadRoot(at, Heap::kNanValueRootIndex);
       __ ldc1(result_reg, FieldMemOperand(at, HeapNumber::kValueOffset));
       __ Branch(&done);
@@ -4698,14 +4705,6 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       __ mfc1(scratch, result_reg.high());
       DeoptimizeIf(eq, env, scratch, Operand(HeapNumber::kSignMask));
     }
-    __ Branch(&done);
-  } else if (mode == NUMBER_CANDIDATE_IS_SMI_OR_HOLE) {
-    __ SmiUntag(scratch, input_reg);
-    DeoptimizeIf(Ugreater_equal, env, scratch, Operand(zero_reg));
-  } else if (mode == NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE) {
-    __ UntagAndJumpIfSmi(scratch, input_reg, &load_smi);
-    __ Move(result_reg,
-            FixedDoubleArray::hole_nan_as_double());
     __ Branch(&done);
   } else {
     __ SmiUntag(scratch, input_reg);
@@ -4839,19 +4838,13 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
   HValue* value = instr->hydrogen()->value();
   if (value->type().IsSmi()) {
-    if (value->IsLoadKeyed()) {
-      HLoadKeyed* load = HLoadKeyed::cast(value);
-      if (load->UsesMustHandleHole()) {
-        if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-          mode = NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE;
-        } else {
-          mode = NUMBER_CANDIDATE_IS_SMI_OR_HOLE;
-        }
-      } else {
-        mode = NUMBER_CANDIDATE_IS_SMI;
+    mode = NUMBER_CANDIDATE_IS_SMI;
+  } else if (value->IsLoadKeyed()) {
+    HLoadKeyed* load = HLoadKeyed::cast(value);
+    if (load->UsesMustHandleHole()) {
+      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
+        mode = NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE;
       }
-    } else {
-      mode = NUMBER_CANDIDATE_IS_SMI;
     }
   }
 
