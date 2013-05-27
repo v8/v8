@@ -1303,9 +1303,9 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   } else {
     __ Push(Handle<Object>(callback->data(), isolate()));
   }
-  __ PushAddress(ExternalReference::isolate_address(isolate()));
   __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
   __ push(kScratchRegister);  // return value
+  __ PushAddress(ExternalReference::isolate_address(isolate()));
   __ push(name());  // name
   // Save a pointer to where we pushed the arguments pointer.  This will be
   // passed as the const ExecutableAccessorInfo& to the C++ callback.
@@ -1350,7 +1350,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ CallApiFunctionAndReturn(getter_address,
                               kStackSpace,
                               returns_handle,
-                              3);
+                              4);
 }
 
 

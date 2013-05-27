@@ -6744,11 +6744,14 @@ MaybeObject* DescriptorArray::CopyUpToAddAttributes(
     for (int i = 0; i < size; ++i) {
       Object* value = GetValue(i);
       PropertyDetails details = GetDetails(i);
+      int mask = DONT_DELETE | DONT_ENUM;
       // READ_ONLY is an invalid attribute for JS setters/getters.
-      if (details.type() == CALLBACKS && value->IsAccessorPair()) {
-        attributes = static_cast<PropertyAttributes>(attributes & ~READ_ONLY);
+      if (details.type() != CALLBACKS || !value->IsAccessorPair()) {
+        mask |= READ_ONLY;
       }
-      Descriptor desc(GetKey(i), value, details.CopyAddAttributes(attributes));
+      details = details.CopyAddAttributes(
+          static_cast<PropertyAttributes>(attributes & mask));
+      Descriptor desc(GetKey(i), value, details);
       descriptors->Set(i, &desc, witness);
     }
   } else {

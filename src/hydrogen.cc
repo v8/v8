@@ -603,19 +603,6 @@ HConstant* HGraph::GetConstantInt32(SetOncePointer<HConstant>* pointer,
 }
 
 
-HConstant* HGraph::GetConstantSmi(SetOncePointer<HConstant>* pointer,
-                                  int32_t value) {
-  if (!pointer->is_set()) {
-    HConstant* constant =
-        new(zone()) HConstant(Handle<Object>(Smi::FromInt(value), isolate()),
-                              Representation::Tagged());
-    constant->InsertAfter(GetConstantUndefined());
-    pointer->set(constant);
-  }
-  return pointer->get();
-}
-
-
 HConstant* HGraph::GetConstant0() {
   return GetConstantInt32(&constant_0_, 0);
 }
@@ -653,16 +640,6 @@ DEFINE_GET_CONSTANT(True, true, HType::Boolean(), true)
 DEFINE_GET_CONSTANT(False, false, HType::Boolean(), false)
 DEFINE_GET_CONSTANT(Hole, the_hole, HType::Tagged(), false)
 DEFINE_GET_CONSTANT(Null, null, HType::Tagged(), false)
-
-
-HConstant* HGraph::GetConstantSmi0() {
-  return GetConstantSmi(&constant_smi_0_, 0);
-}
-
-
-HConstant* HGraph::GetConstantSmi1() {
-  return GetConstantSmi(&constant_smi_1_, 1);
-}
 
 
 #undef DEFINE_GET_CONSTANT
@@ -1001,10 +978,9 @@ void HGraphBuilder::AddSimulate(BailoutId id,
 
 HBoundsCheck* HGraphBuilder::AddBoundsCheck(HValue* index,
                                             HValue* length,
-                                            BoundsCheckKeyMode key_mode,
-                                            Representation r) {
+                                            BoundsCheckKeyMode key_mode) {
   HBoundsCheck* result = new(graph()->zone()) HBoundsCheck(
-      index, length, key_mode, r);
+      index, length, key_mode);
   AddInstruction(result);
   return result;
 }
@@ -1122,11 +1098,6 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(
     switch (elements_kind) {
       case FAST_SMI_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
-        if (!val->type().IsSmi()) {
-          // Smi-only arrays need a smi check.
-          AddInstruction(new(zone) HCheckSmi(val));
-        }
-        // Fall through.
       case FAST_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -1244,8 +1215,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     ElementsKind elements_kind,
     bool is_store,
     LoadKeyedHoleMode load_mode,
-    KeyedAccessStoreMode store_mode,
-    Representation checked_index_representation) {
+    KeyedAccessStoreMode store_mode) {
   ASSERT(!IsExternalArrayElementsKind(elements_kind) || !is_js_array);
   Zone* zone = this->zone();
   // No GVNFlag is necessary for ElementsKind if there is an explicit dependency
@@ -1301,8 +1271,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       return result;
     } else {
       ASSERT(store_mode == STANDARD_STORE);
-      checked_key = AddBoundsCheck(
-          key, length, ALLOW_SMI_KEY, checked_index_representation);
+      checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
       HLoadExternalArrayPointer* external_elements =
           new(zone) HLoadExternalArrayPointer(elements);
       AddInstruction(external_elements);
@@ -1315,20 +1284,22 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
          fast_elements ||
          IsFastDoubleElementsKind(elements_kind));
 
+  // In case val is stored into a fast smi array, assure that the value is a smi
+  // before manipulating the backing store. Otherwise the actual store may
+  // deopt, leaving the backing store in an invalid state.
   if (is_store && IsFastSmiElementsKind(elements_kind) &&
       !val->type().IsSmi()) {
-    AddInstruction(new(zone) HCheckSmi(val));
+    val = AddInstruction(new(zone) HForceRepresentation(
+        val, Representation::Smi()));
   }
 
   if (IsGrowStoreMode(store_mode)) {
     NoObservableSideEffectsScope no_effects(this);
-
     elements = BuildCheckForCapacityGrow(object, elements, elements_kind,
                                          length, key, is_js_array);
     checked_key = key;
   } else {
-    checked_key = AddBoundsCheck(
-        key, length, ALLOW_SMI_KEY, checked_index_representation);
+    checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
 
     if (is_store && (fast_elements || fast_smi_only_elements)) {
       if (store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
@@ -1500,9 +1471,8 @@ void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
   AddInstruction(max_size_constant);
   // Since we're forcing Integer32 representation for this HBoundsCheck,
   // there's no need to Smi-check the index.
-  AddInstruction(new(zone)
-                 HBoundsCheck(length, max_size_constant,
-                              DONT_ALLOW_SMI_KEY, Representation::Integer32()));
+  AddInstruction(new(zone) HBoundsCheck(
+      length, max_size_constant, DONT_ALLOW_SMI_KEY));
 }
 
 
@@ -1562,6 +1532,12 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* context,
     }
   }
 
+  // Since we're about to store a hole value, the store instruction below must
+  // assume an elements kind that supports heap object values.
+  if (IsFastSmiOrObjectElementsKind(elements_kind)) {
+    elements_kind = FAST_HOLEY_ELEMENTS;
+  }
+
   if (unfold_loop) {
     for (int i = 0; i < initial_capacity; i++) {
       HInstruction* key = AddInstruction(new(zone)
@@ -1608,8 +1584,11 @@ void HGraphBuilder::BuildCopyElements(HValue* context,
                                             from_elements_kind,
                                             ALLOW_RETURN_HOLE));
 
-  AddInstruction(new(zone()) HStoreKeyed(to_elements, key, element,
-                                         to_elements_kind));
+  ElementsKind holey_kind = IsFastSmiElementsKind(to_elements_kind)
+      ? FAST_HOLEY_ELEMENTS : to_elements_kind;
+  HInstruction* holey_store = AddInstruction(
+      new(zone()) HStoreKeyed(to_elements, key, element, holey_kind));
+  holey_store->ClearFlag(HValue::kDeoptimizeOnUndefined);
 
   builder.EndBody();
 
@@ -6956,11 +6935,6 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     switch (boilerplate_elements_kind) {
       case FAST_SMI_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
-        if (!value->type().IsSmi()) {
-          // Smi-only arrays need a smi check.
-          AddInstruction(new(zone()) HCheckSmi(value));
-          // Fall through.
-        }
       case FAST_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:

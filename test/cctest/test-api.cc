@@ -810,7 +810,8 @@ template<typename T>
 static void CheckReturnValue(const T& t) {
   v8::ReturnValue<v8::Value> rv = t.GetReturnValue();
   i::Object** o = *reinterpret_cast<i::Object***>(&rv);
-  CHECK_EQ(t.GetIsolate(), v8::Isolate::GetCurrent());
+  CHECK_EQ(v8::Isolate::GetCurrent(), t.GetIsolate());
+  CHECK_EQ(t.GetIsolate(), rv.GetIsolate());
   CHECK((*o)->IsTheHole() || (*o)->IsUndefined());
 }
 
@@ -927,7 +928,7 @@ static void TestFunctionTemplateInitializer(Handler handler,
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
     Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
-    fun_templ->SetCallHandler(handler);
+    fun_templ->SetCallHandler(handler_2);
     Local<Function> fun = fun_templ->GetFunction();
     env->Global()->Set(v8_str("obj"), fun);
     Local<Script> script = v8_compile("obj()");
@@ -1037,34 +1038,39 @@ static bool fast_return_value_void_is_null = false;
 template<>
 void FastReturnValueCallback<int32_t>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(info.GetIsolate(), kFastReturnValueInt32);
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(kFastReturnValueInt32);
 }
 
 template<>
 void FastReturnValueCallback<uint32_t>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(info.GetIsolate(), kFastReturnValueUint32);
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(kFastReturnValueUint32);
 }
 
 template<>
 void FastReturnValueCallback<double>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(info.GetIsolate(), kFastReturnValueDouble);
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(kFastReturnValueDouble);
 }
 
 template<>
 void FastReturnValueCallback<bool>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(info.GetIsolate(), fast_return_value_bool);
+  CheckReturnValue(info);
+  info.GetReturnValue().Set(fast_return_value_bool);
 }
 
 template<>
 void FastReturnValueCallback<void>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info);
   if (fast_return_value_void_is_null) {
-    info.GetReturnValue().SetNull(info.GetIsolate());
+    info.GetReturnValue().SetNull();
   } else {
-    info.GetReturnValue().SetUndefined(info.GetIsolate());
+    info.GetReturnValue().SetUndefined();
   }
 }
 

@@ -434,8 +434,15 @@ static const v8::CpuProfileNode* FindChild(const v8::CpuProfileNode* node,
     const v8::CpuProfileNode* child = node->GetChild(i);
     if (nameHandle->Equals(child->GetFunctionName())) return child;
   }
-  CHECK(false);
   return NULL;
+}
+
+
+static const v8::CpuProfileNode* GetChild(const v8::CpuProfileNode* node,
+                                          const char* name) {
+  const v8::CpuProfileNode* result = FindChild(node, name);
+  CHECK(result);
+  return result;
 }
 
 
@@ -443,8 +450,7 @@ static void CheckSimpleBranch(const v8::CpuProfileNode* node,
                               const char* names[], int length) {
   for (int i = 0; i < length; i++) {
     const char* name = names[i];
-    node = FindChild(node, name);
-    CHECK(node);
+    node = GetChild(node, name);
     int expectedChildrenCount = (i == length - 1) ? 0 : 1;
     CHECK_EQ(expectedChildrenCount, node->GetChildrenCount());
   }
@@ -535,10 +541,10 @@ TEST(CollectCpuProfile) {
   names[2] = v8::String::New("start");
   CheckChildrenNames(root, names);
 
-  const v8::CpuProfileNode* startNode = FindChild(root, "start");
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
   CHECK_EQ(1, startNode->GetChildrenCount());
 
-  const v8::CpuProfileNode* fooNode = FindChild(startNode, "foo");
+  const v8::CpuProfileNode* fooNode = GetChild(startNode, "foo");
   CHECK_EQ(3, fooNode->GetChildrenCount());
 
   const char* barBranch[] = { "bar", "delay", "loop" };
@@ -612,10 +618,10 @@ TEST(SampleWhenFrameIsNotSetup) {
   // check there.
   if (startNode && startNode->GetChildrenCount() > 0) {
     CHECK_EQ(1, startNode->GetChildrenCount());
-    const v8::CpuProfileNode* delayNode = FindChild(startNode, "delay");
+    const v8::CpuProfileNode* delayNode = GetChild(startNode, "delay");
     if (delayNode->GetChildrenCount() > 0) {
       CHECK_EQ(1, delayNode->GetChildrenCount());
-      FindChild(delayNode, "loop");
+      GetChild(delayNode, "loop");
     }
   }
 

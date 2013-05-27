@@ -524,7 +524,7 @@ Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
 
 
 bool LCodeGen::IsInteger32(LConstantOperand* op) const {
-  return chunk_->LookupLiteralRepresentation(op).IsInteger32();
+  return chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
 }
 
 
@@ -3073,7 +3073,8 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
-  int offset = instr->hydrogen()->offset();
+  HObjectAccess access = instr->hydrogen()->access();
+  int offset = access.offset();
   Register object = ToRegister(instr->object());
   if (instr->hydrogen()->representation().IsDouble()) {
     DwVfpRegister result = ToDoubleRegister(instr->result());
@@ -3082,7 +3083,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Register result = ToRegister(instr->result());
-  if (instr->hydrogen()->is_in_object()) {
+  if (access.IsInobject()) {
     __ ldr(result, FieldMemOperand(object, offset));
   } else {
     __ ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
@@ -3951,7 +3952,10 @@ void LCodeGen::DoPower(LPower* instr) {
   ASSERT(ToDoubleRegister(instr->left()).is(d1));
   ASSERT(ToDoubleRegister(instr->result()).is(d3));
 
-  if (exponent_type.IsTagged()) {
+  if (exponent_type.IsSmi()) {
+    MathPowStub stub(MathPowStub::TAGGED);
+    __ CallStub(&stub);
+  } else if (exponent_type.IsTagged()) {
     Label no_deopt;
     __ JumpIfSmi(r2, &no_deopt);
     __ ldr(r7, FieldMemOperand(r2, HeapObject::kMapOffset));
@@ -4233,7 +4237,9 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Register object = ToRegister(instr->object());
   Register scratch = scratch0();
-  int offset = instr->offset();
+
+  HObjectAccess access = instr->hydrogen()->access();
+  int offset = access.offset();
 
   Handle<Map> transition = instr->transition();
 
@@ -4245,7 +4251,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     }
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     ASSERT(transition.is_null());
-    ASSERT(instr->is_in_object());
+    ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     DwVfpRegister value = ToDoubleRegister(instr->value());
     __ vstr(value, FieldMemOperand(object, offset));
@@ -4278,7 +4284,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   HType type = instr->hydrogen()->value()->type();
   SmiCheck check_needed =
       type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
-  if (instr->is_in_object()) {
+  if (access.IsInobject()) {
     __ str(value, FieldMemOperand(object, offset));
     if (instr->hydrogen()->NeedsWriteBarrier()) {
       // Update the write barrier for the object for in-object properties.
@@ -4939,21 +4945,6 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
     // If the input is a HeapObject, SmiUntag will set the carry flag.
     __ SmiUntag(result, input, SetCC);
     DeoptimizeIf(cs, instr->environment());
-  } else if (instr->hydrogen()->value()->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(instr->hydrogen()->value());
-    if (load->UsesMustHandleHole()) {
-      __ SmiUntag(result, input, SetCC);
-      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-        Label done;
-        __ b(cc, &done);
-        __ mov(result, Operand(Smi::FromInt(0)));
-        __ bind(&done);
-      } else {
-        DeoptimizeIf(cs, instr->environment());
-      }
-    } else {
-      __ SmiUntag(result, input);
-    }
   } else {
     __ SmiUntag(result, input);
   }
@@ -5221,13 +5212,6 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   }
   __ SmiTag(result_reg, SetCC);
   DeoptimizeIf(vs, instr->environment());
-}
-
-
-void LCodeGen::DoCheckSmiAndReturn(LCheckSmiAndReturn* instr) {
-  LOperand* input = instr->value();
-  __ SmiTst(ToRegister(input));
-  DeoptimizeIf(ne, instr->environment());
 }
 
 

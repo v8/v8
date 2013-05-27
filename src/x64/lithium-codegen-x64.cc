@@ -431,7 +431,7 @@ XMMRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
 
 bool LCodeGen::IsInteger32Constant(LConstantOperand* op) const {
   return op->IsConstantOperand() &&
-      chunk_->LookupLiteralRepresentation(op).IsInteger32();
+      chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
 }
 
 
@@ -2700,7 +2700,8 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
-  int offset = instr->hydrogen()->offset();
+  HObjectAccess access = instr->hydrogen()->access();
+  int offset = access.offset();
   Register object = ToRegister(instr->object());
   if (FLAG_track_double_fields &&
       instr->hydrogen()->representation().IsDouble()) {
@@ -2710,7 +2711,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Register result = ToRegister(instr->result());
-  if (instr->hydrogen()->is_in_object()) {
+  if (access.IsInobject()) {
     __ movq(result, FieldOperand(object, offset));
   } else {
     __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
@@ -3647,7 +3648,10 @@ void LCodeGen::DoPower(LPower* instr) {
   ASSERT(ToDoubleRegister(instr->left()).is(xmm2));
   ASSERT(ToDoubleRegister(instr->result()).is(xmm3));
 
-  if (exponent_type.IsTagged()) {
+  if (exponent_type.IsSmi()) {
+    MathPowStub stub(MathPowStub::TAGGED);
+    __ CallStub(&stub);
+  } else if (exponent_type.IsTagged()) {
     Label no_deopt;
     __ JumpIfSmi(exponent, &no_deopt);
     __ CmpObjectType(exponent, HEAP_NUMBER_TYPE, rcx);
@@ -3931,7 +3935,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Register object = ToRegister(instr->object());
 
-  int offset = instr->offset();
+  HObjectAccess access = instr->hydrogen()->access();
+  int offset = access.offset();
 
   Handle<Map> transition = instr->transition();
 
@@ -3957,7 +3962,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     }
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     ASSERT(transition.is_null());
-    ASSERT(instr->is_in_object());
+    ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     XMMRegister value = ToDoubleRegister(instr->value());
     __ movsd(FieldOperand(object, offset), value);
@@ -3991,7 +3996,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
   Register write_register = object;
-  if (!instr->is_in_object()) {
+  if (!access.IsInobject()) {
     write_register = ToRegister(instr->temp());
     __ movq(write_register, FieldOperand(object, JSObject::kPropertiesOffset));
   }
@@ -4012,7 +4017,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     Register value = ToRegister(instr->value());
-    Register temp = instr->is_in_object() ? ToRegister(instr->temp()) : object;
+    Register temp = access.IsInobject() ? ToRegister(instr->temp()) : object;
     // Update the write barrier for the object for in-object properties.
     __ RecordWriteField(write_register,
                         offset,
@@ -4643,21 +4648,6 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
   if (instr->needs_check()) {
     Condition is_smi = __ CheckSmi(input);
     DeoptimizeIf(NegateCondition(is_smi), instr->environment());
-  } else if (instr->hydrogen()->value()->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(instr->hydrogen()->value());
-    if (load->UsesMustHandleHole()) {
-      Condition cc = masm()->CheckSmi(input);
-      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-        Label done;
-        __ j(cc, &done);
-        __ xor_(input, input);
-        __ bind(&done);
-      } else {
-        DeoptimizeIf(NegateCondition(cc), instr->environment());
-      }
-    } else {
-      __ AssertSmi(input);
-    }
   } else {
     __ AssertSmi(input);
   }
@@ -4910,13 +4900,6 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   }
   __ Integer32ToSmi(result_reg, result_reg);
   DeoptimizeIf(overflow, instr->environment());
-}
-
-
-void LCodeGen::DoCheckSmiAndReturn(LCheckSmiAndReturn* instr) {
-  LOperand* input = instr->value();
-  Condition cc = masm()->CheckSmi(ToRegister(input));
-  DeoptimizeIf(NegateCondition(cc), instr->environment());
 }
 
 

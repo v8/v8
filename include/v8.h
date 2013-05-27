@@ -2782,16 +2782,16 @@ class ReturnValue {
   V8_INLINE(void Set(const Persistent<T>& handle));
   V8_INLINE(void Set(const Handle<T> handle));
   // Fast primitive setters
-  V8_INLINE(void Set(Isolate* isolate, bool value));
-  V8_INLINE(void Set(Isolate* isolate, double i));
-  V8_INLINE(void Set(Isolate* isolate, int32_t i));
-  V8_INLINE(void Set(Isolate* isolate, uint32_t i));
+  V8_INLINE(void Set(bool value));
+  V8_INLINE(void Set(double i));
+  V8_INLINE(void Set(int32_t i));
+  V8_INLINE(void Set(uint32_t i));
   // Fast JS primitive setters
-  V8_INLINE(void SetNull(Isolate* isolate));
-  V8_INLINE(void SetUndefined(Isolate* isolate));
+  V8_INLINE(void SetNull());
+  V8_INLINE(void SetUndefined());
+  // Convenience getter for Isolate
+  V8_INLINE(Isolate* GetIsolate());
  private:
-  V8_INLINE(void SetTrue(Isolate* isolate));
-  V8_INLINE(void SetFalse(Isolate* isolate));
   internal::Object** value_;
 };
 
@@ -2868,8 +2868,8 @@ class PropertyCallbackInfo {
   static const int kThisIndex = 0;
   static const int kHolderIndex = -1;
   static const int kDataIndex = -2;
-  static const int kIsolateIndex = -3;
-  static const int kReturnValueIndex = -4;
+  static const int kReturnValueIndex = -3;
+  static const int kIsolateIndex = -4;
 
   V8_INLINE(PropertyCallbackInfo(internal::Object** args))
       : args_(args) { }
@@ -5694,61 +5694,58 @@ void ReturnValue<T>::Set(const Handle<T> handle) {
 }
 
 template<typename T>
-void ReturnValue<T>::Set(Isolate* isolate, double i) {
-  Set(Number::New(isolate, i));
+void ReturnValue<T>::Set(double i) {
+  Set(Number::New(GetIsolate(), i));
 }
 
 template<typename T>
-void ReturnValue<T>::Set(Isolate* isolate, int32_t i) {
+void ReturnValue<T>::Set(int32_t i) {
   typedef internal::Internals I;
   if (V8_LIKELY(I::IsValidSmi(i))) {
     *value_ = I::IntToSmi(i);
     return;
   }
-  Set(Integer::New(i, isolate));
+  Set(Integer::New(i, GetIsolate()));
 }
 
 template<typename T>
-void ReturnValue<T>::Set(Isolate* isolate, uint32_t i) {
+void ReturnValue<T>::Set(uint32_t i) {
   typedef internal::Internals I;
   if (V8_LIKELY(I::IsValidSmi(i))) {
     *value_ = I::IntToSmi(i);
     return;
   }
-  Set(Integer::NewFromUnsigned(i, isolate));
+  Set(Integer::NewFromUnsigned(i, GetIsolate()));
 }
 
 template<typename T>
-void ReturnValue<T>::Set(Isolate* isolate, bool value) {
+void ReturnValue<T>::Set(bool value) {
+  typedef internal::Internals I;
+  int root_index;
   if (value) {
-    SetTrue(isolate);
+    root_index = I::kTrueValueRootIndex;
   } else {
-    SetFalse(isolate);
+    root_index = I::kFalseValueRootIndex;
   }
+  *value_ = *I::GetRoot(GetIsolate(), root_index);
 }
 
 template<typename T>
-void ReturnValue<T>::SetTrue(Isolate* isolate) {
+void ReturnValue<T>::SetNull() {
   typedef internal::Internals I;
-  *value_ = *I::GetRoot(isolate, I::kTrueValueRootIndex);
+  *value_ = *I::GetRoot(GetIsolate(), I::kNullValueRootIndex);
 }
 
 template<typename T>
-void ReturnValue<T>::SetFalse(Isolate* isolate) {
+void ReturnValue<T>::SetUndefined() {
   typedef internal::Internals I;
-  *value_ = *I::GetRoot(isolate, I::kFalseValueRootIndex);
+  *value_ = *I::GetRoot(GetIsolate(), I::kUndefinedValueRootIndex);
 }
 
 template<typename T>
-void ReturnValue<T>::SetNull(Isolate* isolate) {
-  typedef internal::Internals I;
-  *value_ = *I::GetRoot(isolate, I::kNullValueRootIndex);
-}
-
-template<typename T>
-void ReturnValue<T>::SetUndefined(Isolate* isolate) {
-  typedef internal::Internals I;
-  *value_ = *I::GetRoot(isolate, I::kUndefinedValueRootIndex);
+Isolate* ReturnValue<T>::GetIsolate() {
+  // Isolate is always the pointer below value_ on the stack.
+  return *reinterpret_cast<Isolate**>(&value_[-1]);
 }
 
 

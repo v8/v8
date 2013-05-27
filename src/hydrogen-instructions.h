@@ -92,7 +92,6 @@ class LChunkBuilder;
   V(CheckMaps)                                 \
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
-  V(CheckSmi)                                  \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareIDAndBranch)                        \
@@ -1714,7 +1713,8 @@ class HChange: public HUnaryOperation {
           bool is_truncating,
           bool deoptimize_on_undefined)
       : HUnaryOperation(value) {
-    ASSERT(!value->representation().IsNone() && !to.IsNone());
+    ASSERT(!value->representation().IsNone());
+    ASSERT(!to.IsNone());
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
@@ -2928,29 +2928,6 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
 };
 
 
-class HCheckSmi: public HUnaryOperation {
- public:
-  explicit HCheckSmi(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual HType CalculateInferredType();
-
-#ifdef DEBUG
-  virtual void Verify();
-#endif
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckSmi)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
 class HPhi: public HValue {
  public:
   HPhi(int merged_index, Zone* zone)
@@ -3227,7 +3204,7 @@ class HConstant: public HTemplateInstruction<0> {
     return int32_value_;
   }
   bool HasSmiValue() const {
-    return HasInteger32Value() && Smi::IsValid(Integer32Value());
+    return has_smi_value_;
   }
   bool HasDoubleValue() const { return has_double_value_; }
   double DoubleValue() const {
@@ -3327,6 +3304,7 @@ class HConstant: public HTemplateInstruction<0> {
   // int32_value_ and double_value_ hold valid, safe representations
   // of the constant.  has_int32_value_ implies has_double_value_ but
   // not the converse.
+  bool has_smi_value_ : 1;
   bool has_int32_value_ : 1;
   bool has_double_value_ : 1;
   bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
@@ -3394,6 +3372,16 @@ class HBinaryOperation: public HTemplateInstruction<3> {
   virtual void InferRepresentation(HInferRepresentation* h_infer);
   virtual Representation RepresentationFromInputs();
   virtual void AssumeRepresentation(Representation r);
+
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentation* h_infer,
+                                    const char* reason) {
+    // By default, binary operations don't handle Smis.
+    if (new_rep.IsSmi()) {
+      new_rep = Representation::Integer32();
+    }
+    HValue::UpdateRepresentation(new_rep, h_infer, reason);
+  }
 
   virtual bool IsCommutative() const { return false; }
 
@@ -3556,22 +3544,13 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   // it makes sense to invoke this constructor directly.
   HBoundsCheck(HValue* index,
                HValue* length,
-               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY,
-               Representation r = Representation::None())
+               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY)
     : key_mode_(key_mode), skip_check_(false),
       base_(NULL), offset_(0), scale_(0),
       responsibility_direction_(DIRECTION_NONE) {
     SetOperandAt(0, index);
     SetOperandAt(1, length);
-    if (r.IsNone()) {
-      // In the normal compilation pipeline the representation is flexible
-      // (see InferRepresentation).
-      SetFlag(kFlexibleRepresentation);
-    } else {
-      // When compiling stubs we want to set the representation explicitly
-      // so the compilation pipeline can skip the HInferRepresentation phase.
-      set_representation(r);
-    }
+    SetFlag(kFlexibleRepresentation);
     SetFlag(kUseGVN);
   }
 
@@ -3718,7 +3697,9 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
                                     HInferRepresentation* h_infer,
                                     const char* reason) {
     // We only generate either int32 or generic tagged bitwise operations.
-    if (new_rep.IsDouble()) new_rep = Representation::Integer32();
+    if (new_rep.IsSmi() || new_rep.IsDouble()) {
+      new_rep = Representation::Integer32();
+    }
     HValue::UpdateRepresentation(new_rep, h_infer, reason);
   }
 
@@ -5235,6 +5216,10 @@ class HObjectAccess {
 
   void PrintTo(StringStream* stream);
 
+  inline bool Equals(HObjectAccess that) const {
+    return value_ == that.value_;  // portion and offset must match
+  }
+
  protected:
   void SetGVNFlags(HValue *instr, bool is_store);
 
@@ -5308,9 +5293,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
 
   bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
   HObjectAccess access() const { return access_; }
-  bool is_in_object() const { return access_.IsInobject(); }
   Representation field_representation() const { return representation_; }
-  int offset() const { return access_.offset(); }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -5322,7 +5305,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
  protected:
   virtual bool DataEquals(HValue* other) {
     HLoadNamedField* b = HLoadNamedField::cast(other);
-    return is_in_object() == b->is_in_object() && offset() == b->offset();
+    return access_.Equals(b->access_);
   }
 
  private:
@@ -5465,7 +5448,9 @@ class HLoadKeyed
              IsFastDoubleElementsKind(elements_kind));
 
       if (IsFastSmiOrObjectElementsKind(elements_kind)) {
-        if (IsFastSmiElementsKind(elements_kind)) {
+        if (IsFastSmiElementsKind(elements_kind) &&
+            (!IsHoleyElementsKind(elements_kind) ||
+             mode == NEVER_RETURN_HOLE)) {
           set_type(HType::Smi());
           set_representation(Representation::Smi());
         } else {
@@ -5661,9 +5646,6 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HValue* value() { return OperandAt(1); }
 
   HObjectAccess access() const { return access_; }
-  Handle<String> name() const { return access_.name(); }
-  bool is_in_object() const { return access_.IsInobject(); }
-  int offset() const { return access_.offset(); }
   Handle<Map> transition() const { return transition_; }
   UniqueValueId transition_unique_id() const { return transition_unique_id_; }
   void set_transition(Handle<Map> map) { transition_ = map; }
@@ -5774,6 +5756,7 @@ class HStoreKeyed
   virtual Representation RequiredInputRepresentation(int index) {
     // kind_fast:       tagged[int32] = tagged
     // kind_double:     tagged[int32] = double
+    // kind_smi   :     tagged[int32] = smi
     // kind_external: external[int32] = (double | int32)
     if (index == 0) {
       return is_external() ? Representation::External()
@@ -5802,6 +5785,9 @@ class HStoreKeyed
 
   virtual Representation observed_input_representation(int index) {
     if (index < 2) return RequiredInputRepresentation(index);
+    if (IsFastSmiElementsKind(elements_kind())) {
+      return Representation::Smi();
+    }
     if (IsDoubleOrFloatElementsKind(elements_kind())) {
       return Representation::Double();
     }

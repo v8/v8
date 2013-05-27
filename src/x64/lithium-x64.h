@@ -76,7 +76,6 @@ class LCodeGen;
   V(CheckNonSmi)                                \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
-  V(CheckSmiAndReturn)                          \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
@@ -2040,7 +2039,6 @@ class LSmiUntag: public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
   bool needs_check() const { return needs_check_; }
 
-  DECLARE_HYDROGEN_ACCESSOR(Change);
   DECLARE_CONCRETE_INSTRUCTION(SmiUntag, "smi-untag")
 
  private:
@@ -2065,9 +2063,6 @@ class LStoreNamedField: public LTemplateInstruction<0, 2, 1> {
 
   virtual void PrintDataTo(StringStream* stream);
 
-  Handle<Object> name() const { return hydrogen()->name(); }
-  bool is_in_object() { return hydrogen()->is_in_object(); }
-  int offset() { return hydrogen()->offset(); }
   Handle<Map> transition() const { return hydrogen()->transition(); }
   Representation representation() const {
     return hydrogen()->field_representation();
@@ -2295,7 +2290,7 @@ class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 1> {
 };
 
 
-class LCheckSmi: public LTemplateInstruction<0, 1, 0> {
+class LCheckSmi: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LCheckSmi(LOperand* value) {
     inputs_[0] = value;
@@ -2304,18 +2299,6 @@ class LCheckSmi: public LTemplateInstruction<0, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckSmi, "check-smi")
-};
-
-
-class LCheckSmiAndReturn: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LCheckSmiAndReturn(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckSmiAndReturn, "check-smi-and-return")
 };
 
 

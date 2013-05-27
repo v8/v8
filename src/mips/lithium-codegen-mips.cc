@@ -2710,7 +2710,8 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
-  int offset = instr->hydrogen()->offset();
+  HObjectAccess access = instr->hydrogen()->access();
+  int offset = access.offset();
   Register object = ToRegister(instr->object());
   if (instr->hydrogen()->representation().IsDouble()) {
     DoubleRegister result = ToDoubleRegister(instr->result());
@@ -2719,7 +2720,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Register result = ToRegister(instr->result());
-  if (instr->hydrogen()->is_in_object()) {
+  if (access.IsInobject()) {
     __ lw(result, FieldMemOperand(object, offset));
   } else {
     __ lw(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
@@ -2913,7 +2914,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     key = ToRegister(instr->key());
   }
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
-  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
   int additional_offset = instr->additional_index() << element_size_shift;
 
@@ -2987,7 +2988,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   Register scratch = scratch0();
 
   int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
-  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
   int constant_key = 0;
   if (key_is_constant) {
@@ -3032,7 +3033,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     // representation for the key to be an integer, the input gets replaced
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
       __ addu(scratch, elements, scratch);
     } else {
@@ -3643,7 +3644,10 @@ void LCodeGen::DoPower(LPower* instr) {
   ASSERT(ToDoubleRegister(instr->left()).is(f2));
   ASSERT(ToDoubleRegister(instr->result()).is(f0));
 
-  if (exponent_type.IsTagged()) {
+  if (exponent_type.IsSmi()) {
+    MathPowStub stub(MathPowStub::TAGGED);
+    __ CallStub(&stub);
+  } else if (exponent_type.IsTagged()) {
     Label no_deopt;
     __ JumpIfSmi(a2, &no_deopt);
     __ lw(t3, FieldMemOperand(a2, HeapObject::kMapOffset));
@@ -3921,7 +3925,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Register object = ToRegister(instr->object());
   Register scratch = scratch0();
-  int offset = instr->offset();
+  HObjectAccess access = instr->hydrogen()->access();
+  int offset = access.offset();
 
   Handle<Map> transition = instr->transition();
 
@@ -3933,7 +3938,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     }
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     ASSERT(transition.is_null());
-    ASSERT(instr->is_in_object());
+    ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     DoubleRegister value = ToDoubleRegister(instr->value());
     __ sdc1(value, FieldMemOperand(object, offset));
@@ -3966,7 +3971,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   HType type = instr->hydrogen()->value()->type();
   SmiCheck check_needed =
       type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
-  if (instr->is_in_object()) {
+  if (access.IsInobject()) {
     __ sw(value, FieldMemOperand(object, offset));
     if (instr->hydrogen()->NeedsWriteBarrier()) {
       // Update the write barrier for the object for in-object properties.
@@ -4017,7 +4022,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->index()->IsConstantOperand()) {
     int constant_index =
         ToInteger32(LConstantOperand::cast(instr->index()));
-    if (instr->hydrogen()->length()->representation().IsTagged()) {
+    if (instr->hydrogen()->length()->representation().IsSmi()) {
       __ li(at, Operand(Smi::FromInt(constant_index)));
     } else {
       __ li(at, Operand(constant_index));
@@ -4050,7 +4055,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     key = ToRegister(instr->key());
   }
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
-  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
   int additional_offset = instr->additional_index() << element_size_shift;
 
@@ -4128,7 +4133,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     key = ToRegister(instr->key());
   }
   int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
-  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+  int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
       ? (element_size_shift - kSmiTagSize) : element_size_shift;
   if (key_is_constant) {
     __ Addu(scratch, elements, Operand((constant_key << element_size_shift) +
@@ -4178,7 +4183,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     // representation for the key to be an integer, the input gets replaced
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
+    if (instr->hydrogen()->key()->representation().IsSmi()) {
       __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
       __ addu(scratch, elements, scratch);
     } else {
@@ -4646,22 +4651,6 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
     __ And(scratch, input, Operand(kHeapObjectTag));
     __ SmiUntag(result, input);
     DeoptimizeIf(ne, instr->environment(), scratch, Operand(zero_reg));
-  } else if (instr->hydrogen()->value()->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(instr->hydrogen()->value());
-    if (load->UsesMustHandleHole()) {
-      __ And(scratch, input, Operand(kHeapObjectTag));
-      __ SmiUntag(result, input);
-      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-        Label done;
-        __ Branch(&done, eq, scratch, Operand(zero_reg));
-        __ li(result, Operand(Smi::FromInt(0)));
-        __ bind(&done);
-      } else {
-        DeoptimizeIf(ne, instr->environment(), scratch, Operand(zero_reg));
-      }
-    } else {
-      __ SmiUntag(result, input);
-    }
   } else {
     __ SmiUntag(result, input);
   }

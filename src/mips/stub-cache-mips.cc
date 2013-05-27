@@ -924,28 +924,31 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
 
   // NOTE: the O32 abi requires a0 to hold a special pointer when returning a
   // struct from the function (which is currently the case). This means we pass
-  // the first argument in a1 instead of a0. TryCallApiFunctionAndReturn
-  // will handle setting up a0.
+  // the first argument in a1 instead of a0, if returns_handle is true.
+  // CallApiFunctionAndReturn will set up a0.
 
-  // a1 = v8::Arguments&
-  // Arguments is built at sp + 1 (sp is a reserved spot for ra).
-  __ Addu(a1, sp, kPointerSize);
-
-  // v8::Arguments::implicit_args_
-  __ sw(a2, MemOperand(a1, 0 * kPointerSize));
-  // v8::Arguments::values_
-  __ Addu(t0, a2, Operand(argc * kPointerSize));
-  __ sw(t0, MemOperand(a1, 1 * kPointerSize));
-  // v8::Arguments::length_ = argc
-  __ li(t0, Operand(argc));
-  __ sw(t0, MemOperand(a1, 2 * kPointerSize));
-  // v8::Arguments::is_construct_call = 0
-  __ sw(zero_reg, MemOperand(a1, 3 * kPointerSize));
-
-  const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
   bool returns_handle =
       !CallbackTable::ReturnsVoid(masm->isolate(), function_address);
+
+  Register first_arg = returns_handle ? a1 : a0;
+
+  // first_arg = v8::Arguments&
+  // Arguments is built at sp + 1 (sp is a reserved spot for ra).
+  __ Addu(first_arg, sp, kPointerSize);
+
+  // v8::Arguments::implicit_args_
+  __ sw(a2, MemOperand(first_arg, 0 * kPointerSize));
+  // v8::Arguments::values_
+  __ Addu(t0, a2, Operand(argc * kPointerSize));
+  __ sw(t0, MemOperand(first_arg, 1 * kPointerSize));
+  // v8::Arguments::length_ = argc
+  __ li(t0, Operand(argc));
+  __ sw(t0, MemOperand(first_arg, 2 * kPointerSize));
+  // v8::Arguments::is_construct_call = 0
+  __ sw(zero_reg, MemOperand(first_arg, 3 * kPointerSize));
+
+  const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
   ApiFunction fun(function_address);
   ExternalReference::Type type =
       returns_handle ?
@@ -1442,13 +1445,20 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ sw(scratch4(), MemOperand(sp, 1 * kPointerSize));
   __ sw(name(), MemOperand(sp, 0 * kPointerSize));
 
+  Address getter_address = v8::ToCData<Address>(callback->getter());
+  bool returns_handle =
+      !CallbackTable::ReturnsVoid(isolate(), getter_address);
+
+  Register first_arg = returns_handle ? a1 : a0;
+  Register second_arg = returns_handle ? a2 : a1;
+
   __ mov(a2, scratch2());  // Saved in case scratch2 == a1.
-  __ mov(a1, sp);  // a1 (first argument - see note below) = Handle<Name>
+  __ mov(first_arg, sp);  // (first argument - see note below) = Handle<Name>
 
   // NOTE: the O32 abi requires a0 to hold a special pointer when returning a
   // struct from the function (which is currently the case). This means we pass
-  // the arguments in a1-a2 instead of a0-a1. TryCallApiFunctionAndReturn
-  // will handle setting up a0.
+  // the arguments in a1-a2 instead of a0-a1, if returns_handle is true.
+  // CallApiFunctionAndReturn will set up a0.
 
   const int kApiStackSpace = 1;
   FrameScope frame_scope(masm(), StackFrame::MANUAL);
@@ -1457,13 +1467,10 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // Create AccessorInfo instance on the stack above the exit frame with
   // scratch2 (internal::Object** args_) as the data.
   __ sw(a2, MemOperand(sp, kPointerSize));
-  // a2 (second argument - see note above) = AccessorInfo&
-  __ Addu(a2, sp, kPointerSize);
+  // (second argument - see note above) = AccessorInfo&
+  __ Addu(second_arg, sp, kPointerSize);
 
   const int kStackUnwindSpace = kFastApiCallArguments + 1;
-  Address getter_address = v8::ToCData<Address>(callback->getter());
-  bool returns_handle =
-      !CallbackTable::ReturnsVoid(isolate(), getter_address);
   ApiFunction fun(getter_address);
   ExternalReference::Type type =
       returns_handle ?

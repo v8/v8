@@ -5130,6 +5130,7 @@ void RegExpParser::Advance() {
 
 void RegExpParser::Reset(int pos) {
   next_pos_ = pos;
+  has_more_ = (pos < in()->length());
   Advance();
 }
 

@@ -1433,9 +1433,9 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
     __ Move(scratch3(), Handle<Object>(callback->data(), isolate()));
   }
   __ Push(reg, scratch3());
-  __ mov(scratch3(),
+  __ LoadRoot(scratch3(), Heap::kUndefinedValueRootIndex);
+  __ mov(scratch4(),
          Operand(ExternalReference::isolate_address(isolate())));
-  __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
   __ Push(scratch3(), scratch4(), name());
   __ mov(r0, sp);  // r0 = Handle<Name>
 
@@ -1462,7 +1462,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ CallApiFunctionAndReturn(ref,
                               kStackUnwindSpace,
                               returns_handle,
-                              3);
+                              4);
 }
 
 
