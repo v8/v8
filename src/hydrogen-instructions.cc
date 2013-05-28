@@ -2460,10 +2460,12 @@ void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
   Representation observed_right = observed_input_representation(1);
 
   Representation rep = Representation::Smi();
-  if (!left_rep.IsTagged()) rep = rep.generalize(left_rep);
-  if (!right_rep.IsTagged()) rep = rep.generalize(right_rep);
-  if (!observed_left.IsTagged()) rep = rep.generalize(observed_left);
-  if (!observed_right.IsTagged()) rep = rep.generalize(observed_right);
+  if (observed_left.IsInteger32() && observed_right.IsInteger32()) {
+    if (!left_rep.IsTagged()) rep = rep.generalize(left_rep);
+    if (!right_rep.IsTagged()) rep = rep.generalize(right_rep);
+  } else {
+    rep = Representation::Double();
+  }
 
   if (rep.IsDouble()) {
     // According to the ES5 spec (11.9.3, 11.8.5), Equality comparisons (==, ===
