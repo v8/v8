@@ -4929,6 +4929,7 @@ class V8EXPORT Context {
     explicit V8_INLINE(Scope(Handle<Context> context)) : context_(context) {
       context_->Enter();
     }
+    // TODO(dcarney): deprecate
     V8_INLINE(Scope(Isolate* isolate, Persistent<Context>& context)) // NOLINT
 #ifndef V8_USE_UNSAFE_HANDLES
     : context_(Handle<Context>::New(isolate, context)) {

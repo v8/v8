@@ -17327,7 +17327,9 @@ TEST(RunTwoIsolatesOnSingleThread) {
 
   {
     v8::HandleScope scope(isolate1);
-    v8::Context::Scope cscope(isolate1, context1);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(isolate1, context1);
+    v8::Context::Scope context_scope(context);
     // Run something in new isolate.
     CompileRun("var foo = 'isolate 1';");
     ExpectString("function f() { return foo; }; f()", "isolate 1");
@@ -17341,7 +17343,9 @@ TEST(RunTwoIsolatesOnSingleThread) {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(isolate2);
     context2.Reset(isolate2, Context::New(isolate2));
-    v8::Context::Scope cscope(isolate2, context2);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(isolate2, context2);
+    v8::Context::Scope context_scope(context);
 
     // Run something in new isolate.
     CompileRun("var foo = 'isolate 2';");
@@ -17350,7 +17354,9 @@ TEST(RunTwoIsolatesOnSingleThread) {
 
   {
     v8::HandleScope scope(isolate1);
-    v8::Context::Scope cscope(isolate1, context1);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(isolate1, context1);
+    v8::Context::Scope context_scope(context);
     // Now again in isolate 1
     ExpectString("function f() { return foo; }; f()", "isolate 1");
   }
@@ -17368,7 +17374,9 @@ TEST(RunTwoIsolatesOnSingleThread) {
 
   {
     v8::HandleScope scope(v8::Isolate::GetCurrent());
-    v8::Context::Scope cscope(v8::Isolate::GetCurrent(), context_default);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(v8::Isolate::GetCurrent(), context_default);
+    v8::Context::Scope context_scope(context);
     // Variables in other isolates should be not available, verify there
     // is an exception.
     ExpectTrue("function f() {"
@@ -17388,13 +17396,17 @@ TEST(RunTwoIsolatesOnSingleThread) {
   {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(v8::Isolate::GetCurrent());
-    v8::Context::Scope cscope(isolate2, context2);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(isolate2, context2);
+    v8::Context::Scope context_scope(context);
     ExpectString("function f() { return foo; }; f()", "isolate 2");
   }
 
   {
     v8::HandleScope scope(v8::Isolate::GetCurrent());
-    v8::Context::Scope cscope(v8::Isolate::GetCurrent(), context1);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(v8::Isolate::GetCurrent(), context1);
+    v8::Context::Scope context_scope(context);
     ExpectString("function f() { return foo; }; f()", "isolate 1");
   }
 
@@ -17420,7 +17432,9 @@ TEST(RunTwoIsolatesOnSingleThread) {
   // Check that default isolate still runs.
   {
     v8::HandleScope scope(v8::Isolate::GetCurrent());
-    v8::Context::Scope cscope(v8::Isolate::GetCurrent(), context_default);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(v8::Isolate::GetCurrent(), context_default);
+    v8::Context::Scope context_scope(context);
     ExpectTrue("function f() { return isDefaultIsolate; }; f()");
   }
 }

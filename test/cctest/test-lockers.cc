@@ -73,7 +73,9 @@ class KangarooThread : public v8::internal::Thread {
       v8::Isolate::Scope isolate_scope(isolate_);
       CHECK_EQ(isolate_, v8::internal::Isolate::Current());
       v8::HandleScope scope(isolate_);
-      v8::Context::Scope context_scope(isolate_, context_);
+      v8::Local<v8::Context> context =
+          v8::Local<v8::Context>::New(isolate_, context_);
+      v8::Context::Scope context_scope(context);
       Local<Value> v = CompileRun("getValue()");
       CHECK(v->IsNumber());
       CHECK_EQ(30, static_cast<int>(v->NumberValue()));
@@ -82,7 +84,9 @@ class KangarooThread : public v8::internal::Thread {
       v8::Locker locker(isolate_);
       v8::Isolate::Scope isolate_scope(isolate_);
       v8::HandleScope scope(isolate_);
-      v8::Context::Scope context_scope(isolate_, context_);
+      v8::Local<v8::Context> context =
+          v8::Local<v8::Context>::New(isolate_, context_);
+      v8::Context::Scope context_scope(context);
       Local<Value> v = CompileRun("getValue()");
       CHECK(v->IsNumber());
       CHECK_EQ(30, static_cast<int>(v->NumberValue()));
@@ -352,7 +356,9 @@ class LockIsolateAndCalculateFibSharedContextThread : public JoinableThread {
     v8::Locker lock(isolate_);
     v8::Isolate::Scope isolate_scope(isolate_);
     HandleScope handle_scope(isolate_);
-    v8::Context::Scope context_scope(isolate_, context_);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(isolate_, context_);
+    v8::Context::Scope context_scope(context);
     CalcFibAndCheck();
   }
  private:
@@ -540,7 +546,9 @@ class LockUnlockLockThread : public JoinableThread {
     {
       v8::Isolate::Scope isolate_scope(isolate_);
       v8::HandleScope handle_scope(isolate_);
-      v8::Context::Scope context_scope(isolate_, context_);
+      v8::Local<v8::Context> context =
+          v8::Local<v8::Context>::New(isolate_, context_);
+      v8::Context::Scope context_scope(context);
       CalcFibAndCheck();
     }
     {
@@ -553,7 +561,9 @@ class LockUnlockLockThread : public JoinableThread {
         v8::HandleScope handle_scope(isolate_);
         CHECK(v8::Locker::IsLocked(isolate_));
         CHECK(!v8::Locker::IsLocked(CcTest::default_isolate()));
-        v8::Context::Scope context_scope(isolate_, context_);
+        v8::Local<v8::Context> context =
+            v8::Local<v8::Context>::New(isolate_, context_);
+        v8::Context::Scope context_scope(context);
         CalcFibAndCheck();
       }
     }
@@ -597,7 +607,9 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
     v8::Locker lock1(CcTest::default_isolate());
     {
       v8::HandleScope handle_scope(CcTest::default_isolate());
-      v8::Context::Scope context_scope(CcTest::default_isolate(), context_);
+      v8::Local<v8::Context> context =
+          v8::Local<v8::Context>::New(CcTest::default_isolate(), context_);
+      v8::Context::Scope context_scope(context);
       CalcFibAndCheck();
     }
     {
@@ -605,7 +617,9 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
       {
         v8::Locker lock2(CcTest::default_isolate());
         v8::HandleScope handle_scope(CcTest::default_isolate());
-        v8::Context::Scope context_scope(CcTest::default_isolate(), context_);
+        v8::Local<v8::Context> context =
+            v8::Local<v8::Context>::New(CcTest::default_isolate(), context_);
+        v8::Context::Scope context_scope(context);
         CalcFibAndCheck();
       }
     }
