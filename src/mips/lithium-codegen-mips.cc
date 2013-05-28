@@ -2047,11 +2047,23 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
       Operand cmp_right = Operand(0);
 
       if (right->IsConstantOperand()) {
-        cmp_left = ToRegister(left);
-        cmp_right = Operand(ToInteger32(LConstantOperand::cast(right)));
+        int32_t value = ToInteger32(LConstantOperand::cast(right));
+        if (instr->hydrogen_value()->representation().IsSmi()) {
+          cmp_left = ToRegister(left);
+          cmp_right = Operand(Smi::FromInt(value));
+        } else {
+          cmp_left = ToRegister(left);
+          cmp_right = Operand(value);
+        }
       } else if (left->IsConstantOperand()) {
-        cmp_left = ToRegister(right);
-        cmp_right = Operand(ToInteger32(LConstantOperand::cast(left)));
+        int32_t value = ToInteger32(LConstantOperand::cast(left));
+        if (instr->hydrogen_value()->representation().IsSmi()) {
+           cmp_left = ToRegister(right);
+           cmp_right = Operand(Smi::FromInt(value));
+        } else {
+          cmp_left = ToRegister(right);
+          cmp_right = Operand(value);
+        }
         // We transposed the operands. Reverse the condition.
         cond = ReverseCondition(cond);
       } else {
