@@ -2165,7 +2165,9 @@ HConstant::HConstant(double double_value,
 
 void HConstant::Initialize(Representation r) {
   if (r.IsNone()) {
-    if (has_int32_value_) {
+    if (has_smi_value_) {
+      r = Representation::Smi();
+    } else if (has_int32_value_) {
       r = Representation::Integer32();
     } else if (has_double_value_) {
       r = Representation::Double();
