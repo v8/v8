@@ -875,7 +875,7 @@ TEST(RecordStackTraceAtStartProfiling) {
   v8::HandleScope scope(isolate);
   const char* extensions[] = { "v8/profiler" };
   v8::ExtensionConfiguration config(1, extensions);
-  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
   context->Enter();
 
   CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
