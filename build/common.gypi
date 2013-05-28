@@ -445,7 +445,7 @@
       },  # Debug
       'Release': {
         'variables': {
-          'v8_enable_extra_checks%': 0,
+          'v8_enable_extra_checks%': 1,
         },
         'conditions': [
           ['v8_enable_extra_checks==1', {
