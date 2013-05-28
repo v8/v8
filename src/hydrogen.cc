@@ -3247,7 +3247,11 @@ void HGraph::MarkDeoptimizeOnUndefined() {
     HPhi* phi = phi_list()->at(i);
     if (phi->representation().IsDouble()) {
       for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-        if (it.value()->CheckFlag(HValue::kDeoptimizeOnUndefined)) {
+        int use_index = it.index();
+        HValue* use_value = it.value();
+        Representation req = use_value->RequiredInputRepresentation(use_index);
+        if (!req.IsDouble() ||
+            use_value->CheckFlag(HValue::kDeoptimizeOnUndefined)) {
           RecursivelyMarkPhiDeoptimizeOnUndefined(phi);
           break;
         }
@@ -3988,8 +3992,8 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   // This must happen after inferring representations.
   MergeRemovableSimulates();
 
-  InsertRepresentationChanges();
   MarkDeoptimizeOnUndefined();
+  InsertRepresentationChanges();
 
   InitializeInferredTypes();
 
