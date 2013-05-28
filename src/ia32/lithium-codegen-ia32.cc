@@ -2305,9 +2305,19 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
       __ j(parity_even, chunk_->GetAssemblyLabel(false_block));
     } else {
       if (right->IsConstantOperand()) {
-        __ cmp(ToRegister(left), ToInteger32Immediate(right));
+        int32_t const_value = ToInteger32(LConstantOperand::cast(right));
+        if (instr->hydrogen_value()->representation().IsSmi()) {
+          __ cmp(ToOperand(left), Immediate(Smi::FromInt(const_value)));
+        } else {
+          __ cmp(ToOperand(left), Immediate(const_value));
+        }
       } else if (left->IsConstantOperand()) {
-        __ cmp(ToOperand(right), ToInteger32Immediate(left));
+        int32_t const_value = ToInteger32(LConstantOperand::cast(left));
+        if (instr->hydrogen_value()->representation().IsSmi()) {
+          __ cmp(ToOperand(right), Immediate(Smi::FromInt(const_value)));
+        } else {
+          __ cmp(ToOperand(right), Immediate(const_value));
+        }
         // We transposed the operands. Reverse the condition.
         cc = ReverseCondition(cc);
       } else {

@@ -2454,18 +2454,18 @@ void HGoto::PrintDataTo(StringStream* stream) {
 
 
 void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
-  Representation rep = Representation::None();
   Representation left_rep = left()->representation();
   Representation right_rep = right()->representation();
-  bool observed_integers =
-      observed_input_representation(0).IsInteger32() &&
-      observed_input_representation(1).IsInteger32();
-  bool inputs_are_not_doubles =
-      !left_rep.IsDouble() && !right_rep.IsDouble();
-  if (observed_integers && inputs_are_not_doubles) {
-    rep = Representation::Integer32();
-  } else {
-    rep = Representation::Double();
+  Representation observed_left = observed_input_representation(0);
+  Representation observed_right = observed_input_representation(1);
+
+  Representation rep = Representation::Smi();
+  if (!left_rep.IsTagged()) rep = rep.generalize(left_rep);
+  if (!right_rep.IsTagged()) rep = rep.generalize(right_rep);
+  if (!observed_left.IsTagged()) rep = rep.generalize(observed_left);
+  if (!observed_right.IsTagged()) rep = rep.generalize(observed_right);
+
+  if (rep.IsDouble()) {
     // According to the ES5 spec (11.9.3, 11.8.5), Equality comparisons (==, ===
     // and !=) have special handling of undefined, e.g. undefined == undefined
     // is 'true'. Relational comparisons have a different semantic, first
