@@ -1275,13 +1275,13 @@ class HGraphBuilder {
                                 ElementsKind kind,
                                 HValue* capacity);
 
-  void BuildInitializeElements(HValue* elements,
-                               ElementsKind kind,
-                               HValue* capacity);
+  void BuildInitializeElementsHeader(HValue* elements,
+                                     ElementsKind kind,
+                                     HValue* capacity);
 
-  HValue* BuildAllocateAndInitializeElements(HValue* context,
-                                             ElementsKind kind,
-                                             HValue* capacity);
+  HValue* BuildAllocateElementsAndInitializeElementsHeader(HValue* context,
+                                                           ElementsKind kind,
+                                                           HValue* capacity);
 
   // array must have been allocated with enough room for
   // 1) the JSArray, 2) a AllocationSiteInfo if mode requires it,
@@ -1738,12 +1738,36 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                          int* offset,
                          AllocationSiteMode mode);
 
-  MUST_USE_RESULT HValue* BuildCopyObjectHeader(
+  MUST_USE_RESULT HValue* BuildEmitObjectHeader(
       Handle<JSObject> boilerplat_object,
       HInstruction* target,
       int object_offset,
       int elements_offset,
       int elements_size);
+
+  void BuildEmitInObjectProperties(Handle<JSObject> boilerplate_object,
+                                   Handle<JSObject> original_boilerplate_object,
+                                   HValue* object_properties,
+                                   HInstruction* target,
+                                   int* offset);
+
+  void BuildEmitElements(Handle<FixedArrayBase> elements,
+                         Handle<FixedArrayBase> original_elements,
+                         ElementsKind kind,
+                         HValue* object_elements,
+                         HInstruction* target,
+                         int* offset);
+
+  void BuildEmitFixedDoubleArray(Handle<FixedArrayBase> elements,
+                                 ElementsKind kind,
+                                 HValue* object_elements);
+
+  void BuildEmitFixedArray(Handle<FixedArrayBase> elements,
+                           Handle<FixedArrayBase> original_elements,
+                           ElementsKind kind,
+                           HValue* object_elements,
+                           HInstruction* target,
+                           int* offset);
 
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);
