@@ -812,6 +812,7 @@ void HGraphBuilder::IfBuilder::Else() {
 void HGraphBuilder::IfBuilder::Deopt() {
   HBasicBlock* block = builder_->current_block();
   block->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
+  builder_->set_current_block(NULL);
   if (did_else_) {
     first_false_block_ = NULL;
   } else {
@@ -7195,6 +7196,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
   // If only one map is left after transitioning, handle this case
   // monomorphically.
+  ASSERT(num_untransitionable_maps >= 1);
   if (num_untransitionable_maps == 1) {
     HInstruction* instr = NULL;
     if (untransitionable_map->has_slow_elements_kind()) {
