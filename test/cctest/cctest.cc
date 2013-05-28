@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-
 #include <v8.h>
 #include "cctest.h"
 #include "debug.h"
@@ -70,14 +67,19 @@ void CcTest::InitializeVM(CcTestExtensionFlags extensions) {
   if (extensions.Contains(Name##_ID)) extension_names[extension_count++] = Id;
   EXTENSION_LIST(CHECK_EXTENSION_FLAG)
 #undef CHECK_EXTENSION_FLAG
+  v8::Isolate* isolate = default_isolate();
   if (context_.IsEmpty()) {
-    v8::Isolate* isolate = default_isolate();
     v8::HandleScope scope(isolate);
     v8::ExtensionConfiguration config(extension_count, extension_names);
     v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
-    context_ = v8::Persistent<v8::Context>::New(isolate, context);
+    context_.Reset(isolate, context);
   }
-  context_->Enter();
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(isolate, context_);
+    context->Enter();
+  }
 }
 
 

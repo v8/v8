@@ -39,6 +39,7 @@
 #include "small-pointer-list.h"
 #include "smart-pointers.h"
 #include "token.h"
+#include "type-info.h"
 #include "utils.h"
 #include "variables.h"
 #include "interface.h"
@@ -373,6 +374,10 @@ class Expression: public AstNode {
     return STANDARD_STORE;
   }
 
+  // TODO(rossberg): this should move to its own AST node eventually.
+  void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
+  byte to_boolean_types() const { return to_boolean_types_; }
+
   BailoutId id() const { return id_; }
   TypeFeedbackId test_id() const { return test_id_; }
 
@@ -382,6 +387,8 @@ class Expression: public AstNode {
         test_id_(GetNextId(isolate)) {}
 
  private:
+  byte to_boolean_types_;
+
   const BailoutId id_;
   const TypeFeedbackId test_id_;
 };
@@ -716,6 +723,7 @@ class IterationStatement: public BreakableStatement {
  private:
   Statement* body_;
   Label continue_target_;
+
   const BailoutId osr_entry_id_;
 };
 
@@ -751,7 +759,9 @@ class DoWhileStatement: public IterationStatement {
 
  private:
   Expression* cond_;
+
   int condition_position_;
+
   const BailoutId continue_id_;
   const BailoutId back_edge_id_;
 };
@@ -788,8 +798,10 @@ class WhileStatement: public IterationStatement {
 
  private:
   Expression* cond_;
+
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
+
   const BailoutId body_id_;
 };
 
@@ -843,9 +855,11 @@ class ForStatement: public IterationStatement {
   Statement* init_;
   Expression* cond_;
   Statement* next_;
+
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
   Variable* loop_variable_;
+
   const BailoutId continue_id_;
   const BailoutId body_id_;
 };
@@ -859,6 +873,7 @@ class ForInStatement: public IterationStatement {
     IterationStatement::Initialize(body);
     each_ = each;
     enumerable_ = enumerable;
+    for_in_type_ = SLOW_FOR_IN;
   }
 
   Expression* each() const { return each_; }
@@ -870,6 +885,9 @@ class ForInStatement: public IterationStatement {
   BailoutId PrepareId() const { return prepare_id_; }
 
   TypeFeedbackId ForInFeedbackId() const { return reuse(PrepareId()); }
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  enum ForInType { FAST_FOR_IN, SLOW_FOR_IN };
+  ForInType for_in_type() const { return for_in_type_; }
 
  protected:
   ForInStatement(Isolate* isolate, ZoneStringList* labels)
@@ -883,6 +901,9 @@ class ForInStatement: public IterationStatement {
  private:
   Expression* each_;
   Expression* enumerable_;
+
+  ForInType for_in_type_;
+
   const BailoutId body_id_;
   const BailoutId prepare_id_;
 };
@@ -1023,10 +1044,15 @@ class SwitchStatement: public BreakableStatement {
   void Initialize(Expression* tag, ZoneList<CaseClause*>* cases) {
     tag_ = tag;
     cases_ = cases;
+    switch_type_ = UNKNOWN_SWITCH;
   }
 
   Expression* tag() const { return tag_; }
   ZoneList<CaseClause*>* cases() const { return cases_; }
+
+  enum SwitchType { UNKNOWN_SWITCH, SMI_SWITCH, STRING_SWITCH, GENERIC_SWITCH };
+  SwitchType switch_type() const { return switch_type_; }
+  void set_switch_type(SwitchType switch_type) { switch_type_ = switch_type; }
 
  protected:
   SwitchStatement(Isolate* isolate, ZoneStringList* labels)
@@ -1037,6 +1063,7 @@ class SwitchStatement: public BreakableStatement {
  private:
   Expression* tag_;
   ZoneList<CaseClause*>* cases_;
+  SwitchType switch_type_;
 };
 
 
@@ -1282,52 +1309,55 @@ class MaterializedLiteral: public Expression {
 };
 
 
+// Property is used for passing information
+// about an object literal's properties from the parser
+// to the code generator.
+class ObjectLiteralProperty: public ZoneObject {
+ public:
+  enum Kind {
+    CONSTANT,              // Property with constant value (compile time).
+    COMPUTED,              // Property with computed value (execution time).
+    MATERIALIZED_LITERAL,  // Property value is a materialized literal.
+    GETTER, SETTER,        // Property is an accessor function.
+    PROTOTYPE              // Property is __proto__.
+  };
+
+  ObjectLiteralProperty(Literal* key, Expression* value, Isolate* isolate);
+
+  Literal* key() { return key_; }
+  Expression* value() { return value_; }
+  Kind kind() { return kind_; }
+
+  // Type feedback information.
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  bool IsMonomorphic() { return !receiver_type_.is_null(); }
+  Handle<Map> GetReceiverType() { return receiver_type_; }
+
+  bool IsCompileTimeValue();
+
+  void set_emit_store(bool emit_store);
+  bool emit_store();
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ObjectLiteralProperty(bool is_getter, FunctionLiteral* value);
+  void set_key(Literal* key) { key_ = key; }
+
+ private:
+  Literal* key_;
+  Expression* value_;
+  Kind kind_;
+  bool emit_store_;
+  Handle<Map> receiver_type_;
+};
+
+
 // An object literal has a boilerplate object that is used
 // for minimizing the work when constructing it at runtime.
 class ObjectLiteral: public MaterializedLiteral {
  public:
-  // Property is used for passing information
-  // about an object literal's properties from the parser
-  // to the code generator.
-  class Property: public ZoneObject {
-   public:
-    enum Kind {
-      CONSTANT,              // Property with constant value (compile time).
-      COMPUTED,              // Property with computed value (execution time).
-      MATERIALIZED_LITERAL,  // Property value is a materialized literal.
-      GETTER, SETTER,        // Property is an accessor function.
-      PROTOTYPE              // Property is __proto__.
-    };
-
-    Property(Literal* key, Expression* value, Isolate* isolate);
-
-    Literal* key() { return key_; }
-    Expression* value() { return value_; }
-    Kind kind() { return kind_; }
-
-    // Type feedback information.
-    void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-    bool IsMonomorphic() { return !receiver_type_.is_null(); }
-    Handle<Map> GetReceiverType() { return receiver_type_; }
-
-    bool IsCompileTimeValue();
-
-    void set_emit_store(bool emit_store);
-    bool emit_store();
-
-   protected:
-    template<class> friend class AstNodeFactory;
-
-    Property(bool is_getter, FunctionLiteral* value);
-    void set_key(Literal* key) { key_ = key; }
-
-   private:
-    Literal* key_;
-    Expression* value_;
-    Kind kind_;
-    bool emit_store_;
-    Handle<Map> receiver_type_;
-  };
+  typedef ObjectLiteralProperty Property;
 
   DECLARE_NODE_TYPE(ObjectLiteral)
 
@@ -1590,6 +1620,11 @@ class Call: public Expression {
 
   BailoutId ReturnId() const { return return_id_; }
 
+  // TODO(rossberg): this should really move somewhere else (and be merged with
+  // various similar methods in objets.cc), but for now...
+  static Handle<JSObject> GetPrototypeForPrimitiveCheck(
+      CheckType check, Isolate* isolate);
+
 #ifdef DEBUG
   // Used to assert that the FullCodeGenerator records the return site.
   bool return_is_recorded_;
@@ -1636,10 +1671,11 @@ class CallNew: public Expression {
   TypeFeedbackId CallNewFeedbackId() const { return reuse(id()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
-  Handle<JSFunction> target() { return target_; }
+  Handle<JSFunction> target() const { return target_; }
+  ElementsKind elements_kind() const { return elements_kind_; }
+  Handle<Smi> allocation_elements_kind() const { return alloc_elements_kind_; }
 
   BailoutId ReturnId() const { return return_id_; }
-  ElementsKind elements_kind() const { return elements_kind_; }
 
  protected:
   CallNew(Isolate* isolate,
@@ -1651,8 +1687,8 @@ class CallNew: public Expression {
         arguments_(arguments),
         pos_(pos),
         is_monomorphic_(false),
-        return_id_(GetNextId(isolate)),
-        elements_kind_(GetInitialFastElementsKind()) { }
+        elements_kind_(GetInitialFastElementsKind()),
+        return_id_(GetNextId(isolate)) { }
 
  private:
   Expression* expression_;
@@ -1661,9 +1697,10 @@ class CallNew: public Expression {
 
   bool is_monomorphic_;
   Handle<JSFunction> target_;
+  ElementsKind elements_kind_;
+  Handle<Smi> alloc_elements_kind_;
 
   const BailoutId return_id_;
-  ElementsKind elements_kind_;
 };
 
 
@@ -1713,6 +1750,8 @@ class UnaryOperation: public Expression {
   BailoutId MaterializeFalseId() { return materialize_false_id_; }
 
   TypeFeedbackId UnaryOperationFeedbackId() const { return reuse(id()); }
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  TypeInfo type() const { return type_; }
 
  protected:
   UnaryOperation(Isolate* isolate,
@@ -1732,6 +1771,8 @@ class UnaryOperation: public Expression {
   Token::Value op_;
   Expression* expression_;
   int pos_;
+
+  TypeInfo type_;
 
   // For unary not (Token::NOT), the AST ids where true and false will
   // actually be materialized, respectively.
@@ -1754,6 +1795,10 @@ class BinaryOperation: public Expression {
   BailoutId RightId() const { return right_id_; }
 
   TypeFeedbackId BinaryOperationFeedbackId() const { return reuse(id()); }
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  TypeInfo left_type() const { return left_type_; }
+  TypeInfo right_type() const { return right_type_; }
+  TypeInfo result_type() const { return result_type_; }
 
  protected:
   BinaryOperation(Isolate* isolate,
@@ -1775,6 +1820,11 @@ class BinaryOperation: public Expression {
   Expression* left_;
   Expression* right_;
   int pos_;
+
+  TypeInfo left_type_;
+  TypeInfo right_type_;
+  TypeInfo result_type_;
+
   // The short-circuit logical operations need an AST ID for their
   // right-hand subexpression.
   const BailoutId right_id_;
@@ -1804,6 +1854,7 @@ class CountOperation: public Expression {
   virtual KeyedAccessStoreMode GetStoreMode() {
     return store_mode_;
   }
+  TypeInfo type() const { return type_; }
 
   BailoutId AssignmentId() const { return assignment_id_; }
 
@@ -1832,6 +1883,8 @@ class CountOperation: public Expression {
   bool is_monomorphic_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
+  TypeInfo type_;
+
   Expression* expression_;
   int pos_;
   const BailoutId assignment_id_;
@@ -1851,6 +1904,12 @@ class CompareOperation: public Expression {
 
   // Type feedback information.
   TypeFeedbackId CompareOperationFeedbackId() const { return reuse(id()); }
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  TypeInfo left_type() const { return left_type_; }
+  TypeInfo right_type() const { return right_type_; }
+  TypeInfo overall_type() const { return overall_type_; }
+  byte compare_nil_types() const { return compare_nil_types_; }
+  Handle<Map> map() const { return map_; }
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
@@ -1876,6 +1935,12 @@ class CompareOperation: public Expression {
   Expression* left_;
   Expression* right_;
   int pos_;
+
+  TypeInfo left_type_;
+  TypeInfo right_type_;
+  TypeInfo overall_type_;
+  byte compare_nil_types_;
+  Handle<Map> map_;
 };
 
 

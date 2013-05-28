@@ -1,3 +1,11 @@
+2013-05-28: Version 3.19.6
+
+        Fixed IfBuilder::Deopt to clear the current block
+        (Chromium issue 243868).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-05-27: Version 3.19.5
 
         Reset regexp parser flag after scanning ahead for capture groups.

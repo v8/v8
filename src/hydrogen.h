@@ -34,7 +34,6 @@
 #include "ast.h"
 #include "compiler.h"
 #include "hydrogen-instructions.h"
-#include "type-info.h"
 #include "zone.h"
 #include "scopes.h"
 
@@ -792,12 +791,10 @@ class TestContext: public AstContext {
  public:
   TestContext(HOptimizedGraphBuilder* owner,
               Expression* condition,
-              TypeFeedbackOracle* oracle,
               HBasicBlock* if_true,
               HBasicBlock* if_false)
       : AstContext(owner, Expression::kTest),
         condition_(condition),
-        oracle_(oracle),
         if_true_(if_true),
         if_false_(if_false) {
   }
@@ -814,7 +811,6 @@ class TestContext: public AstContext {
   }
 
   Expression* condition() const { return condition_; }
-  TypeFeedbackOracle* oracle() const { return oracle_; }
   HBasicBlock* if_true() const { return if_true_; }
   HBasicBlock* if_false() const { return if_false_; }
 
@@ -824,7 +820,6 @@ class TestContext: public AstContext {
   void BuildBranch(HValue* value);
 
   Expression* condition_;
-  TypeFeedbackOracle* oracle_;
   HBasicBlock* if_true_;
   HBasicBlock* if_false_;
 };
@@ -834,12 +829,10 @@ class FunctionState {
  public:
   FunctionState(HOptimizedGraphBuilder* owner,
                 CompilationInfo* info,
-                TypeFeedbackOracle* oracle,
                 InliningKind inlining_kind);
   ~FunctionState();
 
   CompilationInfo* compilation_info() { return compilation_info_; }
-  TypeFeedbackOracle* oracle() { return oracle_; }
   AstContext* call_context() { return call_context_; }
   InliningKind inlining_kind() const { return inlining_kind_; }
   HBasicBlock* function_return() { return function_return_; }
@@ -865,7 +858,6 @@ class FunctionState {
   HOptimizedGraphBuilder* owner_;
 
   CompilationInfo* compilation_info_;
-  TypeFeedbackOracle* oracle_;
 
   // During function inlining, expression context of the call being
   // inlined. NULL when not inlining.
@@ -1283,13 +1275,13 @@ class HGraphBuilder {
                                 ElementsKind kind,
                                 HValue* capacity);
 
-  void BuildInitializeElements(HValue* elements,
-                               ElementsKind kind,
-                               HValue* capacity);
+  void BuildInitializeElementsHeader(HValue* elements,
+                                     ElementsKind kind,
+                                     HValue* capacity);
 
-  HValue* BuildAllocateAndInitializeElements(HValue* context,
-                                             ElementsKind kind,
-                                             HValue* capacity);
+  HValue* BuildAllocateElementsAndInitializeElementsHeader(HValue* context,
+                                                           ElementsKind kind,
+                                                           HValue* capacity);
 
   // array must have been allocated with enough room for
   // 1) the JSArray, 2) a AllocationSiteInfo if mode requires it,
@@ -1353,9 +1345,6 @@ class HGraphBuilder {
 
 class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
  public:
-  enum BreakType { BREAK, CONTINUE };
-  enum SwitchType { UNKNOWN_SWITCH, SMI_SWITCH, STRING_SWITCH };
-
   // A class encapsulating (lazily-allocated) break and continue blocks for
   // a breakable statement.  Separated from BreakAndContinueScope so that it
   // can have a separate lifetime.
@@ -1400,6 +1389,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
     BreakAndContinueScope* next() { return next_; }
 
     // Search the break stack for a break or continue target.
+    enum BreakType { BREAK, CONTINUE };
     HBasicBlock* Get(BreakableStatement* stmt, BreakType type, int* drop_extra);
 
    private:
@@ -1408,7 +1398,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
     BreakAndContinueScope* next_;
   };
 
-  HOptimizedGraphBuilder(CompilationInfo* info, TypeFeedbackOracle* oracle);
+  explicit HOptimizedGraphBuilder(CompilationInfo* info);
 
   virtual bool BuildGraph();
 
@@ -1425,8 +1415,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   HBasicBlock* CreateJoin(HBasicBlock* first,
                           HBasicBlock* second,
                           BailoutId join_id);
-
-  TypeFeedbackOracle* oracle() const { return function_state()->oracle(); }
 
   FunctionState* function_state() const { return function_state_; }
 
@@ -1750,12 +1738,36 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                          int* offset,
                          AllocationSiteMode mode);
 
-  MUST_USE_RESULT HValue* BuildCopyObjectHeader(
+  MUST_USE_RESULT HValue* BuildEmitObjectHeader(
       Handle<JSObject> boilerplat_object,
       HInstruction* target,
       int object_offset,
       int elements_offset,
       int elements_size);
+
+  void BuildEmitInObjectProperties(Handle<JSObject> boilerplate_object,
+                                   Handle<JSObject> original_boilerplate_object,
+                                   HValue* object_properties,
+                                   HInstruction* target,
+                                   int* offset);
+
+  void BuildEmitElements(Handle<FixedArrayBase> elements,
+                         Handle<FixedArrayBase> original_elements,
+                         ElementsKind kind,
+                         HValue* object_elements,
+                         HInstruction* target,
+                         int* offset);
+
+  void BuildEmitFixedDoubleArray(Handle<FixedArrayBase> elements,
+                                 ElementsKind kind,
+                                 HValue* object_elements);
+
+  void BuildEmitFixedArray(Handle<FixedArrayBase> elements,
+                           Handle<FixedArrayBase> original_elements,
+                           ElementsKind kind,
+                           HValue* object_elements,
+                           HInstruction* target,
+                           int* offset);
 
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);
@@ -1796,90 +1808,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
 
 Zone* AstContext::zone() const { return owner_->zone(); }
-
-
-class HValueMap: public ZoneObject {
- public:
-  explicit HValueMap(Zone* zone)
-      : array_size_(0),
-        lists_size_(0),
-        count_(0),
-        present_flags_(0),
-        array_(NULL),
-        lists_(NULL),
-        free_list_head_(kNil) {
-    ResizeLists(kInitialSize, zone);
-    Resize(kInitialSize, zone);
-  }
-
-  void Kill(GVNFlagSet flags);
-
-  void Add(HValue* value, Zone* zone) {
-    present_flags_.Add(value->gvn_flags());
-    Insert(value, zone);
-  }
-
-  HValue* Lookup(HValue* value) const;
-
-  HValueMap* Copy(Zone* zone) const {
-    return new(zone) HValueMap(zone, this);
-  }
-
-  bool IsEmpty() const { return count_ == 0; }
-
- private:
-  // A linked list of HValue* values.  Stored in arrays.
-  struct HValueMapListElement {
-    HValue* value;
-    int next;  // Index in the array of the next list element.
-  };
-  static const int kNil = -1;  // The end of a linked list
-
-  // Must be a power of 2.
-  static const int kInitialSize = 16;
-
-  HValueMap(Zone* zone, const HValueMap* other);
-
-  void Resize(int new_size, Zone* zone);
-  void ResizeLists(int new_size, Zone* zone);
-  void Insert(HValue* value, Zone* zone);
-  uint32_t Bound(uint32_t value) const { return value & (array_size_ - 1); }
-
-  int array_size_;
-  int lists_size_;
-  int count_;  // The number of values stored in the HValueMap.
-  GVNFlagSet present_flags_;  // All flags that are in any value in the
-                              // HValueMap.
-  HValueMapListElement* array_;  // Primary store - contains the first value
-  // with a given hash.  Colliding elements are stored in linked lists.
-  HValueMapListElement* lists_;  // The linked lists containing hash collisions.
-  int free_list_head_;  // Unused elements in lists_ are on the free list.
-};
-
-
-class HSideEffectMap BASE_EMBEDDED {
- public:
-  HSideEffectMap();
-  explicit HSideEffectMap(HSideEffectMap* other);
-  HSideEffectMap& operator= (const HSideEffectMap& other);
-
-  void Kill(GVNFlagSet flags);
-
-  void Store(GVNFlagSet flags, HInstruction* instr);
-
-  bool IsEmpty() const { return count_ == 0; }
-
-  inline HInstruction* operator[](int i) const {
-    ASSERT(0 <= i);
-    ASSERT(i < kNumberOfTrackedSideEffects);
-    return data_[i];
-  }
-  inline HInstruction* at(int i) const { return operator[](i); }
-
- private:
-  int count_;
-  HInstruction* data_[kNumberOfTrackedSideEffects];
-};
 
 
 class HStatistics: public Malloced {

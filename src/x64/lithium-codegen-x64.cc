@@ -453,6 +453,12 @@ int LCodeGen::ToInteger32(LConstantOperand* op) const {
 }
 
 
+Smi* LCodeGen::ToSmi(LConstantOperand* op) const {
+  HConstant* constant = chunk_->LookupConstant(op);
+  return Smi::FromInt(constant->Integer32Value());
+}
+
+
 double LCodeGen::ToDouble(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
   ASSERT(constant->HasDoubleValue());
@@ -2074,16 +2080,32 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
       int32_t value;
       if (right->IsConstantOperand()) {
         value = ToInteger32(LConstantOperand::cast(right));
-        __ cmpl(ToRegister(left), Immediate(value));
+        if (instr->hydrogen_value()->representation().IsSmi()) {
+          __ Cmp(ToRegister(left), Smi::FromInt(value));
+        } else {
+          __ cmpl(ToRegister(left), Immediate(value));
+        }
       } else if (left->IsConstantOperand()) {
         value = ToInteger32(LConstantOperand::cast(left));
-        if (right->IsRegister()) {
+        if (instr->hydrogen_value()->representation().IsSmi()) {
+          if (right->IsRegister()) {
+            __ Cmp(ToRegister(right), Smi::FromInt(value));
+          } else {
+            __ Cmp(ToOperand(right), Smi::FromInt(value));
+          }
+        } else if (right->IsRegister()) {
           __ cmpl(ToRegister(right), Immediate(value));
         } else {
           __ cmpl(ToOperand(right), Immediate(value));
         }
         // We transposed the operands. Reverse the condition.
         cc = ReverseCondition(cc);
+      } else if (instr->hydrogen_value()->representation().IsSmi()) {
+        if (right->IsRegister()) {
+          __ cmpq(ToRegister(left), ToRegister(right));
+        } else {
+          __ cmpq(ToRegister(left), ToOperand(right));
+        }
       } else {
         if (right->IsRegister()) {
           __ cmpl(ToRegister(left), ToRegister(right));
@@ -4663,7 +4685,9 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 NumberUntagDMode mode) {
   Label load_smi, done;
 
-  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+  STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
+                NUMBER_CANDIDATE_IS_ANY_TAGGED);
+  if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
 
@@ -4673,13 +4697,18 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     if (deoptimize_on_undefined) {
       DeoptimizeIf(not_equal, env);
     } else {
-      Label heap_number;
+      Label heap_number, convert;
       __ j(equal, &heap_number, Label::kNear);
 
+      // Convert undefined (and hole) to NaN. Compute NaN as 0/0.
       __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
+      if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE) {
+        __ j(equal, &convert, Label::kNear);
+        __ CompareRoot(input_reg, Heap::kTheHoleValueRootIndex);
+      }
       DeoptimizeIf(not_equal, env);
 
-      // Convert undefined to NaN. Compute NaN as 0/0.
+      __ bind(&convert);
       __ xorps(result_reg, result_reg);
       __ divsd(result_reg, result_reg);
       __ jmp(&done, Label::kNear);
@@ -4698,16 +4727,6 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       DeoptimizeIf(not_zero, env);
     }
     __ jmp(&done, Label::kNear);
-  } else if (mode == NUMBER_CANDIDATE_IS_SMI_OR_HOLE) {
-      __ testq(input_reg, Immediate(kSmiTagMask));
-      DeoptimizeIf(not_equal, env);
-  } else if (mode == NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE) {
-      __ testq(input_reg, Immediate(kSmiTagMask));
-      __ j(zero, &load_smi);
-    __ Set(kScratchRegister, BitCast<uint64_t>(
-        FixedDoubleArray::hole_nan_as_double()));
-    __ movq(result_reg, kScratchRegister);
-      __ jmp(&done, Label::kNear);
   } else {
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
   }
@@ -4802,19 +4821,11 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
   HValue* value = instr->hydrogen()->value();
   if (value->type().IsSmi()) {
-    if (value->IsLoadKeyed()) {
-      HLoadKeyed* load = HLoadKeyed::cast(value);
-      if (load->UsesMustHandleHole()) {
-        if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-          mode = NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE;
-        } else {
-          mode = NUMBER_CANDIDATE_IS_SMI_OR_HOLE;
-        }
-      } else {
-        mode = NUMBER_CANDIDATE_IS_SMI;
-      }
-    } else {
-      mode = NUMBER_CANDIDATE_IS_SMI;
+    mode = NUMBER_CANDIDATE_IS_SMI;
+  } else if (value->IsLoadKeyed()) {
+    HLoadKeyed* load = HLoadKeyed::cast(value);
+    if (load->UsesMustHandleHole()) {
+      mode = NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE;
     }
   }
 
@@ -5180,8 +5191,12 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
   if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
+    ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
     flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE);
+  } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
+    flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_DATA_SPACE);
   }
+
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
     __ Allocate(size, result, temp, no_reg, deferred->entry(), flags);
@@ -5214,11 +5229,12 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   }
 
   if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
-    CallRuntimeFromDeferred(
-        Runtime::kAllocateInOldPointerSpace, 1, instr);
+    ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
+    CallRuntimeFromDeferred(Runtime::kAllocateInOldPointerSpace, 1, instr);
+  } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
+    CallRuntimeFromDeferred(Runtime::kAllocateInOldDataSpace, 1, instr);
   } else {
-    CallRuntimeFromDeferred(
-        Runtime::kAllocateInNewSpace, 1, instr);
+    CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
   }
   __ StoreToSafepointRegisterSlot(result, rax);
 }

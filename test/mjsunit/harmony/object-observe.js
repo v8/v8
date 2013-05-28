@@ -1142,6 +1142,22 @@ observer.assertCallbackRecords([
   { object: array, name: '2', type: 'updated', oldValue: 3 },
 ]);
 
+// Sort
+reset();
+var array = [3, 2, 1];
+Object.observe(array, observer.callback);
+array.sort();
+assertEquals(1, array[0]);
+assertEquals(2, array[1]);
+assertEquals(3, array[2]);
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: array, name: '1', type: 'updated', oldValue: 2 },
+  { object: array, name: '0', type: 'updated', oldValue: 3 },
+  { object: array, name: '2', type: 'updated', oldValue: 1 },
+  { object: array, name: '1', type: 'updated', oldValue: 3 },
+  { object: array, name: '0', type: 'updated', oldValue: 2 },
+]);
 
 //
 // === PLAIN OBJECTS ===

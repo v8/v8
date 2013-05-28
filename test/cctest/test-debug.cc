@@ -29,10 +29,6 @@
 
 #include <stdlib.h>
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "v8.h"
 
 #include "api.h"
@@ -6626,7 +6622,15 @@ TEST(ScriptCollectedEventContext) {
     v8::HandleScope scope(isolate);
     context.Reset(isolate, v8::Context::New(isolate));
   }
-  context->Enter();
+
+  // Enter context.  We can't have a handle to the context in the outer
+  // scope, so we have to do it the hard way.
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> local_context =
+        v8::Local<v8::Context>::New(isolate, context);
+    local_context->Enter();
+  }
 
   // Request the loaded scripts to initialize the debugger script cache.
   debug->GetLoadedScripts();
@@ -6639,7 +6643,13 @@ TEST(ScriptCollectedEventContext) {
   v8::Script::Compile(v8::String::New("eval('a=1')"))->Run();
   v8::Script::Compile(v8::String::New("eval('a=2')"))->Run();
 
-  context->Exit();
+  // Leave context
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> local_context =
+        v8::Local<v8::Context>::New(isolate, context);
+    local_context->Exit();
+  }
   context.Dispose(isolate);
 
   // Do garbage collection to collect the script above which is no longer

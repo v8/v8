@@ -7243,6 +7243,12 @@ const CpuProfile* CpuProfiler::GetCpuProfile(int index,
 }
 
 
+const CpuProfile* CpuProfiler::GetCpuProfile(int index) {
+  return reinterpret_cast<const CpuProfile*>(
+      reinterpret_cast<i::CpuProfiler*>(this)->GetProfile(NULL, index));
+}
+
+
 const CpuProfile* CpuProfiler::FindProfile(unsigned uid,
                                            Handle<Value> security_token) {
   i::Isolate* isolate = i::Isolate::Current();
@@ -7298,6 +7304,14 @@ const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title,
   return reinterpret_cast<const CpuProfile*>(
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
           security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
+          *Utils::OpenHandle(*title)));
+}
+
+
+const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title) {
+  return reinterpret_cast<const CpuProfile*>(
+      reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
+          NULL,
           *Utils::OpenHandle(*title)));
 }
 

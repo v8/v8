@@ -539,6 +539,12 @@ int LCodeGen::ToInteger32(LConstantOperand* op) const {
 }
 
 
+Smi* LCodeGen::ToSmi(LConstantOperand* op) const {
+  HConstant* constant = chunk_->LookupConstant(op);
+  return Smi::FromInt(constant->Integer32Value());
+}
+
+
 double LCodeGen::ToDouble(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
   ASSERT(constant->HasDoubleValue());
@@ -2414,11 +2420,19 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
       __ b(vs, chunk_->GetAssemblyLabel(false_block));
     } else {
       if (right->IsConstantOperand()) {
-        __ cmp(ToRegister(left),
-               Operand(ToInteger32(LConstantOperand::cast(right))));
+        int32_t value = ToInteger32(LConstantOperand::cast(right));
+        if (instr->hydrogen_value()->representation().IsSmi()) {
+          __ cmp(ToRegister(left), Operand(Smi::FromInt(value)));
+        } else {
+          __ cmp(ToRegister(left), Operand(value));
+        }
       } else if (left->IsConstantOperand()) {
-        __ cmp(ToRegister(right),
-               Operand(ToInteger32(LConstantOperand::cast(left))));
+        int32_t value = ToInteger32(LConstantOperand::cast(left));
+        if (instr->hydrogen_value()->representation().IsSmi()) {
+          __ cmp(ToRegister(right), Operand(Smi::FromInt(value)));
+        } else {
+          __ cmp(ToRegister(right), Operand(value));
+        }
         // We transposed the operands. Reverse the condition.
         cond = ReverseCondition(cond);
       } else {
@@ -4963,7 +4977,9 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
   Label load_smi, heap_number, done;
 
-  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+  STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
+                NUMBER_CANDIDATE_IS_ANY_TAGGED);
+  if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ UntagAndJumpIfSmi(scratch, input_reg, &load_smi);
 
@@ -4974,14 +4990,20 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     if (deoptimize_on_undefined) {
       DeoptimizeIf(ne, env);
     } else {
-      Label heap_number;
+      Label heap_number, convert;
       __ b(eq, &heap_number);
 
+      // Convert undefined (and hole) to NaN.
       __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
       __ cmp(input_reg, Operand(ip));
+      if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE) {
+        __ b(eq, &convert);
+        __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+        __ cmp(input_reg, Operand(ip));
+      }
       DeoptimizeIf(ne, env);
 
-      // Convert undefined to NaN.
+      __ bind(&convert);
       __ LoadRoot(ip, Heap::kNanValueRootIndex);
       __ sub(ip, ip, Operand(kHeapObjectTag));
       __ vldr(result_reg, ip, HeapNumber::kValueOffset);
@@ -5001,15 +5023,6 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       DeoptimizeIf(eq, env);
     }
     __ jmp(&done);
-  } else if (mode == NUMBER_CANDIDATE_IS_SMI_OR_HOLE) {
-    __ SmiUntag(scratch, input_reg, SetCC);
-    DeoptimizeIf(cs, env);
-  } else if (mode == NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE) {
-    __ UntagAndJumpIfSmi(scratch, input_reg, &load_smi);
-    __ Vmov(result_reg,
-            FixedDoubleArray::hole_nan_as_double(),
-            no_reg);
-    __ b(&done);
   } else {
     __ SmiUntag(scratch, input_reg);
     ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
@@ -5133,19 +5146,13 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
   HValue* value = instr->hydrogen()->value();
   if (value->type().IsSmi()) {
-    if (value->IsLoadKeyed()) {
-      HLoadKeyed* load = HLoadKeyed::cast(value);
-      if (load->UsesMustHandleHole()) {
-        if (load->hole_mode() == ALLOW_RETURN_HOLE) {
-          mode = NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE;
-        } else {
-          mode = NUMBER_CANDIDATE_IS_SMI_OR_HOLE;
-        }
-      } else {
-        mode = NUMBER_CANDIDATE_IS_SMI;
+    mode = NUMBER_CANDIDATE_IS_SMI;
+  } else if (value->IsLoadKeyed()) {
+    HLoadKeyed* load = HLoadKeyed::cast(value);
+    if (load->UsesMustHandleHole()) {
+      if (load->hole_mode() == ALLOW_RETURN_HOLE) {
+        mode = NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE;
       }
-    } else {
-      mode = NUMBER_CANDIDATE_IS_SMI;
     }
   }
 
@@ -5493,8 +5500,12 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
   if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
+    ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
     flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE);
+  } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
+    flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_DATA_SPACE);
   }
+
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
     __ Allocate(size, result, scratch, scratch2, deferred->entry(), flags);
@@ -5532,11 +5543,12 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   }
 
   if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
-    CallRuntimeFromDeferred(
-        Runtime::kAllocateInOldPointerSpace, 1, instr);
+    ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
+    CallRuntimeFromDeferred(Runtime::kAllocateInOldPointerSpace, 1, instr);
+  } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
+    CallRuntimeFromDeferred(Runtime::kAllocateInOldDataSpace, 1, instr);
   } else {
-    CallRuntimeFromDeferred(
-        Runtime::kAllocateInNewSpace, 1, instr);
+    CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
   }
   __ StoreToSafepointRegisterSlot(r0, result);
 }

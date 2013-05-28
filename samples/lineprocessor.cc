@@ -130,7 +130,9 @@ void DispatchDebugMessages() {
   // think about.
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope handle_scope(isolate);
-  v8::Context::Scope scope(isolate, debug_message_context);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(isolate, debug_message_context);
+  v8::Context::Scope scope(context);
 
   v8::Debug::ProcessDebugMessages();
 }

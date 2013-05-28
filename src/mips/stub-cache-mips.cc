@@ -1438,9 +1438,9 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ Subu(sp, sp, 5 * kPointerSize);
   __ sw(reg, MemOperand(sp, 4 * kPointerSize));
   __ sw(scratch3(), MemOperand(sp, 3 * kPointerSize));
-  __ li(scratch3(),
+  __ LoadRoot(scratch3(), Heap::kUndefinedValueRootIndex);
+  __ li(scratch4(),
         Operand(ExternalReference::isolate_address(isolate())));
-  __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
   __ sw(scratch3(), MemOperand(sp, 2 * kPointerSize));
   __ sw(scratch4(), MemOperand(sp, 1 * kPointerSize));
   __ sw(name(), MemOperand(sp, 0 * kPointerSize));
@@ -1481,7 +1481,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ CallApiFunctionAndReturn(ref,
                               kStackUnwindSpace,
                               returns_handle,
-                              3);
+                              4);
 }
 
 

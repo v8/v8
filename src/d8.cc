@@ -243,7 +243,9 @@ bool Shell::ExecuteString(Isolate* isolate,
 #if !defined(V8_SHARED)
         } else {
           v8::TryCatch try_catch;
-          Context::Scope context_scope(isolate, utility_context_);
+          v8::Local<v8::Context> context =
+              v8::Local<v8::Context>::New(isolate, utility_context_);
+          v8::Context::Scope context_scope(context);
           Handle<Object> global = utility_context_->Global();
           Handle<Value> fun = global->Get(String::New("Stringify"));
           Handle<Value> argv[1] = { result };
@@ -592,7 +594,9 @@ Handle<Array> Shell::GetCompletions(Isolate* isolate,
                                     Handle<String> text,
                                     Handle<String> full) {
   HandleScope handle_scope(isolate);
-  Context::Scope context_scope(isolate, utility_context_);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(isolate, utility_context_);
+  v8::Context::Scope context_scope(context);
   Handle<Object> global = utility_context_->Global();
   Handle<Value> fun = global->Get(String::New("GetCompletions"));
   static const int kArgc = 3;
@@ -606,7 +610,9 @@ Handle<Array> Shell::GetCompletions(Isolate* isolate,
 Handle<Object> Shell::DebugMessageDetails(Isolate* isolate,
                                           Handle<String> message) {
   HandleScope handle_scope(isolate);
-  Context::Scope context_scope(isolate, utility_context_);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(isolate, utility_context_);
+  v8::Context::Scope context_scope(context);
   Handle<Object> global = utility_context_->Global();
   Handle<Value> fun = global->Get(String::New("DebugMessageDetails"));
   static const int kArgc = 1;
@@ -619,7 +625,9 @@ Handle<Object> Shell::DebugMessageDetails(Isolate* isolate,
 Handle<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
                                                Handle<String> command) {
   HandleScope handle_scope(isolate);
-  Context::Scope context_scope(isolate, utility_context_);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(isolate, utility_context_);
+  v8::Context::Scope context_scope(context);
   Handle<Object> global = utility_context_->Global();
   Handle<Value> fun = global->Get(String::New("DebugCommandToJSONRequest"));
   static const int kArgc = 1;
@@ -632,7 +640,9 @@ Handle<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
 void Shell::DispatchDebugMessages() {
   Isolate* isolate = v8::Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
-  v8::Context::Scope scope(isolate, Shell::evaluation_context_);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(isolate, Shell::evaluation_context_);
+  v8::Context::Scope context_scope(context);
   v8::Debug::ProcessDebugMessages();
 }
 #endif  // ENABLE_DEBUGGER_SUPPORT
@@ -745,7 +755,9 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   // utility, evaluation and debug context can all access each other.
   utility_context_->SetSecurityToken(Undefined(isolate));
   evaluation_context_->SetSecurityToken(Undefined(isolate));
-  Context::Scope utility_scope(isolate, utility_context_);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(isolate, utility_context_);
+  v8::Context::Scope context_scope(context);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (i::FLAG_debugger) printf("JavaScript debugger enabled\n");
@@ -1121,7 +1133,9 @@ Handle<String> Shell::ReadFile(Isolate* isolate, const char* name) {
 void Shell::RunShell(Isolate* isolate) {
   Locker locker(isolate);
   HandleScope outer_scope(isolate);
-  Context::Scope context_scope(isolate, evaluation_context_);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(isolate, evaluation_context_);
+  v8::Context::Scope context_scope(context);
   PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
   Handle<String> name = String::New("(d8)");
   LineEditor* console = LineEditor::Get();

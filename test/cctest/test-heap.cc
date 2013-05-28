@@ -27,10 +27,6 @@
 
 #include <stdlib.h>
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "v8.h"
 
 #include "compilation-cache.h"
@@ -1663,21 +1659,23 @@ TEST(LeakNativeContextViaMap) {
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope outer_scope(isolate);
-  v8::Persistent<v8::Context> ctx1;
-  v8::Persistent<v8::Context> ctx2;
+  v8::Persistent<v8::Context> ctx1p;
+  v8::Persistent<v8::Context> ctx2p;
   {
     v8::HandleScope scope(isolate);
-    ctx1.Reset(isolate, v8::Context::New(isolate));
-    ctx2.Reset(isolate, v8::Context::New(isolate));
+    ctx1p.Reset(isolate, v8::Context::New(isolate));
+    ctx2p.Reset(isolate, v8::Context::New(isolate));
+    v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
   }
-  ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(4, NumberOfGlobalObjects());
 
   {
-    v8::HandleScope inner_scope(v8::Isolate::GetCurrent());
+    v8::HandleScope inner_scope(isolate);
     CompileRun("var v = {x: 42}");
+    v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
+    v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
     v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
     ctx2->Enter();
     ctx2->Global()->Set(v8_str("o"), v);
@@ -1689,13 +1687,13 @@ TEST(LeakNativeContextViaMap) {
     CHECK_EQ(42, res->Int32Value());
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
-    ctx1->Exit();
-    ctx1.Dispose(ctx1->GetIsolate());
+    v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
+    ctx1p.Dispose(isolate);
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2.Dispose(ctx2->GetIsolate());
+  ctx2p.Dispose(isolate);
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1707,21 +1705,23 @@ TEST(LeakNativeContextViaFunction) {
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope outer_scope(isolate);
-  v8::Persistent<v8::Context> ctx1;
-  v8::Persistent<v8::Context> ctx2;
+  v8::Persistent<v8::Context> ctx1p;
+  v8::Persistent<v8::Context> ctx2p;
   {
     v8::HandleScope scope(isolate);
-    ctx1.Reset(isolate, v8::Context::New(isolate));
-    ctx2.Reset(isolate, v8::Context::New(isolate));
+    ctx1p.Reset(isolate, v8::Context::New(isolate));
+    ctx2p.Reset(isolate, v8::Context::New(isolate));
+    v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
   }
-  ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(4, NumberOfGlobalObjects());
 
   {
-    v8::HandleScope inner_scope(v8::Isolate::GetCurrent());
+    v8::HandleScope inner_scope(isolate);
     CompileRun("var v = function() { return 42; }");
+    v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
+    v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
     v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
     ctx2->Enter();
     ctx2->Global()->Set(v8_str("o"), v);
@@ -1734,12 +1734,12 @@ TEST(LeakNativeContextViaFunction) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1.Dispose(ctx1->GetIsolate());
+    ctx1p.Dispose(ctx1->GetIsolate());
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2.Dispose(ctx2->GetIsolate());
+  ctx2p.Dispose(isolate);
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1749,21 +1749,23 @@ TEST(LeakNativeContextViaMapKeyed) {
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope outer_scope(isolate);
-  v8::Persistent<v8::Context> ctx1;
-  v8::Persistent<v8::Context> ctx2;
+  v8::Persistent<v8::Context> ctx1p;
+  v8::Persistent<v8::Context> ctx2p;
   {
     v8::HandleScope scope(isolate);
-    ctx1.Reset(isolate, v8::Context::New(isolate));
-    ctx2.Reset(isolate, v8::Context::New(isolate));
+    ctx1p.Reset(isolate, v8::Context::New(isolate));
+    ctx2p.Reset(isolate, v8::Context::New(isolate));
+    v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
   }
-  ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(4, NumberOfGlobalObjects());
 
   {
-    v8::HandleScope inner_scope(v8::Isolate::GetCurrent());
+    v8::HandleScope inner_scope(isolate);
     CompileRun("var v = [42, 43]");
+    v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
+    v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
     v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
     ctx2->Enter();
     ctx2->Global()->Set(v8_str("o"), v);
@@ -1776,12 +1778,12 @@ TEST(LeakNativeContextViaMapKeyed) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1.Dispose(ctx1->GetIsolate());
+    ctx1p.Dispose(ctx1->GetIsolate());
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2.Dispose(ctx2->GetIsolate());
+  ctx2p.Dispose(isolate);
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1791,21 +1793,23 @@ TEST(LeakNativeContextViaMapProto) {
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope outer_scope(isolate);
-  v8::Persistent<v8::Context> ctx1;
-  v8::Persistent<v8::Context> ctx2;
+  v8::Persistent<v8::Context> ctx1p;
+  v8::Persistent<v8::Context> ctx2p;
   {
     v8::HandleScope scope(isolate);
-    ctx1.Reset(isolate, v8::Context::New(isolate));
-    ctx2.Reset(isolate, v8::Context::New(isolate));
+    ctx1p.Reset(isolate, v8::Context::New(isolate));
+    ctx2p.Reset(isolate, v8::Context::New(isolate));
+    v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
   }
-  ctx1->Enter();
 
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(4, NumberOfGlobalObjects());
 
   {
-    v8::HandleScope inner_scope(v8::Isolate::GetCurrent());
+    v8::HandleScope inner_scope(isolate);
     CompileRun("var v = { y: 42}");
+    v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
+    v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
     v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
     ctx2->Enter();
     ctx2->Global()->Set(v8_str("o"), v);
@@ -1822,12 +1826,12 @@ TEST(LeakNativeContextViaMapProto) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1.Dispose(ctx1->GetIsolate());
+    ctx1p.Dispose(isolate);
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2.Dispose(ctx2->GetIsolate());
+  ctx2p.Dispose(isolate);
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }

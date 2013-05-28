@@ -563,6 +563,7 @@ template <class T> class Persistent // NOLINT
 
 #endif
 
+#ifdef V8_USE_UNSAFE_HANDLES
   template <class S> V8_INLINE(static Persistent<T> Cast(Persistent<S> that)) {
 #ifdef V8_ENABLE_CHECKS
     // If we're going to perform the type check then we have to check
@@ -575,6 +576,22 @@ template <class T> class Persistent // NOLINT
   template <class S> V8_INLINE(Persistent<S> As()) {
     return Persistent<S>::Cast(*this);
   }
+
+#else
+  template <class S>
+  V8_INLINE(static Persistent<T>& Cast(Persistent<S>& that)) { // NOLINT
+#ifdef V8_ENABLE_CHECKS
+    // If we're going to perform the type check then we have to check
+    // that the handle isn't empty before doing the checked cast.
+    if (!that.IsEmpty()) T::Cast(*that);
+#endif
+    return reinterpret_cast<Persistent<T>&>(that);
+  }
+
+  template <class S> V8_INLINE(Persistent<S>& As()) { // NOLINT
+    return Persistent<S>::Cast(*this);
+  }
+#endif
 
   V8_DEPRECATED(static Persistent<T> New(Handle<T> that));
 
@@ -2779,8 +2796,8 @@ class ReturnValue {
  public:
   V8_INLINE(explicit ReturnValue(internal::Object** slot));
   // Handle setters
-  V8_INLINE(void Set(const Persistent<T>& handle));
-  V8_INLINE(void Set(const Handle<T> handle));
+  template <typename S> V8_INLINE(void Set(const Persistent<S>& handle));
+  template <typename S> V8_INLINE(void Set(const Handle<S> handle));
   // Fast primitive setters
   V8_INLINE(void Set(bool value));
   V8_INLINE(void Set(double i));
@@ -4929,6 +4946,7 @@ class V8EXPORT Context {
     explicit V8_INLINE(Scope(Handle<Context> context)) : context_(context) {
       context_->Enter();
     }
+    // TODO(dcarney): deprecate
     V8_INLINE(Scope(Isolate* isolate, Persistent<Context>& context)) // NOLINT
 #ifndef V8_USE_UNSAFE_HANDLES
     : context_(Handle<Context>::New(isolate, context)) {
@@ -5684,12 +5702,16 @@ template<typename T>
 ReturnValue<T>::ReturnValue(internal::Object** slot) : value_(slot) {}
 
 template<typename T>
-void ReturnValue<T>::Set(const Persistent<T>& handle) {
+template<typename S>
+void ReturnValue<T>::Set(const Persistent<S>& handle) {
+  TYPE_CHECK(T, S);
   *value_ = *reinterpret_cast<internal::Object**>(*handle);
 }
 
 template<typename T>
-void ReturnValue<T>::Set(const Handle<T> handle) {
+template<typename S>
+void ReturnValue<T>::Set(const Handle<S> handle) {
+  TYPE_CHECK(T, S);
   *value_ = *reinterpret_cast<internal::Object**>(*handle);
 }
 

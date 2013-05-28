@@ -184,10 +184,11 @@ bool TypeFeedbackOracle::ObjectLiteralStoreIsMonomorphic(
 }
 
 
-bool TypeFeedbackOracle::IsForInFastCase(ForInStatement* stmt) {
+byte TypeFeedbackOracle::ForInType(ForInStatement* stmt) {
   Handle<Object> value = GetInfo(stmt->ForInFeedbackId());
   return value->IsSmi() &&
-      Smi::cast(*value)->value() == TypeFeedbackCells::kForInFastCaseMarker;
+      Smi::cast(*value)->value() == TypeFeedbackCells::kForInFastCaseMarker
+          ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
 }
 
 
@@ -221,8 +222,8 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(
 
 
 Handle<Map> TypeFeedbackOracle::CompareNilMonomorphicReceiverType(
-    TypeFeedbackId id) {
-  Handle<Object> maybe_code = GetInfo(id);
+    CompareOperation* expr) {
+  Handle<Object> maybe_code = GetInfo(expr->CompareOperationFeedbackId());
   if (maybe_code->IsCode()) {
     Map* map = Handle<Code>::cast(maybe_code)->FindFirstMap();
     if (map == NULL) return Handle<Map>();
@@ -293,31 +294,6 @@ CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
   CheckType check = static_cast<CheckType>(Smi::cast(*value)->value());
   ASSERT(check != RECEIVER_MAP_CHECK);
   return check;
-}
-
-
-Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
-    CheckType check) {
-  JSFunction* function = NULL;
-  switch (check) {
-    case RECEIVER_MAP_CHECK:
-      UNREACHABLE();
-      break;
-    case STRING_CHECK:
-      function = native_context_->string_function();
-      break;
-    case SYMBOL_CHECK:
-      function = native_context_->symbol_function();
-      break;
-    case NUMBER_CHECK:
-      function = native_context_->number_function();
-      break;
-    case BOOLEAN_CHECK:
-      function = native_context_->boolean_function();
-      break;
-  }
-  ASSERT(function != NULL);
-  return Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 }
 
 
@@ -641,8 +617,8 @@ byte TypeFeedbackOracle::ToBooleanTypes(TypeFeedbackId id) {
 }
 
 
-byte TypeFeedbackOracle::CompareNilTypes(TypeFeedbackId id) {
-  Handle<Object> object = GetInfo(id);
+byte TypeFeedbackOracle::CompareNilTypes(CompareOperation* expr) {
+  Handle<Object> object = GetInfo(expr->CompareOperationFeedbackId());
   if (object->IsCode() &&
       Handle<Code>::cast(object)->is_compare_nil_ic_stub()) {
     return Handle<Code>::cast(object)->compare_nil_types();
