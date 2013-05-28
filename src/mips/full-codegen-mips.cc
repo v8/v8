@@ -2057,7 +2057,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ Subu(a3, a3, Operand(1));
   __ Branch(&call_resume, lt, a3, Operand(zero_reg));
   __ push(a2);
-  __ b(&push_operand_holes);
+  __ Branch(&push_operand_holes);
   __ bind(&call_resume);
   __ push(a1);
   __ push(result_register());
