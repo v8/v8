@@ -1285,6 +1285,19 @@ TEST(DeleteAllHeapSnapshots) {
 }
 
 
+static const v8::HeapSnapshot* FindHeapSnapshot(v8::HeapProfiler* profiler,
+                                                unsigned uid) {
+  int length = profiler->GetSnapshotCount();
+  for (int i = 0; i < length; i++) {
+    const v8::HeapSnapshot* snapshot = profiler->GetHeapSnapshot(i);
+    if (snapshot->GetUid() == uid) {
+      return snapshot;
+    }
+  }
+  return NULL;
+}
+
+
 TEST(DeleteHeapSnapshot) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1296,10 +1309,10 @@ TEST(DeleteHeapSnapshot) {
   CHECK_NE(NULL, s1);
   CHECK_EQ(1, heap_profiler->GetSnapshotCount());
   unsigned uid1 = s1->GetUid();
-  CHECK_EQ(s1, heap_profiler->FindHeapSnapshot(uid1));
+  CHECK_EQ(s1, FindHeapSnapshot(heap_profiler, uid1));
   const_cast<v8::HeapSnapshot*>(s1)->Delete();
   CHECK_EQ(0, heap_profiler->GetSnapshotCount());
-  CHECK_EQ(NULL, heap_profiler->FindHeapSnapshot(uid1));
+  CHECK_EQ(NULL, FindHeapSnapshot(heap_profiler, uid1));
 
   const v8::HeapSnapshot* s2 =
       heap_profiler->TakeHeapSnapshot(v8_str("2"));
@@ -1307,21 +1320,21 @@ TEST(DeleteHeapSnapshot) {
   CHECK_EQ(1, heap_profiler->GetSnapshotCount());
   unsigned uid2 = s2->GetUid();
   CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid2));
-  CHECK_EQ(s2, heap_profiler->FindHeapSnapshot(uid2));
+  CHECK_EQ(s2, FindHeapSnapshot(heap_profiler, uid2));
   const v8::HeapSnapshot* s3 =
       heap_profiler->TakeHeapSnapshot(v8_str("3"));
   CHECK_NE(NULL, s3);
   CHECK_EQ(2, heap_profiler->GetSnapshotCount());
   unsigned uid3 = s3->GetUid();
   CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid3));
-  CHECK_EQ(s3, heap_profiler->FindHeapSnapshot(uid3));
+  CHECK_EQ(s3, FindHeapSnapshot(heap_profiler, uid3));
   const_cast<v8::HeapSnapshot*>(s2)->Delete();
   CHECK_EQ(1, heap_profiler->GetSnapshotCount());
-  CHECK_EQ(NULL, heap_profiler->FindHeapSnapshot(uid2));
-  CHECK_EQ(s3, heap_profiler->FindHeapSnapshot(uid3));
+  CHECK_EQ(NULL, FindHeapSnapshot(heap_profiler, uid2));
+  CHECK_EQ(s3, FindHeapSnapshot(heap_profiler, uid3));
   const_cast<v8::HeapSnapshot*>(s3)->Delete();
   CHECK_EQ(0, heap_profiler->GetSnapshotCount());
-  CHECK_EQ(NULL, heap_profiler->FindHeapSnapshot(uid3));
+  CHECK_EQ(NULL, FindHeapSnapshot(heap_profiler, uid3));
 }
 
 

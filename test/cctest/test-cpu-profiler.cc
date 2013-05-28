@@ -31,11 +31,13 @@
 #define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
 #define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
 
+#define V8_DISABLE_DEPRECATIONS 1
 #include "v8.h"
 #include "cpu-profiler-inl.h"
 #include "cctest.h"
 #include "utils.h"
 #include "../include/v8-profiler.h"
+#undef V8_DISABLE_DEPRECATIONS
 
 using i::CodeEntry;
 using i::CpuProfile;
@@ -297,6 +299,19 @@ TEST(DeleteAllCpuProfiles) {
 }
 
 
+static const v8::CpuProfile* FindCpuProfile(v8::CpuProfiler* profiler,
+                                            unsigned uid) {
+  int length = profiler->GetProfileCount();
+  for (int i = 0; i < length; i++) {
+    const v8::CpuProfile* profile = profiler->GetCpuProfile(i);
+    if (profile->GetUid() == uid) {
+      return profile;
+    }
+  }
+  return NULL;
+}
+
+
 TEST(DeleteCpuProfile) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -309,10 +324,10 @@ TEST(DeleteCpuProfile) {
   CHECK_NE(NULL, p1);
   CHECK_EQ(1, cpu_profiler->GetProfileCount());
   unsigned uid1 = p1->GetUid();
-  CHECK_EQ(p1, cpu_profiler->FindCpuProfile(uid1));
+  CHECK_EQ(p1, FindCpuProfile(cpu_profiler, uid1));
   const_cast<v8::CpuProfile*>(p1)->Delete();
   CHECK_EQ(0, cpu_profiler->GetProfileCount());
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid1));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid1));
 
   v8::Local<v8::String> name2 = v8::String::New("2");
   cpu_profiler->StartCpuProfiling(name2);
@@ -321,8 +336,8 @@ TEST(DeleteCpuProfile) {
   CHECK_EQ(1, cpu_profiler->GetProfileCount());
   unsigned uid2 = p2->GetUid();
   CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid2));
-  CHECK_EQ(p2, cpu_profiler->FindCpuProfile(uid2));
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid1));
+  CHECK_EQ(p2, FindCpuProfile(cpu_profiler, uid2));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid1));
   v8::Local<v8::String> name3 = v8::String::New("3");
   cpu_profiler->StartCpuProfiling(name3);
   const v8::CpuProfile* p3 = cpu_profiler->StopCpuProfiling(name3);
@@ -330,17 +345,17 @@ TEST(DeleteCpuProfile) {
   CHECK_EQ(2, cpu_profiler->GetProfileCount());
   unsigned uid3 = p3->GetUid();
   CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid3));
-  CHECK_EQ(p3, cpu_profiler->FindCpuProfile(uid3));
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid1));
+  CHECK_EQ(p3, FindCpuProfile(cpu_profiler, uid3));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid1));
   const_cast<v8::CpuProfile*>(p2)->Delete();
   CHECK_EQ(1, cpu_profiler->GetProfileCount());
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid2));
-  CHECK_EQ(p3, cpu_profiler->FindCpuProfile(uid3));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid2));
+  CHECK_EQ(p3, FindCpuProfile(cpu_profiler, uid3));
   const_cast<v8::CpuProfile*>(p3)->Delete();
   CHECK_EQ(0, cpu_profiler->GetProfileCount());
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid3));
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid2));
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid1));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid3));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid2));
+  CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid1));
 }
 
 
