@@ -395,23 +395,6 @@ function ArrayJoin(separator) {
 }
 
 
-function ObservedArrayPop(n) {
-  n--;
-  var value = this[n];
-
-  EnqueueSpliceRecord(this, n, [value], 1, 0);
-
-  try {
-    BeginPerformSplice(this);
-    delete this[n];
-    this.length = n;
-  } finally {
-    EndPerformSplice(this);
-  }
-
-  return value;
-}
-
 // Removes the last element from the array and returns it. See
 // ECMA-262, section 15.4.4.6.
 function ArrayPop() {
@@ -425,10 +408,6 @@ function ArrayPop() {
     this.length = n;
     return;
   }
-
-  if (%IsObserved(this))
-    return ObservedArrayPop.call(this, n);
-
   n--;
   var value = this[n];
   delete this[n];
@@ -445,6 +424,7 @@ function ObservedArrayPush() {
 
   try {
     BeginPerformSplice(this);
+
     for (var i = 0; i < m; i++) {
       this[i+n] = %_Arguments(i);
     }
@@ -578,22 +558,6 @@ function ArrayReverse() {
 }
 
 
-function ObservedArrayShift(len) {
-  var first = this[0];
-
-  EnqueueSpliceRecord(this, 0, [first], 1, 0);
-
-  try {
-    BeginPerformSplice(this);
-    SimpleMove(this, 0, 1, len, 0);
-    this.length = len - 1;
-  } finally {
-    EndPerformSplice(this);
-  }
-
-  return first;
-}
-
 function ArrayShift() {
   if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
     throw MakeTypeError("called_on_null_or_undefined",
@@ -607,12 +571,9 @@ function ArrayShift() {
     return;
   }
 
-  if (%IsObserved(this))
-    return ObservedArrayShift.call(this, len);
-
   var first = this[0];
 
-  if (IS_ARRAY(this)) {
+  if (IS_ARRAY(this) && !%IsObserved(this)) {
     SmartMove(this, 0, 1, len, 0);
   } else {
     SimpleMove(this, 0, 1, len, 0);
@@ -623,25 +584,6 @@ function ArrayShift() {
   return first;
 }
 
-function ObservedArrayUnshift() {
-  var len = TO_UINT32(this.length);
-  var num_arguments = %_ArgumentsLength();
-
-  EnqueueSpliceRecord(this, 0, [], 0, num_arguments);
-
-  try {
-    BeginPerformSplice(this);
-    SimpleMove(this, 0, 0, len, num_arguments);
-    for (var i = 0; i < num_arguments; i++) {
-      this[i] = %_Arguments(i);
-    }
-    this.length = len + num_arguments;
-  } finally {
-    EndPerformSplice(this);
-  }
-
-  return len + num_arguments;
-}
 
 function ArrayUnshift(arg1) {  // length == 1
   if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
@@ -649,13 +591,10 @@ function ArrayUnshift(arg1) {  // length == 1
                         ["Array.prototype.unshift"]);
   }
 
-  if (%IsObserved(this))
-    return ObservedArrayUnshift.apply(this, arguments);
-
   var len = TO_UINT32(this.length);
   var num_arguments = %_ArgumentsLength();
 
-  if (IS_ARRAY(this)) {
+  if (IS_ARRAY(this) && !%IsObserved(this)) {
     SmartMove(this, 0, 0, len, num_arguments);
   } else {
     SimpleMove(this, 0, 0, len, num_arguments);
@@ -716,100 +655,52 @@ function ArraySlice(start, end) {
 }
 
 
-function ComputeSpliceStartIndex(start_i, len) {
-  if (start_i < 0) {
-    start_i += len;
-    return start_i < 0 ? 0 : start_i;
-  }
-
-  return start_i > len ? len : start_i;
-}
-
-
-function ComputeSpliceDeleteCount(delete_count, num_arguments, len, start_i) {
-  // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
-  // given as a request to delete all the elements from the start.
-  // And it differs from the case of undefined delete count.
-  // This does not follow ECMA-262, but we do the same for
-  // compatibility.
-  var del_count = 0;
-  if (num_arguments == 1)
-    return len - start_i;
-
-  del_count = TO_INTEGER(delete_count);
-  if (del_count < 0)
-    return 0;
-
-  if (del_count > len - start_i)
-    return len - start_i;
-
-  return del_count;
-}
-
-
-function ObservedArraySplice(start, delete_count) {
-  var num_arguments = %_ArgumentsLength();
-  var len = TO_UINT32(this.length);
-  var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
-  var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
-                                           start_i);
-  var deleted_elements = [];
-  deleted_elements.length = del_count;
-  var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
-
-  try {
-    BeginPerformSplice(this);
-
-    SimpleSlice(this, start_i, del_count, len, deleted_elements);
-    SimpleMove(this, start_i, del_count, len, num_elements_to_add);
-
-    // Insert the arguments into the resulting array in
-    // place of the deleted elements.
-    var i = start_i;
-    var arguments_index = 2;
-    var arguments_length = %_ArgumentsLength();
-    while (arguments_index < arguments_length) {
-      this[i++] = %_Arguments(arguments_index++);
-    }
-    this.length = len - del_count + num_elements_to_add;
-
-  } finally {
-    EndPerformSplice(this);
-    if (deleted_elements.length || num_elements_to_add) {
-       EnqueueSpliceRecord(this,
-                           start_i,
-                           deleted_elements.slice(),
-                           deleted_elements.length,
-                           num_elements_to_add);
-    }
-  }
-
-  // Return the deleted elements.
-  return deleted_elements;
-}
-
-
 function ArraySplice(start, delete_count) {
   if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
     throw MakeTypeError("called_on_null_or_undefined",
                         ["Array.prototype.splice"]);
   }
 
-  if (%IsObserved(this))
-    return ObservedArraySplice.apply(this, arguments);
-
   var num_arguments = %_ArgumentsLength();
+
   var len = TO_UINT32(this.length);
-  var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
-  var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
-                                           start_i);
+  var start_i = TO_INTEGER(start);
+
+  if (start_i < 0) {
+    start_i += len;
+    if (start_i < 0) start_i = 0;
+  } else {
+    if (start_i > len) start_i = len;
+  }
+
+  // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
+  // given as a request to delete all the elements from the start.
+  // And it differs from the case of undefined delete count.
+  // This does not follow ECMA-262, but we do the same for
+  // compatibility.
+  var del_count = 0;
+  if (num_arguments == 1) {
+    del_count = len - start_i;
+  } else {
+    del_count = TO_INTEGER(delete_count);
+    if (del_count < 0) del_count = 0;
+    if (del_count > len - start_i) del_count = len - start_i;
+  }
+
   var deleted_elements = [];
   deleted_elements.length = del_count;
-  var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
+
+  // Number of elements to add.
+  var num_additional_args = 0;
+  if (num_arguments > 2) {
+    num_additional_args = num_arguments - 2;
+  }
 
   var use_simple_splice = true;
+
   if (IS_ARRAY(this) &&
-      num_elements_to_add !== del_count) {
+      !%IsObserved(this) &&
+      num_additional_args !== del_count) {
     // If we are only deleting/moving a few things near the end of the
     // array then the simple version is going to be faster, because it
     // doesn't touch most of the array.
@@ -821,10 +712,10 @@ function ArraySplice(start, delete_count) {
 
   if (use_simple_splice) {
     SimpleSlice(this, start_i, del_count, len, deleted_elements);
-    SimpleMove(this, start_i, del_count, len, num_elements_to_add);
+    SimpleMove(this, start_i, del_count, len, num_additional_args);
   } else {
     SmartSlice(this, start_i, del_count, len, deleted_elements);
-    SmartMove(this, start_i, del_count, len, num_elements_to_add);
+    SmartMove(this, start_i, del_count, len, num_additional_args);
   }
 
   // Insert the arguments into the resulting array in
@@ -835,7 +726,7 @@ function ArraySplice(start, delete_count) {
   while (arguments_index < arguments_length) {
     this[i++] = %_Arguments(arguments_index++);
   }
-  this.length = len - del_count + num_elements_to_add;
+  this.length = len - del_count + num_additional_args;
 
   // Return the deleted elements.
   return deleted_elements;
