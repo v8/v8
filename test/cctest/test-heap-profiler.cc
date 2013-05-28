@@ -29,9 +29,6 @@
 
 #include <ctype.h>
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "v8.h"
 
 #include "cctest.h"
@@ -1137,14 +1134,11 @@ TEST(HeapSnapshotRetainedObjectInfo) {
       1, TestRetainedObjectInfo::WrapperInfoCallback);
   heap_profiler->SetWrapperClassInfoProvider(
       2, TestRetainedObjectInfo::WrapperInfoCallback);
-  v8::Persistent<v8::String> p_AAA =
-      v8::Persistent<v8::String>::New(isolate, v8_str("AAA"));
+  v8::Persistent<v8::String> p_AAA(isolate, v8_str("AAA"));
   p_AAA.SetWrapperClassId(isolate, 1);
-  v8::Persistent<v8::String> p_BBB =
-      v8::Persistent<v8::String>::New(isolate, v8_str("BBB"));
+  v8::Persistent<v8::String> p_BBB(isolate, v8_str("BBB"));
   p_BBB.SetWrapperClassId(isolate, 1);
-  v8::Persistent<v8::String> p_CCC =
-      v8::Persistent<v8::String>::New(isolate, v8_str("CCC"));
+  v8::Persistent<v8::String> p_CCC(isolate, v8_str("CCC"));
   p_CCC.SetWrapperClassId(isolate, 2);
   CHECK_EQ(0, TestRetainedObjectInfo::instances.length());
   const v8::HeapSnapshot* snapshot =
@@ -1196,8 +1190,7 @@ class GraphWithImplicitRefs {
     instance_ = this;
     isolate_ = (*env)->GetIsolate();
     for (int i = 0; i < kObjectsCount; i++) {
-      objects_[i] =
-          v8::Persistent<v8::Object>::New(isolate_, v8::Object::New());
+      objects_[i].Reset(isolate_, v8::Object::New());
     }
     (*env)->Global()->Set(v8_str("root_object"),
                           v8::Local<v8::Value>::New(isolate_, objects_[0]));
@@ -1213,15 +1206,15 @@ class GraphWithImplicitRefs {
  private:
   void AddImplicitReferences() {
     // 0 -> 1
-    isolate_->SetObjectGroupId(v8::Persistent<v8::Object>::Cast(objects_[0]),
+    isolate_->SetObjectGroupId(objects_[0],
                                v8::UniqueId(1));
     isolate_->SetReferenceFromGroup(
-        v8::UniqueId(1), v8::Persistent<v8::Object>::Cast(objects_[1]));
+        v8::UniqueId(1), objects_[1]);
     // Adding two more references: 1 -> 2, 1 -> 3
-    isolate_->SetReference(v8::Persistent<v8::Object>::Cast(objects_[1]),
-                           v8::Persistent<v8::Object>::Cast(objects_[2]));
-    isolate_->SetReference(v8::Persistent<v8::Object>::Cast(objects_[1]),
-                           v8::Persistent<v8::Object>::Cast(objects_[3]));
+    isolate_->SetReference(objects_[1].As<v8::Object>(),
+                           objects_[2]);
+    isolate_->SetReference(objects_[1].As<v8::Object>(),
+                           objects_[3]);
   }
 
   v8::Persistent<v8::Value> objects_[kObjectsCount];
@@ -1611,8 +1604,7 @@ TEST(WeakGlobalHandle) {
 
   CHECK(!HasWeakGlobalHandle());
 
-  v8::Persistent<v8::Object> handle =
-      v8::Persistent<v8::Object>::New(env->GetIsolate(), v8::Object::New());
+  v8::Persistent<v8::Object> handle(env->GetIsolate(), v8::Object::New());
   handle.MakeWeak<v8::Value, void>(env->GetIsolate(),
                                    NULL,
                                    PersistentHandleCallback);

@@ -563,6 +563,7 @@ template <class T> class Persistent // NOLINT
 
 #endif
 
+#ifdef V8_USE_UNSAFE_HANDLES
   template <class S> V8_INLINE(static Persistent<T> Cast(Persistent<S> that)) {
 #ifdef V8_ENABLE_CHECKS
     // If we're going to perform the type check then we have to check
@@ -575,6 +576,22 @@ template <class T> class Persistent // NOLINT
   template <class S> V8_INLINE(Persistent<S> As()) {
     return Persistent<S>::Cast(*this);
   }
+
+#else
+  template <class S>
+  V8_INLINE(static Persistent<T>& Cast(Persistent<S>& that)) { // NOLINT
+#ifdef V8_ENABLE_CHECKS
+    // If we're going to perform the type check then we have to check
+    // that the handle isn't empty before doing the checked cast.
+    if (!that.IsEmpty()) T::Cast(*that);
+#endif
+    return reinterpret_cast<Persistent<T>&>(that);
+  }
+
+  template <class S> V8_INLINE(Persistent<S>& As()) { // NOLINT
+    return Persistent<S>::Cast(*this);
+  }
+#endif
 
   V8_DEPRECATED(static Persistent<T> New(Handle<T> that));
 
