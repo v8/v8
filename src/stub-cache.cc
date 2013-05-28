@@ -952,10 +952,12 @@ void StubCache::Clear() {
   Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = heap()->empty_string();
+    primary_[i].map = NULL;
     primary_[i].value = empty;
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
     secondary_[j].key = heap()->empty_string();
+    secondary_[j].map = NULL;
     secondary_[j].value = empty;
   }
 }
