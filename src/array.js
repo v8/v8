@@ -1110,11 +1110,13 @@ function ArraySort(comparefn) {
     max_prototype_element = CopyFromPrototype(this, length);
   }
 
-  var num_non_undefined = %RemoveArrayHoles(this, length);
+  var num_non_undefined = %IsObserved(this) ?
+      -1 : %RemoveArrayHoles(this, length);
+
   if (num_non_undefined == -1) {
-    // There were indexed accessors in the array.  Move array holes and
-    // undefineds to the end using a Javascript function that is safe
-    // in the presence of accessors.
+    // The array is observed, or there were indexed accessors in the array.
+    // Move array holes and undefineds to the end using a Javascript function
+    // that is safe in the presence of accessors and is observable.
     num_non_undefined = SafeRemoveArrayHoles(this);
   }
 

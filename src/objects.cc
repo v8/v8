@@ -13758,12 +13758,13 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
   Heap* heap = GetHeap();
 
+  ASSERT(!map()->is_observed());
   if (HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.
     SeededNumberDictionary* dict = element_dictionary();
     if (IsJSArray() || dict->requires_slow_elements() ||
-        dict->max_number_key() >= limit || map()->is_observed()) {
+        dict->max_number_key() >= limit) {
       return PrepareSlowElementsForSort(limit);
     }
     // Convert to fast elements.
