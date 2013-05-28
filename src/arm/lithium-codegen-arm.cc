@@ -539,6 +539,12 @@ int LCodeGen::ToInteger32(LConstantOperand* op) const {
 }
 
 
+Smi* LCodeGen::ToSmi(LConstantOperand* op) const {
+  HConstant* constant = chunk_->LookupConstant(op);
+  return Smi::FromInt(constant->Integer32Value());
+}
+
+
 double LCodeGen::ToDouble(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
   ASSERT(constant->HasDoubleValue());

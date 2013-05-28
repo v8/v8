@@ -119,6 +119,7 @@ class LCodeGen BASE_EMBEDDED {
                                        SwVfpRegister flt_scratch,
                                        DwVfpRegister dbl_scratch);
   int ToInteger32(LConstantOperand* op) const;
+  Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op);
   MemOperand ToMemOperand(LOperand* op) const;

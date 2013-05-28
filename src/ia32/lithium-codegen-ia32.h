@@ -115,6 +115,9 @@ class LCodeGen BASE_EMBEDDED {
   Immediate ToInteger32Immediate(LOperand* op) const {
     return Immediate(ToInteger32(LConstantOperand::cast(op)));
   }
+  Immediate ToSmiImmediate(LOperand* op) const {
+    return Immediate(Smi::FromInt(ToInteger32(LConstantOperand::cast(op))));
+  }
 
   // Support for non-sse2 (x87) floating point stack handling.
   // These functions maintain the depth of the stack (either 0 or 1)
