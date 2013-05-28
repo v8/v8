@@ -2288,6 +2288,7 @@ void MacroAssembler::Move(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
+    ASSERT(source->IsHeapObject());
     movq(dst, source, RelocInfo::EMBEDDED_OBJECT);
   }
 }
@@ -2298,6 +2299,7 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Move(dst, Smi::cast(*source));
   } else {
+    ASSERT(source->IsHeapObject());
     movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
     movq(dst, kScratchRegister);
   }
@@ -2309,7 +2311,8 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    Move(kScratchRegister, source);
+    ASSERT(source->IsHeapObject());
+    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
     cmpq(dst, kScratchRegister);
   }
 }
@@ -2349,6 +2352,19 @@ void MacroAssembler::LoadHeapObject(Register result,
     movq(result, Operand(result, 0));
   } else {
     Move(result, object);
+  }
+}
+
+
+void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
+  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<JSGlobalPropertyCell> cell =
+        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    movq(kScratchRegister, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    cmpq(reg, Operand(kScratchRegister, 0));
+  } else {
+    Cmp(reg, object);
   }
 }
 
