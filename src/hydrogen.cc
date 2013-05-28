@@ -1467,7 +1467,7 @@ void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
   Heap* heap = isolate()->heap();
   int element_size = IsFastDoubleElementsKind(kind) ? kDoubleSize
                                                     : kPointerSize;
-  int max_size = heap->MaxNewSpaceAllocationSize() / element_size;
+  int max_size = heap->MaxRegularSpaceAllocationSize() / element_size;
   max_size -= JSArray::kSize / element_size;
   HConstant* max_size_constant =
       new(zone) HConstant(max_size, Representation::Integer32());
