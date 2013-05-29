@@ -1873,9 +1873,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsInteger32() || r.IsSmi()) {
+    ASSERT(!info()->IsStub());
     Register reg = ToRegister(instr->value());
     EmitBranch(true_block, false_block, ne, reg, Operand(zero_reg));
   } else if (r.IsDouble()) {
+    ASSERT(!info()->IsStub());
     DoubleRegister reg = ToDoubleRegister(instr->value());
     // Test the double value. Zero and NaN are false.
     EmitBranchF(true_block, false_block, nue, reg, kDoubleRegZero);
@@ -1884,9 +1886,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
     Register reg = ToRegister(instr->value());
     HType type = instr->hydrogen()->value()->type();
     if (type.IsBoolean()) {
+      ASSERT(!info()->IsStub());
       __ LoadRoot(at, Heap::kTrueValueRootIndex);
       EmitBranch(true_block, false_block, eq, reg, Operand(at));
     } else if (type.IsSmi()) {
+      ASSERT(!info()->IsStub());
       EmitBranch(true_block, false_block, ne, reg, Operand(zero_reg));
     } else {
       Label* true_label = chunk_->GetAssemblyLabel(true_block);

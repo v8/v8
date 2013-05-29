@@ -3729,6 +3729,7 @@ Code::ExtraICState Code::extra_ic_state() {
 
 Code::ExtraICState Code::extended_extra_ic_state() {
   ASSERT(is_inline_cache_stub() || ic_state() == DEBUG_STUB);
+  ASSERT(needs_extended_extra_ic_state(kind()));
   return ExtractExtendedExtraICStateFromFlags(flags());
 }
 
@@ -3979,17 +3980,7 @@ void Code::set_unary_op_type(byte value) {
 
 
 byte Code::to_boolean_state() {
-  ASSERT(is_to_boolean_ic_stub());
-  return ToBooleanStateField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
-}
-
-
-void Code::set_to_boolean_state(byte value) {
-  ASSERT(is_to_boolean_ic_stub());
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
-  int updated = ToBooleanStateField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+  return extended_extra_ic_state();
 }
 
 
@@ -4052,10 +4043,7 @@ Code::Flags Code::ComputeFlags(Kind kind,
       | TypeField::encode(type)
       | ExtendedExtraICStateField::encode(extra_ic_state)
       | CacheHolderField::encode(holder);
-  // TODO(danno): This is a bit of a hack right now since there are still
-  // clients of this API that pass "extra" values in for argc. These clients
-  // should be retrofitted to used ExtendedExtraICState.
-  if (kind != Code::COMPARE_NIL_IC) {
+  if (!Code::needs_extended_extra_ic_state(kind)) {
     bits |= (argc << kArgumentsCountShift);
   }
   return static_cast<Flags>(bits);

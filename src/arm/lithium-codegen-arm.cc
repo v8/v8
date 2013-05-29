@@ -2247,10 +2247,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsInteger32() || r.IsSmi()) {
+    ASSERT(!info()->IsStub());
     Register reg = ToRegister(instr->value());
     __ cmp(reg, Operand::Zero());
     EmitBranch(true_block, false_block, ne);
   } else if (r.IsDouble()) {
+    ASSERT(!info()->IsStub());
     DwVfpRegister reg = ToDoubleRegister(instr->value());
     // Test the double value. Zero and NaN are false.
     __ VFPCompareAndSetFlags(reg, 0.0);
@@ -2261,9 +2263,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
     Register reg = ToRegister(instr->value());
     HType type = instr->hydrogen()->value()->type();
     if (type.IsBoolean()) {
+      ASSERT(!info()->IsStub());
       __ CompareRoot(reg, Heap::kTrueValueRootIndex);
       EmitBranch(true_block, false_block, eq);
     } else if (type.IsSmi()) {
+      ASSERT(!info()->IsStub());
       __ cmp(reg, Operand::Zero());
       EmitBranch(true_block, false_block, ne);
     } else {

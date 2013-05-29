@@ -572,6 +572,14 @@ void CallConstructStub::PrintName(StringStream* stream) {
 }
 
 
+bool ToBooleanStub::Record(Handle<Object> object) {
+  Types old_types(types_);
+  bool to_boolean_value = types_.Record(object);
+  old_types.TraceTransition(types_);
+  return to_boolean_value;
+}
+
+
 void ToBooleanStub::PrintName(StringStream* stream) {
   stream->Add("ToBooleanStub_");
   types_.Print(stream);

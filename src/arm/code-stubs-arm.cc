@@ -175,6 +175,19 @@ void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
 }
 
 
+void ToBooleanStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r0 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(ToBooleanIC_Miss);
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate));
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
@@ -1204,116 +1217,6 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
   __ bind(&miss);
   GenerateMiss(masm);
-}
-
-
-// The stub expects its argument in the tos_ register and returns its result in
-// it, too: zero for false, and a non-zero value for true.
-void ToBooleanStub::Generate(MacroAssembler* masm) {
-  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
-  // we cannot call anything that could cause a GC from this stub.
-  Label patch;
-  const Register map = r9.is(tos_) ? r7 : r9;
-
-  // undefined -> false.
-  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false);
-
-  // Boolean -> its value.
-  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false);
-  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true);
-
-  // 'null' -> false.
-  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false);
-
-  if (types_.Contains(SMI)) {
-    // Smis: 0 -> false, all other -> true
-    __ SmiTst(tos_);
-    // tos_ contains the correct return value already
-    __ Ret(eq);
-  } else if (types_.NeedsMap()) {
-    // If we need a map later and have a Smi -> patch.
-    __ JumpIfSmi(tos_, &patch);
-  }
-
-  if (types_.NeedsMap()) {
-    __ ldr(map, FieldMemOperand(tos_, HeapObject::kMapOffset));
-
-    if (types_.CanBeUndetectable()) {
-      __ ldrb(ip, FieldMemOperand(map, Map::kBitFieldOffset));
-      __ tst(ip, Operand(1 << Map::kIsUndetectable));
-      // Undetectable -> false.
-      __ mov(tos_, Operand::Zero(), LeaveCC, ne);
-      __ Ret(ne);
-    }
-  }
-
-  if (types_.Contains(SPEC_OBJECT)) {
-    // Spec object -> true.
-    __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
-    // tos_ contains the correct non-zero return value already.
-    __ Ret(ge);
-  }
-
-  if (types_.Contains(STRING)) {
-    // String value -> false iff empty.
-    __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE);
-    __ ldr(tos_, FieldMemOperand(tos_, String::kLengthOffset), lt);
-    __ Ret(lt);  // the string length is OK as the return value
-  }
-
-  if (types_.Contains(HEAP_NUMBER)) {
-    // Heap number -> false iff +0, -0, or NaN.
-    Label not_heap_number;
-    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-    __ b(ne, &not_heap_number);
-
-    __ vldr(d1, FieldMemOperand(tos_, HeapNumber::kValueOffset));
-    __ VFPCompareAndSetFlags(d1, 0.0);
-    // "tos_" is a register, and contains a non zero value by default.
-    // Hence we only need to overwrite "tos_" with zero to return false for
-    // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
-    __ mov(tos_, Operand::Zero(), LeaveCC, eq);  // for FP_ZERO
-    __ mov(tos_, Operand::Zero(), LeaveCC, vs);  // for FP_NAN
-    __ Ret();
-    __ bind(&not_heap_number);
-  }
-
-  __ bind(&patch);
-  GenerateTypeTransition(masm);
-}
-
-
-void ToBooleanStub::CheckOddball(MacroAssembler* masm,
-                                 Type type,
-                                 Heap::RootListIndex value,
-                                 bool result) {
-  if (types_.Contains(type)) {
-    // If we see an expected oddball, return its ToBoolean value tos_.
-    __ LoadRoot(ip, value);
-    __ cmp(tos_, ip);
-    // The value of a root is never NULL, so we can avoid loading a non-null
-    // value into tos_ when we want to return 'true'.
-    if (!result) {
-      __ mov(tos_, Operand::Zero(), LeaveCC, eq);
-    }
-    __ Ret(eq);
-  }
-}
-
-
-void ToBooleanStub::GenerateTypeTransition(MacroAssembler* masm) {
-  if (!tos_.is(r3)) {
-    __ mov(r3, Operand(tos_));
-  }
-  __ mov(r2, Operand(Smi::FromInt(tos_.code())));
-  __ mov(r1, Operand(Smi::FromInt(types_.ToByte())));
-  __ Push(r3, r2, r1);
-  // Patch the caller to an appropriate specialized stub and return the
-  // operation result to the caller of the stub.
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kToBoolean_Patch), masm->isolate()),
-      3,
-      1);
 }
 
 

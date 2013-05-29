@@ -1911,14 +1911,17 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsInteger32()) {
+    ASSERT(!info()->IsStub());
     Register reg = ToRegister(instr->value());
     __ testl(reg, reg);
     EmitBranch(true_block, false_block, not_zero);
   } else if (r.IsSmi()) {
+    ASSERT(!info()->IsStub());
     Register reg = ToRegister(instr->value());
     __ testq(reg, reg);
     EmitBranch(true_block, false_block, not_zero);
   } else if (r.IsDouble()) {
+    ASSERT(!info()->IsStub());
     XMMRegister reg = ToDoubleRegister(instr->value());
     __ xorps(xmm0, xmm0);
     __ ucomisd(reg, xmm0);
@@ -1928,9 +1931,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
     Register reg = ToRegister(instr->value());
     HType type = instr->hydrogen()->value()->type();
     if (type.IsBoolean()) {
+      ASSERT(!info()->IsStub());
       __ CompareRoot(reg, Heap::kTrueValueRootIndex);
       EmitBranch(true_block, false_block, equal);
     } else if (type.IsSmi()) {
+      ASSERT(!info()->IsStub());
       __ SmiCompare(reg, Smi::FromInt(0));
       EmitBranch(true_block, false_block, not_equal);
     } else {

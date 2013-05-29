@@ -674,4 +674,24 @@ Handle<Code> CompareNilICStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
+
+template <>
+HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
+  ToBooleanStub* stub = casted_stub();
+
+  IfBuilder if_true(this);
+  if_true.If<HBranch>(GetParameter(0), stub->GetTypes());
+  if_true.Then();
+    if_true.Return(graph()->GetConstant1());
+  if_true.Else();
+  if_true.End();
+  return graph()->GetConstant0();
+}
+
+
+Handle<Code> ToBooleanStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
 } }  // namespace v8::internal

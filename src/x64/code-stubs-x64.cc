@@ -175,6 +175,19 @@ void CompareNilICStub::InitializeInterfaceDescriptor(
 }
 
 
+void ToBooleanStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rax };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+     FUNCTION_ADDR(ToBooleanIC_Miss);
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate));
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 
@@ -462,106 +475,6 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
 }
 
 
-// The stub expects its argument on the stack and returns its result in tos_:
-// zero for false, and a non-zero value for true.
-void ToBooleanStub::Generate(MacroAssembler* masm) {
-  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
-  // we cannot call anything that could cause a GC from this stub.
-  Label patch;
-  const Register argument = rax;
-  const Register map = rdx;
-
-  if (!types_.IsEmpty()) {
-    __ movq(argument, Operand(rsp, 1 * kPointerSize));
-  }
-
-  // undefined -> false
-  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false);
-
-  // Boolean -> its value
-  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false);
-  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true);
-
-  // 'null' -> false.
-  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false);
-
-  if (types_.Contains(SMI)) {
-    // Smis: 0 -> false, all other -> true
-    Label not_smi;
-    __ JumpIfNotSmi(argument, &not_smi, Label::kNear);
-    // argument contains the correct return value already
-    if (!tos_.is(argument)) {
-      __ movq(tos_, argument);
-    }
-    __ ret(1 * kPointerSize);
-    __ bind(&not_smi);
-  } else if (types_.NeedsMap()) {
-    // If we need a map later and have a Smi -> patch.
-    __ JumpIfSmi(argument, &patch, Label::kNear);
-  }
-
-  if (types_.NeedsMap()) {
-    __ movq(map, FieldOperand(argument, HeapObject::kMapOffset));
-
-    if (types_.CanBeUndetectable()) {
-      __ testb(FieldOperand(map, Map::kBitFieldOffset),
-               Immediate(1 << Map::kIsUndetectable));
-      // Undetectable -> false.
-      Label not_undetectable;
-      __ j(zero, &not_undetectable, Label::kNear);
-      __ Set(tos_, 0);
-      __ ret(1 * kPointerSize);
-      __ bind(&not_undetectable);
-    }
-  }
-
-  if (types_.Contains(SPEC_OBJECT)) {
-    // spec object -> true.
-    Label not_js_object;
-    __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
-    __ j(below, &not_js_object, Label::kNear);
-    // argument contains the correct return value already.
-    if (!tos_.is(argument)) {
-      __ Set(tos_, 1);
-    }
-    __ ret(1 * kPointerSize);
-    __ bind(&not_js_object);
-  }
-
-  if (types_.Contains(STRING)) {
-    // String value -> false iff empty.
-    Label not_string;
-    __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
-    __ j(above_equal, &not_string, Label::kNear);
-    __ movq(tos_, FieldOperand(argument, String::kLengthOffset));
-    __ ret(1 * kPointerSize);  // the string length is OK as the return value
-    __ bind(&not_string);
-  }
-
-  if (types_.Contains(HEAP_NUMBER)) {
-    // heap number -> false iff +0, -0, or NaN.
-    Label not_heap_number, false_result;
-    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-    __ j(not_equal, &not_heap_number, Label::kNear);
-    __ xorps(xmm0, xmm0);
-    __ ucomisd(xmm0, FieldOperand(argument, HeapNumber::kValueOffset));
-    __ j(zero, &false_result, Label::kNear);
-    // argument contains the correct return value already.
-    if (!tos_.is(argument)) {
-      __ Set(tos_, 1);
-    }
-    __ ret(1 * kPointerSize);
-    __ bind(&false_result);
-    __ Set(tos_, 0);
-    __ ret(1 * kPointerSize);
-    __ bind(&not_heap_number);
-  }
-
-  __ bind(&patch);
-  GenerateTypeTransition(masm);
-}
-
-
 void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   __ PushCallerSaved(save_doubles_);
   const int argument_count = 1;
@@ -575,44 +488,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       argument_count);
   __ PopCallerSaved(save_doubles_);
   __ ret(0);
-}
-
-
-void ToBooleanStub::CheckOddball(MacroAssembler* masm,
-                                 Type type,
-                                 Heap::RootListIndex value,
-                                 bool result) {
-  const Register argument = rax;
-  if (types_.Contains(type)) {
-    // If we see an expected oddball, return its ToBoolean value tos_.
-    Label different_value;
-    __ CompareRoot(argument, value);
-    __ j(not_equal, &different_value, Label::kNear);
-    if (!result) {
-      // If we have to return zero, there is no way around clearing tos_.
-      __ Set(tos_, 0);
-    } else if (!tos_.is(argument)) {
-      // If we have to return non-zero, we can re-use the argument if it is the
-      // same register as the result, because we never see Smi-zero here.
-      __ Set(tos_, 1);
-    }
-    __ ret(1 * kPointerSize);
-    __ bind(&different_value);
-  }
-}
-
-
-void ToBooleanStub::GenerateTypeTransition(MacroAssembler* masm) {
-  __ pop(rcx);  // Get return address, operand is now on top of stack.
-  __ Push(Smi::FromInt(tos_.code()));
-  __ Push(Smi::FromInt(types_.ToByte()));
-  __ push(rcx);  // Push return address.
-  // Patch the caller to an appropriate specialized stub and return the
-  // operation result to the caller of the stub.
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kToBoolean_Patch), masm->isolate()),
-      3,
-      1);
 }
 
 

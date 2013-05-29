@@ -1562,6 +1562,9 @@ class HBranch: public HUnaryControlInstruction {
   }
   explicit HBranch(HValue* value)
       : HUnaryControlInstruction(value, NULL, NULL) { }
+  HBranch(HValue* value, ToBooleanStub::Types expected_input_types)
+      : HUnaryControlInstruction(value, NULL, NULL),
+        expected_input_types_(expected_input_types) { }
 
 
   virtual Representation RequiredInputRepresentation(int index) {

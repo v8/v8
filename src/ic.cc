@@ -2945,15 +2945,8 @@ MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
   } else {
     code = stub.GetCode(isolate());
   }
-
-  patch(*code);
-
+  set_target(*code);
   return DoCompareNilSlow(kind, nil, object);
-}
-
-
-void CompareNilIC::patch(Code* code) {
-  set_target(code);
 }
 
 
@@ -2972,28 +2965,23 @@ RUNTIME_FUNCTION(MaybeObject*, Unreachable) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, ToBoolean_Patch) {
-  ASSERT(args.length() == 3);
-
-  HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
-  Register tos = Register::from_code(args.smi_at(1));
-  ToBooleanStub::Types old_types(args.smi_at(2));
-
-  ToBooleanStub::Types new_types(old_types);
-  bool to_boolean_value = new_types.Record(object);
-  old_types.TraceTransition(new_types);
-
-  ToBooleanStub stub(tos, new_types);
-  Handle<Code> code = stub.GetCode(isolate);
-  ToBooleanIC ic(isolate);
-  ic.patch(*code);
+MaybeObject* ToBooleanIC::ToBoolean(Handle<Object> object,
+                                    Code::ExtraICState extra_ic_state) {
+  ToBooleanStub stub(extra_ic_state);
+  bool to_boolean_value = stub.Record(object);
+  Handle<Code> code = stub.GetCode(isolate());
+  set_target(*code);
   return Smi::FromInt(to_boolean_value ? 1 : 0);
 }
 
 
-void ToBooleanIC::patch(Code* code) {
-  set_target(code);
+RUNTIME_FUNCTION(MaybeObject*, ToBooleanIC_Miss) {
+  ASSERT(args.length() == 1);
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);
+  ToBooleanIC ic(isolate);
+  Code::ExtraICState ic_state = ic.target()->extended_extra_ic_state();
+  return ic.ToBoolean(object, ic_state);
 }
 
 
