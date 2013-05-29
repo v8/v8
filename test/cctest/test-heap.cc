@@ -3107,3 +3107,19 @@ TEST(DeferredHandles) {
   isolate->handle_scope_implementer()->Iterate(&visitor);
   deferred.Detach();
 }
+
+
+TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  CompileRun("function f(n) {"
+             "    var a = new Array(n);"
+             "    for (var i = 0; i < n; i += 100) a[i] = i;"
+             "};"
+             "f(10 * 1024 * 1024);");
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  if (marking->IsStopped()) marking->Start();
+  // This big step should be sufficient to mark the whole array.
+  marking->Step(100 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  ASSERT(marking->IsComplete());
+}
