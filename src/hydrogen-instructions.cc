@@ -1811,8 +1811,18 @@ Range* HMod::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
-    Range* result = new(zone) Range();
-    if (a->CanBeMinusZero() || a->CanBeNegative()) {
+
+    // The magnitude of the modulus is bounded by the right operand. Note that
+    // apart for the cases involving kMinInt, the calculation below is the same
+    // as Max(Abs(b->lower()), Abs(b->upper())) - 1.
+    int32_t positive_bound = -(Min(NegAbs(b->lower()), NegAbs(b->upper())) + 1);
+
+    // The result of the modulo operation has the sign of its left operand.
+    bool left_can_be_negative = a->CanBeMinusZero() || a->CanBeNegative();
+    Range* result = new(zone) Range(left_can_be_negative ? -positive_bound : 0,
+                                    a->CanBePositive() ? positive_bound : 0);
+
+    if (left_can_be_negative) {
       result->set_can_be_minus_zero(true);
     }
 

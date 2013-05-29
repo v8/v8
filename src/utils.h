@@ -232,6 +232,13 @@ T Min(T a, T b) {
 }
 
 
+// Returns the negative absolute value of its argument.
+template <typename T>
+T NegAbs(T a) {
+  return a < 0 ? a : -a;
+}
+
+
 inline int StrLength(const char* string) {
   size_t length = strlen(string);
   ASSERT(length == static_cast<size_t>(static_cast<int>(length)));

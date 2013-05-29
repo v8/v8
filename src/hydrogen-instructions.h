@@ -263,6 +263,7 @@ class Range: public ZoneObject {
   bool CanBeMinusZero() const { return CanBeZero() && can_be_minus_zero_; }
   bool CanBeZero() const { return upper_ >= 0 && lower_ <= 0; }
   bool CanBeNegative() const { return lower_ < 0; }
+  bool CanBePositive() const { return upper_ > 0; }
   bool Includes(int value) const { return lower_ <= value && upper_ >= value; }
   bool IsMostGeneric() const {
     return lower_ == kMinInt && upper_ == kMaxInt && CanBeMinusZero();
