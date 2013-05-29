@@ -822,9 +822,10 @@ void HGraphBuilder::IfBuilder::Deopt() {
 
 void HGraphBuilder::IfBuilder::Return(HValue* value) {
   HBasicBlock* block = builder_->current_block();
-  block->Finish(new(zone()) HReturn(value,
-                                    builder_->environment()->LookupContext(),
-                                    builder_->graph()->GetConstantMinus1()));
+  HValue* context = builder_->environment()->LookupContext();
+  HValue* parameter_count = builder_->graph()->GetConstantMinus1();
+  block->FinishExit(new(zone()) HReturn(value, context, parameter_count));
+  builder_->set_current_block(NULL);
   if (did_else_) {
     first_false_block_ = NULL;
   } else {

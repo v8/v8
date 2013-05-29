@@ -186,11 +186,12 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     }
   }
 
-  if (!current_block()->IsFinished()) {
+  if (current_block() != NULL) {
     HReturn* hreturn_instruction = new(zone) HReturn(return_value,
                                                      context_,
                                                      stack_pop_count);
     current_block()->Finish(hreturn_instruction);
+    set_current_block(NULL);
   }
   return true;
 }
