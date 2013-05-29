@@ -1611,14 +1611,12 @@ Handle<JSFunction> Genesis::InstallInternalArray(
 
   array_function->shared()->DontAdaptArguments();
 
-  MaybeObject* maybe_map = array_function->initial_map()->Copy();
-  Map* new_map;
-  if (!maybe_map->To(&new_map)) return Handle<JSFunction>::null();
-  new_map->set_elements_kind(elements_kind);
-  array_function->set_initial_map(new_map);
+  Handle<Map> original_map(array_function->initial_map());
+  Handle<Map> initial_map = factory()->CopyMap(original_map);
+  initial_map->set_elements_kind(elements_kind);
+  array_function->set_initial_map(*initial_map);
 
   // Make "length" magic on instances.
-  Handle<Map> initial_map(array_function->initial_map());
   Handle<DescriptorArray> array_descriptors(
       factory()->NewDescriptorArray(0, 1));
   DescriptorArray::WhitenessWitness witness(*array_descriptors);
@@ -1872,14 +1870,11 @@ bool Genesis::InstallNatives() {
   {
     Handle<JSFunction> array_function =
         InstallInternalArray(builtins, "InternalArray", FAST_HOLEY_ELEMENTS);
-    if (array_function.is_null()) return false;
     native_context()->set_internal_array_function(*array_function);
   }
 
   {
-    Handle<JSFunction> array_function =
-        InstallInternalArray(builtins, "InternalPackedArray", FAST_ELEMENTS);
-    if (array_function.is_null()) return false;
+    InstallInternalArray(builtins, "InternalPackedArray", FAST_ELEMENTS);
   }
 
   if (FLAG_disable_native_files) {
