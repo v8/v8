@@ -2035,7 +2035,7 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
   } else if (input_rep.IsInteger32()) {
     return DefineAsRegister(new(zone()) LClampIToUint8(reg));
   } else {
-    ASSERT(input_rep.IsTagged());
+    ASSERT(input_rep.IsSmiOrTagged());
     // Register allocator doesn't (yet) support allocation of double
     // temps. Reserve d1 explicitly.
     LClampTToUint8* result = new(zone()) LClampTToUint8(reg, FixedTemp(d11));
