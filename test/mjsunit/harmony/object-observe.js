@@ -1175,11 +1175,13 @@ observer.assertCallbackRecords([
 ]);
 
 // Pop
-reset()
-var array = {0: 1, 1: 2, length: 2};
+reset();
+var array = [1, 2];
 Object.observe(array, observer.callback);
-Array.prototype.pop.call(array);
-Array.prototype.pop.call(array);
+Array.observe(array, observer2.callback);
+array.pop();
+array.pop();
+array.pop();
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
   { object: array, name: '1', type: 'deleted', oldValue: 2 },
@@ -1187,13 +1189,20 @@ observer.assertCallbackRecords([
   { object: array, name: '0', type: 'deleted', oldValue: 1 },
   { object: array, name: 'length', type: 'updated', oldValue: 1 },
 ]);
+Object.deliverChangeRecords(observer2.callback);
+observer2.assertCallbackRecords([
+  { object: array, type: 'splice', index: 1, removed: [2], addedCount: 0 },
+  { object: array, type: 'splice', index: 0, removed: [1], addedCount: 0 }
+]);
 
 // Shift
-reset()
-var array = {0: 1, 1: 2, length: 2};
+reset();
+var array = [1, 2];
 Object.observe(array, observer.callback);
-Array.prototype.shift.call(array);
-Array.prototype.shift.call(array);
+Array.observe(array, observer2.callback);
+array.shift();
+array.shift();
+array.shift();
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
   { object: array, name: '0', type: 'updated', oldValue: 1 },
@@ -1202,32 +1211,71 @@ observer.assertCallbackRecords([
   { object: array, name: '0', type: 'deleted', oldValue: 2 },
   { object: array, name: 'length', type: 'updated', oldValue: 1 },
 ]);
+Object.deliverChangeRecords(observer2.callback);
+observer2.assertCallbackRecords([
+  { object: array, type: 'splice', index: 0, removed: [1], addedCount: 0 },
+  { object: array, type: 'splice', index: 0, removed: [2], addedCount: 0 }
+]);
 
 // Unshift
-reset()
-var array = {0: 1, 1: 2, length: 2};
+reset();
+var array = [1, 2];
 Object.observe(array, observer.callback);
-Array.prototype.unshift.call(array, 3, 4);
+Array.observe(array, observer2.callback);
+array.unshift(3, 4);
+array.unshift(5);
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
   { object: array, name: '3', type: 'new' },
+  { object: array, name: 'length', type: 'updated', oldValue: 2 },
   { object: array, name: '2', type: 'new' },
   { object: array, name: '0', type: 'updated', oldValue: 1 },
   { object: array, name: '1', type: 'updated', oldValue: 2 },
-  { object: array, name: 'length', type: 'updated', oldValue: 2 },
+  { object: array, name: '4', type: 'new' },
+  { object: array, name: 'length', type: 'updated', oldValue: 4 },
+  { object: array, name: '3', type: 'updated', oldValue: 2 },
+  { object: array, name: '2', type: 'updated', oldValue: 1 },
+  { object: array, name: '1', type: 'updated', oldValue: 4 },
+  { object: array, name: '0', type: 'updated', oldValue: 3 },
+]);
+Object.deliverChangeRecords(observer2.callback);
+observer2.assertCallbackRecords([
+  { object: array, type: 'splice', index: 0, removed: [], addedCount: 2 },
+  { object: array, type: 'splice', index: 0, removed: [], addedCount: 1 }
 ]);
 
 // Splice
-reset()
-var array = {0: 1, 1: 2, 2: 3, length: 3};
+reset();
+var array = [1, 2, 3];
 Object.observe(array, observer.callback);
-Array.prototype.splice.call(array, 1, 1, 4, 5);
+Array.observe(array, observer2.callback);
+array.splice(1, 0, 4, 5); // 1 4 5 2 3
+array.splice(0, 2); // 5 2 3
+array.splice(1, 2, 6, 7); // 5 6 7
+array.splice(2, 0);
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
+  { object: array, name: '4', type: 'new' },
+  { object: array, name: 'length', type: 'updated', oldValue: 3 },
   { object: array, name: '3', type: 'new' },
   { object: array, name: '1', type: 'updated', oldValue: 2 },
   { object: array, name: '2', type: 'updated', oldValue: 3 },
-  { object: array, name: 'length', type: 'updated', oldValue: 3 },
+
+  { object: array, name: '0', type: 'updated', oldValue: 1 },
+  { object: array, name: '1', type: 'updated', oldValue: 4 },
+  { object: array, name: '2', type: 'updated', oldValue: 5 },
+  { object: array, name: '4', type: 'deleted', oldValue: 3 },
+  { object: array, name: '3', type: 'deleted', oldValue: 2 },
+  { object: array, name: 'length', type: 'updated', oldValue: 5 },
+
+  { object: array, name: '1', type: 'updated', oldValue: 2 },
+  { object: array, name: '2', type: 'updated', oldValue: 3 },
+]);
+Object.deliverChangeRecords(observer2.callback);
+observer2.assertCallbackRecords([
+  { object: array, type: 'splice', index: 1, removed: [], addedCount: 2 },
+  { object: array, type: 'splice', index: 0, removed: [1, 4], addedCount: 0 },
+  { object: array, type: 'splice', index: 1, removed: [2, 3], addedCount: 2 },
 ]);
 
 // Exercise StoreIC_ArrayLength

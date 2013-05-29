@@ -13358,7 +13358,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HaveSameMap) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsObserved) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
+
+  if (!args[0]->IsJSReceiver()) return isolate->heap()->false_value();
+  JSReceiver* obj = JSReceiver::cast(args[0]);
   if (obj->IsJSGlobalProxy()) {
     Object* proto = obj->GetPrototype();
     if (proto->IsNull()) return isolate->heap()->false_value();
