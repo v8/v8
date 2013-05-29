@@ -12056,7 +12056,7 @@ static v8::Handle<Value> ThrowInJSNoCatch(const v8::Arguments& args) {
     v8::HandleScope scope(args.GetIsolate());
     v8::Handle<Value> value = CompileRun(code);
     CHECK(value.IsEmpty());
-    return v8_str("foo");
+    return scope.Close(v8_str("foo"));
   }
 }
 
