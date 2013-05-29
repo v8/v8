@@ -2485,7 +2485,7 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
     index = UseOrConstant(instr->index());
   } else {
     length = UseTempRegister(instr->length());
-    index = Use(instr->index());
+    index = UseRegisterAtStart(instr->index());
   }
   return DefineAsRegister(new(zone()) LAccessArgumentsAt(args, length, index));
 }
