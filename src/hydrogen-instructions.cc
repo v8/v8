@@ -1142,17 +1142,16 @@ void HBoundsCheck::PrintDataTo(StringStream* stream) {
 void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation r;
-  HValue* actual_length = length()->ActualValue();
   HValue* actual_index = index()->ActualValue();
-  if (key_mode_ == DONT_ALLOW_SMI_KEY ||
-      !actual_length->representation().IsSmiOrTagged()) {
+  HValue* actual_length = length()->ActualValue();
+  Representation index_rep = actual_index->representation();
+  if (!actual_length->representation().IsSmiOrTagged()) {
     r = Representation::Integer32();
-  } else if (actual_index->representation().IsSmiOrTagged() ||
-             (actual_index->IsConstant() &&
-              HConstant::cast(actual_index)->HasSmiValue())) {
-    // If the index is smi, or a constant that holds a Smi, allow the length to
-    // be smi, since it is usually already smi from loading it out of the length
-    // field of a JSArray. This allows for direct comparison without untagging.
+  } else if ((index_rep.IsTagged() && actual_index->type().IsSmi()) ||
+      index_rep.IsSmi()) {
+    // If the index is smi, allow the length to be smi, since it is usually
+    // already smi from loading it out of the length field of a JSArray.  This
+    // allows for direct comparison without untagging.
     r = Representation::Smi();
   } else {
     r = Representation::Integer32();
@@ -3250,7 +3249,7 @@ HInstruction* HStringLength::New(Zone* zone, HValue* string) {
   if (FLAG_fold_constants && string->IsConstant()) {
     HConstant* c_string = HConstant::cast(string);
     if (c_string->HasStringValue()) {
-      return H_CONSTANT_INT32(c_string->StringValue()->length());
+      return new(zone) HConstant(c_string->StringValue()->length());
     }
   }
   return new(zone) HStringLength(string);

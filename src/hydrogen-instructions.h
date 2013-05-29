@@ -3124,11 +3124,11 @@ class HConstant: public HTemplateInstruction<0> {
  public:
   HConstant(Handle<Object> handle, Representation r);
   HConstant(int32_t value,
-            Representation r,
+            Representation r = Representation::None(),
             bool is_not_in_new_space = true,
             Handle<Object> optional_handle = Handle<Object>::null());
   HConstant(double value,
-            Representation r,
+            Representation r = Representation::None(),
             bool is_not_in_new_space = true,
             Handle<Object> optional_handle = Handle<Object>::null());
   HConstant(Handle<Object> handle,
@@ -3527,12 +3527,6 @@ class HAccessArgumentsAt: public HTemplateInstruction<3> {
 };
 
 
-enum BoundsCheckKeyMode {
-  DONT_ALLOW_SMI_KEY,
-  ALLOW_SMI_KEY
-};
-
-
 class HBoundsCheckBaseIndexInformation;
 
 
@@ -3542,10 +3536,8 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   // HGraphBuilder::AddBoundsCheck() helper.
   // However when building stubs, where we know that the arguments are Int32,
   // it makes sense to invoke this constructor directly.
-  HBoundsCheck(HValue* index,
-               HValue* length,
-               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY)
-    : key_mode_(key_mode), skip_check_(false),
+  HBoundsCheck(HValue* index, HValue* length)
+    : skip_check_(false),
       base_(NULL), offset_(0), scale_(0),
       responsibility_direction_(DIRECTION_NONE) {
     SetOperandAt(0, index);
@@ -3618,7 +3610,6 @@ class HBoundsCheck: public HTemplateInstruction<2> {
 
   virtual bool DataEquals(HValue* other) { return true; }
   virtual void TryGuaranteeRangeChanging(RangeEvaluationContext* context);
-  BoundsCheckKeyMode key_mode_;
   bool skip_check_;
   HValue* base_;
   int offset_;

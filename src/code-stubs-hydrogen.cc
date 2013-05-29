@@ -564,16 +564,13 @@ HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
       new(zone()) HAccessArgumentsAt(elements, constant_one, constant_zero));
 
   HConstant* max_alloc_length =
-      new(zone()) HConstant(JSObject::kInitialMaxFastElementArray,
-                            Representation::Tagged());
+      new(zone()) HConstant(JSObject::kInitialMaxFastElementArray);
   AddInstruction(max_alloc_length);
   const int initial_capacity = JSArray::kPreallocatedArrayElements;
-  HConstant* initial_capacity_node =
-      new(zone()) HConstant(initial_capacity, Representation::Tagged());
+  HConstant* initial_capacity_node = new(zone()) HConstant(initial_capacity);
   AddInstruction(initial_capacity_node);
 
-  HBoundsCheck* checked_arg = AddBoundsCheck(
-      argument, max_alloc_length, ALLOW_SMI_KEY);
+  HBoundsCheck* checked_arg = AddBoundsCheck(argument, max_alloc_length);
   IfBuilder if_builder(this);
   if_builder.IfCompare(checked_arg, constant_zero, Token::EQ);
   if_builder.Then();

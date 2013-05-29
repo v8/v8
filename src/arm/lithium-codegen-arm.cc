@@ -1900,7 +1900,11 @@ void LCodeGen::DoRSubI(LRSubI* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  ASSERT(instr->result()->IsRegister());
+  __ mov(ToRegister(instr->result()), Operand(instr->value()));
+}
+
+
+void LCodeGen::DoConstantS(LConstantS* instr) {
   __ mov(ToRegister(instr->result()), Operand(instr->value()));
 }
 

@@ -1560,8 +1560,12 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  ASSERT(instr->result()->IsRegister());
   __ Set(ToRegister(instr->result()), instr->value());
+}
+
+
+void LCodeGen::DoConstantS(LConstantS* instr) {
+  __ Move(ToRegister(instr->result()), instr->value());
 }
 
 
