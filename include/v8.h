@@ -519,6 +519,10 @@ template <class T> class Persistent // NOLINT
   template <class S> V8_INLINE(Persistent(Isolate* isolate, Handle<S> that))
       : val_(*New(isolate, that)) { }
 
+  template <class S> V8_INLINE(Persistent(Isolate* isolate,
+                                          Persistent<S>& that)) // NOLINT
+      : val_(*New(isolate, that)) { }
+
 #else
   /**
    * Creates an empty persistent handle that doesn't point to any
