@@ -27,10 +27,6 @@
 
 prefix mjsunit
 
-# Temporary workaround, re-enable this when the test works without
-# --optimize-constructed-arrays.
-allocation-site-info: SKIP
-
 # All tests in the bug directory are expected to fail.
 bugs/*: FAIL
 
