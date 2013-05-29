@@ -625,23 +625,19 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 }
 
 
-void V8::MakeWeak(i::Isolate* isolate,
-                  i::Object** object,
+void V8::MakeWeak(i::Object** object,
                   void* parameters,
                   RevivableCallback weak_reference_callback,
                   NearDeathCallback near_death_callback) {
-  ASSERT(isolate == i::Isolate::Current());
-  LOG_API(isolate, "MakeWeak");
-  isolate->global_handles()->MakeWeak(object,
-                                      parameters,
-                                      weak_reference_callback,
-                                      near_death_callback);
+  i::GlobalHandles::MakeWeak(object,
+                             parameters,
+                             weak_reference_callback,
+                             near_death_callback);
 }
 
 
-void V8::ClearWeak(i::Isolate* isolate, i::Object** obj) {
-  LOG_API(isolate, "ClearWeak");
-  isolate->global_handles()->ClearWeakness(obj);
+void V8::ClearWeak(i::Object** obj) {
+  i::GlobalHandles::ClearWeakness(obj);
 }
 
 

@@ -632,20 +632,8 @@ template <class T> class Persistent // NOLINT
    * This handle's reference, and any other references to the storage
    * cell remain and IsEmpty will still return false.
    */
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(void Dispose(Isolate* isolate));
-
-  template<typename S, typename P>
-  V8_INLINE(void MakeWeak(
-      Isolate* isolate,
-      P* parameters,
-      typename WeakReferenceCallbacks<S, P>::Revivable callback));
-
-  template<typename P>
-  V8_INLINE(void MakeWeak(
-      Isolate* isolate,
-      P* parameters,
-      typename WeakReferenceCallbacks<T, P>::Revivable callback));
+  // TODO(dcarney): deprecate
+  V8_INLINE(void Dispose(Isolate* isolate)) { Dispose(); }
 
   /**
    * Make the reference to this object weak.  When only weak handles
@@ -653,6 +641,34 @@ template <class T> class Persistent // NOLINT
    * callback to the given V8::NearDeathCallback function, passing
    * it the object reference and the given parameters.
    */
+  template<typename S, typename P>
+  V8_INLINE(void MakeWeak(
+      P* parameters,
+      typename WeakReferenceCallbacks<S, P>::Revivable callback));
+
+  template<typename P>
+  V8_INLINE(void MakeWeak(
+      P* parameters,
+      typename WeakReferenceCallbacks<T, P>::Revivable callback));
+
+  // TODO(dcarney): deprecate
+  template<typename S, typename P>
+  V8_INLINE(void MakeWeak(
+      Isolate* isolate,
+      P* parameters,
+      typename WeakReferenceCallbacks<S, P>::Revivable callback)) {
+    MakeWeak<S, P>(parameters, callback);
+  }
+
+  // TODO(dcarney): deprecate
+  template<typename P>
+  V8_INLINE(void MakeWeak(
+      Isolate* isolate,
+      P* parameters,
+      typename WeakReferenceCallbacks<T, P>::Revivable callback)) {
+    MakeWeak<P>(parameters, callback);
+  }
+
   // TODO(dcarney): remove before cutover
   V8_INLINE(void MakeWeak(Isolate* isolate,
                           void* parameters,
@@ -660,10 +676,8 @@ template <class T> class Persistent // NOLINT
 
   V8_INLINE(void ClearWeak());
 
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(void ClearWeak(Isolate* isolate));
-
-  V8_INLINE(void MarkIndependent());
+  // TODO(dcarney): deprecate
+  V8_INLINE(void ClearWeak(Isolate* isolate)) { ClearWeak(); }
 
   /**
    * Marks the reference to this object independent. Garbage collector is free
@@ -671,10 +685,10 @@ template <class T> class Persistent // NOLINT
    * independent handle should not assume that it will be preceded by a global
    * GC prologue callback or followed by a global GC epilogue callback.
    */
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(void MarkIndependent(Isolate* isolate));
+  V8_INLINE(void MarkIndependent());
 
-  V8_INLINE(void MarkPartiallyDependent());
+  // TODO(dcarney): deprecate
+  V8_INLINE(void MarkIndependent(Isolate* isolate)) { MarkIndependent(); }
 
   /**
    * Marks the reference to this object partially dependent. Partially dependent
@@ -684,43 +698,53 @@ template <class T> class Persistent // NOLINT
    * external dependencies. This mark is automatically cleared after each
    * garbage collection.
    */
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(void MarkPartiallyDependent(Isolate* isolate));
+  V8_INLINE(void MarkPartiallyDependent());
+
+  // TODO(dcarney): deprecate
+  V8_INLINE(void MarkPartiallyDependent(Isolate* isolate)) {
+    MarkPartiallyDependent();
+  }
 
   V8_INLINE(bool IsIndependent() const);
 
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(bool IsIndependent(Isolate* isolate) const);
-
-  V8_INLINE(bool IsNearDeath() const);
+  // TODO(dcarney): deprecate
+  V8_INLINE(bool IsIndependent(Isolate* isolate) const) {
+    return IsIndependent();
+  }
 
   /** Checks if the handle holds the only reference to an object. */
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(bool IsNearDeath(Isolate* isolate) const);
+  V8_INLINE(bool IsNearDeath() const);
 
-  V8_INLINE(bool IsWeak() const);
+  // TODO(dcarney): deprecate
+  V8_INLINE(bool IsNearDeath(Isolate* isolate) const) { return IsNearDeath(); }
 
   /** Returns true if the handle's reference is weak.  */
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(bool IsWeak(Isolate* isolate) const);
+  V8_INLINE(bool IsWeak() const);
 
-  V8_INLINE(void SetWrapperClassId(uint16_t class_id));
+  // TODO(dcarney): deprecate
+  V8_INLINE(bool IsWeak(Isolate* isolate) const) { return IsWeak(); }
 
   /**
    * Assigns a wrapper class ID to the handle. See RetainedObjectInfo interface
    * description in v8-profiler.h for details.
    */
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(void SetWrapperClassId(Isolate* isolate, uint16_t class_id));
+  V8_INLINE(void SetWrapperClassId(uint16_t class_id));
 
-  V8_INLINE(uint16_t WrapperClassId() const);
+  // TODO(dcarney): deprecate
+  V8_INLINE(void SetWrapperClassId(Isolate* isolate, uint16_t class_id)) {
+    SetWrapperClassId(class_id);
+  }
 
   /**
    * Returns the class ID previously assigned to this handle or 0 if no class ID
    * was previously assigned.
    */
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(uint16_t WrapperClassId(Isolate* isolate) const);
+  V8_INLINE(uint16_t WrapperClassId() const);
+
+  // TODO(dcarney): deprecate
+  V8_INLINE(uint16_t WrapperClassId(Isolate* isolate) const) {
+    return WrapperClassId();
+  }
 
   /**
    * Disposes the current contents of the handle and replaces it.
@@ -4600,13 +4624,11 @@ class V8EXPORT V8 {
                                                internal::Object** handle);
   static void DisposeGlobal(internal::Object** global_handle);
   typedef WeakReferenceCallbacks<Value, void>::Revivable RevivableCallback;
-  static void MakeWeak(internal::Isolate* isolate,
-                       internal::Object** global_handle,
+  static void MakeWeak(internal::Object** global_handle,
                        void* data,
                        RevivableCallback weak_reference_callback,
                        NearDeathCallback near_death_callback);
-  static void ClearWeak(internal::Isolate* isolate,
-                        internal::Object** global_handle);
+  static void ClearWeak(internal::Object** global_handle);
 
   template <class T> friend class Handle;
   template <class T> friend class Local;
@@ -5495,15 +5517,8 @@ Persistent<T> Persistent<T>::New(Isolate* isolate, T* that) {
 
 template <class T>
 bool Persistent<T>::IsIndependent() const {
-  return IsIndependent(Isolate::GetCurrent());
-}
-
-
-template <class T>
-bool Persistent<T>::IsIndependent(Isolate* isolate) const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
-  if (!I::IsInitialized(isolate)) return false;
   return I::GetNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
                         I::kNodeIsIndependentShift);
 }
@@ -5511,15 +5526,8 @@ bool Persistent<T>::IsIndependent(Isolate* isolate) const {
 
 template <class T>
 bool Persistent<T>::IsNearDeath() const {
-  return IsNearDeath(Isolate::GetCurrent());
-}
-
-
-template <class T>
-bool Persistent<T>::IsNearDeath(Isolate* isolate) const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
-  if (!I::IsInitialized(isolate)) return false;
   return I::GetNodeState(reinterpret_cast<internal::Object**>(this->val_)) ==
       I::kNodeStateIsNearDeathValue;
 }
@@ -5527,15 +5535,8 @@ bool Persistent<T>::IsNearDeath(Isolate* isolate) const {
 
 template <class T>
 bool Persistent<T>::IsWeak() const {
-  return IsWeak(Isolate::GetCurrent());
-}
-
-
-template <class T>
-bool Persistent<T>::IsWeak(Isolate* isolate) const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
-  if (!I::IsInitialized(isolate)) return false;
   return I::GetNodeState(reinterpret_cast<internal::Object**>(this->val_)) ==
       I::kNodeStateIsWeakValue;
 }
@@ -5552,21 +5553,13 @@ void Persistent<T>::Dispose() {
 
 
 template <class T>
-void Persistent<T>::Dispose(Isolate* isolate) {
-  Dispose();
-}
-
-
-template <class T>
 template <typename S, typename P>
 void Persistent<T>::MakeWeak(
-    Isolate* isolate,
     P* parameters,
     typename WeakReferenceCallbacks<S, P>::Revivable callback) {
   TYPE_CHECK(S, T);
   typedef typename WeakReferenceCallbacks<Value, void>::Revivable Revivable;
-  V8::MakeWeak(reinterpret_cast<internal::Isolate*>(isolate),
-               reinterpret_cast<internal::Object**>(this->val_),
+  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_),
                parameters,
                reinterpret_cast<Revivable>(callback),
                NULL);
@@ -5576,10 +5569,9 @@ void Persistent<T>::MakeWeak(
 template <class T>
 template <typename P>
 void Persistent<T>::MakeWeak(
-    Isolate* isolate,
     P* parameters,
     typename WeakReferenceCallbacks<T, P>::Revivable callback) {
-  MakeWeak<T, P>(isolate, parameters, callback);
+  MakeWeak<T, P>(parameters, callback);
 }
 
 
@@ -5587,57 +5579,36 @@ template <class T>
 void Persistent<T>::MakeWeak(Isolate* isolate,
                              void* parameters,
                              NearDeathCallback callback) {
-  V8::MakeWeak(reinterpret_cast<internal::Isolate*>(isolate),
-               reinterpret_cast<internal::Object**>(this->val_),
+  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_),
                parameters,
                NULL,
                callback);
 }
 
-template <class T>
-void Persistent<T>::ClearWeak() {
-  ClearWeak(Isolate::GetCurrent());
-}
 
 template <class T>
-void Persistent<T>::ClearWeak(Isolate* isolate) {
-  V8::ClearWeak(reinterpret_cast<internal::Isolate*>(isolate),
-                reinterpret_cast<internal::Object**>(this->val_));
+void Persistent<T>::ClearWeak() {
+  V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_));
 }
+
 
 template <class T>
 void Persistent<T>::MarkIndependent() {
-  MarkIndependent(Isolate::GetCurrent());
-}
-
-template <class T>
-void Persistent<T>::MarkIndependent(Isolate* isolate) {
   typedef internal::Internals I;
   if (this->IsEmpty()) return;
-  if (!I::IsInitialized(isolate)) return;
   I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
                     true,
                     I::kNodeIsIndependentShift);
 }
 
-template <class T>
-void Persistent<T>::MarkPartiallyDependent() {
-  MarkPartiallyDependent(Isolate::GetCurrent());
-}
 
 template <class T>
-void Persistent<T>::MarkPartiallyDependent(Isolate* isolate) {
+void Persistent<T>::MarkPartiallyDependent() {
   typedef internal::Internals I;
   if (this->IsEmpty()) return;
-  if (!I::IsInitialized(isolate)) return;
   I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
                     true,
                     I::kNodeIsPartiallyDependentShift);
-}
-
-template <class T>
-void Persistent<T>::SetWrapperClassId(uint16_t class_id) {
-  SetWrapperClassId(Isolate::GetCurrent(), class_id);
 }
 
 
@@ -5673,25 +5644,19 @@ T* Persistent<T>::ClearAndLeak() {
 
 
 template <class T>
-void Persistent<T>::SetWrapperClassId(Isolate* isolate, uint16_t class_id) {
+void Persistent<T>::SetWrapperClassId(uint16_t class_id) {
   typedef internal::Internals I;
   if (this->IsEmpty()) return;
-  if (!I::IsInitialized(isolate)) return;
   internal::Object** obj = reinterpret_cast<internal::Object**>(this->val_);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   *reinterpret_cast<uint16_t*>(addr) = class_id;
 }
 
-template <class T>
-uint16_t Persistent<T>::WrapperClassId() const {
-  return WrapperClassId(Isolate::GetCurrent());
-}
 
 template <class T>
-uint16_t Persistent<T>::WrapperClassId(Isolate* isolate) const {
+uint16_t Persistent<T>::WrapperClassId() const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return 0;
-  if (!I::IsInitialized(isolate)) return 0;
   internal::Object** obj = reinterpret_cast<internal::Object**>(this->val_);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   return *reinterpret_cast<uint16_t*>(addr);
