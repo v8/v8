@@ -15732,8 +15732,13 @@ TEST(SourceURLInStackTrace) {
     "}\n"
     "foo();\n"
     "}\n"
-    "eval('(' + outer +')()//@ sourceURL=eval_url');";
-  CHECK(CompileRun(source)->IsUndefined());
+    "eval('(' + outer +')()%s');";
+
+  i::ScopedVector<char> code(1024);
+  i::OS::SNPrintF(code, source, "//# sourceURL=eval_url");
+  CHECK(CompileRun(code.start())->IsUndefined());
+  i::OS::SNPrintF(code, source, "//@ sourceURL=eval_url");
+  CHECK(CompileRun(code.start())->IsUndefined());
 }
 
 
@@ -15773,9 +15778,13 @@ TEST(InlineScriptWithSourceURLInStackTrace) {
     "}\n"
     "foo();\n"
     "}\n"
-    "outer()\n"
-    "//@ sourceURL=source_url";
-  CHECK(CompileRunWithOrigin(source, "url", 0, 1)->IsUndefined());
+    "outer()\n%s";
+
+  i::ScopedVector<char> code(1024);
+  i::OS::SNPrintF(code, source, "//# sourceURL=source_url");
+  CHECK(CompileRunWithOrigin(code.start(), "url", 0, 1)->IsUndefined());
+  i::OS::SNPrintF(code, source, "//@ sourceURL=source_url");
+  CHECK(CompileRunWithOrigin(code.start(), "url", 0, 1)->IsUndefined());
 }
 
 
@@ -15815,9 +15824,13 @@ TEST(DynamicWithSourceURLInStackTrace) {
     "}\n"
     "foo();\n"
     "}\n"
-    "outer()\n"
-    "//@ sourceURL=source_url";
-  CHECK(CompileRunWithOrigin(source, "url", 0, 0)->IsUndefined());
+    "outer()\n%s";
+
+  i::ScopedVector<char> code(1024);
+  i::OS::SNPrintF(code, source, "//# sourceURL=source_url");
+  CHECK(CompileRunWithOrigin(code.start(), "url", 0, 0)->IsUndefined());
+  i::OS::SNPrintF(code, source, "//@ sourceURL=source_url");
+  CHECK(CompileRunWithOrigin(code.start(), "url", 0, 0)->IsUndefined());
 }
 
 static void CreateGarbageInOldSpace() {
