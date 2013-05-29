@@ -40,11 +40,6 @@
 #include <string.h>
 #include <sys/stat.h>
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #ifdef V8_SHARED
 #include <assert.h>
 #endif  // V8_SHARED
@@ -246,7 +241,7 @@ bool Shell::ExecuteString(Isolate* isolate,
           v8::Local<v8::Context> context =
               v8::Local<v8::Context>::New(isolate, utility_context_);
           v8::Context::Scope context_scope(context);
-          Handle<Object> global = utility_context_->Global();
+          Handle<Object> global = context->Global();
           Handle<Value> fun = global->Get(String::New("Stringify"));
           Handle<Value> argv[1] = { result };
           Handle<Value> s = Handle<Function>::Cast(fun)->Call(global, 1, argv);
@@ -268,8 +263,7 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realm_current_ = 0;
   data_->realm_switch_ = 0;
   data_->realms_ = new Persistent<Context>[1];
-  data_->realms_[0] =
-      Persistent<Context>::New(data_->isolate_, Context::GetEntered());
+  data_->realms_[0].Reset(data_->isolate_, Context::GetEntered());
   data_->realm_shared_.Clear();
 }
 
@@ -326,7 +320,8 @@ Handle<Value> Shell::RealmGlobal(const Arguments& args) {
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty()) {
     return Throw("Invalid realm index");
   }
-  return data->realms_[index]->Global();
+  return
+      Local<Context>::New(args.GetIsolate(), data->realms_[index])->Global();
 }
 
 
@@ -337,10 +332,12 @@ Handle<Value> Shell::RealmCreate(const Arguments& args) {
   Persistent<Context>* old_realms = data->realms_;
   int index = data->realm_count_;
   data->realms_ = new Persistent<Context>[++data->realm_count_];
-  for (int i = 0; i < index; ++i) data->realms_[i] = old_realms[i];
+  for (int i = 0; i < index; ++i) {
+    data->realms_[i].Reset(isolate, old_realms[i]);
+  }
   delete[] old_realms;
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  data->realms_[index] = Persistent<Context>::New(
+  data->realms_[index].Reset(
       isolate, Context::New(isolate, NULL, global_template));
   return Number::New(index);
 }
@@ -417,7 +414,7 @@ void Shell::RealmSharedSet(Local<String> property,
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (!data->realm_shared_.IsEmpty()) data->realm_shared_.Dispose(isolate);
-  data->realm_shared_ = Persistent<Value>::New(isolate, value);
+  data->realm_shared_.Reset(isolate, value);
 }
 
 
@@ -546,8 +543,12 @@ Handle<Value> Shell::Version(const Arguments& args) {
 void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   HandleScope handle_scope(isolate);
 #if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
+  Handle<Context> utility_context;
   bool enter_context = !Context::InContext();
-  if (enter_context) utility_context_->Enter();
+  if (enter_context) {
+    utility_context = Local<Context>::New(isolate, utility_context_);
+    utility_context->Enter();
+  }
 #endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
   v8::String::Utf8Value exception(try_catch->Exception());
   const char* exception_string = ToCString(exception);
@@ -584,7 +585,7 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   }
   printf("\n");
 #if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
-  if (enter_context) utility_context_->Exit();
+  if (enter_context) utility_context->Exit();
 #endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
 }
 
@@ -594,13 +595,15 @@ Handle<Array> Shell::GetCompletions(Isolate* isolate,
                                     Handle<String> text,
                                     Handle<String> full) {
   HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context =
+  v8::Local<v8::Context> utility_context =
       v8::Local<v8::Context>::New(isolate, utility_context_);
-  v8::Context::Scope context_scope(context);
-  Handle<Object> global = utility_context_->Global();
+  v8::Context::Scope context_scope(utility_context);
+  Handle<Object> global = utility_context->Global();
   Handle<Value> fun = global->Get(String::New("GetCompletions"));
   static const int kArgc = 3;
-  Handle<Value> argv[kArgc] = { evaluation_context_->Global(), text, full };
+  v8::Local<v8::Context> evaluation_context =
+      v8::Local<v8::Context>::New(isolate, evaluation_context_);
+  Handle<Value> argv[kArgc] = { evaluation_context->Global(), text, full };
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
   return handle_scope.Close(Handle<Array>::Cast(val));
 }
@@ -613,7 +616,7 @@ Handle<Object> Shell::DebugMessageDetails(Isolate* isolate,
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(context);
-  Handle<Object> global = utility_context_->Global();
+  Handle<Object> global = context->Global();
   Handle<Value> fun = global->Get(String::New("DebugMessageDetails"));
   static const int kArgc = 1;
   Handle<Value> argv[kArgc] = { message };
@@ -628,7 +631,7 @@ Handle<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate, utility_context_);
   v8::Context::Scope context_scope(context);
-  Handle<Object> global = utility_context_->Global();
+  Handle<Object> global = context->Global();
   Handle<Value> fun = global->Get(String::New("DebugCommandToJSONRequest"));
   static const int kArgc = 1;
   Handle<Value> argv[kArgc] = { command };
@@ -753,11 +756,13 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   HandleScope scope(isolate);
   // If we use the utility context, we have to set the security tokens so that
   // utility, evaluation and debug context can all access each other.
-  utility_context_->SetSecurityToken(Undefined(isolate));
-  evaluation_context_->SetSecurityToken(Undefined(isolate));
-  v8::Local<v8::Context> context =
+  v8::Local<v8::Context> utility_context =
       v8::Local<v8::Context>::New(isolate, utility_context_);
-  v8::Context::Scope context_scope(context);
+  v8::Local<v8::Context> evaluation_context =
+      v8::Local<v8::Context>::New(isolate, evaluation_context_);
+  utility_context->SetSecurityToken(Undefined(isolate));
+  evaluation_context->SetSecurityToken(Undefined(isolate));
+  v8::Context::Scope context_scope(utility_context);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (i::FLAG_debugger) printf("JavaScript debugger enabled\n");
@@ -766,7 +771,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   debug->Load();
   i::Handle<i::JSObject> js_debug
       = i::Handle<i::JSObject>(debug->debug_context()->global_object());
-  utility_context_->Global()->Set(String::New("$debug"),
+  utility_context->Global()->Set(String::New("$debug"),
                                   Utils::ToLocal(js_debug));
   debug->debug_context()->set_security_token(HEAP->undefined_value());
 #endif  // ENABLE_DEBUGGER_SUPPORT
@@ -1086,8 +1091,7 @@ Handle<Value> Shell::ReadBuffer(const Arguments& args) {
     return Throw("Error reading file");
   }
   Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(data, length);
-  v8::Persistent<v8::Value> weak_handle =
-      v8::Persistent<v8::Value>::New(isolate, buffer);
+  v8::Persistent<v8::Value> weak_handle(isolate, buffer);
   weak_handle.MakeWeak(isolate, data, ReadBufferWeakCallback);
   weak_handle.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(length);

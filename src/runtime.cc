@@ -28,8 +28,6 @@
 #include <stdlib.h>
 #include <limits>
 
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "v8.h"
 
 #include "accessors.h"
@@ -708,7 +706,7 @@ bool Runtime::SetupArrayBufferAllocatingData(
   SetupArrayBuffer(isolate, array_buffer, false, data, allocated_length);
 
   v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Persistent<v8::Value> weak_handle = v8::Persistent<v8::Value>::New(
+  v8::Persistent<v8::Value> weak_handle(
       external_isolate, v8::Utils::ToLocal(Handle<Object>::cast(array_buffer)));
   weak_handle.MakeWeak(external_isolate, data, ArrayBufferWeakCallback);
   weak_handle.MarkIndependent(external_isolate);

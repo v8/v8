@@ -370,11 +370,11 @@ template <class T> class Handle {
 #endif
 
  private:
-  template<class F>
-  friend class Persistent;
-  template<class F>
-  friend class Local;
+  template<class F> friend class Persistent;
+  template<class F> friend class Local;
   friend class Arguments;
+  template<class F> friend class FunctionCallbackInfo;
+  template<class F> friend class PropertyCallbackInfo;
   friend class String;
   friend class Object;
   friend class AccessorInfo;
@@ -385,6 +385,7 @@ template <class T> class Handle {
   friend class Context;
   friend class InternalHandleHelper;
   friend class LocalContext;
+  friend class HandleScope;
 
 #ifndef V8_USE_UNSAFE_HANDLES
   V8_INLINE(static Handle<T> New(Isolate* isolate, T* that));
@@ -458,17 +459,18 @@ template <class T> class Local : public Handle<T> {
 #endif
 
  private:
-  template<class F>
-  friend class Persistent;
-  template<class F>
-  friend class Handle;
+  template<class F> friend class Persistent;
+  template<class F> friend class Handle;
   friend class Arguments;
+  template<class F> friend class FunctionCallbackInfo;
+  template<class F> friend class PropertyCallbackInfo;
   friend class String;
   friend class Object;
   friend class AccessorInfo;
   friend class Context;
   friend class InternalHandleHelper;
   friend class LocalContext;
+  friend class HandleScope;
 
   V8_INLINE(static Local<T> New(Isolate* isolate, T* that));
 };
@@ -751,6 +753,10 @@ template <class T> class Persistent // NOLINT
    */
   V8_INLINE(void Reset(Isolate* isolate, const Handle<T>& other));
 
+#ifndef V8_USE_UNSAFE_HANDLES
+  V8_INLINE(void Reset(Isolate* isolate, const Persistent<T>& other));
+#endif
+
   /**
    * Returns the underlying raw pointer and clears the handle. The caller is
    * responsible of eventually destroying the underlying object (by creating a
@@ -800,10 +806,8 @@ template <class T> class Persistent // NOLINT
 #endif
 
  private:
-  template<class F>
-  friend class Handle;
-  template<class F>
-  friend class Local;
+  template<class F> friend class Handle;
+  template<class F> friend class Local;
   friend class ImplementationUtilities;
   friend class ObjectTemplate;
   friend class Context;
@@ -5627,6 +5631,21 @@ void Persistent<T>::Reset(Isolate* isolate, const Handle<T>& other) {
       V8::GlobalizeReference(reinterpret_cast<internal::Isolate*>(isolate), p));
 #endif
 }
+
+
+#ifndef V8_USE_UNSAFE_HANDLES
+template <class T>
+void Persistent<T>::Reset(Isolate* isolate, const Persistent<T>& other) {
+  Dispose(isolate);
+  if (other.IsEmpty()) {
+    this->val_ = NULL;
+    return;
+  }
+  internal::Object** p = reinterpret_cast<internal::Object**>(other.val_);
+  this->val_ = reinterpret_cast<T*>(
+      V8::GlobalizeReference(reinterpret_cast<internal::Isolate*>(isolate), p));
+}
+#endif
 
 
 template <class T>
