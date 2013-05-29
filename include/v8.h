@@ -228,6 +228,7 @@ typedef void (*NearDeathCallback)(Isolate* isolate,
 
 
 #define V8_USE_UNSAFE_HANDLES
+#define V8_USE_OLD_STYLE_PERSISTENT_HANDLE_VISITORS
 
 /**
  * An object reference managed by the v8 garbage collector.
@@ -4135,8 +4136,13 @@ class V8EXPORT ExternalResourceVisitor {  // NOLINT
 class V8EXPORT PersistentHandleVisitor {  // NOLINT
  public:
   virtual ~PersistentHandleVisitor() {}
+#ifdef V8_USE_OLD_STYLE_PERSISTENT_HANDLE_VISITORS
   virtual void VisitPersistentHandle(Persistent<Value> value,
                                      uint16_t class_id) {}
+#else
+  virtual void VisitPersistentHandle(Persistent<Value>* value,
+                                     uint16_t class_id) {}
+#endif
 };
 
 

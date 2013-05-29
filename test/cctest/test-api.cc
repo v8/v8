@@ -17785,12 +17785,19 @@ class Visitor42 : public v8::PersistentHandleVisitor {
   explicit Visitor42(v8::Persistent<v8::Object> object)
       : counter_(0), object_(object) { }
 
+#ifdef V8_USE_OLD_STYLE_PERSISTENT_HANDLE_VISITORS
   virtual void VisitPersistentHandle(Persistent<Value> value,
                                      uint16_t class_id) {
+    VisitPersistentHandle(&value, class_id);
+  }
+#endif
+
+  virtual void VisitPersistentHandle(Persistent<Value>* value,
+                                     uint16_t class_id) {
     if (class_id == 42) {
-      CHECK(value->IsObject());
+      CHECK((*value)->IsObject());
       v8::Persistent<v8::Object> visited =
-          v8::Persistent<v8::Object>::Cast(value);
+          v8::Persistent<v8::Object>::Cast(*value);
       CHECK_EQ(42, visited.WrapperClassId(v8::Isolate::GetCurrent()));
       CHECK_EQ(Handle<Value>(*object_), Handle<Value>(*visited));
       ++counter_;
