@@ -1129,7 +1129,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   Zone* zone = this->zone();
   IfBuilder length_checker(this);
 
-  length_checker.IfCompare(length, key, Token::EQ, Representation::Smi());
+  length_checker.IfCompare(length, key, Token::EQ);
   length_checker.Then();
 
   HValue* current_capacity =
@@ -1137,8 +1137,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
 
   IfBuilder capacity_checker(this);
 
-  capacity_checker.IfCompare(
-      length, current_capacity, Token::EQ, Representation::Smi());
+  capacity_checker.IfCompare(length, current_capacity, Token::EQ);
   capacity_checker.Then();
 
   HValue* context = environment()->LookupContext();
@@ -1260,11 +1259,11 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
           new(zone) HLoadExternalArrayPointer(elements);
       AddInstruction(external_elements);
       IfBuilder length_checker(this);
-      length_checker.IfCompare(key, length, Token::LT, Representation::Smi());
+      length_checker.IfCompare(key, length, Token::LT);
       length_checker.Then();
       IfBuilder negative_checker(this);
       HValue* bounds_check = negative_checker.IfCompare(
-          key, graph()->GetConstant0(), Token::GTE, Representation::Smi());
+          key, graph()->GetConstant0(), Token::GTE);
       negative_checker.Then();
       HInstruction* result = BuildExternalArrayElementAccess(
           external_elements, key, val, bounds_check,
