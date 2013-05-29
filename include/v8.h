@@ -4368,41 +4368,6 @@ class V8EXPORT V8 {
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);
 
   /**
-   * Allows the host application to group objects together. If one
-   * object in the group is alive, all objects in the group are alive.
-   * After each garbage collection, object groups are removed. It is
-   * intended to be used in the before-garbage-collection callback
-   * function, for instance to simulate DOM tree connections among JS
-   * wrapper objects. Object groups for all dependent handles need to
-   * be provided for kGCTypeMarkSweepCompact collections, for all other
-   * garbage collection types it is sufficient to provide object groups
-   * for partially dependent handles only.
-   * See v8-profiler.h for RetainedObjectInfo interface description.
-   */
-  // TODO(marja): deprecate AddObjectGroup. Use Isolate::SetObjectGroupId and
-  // HeapProfiler::SetRetainedObjectInfo instead.
-  static void AddObjectGroup(Persistent<Value>* objects,
-                             size_t length,
-                             RetainedObjectInfo* info = NULL);
-  static void AddObjectGroup(Isolate* isolate,
-                             Persistent<Value>* objects,
-                             size_t length,
-                             RetainedObjectInfo* info = NULL);
-
-  /**
-   * Allows the host application to declare implicit references between
-   * the objects: if |parent| is alive, all |children| are alive too.
-   * After each garbage collection, all implicit references
-   * are removed.  It is intended to be used in the before-garbage-collection
-   * callback function.
-   */
-  // TODO(marja): Deprecate AddImplicitReferences. Use
-  // Isolate::SetReferenceFromGroup instead.
-  static void AddImplicitReferences(Persistent<Object> parent,
-                                    Persistent<Value>* children,
-                                    size_t length);
-
-  /**
    * Initializes from snapshot if possible. Otherwise, attempts to
    * initialize from scratch.  This function is called implicitly if
    * you use the API without calling it first.

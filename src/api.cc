@@ -6376,42 +6376,6 @@ void V8::SetFailedAccessCheckCallbackFunction(
 }
 
 
-void V8::AddObjectGroup(Persistent<Value>* objects,
-                        size_t length,
-                        RetainedObjectInfo* info) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::AddObjectGroup()")) return;
-  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  isolate->global_handles()->AddObjectGroup(
-      reinterpret_cast<i::Object***>(objects), length, info);
-}
-
-
-void V8::AddObjectGroup(Isolate* exported_isolate,
-                        Persistent<Value>* objects,
-                        size_t length,
-                        RetainedObjectInfo* info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
-  ASSERT(isolate == i::Isolate::Current());
-  if (IsDeadCheck(isolate, "v8::V8::AddObjectGroup()")) return;
-  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  isolate->global_handles()->AddObjectGroup(
-      reinterpret_cast<i::Object***>(objects), length, info);
-}
-
-
-void V8::AddImplicitReferences(Persistent<Object> parent,
-                               Persistent<Value>* children,
-                               size_t length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::AddImplicitReferences()")) return;
-  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  isolate->global_handles()->AddImplicitReferences(
-      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*parent)).location(),
-      reinterpret_cast<i::Object***>(children), length);
-}
-
-
 intptr_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     intptr_t change_in_bytes) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
