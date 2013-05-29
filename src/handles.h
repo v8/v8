@@ -155,18 +155,21 @@ class HandleScope {
   void* operator new(size_t size);
   void operator delete(void* size_t);
 
-  inline void CloseScope();
-
   Isolate* isolate_;
   Object** prev_next_;
   Object** prev_limit_;
+
+  // Close the handle scope resetting limits to a previous state.
+  static inline void CloseScope(Isolate* isolate,
+                                Object** prev_next,
+                                Object** prev_limit);
 
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend(Isolate* isolate);
 
 #ifdef ENABLE_EXTRA_CHECKS
   // Zaps the handles in the half-open interval [start, end).
-  static void ZapRange(internal::Object** start, internal::Object** end);
+  static void ZapRange(Object** start, Object** end);
 #endif
 
   friend class v8::HandleScope;
@@ -337,6 +340,7 @@ class NoHandleAllocation BASE_EMBEDDED {
   inline ~NoHandleAllocation();
  private:
   Isolate* isolate_;
+  Object** limit_;
   int level_;
   bool active_;
 #endif

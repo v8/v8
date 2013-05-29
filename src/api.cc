@@ -679,19 +679,7 @@ HandleScope::~HandleScope() {
 
 
 void HandleScope::Leave() {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate_->handle_scope_data();
-  current->level--;
-  ASSERT(current->level >= 0);
-  current->next = prev_next_;
-  if (current->limit != prev_limit_) {
-    current->limit = prev_limit_;
-    i::HandleScope::DeleteExtensions(isolate_);
-  }
-
-#ifdef ENABLE_EXTRA_CHECKS
-  i::HandleScope::ZapRange(prev_next_, prev_limit_);
-#endif
+  return i::HandleScope::CloseScope(isolate_, prev_next_, prev_limit_);
 }
 
 
