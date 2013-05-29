@@ -2584,8 +2584,8 @@ void LCodeGen::DoReturn(LReturn* instr) {
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ mov(sp, fp);
-    __ Pop(ra, fp);
     no_frame_start = masm_->pc_offset();
+    __ Pop(ra, fp);
   }
   if (instr->has_constant_parameter_count()) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());

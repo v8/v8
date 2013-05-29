@@ -181,6 +181,7 @@ bool LCodeGen::GeneratePrologue() {
       __ add(fp, sp, Operand(2 * kPointerSize));
     }
     frame_is_built_ = true;
+    info_->AddNoFrameRange(0, masm_->pc_offset());
   }
 
   // Reserve space for the stack slots needed by the code.
@@ -2951,8 +2952,8 @@ void LCodeGen::DoReturn(LReturn* instr) {
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ mov(sp, fp);
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
     no_frame_start = masm_->pc_offset();
+    __ ldm(ia_w, sp, fp.bit() | lr.bit());
   }
   if (instr->has_constant_parameter_count()) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());
