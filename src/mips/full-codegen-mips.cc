@@ -677,8 +677,9 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  ToBooleanStub stub(result_register());
-  __ CallStub(&stub, condition->test_id());
+  __ mov(a0, result_register());
+  Handle<Code> ic = ToBooleanStub::GetUninitialized(isolate());
+  CallIC(ic, RelocInfo::CODE_TARGET, condition->test_id());
   __ mov(at, zero_reg);
   Split(ne, v0, Operand(at), if_true, if_false, fall_through);
 }
@@ -2061,8 +2062,9 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(done_ic);                                   // result.done in v0
       __ Addu(sp, sp, Operand(kPointerSize));            // drop LoadIC state
-      ToBooleanStub stub(v0);
-      __ CallStub(&stub);
+      __ mov(a0, v0);
+      Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
+      CallIC(bool_ic);
       __ Branch(&l_try, eq, v0, Operand(zero_reg));
 
       // result.value
