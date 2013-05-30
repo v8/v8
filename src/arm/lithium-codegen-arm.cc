@@ -4976,7 +4976,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 DwVfpRegister result_reg,
-                                bool deoptimize_on_undefined,
+                                bool allow_undefined_as_nan,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
@@ -4996,7 +4996,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
     __ cmp(scratch, Operand(ip));
-    if (deoptimize_on_undefined) {
+    if (!allow_undefined_as_nan) {
       DeoptimizeIf(ne, env);
     } else {
       Label heap_number, convert;
@@ -5166,7 +5166,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   }
 
   EmitNumberUntagD(input_reg, result_reg,
-                   instr->hydrogen()->deoptimize_on_undefined(),
+                   instr->hydrogen()->allow_undefined_as_nan(),
                    instr->hydrogen()->deoptimize_on_minus_zero(),
                    instr->environment(),
                    mode);

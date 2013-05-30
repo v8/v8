@@ -331,7 +331,7 @@ class LCodeGen BASE_EMBEDDED {
       Register input,
       Register temp,
       XMMRegister result,
-      bool deoptimize_on_undefined,
+      bool allow_undefined_as_nan,
       bool deoptimize_on_minus_zero,
       LEnvironment* env,
       NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED);
@@ -339,7 +339,7 @@ class LCodeGen BASE_EMBEDDED {
   void EmitNumberUntagDNoSSE2(
       Register input,
       Register temp,
-      bool deoptimize_on_undefined,
+      bool allow_undefined_as_nan,
       bool deoptimize_on_minus_zero,
       LEnvironment* env,
       NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED);

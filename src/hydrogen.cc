@@ -1586,7 +1586,10 @@ void HGraphBuilder::BuildCopyElements(HValue* context,
       ? FAST_HOLEY_ELEMENTS : to_elements_kind;
   HInstruction* holey_store = AddInstruction(
       new(zone()) HStoreKeyed(to_elements, key, element, holey_kind));
-  holey_store->ClearFlag(HValue::kDeoptimizeOnUndefined);
+  // Allow NaN hole values to converted to their tagged counterparts.
+  if (IsFastHoleyElementsKind(to_elements_kind)) {
+    holey_store->SetFlag(HValue::kAllowUndefinedAsNaN);
+  }
 
   builder.EndBody();
 
@@ -3100,8 +3103,8 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   // change instructions for them.
   HInstruction* new_value = NULL;
   bool is_truncating = use_value->CheckFlag(HValue::kTruncatingToInt32);
-  bool deoptimize_on_undefined =
-      use_value->CheckFlag(HValue::kDeoptimizeOnUndefined);
+  bool allow_undefined_as_nan =
+      use_value->CheckFlag(HValue::kAllowUndefinedAsNaN);
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
@@ -3112,7 +3115,7 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
 
   if (new_value == NULL) {
     new_value = new(zone()) HChange(value, to,
-                                    is_truncating, deoptimize_on_undefined);
+                                    is_truncating, allow_undefined_as_nan);
   }
 
   new_value->InsertBefore(next);
@@ -3219,8 +3222,8 @@ void HGraph::InsertRepresentationChanges() {
 
 
 void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
-  if (phi->CheckFlag(HValue::kDeoptimizeOnUndefined)) return;
-  phi->SetFlag(HValue::kDeoptimizeOnUndefined);
+  if (!phi->CheckFlag(HValue::kAllowUndefinedAsNaN)) return;
+  phi->ClearFlag(HValue::kAllowUndefinedAsNaN);
   for (int i = 0; i < phi->OperandCount(); ++i) {
     HValue* input = phi->OperandAt(i);
     if (input->IsPhi()) {
@@ -3240,16 +3243,11 @@ void HGraph::MarkDeoptimizeOnUndefined() {
   // if one of its uses has this flag set.
   for (int i = 0; i < phi_list()->length(); i++) {
     HPhi* phi = phi_list()->at(i);
-    if (phi->representation().IsDouble()) {
-      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-        int use_index = it.index();
-        HValue* use_value = it.value();
-        Representation req = use_value->RequiredInputRepresentation(use_index);
-        if (!req.IsDouble() ||
-            use_value->CheckFlag(HValue::kDeoptimizeOnUndefined)) {
-          RecursivelyMarkPhiDeoptimizeOnUndefined(phi);
-          break;
-        }
+    for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+      HValue* use_value = it.value();
+      if (!use_value->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
+        RecursivelyMarkPhiDeoptimizeOnUndefined(phi);
+        break;
       }
     }
   }
@@ -10109,7 +10107,7 @@ void HOptimizedGraphBuilder::BuildEmitFixedDoubleArray(
             boilerplate_elements, key_constant, NULL, kind, ALLOW_RETURN_HOLE));
     HInstruction* store = AddInstruction(new(zone) HStoreKeyed(
         object_elements, key_constant, value_instruction, kind));
-    store->ClearFlag(HValue::kDeoptimizeOnUndefined);
+    store->SetFlag(HValue::kAllowUndefinedAsNaN);
   }
 }
 

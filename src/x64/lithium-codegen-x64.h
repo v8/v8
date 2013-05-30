@@ -295,7 +295,7 @@ class LCodeGen BASE_EMBEDDED {
   void EmitNumberUntagD(
       Register input,
       XMMRegister result,
-      bool deoptimize_on_undefined,
+      bool allow_undefined_as_nan,
       bool deoptimize_on_minus_zero,
       LEnvironment* env,
       NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED);

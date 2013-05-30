@@ -1485,7 +1485,7 @@ void HChange::PrintDataTo(StringStream* stream) {
 
   if (CanTruncateToInt32()) stream->Add(" truncating-int32");
   if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
-  if (CheckFlag(kDeoptimizeOnUndefined)) stream->Add(" deopt-on-undefined");
+  if (CheckFlag(kAllowUndefinedAsNaN)) stream->Add(" allow-undefined-as-nan");
 }
 
 
@@ -2490,8 +2490,8 @@ void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
     // (false). Therefore, any comparisons other than ordered relational
     // comparisons must cause a deopt when one of their arguments is undefined.
     // See also v8:1434
-    if (!Token::IsOrderedRelationalCompareOp(token_)) {
-      SetFlag(kDeoptimizeOnUndefined);
+    if (Token::IsOrderedRelationalCompareOp(token_)) {
+      SetFlag(kAllowUndefinedAsNaN);
     }
   }
   ChangeRepresentation(rep);
@@ -2754,7 +2754,7 @@ bool HLoadKeyed::AllUsesCanTreatHoleAsNaN() const {
 
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
-    if (use->CheckFlag(HValue::kDeoptimizeOnUndefined)) {
+    if (!use->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
       return false;
     }
   }
@@ -3749,7 +3749,6 @@ void HObjectAccess::SetGVNFlags(HValue *instr, bool is_store) {
     // track dominating allocations in order to eliminate write barriers
     instr->SetGVNFlag(kDependsOnNewSpacePromotion);
     instr->SetFlag(HValue::kTrackSideEffectDominators);
-    instr->SetFlag(HValue::kDeoptimizeOnUndefined);
   } else {
     // try to GVN loads, but don't hoist above map changes
     instr->SetFlag(HValue::kUseGVN);
