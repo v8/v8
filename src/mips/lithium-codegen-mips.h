@@ -343,7 +343,7 @@ class LCodeGen BASE_EMBEDDED {
   void EmitCmpI(LOperand* left, LOperand* right);
   void EmitNumberUntagD(Register input,
                         DoubleRegister result,
-                        bool deoptimize_on_undefined,
+                        bool allow_undefined_as_nan,
                         bool deoptimize_on_minus_zero,
                         LEnvironment* env,
                         NumberUntagDMode mode);
