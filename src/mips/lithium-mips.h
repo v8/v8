@@ -87,6 +87,7 @@ class LCodeGen;
   V(CmpT)                                       \
   V(ConstantD)                                  \
   V(ConstantI)                                  \
+  V(ConstantS)                                  \
   V(ConstantT)                                  \
   V(Context)                                    \
   V(DebugBreak)                                 \
@@ -1150,6 +1151,15 @@ class LConstantI: public LTemplateInstruction<1, 0, 0> {
   DECLARE_HYDROGEN_ACCESSOR(Constant)
 
   int32_t value() const { return hydrogen()->Integer32Value(); }
+};
+
+
+class LConstantS: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(ConstantS, "constant-s")
+  DECLARE_HYDROGEN_ACCESSOR(Constant)
+
+  Smi* value() const { return Smi::FromInt(hydrogen()->Integer32Value()); }
 };
 
 
