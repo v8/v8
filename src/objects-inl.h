@@ -58,7 +58,10 @@ PropertyDetails::PropertyDetails(Smi* smi) {
 
 
 Smi* PropertyDetails::AsSmi() {
-  return Smi::FromInt(value_);
+  // Ensure the upper 2 bits have the same value by sign extending it. This is
+  // necessary to be able to use the 31st bit of the property details.
+  int value = value_ << 1;
+  return Smi::FromInt(value >> 1);
 }
 
 
@@ -2327,7 +2330,7 @@ PropertyType DescriptorArray::GetType(int descriptor_number) {
 
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
-  return Descriptor::IndexFromValue(GetValue(descriptor_number));
+  return GetDetails(descriptor_number).field_index();
 }
 
 

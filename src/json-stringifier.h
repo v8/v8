@@ -640,7 +640,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       if (!name->IsString()) continue;
       Handle<String> key = Handle<String>::cast(name);
       PropertyDetails details = map->instance_descriptors()->GetDetails(i);
-      if (details.IsDontEnum() || details.IsDeleted()) continue;
+      if (details.IsDontEnum()) continue;
       Handle<Object> property;
       if (details.type() == FIELD && *map == object->map()) {
         property = Handle<Object>(

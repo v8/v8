@@ -802,7 +802,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
           if (details.type() != FIELD) {
             indices = Handle<FixedArray>();
           } else {
-            int field_index = Descriptor::IndexFromValue(descs->GetValue(i));
+            int field_index = descs->GetFieldIndex(i);
             if (field_index >= map->inobject_properties()) {
               field_index = -(field_index - map->inobject_properties() + 1);
             }

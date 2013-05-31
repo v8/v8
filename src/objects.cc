@@ -2500,8 +2500,6 @@ Map* Map::FindLastMatchMap(int verbatim,
     if (details.type() != next_details.type()) break;
     if (details.attributes() != next_details.attributes()) break;
     if (!details.representation().Equals(next_details.representation())) break;
-    ASSERT(!details.IsDeleted());
-    ASSERT(!next_details.IsDeleted());
 
     current = next;
   }
