@@ -1824,14 +1824,17 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
 
   Heap* heap = isolate->heap();
 
-  Map* new_map;
-  MaybeObject* maybe_new_map = map()->CopyAddDescriptor(&new_field, flag);
-  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
   Object* storage;
   MaybeObject* maybe_storage =
       value->AllocateNewStorageFor(heap, representation);
   if (!maybe_storage->To(&storage)) return maybe_storage;
+
+  // Note that Map::CopyAddDescriptor has side-effects, the new map is already
+  // inserted in the transition tree. No more allocations that might fail are
+  // allowed after this point.
+  Map* new_map;
+  MaybeObject* maybe_new_map = map()->CopyAddDescriptor(&new_field, flag);
+  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
   if (map()->unused_property_fields() == 0) {
     ASSERT(values != NULL);
