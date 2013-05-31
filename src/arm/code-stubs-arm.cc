@@ -45,7 +45,6 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   static Register registers[] = { r3, r2, r1 };
   descriptor->register_param_count_ = 3;
   descriptor->register_params_ = registers;
-  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(Runtime::kCreateArrayLiteralShallow)->entry;
 }
@@ -57,7 +56,6 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
   static Register registers[] = { r3, r2, r1, r0 };
   descriptor->register_param_count_ = 4;
   descriptor->register_params_ = registers;
-  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(Runtime::kCreateObjectLiteralShallow)->entry;
 }
@@ -80,7 +78,6 @@ void LoadFieldStub::InitializeInterfaceDescriptor(
   static Register registers[] = { r0 };
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
-  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ = NULL;
 }
 
@@ -91,7 +88,6 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
   static Register registers[] = { r1 };
   descriptor->register_param_count_ = 1;
   descriptor->register_params_ = registers;
-  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ = NULL;
 }
 
