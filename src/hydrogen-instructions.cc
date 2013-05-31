@@ -1142,17 +1142,16 @@ void HBoundsCheck::PrintDataTo(StringStream* stream) {
 void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation r;
-  HValue* actual_length = length()->ActualValue();
   HValue* actual_index = index()->ActualValue();
-  if (key_mode_ == DONT_ALLOW_SMI_KEY ||
-      !actual_length->representation().IsSmiOrTagged()) {
+  HValue* actual_length = length()->ActualValue();
+  Representation index_rep = actual_index->representation();
+  if (!actual_length->representation().IsSmiOrTagged()) {
     r = Representation::Integer32();
-  } else if (actual_index->representation().IsSmiOrTagged() ||
-             (actual_index->IsConstant() &&
-              HConstant::cast(actual_index)->HasSmiValue())) {
-    // If the index is smi, or a constant that holds a Smi, allow the length to
-    // be smi, since it is usually already smi from loading it out of the length
-    // field of a JSArray. This allows for direct comparison without untagging.
+  } else if ((index_rep.IsTagged() && actual_index->type().IsSmi()) ||
+      index_rep.IsSmi()) {
+    // If the index is smi, allow the length to be smi, since it is usually
+    // already smi from loading it out of the length field of a JSArray.  This
+    // allows for direct comparison without untagging.
     r = Representation::Smi();
   } else {
     r = Representation::Integer32();
@@ -1486,7 +1485,7 @@ void HChange::PrintDataTo(StringStream* stream) {
 
   if (CanTruncateToInt32()) stream->Add(" truncating-int32");
   if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
-  if (CheckFlag(kDeoptimizeOnUndefined)) stream->Add(" deopt-on-undefined");
+  if (CheckFlag(kAllowUndefinedAsNaN)) stream->Add(" allow-undefined-as-nan");
 }
 
 
@@ -1812,8 +1811,18 @@ Range* HMod::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
-    Range* result = new(zone) Range();
-    if (a->CanBeMinusZero() || a->CanBeNegative()) {
+
+    // The magnitude of the modulus is bounded by the right operand. Note that
+    // apart for the cases involving kMinInt, the calculation below is the same
+    // as Max(Abs(b->lower()), Abs(b->upper())) - 1.
+    int32_t positive_bound = -(Min(NegAbs(b->lower()), NegAbs(b->upper())) + 1);
+
+    // The result of the modulo operation has the sign of its left operand.
+    bool left_can_be_negative = a->CanBeMinusZero() || a->CanBeNegative();
+    Range* result = new(zone) Range(left_can_be_negative ? -positive_bound : 0,
+                                    a->CanBePositive() ? positive_bound : 0);
+
+    if (left_can_be_negative) {
       result->set_can_be_minus_zero(true);
     }
 
@@ -2481,8 +2490,8 @@ void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
     // (false). Therefore, any comparisons other than ordered relational
     // comparisons must cause a deopt when one of their arguments is undefined.
     // See also v8:1434
-    if (!Token::IsOrderedRelationalCompareOp(token_)) {
-      SetFlag(kDeoptimizeOnUndefined);
+    if (Token::IsOrderedRelationalCompareOp(token_)) {
+      SetFlag(kAllowUndefinedAsNaN);
     }
   }
   ChangeRepresentation(rep);
@@ -2745,7 +2754,7 @@ bool HLoadKeyed::AllUsesCanTreatHoleAsNaN() const {
 
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
-    if (use->CheckFlag(HValue::kDeoptimizeOnUndefined)) {
+    if (!use->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
       return false;
     }
   }
@@ -3250,7 +3259,7 @@ HInstruction* HStringLength::New(Zone* zone, HValue* string) {
   if (FLAG_fold_constants && string->IsConstant()) {
     HConstant* c_string = HConstant::cast(string);
     if (c_string->HasStringValue()) {
-      return H_CONSTANT_INT32(c_string->StringValue()->length());
+      return new(zone) HConstant(c_string->StringValue()->length());
     }
   }
   return new(zone) HStringLength(string);
@@ -3740,7 +3749,6 @@ void HObjectAccess::SetGVNFlags(HValue *instr, bool is_store) {
     // track dominating allocations in order to eliminate write barriers
     instr->SetGVNFlag(kDependsOnNewSpacePromotion);
     instr->SetFlag(HValue::kTrackSideEffectDominators);
-    instr->SetFlag(HValue::kDeoptimizeOnUndefined);
   } else {
     // try to GVN loads, but don't hoist above map changes
     instr->SetFlag(HValue::kUseGVN);

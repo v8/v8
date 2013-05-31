@@ -4534,8 +4534,16 @@ class Code: public HeapObject {
   inline Kind kind();
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
+
   inline ExtraICState extended_extra_ic_state();  // Only valid for
                                                   // non-call IC stubs.
+  static bool needs_extended_extra_ic_state(Kind kind) {
+    // TODO(danno): This is a bit of a hack right now since there are still
+    // clients of this API that pass "extra" values in for argc. These clients
+    // should be retrofitted to used ExtendedExtraICState.
+    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC;
+  }
+
   inline StubType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
 
@@ -4628,7 +4636,6 @@ class Code: public HeapObject {
 
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline byte to_boolean_state();
-  inline void set_to_boolean_state(byte value);
 
   // [compare_nil]: For kind COMPARE_NIL_IC tells what state the stub is in.
   byte compare_nil_types();
@@ -4860,9 +4867,6 @@ class Code: public HeapObject {
   static const int kUnaryOpTypeFirstBit =
       kStackSlotsFirstBit + kStackSlotsBitCount;
   static const int kUnaryOpTypeBitCount = 3;
-  static const int kToBooleanStateFirstBit =
-      kStackSlotsFirstBit + kStackSlotsBitCount;
-  static const int kToBooleanStateBitCount = 8;
   static const int kHasFunctionCacheFirstBit =
       kStackSlotsFirstBit + kStackSlotsBitCount;
   static const int kHasFunctionCacheBitCount = 1;
@@ -4872,7 +4876,6 @@ class Code: public HeapObject {
 
   STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
   STATIC_ASSERT(kUnaryOpTypeFirstBit + kUnaryOpTypeBitCount <= 32);
-  STATIC_ASSERT(kToBooleanStateFirstBit + kToBooleanStateBitCount <= 32);
   STATIC_ASSERT(kHasFunctionCacheFirstBit + kHasFunctionCacheBitCount <= 32);
   STATIC_ASSERT(kMarkedForDeoptimizationFirstBit +
                 kMarkedForDeoptimizationBitCount <= 32);
@@ -4881,8 +4884,6 @@ class Code: public HeapObject {
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
   class UnaryOpTypeField: public BitField<int,
       kUnaryOpTypeFirstBit, kUnaryOpTypeBitCount> {};  // NOLINT
-  class ToBooleanStateField: public BitField<int,
-      kToBooleanStateFirstBit, kToBooleanStateBitCount> {};  // NOLINT
   class HasFunctionCacheField: public BitField<bool,
       kHasFunctionCacheFirstBit, kHasFunctionCacheBitCount> {};  // NOLINT
   class MarkedForDeoptimizationField: public BitField<bool,

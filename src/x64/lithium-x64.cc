@@ -1969,12 +1969,14 @@ LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
 
 LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   Representation r = instr->representation();
-  if (r.IsInteger32()) {
+  if (r.IsSmi()) {
+    return DefineAsRegister(new(zone()) LConstantS);
+  } else if (r.IsInteger32()) {
     return DefineAsRegister(new(zone()) LConstantI);
   } else if (r.IsDouble()) {
     LOperand* temp = TempRegister();
     return DefineAsRegister(new(zone()) LConstantD(temp));
-  } else if (r.IsSmiOrTagged()) {
+  } else if (r.IsTagged()) {
     return DefineAsRegister(new(zone()) LConstantT);
   } else {
     UNREACHABLE();

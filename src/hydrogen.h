@@ -400,8 +400,8 @@ class HGraph: public ZoneObject {
   }
 
  private:
-  HConstant* GetConstantInt32(SetOncePointer<HConstant>* pointer,
-                              int32_t integer_value);
+  HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
+                         int32_t integer_value);
 
   void MarkLive(HValue* ref, HValue* instr, ZoneList<HValue*>* worklist);
   void MarkLiveInstructions();
@@ -952,10 +952,7 @@ class HGraphBuilder {
   HInstruction* AddInstruction(HInstruction* instr);
   void AddSimulate(BailoutId id,
                    RemovableSimulate removable = FIXED_SIMULATE);
-  HBoundsCheck* AddBoundsCheck(
-      HValue* index,
-      HValue* length,
-      BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY);
+  HBoundsCheck* AddBoundsCheck(HValue* index, HValue* length);
 
   HReturn* AddReturn(HValue* value);
 

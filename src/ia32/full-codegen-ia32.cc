@@ -641,9 +641,8 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  ToBooleanStub stub(result_register());
-  __ push(result_register());
-  __ CallStub(&stub, condition->test_id());
+  Handle<Code> ic = ToBooleanStub::GetUninitialized(isolate());
+  CallIC(ic, RelocInfo::CODE_TARGET, condition->test_id());
   __ test(result_register(), result_register());
   // The stub returns nonzero for true.
   Split(not_zero, if_true, if_false, fall_through);
@@ -2003,9 +2002,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ mov(ecx, isolate()->factory()->done_string());  // "done"
       Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(done_ic);                                   // result.done in eax
-      ToBooleanStub stub(eax);
-      __ push(eax);
-      __ CallStub(&stub);
+      Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
+      CallIC(bool_ic);
       __ test(eax, eax);
       __ j(zero, &l_try);
 

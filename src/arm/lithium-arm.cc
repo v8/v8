@@ -2035,7 +2035,7 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
   } else if (input_rep.IsInteger32()) {
     return DefineAsRegister(new(zone()) LClampIToUint8(reg));
   } else {
-    ASSERT(input_rep.IsTagged());
+    ASSERT(input_rep.IsSmiOrTagged());
     // Register allocator doesn't (yet) support allocation of double
     // temps. Reserve d1 explicitly.
     LClampTToUint8* result = new(zone()) LClampTToUint8(reg, FixedTemp(d11));
@@ -2053,11 +2053,13 @@ LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
 
 LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   Representation r = instr->representation();
-  if (r.IsInteger32()) {
+  if (r.IsSmi()) {
+    return DefineAsRegister(new(zone()) LConstantS);
+  } else if (r.IsInteger32()) {
     return DefineAsRegister(new(zone()) LConstantI);
   } else if (r.IsDouble()) {
     return DefineAsRegister(new(zone()) LConstantD);
-  } else if (r.IsSmiOrTagged()) {
+  } else if (r.IsTagged()) {
     return DefineAsRegister(new(zone()) LConstantT);
   } else {
     UNREACHABLE();
@@ -2483,7 +2485,7 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
     index = UseOrConstant(instr->index());
   } else {
     length = UseTempRegister(instr->length());
-    index = Use(instr->index());
+    index = UseRegisterAtStart(instr->index());
   }
   return DefineAsRegister(new(zone()) LAccessArgumentsAt(args, length, index));
 }

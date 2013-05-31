@@ -186,11 +186,12 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     }
   }
 
-  if (!current_block()->IsFinished()) {
+  if (current_block() != NULL) {
     HReturn* hreturn_instruction = new(zone) HReturn(return_value,
                                                      context_,
                                                      stack_pop_count);
     current_block()->Finish(hreturn_instruction);
+    set_current_block(NULL);
   }
   return true;
 }
@@ -564,16 +565,13 @@ HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
       new(zone()) HAccessArgumentsAt(elements, constant_one, constant_zero));
 
   HConstant* max_alloc_length =
-      new(zone()) HConstant(JSObject::kInitialMaxFastElementArray,
-                            Representation::Tagged());
+      new(zone()) HConstant(JSObject::kInitialMaxFastElementArray);
   AddInstruction(max_alloc_length);
   const int initial_capacity = JSArray::kPreallocatedArrayElements;
-  HConstant* initial_capacity_node =
-      new(zone()) HConstant(initial_capacity, Representation::Tagged());
+  HConstant* initial_capacity_node = new(zone()) HConstant(initial_capacity);
   AddInstruction(initial_capacity_node);
 
-  HBoundsCheck* checked_arg = AddBoundsCheck(
-      argument, max_alloc_length, ALLOW_SMI_KEY);
+  HBoundsCheck* checked_arg = AddBoundsCheck(argument, max_alloc_length);
   IfBuilder if_builder(this);
   if_builder.IfCompare(checked_arg, constant_zero, Token::EQ);
   if_builder.Then();
@@ -675,5 +673,25 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
 Handle<Code> CompareNilICStub::GenerateCode() {
   return DoGenerateCode(this);
 }
+
+
+template <>
+HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
+  ToBooleanStub* stub = casted_stub();
+
+  IfBuilder if_true(this);
+  if_true.If<HBranch>(GetParameter(0), stub->GetTypes());
+  if_true.Then();
+    if_true.Return(graph()->GetConstant1());
+  if_true.Else();
+  if_true.End();
+  return graph()->GetConstant0();
+}
+
+
+Handle<Code> ToBooleanStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
 
 } }  // namespace v8::internal

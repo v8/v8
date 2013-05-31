@@ -625,23 +625,19 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 }
 
 
-void V8::MakeWeak(i::Isolate* isolate,
-                  i::Object** object,
+void V8::MakeWeak(i::Object** object,
                   void* parameters,
                   RevivableCallback weak_reference_callback,
                   NearDeathCallback near_death_callback) {
-  ASSERT(isolate == i::Isolate::Current());
-  LOG_API(isolate, "MakeWeak");
-  isolate->global_handles()->MakeWeak(object,
-                                      parameters,
-                                      weak_reference_callback,
-                                      near_death_callback);
+  i::GlobalHandles::MakeWeak(object,
+                             parameters,
+                             weak_reference_callback,
+                             near_death_callback);
 }
 
 
-void V8::ClearWeak(i::Isolate* isolate, i::Object** obj) {
-  LOG_API(isolate, "ClearWeak");
-  isolate->global_handles()->ClearWeakness(obj);
+void V8::ClearWeak(i::Object** obj) {
+  i::GlobalHandles::ClearWeakness(obj);
 }
 
 
@@ -683,19 +679,7 @@ HandleScope::~HandleScope() {
 
 
 void HandleScope::Leave() {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate_->handle_scope_data();
-  current->level--;
-  ASSERT(current->level >= 0);
-  current->next = prev_next_;
-  if (current->limit != prev_limit_) {
-    current->limit = prev_limit_;
-    i::HandleScope::DeleteExtensions(isolate_);
-  }
-
-#ifdef ENABLE_EXTRA_CHECKS
-  i::HandleScope::ZapRange(prev_next_, prev_limit_);
-#endif
+  return i::HandleScope::CloseScope(isolate_, prev_next_, prev_limit_);
 }
 
 
@@ -5104,8 +5088,14 @@ class VisitorAdapter : public i::ObjectVisitor {
     UNREACHABLE();
   }
   virtual void VisitEmbedderReference(i::Object** p, uint16_t class_id) {
+#ifdef V8_USE_OLD_STYLE_PERSISTENT_HANDLE_VISITORS
     visitor_->VisitPersistentHandle(ToApi<Value>(i::Handle<i::Object>(p)),
                                     class_id);
+#else
+    Value* value = ToApi<Value>(i::Handle<i::Object>(p));
+    visitor_->VisitPersistentHandle(
+        reinterpret_cast<Persistent<Value>*>(&value), class_id);
+#endif
   }
  private:
   PersistentHandleVisitor* visitor_;
@@ -6371,42 +6361,6 @@ void V8::SetFailedAccessCheckCallbackFunction(
     return;
   }
   isolate->SetFailedAccessCheckCallback(callback);
-}
-
-
-void V8::AddObjectGroup(Persistent<Value>* objects,
-                        size_t length,
-                        RetainedObjectInfo* info) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::AddObjectGroup()")) return;
-  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  isolate->global_handles()->AddObjectGroup(
-      reinterpret_cast<i::Object***>(objects), length, info);
-}
-
-
-void V8::AddObjectGroup(Isolate* exported_isolate,
-                        Persistent<Value>* objects,
-                        size_t length,
-                        RetainedObjectInfo* info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
-  ASSERT(isolate == i::Isolate::Current());
-  if (IsDeadCheck(isolate, "v8::V8::AddObjectGroup()")) return;
-  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  isolate->global_handles()->AddObjectGroup(
-      reinterpret_cast<i::Object***>(objects), length, info);
-}
-
-
-void V8::AddImplicitReferences(Persistent<Object> parent,
-                               Persistent<Value>* children,
-                               size_t length) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::AddImplicitReferences()")) return;
-  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  isolate->global_handles()->AddImplicitReferences(
-      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*parent)).location(),
-      reinterpret_cast<i::Object***>(children), length);
 }
 
 

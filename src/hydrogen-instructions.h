@@ -263,6 +263,7 @@ class Range: public ZoneObject {
   bool CanBeMinusZero() const { return CanBeZero() && can_be_minus_zero_; }
   bool CanBeZero() const { return upper_ >= 0 && lower_ <= 0; }
   bool CanBeNegative() const { return lower_ < 0; }
+  bool CanBePositive() const { return upper_ > 0; }
   bool Includes(int value) const { return lower_ <= value && upper_ >= value; }
   bool IsMostGeneric() const {
     return lower_ == kMinInt && upper_ == kMaxInt && CanBeMinusZero();
@@ -789,7 +790,7 @@ class HValue: public ZoneObject {
     kCanOverflow,
     kBailoutOnMinusZero,
     kCanBeDivByZero,
-    kDeoptimizeOnUndefined,
+    kAllowUndefinedAsNaN,
     kIsArguments,
     kTruncatingToInt32,
     // Set after an instruction is killed.
@@ -1561,6 +1562,9 @@ class HBranch: public HUnaryControlInstruction {
   }
   explicit HBranch(HValue* value)
       : HUnaryControlInstruction(value, NULL, NULL) { }
+  HBranch(HValue* value, ToBooleanStub::Types expected_input_types)
+      : HUnaryControlInstruction(value, NULL, NULL),
+        expected_input_types_(expected_input_types) { }
 
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -1711,14 +1715,14 @@ class HChange: public HUnaryOperation {
   HChange(HValue* value,
           Representation to,
           bool is_truncating,
-          bool deoptimize_on_undefined)
+          bool allow_undefined_as_nan)
       : HUnaryOperation(value) {
     ASSERT(!value->representation().IsNone());
     ASSERT(!to.IsNone());
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
-    if (deoptimize_on_undefined) SetFlag(kDeoptimizeOnUndefined);
+    if (allow_undefined_as_nan) SetFlag(kAllowUndefinedAsNaN);
     if (is_truncating) SetFlag(kTruncatingToInt32);
     if (value->representation().IsSmi() || value->type().IsSmi()) {
       set_type(HType::Smi());
@@ -1734,8 +1738,8 @@ class HChange: public HUnaryOperation {
 
   Representation from() const { return value()->representation(); }
   Representation to() const { return representation(); }
-  bool deoptimize_on_undefined() const {
-    return CheckFlag(kDeoptimizeOnUndefined);
+  bool allow_undefined_as_nan() const {
+    return CheckFlag(kAllowUndefinedAsNaN);
   }
   bool deoptimize_on_minus_zero() const {
     return CheckFlag(kBailoutOnMinusZero);
@@ -1765,6 +1769,7 @@ class HClampToUint8: public HUnaryOperation {
   explicit HClampToUint8(HValue* value)
       : HUnaryOperation(value) {
     set_representation(Representation::Integer32());
+    SetFlag(kAllowUndefinedAsNaN);
     SetFlag(kUseGVN);
   }
 
@@ -2491,6 +2496,7 @@ class HBitNot: public HUnaryOperation {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetFlag(kTruncatingToInt32);
+    SetFlag(kAllowUndefinedAsNaN);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2600,6 +2606,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
         UNREACHABLE();
     }
     SetFlag(kUseGVN);
+    SetFlag(kAllowUndefinedAsNaN);
   }
 
   virtual bool IsDeletable() const { return true; }
@@ -2941,6 +2948,7 @@ class HPhi: public HValue {
     }
     ASSERT(merged_index >= 0);
     SetFlag(kFlexibleRepresentation);
+    SetFlag(kAllowUndefinedAsNaN);
   }
 
   virtual Representation RepresentationFromInputs();
@@ -3124,11 +3132,11 @@ class HConstant: public HTemplateInstruction<0> {
  public:
   HConstant(Handle<Object> handle, Representation r);
   HConstant(int32_t value,
-            Representation r,
+            Representation r = Representation::None(),
             bool is_not_in_new_space = true,
             Handle<Object> optional_handle = Handle<Object>::null());
   HConstant(double value,
-            Representation r,
+            Representation r = Representation::None(),
             bool is_not_in_new_space = true,
             Handle<Object> optional_handle = Handle<Object>::null());
   HConstant(Handle<Object> handle,
@@ -3527,12 +3535,6 @@ class HAccessArgumentsAt: public HTemplateInstruction<3> {
 };
 
 
-enum BoundsCheckKeyMode {
-  DONT_ALLOW_SMI_KEY,
-  ALLOW_SMI_KEY
-};
-
-
 class HBoundsCheckBaseIndexInformation;
 
 
@@ -3542,10 +3544,8 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   // HGraphBuilder::AddBoundsCheck() helper.
   // However when building stubs, where we know that the arguments are Int32,
   // it makes sense to invoke this constructor directly.
-  HBoundsCheck(HValue* index,
-               HValue* length,
-               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY)
-    : key_mode_(key_mode), skip_check_(false),
+  HBoundsCheck(HValue* index, HValue* length)
+    : skip_check_(false),
       base_(NULL), offset_(0), scale_(0),
       responsibility_direction_(DIRECTION_NONE) {
     SetOperandAt(0, index);
@@ -3618,7 +3618,6 @@ class HBoundsCheck: public HTemplateInstruction<2> {
 
   virtual bool DataEquals(HValue* other) { return true; }
   virtual void TryGuaranteeRangeChanging(RangeEvaluationContext* context);
-  BoundsCheckKeyMode key_mode_;
   bool skip_check_;
   HValue* base_;
   int offset_;
@@ -3673,6 +3672,7 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
       : HBinaryOperation(context, left, right) {
     SetFlag(kFlexibleRepresentation);
     SetFlag(kTruncatingToInt32);
+    SetFlag(kAllowUndefinedAsNaN);
     SetAllSideEffects();
   }
 
@@ -3727,6 +3727,7 @@ class HMathFloorOfDiv: public HBinaryOperation {
     if (!right->IsConstant()) {
       SetFlag(kCanBeDivByZero);
     }
+    SetFlag(kAllowUndefinedAsNaN);
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
@@ -3751,6 +3752,7 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
       : HBinaryOperation(context, left, right) {
     SetAllSideEffects();
     SetFlag(kFlexibleRepresentation);
+    SetFlag(kAllowUndefinedAsNaN);
   }
 
   virtual void RepresentationChanged(Representation to) {
@@ -5736,12 +5738,11 @@ class HStoreKeyed
     }
     if (is_external()) {
       SetGVNFlag(kChangesSpecializedArrayElements);
+      SetFlag(kAllowUndefinedAsNaN);
     } else if (IsFastDoubleElementsKind(elements_kind)) {
       SetGVNFlag(kChangesDoubleArrayElements);
-      SetFlag(kDeoptimizeOnUndefined);
     } else if (IsFastSmiElementsKind(elements_kind)) {
       SetGVNFlag(kChangesArrayElements);
-      SetFlag(kDeoptimizeOnUndefined);
     } else {
       SetGVNFlag(kChangesArrayElements);
     }

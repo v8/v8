@@ -181,6 +181,7 @@ bool LCodeGen::GeneratePrologue() {
       __ add(fp, sp, Operand(2 * kPointerSize));
     }
     frame_is_built_ = true;
+    info_->AddNoFrameRange(0, masm_->pc_offset());
   }
 
   // Reserve space for the stack slots needed by the code.
@@ -1900,7 +1901,11 @@ void LCodeGen::DoRSubI(LRSubI* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  ASSERT(instr->result()->IsRegister());
+  __ mov(ToRegister(instr->result()), Operand(instr->value()));
+}
+
+
+void LCodeGen::DoConstantS(LConstantS* instr) {
   __ mov(ToRegister(instr->result()), Operand(instr->value()));
 }
 
@@ -2242,10 +2247,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsInteger32() || r.IsSmi()) {
+    ASSERT(!info()->IsStub());
     Register reg = ToRegister(instr->value());
     __ cmp(reg, Operand::Zero());
     EmitBranch(true_block, false_block, ne);
   } else if (r.IsDouble()) {
+    ASSERT(!info()->IsStub());
     DwVfpRegister reg = ToDoubleRegister(instr->value());
     // Test the double value. Zero and NaN are false.
     __ VFPCompareAndSetFlags(reg, 0.0);
@@ -2256,9 +2263,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
     Register reg = ToRegister(instr->value());
     HType type = instr->hydrogen()->value()->type();
     if (type.IsBoolean()) {
+      ASSERT(!info()->IsStub());
       __ CompareRoot(reg, Heap::kTrueValueRootIndex);
       EmitBranch(true_block, false_block, eq);
     } else if (type.IsSmi()) {
+      ASSERT(!info()->IsStub());
       __ cmp(reg, Operand::Zero());
       EmitBranch(true_block, false_block, ne);
     } else {
@@ -2947,8 +2956,8 @@ void LCodeGen::DoReturn(LReturn* instr) {
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ mov(sp, fp);
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
     no_frame_start = masm_->pc_offset();
+    __ ldm(ia_w, sp, fp.bit() | lr.bit());
   }
   if (instr->has_constant_parameter_count()) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());
@@ -4967,7 +4976,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 DwVfpRegister result_reg,
-                                bool deoptimize_on_undefined,
+                                bool allow_undefined_as_nan,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
@@ -4987,7 +4996,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
     __ cmp(scratch, Operand(ip));
-    if (deoptimize_on_undefined) {
+    if (!allow_undefined_as_nan) {
       DeoptimizeIf(ne, env);
     } else {
       Label heap_number, convert;
@@ -5157,7 +5166,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   }
 
   EmitNumberUntagD(input_reg, result_reg,
-                   instr->hydrogen()->deoptimize_on_undefined(),
+                   instr->hydrogen()->allow_undefined_as_nan(),
                    instr->hydrogen()->deoptimize_on_minus_zero(),
                    instr->environment(),
                    mode);

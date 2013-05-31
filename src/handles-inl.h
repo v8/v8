@@ -122,31 +122,37 @@ HandleScope::HandleScope(Isolate* isolate) {
 
 
 HandleScope::~HandleScope() {
-  CloseScope();
+  CloseScope(isolate_, prev_next_, prev_limit_);
 }
 
-void HandleScope::CloseScope() {
+
+void HandleScope::CloseScope(Isolate* isolate,
+                             Object** prev_next,
+                             Object** prev_limit) {
   v8::ImplementationUtilities::HandleScopeData* current =
-      isolate_->handle_scope_data();
-  current->next = prev_next_;
+      isolate->handle_scope_data();
+
+  current->next = prev_next;
   current->level--;
-  if (current->limit != prev_limit_) {
-    current->limit = prev_limit_;
-    DeleteExtensions(isolate_);
+  if (current->limit != prev_limit) {
+    current->limit = prev_limit;
+    DeleteExtensions(isolate);
   }
+
 #ifdef ENABLE_EXTRA_CHECKS
-  ZapRange(prev_next_, prev_limit_);
+  ZapRange(prev_next, prev_limit);
 #endif
 }
 
 
 template <typename T>
 Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
-  T* value = *handle_value;
-  // Throw away all handles in the current scope.
-  CloseScope();
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate_->handle_scope_data();
+
+  T* value = *handle_value;
+  // Throw away all handles in the current scope.
+  CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.
   ASSERT(current->level > 0);
   Handle<T> result(CreateHandle<T>(isolate_, value));
@@ -180,15 +186,14 @@ T** HandleScope::CreateHandle(Isolate* isolate, T* value) {
 #ifdef DEBUG
 inline NoHandleAllocation::NoHandleAllocation(Isolate* isolate)
     : isolate_(isolate) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate_->handle_scope_data();
-
   active_ = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
   if (active_) {
     // Shrink the current handle scope to make it impossible to do
     // handle allocations without an explicit handle scope.
+    v8::ImplementationUtilities::HandleScopeData* current =
+        isolate_->handle_scope_data();
+    limit_ = current->limit;
     current->limit = current->next;
-
     level_ = current->level;
     current->level = 0;
   }
@@ -199,10 +204,12 @@ inline NoHandleAllocation::~NoHandleAllocation() {
   if (active_) {
     // Restore state in current handle scope to re-enable handle
     // allocations.
-    v8::ImplementationUtilities::HandleScopeData* data =
+    v8::ImplementationUtilities::HandleScopeData* current =
         isolate_->handle_scope_data();
-    ASSERT_EQ(0, data->level);
-    data->level = level_;
+    ASSERT_EQ(0, current->level);
+    current->level = level_;
+    ASSERT_EQ(current->next, current->limit);
+    current->limit = limit_;
   }
 }
 

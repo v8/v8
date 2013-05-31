@@ -234,13 +234,11 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   if (sample == NULL) sample = &sample_obj;
 
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM
-  sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
+  sample->pc = reinterpret_cast<Address>(sim->get_pc());
   sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
+#if V8_TARGET_ARCH_ARM
   sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::r11));
 #elif V8_TARGET_ARCH_MIPS
-  sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
-  sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
   sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::fp));
 #endif  // V8_TARGET_ARCH_*
 #else
@@ -523,13 +521,11 @@ class SamplerThread : public Thread {
                          &count) == KERN_SUCCESS) {
       sample->state = isolate->current_vm_state();
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM
-      sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
+      sample->pc = reinterpret_cast<Address>(sim->get_pc());
       sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
+#if V8_TARGET_ARCH_ARM
       sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::r11));
 #elif V8_TARGET_ARCH_MIPS
-      sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
-      sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
       sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::fp));
 #endif
 #else
@@ -577,13 +573,11 @@ class SamplerThread : public Thread {
     context.ContextFlags = CONTEXT_FULL;
     if (GetThreadContext(profiled_thread, &context) != 0) {
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM
-      sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
+      sample->pc = reinterpret_cast<Address>(sim->get_pc());
       sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
+#if V8_TARGET_ARCH_ARM
       sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::r11));
 #elif V8_TARGET_ARCH_MIPS
-      sample->pc = reinterpret_cast<Address>(sim->get_register(Simulator::pc));
-      sample->sp = reinterpret_cast<Address>(sim->get_register(Simulator::sp));
       sample->fp = reinterpret_cast<Address>(sim->get_register(Simulator::fp));
 #endif
 #else

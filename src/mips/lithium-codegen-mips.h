@@ -118,6 +118,7 @@ class LCodeGen BASE_EMBEDDED {
                                         FloatRegister flt_scratch,
                                         DoubleRegister dbl_scratch);
   int ToInteger32(LConstantOperand* op) const;
+  Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op);
   MemOperand ToMemOperand(LOperand* op) const;
@@ -342,7 +343,7 @@ class LCodeGen BASE_EMBEDDED {
   void EmitCmpI(LOperand* left, LOperand* right);
   void EmitNumberUntagD(Register input,
                         DoubleRegister result,
-                        bool deoptimize_on_undefined,
+                        bool allow_undefined_as_nan,
                         bool deoptimize_on_minus_zero,
                         LEnvironment* env,
                         NumberUntagDMode mode);

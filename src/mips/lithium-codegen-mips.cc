@@ -521,6 +521,12 @@ int LCodeGen::ToInteger32(LConstantOperand* op) const {
 }
 
 
+Smi* LCodeGen::ToSmi(LConstantOperand* op) const {
+  HConstant* constant = chunk_->LookupConstant(op);
+  return Smi::FromInt(constant->Integer32Value());
+}
+
+
 double LCodeGen::ToDouble(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
   ASSERT(constant->HasDoubleValue());
@@ -1494,7 +1500,11 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  ASSERT(instr->result()->IsRegister());
+  __ li(ToRegister(instr->result()), Operand(instr->value()));
+}
+
+
+void LCodeGen::DoConstantS(LConstantS* instr) {
   __ li(ToRegister(instr->result()), Operand(instr->value()));
 }
 
@@ -1867,9 +1877,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsInteger32() || r.IsSmi()) {
+    ASSERT(!info()->IsStub());
     Register reg = ToRegister(instr->value());
     EmitBranch(true_block, false_block, ne, reg, Operand(zero_reg));
   } else if (r.IsDouble()) {
+    ASSERT(!info()->IsStub());
     DoubleRegister reg = ToDoubleRegister(instr->value());
     // Test the double value. Zero and NaN are false.
     EmitBranchF(true_block, false_block, nue, reg, kDoubleRegZero);
@@ -1878,9 +1890,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
     Register reg = ToRegister(instr->value());
     HType type = instr->hydrogen()->value()->type();
     if (type.IsBoolean()) {
+      ASSERT(!info()->IsStub());
       __ LoadRoot(at, Heap::kTrueValueRootIndex);
       EmitBranch(true_block, false_block, eq, reg, Operand(at));
     } else if (type.IsSmi()) {
+      ASSERT(!info()->IsStub());
       EmitBranch(true_block, false_block, ne, reg, Operand(zero_reg));
     } else {
       Label* true_label = chunk_->GetAssemblyLabel(true_block);
@@ -2047,11 +2061,23 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
       Operand cmp_right = Operand(0);
 
       if (right->IsConstantOperand()) {
-        cmp_left = ToRegister(left);
-        cmp_right = Operand(ToInteger32(LConstantOperand::cast(right)));
+        int32_t value = ToInteger32(LConstantOperand::cast(right));
+        if (instr->hydrogen_value()->representation().IsSmi()) {
+          cmp_left = ToRegister(left);
+          cmp_right = Operand(Smi::FromInt(value));
+        } else {
+          cmp_left = ToRegister(left);
+          cmp_right = Operand(value);
+        }
       } else if (left->IsConstantOperand()) {
-        cmp_left = ToRegister(right);
-        cmp_right = Operand(ToInteger32(LConstantOperand::cast(left)));
+        int32_t value = ToInteger32(LConstantOperand::cast(left));
+        if (instr->hydrogen_value()->representation().IsSmi()) {
+           cmp_left = ToRegister(right);
+           cmp_right = Operand(Smi::FromInt(value));
+        } else {
+          cmp_left = ToRegister(right);
+          cmp_right = Operand(value);
+        }
         // We transposed the operands. Reverse the condition.
         cond = ReverseCondition(cond);
       } else {
@@ -2566,8 +2592,8 @@ void LCodeGen::DoReturn(LReturn* instr) {
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ mov(sp, fp);
-    __ Pop(ra, fp);
     no_frame_start = masm_->pc_offset();
+    __ Pop(ra, fp);
   }
   if (instr->has_constant_parameter_count()) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());
@@ -4659,7 +4685,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 DoubleRegister result_reg,
-                                bool deoptimize_on_undefined,
+                                bool allow_undefined_as_nan,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
@@ -4676,7 +4702,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     // Heap number map check.
     __ lw(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
     __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
-    if (deoptimize_on_undefined) {
+    if (!allow_undefined_as_nan) {
       DeoptimizeIf(ne, env, scratch, Operand(at));
     } else {
       Label heap_number, convert;
@@ -4849,7 +4875,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   }
 
   EmitNumberUntagD(input_reg, result_reg,
-                   instr->hydrogen()->deoptimize_on_undefined(),
+                   instr->hydrogen()->allow_undefined_as_nan(),
                    instr->hydrogen()->deoptimize_on_minus_zero(),
                    instr->environment(),
                    mode);
@@ -5211,7 +5237,10 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
   if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
+    ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
     flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE);
+  } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
+    flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_DATA_SPACE);
   }
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
@@ -5250,11 +5279,12 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   }
 
   if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
-    CallRuntimeFromDeferred(
-        Runtime::kAllocateInOldPointerSpace, 1, instr);
+    ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
+    CallRuntimeFromDeferred(Runtime::kAllocateInOldPointerSpace, 1, instr);
+  } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
+    CallRuntimeFromDeferred(Runtime::kAllocateInOldDataSpace, 1, instr);
   } else {
-    CallRuntimeFromDeferred(
-        Runtime::kAllocateInNewSpace, 1, instr);
+    CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
   }
   __ StoreToSafepointRegisterSlot(v0, result);
 }

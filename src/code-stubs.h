@@ -1816,7 +1816,7 @@ class KeyedStoreElementStub : public PlatformCodeStub {
 };
 
 
-class ToBooleanStub: public PlatformCodeStub {
+class ToBooleanStub: public HydrogenCodeStub {
  public:
   enum Type {
     UNDEFINED,
@@ -1850,31 +1850,47 @@ class ToBooleanStub: public PlatformCodeStub {
   static Types no_types() { return Types(); }
   static Types all_types() { return Types((1 << NUMBER_OF_TYPES) - 1); }
 
-  explicit ToBooleanStub(Register tos, Types types = Types())
-      : tos_(tos), types_(types) { }
+  explicit ToBooleanStub(Types types = Types())
+      : types_(types) { }
+  explicit ToBooleanStub(Code::ExtraICState state)
+      : types_(static_cast<byte>(state)) { }
 
-  void Generate(MacroAssembler* masm);
+  bool Record(Handle<Object> object);
+  Types GetTypes() { return types_; }
+
+  virtual Handle<Code> GenerateCode();
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
   virtual Code::Kind GetCodeKind() const { return Code::TO_BOOLEAN_IC; }
   virtual void PrintName(StringStream* stream);
 
   virtual bool SometimesSetsUpAFrame() { return false; }
 
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return (tos_.code() << NUMBER_OF_TYPES) |
-                          types_.ToByte(); }
-
-  virtual void FinishCode(Handle<Code> code) {
-    code->set_to_boolean_state(types_.ToByte());
+  static void InitializeForIsolate(Isolate* isolate) {
+    ToBooleanStub stub;
+    stub.InitializeInterfaceDescriptor(
+        isolate,
+        isolate->code_stub_interface_descriptor(CodeStub::ToBoolean));
   }
 
-  void CheckOddball(MacroAssembler* masm,
-                    Type type,
-                    Heap::RootListIndex value,
-                    bool result);
-  void GenerateTypeTransition(MacroAssembler* masm);
+  static Handle<Code> GetUninitialized(Isolate* isolate) {
+    return ToBooleanStub(UNINITIALIZED).GetCode(isolate);
+  }
 
-  Register tos_;
+  virtual Code::ExtraICState GetExtraICState() {
+    return types_.ToIntegral();
+  }
+
+
+ private:
+  Major MajorKey() { return ToBoolean; }
+  int NotMissMinorKey() { return GetExtraICState(); }
+
+  explicit ToBooleanStub(InitializationState init_state) :
+    HydrogenCodeStub(init_state) {}
+
   Types types_;
 };
 

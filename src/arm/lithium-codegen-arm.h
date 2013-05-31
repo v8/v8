@@ -335,7 +335,7 @@ class LCodeGen BASE_EMBEDDED {
   void EmitBranch(int left_block, int right_block, Condition cc);
   void EmitNumberUntagD(Register input,
                         DwVfpRegister result,
-                        bool deoptimize_on_undefined,
+                        bool allow_undefined_as_nan,
                         bool deoptimize_on_minus_zero,
                         LEnvironment* env,
                         NumberUntagDMode mode);

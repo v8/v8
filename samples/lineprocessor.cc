@@ -25,10 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include <v8.h>
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -222,8 +218,7 @@ int RunMain(int argc, char* argv[]) {
   v8::Context::Scope context_scope(context);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  debug_message_context =
-      v8::Persistent<v8::Context>::New(isolate, context);
+  debug_message_context.Reset(isolate, context);
 
   v8::Locker locker(isolate);
 
@@ -439,7 +434,7 @@ v8::Handle<v8::String> ReadLine() {
   }
   if (res == NULL) {
     v8::Handle<v8::Primitive> t = v8::Undefined();
-    return v8::Handle<v8::String>(v8::String::Cast(*t));
+    return v8::Handle<v8::String>::Cast(t);
   }
   // Remove newline char
   for (char* pos = buffer; *pos != '\0'; pos++) {

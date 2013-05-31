@@ -199,9 +199,9 @@ class GlobalHandles::Node {
     set_independent(true);
   }
 
-  void MarkPartiallyDependent(GlobalHandles* global_handles) {
+  void MarkPartiallyDependent() {
     ASSERT(state() != FREE);
-    if (global_handles->isolate()->heap()->InNewSpace(object_)) {
+    if (GetGlobalHandles()->isolate()->heap()->InNewSpace(object_)) {
       set_partially_dependent(true);
     }
   }
@@ -231,8 +231,7 @@ class GlobalHandles::Node {
     parameter_or_next_free_.next_free = value;
   }
 
-  void MakeWeak(GlobalHandles* global_handles,
-                void* parameter,
+  void MakeWeak(void* parameter,
                 RevivableCallback weak_reference_callback,
                 NearDeathCallback near_death_callback) {
     ASSERT(state() != FREE);
@@ -248,7 +247,7 @@ class GlobalHandles::Node {
     }
   }
 
-  void ClearWeakness(GlobalHandles* global_handles) {
+  void ClearWeakness() {
     ASSERT(state() != FREE);
     set_state(NORMAL);
     set_parameter(NULL);
@@ -296,6 +295,7 @@ class GlobalHandles::Node {
 
  private:
   inline NodeBlock* FindBlock();
+  inline GlobalHandles* GetGlobalHandles();
   inline void IncreaseBlockUses();
   inline void DecreaseBlockUses();
 
@@ -398,6 +398,11 @@ class GlobalHandles::NodeBlock {
   NodeBlock* prev_used_;
   GlobalHandles* global_handles_;
 };
+
+
+GlobalHandles* GlobalHandles::Node::GetGlobalHandles() {
+  return FindBlock()->global_handles();
+}
 
 
 GlobalHandles::NodeBlock* GlobalHandles::Node::FindBlock() {
@@ -507,15 +512,14 @@ void GlobalHandles::MakeWeak(Object** location,
                              RevivableCallback weak_reference_callback,
                              NearDeathCallback near_death_callback) {
   ASSERT((weak_reference_callback == NULL) != (near_death_callback == NULL));
-  Node::FromLocation(location)->MakeWeak(this,
-                                         parameter,
+  Node::FromLocation(location)->MakeWeak(parameter,
                                          weak_reference_callback,
                                          near_death_callback);
 }
 
 
 void GlobalHandles::ClearWeakness(Object** location) {
-  Node::FromLocation(location)->ClearWeakness(this);
+  Node::FromLocation(location)->ClearWeakness();
 }
 
 
@@ -525,7 +529,7 @@ void GlobalHandles::MarkIndependent(Object** location) {
 
 
 void GlobalHandles::MarkPartiallyDependent(Object** location) {
-  Node::FromLocation(location)->MarkPartiallyDependent(this);
+  Node::FromLocation(location)->MarkPartiallyDependent();
 }
 
 

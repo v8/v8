@@ -593,11 +593,10 @@ void HGraph::Verify(bool do_full_verify) const {
 #endif
 
 
-HConstant* HGraph::GetConstantInt32(SetOncePointer<HConstant>* pointer,
-                                    int32_t value) {
+HConstant* HGraph::GetConstant(SetOncePointer<HConstant>* pointer,
+                               int32_t value) {
   if (!pointer->is_set()) {
-    HConstant* constant =
-        new(zone()) HConstant(value, Representation::Integer32());
+    HConstant* constant = new(zone()) HConstant(value);
     constant->InsertAfter(GetConstantUndefined());
     pointer->set(constant);
   }
@@ -606,17 +605,17 @@ HConstant* HGraph::GetConstantInt32(SetOncePointer<HConstant>* pointer,
 
 
 HConstant* HGraph::GetConstant0() {
-  return GetConstantInt32(&constant_0_, 0);
+  return GetConstant(&constant_0_, 0);
 }
 
 
 HConstant* HGraph::GetConstant1() {
-  return GetConstantInt32(&constant_1_, 1);
+  return GetConstant(&constant_1_, 1);
 }
 
 
 HConstant* HGraph::GetConstantMinus1() {
-  return GetConstantInt32(&constant_minus1_, -1);
+  return GetConstant(&constant_minus1_, -1);
 }
 
 
@@ -648,7 +647,7 @@ DEFINE_GET_CONSTANT(Null, null, HType::Tagged(), false)
 
 
 HConstant* HGraph::GetInvalidContext() {
-  return GetConstantInt32(&constant_invalid_context_, 0xFFFFC0C7);
+  return GetConstant(&constant_invalid_context_, 0xFFFFC0C7);
 }
 
 
@@ -823,9 +822,10 @@ void HGraphBuilder::IfBuilder::Deopt() {
 
 void HGraphBuilder::IfBuilder::Return(HValue* value) {
   HBasicBlock* block = builder_->current_block();
-  block->Finish(new(zone()) HReturn(value,
-                                    builder_->environment()->LookupContext(),
-                                    builder_->graph()->GetConstantMinus1()));
+  HValue* context = builder_->environment()->LookupContext();
+  HValue* parameter_count = builder_->graph()->GetConstantMinus1();
+  block->FinishExit(new(zone()) HReturn(value, context, parameter_count));
+  builder_->set_current_block(NULL);
   if (did_else_) {
     first_false_block_ = NULL;
   } else {
@@ -979,11 +979,8 @@ void HGraphBuilder::AddSimulate(BailoutId id,
 }
 
 
-HBoundsCheck* HGraphBuilder::AddBoundsCheck(HValue* index,
-                                            HValue* length,
-                                            BoundsCheckKeyMode key_mode) {
-  HBoundsCheck* result = new(graph()->zone()) HBoundsCheck(
-      index, length, key_mode);
+HBoundsCheck* HGraphBuilder::AddBoundsCheck(HValue* index, HValue* length) {
+  HBoundsCheck* result = new(graph()->zone()) HBoundsCheck(index, length);
   AddInstruction(result);
   return result;
 }
@@ -1129,7 +1126,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   Zone* zone = this->zone();
   IfBuilder length_checker(this);
 
-  length_checker.IfCompare(length, key, Token::EQ, Representation::Smi());
+  length_checker.IfCompare(length, key, Token::EQ);
   length_checker.Then();
 
   HValue* current_capacity =
@@ -1137,8 +1134,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
 
   IfBuilder capacity_checker(this);
 
-  capacity_checker.IfCompare(
-      length, current_capacity, Token::EQ, Representation::Smi());
+  capacity_checker.IfCompare(length, current_capacity, Token::EQ);
   capacity_checker.Then();
 
   HValue* context = environment()->LookupContext();
@@ -1170,7 +1166,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
 
   length_checker.Else();
 
-  AddBoundsCheck(key, length, ALLOW_SMI_KEY);
+  AddBoundsCheck(key, length);
   environment()->Push(elements);
 
   length_checker.End();
@@ -1260,11 +1256,11 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
           new(zone) HLoadExternalArrayPointer(elements);
       AddInstruction(external_elements);
       IfBuilder length_checker(this);
-      length_checker.IfCompare(key, length, Token::LT, Representation::Smi());
+      length_checker.IfCompare(key, length, Token::LT);
       length_checker.Then();
       IfBuilder negative_checker(this);
       HValue* bounds_check = negative_checker.IfCompare(
-          key, graph()->GetConstant0(), Token::GTE, Representation::Smi());
+          key, graph()->GetConstant0(), Token::GTE);
       negative_checker.Then();
       HInstruction* result = BuildExternalArrayElementAccess(
           external_elements, key, val, bounds_check,
@@ -1275,7 +1271,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       return result;
     } else {
       ASSERT(store_mode == STANDARD_STORE);
-      checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
+      checked_key = AddBoundsCheck(key, length);
       HLoadExternalArrayPointer* external_elements =
           new(zone) HLoadExternalArrayPointer(elements);
       AddInstruction(external_elements);
@@ -1303,7 +1299,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
                                          length, key, is_js_array);
     checked_key = key;
   } else {
-    checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
+    checked_key = AddBoundsCheck(key, length);
 
     if (is_store && (fast_elements || fast_smi_only_elements)) {
       if (store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
@@ -1471,13 +1467,11 @@ void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
                                                     : kPointerSize;
   int max_size = heap->MaxRegularSpaceAllocationSize() / element_size;
   max_size -= JSArray::kSize / element_size;
-  HConstant* max_size_constant =
-      new(zone) HConstant(max_size, Representation::Integer32());
+  HConstant* max_size_constant = new(zone) HConstant(max_size);
   AddInstruction(max_size_constant);
   // Since we're forcing Integer32 representation for this HBoundsCheck,
   // there's no need to Smi-check the index.
-  AddInstruction(new(zone) HBoundsCheck(
-      length, max_size_constant, DONT_ALLOW_SMI_KEY));
+  AddInstruction(new(zone) HBoundsCheck(length, max_size_constant));
 }
 
 
@@ -1545,8 +1539,7 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* context,
 
   if (unfold_loop) {
     for (int i = 0; i < initial_capacity; i++) {
-      HInstruction* key = AddInstruction(new(zone)
-                             HConstant(i, Representation::Integer32()));
+      HInstruction* key = AddInstruction(new(zone) HConstant(i));
       AddInstruction(new(zone) HStoreKeyed(elements, key, hole, elements_kind));
     }
   } else {
@@ -1593,7 +1586,10 @@ void HGraphBuilder::BuildCopyElements(HValue* context,
       ? FAST_HOLEY_ELEMENTS : to_elements_kind;
   HInstruction* holey_store = AddInstruction(
       new(zone()) HStoreKeyed(to_elements, key, element, holey_kind));
-  holey_store->ClearFlag(HValue::kDeoptimizeOnUndefined);
+  // Allow NaN hole values to converted to their tagged counterparts.
+  if (IsFastHoleyElementsKind(to_elements_kind)) {
+    holey_store->SetFlag(HValue::kAllowUndefinedAsNaN);
+  }
 
   builder.EndBody();
 
@@ -1669,8 +1665,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
     // copying loops with constant length up to a given boundary and use this
     // helper here instead.
     for (int i = 0; i < length; i++) {
-      HValue* key_constant =
-          AddInstruction(new(zone) HConstant(i, Representation::Integer32()));
+      HValue* key_constant = AddInstruction(new(zone) HConstant(i));
       HInstruction* value =
           AddInstruction(new(zone) HLoadKeyed(boilerplate_elements,
                                               key_constant,
@@ -3108,8 +3103,8 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   // change instructions for them.
   HInstruction* new_value = NULL;
   bool is_truncating = use_value->CheckFlag(HValue::kTruncatingToInt32);
-  bool deoptimize_on_undefined =
-      use_value->CheckFlag(HValue::kDeoptimizeOnUndefined);
+  bool allow_undefined_as_nan =
+      use_value->CheckFlag(HValue::kAllowUndefinedAsNaN);
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
@@ -3120,7 +3115,7 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
 
   if (new_value == NULL) {
     new_value = new(zone()) HChange(value, to,
-                                    is_truncating, deoptimize_on_undefined);
+                                    is_truncating, allow_undefined_as_nan);
   }
 
   new_value->InsertBefore(next);
@@ -3227,8 +3222,8 @@ void HGraph::InsertRepresentationChanges() {
 
 
 void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
-  if (phi->CheckFlag(HValue::kDeoptimizeOnUndefined)) return;
-  phi->SetFlag(HValue::kDeoptimizeOnUndefined);
+  if (!phi->CheckFlag(HValue::kAllowUndefinedAsNaN)) return;
+  phi->ClearFlag(HValue::kAllowUndefinedAsNaN);
   for (int i = 0; i < phi->OperandCount(); ++i) {
     HValue* input = phi->OperandAt(i);
     if (input->IsPhi()) {
@@ -3248,16 +3243,11 @@ void HGraph::MarkDeoptimizeOnUndefined() {
   // if one of its uses has this flag set.
   for (int i = 0; i < phi_list()->length(); i++) {
     HPhi* phi = phi_list()->at(i);
-    if (phi->representation().IsDouble()) {
-      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-        int use_index = it.index();
-        HValue* use_value = it.value();
-        Representation req = use_value->RequiredInputRepresentation(use_index);
-        if (!req.IsDouble() ||
-            use_value->CheckFlag(HValue::kDeoptimizeOnUndefined)) {
-          RecursivelyMarkPhiDeoptimizeOnUndefined(phi);
-          break;
-        }
+    for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+      HValue* use_value = it.value();
+      if (!use_value->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
+        RecursivelyMarkPhiDeoptimizeOnUndefined(phi);
+        break;
       }
     }
   }
@@ -5348,8 +5338,7 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
 
   HInstruction* enum_length = AddInstruction(new(zone()) HMapEnumLength(map));
 
-  HInstruction* start_index = AddInstruction(new(zone()) HConstant(
-      Handle<Object>(Smi::FromInt(0), isolate()), Representation::Integer32()));
+  HInstruction* start_index = AddInstruction(new(zone()) HConstant(0));
 
   Push(map);
   Push(array);
@@ -6086,9 +6075,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
     elements = AddLoadElements(literal);
 
-    HValue* key = AddInstruction(
-        new(zone()) HConstant(Handle<Object>(Smi::FromInt(i), isolate()),
-                              Representation::Integer32()));
+    HValue* key = AddInstruction(new(zone()) HConstant(i));
 
     switch (boilerplate_elements_kind) {
       case FAST_SMI_ELEMENTS:
@@ -7283,7 +7270,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
             typecheck, Representation::Smi());
         length->set_type(HType::Smi());
 
-        checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
+        checked_key = AddBoundsCheck(key, length);
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind_branch,
             elements_kind, is_store, NEVER_RETURN_HOLE, STANDARD_STORE));
@@ -7301,7 +7288,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
         set_current_block(if_fastobject);
         length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
-        checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
+        checked_key = AddBoundsCheck(key, length);
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind_branch,
             elements_kind, is_store, NEVER_RETURN_HOLE, STANDARD_STORE));
@@ -7439,9 +7426,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
       // Number of arguments without receiver.
       int argument_count = environment()->
           arguments_environment()->parameter_count() - 1;
-      result = new(zone()) HConstant(
-          Handle<Object>(Smi::FromInt(argument_count), isolate()),
-          Representation::Integer32());
+      result = new(zone()) HConstant(argument_count);
     }
   } else {
     Push(graph()->GetArgumentsObject());
@@ -7464,8 +7449,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
       int argument_count = environment()->
           arguments_environment()->parameter_count() - 1;
       HInstruction* length = AddInstruction(new(zone()) HConstant(
-          Handle<Object>(Smi::FromInt(argument_count), isolate()),
-          Representation::Integer32()));
+          argument_count));
       HInstruction* checked_key = AddBoundsCheck(key, length);
       result = new(zone()) HAccessArgumentsAt(elements, length, checked_key);
     }
@@ -8335,10 +8319,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
             result =
                 HUnaryMathOperation::New(zone(), context, left, kMathPowHalf);
           } else if (exponent == -0.5) {
-            HConstant* double_one =
-                new(zone()) HConstant(Handle<Object>(Smi::FromInt(1),
-                                                     isolate()),
-                                      Representation::Double());
+            HConstant* double_one = new(zone()) HConstant(
+                1, Representation::Double());
             AddInstruction(double_one);
             HInstruction* sqrt =
                 HUnaryMathOperation::New(zone(), context, left, kMathPowHalf);
@@ -9292,7 +9274,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
       if (i < 0 || i >= s->length()) {
         return new(zone()) HConstant(OS::nan_value(), Representation::Double());
       }
-      return new(zone()) HConstant(s->Get(i), Representation::Integer32());
+      return new(zone()) HConstant(s->Get(i));
     }
   }
   BuildCheckNonSmi(string);
@@ -10094,8 +10076,7 @@ void HOptimizedGraphBuilder::BuildEmitElements(
 
   int elements_length = elements->length();
   HValue* object_elements_length =
-      AddInstruction(new(zone) HConstant(
-          elements_length, Representation::Integer32()));
+      AddInstruction(new(zone) HConstant(elements_length));
 
   BuildInitializeElementsHeader(object_elements, kind, object_elements_length);
 
@@ -10120,14 +10101,13 @@ void HOptimizedGraphBuilder::BuildEmitFixedDoubleArray(
       elements, Representation::Tagged()));
   int elements_length = elements->length();
   for (int i = 0; i < elements_length; i++) {
-    HValue* key_constant =
-        AddInstruction(new(zone) HConstant(i, Representation::Integer32()));
+    HValue* key_constant = AddInstruction(new(zone) HConstant(i));
     HInstruction* value_instruction =
         AddInstruction(new(zone) HLoadKeyed(
             boilerplate_elements, key_constant, NULL, kind, ALLOW_RETURN_HOLE));
     HInstruction* store = AddInstruction(new(zone) HStoreKeyed(
         object_elements, key_constant, value_instruction, kind));
-    store->ClearFlag(HValue::kDeoptimizeOnUndefined);
+    store->SetFlag(HValue::kAllowUndefinedAsNaN);
   }
 }
 
@@ -10148,8 +10128,7 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
       Handle<FixedArray>::cast(original_elements);
   for (int i = 0; i < elements_length; i++) {
     Handle<Object> value(fast_elements->get(i), isolate());
-    HValue* key_constant =
-        AddInstruction(new(zone) HConstant(i, Representation::Integer32()));
+    HValue* key_constant = AddInstruction(new(zone) HConstant(i));
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
       Handle<JSObject> original_value_object = Handle<JSObject>::cast(

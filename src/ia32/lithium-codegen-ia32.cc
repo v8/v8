@@ -1751,7 +1751,11 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  ASSERT(instr->result()->IsRegister());
+  __ Set(ToRegister(instr->result()), Immediate(instr->value()));
+}
+
+
+void LCodeGen::DoConstantS(LConstantS* instr) {
   __ Set(ToRegister(instr->result()), Immediate(instr->value()));
 }
 
@@ -2124,14 +2128,16 @@ void LCodeGen::EmitBranch(int left_block, int right_block, Condition cc) {
 void LCodeGen::DoBranch(LBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
-  CpuFeatureScope scope(masm(), SSE2);
 
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsSmiOrInteger32()) {
+    ASSERT(!info()->IsStub());
     Register reg = ToRegister(instr->value());
     __ test(reg, Operand(reg));
     EmitBranch(true_block, false_block, not_zero);
   } else if (r.IsDouble()) {
+    ASSERT(!info()->IsStub());
+    CpuFeatureScope scope(masm(), SSE2);
     XMMRegister reg = ToDoubleRegister(instr->value());
     __ xorps(xmm0, xmm0);
     __ ucomisd(reg, xmm0);
@@ -2141,9 +2147,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
     Register reg = ToRegister(instr->value());
     HType type = instr->hydrogen()->value()->type();
     if (type.IsBoolean()) {
+      ASSERT(!info()->IsStub());
       __ cmp(reg, factory()->true_value());
       EmitBranch(true_block, false_block, equal);
     } else if (type.IsSmi()) {
+      ASSERT(!info()->IsStub());
       __ test(reg, Operand(reg));
       EmitBranch(true_block, false_block, not_equal);
     } else {
@@ -2227,8 +2235,15 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
                factory()->heap_number_map());
         __ j(not_equal, &not_heap_number, Label::kNear);
-        __ xorps(xmm0, xmm0);
-        __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+        if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+          CpuFeatureScope scope(masm(), SSE2);
+          __ xorps(xmm0, xmm0);
+          __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+        } else {
+          __ fldz();
+          __ fld_d(FieldOperand(reg, HeapNumber::kValueOffset));
+          __ FCmp();
+        }
         __ j(zero, false_label);
         __ jmp(true_label);
         __ bind(&not_heap_number);
@@ -5080,7 +5095,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
                                       Register temp_reg,
-                                      bool deoptimize_on_undefined,
+                                      bool allow_undefined_as_nan,
                                       bool deoptimize_on_minus_zero,
                                       LEnvironment* env,
                                       NumberUntagDMode mode) {
@@ -5095,7 +5110,7 @@ void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
     // Heap number map check.
     __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
            factory()->heap_number_map());
-    if (deoptimize_on_undefined) {
+    if (!allow_undefined_as_nan) {
       DeoptimizeIf(not_equal, env);
     } else {
       Label heap_number, convert;
@@ -5152,7 +5167,7 @@ void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 Register temp_reg,
                                 XMMRegister result_reg,
-                                bool deoptimize_on_undefined,
+                                bool allow_undefined_as_nan,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
@@ -5167,7 +5182,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     // Heap number map check.
     __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
            factory()->heap_number_map());
-    if (deoptimize_on_undefined) {
+    if (!allow_undefined_as_nan) {
       DeoptimizeIf(not_equal, env);
     } else {
       Label heap_number, convert;
@@ -5337,15 +5352,20 @@ void LCodeGen::DoDeferredTaggedToINoSSE2(LTaggedToINoSSE2* instr) {
   // Heap number map check.
   __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
          factory()->heap_number_map());
-  __ j(equal, &heap_number, Label::kNear);
-  // Check for undefined. Undefined is converted to zero for truncating
-  // conversions.
-  __ cmp(input_reg, factory()->undefined_value());
-  __ RecordComment("Deferred TaggedToI: cannot truncate");
-  DeoptimizeIf(not_equal, instr->environment());
-  __ xor_(result_reg, result_reg);
-  __ jmp(&done, Label::kFar);
-  __ bind(&heap_number);
+  if (instr->truncating()) {
+    __ j(equal, &heap_number, Label::kNear);
+    // Check for undefined. Undefined is converted to zero for truncating
+    // conversions.
+    __ cmp(input_reg, factory()->undefined_value());
+    __ RecordComment("Deferred TaggedToI: cannot truncate");
+    DeoptimizeIf(not_equal, instr->environment());
+    __ xor_(result_reg, result_reg);
+    __ jmp(&done, Label::kFar);
+    __ bind(&heap_number);
+  } else {
+    // Deoptimize if we don't have a heap number.
+    DeoptimizeIf(not_equal, instr->environment());
+  }
 
   // Surprisingly, all of this crazy bit manipulation is considerably
   // faster than using the built-in x86 CPU conversion functions (about 6x).
@@ -5515,14 +5535,14 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
     EmitNumberUntagD(input_reg,
                      temp_reg,
                      result_reg,
-                     instr->hydrogen()->deoptimize_on_undefined(),
+                     instr->hydrogen()->allow_undefined_as_nan(),
                      deoptimize_on_minus_zero,
                      instr->environment(),
                      mode);
   } else {
     EmitNumberUntagDNoSSE2(input_reg,
                            temp_reg,
-                           instr->hydrogen()->deoptimize_on_undefined(),
+                           instr->hydrogen()->allow_undefined_as_nan(),
                            deoptimize_on_minus_zero,
                            instr->environment(),
                            mode);

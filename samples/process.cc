@@ -25,11 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(dcarney): remove this
-#define V8_ALLOW_ACCESS_TO_RAW_HANDLE_CONSTRUCTOR
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
-
 #include <v8.h>
 
 #include <string>
@@ -186,7 +181,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
   // The script compiled and ran correctly.  Now we fetch out the
   // Process function from the global object.
   Handle<String> process_name = String::New("Process");
-  Handle<Value> process_val = context_->Global()->Get(process_name);
+  Handle<Value> process_val = context->Global()->Get(process_name);
 
   // If there is no Process function, or if it is not a function,
   // bail out
@@ -197,7 +192,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
 
   // Store the function in a Persistent handle, since we also want
   // that to remain after this call returns
-  process_ = Persistent<Function>::New(GetIsolate(), process_fun);
+  process_.Reset(GetIsolate(), process_fun);
 
   // All done; all went well
   return true;
@@ -240,11 +235,14 @@ bool JsHttpRequestProcessor::InstallMaps(map<string, string>* opts,
   // Wrap the map object in a JavaScript wrapper
   Handle<Object> opts_obj = WrapMap(opts);
 
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(GetIsolate(), context_);
+
   // Set the options object as a property on the global object.
-  context_->Global()->Set(String::New("options"), opts_obj);
+  context->Global()->Set(String::New("options"), opts_obj);
 
   Handle<Object> output_obj = WrapMap(output);
-  context_->Global()->Set(String::New("output"), output_obj);
+  context->Global()->Set(String::New("output"), output_obj);
 
   return true;
 }
@@ -271,7 +269,9 @@ bool JsHttpRequestProcessor::Process(HttpRequest* request) {
   // and one argument, the request.
   const int argc = 1;
   Handle<Value> argv[argc] = { request_obj };
-  Handle<Value> result = process_->Call(context_->Global(), argc, argv);
+  v8::Local<v8::Function> process =
+      v8::Local<v8::Function>::New(GetIsolate(), process_);
+  Handle<Value> result = process->Call(context->Global(), argc, argv);
   if (result.IsEmpty()) {
     String::Utf8Value error(try_catch.Exception());
     Log(*error);
@@ -310,7 +310,7 @@ Handle<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
   // It only has to be created once, which we do on demand.
   if (map_template_.IsEmpty()) {
     Handle<ObjectTemplate> raw_template = MakeMapTemplate(GetIsolate());
-    map_template_ = Persistent<ObjectTemplate>::New(GetIsolate(), raw_template);
+    map_template_.Reset(GetIsolate(), raw_template);
   }
   Handle<ObjectTemplate> templ =
       Local<ObjectTemplate>::New(GetIsolate(), map_template_);
@@ -417,8 +417,7 @@ Handle<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
   // It only has to be created once, which we do on demand.
   if (request_template_.IsEmpty()) {
     Handle<ObjectTemplate> raw_template = MakeRequestTemplate(GetIsolate());
-    request_template_ =
-        Persistent<ObjectTemplate>::New(GetIsolate(), raw_template);
+    request_template_.Reset(GetIsolate(), raw_template);
   }
   Handle<ObjectTemplate> templ =
       Local<ObjectTemplate>::New(GetIsolate(), request_template_);

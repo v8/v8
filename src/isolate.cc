@@ -2245,6 +2245,7 @@ bool Isolate::Init(Deserializer* des) {
     stub.InitializeInterfaceDescriptor(
         this, code_stub_interface_descriptor(CodeStub::FastCloneShallowArray));
     CompareNilICStub::InitializeForIsolate(this);
+    ToBooleanStub::InitializeForIsolate(this);
     ArrayConstructorStubBase::InstallDescriptors(this);
   }
 
