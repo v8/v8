@@ -5665,14 +5665,22 @@ template<typename T>
 template<typename S>
 void ReturnValue<T>::Set(const Persistent<S>& handle) {
   TYPE_CHECK(T, S);
-  *value_ = *reinterpret_cast<internal::Object**>(*handle);
+  if (V8_UNLIKELY(handle.IsEmpty())) {
+    SetUndefined();
+  } else {
+    *value_ = *reinterpret_cast<internal::Object**>(*handle);
+  }
 }
 
 template<typename T>
 template<typename S>
 void ReturnValue<T>::Set(const Handle<S> handle) {
   TYPE_CHECK(T, S);
-  *value_ = *reinterpret_cast<internal::Object**>(*handle);
+  if (V8_UNLIKELY(handle.IsEmpty())) {
+    SetUndefined();
+  } else {
+    *value_ = *reinterpret_cast<internal::Object**>(*handle);
+  }
 }
 
 template<typename T>

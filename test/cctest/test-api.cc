@@ -1029,6 +1029,7 @@ static const double kFastReturnValueDouble = 2.7;
 // variable return values
 static bool fast_return_value_bool = false;
 static bool fast_return_value_void_is_null = false;
+static bool fast_return_value_object_is_empty = false;
 
 template<>
 void FastReturnValueCallback<int32_t>(
@@ -1072,7 +1073,9 @@ void FastReturnValueCallback<void>(
 template<>
 void FastReturnValueCallback<Object>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(Object::New());
+  v8::Handle<v8::Object> object;
+  if (!fast_return_value_object_is_empty) object = Object::New();
+  info.GetReturnValue().Set(object);
 }
 
 template<typename T>
@@ -1119,8 +1122,13 @@ THREADED_TEST(FastReturnValues) {
       CHECK(value->IsUndefined());
     }
   }
+  // check handles
+  fast_return_value_object_is_empty = false;
   value = TestFastReturnValues<Object>();
   CHECK(value->IsObject());
+  fast_return_value_object_is_empty = true;
+  value = TestFastReturnValues<Object>();
+  CHECK(value->IsUndefined());
 }
 
 
