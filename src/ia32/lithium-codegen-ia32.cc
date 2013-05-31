@@ -5352,15 +5352,20 @@ void LCodeGen::DoDeferredTaggedToINoSSE2(LTaggedToINoSSE2* instr) {
   // Heap number map check.
   __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
          factory()->heap_number_map());
-  __ j(equal, &heap_number, Label::kNear);
-  // Check for undefined. Undefined is converted to zero for truncating
-  // conversions.
-  __ cmp(input_reg, factory()->undefined_value());
-  __ RecordComment("Deferred TaggedToI: cannot truncate");
-  DeoptimizeIf(not_equal, instr->environment());
-  __ xor_(result_reg, result_reg);
-  __ jmp(&done, Label::kFar);
-  __ bind(&heap_number);
+  if (instr->truncating()) {
+    __ j(equal, &heap_number, Label::kNear);
+    // Check for undefined. Undefined is converted to zero for truncating
+    // conversions.
+    __ cmp(input_reg, factory()->undefined_value());
+    __ RecordComment("Deferred TaggedToI: cannot truncate");
+    DeoptimizeIf(not_equal, instr->environment());
+    __ xor_(result_reg, result_reg);
+    __ jmp(&done, Label::kFar);
+    __ bind(&heap_number);
+  } else {
+    // Deoptimize if we don't have a heap number.
+    DeoptimizeIf(not_equal, instr->environment());
+  }
 
   // Surprisingly, all of this crazy bit manipulation is considerably
   // faster than using the built-in x86 CPU conversion functions (about 6x).

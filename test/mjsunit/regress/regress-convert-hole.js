@@ -95,6 +95,7 @@ function f_external(test, test2, test3, a, i) {
     d = d|0;
   }
   a[d] = 1;
+  assertEquals(1, a[d]);
   return d;
 }
 
