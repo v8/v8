@@ -3435,6 +3435,7 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
           top_scope_->DeclarationScope()->RecordEvalCall();
         }
         result = factory()->NewCall(result, args, pos);
+        if (fni_ != NULL) fni_->RemoveLastFunction();
         break;
       }
 

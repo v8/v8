@@ -258,6 +258,57 @@ TEST(MultipleFuncsInLiteral) {
 }
 
 
+TEST(AnonymousInAnonymousClosure1) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Handle<v8::Script> script = Compile(
+      "(function() {\n"
+      "  (function() {\n"
+      "      var a = 1;\n"
+      "      return;\n"
+      "  })();\n"
+      "  var b = function() {\n"
+      "      var c = 1;\n"
+      "      return;\n"
+      "  };\n"
+      "})();");
+  CheckFunctionName(script, "return", "");
+}
+
+
+TEST(AnonymousInAnonymousClosure2) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Handle<v8::Script> script = Compile(
+      "(function() {\n"
+      "  (function() {\n"
+      "      var a = 1;\n"
+      "      return;\n"
+      "  })();\n"
+      "  var c = 1;\n"
+      "})();");
+  CheckFunctionName(script, "return", "");
+}
+
+
+TEST(NamedInAnonymousClosure) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Handle<v8::Script> script = Compile(
+      "var foo = function() {\n"
+      "  (function named() {\n"
+      "      var a = 1;\n"
+      "  })();\n"
+      "  var c = 1;\n"
+      "  return;\n"
+      "};");
+  CheckFunctionName(script, "return", "foo");
+}
+
+
 // See http://code.google.com/p/v8/issues/detail?id=380
 TEST(Issue380) {
   CcTest::InitializeVM();
