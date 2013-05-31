@@ -10059,7 +10059,9 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
       HConstant(isolate()->factory()->one_pointer_filler_map(),
           Representation::Tagged()));
   for (int i = copied_fields; i < inobject_properties; i++) {
-    HObjectAccess access = HObjectAccess::ForJSObjectOffset(i);
+    ASSERT(boilerplate_object->IsJSObject());
+    int property_offset = boilerplate_object->GetInObjectPropertyOffset(i);
+    HObjectAccess access = HObjectAccess::ForJSObjectOffset(property_offset);
     AddStore(object_properties, access, value_instruction);
   }
 }
