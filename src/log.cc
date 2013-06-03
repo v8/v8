@@ -1581,57 +1581,55 @@ static int EnumerateCompiledFunctions(Heap* heap,
 
 
 void Logger::LogCodeObject(Object* object) {
-  if (FLAG_log_code || FLAG_ll_prof || is_logging_code_events()) {
-    Code* code_object = Code::cast(object);
-    LogEventsAndTags tag = Logger::STUB_TAG;
-    const char* description = "Unknown code from the snapshot";
-    switch (code_object->kind()) {
-      case Code::FUNCTION:
-      case Code::OPTIMIZED_FUNCTION:
-        return;  // We log this later using LogCompiledFunctions.
-      case Code::UNARY_OP_IC:   // fall through
-      case Code::BINARY_OP_IC:   // fall through
-      case Code::COMPARE_IC:  // fall through
-      case Code::COMPARE_NIL_IC:   // fall through
-      case Code::TO_BOOLEAN_IC:  // fall through
-      case Code::STUB:
-        description =
-            CodeStub::MajorName(CodeStub::GetMajorKey(code_object), true);
-        if (description == NULL)
-          description = "A stub from the snapshot";
-        tag = Logger::STUB_TAG;
-        break;
-      case Code::BUILTIN:
-        description = "A builtin from the snapshot";
-        tag = Logger::BUILTIN_TAG;
-        break;
-      case Code::KEYED_LOAD_IC:
-        description = "A keyed load IC from the snapshot";
-        tag = Logger::KEYED_LOAD_IC_TAG;
-        break;
-      case Code::LOAD_IC:
-        description = "A load IC from the snapshot";
-        tag = Logger::LOAD_IC_TAG;
-        break;
-      case Code::STORE_IC:
-        description = "A store IC from the snapshot";
-        tag = Logger::STORE_IC_TAG;
-        break;
-      case Code::KEYED_STORE_IC:
-        description = "A keyed store IC from the snapshot";
-        tag = Logger::KEYED_STORE_IC_TAG;
-        break;
-      case Code::CALL_IC:
-        description = "A call IC from the snapshot";
-        tag = Logger::CALL_IC_TAG;
-        break;
-      case Code::KEYED_CALL_IC:
-        description = "A keyed call IC from the snapshot";
-        tag = Logger::KEYED_CALL_IC_TAG;
-        break;
-    }
-    PROFILE(isolate_, CodeCreateEvent(tag, code_object, description));
+  Code* code_object = Code::cast(object);
+  LogEventsAndTags tag = Logger::STUB_TAG;
+  const char* description = "Unknown code from the snapshot";
+  switch (code_object->kind()) {
+    case Code::FUNCTION:
+    case Code::OPTIMIZED_FUNCTION:
+      return;  // We log this later using LogCompiledFunctions.
+    case Code::UNARY_OP_IC:   // fall through
+    case Code::BINARY_OP_IC:   // fall through
+    case Code::COMPARE_IC:  // fall through
+    case Code::COMPARE_NIL_IC:   // fall through
+    case Code::TO_BOOLEAN_IC:  // fall through
+    case Code::STUB:
+      description =
+          CodeStub::MajorName(CodeStub::GetMajorKey(code_object), true);
+      if (description == NULL)
+        description = "A stub from the snapshot";
+      tag = Logger::STUB_TAG;
+      break;
+    case Code::BUILTIN:
+      description = "A builtin from the snapshot";
+      tag = Logger::BUILTIN_TAG;
+      break;
+    case Code::KEYED_LOAD_IC:
+      description = "A keyed load IC from the snapshot";
+      tag = Logger::KEYED_LOAD_IC_TAG;
+      break;
+    case Code::LOAD_IC:
+      description = "A load IC from the snapshot";
+      tag = Logger::LOAD_IC_TAG;
+      break;
+    case Code::STORE_IC:
+      description = "A store IC from the snapshot";
+      tag = Logger::STORE_IC_TAG;
+      break;
+    case Code::KEYED_STORE_IC:
+      description = "A keyed store IC from the snapshot";
+      tag = Logger::KEYED_STORE_IC_TAG;
+      break;
+    case Code::CALL_IC:
+      description = "A call IC from the snapshot";
+      tag = Logger::CALL_IC_TAG;
+      break;
+    case Code::KEYED_CALL_IC:
+      description = "A keyed call IC from the snapshot";
+      tag = Logger::KEYED_CALL_IC_TAG;
+      break;
   }
+  PROFILE(isolate_, CodeCreateEvent(tag, code_object, description));
 }
 
 
