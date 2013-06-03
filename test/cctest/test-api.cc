@@ -4350,7 +4350,7 @@ THREADED_TEST(Equality) {
 
   v8::Handle<v8::Object> obj = v8::Object::New();
   v8::Persistent<v8::Object> alias(isolate, obj);
-  CHECK(alias->StrictEquals(obj));
+  CHECK(v8::Local<v8::Object>::New(isolate, alias)->StrictEquals(obj));
   alias.Dispose(isolate);
 }
 
@@ -6084,7 +6084,8 @@ v8::Handle<Value> WhammyPropertyGetter(Local<String> name,
 
   v8::Handle<v8::Object> obj = v8::Object::New();
   if (!prev.IsEmpty()) {
-    prev->Set(v8_str("next"), obj);
+    v8::Local<v8::Object>::New(info.GetIsolate(), prev)
+        ->Set(v8_str("next"), obj);
     prev.MakeWeak<Value, Snorkel>(info.GetIsolate(),
                                   new Snorkel(),
                                   &HandleWeakReference);
@@ -6237,10 +6238,11 @@ THREADED_TEST(IndependentHandleRevival) {
   v8::Persistent<v8::Object> object;
   {
     v8::HandleScope handle_scope(isolate);
-    object.Reset(isolate, v8::Object::New());
-    object->Set(v8_str("x"), v8::Integer::New(1));
+    v8::Local<v8::Object> o = v8::Object::New();
+    object.Reset(isolate, o);
+    o->Set(v8_str("x"), v8::Integer::New(1));
     v8::Local<String> y_str = v8_str("y");
-    object->Set(y_str, y_str);
+    o->Set(y_str, y_str);
   }
   bool revived = false;
   object.MakeWeak(isolate, &revived, &RevivingCallback);
@@ -6250,9 +6252,10 @@ THREADED_TEST(IndependentHandleRevival) {
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   {
     v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Object> o = v8::Local<v8::Object>::New(isolate, object);
     v8::Local<String> y_str = v8_str("y");
-    CHECK_EQ(v8::Integer::New(1), object->Get(v8_str("x")));
-    CHECK(object->Get(y_str)->Equals(y_str));
+    CHECK_EQ(v8::Integer::New(1), o->Get(v8_str("x")));
+    CHECK(o->Get(y_str)->Equals(y_str));
   }
 }
 
@@ -12465,10 +12468,13 @@ THREADED_TEST(DisposeEnteredContext) {
   }
   v8::HandleScope scope(isolate);
   {
-    inner->Enter();
-    inner.Dispose(inner->GetIsolate());
+    // Don't want a handle here, so do this unsafely
+    v8::Handle<v8::Context> inner_local =
+        *reinterpret_cast<v8::Handle<v8::Context>*>(&inner);
+    inner_local->Enter();
+    inner.Dispose();
     inner.Clear();
-    inner->Exit();
+    inner_local->Exit();
   }
 }
 
@@ -12487,7 +12493,8 @@ THREADED_TEST(Regress54) {
     local->SetInternalFieldCount(1);
     templ.Reset(isolate, inner.Close(local));
   }
-  v8::Handle<v8::Object> result = templ->NewInstance();
+  v8::Handle<v8::Object> result =
+      v8::Local<v8::ObjectTemplate>::New(isolate, templ)->NewInstance();
   CHECK_EQ(1, result->InternalFieldCount());
 }
 
@@ -17148,10 +17155,10 @@ TEST(RunTwoIsolatesOnSingleThread) {
 
   {
     v8::Isolate::Scope iscope(isolate2);
-    context2.Dispose(context2->GetIsolate());
+    context2.Dispose();
   }
 
-  context1.Dispose(context1->GetIsolate());
+  context1.Dispose();
   isolate1->Exit();
 
   v8::V8::SetFatalErrorHandler(StoringErrorCallback);

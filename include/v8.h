@@ -764,10 +764,7 @@ template <class T> class Persistent // NOLINT
 
 #ifndef V8_USE_UNSAFE_HANDLES
 
-#ifndef V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
  private:
-#endif
   // TODO(dcarney): make unlinkable before cutover
   V8_INLINE(Persistent(const Persistent& that)) : val_(that.val_) {}
   // TODO(dcarney): make unlinkable before cutover
@@ -790,11 +787,8 @@ template <class T> class Persistent // NOLINT
   }
   // TODO(dcarney): remove before cutover
   V8_INLINE(T* operator*() const) { return val_; }
- public:
-#ifndef V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
 
  private:
-#endif
   // TODO(dcarney): remove before cutover
   V8_INLINE(T* operator->() const) { return val_; }
  public:
