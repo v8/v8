@@ -423,8 +423,7 @@ TEST(WeakGlobalHandlesScavenge) {
 
   global_handles->MakeWeak(h2.location(),
                            reinterpret_cast<void*>(1234),
-                           &TestWeakGlobalHandleCallback,
-                           NULL);
+                           &TestWeakGlobalHandleCallback);
 
   // Scavenge treats weak pointers as normal roots.
   heap->PerformScavenge();
@@ -470,8 +469,7 @@ TEST(WeakGlobalHandlesMark) {
 
   global_handles->MakeWeak(h2.location(),
                            reinterpret_cast<void*>(1234),
-                           &TestWeakGlobalHandleCallback,
-                           NULL);
+                           &TestWeakGlobalHandleCallback);
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
@@ -507,8 +505,7 @@ TEST(DeleteWeakGlobalHandle) {
 
   global_handles->MakeWeak(h.location(),
                            reinterpret_cast<void*>(1234),
-                           &TestWeakGlobalHandleCallback,
-                           NULL);
+                           &TestWeakGlobalHandleCallback);
 
   // Scanvenge does not recognize weak reference.
   heap->PerformScavenge();

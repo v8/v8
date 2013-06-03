@@ -627,12 +627,10 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 
 void V8::MakeWeak(i::Object** object,
                   void* parameters,
-                  RevivableCallback weak_reference_callback,
-                  NearDeathCallback near_death_callback) {
+                  RevivableCallback weak_reference_callback) {
   i::GlobalHandles::MakeWeak(object,
                              parameters,
-                             weak_reference_callback,
-                             near_death_callback);
+                             weak_reference_callback);
 }
 
 

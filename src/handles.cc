@@ -345,9 +345,9 @@ Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info) {
 // associated with the wrapper and get rid of both the wrapper and the
 // handle.
 static void ClearWrapperCache(v8::Isolate* v8_isolate,
-                              Persistent<v8::Value> handle,
+                              Persistent<v8::Value>* handle,
                               void*) {
-  Handle<Object> cache = Utils::OpenHandle(*handle);
+  Handle<Object> cache = Utils::OpenHandle(**handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();
   ASSERT(foreign->foreign_address() ==
@@ -387,7 +387,6 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   // garbage collector when it is not used anymore.
   Handle<Object> handle = isolate->global_handles()->Create(*result);
   isolate->global_handles()->MakeWeak(handle.location(),
-                                      NULL,
                                       NULL,
                                       &ClearWrapperCache);
   script->wrapper()->set_foreign_address(

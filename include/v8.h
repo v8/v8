@@ -214,11 +214,6 @@ class WeakReferenceCallbacks {
                             P* parameter);
 };
 
-// TODO(svenpanne) Temporary definition until Chrome is in sync.
-typedef void (*NearDeathCallback)(Isolate* isolate,
-                                  Persistent<Value> object,
-                                  void* parameter);
-
 // --- Handles ---
 
 #define TYPE_CHECK(T, S)                                       \
@@ -675,11 +670,6 @@ template <class T> class Persistent // NOLINT
       typename WeakReferenceCallbacks<T, P>::Revivable callback)) {
     MakeWeak<P>(parameters, callback);
   }
-
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(void MakeWeak(Isolate* isolate,
-                          void* parameters,
-                          NearDeathCallback callback));
 
   V8_INLINE(void ClearWeak());
 
@@ -4606,8 +4596,7 @@ class V8EXPORT V8 {
   typedef WeakReferenceCallbacks<Value, void>::Revivable RevivableCallback;
   static void MakeWeak(internal::Object** global_handle,
                        void* data,
-                       RevivableCallback weak_reference_callback,
-                       NearDeathCallback near_death_callback);
+                       RevivableCallback weak_reference_callback);
   static void ClearWeak(internal::Object** global_handle);
 
   template <class T> friend class Handle;
@@ -5541,8 +5530,7 @@ void Persistent<T>::MakeWeak(
   typedef typename WeakReferenceCallbacks<Value, void>::Revivable Revivable;
   V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_),
                parameters,
-               reinterpret_cast<Revivable>(callback),
-               NULL);
+               reinterpret_cast<Revivable>(callback));
 }
 
 
@@ -5552,17 +5540,6 @@ void Persistent<T>::MakeWeak(
     P* parameters,
     typename WeakReferenceCallbacks<T, P>::Revivable callback) {
   MakeWeak<T, P>(parameters, callback);
-}
-
-
-template <class T>
-void Persistent<T>::MakeWeak(Isolate* isolate,
-                             void* parameters,
-                             NearDeathCallback callback) {
-  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_),
-               parameters,
-               NULL,
-               callback);
 }
 
 

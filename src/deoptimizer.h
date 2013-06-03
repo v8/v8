@@ -403,7 +403,7 @@ class Deoptimizer : public Malloced {
 
   // Weak handle callback for deoptimizing code objects.
   static void HandleWeakDeoptimizedCode(v8::Isolate* isolate,
-                                        v8::Persistent<v8::Value> obj,
+                                        v8::Persistent<v8::Value>* obj,
                                         void* data);
 
   // Deoptimize function assuming that function->next_function_link() points

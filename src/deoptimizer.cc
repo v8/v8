@@ -463,7 +463,7 @@ void Deoptimizer::DeoptimizeAllFunctionsWith(Isolate* isolate,
 
 
 void Deoptimizer::HandleWeakDeoptimizedCode(v8::Isolate* isolate,
-                                            v8::Persistent<v8::Value> obj,
+                                            v8::Persistent<v8::Value>* obj,
                                             void* parameter) {
   DeoptimizingCodeListNode* node =
       reinterpret_cast<DeoptimizingCodeListNode*>(parameter);
@@ -2750,7 +2750,6 @@ DeoptimizingCodeListNode::DeoptimizingCodeListNode(Code* code): next_(NULL) {
   code_ = Handle<Code>::cast(global_handles->Create(code));
   global_handles->MakeWeak(reinterpret_cast<Object**>(code_.location()),
                            this,
-                           NULL,
                            Deoptimizer::HandleWeakDeoptimizedCode);
 }
 
