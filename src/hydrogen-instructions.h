@@ -885,7 +885,17 @@ class HValue: public ZoneObject {
   }
   virtual void AssumeRepresentation(Representation r);
 
-  virtual bool IsConvertibleToInteger() const { return true; }
+  virtual Representation KnownOptimalRepresentation() {
+    Representation r = representation();
+    if (r.IsTagged()) {
+      HType t = type();
+      if (t.IsSmi()) return Representation::Smi();
+      if (t.IsHeapNumber()) return Representation::Double();
+      if (t.IsHeapObject()) return r;
+      return Representation::None();
+    }
+    return r;
+  }
 
   HType type() const { return type_; }
   void set_type(HType new_type) {
@@ -2449,7 +2459,7 @@ class HMapEnumLength: public HUnaryOperation {
  public:
   explicit HMapEnumLength(HValue* value) : HUnaryOperation(value) {
     set_type(HType::Smi());
-    set_representation(Representation::Tagged());
+    set_representation(Representation::Smi());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
   }
@@ -2940,8 +2950,7 @@ class HPhi: public HValue {
   HPhi(int merged_index, Zone* zone)
       : inputs_(2, zone),
         merged_index_(merged_index),
-        phi_id_(-1),
-        is_convertible_to_integer_(true) {
+        phi_id_(-1) {
     for (int i = 0; i < Representation::kNumRepresentations; i++) {
       non_phi_uses_[i] = 0;
       indirect_uses_[i] = 0;
@@ -2957,6 +2966,9 @@ class HPhi: public HValue {
   virtual void InferRepresentation(HInferRepresentation* h_infer);
   Representation RepresentationFromUseRequirements();
   virtual Representation RequiredInputRepresentation(int index) {
+    return representation();
+  }
+  virtual Representation KnownOptimalRepresentation() {
     return representation();
   }
   virtual HType CalculateInferredType();
@@ -3014,28 +3026,6 @@ class HPhi: public HValue {
   }
   virtual Opcode opcode() const { return HValue::kPhi; }
 
-  virtual bool IsConvertibleToInteger() const {
-    return is_convertible_to_integer_;
-  }
-
-  void set_is_convertible_to_integer(bool b) {
-    is_convertible_to_integer_ = b;
-  }
-
-  bool AllOperandsConvertibleToInteger() {
-    for (int i = 0; i < OperandCount(); ++i) {
-      if (!OperandAt(i)->IsConvertibleToInteger()) {
-        if (FLAG_trace_representation) {
-          HValue* input = OperandAt(i);
-          PrintF("#%d %s: Input #%d %s at %d is NCTI\n",
-                 id(), Mnemonic(), input->id(), input->Mnemonic(), i);
-        }
-        return false;
-      }
-    }
-    return true;
-  }
-
   void SimplifyConstantInputs();
 
   // TODO(titzer): we can't eliminate the receiver for generating backtraces
@@ -3059,7 +3049,6 @@ class HPhi: public HValue {
   int non_phi_uses_[Representation::kNumRepresentations];
   int indirect_uses_[Representation::kNumRepresentations];
   int phi_id_;
-  bool is_convertible_to_integer_;
 };
 
 
@@ -3196,8 +3185,11 @@ class HConstant: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  virtual bool IsConvertibleToInteger() const {
-    return has_int32_value_;
+  virtual Representation KnownOptimalRepresentation() {
+    if (HasSmiValue()) return Representation::Smi();
+    if (HasInteger32Value()) return Representation::Integer32();
+    if (HasNumberValue()) return Representation::Double();
+    return Representation::Tagged();
   }
 
   virtual bool EmitAtUses() { return !representation().IsDouble(); }
@@ -3211,9 +3203,7 @@ class HConstant: public HTemplateInstruction<0> {
     ASSERT(HasInteger32Value());
     return int32_value_;
   }
-  bool HasSmiValue() const {
-    return has_smi_value_;
-  }
+  bool HasSmiValue() const { return has_smi_value_; }
   bool HasDoubleValue() const { return has_double_value_; }
   double DoubleValue() const {
     ASSERT(HasDoubleValue());
@@ -4714,6 +4704,11 @@ class HUnknownOSRValue: public HTemplateInstruction<0> {
 
   HPhi* incoming_value() {
     return incoming_value_;
+  }
+
+  virtual Representation KnownOptimalRepresentation() {
+    if (incoming_value_ == NULL) return Representation::None();
+    return incoming_value_->KnownOptimalRepresentation();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(UnknownOSRValue)

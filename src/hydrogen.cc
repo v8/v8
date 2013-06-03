@@ -2880,23 +2880,6 @@ void HInferRepresentation::Analyze() {
   }
 
   // Use the phi reachability information from step 2 to
-  // push information about values which can't be converted to integer
-  // without deoptimization through the phi use-def chains, avoiding
-  // unnecessary deoptimizations later.
-  for (int i = 0; i < phi_count; ++i) {
-    HPhi* phi = phi_list->at(i);
-    bool cti = phi->AllOperandsConvertibleToInteger();
-    if (cti) continue;
-
-    for (BitVector::Iterator it(connected_phis.at(i));
-         !it.Done();
-         it.Advance()) {
-      HPhi* phi = phi_list->at(it.Current());
-      phi->set_is_convertible_to_integer(false);
-    }
-  }
-
-  // Use the phi reachability information from step 2 to
   // sum up the non-phi use counts of all connected phis.
   for (int i = 0; i < phi_count; ++i) {
     HPhi* phi = phi_list->at(i);
