@@ -457,16 +457,6 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
       int length = properties.length();
       for (int i = 0; i < length; i++) {
         Handle<Object> value = properties[i];
-        // If the target representation is double and the value is already
-        // double, use the existing box.
-        if (FLAG_track_double_fields && value->IsSmi()) {
-          Representation representation =
-              map->instance_descriptors()->GetDetails(i).representation();
-          if (representation.IsDouble()) {
-            value = factory()->NewHeapNumber(
-                Handle<Smi>::cast(value)->value());
-          }
-        }
         json_object->FastPropertyAtPut(i, *value);
       }
     }
