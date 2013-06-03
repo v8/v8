@@ -563,7 +563,7 @@ BUILTIN(ArrayPush) {
     }
 
     // Add the provided values.
-    AssertNoAllocation no_gc;
+    DisallowHeapAllocation no_gc;
     WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
     for (int index = 0; index < to_add; index++) {
       elms->set(index + len, args[index + 1], mode);
@@ -612,7 +612,7 @@ BUILTIN(ArrayPush) {
     }
 
     // Add the provided values.
-    AssertNoAllocation no_gc;
+    DisallowHeapAllocation no_gc;
     int index;
     for (index = 0; index < to_add; index++) {
       Object* arg = args[index + 1];
@@ -695,7 +695,7 @@ BUILTIN(ArrayShift) {
     // Shift the elements.
     if (elms_obj->IsFixedArray()) {
       FixedArray* elms = FixedArray::cast(elms_obj);
-      AssertNoAllocation no_gc;
+      DisallowHeapAllocation no_gc;
       heap->MoveElements(elms, 0, 1, len - 1);
       elms->set(len - 1, heap->the_hole_value());
     } else {
@@ -762,12 +762,12 @@ BUILTIN(ArrayUnshift) {
     elms = new_elms;
     array->set_elements(elms);
   } else {
-    AssertNoAllocation no_gc;
+    DisallowHeapAllocation no_gc;
     heap->MoveElements(elms, to_add, 0, len);
   }
 
   // Add the provided values.
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < to_add; i++) {
     elms->set(i, args[i + 1], mode);
@@ -898,7 +898,7 @@ BUILTIN(ArraySlice) {
                                                              result_len,
                                                              result_len);
 
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   if (result_len == 0) return maybe_array;
   if (!maybe_array->To(&result_array)) return maybe_array;
 
@@ -1000,7 +1000,7 @@ BUILTIN(ArraySplice) {
   if (!maybe_array->To(&result_array)) return maybe_array;
 
   if (actual_delete_count > 0) {
-    AssertNoAllocation no_gc;
+    DisallowHeapAllocation no_gc;
     ElementsAccessor* accessor = array->GetElementsAccessor();
     MaybeObject* maybe_failure = accessor->CopyElements(
         NULL, actual_start, elements_kind, result_array->elements(),
@@ -1025,7 +1025,7 @@ BUILTIN(ArraySplice) {
         MoveDoubleElements(elms, delta, elms, 0, actual_start);
       } else {
         FixedArray* elms = FixedArray::cast(elms_obj);
-        AssertNoAllocation no_gc;
+        DisallowHeapAllocation no_gc;
         heap->MoveElements(elms, delta, 0, actual_start);
       }
 
@@ -1041,7 +1041,7 @@ BUILTIN(ArraySplice) {
         FillWithHoles(elms, new_length, len);
       } else {
         FixedArray* elms = FixedArray::cast(elms_obj);
-        AssertNoAllocation no_gc;
+        DisallowHeapAllocation no_gc;
         heap->MoveElements(elms, actual_start + item_count,
                            actual_start + actual_delete_count,
                            (len - actual_delete_count - actual_start));
@@ -1062,7 +1062,7 @@ BUILTIN(ArraySplice) {
       MaybeObject* maybe_obj = heap->AllocateUninitializedFixedArray(capacity);
       if (!maybe_obj->To(&new_elms)) return maybe_obj;
 
-      AssertNoAllocation no_gc;
+      DisallowHeapAllocation no_gc;
 
       ElementsKind kind = array->GetElementsKind();
       ElementsAccessor* accessor = array->GetElementsAccessor();
@@ -1083,7 +1083,7 @@ BUILTIN(ArraySplice) {
       elms_obj = new_elms;
       elms_changed = true;
     } else {
-      AssertNoAllocation no_gc;
+      DisallowHeapAllocation no_gc;
       heap->MoveElements(elms, actual_start + item_count,
                          actual_start + actual_delete_count,
                          (len - actual_delete_count - actual_start));
@@ -1102,7 +1102,7 @@ BUILTIN(ArraySplice) {
     }
   } else {
     FixedArray* elms = FixedArray::cast(elms_obj);
-    AssertNoAllocation no_gc;
+    DisallowHeapAllocation no_gc;
     WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
     for (int k = actual_start; k < actual_start + item_count; k++) {
       elms->set(k, args[3 + k - actual_start], mode);

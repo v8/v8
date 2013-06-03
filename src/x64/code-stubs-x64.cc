@@ -3672,7 +3672,6 @@ static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
   // megamorphic.
   // rbx : cache cell for call target
   // rdi : the function to call
-  ASSERT(!FLAG_optimize_constructed_arrays);
   Isolate* isolate = masm->isolate();
   Label initialize, done;
 
@@ -3810,11 +3809,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
-    if (FLAG_optimize_constructed_arrays) {
-      GenerateRecordCallTarget(masm);
-    } else {
-      GenerateRecordCallTargetNoArray(masm);
-    }
+    GenerateRecordCallTargetNoArray(masm);
   }
 
   // Fast-case: Just invoke the function.

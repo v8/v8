@@ -85,7 +85,7 @@ class Handle {
   inline Handle<T> EscapeFrom(v8::HandleScope* scope);
 
 #ifdef DEBUG
-  bool IsDereferenceAllowed(bool allow_deferred) const;
+  bool IsDereferenceAllowed(bool explicitly_allow_deferred) const;
 #endif  // DEBUG
 
  private:
@@ -330,14 +330,17 @@ Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
                                                Handle<Object> key,
                                                Handle<Object> value);
 
-class NoHandleAllocation BASE_EMBEDDED {
+
+// Seal off the current HandleScope so that new handles can only be created
+// if a new HandleScope is entered.
+class SealHandleScope BASE_EMBEDDED {
  public:
 #ifndef DEBUG
-  explicit NoHandleAllocation(Isolate* isolate) {}
-  ~NoHandleAllocation() {}
+  explicit SealHandleScope(Isolate* isolate) {}
+  ~SealHandleScope() {}
 #else
-  explicit inline NoHandleAllocation(Isolate* isolate);
-  inline ~NoHandleAllocation();
+  explicit inline SealHandleScope(Isolate* isolate);
+  inline ~SealHandleScope();
  private:
   Isolate* isolate_;
   Object** limit_;
@@ -345,30 +348,6 @@ class NoHandleAllocation BASE_EMBEDDED {
   bool active_;
 #endif
 };
-
-
-class HandleDereferenceGuard BASE_EMBEDDED {
- public:
-  enum State { ALLOW, DISALLOW, DISALLOW_DEFERRED };
-#ifndef DEBUG
-  HandleDereferenceGuard(Isolate* isolate, State state) { }
-  ~HandleDereferenceGuard() { }
-#else
-  inline HandleDereferenceGuard(Isolate* isolate,  State state);
-  inline ~HandleDereferenceGuard();
- private:
-  Isolate* isolate_;
-  State old_state_;
-#endif
-};
-
-#ifdef DEBUG
-#define ALLOW_HANDLE_DEREF(isolate, why_this_is_safe)                          \
-  HandleDereferenceGuard allow_deref(isolate,                                  \
-                                     HandleDereferenceGuard::ALLOW);
-#else
-#define ALLOW_HANDLE_DEREF(isolate, why_this_is_safe)
-#endif  // DEBUG
 
 } }  // namespace v8::internal
 

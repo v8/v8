@@ -56,6 +56,7 @@
 #include "v8globals.h"
 #include "v8checks.h"
 #include "allocation.h"
+#include "assert-scope.h"
 #include "v8utils.h"
 #include "flags.h"
 

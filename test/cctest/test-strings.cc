@@ -345,7 +345,7 @@ void AccumulateStats(ConsString* cons_string, ConsStringStats* stats) {
 
 
 void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
-  AssertNoAllocation no_alloc;
+  DisallowHeapAllocation no_allocation;
   if (cons_string->IsConsString()) {
     return AccumulateStats(ConsString::cast(*cons_string), stats);
   }
@@ -670,7 +670,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     Handle<String> cons_string = build(i, &data);
     ConsStringStats cons_string_stats;
     AccumulateStats(cons_string, &cons_string_stats);
-    AssertNoAllocation no_alloc;
+    DisallowHeapAllocation no_allocation;
     PrintStats(data);
     // Full verify of cons string.
     cons_string_stats.VerifyEqual(flat_string_stats);

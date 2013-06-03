@@ -1031,8 +1031,7 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
 
   Handle<FixedArray> literals =
       factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
-  { ALLOW_HANDLE_DEREF(isolate(),
-                       "copying a ZoneList of handles into a FixedArray");
+  { AllowDeferredHandleDereference copy_handles;
     for (int i = 0; i < deoptimization_literals_.length(); i++) {
       literals->set(i, *deoptimization_literals_[i]);
     }
@@ -1810,7 +1809,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Register reg = ToRegister(instr->result());
   Handle<Object> handle = instr->value();
-  ALLOW_HANDLE_DEREF(isolate(), "smi check");
+  AllowDeferredHandleDereference smi_check;
   if (handle->IsHeapObject()) {
     __ LoadHeapObject(reg, Handle<HeapObject>::cast(handle));
   } else {
@@ -3063,7 +3062,7 @@ void LCodeGen::EmitPushTaggedOperand(LOperand* operand) {
   ASSERT(!operand->IsDoubleRegister());
   if (operand->IsConstantOperand()) {
     Handle<Object> object = ToHandle(LConstantOperand::cast(operand));
-    ALLOW_HANDLE_DEREF(isolate(), "smi check");
+    AllowDeferredHandleDereference smi_check;
     if (object->IsSmi()) {
       __ Push(Handle<Smi>::cast(object));
     } else {

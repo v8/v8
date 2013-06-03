@@ -1,3 +1,14 @@
+2013-06-03: Version 3.19.8
+
+        Fixed bug with inlining 'Array' function. (Chromium issue 244461)
+
+        Fixed initialization of literal objects. (Chromium issue 245424)
+
+        Fixed function name inferred inside closures. (Chromium issue 224884)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-05-31: Version 3.19.7
 
         Added support for //# sourceURL similar to deprecated //@ sourceURL one.

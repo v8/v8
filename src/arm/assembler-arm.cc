@@ -308,7 +308,7 @@ Operand::Operand(Handle<Object> handle) {
 #ifdef DEBUG
   Isolate* isolate = Isolate::Current();
 #endif
-  ALLOW_HANDLE_DEREF(isolate, "using and embedding raw address");
+  AllowDeferredHandleDereference using_raw_address;
   rm_ = no_reg;
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;

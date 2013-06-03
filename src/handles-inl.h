@@ -78,7 +78,7 @@ inline T** Handle<T>::location() const {
 
 #ifdef DEBUG
 template <typename T>
-bool Handle<T>::IsDereferenceAllowed(bool allow_deferred) const {
+bool Handle<T>::IsDereferenceAllowed(bool explicitly_allow_deferred) const {
   ASSERT(location_ != NULL);
   Object* object = *BitCast<T**>(location_);
   if (object->IsSmi()) return true;
@@ -90,22 +90,15 @@ bool Handle<T>::IsDereferenceAllowed(bool allow_deferred) const {
       handle < roots_array_start + Heap::kStrongRootListLength) {
     return true;
   }
-  if (isolate->optimizing_compiler_thread()->IsOptimizerThread() &&
-      !Heap::RelocationLock::IsLockedByOptimizerThread(isolate->heap())) {
-    return false;
+  if (!AllowHandleDereference::IsAllowed()) return false;
+  if (!explicitly_allow_deferred &&
+      !AllowDeferredHandleDereference::IsAllowed()) {
+    // Accessing maps and internalized strings is safe.
+    if (heap_object->IsMap()) return true;
+    if (heap_object->IsInternalizedString()) return true;
+    return !isolate->IsDeferredHandle(handle);
   }
-  switch (isolate->HandleDereferenceGuardState()) {
-    case HandleDereferenceGuard::ALLOW:
-      return true;
-    case HandleDereferenceGuard::DISALLOW:
-      return false;
-    case HandleDereferenceGuard::DISALLOW_DEFERRED:
-      // Accessing maps and internalized strings is safe.
-      if (heap_object->IsMap()) return true;
-      if (heap_object->IsInternalizedString()) return true;
-      return allow_deferred || !isolate->IsDeferredHandle(handle);
-  }
-  return false;
+  return true;
 }
 #endif
 
@@ -167,6 +160,7 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
 
 template <typename T>
 T** HandleScope::CreateHandle(Isolate* isolate, T* value) {
+  ASSERT(AllowHandleAllocation::IsAllowed());
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
 
@@ -184,45 +178,27 @@ T** HandleScope::CreateHandle(Isolate* isolate, T* value) {
 
 
 #ifdef DEBUG
-inline NoHandleAllocation::NoHandleAllocation(Isolate* isolate)
-    : isolate_(isolate) {
-  active_ = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
-  if (active_) {
-    // Shrink the current handle scope to make it impossible to do
-    // handle allocations without an explicit handle scope.
-    v8::ImplementationUtilities::HandleScopeData* current =
-        isolate_->handle_scope_data();
-    limit_ = current->limit;
-    current->limit = current->next;
-    level_ = current->level;
-    current->level = 0;
-  }
+inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
+  // Make sure the current thread is allowed to create handles to begin with.
+  CHECK(AllowHandleAllocation::IsAllowed());
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate_->handle_scope_data();
+  // Shrink the current handle scope to make it impossible to do
+  // handle allocations without an explicit handle scope.
+  current->limit = current->next;
+
+  level_ = current->level;
+  current->level = 0;
 }
 
 
-inline NoHandleAllocation::~NoHandleAllocation() {
-  if (active_) {
-    // Restore state in current handle scope to re-enable handle
-    // allocations.
-    v8::ImplementationUtilities::HandleScopeData* current =
-        isolate_->handle_scope_data();
-    ASSERT_EQ(0, current->level);
-    current->level = level_;
-    ASSERT_EQ(current->next, current->limit);
-    current->limit = limit_;
-  }
-}
-
-
-HandleDereferenceGuard::HandleDereferenceGuard(Isolate* isolate, State state)
-    : isolate_(isolate) {
-  old_state_ = isolate_->HandleDereferenceGuardState();
-  isolate_->SetHandleDereferenceGuardState(state);
-}
-
-
-HandleDereferenceGuard::~HandleDereferenceGuard() {
-  isolate_->SetHandleDereferenceGuardState(old_state_);
+inline SealHandleScope::~SealHandleScope() {
+  // Restore state in current handle scope to re-enable handle
+  // allocations.
+  v8::ImplementationUtilities::HandleScopeData* data =
+      isolate_->handle_scope_data();
+  ASSERT_EQ(0, data->level);
+  data->level = level_;
 }
 
 #endif

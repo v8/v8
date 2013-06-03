@@ -107,7 +107,7 @@ static Handle<Object> Invoke(bool is_construct,
     // Save and restore context around invocation and block the
     // allocation of handles without explicit handle scopes.
     SaveContext save(isolate);
-    NoHandleAllocation na(isolate);
+    SealHandleScope shs(isolate);
     JSEntryFunction stub_entry = FUNCTION_CAST<JSEntryFunction>(code->entry());
 
     // Call the function through the right JS entry stub.

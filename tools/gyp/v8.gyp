@@ -212,6 +212,7 @@
         '../../src/arguments.h',
         '../../src/assembler.cc',
         '../../src/assembler.h',
+        '../../src/assert-scope.h',
         '../../src/ast.cc',
         '../../src/ast.h',
         '../../src/atomicops.h',

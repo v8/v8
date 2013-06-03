@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,49 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8CONVERSIONS_H_
-#define V8_V8CONVERSIONS_H_
+// Flags: --allow-natives-syntax --smi-only-arrays
+// Flags: --track-allocation-sites
 
-#include "conversions.h"
-
-namespace v8 {
-namespace internal {
-
-// Convert from Number object to C integer.
-inline int32_t NumberToInt32(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
-  return DoubleToInt32(number->Number());
+function foo(arg) {
+  var a = arg();
+  return a;
 }
 
 
-inline uint32_t NumberToUint32(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
-  return DoubleToUint32(number->Number());
-}
-
-
-// Converts a string into a double value according to ECMA-262 9.3.1
-double StringToDouble(UnicodeCache* unicode_cache,
-                      String* str,
-                      int flags,
-                      double empty_string_val = 0);
-
-// Converts a string into an integer.
-double StringToInt(UnicodeCache* unicode_cache, String* str, int radix);
-
-// Converts a number into size_t.
-inline size_t NumberToSize(Isolate* isolate,
-                           Object* number) {
-  SealHandleScope shs(isolate);
-  if (number->IsSmi()) {
-    return Smi::cast(number)->value();
-  } else {
-    ASSERT(number->IsHeapNumber());
-    double value = HeapNumber::cast(number)->value();
-    return static_cast<size_t>(value);
-  }
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_V8CONVERSIONS_H_
+foo(Array);
+foo(Array);
+%OptimizeFunctionOnNextCall(foo);
+// Compilation of foo will crash without the bugfix for 244461
+foo(Array);

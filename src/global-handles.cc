@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "v8.h"
 
 #include "api.h"
@@ -92,7 +89,7 @@ class GlobalHandles::Node {
     set_partially_dependent(false);
     set_in_new_space_list(false);
     parameter_or_next_free_.next_free = NULL;
-    near_death_callback_ = NULL;
+    weak_reference_callback_ = NULL;
   }
 #endif
 
@@ -113,7 +110,7 @@ class GlobalHandles::Node {
     set_partially_dependent(false);
     set_state(NORMAL);
     parameter_or_next_free_.parameter = NULL;
-    near_death_callback_ = NULL;
+    weak_reference_callback_ = NULL;
     IncreaseBlockUses();
   }
 
@@ -126,7 +123,7 @@ class GlobalHandles::Node {
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_partially_dependent(false);
-    near_death_callback_ = NULL;
+    weak_reference_callback_ = NULL;
 #endif
     DecreaseBlockUses();
   }
@@ -232,19 +229,11 @@ class GlobalHandles::Node {
   }
 
   void MakeWeak(void* parameter,
-                RevivableCallback weak_reference_callback,
-                NearDeathCallback near_death_callback) {
+                RevivableCallback weak_reference_callback) {
     ASSERT(state() != FREE);
     set_state(WEAK);
     set_parameter(parameter);
-    if (weak_reference_callback != NULL) {
-      flags_ = IsWeakCallback::update(flags_, true);
-      near_death_callback_ =
-          reinterpret_cast<NearDeathCallback>(weak_reference_callback);
-    } else {
-      flags_ = IsWeakCallback::update(flags_, false);
-      near_death_callback_ = near_death_callback;
-    }
+    weak_reference_callback_ = weak_reference_callback;
   }
 
   void ClearWeakness() {
@@ -255,7 +244,7 @@ class GlobalHandles::Node {
 
   bool PostGarbageCollectionProcessing(Isolate* isolate) {
     if (state() != Node::PENDING) return false;
-    if (near_death_callback_ == NULL) {
+    if (weak_reference_callback_ == NULL) {
       Release();
       return false;
     }
@@ -263,7 +252,7 @@ class GlobalHandles::Node {
     set_state(NEAR_DEATH);
     set_parameter(NULL);
 
-    v8::Persistent<v8::Value> object = ToApi<v8::Value>(handle());
+    Object** object = location();
     {
       // Check that we are not passing a finalized external string to
       // the callback.
@@ -273,19 +262,9 @@ class GlobalHandles::Node {
              ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
       VMState<EXTERNAL> state(isolate);
-      if (near_death_callback_ != NULL) {
-        if (IsWeakCallback::decode(flags_)) {
-          RevivableCallback callback =
-              reinterpret_cast<RevivableCallback>(near_death_callback_);
-          callback(reinterpret_cast<v8::Isolate*>(isolate),
-                   &object,
-                   par);
-        } else {
-          near_death_callback_(reinterpret_cast<v8::Isolate*>(isolate),
-                               object,
+      weak_reference_callback_(reinterpret_cast<v8::Isolate*>(isolate),
+                               reinterpret_cast<Persistent<Value>*>(&object),
                                par);
-        }
-      }
     }
     // Absence of explicit cleanup or revival of weak handle
     // in most of the cases would lead to memory leak.
@@ -318,12 +297,11 @@ class GlobalHandles::Node {
   class IsIndependent:        public BitField<bool,  4, 1> {};
   class IsPartiallyDependent: public BitField<bool,  5, 1> {};
   class IsInNewSpaceList:     public BitField<bool,  6, 1> {};
-  class IsWeakCallback:       public BitField<bool,  7, 1> {};
 
   uint8_t flags_;
 
   // Handle specific callback - might be a weak reference in disguise.
-  NearDeathCallback near_death_callback_;
+  RevivableCallback weak_reference_callback_;
 
   // Provided data for callback.  In FREE state, this is used for
   // the free list link.
@@ -509,12 +487,9 @@ void GlobalHandles::Destroy(Object** location) {
 
 void GlobalHandles::MakeWeak(Object** location,
                              void* parameter,
-                             RevivableCallback weak_reference_callback,
-                             NearDeathCallback near_death_callback) {
-  ASSERT((weak_reference_callback == NULL) != (near_death_callback == NULL));
-  Node::FromLocation(location)->MakeWeak(parameter,
-                                         weak_reference_callback,
-                                         near_death_callback);
+                             RevivableCallback weak_reference_callback) {
+  ASSERT(weak_reference_callback != NULL);
+  Node::FromLocation(location)->MakeWeak(parameter, weak_reference_callback);
 }
 
 

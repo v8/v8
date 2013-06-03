@@ -31,6 +31,7 @@
 #include <cmath>
 
 #include "allocation.h"
+#include "assert-scope.h"
 #include "globals.h"
 #include "incremental-marking.h"
 #include "list.h"
@@ -1496,10 +1497,6 @@ class Heap {
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 
 #ifdef DEBUG
-  bool IsAllocationAllowed() { return allocation_allowed_; }
-  inline void set_allow_allocation(bool allocation_allowed);
-  inline bool allow_allocation(bool enable);
-
   bool disallow_allocation_failure() {
     return disallow_allocation_failure_;
   }
@@ -1979,8 +1976,6 @@ class Heap {
 #undef ROOT_ACCESSOR
 
 #ifdef DEBUG
-  bool allocation_allowed_;
-
   // If the --gc-interval flag is set to a positive value, this
   // variable holds the value indicating the number of allocations
   // remain until the next failure and garbage collection.
@@ -2697,43 +2692,6 @@ class DescriptorLookupCache {
 };
 
 
-// A helper class to document/test C++ scopes where we do not
-// expect a GC. Usage:
-//
-// /* Allocation not allowed: we cannot handle a GC in this scope. */
-// { AssertNoAllocation nogc;
-//   ...
-// }
-
-#ifdef DEBUG
-inline bool EnterAllocationScope(Isolate* isolate, bool allow_allocation);
-inline void ExitAllocationScope(Isolate* isolate, bool last_state);
-#endif
-
-
-class AssertNoAllocation {
- public:
-  inline AssertNoAllocation();
-  inline ~AssertNoAllocation();
-
-#ifdef DEBUG
- private:
-  bool last_state_;
-#endif
-};
-
-
-class DisableAssertNoAllocation {
- public:
-  inline DisableAssertNoAllocation();
-  inline ~DisableAssertNoAllocation();
-
-#ifdef DEBUG
- private:
-  bool last_state_;
-#endif
-};
-
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 
@@ -3048,7 +3006,7 @@ class PathTracer : public ObjectVisitor {
         what_to_find_(what_to_find),
         visit_mode_(visit_mode),
         object_stack_(20),
-        no_alloc() {}
+        no_allocation() {}
 
   virtual void VisitPointers(Object** start, Object** end);
 
@@ -3077,7 +3035,7 @@ class PathTracer : public ObjectVisitor {
   VisitMode visit_mode_;
   List<Object*> object_stack_;
 
-  AssertNoAllocation no_alloc;  // i.e. no gc allowed.
+  DisallowHeapAllocation no_allocation;  // i.e. no gc allowed.
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);

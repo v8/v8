@@ -214,11 +214,6 @@ class WeakReferenceCallbacks {
                             P* parameter);
 };
 
-// TODO(svenpanne) Temporary definition until Chrome is in sync.
-typedef void (*NearDeathCallback)(Isolate* isolate,
-                                  Persistent<Value> object,
-                                  void* parameter);
-
 // --- Handles ---
 
 #define TYPE_CHECK(T, S)                                       \
@@ -676,11 +671,6 @@ template <class T> class Persistent // NOLINT
     MakeWeak<P>(parameters, callback);
   }
 
-  // TODO(dcarney): remove before cutover
-  V8_INLINE(void MakeWeak(Isolate* isolate,
-                          void* parameters,
-                          NearDeathCallback callback));
-
   V8_INLINE(void ClearWeak());
 
   // TODO(dcarney): deprecate
@@ -774,10 +764,7 @@ template <class T> class Persistent // NOLINT
 
 #ifndef V8_USE_UNSAFE_HANDLES
 
-#ifndef V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
  private:
-#endif
   // TODO(dcarney): make unlinkable before cutover
   V8_INLINE(Persistent(const Persistent& that)) : val_(that.val_) {}
   // TODO(dcarney): make unlinkable before cutover
@@ -800,11 +787,8 @@ template <class T> class Persistent // NOLINT
   }
   // TODO(dcarney): remove before cutover
   V8_INLINE(T* operator*() const) { return val_; }
- public:
-#ifndef V8_ALLOW_ACCESS_TO_PERSISTENT_ARROW
 
  private:
-#endif
   // TODO(dcarney): remove before cutover
   V8_INLINE(T* operator->() const) { return val_; }
  public:
@@ -4158,13 +4142,13 @@ class V8EXPORT PersistentHandleVisitor {  // NOLINT
  */
 class V8EXPORT AssertNoGCScope {
 #ifndef DEBUG
-  V8_INLINE(AssertNoGCScope(Isolate* isolate)) {}
+  // TODO(yangguo): remove isolate argument.
+  V8_INLINE(AssertNoGCScope(Isolate* isolate)) { }
 #else
   AssertNoGCScope(Isolate* isolate);
   ~AssertNoGCScope();
  private:
-  Isolate* isolate_;
-  bool last_state_;
+  void* disallow_heap_allocation_;
 #endif
 };
 
@@ -4606,8 +4590,7 @@ class V8EXPORT V8 {
   typedef WeakReferenceCallbacks<Value, void>::Revivable RevivableCallback;
   static void MakeWeak(internal::Object** global_handle,
                        void* data,
-                       RevivableCallback weak_reference_callback,
-                       NearDeathCallback near_death_callback);
+                       RevivableCallback weak_reference_callback);
   static void ClearWeak(internal::Object** global_handle);
 
   template <class T> friend class Handle;
@@ -5541,8 +5524,7 @@ void Persistent<T>::MakeWeak(
   typedef typename WeakReferenceCallbacks<Value, void>::Revivable Revivable;
   V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_),
                parameters,
-               reinterpret_cast<Revivable>(callback),
-               NULL);
+               reinterpret_cast<Revivable>(callback));
 }
 
 
@@ -5552,17 +5534,6 @@ void Persistent<T>::MakeWeak(
     P* parameters,
     typename WeakReferenceCallbacks<T, P>::Revivable callback) {
   MakeWeak<T, P>(parameters, callback);
-}
-
-
-template <class T>
-void Persistent<T>::MakeWeak(Isolate* isolate,
-                             void* parameters,
-                             NearDeathCallback callback) {
-  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_),
-               parameters,
-               NULL,
-               callback);
 }
 
 

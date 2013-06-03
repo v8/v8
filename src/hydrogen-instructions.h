@@ -3153,7 +3153,7 @@ class HConstant: public HTemplateInstruction<0> {
       // to be tenured so that it's guaranteed not be be located in new space.
       handle_ = FACTORY->NewNumber(double_value_, TENURED);
     }
-    ALLOW_HANDLE_DEREF(Isolate::Current(), "smi check");
+    AllowDeferredHandleDereference smi_check;
     ASSERT(has_int32_value_ || !handle_->IsSmi());
     return handle_;
   }

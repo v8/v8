@@ -74,7 +74,7 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
-  ALLOW_HANDLE_DEREF(isolate(), "embedding raw address");
+  AllowDeferredHandleDereference embedding_raw_address;
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
 
@@ -163,7 +163,7 @@ int MacroAssembler::CallSize(Handle<Code> code,
                              RelocInfo::Mode rmode,
                              TypeFeedbackId ast_id,
                              Condition cond) {
-  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+  AllowDeferredHandleDereference using_raw_address;
   return CallSize(reinterpret_cast<Address>(code.location()), rmode, cond);
 }
 
@@ -181,7 +181,7 @@ void MacroAssembler::Call(Handle<Code> code,
     rmode = RelocInfo::CODE_TARGET_WITH_ID;
   }
   // 'code' is always generated ARM code, never THUMB code
-  ALLOW_HANDLE_DEREF(isolate(), "embedding raw address");
+  AllowDeferredHandleDereference embedding_raw_address;
   Call(reinterpret_cast<Address>(code.location()), rmode, cond, mode);
 }
 
@@ -398,7 +398,7 @@ void MacroAssembler::StoreRoot(Register source,
 
 void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
-  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+  AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
         isolate()->factory()->NewJSGlobalPropertyCell(object);

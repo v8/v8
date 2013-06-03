@@ -368,10 +368,7 @@ HGlobalValueNumberer::HGlobalValueNumberer(HGraph* graph, CompilationInfo* info)
         block_side_effects_(graph->blocks()->length(), graph->zone()),
         loop_side_effects_(graph->blocks()->length(), graph->zone()),
         visited_on_paths_(graph->zone(), graph->blocks()->length()) {
-#ifdef DEBUG
-    ASSERT(info->isolate()->optimizing_compiler_thread()->IsOptimizerThread() ||
-           !info->isolate()->heap()->IsAllocationAllowed());
-#endif
+    ASSERT(!AllowHandleAllocation::IsAllowed());
     block_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
                                  graph_->zone());
     loop_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),

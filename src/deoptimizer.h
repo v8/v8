@@ -403,7 +403,7 @@ class Deoptimizer : public Malloced {
 
   // Weak handle callback for deoptimizing code objects.
   static void HandleWeakDeoptimizedCode(v8::Isolate* isolate,
-                                        v8::Persistent<v8::Value> obj,
+                                        v8::Persistent<v8::Value>* obj,
                                         void* data);
 
   // Deoptimize function assuming that function->next_function_link() points
@@ -449,6 +449,9 @@ class Deoptimizer : public Malloced {
   List<Object*> deferred_arguments_objects_values_;
   List<ArgumentsObjectMaterializationDescriptor> deferred_arguments_objects_;
   List<HeapNumberMaterializationDescriptor> deferred_heap_numbers_;
+#ifdef DEBUG
+  DisallowHeapAllocation* disallow_heap_allocation_;
+#endif  // DEBUG
 
   bool trace_;
 

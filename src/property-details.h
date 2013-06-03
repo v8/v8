@@ -169,10 +169,12 @@ class PropertyDetails BASE_EMBEDDED {
 
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
-                  Representation representation) {
+                  Representation representation,
+                  int field_index = 0) {
     value_ = TypeField::encode(type)
         | AttributesField::encode(attributes)
-        | RepresentationField::encode(EncodeRepresentation(representation));
+        | RepresentationField::encode(EncodeRepresentation(representation))
+        | FieldIndexField::encode(field_index);
   }
 
   int pointer() { return DescriptorPointer::decode(value_); }
@@ -214,6 +216,10 @@ class PropertyDetails BASE_EMBEDDED {
     return DecodeRepresentation(RepresentationField::decode(value_));
   }
 
+  int  field_index() {
+    return FieldIndexField::decode(value_);
+  }
+
   inline PropertyDetails AsDeleted();
 
   static bool IsValidIndex(int index) {
@@ -229,10 +235,15 @@ class PropertyDetails BASE_EMBEDDED {
   // constants can be embedded in generated code.
   class TypeField:                public BitField<PropertyType,       0,  3> {};
   class AttributesField:          public BitField<PropertyAttributes, 3,  3> {};
+
+  // Bit fields for normalized objects.
   class DeletedField:             public BitField<uint32_t,           6,  1> {};
   class DictionaryStorageField:   public BitField<uint32_t,           7, 24> {};
-  class DescriptorPointer:        public BitField<uint32_t,           7, 11> {};
-  class RepresentationField:      public BitField<uint32_t,          18,  3> {};
+
+  // Bit fields for fast objects.
+  class DescriptorPointer:        public BitField<uint32_t,           6, 11> {};
+  class RepresentationField:      public BitField<uint32_t,          17,  3> {};
+  class FieldIndexField:          public BitField<uint32_t,          20, 11> {};
 
   static const int kInitialIndex = 1;
 

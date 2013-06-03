@@ -58,7 +58,10 @@ PropertyDetails::PropertyDetails(Smi* smi) {
 
 
 Smi* PropertyDetails::AsSmi() {
-  return Smi::FromInt(value_);
+  // Ensure the upper 2 bits have the same value by sign extending it. This is
+  // necessary to be able to use the 31st bit of the property details.
+  int value = value_ << 1;
+  return Smi::FromInt(value >> 1);
 }
 
 
@@ -892,7 +895,7 @@ MaybeObject* Object::GetElement(uint32_t index) {
   // GetElement can trigger a getter which can cause allocation.
   // This was not always the case. This ASSERT is here to catch
   // leftover incorrect uses.
-  ASSERT(HEAP->IsAllocationAllowed());
+  ASSERT(AllowHeapAllocation::IsAllowed());
   return GetElementWithReceiver(this, index);
 }
 
@@ -1550,7 +1553,7 @@ MaybeObject* JSObject::TryMigrateInstance() {
 
 
 Handle<String> JSObject::ExpectedTransitionKey(Handle<Map> map) {
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   if (!map->HasTransitionArray()) return Handle<String>::null();
   TransitionArray* transitions = map->transitions();
   if (!transitions->IsSimpleTransition()) return Handle<String>::null();
@@ -1572,7 +1575,7 @@ Handle<Map> JSObject::ExpectedTransitionTarget(Handle<Map> map) {
 
 
 Handle<Map> JSObject::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   if (!map->HasTransitionArray()) return Handle<Map>::null();
   TransitionArray* transitions = map->transitions();
   int transition = transitions->Search(*key);
@@ -1984,7 +1987,8 @@ bool FixedDoubleArray::is_the_hole(int index) {
 }
 
 
-WriteBarrierMode HeapObject::GetWriteBarrierMode(const AssertNoAllocation&) {
+WriteBarrierMode HeapObject::GetWriteBarrierMode(
+    const DisallowHeapAllocation& promise) {
   Heap* heap = GetHeap();
   if (heap->incremental_marking()->IsMarking()) return UPDATE_WRITE_BARRIER;
   if (heap->InNewSpace(this)) return SKIP_WRITE_BARRIER;
@@ -2327,7 +2331,7 @@ PropertyType DescriptorArray::GetType(int descriptor_number) {
 
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
-  return Descriptor::IndexFromValue(GetValue(descriptor_number));
+  return GetDetails(descriptor_number).field_index();
 }
 
 
@@ -5826,7 +5830,7 @@ void Dictionary<Shape, Key>::SetEntry(int entry,
          details.IsDeleted() ||
          details.dictionary_index() > 0);
   int index = HashTable<Shape, Key>::EntryToIndex(entry);
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = FixedArray::GetWriteBarrierMode(no_gc);
   FixedArray::set(index, key, mode);
   FixedArray::set(index+1, value, mode);

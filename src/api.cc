@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(dcarney): remove
-#define V8_ALLOW_ACCESS_TO_PERSISTENT_IMPLICIT
-
 #include "api.h"
 
 #include <string.h>  // For memcpy, strlen.
@@ -35,6 +32,7 @@
 #include "../include/v8-debug.h"
 #include "../include/v8-profiler.h"
 #include "../include/v8-testing.h"
+#include "assert-scope.h"
 #include "bootstrapper.h"
 #include "code-stubs.h"
 #include "compiler.h"
@@ -627,12 +625,10 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 
 void V8::MakeWeak(i::Object** object,
                   void* parameters,
-                  RevivableCallback weak_reference_callback,
-                  NearDeathCallback near_death_callback) {
+                  RevivableCallback weak_reference_callback) {
   i::GlobalHandles::MakeWeak(object,
                              parameters,
-                             weak_reference_callback,
-                             near_death_callback);
+                             weak_reference_callback);
 }
 
 
@@ -5106,7 +5102,7 @@ void v8::V8::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::V8::VisitHandlesWithClassId");
 
-  i::AssertNoAllocation no_allocation;
+  i::DisallowHeapAllocation no_allocation;
 
   VisitorAdapter visitor_adapter(visitor);
   isolate->global_handles()->IterateAllRootsWithClassIds(&visitor_adapter);
@@ -5119,7 +5115,7 @@ void v8::V8::VisitHandlesForPartialDependence(
   ASSERT(isolate == i::Isolate::Current());
   IsDeadCheck(isolate, "v8::V8::VisitHandlesForPartialDependence");
 
-  i::AssertNoAllocation no_allocation;
+  i::DisallowHeapAllocation no_allocation;
 
   VisitorAdapter visitor_adapter(visitor);
   isolate->global_handles()->IterateAllRootsInNewSpaceWithClassIds(
@@ -6270,14 +6266,12 @@ Local<Integer> v8::Integer::NewFromUnsigned(uint32_t value, Isolate* isolate) {
 
 
 #ifdef DEBUG
-v8::AssertNoGCScope::AssertNoGCScope(v8::Isolate* isolate)
-  : isolate_(isolate),
-    last_state_(i::EnterAllocationScope(
-        reinterpret_cast<i::Isolate*>(isolate), false)) {
+v8::AssertNoGCScope::AssertNoGCScope(v8::Isolate* isolate) {
+  disallow_heap_allocation_ = new i::DisallowHeapAllocation();
 }
 
 v8::AssertNoGCScope::~AssertNoGCScope() {
-  i::ExitAllocationScope(reinterpret_cast<i::Isolate*>(isolate_), last_state_);
+  delete static_cast<i::DisallowHeapAllocation*>(disallow_heap_allocation_);
 }
 #endif
 
@@ -7809,8 +7803,7 @@ DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
   while (!blocks_.is_empty()) {
     Object** block_start = blocks_.last();
     Object** block_limit = &block_start[kHandleBlockSize];
-    // We should not need to check for NoHandleAllocation here. Assert
-    // this.
+    // We should not need to check for SealHandleScope here. Assert this.
     ASSERT(prev_limit == block_limit ||
            !(block_start <= prev_limit && prev_limit <= block_limit));
     if (prev_limit == block_limit) break;

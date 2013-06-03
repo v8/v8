@@ -83,7 +83,7 @@ void MacroAssembler::StoreRoot(Register source,
 
 void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
-  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+  AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
         isolate()->factory()->NewJSGlobalPropertyCell(object);
@@ -2458,7 +2458,7 @@ void MacroAssembler::Jump(Handle<Code> code,
                           const Operand& rt,
                           BranchDelaySlot bd) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  ALLOW_HANDLE_DEREF(isolate(), "embedding raw address");
+  AllowDeferredHandleDereference embedding_raw_address;
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond, rs, rt, bd);
 }
 
@@ -2546,7 +2546,7 @@ int MacroAssembler::CallSize(Handle<Code> code,
                              Register rs,
                              const Operand& rt,
                              BranchDelaySlot bd) {
-  ALLOW_HANDLE_DEREF(isolate(), "using raw address");
+  AllowDeferredHandleDereference using_raw_address;
   return CallSize(reinterpret_cast<Address>(code.location()),
       rmode, cond, rs, rt, bd);
 }
@@ -2567,7 +2567,7 @@ void MacroAssembler::Call(Handle<Code> code,
     SetRecordedAstId(ast_id);
     rmode = RelocInfo::CODE_TARGET_WITH_ID;
   }
-  ALLOW_HANDLE_DEREF(isolate(), "embedding raw address");
+  AllowDeferredHandleDereference embedding_raw_address;
   Call(reinterpret_cast<Address>(code.location()), rmode, cond, rs, rt, bd);
   ASSERT_EQ(CallSize(code, rmode, ast_id, cond, rs, rt, bd),
             SizeOfCodeGeneratedSince(&start));

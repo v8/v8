@@ -162,7 +162,7 @@ class MacroAssembler: public Assembler {
   void LoadHeapObject(Register dst, Handle<HeapObject> object);
 
   void LoadObject(Register result, Handle<Object> object) {
-    ALLOW_HANDLE_DEREF(isolate(), "heap object check");
+    AllowDeferredHandleDereference heap_object_check;
     if (object->IsHeapObject()) {
       LoadHeapObject(result, Handle<HeapObject>::cast(object));
     } else {
