@@ -2368,7 +2368,7 @@ TEST(PrintSharedFunctionInfo) {
           *v8::Handle<v8::Function>::Cast(
               v8::Context::GetCurrent()->Global()->Get(v8_str("g"))));
 
-  AssertNoAllocation no_alloc;
+  DisallowHeapAllocation no_allocation;
   g->shared()->PrintLn();
 }
 #endif  // OBJECT_PRINT

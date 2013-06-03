@@ -121,7 +121,7 @@ BreakLocationIterator::~BreakLocationIterator() {
 
 
 void BreakLocationIterator::Next() {
-  AssertNoAllocation nogc;
+  DisallowHeapAllocation no_gc;
   ASSERT(!RinfoDone());
 
   // Iterate through reloc info for code and original code stopping at each
@@ -2022,7 +2022,7 @@ void Debug::PrepareForBreakPoints() {
 
       // Ensure no GC in this scope as we are going to use gc_metadata
       // field in the Code object to mark active functions.
-      AssertNoAllocation no_allocation;
+      DisallowHeapAllocation no_allocation;
 
       Object* active_code_marker = heap->the_hole_value();
 
@@ -2137,7 +2137,7 @@ Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
   while (!done) {
     { // Extra scope for iterator and no-allocation.
       heap->EnsureHeapIsIterable();
-      AssertNoAllocation no_alloc_during_heap_iteration;
+      DisallowHeapAllocation no_alloc_during_heap_iteration;
       HeapIterator iterator(heap);
       for (HeapObject* obj = iterator.next();
            obj != NULL; obj = iterator.next()) {
@@ -2473,7 +2473,7 @@ void Debug::CreateScriptCache() {
   // Scan heap for Script objects.
   int count = 0;
   HeapIterator iterator(heap);
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (obj->IsScript() && Script::cast(obj)->HasValidSource()) {

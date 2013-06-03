@@ -270,7 +270,7 @@ static void SetAtomLastCapture(FixedArray* array,
                                String* subject,
                                int from,
                                int to) {
-  NoHandleAllocation no_handles(array->GetIsolate());
+  SealHandleScope shs(array->GetIsolate());
   RegExpImpl::SetLastCaptureCount(array, 2);
   RegExpImpl::SetLastSubject(array, subject);
   RegExpImpl::SetLastInput(array, subject);
@@ -290,7 +290,7 @@ int RegExpImpl::AtomExecRaw(Handle<JSRegExp> regexp,
   ASSERT(index <= subject->length());
 
   if (!subject->IsFlat()) FlattenString(subject);
-  AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+  DisallowHeapAllocation no_gc;  // ensure vectors stay valid
 
   String* needle = String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex));
   int needle_len = needle->length();
@@ -353,7 +353,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
   if (res == RegExpImpl::RE_FAILURE) return isolate->factory()->null_value();
 
   ASSERT_EQ(res, RegExpImpl::RE_SUCCESS);
-  NoHandleAllocation no_handles(isolate);
+  SealHandleScope shs(isolate);
   FixedArray* array = FixedArray::cast(last_match_info->elements());
   SetAtomLastCapture(array, *subject, output_registers[0], output_registers[1]);
   return last_match_info;
@@ -691,7 +691,7 @@ Handle<JSArray> RegExpImpl::SetLastMatchInfo(Handle<JSArray> last_match_info,
   ASSERT(last_match_info->HasFastObjectElements());
   int capture_register_count = (capture_count + 1) * 2;
   last_match_info->EnsureSize(capture_register_count + kLastMatchOverhead);
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_allocation;
   FixedArray* array = FixedArray::cast(last_match_info->elements());
   if (match != NULL) {
     for (int i = 0; i < capture_register_count; i += 2) {

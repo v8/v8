@@ -449,6 +449,9 @@ class Deoptimizer : public Malloced {
   List<Object*> deferred_arguments_objects_values_;
   List<ArgumentsObjectMaterializationDescriptor> deferred_arguments_objects_;
   List<HeapNumberMaterializationDescriptor> deferred_heap_numbers_;
+#ifdef DEBUG
+  DisallowHeapAllocation* disallow_heap_allocation_;
+#endif  // DEBUG
 
   bool trace_;
 

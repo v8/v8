@@ -4142,13 +4142,13 @@ class V8EXPORT PersistentHandleVisitor {  // NOLINT
  */
 class V8EXPORT AssertNoGCScope {
 #ifndef DEBUG
-  V8_INLINE(AssertNoGCScope(Isolate* isolate)) {}
+  // TODO(yangguo): remove isolate argument.
+  V8_INLINE(AssertNoGCScope(Isolate* isolate)) { }
 #else
   AssertNoGCScope(Isolate* isolate);
   ~AssertNoGCScope();
  private:
-  Isolate* isolate_;
-  bool last_state_;
+  void* disallow_heap_allocation_;
 #endif
 };
 

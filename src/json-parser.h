@@ -106,7 +106,7 @@ class JsonParser BASE_EMBEDDED {
   bool ParseJsonString(Handle<String> expected) {
     int length = expected->length();
     if (source_->length() - position_ - 1 > length) {
-      AssertNoAllocation no_gc;
+      DisallowHeapAllocation no_gc;
       String::FlatContent content = expected->GetFlatContent();
       if (content.IsAscii()) {
         ASSERT_EQ('"', c0_);

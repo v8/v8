@@ -633,7 +633,7 @@ byte TypeFeedbackOracle::CompareNilTypes(CompareOperation* expr) {
 // dictionary (possibly triggering GC), and finally we relocate the collected
 // infos before we process them.
 void TypeFeedbackOracle::BuildDictionary(Handle<Code> code) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   ZoneList<RelocInfo> infos(16, zone());
   HandleScope scope(isolate_);
   GetRelocInfos(code, &infos);
@@ -656,7 +656,7 @@ void TypeFeedbackOracle::GetRelocInfos(Handle<Code> code,
 
 void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
                                           ZoneList<RelocInfo>* infos) {
-  DisableAssertNoAllocation allocation_allowed;
+  AllowHeapAllocation allocation_allowed;
   int cell_count = code->type_feedback_info()->IsTypeFeedbackInfo()
       ? TypeFeedbackInfo::cast(code->type_feedback_info())->
           type_feedback_cells()->CellCount()

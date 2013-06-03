@@ -991,7 +991,7 @@ bool IC::UpdatePolymorphicIC(State state,
   int handler_to_overwrite = -1;
   Handle<Map> new_receiver_map(receiver->map());
   {
-    AssertNoAllocation no_gc;
+    DisallowHeapAllocation no_gc;
     target()->FindAllMaps(&receiver_maps);
     int number_of_maps = receiver_maps.length();
     number_of_valid_maps = number_of_maps;
@@ -1059,7 +1059,7 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
   MapHandleList receiver_maps;
   CodeHandleList handlers;
   {
-    AssertNoAllocation no_gc;
+    DisallowHeapAllocation no_gc;
     target()->FindAllMaps(&receiver_maps);
     target()->FindAllCode(&handlers, receiver_maps.length());
   }
@@ -1070,7 +1070,7 @@ void IC::CopyICToMegamorphicCache(Handle<String> name) {
 
 
 bool IC::IsTransitionedMapOfMonomorphicTarget(Map* receiver_map) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   Map* current_map = target()->FindFirstMap();
   ElementsKind receiver_elements_kind = receiver_map->elements_kind();
@@ -1104,7 +1104,7 @@ void IC::PatchCache(State state,
         if (target()->is_load_stub()) {
           bool is_same_handler = false;
           {
-            AssertNoAllocation no_allocation;
+            DisallowHeapAllocation no_allocation;
             Code* old_handler = target()->FindFirstCode();
             is_same_handler = old_handler == *code;
           }
@@ -1169,7 +1169,7 @@ static void GetReceiverMapsForStub(Handle<Code> stub,
       break;
     }
     case POLYMORPHIC: {
-      AssertNoAllocation no_allocation;
+      DisallowHeapAllocation no_allocation;
       int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
       for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
         RelocInfo* info = it.rinfo();
@@ -2224,7 +2224,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
-  NoHandleAllocation nha(isolate);
+  SealHandleScope shs(isolate);
 
   ASSERT(args.length() == 2);
   JSArray* receiver = JSArray::cast(args[0]);
@@ -2252,7 +2252,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
 // it is necessary to extend the properties array of a
 // JSObject.
 RUNTIME_FUNCTION(MaybeObject*, SharedStoreIC_ExtendStorage) {
-  NoHandleAllocation na(isolate);
+  SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
 
   // Convert the parameters
@@ -2329,7 +2329,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
-  NoHandleAllocation na(isolate);
+  SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
@@ -2347,7 +2347,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
-  NoHandleAllocation na(isolate);
+  SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
@@ -2880,7 +2880,7 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
 // Used from ICCompareStub::GenerateMiss in code-stubs-<arch>.cc.
 RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
-  NoHandleAllocation na(isolate);
+  SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
   ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));

@@ -2478,7 +2478,7 @@ void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
 
 
 void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
-  AssertNoAllocation no_allocation_scope;
+  DisallowHeapAllocation no_allocation;
   DependentCode* entries = map->dependent_code();
   DependentCode::GroupStartIndexes starts(entries);
   int number_of_entries = starts.number_of_entries();
@@ -2495,7 +2495,7 @@ void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
 
 
 void MarkCompactCollector::ClearNonLiveDependentCode(Map* map) {
-  AssertNoAllocation no_allocation_scope;
+  DisallowHeapAllocation no_allocation;
   DependentCode* entries = map->dependent_code();
   DependentCode::GroupStartIndexes starts(entries);
   int number_of_entries = starts.number_of_entries();

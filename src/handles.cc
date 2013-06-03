@@ -456,7 +456,7 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> src,
   List<int> line_ends(line_count_estimate);
   Isolate* isolate = src->GetIsolate();
   {
-    AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid.
+    DisallowHeapAllocation no_allocation;  // ensure vectors stay valid.
     // Dispatch on type of strings.
     String::FlatContent content = src->GetFlatContent();
     ASSERT(content.IsFlat());
@@ -484,7 +484,7 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> src,
 // Convert code position into line number.
 int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   InitScriptLineEnds(script);
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
   const int line_ends_len = line_ends_array->length();
 
@@ -511,7 +511,7 @@ int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
   int line_number = GetScriptLineNumber(script, code_pos);
   if (line_number == -1) return -1;
 
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
   line_number = line_number - script->line_offset()->value();
   if (line_number == 0) return code_pos + script->column_offset()->value();
@@ -521,7 +521,7 @@ int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
 }
 
 int GetScriptLineNumberSafe(Handle<Script> script, int code_pos) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   if (!script->line_ends()->IsUndefined()) {
     return GetScriptLineNumber(script, code_pos);
   }

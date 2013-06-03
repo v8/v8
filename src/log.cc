@@ -1549,7 +1549,7 @@ static int EnumerateCompiledFunctions(Heap* heap,
                                       Handle<SharedFunctionInfo>* sfis,
                                       Handle<Code>* code_objects) {
   HeapIterator iterator(heap);
-  AssertNoAllocation no_alloc;
+  DisallowHeapAllocation no_gc;
   int compiled_funcs_count = 0;
 
   // Iterate the heap to find shared function info objects and record
@@ -1716,7 +1716,7 @@ void Logger::LogCodeObjects() {
   heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "Logger::LogCodeObjects");
   HeapIterator iterator(heap);
-  AssertNoAllocation no_alloc;
+  DisallowHeapAllocation no_gc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (obj->IsCode()) LogCodeObject(obj);
   }
@@ -1794,7 +1794,7 @@ void Logger::LogAccessorCallbacks() {
   heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "Logger::LogAccessorCallbacks");
   HeapIterator iterator(heap);
-  AssertNoAllocation no_alloc;
+  DisallowHeapAllocation no_gc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsExecutableAccessorInfo()) continue;
     ExecutableAccessorInfo* ai = ExecutableAccessorInfo::cast(obj);

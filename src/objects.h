@@ -29,6 +29,7 @@
 #define V8_OBJECTS_H_
 
 #include "allocation.h"
+#include "assert-scope.h"
 #include "builtins.h"
 #include "elements-kind.h"
 #include "list.h"
@@ -1418,7 +1419,8 @@ class HeapObject: public Object {
   // object as a sign that they are not going to use this function
   // from code that allocates and thus invalidates the returned write
   // barrier mode.
-  inline WriteBarrierMode GetWriteBarrierMode(const AssertNoAllocation&);
+  inline WriteBarrierMode GetWriteBarrierMode(
+      const DisallowHeapAllocation& promise);
 
   // Dispatched behavior.
   void HeapObjectShortPrint(StringStream* accumulator);

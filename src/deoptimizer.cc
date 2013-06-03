@@ -285,7 +285,7 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     Context* context, OptimizedFunctionVisitor* visitor) {
   Isolate* isolate = context->GetIsolate();
   ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   ASSERT(context->IsNativeContext());
 
@@ -313,7 +313,7 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
 void Deoptimizer::VisitAllOptimizedFunctions(
     Isolate* isolate,
     OptimizedFunctionVisitor* visitor) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   // Run through the list of all native contexts and deoptimize.
   Object* context = isolate->heap()->native_contexts_list();
@@ -335,7 +335,7 @@ static void PartitionOptimizedFunctions(Context* context,
                                         ZoneList<Code*>* partitions,
                                         Zone* zone,
                                         Object* undefined) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   Object* current = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
   Object* remainder_head = undefined;
   Object* remainder_tail = undefined;
@@ -388,7 +388,7 @@ class DeoptimizeWithMatchingCodeFilter : public OptimizedFunctionFilter {
 
 
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   if (FLAG_trace_deopt) {
     PrintF("[deoptimize all contexts]\n");
@@ -400,7 +400,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 
 
 void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   DeoptimizeAllFilter filter;
   if (object->IsJSGlobalProxy()) {
     Object* proto = object->GetPrototype();
@@ -451,7 +451,7 @@ void Deoptimizer::DeoptimizeAllFunctionsForContext(
 
 void Deoptimizer::DeoptimizeAllFunctionsWith(Isolate* isolate,
                                              OptimizedFunctionFilter* filter) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   // Run through the list of all native contexts and deoptimize.
   Object* context = isolate->heap()->native_contexts_list();
@@ -558,7 +558,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       ? StackFrame::STUB
       : StackFrame::JAVA_SCRIPT;
   trace_ = TraceEnabledFor(type, frame_type);
-  ASSERT(HEAP->allow_allocation(false));
+#ifdef DEBUG
+  CHECK(AllowHeapAllocation::IsAllowed());
+  disallow_heap_allocation_ = new DisallowHeapAllocation();
+#endif  // DEBUG
   unsigned size = ComputeInputFrameSize();
   input_ = new(size) FrameDescription(size, function);
   input_->SetFrameType(frame_type);
@@ -608,6 +611,7 @@ void Deoptimizer::PrintFunctionName() {
 
 Deoptimizer::~Deoptimizer() {
   ASSERT(input_ == NULL && output_ == NULL);
+  ASSERT(disallow_heap_allocation_ == NULL);
 }
 
 
@@ -619,7 +623,12 @@ void Deoptimizer::DeleteFrameDescriptions() {
   delete[] output_;
   input_ = NULL;
   output_ = NULL;
-  ASSERT(!HEAP->allow_allocation(true));
+#ifdef DEBUG
+  CHECK(!AllowHeapAllocation::IsAllowed());
+  CHECK(disallow_heap_allocation_ != NULL);
+  delete disallow_heap_allocation_;
+  disallow_heap_allocation_ = NULL;
+#endif  // DEBUG
 }
 
 
@@ -2854,7 +2863,7 @@ Vector<SlotRef> SlotRef::ComputeSlotMappingForArguments(
     JavaScriptFrame* frame,
     int inlined_jsframe_index,
     int formal_parameter_count) {
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data =
       static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);

@@ -476,8 +476,7 @@ Handle<ExternalArray> Factory::NewExternalArray(int length,
 
 Handle<JSGlobalPropertyCell> Factory::NewJSGlobalPropertyCell(
     Handle<Object> value) {
-  ALLOW_HANDLE_DEREF(isolate(),
-                     "converting a handle into a global property cell");
+  AllowDeferredHandleDereference convert_to_cell;
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSGlobalPropertyCell(*value),

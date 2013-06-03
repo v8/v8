@@ -1069,7 +1069,7 @@ static void ReplaceCodeObject(Handle<Code> original,
 
   ASSERT(!heap->InNewSpace(*substitution));
 
-  AssertNoAllocation no_allocations_please;
+  DisallowHeapAllocation no_allocation;
 
   ReplacingVisitor visitor(*original, *substitution);
 
@@ -1144,7 +1144,7 @@ class LiteralFixer {
   template<typename Visitor>
   static void IterateJSFunctions(SharedFunctionInfo* shared_info,
                                  Visitor* visitor) {
-    AssertNoAllocation no_allocations_please;
+    DisallowHeapAllocation no_allocation;
 
     HeapIterator iterator(shared_info->GetHeap());
     for (HeapObject* obj = iterator.next(); obj != NULL;
@@ -1219,7 +1219,7 @@ static bool IsJSFunctionCode(Code* code) {
 
 // Returns true if an instance of candidate were inlined into function's code.
 static bool IsInlined(JSFunction* function, SharedFunctionInfo* candidate) {
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
 
   if (function->code()->kind() != Code::OPTIMIZED_FUNCTION) return false;
 
@@ -1257,7 +1257,7 @@ class DependentFunctionFilter : public OptimizedFunctionFilter {
 
 
 static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   DependentFunctionFilter filter(function_info);
   Deoptimizer::DeoptimizeAllFunctionsWith(function_info->GetIsolate(), &filter);
@@ -1465,7 +1465,7 @@ static Handle<Code> PatchPositionsInCode(
                                 code->instruction_start());
 
   {
-    AssertNoAllocation no_allocations_please;
+    DisallowHeapAllocation no_allocation;
     for (RelocIterator it(*code); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();
       if (RelocInfo::IsPosition(rinfo->rmode())) {

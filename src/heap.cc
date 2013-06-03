@@ -113,7 +113,6 @@ Heap::Heap()
       remembered_unmapped_pages_index_(0),
       unflattened_strings_length_(0),
 #ifdef DEBUG
-      allocation_allowed_(true),
       allocation_timeout_(0),
       disallow_allocation_failure_(false),
 #endif  // DEBUG
@@ -417,24 +416,25 @@ void Heap::ReportStatisticsAfterGC() {
 
 
 void Heap::GarbageCollectionPrologue() {
-  isolate_->transcendental_cache()->Clear();
-  ClearJSFunctionResultCaches();
-  gc_count_++;
-  unflattened_strings_length_ = 0;
+  {  AllowHeapAllocation for_the_first_part_of_prologue;
+    isolate_->transcendental_cache()->Clear();
+    ClearJSFunctionResultCaches();
+    gc_count_++;
+    unflattened_strings_length_ = 0;
 
-  if (FLAG_flush_code && FLAG_flush_code_incrementally) {
-    mark_compact_collector()->EnableCodeFlushing(true);
-  }
+    if (FLAG_flush_code && FLAG_flush_code_incrementally) {
+      mark_compact_collector()->EnableCodeFlushing(true);
+    }
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    Verify();
-  }
+    if (FLAG_verify_heap) {
+      Verify();
+    }
 #endif
+  }
 
 #ifdef DEBUG
-  ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
-  allow_allocation(false);
+  ASSERT(!AllowHeapAllocation::IsAllowed() && gc_state_ == NOT_IN_GC);
 
   if (FLAG_gc_verbose) Print();
 
@@ -479,8 +479,9 @@ void Heap::GarbageCollectionEpilogue() {
   }
 #endif
 
+  AllowHeapAllocation for_the_rest_of_the_epilogue;
+
 #ifdef DEBUG
-  allow_allocation(true);
   if (FLAG_print_global_handles) isolate_->global_handles()->Print();
   if (FLAG_print_handles) PrintHandles();
   if (FLAG_gc_verbose) Print();
@@ -642,6 +643,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
   bool next_gc_likely_to_collect_more = false;
 
   { GCTracer tracer(this, gc_reason, collector_reason);
+    ASSERT(AllowHeapAllocation::IsAllowed());
+    DisallowHeapAllocation no_allocation_during_gc;
     GarbageCollectionPrologue();
     // The GC count was incremented in the prologue.  Tell the tracer about
     // it.
@@ -976,7 +979,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   ASSERT(collector == SCAVENGER || incremental_marking()->IsStopped());
 
   gc_post_processing_depth_++;
-  { DisableAssertNoAllocation allow_allocation;
+  { AllowHeapAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     next_gc_likely_to_collect_more =
         isolate_->global_handles()->PostGarbageCollectionProcessing(
@@ -1616,7 +1619,7 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
 
 
 void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
 
   // Both the external string table and the string table may contain
   // external strings, but neither lists them exhaustively, nor is the
@@ -2675,7 +2678,6 @@ MaybeObject* Heap::AllocateHeapNumber(double value) {
   // This version of AllocateHeapNumber is optimized for
   // allocation in new space.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxNonCodeHeapObjectSize);
-  ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   Object* result;
   { MaybeObject* maybe_result = new_space_.AllocateRaw(HeapNumber::kSize);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -3574,7 +3576,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   ConsString* cons_string = ConsString::cast(result);
   WriteBarrierMode mode = cons_string->GetWriteBarrierMode(no_gc);
   cons_string->set_length(length);
@@ -3655,7 +3657,7 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   SlicedString* sliced_string = SlicedString::cast(result);
   sliced_string->set_length(length);
   sliced_string->set_hash_field(String::kEmptyHashField);
@@ -4120,7 +4122,7 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
 
   // This calls Copy directly rather than using Heap::AllocateRaw so we
   // duplicate the check here.
-  ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
+  ASSERT(AllowHeapAllocation::IsAllowed() && gc_state_ == NOT_IN_GC);
 
   // Check that the size of the boilerplate matches our
   // expectations. The ArgumentsAccessStub::GenerateNewObject relies
@@ -5326,7 +5328,7 @@ MaybeObject* Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   result->set_length(len);
 
   // Copy the content
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
   return result;
@@ -5749,7 +5751,7 @@ bool Heap::IsHeapIterable() {
 
 
 void Heap::EnsureHeapIsIterable() {
-  ASSERT(IsAllocationAllowed());
+  ASSERT(AllowHeapAllocation::IsAllowed());
   if (!IsHeapIterable()) {
     CollectAllGarbage(kMakeHeapIterableMask, "Heap::EnsureHeapIsIterable");
   }
@@ -7067,7 +7069,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     visitor.TransitiveClosure();
   }
 
-  AssertNoAllocation no_alloc;
+  DisallowHeapAllocation no_allocation_;
 };
 
 
@@ -7753,7 +7755,7 @@ void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
     Object* object = list_[i];
     JSFunction* getter_fun;
 
-    { AssertNoAllocation assert;
+    { DisallowHeapAllocation no_gc;
       // Skip possible holes in the list.
       if (object->IsTheHole()) continue;
       if (isolate->heap()->InNewSpace(object) || budget == 0) {

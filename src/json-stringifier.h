@@ -300,7 +300,7 @@ MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
   if (object->IsOneByteRepresentationUnderneath()) {
     Handle<String> result =
         isolate->factory()->NewRawOneByteString(worst_case_length);
-    AssertNoAllocation no_alloc;
+    DisallowHeapAllocation no_gc;
     return StringifyString_<SeqOneByteString>(
         isolate,
         object->GetFlatContent().ToOneByteVector(),
@@ -308,7 +308,7 @@ MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
   } else {
     Handle<String> result =
         isolate->factory()->NewRawTwoByteString(worst_case_length);
-    AssertNoAllocation no_alloc;
+    DisallowHeapAllocation no_gc;
     return StringifyString_<SeqTwoByteString>(
         isolate,
         object->GetFlatContent().ToUC16Vector(),
@@ -321,7 +321,7 @@ template <typename ResultType, typename Char>
 MaybeObject* BasicJsonStringifier::StringifyString_(Isolate* isolate,
                                                     Vector<Char> vector,
                                                     Handle<String> result) {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_gc;
   int final_size = 0;
   ResultType* dest = ResultType::cast(*result);
   dest->Set(final_size++, '\"');
@@ -759,7 +759,7 @@ void BasicJsonStringifier::SerializeString_(Handle<String> string) {
   // is a more pessimistic estimate, but faster to calculate.
 
   if (((part_length_ - current_index_) >> 3) > length) {
-    AssertNoAllocation no_allocation;
+    DisallowHeapAllocation no_gc;
     Vector<const Char> vector = GetCharVector<Char>(string);
     if (is_ascii) {
       current_index_ += SerializeStringUnchecked_(
@@ -778,7 +778,7 @@ void BasicJsonStringifier::SerializeString_(Handle<String> string) {
     for (int i = 0; i < length; i++) {
       // If GC moved the string, we need to refresh the vector.
       if (*string != string_location) {
-        AssertNoAllocation no_gc;
+        DisallowHeapAllocation no_gc;
         // This does not actually prevent the string from being relocated later.
         vector = GetCharVector<Char>(string);
         string_location = *string;

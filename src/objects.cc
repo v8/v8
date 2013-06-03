@@ -1045,7 +1045,7 @@ MaybeObject* String::SlowTryFlatten(PretenureFlag pretenure) {
   // allowed.  This is to avoid an assertion failure when allocating.
   // Flattening strings is the only case where we always allow
   // allocation because no GC is performed if the allocation fails.
-  if (!HEAP->IsAllocationAllowed()) return this;
+  if (!AllowHeapAllocation::IsAllowed()) return this;
 #endif
 
   Heap* heap = GetHeap();
@@ -2629,7 +2629,7 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
 
 
 Map* Map::CurrentMapForDeprecated() {
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   if (!is_deprecated()) return this;
 
   DescriptorArray* old_descriptors = instance_descriptors();
@@ -5202,7 +5202,7 @@ bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
 bool JSObject::ReferencesObject(Object* obj) {
   Map* map_of_this = map();
   Heap* heap = GetHeap();
-  AssertNoAllocation no_alloc;
+  DisallowHeapAllocation no_allocation;
 
   // Is the object the constructor for this object?
   if (map_of_this->constructor() == obj) {
@@ -7546,7 +7546,7 @@ MaybeObject* FixedArray::CopySize(int new_length) {
   }
   FixedArray* result = FixedArray::cast(obj);
   // Copy the content
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   int len = length();
   if (new_length < len) len = new_length;
   // We are taking the map from the old fixed array so the map is sure to
@@ -7561,7 +7561,7 @@ MaybeObject* FixedArray::CopySize(int new_length) {
 
 
 void FixedArray::CopyTo(int pos, FixedArray* dest, int dest_pos, int len) {
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = dest->GetWriteBarrierMode(no_gc);
   for (int index = 0; index < len; index++) {
     dest->set(dest_pos+index, get(pos+index), mode);
@@ -7845,7 +7845,7 @@ bool String::LooksValid() {
 
 
 String::FlatContent String::GetFlatContent() {
-  ASSERT(!GetHeap()->allow_allocation(false));
+  ASSERT(!AllowHeapAllocation::IsAllowed());
   int length = this->length();
   StringShape shape(this);
   String* string = this;
@@ -8072,7 +8072,7 @@ void FlatStringReader::PostGarbageCollection() {
   if (str_ == NULL) return;
   Handle<String> str(str_);
   ASSERT(str->IsFlat());
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   // This does not actually prevent the vector from being relocated later.
   String::FlatContent content = str->GetFlatContent();
   ASSERT(content.IsFlat());
@@ -8625,7 +8625,7 @@ bool String::IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match) {
 bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
   int slen = length();
   if (str.length() != slen) return false;
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   FlatContent content = GetFlatContent();
   if (content.IsAscii()) {
     return CompareChars(content.ToOneByteVector().start(),
@@ -8641,7 +8641,7 @@ bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
 bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   int slen = length();
   if (str.length() != slen) return false;
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   FlatContent content = GetFlatContent();
   if (content.IsTwoByte()) {
     return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
@@ -9772,7 +9772,7 @@ static bool IsCodeEquivalent(Code* code, Code* recompiled) {
 
 void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
   ASSERT(!has_deoptimization_support());
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   Code* code = this->code();
   if (IsCodeEquivalent(code, recompiled)) {
     // Copy the deoptimization data from the recompiled code.
@@ -10089,7 +10089,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
                   RelocInfo::kApplyMask;
   // Needed to find target_object and runtime_entry on X64
   Assembler* origin = desc.origin;
-  ALLOW_HANDLE_DEREF(GetIsolate(), "embedding raw addresses into code");
+  AllowDeferredHandleDereference embedding_raw_address;
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
@@ -10180,7 +10180,7 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 
 Map* Code::FindFirstMap() {
   ASSERT(is_inline_cache_stub());
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
@@ -10193,7 +10193,7 @@ Map* Code::FindFirstMap() {
 
 void Code::ReplaceFirstMap(Map* replace_with) {
   ASSERT(is_inline_cache_stub());
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
@@ -10209,7 +10209,7 @@ void Code::ReplaceFirstMap(Map* replace_with) {
 
 void Code::FindAllMaps(MapHandleList* maps) {
   ASSERT(is_inline_cache_stub());
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
@@ -10221,7 +10221,7 @@ void Code::FindAllMaps(MapHandleList* maps) {
 
 Code* Code::FindFirstCode() {
   ASSERT(is_inline_cache_stub());
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
@@ -10233,7 +10233,7 @@ Code* Code::FindFirstCode() {
 
 void Code::FindAllCode(CodeHandleList* code_list, int length) {
   ASSERT(is_inline_cache_stub());
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
   int i = 0;
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
@@ -10249,7 +10249,7 @@ void Code::FindAllCode(CodeHandleList* code_list, int length) {
 
 Name* Code::FindFirstName() {
   ASSERT(is_inline_cache_stub());
-  AssertNoAllocation no_allocation;
+  DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
@@ -11136,7 +11136,7 @@ class DeoptimizeDependentCodeFilter : public OptimizedFunctionFilter {
 void DependentCode::DeoptimizeDependentCodeGroup(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
-  AssertNoAllocation no_allocation_scope;
+  DisallowHeapAllocation no_allocation_scope;
   DependentCode::GroupStartIndexes starts(this);
   int start = starts.at(group);
   int end = starts.at(group + 1);
@@ -12555,7 +12555,7 @@ template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::CopyValuesTo(FixedArray* elements) {
   int pos = 0;
   int capacity = HashTable<Shape, Key>::Capacity();
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < capacity; i++) {
     Object* k =  Dictionary<Shape, Key>::KeyAt(i);
@@ -13436,7 +13436,7 @@ template<typename Shape, typename Key>
 MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
   ASSERT(NumberOfElements() < new_table->Capacity());
 
-  AssertNoAllocation no_gc;
+  DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = new_table->GetWriteBarrierMode(no_gc);
 
   // Copy prefix to new array.
@@ -13679,7 +13679,7 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
   }
   SeededNumberDictionary* new_dict = SeededNumberDictionary::cast(obj);
 
-  AssertNoAllocation no_alloc;
+  DisallowHeapAllocation no_alloc;
 
   uint32_t pos = 0;
   uint32_t undefs = 0;
@@ -13851,11 +13851,11 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
     }
   } else {
     FixedArray* elements = FixedArray::cast(elements_base);
-    AssertNoAllocation no_alloc;
+    DisallowHeapAllocation no_gc;
 
     // Split elements into defined, undefined and the_hole, in that order.  Only
     // count locations for undefined and the hole, and fill them afterwards.
-    WriteBarrierMode write_barrier = elements->GetWriteBarrierMode(no_alloc);
+    WriteBarrierMode write_barrier = elements->GetWriteBarrierMode(no_gc);
     unsigned int undefs = limit;
     unsigned int holes = limit;
     // Assume most arrays contain no holes and undefined values, so minimize the
@@ -15243,7 +15243,7 @@ Handle<DeclaredAccessorDescriptor> DeclaredAccessorDescriptor::Create(
   value->set_serialized_data(*serialized_descriptor);
   // Copy in the data.
   {
-    AssertNoAllocation no_allocation;
+    DisallowHeapAllocation no_allocation;
     uint8_t* array = serialized_descriptor->GetDataStartAddress();
     if (previous_length != 0) {
       uint8_t* previous_array =

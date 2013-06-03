@@ -687,7 +687,7 @@ const AccessorDescriptor Accessors::FunctionArguments = {
 
 class FrameFunctionIterator {
  public:
-  FrameFunctionIterator(Isolate* isolate, const AssertNoAllocation& promise)
+  FrameFunctionIterator(Isolate* isolate, const DisallowHeapAllocation& promise)
       : frame_iterator_(isolate),
         functions_(2),
         index_(0) {
@@ -734,13 +734,13 @@ class FrameFunctionIterator {
 MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
-  AssertNoAllocation no_alloc;
+  DisallowHeapAllocation no_allocation;
   JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
   if (holder == NULL) return isolate->heap()->undefined_value();
   if (holder->shared()->native()) return isolate->heap()->null_value();
   Handle<JSFunction> function(holder, isolate);
 
-  FrameFunctionIterator it(isolate, no_alloc);
+  FrameFunctionIterator it(isolate, no_allocation);
 
   // Find the function from the frames.
   if (!it.Find(*function)) {
