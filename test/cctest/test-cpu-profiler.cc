@@ -638,3 +638,150 @@ TEST(SampleWhenFrameIsNotSetup) {
 
   cpu_profiler->DeleteAllCpuProfiles();
 }
+
+
+static const char* native_accessor_test_source = "function start(count) {\n"
+"  for (var i = 0; i < count; i++) {\n"
+"    var o = instance.foo;\n"
+"    instance.foo = o + 1;\n"
+"  }\n"
+"}\n";
+
+
+class FooAccessorsData {
+ public:
+  explicit FooAccessorsData(int min_duration_us)
+      : min_duration_us_(min_duration_us) {}
+
+  static v8::Handle<v8::Value> Getter(v8::Local<v8::String> name,
+                                      const v8::AccessorInfo& info) {
+    FooAccessorsData* data = fromInfo(info);
+    data->Wait();
+    return v8::Int32::New(2013);
+  }
+
+  static void Setter(v8::Local<v8::String> name,
+                     v8::Local<v8::Value> value,
+                     const v8::AccessorInfo& info) {
+    FooAccessorsData* data = fromInfo(info);
+    data->Wait();
+  }
+
+ private:
+  void Wait() {
+    int64_t start = i::OS::Ticks();
+    for (int64_t duration = 0; duration < min_duration_us_; ) {
+      duration = i::OS::Ticks() - start;
+    }
+  }
+
+  static FooAccessorsData* fromInfo(const v8::AccessorInfo& info) {
+    void* data = v8::External::Cast(*info.Data())->Value();
+    return reinterpret_cast<FooAccessorsData*>(data);
+  }
+
+  int min_duration_us_;
+};
+
+
+// Test that native accessors are properly reported in the CPU profile.
+// This test checks the case when the long-running accessors are called
+// only once and the optimizer doesn't have chance to change the invocation
+// code.
+TEST(NativeAccessorNameInProfile1) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  v8::Local<v8::ObjectTemplate> instance_template =
+      func_template->InstanceTemplate();
+
+  FooAccessorsData accessors(100 * 1000);
+  v8::Local<v8::External> data = v8::External::New(&accessors);
+  instance_template->SetAccessor(
+      v8::String::New("foo"), &FooAccessorsData::Getter,
+      &FooAccessorsData::Setter, data);
+  v8::Local<v8::Function> func = func_template->GetFunction();
+  v8::Local<v8::Object> instance = func->NewInstance();
+  env->Global()->Set(v8::String::New("instance"), instance);
+
+  v8::Script::Compile(v8::String::New(native_accessor_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  int32_t repeat_count = 1;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
+  GetChild(startNode, "get foo");
+  GetChild(startNode, "set foo");
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}
+
+
+// Test that native accessors are properly reported in the CPU profile.
+// This test makes sure that the accessors are called enough times to become
+// hot and to trigger optimizations.
+TEST(NativeAccessorNameInProfile2) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  v8::Local<v8::ObjectTemplate> instance_template =
+      func_template->InstanceTemplate();
+
+  FooAccessorsData accessors(10);
+  v8::Local<v8::External> data = v8::External::New(&accessors);
+  instance_template->SetAccessor(
+      v8::String::New("foo"), &FooAccessorsData::Getter,
+      &FooAccessorsData::Setter, data);
+  v8::Local<v8::Function> func = func_template->GetFunction();
+  v8::Local<v8::Object> instance = func->NewInstance();
+  env->Global()->Set(v8::String::New("instance"), instance);
+
+  v8::Script::Compile(v8::String::New(native_accessor_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  int32_t repeat_count = 10 * 1000;
+#if defined(USE_SIMULATOR)
+  // Simulators are much slower.
+  repeat_count = 100;
+#endif
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
+  // TODO(yurys): in LoadIC should be changed to report external callback
+  // invocation. See r13768 where it was LoadCallbackProperty was removed.
+  // GetChild(startNode, "get foo");
+  GetChild(startNode, "set foo");
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}

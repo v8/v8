@@ -344,6 +344,8 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
+      ExternalCallbackScope call_scope(isolate,
+                                       v8::ToCData<Address>(fun_obj));
       result = args.Call(call_fun, v8::Utils::ToLocal(key));
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -2789,6 +2791,8 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     {
       // Leaving JavaScript.
       VMState<EXTERNAL> state(isolate);
+      ExternalCallbackScope call_scope(isolate,
+                                       v8::ToCData<Address>(call_obj));
       args.Call(call_fun,
                 v8::Utils::ToLocal(key),
                 v8::Utils::ToLocal(value_handle));
