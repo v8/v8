@@ -4588,7 +4588,6 @@ static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
   // megamorphic.
   // r1 : the function to call
   // r2 : cache cell for call target
-  ASSERT(!FLAG_optimize_constructed_arrays);
   Label done;
 
   ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
@@ -4732,11 +4731,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ b(ne, &slow);
 
   if (RecordCallTarget()) {
-    if (FLAG_optimize_constructed_arrays) {
-      GenerateRecordCallTarget(masm);
-    } else {
-      GenerateRecordCallTargetNoArray(masm);
-    }
+    GenerateRecordCallTargetNoArray(masm);
   }
 
   // Fast-case: Invoke the function now.
