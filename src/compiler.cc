@@ -424,7 +424,7 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     // graph creation.  To make sure that we don't encounter inconsistencies
     // between graph creation and code generation, we disallow accessing
     // objects through deferred handles during the latter, with exceptions.
-    DisallowDeferredHandleDereference no_deferred_handle_deref();
+    DisallowDeferredHandleDereference no_deferred_handle_deref;
     Handle<Code> optimized_code = chunk_->Codegen();
     if (optimized_code.is_null()) {
       info()->set_bailout_reason("code generation failed");
