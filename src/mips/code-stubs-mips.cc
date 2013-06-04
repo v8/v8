@@ -2277,7 +2277,16 @@ void BinaryOpStub_GenerateSmiCode(
 
 
 void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
-  Label not_smis, call_runtime;
+  Label right_arg_changed, call_runtime;
+
+  if (op_ == Token::MOD && has_fixed_right_arg_) {
+    // It is guaranteed that the value will fit into a Smi, because if it
+    // didn't, we wouldn't be here, see BinaryOp_Patch.
+    __ Branch(&right_arg_changed,
+              ne,
+              a0,
+              Operand(Smi::FromInt(fixed_right_arg_value())));
+  }
 
   if (result_type_ == BinaryOpIC::UNINITIALIZED ||
       result_type_ == BinaryOpIC::SMI) {
@@ -2294,6 +2303,7 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 
   // Code falls through if the result is not returned as either a smi or heap
   // number.
+  __ bind(&right_arg_changed);
   GenerateTypeTransition(masm);
 
   __ bind(&call_runtime);
@@ -2494,6 +2504,11 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         // to type transition.
 
       } else {
+        if (has_fixed_right_arg_) {
+          __ Move(f16, fixed_right_arg_value());
+          __ BranchF(&transition, NULL, ne, f14, f16);
+        }
+
         // We preserved a0 and a1 to be able to call runtime.
         // Save the left value on the stack.
         __ Push(t1, t0);
