@@ -670,7 +670,7 @@ void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
       : 0;
   int length = infos->length() + cell_count;
   byte* old_start = code->instruction_start();
-  dictionary_ = FACTORY->NewUnseededNumberDictionary(length);
+  dictionary_ = isolate()->factory()->NewUnseededNumberDictionary(length);
   byte* new_start = code->instruction_start();
   RelocateRelocInfos(infos, old_start, new_start);
 }

@@ -81,8 +81,8 @@ TEST(CrankshaftRandom) {
 
   CompileRun("function f() { return Math.random(); }");
 
-  Object* string = FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("f"))->
-      ToObjectChecked();
+  Object* string = Isolate::Current()->factory()->InternalizeOneByteString(
+      STATIC_ASCII_VECTOR("f"))->ToObjectChecked();
   MaybeObject* fun_object =
       context->global_object()->GetProperty(String::cast(string));
   Handle<JSFunction> fun(JSFunction::cast(fun_object->ToObjectChecked()));

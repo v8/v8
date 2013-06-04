@@ -3137,9 +3137,10 @@ class HConstant: public HTemplateInstruction<0> {
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
+      Factory* factory = Isolate::Current()->factory();
       // Default arguments to is_not_in_new_space depend on this heap number
       // to be tenured so that it's guaranteed not be be located in new space.
-      handle_ = FACTORY->NewNumber(double_value_, TENURED);
+      handle_ = factory->NewNumber(double_value_, TENURED);
     }
     AllowDeferredHandleDereference smi_check;
     ASSERT(has_int32_value_ || !handle_->IsSmi());

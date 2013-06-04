@@ -3845,8 +3845,9 @@ bool CompileTimeValue::ArrayLiteralElementNeedsInitialization(
 
 
 Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
+  Factory* factory = Isolate::Current()->factory();
   ASSERT(IsCompileTimeValue(expression));
-  Handle<FixedArray> result = FACTORY->NewFixedArray(2, TENURED);
+  Handle<FixedArray> result = factory->NewFixedArray(2, TENURED);
   ObjectLiteral* object_literal = expression->AsObjectLiteral();
   if (object_literal != NULL) {
     ASSERT(object_literal->is_simple());

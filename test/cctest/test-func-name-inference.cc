@@ -51,6 +51,9 @@ using ::v8::internal::String;
 static void CheckFunctionName(v8::Handle<v8::Script> script,
                               const char* func_pos_src,
                               const char* ref_inferred_name) {
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+
   // Get script source.
   Handle<Object> obj = v8::Utils::OpenHandle(*script);
   Handle<SharedFunctionInfo> shared_function;
@@ -67,8 +70,8 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
 
   // Find the position of a given func source substring in the source.
   Handle<String> func_pos_str =
-      FACTORY->NewStringFromAscii(CStrVector(func_pos_src));
-  int func_pos = Runtime::StringMatch(Isolate::Current(),
+      factory->NewStringFromAscii(CStrVector(func_pos_src));
+  int func_pos = Runtime::StringMatch(isolate,
                                       script_src,
                                       func_pos_str,
                                       0);
@@ -76,10 +79,9 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Obtain SharedFunctionInfo for the function.
-  Isolate::Current()->debug()->PrepareForBreakPoints();
+  isolate->debug()->PrepareForBreakPoints();
   Object* shared_func_info_ptr =
-      Isolate::Current()->debug()->FindSharedFunctionInfoInScript(i_script,
-                                                                  func_pos);
+      isolate->debug()->FindSharedFunctionInfoInScript(i_script, func_pos);
   CHECK(shared_func_info_ptr != HEAP->undefined_value());
   Handle<SharedFunctionInfo> shared_func_info(
       SharedFunctionInfo::cast(shared_func_info_ptr));

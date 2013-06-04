@@ -2816,7 +2816,8 @@ class FixedArrayBuilder {
   }
 
   Handle<JSArray> ToJSArray(Handle<JSArray> target_array) {
-    FACTORY->SetContent(target_array, array_);
+    Factory* factory = target_array->GetIsolate()->factory();
+    factory->SetContent(target_array, array_);
     target_array->set_length(Smi::FromInt(length_));
     return target_array;
   }
@@ -7772,7 +7773,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
       // called using 'new' and creates a new JSFunction object that
       // is returned.  The receiver object is only used for error
       // reporting if an error occurs when constructing the new
-      // JSFunction. FACTORY->NewJSObject() should not be used to
+      // JSFunction. Factory::NewJSObject() should not be used to
       // allocate JSFunctions since it does not properly initialize
       // the shared part of the function. Since the receiver is
       // ignored anyway, we use the global object as the receiver
@@ -13004,6 +13005,7 @@ static Handle<Object> Runtime_GetScriptFromScriptName(
   // Scan the heap for Script objects to find the script with the requested
   // script data.
   Handle<Script> script;
+  Factory* factory = script_name->GetIsolate()->factory();
   Heap* heap = script_name->GetHeap();
   heap->EnsureHeapIsIterable();
   DisallowHeapAllocation no_allocation_during_heap_iteration;
@@ -13021,7 +13023,7 @@ static Handle<Object> Runtime_GetScriptFromScriptName(
   }
 
   // If no script with the requested script data is found return undefined.
-  if (script.is_null()) return FACTORY->undefined_value();
+  if (script.is_null()) return factory->undefined_value();
 
   // Return the script found.
   return GetScriptWrapper(script);

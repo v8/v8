@@ -1967,8 +1967,8 @@ MaybeObject* JSObject::AddProperty(Name* name,
     } else {
       Handle<Object> args[1] = {Handle<Name>(name)};
       return isolate->Throw(
-          *FACTORY->NewTypeError("object_not_extensible",
-                                 HandleVector(args, 1)));
+          *isolate->factory()->NewTypeError("object_not_extensible",
+                                            HandleVector(args, 1)));
     }
   }
 
@@ -11235,7 +11235,8 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
       // Cycle detected.
       HandleScope scope(isolate);
       return isolate->Throw(
-          *FACTORY->NewError("cyclic_proto", HandleVector<Object>(NULL, 0)));
+          *isolate->factory()->NewError("cyclic_proto",
+                                        HandleVector<Object>(NULL, 0)));
     }
   }
 
@@ -15486,6 +15487,8 @@ void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,
 // Add the specified break point object.
 void BreakPointInfo::SetBreakPoint(Handle<BreakPointInfo> break_point_info,
                                    Handle<Object> break_point_object) {
+  Isolate* isolate = break_point_info->GetIsolate();
+
   // If there was no break point objects before just set it.
   if (break_point_info->break_point_objects()->IsUndefined()) {
     break_point_info->set_break_point_objects(*break_point_object);
@@ -15495,7 +15498,7 @@ void BreakPointInfo::SetBreakPoint(Handle<BreakPointInfo> break_point_info,
   if (break_point_info->break_point_objects() == *break_point_object) return;
   // If there was one break point object before replace with array.
   if (!break_point_info->break_point_objects()->IsFixedArray()) {
-    Handle<FixedArray> array = FACTORY->NewFixedArray(2);
+    Handle<FixedArray> array = isolate->factory()->NewFixedArray(2);
     array->set(0, break_point_info->break_point_objects());
     array->set(1, *break_point_object);
     break_point_info->set_break_point_objects(*array);
@@ -15506,7 +15509,7 @@ void BreakPointInfo::SetBreakPoint(Handle<BreakPointInfo> break_point_info,
       Handle<FixedArray>(
           FixedArray::cast(break_point_info->break_point_objects()));
   Handle<FixedArray> new_array =
-      FACTORY->NewFixedArray(old_array->length() + 1);
+      isolate->factory()->NewFixedArray(old_array->length() + 1);
   for (int i = 0; i < old_array->length(); i++) {
     // If the break point was there before just ignore.
     if (old_array->get(i) == *break_point_object) return;

@@ -1191,8 +1191,8 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
   HandleScope scope(isolate);
   Handle<Name> name_handle(name);
   Handle<Object> error =
-      FACTORY->NewReferenceError("not_defined",
-                                  HandleVector(&name_handle, 1));
+      isolate->factory()->NewReferenceError("not_defined",
+                                            HandleVector(&name_handle, 1));
   return isolate->Throw(*error);
 }
 

@@ -596,6 +596,7 @@ TEST(MakingExternalAsciiStringConditions) {
 
 
 THREADED_TEST(UsingExternalString) {
+  i::Factory* factory = i::Isolate::Current()->factory();
   {
     v8::HandleScope scope(v8::Isolate::GetCurrent());
     uint16_t* two_byte_string = AsciiToTwoByteString("test string");
@@ -606,7 +607,7 @@ THREADED_TEST(UsingExternalString) {
     HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
     i::Handle<i::String> isymbol =
-        FACTORY->InternalizedStringFromString(istring);
+        factory->InternalizedStringFromString(istring);
     CHECK(isymbol->IsInternalizedString());
   }
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -615,6 +616,7 @@ THREADED_TEST(UsingExternalString) {
 
 
 THREADED_TEST(UsingExternalAsciiString) {
+  i::Factory* factory = i::Isolate::Current()->factory();
   {
     v8::HandleScope scope(v8::Isolate::GetCurrent());
     const char* one_byte_string = "test string";
@@ -625,7 +627,7 @@ THREADED_TEST(UsingExternalAsciiString) {
     HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
     i::Handle<i::String> isymbol =
-        FACTORY->InternalizedStringFromString(istring);
+        factory->InternalizedStringFromString(istring);
     CHECK(isymbol->IsInternalizedString());
   }
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -13509,6 +13511,7 @@ THREADED_TEST(MorphCompositeStringTest) {
   uint16_t* two_byte_string = AsciiToTwoByteString(c_string);
   {
     LocalContext env;
+    i::Factory* factory = i::Isolate::Current()->factory();
     v8::HandleScope scope(env->GetIsolate());
     AsciiVectorResource ascii_resource(
         i::Vector<const char>(c_string, i::StrLength(c_string)));
@@ -13517,9 +13520,9 @@ THREADED_TEST(MorphCompositeStringTest) {
                                   i::StrLength(c_string)));
 
     Local<String> lhs(v8::Utils::ToLocal(
-        FACTORY->NewExternalStringFromAscii(&ascii_resource)));
+        factory->NewExternalStringFromAscii(&ascii_resource)));
     Local<String> rhs(v8::Utils::ToLocal(
-        FACTORY->NewExternalStringFromAscii(&ascii_resource)));
+        factory->NewExternalStringFromAscii(&ascii_resource)));
 
     env->Global()->Set(v8_str("lhs"), lhs);
     env->Global()->Set(v8_str("rhs"), rhs);
@@ -13606,6 +13609,8 @@ class RegExpStringModificationTest {
         uc16_resource_(i::Vector<const uint16_t>(two_byte_content_, 15)) {}
   ~RegExpStringModificationTest() { delete block_; }
   void RunTest() {
+    i::Factory* factory = i::Isolate::Current()->factory();
+
     regexp_success_ = false;
     morph_success_ = false;
 
@@ -13618,11 +13623,11 @@ class RegExpStringModificationTest {
 
     // Create the input string for the regexp - the one we are going to change
     // properties of.
-    input_ = FACTORY->NewExternalStringFromAscii(&ascii_resource_);
+    input_ = factory->NewExternalStringFromAscii(&ascii_resource_);
 
     // Inject the input as a global variable.
     i::Handle<i::String> input_name =
-        FACTORY->NewStringFromAscii(i::Vector<const char>("input", 5));
+        factory->NewStringFromAscii(i::Vector<const char>("input", 5));
     i::Isolate::Current()->native_context()->global_object()->SetProperty(
         *input_name,
         *input_,
@@ -14116,12 +14121,13 @@ THREADED_TEST(Regress16276) {
 
 THREADED_TEST(PixelArray) {
   LocalContext context;
+  i::Factory* factory = i::Isolate::Current()->factory();
   v8::HandleScope scope(context->GetIsolate());
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
   i::Handle<i::ExternalPixelArray> pixels =
       i::Handle<i::ExternalPixelArray>::cast(
-          FACTORY->NewExternalArray(kElementCount,
+          factory->NewExternalArray(kElementCount,
                                     v8::kExternalPixelArray,
                                     pixel_data));
   // Force GC to trigger verification.
@@ -14538,12 +14544,13 @@ static v8::Handle<Value> NotHandledIndexedPropertySetter(
 
 THREADED_TEST(PixelArrayWithInterceptor) {
   LocalContext context;
+  i::Factory* factory = i::Isolate::Current()->factory();
   v8::HandleScope scope(context->GetIsolate());
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
   i::Handle<i::ExternalPixelArray> pixels =
       i::Handle<i::ExternalPixelArray>::cast(
-          FACTORY->NewExternalArray(kElementCount,
+          factory->NewExternalArray(kElementCount,
                                     v8::kExternalPixelArray,
                                     pixel_data));
   for (int i = 0; i < kElementCount; i++) {
@@ -14905,6 +14912,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                                     int64_t low,
                                     int64_t high) {
   LocalContext context;
+  i::Factory* factory = i::Isolate::Current()->factory();
   v8::HandleScope scope(context->GetIsolate());
   const int kElementCount = 40;
   int element_size = ExternalArrayElementSize(array_type);
@@ -14912,7 +14920,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
       static_cast<ElementType*>(malloc(kElementCount * element_size));
   i::Handle<ExternalArrayClass> array =
       i::Handle<ExternalArrayClass>::cast(
-          FACTORY->NewExternalArray(kElementCount, array_type, array_data));
+          factory->NewExternalArray(kElementCount, array_type, array_data));
   // Force GC to trigger verification.
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   for (int i = 0; i < kElementCount; i++) {
@@ -15849,10 +15857,11 @@ TEST(DynamicWithSourceURLInStackTrace) {
 }
 
 static void CreateGarbageInOldSpace() {
+  i::Factory* factory = i::Isolate::Current()->factory();
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   i::AlwaysAllocateScope always_allocate;
   for (int i = 0; i < 1000; i++) {
-    FACTORY->NewFixedArray(1000, i::TENURED);
+    factory->NewFixedArray(1000, i::TENURED);
   }
 }
 
@@ -18547,18 +18556,19 @@ static void CountingErrorCallback(const char* location, const char* message) {
 
 TEST(StaticGetters) {
   LocalContext context;
+  i::Factory* factory = i::Isolate::Current()->factory();
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
-  i::Handle<i::Object> undefined_value = FACTORY->undefined_value();
+  i::Handle<i::Object> undefined_value = factory->undefined_value();
   CHECK(*v8::Utils::OpenHandle(*v8::Undefined()) == *undefined_value);
   CHECK(*v8::Utils::OpenHandle(*v8::Undefined(isolate)) == *undefined_value);
-  i::Handle<i::Object> null_value = FACTORY->null_value();
+  i::Handle<i::Object> null_value = factory->null_value();
   CHECK(*v8::Utils::OpenHandle(*v8::Null()) == *null_value);
   CHECK(*v8::Utils::OpenHandle(*v8::Null(isolate)) == *null_value);
-  i::Handle<i::Object> true_value = FACTORY->true_value();
+  i::Handle<i::Object> true_value = factory->true_value();
   CHECK(*v8::Utils::OpenHandle(*v8::True()) == *true_value);
   CHECK(*v8::Utils::OpenHandle(*v8::True(isolate)) == *true_value);
-  i::Handle<i::Object> false_value = FACTORY->false_value();
+  i::Handle<i::Object> false_value = factory->false_value();
   CHECK(*v8::Utils::OpenHandle(*v8::False()) == *false_value);
   CHECK(*v8::Utils::OpenHandle(*v8::False(isolate)) == *false_value);
 
@@ -18609,9 +18619,10 @@ TEST(IsolateEmbedderData) {
 
 TEST(StringEmpty) {
   LocalContext context;
+  i::Factory* factory = i::Isolate::Current()->factory();
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
-  i::Handle<i::Object> empty_string = FACTORY->empty_string();
+  i::Handle<i::Object> empty_string = factory->empty_string();
   CHECK(*v8::Utils::OpenHandle(*v8::String::Empty()) == *empty_string);
   CHECK(*v8::Utils::OpenHandle(*v8::String::Empty(isolate)) == *empty_string);
 

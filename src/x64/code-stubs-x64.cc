@@ -3444,7 +3444,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
       __ bind(&check_for_nan);
     }
 
-    // Test for NaN. Sadly, we can't just compare to FACTORY->nan_value(),
+    // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
     // so we do the second best thing - test it ourselves.
     Label heap_number;
     // If it's not a heap number, then return equal for (in)equality operator.
@@ -4395,7 +4395,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const int kOffsetToResultValue = 18;
   // The last 4 bytes of the instruction sequence
   //   movq(rdi, FieldOperand(rax, HeapObject::kMapOffset))
-  //   Move(kScratchRegister, FACTORY->the_hole_value())
+  //   Move(kScratchRegister, Factory::the_hole_value())
   // in front of the hole value address.
   static const unsigned int kWordBeforeMapCheckValue = 0xBA49FF78;
   // The last 4 bytes of the instruction sequence

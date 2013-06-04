@@ -2126,7 +2126,8 @@ void Genesis::InstallJSFunctionResultCaches() {
 #undef F
   ;
 
-  Handle<FixedArray> caches = FACTORY->NewFixedArray(kNumberOfCaches, TENURED);
+  Handle<FixedArray> caches =
+      factory()->NewFixedArray(kNumberOfCaches, TENURED);
 
   int index = 0;
 
@@ -2145,7 +2146,7 @@ void Genesis::InstallJSFunctionResultCaches() {
 
 void Genesis::InitializeNormalizedMapCaches() {
   Handle<FixedArray> array(
-      FACTORY->NewFixedArray(NormalizedMapCache::kEntries, TENURED));
+      factory()->NewFixedArray(NormalizedMapCache::kEntries, TENURED));
   native_context()->set_normalized_map_cache(NormalizedMapCache::cast(*array));
 }
 
@@ -2505,14 +2506,13 @@ void Genesis::TransferIndexedProperties(Handle<JSObject> from,
   // Cloning the elements array is sufficient.
   Handle<FixedArray> from_elements =
       Handle<FixedArray>(FixedArray::cast(from->elements()));
-  Handle<FixedArray> to_elements = FACTORY->CopyFixedArray(from_elements);
+  Handle<FixedArray> to_elements = factory()->CopyFixedArray(from_elements);
   to->set_elements(*to_elements);
 }
 
 
 void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
   HandleScope outer(isolate());
-  Factory* factory = isolate()->factory();
 
   ASSERT(!from->IsJSArray());
   ASSERT(!to->IsJSArray());
@@ -2522,7 +2522,7 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 
   // Transfer the prototype (new map is needed).
   Handle<Map> old_to_map = Handle<Map>(to->map());
-  Handle<Map> new_to_map = factory->CopyMap(old_to_map);
+  Handle<Map> new_to_map = factory()->CopyMap(old_to_map);
   new_to_map->set_prototype(from->map()->prototype());
   to->set_map(*new_to_map);
 }

@@ -886,7 +886,8 @@ void NeanderArray::add(i::Handle<i::Object> value) {
   int length = this->length();
   int size = obj_.size();
   if (length == size - 1) {
-    i::Handle<i::FixedArray> new_elms = FACTORY->NewFixedArray(2 * size);
+    i::Factory* factory = i::Isolate::Current()->factory();
+    i::Handle<i::FixedArray> new_elms = factory->NewFixedArray(2 * size);
     for (int i = 0; i < length; i++)
       new_elms->set(i + 1, get(i));
     obj_.value()->set_elements(*new_elms);
@@ -3856,7 +3857,8 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::String> key_string = FACTORY->InternalizeString(key_obj);
+  i::Handle<i::String> key_string =
+      isolate->factory()->InternalizeString(key_obj);
   i::Handle<i::Object> result(self->GetHiddenProperty(*key_string), isolate);
   if (result->IsUndefined()) return v8::Local<v8::Value>();
   return Utils::ToLocal(result);
@@ -3870,7 +3872,8 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::String> key_string = FACTORY->InternalizeString(key_obj);
+  i::Handle<i::String> key_string =
+      isolate->factory()->InternalizeString(key_obj);
   self->DeleteHiddenProperty(*key_string);
   return true;
 }
@@ -5897,13 +5900,14 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
 
 
 static i::Handle<i::String> RegExpFlagsToString(RegExp::Flags flags) {
+  i::Isolate* isolate = i::Isolate::Current();
   uint8_t flags_buf[3];
   int num_flags = 0;
   if ((flags & RegExp::kGlobal) != 0) flags_buf[num_flags++] = 'g';
   if ((flags & RegExp::kMultiline) != 0) flags_buf[num_flags++] = 'm';
   if ((flags & RegExp::kIgnoreCase) != 0) flags_buf[num_flags++] = 'i';
   ASSERT(num_flags <= static_cast<int>(ARRAY_SIZE(flags_buf)));
-  return FACTORY->InternalizeOneByteString(
+  return isolate->factory()->InternalizeOneByteString(
       i::Vector<const uint8_t>(flags_buf, num_flags));
 }
 

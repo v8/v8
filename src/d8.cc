@@ -940,16 +940,17 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   Context::Scope scope(context);
 
 #ifndef V8_SHARED
+  i::Factory* factory = i::Isolate::Current()->factory();
   i::JSArguments js_args = i::FLAG_js_arguments;
   i::Handle<i::FixedArray> arguments_array =
-      FACTORY->NewFixedArray(js_args.argc());
+      factory->NewFixedArray(js_args.argc());
   for (int j = 0; j < js_args.argc(); j++) {
     i::Handle<i::String> arg =
-        FACTORY->NewStringFromUtf8(i::CStrVector(js_args[j]));
+        factory->NewStringFromUtf8(i::CStrVector(js_args[j]));
     arguments_array->set(j, *arg);
   }
   i::Handle<i::JSArray> arguments_jsarray =
-      FACTORY->NewJSArrayWithElements(arguments_array);
+      factory->NewJSArrayWithElements(arguments_array);
   context->Global()->Set(String::New("arguments"),
                          Utils::ToLocal(arguments_jsarray));
 #endif  // V8_SHARED

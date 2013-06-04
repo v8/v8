@@ -3328,6 +3328,8 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
+  Isolate* isolate = masm->isolate();
+
   // esp[0] : return address
   // esp[4] : number of parameters (tagged)
   // esp[8] : receiver displacement
@@ -3459,7 +3461,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ j(zero, &skip_parameter_map);
 
   __ mov(FieldOperand(edi, FixedArray::kMapOffset),
-         Immediate(FACTORY->non_strict_arguments_elements_map()));
+         Immediate(isolate->factory()->non_strict_arguments_elements_map()));
   __ lea(eax, Operand(ebx, reinterpret_cast<intptr_t>(Smi::FromInt(2))));
   __ mov(FieldOperand(edi, FixedArray::kLengthOffset), eax);
   __ mov(FieldOperand(edi, FixedArray::kHeaderSize + 0 * kPointerSize), esi);
@@ -3480,7 +3482,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ mov(ebx, Immediate(Smi::FromInt(Context::MIN_CONTEXT_SLOTS)));
   __ add(ebx, Operand(esp, 4 * kPointerSize));
   __ sub(ebx, eax);
-  __ mov(ecx, FACTORY->the_hole_value());
+  __ mov(ecx, isolate->factory()->the_hole_value());
   __ mov(edx, edi);
   __ lea(edi, Operand(edi, eax, times_2, kParameterMapHeaderSize));
   // eax = loop variable (tagged)
@@ -3515,7 +3517,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // esp[16] = address of receiver argument
   // Copy arguments header and remaining slots (if there are any).
   __ mov(FieldOperand(edi, FixedArray::kMapOffset),
-         Immediate(FACTORY->fixed_array_map()));
+         Immediate(isolate->factory()->fixed_array_map()));
   __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
 
   Label arguments_loop, arguments_test;
@@ -3551,6 +3553,8 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
+  Isolate* isolate = masm->isolate();
+
   // esp[0] : return address
   // esp[4] : number of parameters
   // esp[8] : receiver displacement
@@ -3621,7 +3625,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ lea(edi, Operand(eax, Heap::kArgumentsObjectSizeStrict));
   __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
   __ mov(FieldOperand(edi, FixedArray::kMapOffset),
-         Immediate(FACTORY->fixed_array_map()));
+         Immediate(isolate->factory()->fixed_array_map()));
 
   __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
   // Untag the length for the loop below.

@@ -649,7 +649,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // in that case too.
 
     // Create a script object describing the script to be compiled.
-    Handle<Script> script = FACTORY->NewScript(source);
+    Handle<Script> script = isolate->factory()->NewScript(source);
     if (natives == NATIVES_CODE) {
       script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
     }
@@ -1054,6 +1054,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   info.SetLanguageMode(literal->scope()->language_mode());
 
   Isolate* isolate = info.isolate();
+  Factory* factory = isolate->factory();
   LiveEditFunctionTracker live_edit_tracker(isolate, literal);
   // Determine if the function can be lazily compiled. This is necessary to
   // allow some of our builtin JS files to be lazily compiled. These
@@ -1083,7 +1084,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
 
   // Create a shared function info object.
   Handle<SharedFunctionInfo> result =
-      FACTORY->NewSharedFunctionInfo(literal->name(),
+      factory->NewSharedFunctionInfo(literal->name(),
                                      literal->materialized_literal_count(),
                                      literal->is_generator(),
                                      info.code(),

@@ -149,6 +149,7 @@ class DebugLocalContext {
   void ExposeDebug() {
     v8::internal::Isolate* isolate =
         reinterpret_cast<v8::internal::Isolate*>(context_->GetIsolate());
+    v8::internal::Factory* factory = isolate->factory();
     v8::internal::Debug* debug = isolate->debug();
     // Expose the debug context global object in the global object for testing.
     debug->Load();
@@ -158,7 +159,7 @@ class DebugLocalContext {
     Handle<JSGlobalProxy> global(Handle<JSGlobalProxy>::cast(
         v8::Utils::OpenHandle(*context_->Global())));
     Handle<v8::internal::String> debug_string =
-        FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("debug"));
+        factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("debug"));
     SetProperty(isolate, global, debug_string,
                 Handle<Object>(debug->debug_context()->global_proxy(), isolate),
                 DONT_ENUM,
@@ -404,7 +405,7 @@ Handle<FixedArray> GetDebuggedFunctions() {
 
   // Allocate array for the debugged functions
   Handle<FixedArray> debugged_functions =
-      FACTORY->NewFixedArray(count);
+      Isolate::Current()->factory()->NewFixedArray(count);
 
   // Run through the debug info objects and collect all functions.
   count = 0;

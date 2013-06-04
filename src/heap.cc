@@ -2973,7 +2973,7 @@ bool Heap::CreateInitialObjects() {
   SeededNumberDictionary::cast(obj)->set_requires_slow_elements();
   set_empty_slow_element_dictionary(SeededNumberDictionary::cast(obj));
 
-  // Handling of script id generation is in FACTORY->NewScript.
+  // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(undefined_value());
 
   // Initialize keyed lookup cache.
