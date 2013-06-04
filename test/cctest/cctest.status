@@ -73,6 +73,12 @@ test-serialize/DeserializeAndRunScript2: SKIP
 test-serialize/DeserializeFromSecondSerialization: SKIP
 
 ##############################################################################
+[ $arch == mipsel ]
+
+# BUG(2628): The test sometimes fails on MIPS simulator.
+test-cpu-profiler/SampleWhenFrameIsNotSetup: PASS || FAIL
+
+##############################################################################
 [ $arch == android_arm || $arch == android_ia32 ]
 
 # Tests crash as there is no /tmp directory in Android.
