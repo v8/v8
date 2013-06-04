@@ -7512,6 +7512,8 @@ GCTracer::~GCTracer() {
     PrintF("intracompaction_ptrs=%.1f ",
         scopes_[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]);
     PrintF("misc_compaction=%.1f ", scopes_[Scope::MC_UPDATE_MISC_POINTERS]);
+    PrintF("weakmap_process=%.1f ", scopes_[Scope::MC_WEAKMAP_PROCESS]);
+    PrintF("weakmap_clear=%.1f ", scopes_[Scope::MC_WEAKMAP_CLEAR]);
 
     PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_object_size_);
     PrintF("total_size_after=%" V8_PTR_PREFIX "d ", heap_->SizeOfObjects());

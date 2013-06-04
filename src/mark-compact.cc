@@ -2074,22 +2074,16 @@ void MarkCompactCollector::MarkImplicitRefGroups() {
 // marking stack have been marked, or are overflowed in the heap.
 void MarkCompactCollector::EmptyMarkingDeque() {
   while (!marking_deque_.IsEmpty()) {
-    while (!marking_deque_.IsEmpty()) {
-      HeapObject* object = marking_deque_.Pop();
-      ASSERT(object->IsHeapObject());
-      ASSERT(heap()->Contains(object));
-      ASSERT(Marking::IsBlack(Marking::MarkBitFrom(object)));
+    HeapObject* object = marking_deque_.Pop();
+    ASSERT(object->IsHeapObject());
+    ASSERT(heap()->Contains(object));
+    ASSERT(Marking::IsBlack(Marking::MarkBitFrom(object)));
 
-      Map* map = object->map();
-      MarkBit map_mark = Marking::MarkBitFrom(map);
-      MarkObject(map, map_mark);
+    Map* map = object->map();
+    MarkBit map_mark = Marking::MarkBitFrom(map);
+    MarkObject(map, map_mark);
 
-      MarkCompactMarkingVisitor::IterateBody(map, object);
-    }
-
-    // Process encountered weak maps, mark objects only reachable by those
-    // weak maps and repeat until fix-point is reached.
-    ProcessWeakMaps();
+    MarkCompactMarkingVisitor::IterateBody(map, object);
   }
 }
 
@@ -2154,13 +2148,16 @@ void MarkCompactCollector::ProcessMarkingDeque() {
 }
 
 
-void MarkCompactCollector::ProcessExternalMarking(RootMarkingVisitor* visitor) {
+// Mark all objects reachable (transitively) from objects on the marking
+// stack including references only considered in the atomic marking pause.
+void MarkCompactCollector::ProcessEphemeralMarking(ObjectVisitor* visitor) {
   bool work_to_do = true;
   ASSERT(marking_deque_.IsEmpty());
   while (work_to_do) {
     isolate()->global_handles()->IterateObjectGroups(
         visitor, &IsUnmarkedHeapObjectWithHeap);
     MarkImplicitRefGroups();
+    ProcessWeakMaps();
     work_to_do = !marking_deque_.IsEmpty();
     ProcessMarkingDeque();
   }
@@ -2237,12 +2234,12 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   // The objects reachable from the roots are marked, yet unreachable
   // objects are unmarked.  Mark objects reachable due to host
-  // application specific logic.
-  ProcessExternalMarking(&root_visitor);
+  // application specific logic or through Harmony weak maps.
+  ProcessEphemeralMarking(&root_visitor);
 
-  // The objects reachable from the roots or object groups are marked,
-  // yet unreachable objects are unmarked.  Mark objects reachable
-  // only from weak global handles.
+  // The objects reachable from the roots, weak maps or object groups
+  // are marked, yet unreachable objects are unmarked.  Mark objects
+  // reachable only from weak global handles.
   //
   // First we identify nonlive weak handles and mark them as pending
   // destruction.
@@ -2255,9 +2252,9 @@ void MarkCompactCollector::MarkLiveObjects() {
     EmptyMarkingDeque();
   }
 
-  // Repeat host application specific marking to mark unmarked objects
-  // reachable from the weak roots.
-  ProcessExternalMarking(&root_visitor);
+  // Repeat host application specific and Harmony weak maps marking to
+  // mark unmarked objects reachable from the weak roots.
+  ProcessEphemeralMarking(&root_visitor);
 
   AfterMarking();
 }
@@ -2529,6 +2526,7 @@ void MarkCompactCollector::ClearNonLiveDependentCode(Map* map) {
 
 
 void MarkCompactCollector::ProcessWeakMaps() {
+  GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_WEAKMAP_PROCESS);
   Object* weak_map_obj = encountered_weak_maps();
   while (weak_map_obj != Smi::FromInt(0)) {
     ASSERT(MarkCompactCollector::IsMarked(HeapObject::cast(weak_map_obj)));
@@ -2554,6 +2552,7 @@ void MarkCompactCollector::ProcessWeakMaps() {
 
 
 void MarkCompactCollector::ClearWeakMaps() {
+  GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_WEAKMAP_CLEAR);
   Object* weak_map_obj = encountered_weak_maps();
   while (weak_map_obj != Smi::FromInt(0)) {
     ASSERT(MarkCompactCollector::IsMarked(HeapObject::cast(weak_map_obj)));
