@@ -1232,7 +1232,7 @@ class HGraphBuilder {
     JSArrayBuilder(HGraphBuilder* builder,
                    ElementsKind kind,
                    HValue* allocation_site_payload,
-                   AllocationSiteMode mode);
+                   bool disable_allocation_sites);
 
     HValue* AllocateEmptyArray();
     HValue* AllocateArray(HValue* capacity, HValue* length_field,

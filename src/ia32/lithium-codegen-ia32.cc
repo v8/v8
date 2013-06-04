@@ -4238,14 +4238,17 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   __ Set(eax, Immediate(instr->arity()));
   __ mov(ebx, instr->hydrogen()->property_cell());
   ElementsKind kind = instr->hydrogen()->elements_kind();
+  bool disable_allocation_sites =
+      (AllocationSiteInfo::GetMode(kind) == TRACK_ALLOCATION_SITE);
+
   if (instr->arity() == 0) {
-    ArrayNoArgumentConstructorStub stub(kind);
+    ArrayNoArgumentConstructorStub stub(kind, disable_allocation_sites);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   } else if (instr->arity() == 1) {
-    ArraySingleArgumentConstructorStub stub(kind);
+    ArraySingleArgumentConstructorStub stub(kind, disable_allocation_sites);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   } else {
-    ArrayNArgumentsConstructorStub stub(kind);
+    ArrayNArgumentsConstructorStub stub(kind, disable_allocation_sites);
     CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
   }
 }

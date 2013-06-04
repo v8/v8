@@ -7823,8 +7823,12 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
       TERMINAL_FAST_ELEMENTS_KIND);
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-    T stub(kind);
+    T stub(kind, false);
     stub.GetCode(isolate)->set_is_pregenerated(true);
+    if (AllocationSiteInfo::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
+      T stub1(kind, true);
+      stub1.GetCode(isolate)->set_is_pregenerated(true);
+    }
   }
 }
 

@@ -537,7 +537,7 @@ HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
       this,
       casted_stub()->elements_kind(),
       GetParameter(ArrayConstructorStubBase::kPropertyCell),
-      casted_stub()->mode());
+      casted_stub()->disable_allocation_sites());
   return array_builder.AllocateEmptyArray();
 }
 
@@ -589,7 +589,7 @@ HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
       this,
       casted_stub()->elements_kind(),
       GetParameter(ArrayConstructorStubBase::kPropertyCell),
-      casted_stub()->mode());
+      casted_stub()->disable_allocation_sites());
   return array_builder.AllocateArray(capacity, length, true);
 }
 
@@ -612,7 +612,7 @@ HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
       this,
       kind,
       GetParameter(ArrayConstructorStubBase::kPropertyCell),
-      casted_stub()->mode());
+      casted_stub()->disable_allocation_sites());
 
   // We need to fill with the hole if it's a smi array in the multi-argument
   // case because we might have to bail out while copying arguments into

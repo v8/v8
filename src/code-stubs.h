@@ -1726,19 +1726,22 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 
 class ArrayConstructorStubBase : public HydrogenCodeStub {
  public:
-  ArrayConstructorStubBase(ElementsKind kind, AllocationSiteMode mode) {
+  ArrayConstructorStubBase(ElementsKind kind, bool disable_allocation_sites) {
+    // It only makes sense to override local allocation site behavior
+    // if there is a difference between the global allocation site policy
+    // for an ElementsKind and the desired usage of the stub.
+    ASSERT(!disable_allocation_sites ||
+           AllocationSiteInfo::GetMode(kind) == TRACK_ALLOCATION_SITE);
     bit_field_ = ElementsKindBits::encode(kind) |
-        AllocationSiteModeBits::encode(mode == TRACK_ALLOCATION_SITE);
+        DisableAllocationSitesBits::encode(disable_allocation_sites);
   }
 
   ElementsKind elements_kind() const {
     return ElementsKindBits::decode(bit_field_);
   }
 
-  AllocationSiteMode mode() const {
-    return AllocationSiteModeBits::decode(bit_field_)
-        ? TRACK_ALLOCATION_SITE
-        : DONT_TRACK_ALLOCATION_SITE;
+  bool disable_allocation_sites() const {
+    return DisableAllocationSitesBits::decode(bit_field_);
   }
 
   virtual bool IsPregenerated() { return true; }
@@ -1753,7 +1756,7 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
   int NotMissMinorKey() { return bit_field_; }
 
   class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
-  class AllocationSiteModeBits: public BitField<bool, 8, 1> {};
+  class DisableAllocationSitesBits: public BitField<bool, 8, 1> {};
   uint32_t bit_field_;
 
   DISALLOW_COPY_AND_ASSIGN(ArrayConstructorStubBase);
@@ -1764,8 +1767,8 @@ class ArrayNoArgumentConstructorStub : public ArrayConstructorStubBase {
  public:
   ArrayNoArgumentConstructorStub(
       ElementsKind kind,
-      AllocationSiteMode mode = TRACK_ALLOCATION_SITE)
-      : ArrayConstructorStubBase(kind, mode) {
+      bool disable_allocation_sites = false)
+      : ArrayConstructorStubBase(kind, disable_allocation_sites) {
   }
 
   virtual Handle<Code> GenerateCode();
@@ -1785,8 +1788,8 @@ class ArraySingleArgumentConstructorStub : public ArrayConstructorStubBase {
  public:
   ArraySingleArgumentConstructorStub(
       ElementsKind kind,
-      AllocationSiteMode mode = TRACK_ALLOCATION_SITE)
-      : ArrayConstructorStubBase(kind, mode) {
+      bool disable_allocation_sites = false)
+      : ArrayConstructorStubBase(kind, disable_allocation_sites) {
   }
 
   virtual Handle<Code> GenerateCode();
@@ -1806,8 +1809,8 @@ class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
  public:
   ArrayNArgumentsConstructorStub(
       ElementsKind kind,
-      AllocationSiteMode mode = TRACK_ALLOCATION_SITE) :
-    ArrayConstructorStubBase(kind, mode) {
+      bool disable_allocation_sites = false)
+      : ArrayConstructorStubBase(kind, disable_allocation_sites) {
   }
 
   virtual Handle<Code> GenerateCode();

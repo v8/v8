@@ -1766,15 +1766,13 @@ HInstruction* HGraphBuilder::BuildGetArrayFunction(HValue* context) {
 HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
                                               ElementsKind kind,
                                               HValue* allocation_site_payload,
-                                              AllocationSiteMode mode) :
+                                              bool disable_allocation_sites) :
         builder_(builder),
         kind_(kind),
         allocation_site_payload_(allocation_site_payload) {
-  if (mode == DONT_TRACK_ALLOCATION_SITE) {
-    mode_ = mode;
-  } else {
-    mode_ = AllocationSiteInfo::GetMode(kind);
-  }
+  mode_ = disable_allocation_sites
+      ? DONT_TRACK_ALLOCATION_SITE
+      : AllocationSiteInfo::GetMode(kind);
 }
 
 
