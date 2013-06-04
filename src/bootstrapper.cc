@@ -1576,6 +1576,11 @@ void Genesis::InstallExperimentalNativeFunctions() {
   }
   if (FLAG_harmony_observation) {
     INSTALL_NATIVE(JSFunction, "NotifyChange", observers_notify_change);
+    INSTALL_NATIVE(JSFunction, "EnqueueSpliceRecord", observers_enqueue_splice);
+    INSTALL_NATIVE(JSFunction, "BeginPerformSplice",
+                   observers_begin_perform_splice);
+    INSTALL_NATIVE(JSFunction, "EndPerformSplice",
+                   observers_end_perform_splice);
     INSTALL_NATIVE(JSFunction, "DeliverChangeRecords",
                    observers_deliver_changes);
   }
