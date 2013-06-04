@@ -5087,14 +5087,9 @@ class VisitorAdapter : public i::ObjectVisitor {
     UNREACHABLE();
   }
   virtual void VisitEmbedderReference(i::Object** p, uint16_t class_id) {
-#ifdef V8_USE_OLD_STYLE_PERSISTENT_HANDLE_VISITORS
-    visitor_->VisitPersistentHandle(ToApi<Value>(i::Handle<i::Object>(p)),
-                                    class_id);
-#else
     Value* value = ToApi<Value>(i::Handle<i::Object>(p));
     visitor_->VisitPersistentHandle(
         reinterpret_cast<Persistent<Value>*>(&value), class_id);
-#endif
   }
  private:
   PersistentHandleVisitor* visitor_;
