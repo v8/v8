@@ -2341,7 +2341,8 @@ Range* HBitwise::InferRange(Zone* zone) {
       if (right_lower < 0) right_lower = ~right_lower;
 
       int high = MostSignificantBit(
-          left_upper | left_lower | right_upper | right_lower);
+          static_cast<uint32_t>(
+              left_upper | left_lower | right_upper | right_lower));
 
       int64_t limit = 1;
       limit <<= high;
