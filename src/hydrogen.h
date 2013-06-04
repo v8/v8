@@ -108,9 +108,13 @@ class HBasicBlock: public ZoneObject {
   int LoopNestingDepth() const;
 
   void SetInitialEnvironment(HEnvironment* env);
-  void ClearEnvironment() { last_environment_ = NULL; }
+  void ClearEnvironment() {
+    ASSERT(IsFinished());
+    ASSERT(end()->SuccessorCount() == 0);
+    last_environment_ = NULL;
+  }
   bool HasEnvironment() const { return last_environment_ != NULL; }
-  void UpdateEnvironment(HEnvironment* env) { last_environment_ = env; }
+  void UpdateEnvironment(HEnvironment* env);
   HBasicBlock* parent_loop_header() const { return parent_loop_header_; }
 
   void set_parent_loop_header(HBasicBlock* block) {
@@ -154,7 +158,11 @@ class HBasicBlock: public ZoneObject {
   // Simulate (caller's environment)
   // Goto (target block)
   bool IsInlineReturnTarget() const { return is_inline_return_target_; }
-  void MarkAsInlineReturnTarget() { is_inline_return_target_ = true; }
+  void MarkAsInlineReturnTarget(HBasicBlock* inlined_entry_block) {
+    is_inline_return_target_ = true;
+    inlined_entry_block_ = inlined_entry_block;
+  }
+  HBasicBlock* inlined_entry_block() { return inlined_entry_block_; }
 
   bool IsDeoptimizing() const { return is_deoptimizing_; }
   void MarkAsDeoptimizing() { is_deoptimizing_ = true; }
@@ -197,10 +205,12 @@ class HBasicBlock: public ZoneObject {
   int last_instruction_index_;
   ZoneList<int> deleted_phis_;
   HBasicBlock* parent_loop_header_;
-  bool is_inline_return_target_;
-  bool is_deoptimizing_;
-  bool dominates_loop_successors_;
-  bool is_osr_entry_;
+  // For blocks marked as inline return target: the block with HEnterInlined.
+  HBasicBlock* inlined_entry_block_;
+  bool is_inline_return_target_ : 1;
+  bool is_deoptimizing_ : 1;
+  bool dominates_loop_successors_ : 1;
+  bool is_osr_entry_ : 1;
 };
 
 
@@ -284,6 +294,7 @@ class HGraph: public ZoneObject {
   void RestoreActualValues();
   void DeadCodeElimination(const char *phase_name);
   void PropagateDeoptimizingMark();
+  void AnalyzeAndPruneEnvironmentLiveness();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
@@ -358,6 +369,13 @@ class HGraph: public ZoneObject {
     type_change_checksum_ += delta;
     return type_change_checksum_;
   }
+
+  void update_maximum_environment_size(int environment_size) {
+    if (environment_size > maximum_environment_size_) {
+      maximum_environment_size_ = environment_size;
+    }
+  }
+  int maximum_environment_size() { return maximum_environment_size_; }
 
   bool use_optimistic_licm() {
     return use_optimistic_licm_;
@@ -452,6 +470,7 @@ class HGraph: public ZoneObject {
   bool has_soft_deoptimize_;
   bool depends_on_empty_array_proto_elements_;
   int type_change_checksum_;
+  int maximum_environment_size_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -511,6 +530,10 @@ class HEnvironment: public ZoneObject {
 
   int first_expression_index() const {
     return parameter_count() + specials_count() + local_count();
+  }
+
+  int first_local_index() const {
+    return parameter_count() + specials_count();
   }
 
   void Bind(Variable* variable, HValue* value) {
@@ -610,6 +633,22 @@ class HEnvironment: public ZoneObject {
     values_[index] = value;
   }
 
+  // Map a variable to an environment index.  Parameter indices are shifted
+  // by 1 (receiver is parameter index -1 but environment index 0).
+  // Stack-allocated local indices are shifted by the number of parameters.
+  int IndexFor(Variable* variable) const {
+    ASSERT(variable->IsStackAllocated());
+    int shift = variable->IsParameter()
+        ? 1
+        : parameter_count_ + specials_count_;
+    return variable->index() + shift;
+  }
+
+  bool is_local_index(int i) const {
+    return i >= first_local_index() &&
+           i < first_expression_index();
+  }
+
   void PrintTo(StringStream* stream);
   void PrintToStd();
 
@@ -636,17 +675,6 @@ class HEnvironment: public ZoneObject {
 
   void Initialize(int parameter_count, int local_count, int stack_height);
   void Initialize(const HEnvironment* other);
-
-  // Map a variable to an environment index.  Parameter indices are shifted
-  // by 1 (receiver is parameter index -1 but environment index 0).
-  // Stack-allocated local indices are shifted by the number of parameters.
-  int IndexFor(Variable* variable) const {
-    ASSERT(variable->IsStackAllocated());
-    int shift = variable->IsParameter()
-        ? 1
-        : parameter_count_ + specials_count_;
-    return variable->index() + shift;
-  }
 
   Handle<JSFunction> closure_;
   // Value array [parameters] [specials] [locals] [temporaries].
@@ -1522,6 +1550,45 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   HValue* Top() const { return environment()->Top(); }
   void Drop(int n) { environment()->Drop(n); }
   void Bind(Variable* var, HValue* value) { environment()->Bind(var, value); }
+  bool IsEligibleForEnvironmentLivenessAnalysis(Variable* var,
+                                                int index,
+                                                HValue* value,
+                                                HEnvironment* env) {
+    if (!FLAG_analyze_environment_liveness) return false;
+    // |this| and |arguments| are always live; zapping parameters isn't
+    // safe because function.arguments can inspect them at any time.
+    return !var->is_this() &&
+           !var->is_arguments() &&
+           !value->IsArgumentsObject() &&
+           env->is_local_index(index);
+  }
+  void BindIfLive(Variable* var, HValue* value) {
+    HEnvironment* env = environment();
+    int index = env->IndexFor(var);
+    env->Bind(index, value);
+    if (IsEligibleForEnvironmentLivenessAnalysis(var, index, value, env)) {
+      HEnvironmentMarker* bind =
+          new(zone()) HEnvironmentMarker(HEnvironmentMarker::BIND, index);
+      AddInstruction(bind);
+#ifdef DEBUG
+      bind->set_closure(env->closure());
+#endif
+    }
+  }
+  HValue* LookupAndMakeLive(Variable* var) {
+    HEnvironment* env = environment();
+    int index = env->IndexFor(var);
+    HValue* value = env->Lookup(index);
+    if (IsEligibleForEnvironmentLivenessAnalysis(var, index, value, env)) {
+      HEnvironmentMarker* lookup =
+          new(zone()) HEnvironmentMarker(HEnvironmentMarker::LOOKUP, index);
+      AddInstruction(lookup);
+#ifdef DEBUG
+      lookup->set_closure(env->closure());
+#endif
+    }
+    return value;
+  }
 
   // The value of the arguments object is allowed in some but not most value
   // contexts.  (It's allowed in all effect contexts and disallowed in all

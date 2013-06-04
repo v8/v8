@@ -34,6 +34,7 @@
 #include "codegen.h"
 #include "full-codegen.h"
 #include "hashmap.h"
+#include "hydrogen-environment-liveness.h"
 #include "lithium-allocator.h"
 #include "parser.h"
 #include "scopeinfo.h"
@@ -73,6 +74,7 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       last_instruction_index_(-1),
       deleted_phis_(4, graph->zone()),
       parent_loop_header_(NULL),
+      inlined_entry_block_(NULL),
       is_inline_return_target_(false),
       is_deoptimizing_(false),
       dominates_loop_successors_(false),
@@ -132,10 +134,13 @@ HDeoptimize* HBasicBlock::CreateDeoptimize(
     HDeoptimize::UseEnvironment has_uses) {
   ASSERT(HasEnvironment());
   if (has_uses == HDeoptimize::kNoUses)
-    return new(zone()) HDeoptimize(0, zone());
+    return new(zone()) HDeoptimize(0, 0, 0, zone());
 
   HEnvironment* environment = last_environment();
-  HDeoptimize* instr = new(zone()) HDeoptimize(environment->length(), zone());
+  int first_local_index = environment->first_local_index();
+  int first_expression_index = environment->first_expression_index();
+  HDeoptimize* instr = new(zone()) HDeoptimize(
+      environment->length(), first_local_index, first_expression_index, zone());
   for (int i = 0; i < environment->length(); i++) {
     HValue* val = environment->values()->at(i);
     instr->AddEnvironmentValue(val, zone());
@@ -158,6 +163,9 @@ HSimulate* HBasicBlock::CreateSimulate(BailoutId ast_id,
 
   HSimulate* instr =
       new(zone()) HSimulate(ast_id, pop_count, zone(), removable);
+#ifdef DEBUG
+  instr->set_closure(environment->closure());
+#endif
   // Order of pushed values: newest (top of stack) first. This allows
   // HSimulate::MergeWith() to easily append additional pushed values
   // that are older (from further down the stack).
@@ -194,7 +202,7 @@ void HBasicBlock::Goto(HBasicBlock* block,
 
   if (block->IsInlineReturnTarget()) {
     AddInstruction(new(zone()) HLeaveInlined());
-    last_environment_ = last_environment()->DiscardInlined(drop_extra);
+    UpdateEnvironment(last_environment()->DiscardInlined(drop_extra));
   }
 
   if (add_simulate) AddSimulate(BailoutId::None());
@@ -211,7 +219,7 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value,
   ASSERT(target->IsInlineReturnTarget());
   ASSERT(return_value != NULL);
   AddInstruction(new(zone()) HLeaveInlined());
-  last_environment_ = last_environment()->DiscardInlined(drop_extra);
+  UpdateEnvironment(last_environment()->DiscardInlined(drop_extra));
   last_environment()->Push(return_value);
   AddSimulate(BailoutId::None());
   HGoto* instr = new(zone()) HGoto(target);
@@ -223,6 +231,12 @@ void HBasicBlock::SetInitialEnvironment(HEnvironment* env) {
   ASSERT(!HasEnvironment());
   ASSERT(first() == NULL);
   UpdateEnvironment(env);
+}
+
+
+void HBasicBlock::UpdateEnvironment(HEnvironment* env) {
+  last_environment_ = env;
+  graph()->update_maximum_environment_size(env->first_expression_index());
 }
 
 
@@ -709,8 +723,7 @@ HInstruction* HGraphBuilder::IfBuilder::IfCompare(
 HInstruction* HGraphBuilder::IfBuilder::IfCompareMap(HValue* left,
                                                      Handle<Map> map) {
   HCompareMap* compare =
-      new(zone()) HCompareMap(left, map,
-                              first_true_block_, first_false_block_);
+      new(zone()) HCompareMap(left, map, first_true_block_, first_false_block_);
   AddCompare(compare);
   return compare;
 }
@@ -789,9 +802,16 @@ void HGraphBuilder::IfBuilder::Then() {
   did_then_ = true;
   if (needs_compare_) {
     // Handle if's without any expressions, they jump directly to the "else"
-    // branch.
-    builder_->current_block()->GotoNoSimulate(first_false_block_);
-    first_true_block_ = NULL;
+    // branch. However, we must pretend that the "then" branch is reachable,
+    // so that the graph builder visits it and sees any live range extending
+    // constructs within it.
+    HConstant* constant_false = builder_->graph()->GetConstantFalse();
+    ToBooleanStub::Types boolean_type = ToBooleanStub::no_types();
+    boolean_type.Add(ToBooleanStub::BOOLEAN);
+    HBranch* branch =
+        new(zone()) HBranch(constant_false, first_true_block_,
+                            first_false_block_, boolean_type);
+    builder_->current_block()->Finish(branch);
   }
   builder_->set_current_block(first_true_block_);
 }
@@ -2013,7 +2033,8 @@ HGraph::HGraph(CompilationInfo* info)
       use_optimistic_licm_(false),
       has_soft_deoptimize_(false),
       depends_on_empty_array_proto_elements_(false),
-      type_change_checksum_(0) {
+      type_change_checksum_(0),
+      maximum_environment_size_(0) {
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
     CodeStubInterfaceDescriptor* descriptor =
@@ -3503,8 +3524,8 @@ FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
     if (owner->ast_context()->IsTest()) {
       HBasicBlock* if_true = owner->graph()->CreateBasicBlock();
       HBasicBlock* if_false = owner->graph()->CreateBasicBlock();
-      if_true->MarkAsInlineReturnTarget();
-      if_false->MarkAsInlineReturnTarget();
+      if_true->MarkAsInlineReturnTarget(owner->current_block());
+      if_false->MarkAsInlineReturnTarget(owner->current_block());
       TestContext* outer_test_context = TestContext::cast(owner->ast_context());
       Expression* cond = outer_test_context->condition();
       // The AstContext constructor pushed on the context stack.  This newed
@@ -3512,7 +3533,7 @@ FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
       test_context_ = new TestContext(owner, cond, if_true, if_false);
     } else {
       function_return_ = owner->graph()->CreateBasicBlock();
-      function_return()->MarkAsInlineReturnTarget();
+      function_return()->MarkAsInlineReturnTarget(owner->current_block());
     }
     // Set this after possibly allocating a new TestContext above.
     call_context_ = owner->ast_context();
@@ -3930,6 +3951,11 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   // Do a full verify after building the graph and computing dominators.
   Verify(true);
 #endif
+
+  if (FLAG_analyze_environment_liveness) {
+    EnvironmentSlotLivenessAnalyzer esla(this);
+    esla.AnalyzeAndTrim();
+  }
 
   PropagateDeoptimizingMark();
   if (!CheckConstPhiUses()) {
@@ -5597,7 +5623,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
 
     case Variable::PARAMETER:
     case Variable::LOCAL: {
-      HValue* value = environment()->Lookup(variable);
+      HValue* value = LookupAndMakeLive(variable);
       if (value == graph()->GetConstantHole()) {
         ASSERT(IsDeclaredVariableMode(variable->mode()) &&
                variable->mode() != VAR);
@@ -6564,7 +6590,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         if (var->mode() == CONST)  {
           return Bailout("unsupported const compound assignment");
         }
-        Bind(var, Top());
+        BindIfLive(var, Top());
         break;
 
       case Variable::CONTEXT: {
@@ -6789,7 +6815,7 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
         // permitted.
         CHECK_ALIVE(VisitForValue(expr->value(), ARGUMENTS_ALLOWED));
         HValue* value = Pop();
-        Bind(var, value);
+        BindIfLive(var, value);
         return ast_context()->ReturnValue(value);
       }
 
@@ -7989,7 +8015,8 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
                                 function_state()->inlining_kind(),
                                 function->scope()->arguments(),
                                 arguments_values,
-                                undefined_receiver);
+                                undefined_receiver,
+                                zone());
   function_state()->set_entry(enter_inlined);
   AddInstruction(enter_inlined);
 
@@ -8069,6 +8096,8 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
     HBasicBlock* if_true = inlined_test_context()->if_true();
     HBasicBlock* if_false = inlined_test_context()->if_false();
 
+    HEnterInlined* entry = function_state()->entry();
+
     // Pop the return test context from the expression context stack.
     ASSERT(ast_context() == inlined_test_context());
     ClearInlinedTestContext();
@@ -8076,11 +8105,13 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
 
     // Forward to the real test context.
     if (if_true->HasPredecessor()) {
+      entry->RegisterReturnTarget(if_true, zone());
       if_true->SetJoinId(ast_id);
       HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
       if_true->Goto(true_target, function_state());
     }
     if (if_false->HasPredecessor()) {
+      entry->RegisterReturnTarget(if_false, zone());
       if_false->SetJoinId(ast_id);
       HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
       if_false->Goto(false_target, function_state());
@@ -8089,6 +8120,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
     return true;
 
   } else if (function_return()->HasPredecessor()) {
+    function_state()->entry()->RegisterReturnTarget(function_return(), zone());
     function_return()->SetJoinId(ast_id);
     set_current_block(function_return());
   } else {
@@ -8394,7 +8426,7 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
 
   VariableProxy* arg_two = args->at(1)->AsVariableProxy();
   if (arg_two == NULL || !arg_two->var()->IsStackAllocated()) return false;
-  HValue* arg_two_value = environment()->Lookup(arg_two->var());
+  HValue* arg_two_value = LookupAndMakeLive(arg_two->var());
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
 
   // Found pattern f.apply(receiver, arguments).
@@ -9167,7 +9199,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
       case Variable::PARAMETER:
       case Variable::LOCAL:
-        Bind(var, after);
+        BindIfLive(var, after);
         break;
 
       case Variable::CONTEXT: {
@@ -10289,7 +10321,7 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
     case Variable::LOCAL: {
       CHECK_ALIVE(VisitForValue(declaration->fun()));
       HValue* value = Pop();
-      environment()->Bind(variable, value);
+      BindIfLive(variable, value);
       break;
     }
     case Variable::CONTEXT: {

@@ -978,6 +978,11 @@ void HDummyUse::PrintDataTo(StringStream* stream) {
 }
 
 
+void HEnvironmentMarker::PrintDataTo(StringStream* stream) {
+  stream->Add("%s var[%d]", kind() == BIND ? "bind" : "lookup", index());
+}
+
+
 void HUnaryCall::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" ");
@@ -2058,6 +2063,13 @@ void HDeoptimize::PrintDataTo(StringStream* stream) {
     stream->Add(" ");
     OperandAt(i)->PrintNameTo(stream);
   }
+}
+
+
+void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
+                                         Zone* zone) {
+  ASSERT(return_target->IsInlineReturnTarget());
+  return_targets_.Add(return_target, zone);
 }
 
 

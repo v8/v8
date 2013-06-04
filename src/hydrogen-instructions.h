@@ -108,6 +108,7 @@ class LChunkBuilder;
   V(DummyUse)                                  \
   V(ElementsKind)                              \
   V(EnterInlined)                              \
+  V(EnvironmentMarker)                         \
   V(FixedArrayBaseLength)                      \
   V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
@@ -810,7 +811,13 @@ class HValue: public ZoneObject {
     kHasNoObservableSideEffects,
     // Indicates the instruction is live during dead code elimination.
     kIsLive,
-    kLastFlag = kIDefsProcessingDone
+
+    // HEnvironmentMarkers are deleted before dead code
+    // elimination takes place, so they can repurpose the kIsLive flag:
+    kEndsLiveRange = kIsLive,
+
+    // TODO(everyone): Don't forget to update this!
+    kLastFlag = kIsLive
   };
 
   STATIC_ASSERT(kLastFlag < kBitsPerInt);
@@ -1485,8 +1492,13 @@ class HDebugBreak: public HTemplateInstruction<0> {
 
 class HDeoptimize: public HControlInstruction {
  public:
-  HDeoptimize(int environment_length, Zone* zone)
-      : values_(environment_length, zone) { }
+  HDeoptimize(int environment_length,
+              int first_local_index,
+              int first_expression_index,
+              Zone* zone)
+      : values_(environment_length, zone),
+        first_local_index_(first_local_index),
+        first_expression_index_(first_expression_index) { }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -1509,6 +1521,8 @@ class HDeoptimize: public HControlInstruction {
     values_.Add(NULL, zone);
     SetOperandAt(values_.length() - 1, value);
   }
+  int first_local_index() { return first_local_index_; }
+  int first_expression_index() { return first_expression_index_; }
 
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
 
@@ -1524,6 +1538,8 @@ class HDeoptimize: public HControlInstruction {
 
  private:
   ZoneList<HValue*> values_;
+  int first_local_index_;
+  int first_expression_index_;
 };
 
 
@@ -1840,6 +1856,12 @@ class HSimulate: public HInstruction {
   void AddPushedValue(HValue* value) {
     AddValue(kNoIndex, value);
   }
+  int ToOperandIndex(int environment_index) {
+    for (int i = 0; i < assigned_indexes_.length(); ++i) {
+      if (assigned_indexes_[i] == environment_index) return i;
+    }
+    return -1;
+  }
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) const { return values_[index]; }
 
@@ -1854,6 +1876,8 @@ class HSimulate: public HInstruction {
 
 #ifdef DEBUG
   virtual void Verify();
+  void set_closure(Handle<JSFunction> closure) { closure_ = closure; }
+  Handle<JSFunction> closure() const { return closure_; }
 #endif
 
  protected:
@@ -1883,6 +1907,52 @@ class HSimulate: public HInstruction {
   ZoneList<int> assigned_indexes_;
   Zone* zone_;
   RemovableSimulate removable_;
+
+#ifdef DEBUG
+  Handle<JSFunction> closure_;
+#endif
+};
+
+
+class HEnvironmentMarker: public HTemplateInstruction<1> {
+ public:
+  enum Kind { BIND, LOOKUP };
+
+  HEnvironmentMarker(Kind kind, int index)
+      : kind_(kind), index_(index), next_simulate_(NULL) { }
+
+  Kind kind() { return kind_; }
+  int index() { return index_; }
+  HSimulate* next_simulate() { return next_simulate_; }
+  void set_next_simulate(HSimulate* simulate) {
+    next_simulate_ = simulate;
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::None();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+#ifdef DEBUG
+  void set_closure(Handle<JSFunction> closure) {
+    ASSERT(closure_.is_null());
+    ASSERT(!closure.is_null());
+    closure_ = closure;
+  }
+  Handle<JSFunction> closure() const { return closure_; }
+#endif
+
+  DECLARE_CONCRETE_INSTRUCTION(EnvironmentMarker);
+
+ private:
+  Kind kind_;
+  int index_;
+  HSimulate* next_simulate_;
+
+#ifdef DEBUG
+  Handle<JSFunction> closure_;
+#endif
 };
 
 
@@ -1939,7 +2009,8 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 InliningKind inlining_kind,
                 Variable* arguments_var,
                 ZoneList<HValue*>* arguments_values,
-                bool undefined_receiver)
+                bool undefined_receiver,
+                Zone* zone)
       : closure_(closure),
         arguments_count_(arguments_count),
         arguments_pushed_(false),
@@ -1947,8 +2018,12 @@ class HEnterInlined: public HTemplateInstruction<0> {
         inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
         arguments_values_(arguments_values),
-        undefined_receiver_(undefined_receiver) {
+        undefined_receiver_(undefined_receiver),
+        return_targets_(2, zone) {
   }
+
+  void RegisterReturnTarget(HBasicBlock* return_target, Zone* zone);
+  ZoneList<HBasicBlock*>* return_targets() { return &return_targets_; }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -1978,6 +2053,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   Variable* arguments_var_;
   ZoneList<HValue*>* arguments_values_;
   bool undefined_receiver_;
+  ZoneList<HBasicBlock*> return_targets_;
 };
 
 

@@ -757,6 +757,12 @@ LInstruction* LChunkBuilder::DoDummyUse(HDummyUse* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoEnvironmentMarker(HEnvironmentMarker* instr) {
+  UNREACHABLE();
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoSoftDeoptimize(HSoftDeoptimize* instr) {
   return AssignEnvironment(new(zone()) LDeoptimize);
 }
