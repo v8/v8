@@ -8780,11 +8780,19 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     HValue* size_in_bytes =
         AddInstruction(new(zone()) HConstant(instance_size,
             Representation::Integer32()));
+
+    HAllocate::Flags flags = HAllocate::DefaultFlags();
+    if (FLAG_pretenuring_call_new &&
+        isolate()->heap()->ShouldGloballyPretenure()) {
+      flags = static_cast<HAllocate::Flags>(
+          flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
+    }
+
     HInstruction* receiver =
         AddInstruction(new(zone()) HAllocate(context,
                                              size_in_bytes,
                                              HType::JSObject(),
-                                             HAllocate::DefaultFlags()));
+                                             flags));
     HAllocate::cast(receiver)->set_known_initial_map(initial_map);
 
     // Load the initial map from the constructor.
