@@ -2328,14 +2328,11 @@ Range* HBitwise::InferRange(Zone* zone) {
       if (right_upper < 0) right_upper = ~right_upper;
       if (right_lower < 0) right_lower = ~right_lower;
 
-      // Find the highest used bit.
-      int high = static_cast<int>(log2(left_upper));
-      high = Max(high, static_cast<int>(log2(left_lower)));
-      high = Max(high, static_cast<int>(log2(right_upper)));
-      high = Max(high, static_cast<int>(log2(right_lower)));
+      int high = MostSignificantBit(
+          left_upper | left_lower | right_upper | right_lower);
 
       int64_t limit = 1;
-      limit <<= high + 1;
+      limit <<= high;
       int32_t min = (left()->range()->CanBeNegative() ||
                      right()->range()->CanBeNegative())
                     ? static_cast<int32_t>(-limit) : 0;
