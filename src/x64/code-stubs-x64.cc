@@ -1188,7 +1188,15 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
 
 
 void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
-  Label call_runtime;
+  Label right_arg_changed, call_runtime;
+
+  if (op_ == Token::MOD && has_fixed_right_arg_) {
+    // It is guaranteed that the value will fit into a Smi, because if it
+    // didn't, we wouldn't be here, see BinaryOp_Patch.
+    __ Cmp(rax, Smi::FromInt(fixed_right_arg_value()));
+    __ j(not_equal, &right_arg_changed);
+  }
+
   if (result_type_ == BinaryOpIC::UNINITIALIZED ||
       result_type_ == BinaryOpIC::SMI) {
     // Only allow smi results.
@@ -1202,6 +1210,7 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 
   // Code falls through if the result is not returned as either a smi or heap
   // number.
+  __ bind(&right_arg_changed);
   GenerateTypeTransition(masm);
 
   if (call_runtime.is_linked()) {

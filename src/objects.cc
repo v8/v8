@@ -155,6 +155,41 @@ MaybeObject* Object::GetPropertyWithReceiver(Object* receiver,
 }
 
 
+bool Object::ToInt32(int32_t* value) {
+  if (IsSmi()) {
+    *value = Smi::cast(this)->value();
+    return true;
+  }
+  if (IsHeapNumber()) {
+    double num = HeapNumber::cast(this)->value();
+    if (FastI2D(FastD2I(num)) == num) {
+      *value = FastD2I(num);
+      return true;
+    }
+  }
+  return false;
+}
+
+
+bool Object::ToUint32(uint32_t* value) {
+  if (IsSmi()) {
+    int num = Smi::cast(this)->value();
+    if (num >= 0) {
+      *value = static_cast<uint32_t>(num);
+      return true;
+    }
+  }
+  if (IsHeapNumber()) {
+    double num = HeapNumber::cast(this)->value();
+    if (num >= 0 && FastUI2D(FastD2UI(num)) == num) {
+      *value = FastD2UI(num);
+      return true;
+    }
+  }
+  return false;
+}
+
+
 template<typename To>
 static inline To* CheckedCast(void *from) {
   uintptr_t temp = reinterpret_cast<uintptr_t>(from);

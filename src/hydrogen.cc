@@ -9334,7 +9334,8 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   TypeInfo left_info = expr->left_type();
   TypeInfo right_info = expr->right_type();
   TypeInfo result_info = expr->result_type();
-  TypeInfo combined_info;
+  bool has_fixed_right_arg = expr->has_fixed_right_arg();
+  int fixed_right_arg_value = expr->fixed_right_arg_value();
   Representation left_rep = ToRepresentation(left_info);
   Representation right_rep = ToRepresentation(right_info);
   Representation result_rep = ToRepresentation(result_info);
@@ -9364,7 +9365,12 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
       instr = HMul::New(zone(), context, left, right);
       break;
     case Token::MOD:
-      instr = HMod::New(zone(), context, left, right);
+      instr = HMod::New(zone(),
+                        context,
+                        left,
+                        right,
+                        has_fixed_right_arg,
+                        fixed_right_arg_value);
       break;
     case Token::DIV:
       instr = HDiv::New(zone(), context, left, right);

@@ -456,7 +456,9 @@ static TypeInfo TypeFromBinaryOpType(BinaryOpIC::TypeInfo binary_type) {
 void TypeFeedbackOracle::BinaryType(BinaryOperation* expr,
                                     TypeInfo* left,
                                     TypeInfo* right,
-                                    TypeInfo* result) {
+                                    TypeInfo* result,
+                                    bool* has_fixed_right_arg,
+                                    int* fixed_right_arg_value) {
   Handle<Object> object = GetInfo(expr->BinaryOperationFeedbackId());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) {
@@ -465,12 +467,17 @@ void TypeFeedbackOracle::BinaryType(BinaryOperation* expr,
   }
   Handle<Code> code = Handle<Code>::cast(object);
   if (code->is_binary_op_stub()) {
+    int minor_key = code->stub_info();
     BinaryOpIC::TypeInfo left_type, right_type, result_type;
-    BinaryOpStub::decode_types_from_minor_key(code->stub_info(), &left_type,
-                                              &right_type, &result_type);
+    BinaryOpStub::decode_types_from_minor_key(
+        minor_key, &left_type, &right_type, &result_type);
     *left = TypeFromBinaryOpType(left_type);
     *right = TypeFromBinaryOpType(right_type);
     *result = TypeFromBinaryOpType(result_type);
+    *has_fixed_right_arg =
+        BinaryOpStub::decode_has_fixed_right_arg_from_minor_key(minor_key);
+    *fixed_right_arg_value =
+        BinaryOpStub::decode_fixed_right_arg_value_from_minor_key(minor_key);
     return;
   }
   // Not a binary op stub.

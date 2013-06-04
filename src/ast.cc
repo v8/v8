@@ -682,7 +682,8 @@ void UnaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 void BinaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  oracle->BinaryType(this, &left_type_, &right_type_, &result_type_);
+  oracle->BinaryType(this, &left_type_, &right_type_, &result_type_,
+                     &has_fixed_right_arg_, &fixed_right_arg_value_);
 }
 
 

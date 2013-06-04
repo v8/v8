@@ -4340,7 +4340,12 @@ class HMod: public HArithmeticBinaryOperation {
   static HInstruction* New(Zone* zone,
                            HValue* context,
                            HValue* left,
-                           HValue* right);
+                           HValue* right,
+                           bool has_fixed_right_arg,
+                           int fixed_right_arg_value);
+
+  bool has_fixed_right_arg() const { return has_fixed_right_arg_; }
+  int fixed_right_arg_value() const { return fixed_right_arg_value_; }
 
   bool HasPowerOf2Divisor() {
     if (right()->IsConstant() &&
@@ -4364,11 +4369,20 @@ class HMod: public HArithmeticBinaryOperation {
   virtual Range* InferRange(Zone* zone);
 
  private:
-  HMod(HValue* context, HValue* left, HValue* right)
-      : HArithmeticBinaryOperation(context, left, right) {
+  HMod(HValue* context,
+       HValue* left,
+       HValue* right,
+       bool has_fixed_right_arg,
+       int fixed_right_arg_value)
+      : HArithmeticBinaryOperation(context, left, right),
+        has_fixed_right_arg_(has_fixed_right_arg),
+        fixed_right_arg_value_(fixed_right_arg_value) {
     SetFlag(kCanBeDivByZero);
     SetFlag(kCanOverflow);
   }
+
+  const bool has_fixed_right_arg_;
+  const int fixed_right_arg_value_;
 };
 
 

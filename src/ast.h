@@ -1799,6 +1799,8 @@ class BinaryOperation: public Expression {
   TypeInfo left_type() const { return left_type_; }
   TypeInfo right_type() const { return right_type_; }
   TypeInfo result_type() const { return result_type_; }
+  bool has_fixed_right_arg() const { return has_fixed_right_arg_; }
+  int fixed_right_arg_value() const { return fixed_right_arg_value_; }
 
  protected:
   BinaryOperation(Isolate* isolate,
@@ -1824,6 +1826,8 @@ class BinaryOperation: public Expression {
   TypeInfo left_type_;
   TypeInfo right_type_;
   TypeInfo result_type_;
+  bool has_fixed_right_arg_;
+  int fixed_right_arg_value_;
 
   // The short-circuit logical operations need an AST ID for their
   // right-hand subexpression.

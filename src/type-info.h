@@ -305,7 +305,9 @@ class TypeFeedbackOracle: public ZoneObject {
   void BinaryType(BinaryOperation* expr,
                   TypeInfo* left,
                   TypeInfo* right,
-                  TypeInfo* result);
+                  TypeInfo* result,
+                  bool* has_fixed_right_arg,
+                  int* fixed_right_arg_value);
   void CompareType(CompareOperation* expr,
                    TypeInfo* left_type,
                    TypeInfo* right_type,

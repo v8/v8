@@ -2498,7 +2498,7 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
     if (FLAG_trace_ic) {
       PrintF("[UnaryOpIC in ");
       JavaScriptFrame::PrintTop(isolate, stdout, false, true);
-      PrintF(" (%s->%s)#%s @ %p]\n",
+      PrintF(" %s => %s #%s @ %p]\n",
              UnaryOpIC::GetName(previous_type),
              UnaryOpIC::GetName(type),
              Token::Name(op),
@@ -2572,6 +2572,19 @@ static BinaryOpIC::TypeInfo InputState(BinaryOpIC::TypeInfo old_type,
 }
 
 
+#ifdef DEBUG
+static void TraceBinaryOp(BinaryOpIC::TypeInfo left,
+                          BinaryOpIC::TypeInfo right,
+                          bool has_fixed_right_arg,
+                          int32_t fixed_right_arg_value,
+                          BinaryOpIC::TypeInfo result) {
+  PrintF("%s*%s", BinaryOpIC::GetName(left), BinaryOpIC::GetName(right));
+  if (has_fixed_right_arg) PrintF("{%d}", fixed_right_arg_value);
+  PrintF("->%s", BinaryOpIC::GetName(result));
+}
+#endif
+
+
 RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   ASSERT(args.length() == 3);
 
@@ -2580,9 +2593,10 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   Handle<Object> right = args.at<Object>(1);
   int key = args.smi_at(2);
   Token::Value op = BinaryOpStub::decode_op_from_minor_key(key);
-  BinaryOpIC::TypeInfo previous_left, previous_right, unused_previous_result;
+
+  BinaryOpIC::TypeInfo previous_left, previous_right, previous_result;
   BinaryOpStub::decode_types_from_minor_key(
-      key, &previous_left, &previous_right, &unused_previous_result);
+      key, &previous_left, &previous_right, &previous_result);
 
   BinaryOpIC::TypeInfo new_left = InputState(previous_left, left, op);
   BinaryOpIC::TypeInfo new_right = InputState(previous_right, right, op);
@@ -2597,43 +2611,60 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   BinaryOpIC::TypeInfo new_overall = Max(new_left, new_right);
   BinaryOpIC::TypeInfo previous_overall = Max(previous_left, previous_right);
 
-  if (new_overall == BinaryOpIC::SMI && previous_overall == BinaryOpIC::SMI) {
-    if (op == Token::DIV ||
-        op == Token::MUL ||
-        op == Token::SHR ||
-        kSmiValueSize == 32) {
-      // Arithmetic on two Smi inputs has yielded a heap number.
-      // That is the only way to get here from the Smi stub.
-      // With 32-bit Smis, all overflows give heap numbers, but with
-      // 31-bit Smis, most operations overflow to int32 results.
-      result_type = BinaryOpIC::NUMBER;
-    } else {
-      // Other operations on SMIs that overflow yield int32s.
-      result_type = BinaryOpIC::INT32;
+  bool previous_has_fixed_right_arg =
+      BinaryOpStub::decode_has_fixed_right_arg_from_minor_key(key);
+  int previous_fixed_right_arg_value =
+      BinaryOpStub::decode_fixed_right_arg_value_from_minor_key(key);
+
+  int32_t value;
+  bool new_has_fixed_right_arg =
+      op == Token::MOD &&
+      right->ToInt32(&value) &&
+      BinaryOpStub::can_encode_arg_value(value) &&
+      (previous_overall == BinaryOpIC::UNINITIALIZED ||
+       (previous_has_fixed_right_arg &&
+        previous_fixed_right_arg_value == value));
+  int32_t new_fixed_right_arg_value = new_has_fixed_right_arg ? value : 1;
+
+  if (previous_has_fixed_right_arg == new_has_fixed_right_arg) {
+    if (new_overall == BinaryOpIC::SMI && previous_overall == BinaryOpIC::SMI) {
+      if (op == Token::DIV ||
+          op == Token::MUL ||
+          op == Token::SHR ||
+          kSmiValueSize == 32) {
+        // Arithmetic on two Smi inputs has yielded a heap number.
+        // That is the only way to get here from the Smi stub.
+        // With 32-bit Smis, all overflows give heap numbers, but with
+        // 31-bit Smis, most operations overflow to int32 results.
+        result_type = BinaryOpIC::NUMBER;
+      } else {
+        // Other operations on SMIs that overflow yield int32s.
+        result_type = BinaryOpIC::INT32;
+      }
     }
-  }
-  if (new_overall == BinaryOpIC::INT32 &&
-      previous_overall == BinaryOpIC::INT32) {
-    if (new_left == previous_left && new_right == previous_right) {
-      result_type = BinaryOpIC::NUMBER;
+    if (new_overall == BinaryOpIC::INT32 &&
+        previous_overall == BinaryOpIC::INT32) {
+      if (new_left == previous_left && new_right == previous_right) {
+        result_type = BinaryOpIC::NUMBER;
+      }
     }
   }
 
-  BinaryOpStub stub(key, new_left, new_right, result_type);
+  BinaryOpStub stub(key, new_left, new_right, result_type,
+                    new_has_fixed_right_arg, new_fixed_right_arg_value);
   Handle<Code> code = stub.GetCode(isolate);
   if (!code.is_null()) {
 #ifdef DEBUG
     if (FLAG_trace_ic) {
       PrintF("[BinaryOpIC in ");
       JavaScriptFrame::PrintTop(isolate, stdout, false, true);
-      PrintF(" ((%s+%s)->((%s+%s)->%s))#%s @ %p]\n",
-             BinaryOpIC::GetName(previous_left),
-             BinaryOpIC::GetName(previous_right),
-             BinaryOpIC::GetName(new_left),
-             BinaryOpIC::GetName(new_right),
-             BinaryOpIC::GetName(result_type),
-             Token::Name(op),
-             static_cast<void*>(*code));
+      PrintF(" ");
+      TraceBinaryOp(previous_left, previous_right, previous_has_fixed_right_arg,
+                    previous_fixed_right_arg_value, previous_result);
+      PrintF(" => ");
+      TraceBinaryOp(new_left, new_right, new_has_fixed_right_arg,
+                    new_fixed_right_arg_value, result_type);
+      PrintF(" #%s @ %p]\n", Token::Name(op), static_cast<void*>(*code));
     }
 #endif
     BinaryOpIC ic(isolate);

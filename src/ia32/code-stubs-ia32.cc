@@ -566,12 +566,6 @@ class FloatingPointHelper : public AllStatic {
   // Expects operands in edx, eax.
   static void LoadSSE2Smis(MacroAssembler* masm, Register scratch);
 
-  // Checks that the two floating point numbers loaded into xmm0 and xmm1
-  // have int32 values.
-  static void CheckSSE2OperandsAreInt32(MacroAssembler* masm,
-                                        Label* non_int32,
-                                        Register scratch);
-
   // Checks that |operand| has an int32 value. If |int32_result| is different
   // from |scratch|, it will contain that int32 value.
   static void CheckSSE2OperandIsInt32(MacroAssembler* masm,
@@ -1470,7 +1464,7 @@ static void BinaryOpStub_GenerateSmiCode(
 
 
 void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
-  Label call_runtime;
+  Label right_arg_changed, call_runtime;
 
   switch (op_) {
     case Token::ADD:
@@ -1491,6 +1485,13 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
       UNREACHABLE();
   }
 
+  if (op_ == Token::MOD && has_fixed_right_arg_) {
+    // It is guaranteed that the value will fit into a Smi, because if it
+    // didn't, we wouldn't be here, see BinaryOp_Patch.
+    __ cmp(eax, Immediate(Smi::FromInt(fixed_right_arg_value())));
+    __ j(not_equal, &right_arg_changed);
+  }
+
   if (result_type_ == BinaryOpIC::UNINITIALIZED ||
       result_type_ == BinaryOpIC::SMI) {
     BinaryOpStub_GenerateSmiCode(
@@ -1502,6 +1503,7 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 
   // Code falls through if the result is not returned as either a smi or heap
   // number.
+  __ bind(&right_arg_changed);
   switch (op_) {
     case Token::ADD:
     case Token::SUB:
@@ -1604,8 +1606,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
     case Token::MUL:
     case Token::DIV:
     case Token::MOD: {
-      Label not_floats;
-      Label not_int32;
+      Label not_floats, not_int32, right_arg_changed;
       if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatureScope use_sse2(masm, SSE2);
         // It could be that only SMIs have been seen at either the left
@@ -1621,8 +1622,15 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           __ JumpIfNotSmi(eax, &not_int32);
         }
         FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
-        FloatingPointHelper::CheckSSE2OperandsAreInt32(masm, &not_int32, ecx);
+        FloatingPointHelper::CheckSSE2OperandIsInt32(
+            masm, &not_int32, xmm0, ebx, ecx, xmm2);
+        FloatingPointHelper::CheckSSE2OperandIsInt32(
+            masm, &not_int32, xmm1, edi, ecx, xmm2);
         if (op_ == Token::MOD) {
+          if (has_fixed_right_arg_) {
+            __ cmp(edi, Immediate(fixed_right_arg_value()));
+            __ j(not_equal, &right_arg_changed);
+          }
           GenerateRegisterArgsPush(masm);
           __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
         } else {
@@ -1675,6 +1683,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
       __ bind(&not_floats);
       __ bind(&not_int32);
+      __ bind(&right_arg_changed);
       GenerateTypeTransition(masm);
       break;
     }
@@ -2763,14 +2772,6 @@ void FloatingPointHelper::LoadSSE2Smis(MacroAssembler* masm,
   __ mov(scratch, right);
   __ SmiUntag(scratch);
   __ cvtsi2sd(xmm1, scratch);
-}
-
-
-void FloatingPointHelper::CheckSSE2OperandsAreInt32(MacroAssembler* masm,
-                                                    Label* non_int32,
-                                                    Register scratch) {
-  CheckSSE2OperandIsInt32(masm, non_int32, xmm0, scratch, scratch, xmm2);
-  CheckSSE2OperandIsInt32(masm, non_int32, xmm1, scratch, scratch, xmm2);
 }
 
 

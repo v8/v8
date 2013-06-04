@@ -1057,6 +1057,8 @@ class Object : public MaybeObject {
   // Extract the number.
   inline double Number();
   inline bool IsNaN();
+  bool ToInt32(int32_t* value);
+  bool ToUint32(uint32_t* value);
 
   inline Representation OptimalRepresentation() {
     if (FLAG_track_fields && IsSmi()) {

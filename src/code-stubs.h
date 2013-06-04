@@ -885,7 +885,9 @@ class BinaryOpStub: public PlatformCodeStub {
         platform_specific_bit_(false),
         left_type_(BinaryOpIC::UNINITIALIZED),
         right_type_(BinaryOpIC::UNINITIALIZED),
-        result_type_(BinaryOpIC::UNINITIALIZED) {
+        result_type_(BinaryOpIC::UNINITIALIZED),
+        has_fixed_right_arg_(false),
+        encoded_right_arg_(encode_arg_value(1)) {
     Initialize();
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
@@ -894,13 +896,17 @@ class BinaryOpStub: public PlatformCodeStub {
       int key,
       BinaryOpIC::TypeInfo left_type,
       BinaryOpIC::TypeInfo right_type,
-      BinaryOpIC::TypeInfo result_type = BinaryOpIC::UNINITIALIZED)
+      BinaryOpIC::TypeInfo result_type,
+      bool has_fixed_right_arg,
+      int32_t fixed_right_arg_value)
       : op_(OpBits::decode(key)),
         mode_(ModeBits::decode(key)),
         platform_specific_bit_(PlatformSpecificBits::decode(key)),
         left_type_(left_type),
         right_type_(right_type),
-        result_type_(result_type) { }
+        result_type_(result_type),
+        has_fixed_right_arg_(has_fixed_right_arg),
+        encoded_right_arg_(encode_arg_value(fixed_right_arg_value)) { }
 
   static void decode_types_from_minor_key(int minor_key,
                                           BinaryOpIC::TypeInfo* left_type,
@@ -918,6 +924,24 @@ class BinaryOpStub: public PlatformCodeStub {
     return static_cast<Token::Value>(OpBits::decode(minor_key));
   }
 
+  static bool decode_has_fixed_right_arg_from_minor_key(int minor_key) {
+    return HasFixedRightArgBits::decode(minor_key);
+  }
+
+  static int decode_fixed_right_arg_value_from_minor_key(int minor_key) {
+    return decode_arg_value(FixedRightArgValueBits::decode(minor_key));
+  }
+
+  int fixed_right_arg_value() const {
+    return decode_arg_value(encoded_right_arg_);
+  }
+
+  static bool can_encode_arg_value(int32_t value) {
+    return value > 0 &&
+        IsPowerOf2(value) &&
+        FixedRightArgValueBits::is_valid(WhichPowerOf2(value));
+  }
+
   enum SmiCodeGenerateHeapNumberResults {
     ALLOW_HEAPNUMBER_RESULTS,
     NO_HEAPNUMBER_RESULTS
@@ -933,15 +957,31 @@ class BinaryOpStub: public PlatformCodeStub {
   BinaryOpIC::TypeInfo right_type_;
   BinaryOpIC::TypeInfo result_type_;
 
+  bool has_fixed_right_arg_;
+  int encoded_right_arg_;
+
+  static int encode_arg_value(int32_t value) {
+    ASSERT(can_encode_arg_value(value));
+    return WhichPowerOf2(value);
+  }
+
+  static int32_t decode_arg_value(int value) {
+    return 1 << value;
+  }
+
   virtual void PrintName(StringStream* stream);
 
-  // Minor key encoding in 19 bits TTTRRRLLLSOOOOOOOMM.
+  // Minor key encoding in all 25 bits FFFFFHTTTRRRLLLPOOOOOOOMM.
+  // Note: We actually do not need 7 bits for the operation, just 4 bits to
+  // encode ADD, SUB, MUL, DIV, MOD, BIT_OR, BIT_AND, BIT_XOR, SAR, SHL, SHR.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 7> {};
   class PlatformSpecificBits: public BitField<bool, 9, 1> {};
   class LeftTypeBits: public BitField<BinaryOpIC::TypeInfo, 10, 3> {};
   class RightTypeBits: public BitField<BinaryOpIC::TypeInfo, 13, 3> {};
   class ResultTypeBits: public BitField<BinaryOpIC::TypeInfo, 16, 3> {};
+  class HasFixedRightArgBits: public BitField<bool, 19, 1> {};
+  class FixedRightArgValueBits: public BitField<int, 20, 5> {};
 
   Major MajorKey() { return BinaryOp; }
   int MinorKey() {
@@ -950,7 +990,9 @@ class BinaryOpStub: public PlatformCodeStub {
            | PlatformSpecificBits::encode(platform_specific_bit_)
            | LeftTypeBits::encode(left_type_)
            | RightTypeBits::encode(right_type_)
-           | ResultTypeBits::encode(result_type_);
+           | ResultTypeBits::encode(result_type_)
+           | HasFixedRightArgBits::encode(has_fixed_right_arg_)
+           | FixedRightArgValueBits::encode(encoded_right_arg_);
   }
 
 
