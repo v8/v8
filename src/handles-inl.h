@@ -185,8 +185,8 @@ inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
       isolate_->handle_scope_data();
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.
+  limit_ = current->limit;
   current->limit = current->next;
-
   level_ = current->level;
   current->level = 0;
 }
@@ -195,10 +195,12 @@ inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
 inline SealHandleScope::~SealHandleScope() {
   // Restore state in current handle scope to re-enable handle
   // allocations.
-  v8::ImplementationUtilities::HandleScopeData* data =
+  v8::ImplementationUtilities::HandleScopeData* current =
       isolate_->handle_scope_data();
-  ASSERT_EQ(0, data->level);
-  data->level = level_;
+  ASSERT_EQ(0, current->level);
+  current->level = level_;
+  ASSERT_EQ(current->next, current->limit);
+  current->limit = limit_;
 }
 
 #endif
