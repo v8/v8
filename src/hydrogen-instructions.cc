@@ -2310,7 +2310,39 @@ void HMathMinMax::InferRepresentation(HInferRepresentation* h_infer) {
 
 
 Range* HBitwise::InferRange(Zone* zone) {
-  if (op() == Token::BIT_XOR) return HValue::InferRange(zone);
+  if (op() == Token::BIT_XOR) {
+    if (left()->HasRange() && right()->HasRange()) {
+      // The maximum value has the high bit, and all bits below, set:
+      // (1 << high) - 1.
+      // If the range can be negative, the minimum int is a negative number with
+      // the high bit, and all bits below, unset:
+      // -(1 << high).
+      // If it cannot be negative, conservatively choose 0 as minimum int.
+      int64_t left_upper = left()->range()->upper();
+      int64_t left_lower = left()->range()->lower();
+      int64_t right_upper = right()->range()->upper();
+      int64_t right_lower = right()->range()->lower();
+
+      if (left_upper < 0) left_upper = ~left_upper;
+      if (left_lower < 0) left_lower = ~left_lower;
+      if (right_upper < 0) right_upper = ~right_upper;
+      if (right_lower < 0) right_lower = ~right_lower;
+
+      // Find the highest used bit.
+      int high = static_cast<int>(log2(left_upper));
+      high = Max(high, static_cast<int>(log2(left_lower)));
+      high = Max(high, static_cast<int>(log2(right_upper)));
+      high = Max(high, static_cast<int>(log2(right_lower)));
+
+      int64_t limit = 1;
+      limit <<= high + 1;
+      int32_t min = (left()->range()->CanBeNegative() ||
+                     right()->range()->CanBeNegative())
+                    ? static_cast<int32_t>(-limit) : 0;
+      return new(zone) Range(min, static_cast<int32_t>(limit - 1));
+    }
+    return HValue::InferRange(zone);
+  }
   const int32_t kDefaultMask = static_cast<int32_t>(0xffffffff);
   int32_t left_mask = (left()->range() != NULL)
       ? left()->range()->Mask()
