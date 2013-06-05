@@ -498,15 +498,20 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
 
   // Run the native code for the InternalArray function called as a normal
   // function.
-  ArrayNativeCode(masm, &generic_array_code);
+  if (FLAG_optimize_constructed_arrays) {
+    // Tail call a stub.
+    InternalArrayConstructorStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  } else {
+    ArrayNativeCode(masm, &generic_array_code);
 
-  // Jump to the generic array code if the specialized code cannot handle the
-  // construction.
-  __ bind(&generic_array_code);
-
-  Handle<Code> array_code =
-      masm->isolate()->builtins()->InternalArrayCodeGeneric();
-  __ Jump(array_code, RelocInfo::CODE_TARGET);
+    // Jump to the generic array code if the specialized code cannot handle the
+    // construction.
+    __ bind(&generic_array_code);
+    Handle<Code> array_code =
+        masm->isolate()->builtins()->InternalArrayCodeGeneric();
+    __ Jump(array_code, RelocInfo::CODE_TARGET);
+  }
 }
 
 
@@ -533,15 +538,24 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   }
 
   // Run the native code for the Array function called as a normal function.
-  ArrayNativeCode(masm, &generic_array_code);
+  if (FLAG_optimize_constructed_arrays) {
+    // Tail call a stub.
+    Handle<Object> undefined_sentinel(
+        masm->isolate()->heap()->undefined_value(),
+        masm->isolate());
+    __ li(a2, Operand(undefined_sentinel));
+    ArrayConstructorStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  } else {
+    ArrayNativeCode(masm, &generic_array_code);
 
-  // Jump to the generic array code if the specialized code cannot handle
-  // the construction.
-  __ bind(&generic_array_code);
-
-  Handle<Code> array_code =
-      masm->isolate()->builtins()->ArrayCodeGeneric();
-  __ Jump(array_code, RelocInfo::CODE_TARGET);
+    // Jump to the generic array code if the specialized code cannot handle
+    // the construction.
+    __ bind(&generic_array_code);
+    Handle<Code> array_code =
+        masm->isolate()->builtins()->ArrayCodeGeneric();
+    __ Jump(array_code, RelocInfo::CODE_TARGET);
+  }
 }
 
 
