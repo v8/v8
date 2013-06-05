@@ -99,6 +99,7 @@
         'test-strtod.cc',
         'test-thread-termination.cc',
         'test-threads.cc',
+        'test-types.cc',
         'test-unbound-queue.cc',
         'test-utils.cc',
         'test-version.cc',

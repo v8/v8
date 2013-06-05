@@ -61,7 +61,7 @@ class Handle {
     location_ = reinterpret_cast<T**>(handle.location_);
   }
 
-  INLINE(T* operator ->() const) { return operator*(); }
+  INLINE(T* operator->() const) { return operator*(); }
 
   // Check if this handle refers to the exact same object as the other handle.
   INLINE(bool is_identical_to(const Handle<T> other) const);
