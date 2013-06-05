@@ -1,3 +1,16 @@
+2013-06-05: Version 3.19.9
+
+        Implemented Load IC support for loading properties from primitive
+        values to avoid perpetual soft deopts.  (Chromium issue 242512)
+
+        Implemented Freeing of PerThreadAssertData when possible to avoid
+        memory leak. (Chromium issue 246567)
+
+        Removed V8_USE_OLD_STYLE_PERSISTENT_HANDLE_VISITORS.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-06-03: Version 3.19.8
 
         Fixed bug with inlining 'Array' function. (Chromium issue 244461)
