@@ -898,13 +898,11 @@ HGraphBuilder::LoopBuilder::LoopBuilder(HGraphBuilder* builder,
 HValue* HGraphBuilder::LoopBuilder::BeginBody(
     HValue* initial,
     HValue* terminating,
-    Token::Value token,
-    Representation input_representation) {
+    Token::Value token) {
   HEnvironment* env = builder_->environment();
   phi_ = new(zone()) HPhi(env->values()->length(), zone());
   header_block_->AddPhi(phi_);
   phi_->AddInput(initial);
-  phi_->AssumeRepresentation(Representation::Integer32());
   env->Push(initial);
   builder_->current_block()->GotoNoSimulate(header_block_);
 
@@ -918,9 +916,6 @@ HValue* HGraphBuilder::LoopBuilder::BeginBody(
   builder_->set_current_block(header_block_);
   HCompareIDAndBranch* compare =
       new(zone()) HCompareIDAndBranch(phi_, terminating, token);
-  compare->set_observed_input_representation(input_representation,
-                                             input_representation);
-  compare->AssumeRepresentation(input_representation);
   compare->SetSuccessorAt(0, body_block_);
   compare->SetSuccessorAt(1, exit_block_);
   builder_->current_block()->Finish(compare);
@@ -934,7 +929,6 @@ HValue* HGraphBuilder::LoopBuilder::BeginBody(
       increment_ = HSub::New(zone(), context_, phi_, one);
     }
     increment_->ClearFlag(HValue::kCanOverflow);
-    increment_->AssumeRepresentation(Representation::Integer32());
     builder_->AddInstruction(increment_);
     return increment_;
   } else {
@@ -954,7 +948,6 @@ void HGraphBuilder::LoopBuilder::EndBody() {
       increment_ = HSub::New(zone(), context_, phi_, one);
     }
     increment_->ClearFlag(HValue::kCanOverflow);
-    increment_->AssumeRepresentation(Representation::Integer32());
     builder_->AddInstruction(increment_);
   }
 

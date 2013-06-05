@@ -1217,8 +1217,7 @@ class HGraphBuilder {
     HValue* BeginBody(
         HValue* initial,
         HValue* terminating,
-        Token::Value token,
-        Representation input_representation = Representation::Integer32());
+        Token::Value token);
     void EndBody();
 
    private:
