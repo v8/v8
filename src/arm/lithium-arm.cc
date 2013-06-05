@@ -405,7 +405,14 @@ void LStoreKeyed::PrintDataTo(StringStream* stream) {
   } else {
     stream->Add("] <- ");
   }
-  value()->PrintTo(stream);
+
+  if (value() == NULL) {
+    ASSERT(hydrogen()->IsConstantHoleStore() &&
+           hydrogen()->value()->representation().IsDouble());
+    stream->Add("<the hole(nan)>");
+  } else {
+    value()->PrintTo(stream);
+  }
 }
 
 
