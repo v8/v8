@@ -651,12 +651,14 @@ static const char* native_accessor_test_source = "function start(count) {\n"
 class FooAccessorsData {
  public:
   explicit FooAccessorsData(int min_duration_ms)
-      : min_duration_ms_(min_duration_ms) {}
+      : min_duration_ms_(min_duration_ms),
+        getter_duration_(0),
+        setter_duration_(0) {}
 
   static v8::Handle<v8::Value> Getter(v8::Local<v8::String> name,
                                       const v8::AccessorInfo& info) {
     FooAccessorsData* data = fromInfo(info);
-    data->Wait();
+    data->getter_duration_ = data->Wait();
     return v8::Int32::New(2013);
   }
 
@@ -664,15 +666,22 @@ class FooAccessorsData {
                      v8::Local<v8::Value> value,
                      const v8::AccessorInfo& info) {
     FooAccessorsData* data = fromInfo(info);
-    data->Wait();
+    data->setter_duration_ = data->Wait();
+  }
+
+  void PrintAccessorTime() {
+    i::OS::Print("getter: %f ms; setter: %f ms\n", getter_duration_,
+        setter_duration_);
   }
 
  private:
-  void Wait() {
+  double Wait() {
     double start = i::OS::TimeCurrentMillis();
-    for (double duration = 0; duration < min_duration_ms_; ) {
+    double duration = 0;
+    while (duration < min_duration_ms_) {
       duration = i::OS::TimeCurrentMillis() - start;
     }
+    return duration;
   }
 
   static FooAccessorsData* fromInfo(const v8::AccessorInfo& info) {
@@ -681,6 +690,8 @@ class FooAccessorsData {
   }
 
   int min_duration_ms_;
+  double getter_duration_;
+  double setter_duration_;
 };
 
 
@@ -723,6 +734,7 @@ TEST(NativeAccessorNameInProfile1) {
   // Dump collected profile to have a better diagnostic in case of failure.
   reinterpret_cast<i::CpuProfile*>(
       const_cast<v8::CpuProfile*>(profile))->Print();
+  accessors.PrintAccessorTime();
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode = GetChild(root, "start");
