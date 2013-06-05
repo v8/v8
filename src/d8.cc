@@ -287,46 +287,49 @@ int PerIsolateData::RealmFind(Handle<Context> context) {
 
 
 // Realm.current() returns the index of the currently active realm.
-Handle<Value> Shell::RealmCurrent(const Arguments& args) {
+void Shell::RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmFind(Context::GetEntered());
-  if (index == -1) return Undefined(isolate);
-  return Number::New(index);
+  if (index == -1) return;
+  args.GetReturnValue().Set(index);
 }
 
 
 // Realm.owner(o) returns the index of the realm that created o.
-Handle<Value> Shell::RealmOwner(const Arguments& args) {
+void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsObject()) {
-    return Throw("Invalid argument");
+    Throw("Invalid argument");
+    return;
   }
   int index = data->RealmFind(args[0]->ToObject()->CreationContext());
-  if (index == -1) return Undefined(isolate);
-  return Number::New(index);
+  if (index == -1) return;
+  args.GetReturnValue().Set(index);
 }
 
 
 // Realm.global(i) returns the global object of realm i.
 // (Note that properties of global objects cannot be read/written cross-realm.)
-Handle<Value> Shell::RealmGlobal(const Arguments& args) {
+void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PerIsolateData* data = PerIsolateData::Get(args.GetIsolate());
   if (args.Length() < 1 || !args[0]->IsNumber()) {
-    return Throw("Invalid argument");
+    Throw("Invalid argument");
+    return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty()) {
-    return Throw("Invalid realm index");
+    Throw("Invalid realm index");
+    return;
   }
-  return
-      Local<Context>::New(args.GetIsolate(), data->realms_[index])->Global();
+  args.GetReturnValue().Set(
+      Local<Context>::New(args.GetIsolate(), data->realms_[index])->Global());
 }
 
 
 // Realm.create() creates a new realm and returns its index.
-Handle<Value> Shell::RealmCreate(const Arguments& args) {
+void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Persistent<Context>* old_realms = data->realms_;
@@ -339,78 +342,82 @@ Handle<Value> Shell::RealmCreate(const Arguments& args) {
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   data->realms_[index].Reset(
       isolate, Context::New(isolate, NULL, global_template));
-  return Number::New(index);
+  args.GetReturnValue().Set(index);
 }
 
 
 // Realm.dispose(i) disposes the reference to the realm i.
-Handle<Value> Shell::RealmDispose(const Arguments& args) {
+void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsNumber()) {
-    return Throw("Invalid argument");
+    Throw("Invalid argument");
+    return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty() ||
       index == 0 ||
       index == data->realm_current_ || index == data->realm_switch_) {
-    return Throw("Invalid realm index");
+    Throw("Invalid realm index");
+    return;
   }
   data->realms_[index].Dispose(isolate);
   data->realms_[index].Clear();
-  return Undefined(isolate);
 }
 
 
 // Realm.switch(i) switches to the realm i for consecutive interactive inputs.
-Handle<Value> Shell::RealmSwitch(const Arguments& args) {
+void Shell::RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsNumber()) {
-    return Throw("Invalid argument");
+    Throw("Invalid argument");
+    return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty()) {
-    return Throw("Invalid realm index");
+    Throw("Invalid realm index");
+    return;
   }
   data->realm_switch_ = index;
-  return Undefined(isolate);
 }
 
 
 // Realm.eval(i, s) evaluates s in realm i and returns the result.
-Handle<Value> Shell::RealmEval(const Arguments& args) {
+void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 2 || !args[0]->IsNumber() || !args[1]->IsString()) {
-    return Throw("Invalid argument");
+    Throw("Invalid argument");
+    return;
   }
   int index = args[0]->Uint32Value();
   if (index >= data->realm_count_ || data->realms_[index].IsEmpty()) {
-    return Throw("Invalid realm index");
+    Throw("Invalid realm index");
+    return;
   }
   Handle<Script> script = Script::New(args[1]->ToString());
-  if (script.IsEmpty()) return Undefined(isolate);
+  if (script.IsEmpty()) return;
   Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
   realm->Enter();
   Handle<Value> result = script->Run();
   realm->Exit();
-  return result;
+  args.GetReturnValue().Set(result);
 }
 
 
 // Realm.shared is an accessor for a single shared value across realms.
-Handle<Value> Shell::RealmSharedGet(Local<String> property,
-                                    const AccessorInfo& info) {
+void Shell::RealmSharedGet(Local<String> property,
+                           const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  if (data->realm_shared_.IsEmpty()) return Undefined(isolate);
-  return Local<Value>::New(isolate, data->realm_shared_);
+  if (data->realm_shared_.IsEmpty()) return;
+  info.GetReturnValue().Set(data->realm_shared_);
 }
 
 void Shell::RealmSharedSet(Local<String> property,
                            Local<Value> value,
-                           const AccessorInfo& info) {
+                           const PropertyCallbackInfo<void>& info) {
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (!data->realm_shared_.IsEmpty()) data->realm_shared_.Dispose(isolate);
@@ -418,15 +425,14 @@ void Shell::RealmSharedSet(Local<String> property,
 }
 
 
-Handle<Value> Shell::Print(const Arguments& args) {
-  Handle<Value> val = Write(args);
+void Shell::Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Write(args);
   printf("\n");
   fflush(stdout);
-  return val;
 }
 
 
-Handle<Value> Shell::Write(const Arguments& args) {
+void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope(args.GetIsolate());
     if (i != 0) {
@@ -436,7 +442,10 @@ Handle<Value> Shell::Write(const Arguments& args) {
     // Explicitly catch potential exceptions in toString().
     v8::TryCatch try_catch;
     Handle<String> str_obj = args[i]->ToString();
-    if (try_catch.HasCaught()) return try_catch.ReThrow();
+    if (try_catch.HasCaught()) {
+      try_catch.ReThrow();
+      return;
+    }
 
     v8::String::Utf8Value str(str_obj);
     int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), stdout));
@@ -445,32 +454,31 @@ Handle<Value> Shell::Write(const Arguments& args) {
       Exit(1);
     }
   }
-  return Undefined(args.GetIsolate());
 }
 
 
-Handle<Value> Shell::EnableProfiler(const Arguments& args) {
+void Shell::EnableProfiler(const v8::FunctionCallbackInfo<v8::Value>& args) {
   V8::ResumeProfiler();
-  return Undefined(args.GetIsolate());
 }
 
 
-Handle<Value> Shell::DisableProfiler(const Arguments& args) {
+void Shell::DisableProfiler(const v8::FunctionCallbackInfo<v8::Value>& args) {
   V8::PauseProfiler();
-  return Undefined(args.GetIsolate());
 }
 
 
-Handle<Value> Shell::Read(const Arguments& args) {
+void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value file(args[0]);
   if (*file == NULL) {
-    return Throw("Error loading file");
+    Throw("Error loading file");
+    return;
   }
   Handle<String> source = ReadFile(args.GetIsolate(), *file);
   if (source.IsEmpty()) {
-    return Throw("Error loading file");
+    Throw("Error loading file");
+    return;
   }
-  return source;
+  args.GetReturnValue().Set(source);
 }
 
 
@@ -504,39 +512,40 @@ Handle<String> Shell::ReadFromStdin(Isolate* isolate) {
 }
 
 
-Handle<Value> Shell::Load(const Arguments& args) {
+void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope(args.GetIsolate());
     String::Utf8Value file(args[i]);
     if (*file == NULL) {
-      return Throw("Error loading file");
+      Throw("Error loading file");
+      return;
     }
     Handle<String> source = ReadFile(args.GetIsolate(), *file);
     if (source.IsEmpty()) {
-      return Throw("Error loading file");
+      Throw("Error loading file");
+      return;
     }
     if (!ExecuteString(args.GetIsolate(),
                        source,
                        String::New(*file),
                        false,
                        true)) {
-      return Throw("Error executing file");
+      Throw("Error executing file");
+      return;
     }
   }
-  return Undefined(args.GetIsolate());
 }
 
 
-Handle<Value> Shell::Quit(const Arguments& args) {
+void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int exit_code = args[0]->Int32Value();
   OnExit();
   exit(exit_code);
-  return Undefined(args.GetIsolate());
 }
 
 
-Handle<Value> Shell::Version(const Arguments& args) {
-  return String::New(V8::GetVersion());
+void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(String::New(V8::GetVersion()));
 }
 
 
@@ -1077,19 +1086,21 @@ static void ReadBufferWeakCallback(v8::Isolate* isolate,
   object->Dispose(isolate);
 }
 
-Handle<Value> Shell::ReadBuffer(const Arguments& args) {
+void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ASSERT(sizeof(char) == sizeof(uint8_t));  // NOLINT
   String::Utf8Value filename(args[0]);
   int length;
   if (*filename == NULL) {
-    return Throw("Error loading file");
+    Throw("Error loading file");
+    return;
   }
 
   Isolate* isolate = args.GetIsolate();
   uint8_t* data = reinterpret_cast<uint8_t*>(
       ReadChars(args.GetIsolate(), *filename, &length));
   if (data == NULL) {
-    return Throw("Error reading file");
+    Throw("Error reading file");
+    return;
   }
   Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(data, length);
   v8::Persistent<v8::Value> weak_handle(isolate, buffer);
@@ -1097,7 +1108,7 @@ Handle<Value> Shell::ReadBuffer(const Arguments& args) {
   weak_handle.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(length);
 
-  return buffer;
+  args.GetReturnValue().Set(buffer);
 }
 
 

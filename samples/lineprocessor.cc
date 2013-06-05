@@ -102,8 +102,8 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* handler);
 v8::Handle<v8::String> ReadFile(const char* name);
 v8::Handle<v8::String> ReadLine();
 
-v8::Handle<v8::Value> Print(const v8::Arguments& args);
-v8::Handle<v8::Value> ReadLine(const v8::Arguments& args);
+void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
+void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args);
 bool RunCppCycle(v8::Handle<v8::Script> script,
                  v8::Local<v8::Context> context,
                  bool report_exceptions);
@@ -393,7 +393,7 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
 // The callback that is invoked by v8 whenever the JavaScript 'print'
 // function is called.  Prints its arguments on stdout separated by
 // spaces and ending with a newline.
-v8::Handle<v8::Value> Print(const v8::Arguments& args) {
+void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
   bool first = true;
   for (int i = 0; i < args.Length(); i++) {
     v8::HandleScope handle_scope(args.GetIsolate());
@@ -408,17 +408,17 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
   }
   printf("\n");
   fflush(stdout);
-  return v8::Undefined();
 }
 
 
 // The callback that is invoked by v8 whenever the JavaScript 'read_line'
 // function is called. Reads a string from standard input and returns.
-v8::Handle<v8::Value> ReadLine(const v8::Arguments& args) {
+void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() > 0) {
-    return v8::ThrowException(v8::String::New("Unexpected arguments"));
+    v8::ThrowException(v8::String::New("Unexpected arguments"));
+    return;
   }
-  return ReadLine();
+  args.GetReturnValue().Set(ReadLine());
 }
 
 v8::Handle<v8::String> ReadLine() {

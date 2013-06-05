@@ -1214,7 +1214,7 @@ static void FunctionTemplateSetCallHandler(FunctionTemplate* function_template,
       isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
-  InvocationCallback callback =
+  FunctionCallback callback =
       i::CallbackTable::Register(isolate, callback_in);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
   if (data.IsEmpty()) data = v8::Undefined();
@@ -1262,9 +1262,11 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
   i::Isolate* isolate = Utils::OpenHandle(*name)->GetIsolate();
   i::Handle<i::ExecutableAccessorInfo> obj =
       isolate->factory()->NewExecutableAccessorInfo();
-  AccessorGetter getter = i::CallbackTable::Register(isolate, getter_in);
+  AccessorGetterCallback getter =
+      i::CallbackTable::Register(isolate, getter_in);
   SET_FIELD_WRAPPED(obj, set_getter, getter);
-  AccessorSetter setter = i::CallbackTable::Register(isolate, setter_in);
+  AccessorSetterCallback setter =
+      i::CallbackTable::Register(isolate, setter_in);
   SET_FIELD_WRAPPED(obj, set_setter, setter);
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
@@ -1367,16 +1369,19 @@ static void SetNamedInstancePropertyHandler(
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
 
-  NamedPropertyGetter getter = i::CallbackTable::Register(isolate, getter_in);
+  NamedPropertyGetterCallback getter =
+      i::CallbackTable::Register(isolate, getter_in);
   if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
-  NamedPropertySetter setter = i::CallbackTable::Register(isolate, setter_in);
+  NamedPropertySetterCallback setter =
+      i::CallbackTable::Register(isolate, setter_in);
   if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
-  NamedPropertyQuery query = i::CallbackTable::Register(isolate, query_in);
+  NamedPropertyQueryCallback query =
+      i::CallbackTable::Register(isolate, query_in);
   if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
-  NamedPropertyDeleter remover =
+  NamedPropertyDeleterCallback remover =
       i::CallbackTable::Register(isolate, remover_in);
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
-  NamedPropertyEnumerator enumerator =
+  NamedPropertyEnumeratorCallback enumerator =
       i::CallbackTable::Register(isolate, enumerator_in);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
 
@@ -1412,18 +1417,19 @@ static void SetIndexedInstancePropertyHandler(
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
 
-  IndexedPropertyGetter getter =
+  IndexedPropertyGetterCallback getter =
       i::CallbackTable::Register(isolate, getter_in);
   if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
-  IndexedPropertySetter setter =
+  IndexedPropertySetterCallback setter =
       i::CallbackTable::Register(isolate, setter_in);
   if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
-  IndexedPropertyQuery query = i::CallbackTable::Register(isolate, query_in);
+  IndexedPropertyQueryCallback query =
+      i::CallbackTable::Register(isolate, query_in);
   if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
-  IndexedPropertyDeleter remover =
+  IndexedPropertyDeleterCallback remover =
       i::CallbackTable::Register(isolate, remover_in);
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
-  IndexedPropertyEnumerator enumerator =
+  IndexedPropertyEnumeratorCallback enumerator =
       i::CallbackTable::Register(isolate, enumerator_in);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
 
@@ -1449,7 +1455,7 @@ static void SetInstanceCallAsFunctionHandler(
       isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
-  InvocationCallback callback =
+  FunctionCallback callback =
       i::CallbackTable::Register(isolate, callback_in);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
   if (data.IsEmpty()) data = v8::Undefined();
