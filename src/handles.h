@@ -85,7 +85,9 @@ class Handle {
   inline Handle<T> EscapeFrom(v8::HandleScope* scope);
 
 #ifdef DEBUG
-  bool IsDereferenceAllowed(bool explicitly_allow_deferred) const;
+  enum DereferenceCheckMode { INCLUDE_DEFERRED_CHECK, NO_DEFERRED_CHECK };
+
+  bool IsDereferenceAllowed(DereferenceCheckMode mode) const;
 #endif  // DEBUG
 
  private:
