@@ -2973,7 +2973,7 @@ bool Heap::CreateInitialObjects() {
   SeededNumberDictionary::cast(obj)->set_requires_slow_elements();
   set_empty_slow_element_dictionary(SeededNumberDictionary::cast(obj));
 
-  // Handling of script id generation is in FACTORY->NewScript.
+  // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(undefined_value());
 
   // Initialize keyed lookup cache.
@@ -3377,7 +3377,6 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_debug_info(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(empty_string(), SKIP_WRITE_BARRIER);
   share->set_initial_map(undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_this_property_assignments(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_ast_node_count(0);
   share->set_stress_deopt_counter(FLAG_deopt_every_n_times);
   share->set_counters(0);
@@ -3392,7 +3391,6 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_function_token_position(0);
   // All compiler hints default to false or 0.
   share->set_compiler_hints(0);
-  share->set_this_property_assignments_count(0);
   share->set_opt_count(0);
 
   return share;
@@ -4161,20 +4159,6 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
 }
 
 
-static bool HasDuplicates(DescriptorArray* descriptors) {
-  int count = descriptors->number_of_descriptors();
-  if (count > 1) {
-    Name* prev_key = descriptors->GetKey(0);
-    for (int i = 1; i != count; i++) {
-      Name* current_key = descriptors->GetKey(i);
-      if (prev_key == current_key) return true;
-      prev_key = current_key;
-    }
-  }
-  return false;
-}
-
-
 MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   ASSERT(!fun->has_initial_map());
 
@@ -4208,48 +4192,6 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   map->set_unused_property_fields(in_object_properties);
   map->set_prototype(prototype);
   ASSERT(map->has_fast_object_elements());
-
-  // If the function has only simple this property assignments add
-  // field descriptors for these to the initial map as the object
-  // cannot be constructed without having these properties.  Guard by
-  // the inline_new flag so we only change the map if we generate a
-  // specialized construct stub.
-  ASSERT(in_object_properties <= Map::kMaxPreAllocatedPropertyFields);
-  if (!fun->shared()->is_generator() &&
-      fun->shared()->CanGenerateInlineConstructor(prototype)) {
-    int count = fun->shared()->this_property_assignments_count();
-    if (count > in_object_properties) {
-      // Inline constructor can only handle inobject properties.
-      fun->shared()->ForbidInlineConstructor();
-    } else {
-      DescriptorArray* descriptors;
-      MaybeObject* maybe_descriptors = DescriptorArray::Allocate(count);
-      if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
-
-      DescriptorArray::WhitenessWitness witness(descriptors);
-      for (int i = 0; i < count; i++) {
-        String* name = fun->shared()->GetThisPropertyAssignmentName(i);
-        ASSERT(name->IsInternalizedString());
-        // TODO(verwaest): Since we cannot update the boilerplate's map yet,
-        // initialize to the worst case.
-        FieldDescriptor field(name, i, NONE, Representation::Tagged());
-        descriptors->Set(i, &field, witness);
-      }
-      descriptors->Sort();
-
-      // The descriptors may contain duplicates because the compiler does not
-      // guarantee the uniqueness of property names (it would have required
-      // quadratic time). Once the descriptors are sorted we can check for
-      // duplicates in linear time.
-      if (HasDuplicates(descriptors)) {
-        fun->shared()->ForbidInlineConstructor();
-      } else {
-        map->InitializeDescriptors(descriptors);
-        map->set_pre_allocated_property_fields(count);
-        map->set_unused_property_fields(in_object_properties - count);
-      }
-    }
-  }
 
   if (!fun->shared()->is_generator()) {
     fun->shared()->StartInobjectSlackTracking(map);
@@ -4302,10 +4244,7 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
   // Allocate the backing storage for the properties.
-  int prop_size =
-      map->pre_allocated_property_fields() +
-      map->unused_property_fields() -
-      map->inobject_properties();
+  int prop_size = map->InitialPropertiesLength();
   ASSERT(prop_size >= 0);
   Object* properties;
   { MaybeObject* maybe_properties = AllocateFixedArray(prop_size, pretenure);
@@ -4342,10 +4281,7 @@ MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(Map* map,
   ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
   // Allocate the backing storage for the properties.
-  int prop_size =
-      map->pre_allocated_property_fields() +
-      map->unused_property_fields() -
-      map->inobject_properties();
+  int prop_size = map->InitialPropertiesLength();
   ASSERT(prop_size >= 0);
   Object* properties;
   { MaybeObject* maybe_properties = AllocateFixedArray(prop_size);
@@ -7518,6 +7454,8 @@ GCTracer::~GCTracer() {
     PrintF("intracompaction_ptrs=%.1f ",
         scopes_[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]);
     PrintF("misc_compaction=%.1f ", scopes_[Scope::MC_UPDATE_MISC_POINTERS]);
+    PrintF("weakmap_process=%.1f ", scopes_[Scope::MC_WEAKMAP_PROCESS]);
+    PrintF("weakmap_clear=%.1f ", scopes_[Scope::MC_WEAKMAP_CLEAR]);
 
     PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_object_size_);
     PrintF("total_size_after=%" V8_PTR_PREFIX "d ", heap_->SizeOfObjects());

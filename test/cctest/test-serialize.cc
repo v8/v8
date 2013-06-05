@@ -286,14 +286,15 @@ static void Deserialize() {
 
 
 static void SanityCheck() {
+  Isolate* isolate = Isolate::Current();
   v8::HandleScope scope(v8::Isolate::GetCurrent());
 #ifdef VERIFY_HEAP
   HEAP->Verify();
 #endif
-  CHECK(Isolate::Current()->global_object()->IsJSObject());
-  CHECK(Isolate::Current()->native_context()->IsContext());
+  CHECK(isolate->global_object()->IsJSObject());
+  CHECK(isolate->native_context()->IsContext());
   CHECK(HEAP->string_table()->IsStringTable());
-  CHECK(!FACTORY->InternalizeOneByteString(
+  CHECK(!isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("Empty"))->IsFailure());
 }
 

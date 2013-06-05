@@ -625,7 +625,8 @@ void ScriptCache::Add(Handle<Script> script) {
 
 
 Handle<FixedArray> ScriptCache::GetScripts() {
-  Handle<FixedArray> instances = FACTORY->NewFixedArray(occupancy());
+  Factory* factory = Isolate::Current()->factory();
+  Handle<FixedArray> instances = factory->NewFixedArray(occupancy());
   int count = 0;
   for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
     ASSERT(entry->value != NULL);
@@ -787,7 +788,7 @@ bool Debug::CompileDebuggerScript(int index) {
     MessageLocation computed_location;
     isolate->ComputeLocation(&computed_location);
     Handle<Object> message = MessageHandler::MakeMessageObject(
-        "error_loading_debugger", &computed_location,
+        isolate, "error_loading_debugger", &computed_location,
         Vector<Handle<Object> >::empty(), Handle<String>(), Handle<JSArray>());
     ASSERT(!isolate->has_pending_exception());
     if (!exception.is_null()) {
@@ -2226,6 +2227,8 @@ Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
 // Ensures the debug information is present for shared.
 bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
                             Handle<JSFunction> function) {
+  Isolate* isolate = shared->GetIsolate();
+
   // Return if we already have the debug info for shared.
   if (HasDebugInfo(shared)) {
     ASSERT(shared->is_compiled());
@@ -2242,7 +2245,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
   }
 
   // Create the debug info object.
-  Handle<DebugInfo> debug_info = FACTORY->NewDebugInfo(shared);
+  Handle<DebugInfo> debug_info = isolate->factory()->NewDebugInfo(shared);
 
   // Add debug info to the list.
   DebugInfoListNode* node = new DebugInfoListNode(*debug_info);

@@ -1191,8 +1191,8 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
   HandleScope scope(isolate);
   Handle<Name> name_handle(name);
   Handle<Object> error =
-      FACTORY->NewReferenceError("not_defined",
-                                  HandleVector(&name_handle, 1));
+      isolate->factory()->NewReferenceError("not_defined",
+                                            HandleVector(&name_handle, 1));
   return isolate->Throw(*error);
 }
 
@@ -2026,15 +2026,6 @@ Handle<Code> CallStubCompiler::GetCode(Handle<JSFunction> function) {
     function_name = Handle<String>(String::cast(function->shared()->name()));
   }
   return GetCode(Code::CONSTANT_FUNCTION, function_name);
-}
-
-
-Handle<Code> ConstructStubCompiler::GetCode() {
-  Code::Flags flags = Code::ComputeFlags(Code::STUB);
-  Handle<Code> code = GetCodeWithFlags(flags, "ConstructStub");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, "ConstructStub"));
-  GDBJIT(AddCode(GDBJITInterface::STUB, "ConstructStub", *code));
-  return code;
 }
 
 

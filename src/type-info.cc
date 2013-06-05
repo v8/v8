@@ -168,12 +168,7 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 
 bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
   Handle<Object> info = GetInfo(expr->CallNewFeedbackId());
-  if (info->IsSmi()) {
-    ASSERT(static_cast<ElementsKind>(Smi::cast(*info)->value()) <=
-           LAST_FAST_ELEMENTS_KIND);
-    return isolate_->global_context()->array_function();
-  }
-  return info->IsJSFunction();
+  return info->IsSmi() || info->IsJSFunction();
 }
 
 
@@ -298,7 +293,14 @@ CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
 
 
 Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
-  return Handle<JSFunction>::cast(GetInfo(expr->CallFeedbackId()));
+  Handle<Object> info = GetInfo(expr->CallFeedbackId());
+  if (info->IsSmi()) {
+    ASSERT(static_cast<ElementsKind>(Smi::cast(*info)->value()) <=
+           LAST_FAST_ELEMENTS_KIND);
+    return Handle<JSFunction>(isolate_->global_context()->array_function());
+  } else {
+    return Handle<JSFunction>::cast(info);
+  }
 }
 
 
@@ -456,7 +458,9 @@ static TypeInfo TypeFromBinaryOpType(BinaryOpIC::TypeInfo binary_type) {
 void TypeFeedbackOracle::BinaryType(BinaryOperation* expr,
                                     TypeInfo* left,
                                     TypeInfo* right,
-                                    TypeInfo* result) {
+                                    TypeInfo* result,
+                                    bool* has_fixed_right_arg,
+                                    int* fixed_right_arg_value) {
   Handle<Object> object = GetInfo(expr->BinaryOperationFeedbackId());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) {
@@ -465,12 +469,17 @@ void TypeFeedbackOracle::BinaryType(BinaryOperation* expr,
   }
   Handle<Code> code = Handle<Code>::cast(object);
   if (code->is_binary_op_stub()) {
+    int minor_key = code->stub_info();
     BinaryOpIC::TypeInfo left_type, right_type, result_type;
-    BinaryOpStub::decode_types_from_minor_key(code->stub_info(), &left_type,
-                                              &right_type, &result_type);
+    BinaryOpStub::decode_types_from_minor_key(
+        minor_key, &left_type, &right_type, &result_type);
     *left = TypeFromBinaryOpType(left_type);
     *right = TypeFromBinaryOpType(right_type);
     *result = TypeFromBinaryOpType(result_type);
+    *has_fixed_right_arg =
+        BinaryOpStub::decode_has_fixed_right_arg_from_minor_key(minor_key);
+    *fixed_right_arg_value =
+        BinaryOpStub::decode_fixed_right_arg_value_from_minor_key(minor_key);
     return;
   }
   // Not a binary op stub.
@@ -663,7 +672,7 @@ void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
       : 0;
   int length = infos->length() + cell_count;
   byte* old_start = code->instruction_start();
-  dictionary_ = FACTORY->NewUnseededNumberDictionary(length);
+  dictionary_ = isolate()->factory()->NewUnseededNumberDictionary(length);
   byte* new_start = code->instruction_start();
   RelocateRelocInfos(infos, old_start, new_start);
 }

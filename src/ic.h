@@ -369,6 +369,7 @@ class LoadIC: public IC {
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
+  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
 
   MUST_USE_RESULT MaybeObject* Load(State state,
                                     Handle<Object> object,
@@ -378,8 +379,7 @@ class LoadIC: public IC {
   virtual Code::Kind kind() const { return Code::LOAD_IC; }
 
   virtual Handle<Code> generic_stub() const {
-    UNREACHABLE();
-    return Handle<Code>::null();
+    return isolate()->builtins()->LoadIC_Slow();
   }
 
   virtual Handle<Code> megamorphic_stub() {

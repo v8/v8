@@ -1873,8 +1873,9 @@ static void EmitUseLookupTable(
   for (int i = j; i < kSize; i++) {
     templ[i] = bit;
   }
+  Factory* factory = Isolate::Current()->factory();
   // TODO(erikcorry): Cache these.
-  Handle<ByteArray> ba = FACTORY->NewByteArray(kSize, TENURED);
+  Handle<ByteArray> ba = factory->NewByteArray(kSize, TENURED);
   for (int i = 0; i < kSize; i++) {
     ba->set(i, templ[i]);
   }
@@ -3827,8 +3828,8 @@ bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
     return true;
   }
 
-  Handle<ByteArray> boolean_skip_table =
-      FACTORY->NewByteArray(kSize, TENURED);
+  Factory* factory = Isolate::Current()->factory();
+  Handle<ByteArray> boolean_skip_table = factory->NewByteArray(kSize, TENURED);
   int skip_distance = GetSkipTable(
       min_lookahead, max_lookahead, boolean_skip_table);
   ASSERT(skip_distance != 0);

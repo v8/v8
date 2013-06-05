@@ -48,7 +48,7 @@ enum PerThreadAssertType {
 #ifdef DEBUG
 class PerThreadAssertData {
  public:
-  PerThreadAssertData() {
+  PerThreadAssertData() : nesting_level_(0) {
     for (int i = 0; i < LAST_PER_THREAD_ASSERT_TYPE; i++) {
       assert_states_[i] = true;
     }
@@ -62,8 +62,12 @@ class PerThreadAssertData {
     return assert_states_[type];
   }
 
+  void increment_level() { ++nesting_level_; }
+  bool decrement_level() { return --nesting_level_ == 0; }
+
  private:
   bool assert_states_[LAST_PER_THREAD_ASSERT_TYPE];
+  int nesting_level_;
 
   DISALLOW_COPY_AND_ASSIGN(PerThreadAssertData);
 };
@@ -72,7 +76,22 @@ class PerThreadAssertData {
 
 class PerThreadAssertScopeBase {
 #ifdef DEBUG
+
  protected:
+  PerThreadAssertScopeBase() {
+    data_ = AssertData();
+    data_->increment_level();
+  }
+
+  ~PerThreadAssertScopeBase() {
+    if (!data_->decrement_level()) return;
+    for (int i = 0; i < LAST_PER_THREAD_ASSERT_TYPE; i++) {
+      ASSERT(data_->get(static_cast<PerThreadAssertType>(i)));
+    }
+    delete data_;
+    Thread::SetThreadLocal(thread_local_key, NULL);
+  }
+
   static PerThreadAssertData* AssertData() {
     PerThreadAssertData* data = reinterpret_cast<PerThreadAssertData*>(
             Thread::GetThreadLocal(thread_local_key));
@@ -84,6 +103,7 @@ class PerThreadAssertScopeBase {
   }
 
   static Thread::LocalStorageKey thread_local_key;
+  PerThreadAssertData* data_;
   friend class Isolate;
 #endif  // DEBUG
 };
@@ -98,12 +118,11 @@ class PerThreadAssertScope : public PerThreadAssertScopeBase {
   static void SetIsAllowed(bool is_allowed) { }
 #else
   PerThreadAssertScope() {
-    PerThreadAssertData* data = AssertData();
-    old_state_ = data->get(type);
-    data->set(type, allow);
+    old_state_ = data_->get(type);
+    data_->set(type, allow);
   }
 
-  ~PerThreadAssertScope() { AssertData()->set(type, old_state_); }
+  ~PerThreadAssertScope() { data_->set(type, old_state_); }
 
   static bool IsAllowed() { return AssertData()->get(type); }
 

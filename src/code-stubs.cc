@@ -777,4 +777,19 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
 }
 
 
+void InternalArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
+  InternalArrayNoArgumentConstructorStub stub1(FAST_ELEMENTS);
+  InstallDescriptor(isolate, &stub1);
+  InternalArraySingleArgumentConstructorStub stub2(FAST_ELEMENTS);
+  InstallDescriptor(isolate, &stub2);
+  InternalArrayNArgumentsConstructorStub stub3(FAST_ELEMENTS);
+  InstallDescriptor(isolate, &stub3);
+}
+
+InternalArrayConstructorStub::InternalArrayConstructorStub(
+    Isolate* isolate) {
+  InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
+}
+
+
 } }  // namespace v8::internal

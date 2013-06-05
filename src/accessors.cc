@@ -793,9 +793,9 @@ const AccessorDescriptor Accessors::FunctionCaller = {
 // Accessors::MakeModuleExport
 //
 
-static v8::Handle<v8::Value> ModuleGetExport(
+static void ModuleGetExport(
     v8::Local<v8::String> property,
-    const v8::AccessorInfo& info) {
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
   JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
   Context* context = Context::cast(instance->context());
   ASSERT(context->IsModuleContext());
@@ -807,16 +807,16 @@ static v8::Handle<v8::Value> ModuleGetExport(
     isolate->ScheduleThrow(
         *isolate->factory()->NewReferenceError("not_defined",
                                                HandleVector(&name, 1)));
-    return v8::Handle<v8::Value>();
+    return;
   }
-  return v8::Utils::ToLocal(Handle<Object>(value, isolate));
+  info.GetReturnValue().Set(v8::Utils::ToLocal(Handle<Object>(value, isolate)));
 }
 
 
 static void ModuleSetExport(
     v8::Local<v8::String> property,
     v8::Local<v8::Value> value,
-    const v8::AccessorInfo& info) {
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
   JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
   Context* context = Context::cast(instance->context());
   ASSERT(context->IsModuleContext());

@@ -65,7 +65,6 @@ class LChunkBuilder;
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
   V(Allocate)                                  \
-  V(AllocateObject)                            \
   V(ApplyArguments)                            \
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
@@ -109,6 +108,7 @@ class LChunkBuilder;
   V(DummyUse)                                  \
   V(ElementsKind)                              \
   V(EnterInlined)                              \
+  V(EnvironmentMarker)                         \
   V(FixedArrayBaseLength)                      \
   V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
@@ -811,7 +811,13 @@ class HValue: public ZoneObject {
     kHasNoObservableSideEffects,
     // Indicates the instruction is live during dead code elimination.
     kIsLive,
-    kLastFlag = kIDefsProcessingDone
+
+    // HEnvironmentMarkers are deleted before dead code
+    // elimination takes place, so they can repurpose the kIsLive flag:
+    kEndsLiveRange = kIsLive,
+
+    // TODO(everyone): Don't forget to update this!
+    kLastFlag = kIsLive
   };
 
   STATIC_ASSERT(kLastFlag < kBitsPerInt);
@@ -885,7 +891,17 @@ class HValue: public ZoneObject {
   }
   virtual void AssumeRepresentation(Representation r);
 
-  virtual bool IsConvertibleToInteger() const { return true; }
+  virtual Representation KnownOptimalRepresentation() {
+    Representation r = representation();
+    if (r.IsTagged()) {
+      HType t = type();
+      if (t.IsSmi()) return Representation::Smi();
+      if (t.IsHeapNumber()) return Representation::Double();
+      if (t.IsHeapObject()) return r;
+      return Representation::None();
+    }
+    return r;
+  }
 
   HType type() const { return type_; }
   void set_type(HType new_type) {
@@ -1476,8 +1492,13 @@ class HDebugBreak: public HTemplateInstruction<0> {
 
 class HDeoptimize: public HControlInstruction {
  public:
-  HDeoptimize(int environment_length, Zone* zone)
-      : values_(environment_length, zone) { }
+  HDeoptimize(int environment_length,
+              int first_local_index,
+              int first_expression_index,
+              Zone* zone)
+      : values_(environment_length, zone),
+        first_local_index_(first_local_index),
+        first_expression_index_(first_expression_index) { }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -1500,6 +1521,8 @@ class HDeoptimize: public HControlInstruction {
     values_.Add(NULL, zone);
     SetOperandAt(values_.length() - 1, value);
   }
+  int first_local_index() { return first_local_index_; }
+  int first_expression_index() { return first_expression_index_; }
 
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
 
@@ -1515,6 +1538,8 @@ class HDeoptimize: public HControlInstruction {
 
  private:
   ZoneList<HValue*> values_;
+  int first_local_index_;
+  int first_expression_index_;
 };
 
 
@@ -1831,6 +1856,12 @@ class HSimulate: public HInstruction {
   void AddPushedValue(HValue* value) {
     AddValue(kNoIndex, value);
   }
+  int ToOperandIndex(int environment_index) {
+    for (int i = 0; i < assigned_indexes_.length(); ++i) {
+      if (assigned_indexes_[i] == environment_index) return i;
+    }
+    return -1;
+  }
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) const { return values_[index]; }
 
@@ -1845,6 +1876,8 @@ class HSimulate: public HInstruction {
 
 #ifdef DEBUG
   virtual void Verify();
+  void set_closure(Handle<JSFunction> closure) { closure_ = closure; }
+  Handle<JSFunction> closure() const { return closure_; }
 #endif
 
  protected:
@@ -1874,6 +1907,52 @@ class HSimulate: public HInstruction {
   ZoneList<int> assigned_indexes_;
   Zone* zone_;
   RemovableSimulate removable_;
+
+#ifdef DEBUG
+  Handle<JSFunction> closure_;
+#endif
+};
+
+
+class HEnvironmentMarker: public HTemplateInstruction<1> {
+ public:
+  enum Kind { BIND, LOOKUP };
+
+  HEnvironmentMarker(Kind kind, int index)
+      : kind_(kind), index_(index), next_simulate_(NULL) { }
+
+  Kind kind() { return kind_; }
+  int index() { return index_; }
+  HSimulate* next_simulate() { return next_simulate_; }
+  void set_next_simulate(HSimulate* simulate) {
+    next_simulate_ = simulate;
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::None();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+#ifdef DEBUG
+  void set_closure(Handle<JSFunction> closure) {
+    ASSERT(closure_.is_null());
+    ASSERT(!closure.is_null());
+    closure_ = closure;
+  }
+  Handle<JSFunction> closure() const { return closure_; }
+#endif
+
+  DECLARE_CONCRETE_INSTRUCTION(EnvironmentMarker);
+
+ private:
+  Kind kind_;
+  int index_;
+  HSimulate* next_simulate_;
+
+#ifdef DEBUG
+  Handle<JSFunction> closure_;
+#endif
 };
 
 
@@ -1930,7 +2009,8 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 InliningKind inlining_kind,
                 Variable* arguments_var,
                 ZoneList<HValue*>* arguments_values,
-                bool undefined_receiver)
+                bool undefined_receiver,
+                Zone* zone)
       : closure_(closure),
         arguments_count_(arguments_count),
         arguments_pushed_(false),
@@ -1938,8 +2018,12 @@ class HEnterInlined: public HTemplateInstruction<0> {
         inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
         arguments_values_(arguments_values),
-        undefined_receiver_(undefined_receiver) {
+        undefined_receiver_(undefined_receiver),
+        return_targets_(2, zone) {
   }
+
+  void RegisterReturnTarget(HBasicBlock* return_target, Zone* zone);
+  ZoneList<HBasicBlock*>* return_targets() { return &return_targets_; }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -1969,6 +2053,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   Variable* arguments_var_;
   ZoneList<HValue*>* arguments_values_;
   bool undefined_receiver_;
+  ZoneList<HBasicBlock*> return_targets_;
 };
 
 
@@ -2449,7 +2534,7 @@ class HMapEnumLength: public HUnaryOperation {
  public:
   explicit HMapEnumLength(HValue* value) : HUnaryOperation(value) {
     set_type(HType::Smi());
-    set_representation(Representation::Tagged());
+    set_representation(Representation::Smi());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
   }
@@ -2940,8 +3025,7 @@ class HPhi: public HValue {
   HPhi(int merged_index, Zone* zone)
       : inputs_(2, zone),
         merged_index_(merged_index),
-        phi_id_(-1),
-        is_convertible_to_integer_(true) {
+        phi_id_(-1) {
     for (int i = 0; i < Representation::kNumRepresentations; i++) {
       non_phi_uses_[i] = 0;
       indirect_uses_[i] = 0;
@@ -2957,6 +3041,9 @@ class HPhi: public HValue {
   virtual void InferRepresentation(HInferRepresentation* h_infer);
   Representation RepresentationFromUseRequirements();
   virtual Representation RequiredInputRepresentation(int index) {
+    return representation();
+  }
+  virtual Representation KnownOptimalRepresentation() {
     return representation();
   }
   virtual HType CalculateInferredType();
@@ -3014,28 +3101,6 @@ class HPhi: public HValue {
   }
   virtual Opcode opcode() const { return HValue::kPhi; }
 
-  virtual bool IsConvertibleToInteger() const {
-    return is_convertible_to_integer_;
-  }
-
-  void set_is_convertible_to_integer(bool b) {
-    is_convertible_to_integer_ = b;
-  }
-
-  bool AllOperandsConvertibleToInteger() {
-    for (int i = 0; i < OperandCount(); ++i) {
-      if (!OperandAt(i)->IsConvertibleToInteger()) {
-        if (FLAG_trace_representation) {
-          HValue* input = OperandAt(i);
-          PrintF("#%d %s: Input #%d %s at %d is NCTI\n",
-                 id(), Mnemonic(), input->id(), input->Mnemonic(), i);
-        }
-        return false;
-      }
-    }
-    return true;
-  }
-
   void SimplifyConstantInputs();
 
   // TODO(titzer): we can't eliminate the receiver for generating backtraces
@@ -3059,7 +3124,6 @@ class HPhi: public HValue {
   int non_phi_uses_[Representation::kNumRepresentations];
   int indirect_uses_[Representation::kNumRepresentations];
   int phi_id_;
-  bool is_convertible_to_integer_;
 };
 
 
@@ -3149,9 +3213,10 @@ class HConstant: public HTemplateInstruction<0> {
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
+      Factory* factory = Isolate::Current()->factory();
       // Default arguments to is_not_in_new_space depend on this heap number
       // to be tenured so that it's guaranteed not be be located in new space.
-      handle_ = FACTORY->NewNumber(double_value_, TENURED);
+      handle_ = factory->NewNumber(double_value_, TENURED);
     }
     AllowDeferredHandleDereference smi_check;
     ASSERT(has_int32_value_ || !handle_->IsSmi());
@@ -3196,8 +3261,11 @@ class HConstant: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  virtual bool IsConvertibleToInteger() const {
-    return has_int32_value_;
+  virtual Representation KnownOptimalRepresentation() {
+    if (HasSmiValue()) return Representation::Smi();
+    if (HasInteger32Value()) return Representation::Integer32();
+    if (HasNumberValue()) return Representation::Double();
+    return Representation::Tagged();
   }
 
   virtual bool EmitAtUses() { return !representation().IsDouble(); }
@@ -3211,9 +3279,7 @@ class HConstant: public HTemplateInstruction<0> {
     ASSERT(HasInteger32Value());
     return int32_value_;
   }
-  bool HasSmiValue() const {
-    return has_smi_value_;
-  }
+  bool HasSmiValue() const { return has_smi_value_; }
   bool HasDoubleValue() const { return has_double_value_; }
   double DoubleValue() const {
     ASSERT(HasDoubleValue());
@@ -4350,7 +4416,12 @@ class HMod: public HArithmeticBinaryOperation {
   static HInstruction* New(Zone* zone,
                            HValue* context,
                            HValue* left,
-                           HValue* right);
+                           HValue* right,
+                           bool has_fixed_right_arg,
+                           int fixed_right_arg_value);
+
+  bool has_fixed_right_arg() const { return has_fixed_right_arg_; }
+  int fixed_right_arg_value() const { return fixed_right_arg_value_; }
 
   bool HasPowerOf2Divisor() {
     if (right()->IsConstant() &&
@@ -4374,11 +4445,20 @@ class HMod: public HArithmeticBinaryOperation {
   virtual Range* InferRange(Zone* zone);
 
  private:
-  HMod(HValue* context, HValue* left, HValue* right)
-      : HArithmeticBinaryOperation(context, left, right) {
+  HMod(HValue* context,
+       HValue* left,
+       HValue* right,
+       bool has_fixed_right_arg,
+       int fixed_right_arg_value)
+      : HArithmeticBinaryOperation(context, left, right),
+        has_fixed_right_arg_(has_fixed_right_arg),
+        fixed_right_arg_value_(fixed_right_arg_value) {
     SetFlag(kCanBeDivByZero);
     SetFlag(kCanOverflow);
   }
+
+  const bool has_fixed_right_arg_;
+  const int fixed_right_arg_value_;
 };
 
 
@@ -4716,6 +4796,11 @@ class HUnknownOSRValue: public HTemplateInstruction<0> {
     return incoming_value_;
   }
 
+  virtual Representation KnownOptimalRepresentation() {
+    if (incoming_value_ == NULL) return Representation::None();
+    return incoming_value_->KnownOptimalRepresentation();
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(UnknownOSRValue)
 
  private:
@@ -4799,48 +4884,6 @@ class HLoadGlobalGeneric: public HTemplateInstruction<2> {
 };
 
 
-class HAllocateObject: public HTemplateInstruction<1> {
- public:
-  HAllocateObject(HValue* context, Handle<JSFunction> constructor)
-      : constructor_(constructor) {
-    SetOperandAt(0, context);
-    set_representation(Representation::Tagged());
-    SetGVNFlag(kChangesNewSpacePromotion);
-    constructor_initial_map_ = constructor->has_initial_map()
-        ? Handle<Map>(constructor->initial_map())
-        : Handle<Map>::null();
-    // If slack tracking finished, the instance size and property counts
-    // remain unchanged so that we can allocate memory for the object.
-    ASSERT(!constructor->shared()->IsInobjectSlackTrackingInProgress());
-  }
-
-  // Maximum instance size for which allocations will be inlined.
-  static const int kMaxSize = 64 * kPointerSize;
-
-  HValue* context() { return OperandAt(0); }
-  Handle<JSFunction> constructor() { return constructor_; }
-  Handle<Map> constructor_initial_map() { return constructor_initial_map_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual Handle<Map> GetMonomorphicJSObjectMap() {
-    ASSERT(!constructor_initial_map_.is_null());
-    return constructor_initial_map_;
-  }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(AllocateObject)
-
- private:
-  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
-  //  virtual bool IsDeletable() const { return true; }
-
-  Handle<JSFunction> constructor_;
-  Handle<Map> constructor_initial_map_;
-};
-
-
 class HAllocate: public HTemplateInstruction<2> {
  public:
   enum Flags {
@@ -4858,6 +4901,9 @@ class HAllocate: public HTemplateInstruction<2> {
     set_representation(Representation::Tagged());
     SetGVNFlag(kChangesNewSpacePromotion);
   }
+
+  // Maximum instance size for which allocations will be inlined.
+  static const int kMaxInlineSize = 64 * kPointerSize;
 
   static Flags DefaultFlags() {
     return CAN_ALLOCATE_IN_NEW_SPACE;
@@ -4881,6 +4927,14 @@ class HAllocate: public HTemplateInstruction<2> {
     } else {
       return Representation::Integer32();
     }
+  }
+
+  virtual Handle<Map> GetMonomorphicJSObjectMap() {
+    return known_initial_map_;
+  }
+
+  void set_known_initial_map(Handle<Map> known_initial_map) {
+    known_initial_map_ = known_initial_map;
   }
 
   virtual HType CalculateInferredType();
@@ -4917,6 +4971,7 @@ class HAllocate: public HTemplateInstruction<2> {
  private:
   HType type_;
   Flags flags_;
+  Handle<Map> known_initial_map_;
 };
 
 
@@ -4960,7 +5015,6 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
         new_space_dominator);
   }
   if (object != new_space_dominator) return true;
-  if (object->IsAllocateObject()) return false;
   if (object->IsAllocate()) {
     return !HAllocate::cast(object)->GuaranteedInNewSpace();
   }
@@ -5190,6 +5244,10 @@ class HObjectAccess {
 
   static HObjectAccess ForPropertiesPointer() {
     return HObjectAccess(kInobject, JSObject::kPropertiesOffset);
+  }
+
+  static HObjectAccess ForPrototypeOrInitialMap() {
+    return HObjectAccess(kInobject, JSFunction::kPrototypeOrInitialMapOffset);
   }
 
   static HObjectAccess ForMap() {

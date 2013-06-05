@@ -1338,6 +1338,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
         }
       }
       Handle<Object> message_obj = MessageHandler::MakeMessageObject(
+          this,
           "uncaught_exception",
           location,
           HandleVector<Object>(&exception_arg, 1),
@@ -2250,6 +2251,7 @@ bool Isolate::Init(Deserializer* des) {
     CompareNilICStub::InitializeForIsolate(this);
     ToBooleanStub::InitializeForIsolate(this);
     ArrayConstructorStubBase::InstallDescriptors(this);
+    InternalArrayConstructorStubBase::InstallDescriptors(this);
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();

@@ -1210,10 +1210,6 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "inferred_name", shared->inferred_name(),
                        SharedFunctionInfo::kInferredNameOffset);
-  SetInternalReference(obj, entry,
-                       "this_property_assignments",
-                       shared->this_property_assignments(),
-                       SharedFunctionInfo::kThisPropertyAssignmentsOffset);
   SetWeakReference(obj, entry,
                    1, shared->initial_map(),
                    SharedFunctionInfo::kInitialMapOffset);

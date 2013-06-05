@@ -152,8 +152,7 @@ class Arguments BASE_EMBEDDED {
 // TODO(dcarney): Remove this class when old callbacks are gone.
 class CallbackTable {
  public:
-  // TODO(dcarney): Flip this when it makes sense for performance.
-  static const bool kStoreVoidFunctions = true;
+  static const bool kStoreVoidFunctions = false;
   static inline bool ReturnsVoid(Isolate* isolate, void* function) {
     CallbackTable* table = isolate->callback_table();
     bool contains =
@@ -171,13 +170,13 @@ class CallbackTable {
   }
 
 #define WRITE_REGISTER(OldFunction, NewFunction)                    \
-  static OldFunction Register(Isolate* isolate, NewFunction f) {    \
-    InsertCallback(isolate, FunctionToVoidPtr(f), true);            \
-    return reinterpret_cast<OldFunction>(f);                        \
+  static NewFunction Register(Isolate* isolate, OldFunction f) {    \
+    InsertCallback(isolate, FunctionToVoidPtr(f), false);           \
+    return reinterpret_cast<NewFunction>(f);                        \
   }                                                                 \
                                                                     \
-  static OldFunction Register(Isolate* isolate, OldFunction f) {    \
-    InsertCallback(isolate, FunctionToVoidPtr(f), false);           \
+  static NewFunction Register(Isolate* isolate, NewFunction f) {    \
+    InsertCallback(isolate, FunctionToVoidPtr(f), true);            \
     return f;                                                       \
   }
   FOR_EACH_CALLBACK_TABLE_MAPPING(WRITE_REGISTER)

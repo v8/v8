@@ -682,7 +682,8 @@ void UnaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 void BinaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  oracle->BinaryType(this, &left_type_, &right_type_, &result_type_);
+  oracle->BinaryType(this, &left_type_, &right_type_, &result_type_,
+                     &has_fixed_right_arg_, &fixed_right_arg_value_);
 }
 
 
@@ -1183,6 +1184,7 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 
 Handle<String> Literal::ToString() {
   if (handle_->IsString()) return Handle<String>::cast(handle_);
+  Factory* factory = Isolate::Current()->factory();
   ASSERT(handle_->IsNumber());
   char arr[100];
   Vector<char> buffer(arr, ARRAY_SIZE(arr));
@@ -1194,7 +1196,7 @@ Handle<String> Literal::ToString() {
   } else {
     str = DoubleToCString(handle_->Number(), buffer);
   }
-  return FACTORY->NewStringFromAscii(CStrVector(str));
+  return factory->NewStringFromAscii(CStrVector(str));
 }
 
 

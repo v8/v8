@@ -957,15 +957,15 @@ var arr2 = ['alpha', 'beta'];
 var arr3 = ['hello'];
 arr3[2] = 'goodbye';
 arr3.length = 6;
-var slow_arr = new Array(1000000000);
-slow_arr[500000000] = 'hello';
 Object.defineProperty(arr, '0', {configurable: false});
 Object.defineProperty(arr, '2', {get: function(){}});
 Object.defineProperty(arr2, '0', {get: function(){}, configurable: false});
 Object.observe(arr, observer.callback);
+Array.observe(arr, observer2.callback);
 Object.observe(arr2, observer.callback);
+Array.observe(arr2, observer2.callback);
 Object.observe(arr3, observer.callback);
-Object.observe(slow_arr, observer.callback);
+Array.observe(arr3, observer2.callback);
 arr.length = 2;
 arr.length = 0;
 arr.length = 10;
@@ -978,8 +978,8 @@ arr3.length = 0;
 arr3.length++;
 arr3.length /= 2;
 Object.defineProperty(arr3, 'length', {value: 5});
-Object.defineProperty(arr3, 'length', {value: 10, writable: false});
-slow_arr.length = 100;
+arr3[4] = 5;
+Object.defineProperty(arr3, 'length', {value: 1, writable: false});
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
   { object: arr, name: '3', type: 'deleted', oldValue: 'd' },
@@ -991,7 +991,7 @@ observer.assertCallbackRecords([
   { object: arr, name: 'length', type: 'reconfigured' },
   { object: arr2, name: '1', type: 'deleted', oldValue: 'beta' },
   { object: arr2, name: 'length', type: 'updated', oldValue: 2 },
-  { object: arr2, name: 'length', type: 'reconfigured', oldValue: 1 },
+  { object: arr2, name: 'length', type: 'reconfigured' },
   { object: arr3, name: '2', type: 'deleted', oldValue: 'goodbye' },
   { object: arr3, name: '0', type: 'deleted', oldValue: 'hello' },
   { object: arr3, name: 'length', type: 'updated', oldValue: 6 },
@@ -999,10 +999,60 @@ observer.assertCallbackRecords([
   { object: arr3, name: 'length', type: 'updated', oldValue: 1 },
   { object: arr3, name: 'length', type: 'updated', oldValue: 2 },
   { object: arr3, name: 'length', type: 'updated', oldValue: 1 },
-  { object: arr3, name: 'length', type: 'reconfigured', oldValue: 5 },
+  { object: arr3, name: '4', type: 'new' },
+  { object: arr3, name: '4', type: 'deleted', oldValue: 5 },
+  // TODO(rafaelw): It breaks spec compliance to get two records here.
+  // When the TODO in v8natives.js::DefineArrayProperty is addressed
+  // which prevents DefineProperty from over-writing the magic length
+  // property, these will collapse into a single record.
+  { object: arr3, name: 'length', type: 'updated', oldValue: 5 },
+  { object: arr3, name: 'length', type: 'reconfigured' }
+]);
+Object.deliverChangeRecords(observer2.callback);
+observer2.assertCallbackRecords([
+  { object: arr, type: 'splice', index: 2, removed: [, 'd'], addedCount: 0 },
+  { object: arr, type: 'splice', index: 1, removed: ['b'], addedCount: 0 },
+  { object: arr, type: 'splice', index: 1, removed: [], addedCount: 9 },
+  { object: arr2, type: 'splice', index: 1, removed: ['beta'], addedCount: 0 },
+  { object: arr3, type: 'splice', index: 0, removed: ['hello',, 'goodbye',,,,], addedCount: 0 },
+  { object: arr3, type: 'splice', index: 0, removed: [], addedCount: 1 },
+  { object: arr3, type: 'splice', index: 1, removed: [], addedCount: 1 },
+  { object: arr3, type: 'splice', index: 1, removed: [,], addedCount: 0 },
+  { object: arr3, type: 'splice', index: 1, removed: [], addedCount: 4 },
+  { object: arr3, name: '4', type: 'new' },
+  { object: arr3, type: 'splice', index: 1, removed: [,,,5], addedCount: 0 }
+]);
+
+
+// Updating length on large (slow) array
+reset();
+var slow_arr = new Array(1000000000);
+slow_arr[500000000] = 'hello';
+Object.observe(slow_arr, observer.callback);
+var spliceRecords;
+function slowSpliceCallback(records) {
+  spliceRecords = records;
+}
+Array.observe(slow_arr, slowSpliceCallback);
+slow_arr.length = 100;
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
   { object: slow_arr, name: '500000000', type: 'deleted', oldValue: 'hello' },
   { object: slow_arr, name: 'length', type: 'updated', oldValue: 1000000000 },
 ]);
+Object.deliverChangeRecords(slowSpliceCallback);
+assertEquals(spliceRecords.length, 1);
+// Have to custom assert this splice record because the removed array is huge.
+var splice = spliceRecords[0];
+assertSame(splice.object, slow_arr);
+assertEquals(splice.type, 'splice');
+assertEquals(splice.index, 100);
+assertEquals(splice.addedCount, 0);
+var array_keys = %GetArrayKeys(splice.removed, splice.removed.length);
+assertEquals(array_keys.length, 1);
+assertEquals(array_keys[0], 499999900);
+assertEquals(splice.removed[499999900], 'hello');
+assertEquals(splice.removed.length, 999999900);
 
 
 // Assignments in loops (checking different IC states).
@@ -1037,10 +1087,12 @@ observer.assertCallbackRecords([
 ]);
 
 
-// Adding elements past the end of an array should notify on length
+// Adding elements past the end of an array should notify on length for
+// Object.observe and emit "splices" for Array.observe.
 reset();
 var arr = [1, 2, 3];
 Object.observe(arr, observer.callback);
+Array.observe(arr, observer2.callback);
 arr[3] = 10;
 arr[100] = 20;
 Object.defineProperty(arr, '200', {value: 7});
@@ -1057,6 +1109,14 @@ observer.assertCallbackRecords([
   { object: arr, name: '400', type: 'new' },
   { object: arr, name: 'length', type: 'updated', oldValue: 201 },
   { object: arr, name: '50', type: 'new' },
+]);
+Object.deliverChangeRecords(observer2.callback);
+observer2.assertCallbackRecords([
+  { object: arr, type: 'splice', index: 3, removed: [], addedCount: 1 },
+  { object: arr, type: 'splice', index: 4, removed: [], addedCount: 97 },
+  { object: arr, type: 'splice', index: 101, removed: [], addedCount: 100 },
+  { object: arr, type: 'splice', index: 201, removed: [], addedCount: 200 },
+  { object: arr, type: 'new', name: '50' },
 ]);
 
 

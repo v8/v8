@@ -1986,56 +1986,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 }
 
 
-static bool ObjectToInt32(Object* obj, int32_t* value) {
-  if (obj->IsSmi()) {
-    *value = Smi::cast(obj)->value();
-    return true;
-  }
-
-  if (obj->IsHeapNumber()) {
-    double num = HeapNumber::cast(obj)->value();
-    if (FastI2D(FastD2I(num)) != num) {
-      if (FLAG_trace_osr) {
-        PrintF("**** %g could not be converted to int32 ****\n",
-               HeapNumber::cast(obj)->value());
-      }
-      return false;
-    }
-
-    *value = FastD2I(num);
-    return true;
-  }
-
-  return false;
-}
-
-
-static bool ObjectToUint32(Object* obj, uint32_t* value) {
-  if (obj->IsSmi()) {
-    if (Smi::cast(obj)->value() < 0) return false;
-
-    *value = static_cast<uint32_t>(Smi::cast(obj)->value());
-    return true;
-  }
-
-  if (obj->IsHeapNumber()) {
-    double num = HeapNumber::cast(obj)->value();
-    if ((num < 0) || (FastUI2D(FastD2UI(num)) != num)) {
-      if (FLAG_trace_osr) {
-        PrintF("**** %g could not be converted to uint32 ****\n",
-               HeapNumber::cast(obj)->value());
-      }
-      return false;
-    }
-
-    *value = FastD2UI(num);
-    return true;
-  }
-
-  return false;
-}
-
-
 bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
                                         int* input_offset) {
   disasm::NameConverter converter;
@@ -2079,7 +2029,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
     case Translation::INT32_REGISTER: {
       int32_t int32_value = 0;
-      if (!ObjectToInt32(input_object, &int32_value)) return false;
+      if (!input_object->ToInt32(&int32_value)) return false;
 
       int output_reg = iterator->Next();
       if (FLAG_trace_osr) {
@@ -2094,7 +2044,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
     case Translation::UINT32_REGISTER: {
       uint32_t uint32_value = 0;
-      if (!ObjectToUint32(input_object, &uint32_value)) return false;
+      if (!input_object->ToUint32(&uint32_value)) return false;
 
       int output_reg = iterator->Next();
       if (FLAG_trace_osr) {
@@ -2141,7 +2091,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
     case Translation::INT32_STACK_SLOT: {
       int32_t int32_value = 0;
-      if (!ObjectToInt32(input_object, &int32_value)) return false;
+      if (!input_object->ToInt32(&int32_value)) return false;
 
       int output_index = iterator->Next();
       unsigned output_offset =
@@ -2158,7 +2108,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
     case Translation::UINT32_STACK_SLOT: {
       uint32_t uint32_value = 0;
-      if (!ObjectToUint32(input_object, &uint32_value)) return false;
+      if (!input_object->ToUint32(&uint32_value)) return false;
 
       int output_index = iterator->Next();
       unsigned output_offset =

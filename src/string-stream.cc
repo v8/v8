@@ -290,7 +290,8 @@ void StringStream::OutputToFile(FILE* out) {
 
 
 Handle<String> StringStream::ToString() {
-  return FACTORY->NewStringFromUtf8(Vector<const char>(buffer_, length_));
+  Factory* factory = Isolate::Current()->factory();
+  return factory->NewStringFromUtf8(Vector<const char>(buffer_, length_));
 }
 
 

@@ -33,7 +33,9 @@
 namespace v8 {
 namespace internal {
 
+// TODO(mvstanton): move these to runtime.h/.cc
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, InternalArrayConstructor_StubFailure);
 
 } }  // namespace v8::internal
 

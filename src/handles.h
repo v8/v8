@@ -345,7 +345,6 @@ class SealHandleScope BASE_EMBEDDED {
   Isolate* isolate_;
   Object** limit_;
   int level_;
-  bool active_;
 #endif
 };
 

@@ -124,20 +124,9 @@ void HValue::UpdateRepresentation(Representation new_rep,
                                   const char* reason) {
   Representation r = representation();
   if (new_rep.is_more_general_than(r)) {
-    // When an HConstant is marked "not convertible to integer", then
-    // never try to represent it as an integer.
-    if (new_rep.IsInteger32() && !IsConvertibleToInteger()) {
-      new_rep = Representation::Tagged();
-      if (FLAG_trace_representation) {
-        PrintF("Changing #%d %s representation %s -> %s because it's NCTI"
-               " (%s want i)\n",
-               id(), Mnemonic(), r.Mnemonic(), new_rep.Mnemonic(), reason);
-      }
-    } else {
-      if (FLAG_trace_representation) {
-        PrintF("Changing #%d %s representation %s -> %s based on %s\n",
-               id(), Mnemonic(), r.Mnemonic(), new_rep.Mnemonic(), reason);
-      }
+    if (FLAG_trace_representation) {
+      PrintF("Changing #%d %s representation %s -> %s based on %s\n",
+             id(), Mnemonic(), r.Mnemonic(), new_rep.Mnemonic(), reason);
     }
     ChangeRepresentation(new_rep);
     AddDependantsToWorklist(h_infer);
@@ -986,6 +975,11 @@ void HInductionVariableAnnotation::PrintDataTo(StringStream* stream) {
 
 void HDummyUse::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
+}
+
+
+void HEnvironmentMarker::PrintDataTo(StringStream* stream) {
+  stream->Add("%s var[%d]", kind() == BIND ? "bind" : "lookup", index());
 }
 
 
@@ -1926,7 +1920,6 @@ void HPhi::PrintTo(StringStream* stream) {
               int32_non_phi_uses() + int32_indirect_uses(),
               double_non_phi_uses() + double_indirect_uses(),
               tagged_non_phi_uses() + tagged_indirect_uses());
-  if (!IsConvertibleToInteger()) stream->Add("_ncti");
   PrintRangeTo(stream);
   PrintTypeTo(stream);
   stream->Add("]");
@@ -2070,6 +2063,13 @@ void HDeoptimize::PrintDataTo(StringStream* stream) {
     stream->Add(" ");
     OperandAt(i)->PrintNameTo(stream);
   }
+}
+
+
+void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
+                                         Zone* zone) {
+  ASSERT(return_target->IsInlineReturnTarget());
+  return_targets_.Add(return_target, zone);
 }
 
 
@@ -2322,7 +2322,37 @@ void HMathMinMax::InferRepresentation(HInferRepresentation* h_infer) {
 
 
 Range* HBitwise::InferRange(Zone* zone) {
-  if (op() == Token::BIT_XOR) return HValue::InferRange(zone);
+  if (op() == Token::BIT_XOR) {
+    if (left()->HasRange() && right()->HasRange()) {
+      // The maximum value has the high bit, and all bits below, set:
+      // (1 << high) - 1.
+      // If the range can be negative, the minimum int is a negative number with
+      // the high bit, and all bits below, unset:
+      // -(1 << high).
+      // If it cannot be negative, conservatively choose 0 as minimum int.
+      int64_t left_upper = left()->range()->upper();
+      int64_t left_lower = left()->range()->lower();
+      int64_t right_upper = right()->range()->upper();
+      int64_t right_lower = right()->range()->lower();
+
+      if (left_upper < 0) left_upper = ~left_upper;
+      if (left_lower < 0) left_lower = ~left_lower;
+      if (right_upper < 0) right_upper = ~right_upper;
+      if (right_lower < 0) right_lower = ~right_lower;
+
+      int high = MostSignificantBit(
+          static_cast<uint32_t>(
+              left_upper | left_lower | right_upper | right_lower));
+
+      int64_t limit = 1;
+      limit <<= high;
+      int32_t min = (left()->range()->CanBeNegative() ||
+                     right()->range()->CanBeNegative())
+                    ? static_cast<int32_t>(-limit) : 0;
+      return new(zone) Range(min, static_cast<int32_t>(limit - 1));
+    }
+    return HValue::InferRange(zone);
+  }
   const int32_t kDefaultMask = static_cast<int32_t>(0xffffffff);
   int32_t left_mask = (left()->range() != NULL)
       ? left()->range()->Mask()
@@ -3041,11 +3071,6 @@ HType HStringCharFromCode::CalculateInferredType() {
 }
 
 
-HType HAllocateObject::CalculateInferredType() {
-  return HType::JSObject();
-}
-
-
 HType HAllocate::CalculateInferredType() {
   return type_;
 }
@@ -3226,7 +3251,8 @@ HInstruction* HStringAdd::New(
     HConstant* c_right = HConstant::cast(right);
     HConstant* c_left = HConstant::cast(left);
     if (c_left->HasStringValue() && c_right->HasStringValue()) {
-      return new(zone) HConstant(FACTORY->NewConsString(c_left->StringValue(),
+      Factory* factory = Isolate::Current()->factory();
+      return new(zone) HConstant(factory->NewConsString(c_left->StringValue(),
                                                         c_right->StringValue()),
                                  Representation::Tagged());
     }
@@ -3381,8 +3407,12 @@ HInstruction* HMathMinMax::New(
 }
 
 
-HInstruction* HMod::New(
-    Zone* zone, HValue* context, HValue* left, HValue* right) {
+HInstruction* HMod::New(Zone* zone,
+                        HValue* context,
+                        HValue* left,
+                        HValue* right,
+                        bool has_fixed_right_arg,
+                        int fixed_right_arg_value) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -3401,7 +3431,11 @@ HInstruction* HMod::New(
       }
     }
   }
-  return new(zone) HMod(context, left, right);
+  return new(zone) HMod(context,
+                        left,
+                        right,
+                        has_fixed_right_arg,
+                        fixed_right_arg_value);
 }
 
 
@@ -3565,48 +3599,11 @@ void HPhi::InferRepresentation(HInferRepresentation* h_infer) {
 
 
 Representation HPhi::RepresentationFromInputs() {
-  bool double_occurred = false;
-  bool int32_occurred = false;
-  bool smi_occurred = false;
+  Representation r = Representation::None();
   for (int i = 0; i < OperandCount(); ++i) {
-    HValue* value = OperandAt(i);
-    if (value->IsUnknownOSRValue()) {
-      HPhi* hint_value = HUnknownOSRValue::cast(value)->incoming_value();
-      if (hint_value != NULL) {
-        Representation hint = hint_value->representation();
-        if (hint.IsTagged()) return hint;
-        if (hint.IsDouble()) double_occurred = true;
-        if (hint.IsInteger32()) int32_occurred = true;
-        if (hint.IsSmi()) smi_occurred = true;
-      }
-      continue;
-    }
-    if (value->representation().IsDouble()) double_occurred = true;
-    if (value->representation().IsInteger32()) int32_occurred = true;
-    if (value->representation().IsSmi()) smi_occurred = true;
-    if (value->representation().IsTagged()) {
-      if (value->IsConstant()) {
-        HConstant* constant = HConstant::cast(value);
-        if (constant->IsConvertibleToInteger()) {
-          int32_occurred = true;
-        } else if (constant->HasNumberValue()) {
-          double_occurred = true;
-        } else {
-          return Representation::Tagged();
-        }
-      } else {
-        if (value->IsPhi() && !IsConvertibleToInteger()) {
-          return Representation::Tagged();
-        }
-      }
-    }
+    r = r.generalize(OperandAt(i)->KnownOptimalRepresentation());
   }
-
-  if (double_occurred) return Representation::Double();
-  if (int32_occurred) return Representation::Integer32();
-  if (smi_occurred) return Representation::Smi();
-
-  return Representation::None();
+  return r;
 }
 
 
