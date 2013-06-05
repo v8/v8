@@ -12085,9 +12085,10 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
 
 
 static i::Handle<i::JSFunction>* foo_ptr = NULL;
-static int foo_count = 0;
+static int foo_entry_count = 0;
 static i::Handle<i::JSFunction>* bar_ptr = NULL;
-static int bar_count = 0;
+static int bar_entry_count = 0;
+static int bar_caller_count = 0;
 
 
 static void entry_hook(uintptr_t function,
@@ -12097,14 +12098,21 @@ static void entry_hook(uintptr_t function,
   CHECK(code != NULL);
 
   if (bar_ptr != NULL && code == (*bar_ptr)->code())
-    ++bar_count;
+    ++bar_entry_count;
 
   if (foo_ptr != NULL && code == (*foo_ptr)->code())
-    ++foo_count;
+    ++foo_entry_count;
 
-  // TODO(siggi): Verify return_addr_location.
-  //     This can be done by capturing JitCodeEvents, but requires an ordered
-  //     collection.
+  // Let's check whether bar is the caller.
+  if (bar_ptr != NULL) {
+    const v8::internal::byte* caller =
+        *reinterpret_cast<v8::internal::byte**>(return_addr_location);
+
+    if ((*bar_ptr)->code()->instruction_start() <= caller &&
+        (*bar_ptr)->code()->instruction_end() > caller) {
+      ++bar_caller_count;
+    }
+  }
 }
 
 
@@ -12175,17 +12183,20 @@ TEST(SetFunctionEntryHook) {
   CHECK(v8::V8::SetFunctionEntryHook(NULL));
 
   // Reset the entry count to zero and set the entry hook.
-  bar_count = 0;
-  foo_count = 0;
+  bar_entry_count = 0;
+  bar_caller_count = 0;
+  foo_entry_count = 0;
   CHECK(v8::V8::SetFunctionEntryHook(entry_hook));
   RunLoopInNewEnv();
 
-  CHECK_EQ(2, bar_count);
-  CHECK_EQ(200, foo_count);
+  CHECK_EQ(2, bar_entry_count);
+  CHECK_EQ(200, bar_caller_count);
+  CHECK_EQ(200, foo_entry_count);
 
   // Clear the entry hook and count.
-  bar_count = 0;
-  foo_count = 0;
+  bar_entry_count = 0;
+  bar_caller_count = 0;
+  foo_entry_count = 0;
   v8::V8::SetFunctionEntryHook(NULL);
 
   // Clear the compilation cache to make sure we don't reuse the
@@ -12194,8 +12205,9 @@ TEST(SetFunctionEntryHook) {
 
   // Verify that entry hooking is now disabled.
   RunLoopInNewEnv();
-  CHECK_EQ(0u, bar_count);
-  CHECK_EQ(0u, foo_count);
+  CHECK_EQ(0u, bar_entry_count);
+  CHECK_EQ(0u, bar_caller_count);
+  CHECK_EQ(0u, foo_entry_count);
 }
 
 

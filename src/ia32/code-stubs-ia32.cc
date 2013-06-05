@@ -7766,14 +7766,16 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // Ecx is the only volatile register we must save.
+  const int kNumSavedRegisters = 1;
   __ push(ecx);
 
   // Calculate and push the original stack pointer.
-  __ lea(eax, Operand(esp, kPointerSize));
+  __ lea(eax, Operand(esp, (kNumSavedRegisters + 1) * kPointerSize));
   __ push(eax);
 
-  // Calculate and push the function address.
-  __ mov(eax, Operand(eax, 0));
+  // Retrieve our return address and use it to calculate the calling
+  // function's address.
+  __ mov(eax, Operand(esp, (kNumSavedRegisters + 1) * kPointerSize));
   __ sub(eax, Immediate(Assembler::kCallInstructionLength));
   __ push(eax);
 
