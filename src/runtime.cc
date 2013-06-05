@@ -2513,10 +2513,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   // Since we don't store the source we should never optimize this.
   target_shared->code()->set_optimizable(false);
 
-  // Clear the optimization hints related to the compiled code as these
-  // are no longer valid when the code is overwritten.
-  target_shared->ClearThisPropertyAssignmentsInfo();
-
   // Set the code of the target function.
   target->ReplaceCode(source_shared->code());
   ASSERT(target->next_function_link()->IsUndefined());

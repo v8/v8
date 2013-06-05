@@ -490,8 +490,6 @@ Parser::FunctionState::FunctionState(Parser* parser,
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
       next_handler_index_(0),
       expected_property_count_(0),
-      only_simple_this_property_assignments_(false),
-      this_property_assignments_(isolate->factory()->empty_fixed_array()),
       generator_object_variable_(NULL),
       parser_(parser),
       outer_function_state_(parser->current_function_state_),
@@ -675,8 +673,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           function_state.materialized_literal_count(),
           function_state.expected_property_count(),
           function_state.handler_count(),
-          function_state.only_simple_this_property_assignments(),
-          function_state.this_property_assignments(),
           0,
           FunctionLiteral::kNoDuplicateParameters,
           FunctionLiteral::ANONYMOUS_EXPRESSION,
@@ -850,178 +846,6 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
 }
 
 
-// A ThisNamedPropertyAssignmentFinder finds and marks statements of the form
-// this.x = ...;, where x is a named property. It also determines whether a
-// function contains only assignments of this type.
-class ThisNamedPropertyAssignmentFinder {
- public:
-  ThisNamedPropertyAssignmentFinder(Isolate* isolate, Zone* zone)
-      : isolate_(isolate),
-        only_simple_this_property_assignments_(true),
-        names_(0, zone),
-        assigned_arguments_(0, zone),
-        assigned_constants_(0, zone),
-        zone_(zone) {
-  }
-
-  static Assignment* AsAssignment(Statement* stat) {
-    if (stat == NULL) return NULL;
-    ExpressionStatement* exp_stat = stat->AsExpressionStatement();
-    if (exp_stat == NULL) return NULL;
-    return exp_stat->expression()->AsAssignment();
-  }
-
-  void Update(Scope* scope, Statement* stat) {
-    // Bail out if function already has property assignment that are
-    // not simple this property assignments.
-    if (!only_simple_this_property_assignments_) {
-      return;
-    }
-
-    // Check whether this statement is of the form this.x = ...;
-    Assignment* assignment = AsAssignment(stat);
-    if (IsThisPropertyAssignment(assignment)) {
-      HandleThisPropertyAssignment(scope, assignment);
-    } else {
-      only_simple_this_property_assignments_ = false;
-    }
-  }
-
-  // Returns whether only statements of the form this.x = y; where y is either a
-  // constant or a function argument was encountered.
-  bool only_simple_this_property_assignments() {
-    return only_simple_this_property_assignments_;
-  }
-
-  // Returns a fixed array containing three elements for each assignment of the
-  // form this.x = y;
-  Handle<FixedArray> GetThisPropertyAssignments() {
-    if (names_.is_empty()) {
-      return isolate_->factory()->empty_fixed_array();
-    }
-    ASSERT_EQ(names_.length(), assigned_arguments_.length());
-    ASSERT_EQ(names_.length(), assigned_constants_.length());
-    Handle<FixedArray> assignments =
-        isolate_->factory()->NewFixedArray(names_.length() * 3);
-    for (int i = 0; i < names_.length(); ++i) {
-      assignments->set(i * 3, *names_[i]);
-      assignments->set(i * 3 + 1, Smi::FromInt(assigned_arguments_[i]));
-      assignments->set(i * 3 + 2, *assigned_constants_[i]);
-    }
-    return assignments;
-  }
-
- private:
-  bool IsThisPropertyAssignment(Assignment* assignment) {
-    if (assignment != NULL) {
-      Property* property = assignment->target()->AsProperty();
-      return assignment->op() == Token::ASSIGN
-             && property != NULL
-             && property->obj()->AsVariableProxy() != NULL
-             && property->obj()->AsVariableProxy()->is_this();
-    }
-    return false;
-  }
-
-  void HandleThisPropertyAssignment(Scope* scope, Assignment* assignment) {
-    // Check that the property assigned to is a named property, which is not
-    // __proto__.
-    Property* property = assignment->target()->AsProperty();
-    ASSERT(property != NULL);
-    Literal* literal = property->key()->AsLiteral();
-    uint32_t dummy;
-    if (literal != NULL &&
-        literal->handle()->IsString() &&
-        !String::cast(*(literal->handle()))->Equals(
-            isolate_->heap()->proto_string()) &&
-        !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
-      Handle<String> key = Handle<String>::cast(literal->handle());
-
-      // Check whether the value assigned is either a constant or matches the
-      // name of one of the arguments to the function.
-      if (assignment->value()->AsLiteral() != NULL) {
-        // Constant assigned.
-        Literal* literal = assignment->value()->AsLiteral();
-        AssignmentFromConstant(key, literal->handle());
-        return;
-      } else if (assignment->value()->AsVariableProxy() != NULL) {
-        // Variable assigned.
-        Handle<String> name =
-            assignment->value()->AsVariableProxy()->name();
-        // Check whether the variable assigned matches an argument name.
-        for (int i = 0; i < scope->num_parameters(); i++) {
-          if (*scope->parameter(i)->name() == *name) {
-            // Assigned from function argument.
-            AssignmentFromParameter(key, i);
-            return;
-          }
-        }
-      }
-    }
-    // It is not a simple "this.x = value;" assignment with a constant
-    // or parameter value.
-    AssignmentFromSomethingElse();
-  }
-
-
-
-
-  // We will potentially reorder the property assignments, so they must be
-  // simple enough that the ordering does not matter.
-  void AssignmentFromParameter(Handle<String> name, int index) {
-    EnsureInitialized();
-    for (int i = 0; i < names_.length(); ++i) {
-      if (name->Equals(*names_[i])) {
-        assigned_arguments_[i] = index;
-        assigned_constants_[i] = isolate_->factory()->undefined_value();
-        return;
-      }
-    }
-    names_.Add(name, zone());
-    assigned_arguments_.Add(index, zone());
-    assigned_constants_.Add(isolate_->factory()->undefined_value(), zone());
-  }
-
-  void AssignmentFromConstant(Handle<String> name, Handle<Object> value) {
-    EnsureInitialized();
-    for (int i = 0; i < names_.length(); ++i) {
-      if (name->Equals(*names_[i])) {
-        assigned_arguments_[i] = -1;
-        assigned_constants_[i] = value;
-        return;
-      }
-    }
-    names_.Add(name, zone());
-    assigned_arguments_.Add(-1, zone());
-    assigned_constants_.Add(value, zone());
-  }
-
-  void AssignmentFromSomethingElse() {
-    // The this assignment is not a simple one.
-    only_simple_this_property_assignments_ = false;
-  }
-
-  void EnsureInitialized() {
-    if (names_.capacity() == 0) {
-      ASSERT(assigned_arguments_.capacity() == 0);
-      ASSERT(assigned_constants_.capacity() == 0);
-      names_.Initialize(4, zone());
-      assigned_arguments_.Initialize(4, zone());
-      assigned_constants_.Initialize(4, zone());
-    }
-  }
-
-  Zone* zone() const { return zone_; }
-
-  Isolate* isolate_;
-  bool only_simple_this_property_assignments_;
-  ZoneStringList names_;
-  ZoneList<int> assigned_arguments_;
-  ZoneObjectList assigned_constants_;
-  Zone* zone_;
-};
-
-
 void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
                                   int end_token,
                                   bool is_eval,
@@ -1037,8 +861,6 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
   TargetScope scope(&this->target_stack_);
 
   ASSERT(processor != NULL);
-  ThisNamedPropertyAssignmentFinder this_property_assignment_finder(isolate(),
-                                                                    zone());
   bool directive_prologue = true;     // Parsing directive prologue.
 
   while (peek() != end_token) {
@@ -1098,23 +920,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
       }
     }
 
-    // Find and mark all assignments to named properties in this (this.x =)
-    if (top_scope_->is_function_scope()) {
-      this_property_assignment_finder.Update(top_scope_, stat);
-    }
     processor->Add(stat, zone());
-  }
-
-  // Propagate the collected information on this property assignments.
-  if (top_scope_->is_function_scope()) {
-    bool only_simple_this_property_assignments =
-        this_property_assignment_finder.only_simple_this_property_assignments()
-        && top_scope_->declarations()->length() == 0;
-    if (only_simple_this_property_assignments) {
-      current_function_state_->SetThisPropertyAssignmentInfo(
-          only_simple_this_property_assignments,
-          this_property_assignment_finder.GetThisPropertyAssignments());
-    }
   }
 
   return 0;
@@ -4387,8 +4193,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   int handler_count = 0;
-  bool only_simple_this_property_assignments;
-  Handle<FixedArray> this_property_assignments;
   FunctionLiteral::ParameterFlag duplicate_parameters =
       FunctionLiteral::kNoDuplicateParameters;
   FunctionLiteral::IsParenthesizedFlag parenthesized = parenthesized_function_
@@ -4519,8 +4323,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
           materialized_literal_count = entry.literal_count();
           expected_property_count = entry.property_count();
           top_scope_->SetLanguageMode(entry.language_mode());
-          only_simple_this_property_assignments = false;
-          this_property_assignments = isolate()->factory()->empty_fixed_array();
         } else {
           is_lazily_compiled = false;
         }
@@ -4555,8 +4357,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         materialized_literal_count = logger.literals();
         expected_property_count = logger.properties();
         top_scope_->SetLanguageMode(logger.language_mode());
-        only_simple_this_property_assignments = false;
-        this_property_assignments = isolate()->factory()->empty_fixed_array();
       }
     }
 
@@ -4609,9 +4409,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
       handler_count = function_state.handler_count();
-      only_simple_this_property_assignments =
-          function_state.only_simple_this_property_assignments();
-      this_property_assignments = function_state.this_property_assignments();
 
       Expect(Token::RBRACE, CHECK_OK);
       scope->set_end_position(scanner().location().end_pos);
@@ -4677,8 +4474,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                     materialized_literal_count,
                                     expected_property_count,
                                     handler_count,
-                                    only_simple_this_property_assignments,
-                                    this_property_assignments,
                                     num_parameters,
                                     duplicate_parameters,
                                     type,

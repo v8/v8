@@ -6077,18 +6077,6 @@ class SharedFunctionInfo: public HeapObject {
   inline int ic_age();
   inline void set_ic_age(int age);
 
-  // Add information on assignments of the form this.x = ...;
-  void SetThisPropertyAssignmentsInfo(
-      bool has_only_simple_this_property_assignments,
-      FixedArray* this_property_assignments);
-
-  // Clear information on assignments of the form this.x = ...;
-  void ClearThisPropertyAssignmentsInfo();
-
-  // Indicate that this function only consists of assignments of the form
-  // this.x = y; where y is either a constant or refers to an argument.
-  inline bool has_only_simple_this_property_assignments();
-
   // Indicates if this function can be lazy compiled.
   // This is used to determine if we can safely flush code from a function
   // when doing GC if we expect that the function will no longer be used.
@@ -6189,24 +6177,6 @@ class SharedFunctionInfo: public HeapObject {
   // disabled).
   bool VerifyBailoutId(BailoutId id);
 
-  // Check whether a inlined constructor can be generated with the given
-  // prototype.
-  bool CanGenerateInlineConstructor(Object* prototype);
-
-  // Prevents further attempts to generate inline constructors.
-  // To be called if generation failed for any reason.
-  void ForbidInlineConstructor();
-
-  // For functions which only contains this property assignments this provides
-  // access to the names for the properties assigned.
-  DECL_ACCESSORS(this_property_assignments, Object)
-  inline int this_property_assignments_count();
-  inline void set_this_property_assignments_count(int value);
-  String* GetThisPropertyAssignmentName(int index);
-  bool IsThisPropertyAssignmentArgument(int index);
-  int GetThisPropertyAssignmentArgument(int index);
-  Object* GetThisPropertyAssignmentConstant(int index);
-
   // [source code]: Source code for the function.
   bool HasSourceCode();
   Handle<Object> GetSourceCode();
@@ -6276,12 +6246,10 @@ class SharedFunctionInfo: public HeapObject {
   static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
   static const int kInitialMapOffset =
       kInferredNameOffset + kPointerSize;
-  static const int kThisPropertyAssignmentsOffset =
-      kInitialMapOffset + kPointerSize;
   // ast_node_count is a Smi field. It could be grouped with another Smi field
   // into a PSEUDO_SMI_ACCESSORS pair (on x64), if one becomes available.
   static const int kAstNodeCountOffset =
-      kThisPropertyAssignmentsOffset + kPointerSize;
+      kInitialMapOffset + kPointerSize;
 #if V8_HOST_ARCH_32_BIT
   // Smi fields.
   static const int kLengthOffset =
@@ -6299,10 +6267,7 @@ class SharedFunctionInfo: public HeapObject {
       kEndPositionOffset + kPointerSize;
   static const int kCompilerHintsOffset =
       kFunctionTokenPositionOffset + kPointerSize;
-  static const int kThisPropertyAssignmentsCountOffset =
-      kCompilerHintsOffset + kPointerSize;
-  static const int kOptCountOffset =
-      kThisPropertyAssignmentsCountOffset + kPointerSize;
+  static const int kOptCountOffset = kCompilerHintsOffset + kPointerSize;
   static const int kCountersOffset = kOptCountOffset + kPointerSize;
   static const int kStressDeoptCounterOffset = kCountersOffset + kPointerSize;
 
@@ -6338,10 +6303,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCompilerHintsOffset =
       kFunctionTokenPositionOffset + kIntSize;
 
-  static const int kThisPropertyAssignmentsCountOffset =
-      kCompilerHintsOffset + kIntSize;
-  static const int kOptCountOffset =
-      kThisPropertyAssignmentsCountOffset + kIntSize;
+  static const int kOptCountOffset = kCompilerHintsOffset + kIntSize;
 
   static const int kCountersOffset = kOptCountOffset + kIntSize;
   static const int kStressDeoptCounterOffset = kCountersOffset + kIntSize;
@@ -6365,7 +6327,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
   typedef FixedBodyDescriptor<kNameOffset,
-                              kThisPropertyAssignmentsOffset + kPointerSize,
+                              kInitialMapOffset + kPointerSize,
                               kSize> BodyDescriptor;
 
   // Bit positions in start_position_and_type.
@@ -6381,7 +6343,6 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCodeAgeMask = (1 << kCodeAgeSize) - 1;
 
   enum CompilerHints {
-    kHasOnlySimpleThisPropertyAssignments,
     kAllowLazyCompilation,
     kAllowLazyCompilationWithoutContext,
     kLiveObjectsMayExist,

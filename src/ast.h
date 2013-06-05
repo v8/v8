@@ -2161,12 +2161,6 @@ class FunctionLiteral: public Expression {
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
   int handler_count() { return handler_count_; }
-  bool has_only_simple_this_property_assignments() {
-    return HasOnlySimpleThisPropertyAssignments::decode(bitfield_);
-  }
-  Handle<FixedArray> this_property_assignments() {
-      return this_property_assignments_;
-  }
   int parameter_count() { return parameter_count_; }
 
   bool AllowsLazyCompilation();
@@ -2221,8 +2215,6 @@ class FunctionLiteral: public Expression {
                   int materialized_literal_count,
                   int expected_property_count,
                   int handler_count,
-                  bool has_only_simple_this_property_assignments,
-                  Handle<FixedArray> this_property_assignments,
                   int parameter_count,
                   Type type,
                   ParameterFlag has_duplicate_parameters,
@@ -2233,7 +2225,6 @@ class FunctionLiteral: public Expression {
         name_(name),
         scope_(scope),
         body_(body),
-        this_property_assignments_(this_property_assignments),
         inferred_name_(isolate->factory()->empty_string()),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
@@ -2241,8 +2232,6 @@ class FunctionLiteral: public Expression {
         parameter_count_(parameter_count),
         function_token_position_(RelocInfo::kNoPosition) {
     bitfield_ =
-        HasOnlySimpleThisPropertyAssignments::encode(
-            has_only_simple_this_property_assignments) |
         IsExpression::encode(type != DECLARATION) |
         IsAnonymous::encode(type == ANONYMOUS_EXPRESSION) |
         Pretenure::encode(false) |
@@ -2256,7 +2245,6 @@ class FunctionLiteral: public Expression {
   Handle<String> name_;
   Scope* scope_;
   ZoneList<Statement*>* body_;
-  Handle<FixedArray> this_property_assignments_;
   Handle<String> inferred_name_;
   AstProperties ast_properties_;
 
@@ -2267,14 +2255,13 @@ class FunctionLiteral: public Expression {
   int function_token_position_;
 
   unsigned bitfield_;
-  class HasOnlySimpleThisPropertyAssignments: public BitField<bool, 0, 1> {};
-  class IsExpression: public BitField<bool, 1, 1> {};
-  class IsAnonymous: public BitField<bool, 2, 1> {};
-  class Pretenure: public BitField<bool, 3, 1> {};
-  class HasDuplicateParameters: public BitField<ParameterFlag, 4, 1> {};
-  class IsFunction: public BitField<IsFunctionFlag, 5, 1> {};
-  class IsParenthesized: public BitField<IsParenthesizedFlag, 6, 1> {};
-  class IsGenerator: public BitField<IsGeneratorFlag, 7, 1> {};
+  class IsExpression: public BitField<bool, 0, 1> {};
+  class IsAnonymous: public BitField<bool, 1, 1> {};
+  class Pretenure: public BitField<bool, 2, 1> {};
+  class HasDuplicateParameters: public BitField<ParameterFlag, 3, 1> {};
+  class IsFunction: public BitField<IsFunctionFlag, 4, 1> {};
+  class IsParenthesized: public BitField<IsParenthesizedFlag, 5, 1> {};
+  class IsGenerator: public BitField<IsGeneratorFlag, 6, 1> {};
 };
 
 
@@ -3097,8 +3084,6 @@ class AstNodeFactory BASE_EMBEDDED {
       int materialized_literal_count,
       int expected_property_count,
       int handler_count,
-      bool has_only_simple_this_property_assignments,
-      Handle<FixedArray> this_property_assignments,
       int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::Type type,
@@ -3108,7 +3093,6 @@ class AstNodeFactory BASE_EMBEDDED {
     FunctionLiteral* lit = new(zone_) FunctionLiteral(
         isolate_, name, scope, body,
         materialized_literal_count, expected_property_count, handler_count,
-        has_only_simple_this_property_assignments, this_property_assignments,
         parameter_count, type, has_duplicate_parameters, is_function,
         is_parenthesized, is_generator);
     // Top-level literal doesn't count for the AST's properties.

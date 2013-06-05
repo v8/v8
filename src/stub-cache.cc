@@ -2029,15 +2029,6 @@ Handle<Code> CallStubCompiler::GetCode(Handle<JSFunction> function) {
 }
 
 
-Handle<Code> ConstructStubCompiler::GetCode() {
-  Code::Flags flags = Code::ComputeFlags(Code::STUB);
-  Handle<Code> code = GetCodeWithFlags(flags, "ConstructStub");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, "ConstructStub"));
-  GDBJIT(AddCode(GDBJITInterface::STUB, "ConstructStub", *code));
-  return code;
-}
-
-
 CallOptimization::CallOptimization(LookupResult* lookup) {
   if (lookup->IsFound() &&
       lookup->IsCacheable() &&

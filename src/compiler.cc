@@ -771,13 +771,6 @@ static bool InstallFullCode(CompilationInfo* info) {
   int expected = lit->expected_property_count();
   SetExpectedNofPropertiesFromEstimate(shared, expected);
 
-  // Set the optimization hints after performing lazy compilation, as
-  // these are not set when the function is set up as a lazily
-  // compiled function.
-  shared->SetThisPropertyAssignmentsInfo(
-      lit->has_only_simple_this_property_assignments(),
-      *lit->this_property_assignments());
-
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
   shared->set_code_age(0);
@@ -1121,9 +1114,6 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_is_anonymous(lit->is_anonymous());
   function_info->set_is_toplevel(is_toplevel);
   function_info->set_inferred_name(*lit->inferred_name());
-  function_info->SetThisPropertyAssignmentsInfo(
-      lit->has_only_simple_this_property_assignments(),
-      *lit->this_property_assignments());
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   function_info->set_allows_lazy_compilation_without_context(
       lit->AllowsLazyCompilationWithoutContext());
