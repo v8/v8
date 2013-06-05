@@ -5023,11 +5023,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 
     if (stmt->switch_type() == SwitchStatement::SMI_SWITCH) {
       if (!clause->IsSmiCompare()) {
-        // Finish with deoptimize and add uses of enviroment values to
-        // account for invisible uses.
-        current_block()->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
-        set_current_block(NULL);
-        break;
+        AddSoftDeoptimize();
       }
 
       HCompareIDAndBranch* compare_ =
@@ -5051,7 +5047,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 
   // Save the current block to use for the default or to join with the
-  // exit.  This block is NULL if we deoptimized.
+  // exit.
   HBasicBlock* last_block = current_block();
 
   if (not_string_block != NULL) {
