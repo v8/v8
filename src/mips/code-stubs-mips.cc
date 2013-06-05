@@ -151,6 +151,28 @@ static void InitializeArrayConstructorDescriptor(
 }
 
 
+static void InitializeInternalArrayConstructorDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor,
+    int constant_stack_parameter_count) {
+  // register state
+  // a0 -- number of arguments
+  // a1 -- constructor function
+  static Register registers[] = { a1 };
+  descriptor->register_param_count_ = 1;
+
+  if (constant_stack_parameter_count != 0) {
+    // Stack param count needs (constructor pointer, and single argument).
+    descriptor->stack_parameter_count_ = &a0;
+  }
+  descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
+  descriptor->register_params_ = registers;
+  descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
+  descriptor->deoptimization_handler_ =
+  FUNCTION_ADDR(InternalArrayConstructor_StubFailure);
+}
+
+
 void ArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -182,6 +204,27 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
       FUNCTION_ADDR(ToBooleanIC_Miss);
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate));
+}
+
+
+void InternalArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, 0);
+}
+
+
+void InternalArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, 1);
+}
+
+
+void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, -1);
 }
 
 
@@ -7681,6 +7724,21 @@ void ArrayConstructorStubBase::GenerateStubsAheadOfTime(Isolate* isolate) {
 }
 
 
+void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
+    Isolate* isolate) {
+  ElementsKind kinds[2] = { FAST_ELEMENTS, FAST_HOLEY_ELEMENTS };
+  for (int i = 0; i < 2; i++) {
+    // For internal arrays we only need a few things.
+    InternalArrayNoArgumentConstructorStub stubh1(kinds[i]);
+    stubh1.GetCode(isolate)->set_is_pregenerated(true);
+    InternalArraySingleArgumentConstructorStub stubh2(kinds[i]);
+    stubh2.GetCode(isolate)->set_is_pregenerated(true);
+    InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
+    stubh3.GetCode(isolate)->set_is_pregenerated(true);
+  }
+}
+
+
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : argc (only if argument_count_ == ANY)
@@ -7762,6 +7820,102 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
      Handle<Code> generic_construct_stub =
          masm->isolate()->builtins()->JSConstructStubGeneric();
      __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+  }
+}
+
+
+void InternalArrayConstructorStub::GenerateCase(
+    MacroAssembler* masm, ElementsKind kind) {
+  Label not_zero_case, not_one_case;
+  Label normal_sequence;
+
+  __ Branch(&not_zero_case, ne, a0, Operand(zero_reg));
+  InternalArrayNoArgumentConstructorStub stub0(kind);
+  __ TailCallStub(&stub0);
+
+  __ bind(&not_zero_case);
+  __ Branch(&not_one_case, gt, a0, Operand(1));
+
+  if (IsFastPackedElementsKind(kind)) {
+    // We might need to create a holey array
+    // look at the first argument.
+    __ lw(at, MemOperand(sp, 0));
+    __ Branch(&normal_sequence, eq, at, Operand(zero_reg));
+
+    InternalArraySingleArgumentConstructorStub
+        stub1_holey(GetHoleyElementsKind(kind));
+    __ TailCallStub(&stub1_holey);
+  }
+
+  __ bind(&normal_sequence);
+  InternalArraySingleArgumentConstructorStub stub1(kind);
+  __ TailCallStub(&stub1);
+
+  __ bind(&not_one_case);
+  InternalArrayNArgumentsConstructorStub stubN(kind);
+  __ TailCallStub(&stubN);
+}
+
+
+void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0 : argc
+  //  -- a1 : constructor
+  //  -- sp[0] : return address
+  //  -- sp[4] : last argument
+  // -----------------------------------
+
+  if (FLAG_debug_code) {
+    // The array construct code is only set for the global and natives
+    // builtin Array functions which always have maps.
+
+    // Initial map for the builtin Array function should be a map.
+    __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a NULL and a Smi.
+    __ And(at, a3, Operand(kSmiTagMask));
+    __ Assert(ne, "Unexpected initial map for Array function",
+        at, Operand(zero_reg));
+    __ GetObjectType(a3, a3, t0);
+    __ Assert(eq, "Unexpected initial map for Array function",
+        t0, Operand(MAP_TYPE));
+  }
+
+  if (FLAG_optimize_constructed_arrays) {
+    // Figure out the right elements kind.
+    __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
+
+    // Load the map's "bit field 2" into a3. We only need the first byte,
+    // but the following bit field extraction takes care of that anyway.
+    __ lbu(a3, FieldMemOperand(a3, Map::kBitField2Offset));
+    // Retrieve elements_kind from bit field 2.
+    __ Ext(a3, a3, Map::kElementsKindShift, Map::kElementsKindBitCount);
+
+    if (FLAG_debug_code) {
+      Label done;
+      __ Branch(&done, eq, a3, Operand(FAST_ELEMENTS));
+      __ Assert(
+          eq, "Invalid ElementsKind for InternalArray or InternalPackedArray",
+          a3, Operand(FAST_HOLEY_ELEMENTS));
+      __ bind(&done);
+    }
+
+    Label fast_elements_case;
+    __ Branch(&fast_elements_case, eq, a3, Operand(FAST_ELEMENTS));
+    GenerateCase(masm, FAST_HOLEY_ELEMENTS);
+
+    __ bind(&fast_elements_case);
+    GenerateCase(masm, FAST_ELEMENTS);
+  } else {
+    Label generic_constructor;
+    // Run the native code for the Array function called as constructor.
+    ArrayNativeCode(masm, &generic_constructor);
+
+    // Jump to the generic construct code in case the specialized code cannot
+    // handle the construction.
+    __ bind(&generic_constructor);
+    Handle<Code> generic_construct_stub =
+        masm->isolate()->builtins()->JSConstructStubGeneric();
+    __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
   }
 }
 
