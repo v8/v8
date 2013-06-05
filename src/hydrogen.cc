@@ -1789,10 +1789,22 @@ HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
                                               bool disable_allocation_sites) :
         builder_(builder),
         kind_(kind),
-        allocation_site_payload_(allocation_site_payload) {
+        allocation_site_payload_(allocation_site_payload),
+        constructor_function_(NULL) {
   mode_ = disable_allocation_sites
       ? DONT_TRACK_ALLOCATION_SITE
       : AllocationSiteInfo::GetMode(kind);
+}
+
+
+HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
+                                              ElementsKind kind,
+                                              HValue* constructor_function) :
+    builder_(builder),
+    kind_(kind),
+    mode_(DONT_TRACK_ALLOCATION_SITE),
+    allocation_site_payload_(NULL),
+    constructor_function_(constructor_function) {
 }
 
 
@@ -1810,6 +1822,16 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode(HValue* context) {
 
   return builder()->AddInstruction(new(zone())
       HLoadKeyed(map_array, kind_index, NULL, FAST_ELEMENTS));
+}
+
+
+HValue* HGraphBuilder::JSArrayBuilder::EmitInternalMapCode() {
+  // Find the map near the constructor function
+  HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
+  return AddInstruction(
+      builder()->BuildLoadNamedField(constructor_function_,
+                                     access,
+                                     Representation::Tagged()));
 }
 
 
@@ -1899,7 +1921,12 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
   AddInstruction(new_object);
 
   // Fill in the fields: map, properties, length
-  HValue* map = EmitMapCode(context);
+  HValue* map;
+  if (constructor_function_ != NULL) {
+    map = EmitInternalMapCode();
+  } else {
+    map = EmitMapCode(context);
+  }
   elements_location_ = builder()->BuildJSArrayHeader(new_object,
                                                      map,
                                                      mode_,

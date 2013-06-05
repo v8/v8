@@ -168,12 +168,7 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 
 bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
   Handle<Object> info = GetInfo(expr->CallNewFeedbackId());
-  if (info->IsSmi()) {
-    ASSERT(static_cast<ElementsKind>(Smi::cast(*info)->value()) <=
-           LAST_FAST_ELEMENTS_KIND);
-    return isolate_->global_context()->array_function();
-  }
-  return info->IsJSFunction();
+  return info->IsSmi() || info->IsJSFunction();
 }
 
 
@@ -298,7 +293,14 @@ CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
 
 
 Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
-  return Handle<JSFunction>::cast(GetInfo(expr->CallFeedbackId()));
+  Handle<Object> info = GetInfo(expr->CallFeedbackId());
+  if (info->IsSmi()) {
+    ASSERT(static_cast<ElementsKind>(Smi::cast(*info)->value()) <=
+           LAST_FAST_ELEMENTS_KIND);
+    return Handle<JSFunction>(isolate_->global_context()->array_function());
+  } else {
+    return Handle<JSFunction>::cast(info);
+  }
 }
 
 

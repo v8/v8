@@ -137,6 +137,28 @@ static void InitializeArrayConstructorDescriptor(
 }
 
 
+static void InitializeInternalArrayConstructorDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor,
+    int constant_stack_parameter_count) {
+  // register state
+  // rax -- number of arguments
+  // rdi -- constructor function
+  static Register registers[] = { rdi };
+  descriptor->register_param_count_ = 1;
+
+  if (constant_stack_parameter_count != 0) {
+    // stack param count needs (constructor pointer, and single argument)
+    descriptor->stack_parameter_count_ = &rax;
+  }
+  descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
+  descriptor->register_params_ = registers;
+  descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(InternalArrayConstructor_StubFailure);
+}
+
+
 void ArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -155,6 +177,27 @@ void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   InitializeArrayConstructorDescriptor(isolate, descriptor, -1);
+}
+
+
+void InternalArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, 0);
+}
+
+
+void InternalArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, 1);
+}
+
+
+void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, -1);
 }
 
 
@@ -3818,7 +3861,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
-    GenerateRecordCallTargetNoArray(masm);
+    if (FLAG_optimize_constructed_arrays) {
+      GenerateRecordCallTarget(masm);
+    } else {
+      GenerateRecordCallTargetNoArray(masm);
+    }
   }
 
   // Fast-case: Just invoke the function.
@@ -6848,6 +6895,20 @@ void ArrayConstructorStubBase::GenerateStubsAheadOfTime(Isolate* isolate) {
 }
 
 
+void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
+    Isolate* isolate) {
+  ElementsKind kinds[2] = { FAST_ELEMENTS, FAST_HOLEY_ELEMENTS };
+  for (int i = 0; i < 2; i++) {
+    // For internal arrays we only need a few things
+    InternalArrayNoArgumentConstructorStub stubh1(kinds[i]);
+    stubh1.GetCode(isolate)->set_is_pregenerated(true);
+    InternalArraySingleArgumentConstructorStub stubh2(kinds[i]);
+    stubh2.GetCode(isolate)->set_is_pregenerated(true);
+    InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
+    stubh3.GetCode(isolate)->set_is_pregenerated(true);
+  }
+}
+
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -6920,6 +6981,108 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     } else {
       UNREACHABLE();
     }
+  } else {
+    Label generic_constructor;
+    // Run the native code for the Array function called as constructor.
+    ArrayNativeCode(masm, &generic_constructor);
+
+    // Jump to the generic construct code in case the specialized code cannot
+    // handle the construction.
+    __ bind(&generic_constructor);
+    Handle<Code> generic_construct_stub =
+        masm->isolate()->builtins()->JSConstructStubGeneric();
+    __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
+  }
+}
+
+
+void InternalArrayConstructorStub::GenerateCase(
+    MacroAssembler* masm, ElementsKind kind) {
+  Label not_zero_case, not_one_case;
+  Label normal_sequence;
+
+  __ testq(rax, rax);
+  __ j(not_zero, &not_zero_case);
+  InternalArrayNoArgumentConstructorStub stub0(kind);
+  __ TailCallStub(&stub0);
+
+  __ bind(&not_zero_case);
+  __ cmpl(rax, Immediate(1));
+  __ j(greater, &not_one_case);
+
+  if (IsFastPackedElementsKind(kind)) {
+    // We might need to create a holey array
+    // look at the first argument
+    __ movq(rcx, Operand(rsp, kPointerSize));
+    __ testq(rcx, rcx);
+    __ j(zero, &normal_sequence);
+
+    InternalArraySingleArgumentConstructorStub
+        stub1_holey(GetHoleyElementsKind(kind));
+    __ TailCallStub(&stub1_holey);
+  }
+
+  __ bind(&normal_sequence);
+  InternalArraySingleArgumentConstructorStub stub1(kind);
+  __ TailCallStub(&stub1);
+
+  __ bind(&not_one_case);
+  InternalArrayNArgumentsConstructorStub stubN(kind);
+  __ TailCallStub(&stubN);
+}
+
+
+void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax : argc
+  //  -- ebx : type info cell
+  //  -- edi : constructor
+  //  -- esp[0] : return address
+  //  -- esp[4] : last argument
+  // -----------------------------------
+
+  if (FLAG_debug_code) {
+    // The array construct code is only set for the global and natives
+    // builtin Array functions which always have maps.
+
+    // Initial map for the builtin Array function should be a map.
+    __ movq(rcx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a NULL and a Smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    Condition not_smi = NegateCondition(masm->CheckSmi(rcx));
+    __ Check(not_smi, "Unexpected initial map for Array function");
+    __ CmpObjectType(rcx, MAP_TYPE, rcx);
+    __ Check(equal, "Unexpected initial map for Array function");
+  }
+
+  if (FLAG_optimize_constructed_arrays) {
+    // Figure out the right elements kind
+    __ movq(rcx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+
+    // Load the map's "bit field 2" into |result|. We only need the first byte,
+    // but the following masking takes care of that anyway.
+    __ movzxbq(rcx, FieldOperand(rcx, Map::kBitField2Offset));
+    // Retrieve elements_kind from bit field 2.
+    __ and_(rcx, Immediate(Map::kElementsKindMask));
+    __ shr(rcx, Immediate(Map::kElementsKindShift));
+
+    if (FLAG_debug_code) {
+      Label done;
+      __ cmpl(rcx, Immediate(FAST_ELEMENTS));
+      __ j(equal, &done);
+      __ cmpl(rcx, Immediate(FAST_HOLEY_ELEMENTS));
+      __ Assert(equal,
+          "Invalid ElementsKind for InternalArray or InternalPackedArray");
+      __ bind(&done);
+    }
+
+    Label fast_elements_case;
+    __ cmpl(rcx, Immediate(FAST_ELEMENTS));
+    __ j(equal, &fast_elements_case);
+    GenerateCase(masm, FAST_HOLEY_ELEMENTS);
+
+    __ bind(&fast_elements_case);
+    GenerateCase(masm, FAST_ELEMENTS);
   } else {
     Label generic_constructor;
     // Run the native code for the Array function called as constructor.

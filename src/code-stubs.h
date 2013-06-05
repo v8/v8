@@ -77,6 +77,9 @@ namespace internal {
   V(ArrayNoArgumentConstructor)          \
   V(ArraySingleArgumentConstructor)      \
   V(ArrayNArgumentsConstructor)          \
+  V(InternalArrayNoArgumentConstructor)  \
+  V(InternalArraySingleArgumentConstructor)      \
+  V(InternalArrayNArgumentsConstructor)  \
   V(KeyedStoreElement)                   \
   V(DebuggerStatement)                   \
   V(NameDictionaryLookup)                \
@@ -85,6 +88,7 @@ namespace internal {
   V(StoreArrayLiteralElement)            \
   V(StubFailureTrampoline)               \
   V(ArrayConstructor)                    \
+  V(InternalArrayConstructor)            \
   V(ProfileEntryHook)                    \
   /* IC Handler stubs */                 \
   V(LoadField)                           \
@@ -667,6 +671,20 @@ class ArrayConstructorStub: public PlatformCodeStub {
   virtual int MinorKey() { return argument_count_; }
 
   ArgumentCountKey argument_count_;
+};
+
+
+class InternalArrayConstructorStub: public PlatformCodeStub {
+ public:
+  explicit InternalArrayConstructorStub(Isolate* isolate);
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  virtual CodeStub::Major MajorKey() { return InternalArrayConstructor; }
+  virtual int MinorKey() { return 0; }
+
+  void GenerateCase(MacroAssembler* masm, ElementsKind kind);
 };
 
 
@@ -1823,6 +1841,87 @@ class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
   Major MajorKey() { return ArrayNArgumentsConstructor; }
 
   DISALLOW_COPY_AND_ASSIGN(ArrayNArgumentsConstructorStub);
+};
+
+
+class InternalArrayConstructorStubBase : public HydrogenCodeStub {
+ public:
+  explicit InternalArrayConstructorStubBase(ElementsKind kind) {
+    kind_ = kind;
+  }
+
+  virtual bool IsPregenerated() { return true; }
+  static void GenerateStubsAheadOfTime(Isolate* isolate);
+  static void InstallDescriptors(Isolate* isolate);
+
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kConstructor = 0;
+
+  ElementsKind elements_kind() const { return kind_; }
+
+ private:
+  int NotMissMinorKey() { return kind_; }
+
+  ElementsKind kind_;
+
+  DISALLOW_COPY_AND_ASSIGN(InternalArrayConstructorStubBase);
+};
+
+
+class InternalArrayNoArgumentConstructorStub : public
+    InternalArrayConstructorStubBase {
+ public:
+  explicit InternalArrayNoArgumentConstructorStub(ElementsKind kind)
+      : InternalArrayConstructorStubBase(kind) { }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  Major MajorKey() { return InternalArrayNoArgumentConstructor; }
+
+  DISALLOW_COPY_AND_ASSIGN(InternalArrayNoArgumentConstructorStub);
+};
+
+
+class InternalArraySingleArgumentConstructorStub : public
+    InternalArrayConstructorStubBase {
+ public:
+  explicit InternalArraySingleArgumentConstructorStub(ElementsKind kind)
+      : InternalArrayConstructorStubBase(kind) { }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  Major MajorKey() { return InternalArraySingleArgumentConstructor; }
+
+  DISALLOW_COPY_AND_ASSIGN(InternalArraySingleArgumentConstructorStub);
+};
+
+
+class InternalArrayNArgumentsConstructorStub : public
+    InternalArrayConstructorStubBase {
+ public:
+  explicit InternalArrayNArgumentsConstructorStub(ElementsKind kind)
+      : InternalArrayConstructorStubBase(kind) { }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  Major MajorKey() { return InternalArrayNArgumentsConstructor; }
+
+  DISALLOW_COPY_AND_ASSIGN(InternalArrayNArgumentsConstructorStub);
 };
 
 

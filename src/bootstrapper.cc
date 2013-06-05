@@ -1611,8 +1611,14 @@ Handle<JSFunction> Genesis::InstallInternalArray(
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   SetPrototype(array_function, prototype);
 
-  array_function->shared()->set_construct_stub(
-      isolate()->builtins()->builtin(Builtins::kCommonArrayConstructCode));
+  if (FLAG_optimize_constructed_arrays) {
+    InternalArrayConstructorStub internal_array_constructor_stub(isolate());
+    Handle<Code> code = internal_array_constructor_stub.GetCode(isolate());
+    array_function->shared()->set_construct_stub(*code);
+  } else {
+    array_function->shared()->set_construct_stub(
+        isolate()->builtins()->builtin(Builtins::kCommonArrayConstructCode));
+  }
 
   array_function->shared()->DontAdaptArguments();
 

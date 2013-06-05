@@ -5246,6 +5246,10 @@ class HObjectAccess {
     return HObjectAccess(kInobject, JSObject::kPropertiesOffset);
   }
 
+  static HObjectAccess ForPrototypeOrInitialMap() {
+    return HObjectAccess(kInobject, JSFunction::kPrototypeOrInitialMapOffset);
+  }
+
   static HObjectAccess ForMap() {
     return HObjectAccess(kMaps, JSObject::kMapOffset);
   }

@@ -1262,6 +1262,10 @@ class HGraphBuilder {
                    HValue* allocation_site_payload,
                    bool disable_allocation_sites);
 
+    JSArrayBuilder(HGraphBuilder* builder,
+                   ElementsKind kind,
+                   HValue* constructor_function);
+
     HValue* AllocateEmptyArray();
     HValue* AllocateArray(HValue* capacity, HValue* length_field,
                           bool fill_with_hole);
@@ -1283,6 +1287,7 @@ class HGraphBuilder {
     }
 
     HValue* EmitMapCode(HValue* context);
+    HValue* EmitInternalMapCode();
     HValue* EstablishEmptyArrayAllocationSize();
     HValue* EstablishAllocationSize(HValue* length_node);
     HValue* AllocateArray(HValue* size_in_bytes, HValue* capacity,
@@ -1292,6 +1297,7 @@ class HGraphBuilder {
     ElementsKind kind_;
     AllocationSiteMode mode_;
     HValue* allocation_site_payload_;
+    HValue* constructor_function_;
     HInnerAllocatedObject* elements_location_;
   };
 

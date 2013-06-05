@@ -194,20 +194,11 @@ BUILTIN(EmptyFunction) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
-  // If we get 2 arguments then they are the stub parameters (constructor, type
-  // info).  If we get 3, then the first one is a pointer to the arguments
-  // passed by the caller.
-  Arguments empty_args(0, NULL);
-  bool no_caller_args = args.length() == 2;
-  ASSERT(no_caller_args || args.length() == 3);
-  int parameters_start = no_caller_args ? 0 : 1;
-  Arguments* caller_args = no_caller_args
-      ? &empty_args
-      : reinterpret_cast<Arguments*>(args[0]);
-  Handle<JSFunction> constructor = args.at<JSFunction>(parameters_start);
-  Handle<Object> type_info = args.at<Object>(parameters_start + 1);
-
+static MaybeObject* ArrayConstructorStubFailureCommon(
+    Isolate* isolate,
+    Handle<JSFunction> constructor,
+    Handle<Object> type_info,
+    Arguments* caller_args) {
   bool holey = false;
   if (caller_args->length() == 1 && (*caller_args)[0]->IsSmi()) {
     int value = Smi::cast((*caller_args)[0])->value();
@@ -216,7 +207,8 @@ RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
 
   JSArray* array;
   MaybeObject* maybe_array;
-  if (*type_info != isolate->heap()->undefined_value() &&
+  if (!type_info.is_null() &&
+      *type_info != isolate->heap()->undefined_value() &&
       JSGlobalPropertyCell::cast(*type_info)->value()->IsSmi()) {
     JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(*type_info);
     Smi* smi = Smi::cast(cell->value());
@@ -231,12 +223,11 @@ RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
         *constructor, type_info);
     if (!maybe_array->To(&array)) return maybe_array;
   } else {
-    ElementsKind kind = constructor->initial_map()->elements_kind();
-    ASSERT(kind == GetInitialFastElementsKind());
     maybe_array = isolate->heap()->AllocateJSObject(*constructor);
     if (!maybe_array->To(&array)) return maybe_array;
     // We might need to transition to holey
-    if (holey) {
+    ElementsKind kind = constructor->initial_map()->elements_kind();
+    if (holey && !IsFastHoleyElementsKind(kind)) {
       kind = GetHoleyElementsKind(kind);
       maybe_array = array->TransitionElementsKind(kind);
       if (maybe_array->IsFailure()) return maybe_array;
@@ -249,6 +240,44 @@ RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
   maybe_array = ArrayConstructInitializeElements(array, caller_args);
   if (maybe_array->IsFailure()) return maybe_array;
   return array;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
+  // If we get 2 arguments then they are the stub parameters (constructor, type
+  // info).  If we get 3, then the first one is a pointer to the arguments
+  // passed by the caller.
+  Arguments empty_args(0, NULL);
+  bool no_caller_args = args.length() == 2;
+  ASSERT(no_caller_args || args.length() == 3);
+  int parameters_start = no_caller_args ? 0 : 1;
+  Arguments* caller_args = no_caller_args
+      ? &empty_args
+      : reinterpret_cast<Arguments*>(args[0]);
+  Handle<JSFunction> constructor = args.at<JSFunction>(parameters_start);
+  Handle<Object> type_info = args.at<Object>(parameters_start + 1);
+
+  return ArrayConstructorStubFailureCommon(isolate,
+                                           constructor,
+                                           type_info,
+                                           caller_args);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, InternalArrayConstructor_StubFailure) {
+  Arguments empty_args(0, NULL);
+  bool no_caller_args = args.length() == 1;
+  ASSERT(no_caller_args || args.length() == 2);
+  int parameters_start = no_caller_args ? 0 : 1;
+  Arguments* caller_args = no_caller_args
+      ? &empty_args
+      : reinterpret_cast<Arguments*>(args[0]);
+  Handle<JSFunction> constructor = args.at<JSFunction>(parameters_start);
+
+  return ArrayConstructorStubFailureCommon(isolate,
+                                           constructor,
+                                           Handle<Object>::null(),
+                                           caller_args);
 }
 
 
