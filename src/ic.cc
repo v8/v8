@@ -937,7 +937,13 @@ MaybeObject* LoadIC::Load(State state,
 
   // Update inline cache and stub cache.
   if (FLAG_use_ic) {
-    UpdateCaches(&lookup, state, object, name);
+    if (!object->IsJSObject()) {
+      // TODO(jkummerow): It would be nice to support non-JSObjects in
+      // UpdateCaches, then we wouldn't need to go generic here.
+      set_target(*generic_stub());
+    } else {
+      UpdateCaches(&lookup, state, object, name);
+    }
   }
 
   PropertyAttributes attr;

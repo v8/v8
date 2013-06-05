@@ -1354,6 +1354,23 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
+void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  __ pop(ebx);
+  __ push(edx);  // receiver
+  __ push(ecx);  // name
+  __ push(ebx);  // return address
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
+}
+
+
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // ----------- S t a t e -------------
   //  -- ecx    : key

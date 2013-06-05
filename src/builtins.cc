@@ -1495,6 +1495,11 @@ static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
 }
 
 
+static void Generate_LoadIC_Slow(MacroAssembler* masm) {
+  LoadIC::GenerateRuntimeGetProperty(masm);
+}
+
+
 static void Generate_KeyedLoadIC_Initialize(MacroAssembler* masm) {
   KeyedLoadIC::GenerateInitialize(masm);
 }
