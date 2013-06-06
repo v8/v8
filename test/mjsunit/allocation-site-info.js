@@ -281,6 +281,23 @@ if (support_smi_only_arrays) {
     obj = newarraycase_list_smiobj(2);
     assertKind(elements_kind.fast, obj);
 
+    function newarraycase_onearg(len, value) {
+      var a = new Array(len);
+      a[0] = value;
+      return a;
+    }
+
+    obj = newarraycase_onearg(5, 3.5);
+    assertKind(elements_kind.fast_double, obj);
+    obj = newarraycase_onearg(10, 5);
+    assertKind(elements_kind.fast_double, obj);
+    obj = newarraycase_onearg(0, 5);
+    assertKind(elements_kind.fast_double, obj);
+    // Now pass a length that forces the dictionary path.
+    obj = newarraycase_onearg(100000, 5);
+    assertKind(elements_kind.dictionary, obj);
+    assertTrue(obj.length == 100000);
+
     // Verify that cross context calls work
     var realmA = Realm.current();
     var realmB = Realm.create();

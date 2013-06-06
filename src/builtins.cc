@@ -200,16 +200,29 @@ static MaybeObject* ArrayConstructorStubFailureCommon(
     Handle<Object> type_info,
     Arguments* caller_args) {
   bool holey = false;
-  if (caller_args->length() == 1 && (*caller_args)[0]->IsSmi()) {
-    int value = Smi::cast((*caller_args)[0])->value();
-    holey = (value > 0 && value < JSObject::kInitialMaxFastElementArray);
+  bool can_use_type_feedback = true;
+  if (caller_args->length() == 1) {
+    Object* argument_one = (*caller_args)[0];
+    if (argument_one->IsSmi()) {
+      int value = Smi::cast(argument_one)->value();
+      if (value < 0 || value >= JSObject::kInitialMaxFastElementArray) {
+        // the array is a dictionary in this case.
+        can_use_type_feedback = false;
+      } else if (value != 0) {
+        holey = true;
+      }
+    } else {
+      // Non-smi length argument produces a dictionary
+      can_use_type_feedback = false;
+    }
   }
 
   JSArray* array;
   MaybeObject* maybe_array;
   if (!type_info.is_null() &&
       *type_info != isolate->heap()->undefined_value() &&
-      JSGlobalPropertyCell::cast(*type_info)->value()->IsSmi()) {
+      JSGlobalPropertyCell::cast(*type_info)->value()->IsSmi() &&
+      can_use_type_feedback) {
     JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(*type_info);
     Smi* smi = Smi::cast(cell->value());
     ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
