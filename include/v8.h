@@ -2811,7 +2811,10 @@ class V8EXPORT Template : public Data {
 template<typename T>
 class ReturnValue {
  public:
-  V8_INLINE(explicit ReturnValue(internal::Object** slot));
+  template <class S> V8_INLINE(ReturnValue(const ReturnValue<S>& that))
+      : value_(that.value_) {
+    TYPE_CHECK(T, S);
+  };
   // Handle setters
   template <typename S> V8_INLINE(void Set(const Persistent<S>& handle));
   template <typename S> V8_INLINE(void Set(const Handle<S> handle));
@@ -2825,7 +2828,12 @@ class ReturnValue {
   V8_INLINE(void SetUndefined());
   // Convenience getter for Isolate
   V8_INLINE(Isolate* GetIsolate());
+
  private:
+  template<class F> friend class ReturnValue;
+  template<class F> friend class FunctionCallbackInfo;
+  template<class F> friend class PropertyCallbackInfo;
+  V8_INLINE(explicit ReturnValue(internal::Object** slot));
   internal::Object** value_;
 };
 

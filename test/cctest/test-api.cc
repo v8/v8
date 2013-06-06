@@ -2007,88 +2007,90 @@ THREADED_TEST(IndexedPropertyHandlerGetter) {
 
 v8::Handle<v8::Object> bottom;
 
-static v8::Handle<Value> CheckThisIndexedPropertyHandler(
+static void CheckThisIndexedPropertyHandler(
     uint32_t index,
-    const AccessorInfo& info) {
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<Value>();
 }
 
-static v8::Handle<Value> CheckThisNamedPropertyHandler(
+static void CheckThisNamedPropertyHandler(
     Local<String> name,
-    const AccessorInfo& info) {
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<Value>();
 }
 
-
-v8::Handle<Value> CheckThisIndexedPropertySetter(uint32_t index,
-                                                 Local<Value> value,
-                                                 const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(info.This()->Equals(bottom));
-  return v8::Handle<Value>();
-}
-
-
-v8::Handle<Value> CheckThisNamedPropertySetter(Local<String> property,
-                                               Local<Value> value,
-                                               const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(info.This()->Equals(bottom));
-  return v8::Handle<Value>();
-}
-
-v8::Handle<v8::Integer> CheckThisIndexedPropertyQuery(
+void CheckThisIndexedPropertySetter(
     uint32_t index,
-    const AccessorInfo& info) {
+    Local<Value> value,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Integer>();
 }
 
 
-v8::Handle<v8::Integer> CheckThisNamedPropertyQuery(Local<String> property,
-                                                    const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Integer>();
-}
-
-
-v8::Handle<v8::Boolean> CheckThisIndexedPropertyDeleter(
-    uint32_t index,
-    const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Boolean>();
-}
-
-
-v8::Handle<v8::Boolean> CheckThisNamedPropertyDeleter(
+void CheckThisNamedPropertySetter(
     Local<String> property,
-    const AccessorInfo& info) {
+    Local<Value> value,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Boolean>();
+}
+
+void CheckThisIndexedPropertyQuery(
+    uint32_t index,
+    const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  CheckReturnValue(info);
+  ApiTestFuzzer::Fuzz();
+  CHECK(info.This()->Equals(bottom));
 }
 
 
-v8::Handle<v8::Array> CheckThisIndexedPropertyEnumerator(
-    const AccessorInfo& info) {
+void CheckThisNamedPropertyQuery(
+    Local<String> property,
+    const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Array>();
 }
 
 
-v8::Handle<v8::Array> CheckThisNamedPropertyEnumerator(
-    const AccessorInfo& info) {
+void CheckThisIndexedPropertyDeleter(
+    uint32_t index,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Array>();
+}
+
+
+void CheckThisNamedPropertyDeleter(
+    Local<String> property,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  CheckReturnValue(info);
+  ApiTestFuzzer::Fuzz();
+  CHECK(info.This()->Equals(bottom));
+}
+
+
+void CheckThisIndexedPropertyEnumerator(
+    const v8::PropertyCallbackInfo<v8::Array>& info) {
+  CheckReturnValue(info);
+  ApiTestFuzzer::Fuzz();
+  CHECK(info.This()->Equals(bottom));
+}
+
+
+void CheckThisNamedPropertyEnumerator(
+    const v8::PropertyCallbackInfo<v8::Array>& info) {
+  CheckReturnValue(info);
+  ApiTestFuzzer::Fuzz();
+  CHECK(info.This()->Equals(bottom));
 }
 
 
