@@ -163,6 +163,12 @@ void BreakableStatementChecker::VisitForInStatement(ForInStatement* stmt) {
 }
 
 
+void BreakableStatementChecker::VisitForOfStatement(ForOfStatement* stmt) {
+  // Mark for in statements breakable if the iterable expression is.
+  Visit(stmt->iterable());
+}
+
+
 void BreakableStatementChecker::VisitTryCatchStatement(
     TryCatchStatement* stmt) {
   // Mark try catch as breakable to avoid adding a break slot in front of it.
@@ -1380,6 +1386,11 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
   __ bind(loop_statement.break_label());
   decrement_loop_depth();
+}
+
+
+void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
+  // TODO(wingo): Implement.
 }
 
 
