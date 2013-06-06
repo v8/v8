@@ -202,9 +202,8 @@ RegExpTree* RegExpBuilder::ToRegExp() {
 }
 
 
-void RegExpBuilder::AddQuantifierToAtom(int min,
-                                        int max,
-                                        RegExpQuantifier::Type type) {
+void RegExpBuilder::AddQuantifierToAtom(
+    int min, int max, RegExpQuantifier::QuantifierType quantifier_type) {
   if (pending_empty_) {
     pending_empty_ = false;
     return;
@@ -244,7 +243,8 @@ void RegExpBuilder::AddQuantifierToAtom(int min,
     UNREACHABLE();
     return;
   }
-  terms_.Add(new(zone()) RegExpQuantifier(min, max, type, atom), zone());
+  terms_.Add(
+      new(zone()) RegExpQuantifier(min, max, quantifier_type, atom), zone());
   LAST(ADD_TERM);
 }
 
@@ -410,8 +410,8 @@ unsigned* ScriptDataImpl::ReadAddress(int position) {
 }
 
 
-Scope* Parser::NewScope(Scope* parent, ScopeType type) {
-  Scope* result = new(zone()) Scope(parent, type, zone());
+Scope* Parser::NewScope(Scope* parent, ScopeType scope_type) {
+  Scope* result = new(zone()) Scope(parent, scope_type, zone());
   result->Initialize();
   return result;
 }
@@ -758,7 +758,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
            info()->is_extended_mode());
     ASSERT(info()->language_mode() == shared_info->language_mode());
     scope->SetLanguageMode(shared_info->language_mode());
-    FunctionLiteral::Type type = shared_info->is_expression()
+    FunctionLiteral::FunctionType function_type = shared_info->is_expression()
         ? (shared_info->is_anonymous()
               ? FunctionLiteral::ANONYMOUS_EXPRESSION
               : FunctionLiteral::NAMED_EXPRESSION)
@@ -768,7 +768,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
                                   false,  // Strict mode name already checked.
                                   shared_info->is_generator(),
                                   RelocInfo::kNoPosition,
-                                  type,
+                                  function_type,
                                   &ok);
     // Make sure the results agree.
     ASSERT(ok == (result != NULL));
@@ -799,20 +799,20 @@ Handle<String> Parser::GetSymbol() {
 }
 
 
-void Parser::ReportMessage(const char* type, Vector<const char*> args) {
+void Parser::ReportMessage(const char* message, Vector<const char*> args) {
   Scanner::Location source_location = scanner().location();
-  ReportMessageAt(source_location, type, args);
+  ReportMessageAt(source_location, message, args);
 }
 
 
-void Parser::ReportMessage(const char* type, Vector<Handle<String> > args) {
+void Parser::ReportMessage(const char* message, Vector<Handle<String> > args) {
   Scanner::Location source_location = scanner().location();
-  ReportMessageAt(source_location, type, args);
+  ReportMessageAt(source_location, message, args);
 }
 
 
 void Parser::ReportMessageAt(Scanner::Location source_location,
-                             const char* type,
+                             const char* message,
                              Vector<const char*> args) {
   MessageLocation location(script_,
                            source_location.beg_pos,
@@ -824,13 +824,13 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
     elements->set(i, *arg_string);
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> result = factory->NewSyntaxError(type, array);
+  Handle<Object> result = factory->NewSyntaxError(message, array);
   isolate()->Throw(*result, &location);
 }
 
 
 void Parser::ReportMessageAt(Scanner::Location source_location,
-                             const char* type,
+                             const char* message,
                              Vector<Handle<String> > args) {
   MessageLocation location(script_,
                            source_location.beg_pos,
@@ -841,7 +841,7 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
     elements->set(i, *args[i]);
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> result = factory->NewSyntaxError(type, array);
+  Handle<Object> result = factory->NewSyntaxError(message, array);
   isolate()->Throw(*result, &location);
 }
 
@@ -1538,12 +1538,12 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
         *ok = false;
         return;
       }
-      Handle<String> type_string =
+      Handle<String> message_string =
           isolate()->factory()->NewStringFromUtf8(CStrVector("Variable"),
                                                   TENURED);
       Expression* expression =
           NewThrowTypeError(isolate()->factory()->redeclaration_string(),
-                            type_string, name);
+                            message_string, name);
       declaration_scope->SetIllegalRedeclaration(expression);
     }
   }
@@ -2345,8 +2345,9 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   Scope* declaration_scope = top_scope_->DeclarationScope();
   if (declaration_scope->is_global_scope() ||
       declaration_scope->is_eval_scope()) {
-    Handle<String> type = isolate()->factory()->illegal_return_string();
-    Expression* throw_error = NewThrowSyntaxError(type, Handle<Object>::null());
+    Handle<String> message = isolate()->factory()->illegal_return_string();
+    Expression* throw_error =
+        NewThrowSyntaxError(message, Handle<Object>::null());
     return factory()->NewExpressionStatement(throw_error);
   }
   return result;
@@ -2737,9 +2738,9 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         // error here but for compatibility with JSC we choose to report
         // the error at runtime.
         if (expression == NULL || !expression->IsValidLeftHandSide()) {
-          Handle<String> type =
+          Handle<String> message =
               isolate()->factory()->invalid_lhs_in_for_in_string();
-          expression = NewThrowReferenceError(type);
+          expression = NewThrowReferenceError(message);
         }
         ForInStatement* loop = factory()->NewForInStatement(labels);
         Target target(&this->target_stack_, loop);
@@ -2856,9 +2857,9 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   // runtime.
   // TODO(ES5): Should change parsing for spec conformance.
   if (expression == NULL || !expression->IsValidLeftHandSide()) {
-    Handle<String> type =
+    Handle<String> message =
         isolate()->factory()->invalid_lhs_in_assignment_string();
-    expression = NewThrowReferenceError(type);
+    expression = NewThrowReferenceError(message);
   }
 
   if (!top_scope_->is_classic_mode()) {
@@ -3126,9 +3127,9 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     // error here but for compatibility with JSC we choose to report the
     // error at runtime.
     if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      Handle<String> type =
+      Handle<String> message =
           isolate()->factory()->invalid_lhs_in_prefix_op_string();
-      expression = NewThrowReferenceError(type);
+      expression = NewThrowReferenceError(message);
     }
 
     if (!top_scope_->is_classic_mode()) {
@@ -3161,9 +3162,9 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
     // error here but for compatibility with JSC we choose to report the
     // error at runtime.
     if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      Handle<String> type =
+      Handle<String> message =
           isolate()->factory()->invalid_lhs_in_postfix_op_string();
-      expression = NewThrowReferenceError(type);
+      expression = NewThrowReferenceError(message);
     }
 
     if (!top_scope_->is_classic_mode()) {
@@ -3322,14 +3323,14 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
       name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
                                                  CHECK_OK);
     }
-    FunctionLiteral::Type type = name.is_null()
+    FunctionLiteral::FunctionType function_type = name.is_null()
         ? FunctionLiteral::ANONYMOUS_EXPRESSION
         : FunctionLiteral::NAMED_EXPRESSION;
     result = ParseFunctionLiteral(name,
                                   is_strict_reserved_name,
                                   is_generator,
                                   function_token_position,
-                                  type,
+                                  function_type,
                                   CHECK_OK);
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
@@ -3658,24 +3659,25 @@ Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
   if (object_literal != NULL) {
     ASSERT(object_literal->is_simple());
     if (object_literal->fast_elements()) {
-      result->set(kTypeSlot, Smi::FromInt(OBJECT_LITERAL_FAST_ELEMENTS));
+      result->set(kLiteralTypeSlot, Smi::FromInt(OBJECT_LITERAL_FAST_ELEMENTS));
     } else {
-      result->set(kTypeSlot, Smi::FromInt(OBJECT_LITERAL_SLOW_ELEMENTS));
+      result->set(kLiteralTypeSlot, Smi::FromInt(OBJECT_LITERAL_SLOW_ELEMENTS));
     }
     result->set(kElementsSlot, *object_literal->constant_properties());
   } else {
     ArrayLiteral* array_literal = expression->AsArrayLiteral();
     ASSERT(array_literal != NULL && array_literal->is_simple());
-    result->set(kTypeSlot, Smi::FromInt(ARRAY_LITERAL));
+    result->set(kLiteralTypeSlot, Smi::FromInt(ARRAY_LITERAL));
     result->set(kElementsSlot, *array_literal->constant_elements());
   }
   return result;
 }
 
 
-CompileTimeValue::Type CompileTimeValue::GetType(Handle<FixedArray> value) {
-  Smi* type_value = Smi::cast(value->get(kTypeSlot));
-  return static_cast<Type>(type_value->value());
+CompileTimeValue::LiteralType CompileTimeValue::GetLiteralType(
+    Handle<FixedArray> value) {
+  Smi* literal_type = Smi::cast(value->get(kLiteralTypeSlot));
+  return static_cast<LiteralType>(literal_type->value());
 }
 
 
@@ -4163,12 +4165,13 @@ class SingletonLogger : public ParserRecorder {
 };
 
 
-FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
-                                              bool name_is_strict_reserved,
-                                              bool is_generator,
-                                              int function_token_position,
-                                              FunctionLiteral::Type type,
-                                              bool* ok) {
+FunctionLiteral* Parser::ParseFunctionLiteral(
+    Handle<String> function_name,
+    bool name_is_strict_reserved,
+    bool is_generator,
+    int function_token_position,
+    FunctionLiteral::FunctionType function_type,
+    bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
@@ -4186,7 +4189,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   // Function declarations are function scoped in normal mode, so they are
   // hoisted. In harmony block scoping mode they are block scoped, so they
   // are not hoisted.
-  Scope* scope = (type == FunctionLiteral::DECLARATION && !is_extended_mode())
+  Scope* scope =
+      (function_type == FunctionLiteral::DECLARATION && !is_extended_mode())
       ? NewScope(top_scope_->DeclarationScope(), FUNCTION_SCOPE)
       : NewScope(top_scope_, FUNCTION_SCOPE);
   ZoneList<Statement*>* body = NULL;
@@ -4272,7 +4276,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     // instead of Variables and Proxis as is the case now.
     Variable* fvar = NULL;
     Token::Value fvar_init_op = Token::INIT_CONST;
-    if (type == FunctionLiteral::NAMED_EXPRESSION) {
+    if (function_type == FunctionLiteral::NAMED_EXPRESSION) {
       if (is_extended_mode()) fvar_init_op = Token::INIT_CONST_HARMONY;
       VariableMode fvar_mode = is_extended_mode() ? CONST_HARMONY : CONST;
       fvar = new(zone()) Variable(top_scope_,
@@ -4476,7 +4480,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                     handler_count,
                                     num_parameters,
                                     duplicate_parameters,
-                                    type,
+                                    function_type,
                                     FunctionLiteral::kIsFunction,
                                     parenthesized,
                                     generator);
@@ -4822,22 +4826,22 @@ void Parser::RegisterTargetUse(Label* target, Target* stop) {
 }
 
 
-Expression* Parser::NewThrowReferenceError(Handle<String> type) {
+Expression* Parser::NewThrowReferenceError(Handle<String> message) {
   return NewThrowError(isolate()->factory()->MakeReferenceError_string(),
-                       type, HandleVector<Object>(NULL, 0));
+                       message, HandleVector<Object>(NULL, 0));
 }
 
 
-Expression* Parser::NewThrowSyntaxError(Handle<String> type,
+Expression* Parser::NewThrowSyntaxError(Handle<String> message,
                                         Handle<Object> first) {
   int argc = first.is_null() ? 0 : 1;
   Vector< Handle<Object> > arguments = HandleVector<Object>(&first, argc);
   return NewThrowError(
-      isolate()->factory()->MakeSyntaxError_string(), type, arguments);
+      isolate()->factory()->MakeSyntaxError_string(), message, arguments);
 }
 
 
-Expression* Parser::NewThrowTypeError(Handle<String> type,
+Expression* Parser::NewThrowTypeError(Handle<String> message,
                                       Handle<Object> first,
                                       Handle<Object> second) {
   ASSERT(!first.is_null() && !second.is_null());
@@ -4845,12 +4849,12 @@ Expression* Parser::NewThrowTypeError(Handle<String> type,
   Vector< Handle<Object> > arguments =
       HandleVector<Object>(elements, ARRAY_SIZE(elements));
   return NewThrowError(
-      isolate()->factory()->MakeTypeError_string(), type, arguments);
+      isolate()->factory()->MakeTypeError_string(), message, arguments);
 }
 
 
 Expression* Parser::NewThrowError(Handle<String> constructor,
-                                  Handle<String> type,
+                                  Handle<String> message,
                                   Vector< Handle<Object> > arguments) {
   int argc = arguments.length();
   Handle<FixedArray> elements = isolate()->factory()->NewFixedArray(argc,
@@ -4865,7 +4869,7 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
       elements, FAST_ELEMENTS, TENURED);
 
   ZoneList<Expression*>* args = new(zone()) ZoneList<Expression*>(2, zone());
-  args->Add(factory()->NewLiteral(type), zone());
+  args->Add(factory()->NewLiteral(message), zone());
   args->Add(factory()->NewLiteral(array), zone());
   CallRuntime* call_constructor =
       factory()->NewCallRuntime(constructor, NULL, args);
@@ -5006,20 +5010,21 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       int end_capture_index = captures_started();
 
       int capture_index = stored_state->capture_index();
-      SubexpressionType type = stored_state->group_type();
+      SubexpressionType group_type = stored_state->group_type();
 
       // Restore previous state.
       stored_state = stored_state->previous_state();
       builder = stored_state->builder();
 
       // Build result of subexpression.
-      if (type == CAPTURE) {
+      if (group_type == CAPTURE) {
         RegExpCapture* capture = new(zone()) RegExpCapture(body, capture_index);
         captures_->at(capture_index - 1) = capture;
         body = capture;
-      } else if (type != GROUPING) {
-        ASSERT(type == POSITIVE_LOOKAHEAD || type == NEGATIVE_LOOKAHEAD);
-        bool is_positive = (type == POSITIVE_LOOKAHEAD);
+      } else if (group_type != GROUPING) {
+        ASSERT(group_type == POSITIVE_LOOKAHEAD ||
+               group_type == NEGATIVE_LOOKAHEAD);
+        bool is_positive = (group_type == POSITIVE_LOOKAHEAD);
         body = new(zone()) RegExpLookahead(body,
                                    is_positive,
                                    end_capture_index - capture_index,
@@ -5053,10 +5058,10 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     }
     case '$': {
       Advance();
-      RegExpAssertion::Type type =
+      RegExpAssertion::AssertionType assertion_type =
           multiline_ ? RegExpAssertion::END_OF_LINE :
                        RegExpAssertion::END_OF_INPUT;
-      builder->AddAssertion(new(zone()) RegExpAssertion(type));
+      builder->AddAssertion(new(zone()) RegExpAssertion(assertion_type));
       continue;
     }
     case '.': {
@@ -5070,18 +5075,18 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       break;
     }
     case '(': {
-      SubexpressionType type = CAPTURE;
+      SubexpressionType subexpr_type = CAPTURE;
       Advance();
       if (current() == '?') {
         switch (Next()) {
           case ':':
-            type = GROUPING;
+            subexpr_type = GROUPING;
             break;
           case '=':
-            type = POSITIVE_LOOKAHEAD;
+            subexpr_type = POSITIVE_LOOKAHEAD;
             break;
           case '!':
-            type = NEGATIVE_LOOKAHEAD;
+            subexpr_type = NEGATIVE_LOOKAHEAD;
             break;
           default:
             ReportError(CStrVector("Invalid group") CHECK_FAILED);
@@ -5098,7 +5103,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         captures_->Add(NULL, zone());
       }
       // Store current state and begin new disjunction parsing.
-      stored_state = new(zone()) RegExpParserState(stored_state, type,
+      stored_state = new(zone()) RegExpParserState(stored_state, subexpr_type,
                                                    captures_started(), zone());
       builder = stored_state->builder();
       continue;
@@ -5286,16 +5291,16 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     default:
       continue;
     }
-    RegExpQuantifier::Type type = RegExpQuantifier::GREEDY;
+    RegExpQuantifier::QuantifierType quantifier_type = RegExpQuantifier::GREEDY;
     if (current() == '?') {
-      type = RegExpQuantifier::NON_GREEDY;
+      quantifier_type = RegExpQuantifier::NON_GREEDY;
       Advance();
     } else if (FLAG_regexp_possessive_quantifier && current() == '+') {
       // FLAG_regexp_possessive_quantifier is a debug-only flag.
-      type = RegExpQuantifier::POSSESSIVE;
+      quantifier_type = RegExpQuantifier::POSSESSIVE;
       Advance();
     }
-    builder->AddQuantifierToAtom(min, max, type);
+    builder->AddQuantifierToAtom(min, max, quantifier_type);
   }
 }
 

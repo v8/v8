@@ -425,7 +425,7 @@ static Handle<Object> CreateLiteralBoilerplate(
     Handle<FixedArray> array) {
   Handle<FixedArray> elements = CompileTimeValue::GetElements(array);
   const bool kHasNoFunctionLiteral = false;
-  switch (CompileTimeValue::GetType(array)) {
+  switch (CompileTimeValue::GetLiteralType(array)) {
     case CompileTimeValue::OBJECT_LITERAL_FAST_ELEMENTS:
       return CreateObjectLiteralBoilerplate(isolate,
                                             literals,
@@ -11234,7 +11234,9 @@ class ScopeIterator {
           context_ = Handle<Context>(context_->previous(), isolate_);
         }
       }
-      if (scope_info->Type() != EVAL_SCOPE) nested_scope_chain_.Add(scope_info);
+      if (scope_info->scope_type() != EVAL_SCOPE) {
+        nested_scope_chain_.Add(scope_info);
+      }
     } else {
       // Reparse the code and analyze the scopes.
       Handle<Script> script(Script::cast(shared_info->script()));
@@ -11242,13 +11244,13 @@ class ScopeIterator {
 
       // Check whether we are in global, eval or function code.
       Handle<ScopeInfo> scope_info(shared_info->scope_info());
-      if (scope_info->Type() != FUNCTION_SCOPE) {
+      if (scope_info->scope_type() != FUNCTION_SCOPE) {
         // Global or eval code.
         CompilationInfoWithZone info(script);
-        if (scope_info->Type() == GLOBAL_SCOPE) {
+        if (scope_info->scope_type() == GLOBAL_SCOPE) {
           info.MarkAsGlobal();
         } else {
-          ASSERT(scope_info->Type() == EVAL_SCOPE);
+          ASSERT(scope_info->scope_type() == EVAL_SCOPE);
           info.MarkAsEval();
           info.SetContext(Handle<Context>(function_->context()));
         }
@@ -11314,7 +11316,7 @@ class ScopeIterator {
     ASSERT(!failed_);
     if (!nested_scope_chain_.is_empty()) {
       Handle<ScopeInfo> scope_info = nested_scope_chain_.last();
-      switch (scope_info->Type()) {
+      switch (scope_info->scope_type()) {
         case FUNCTION_SCOPE:
           ASSERT(context_->IsFunctionContext() ||
                  !scope_info->HasContext());
@@ -12022,7 +12024,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
     Handle<Context> current = context_chain.RemoveLast();
     ASSERT(!(scope_info->HasContext() & current.is_null()));
 
-    if (scope_info->Type() == CATCH_SCOPE) {
+    if (scope_info->scope_type() == CATCH_SCOPE) {
       ASSERT(current->IsCatchContext());
       Handle<String> name(String::cast(current->extension()));
       Handle<Object> thrown_object(current->get(Context::THROWN_OBJECT_INDEX),
@@ -12032,7 +12034,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
                                               context,
                                               name,
                                               thrown_object);
-    } else if (scope_info->Type() == BLOCK_SCOPE) {
+    } else if (scope_info->scope_type() == BLOCK_SCOPE) {
       // Materialize the contents of the block scope into a JSObject.
       ASSERT(current->IsBlockContext());
       Handle<JSObject> block_scope_object =
@@ -12047,7 +12049,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
       new_context->set_previous(*context);
       context = new_context;
     } else {
-      ASSERT(scope_info->Type() == WITH_SCOPE);
+      ASSERT(scope_info->scope_type() == WITH_SCOPE);
       ASSERT(current->IsWithContext());
       Handle<JSObject> extension(JSObject::cast(current->extension()));
       context =

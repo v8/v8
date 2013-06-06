@@ -3677,7 +3677,7 @@ class ScopeInfo : public FixedArray {
   static inline ScopeInfo* cast(Object* object);
 
   // Return the type of this scope.
-  ScopeType Type();
+  ScopeType scope_type();
 
   // Does this scope call eval?
   bool CallsEval();
@@ -3860,7 +3860,7 @@ class ScopeInfo : public FixedArray {
   };
 
   // Properties of scopes.
-  class TypeField:             public BitField<ScopeType,            0, 3> {};
+  class ScopeTypeField:        public BitField<ScopeType,            0, 3> {};
   class CallsEvalField:        public BitField<bool,                 3, 1> {};
   class LanguageModeField:     public BitField<LanguageMode,         4, 2> {};
   class FunctionVariableField: public BitField<FunctionVariableInfo, 6, 2> {};

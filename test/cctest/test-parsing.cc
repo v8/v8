@@ -1036,7 +1036,7 @@ TEST(ScopePositions) {
     CHECK_EQ(scope->inner_scopes()->length(), 1);
 
     i::Scope* inner_scope = scope->inner_scopes()->at(0);
-    CHECK_EQ(inner_scope->type(), source_data[i].scope_type);
+    CHECK_EQ(inner_scope->scope_type(), source_data[i].scope_type);
     CHECK_EQ(inner_scope->start_position(), kPrefixLen);
     // The end position of a token is one position after the last
     // character belonging to that token.

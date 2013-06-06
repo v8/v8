@@ -792,12 +792,12 @@ Interval RegExpQuantifier::CaptureRegisters() {
 
 
 bool RegExpAssertion::IsAnchoredAtStart() {
-  return type() == RegExpAssertion::START_OF_INPUT;
+  return assertion_type() == RegExpAssertion::START_OF_INPUT;
 }
 
 
 bool RegExpAssertion::IsAnchoredAtEnd() {
-  return type() == RegExpAssertion::END_OF_INPUT;
+  return assertion_type() == RegExpAssertion::END_OF_INPUT;
 }
 
 
@@ -929,7 +929,7 @@ void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
 
 
 void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
-  switch (that->type()) {
+  switch (that->assertion_type()) {
     case RegExpAssertion::START_OF_INPUT:
       stream()->Add("@^i");
       break;
