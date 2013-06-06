@@ -16881,6 +16881,51 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
 }
 
 
+TEST(ContainsOnlyOneByte) {
+  v8::V8::Initialize();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
+  // Make a buffer long enough that it won't automatically be converted.
+  const int length = 200;
+  i::SmartArrayPointer<uint16_t> string_contents(new uint16_t[length]);
+  // Set to contain only one byte.
+  for (int i = 0; i < length-1; i++) {
+    string_contents[i] = 0x41;
+  }
+  string_contents[length-1] = 0;
+  // Simple case.
+  Handle<String> string;
+  string = String::NewExternal(new TestResource(*string_contents));
+  CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
+  // Counter example.
+  string = String::NewFromTwoByte(isolate, *string_contents);
+  CHECK(string->IsOneByte() && string->ContainsOnlyOneByte());
+  // Test left right and balanced cons strings.
+  Handle<String> base = String::NewFromUtf8(isolate, "a");
+  Handle<String> left = base;
+  Handle<String> right = base;
+  for (int i = 0; i < 1000; i++) {
+    left = String::Concat(base, left);
+    right = String::Concat(right, base);
+  }
+  Handle<String> balanced = String::Concat(left, base);
+  balanced = String::Concat(balanced, right);
+  Handle<String> cons_strings[] = {left, balanced, right};
+  Handle<String> two_byte =
+      String::NewExternal(new TestResource(*string_contents));
+  for (size_t i = 0; i < ARRAY_SIZE(cons_strings); i++) {
+    // Base assumptions.
+    string = cons_strings[i];
+    CHECK(string->IsOneByte() && string->ContainsOnlyOneByte());
+    // Test left and right concatentation.
+    string = String::Concat(two_byte, cons_strings[i]);
+    CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
+    string = String::Concat(cons_strings[i], two_byte);
+    CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
+  }
+}
+
+
 // Failed access check callback that performs a GC on each invocation.
 void FailedAccessCheckCallbackGC(Local<v8::Object> target,
                                  v8::AccessType type,
