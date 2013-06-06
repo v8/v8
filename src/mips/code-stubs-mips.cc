@@ -30,7 +30,6 @@
 #if defined(V8_TARGET_ARCH_MIPS)
 
 #include "bootstrapper.h"
-#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "codegen.h"
 #include "regexp-macro-assembler.h"
@@ -147,7 +146,7 @@ static void InitializeArrayConstructorDescriptor(
   descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(ArrayConstructor_StubFailure);
+      Runtime::FunctionForId(Runtime::kArrayConstructor)->entry;
 }
 
 
@@ -169,7 +168,7 @@ static void InitializeInternalArrayConstructorDescriptor(
   descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
-  FUNCTION_ADDR(InternalArrayConstructor_StubFailure);
+      Runtime::FunctionForId(Runtime::kInternalArrayConstructor)->entry;
 }
 
 
