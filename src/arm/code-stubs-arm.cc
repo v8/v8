@@ -7475,7 +7475,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     // but the following bit field extraction takes care of that anyway.
     __ ldr(r3, FieldMemOperand(r3, Map::kBitField2Offset));
     // Retrieve elements_kind from bit field 2.
-    __ ubfx(r3, r3, Map::kElementsKindShift, Map::kElementsKindBitCount);
+    __ Ubfx(r3, r3, Map::kElementsKindShift, Map::kElementsKindBitCount);
 
     if (FLAG_debug_code) {
       Label done;
