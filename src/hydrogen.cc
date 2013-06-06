@@ -527,6 +527,7 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 
 void HGraph::Verify(bool do_full_verify) const {
   Heap::RelocationLock(isolate()->heap());
+  AllowHandleDereference allow_deref;
   AllowDeferredHandleDereference allow_deferred_deref;
   for (int i = 0; i < blocks_.length(); i++) {
     HBasicBlock* block = blocks_.at(i);
@@ -4564,7 +4565,6 @@ void HGraph::MarkLive(HValue* ref, HValue* instr, ZoneList<HValue*>* worklist) {
     if (FLAG_trace_dead_code_elimination) {
       HeapStringAllocator allocator;
       StringStream stream(&allocator);
-      AllowDeferredHandleDereference debug_output;
       if (ref != NULL) {
         ref->PrintTo(&stream);
       } else {
@@ -11256,14 +11256,16 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
 
 void HTracer::TraceLithium(const char* name, LChunk* chunk) {
   ASSERT(!FLAG_parallel_recompilation);
-  AllowDeferredHandleDereference debug_output;
+  AllowHandleDereference allow_deref;
+  AllowDeferredHandleDereference allow_deferred_deref;
   Trace(name, chunk->graph(), chunk);
 }
 
 
 void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
   ASSERT(!FLAG_parallel_recompilation);
-  AllowDeferredHandleDereference debug_output;
+  AllowHandleDereference allow_deref;
+  AllowDeferredHandleDereference allow_deferred_deref;
   Trace(name, graph, NULL);
 }
 
