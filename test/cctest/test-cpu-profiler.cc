@@ -653,12 +653,14 @@ class FooAccessorsData {
   explicit FooAccessorsData(int min_duration_ms)
       : min_duration_ms_(min_duration_ms),
         getter_duration_(0),
-        setter_duration_(0) {}
+        setter_duration_(0),
+        getter_iterations_(0),
+        setter_iterations_(0) {}
 
   static v8::Handle<v8::Value> Getter(v8::Local<v8::String> name,
                                       const v8::AccessorInfo& info) {
     FooAccessorsData* data = fromInfo(info);
-    data->getter_duration_ = data->Wait();
+    data->getter_duration_ = data->Wait(&data->getter_iterations_);
     return v8::Int32::New(2013);
   }
 
@@ -666,20 +668,21 @@ class FooAccessorsData {
                      v8::Local<v8::Value> value,
                      const v8::AccessorInfo& info) {
     FooAccessorsData* data = fromInfo(info);
-    data->setter_duration_ = data->Wait();
+    data->setter_duration_ = data->Wait(&data->setter_iterations_);
   }
 
   void PrintAccessorTime() {
-    i::OS::Print("getter: %f ms; setter: %f ms\n", getter_duration_,
-        setter_duration_);
+    i::OS::Print("getter: %f ms (%d); setter: %f ms (%d)\n", getter_duration_,
+        getter_iterations_, setter_duration_, setter_iterations_);
   }
 
  private:
-  double Wait() {
+  double Wait(int* iterations) {
     double start = i::OS::TimeCurrentMillis();
     double duration = 0;
     while (duration < min_duration_ms_) {
       duration = i::OS::TimeCurrentMillis() - start;
+      ++*iterations;
     }
     return duration;
   }
@@ -692,6 +695,8 @@ class FooAccessorsData {
   int min_duration_ms_;
   double getter_duration_;
   double setter_duration_;
+  int getter_iterations_;
+  int setter_iterations_;
 };
 
 
