@@ -33,14 +33,12 @@ using namespace v8::internal;
 // Testing auxiliaries (breaking the Type abstraction).
 static bool IsBitset(Type* type) { return type->IsSmi(); }
 static bool IsClass(Type* type) { return type->IsMap(); }
+static bool IsConstant(Type* type) { return type->IsBox(); }
 static bool IsUnion(Type* type) { return type->IsFixedArray(); }
-static bool IsConstant(Type* type) {
-  return !(IsBitset(type) || IsClass(type) || IsUnion(type));
-}
 
 static int AsBitset(Type* type) { return Smi::cast(type)->value(); }
 static Map* AsClass(Type* type) { return Map::cast(type); }
-static HeapObject* AsConstant(Type* type) { return HeapObject::cast(type); }
+static Object* AsConstant(Type* type) { return Box::cast(type)->value(); }
 static FixedArray* AsUnion(Type* type) { return FixedArray::cast(type); }
 
 class HandlifiedTypes {
@@ -68,11 +66,13 @@ class HandlifiedTypes {
       object_map(isolate->factory()->NewMap(JS_OBJECT_TYPE, 3 * kPointerSize)),
       array_map(isolate->factory()->NewMap(JS_ARRAY_TYPE, 4 * kPointerSize)),
       isolate_(isolate) {
+    smi = handle(Smi::FromInt(666), isolate);
     object1 = isolate->factory()->NewJSObjectFromMap(object_map);
     object2 = isolate->factory()->NewJSObjectFromMap(object_map);
     array = isolate->factory()->NewJSArray(20);
     ObjectClass = handle(Type::Class(object_map), isolate);
     ArrayClass = handle(Type::Class(array_map), isolate);
+    SmiConstant = handle(Type::Constant(smi, isolate), isolate);
     ObjectConstant1 = handle(Type::Constant(object1), isolate);
     ObjectConstant2 = handle(Type::Constant(object2), isolate);
     ArrayConstant = handle(Type::Constant(array), isolate);
@@ -100,6 +100,8 @@ class HandlifiedTypes {
 
   Handle<Type> ObjectClass;
   Handle<Type> ArrayClass;
+
+  Handle<Type> SmiConstant;
   Handle<Type> ObjectConstant1;
   Handle<Type> ObjectConstant2;
   Handle<Type> ArrayConstant;
@@ -107,6 +109,7 @@ class HandlifiedTypes {
   Handle<Map> object_map;
   Handle<Map> array_map;
 
+  Handle<v8::internal::Smi> smi;
   Handle<JSObject> object1;
   Handle<JSObject> object2;
   Handle<JSArray> array;
@@ -165,10 +168,12 @@ TEST(Constant) {
   HandleScope scope(isolate);
   HandlifiedTypes T(isolate);
 
+  CHECK(IsConstant(*T.SmiConstant));
   CHECK(IsConstant(*T.ObjectConstant1));
   CHECK(IsConstant(*T.ObjectConstant2));
   CHECK(IsConstant(*T.ArrayConstant));
 
+  CHECK(*T.smi == AsConstant(*T.SmiConstant));
   CHECK(*T.object1 == AsConstant(*T.ObjectConstant1));
   CHECK(*T.object2 == AsConstant(*T.ObjectConstant2));
   CHECK(*T.object1 != AsConstant(*T.ObjectConstant2));
@@ -250,6 +255,8 @@ TEST(Is) {
   CheckSub(T.ArrayClass, T.Object);
   CheckUnordered(T.ObjectClass, T.ArrayClass);
 
+  CheckSub(T.SmiConstant, T.Smi);
+  CheckSub(T.SmiConstant, T.Number);
   CheckSub(T.ObjectConstant1, T.Object);
   CheckSub(T.ObjectConstant2, T.Object);
   CheckSub(T.ArrayConstant, T.Object);
@@ -333,6 +340,9 @@ TEST(Maybe) {
   CheckOverlap(T.ArrayClass, T.ArrayClass);
   CheckDisjoint(T.ObjectClass, T.ArrayClass);
 
+  CheckOverlap(T.SmiConstant, T.Smi);
+  CheckOverlap(T.SmiConstant, T.Number);
+  CheckDisjoint(T.SmiConstant, T.Double);
   CheckOverlap(T.ObjectConstant1, T.Object);
   CheckOverlap(T.ObjectConstant2, T.Object);
   CheckOverlap(T.ArrayConstant, T.Object);
@@ -422,9 +432,11 @@ TEST(Union) {
   CheckDisjoint(T.Union(T.ObjectClass, T.String), T.Number);
 
   // Bitset-constant
+  CHECK(IsBitset(Type::Union(T.SmiConstant, T.Number)));
   CHECK(IsBitset(Type::Union(T.ObjectConstant1, T.Object)));
   CHECK(IsUnion(Type::Union(T.ObjectConstant2, T.Number)));
 
+  CheckEqual(T.Union(T.SmiConstant, T.Number), T.Number);
   CheckEqual(T.Union(T.ObjectConstant1, T.Object), T.Object);
   CheckSub(T.Union(T.ObjectConstant1, T.Number), T.Any);
   CheckSub(T.Union(T.ObjectConstant1, T.Smi), T.Union(T.Object, T.Number));

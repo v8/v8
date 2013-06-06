@@ -42,8 +42,14 @@ int Type::LubBitset() {
     }
     return bitset;
   } else {
-    Map* map =
-        this->is_class() ? *this->as_class() : this->as_constant()->map();
+    Map* map = NULL;
+    if (this->is_class()) {
+      map = *this->as_class();
+    } else {
+      v8::internal::Object* value = this->as_constant()->value();
+      if (value->IsSmi()) return kSmi;
+      map = HeapObject::cast(value)->map();
+    }
     switch (map->instance_type()) {
       case STRING_TYPE:
       case ASCII_STRING_TYPE:
@@ -126,7 +132,8 @@ bool Type::Is(Handle<Type> that) {
     return this->is_class() && *this->as_class() == *that->as_class();
   }
   if (that->is_constant()) {
-    return this->is_constant() && *this->as_constant() == *that->as_constant();
+    return this->is_constant() &&
+        this->as_constant()->value() == that->as_constant()->value();
   }
 
   // (T1 \/ ... \/ Tn) <= T  <=>  (T1 <= T) /\ ... /\ (Tn <= T)
@@ -169,7 +176,8 @@ bool Type::Maybe(Handle<Type> that) {
     return that->is_class() && *this->as_class() == *that->as_class();
   }
   if (this->is_constant()) {
-    return that->is_constant() && *this->as_constant() == *that->as_constant();
+    return that->is_constant() &&
+        this->as_constant()->value() == that->as_constant()->value();
   }
 
   // (T1 \/ ... \/ Tn) overlaps T <=> (T1 overlaps T) \/ ... \/ (Tn overlaps T)

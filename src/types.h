@@ -79,8 +79,8 @@ namespace internal {
 // existing assumptions or tests.
 //
 // Internally, all 'primitive' types, and their unions, are represented as
-// bitsets via smis. Class and Constant are heap pointers to the respective
-// argument. Only unions containing Class'es or Constant's require allocation.
+// bitsets via smis. Class is a heap pointer to the respective map. Only
+// Constant's, or unions containing Class'es or Constant's, require allocation.
 //
 // The type representation is heap-allocated, so cannot (currently) be used in
 // a parallel compilation context.
@@ -113,8 +113,10 @@ class Type : public Object {
 
   static Type* Class(Handle<Map> map) { return from_handle(map); }
   static Type* Constant(Handle<HeapObject> value) {
-    ASSERT(!value->IsMap() && !value->IsFixedArray());
-    return from_handle(value);
+    return Constant(value, value->GetIsolate());
+  }
+  static Type* Constant(Handle<v8::internal::Object> value, Isolate* isolate) {
+    return from_handle(isolate->factory()->NewBox(value));
   }
 
   static Type* Union(Handle<Type> type1, Handle<Type> type2);
@@ -159,15 +161,12 @@ class Type : public Object {
 
   bool is_bitset() { return this->IsSmi(); }
   bool is_class() { return this->IsMap(); }
-  bool is_constant() { return !(is_bitset() || is_class() || is_union()); }
+  bool is_constant() { return this->IsBox(); }
   bool is_union() { return this->IsFixedArray(); }
 
   int as_bitset() { return Smi::cast(this)->value(); }
   Handle<Map> as_class() { return Handle<Map>::cast(handle()); }
-  Handle<HeapObject> as_constant() {
-    ASSERT(is_constant());
-    return Handle<HeapObject>::cast(handle());
-  }
+  Handle<Box> as_constant() { return Handle<Box>::cast(handle()); }
   Handle<Unioned> as_union() { return Handle<Unioned>::cast(handle()); }
 
   Handle<Type> handle() { return handle_via_isolate_of(this); }

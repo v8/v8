@@ -4383,6 +4383,8 @@ ACCESSORS(ExecutableAccessorInfo, getter, Object, kGetterOffset)
 ACCESSORS(ExecutableAccessorInfo, setter, Object, kSetterOffset)
 ACCESSORS(ExecutableAccessorInfo, data, Object, kDataOffset)
 
+ACCESSORS(Box, value, Object, kValueOffset)
+
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 

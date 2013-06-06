@@ -939,6 +939,10 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSGlobalPropertyCell(Object* value);
 
+  // Allocate Box.
+  MUST_USE_RESULT MaybeObject* AllocateBox(Object* value,
+                                           PretenureFlag pretenure);
+
   // Allocates a fixed array initialized with undefined values
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.

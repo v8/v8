@@ -2701,6 +2701,15 @@ MaybeObject* Heap::AllocateJSGlobalPropertyCell(Object* value) {
 }
 
 
+MaybeObject* Heap::AllocateBox(Object* value, PretenureFlag pretenure) {
+  Box* result;
+  MaybeObject* maybe_result = AllocateStruct(BOX_TYPE);
+  if (!maybe_result->To(&result)) return maybe_result;
+  result->set_value(value);
+  return result;
+}
+
+
 MaybeObject* Heap::CreateOddball(const char* to_string,
                                  Object* to_number,
                                  byte kind) {

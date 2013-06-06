@@ -970,6 +970,13 @@ void DeclaredAccessorDescriptor::DeclaredAccessorDescriptorPrint(FILE* out) {
 }
 
 
+void Box::BoxPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "Box");
+  PrintF(out, "\n - value: ");
+  value()->ShortPrint(out);
+}
+
+
 void AccessorPair::AccessorPairPrint(FILE* out) {
   HeapObject::PrintHeader(out, "AccessorPair");
   PrintF(out, "\n - getter: ");

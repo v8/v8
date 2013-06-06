@@ -125,6 +125,7 @@
 //       - Foreign
 //       - SharedFunctionInfo
 //       - Struct
+//         - Box
 //         - DeclaredAccessorDescriptor
 //         - AccessorInfo
 //           - DeclaredAccessorInfo
@@ -348,6 +349,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(CODE_TYPE)                                                                 \
   V(ODDBALL_TYPE)                                                              \
   V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
+  V(BOX_TYPE)                                                                  \
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
   V(FOREIGN_TYPE)                                                              \
@@ -526,6 +528,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
 #define STRUCT_LIST_ALL(V)                                                     \
+  V(BOX, Box, box)                                                             \
   V(DECLARED_ACCESSOR_DESCRIPTOR,                                              \
     DeclaredAccessorDescriptor,                                                \
     declared_accessor_descriptor)                                              \
@@ -667,6 +670,7 @@ enum InstanceType {
   CODE_TYPE,
   ODDBALL_TYPE,
   JS_GLOBAL_PROPERTY_CELL_TYPE,
+  BOX_TYPE,
 
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
@@ -5682,6 +5686,26 @@ class Struct: public HeapObject {
  public:
   inline void InitializeBody(int object_size);
   static inline Struct* cast(Object* that);
+};
+
+
+// A simple one-element struct, useful where smis need to be boxed.
+class Box : public Struct {
+ public:
+  // [value]: the boxed contents.
+  DECL_ACCESSORS(value, Object)
+
+  static inline Box* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(Box)
+  DECLARE_VERIFIER(Box)
+
+  static const int kValueOffset = HeapObject::kHeaderSize;
+  static const int kSize = kValueOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Box);
 };
 
 

@@ -778,6 +778,12 @@ void Foreign::ForeignVerify() {
 }
 
 
+void Box::BoxVerify() {
+  CHECK(IsBox());
+  value()->Verify();
+}
+
+
 void AccessorInfo::AccessorInfoVerify() {
   VerifyPointer(name());
   VerifyPointer(flag());
