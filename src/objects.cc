@@ -10875,24 +10875,18 @@ static bool GetOldValue(Isolate* isolate,
   return true;
 }
 
-
-// TODO(rafaelw): Remove |delete_count| argument and rely on the length of
-// of |deleted|.
 static void EnqueueSpliceRecord(Handle<JSArray> object,
                                 uint32_t index,
                                 Handle<JSArray> deleted,
-                                uint32_t delete_count,
                                 uint32_t add_count) {
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
   Handle<Object> index_object = isolate->factory()->NewNumberFromUint(index);
-  Handle<Object> delete_count_object =
-      isolate->factory()->NewNumberFromUint(delete_count);
   Handle<Object> add_count_object =
       isolate->factory()->NewNumberFromUint(add_count);
 
   Handle<Object> args[] =
-      { object, index_object, deleted, delete_count_object, add_count_object };
+      { object, index_object, deleted, add_count_object };
 
   bool threw;
   Execution::Call(Handle<JSFunction>(isolate->observers_enqueue_splice()),
@@ -10996,14 +10990,18 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
   uint32_t add_count = new_length > old_length ? new_length - old_length : 0;
   uint32_t delete_count = new_length < old_length ? old_length - new_length : 0;
   Handle<JSArray> deleted = isolate->factory()->NewJSArray(0);
-  if (delete_count) {
+  if (delete_count > 0) {
     for (int i = indices.length() - 1; i >= 0; i--) {
       JSObject::SetElement(deleted, indices[i] - index, old_values[i], NONE,
                            kNonStrictMode);
     }
+
+    SetProperty(deleted, isolate->factory()->length_string(),
+                isolate->factory()->NewNumberFromUint(delete_count),
+                NONE, kNonStrictMode);
   }
 
-  EnqueueSpliceRecord(self, index, deleted, delete_count, add_count);
+  EnqueueSpliceRecord(self, index, deleted, add_count);
 
   return *hresult;
 }
@@ -12069,7 +12067,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
                           old_length_handle);
       EndPerformSplice(Handle<JSArray>::cast(self));
       Handle<JSArray> deleted = isolate->factory()->NewJSArray(0);
-      EnqueueSpliceRecord(Handle<JSArray>::cast(self), old_length, deleted, 0,
+      EnqueueSpliceRecord(Handle<JSArray>::cast(self), old_length, deleted,
                           new_length - old_length);
     } else {
       EnqueueChangeRecord(self, "new", name, old_value);
