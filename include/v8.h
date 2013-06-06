@@ -2814,7 +2814,7 @@ class ReturnValue {
   template <class S> V8_INLINE(ReturnValue(const ReturnValue<S>& that))
       : value_(that.value_) {
     TYPE_CHECK(T, S);
-  };
+  }
   // Handle setters
   template <typename S> V8_INLINE(void Set(const Persistent<S>& handle));
   template <typename S> V8_INLINE(void Set(const Handle<S> handle));
