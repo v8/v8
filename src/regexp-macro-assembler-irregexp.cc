@@ -410,28 +410,6 @@ void RegExpMacroAssemblerIrregexp::CheckNotBackReferenceIgnoreCase(
 }
 
 
-void RegExpMacroAssemblerIrregexp::CheckCharacters(
-  Vector<const uc16> str,
-  int cp_offset,
-  Label* on_failure,
-  bool check_end_of_string) {
-  ASSERT(cp_offset >= kMinCPOffset);
-  ASSERT(cp_offset + str.length() - 1 <= kMaxCPOffset);
-  // It is vital that this loop is backwards due to the unchecked character
-  // load below.
-  for (int i = str.length() - 1; i >= 0; i--) {
-    if (check_end_of_string && i == str.length() - 1) {
-      Emit(BC_LOAD_CURRENT_CHAR, cp_offset + i);
-      EmitOrLink(on_failure);
-    } else {
-      Emit(BC_LOAD_CURRENT_CHAR_UNCHECKED, cp_offset + i);
-    }
-    Emit(BC_CHECK_NOT_CHAR, str[i]);
-    EmitOrLink(on_failure);
-  }
-}
-
-
 void RegExpMacroAssemblerIrregexp::IfRegisterLT(int register_index,
                                                 int comparand,
                                                 Label* on_less_than) {
