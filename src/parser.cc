@@ -3593,7 +3593,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
     Handle<Object> boilerplate_value = GetBoilerplateValue(values->at(i));
     if (boilerplate_value->IsTheHole()) {
       is_holey = true;
-    } else if (boilerplate_value->IsUndefined()) {
+    } else if (boilerplate_value->IsUninitialized()) {
       is_simple = false;
       JSObject::SetOwnElement(
           array, i, handle(Smi::FromInt(0), isolate()), kNonStrictMode);
@@ -3693,7 +3693,7 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
   if (CompileTimeValue::IsCompileTimeValue(expression)) {
     return CompileTimeValue::GetValue(expression);
   }
-  return isolate()->factory()->undefined_value();
+  return isolate()->factory()->uninitialized_value();
 }
 
 // Validation per 11.1.5 Object Initialiser
@@ -3804,13 +3804,17 @@ void Parser::BuildObjectLiteralConstantProperties(
     Handle<Object> key = property->key()->handle();
     Handle<Object> value = GetBoilerplateValue(property->value());
 
-    // Ensure objects with doubles are always treated as nested objects.
+    // Ensure objects that may, at any point in time, contain fields with double
+    // representation are always treated as nested objects. This is true for
+    // computed fields (value is undefined), and smi and double literals
+    // (value->IsNumber()).
     // TODO(verwaest): Remove once we can store them inline.
-    if (FLAG_track_double_fields && value->IsNumber()) {
+    if (FLAG_track_double_fields &&
+        (value->IsNumber() || value->IsUninitialized())) {
       *may_store_doubles = true;
     }
 
-    is_simple_acc = is_simple_acc && !value->IsUndefined();
+    is_simple_acc = is_simple_acc && !value->IsUninitialized();
 
     // Keep track of the number of elements in the object literal and
     // the largest element index.  If the largest element index is

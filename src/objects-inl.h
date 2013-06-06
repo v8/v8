@@ -292,6 +292,9 @@ MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
                                            PretenureFlag tenure) {
   if (!FLAG_track_double_fields) return this;
   if (!representation.IsDouble()) return this;
+  if (IsUninitialized()) {
+    return heap->AllocateHeapNumber(0, tenure);
+  }
   return heap->AllocateHeapNumber(Number(), tenure);
 }
 
@@ -527,6 +530,11 @@ bool MaybeObject::IsException() {
 
 bool MaybeObject::IsTheHole() {
   return !IsFailure() && ToObjectUnchecked()->IsTheHole();
+}
+
+
+bool MaybeObject::IsUninitialized() {
+  return !IsFailure() && ToObjectUnchecked()->IsUninitialized();
 }
 
 
@@ -842,6 +850,11 @@ bool Object::IsNull() {
 
 bool Object::IsTheHole() {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kTheHole;
+}
+
+
+bool Object::IsUninitialized() {
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kUninitialized;
 }
 
 
@@ -1541,7 +1554,7 @@ MaybeObject* JSObject::MigrateInstance() {
   // Converting any field to the most specific type will cause the
   // GeneralizeFieldRepresentation algorithm to create the most general existing
   // transition that matches the object. This achieves what is needed.
-  return GeneralizeFieldRepresentation(0, Representation::Smi());
+  return GeneralizeFieldRepresentation(0, Representation::None());
 }
 
 
@@ -2366,7 +2379,6 @@ void DescriptorArray::Set(int descriptor_number,
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
 
-  ASSERT(!desc->GetDetails().representation().IsNone());
   NoIncrementalWriteBarrierSet(this,
                                ToKeyIndex(descriptor_number),
                                desc->GetKey());
@@ -2382,7 +2394,6 @@ void DescriptorArray::Set(int descriptor_number,
 void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
-  ASSERT(!desc->GetDetails().representation().IsNone());
 
   set(ToKeyIndex(descriptor_number), desc->GetKey());
   set(ToValueIndex(descriptor_number), desc->GetValue());
@@ -3617,6 +3628,9 @@ bool Map::CanBeDeprecated() {
   int descriptor = LastAdded();
   for (int i = 0; i <= descriptor; i++) {
     PropertyDetails details = instance_descriptors()->GetDetails(i);
+    if (FLAG_track_fields && details.representation().IsNone()) {
+      return true;
+    }
     if (FLAG_track_fields && details.representation().IsSmi()) {
       return true;
     }

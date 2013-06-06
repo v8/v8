@@ -869,6 +869,7 @@ class MaybeObject BASE_EMBEDDED {
   inline bool IsOutOfMemory();
   inline bool IsException();
   INLINE(bool IsTheHole());
+  INLINE(bool IsUninitialized());
   inline bool ToObject(Object** obj) {
     if (IsFailure()) return false;
     *obj = reinterpret_cast<Object*>(this);
@@ -1046,6 +1047,7 @@ class Object : public MaybeObject {
   INLINE(bool IsUndefined());
   INLINE(bool IsNull());
   INLINE(bool IsTheHole());  // Shadows MaybeObject's implementation.
+  INLINE(bool IsUninitialized());
   INLINE(bool IsTrue());
   INLINE(bool IsFalse());
   inline bool IsArgumentsMarker();
@@ -1060,16 +1062,24 @@ class Object : public MaybeObject {
   bool ToInt32(int32_t* value);
   bool ToUint32(uint32_t* value);
 
-  inline Representation OptimalRepresentation() {
-    if (FLAG_track_fields && IsSmi()) {
+  // Indicates whether OptimalRepresentation can do its work, or whether it
+  // always has to return Representation::Tagged().
+  enum ValueType {
+    OPTIMAL_REPRESENTATION,
+    FORCE_TAGGED
+  };
+
+  inline Representation OptimalRepresentation(
+      ValueType type = OPTIMAL_REPRESENTATION) {
+    if (!FLAG_track_fields) return Representation::Tagged();
+    if (type == FORCE_TAGGED) return Representation::Tagged();
+    if (IsSmi()) {
       return Representation::Smi();
     } else if (FLAG_track_double_fields && IsHeapNumber()) {
       return Representation::Double();
-    } else if (FLAG_track_heap_object_fields && !IsUndefined()) {
-      // Don't track undefined as heapobject because it's also used as temporary
-      // value for computed fields that may turn out to be Smi. That combination
-      // will go tagged, so go tagged immediately.
-      // TODO(verwaest): Change once we track computed boilerplate fields.
+    } else if (FLAG_track_computed_fields && IsUninitialized()) {
+      return Representation::None();
+    } else if (FLAG_track_heap_object_fields) {
       ASSERT(IsHeapObject());
       return Representation::HeapObject();
     } else {
@@ -1078,7 +1088,9 @@ class Object : public MaybeObject {
   }
 
   inline bool FitsRepresentation(Representation representation) {
-    if (FLAG_track_fields && representation.IsSmi()) {
+    if (FLAG_track_fields && representation.IsNone()) {
+      return false;
+    } else if (FLAG_track_fields && representation.IsSmi()) {
       return IsSmi();
     } else if (FLAG_track_double_fields && representation.IsDouble()) {
       return IsNumber();
@@ -1827,7 +1839,8 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<Name> key,
       Handle<Object> value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      ValueType value_type = OPTIMAL_REPRESENTATION);
 
   static inline Handle<String> ExpectedTransitionKey(Handle<Map> map);
   static inline Handle<Map> ExpectedTransitionTarget(Handle<Map> map);
@@ -1854,7 +1867,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       Name* key,
       Object* value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      ValueType value_type = OPTIMAL_REPRESENTATION);
 
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
@@ -2216,7 +2230,8 @@ class JSObject: public JSReceiver {
       Name* name,
       Object* value,
       PropertyAttributes attributes,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
+      ValueType value_type = OPTIMAL_REPRESENTATION);
 
   // Add a property to a slow-case object.
   MUST_USE_RESULT MaybeObject* AddSlowProperty(Name* name,
@@ -2230,7 +2245,8 @@ class JSObject: public JSReceiver {
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
+      ValueType value_type = OPTIMAL_REPRESENTATION);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
@@ -8483,7 +8499,8 @@ class Oddball: public HeapObject {
   static const byte kNull = 3;
   static const byte kArgumentMarker = 4;
   static const byte kUndefined = 5;
-  static const byte kOther = 6;
+  static const byte kUninitialized = 6;
+  static const byte kOther = 7;
 
   typedef FixedBodyDescriptor<kToStringOffset,
                               kToNumberOffset + kPointerSize,

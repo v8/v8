@@ -199,8 +199,10 @@ DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
 DEFINE_bool(track_fields, true, "track fields with only smi values")
 DEFINE_bool(track_double_fields, true, "track fields with double values")
 DEFINE_bool(track_heap_object_fields, true, "track fields with heap values")
+DEFINE_bool(track_computed_fields, true, "track computed boilerplate fields")
 DEFINE_implication(track_double_fields, track_fields)
 DEFINE_implication(track_heap_object_fields, track_fields)
+DEFINE_implication(track_computed_fields, track_fields)
 
 // Flags for data representation optimizations
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")

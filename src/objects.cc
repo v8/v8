@@ -1817,7 +1817,8 @@ static bool IsIdentifier(UnicodeCache* cache, Name* name) {
 MaybeObject* JSObject::AddFastProperty(Name* name,
                                        Object* value,
                                        PropertyAttributes attributes,
-                                       StoreFromKeyed store_mode) {
+                                       StoreFromKeyed store_mode,
+                                       ValueType value_type) {
   ASSERT(!IsJSGlobalProxy());
   ASSERT(DescriptorArray::kNotFound ==
          map()->instance_descriptors()->Search(
@@ -1843,8 +1844,8 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
   int index = map()->NextFreePropertyIndex();
 
   // Allocate new instance descriptors with (name, index) added
-  Representation representation = IsJSContextExtensionObject()
-      ? Representation::Tagged() : value->OptimalRepresentation();
+  if (IsJSContextExtensionObject()) value_type = FORCE_TAGGED;
+  Representation representation = value->OptimalRepresentation(value_type);
 
   FieldDescriptor new_field(name, index, attributes, representation);
 
@@ -1961,7 +1962,8 @@ MaybeObject* JSObject::AddProperty(Name* name,
                                    PropertyAttributes attributes,
                                    StrictModeFlag strict_mode,
                                    JSReceiver::StoreFromKeyed store_mode,
-                                   ExtensibilityCheck extensibility_check) {
+                                   ExtensibilityCheck extensibility_check,
+                                   ValueType value_type) {
   ASSERT(!IsJSGlobalProxy());
   Map* map_of_this = map();
   Heap* heap = GetHeap();
@@ -1988,7 +1990,8 @@ MaybeObject* JSObject::AddProperty(Name* name,
                                              JSFunction::cast(value),
                                              attributes);
       } else {
-        result = AddFastProperty(name, value, attributes, store_mode);
+        result = AddFastProperty(
+            name, value, attributes, store_mode, value_type);
       }
     } else {
       // Normalize the object to prevent very large instance descriptors.
@@ -2272,7 +2275,7 @@ bool Map::InstancesNeedRewriting(Map* target,
     int limit = NumberOfOwnDescriptors();
     for (int i = 0; i < limit; i++) {
       if (new_desc->GetDetails(i).representation().IsDouble() &&
-          old_desc->GetDetails(i).representation().IsSmi()) {
+          !old_desc->GetDetails(i).representation().IsDouble()) {
         return true;
       }
     }
@@ -2343,8 +2346,9 @@ MaybeObject* JSObject::MigrateToMap(Map* new_map) {
         ? old_descriptors->GetValue(i)
         : RawFastPropertyAt(old_descriptors->GetFieldIndex(i));
     if (FLAG_track_double_fields &&
-        old_details.representation().IsSmi() &&
+        !old_details.representation().IsDouble() &&
         details.representation().IsDouble()) {
+      if (old_details.representation().IsNone()) value = Smi::FromInt(0);
       // Objects must be allocated in the old object space, since the
       // overall number of HeapNumbers needed for the conversion might
       // exceed the capacity of new space, and we would fail repeatedly
@@ -2397,7 +2401,7 @@ MaybeObject* JSObject::GeneralizeFieldRepresentation(
   MaybeObject* maybe_new_map =
       map()->GeneralizeRepresentation(modify_index, new_representation);
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-  ASSERT(map() != new_map || new_map->FindRootMap()->is_deprecated());
+  if (map() == new_map) return this;
 
   return MigrateToMap(new_map);
 }
@@ -2574,10 +2578,21 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
   Representation old_representation =
       old_descriptors->GetDetails(modify_index).representation();
 
-  if (old_representation.IsNone()) {
-    UNREACHABLE();
+  // It's fine to transition from None to anything but double without any
+  // modification to the object, because the default uninitialized value for
+  // representation None can be overwritten by both smi and tagged values.
+  // Doubles, however, would require a box allocation.
+  if (old_representation.IsNone() &&
+      !new_representation.IsNone() &&
+      !new_representation.IsDouble()) {
+    if (FLAG_trace_generalization) {
+      PrintF("initializing representation %i: %p -> %s\n",
+             modify_index,
+             static_cast<void*>(this),
+             new_representation.Mnemonic());
+    }
     old_descriptors->SetRepresentation(modify_index, new_representation);
-    return this;
+    return old_map;
   }
 
   int descriptors = old_map->NumberOfOwnDescriptors();
@@ -2603,7 +2618,7 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
         updated_descriptors->GetDetails(modify_index).representation();
     if (new_representation.fits_into(updated_representation)) {
       if (FLAG_trace_generalization &&
-          !(modify_index == 0 && new_representation.IsSmi())) {
+          !(modify_index == 0 && new_representation.IsNone())) {
         PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
         PrintF("migrating to existing map %p(%s) -> %p(%s)\n",
                static_cast<void*>(this),
@@ -2641,7 +2656,7 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
       old_descriptors->GetKey(descriptor), new_descriptors);
 
   if (FLAG_trace_generalization &&
-      !(modify_index == 0 && new_representation.IsSmi())) {
+      !(modify_index == 0 && new_representation.IsNone())) {
     PrintF("migrating to new map %i: %p(%s) -> %p(%s) (%i steps)\n",
            modify_index,
            static_cast<void*>(this),
@@ -3933,10 +3948,12 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     Handle<JSObject> object,
     Handle<Name> key,
     Handle<Object> value,
-    PropertyAttributes attributes) {
+    PropertyAttributes attributes,
+    ValueType value_type) {
   CALL_HEAP_FUNCTION(
     object->GetIsolate(),
-    object->SetLocalPropertyIgnoreAttributes(*key, *value, attributes),
+    object->SetLocalPropertyIgnoreAttributes(
+        *key, *value, attributes, value_type),
     Object);
 }
 
@@ -3944,7 +3961,8 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     Name* name_raw,
     Object* value_raw,
-    PropertyAttributes attributes) {
+    PropertyAttributes attributes,
+    ValueType value_type) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
@@ -3970,13 +3988,16 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     return JSObject::cast(proto)->SetLocalPropertyIgnoreAttributes(
         name_raw,
         value_raw,
-        attributes);
+        attributes,
+        value_type);
   }
 
   // Check for accessor in prototype chain removed here in clone.
   if (!lookup.IsFound()) {
     // Neither properties nor transitions found.
-    return AddProperty(name_raw, value_raw, attributes, kNonStrictMode);
+    return AddProperty(
+        name_raw, value_raw, attributes, kNonStrictMode,
+        MAY_BE_STORE_FROM_KEYED, PERFORM_EXTENSIBILITY_CHECK, value_type);
   }
 
   // From this point on everything needs to be handlified.
@@ -4003,9 +4024,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     }
     case FIELD: {
       Representation representation = lookup.representation();
-      if (!value->FitsRepresentation(representation)) {
+      Representation value_representation =
+          value->OptimalRepresentation(value_type);
+      if (!value_representation.fits_into(representation)) {
         MaybeObject* maybe_failure = self->GeneralizeFieldRepresentation(
-            lookup.GetDescriptorIndex(), value->OptimalRepresentation());
+            lookup.GetDescriptorIndex(), value_representation);
         if (maybe_failure->IsFailure()) return maybe_failure;
         DescriptorArray* desc = self->map()->instance_descriptors();
         int descriptor = lookup.GetDescriptorIndex();
@@ -4046,9 +4069,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       if (details.type() == FIELD) {
         if (attributes == details.attributes()) {
           Representation representation = details.representation();
-          if (!value->FitsRepresentation(representation)) {
+          Representation value_representation =
+              value->OptimalRepresentation(value_type);
+          if (!value_representation.fits_into(representation)) {
             MaybeObject* maybe_map = transition_map->GeneralizeRepresentation(
-                descriptor, value->OptimalRepresentation());
+                descriptor, value_representation);
             if (!maybe_map->To(&transition_map)) return maybe_map;
             Object* back = transition_map->GetBackPointer();
             if (back->IsMap()) {

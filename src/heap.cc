@@ -2845,6 +2845,13 @@ bool Heap::CreateInitialObjects() {
   }
   set_the_hole_value(Oddball::cast(obj));
 
+  { MaybeObject* maybe_obj = CreateOddball("uninitialized",
+                                           Smi::FromInt(-1),
+                                           Oddball::kUninitialized);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_uninitialized_value(Oddball::cast(obj));
+
   { MaybeObject* maybe_obj = CreateOddball("arguments_marker",
                                            Smi::FromInt(-4),
                                            Oddball::kArgumentMarker);
