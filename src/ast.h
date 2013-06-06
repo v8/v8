@@ -39,7 +39,8 @@
 #include "small-pointer-list.h"
 #include "smart-pointers.h"
 #include "token.h"
-#include "type-info.h"
+#include "type-info.h"  // TODO(rossberg): this should eventually be removed
+#include "types.h"
 #include "utils.h"
 #include "variables.h"
 #include "interface.h"
@@ -163,9 +164,9 @@ typedef ZoneList<Handle<String> > ZoneStringList;
 typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 
-#define DECLARE_NODE_TYPE(type)                                         \
-  virtual void Accept(AstVisitor* v);                                   \
-  virtual AstNode::Type node_type() const { return AstNode::k##type; }  \
+#define DECLARE_NODE_TYPE(type)                                             \
+  virtual void Accept(AstVisitor* v);                                       \
+  virtual AstNode::NodeType node_type() const { return AstNode::k##type; }  \
   template<class> friend class AstNodeFactory;
 
 
@@ -197,7 +198,7 @@ class AstProperties BASE_EMBEDDED {
 class AstNode: public ZoneObject {
  public:
 #define DECLARE_TYPE_ENUM(type) k##type,
-  enum Type {
+  enum NodeType {
     AST_NODE_LIST(DECLARE_TYPE_ENUM)
     kInvalid = -1
   };
@@ -212,7 +213,7 @@ class AstNode: public ZoneObject {
   virtual ~AstNode() { }
 
   virtual void Accept(AstVisitor* v) = 0;
-  virtual Type node_type() const = 0;
+  virtual NodeType node_type() const = 0;
 
   // Type testing & conversion functions overridden by concrete subclasses.
 #define DECLARE_NODE_FUNCTIONS(type)                  \
@@ -354,6 +355,9 @@ class Expression: public AstNode {
   // True iff the expression is the undefined literal.
   bool IsUndefinedLiteral();
 
+  // Expression type
+  Handle<Type> type() { return type_; }
+
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
     UNREACHABLE();
@@ -383,10 +387,12 @@ class Expression: public AstNode {
 
  protected:
   explicit Expression(Isolate* isolate)
-      : id_(GetNextId(isolate)),
+      : type_(Type::Any(), isolate),
+        id_(GetNextId(isolate)),
         test_id_(GetNextId(isolate)) {}
 
  private:
+  Handle<Type> type_;
   byte to_boolean_types_;
 
   const BailoutId id_;
@@ -396,7 +402,7 @@ class Expression: public AstNode {
 
 class BreakableStatement: public Statement {
  public:
-  enum Type {
+  enum BreakableType {
     TARGET_FOR_ANONYMOUS,
     TARGET_FOR_NAMED_ONLY
   };
@@ -412,15 +418,18 @@ class BreakableStatement: public Statement {
   Label* break_target() { return &break_target_; }
 
   // Testers.
-  bool is_target_for_anonymous() const { return type_ == TARGET_FOR_ANONYMOUS; }
+  bool is_target_for_anonymous() const {
+    return breakable_type_ == TARGET_FOR_ANONYMOUS;
+  }
 
   BailoutId EntryId() const { return entry_id_; }
   BailoutId ExitId() const { return exit_id_; }
 
  protected:
-  BreakableStatement(Isolate* isolate, ZoneStringList* labels, Type type)
+  BreakableStatement(
+      Isolate* isolate, ZoneStringList* labels, BreakableType breakable_type)
       : labels_(labels),
-        type_(type),
+        breakable_type_(breakable_type),
         entry_id_(GetNextId(isolate)),
         exit_id_(GetNextId(isolate)) {
     ASSERT(labels == NULL || labels->length() > 0);
@@ -429,7 +438,7 @@ class BreakableStatement: public Statement {
 
  private:
   ZoneStringList* labels_;
-  Type type_;
+  BreakableType breakable_type_;
   Label break_target_;
   const BailoutId entry_id_;
   const BailoutId exit_id_;
@@ -1123,7 +1132,7 @@ class TargetCollector: public AstNode {
 
   // Virtual behaviour. TargetCollectors are never part of the AST.
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
-  virtual Type node_type() const { return kInvalid; }
+  virtual NodeType node_type() const { return kInvalid; }
   virtual TargetCollector* AsTargetCollector() { return this; }
 
   ZoneList<Label*>* targets() { return &targets_; }
@@ -2117,7 +2126,7 @@ class Throw: public Expression {
 
 class FunctionLiteral: public Expression {
  public:
-  enum Type {
+  enum FunctionType {
     ANONYMOUS_EXPRESSION,
     NAMED_EXPRESSION,
     DECLARATION
@@ -2216,7 +2225,7 @@ class FunctionLiteral: public Expression {
                   int expected_property_count,
                   int handler_count,
                   int parameter_count,
-                  Type type,
+                  FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   IsFunctionFlag is_function,
                   IsParenthesizedFlag is_parenthesized,
@@ -2232,8 +2241,8 @@ class FunctionLiteral: public Expression {
         parameter_count_(parameter_count),
         function_token_position_(RelocInfo::kNoPosition) {
     bitfield_ =
-        IsExpression::encode(type != DECLARATION) |
-        IsAnonymous::encode(type == ANONYMOUS_EXPRESSION) |
+        IsExpression::encode(function_type != DECLARATION) |
+        IsAnonymous::encode(function_type == ANONYMOUS_EXPRESSION) |
         Pretenure::encode(false) |
         HasDuplicateParameters::encode(has_duplicate_parameters) |
         IsFunction::encode(is_function) |
@@ -2379,7 +2388,7 @@ class RegExpAlternative: public RegExpTree {
 
 class RegExpAssertion: public RegExpTree {
  public:
-  enum Type {
+  enum AssertionType {
     START_OF_LINE,
     START_OF_INPUT,
     END_OF_LINE,
@@ -2387,7 +2396,7 @@ class RegExpAssertion: public RegExpTree {
     BOUNDARY,
     NON_BOUNDARY
   };
-  explicit RegExpAssertion(Type type) : type_(type) { }
+  explicit RegExpAssertion(AssertionType type) : assertion_type_(type) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success);
@@ -2397,9 +2406,9 @@ class RegExpAssertion: public RegExpTree {
   virtual bool IsAnchoredAtEnd();
   virtual int min_match() { return 0; }
   virtual int max_match() { return 0; }
-  Type type() { return type_; }
+  AssertionType assertion_type() { return assertion_type_; }
  private:
-  Type type_;
+  AssertionType assertion_type_;
 };
 
 
@@ -2512,13 +2521,13 @@ class RegExpText: public RegExpTree {
 
 class RegExpQuantifier: public RegExpTree {
  public:
-  enum Type { GREEDY, NON_GREEDY, POSSESSIVE };
-  RegExpQuantifier(int min, int max, Type type, RegExpTree* body)
+  enum QuantifierType { GREEDY, NON_GREEDY, POSSESSIVE };
+  RegExpQuantifier(int min, int max, QuantifierType type, RegExpTree* body)
       : body_(body),
         min_(min),
         max_(max),
         min_match_(min * body->min_match()),
-        type_(type) {
+        quantifier_type_(type) {
     if (max > 0 && body->max_match() > kInfinity / max) {
       max_match_ = kInfinity;
     } else {
@@ -2542,9 +2551,9 @@ class RegExpQuantifier: public RegExpTree {
   virtual int max_match() { return max_match_; }
   int min() { return min_; }
   int max() { return max_; }
-  bool is_possessive() { return type_ == POSSESSIVE; }
-  bool is_non_greedy() { return type_ == NON_GREEDY; }
-  bool is_greedy() { return type_ == GREEDY; }
+  bool is_possessive() { return quantifier_type_ == POSSESSIVE; }
+  bool is_non_greedy() { return quantifier_type_ == NON_GREEDY; }
+  bool is_greedy() { return quantifier_type_ == GREEDY; }
   RegExpTree* body() { return body_; }
 
  private:
@@ -2553,7 +2562,7 @@ class RegExpQuantifier: public RegExpTree {
   int max_;
   int min_match_;
   int max_match_;
-  Type type_;
+  QuantifierType quantifier_type_;
 };
 
 
@@ -3086,14 +3095,14 @@ class AstNodeFactory BASE_EMBEDDED {
       int handler_count,
       int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
-      FunctionLiteral::Type type,
+      FunctionLiteral::FunctionType function_type,
       FunctionLiteral::IsFunctionFlag is_function,
       FunctionLiteral::IsParenthesizedFlag is_parenthesized,
       FunctionLiteral::IsGeneratorFlag is_generator) {
     FunctionLiteral* lit = new(zone_) FunctionLiteral(
         isolate_, name, scope, body,
         materialized_literal_count, expected_property_count, handler_count,
-        parameter_count, type, has_duplicate_parameters, is_function,
+        parameter_count, function_type, has_duplicate_parameters, is_function,
         is_parenthesized, is_generator);
     // Top-level literal doesn't count for the AST's properties.
     if (is_function == FunctionLiteral::kIsFunction) {

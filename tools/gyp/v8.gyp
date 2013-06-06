@@ -456,6 +456,8 @@
         '../../src/transitions.h',
         '../../src/type-info.cc',
         '../../src/type-info.h',
+        '../../src/types.cc',
+        '../../src/types.h',
         '../../src/typing.cc',
         '../../src/typing.h',
         '../../src/unbound-queue-inl.h',

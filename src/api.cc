@@ -4304,6 +4304,85 @@ bool String::IsOneByte() const {
 }
 
 
+class ContainsOnlyOneByteHelper {
+ public:
+  ContainsOnlyOneByteHelper() : is_one_byte_(true) {}
+  bool Check(i::String* string) {
+    i::ConsString* cons_string = i::String::VisitFlat(this, string, 0);
+    if (cons_string == NULL) return is_one_byte_;
+    return CheckCons(cons_string);
+  }
+  void VisitOneByteString(const uint8_t* chars, int length) {
+    // Nothing to do.
+  }
+  // TODO(dcarney): do word aligned read.
+  void VisitTwoByteString(const uint16_t* chars, int length) {
+    // Check whole string without breaking.
+    uint16_t total = 0;
+    for (int i = 0; i < length; i++) {
+      total |= chars[i] >> 8;
+    }
+    if (total != 0) is_one_byte_ = false;
+  }
+
+ private:
+  bool CheckCons(i::ConsString* cons_string) {
+    while (true) {
+      // Check left side if flat.
+      i::String* left = cons_string->first();
+      i::ConsString* left_as_cons =
+          i::String::VisitFlat(this, left, 0);
+      if (!is_one_byte_) return false;
+      // Check right side if flat.
+      i::String* right = cons_string->second();
+      i::ConsString* right_as_cons =
+          i::String::VisitFlat(this, right, 0);
+      if (!is_one_byte_) return false;
+      // Standard recurse/iterate trick.
+      if (left_as_cons != NULL && right_as_cons != NULL) {
+        if (left->length() < right->length()) {
+          CheckCons(left_as_cons);
+          cons_string = right_as_cons;
+        } else {
+          CheckCons(right_as_cons);
+          cons_string = left_as_cons;
+        }
+        // Check fast return.
+        if (!is_one_byte_) return false;
+        continue;
+      }
+      // Descend left in place.
+      if (left_as_cons != NULL) {
+        cons_string = left_as_cons;
+        continue;
+      }
+      // Descend right in place.
+      if (right_as_cons != NULL) {
+        cons_string = right_as_cons;
+        continue;
+      }
+      // Terminate.
+      break;
+    }
+    return is_one_byte_;
+  }
+  bool is_one_byte_;
+  DISALLOW_COPY_AND_ASSIGN(ContainsOnlyOneByteHelper);
+};
+
+
+bool String::ContainsOnlyOneByte() const {
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(),
+                  "v8::String::ContainsOnlyOneByte()")) {
+    return false;
+  }
+  if (str->HasOnlyOneByteChars()) return true;
+  ContainsOnlyOneByteHelper helper;
+  return helper.Check(*str);
+}
+
+
 class Utf8LengthHelper : public i::AllStatic {
  public:
   enum State {

@@ -2007,88 +2007,90 @@ THREADED_TEST(IndexedPropertyHandlerGetter) {
 
 v8::Handle<v8::Object> bottom;
 
-static v8::Handle<Value> CheckThisIndexedPropertyHandler(
+static void CheckThisIndexedPropertyHandler(
     uint32_t index,
-    const AccessorInfo& info) {
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<Value>();
 }
 
-static v8::Handle<Value> CheckThisNamedPropertyHandler(
+static void CheckThisNamedPropertyHandler(
     Local<String> name,
-    const AccessorInfo& info) {
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<Value>();
 }
 
-
-v8::Handle<Value> CheckThisIndexedPropertySetter(uint32_t index,
-                                                 Local<Value> value,
-                                                 const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(info.This()->Equals(bottom));
-  return v8::Handle<Value>();
-}
-
-
-v8::Handle<Value> CheckThisNamedPropertySetter(Local<String> property,
-                                               Local<Value> value,
-                                               const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(info.This()->Equals(bottom));
-  return v8::Handle<Value>();
-}
-
-v8::Handle<v8::Integer> CheckThisIndexedPropertyQuery(
+void CheckThisIndexedPropertySetter(
     uint32_t index,
-    const AccessorInfo& info) {
+    Local<Value> value,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Integer>();
 }
 
 
-v8::Handle<v8::Integer> CheckThisNamedPropertyQuery(Local<String> property,
-                                                    const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Integer>();
-}
-
-
-v8::Handle<v8::Boolean> CheckThisIndexedPropertyDeleter(
-    uint32_t index,
-    const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Boolean>();
-}
-
-
-v8::Handle<v8::Boolean> CheckThisNamedPropertyDeleter(
+void CheckThisNamedPropertySetter(
     Local<String> property,
-    const AccessorInfo& info) {
+    Local<Value> value,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Boolean>();
+}
+
+void CheckThisIndexedPropertyQuery(
+    uint32_t index,
+    const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  CheckReturnValue(info);
+  ApiTestFuzzer::Fuzz();
+  CHECK(info.This()->Equals(bottom));
 }
 
 
-v8::Handle<v8::Array> CheckThisIndexedPropertyEnumerator(
-    const AccessorInfo& info) {
+void CheckThisNamedPropertyQuery(
+    Local<String> property,
+    const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Array>();
 }
 
 
-v8::Handle<v8::Array> CheckThisNamedPropertyEnumerator(
-    const AccessorInfo& info) {
+void CheckThisIndexedPropertyDeleter(
+    uint32_t index,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  CheckReturnValue(info);
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Array>();
+}
+
+
+void CheckThisNamedPropertyDeleter(
+    Local<String> property,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  CheckReturnValue(info);
+  ApiTestFuzzer::Fuzz();
+  CHECK(info.This()->Equals(bottom));
+}
+
+
+void CheckThisIndexedPropertyEnumerator(
+    const v8::PropertyCallbackInfo<v8::Array>& info) {
+  CheckReturnValue(info);
+  ApiTestFuzzer::Fuzz();
+  CHECK(info.This()->Equals(bottom));
+}
+
+
+void CheckThisNamedPropertyEnumerator(
+    const v8::PropertyCallbackInfo<v8::Array>& info) {
+  CheckReturnValue(info);
+  ApiTestFuzzer::Fuzz();
+  CHECK(info.This()->Equals(bottom));
 }
 
 
@@ -12085,9 +12087,10 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
 
 
 static i::Handle<i::JSFunction>* foo_ptr = NULL;
-static int foo_count = 0;
+static int foo_entry_count = 0;
 static i::Handle<i::JSFunction>* bar_ptr = NULL;
-static int bar_count = 0;
+static int bar_entry_count = 0;
+static int bar_caller_count = 0;
 
 
 static void entry_hook(uintptr_t function,
@@ -12097,14 +12100,21 @@ static void entry_hook(uintptr_t function,
   CHECK(code != NULL);
 
   if (bar_ptr != NULL && code == (*bar_ptr)->code())
-    ++bar_count;
+    ++bar_entry_count;
 
   if (foo_ptr != NULL && code == (*foo_ptr)->code())
-    ++foo_count;
+    ++foo_entry_count;
 
-  // TODO(siggi): Verify return_addr_location.
-  //     This can be done by capturing JitCodeEvents, but requires an ordered
-  //     collection.
+  // Let's check whether bar is the caller.
+  if (bar_ptr != NULL) {
+    const v8::internal::byte* caller =
+        *reinterpret_cast<v8::internal::byte**>(return_addr_location);
+
+    if ((*bar_ptr)->code()->instruction_start() <= caller &&
+        (*bar_ptr)->code()->instruction_end() > caller) {
+      ++bar_caller_count;
+    }
+  }
 }
 
 
@@ -12175,17 +12185,20 @@ TEST(SetFunctionEntryHook) {
   CHECK(v8::V8::SetFunctionEntryHook(NULL));
 
   // Reset the entry count to zero and set the entry hook.
-  bar_count = 0;
-  foo_count = 0;
+  bar_entry_count = 0;
+  bar_caller_count = 0;
+  foo_entry_count = 0;
   CHECK(v8::V8::SetFunctionEntryHook(entry_hook));
   RunLoopInNewEnv();
 
-  CHECK_EQ(2, bar_count);
-  CHECK_EQ(200, foo_count);
+  CHECK_EQ(2, bar_entry_count);
+  CHECK_EQ(200, bar_caller_count);
+  CHECK_EQ(200, foo_entry_count);
 
   // Clear the entry hook and count.
-  bar_count = 0;
-  foo_count = 0;
+  bar_entry_count = 0;
+  bar_caller_count = 0;
+  foo_entry_count = 0;
   v8::V8::SetFunctionEntryHook(NULL);
 
   // Clear the compilation cache to make sure we don't reuse the
@@ -12194,8 +12207,9 @@ TEST(SetFunctionEntryHook) {
 
   // Verify that entry hooking is now disabled.
   RunLoopInNewEnv();
-  CHECK_EQ(0u, bar_count);
-  CHECK_EQ(0u, foo_count);
+  CHECK_EQ(0u, bar_entry_count);
+  CHECK_EQ(0u, bar_caller_count);
+  CHECK_EQ(0u, foo_entry_count);
 }
 
 
@@ -16864,6 +16878,51 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
 
   reresult = CompileRun("str2.charCodeAt(2);");
   CHECK_EQ(static_cast<int32_t>('e'), reresult->Int32Value());
+}
+
+
+TEST(ContainsOnlyOneByte) {
+  v8::V8::Initialize();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
+  // Make a buffer long enough that it won't automatically be converted.
+  const int length = 200;
+  i::SmartArrayPointer<uint16_t> string_contents(new uint16_t[length]);
+  // Set to contain only one byte.
+  for (int i = 0; i < length-1; i++) {
+    string_contents[i] = 0x41;
+  }
+  string_contents[length-1] = 0;
+  // Simple case.
+  Handle<String> string;
+  string = String::NewExternal(new TestResource(*string_contents));
+  CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
+  // Counter example.
+  string = String::NewFromTwoByte(isolate, *string_contents);
+  CHECK(string->IsOneByte() && string->ContainsOnlyOneByte());
+  // Test left right and balanced cons strings.
+  Handle<String> base = String::NewFromUtf8(isolate, "a");
+  Handle<String> left = base;
+  Handle<String> right = base;
+  for (int i = 0; i < 1000; i++) {
+    left = String::Concat(base, left);
+    right = String::Concat(right, base);
+  }
+  Handle<String> balanced = String::Concat(left, base);
+  balanced = String::Concat(balanced, right);
+  Handle<String> cons_strings[] = {left, balanced, right};
+  Handle<String> two_byte =
+      String::NewExternal(new TestResource(*string_contents));
+  for (size_t i = 0; i < ARRAY_SIZE(cons_strings); i++) {
+    // Base assumptions.
+    string = cons_strings[i];
+    CHECK(string->IsOneByte() && string->ContainsOnlyOneByte());
+    // Test left and right concatentation.
+    string = String::Concat(two_byte, cons_strings[i]);
+    CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
+    string = String::Concat(cons_strings[i], two_byte);
+    CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
+  }
 }
 
 

@@ -30,7 +30,6 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "bootstrapper.h"
-#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "regexp-macro-assembler.h"
 #include "stub-cache.h"
@@ -133,7 +132,7 @@ static void InitializeArrayConstructorDescriptor(
   descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(ArrayConstructor_StubFailure);
+      Runtime::FunctionForId(Runtime::kArrayConstructor)->entry;
 }
 
 
@@ -155,7 +154,7 @@ static void InitializeInternalArrayConstructorDescriptor(
   descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(InternalArrayConstructor_StubFailure);
+      Runtime::FunctionForId(Runtime::kInternalArrayConstructor)->entry;
 }
 
 
@@ -6756,17 +6755,17 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Calculate the original stack pointer and store it in the second arg.
 #ifdef _WIN64
-  __ lea(rdx, Operand(rsp, kNumSavedRegisters * kPointerSize));
+  __ lea(rdx, Operand(rsp, (kNumSavedRegisters + 1) * kPointerSize));
 #else
-  __ lea(rsi, Operand(rsp, kNumSavedRegisters * kPointerSize));
+  __ lea(rsi, Operand(rsp, (kNumSavedRegisters + 1) * kPointerSize));
 #endif
 
   // Calculate the function address to the first arg.
 #ifdef _WIN64
-  __ movq(rcx, Operand(rdx, 0));
+  __ movq(rcx, Operand(rsp, kNumSavedRegisters * kPointerSize));
   __ subq(rcx, Immediate(Assembler::kShortCallInstructionLength));
 #else
-  __ movq(rdi, Operand(rsi, 0));
+  __ movq(rdi, Operand(rsp, kNumSavedRegisters * kPointerSize));
   __ subq(rdi, Immediate(Assembler::kShortCallInstructionLength));
 #endif
 

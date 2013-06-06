@@ -57,7 +57,8 @@ inline bool Handle<T>::is_identical_to(const Handle<T> other) const {
   if (location_ == other.location_) return true;
   if (location_ == NULL || other.location_ == NULL) return false;
   // Dereferencing deferred handles to check object equality is safe.
-  SLOW_ASSERT(IsDereferenceAllowed(true) && other.IsDereferenceAllowed(true));
+  SLOW_ASSERT(IsDereferenceAllowed(NO_DEFERRED_CHECK) &&
+              other.IsDereferenceAllowed(NO_DEFERRED_CHECK));
   return *location_ == *other.location_;
 }
 
@@ -65,20 +66,21 @@ inline bool Handle<T>::is_identical_to(const Handle<T> other) const {
 template <typename T>
 inline T* Handle<T>::operator*() const {
   ASSERT(location_ != NULL && !(*location_)->IsFailure());
-  SLOW_ASSERT(IsDereferenceAllowed(false));
+  SLOW_ASSERT(IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
   return *BitCast<T**>(location_);
 }
 
 template <typename T>
 inline T** Handle<T>::location() const {
   ASSERT(location_ == NULL || !(*location_)->IsFailure());
-  SLOW_ASSERT(location_ == NULL || IsDereferenceAllowed(false));
+  SLOW_ASSERT(location_ == NULL ||
+              IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
   return location_;
 }
 
 #ifdef DEBUG
 template <typename T>
-bool Handle<T>::IsDereferenceAllowed(bool explicitly_allow_deferred) const {
+bool Handle<T>::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   ASSERT(location_ != NULL);
   Object* object = *BitCast<T**>(location_);
   if (object->IsSmi()) return true;
@@ -91,7 +93,7 @@ bool Handle<T>::IsDereferenceAllowed(bool explicitly_allow_deferred) const {
     return true;
   }
   if (!AllowHandleDereference::IsAllowed()) return false;
-  if (!explicitly_allow_deferred &&
+  if (mode == INCLUDE_DEFERRED_CHECK &&
       !AllowDeferredHandleDereference::IsAllowed()) {
     // Accessing maps and internalized strings is safe.
     if (heap_object->IsMap()) return true;

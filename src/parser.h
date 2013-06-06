@@ -269,7 +269,8 @@ class RegExpBuilder: public ZoneObject {
   void AddAtom(RegExpTree* tree);
   void AddAssertion(RegExpTree* tree);
   void NewAlternative();  // '|'
-  void AddQuantifierToAtom(int min, int max, RegExpQuantifier::Type type);
+  void AddQuantifierToAtom(
+      int min, int max, RegExpQuantifier::QuantifierType type);
   RegExpTree* ToRegExp();
 
  private:
@@ -690,7 +691,7 @@ class Parser BASE_EMBEDDED {
                                         bool name_is_reserved,
                                         bool is_generator,
                                         int function_token_position,
-                                        FunctionLiteral::Type type,
+                                        FunctionLiteral::FunctionType type,
                                         bool* ok);
 
 
@@ -867,7 +868,7 @@ class Parser BASE_EMBEDDED {
 // can be fully handled at compile time.
 class CompileTimeValue: public AllStatic {
  public:
-  enum Type {
+  enum LiteralType {
     OBJECT_LITERAL_FAST_ELEMENTS,
     OBJECT_LITERAL_SLOW_ELEMENTS,
     ARRAY_LITERAL
@@ -881,13 +882,13 @@ class CompileTimeValue: public AllStatic {
   static Handle<FixedArray> GetValue(Expression* expression);
 
   // Get the type of a compile time value returned by GetValue().
-  static Type GetType(Handle<FixedArray> value);
+  static LiteralType GetLiteralType(Handle<FixedArray> value);
 
   // Get the elements array of a compile time value returned by GetValue().
   static Handle<FixedArray> GetElements(Handle<FixedArray> value);
 
  private:
-  static const int kTypeSlot = 0;
+  static const int kLiteralTypeSlot = 0;
   static const int kElementsSlot = 1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);

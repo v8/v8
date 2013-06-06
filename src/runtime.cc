@@ -425,7 +425,7 @@ static Handle<Object> CreateLiteralBoilerplate(
     Handle<FixedArray> array) {
   Handle<FixedArray> elements = CompileTimeValue::GetElements(array);
   const bool kHasNoFunctionLiteral = false;
-  switch (CompileTimeValue::GetType(array)) {
+  switch (CompileTimeValue::GetLiteralType(array)) {
     case CompileTimeValue::OBJECT_LITERAL_FAST_ELEMENTS:
       return CreateObjectLiteralBoilerplate(isolate,
                                             literals,
@@ -11234,7 +11234,9 @@ class ScopeIterator {
           context_ = Handle<Context>(context_->previous(), isolate_);
         }
       }
-      if (scope_info->Type() != EVAL_SCOPE) nested_scope_chain_.Add(scope_info);
+      if (scope_info->scope_type() != EVAL_SCOPE) {
+        nested_scope_chain_.Add(scope_info);
+      }
     } else {
       // Reparse the code and analyze the scopes.
       Handle<Script> script(Script::cast(shared_info->script()));
@@ -11242,13 +11244,13 @@ class ScopeIterator {
 
       // Check whether we are in global, eval or function code.
       Handle<ScopeInfo> scope_info(shared_info->scope_info());
-      if (scope_info->Type() != FUNCTION_SCOPE) {
+      if (scope_info->scope_type() != FUNCTION_SCOPE) {
         // Global or eval code.
         CompilationInfoWithZone info(script);
-        if (scope_info->Type() == GLOBAL_SCOPE) {
+        if (scope_info->scope_type() == GLOBAL_SCOPE) {
           info.MarkAsGlobal();
         } else {
-          ASSERT(scope_info->Type() == EVAL_SCOPE);
+          ASSERT(scope_info->scope_type() == EVAL_SCOPE);
           info.MarkAsEval();
           info.SetContext(Handle<Context>(function_->context()));
         }
@@ -11314,7 +11316,7 @@ class ScopeIterator {
     ASSERT(!failed_);
     if (!nested_scope_chain_.is_empty()) {
       Handle<ScopeInfo> scope_info = nested_scope_chain_.last();
-      switch (scope_info->Type()) {
+      switch (scope_info->scope_type()) {
         case FUNCTION_SCOPE:
           ASSERT(context_->IsFunctionContext() ||
                  !scope_info->HasContext());
@@ -12022,7 +12024,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
     Handle<Context> current = context_chain.RemoveLast();
     ASSERT(!(scope_info->HasContext() & current.is_null()));
 
-    if (scope_info->Type() == CATCH_SCOPE) {
+    if (scope_info->scope_type() == CATCH_SCOPE) {
       ASSERT(current->IsCatchContext());
       Handle<String> name(String::cast(current->extension()));
       Handle<Object> thrown_object(current->get(Context::THROWN_OBJECT_INDEX),
@@ -12032,7 +12034,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
                                               context,
                                               name,
                                               thrown_object);
-    } else if (scope_info->Type() == BLOCK_SCOPE) {
+    } else if (scope_info->scope_type() == BLOCK_SCOPE) {
       // Materialize the contents of the block scope into a JSObject.
       ASSERT(current->IsBlockContext());
       Handle<JSObject> block_scope_object =
@@ -12047,7 +12049,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
       new_context->set_previous(*context);
       context = new_context;
     } else {
-      ASSERT(scope_info->Type() == WITH_SCOPE);
+      ASSERT(scope_info->scope_type() == WITH_SCOPE);
       ASSERT(current->IsWithContext());
       Handle<JSObject> extension(JSObject::cast(current->extension()));
       context =
@@ -13438,6 +13440,107 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_UnwrapGlobalProxy) {
     if (object->IsNull()) return isolate->heap()->undefined_value();
   }
   return object;
+}
+
+
+static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
+                                           Handle<JSFunction> constructor,
+                                           Handle<Object> type_info,
+                                           Arguments* caller_args) {
+  bool holey = false;
+  bool can_use_type_feedback = true;
+  if (caller_args->length() == 1) {
+    Object* argument_one = (*caller_args)[0];
+    if (argument_one->IsSmi()) {
+      int value = Smi::cast(argument_one)->value();
+      if (value < 0 || value >= JSObject::kInitialMaxFastElementArray) {
+        // the array is a dictionary in this case.
+        can_use_type_feedback = false;
+      } else if (value != 0) {
+        holey = true;
+      }
+    } else {
+      // Non-smi length argument produces a dictionary
+      can_use_type_feedback = false;
+    }
+  }
+
+  JSArray* array;
+  MaybeObject* maybe_array;
+  if (!type_info.is_null() &&
+      *type_info != isolate->heap()->undefined_value() &&
+      JSGlobalPropertyCell::cast(*type_info)->value()->IsSmi() &&
+      can_use_type_feedback) {
+    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(*type_info);
+    Smi* smi = Smi::cast(cell->value());
+    ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
+    if (holey && !IsFastHoleyElementsKind(to_kind)) {
+      to_kind = GetHoleyElementsKind(to_kind);
+      // Update the allocation site info to reflect the advice alteration.
+      cell->set_value(Smi::FromInt(to_kind));
+    }
+
+    maybe_array = isolate->heap()->AllocateJSObjectWithAllocationSite(
+        *constructor, type_info);
+    if (!maybe_array->To(&array)) return maybe_array;
+  } else {
+    maybe_array = isolate->heap()->AllocateJSObject(*constructor);
+    if (!maybe_array->To(&array)) return maybe_array;
+    // We might need to transition to holey
+    ElementsKind kind = constructor->initial_map()->elements_kind();
+    if (holey && !IsFastHoleyElementsKind(kind)) {
+      kind = GetHoleyElementsKind(kind);
+      maybe_array = array->TransitionElementsKind(kind);
+      if (maybe_array->IsFailure()) return maybe_array;
+    }
+  }
+
+  maybe_array = isolate->heap()->AllocateJSArrayStorage(array, 0, 0,
+      DONT_INITIALIZE_ARRAY_ELEMENTS);
+  if (maybe_array->IsFailure()) return maybe_array;
+  maybe_array = ArrayConstructInitializeElements(array, caller_args);
+  if (maybe_array->IsFailure()) return maybe_array;
+  return array;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConstructor) {
+  HandleScope scope(isolate);
+  // If we get 2 arguments then they are the stub parameters (constructor, type
+  // info).  If we get 3, then the first one is a pointer to the arguments
+  // passed by the caller.
+  Arguments empty_args(0, NULL);
+  bool no_caller_args = args.length() == 2;
+  ASSERT(no_caller_args || args.length() == 3);
+  int parameters_start = no_caller_args ? 0 : 1;
+  Arguments* caller_args = no_caller_args
+      ? &empty_args
+      : reinterpret_cast<Arguments*>(args[0]);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, parameters_start);
+  CONVERT_ARG_HANDLE_CHECKED(Object, type_info, parameters_start + 1);
+
+  return ArrayConstructorCommon(isolate,
+                                constructor,
+                                type_info,
+                                caller_args);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalArrayConstructor) {
+  HandleScope scope(isolate);
+  Arguments empty_args(0, NULL);
+  bool no_caller_args = args.length() == 1;
+  ASSERT(no_caller_args || args.length() == 2);
+  int parameters_start = no_caller_args ? 0 : 1;
+  Arguments* caller_args = no_caller_args
+      ? &empty_args
+      : reinterpret_cast<Arguments*>(args[0]);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, parameters_start);
+
+  return ArrayConstructorCommon(isolate,
+                                constructor,
+                                Handle<Object>::null(),
+                                caller_args);
 }
 
 

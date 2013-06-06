@@ -162,6 +162,8 @@ var knownProblems = {
   "ResolvePossiblyDirectEval": true,
   "Log": true,
   "DeclareGlobals": true,
+  "ArrayConstructor": true,
+  "InternalArrayConstructor": true,
 
   "PromoteScheduledException": true,
   "DeleteHandleScopeExtensions": true,

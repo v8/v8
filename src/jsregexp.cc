@@ -950,10 +950,10 @@ TextElement TextElement::CharClass(
 
 
 int TextElement::length() {
-  if (type == ATOM) {
+  if (text_type == ATOM) {
     return data.u_atom->length();
   } else {
-    ASSERT(type == CHAR_CLASS);
+    ASSERT(text_type == CHAR_CLASS);
     return 1;
   }
 }
@@ -1165,7 +1165,7 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
 
 
 bool Trace::DeferredAction::Mentions(int that) {
-  if (type() == ActionNode::CLEAR_CAPTURES) {
+  if (action_type() == ActionNode::CLEAR_CAPTURES) {
     Interval range = static_cast<DeferredClearCaptures*>(this)->range();
     return range.Contains(that);
   } else {
@@ -1191,7 +1191,7 @@ bool Trace::GetStoredPosition(int reg, int* cp_offset) {
        action != NULL;
        action = action->next()) {
     if (action->Mentions(reg)) {
-      if (action->type() == ActionNode::STORE_POSITION) {
+      if (action->action_type() == ActionNode::STORE_POSITION) {
         *cp_offset = static_cast<DeferredCapture*>(action)->cp_offset();
         return true;
       } else {
@@ -1209,7 +1209,7 @@ int Trace::FindAffectedRegisters(OutSet* affected_registers,
   for (DeferredAction* action = actions_;
        action != NULL;
        action = action->next()) {
-    if (action->type() == ActionNode::CLEAR_CAPTURES) {
+    if (action->action_type() == ActionNode::CLEAR_CAPTURES) {
       Interval range = static_cast<DeferredClearCaptures*>(action)->range();
       for (int i = range.from(); i <= range.to(); i++)
         affected_registers->Set(i, zone);
@@ -1273,7 +1273,7 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
          action != NULL;
          action = action->next()) {
       if (action->Mentions(reg)) {
-        switch (action->type()) {
+        switch (action->action_type()) {
           case ActionNode::SET_REGISTER: {
             Trace::DeferredSetRegister* psr =
                 static_cast<Trace::DeferredSetRegister*>(action);
@@ -2304,7 +2304,7 @@ int ActionNode::EatsAtLeast(int still_to_find,
                             int budget,
                             bool not_at_start) {
   if (budget <= 0) return 0;
-  if (type_ == POSITIVE_SUBMATCH_SUCCESS) return 0;  // Rewinds input!
+  if (action_type_ == POSITIVE_SUBMATCH_SUCCESS) return 0;  // Rewinds input!
   return on_success()->EatsAtLeast(still_to_find,
                                    budget - 1,
                                    not_at_start);
@@ -2315,9 +2315,9 @@ void ActionNode::FillInBMInfo(int offset,
                               int budget,
                               BoyerMooreLookahead* bm,
                               bool not_at_start) {
-  if (type_ == BEGIN_SUBMATCH) {
+  if (action_type_ == BEGIN_SUBMATCH) {
     bm->SetRest(offset);
-  } else if (type_ != POSITIVE_SUBMATCH_SUCCESS) {
+  } else if (action_type_ != POSITIVE_SUBMATCH_SUCCESS) {
     on_success()->FillInBMInfo(offset, budget - 1, bm, not_at_start);
   }
   SaveBMInfo(bm, not_at_start, offset);
@@ -2333,7 +2333,7 @@ int AssertionNode::EatsAtLeast(int still_to_find,
   // implies false.  So lets just return the max answer (still_to_find) since
   // that won't prevent us from preloading a lot of characters for the other
   // branches in the node graph.
-  if (type() == AT_START && not_at_start) return still_to_find;
+  if (assertion_type() == AT_START && not_at_start) return still_to_find;
   return on_success()->EatsAtLeast(still_to_find,
                                    budget - 1,
                                    not_at_start);
@@ -2345,7 +2345,7 @@ void AssertionNode::FillInBMInfo(int offset,
                                  BoyerMooreLookahead* bm,
                                  bool not_at_start) {
   // Match the behaviour of EatsAtLeast on this node.
-  if (type() == AT_START && not_at_start) return;
+  if (assertion_type() == AT_START && not_at_start) return;
   on_success()->FillInBMInfo(offset, budget - 1, bm, not_at_start);
   SaveBMInfo(bm, not_at_start, offset);
 }
@@ -2562,7 +2562,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
   }
   for (int k = 0; k < elms_->length(); k++) {
     TextElement elm = elms_->at(k);
-    if (elm.type == TextElement::ATOM) {
+    if (elm.text_type == TextElement::ATOM) {
       Vector<const uc16> quarks = elm.data.u_atom->data();
       for (int i = 0; i < characters && i < quarks.length(); i++) {
         QuickCheckDetails::Position* pos =
@@ -2815,7 +2815,7 @@ RegExpNode* TextNode::FilterASCII(int depth, bool ignore_case) {
   int element_count = elms_->length();
   for (int i = 0; i < element_count; i++) {
     TextElement elm = elms_->at(i);
-    if (elm.type == TextElement::ATOM) {
+    if (elm.text_type == TextElement::ATOM) {
       Vector<const uc16> quarks = elm.data.u_atom->data();
       for (int j = 0; j < quarks.length(); j++) {
         uint16_t c = quarks[j];
@@ -2831,7 +2831,7 @@ RegExpNode* TextNode::FilterASCII(int depth, bool ignore_case) {
         copy[j] = converted;
       }
     } else {
-      ASSERT(elm.type == TextElement::CHAR_CLASS);
+      ASSERT(elm.text_type == TextElement::CHAR_CLASS);
       RegExpCharacterClass* cc = elm.data.u_char_class;
       ZoneList<CharacterRange>* ranges = cc->ranges(zone());
       if (!CharacterRange::IsCanonical(ranges)) {
@@ -3086,7 +3086,7 @@ void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
     if (lookahead->at(0)->is_non_word()) next_is_word_character = Trace::FALSE;
     if (lookahead->at(0)->is_word()) next_is_word_character = Trace::TRUE;
   }
-  bool at_boundary = (type_ == AssertionNode::AT_BOUNDARY);
+  bool at_boundary = (assertion_type_ == AssertionNode::AT_BOUNDARY);
   if (next_is_word_character == Trace::UNKNOWN) {
     Label before_non_word;
     Label before_word;
@@ -3149,7 +3149,7 @@ void AssertionNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                          RegExpCompiler* compiler,
                                          int filled_in,
                                          bool not_at_start) {
-  if (type_ == AT_START && not_at_start) {
+  if (assertion_type_ == AT_START && not_at_start) {
     details->set_cannot_match();
     return;
   }
@@ -3162,7 +3162,7 @@ void AssertionNode::GetQuickCheckDetails(QuickCheckDetails* details,
 
 void AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
-  switch (type_) {
+  switch (assertion_type_) {
     case AT_END: {
       Label ok;
       assembler->CheckPosition(trace->cp_offset(), &ok);
@@ -3255,7 +3255,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
   for (int i = preloaded ? 0 : element_count - 1; i >= 0; i--) {
     TextElement elm = elms_->at(i);
     int cp_offset = trace->cp_offset() + elm.cp_offset;
-    if (elm.type == TextElement::ATOM) {
+    if (elm.text_type == TextElement::ATOM) {
       Vector<const uc16> quarks = elm.data.u_atom->data();
       for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
         if (first_element_checked && i == 0 && j == 0) continue;
@@ -3293,7 +3293,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
         }
       }
     } else {
-      ASSERT_EQ(elm.type, TextElement::CHAR_CLASS);
+      ASSERT_EQ(elm.text_type, TextElement::CHAR_CLASS);
       if (pass == CHARACTER_CLASS_MATCH) {
         if (first_element_checked && i == 0) continue;
         if (DeterminedAlready(quick_check, elm.cp_offset)) continue;
@@ -3316,7 +3316,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
 int TextNode::Length() {
   TextElement elm = elms_->last();
   ASSERT(elm.cp_offset >= 0);
-  if (elm.type == TextElement::ATOM) {
+  if (elm.text_type == TextElement::ATOM) {
     return elm.cp_offset + elm.data.u_atom->data().length();
   } else {
     return elm.cp_offset + 1;
@@ -3422,7 +3422,7 @@ void TextNode::MakeCaseIndependent(bool is_ascii) {
   int element_count = elms_->length();
   for (int i = 0; i < element_count; i++) {
     TextElement elm = elms_->at(i);
-    if (elm.type == TextElement::CHAR_CLASS) {
+    if (elm.text_type == TextElement::CHAR_CLASS) {
       RegExpCharacterClass* cc = elm.data.u_char_class;
       // None of the standard character classes is different in the case
       // independent case and it slows us down if we don't know that.
@@ -3439,7 +3439,7 @@ void TextNode::MakeCaseIndependent(bool is_ascii) {
 
 int TextNode::GreedyLoopTextLength() {
   TextElement elm = elms_->at(elms_->length() - 1);
-  if (elm.type == TextElement::CHAR_CLASS) {
+  if (elm.text_type == TextElement::CHAR_CLASS) {
     return elm.cp_offset + 1;
   } else {
     return elm.cp_offset + elm.data.u_atom->data().length();
@@ -3451,7 +3451,7 @@ RegExpNode* TextNode::GetSuccessorOfOmnivorousTextNode(
     RegExpCompiler* compiler) {
   if (elms_->length() != 1) return NULL;
   TextElement elm = elms_->at(0);
-  if (elm.type != TextElement::CHAR_CLASS) return NULL;
+  if (elm.text_type != TextElement::CHAR_CLASS) return NULL;
   RegExpCharacterClass* node = elm.data.u_char_class;
   ZoneList<CharacterRange>* ranges = node->ranges(zone());
   if (!CharacterRange::IsCanonical(ranges)) {
@@ -4196,7 +4196,7 @@ void ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   RecursionCheck rc(compiler);
 
-  switch (type_) {
+  switch (action_type_) {
     case STORE_POSITION: {
       Trace::DeferredCapture
           new_capture(data_.u_position_register.reg,
@@ -4526,7 +4526,7 @@ void DotPrinter::VisitText(TextNode* that) {
   for (int i = 0; i < that->elements()->length(); i++) {
     if (i > 0) stream()->Add(" ");
     TextElement elm = that->elements()->at(i);
-    switch (elm.type) {
+    switch (elm.text_type) {
       case TextElement::ATOM: {
         stream()->Add("'%w'", elm.data.u_atom->data());
         break;
@@ -4573,7 +4573,7 @@ void DotPrinter::VisitEnd(EndNode* that) {
 
 void DotPrinter::VisitAssertion(AssertionNode* that) {
   stream()->Add("  n%p [", that);
-  switch (that->type()) {
+  switch (that->assertion_type()) {
     case AssertionNode::AT_END:
       stream()->Add("label=\"$\", shape=septagon");
       break;
@@ -4600,7 +4600,7 @@ void DotPrinter::VisitAssertion(AssertionNode* that) {
 
 void DotPrinter::VisitAction(ActionNode* that) {
   stream()->Add("  n%p [", that);
-  switch (that->type_) {
+  switch (that->action_type_) {
     case ActionNode::SET_REGISTER:
       stream()->Add("label=\"$%i:=%i\", shape=octagon",
                     that->data_.u_store_register.reg,
@@ -5013,7 +5013,7 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
   NodeInfo info;
   Zone* zone = compiler->zone();
 
-  switch (type()) {
+  switch (assertion_type()) {
     case START_OF_LINE:
       return AssertionNode::AfterNewline(on_success);
     case START_OF_INPUT:
@@ -5715,7 +5715,7 @@ void TextNode::CalculateOffsets() {
   for (int i = 0; i < element_count; i++) {
     TextElement& elm = elements()->at(i);
     elm.cp_offset = cp_offset;
-    if (elm.type == TextElement::ATOM) {
+    if (elm.text_type == TextElement::ATOM) {
       cp_offset += elm.data.u_atom->data().length();
     } else {
       cp_offset++;
@@ -5835,7 +5835,7 @@ void TextNode::FillInBMInfo(int initial_offset,
       return;
     }
     TextElement text = elements()->at(i);
-    if (text.type == TextElement::ATOM) {
+    if (text.text_type == TextElement::ATOM) {
       RegExpAtom* atom = text.data.u_atom;
       for (int j = 0; j < atom->length(); j++, offset++) {
         if (offset >= bm->length()) {
@@ -5858,7 +5858,7 @@ void TextNode::FillInBMInfo(int initial_offset,
         }
       }
     } else {
-      ASSERT(text.type == TextElement::CHAR_CLASS);
+      ASSERT(text.text_type == TextElement::CHAR_CLASS);
       RegExpCharacterClass* char_class = text.data.u_char_class;
       ZoneList<CharacterRange>* ranges = char_class->ranges(zone());
       if (char_class->is_negated()) {
@@ -5971,7 +5971,7 @@ void DispatchTableConstructor::AddInverse(ZoneList<CharacterRange>* ranges) {
 
 void DispatchTableConstructor::VisitText(TextNode* that) {
   TextElement elm = that->elements()->at(0);
-  switch (elm.type) {
+  switch (elm.text_type) {
     case TextElement::ATOM: {
       uc16 c = elm.data.u_atom->data()[0];
       AddRange(CharacterRange(c, c));

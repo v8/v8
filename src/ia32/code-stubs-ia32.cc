@@ -30,7 +30,6 @@
 #if defined(V8_TARGET_ARCH_IA32)
 
 #include "bootstrapper.h"
-#include "builtins-decls.h"
 #include "code-stubs.h"
 #include "isolate.h"
 #include "jsregexp.h"
@@ -138,7 +137,7 @@ static void InitializeArrayConstructorDescriptor(
   descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(ArrayConstructor_StubFailure);
+      Runtime::FunctionForId(Runtime::kArrayConstructor)->entry;
 }
 
 
@@ -160,7 +159,7 @@ static void InitializeInternalArrayConstructorDescriptor(
   descriptor->register_params_ = registers;
   descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(InternalArrayConstructor_StubFailure);
+      Runtime::FunctionForId(Runtime::kInternalArrayConstructor)->entry;
 }
 
 
@@ -7766,14 +7765,16 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // Ecx is the only volatile register we must save.
+  const int kNumSavedRegisters = 1;
   __ push(ecx);
 
   // Calculate and push the original stack pointer.
-  __ lea(eax, Operand(esp, kPointerSize));
+  __ lea(eax, Operand(esp, (kNumSavedRegisters + 1) * kPointerSize));
   __ push(eax);
 
-  // Calculate and push the function address.
-  __ mov(eax, Operand(eax, 0));
+  // Retrieve our return address and use it to calculate the calling
+  // function's address.
+  __ mov(eax, Operand(esp, (kNumSavedRegisters + 1) * kPointerSize));
   __ sub(eax, Immediate(Assembler::kCallInstructionLength));
   __ push(eax);
 

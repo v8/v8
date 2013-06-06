@@ -61,7 +61,7 @@ class Handle {
     location_ = reinterpret_cast<T**>(handle.location_);
   }
 
-  INLINE(T* operator ->() const) { return operator*(); }
+  INLINE(T* operator->() const) { return operator*(); }
 
   // Check if this handle refers to the exact same object as the other handle.
   INLINE(bool is_identical_to(const Handle<T> other) const);
@@ -85,7 +85,9 @@ class Handle {
   inline Handle<T> EscapeFrom(v8::HandleScope* scope);
 
 #ifdef DEBUG
-  bool IsDereferenceAllowed(bool explicitly_allow_deferred) const;
+  enum DereferenceCheckMode { INCLUDE_DEFERRED_CHECK, NO_DEFERRED_CHECK };
+
+  bool IsDereferenceAllowed(DereferenceCheckMode mode) const;
 #endif  // DEBUG
 
  private:

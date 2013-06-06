@@ -1524,9 +1524,17 @@ class V8EXPORT String : public Primitive {
   V8_DEPRECATED(V8_INLINE(bool MayContainNonAscii()) const) { return true; }
 
   /**
-   * Returns whether this string contains only one byte data.
+   * Returns whether this string is known to contain only one byte data.
+   * Does not read the string.
+   * False negatives are possible.
    */
   bool IsOneByte() const;
+
+  /**
+   * Returns whether this string contain only one byte data.
+   * Will read the entire string in some cases.
+   */
+  bool ContainsOnlyOneByte() const;
 
   /**
    * Write the contents of the string to an external buffer.
@@ -2811,7 +2819,10 @@ class V8EXPORT Template : public Data {
 template<typename T>
 class ReturnValue {
  public:
-  V8_INLINE(explicit ReturnValue(internal::Object** slot));
+  template <class S> V8_INLINE(ReturnValue(const ReturnValue<S>& that))
+      : value_(that.value_) {
+    TYPE_CHECK(T, S);
+  }
   // Handle setters
   template <typename S> V8_INLINE(void Set(const Persistent<S>& handle));
   template <typename S> V8_INLINE(void Set(const Handle<S> handle));
@@ -2825,7 +2836,12 @@ class ReturnValue {
   V8_INLINE(void SetUndefined());
   // Convenience getter for Isolate
   V8_INLINE(Isolate* GetIsolate());
+
  private:
+  template<class F> friend class ReturnValue;
+  template<class F> friend class FunctionCallbackInfo;
+  template<class F> friend class PropertyCallbackInfo;
+  V8_INLINE(explicit ReturnValue(internal::Object** slot));
   internal::Object** value_;
 };
 

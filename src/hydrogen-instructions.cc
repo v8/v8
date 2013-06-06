@@ -2498,8 +2498,10 @@ void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
   Representation observed_left = observed_input_representation(0);
   Representation observed_right = observed_input_representation(1);
 
-  Representation rep = Representation::Smi();
-  if (observed_left.IsInteger32() && observed_right.IsInteger32()) {
+  Representation rep = Representation::None();
+  rep = rep.generalize(observed_left);
+  rep = rep.generalize(observed_right);
+  if (rep.IsNone() || rep.IsSmiOrInteger32()) {
     if (!left_rep.IsTagged()) rep = rep.generalize(left_rep);
     if (!right_rep.IsTagged()) rep = rep.generalize(right_rep);
   } else {

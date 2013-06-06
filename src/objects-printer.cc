@@ -540,6 +540,8 @@ static const char* TypeToString(InstanceType type) {
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";
     case CODE_TYPE: return "CODE";
     case JS_ARRAY_TYPE: return "JS_ARRAY";
+    case JS_ARRAY_BUFFER_TYPE: return "JS_ARRAY_BUFFER";
+    case JS_TYPED_ARRAY_TYPE: return "JS_TYPED_ARRAY";
     case JS_PROXY_TYPE: return "JS_PROXY";
     case JS_WEAK_MAP_TYPE: return "JS_WEAK_MAP";
     case JS_REGEXP_TYPE: return "JS_REGEXP";
@@ -822,7 +824,7 @@ void JSTypedArray::JSTypedArrayPrint(FILE* out) {
   byte_offset()->ShortPrint(out);
   PrintF(out, "\n - byte_length = ");
   byte_length()->ShortPrint(out);
-  PrintF(out, " - length = ");
+  PrintF(out, "\n - length = ");
   length()->ShortPrint(out);
   PrintF("\n");
   PrintElements(out);

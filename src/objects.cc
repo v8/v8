@@ -1205,6 +1205,11 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
+    if (this->IsTwoByteRepresentation()) {
+      ScopedVector<uint16_t> smart_chars(this->length());
+      String::WriteToFlat(this, smart_chars.start(), 0, this->length());
+      ASSERT(String::IsOneByte(smart_chars.start(), this->length()));
+    }
     ScopedVector<char> smart_chars(this->length());
     String::WriteToFlat(this, smart_chars.start(), 0, this->length());
     ASSERT(memcmp(smart_chars.start(),

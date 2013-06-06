@@ -27,7 +27,6 @@
 
 #include "typing.h"
 
-#include "v8.h"
 #include "parser.h"  // for CompileTimeValue; TODO(rossberg): should move
 #include "scopes.h"
 

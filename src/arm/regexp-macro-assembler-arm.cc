@@ -235,54 +235,6 @@ void RegExpMacroAssemblerARM::CheckCharacterLT(uc16 limit, Label* on_less) {
 }
 
 
-void RegExpMacroAssemblerARM::CheckCharacters(Vector<const uc16> str,
-                                              int cp_offset,
-                                              Label* on_failure,
-                                              bool check_end_of_string) {
-  if (on_failure == NULL) {
-    // Instead of inlining a backtrack for each test, (re)use the global
-    // backtrack target.
-    on_failure = &backtrack_label_;
-  }
-
-  if (check_end_of_string) {
-    // Is last character of required match inside string.
-    CheckPosition(cp_offset + str.length() - 1, on_failure);
-  }
-
-  __ add(r0, end_of_input_address(), Operand(current_input_offset()));
-  if (cp_offset != 0) {
-    int byte_offset = cp_offset * char_size();
-    __ add(r0, r0, Operand(byte_offset));
-  }
-
-  // r0 : Address of characters to match against str.
-  int stored_high_byte = 0;
-  for (int i = 0; i < str.length(); i++) {
-    if (mode_ == ASCII) {
-      __ ldrb(r1, MemOperand(r0, char_size(), PostIndex));
-      ASSERT(str[i] <= String::kMaxOneByteCharCode);
-      __ cmp(r1, Operand(str[i]));
-    } else {
-      __ ldrh(r1, MemOperand(r0, char_size(), PostIndex));
-      uc16 match_char = str[i];
-      int match_high_byte = (match_char >> 8);
-      if (match_high_byte == 0) {
-        __ cmp(r1, Operand(str[i]));
-      } else {
-        if (match_high_byte != stored_high_byte) {
-          __ mov(r2, Operand(match_high_byte));
-          stored_high_byte = match_high_byte;
-        }
-        __ add(r3, r2, Operand(match_char & 0xff));
-        __ cmp(r1, r3);
-      }
-    }
-    BranchOrBacktrack(ne, on_failure);
-  }
-}
-
-
 void RegExpMacroAssemblerARM::CheckGreedyLoop(Label* on_equal) {
   __ ldr(r0, MemOperand(backtrack_stackpointer(), 0));
   __ cmp(current_input_offset(), r0);
@@ -556,7 +508,7 @@ bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
   case 'd':
     // Match ASCII digits ('0'..'9')
     __ sub(r0, current_character(), Operand('0'));
-    __ cmp(current_character(), Operand('9' - '0'));
+    __ cmp(r0, Operand('9' - '0'));
     BranchOrBacktrack(hi, on_no_match);
     return true;
   case 'D':
