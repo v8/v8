@@ -796,6 +796,7 @@ template <class T> class Persistent // NOLINT
  private:
   template<class F> friend class Handle;
   template<class F> friend class Local;
+  template<class F> friend class ReturnValue;
   friend class ImplementationUtilities;
   friend class ObjectTemplate;
   friend class Context;
