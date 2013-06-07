@@ -5682,8 +5682,8 @@ void ReturnValue<T>::Set(int32_t i) {
 template<typename T>
 void ReturnValue<T>::Set(uint32_t i) {
   typedef internal::Internals I;
-  if (V8_LIKELY(I::IsValidSmi(i))) {
-    *value_ = I::IntToSmi(i);
+  if (V8_LIKELY(i <= INT32_MAX)) {
+    Set(static_cast<int32_t>(i));
     return;
   }
   Set(Integer::NewFromUnsigned(i, GetIsolate()));

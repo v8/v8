@@ -1025,8 +1025,8 @@ template<typename T>
 void FastReturnValueCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
 
 // constant return values
-static const int32_t kFastReturnValueInt32 = 471;
-static const uint32_t kFastReturnValueUint32 = 571;
+static int32_t fast_return_value_int32 = 471;
+static uint32_t fast_return_value_uint32 = 571;
 static const double kFastReturnValueDouble = 2.7;
 // variable return values
 static bool fast_return_value_bool = false;
@@ -1037,14 +1037,14 @@ template<>
 void FastReturnValueCallback<int32_t>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CheckReturnValue(info);
-  info.GetReturnValue().Set(kFastReturnValueInt32);
+  info.GetReturnValue().Set(fast_return_value_int32);
 }
 
 template<>
 void FastReturnValueCallback<uint32_t>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CheckReturnValue(info);
-  info.GetReturnValue().Set(kFastReturnValueUint32);
+  info.GetReturnValue().Set(fast_return_value_uint32);
 }
 
 template<>
@@ -1093,16 +1093,29 @@ Handle<Value> TestFastReturnValues() {
 }
 
 THREADED_TEST(FastReturnValues) {
+  LocalContext env;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::Value> value;
-  // check int_32
-  value = TestFastReturnValues<int32_t>();
-  CHECK(value->IsInt32());
-  CHECK_EQ(kFastReturnValueInt32, value->Int32Value());
-  // check uint32_t
-  value = TestFastReturnValues<uint32_t>();
-  CHECK(value->IsInt32());
-  CHECK_EQ(kFastReturnValueUint32, value->Int32Value());
+  // check int32_t and uint32_t
+  int32_t int_values[] = {
+      0, 234, -723,
+      i::Smi::kMinValue, i::Smi::kMaxValue, INT32_MAX, INT32_MIN
+  };
+  for (size_t i = 0; i < ARRAY_SIZE(int_values); i++) {
+    for (int modifier = -1; modifier <= 1; modifier++) {
+      int int_value = int_values[i] + modifier;
+      // check int32_t
+      fast_return_value_int32 = int_value;
+      value = TestFastReturnValues<int32_t>();
+      CHECK(value->IsInt32());
+      CHECK(fast_return_value_int32 == value->Int32Value());
+      // check uint32_t
+      fast_return_value_uint32 = static_cast<uint32_t>(int_value);
+      value = TestFastReturnValues<uint32_t>();
+      CHECK(value->IsUint32());
+      CHECK(fast_return_value_uint32 == value->Uint32Value());
+    }
+  }
   // check double
   value = TestFastReturnValues<double>();
   CHECK(value->IsNumber());
