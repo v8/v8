@@ -163,6 +163,12 @@ void BreakableStatementChecker::VisitForInStatement(ForInStatement* stmt) {
 }
 
 
+void BreakableStatementChecker::VisitForOfStatement(ForOfStatement* stmt) {
+  // For-of is breakable because of the next() call.
+  is_breakable_ = true;
+}
+
+
 void BreakableStatementChecker::VisitTryCatchStatement(
     TryCatchStatement* stmt) {
   // Mark try catch as breakable to avoid adding a break slot in front of it.

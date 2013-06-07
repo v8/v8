@@ -1086,11 +1086,13 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     CHECK_NOT_EMPTY_HANDLE(isolate,
                            JSObject::SetLocalPropertyIgnoreAttributes(
                                result, factory->length_string(),
-                               factory->undefined_value(), DONT_ENUM));
+                               factory->undefined_value(), DONT_ENUM,
+                               Object::FORCE_TAGGED));
     CHECK_NOT_EMPTY_HANDLE(isolate,
                            JSObject::SetLocalPropertyIgnoreAttributes(
                                result, factory->callee_string(),
-                               factory->undefined_value(), DONT_ENUM));
+                               factory->undefined_value(), DONT_ENUM,
+                               Object::FORCE_TAGGED));
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
@@ -1322,8 +1324,7 @@ void Genesis::InitializeExperimentalGlobal() {
     Handle<JSFunction> array_buffer_fun =
         InstallFunction(
             global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
-            JSArrayBuffer::kSize +
-              v8::ArrayBuffer::kInternalFieldCount * kPointerSize,
+            JSArrayBuffer::kSizeWithInternalFields,
             isolate()->initial_object_prototype(),
             Builtins::kIllegal, true, true);
     native_context()->set_array_buffer_fun(*array_buffer_fun);

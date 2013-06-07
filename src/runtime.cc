@@ -687,6 +687,10 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
       isolate->factory()->NewNumberFromSize(allocated_length);
   CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
   array_buffer->set_byte_length(*byte_length);
+
+  array_buffer->set_weak_next(isolate->heap()->array_buffers_list());
+  isolate->heap()->set_array_buffers_list(*array_buffer);
+  array_buffer->set_weak_first_array(Smi::FromInt(0));
 }
 
 
@@ -855,6 +859,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
+  holder->set_weak_next(buffer->weak_first_array());
+  buffer->set_weak_first_array(*holder);
 
   Handle<ExternalArray> elements =
       isolate->factory()->NewExternalArray(
@@ -8089,13 +8095,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_WaitUntilOptimized) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CompleteOptimization) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (FLAG_parallel_recompilation) {
-    if (V8::UseCrankshaft() && function->IsOptimizable()) {
-      while (!function->IsOptimized()) OS::Sleep(50);
+  if (FLAG_parallel_recompilation && V8::UseCrankshaft()) {
+    // While function is in optimization pipeline, it is marked with builtins.
+    while (function->code()->kind() == Code::BUILTIN) {
+      isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
+      OS::Sleep(50);
     }
   }
   return isolate->heap()->undefined_value();

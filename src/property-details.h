@@ -113,7 +113,7 @@ class Representation {
   bool is_more_general_than(const Representation& other) const {
     ASSERT(kind_ != kExternal);
     ASSERT(other.kind_ != kExternal);
-    if (IsHeapObject()) return other.IsDouble();
+    if (IsHeapObject()) return other.IsDouble() || other.IsNone();
     return kind_ > other.kind_;
   }
 
@@ -213,6 +213,7 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   Representation representation() {
+    ASSERT(type() != NORMAL);
     return DecodeRepresentation(RepresentationField::decode(value_));
   }
 

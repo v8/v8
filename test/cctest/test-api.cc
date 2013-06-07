@@ -1025,8 +1025,8 @@ template<typename T>
 void FastReturnValueCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
 
 // constant return values
-static const int32_t kFastReturnValueInt32 = 471;
-static const uint32_t kFastReturnValueUint32 = 571;
+static int32_t fast_return_value_int32 = 471;
+static uint32_t fast_return_value_uint32 = 571;
 static const double kFastReturnValueDouble = 2.7;
 // variable return values
 static bool fast_return_value_bool = false;
@@ -1037,14 +1037,14 @@ template<>
 void FastReturnValueCallback<int32_t>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CheckReturnValue(info);
-  info.GetReturnValue().Set(kFastReturnValueInt32);
+  info.GetReturnValue().Set(fast_return_value_int32);
 }
 
 template<>
 void FastReturnValueCallback<uint32_t>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CheckReturnValue(info);
-  info.GetReturnValue().Set(kFastReturnValueUint32);
+  info.GetReturnValue().Set(fast_return_value_uint32);
 }
 
 template<>
@@ -1093,16 +1093,29 @@ Handle<Value> TestFastReturnValues() {
 }
 
 THREADED_TEST(FastReturnValues) {
+  LocalContext env;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::Value> value;
-  // check int_32
-  value = TestFastReturnValues<int32_t>();
-  CHECK(value->IsInt32());
-  CHECK_EQ(kFastReturnValueInt32, value->Int32Value());
-  // check uint32_t
-  value = TestFastReturnValues<uint32_t>();
-  CHECK(value->IsInt32());
-  CHECK_EQ(kFastReturnValueUint32, value->Int32Value());
+  // check int32_t and uint32_t
+  int32_t int_values[] = {
+      0, 234, -723,
+      i::Smi::kMinValue, i::Smi::kMaxValue
+  };
+  for (size_t i = 0; i < ARRAY_SIZE(int_values); i++) {
+    for (int modifier = -1; modifier <= 1; modifier++) {
+      int int_value = int_values[i] + modifier;
+      // check int32_t
+      fast_return_value_int32 = int_value;
+      value = TestFastReturnValues<int32_t>();
+      CHECK(value->IsInt32());
+      CHECK(fast_return_value_int32 == value->Int32Value());
+      // check uint32_t
+      fast_return_value_uint32 = static_cast<uint32_t>(int_value);
+      value = TestFastReturnValues<uint32_t>();
+      CHECK(value->IsUint32());
+      CHECK(fast_return_value_uint32 == value->Uint32Value());
+    }
+  }
   // check double
   value = TestFastReturnValues<double>();
   CHECK(value->IsNumber());
@@ -2644,6 +2657,122 @@ THREADED_TEST(ArrayBuffer_External) {
 }
 
 
+static void CheckIsNeutered(v8::Handle<v8::TypedArray> ta) {
+  CHECK_EQ(0, static_cast<int>(ta->ByteLength()));
+  CHECK_EQ(0, static_cast<int>(ta->Length()));
+  CHECK_EQ(0, static_cast<int>(ta->ByteOffset()));
+}
+
+template <typename TypedArray, int kElementSize>
+static Handle<TypedArray> CreateAndCheck(Handle<v8::ArrayBuffer> ab,
+                                         int byteOffset,
+                                         int length) {
+  v8::Handle<TypedArray> ta = TypedArray::New(ab, byteOffset, length);
+  CHECK_EQ(byteOffset, static_cast<int>(ta->ByteOffset()));
+  CHECK_EQ(length, static_cast<int>(ta->Length()));
+  CHECK_EQ(length * kElementSize, static_cast<int>(ta->ByteLength()));
+  return ta;
+}
+
+
+THREADED_TEST(ArrayBuffer_NeuteringApi) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8::Handle<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(1024);
+
+  v8::Handle<v8::Uint8Array> u8a =
+    CreateAndCheck<v8::Uint8Array, 1>(buffer, 1, 1023);
+  v8::Handle<v8::Uint8ClampedArray> u8c =
+    CreateAndCheck<v8::Uint8ClampedArray, 1>(buffer, 1, 1023);
+  v8::Handle<v8::Int8Array> i8a =
+    CreateAndCheck<v8::Int8Array, 1>(buffer, 1, 1023);
+
+  v8::Handle<v8::Uint16Array> u16a =
+    CreateAndCheck<v8::Uint16Array, 2>(buffer, 2, 511);
+  v8::Handle<v8::Int16Array> i16a =
+    CreateAndCheck<v8::Int16Array, 2>(buffer, 2, 511);
+
+  v8::Handle<v8::Uint32Array> u32a =
+    CreateAndCheck<v8::Uint32Array, 4>(buffer, 4, 255);
+  v8::Handle<v8::Int32Array> i32a =
+    CreateAndCheck<v8::Int32Array, 4>(buffer, 4, 255);
+
+  v8::Handle<v8::Float32Array> f32a =
+    CreateAndCheck<v8::Float32Array, 4>(buffer, 4, 255);
+  v8::Handle<v8::Float64Array> f64a =
+    CreateAndCheck<v8::Float64Array, 8>(buffer, 8, 127);
+
+  v8::ArrayBufferContents contents;
+  buffer->Externalize(&contents);
+  buffer->Neuter();
+  CHECK_EQ(0, static_cast<int>(buffer->ByteLength()));
+  CheckIsNeutered(u8a);
+  CheckIsNeutered(u8c);
+  CheckIsNeutered(i8a);
+  CheckIsNeutered(u16a);
+  CheckIsNeutered(i16a);
+  CheckIsNeutered(u32a);
+  CheckIsNeutered(i32a);
+  CheckIsNeutered(f32a);
+  CheckIsNeutered(f64a);
+}
+
+THREADED_TEST(ArrayBuffer_NeuteringScript) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  CompileRun(
+      "var ab = new ArrayBuffer(1024);"
+      "var u8a = new Uint8Array(ab, 1, 1023);"
+      "var u8c = new Uint8ClampedArray(ab, 1, 1023);"
+      "var i8a = new Int8Array(ab, 1, 1023);"
+      "var u16a = new Uint16Array(ab, 2, 511);"
+      "var i16a = new Int16Array(ab, 2, 511);"
+      "var u32a = new Uint32Array(ab, 4, 255);"
+      "var i32a = new Int32Array(ab, 4, 255);"
+      "var f32a = new Float32Array(ab, 4, 255);"
+      "var f64a = new Float64Array(ab, 8, 127);");
+
+  v8::Handle<v8::ArrayBuffer> ab(v8::ArrayBuffer::Cast(*CompileRun("ab")));
+
+  v8::Handle<v8::Uint8Array> u8a(v8::Uint8Array::Cast(*CompileRun("u8a")));
+  v8::Handle<v8::Uint8ClampedArray> u8c(
+    v8::Uint8ClampedArray::Cast(*CompileRun("u8c")));
+  v8::Handle<v8::Int8Array> i8a(v8::Int8Array::Cast(*CompileRun("i8a")));
+
+  v8::Handle<v8::Uint16Array> u16a(
+    v8::Uint16Array::Cast(*CompileRun("u16a")));
+  v8::Handle<v8::Int16Array> i16a(
+    v8::Int16Array::Cast(*CompileRun("i16a")));
+  v8::Handle<v8::Uint32Array> u32a(
+    v8::Uint32Array::Cast(*CompileRun("u32a")));
+  v8::Handle<v8::Int32Array> i32a(
+    v8::Int32Array::Cast(*CompileRun("i32a")));
+  v8::Handle<v8::Float32Array> f32a(
+    v8::Float32Array::Cast(*CompileRun("f32a")));
+  v8::Handle<v8::Float64Array> f64a(
+    v8::Float64Array::Cast(*CompileRun("f64a")));
+
+  v8::ArrayBufferContents contents;
+  ab->Externalize(&contents);
+  ab->Neuter();
+  CHECK_EQ(0, static_cast<int>(ab->ByteLength()));
+  CheckIsNeutered(u8a);
+  CheckIsNeutered(u8c);
+  CheckIsNeutered(i8a);
+  CheckIsNeutered(u16a);
+  CheckIsNeutered(i16a);
+  CheckIsNeutered(u32a);
+  CheckIsNeutered(i32a);
+  CheckIsNeutered(f32a);
+  CheckIsNeutered(f64a);
+}
+
+
+
 THREADED_TEST(HiddenProperties) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2882,6 +3011,24 @@ THREADED_TEST(ClearAndLeakGlobal) {
       reinterpret_cast<v8::Persistent<String>*>(&str);
   new_global->Dispose();
   CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count);
+}
+
+
+THREADED_TEST(GlobalHandleUpcast) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
+  v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
+  v8::Persistent<String> global_string(isolate, local);
+#ifdef V8_USE_UNSAFE_HANDLES
+  v8::Persistent<Value> global_value =
+      v8::Persistent<Value>::Cast(global_string);
+#else
+  v8::Persistent<Value>& global_value =
+      v8::Persistent<Value>::Cast(global_string);
+#endif
+  CHECK(v8::Local<v8::Value>::New(isolate, global_value)->IsString());
+  CHECK(global_string == v8::Persistent<String>::Cast(global_value));
+  global_string.Dispose();
 }
 
 

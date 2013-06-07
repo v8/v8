@@ -305,6 +305,27 @@ void BinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
 }
 
 
+InlineCacheState ICCompareStub::GetICState() {
+  CompareIC::State state = Max(left_, right_);
+  switch (state) {
+    case CompareIC::UNINITIALIZED:
+      return ::v8::internal::UNINITIALIZED;
+    case CompareIC::SMI:
+    case CompareIC::NUMBER:
+    case CompareIC::INTERNALIZED_STRING:
+    case CompareIC::STRING:
+    case CompareIC::UNIQUE_NAME:
+    case CompareIC::OBJECT:
+    case CompareIC::KNOWN_OBJECT:
+      return MONOMORPHIC;
+    case CompareIC::GENERIC:
+      return ::v8::internal::GENERIC;
+  }
+  UNREACHABLE();
+  return ::v8::internal::UNINITIALIZED;
+}
+
+
 void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
   ASSERT(*known_map_ != NULL);
   Isolate* isolate = new_object->GetIsolate();

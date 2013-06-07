@@ -399,7 +399,7 @@ function ObservedArrayPop(n) {
   n--;
   var value = this[n];
 
-  EnqueueSpliceRecord(this, n, [value], 1, 0);
+  EnqueueSpliceRecord(this, n, [value], 0);
 
   try {
     BeginPerformSplice(this);
@@ -441,7 +441,7 @@ function ObservedArrayPush() {
   var n = TO_UINT32(this.length);
   var m = %_ArgumentsLength();
 
-  EnqueueSpliceRecord(this, n, [], 0, m);
+  EnqueueSpliceRecord(this, n, [], m);
 
   try {
     BeginPerformSplice(this);
@@ -581,7 +581,7 @@ function ArrayReverse() {
 function ObservedArrayShift(len) {
   var first = this[0];
 
-  EnqueueSpliceRecord(this, 0, [first], 1, 0);
+  EnqueueSpliceRecord(this, 0, [first], 0);
 
   try {
     BeginPerformSplice(this);
@@ -627,7 +627,7 @@ function ObservedArrayUnshift() {
   var len = TO_UINT32(this.length);
   var num_arguments = %_ArgumentsLength();
 
-  EnqueueSpliceRecord(this, 0, [], 0, num_arguments);
+  EnqueueSpliceRecord(this, 0, [], num_arguments);
 
   try {
     BeginPerformSplice(this);
@@ -779,7 +779,6 @@ function ObservedArraySplice(start, delete_count) {
        EnqueueSpliceRecord(this,
                            start_i,
                            deleted_elements.slice(),
-                           deleted_elements.length,
                            num_elements_to_add);
     }
   }

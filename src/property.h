@@ -203,6 +203,8 @@ class LookupResult BASE_EMBEDDED {
   }
 
   bool CanHoldValue(Handle<Object> value) {
+    if (IsNormal()) return true;
+    ASSERT(!IsTransition());
     return value->FitsRepresentation(details_.representation());
   }
 

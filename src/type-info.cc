@@ -78,9 +78,28 @@ static uint32_t IdToKey(TypeFeedbackId ast_id) {
 
 Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
   int entry = dictionary_->FindEntry(IdToKey(ast_id));
-  return entry != UnseededNumberDictionary::kNotFound
-      ? Handle<Object>(dictionary_->ValueAt(entry), isolate_)
-      : Handle<Object>::cast(isolate_->factory()->undefined_value());
+  if (entry != UnseededNumberDictionary::kNotFound) {
+    Object* value = dictionary_->ValueAt(entry);
+    if (value->IsJSGlobalPropertyCell()) {
+      JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(value);
+      return Handle<Object>(cell->value(), isolate_);
+    } else {
+      return Handle<Object>(value, isolate_);
+    }
+  }
+  return Handle<Object>::cast(isolate_->factory()->undefined_value());
+}
+
+
+Handle<JSGlobalPropertyCell> TypeFeedbackOracle::GetInfoCell(
+    TypeFeedbackId ast_id) {
+  int entry = dictionary_->FindEntry(IdToKey(ast_id));
+  if (entry != UnseededNumberDictionary::kNotFound) {
+    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(
+        dictionary_->ValueAt(entry));
+    return Handle<JSGlobalPropertyCell>(cell, isolate_);
+  }
+  return Handle<JSGlobalPropertyCell>::null();
 }
 
 
@@ -316,20 +335,11 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
 }
 
 
-ElementsKind TypeFeedbackOracle::GetCallNewElementsKind(CallNew* expr) {
-  Handle<Object> info = GetInfo(expr->CallNewFeedbackId());
-  if (info->IsSmi()) {
-    return static_cast<ElementsKind>(Smi::cast(*info)->value());
-  } else {
-    // TODO(mvstanton): avoided calling GetInitialFastElementsKind() for perf
-    // reasons. Is there a better fix?
-    if (FLAG_packed_arrays) {
-      return FAST_SMI_ELEMENTS;
-    } else {
-      return FAST_HOLEY_SMI_ELEMENTS;
-    }
-  }
+Handle<JSGlobalPropertyCell> TypeFeedbackOracle::GetCallNewAllocationInfoCell(
+    CallNew* expr) {
+  return GetInfoCell(expr->CallNewFeedbackId());
 }
+
 
 Handle<Map> TypeFeedbackOracle::GetObjectLiteralStoreMap(
     ObjectLiteral::Property* prop) {
@@ -749,12 +759,13 @@ void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
       TypeFeedbackInfo::cast(raw_info)->type_feedback_cells());
   for (int i = 0; i < cache->CellCount(); i++) {
     TypeFeedbackId ast_id = cache->AstId(i);
-    Object* value = cache->Cell(i)->value();
+    JSGlobalPropertyCell* cell = cache->Cell(i);
+    Object* value = cell->value();
     if (value->IsSmi() ||
         (value->IsJSFunction() &&
          !CanRetainOtherContext(JSFunction::cast(value),
                                 *native_context_))) {
-      SetInfo(ast_id, value);
+      SetInfo(ast_id, cell);
     }
   }
 }

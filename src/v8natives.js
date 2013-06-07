@@ -928,7 +928,6 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
       EnqueueSpliceRecord(obj,
           new_length < old_length ? new_length : old_length,
           removed,
-          removed.length,
           new_length > old_length ? new_length - old_length : 0);
     }
     if (threw) {
@@ -967,7 +966,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
     }
     if (emit_splice) {
       EndPerformSplice(obj);
-      EnqueueSpliceRecord(obj, length, [], 0, index + 1 - length);
+      EnqueueSpliceRecord(obj, length, [], index + 1 - length);
     }
     return true;
   }

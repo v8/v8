@@ -292,6 +292,9 @@ MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
                                            PretenureFlag tenure) {
   if (!FLAG_track_double_fields) return this;
   if (!representation.IsDouble()) return this;
+  if (IsUninitialized()) {
+    return heap->AllocateHeapNumber(0, tenure);
+  }
   return heap->AllocateHeapNumber(Number(), tenure);
 }
 
@@ -527,6 +530,11 @@ bool MaybeObject::IsException() {
 
 bool MaybeObject::IsTheHole() {
   return !IsFailure() && ToObjectUnchecked()->IsTheHole();
+}
+
+
+bool MaybeObject::IsUninitialized() {
+  return !IsFailure() && ToObjectUnchecked()->IsUninitialized();
 }
 
 
@@ -842,6 +850,11 @@ bool Object::IsNull() {
 
 bool Object::IsTheHole() {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kTheHole;
+}
+
+
+bool Object::IsUninitialized() {
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kUninitialized;
 }
 
 
@@ -1541,7 +1554,7 @@ MaybeObject* JSObject::MigrateInstance() {
   // Converting any field to the most specific type will cause the
   // GeneralizeFieldRepresentation algorithm to create the most general existing
   // transition that matches the object. This achieves what is needed.
-  return GeneralizeFieldRepresentation(0, Representation::Smi());
+  return GeneralizeFieldRepresentation(0, Representation::None());
 }
 
 
@@ -2366,7 +2379,6 @@ void DescriptorArray::Set(int descriptor_number,
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
 
-  ASSERT(!desc->GetDetails().representation().IsNone());
   NoIncrementalWriteBarrierSet(this,
                                ToKeyIndex(descriptor_number),
                                desc->GetKey());
@@ -2382,7 +2394,6 @@ void DescriptorArray::Set(int descriptor_number,
 void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
-  ASSERT(!desc->GetDetails().representation().IsNone());
 
   set(ToKeyIndex(descriptor_number), desc->GetKey());
   set(ToValueIndex(descriptor_number), desc->GetValue());
@@ -3617,6 +3628,9 @@ bool Map::CanBeDeprecated() {
   int descriptor = LastAdded();
   for (int i = 0; i <= descriptor; i++) {
     PropertyDetails details = instance_descriptors()->GetDetails(i);
+    if (FLAG_track_fields && details.representation().IsNone()) {
+      return true;
+    }
     if (FLAG_track_fields && details.representation().IsSmi()) {
       return true;
     }
@@ -3645,17 +3659,6 @@ bool Map::CanOmitPrototypeChecks() {
 }
 
 
-void Map::AddDependentCode(DependentCode::DependencyGroup group,
-                           Handle<Code> code) {
-  Handle<DependentCode> codes =
-      DependentCode::Insert(Handle<DependentCode>(dependent_code()),
-                             group, code);
-  if (*codes != dependent_code()) {
-    set_dependent_code(*codes);
-  }
-}
-
-
 int DependentCode::number_of_entries(DependencyGroup group) {
   if (length() == 0) return 0;
   return Smi::cast(get(group))->value();
@@ -3667,24 +3670,44 @@ void DependentCode::set_number_of_entries(DependencyGroup group, int value) {
 }
 
 
+bool DependentCode::is_code_at(int i) {
+  return get(kCodesStartIndex + i)->IsCode();
+}
+
 Code* DependentCode::code_at(int i) {
   return Code::cast(get(kCodesStartIndex + i));
 }
 
 
-void DependentCode::set_code_at(int i, Code* value) {
-  set(kCodesStartIndex + i, value);
+CompilationInfo* DependentCode::compilation_info_at(int i) {
+  return reinterpret_cast<CompilationInfo*>(
+      Foreign::cast(get(kCodesStartIndex + i))->foreign_address());
 }
 
 
-Object** DependentCode::code_slot_at(int i) {
+void DependentCode::set_object_at(int i, Object* object) {
+  set(kCodesStartIndex + i, object);
+}
+
+
+Object* DependentCode::object_at(int i) {
+  return get(kCodesStartIndex + i);
+}
+
+
+Object** DependentCode::slot_at(int i) {
   return HeapObject::RawField(
       this, FixedArray::OffsetOfElementAt(kCodesStartIndex + i));
 }
 
 
-void DependentCode::clear_code_at(int i) {
+void DependentCode::clear_at(int i) {
   set_undefined(kCodesStartIndex + i);
+}
+
+
+void DependentCode::copy(int from, int to) {
+  set(kCodesStartIndex + to, get(kCodesStartIndex + from));
 }
 
 
@@ -3692,7 +3715,7 @@ void DependentCode::ExtendGroup(DependencyGroup group) {
   GroupStartIndexes starts(this);
   for (int g = kGroupCount - 1; g > group; g--) {
     if (starts.at(g) < starts.at(g + 1)) {
-      set_code_at(starts.at(g + 1), code_at(starts.at(g)));
+      copy(starts.at(g), starts.at(g + 1));
     }
   }
 }
@@ -4368,6 +4391,8 @@ ACCESSORS(DeclaredAccessorInfo, descriptor, DeclaredAccessorDescriptor,
 ACCESSORS(ExecutableAccessorInfo, getter, Object, kGetterOffset)
 ACCESSORS(ExecutableAccessorInfo, setter, Object, kSetterOffset)
 ACCESSORS(ExecutableAccessorInfo, data, Object, kDataOffset)
+
+ACCESSORS(Box, value, Object, kValueOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
@@ -5314,10 +5339,15 @@ void JSArrayBuffer::set_is_external(bool value) {
 }
 
 
+ACCESSORS(JSArrayBuffer, weak_next, Object, kWeakNextOffset)
+ACCESSORS(JSArrayBuffer, weak_first_array, Object, kWeakFirstArrayOffset)
+
+
 ACCESSORS(JSTypedArray, buffer, Object, kBufferOffset)
 ACCESSORS(JSTypedArray, byte_offset, Object, kByteOffsetOffset)
 ACCESSORS(JSTypedArray, byte_length, Object, kByteLengthOffset)
 ACCESSORS(JSTypedArray, length, Object, kLengthOffset)
+ACCESSORS(JSTypedArray, weak_next, Object, kWeakNextOffset)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 

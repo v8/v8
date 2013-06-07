@@ -90,6 +90,7 @@ namespace internal {
   V(WhileStatement)                             \
   V(ForStatement)                               \
   V(ForInStatement)                             \
+  V(ForOfStatement)                             \
   V(TryCatchStatement)                          \
   V(TryFinallyStatement)                        \
   V(DebuggerStatement)
@@ -874,47 +875,129 @@ class ForStatement: public IterationStatement {
 };
 
 
-class ForInStatement: public IterationStatement {
+class ForEachStatement: public IterationStatement {
  public:
-  DECLARE_NODE_TYPE(ForInStatement)
+  enum VisitMode {
+    ENUMERATE,   // for (each in subject) body;
+    ITERATE      // for (each of subject) body;
+  };
 
-  void Initialize(Expression* each, Expression* enumerable, Statement* body) {
+  void Initialize(Expression* each, Expression* subject, Statement* body) {
     IterationStatement::Initialize(body);
     each_ = each;
-    enumerable_ = enumerable;
-    for_in_type_ = SLOW_FOR_IN;
+    subject_ = subject;
   }
 
   Expression* each() const { return each_; }
-  Expression* enumerable() const { return enumerable_; }
+  Expression* subject() const { return subject_; }
 
-  virtual BailoutId ContinueId() const { return EntryId(); }
-  virtual BailoutId StackCheckId() const { return body_id_; }
-  BailoutId BodyId() const { return body_id_; }
-  BailoutId PrepareId() const { return prepare_id_; }
+ protected:
+  ForEachStatement(Isolate* isolate, ZoneStringList* labels)
+      : IterationStatement(isolate, labels),
+        each_(NULL),
+        subject_(NULL) {
+  }
+
+ private:
+  Expression* each_;
+  Expression* subject_;
+};
+
+
+class ForInStatement: public ForEachStatement {
+ public:
+  DECLARE_NODE_TYPE(ForInStatement)
+
+  Expression* enumerable() const {
+    return subject();
+  }
 
   TypeFeedbackId ForInFeedbackId() const { return reuse(PrepareId()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   enum ForInType { FAST_FOR_IN, SLOW_FOR_IN };
   ForInType for_in_type() const { return for_in_type_; }
 
+  BailoutId BodyId() const { return body_id_; }
+  BailoutId PrepareId() const { return prepare_id_; }
+  virtual BailoutId ContinueId() const { return EntryId(); }
+  virtual BailoutId StackCheckId() const { return body_id_; }
+
  protected:
   ForInStatement(Isolate* isolate, ZoneStringList* labels)
-      : IterationStatement(isolate, labels),
-        each_(NULL),
-        enumerable_(NULL),
+      : ForEachStatement(isolate, labels),
+        for_in_type_(SLOW_FOR_IN),
         body_id_(GetNextId(isolate)),
         prepare_id_(GetNextId(isolate)) {
   }
 
- private:
-  Expression* each_;
-  Expression* enumerable_;
-
   ForInType for_in_type_;
-
   const BailoutId body_id_;
   const BailoutId prepare_id_;
+};
+
+
+class ForOfStatement: public ForEachStatement {
+ public:
+  DECLARE_NODE_TYPE(ForOfStatement)
+
+  void Initialize(Expression* each,
+                  Expression* subject,
+                  Statement* body,
+                  Expression* assign_iterator,
+                  Expression* next_result,
+                  Expression* result_done,
+                  Expression* assign_each) {
+    ForEachStatement::Initialize(each, subject, body);
+    assign_iterator_ = assign_iterator;
+    next_result_ = next_result;
+    result_done_ = result_done;
+    assign_each_ = assign_each;
+  }
+
+  Expression* iterable() const {
+    return subject();
+  }
+
+  // var iterator = iterable;
+  Expression* assign_iterator() const {
+    return assign_iterator_;
+  }
+
+  // var result = iterator.next();
+  Expression* next_result() const {
+    return next_result_;
+  }
+
+  // result.done
+  Expression* result_done() const {
+    return result_done_;
+  }
+
+  // each = result.value
+  Expression* assign_each() const {
+    return assign_each_;
+  }
+
+  virtual BailoutId ContinueId() const { return EntryId(); }
+  virtual BailoutId StackCheckId() const { return BackEdgeId(); }
+
+  BailoutId BackEdgeId() const { return back_edge_id_; }
+
+ protected:
+  ForOfStatement(Isolate* isolate, ZoneStringList* labels)
+      : ForEachStatement(isolate, labels),
+        assign_iterator_(NULL),
+        next_result_(NULL),
+        result_done_(NULL),
+        assign_each_(NULL),
+        back_edge_id_(GetNextId(isolate)) {
+  }
+
+  Expression* assign_iterator_;
+  Expression* next_result_;
+  Expression* result_done_;
+  Expression* assign_each_;
+  const BailoutId back_edge_id_;
 };
 
 
@@ -1682,7 +1765,9 @@ class CallNew: public Expression {
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   Handle<JSFunction> target() const { return target_; }
   ElementsKind elements_kind() const { return elements_kind_; }
-  Handle<Smi> allocation_elements_kind() const { return alloc_elements_kind_; }
+  Handle<JSGlobalPropertyCell> allocation_info_cell() const {
+    return allocation_info_cell_;
+  }
 
   BailoutId ReturnId() const { return return_id_; }
 
@@ -1707,7 +1792,7 @@ class CallNew: public Expression {
   bool is_monomorphic_;
   Handle<JSFunction> target_;
   ElementsKind elements_kind_;
-  Handle<Smi> alloc_elements_kind_;
+  Handle<JSGlobalPropertyCell> allocation_info_cell_;
 
   const BailoutId return_id_;
 };
@@ -2853,9 +2938,24 @@ class AstNodeFactory BASE_EMBEDDED {
   STATEMENT_WITH_LABELS(DoWhileStatement)
   STATEMENT_WITH_LABELS(WhileStatement)
   STATEMENT_WITH_LABELS(ForStatement)
-  STATEMENT_WITH_LABELS(ForInStatement)
   STATEMENT_WITH_LABELS(SwitchStatement)
 #undef STATEMENT_WITH_LABELS
+
+  ForEachStatement* NewForEachStatement(ForEachStatement::VisitMode visit_mode,
+                                        ZoneStringList* labels) {
+    switch (visit_mode) {
+      case ForEachStatement::ENUMERATE: {
+        ForInStatement* stmt = new(zone_) ForInStatement(isolate_, labels);
+        VISIT_AND_RETURN(ForInStatement, stmt);
+      }
+      case ForEachStatement::ITERATE: {
+        ForOfStatement* stmt = new(zone_) ForOfStatement(isolate_, labels);
+        VISIT_AND_RETURN(ForOfStatement, stmt);
+      }
+    }
+    UNREACHABLE();
+    return NULL;
+  }
 
   ModuleStatement* NewModuleStatement(VariableProxy* proxy, Block* body) {
     ModuleStatement* stmt = new(zone_) ModuleStatement(proxy, body);

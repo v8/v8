@@ -283,7 +283,7 @@ class TypeFeedbackOracle: public ZoneObject {
   CheckType GetCallCheckType(Call* expr);
   Handle<JSFunction> GetCallTarget(Call* expr);
   Handle<JSFunction> GetCallNewTarget(CallNew* expr);
-  ElementsKind GetCallNewElementsKind(CallNew* expr);
+  Handle<JSGlobalPropertyCell> GetCallNewAllocationInfoCell(CallNew* expr);
 
   Handle<Map> GetObjectLiteralStoreMap(ObjectLiteralProperty* prop);
 
@@ -338,10 +338,10 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
- public:
-  // TODO(mvstanton): how to get this information without making the method
-  // public?
   Handle<Object> GetInfo(TypeFeedbackId ast_id);
+
+  // Return the cell that contains type feedback.
+  Handle<JSGlobalPropertyCell> GetInfoCell(TypeFeedbackId ast_id);
 
  private:
   Handle<Context> native_context_;

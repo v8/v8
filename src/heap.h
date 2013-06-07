@@ -59,6 +59,7 @@ namespace internal {
   V(Oddball, null_value, NullValue)                                            \
   V(Oddball, true_value, TrueValue)                                            \
   V(Oddball, false_value, FalseValue)                                          \
+  V(Oddball, uninitialized_value, UninitializedValue)                          \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, meta_map, MetaMap)                                                    \
@@ -295,7 +296,8 @@ namespace internal {
   V(send_string, "send")                                                 \
   V(throw_string, "throw")                                               \
   V(done_string, "done")                                                 \
-  V(value_string, "value")
+  V(value_string, "value")                                               \
+  V(next_string, "next")
 
 // Forward declarations.
 class GCTracer;
@@ -938,6 +940,10 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSGlobalPropertyCell(Object* value);
 
+  // Allocate Box.
+  MUST_USE_RESULT MaybeObject* AllocateBox(Object* value,
+                                           PretenureFlag pretenure);
+
   // Allocates a fixed array initialized with undefined values
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -1346,6 +1352,12 @@ class Heap {
     native_contexts_list_ = object;
   }
   Object* native_contexts_list() { return native_contexts_list_; }
+
+  void set_array_buffers_list(Object* object) {
+    array_buffers_list_ = object;
+  }
+  Object* array_buffers_list() { return array_buffers_list_; }
+
 
   // Number of mark-sweeps.
   unsigned int ms_count() { return ms_count_; }
@@ -2017,6 +2029,8 @@ class Heap {
 
   Object* native_contexts_list_;
 
+  Object* array_buffers_list_;
+
   StoreBufferRebuilder store_buffer_rebuilder_;
 
   struct StringTypeTable {
@@ -2159,6 +2173,9 @@ class Heap {
 
   // Code to be run before and after mark-compact.
   void MarkCompactPrologue();
+
+  void ProcessNativeContexts(WeakObjectRetainer* retainer, bool record_slots);
+  void ProcessArrayBuffers(WeakObjectRetainer* retainer, bool record_slots);
 
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();

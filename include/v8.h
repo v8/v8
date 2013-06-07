@@ -796,6 +796,7 @@ template <class T> class Persistent // NOLINT
  private:
   template<class F> friend class Handle;
   template<class F> friend class Local;
+  template<class F> friend class ReturnValue;
   friend class ImplementationUtilities;
   friend class ObjectTemplate;
   friend class Context;
@@ -1468,6 +1469,8 @@ class V8EXPORT Value : public Data {
   /** JS == */
   bool Equals(Handle<Value> that) const;
   bool StrictEquals(Handle<Value> that) const;
+
+  template <class T> V8_INLINE(static Value* Cast(T* value));
 
  private:
   V8_INLINE(bool QuickIsUndefined() const);
@@ -2427,6 +2430,14 @@ class V8EXPORT ArrayBuffer : public Object {
    * own its memory block.
    */
   bool IsExternal() const;
+
+  /**
+   * Neuters this ArrayBuffer and all its views (typed arrays).
+   * Neutering sets the byte length of the buffer and all typed arrays to zero,
+   * preventing JavaScript from ever accessing underlying backing store.
+   * ArrayBuffer should have been externalized.
+   */
+  void Neuter();
 
   /**
    * Pass the ownership of this ArrayBuffer's backing store to
@@ -5283,7 +5294,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 129;
+  static const int kEmptyStringRootIndex = 130;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -5293,10 +5304,10 @@ class Internals {
   static const int kNodeIsIndependentShift = 4;
   static const int kNodeIsPartiallyDependentShift = 5;
 
-  static const int kJSObjectType = 0xae;
+  static const int kJSObjectType = 0xaf;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
-  static const int kForeignType = 0x86;
+  static const int kForeignType = 0x87;
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
@@ -5682,8 +5693,10 @@ void ReturnValue<T>::Set(int32_t i) {
 template<typename T>
 void ReturnValue<T>::Set(uint32_t i) {
   typedef internal::Internals I;
-  if (V8_LIKELY(I::IsValidSmi(i))) {
-    *value_ = I::IntToSmi(i);
+  // Can't simply use INT32_MAX here for whatever reason.
+  bool fits_into_int32_t = (i & (1 << 31)) == 0;
+  if (V8_LIKELY(fits_into_int32_t)) {
+    Set(static_cast<int32_t>(i));
     return;
   }
   Set(Integer::NewFromUnsigned(i, GetIsolate()));
@@ -5995,6 +6008,11 @@ bool Value::QuickIsString() const {
 }
 
 
+template <class T> Value* Value::Cast(T* value) {
+  return static_cast<Value*>(value);
+}
+
+
 Symbol* Symbol::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
@@ -6160,6 +6178,14 @@ Float64Array* Float64Array::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Float64Array*>(value);
+}
+
+
+Uint8ClampedArray* Uint8ClampedArray::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Uint8ClampedArray*>(value);
 }
 
 

@@ -6112,6 +6112,25 @@ void v8::ArrayBuffer::Externalize(ArrayBufferContents* contents) {
 }
 
 
+void v8::ArrayBuffer::Neuter() {
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  ApiCheck(obj->is_external(),
+           "v8::ArrayBuffer::Neuter",
+           "Only externalized ArrayBuffers can be neutered");
+  LOG_API(obj->GetIsolate(), "v8::ArrayBuffer::Neuter()");
+  ENTER_V8(isolate);
+
+  for (i::Handle<i::Object> array_obj(obj->weak_first_array(), isolate);
+       *array_obj != i::Smi::FromInt(0);) {
+    i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*array_obj));
+    typed_array->Neuter();
+    array_obj = i::handle(typed_array->weak_next(), isolate);
+  }
+  obj->Neuter();
+}
+
+
 size_t v8::ArrayBuffer::ByteLength() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::ArrayBuffer::ByteLength()")) return 0;
@@ -6205,6 +6224,9 @@ i::Handle<i::JSTypedArray> NewTypedArray(
       static_cast<size_t>(buffer->byte_length()->Number()));
 
   obj->set_buffer(*buffer);
+
+  obj->set_weak_next(buffer->weak_first_array());
+  buffer->set_weak_first_array(*obj);
 
   i::Handle<i::Object> byte_offset_object = isolate->factory()->NewNumber(
         static_cast<double>(byte_offset));

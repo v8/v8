@@ -39,6 +39,11 @@ namespace internal {
 
 class Factory {
  public:
+  // Allocate a new boxed value.
+  Handle<Box> NewBox(
+      Handle<Object> value,
+      PretenureFlag pretenure = NOT_TENURED);
+
   // Allocate a new uninitialized fixed array.
   Handle<FixedArray> NewFixedArray(
       int size,

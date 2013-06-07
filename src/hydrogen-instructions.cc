@@ -1058,6 +1058,7 @@ void HBoundsCheck::ApplyIndexChange() {
         block()->graph()->GetInvalidContext(), current_index, add_offset);
     add->InsertBefore(this);
     add->AssumeRepresentation(index()->representation());
+    add->ClearFlag(kCanOverflow);
     current_index = add;
   }
 
@@ -1305,6 +1306,30 @@ const char* HUnaryMathOperation::OpName() const {
       UNREACHABLE();
       return NULL;
   }
+}
+
+
+Range* HUnaryMathOperation::InferRange(Zone* zone) {
+  Representation r = representation();
+  if (r.IsSmiOrInteger32() && value()->HasRange()) {
+    if (op() == kMathAbs) {
+      int upper = value()->range()->upper();
+      int lower = value()->range()->lower();
+      bool spans_zero = value()->range()->CanBeZero();
+      // Math.abs(kMinInt) overflows its representation, on which the
+      // instruction deopts. Hence clamp it to kMaxInt.
+      int abs_upper = upper == kMinInt ? kMaxInt : abs(upper);
+      int abs_lower = lower == kMinInt ? kMaxInt : abs(lower);
+      Range* result =
+          new(zone) Range(spans_zero ? 0 : Min(abs_lower, abs_upper),
+                          Max(abs_lower, abs_upper));
+      // In case of Smi representation, clamp Math.abs(Smi::kMinValue) to
+      // Smi::kMaxValue.
+      if (r.IsSmi()) result->ClampToSmi();
+      return result;
+    }
+  }
+  return HValue::InferRange(zone);
 }
 
 
@@ -3065,6 +3090,16 @@ HType HBitNot::CalculateInferredType() {
 
 HType HUnaryMathOperation::CalculateInferredType() {
   return HType::TaggedNumber();
+}
+
+
+Representation HUnaryMathOperation::RepresentationFromInputs() {
+  Representation rep = representation();
+  // If any of the actual input representation is more general than what we
+  // have so far but not Tagged, use that representation instead.
+  Representation input_rep = value()->representation();
+  if (!input_rep.IsTagged()) rep = rep.generalize(input_rep);
+  return rep;
 }
 
 

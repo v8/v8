@@ -224,6 +224,13 @@ void AstTyper::VisitForInStatement(ForInStatement* stmt) {
 }
 
 
+void AstTyper::VisitForOfStatement(ForOfStatement* stmt) {
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->iterable()));
+  CHECK_ALIVE(Visit(stmt->body()));
+}
+
+
 void AstTyper::VisitTryCatchStatement(TryCatchStatement* stmt) {
   ASSERT(!HasStackOverflow());
   CHECK_ALIVE(Visit(stmt->try_block()));

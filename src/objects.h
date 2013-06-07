@@ -125,6 +125,7 @@
 //       - Foreign
 //       - SharedFunctionInfo
 //       - Struct
+//         - Box
 //         - DeclaredAccessorDescriptor
 //         - AccessorInfo
 //           - DeclaredAccessorInfo
@@ -348,6 +349,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(CODE_TYPE)                                                                 \
   V(ODDBALL_TYPE)                                                              \
   V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
+  V(BOX_TYPE)                                                                  \
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
   V(FOREIGN_TYPE)                                                              \
@@ -526,6 +528,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
 #define STRUCT_LIST_ALL(V)                                                     \
+  V(BOX, Box, box)                                                             \
   V(DECLARED_ACCESSOR_DESCRIPTOR,                                              \
     DeclaredAccessorDescriptor,                                                \
     declared_accessor_descriptor)                                              \
@@ -667,6 +670,7 @@ enum InstanceType {
   CODE_TYPE,
   ODDBALL_TYPE,
   JS_GLOBAL_PROPERTY_CELL_TYPE,
+  BOX_TYPE,
 
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
@@ -869,6 +873,7 @@ class MaybeObject BASE_EMBEDDED {
   inline bool IsOutOfMemory();
   inline bool IsException();
   INLINE(bool IsTheHole());
+  INLINE(bool IsUninitialized());
   inline bool ToObject(Object** obj) {
     if (IsFailure()) return false;
     *obj = reinterpret_cast<Object*>(this);
@@ -1046,6 +1051,7 @@ class Object : public MaybeObject {
   INLINE(bool IsUndefined());
   INLINE(bool IsNull());
   INLINE(bool IsTheHole());  // Shadows MaybeObject's implementation.
+  INLINE(bool IsUninitialized());
   INLINE(bool IsTrue());
   INLINE(bool IsFalse());
   inline bool IsArgumentsMarker();
@@ -1060,16 +1066,24 @@ class Object : public MaybeObject {
   bool ToInt32(int32_t* value);
   bool ToUint32(uint32_t* value);
 
-  inline Representation OptimalRepresentation() {
-    if (FLAG_track_fields && IsSmi()) {
+  // Indicates whether OptimalRepresentation can do its work, or whether it
+  // always has to return Representation::Tagged().
+  enum ValueType {
+    OPTIMAL_REPRESENTATION,
+    FORCE_TAGGED
+  };
+
+  inline Representation OptimalRepresentation(
+      ValueType type = OPTIMAL_REPRESENTATION) {
+    if (!FLAG_track_fields) return Representation::Tagged();
+    if (type == FORCE_TAGGED) return Representation::Tagged();
+    if (IsSmi()) {
       return Representation::Smi();
     } else if (FLAG_track_double_fields && IsHeapNumber()) {
       return Representation::Double();
-    } else if (FLAG_track_heap_object_fields && !IsUndefined()) {
-      // Don't track undefined as heapobject because it's also used as temporary
-      // value for computed fields that may turn out to be Smi. That combination
-      // will go tagged, so go tagged immediately.
-      // TODO(verwaest): Change once we track computed boilerplate fields.
+    } else if (FLAG_track_computed_fields && IsUninitialized()) {
+      return Representation::None();
+    } else if (FLAG_track_heap_object_fields) {
       ASSERT(IsHeapObject());
       return Representation::HeapObject();
     } else {
@@ -1078,7 +1092,9 @@ class Object : public MaybeObject {
   }
 
   inline bool FitsRepresentation(Representation representation) {
-    if (FLAG_track_fields && representation.IsSmi()) {
+    if (FLAG_track_fields && representation.IsNone()) {
+      return false;
+    } else if (FLAG_track_fields && representation.IsSmi()) {
       return IsSmi();
     } else if (FLAG_track_double_fields && representation.IsDouble()) {
       return IsNumber();
@@ -1827,7 +1843,8 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<Name> key,
       Handle<Object> value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      ValueType value_type = OPTIMAL_REPRESENTATION);
 
   static inline Handle<String> ExpectedTransitionKey(Handle<Map> map);
   static inline Handle<Map> ExpectedTransitionTarget(Handle<Map> map);
@@ -1854,7 +1871,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       Name* key,
       Object* value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      ValueType value_type = OPTIMAL_REPRESENTATION);
 
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
@@ -2216,7 +2234,8 @@ class JSObject: public JSReceiver {
       Name* name,
       Object* value,
       PropertyAttributes attributes,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
+      ValueType value_type = OPTIMAL_REPRESENTATION);
 
   // Add a property to a slow-case object.
   MUST_USE_RESULT MaybeObject* AddSlowProperty(Name* name,
@@ -2230,7 +2249,8 @@ class JSObject: public JSReceiver {
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
+      ValueType value_type = OPTIMAL_REPRESENTATION);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
@@ -4960,6 +4980,8 @@ class Code: public HeapObject {
 };
 
 
+class CompilationInfo;
+
 // This class describes the layout of dependent codes array of a map. The
 // array is partitioned into several groups of dependent codes. Each group
 // contains codes with the same dependency on the map. The array has the
@@ -5007,14 +5029,23 @@ class DependentCode: public FixedArray {
     void Recompute(DependentCode* entries);
     int at(int i) { return start_indexes_[i]; }
     int number_of_entries() { return start_indexes_[kGroupCount]; }
+    int number_of_code_entries() {
+      return start_indexes_[kGroupCount];
+    }
    private:
     int start_indexes_[kGroupCount + 1];
   };
 
   bool Contains(DependencyGroup group, Code* code);
   static Handle<DependentCode> Insert(Handle<DependentCode> entries,
-                                       DependencyGroup group,
-                                       Handle<Code> value);
+                                      DependencyGroup group,
+                                      Handle<Object> object);
+  void UpdateToFinishedCode(DependencyGroup group,
+                            CompilationInfo* info,
+                            Code* code);
+  void RemoveCompilationInfo(DependentCode::DependencyGroup group,
+                             CompilationInfo* info);
+
   void DeoptimizeDependentCodeGroup(Isolate* isolate,
                                     DependentCode::DependencyGroup group);
 
@@ -5022,10 +5053,14 @@ class DependentCode: public FixedArray {
   // and the mark compact collector.
   inline int number_of_entries(DependencyGroup group);
   inline void set_number_of_entries(DependencyGroup group, int value);
+  inline bool is_code_at(int i);
   inline Code* code_at(int i);
-  inline void set_code_at(int i, Code* value);
-  inline Object** code_slot_at(int i);
-  inline void clear_code_at(int i);
+  inline CompilationInfo* compilation_info_at(int i);
+  inline void set_object_at(int i, Object* object);
+  inline Object** slot_at(int i);
+  inline Object* object_at(int i);
+  inline void clear_at(int i);
+  inline void copy(int from, int to);
   static inline DependentCode* cast(Object* object);
 
  private:
@@ -5534,8 +5569,11 @@ class Map: public HeapObject {
 
   inline bool CanOmitPrototypeChecks();
 
-  inline void AddDependentCode(DependentCode::DependencyGroup group,
-                               Handle<Code> code);
+  void AddDependentCompilationInfo(DependentCode::DependencyGroup group,
+                                        CompilationInfo* info);
+
+  void AddDependentCode(DependentCode::DependencyGroup group,
+                        Handle<Code> code);
 
   bool IsMapInArrayPrototypeChain();
 
@@ -5666,6 +5704,26 @@ class Struct: public HeapObject {
  public:
   inline void InitializeBody(int object_size);
   static inline Struct* cast(Object* that);
+};
+
+
+// A simple one-element struct, useful where smis need to be boxed.
+class Box : public Struct {
+ public:
+  // [value]: the boxed contents.
+  DECL_ACCESSORS(value, Object)
+
+  static inline Box* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(Box)
+  DECLARE_VERIFIER(Box)
+
+  static const int kValueOffset = HeapObject::kHeaderSize;
+  static const int kSize = kValueOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Box);
 };
 
 
@@ -8483,7 +8541,8 @@ class Oddball: public HeapObject {
   static const byte kNull = 3;
   static const byte kArgumentMarker = 4;
   static const byte kUndefined = 5;
-  static const byte kOther = 6;
+  static const byte kUninitialized = 6;
+  static const byte kOther = 7;
 
   typedef FixedBodyDescriptor<kToStringOffset,
                               kToNumberOffset + kPointerSize,
@@ -8745,8 +8804,17 @@ class JSArrayBuffer: public JSObject {
   inline bool is_external();
   inline void set_is_external(bool value);
 
+  // [weak_next]: linked list of array buffers.
+  DECL_ACCESSORS(weak_next, Object)
+
+  // [weak_first_array]: weak linked list of typed arrays.
+  DECL_ACCESSORS(weak_first_array, Object)
+
   // Casting.
   static inline JSArrayBuffer* cast(Object* obj);
+
+  // Neutering. Only neuters the buffer, not associated typed arrays.
+  void Neuter();
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSArrayBuffer)
@@ -8755,7 +8823,12 @@ class JSArrayBuffer: public JSObject {
   static const int kBackingStoreOffset = JSObject::kHeaderSize;
   static const int kByteLengthOffset = kBackingStoreOffset + kPointerSize;
   static const int kFlagOffset = kByteLengthOffset + kPointerSize;
-  static const int kSize = kFlagOffset + kPointerSize;
+  static const int kWeakNextOffset = kFlagOffset + kPointerSize;
+  static const int kWeakFirstArrayOffset = kWeakNextOffset + kPointerSize;
+  static const int kSize = kWeakFirstArrayOffset + kPointerSize;
+
+  static const int kSizeWithInternalFields =
+      kSize + v8::ArrayBuffer::kInternalFieldCount * kPointerSize;
 
  private:
   // Bit position in a flag
@@ -8779,6 +8852,12 @@ class JSTypedArray: public JSObject {
   // [length]: length of typed array in elements.
   DECL_ACCESSORS(length, Object)
 
+  // [weak_next]: linked list of typed arrays over the same array buffer.
+  DECL_ACCESSORS(weak_next, Object)
+
+  // Neutering. Only neuters this typed array.
+  void Neuter();
+
   // Casting.
   static inline JSTypedArray* cast(Object* obj);
 
@@ -8793,7 +8872,8 @@ class JSTypedArray: public JSObject {
   static const int kByteOffsetOffset = kBufferOffset + kPointerSize;
   static const int kByteLengthOffset = kByteOffsetOffset + kPointerSize;
   static const int kLengthOffset = kByteLengthOffset + kPointerSize;
-  static const int kSize = kLengthOffset + kPointerSize;
+  static const int kWeakNextOffset = kLengthOffset + kPointerSize;
+  static const int kSize = kWeakNextOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);

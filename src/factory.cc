@@ -41,6 +41,14 @@ namespace v8 {
 namespace internal {
 
 
+Handle<Box> Factory::NewBox(Handle<Object> value, PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateBox(*value, pretenure),
+      Box);
+}
+
+
 Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
   ASSERT(0 <= size);
   CALL_HEAP_FUNCTION(

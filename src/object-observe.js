@@ -294,7 +294,7 @@ function EndPerformSplice(array) {
     EndPerformChange(objectInfo, 'splice');
 }
 
-function EnqueueSpliceRecord(array, index, removed, deleteCount, addedCount) {
+function EnqueueSpliceRecord(array, index, removed, addedCount) {
   var objectInfo = objectInfoMap.get(array);
   if (IS_UNDEFINED(objectInfo) || objectInfo.changeObservers.length === 0)
     return;
@@ -307,7 +307,6 @@ function EnqueueSpliceRecord(array, index, removed, deleteCount, addedCount) {
     addedCount: addedCount
   };
 
-  changeRecord.removed.length = deleteCount;
   ObjectFreeze(changeRecord);
   ObjectFreeze(changeRecord.removed);
   EnqueueChangeRecord(changeRecord, objectInfo.changeObservers);

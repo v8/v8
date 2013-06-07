@@ -25,22 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --nodead-code-elimination --parallel-recompilation
-// Flags: --allow-natives-syntax
+// Flags: --harmony-iteration --harmony-scoping
 
-function g() {  // g() cannot be optimized.
-  const x = 1;
-  x++;
-}
+// Test for-of syntax.
 
-function f(x) {
-  g();
-}
+"use strict";
 
-f();
-f();
-%OptimizeFunctionOnNextCall(f);
-%OptimizeFunctionOnNextCall(g, "parallel");
-f(0);  // g() is disabled for optimization on inlining attempt.
-// Attempt to optimize g() should not run into any assertion.
-%CompleteOptimization(g);
+function f() { for (x of y) { } }
+function f() { for (var x of y) { } }
+function f() { for (let x of y) { } }
+
+assertThrows("function f() { for (x of) { } }", SyntaxError);
+assertThrows("function f() { for (x of y z) { } }", SyntaxError);
+assertThrows("function f() { for (x of y;) { } }", SyntaxError);
+
+assertThrows("function f() { for (var x of) { } }", SyntaxError);
+assertThrows("function f() { for (var x of y z) { } }", SyntaxError);
+assertThrows("function f() { for (var x of y;) { } }", SyntaxError);
+
+assertThrows("function f() { for (let x of) { } }", SyntaxError);
+assertThrows("function f() { for (let x of y z) { } }", SyntaxError);
+assertThrows("function f() { for (let x of y;) { } }", SyntaxError);
+
+assertThrows("function f() { for (of y) { } }", SyntaxError);
+assertThrows("function f() { for (of of) { } }", SyntaxError);
+assertThrows("function f() { for (var of y) { } }", SyntaxError);
+assertThrows("function f() { for (var of of) { } }", SyntaxError);
+assertThrows("function f() { for (let of y) { } }", SyntaxError);
+assertThrows("function f() { for (let of of) { } }", SyntaxError);
+
+// Alack, this appears to be valid.
+function f() { for (of of y) { } }
+function f() { for (let of of y) { } }
+function f() { for (var of of y) { } }
+
+// This too, of course.
+function f() { for (of in y) { } }
+function f() { for (var of in y) { } }
+function f() { for (let of in y) { } }
