@@ -1207,7 +1207,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
   }
   static byte ExtractTypesFromExtraICState(
       Code::ExtraICState state) {
-    return state & ((1<<NUMBER_OF_TYPES)-1);
+    return state & ((1 << NUMBER_OF_TYPES) - 1);
   }
 
   void Record(Handle<Object> object);
