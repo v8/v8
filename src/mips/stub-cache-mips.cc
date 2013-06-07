@@ -337,8 +337,8 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
   __ Branch(miss_label, ne, scratch, Operand(JS_ARRAY_TYPE));
 
   // Load length directly from the JS array.
+  __ Ret(USE_DELAY_SLOT);
   __ lw(v0, FieldMemOperand(receiver, JSArray::kLengthOffset));
-  __ Ret();
 }
 
 
@@ -384,8 +384,8 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                       support_wrappers ? &check_wrapper : miss);
 
   // Load length directly from the string.
+  __ Ret(USE_DELAY_SLOT);
   __ lw(v0, FieldMemOperand(receiver, String::kLengthOffset));
-  __ Ret();
 
   if (support_wrappers) {
     // Check if the object is a JSValue wrapper.
@@ -395,8 +395,8 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
     // Unwrap the value and check if the wrapped value is a string.
     __ lw(scratch1, FieldMemOperand(receiver, JSValue::kValueOffset));
     GenerateStringCheck(masm, scratch1, scratch2, scratch2, miss, miss);
+    __ Ret(USE_DELAY_SLOT);
     __ lw(v0, FieldMemOperand(scratch1, String::kLengthOffset));
-    __ Ret();
   }
 }
 
@@ -407,8 +407,8 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                                  Register scratch2,
                                                  Label* miss_label) {
   __ TryGetFunctionPrototype(receiver, scratch1, scratch2, miss_label);
+  __ Ret(USE_DELAY_SLOT);
   __ mov(v0, scratch1);
-  __ Ret();
 }
 
 
@@ -639,8 +639,8 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   // Return the value (register v0).
   ASSERT(value_reg.is(a0));
   __ bind(&exit);
+  __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);
-  __ Ret();
 }
 
 
@@ -715,8 +715,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ sdc1(f4, FieldMemOperand(scratch1, HeapNumber::kValueOffset));
     // Return the value (register v0).
     ASSERT(value_reg.is(a0));
+    __ Ret(USE_DELAY_SLOT);
     __ mov(v0, a0);
-    __ Ret();
     return;
   }
 
@@ -773,8 +773,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   // Return the value (register v0).
   ASSERT(value_reg.is(a0));
   __ bind(&exit);
+  __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);
-  __ Ret();
 }
 
 
@@ -1706,8 +1706,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
   if (argc == 0) {
     // Nothing to do, just return the length.
     __ lw(v0, FieldMemOperand(receiver, JSArray::kLengthOffset));
-    __ Drop(argc + 1);
-    __ Ret();
+    __ DropAndRet(argc + 1);
   } else {
     Label call_builtin;
     if (argc == 1) {  // Otherwise fall through to call the builtin.
@@ -1755,8 +1754,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ sw(t0, MemOperand(end_elements));
 
       // Check for a smi.
-      __ Drop(argc + 1);
-      __ Ret();
+      __ DropAndRet(argc + 1);
 
       __ bind(&check_double);
 
@@ -1788,8 +1786,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ sw(a0, FieldMemOperand(receiver, JSArray::kLengthOffset));
 
       // Check for a smi.
-      __ Drop(argc + 1);
-      __ Ret();
+      __ DropAndRet(argc + 1);
 
       __ bind(&with_write_barrier);
 
@@ -1855,8 +1852,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
                      kDontSaveFPRegs,
                      EMIT_REMEMBERED_SET,
                      OMIT_SMI_CHECK);
-      __ Drop(argc + 1);
-      __ Ret();
+      __ DropAndRet(argc + 1);
 
       __ bind(&attempt_to_grow_elements);
       // v0: array's length + 1.
@@ -1911,8 +1907,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ sw(t0, FieldMemOperand(elements, FixedArray::kLengthOffset));
 
       // Elements are in new space, so write barrier is not required.
-      __ Drop(argc + 1);
-      __ Ret();
+      __ DropAndRet(argc + 1);
     }
     __ bind(&call_builtin);
     __ TailCallExternalReference(
@@ -1991,13 +1986,11 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
 
   // Fill with the hole.
   __ sw(t2, FieldMemOperand(elements, FixedArray::kHeaderSize));
-  __ Drop(argc + 1);
-  __ Ret();
+  __ DropAndRet(argc + 1);
 
   __ bind(&return_undefined);
   __ LoadRoot(v0, Heap::kUndefinedValueRootIndex);
-  __ Drop(argc + 1);
-  __ Ret();
+  __ DropAndRet(argc + 1);
 
   __ bind(&call_builtin);
   __ TailCallExternalReference(
@@ -2072,8 +2065,7 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
                                       index_out_of_range_label,
                                       STRING_INDEX_IS_NUMBER);
   generator.GenerateFast(masm());
-  __ Drop(argc + 1);
-  __ Ret();
+  __ DropAndRet(argc + 1);
 
   StubRuntimeCallHelper call_helper;
   generator.GenerateSlow(masm(), call_helper);
@@ -2081,8 +2073,7 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
   if (index_out_of_range.is_linked()) {
     __ bind(&index_out_of_range);
     __ LoadRoot(v0, Heap::kNanValueRootIndex);
-    __ Drop(argc + 1);
-    __ Ret();
+    __ DropAndRet(argc + 1);
   }
 
   __ bind(&miss);
@@ -2155,8 +2146,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
                                   index_out_of_range_label,
                                   STRING_INDEX_IS_NUMBER);
   generator.GenerateFast(masm());
-  __ Drop(argc + 1);
-  __ Ret();
+  __ DropAndRet(argc + 1);
 
   StubRuntimeCallHelper call_helper;
   generator.GenerateSlow(masm(), call_helper);
@@ -2164,8 +2154,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
   if (index_out_of_range.is_linked()) {
     __ bind(&index_out_of_range);
     __ LoadRoot(v0, Heap::kempty_stringRootIndex);
-    __ Drop(argc + 1);
-    __ Ret();
+    __ DropAndRet(argc + 1);
   }
 
   __ bind(&miss);
@@ -2231,8 +2220,7 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
 
   StringCharFromCodeGenerator generator(code, v0);
   generator.GenerateFast(masm());
-  __ Drop(argc + 1);
-  __ Ret();
+  __ DropAndRet(argc + 1);
 
   StubRuntimeCallHelper call_helper;
   generator.GenerateSlow(masm(), call_helper);
@@ -2295,8 +2283,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   // If the argument is a smi, just return.
   STATIC_ASSERT(kSmiTag == 0);
   __ And(t0, v0, Operand(kSmiTagMask));
-  __ Drop(argc + 1, eq, t0, Operand(zero_reg));
-  __ Ret(eq, t0, Operand(zero_reg));
+  __ DropAndRet(argc + 1, eq, t0, Operand(zero_reg));
 
   __ CheckMap(v0, a1, Heap::kHeapNumberMapRootIndex, &slow, DONT_DO_SMI_CHECK);
 
@@ -2361,8 +2348,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   // Restore FCSR and return.
   __ ctc1(a3, FCSR);
 
-  __ Drop(argc + 1);
-  __ Ret();
+  __ DropAndRet(argc + 1);
 
   __ bind(&wont_fit_smi);
   // Restore FCSR and fall to slow case.
@@ -2441,8 +2427,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   __ Branch(&slow, lt, v0, Operand(zero_reg));
 
   // Smi case done.
-  __ Drop(argc + 1);
-  __ Ret();
+  __ DropAndRet(argc + 1);
 
   // Check if the argument is a heap number and load its exponent and
   // sign.
@@ -2455,8 +2440,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   Label negative_sign;
   __ And(t0, a1, Operand(HeapNumber::kSignMask));
   __ Branch(&negative_sign, ne, t0, Operand(zero_reg));
-  __ Drop(argc + 1);
-  __ Ret();
+  __ DropAndRet(argc + 1);
 
   // If the argument is negative, clear the sign, and return a new
   // number.
@@ -2467,8 +2451,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   __ AllocateHeapNumber(v0, t0, t1, t2, &slow);
   __ sw(a1, FieldMemOperand(v0, HeapNumber::kExponentOffset));
   __ sw(a3, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
-  __ Drop(argc + 1);
-  __ Ret();
+  __ DropAndRet(argc + 1);
 
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
@@ -3066,8 +3049,8 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_load_global_stub(), 1, a1, a3);
+  __ Ret(USE_DELAY_SLOT);
   __ mov(v0, t0);
-  __ Ret();
 
   // Return the generated code.
   return GetICCode(kind(), Code::NORMAL, name);
@@ -3338,8 +3321,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   }
 
   // Entry registers are intact, a0 holds the value which is the return value.
+  __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);
-  __ Ret();
 
   if (elements_kind != EXTERNAL_PIXEL_ELEMENTS) {
     // a3: external array.
@@ -3406,8 +3389,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
     // Entry registers are intact, a0 holds the value
     // which is the return value.
+    __ Ret(USE_DELAY_SLOT);
     __ mov(v0, a0);
-    __ Ret();
   }
 
   // Slow case, key and receiver still in a0 and a1.
@@ -3568,8 +3551,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
 
     // Increment the length of the array.
     __ li(length_reg, Operand(Smi::FromInt(1)));
+    __ Ret(USE_DELAY_SLOT);
     __ sw(length_reg, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
-    __ Ret();
 
     __ bind(&check_capacity);
     // Check for cow elements, in general they are not handled by this stub
@@ -3733,9 +3716,9 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     // Increment the length of the array.
     __ li(length_reg, Operand(Smi::FromInt(1)));
     __ sw(length_reg, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+    __ Ret(USE_DELAY_SLOT);
     __ lw(elements_reg,
           FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
-    __ Ret();
 
     __ bind(&check_capacity);
     // Make sure that the backing store can hold additional elements.
