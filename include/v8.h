@@ -2432,6 +2432,14 @@ class V8EXPORT ArrayBuffer : public Object {
   bool IsExternal() const;
 
   /**
+   * Neuters this ArrayBuffer and all its views (typed arrays).
+   * Neutering sets the byte length of the buffer and all typed arrays to zero,
+   * preventing JavaScript from ever accessing underlying backing store.
+   * ArrayBuffer should have been externalized.
+   */
+  void Neuter();
+
+  /**
    * Pass the ownership of this ArrayBuffer's backing store to
    * a given ArrayBufferContents.
    */

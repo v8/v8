@@ -8813,6 +8813,9 @@ class JSArrayBuffer: public JSObject {
   // Casting.
   static inline JSArrayBuffer* cast(Object* obj);
 
+  // Neutering. Only neuters the buffer, not associated typed arrays.
+  void Neuter();
+
   // Dispatched behavior.
   DECLARE_PRINTER(JSArrayBuffer)
   DECLARE_VERIFIER(JSArrayBuffer)
@@ -8851,6 +8854,9 @@ class JSTypedArray: public JSObject {
 
   // [weak_next]: linked list of typed arrays over the same array buffer.
   DECL_ACCESSORS(weak_next, Object)
+
+  // Neutering. Only neuters this typed array.
+  void Neuter();
 
   // Casting.
   static inline JSTypedArray* cast(Object* obj);

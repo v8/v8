@@ -15777,4 +15777,19 @@ void JSDate::SetLocalFields(int64_t local_time_ms, DateCache* date_cache) {
   set_sec(Smi::FromInt(sec), SKIP_WRITE_BARRIER);
 }
 
+
+void JSArrayBuffer::Neuter() {
+  ASSERT(is_external());
+  set_backing_store(NULL);
+  set_byte_length(Smi::FromInt(0));
+}
+
+
+void JSTypedArray::Neuter() {
+  set_byte_offset(Smi::FromInt(0));
+  set_byte_length(Smi::FromInt(0));
+  set_length(Smi::FromInt(0));
+  set_elements(GetHeap()->EmptyExternalArrayForMap(map()));
+}
+
 } }  // namespace v8::internal
