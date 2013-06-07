@@ -688,6 +688,12 @@ class Parser BASE_EMBEDDED {
   // in the object literal boilerplate.
   Handle<Object> GetBoilerplateValue(Expression* expression);
 
+  // Initialize the components of a for-in / for-of statement.
+  void InitializeForEachStatement(ForEachStatement* stmt,
+                                  Expression* each,
+                                  Expression* subject,
+                                  Statement* body);
+
   ZoneList<Expression*>* ParseArguments(bool* ok);
   FunctionLiteral* ParseFunctionLiteral(Handle<String> var_name,
                                         bool name_is_reserved,
