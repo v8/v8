@@ -3195,9 +3195,8 @@ void HGraph::InsertRepresentationChanges() {
       HValue* use = it.value();
       Representation input_representation =
           use->RequiredInputRepresentation(it.index());
-      if ((input_representation.IsInteger32() &&
-           !use->CheckFlag(HValue::kTruncatingToInt32)) ||
-          input_representation.IsDouble()) {
+      if (!input_representation.IsInteger32() ||
+          !use->CheckFlag(HValue::kTruncatingToInt32)) {
         if (FLAG_trace_representation) {
           PrintF("#%d Phi is not truncating because of #%d %s\n",
                  phi->id(), it.value()->id(), it.value()->Mnemonic());
