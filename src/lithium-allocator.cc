@@ -1348,6 +1348,7 @@ void LAllocator::BuildLiveRanges() {
           PrintF("Function: %s\n", CodeStub::MajorName(major_key, false));
         } else {
           ASSERT(chunk_->info()->IsOptimizing());
+          AllowHandleDereference allow_deref;
           PrintF("Function: %s\n",
                  *chunk_->info()->function()->debug_name()->ToCString());
         }
