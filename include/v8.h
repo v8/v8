@@ -1469,6 +1469,8 @@ class V8EXPORT Value : public Data {
   bool Equals(Handle<Value> that) const;
   bool StrictEquals(Handle<Value> that) const;
 
+  template <class T> V8_INLINE(static Value* Cast(T* value));
+
  private:
   V8_INLINE(bool QuickIsUndefined() const);
   V8_INLINE(bool QuickIsNull() const);
@@ -5994,6 +5996,11 @@ bool Value::QuickIsString() const {
   O* obj = *reinterpret_cast<O**>(const_cast<Value*>(this));
   if (!I::HasHeapObjectTag(obj)) return false;
   return (I::GetInstanceType(obj) < I::kFirstNonstringType);
+}
+
+
+template <class T> Value* Value::Cast(T* value) {
+  return static_cast<Value*>(value);
 }
 
 

@@ -2898,6 +2898,24 @@ THREADED_TEST(ClearAndLeakGlobal) {
 }
 
 
+THREADED_TEST(GlobalHandleUpcast) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
+  v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
+  v8::Persistent<String> global_string(isolate, local);
+#ifdef V8_USE_UNSAFE_HANDLES
+  v8::Persistent<Value> global_value =
+      v8::Persistent<Value>::Cast(global_string);
+#else
+  v8::Persistent<Value>& global_value =
+      v8::Persistent<Value>::Cast(global_string);
+#endif
+  CHECK(v8::Local<v8::Value>::New(isolate, global_value)->IsString());
+  CHECK(global_string == v8::Persistent<String>::Cast(global_value));
+  global_string.Dispose();
+}
+
+
 THREADED_TEST(LocalHandle) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
