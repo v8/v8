@@ -655,17 +655,15 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
 
 
 void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  allocation_info_cell_ = oracle->GetCallNewAllocationInfoCell(this);
   is_monomorphic_ = oracle->CallNewIsMonomorphic(this);
   if (is_monomorphic_) {
     target_ = oracle->GetCallNewTarget(this);
-    elements_kind_ = oracle->GetCallNewElementsKind(this);
+    Object* value = allocation_info_cell_->value();
+    if (value->IsSmi()) {
+      elements_kind_ = static_cast<ElementsKind>(Smi::cast(value)->value());
+    }
   }
-  Handle<Object> alloc_elements_kind = oracle->GetInfo(CallNewFeedbackId());
-//  if (alloc_elements_kind->IsSmi())
-//    alloc_elements_kind_ = Handle<Smi>::cast(alloc_elements_kind);
-  alloc_elements_kind_ = alloc_elements_kind->IsSmi()
-      ? Handle<Smi>::cast(alloc_elements_kind)
-      : handle(Smi::FromInt(GetInitialFastElementsKind()), oracle->isolate());
 }
 
 

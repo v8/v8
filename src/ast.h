@@ -1765,7 +1765,9 @@ class CallNew: public Expression {
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   Handle<JSFunction> target() const { return target_; }
   ElementsKind elements_kind() const { return elements_kind_; }
-  Handle<Smi> allocation_elements_kind() const { return alloc_elements_kind_; }
+  Handle<JSGlobalPropertyCell> allocation_info_cell() const {
+    return allocation_info_cell_;
+  }
 
   BailoutId ReturnId() const { return return_id_; }
 
@@ -1790,7 +1792,7 @@ class CallNew: public Expression {
   bool is_monomorphic_;
   Handle<JSFunction> target_;
   ElementsKind elements_kind_;
-  Handle<Smi> alloc_elements_kind_;
+  Handle<JSGlobalPropertyCell> allocation_info_cell_;
 
   const BailoutId return_id_;
 };

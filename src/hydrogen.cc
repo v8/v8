@@ -8923,18 +8923,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     CHECK_ALIVE(VisitArgumentList(expr->arguments()));
     HCallNew* call;
     if (use_call_new_array) {
-      // TODO(mvstanton): It would be better to use the already created global
-      // property cell that is shared by full code gen. That way, any transition
-      // information that happened after crankshaft won't be lost.  The right
-      // way to do that is to begin passing the cell to the type feedback oracle
-      // instead of just the value in the cell. Do this in a follow-up checkin.
-      Handle<Smi> feedback = expr->allocation_elements_kind();
-      Handle<JSGlobalPropertyCell> cell =
-          isolate()->factory()->NewJSGlobalPropertyCell(feedback);
-
-      // TODO(mvstanton): Here we should probably insert code to check if the
-      // type cell elements kind is different from when we compiled, and deopt
-      // in that case. Do this in a follow-up checin.
+      Handle<JSGlobalPropertyCell> cell = expr->allocation_info_cell();
       call = new(zone()) HCallNewArray(context, constructor, argument_count,
                                        cell);
     } else {
