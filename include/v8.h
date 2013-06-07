@@ -38,7 +38,6 @@
 #ifndef V8_H_
 #define V8_H_
 
-#include <limits.h>
 #include "v8stdint.h"
 
 #ifdef _WIN32
@@ -5683,7 +5682,9 @@ void ReturnValue<T>::Set(int32_t i) {
 template<typename T>
 void ReturnValue<T>::Set(uint32_t i) {
   typedef internal::Internals I;
-  if (V8_LIKELY(i <= INT32_MAX)) {
+  // Can't simply use INT32_MAX here for whatever reason.
+  bool fits_into_int32_t = (i & (1 << 31)) == 0;
+  if (V8_LIKELY(fits_into_int32_t)) {
     Set(static_cast<int32_t>(i));
     return;
   }

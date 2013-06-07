@@ -1099,7 +1099,7 @@ THREADED_TEST(FastReturnValues) {
   // check int32_t and uint32_t
   int32_t int_values[] = {
       0, 234, -723,
-      i::Smi::kMinValue, i::Smi::kMaxValue, INT32_MAX, INT32_MIN
+      i::Smi::kMinValue, i::Smi::kMaxValue
   };
   for (size_t i = 0; i < ARRAY_SIZE(int_values); i++) {
     for (int modifier = -1; modifier <= 1; modifier++) {
