@@ -11229,7 +11229,9 @@ class ScopeIterator {
     // Find the break point where execution has stopped.
     BreakLocationIterator break_location_iterator(debug_info,
                                                   ALL_BREAK_LOCATIONS);
-    break_location_iterator.FindBreakLocationFromAddress(frame->pc());
+    // pc points to the instruction after the current one, possibly a break
+    // location as well. So the "- 1" to exclude it from the search.
+    break_location_iterator.FindBreakLocationFromAddress(frame->pc() - 1);
     if (break_location_iterator.IsExit()) {
       // We are within the return sequence. At the momemt it is not possible to
       // get a source position which is consistent with the current scope chain.
