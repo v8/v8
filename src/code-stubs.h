@@ -1080,6 +1080,8 @@ class ICCompareStub: public PlatformCodeStub {
     return static_cast<CompareIC::State>(HandlerStateField::decode(minor_key));
   }
 
+  virtual InlineCacheState GetICState();
+
  private:
   class OpField: public BitField<int, 0, 3> { };
   class LeftStateField: public BitField<int, 3, 4> { };
@@ -2027,6 +2029,13 @@ class ToBooleanStub: public HydrogenCodeStub {
     return types_.ToIntegral();
   }
 
+  virtual InlineCacheState GetICState() {
+    if (types_.IsEmpty()) {
+      return ::v8::internal::UNINITIALIZED;
+    } else {
+      return MONOMORPHIC;
+    }
+  }
 
  private:
   Major MajorKey() { return ToBoolean; }
