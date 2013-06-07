@@ -271,6 +271,10 @@ class Range: public ZoneObject {
   bool IsInSmiRange() const {
     return lower_ >= Smi::kMinValue && upper_ <= Smi::kMaxValue;
   }
+  void ClampToSmi() {
+    lower_ = Max(lower_, Smi::kMinValue);
+    upper_ = Min(upper_, Smi::kMaxValue);
+  }
   void KeepOrder();
 #ifdef DEBUG
   void Verify() const;
@@ -2643,6 +2647,8 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
       }
     }
   }
+
+  virtual Range* InferRange(Zone* zone);
 
   virtual HValue* Canonicalize();
 
