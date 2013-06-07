@@ -4115,7 +4115,7 @@ class BoundsCheckKey : public ZoneObject {
   static BoundsCheckKey* Create(Zone* zone,
                                 HBoundsCheck* check,
                                 int32_t* offset) {
-    if (!check->index()->representation().IsInteger32()) return NULL;
+    if (!check->index()->representation().IsSmiOrInteger32()) return NULL;
 
     HValue* index_base = NULL;
     HConstant* constant = NULL;
@@ -4211,7 +4211,7 @@ class BoundsCheckBbData: public ZoneObject {
   // returns false, otherwise it returns true.
   bool CoverCheck(HBoundsCheck* new_check,
                   int32_t new_offset) {
-    ASSERT(new_check->index()->representation().IsInteger32());
+    ASSERT(new_check->index()->representation().IsSmiOrInteger32());
     bool keep_new_check = false;
 
     if (new_offset > upper_offset_) {
@@ -4320,8 +4320,8 @@ class BoundsCheckBbData: public ZoneObject {
     HValue* index_context = IndexContext(*add, check);
     if (index_context == NULL) return false;
 
-    HConstant* new_constant = new(BasicBlock()->zone())
-       HConstant(new_offset, Representation::Integer32());
+    HConstant* new_constant = new(BasicBlock()->zone()) HConstant(
+        new_offset, representation);
     if (*add == NULL) {
       new_constant->InsertBefore(check);
       (*add) = HAdd::New(
@@ -4453,7 +4453,7 @@ void HGraph::EliminateRedundantBoundsChecks() {
 
 static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
   HValue* index = array_operation->GetKey()->ActualValue();
-  if (!index->representation().IsInteger32()) return;
+  if (!index->representation().IsSmiOrInteger32()) return;
 
   HConstant* constant;
   HValue* subexpression;

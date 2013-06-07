@@ -1058,6 +1058,7 @@ void HBoundsCheck::ApplyIndexChange() {
         block()->graph()->GetInvalidContext(), current_index, add_offset);
     add->InsertBefore(this);
     add->AssumeRepresentation(index()->representation());
+    add->ClearFlag(kCanOverflow);
     current_index = add;
   }
 

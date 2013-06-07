@@ -3660,9 +3660,6 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int arg_index) {
     return representation();
   }
-  virtual Representation observed_input_representation(int index) {
-    return Representation::Integer32();
-  }
 
   virtual bool IsRelationTrueInternal(NumericRelation relation,
                                       HValue* related_value,
