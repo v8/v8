@@ -134,6 +134,8 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   int advance_current_offset_;
   int advance_current_end_;
 
+  Isolate* isolate_;
+
   static const int kInvalidPC = -1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpMacroAssemblerIrregexp);

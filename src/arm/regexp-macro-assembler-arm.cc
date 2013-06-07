@@ -122,7 +122,7 @@ RegExpMacroAssemblerARM::RegExpMacroAssemblerARM(
     int registers_to_save,
     Zone* zone)
     : NativeRegExpMacroAssembler(zone),
-      masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
+      masm_(new MacroAssembler(zone->isolate(), NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),

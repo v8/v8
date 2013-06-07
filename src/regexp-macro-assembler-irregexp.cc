@@ -44,8 +44,8 @@ RegExpMacroAssemblerIrregexp::RegExpMacroAssemblerIrregexp(Vector<byte> buffer,
       buffer_(buffer),
       pc_(0),
       own_buffer_(false),
-      advance_current_end_(kInvalidPC) {
-}
+      advance_current_end_(kInvalidPC),
+      isolate_(zone->isolate()) { }
 
 
 RegExpMacroAssemblerIrregexp::~RegExpMacroAssemblerIrregexp() {
@@ -445,7 +445,7 @@ Handle<HeapObject> RegExpMacroAssemblerIrregexp::GetCode(
     Handle<String> source) {
   Bind(&backtrack_);
   Emit(BC_POP_BT, 0);
-  Handle<ByteArray> array = FACTORY->NewByteArray(length());
+  Handle<ByteArray> array = isolate_->factory()->NewByteArray(length());
   Copy(array->GetDataStartAddress());
   return array;
 }
