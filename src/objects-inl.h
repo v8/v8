@@ -5330,10 +5330,15 @@ void JSArrayBuffer::set_is_external(bool value) {
 }
 
 
+ACCESSORS(JSArrayBuffer, weak_next, Object, kWeakNextOffset)
+ACCESSORS(JSArrayBuffer, weak_first_array, Object, kWeakFirstArrayOffset)
+
+
 ACCESSORS(JSTypedArray, buffer, Object, kBufferOffset)
 ACCESSORS(JSTypedArray, byte_offset, Object, kByteOffsetOffset)
 ACCESSORS(JSTypedArray, byte_length, Object, kByteLengthOffset)
 ACCESSORS(JSTypedArray, length, Object, kLengthOffset)
+ACCESSORS(JSTypedArray, weak_next, Object, kWeakNextOffset)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 

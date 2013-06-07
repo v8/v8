@@ -8786,6 +8786,12 @@ class JSArrayBuffer: public JSObject {
   inline bool is_external();
   inline void set_is_external(bool value);
 
+  // [weak_next]: linked list of array buffers.
+  DECL_ACCESSORS(weak_next, Object)
+
+  // [weak_first_array]: weak linked list of typed arrays.
+  DECL_ACCESSORS(weak_first_array, Object)
+
   // Casting.
   static inline JSArrayBuffer* cast(Object* obj);
 
@@ -8796,7 +8802,12 @@ class JSArrayBuffer: public JSObject {
   static const int kBackingStoreOffset = JSObject::kHeaderSize;
   static const int kByteLengthOffset = kBackingStoreOffset + kPointerSize;
   static const int kFlagOffset = kByteLengthOffset + kPointerSize;
-  static const int kSize = kFlagOffset + kPointerSize;
+  static const int kWeakNextOffset = kFlagOffset + kPointerSize;
+  static const int kWeakFirstArrayOffset = kWeakNextOffset + kPointerSize;
+  static const int kSize = kWeakFirstArrayOffset + kPointerSize;
+
+  static const int kSizeWithInternalFields =
+      kSize + v8::ArrayBuffer::kInternalFieldCount * kPointerSize;
 
  private:
   // Bit position in a flag
@@ -8820,6 +8831,9 @@ class JSTypedArray: public JSObject {
   // [length]: length of typed array in elements.
   DECL_ACCESSORS(length, Object)
 
+  // [weak_next]: linked list of typed arrays over the same array buffer.
+  DECL_ACCESSORS(weak_next, Object)
+
   // Casting.
   static inline JSTypedArray* cast(Object* obj);
 
@@ -8834,7 +8848,8 @@ class JSTypedArray: public JSObject {
   static const int kByteOffsetOffset = kBufferOffset + kPointerSize;
   static const int kByteLengthOffset = kByteOffsetOffset + kPointerSize;
   static const int kLengthOffset = kByteLengthOffset + kPointerSize;
-  static const int kSize = kLengthOffset + kPointerSize;
+  static const int kWeakNextOffset = kLengthOffset + kPointerSize;
+  static const int kSize = kWeakNextOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);

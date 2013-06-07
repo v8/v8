@@ -540,8 +540,6 @@ static const char* TypeToString(InstanceType type) {
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";
     case CODE_TYPE: return "CODE";
     case JS_ARRAY_TYPE: return "JS_ARRAY";
-    case JS_ARRAY_BUFFER_TYPE: return "JS_ARRAY_BUFFER";
-    case JS_TYPED_ARRAY_TYPE: return "JS_TYPED_ARRAY";
     case JS_PROXY_TYPE: return "JS_PROXY";
     case JS_WEAK_MAP_TYPE: return "JS_WEAK_MAP";
     case JS_REGEXP_TYPE: return "JS_REGEXP";
@@ -549,6 +547,8 @@ static const char* TypeToString(InstanceType type) {
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
     case JS_BUILTINS_OBJECT_TYPE: return "JS_BUILTINS_OBJECT";
     case JS_GLOBAL_PROXY_TYPE: return "JS_GLOBAL_PROXY";
+    case JS_TYPED_ARRAY_TYPE: return "JS_TYPED_ARRAY";
+    case JS_ARRAY_BUFFER_TYPE: return "JS_ARRAY_BUFFER";
     case FOREIGN_TYPE: return "FOREIGN";
     case JS_MESSAGE_OBJECT_TYPE: return "JS_MESSAGE_OBJECT_TYPE";
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;

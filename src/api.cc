@@ -6206,6 +6206,9 @@ i::Handle<i::JSTypedArray> NewTypedArray(
 
   obj->set_buffer(*buffer);
 
+  obj->set_weak_next(buffer->weak_first_array());
+  buffer->set_weak_first_array(*obj);
+
   i::Handle<i::Object> byte_offset_object = isolate->factory()->NewNumber(
         static_cast<double>(byte_offset));
   obj->set_byte_offset(*byte_offset_object);

@@ -6173,6 +6173,14 @@ Float64Array* Float64Array::Cast(v8::Value* value) {
 }
 
 
+Uint8ClampedArray* Uint8ClampedArray::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Uint8ClampedArray*>(value);
+}
+
+
 Function* Function::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);

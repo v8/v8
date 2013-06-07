@@ -1352,6 +1352,12 @@ class Heap {
   }
   Object* native_contexts_list() { return native_contexts_list_; }
 
+  void set_array_buffers_list(Object* object) {
+    array_buffers_list_ = object;
+  }
+  Object* array_buffers_list() { return array_buffers_list_; }
+
+
   // Number of mark-sweeps.
   unsigned int ms_count() { return ms_count_; }
 
@@ -2022,6 +2028,8 @@ class Heap {
 
   Object* native_contexts_list_;
 
+  Object* array_buffers_list_;
+
   StoreBufferRebuilder store_buffer_rebuilder_;
 
   struct StringTypeTable {
@@ -2164,6 +2172,9 @@ class Heap {
 
   // Code to be run before and after mark-compact.
   void MarkCompactPrologue();
+
+  void ProcessNativeContexts(WeakObjectRetainer* retainer, bool record_slots);
+  void ProcessArrayBuffers(WeakObjectRetainer* retainer, bool record_slots);
 
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();

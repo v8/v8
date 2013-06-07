@@ -687,6 +687,10 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
       isolate->factory()->NewNumberFromSize(allocated_length);
   CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
   array_buffer->set_byte_length(*byte_length);
+
+  array_buffer->set_weak_next(isolate->heap()->array_buffers_list());
+  isolate->heap()->set_array_buffers_list(*array_buffer);
+  array_buffer->set_weak_first_array(Smi::FromInt(0));
 }
 
 
@@ -855,6 +859,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
+  holder->set_weak_next(buffer->weak_first_array());
+  buffer->set_weak_first_array(*holder);
 
   Handle<ExternalArray> elements =
       isolate->factory()->NewExternalArray(

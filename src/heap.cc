@@ -180,6 +180,7 @@ Heap::Heap()
 
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   native_contexts_list_ = NULL;
+  array_buffers_list_ = Smi::FromInt(0);
   mark_compact_collector_.heap_ = this;
   external_string_table_.heap_ = this;
   // Put a dummy entry in the remembered pages so we can find the list the
@@ -1539,11 +1540,6 @@ static Object* ProcessFunctionWeakReferences(Heap* heap,
 
 
 void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
-  Object* undefined = undefined_value();
-  Object* head = undefined;
-  Context* tail = NULL;
-  Object* candidate = native_contexts_list_;
-
   // We don't record weak slots during marking or scavenges.
   // Instead we do it once when we complete mark-compact cycle.
   // Note that write barrier has no effect if we are already in the middle of
@@ -1551,6 +1547,16 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
   bool record_slots =
       gc_state() == MARK_COMPACT &&
       mark_compact_collector()->is_compacting();
+  ProcessArrayBuffers(retainer, record_slots);
+  ProcessNativeContexts(retainer, record_slots);
+}
+
+void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer,
+                                 bool record_slots) {
+  Object* undefined = undefined_value();
+  Object* head = undefined;
+  Context* tail = NULL;
+  Object* candidate = native_contexts_list_;
 
   while (candidate != undefined) {
     // Check whether to keep the candidate in the list.
@@ -1616,6 +1622,101 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
 
   // Update the head of the list of contexts.
   native_contexts_list_ = head;
+}
+
+
+template <class T>
+struct WeakListVisitor;
+
+
+template <class T>
+static Object* VisitWeakList(Object* list,
+                      MarkCompactCollector* collector,
+                      WeakObjectRetainer* retainer, bool record_slots) {
+  Object* head = Smi::FromInt(0);
+  T* tail = NULL;
+  while (list != Smi::FromInt(0)) {
+    Object* retained = retainer->RetainAs(list);
+    if (retained != NULL) {
+      if (head == Smi::FromInt(0)) {
+        head = retained;
+      } else {
+        ASSERT(tail != NULL);
+        WeakListVisitor<T>::set_weak_next(tail, retained);
+        if (record_slots) {
+          Object** next_slot =
+            HeapObject::RawField(tail, WeakListVisitor<T>::kWeakNextOffset);
+          collector->RecordSlot(next_slot, next_slot, retained);
+        }
+      }
+      tail = reinterpret_cast<T*>(retained);
+      WeakListVisitor<T>::VisitLiveObject(
+          tail, collector, retainer, record_slots);
+    }
+    list = WeakListVisitor<T>::get_weak_next(reinterpret_cast<T*>(list));
+  }
+  if (tail != NULL) {
+    tail->set_weak_next(Smi::FromInt(0));
+  }
+  return head;
+}
+
+
+template<>
+struct WeakListVisitor<JSTypedArray> {
+  static void set_weak_next(JSTypedArray* obj, Object* next) {
+    obj->set_weak_next(next);
+  }
+
+  static Object* get_weak_next(JSTypedArray* obj) {
+    return obj->weak_next();
+  }
+
+  static void VisitLiveObject(JSTypedArray* obj,
+                              MarkCompactCollector* collector,
+                              WeakObjectRetainer* retainer,
+                              bool record_slots) {}
+
+  static const int kWeakNextOffset = JSTypedArray::kWeakNextOffset;
+};
+
+
+template<>
+struct WeakListVisitor<JSArrayBuffer> {
+  static void set_weak_next(JSArrayBuffer* obj, Object* next) {
+    obj->set_weak_next(next);
+  }
+
+  static Object* get_weak_next(JSArrayBuffer* obj) {
+    return obj->weak_next();
+  }
+
+  static void VisitLiveObject(JSArrayBuffer* array_buffer,
+                              MarkCompactCollector* collector,
+                              WeakObjectRetainer* retainer,
+                              bool record_slots) {
+    Object* typed_array_obj =
+        VisitWeakList<JSTypedArray>(array_buffer->weak_first_array(),
+                                    collector, retainer, record_slots);
+    array_buffer->set_weak_first_array(typed_array_obj);
+    if (typed_array_obj != Smi::FromInt(0) && record_slots) {
+      Object** slot = HeapObject::RawField(
+          array_buffer, JSArrayBuffer::kWeakFirstArrayOffset);
+      collector->RecordSlot(slot, slot, typed_array_obj);
+    }
+  }
+
+  static const int kWeakNextOffset = JSArrayBuffer::kWeakNextOffset;
+};
+
+
+void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer,
+                               bool record_slots) {
+  Object* array_buffer_obj =
+      VisitWeakList<JSArrayBuffer>(array_buffers_list(),
+                                   mark_compact_collector(),
+                                   retainer, record_slots);
+  set_array_buffers_list(array_buffer_obj);
 }
 
 
@@ -1791,6 +1892,14 @@ class ScavengingVisitor : public StaticVisitorBase {
                         template VisitSpecialized<SharedFunctionInfo::kSize>);
 
     table_.Register(kVisitJSWeakMap,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                    Visit);
+
+    table_.Register(kVisitJSArrayBuffer,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                    Visit);
+
+    table_.Register(kVisitJSTypedArray,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                     Visit);
 
