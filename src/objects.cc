@@ -8540,6 +8540,8 @@ class StringComparator {
       const uint8_t* buffer8_;
       const uint16_t* buffer16_;
     };
+
+   private:
     DISALLOW_IMPLICIT_CONSTRUCTORS(State);
   };
 
