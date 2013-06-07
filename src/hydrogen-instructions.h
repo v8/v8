@@ -2651,6 +2651,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
   virtual Range* InferRange(Zone* zone);
 
   virtual HValue* Canonicalize();
+  virtual Representation RepresentationFromInputs();
 
   BuiltinFunctionId op() const { return op_; }
   const char* OpName() const;

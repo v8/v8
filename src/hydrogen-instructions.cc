@@ -3092,6 +3092,16 @@ HType HUnaryMathOperation::CalculateInferredType() {
 }
 
 
+Representation HUnaryMathOperation::RepresentationFromInputs() {
+  Representation rep = representation();
+  // If any of the actual input representation is more general than what we
+  // have so far but not Tagged, use that representation instead.
+  Representation input_rep = value()->representation();
+  if (!input_rep.IsTagged()) rep = rep.generalize(input_rep);
+  return rep;
+}
+
+
 HType HStringCharFromCode::CalculateInferredType() {
   return HType::String();
 }
