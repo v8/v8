@@ -38,6 +38,7 @@
 #ifndef V8_H_
 #define V8_H_
 
+#include <limits.h>
 #include "v8stdint.h"
 
 #ifdef _WIN32
