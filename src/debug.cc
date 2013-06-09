@@ -1241,15 +1241,11 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
       // Get information in the break point.
       BreakPointInfo* break_point_info = BreakPointInfo::cast(result);
       Handle<DebugInfo> debug_info = node->debug_info();
-      Handle<SharedFunctionInfo> shared(debug_info->shared());
-      int source_position =  break_point_info->statement_position()->value();
-
-      // Source positions starts with zero.
-      ASSERT(source_position >= 0);
 
       // Find the break point and clear it.
       BreakLocationIterator it(debug_info, SOURCE_BREAK_LOCATIONS);
-      it.FindBreakLocationFromPosition(source_position);
+      it.FindBreakLocationFromAddress(debug_info->code()->entry() +
+          break_point_info->code_position()->value());
       it.ClearBreakPoint(break_point_object);
 
       // If there are no more break points left remove the debug info for this
