@@ -651,7 +651,6 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   //  -- r2    : name
   //  -- lr    : return address
   //  -- r0    : receiver
-  //  -- sp[0] : receiver
   // -----------------------------------
 
   // Probe the stub cache.
@@ -671,7 +670,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- r2    : name
   //  -- lr    : return address
   //  -- r0    : receiver
-  //  -- sp[0] : receiver
   // -----------------------------------
   Label miss;
 
@@ -692,7 +690,6 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   //  -- r2    : name
   //  -- lr    : return address
   //  -- r0    : receiver
-  //  -- sp[0] : receiver
   // -----------------------------------
   Isolate* isolate = masm->isolate();
 
@@ -713,7 +710,6 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   //  -- r2    : name
   //  -- lr    : return address
   //  -- r0    : receiver
-  //  -- sp[0] : receiver
   // -----------------------------------
 
   __ mov(r3, r0);
