@@ -211,14 +211,15 @@ void BreakLocationIterator::Next(int count) {
 }
 
 
-// Find the break point closest to the supplied address.
+// Find the break point at the supplied address, or the closest one before
+// the address.
 void BreakLocationIterator::FindBreakLocationFromAddress(Address pc) {
   // Run through all break points to locate the one closest to the address.
   int closest_break_point = 0;
   int distance = kMaxInt;
   while (!Done()) {
     // Check if this break point is closer that what was previously found.
-    if (this->pc() < pc && pc - this->pc() < distance) {
+    if (this->pc() <= pc && pc - this->pc() < distance) {
       closest_break_point = break_point();
       distance = static_cast<int>(pc - this->pc());
       // Check whether we can't get any closer.
@@ -943,7 +944,9 @@ Object* Debug::Break(Arguments args) {
   // Find the break point where execution has stopped.
   BreakLocationIterator break_location_iterator(debug_info,
                                                 ALL_BREAK_LOCATIONS);
-  break_location_iterator.FindBreakLocationFromAddress(frame->pc());
+  // pc points to the instruction after the current one, possibly a break
+  // location as well. So the "- 1" to exclude it from the search.
+  break_location_iterator.FindBreakLocationFromAddress(frame->pc() - 1);
 
   // Check whether step next reached a new statement.
   if (!StepNextContinue(&break_location_iterator, frame)) {
@@ -1238,15 +1241,11 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
       // Get information in the break point.
       BreakPointInfo* break_point_info = BreakPointInfo::cast(result);
       Handle<DebugInfo> debug_info = node->debug_info();
-      Handle<SharedFunctionInfo> shared(debug_info->shared());
-      int source_position =  break_point_info->statement_position()->value();
-
-      // Source positions starts with zero.
-      ASSERT(source_position >= 0);
 
       // Find the break point and clear it.
       BreakLocationIterator it(debug_info, SOURCE_BREAK_LOCATIONS);
-      it.FindBreakLocationFromPosition(source_position);
+      it.FindBreakLocationFromAddress(debug_info->code()->entry() +
+          break_point_info->code_position()->value());
       it.ClearBreakPoint(break_point_object);
 
       // If there are no more break points left remove the debug info for this
@@ -1404,7 +1403,9 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
 
   // Find the break location where execution has stopped.
   BreakLocationIterator it(debug_info, ALL_BREAK_LOCATIONS);
-  it.FindBreakLocationFromAddress(frame->pc());
+  // pc points to the instruction after the current one, possibly a break
+  // location as well. So the "- 1" to exclude it from the search.
+  it.FindBreakLocationFromAddress(frame->pc() - 1);
 
   // Compute whether or not the target is a call target.
   bool is_load_or_store = false;

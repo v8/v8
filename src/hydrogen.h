@@ -402,11 +402,13 @@ class HGraph: public ZoneObject {
   }
 
   void MarkDependsOnEmptyArrayProtoElements() {
+    // Add map dependency if not already added.
+    if (depends_on_empty_array_proto_elements_) return;
+    isolate()->initial_object_prototype()->map()->AddDependentCompilationInfo(
+        DependentCode::kElementsCantBeAddedGroup, info());
+    isolate()->initial_array_prototype()->map()->AddDependentCompilationInfo(
+        DependentCode::kElementsCantBeAddedGroup, info());
     depends_on_empty_array_proto_elements_ = true;
-  }
-
-  bool depends_on_empty_array_proto_elements() {
-    return depends_on_empty_array_proto_elements_;
   }
 
   void RecordUint32Instruction(HInstruction* instr) {

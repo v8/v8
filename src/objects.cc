@@ -4026,6 +4026,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       Representation representation = lookup.representation();
       Representation value_representation =
           value->OptimalRepresentation(value_type);
+      if (value_representation.IsNone()) break;
       if (!value_representation.fits_into(representation)) {
         MaybeObject* maybe_failure = self->GeneralizeFieldRepresentation(
             lookup.GetDescriptorIndex(), value_representation);
@@ -11092,8 +11093,9 @@ void Map::ZapPrototypeTransitions() {
 
 void Map::AddDependentCompilationInfo(DependentCode::DependencyGroup group,
                                       CompilationInfo* info) {
-  Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()), group, info->object_wrapper());
+  Handle<DependentCode> dep(dependent_code());
+  Handle<DependentCode> codes =
+      DependentCode::Insert(dep, group, info->object_wrapper());
   if (*codes != dependent_code()) set_dependent_code(*codes);
   info->dependent_maps(group)->Add(Handle<Map>(this), info->zone());
 }

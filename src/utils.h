@@ -251,6 +251,13 @@ T Min(T a, T b) {
 }
 
 
+// Returns the absolute value of its argument.
+template <typename T>
+T Abs(T a) {
+  return a < 0 ? -a : a;
+}
+
+
 // Returns the negative absolute value of its argument.
 template <typename T>
 T NegAbs(T a) {

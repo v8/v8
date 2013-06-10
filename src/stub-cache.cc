@@ -1138,7 +1138,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(1);
   ASSERT(kArgsOffset == 2);
   // No ReturnValue in interceptors.
-  ASSERT(args.length() == kArgsOffset + PCA::kArgsLength - 1);
+  ASSERT_EQ(kArgsOffset + PCA::kArgsLength - 2, args.length());
 
   // TODO(rossberg): Support symbols in the API.
   if (name_handle->IsSymbol())
@@ -1205,7 +1205,7 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
   Handle<InterceptorInfo> interceptor_info = args->at<InterceptorInfo>(1);
   ASSERT(kArgsOffset == 2);
   // No ReturnValue in interceptors.
-  ASSERT(args->length() == kArgsOffset + PCA::kArgsLength - 1);
+  ASSERT_EQ(kArgsOffset + PCA::kArgsLength - 2, args->length());
   Handle<JSObject> receiver_handle =
       args->at<JSObject>(kArgsOffset - PCA::kThisIndex);
   Handle<JSObject> holder_handle =

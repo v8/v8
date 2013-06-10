@@ -25,49 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"use strict";
+// Flags: --track-fields --track-double-fields --allow-natives-syntax
+// Flags: --parallel-recompilation --parallel-recompilation-delay=50
 
-// This file relies on the fact that the following declarations have been made
-// in runtime.js:
-// var $Function = global.Function;
-
-// ----------------------------------------------------------------------------
-
-
-// Generator functions and objects are specified by ES6, sections 15.19.3 and
-// 15.19.4.
-
-function GeneratorObjectNext(value) {
-  if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.next', this]);
-  }
-
-  return %_GeneratorNext(this, value);
+function assertUnoptimized(fun) {
+  assertTrue(%GetOptimizationStatus(fun) != 1);
 }
 
-function GeneratorObjectThrow(exn) {
-  if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.throw', this]);
-  }
-
-  return %_GeneratorThrow(this, exn);
+function new_object() {
+  var o = {};
+  o.a = 1;
+  o.b = 2;
+  return o;
 }
 
-function SetUpGenerators() {
-  %CheckIsBootstrapping();
-  var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
-  InstallFunctions(GeneratorObjectPrototype,
-                   DONT_ENUM | DONT_DELETE | READ_ONLY,
-                   ["next", GeneratorObjectNext,
-                    "throw", GeneratorObjectThrow]);
-  %SetProperty(GeneratorObjectPrototype, "constructor",
-               GeneratorFunctionPrototype, DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %SetPrototype(GeneratorFunctionPrototype, $Function.prototype);
-  %SetProperty(GeneratorFunctionPrototype, "constructor",
-               GeneratorFunction, DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %SetPrototype(GeneratorFunction, $Function);
+function add_field(obj) {
+  obj.c = 3;
 }
 
-SetUpGenerators();
+add_field(new_object());
+add_field(new_object());
+%OptimizeFunctionOnNextCall(add_field, "parallel");
+
+var o = new_object();
+add_field(o);                      // Trigger optimization.
+assertUnoptimized(add_field);      // Not yet optimized.
+o.c = 2.2;                         // Invalidate transition map.
+%CompleteOptimization(add_field);  // Conclude optimization with...
+assertUnoptimized(add_field);      // ... bailing out due to map dependency.
+

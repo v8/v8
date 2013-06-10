@@ -4303,6 +4303,23 @@ bool String::IsOneByte() const {
   return str->HasOnlyOneByteChars();
 }
 
+// Helpers for ContainsOnlyOneByteHelper
+template<size_t size> struct OneByteMask;
+template<> struct OneByteMask<4> {
+  static const uint32_t value = 0xFF00FF00;
+};
+template<> struct OneByteMask<8> {
+  static const uint64_t value = V8_2PART_UINT64_C(0xFF00FF00, FF00FF00);
+};
+static const uintptr_t kOneByteMask = OneByteMask<sizeof(uintptr_t)>::value;
+static const uintptr_t kAlignmentMask = sizeof(uintptr_t) - 1;
+static inline bool Unaligned(const uint16_t* chars) {
+  return reinterpret_cast<const uintptr_t>(chars) & kAlignmentMask;
+}
+static inline const uint16_t* Align(const uint16_t* chars) {
+  return reinterpret_cast<uint16_t*>(
+    reinterpret_cast<uintptr_t>(chars) & ~kAlignmentMask);
+}
 
 class ContainsOnlyOneByteHelper {
  public:
@@ -4315,14 +4332,36 @@ class ContainsOnlyOneByteHelper {
   void VisitOneByteString(const uint8_t* chars, int length) {
     // Nothing to do.
   }
-  // TODO(dcarney): do word aligned read.
   void VisitTwoByteString(const uint16_t* chars, int length) {
-    // Check whole string without breaking.
-    uint16_t total = 0;
-    for (int i = 0; i < length; i++) {
-      total |= chars[i] >> 8;
+    // Accumulated bits.
+    uintptr_t acc = 0;
+    // Align to uintptr_t.
+    const uint16_t* end = chars + length;
+    while (Unaligned(chars) && chars != end) {
+        acc |= *chars++;
     }
-    if (total != 0) is_one_byte_ = false;
+    // Read word aligned in blocks,
+    // checking the return value at the end of each block.
+    const uint16_t* aligned_end = Align(end);
+    const int increment = sizeof(uintptr_t)/sizeof(uint16_t);
+    const int inner_loops = 16;
+    while (chars + inner_loops*increment < aligned_end) {
+      for (int i = 0; i < inner_loops; i++) {
+        acc |= *reinterpret_cast<const uintptr_t*>(chars);
+        chars += increment;
+      }
+      // Check for early return.
+      if ((acc & kOneByteMask) != 0) {
+        is_one_byte_ = false;
+        return;
+      }
+    }
+    // Read the rest.
+    while (chars != end) {
+      acc |= *chars++;
+    }
+    // Check result.
+    if ((acc & kOneByteMask) != 0) is_one_byte_ = false;
   }
 
  private:

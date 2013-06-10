@@ -572,7 +572,7 @@ namespace internal {
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
   F(FastAsciiArrayJoin, 2, 1)                                                \
-  F(GeneratorSend, 2, 1)                                                     \
+  F(GeneratorNext, 2, 1)                                                     \
   F(GeneratorThrow, 2, 1)
 
 

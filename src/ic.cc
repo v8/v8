@@ -1541,6 +1541,10 @@ static bool LookupForWrite(Handle<JSObject> receiver,
     Handle<Map> target(lookup->GetTransitionMapFromMap(receiver->map()));
     Map::GeneralizeRepresentation(
         target, target->LastAdded(), value->OptimalRepresentation());
+    // Lookup the transition again since the transition tree may have changed
+    // entirely by the migration above.
+    receiver->map()->LookupTransition(*holder, *name, lookup);
+    if (!lookup->IsTransition()) return false;
     *state = MONOMORPHIC_PROTOTYPE_FAILURE;
   }
   return true;

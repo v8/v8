@@ -810,6 +810,13 @@ static void CheckReturnValue(const T& t) {
   CHECK_EQ(v8::Isolate::GetCurrent(), t.GetIsolate());
   CHECK_EQ(t.GetIsolate(), rv.GetIsolate());
   CHECK((*o)->IsTheHole() || (*o)->IsUndefined());
+  // Verify reset
+  bool is_runtime = (*o)->IsTheHole();
+  rv.Set(true);
+  CHECK(!(*o)->IsTheHole() && !(*o)->IsUndefined());
+  rv.Set(v8::Handle<v8::Object>());
+  CHECK((*o)->IsTheHole() || (*o)->IsUndefined());
+  CHECK_EQ(is_runtime, (*o)->IsTheHole());
 }
 
 static v8::Handle<Value> handle_call(const v8::Arguments& args) {
@@ -17033,8 +17040,12 @@ TEST(ContainsOnlyOneByte) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
   // Make a buffer long enough that it won't automatically be converted.
-  const int length = 200;
-  i::SmartArrayPointer<uint16_t> string_contents(new uint16_t[length]);
+  const int length = 512;
+  // Ensure word aligned assignment.
+  const int aligned_length = length*sizeof(uintptr_t)/sizeof(uint16_t);
+  i::SmartArrayPointer<uintptr_t>
+  aligned_contents(new uintptr_t[aligned_length]);
+  uint16_t* string_contents = reinterpret_cast<uint16_t*>(*aligned_contents);
   // Set to contain only one byte.
   for (int i = 0; i < length-1; i++) {
     string_contents[i] = 0x41;
@@ -17042,10 +17053,10 @@ TEST(ContainsOnlyOneByte) {
   string_contents[length-1] = 0;
   // Simple case.
   Handle<String> string;
-  string = String::NewExternal(new TestResource(*string_contents));
+  string = String::NewExternal(new TestResource(string_contents));
   CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
   // Counter example.
-  string = String::NewFromTwoByte(isolate, *string_contents);
+  string = String::NewFromTwoByte(isolate, string_contents);
   CHECK(string->IsOneByte() && string->ContainsOnlyOneByte());
   // Test left right and balanced cons strings.
   Handle<String> base = String::NewFromUtf8(isolate, "a");
@@ -17059,7 +17070,7 @@ TEST(ContainsOnlyOneByte) {
   balanced = String::Concat(balanced, right);
   Handle<String> cons_strings[] = {left, balanced, right};
   Handle<String> two_byte =
-      String::NewExternal(new TestResource(*string_contents));
+      String::NewExternal(new TestResource(string_contents));
   for (size_t i = 0; i < ARRAY_SIZE(cons_strings); i++) {
     // Base assumptions.
     string = cons_strings[i];
@@ -17069,6 +17080,24 @@ TEST(ContainsOnlyOneByte) {
     CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
     string = String::Concat(cons_strings[i], two_byte);
     CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
+  }
+  // Set bits in different positions
+  // for strings of different lengths and alignments.
+  for (int alignment = 0; alignment < 7; alignment++) {
+    for (int size = 2; alignment + size < length; size *= 2) {
+      int zero_offset = size + alignment;
+      string_contents[zero_offset] = 0;
+      for (int i = 0; i < size; i++) {
+        int shift = 8 + (i % 7);
+        string_contents[alignment + i] = 1 << shift;
+        string =
+            String::NewExternal(new TestResource(string_contents + alignment));
+        CHECK_EQ(size, string->Length());
+        CHECK(!string->ContainsOnlyOneByte());
+        string_contents[alignment + i] = 0x41;
+      }
+      string_contents[zero_offset] = 0x41;
+    }
   }
 }
 

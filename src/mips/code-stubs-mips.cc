@@ -348,8 +348,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ Addu(a3, a3, Operand(Code::kHeaderSize - kHeapObjectTag));
 
   // Return result. The argument function info has been popped already.
+  __ Ret(USE_DELAY_SLOT);
   __ sw(a3, FieldMemOperand(v0, JSFunction::kCodeEntryOffset));
-  __ Ret();
 
   __ bind(&check_optimized);
 
@@ -969,9 +969,9 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   __ sw(scratch_, FieldMemOperand(the_heap_number_,
                                    HeapNumber::kExponentOffset));
   __ sll(scratch_, the_int_, 32 - shift_distance);
+  __ Ret(USE_DELAY_SLOT);
   __ sw(scratch_, FieldMemOperand(the_heap_number_,
                                    HeapNumber::kMantissaOffset));
-  __ Ret();
 
   __ bind(&max_negative_int);
   // The max negative int32 is stored as a positive number in the mantissa of
@@ -983,9 +983,9 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   __ sw(scratch_,
         FieldMemOperand(the_heap_number_, HeapNumber::kExponentOffset));
   __ mov(scratch_, zero_reg);
+  __ Ret(USE_DELAY_SLOT);
   __ sw(scratch_,
         FieldMemOperand(the_heap_number_, HeapNumber::kMantissaOffset));
-  __ Ret();
 }
 
 
@@ -1023,6 +1023,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
         __ Branch(&return_equal, ne, t4, Operand(ODDBALL_TYPE));
         __ LoadRoot(t2, Heap::kUndefinedValueRootIndex);
         __ Branch(&return_equal, ne, a0, Operand(t2));
+        ASSERT(is_int16(GREATER) && is_int16(LESS));
+        __ Ret(USE_DELAY_SLOT);
         if (cc == le) {
           // undefined <= undefined should fail.
           __ li(v0, Operand(GREATER));
@@ -1030,13 +1032,13 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
           // undefined >= undefined should fail.
           __ li(v0, Operand(LESS));
         }
-        __ Ret();
       }
     }
   }
 
   __ bind(&return_equal);
-
+  ASSERT(is_int16(GREATER) && is_int16(LESS));
+  __ Ret(USE_DELAY_SLOT);
   if (cc == less) {
     __ li(v0, Operand(GREATER));  // Things aren't less than themselves.
   } else if (cc == greater) {
@@ -1044,7 +1046,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   } else {
     __ mov(v0, zero_reg);         // Things are <=, >=, ==, === themselves.
   }
-  __ Ret();
 
   // For less and greater we don't have to check for NaN since the result of
   // x < x is false regardless.  For the others here is some code to check
@@ -1075,13 +1076,14 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
     if (cc != eq) {
       // All-zero means Infinity means equal.
       __ Ret(eq, v0, Operand(zero_reg));
+      ASSERT(is_int16(GREATER) && is_int16(LESS));
+      __ Ret(USE_DELAY_SLOT);
       if (cc == le) {
         __ li(v0, Operand(GREATER));  // NaN <= NaN should fail.
       } else {
         __ li(v0, Operand(LESS));     // NaN >= NaN should fail.
       }
     }
-    __ Ret();
   }
   // No fall through here.
 
@@ -1456,12 +1458,14 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&nan);
   // NaN comparisons always fail.
   // Load whatever we need in v0 to make the comparison fail.
+  ASSERT(is_int16(GREATER) && is_int16(LESS));
+  __ Ret(USE_DELAY_SLOT);
   if (cc == lt || cc == le) {
     __ li(v0, Operand(GREATER));
   } else {
     __ li(v0, Operand(LESS));
   }
-  __ Ret();
+
 
   __ bind(&not_smis);
   // At this point we know we are dealing with two different objects,
@@ -1725,6 +1729,7 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
   if (mode_ == UNARY_OVERWRITE) {
     __ lw(a2, FieldMemOperand(a0, HeapNumber::kExponentOffset));
     __ Xor(a2, a2, Operand(HeapNumber::kSignMask));  // Flip sign.
+    __ Ret(USE_DELAY_SLOT);
     __ sw(a2, FieldMemOperand(a0, HeapNumber::kExponentOffset));
   } else {
     Label slow_allocate_heapnumber, heapnumber_allocated;
@@ -1746,9 +1751,9 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
     __ sw(a3, FieldMemOperand(a1, HeapNumber::kMantissaOffset));
     __ Xor(a2, a2, Operand(HeapNumber::kSignMask));  // Flip sign.
     __ sw(a2, FieldMemOperand(a1, HeapNumber::kExponentOffset));
+    __ Ret(USE_DELAY_SLOT);
     __ mov(v0, a1);
   }
-  __ Ret();
 }
 
 
@@ -1768,8 +1773,8 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
   __ Branch(&try_float, lt, a2, Operand(zero_reg));
 
   // Tag the result as a smi and we're done.
+  __ Ret(USE_DELAY_SLOT);  // SmiTag emits one instruction in delay slot.
   __ SmiTag(v0, a1);
-  __ Ret();
 
   // Try to store the result in a heap number.
   __ bind(&try_float);
@@ -1968,8 +1973,8 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       // Check that the signed result fits in a Smi.
       __ Addu(scratch2, scratch1, Operand(0x40000000));
       __ Branch(&not_smi_result, lt, scratch2, Operand(zero_reg));
+      __ Ret(USE_DELAY_SLOT);  // SmiTag emits one instruction in delay slot.
       __ SmiTag(v0, scratch1);
-      __ Ret();
       }
       break;
     case Token::MOD: {
@@ -1991,8 +1996,8 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       // Check that the signed result fits in a Smi.
       __ Addu(scratch1, scratch2, Operand(0x40000000));
       __ Branch(&not_smi_result, lt, scratch1, Operand(zero_reg));
+      __ Ret(USE_DELAY_SLOT);   // SmiTag emits one instruction in delay slot.
       __ SmiTag(v0, scratch2);
-      __ Ret();
       }
       break;
     case Token::BIT_OR:
@@ -2026,8 +2031,8 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       __ And(scratch1, v0, Operand(0xc0000000));
       __ Branch(&not_smi_result, ne, scratch1, Operand(zero_reg));
       // Smi tag result.
+      __ Ret(USE_DELAY_SLOT);  // SmiTag emits one instruction in delay slot.
       __ SmiTag(v0);
-      __ Ret();
       break;
     case Token::SHL:
       // Remove tags from operands.
@@ -2037,8 +2042,8 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       // Check that the signed result fits in a Smi.
       __ Addu(scratch2, scratch1, Operand(0x40000000));
       __ Branch(&not_smi_result, lt, scratch2, Operand(zero_reg));
-      __ SmiTag(v0, scratch1);
-      __ Ret();
+      __ Ret(USE_DELAY_SLOT);
+      __ SmiTag(v0, scratch1);  // SmiTag emits one instruction in delay slot.
       break;
     default:
       UNREACHABLE();
@@ -2240,8 +2245,8 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
       // Check that the *signed* result fits in a smi.
       __ Addu(a3, a2, Operand(0x40000000));
       __ Branch(&result_not_a_smi, lt, a3, Operand(zero_reg));
+      __ Ret(USE_DELAY_SLOT);  // SmiTag emits one instruction in delay slot.
       __ SmiTag(v0, a2);
-      __ Ret();
 
       // Allocate new heap number for result.
       __ bind(&result_not_a_smi);
@@ -2520,8 +2525,8 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           __ bind(&not_zero);
 
           // Tag the result and return.
-          __ SmiTag(v0, scratch1);
-          __ Ret();
+          __ Ret(USE_DELAY_SLOT);
+          __ SmiTag(v0, scratch1);  // SmiTag emits one instruction.
         } else {
           // DIV just falls through to allocating a heap number.
         }
@@ -2538,9 +2543,10 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                   scratch2,
                                                   &call_runtime,
                                                   mode_);
+        __ sdc1(f10,
+                FieldMemOperand(heap_number_result, HeapNumber::kValueOffset));
+        __ Ret(USE_DELAY_SLOT);
         __ mov(v0, heap_number_result);
-        __ sdc1(f10, FieldMemOperand(v0, HeapNumber::kValueOffset));
-        __ Ret();
 
         // A DIV operation expecting an integer result falls through
         // to type transition.
@@ -2660,8 +2666,8 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       // If not try to return a heap number. (We know the result is an int32.)
       __ Branch(&return_heap_number, lt, scratch1, Operand(zero_reg));
       // Tag the result and return.
+      __ Ret(USE_DELAY_SLOT);  // SmiTag emits one instruction in delay slot.
       __ SmiTag(v0, a2);
-      __ Ret();
 
       __ bind(&return_heap_number);
       heap_number_result = t1;
@@ -2684,9 +2690,10 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       }
 
       // Store the result.
+      __ sdc1(double_scratch,
+              FieldMemOperand(heap_number_result, HeapNumber::kValueOffset));
+      __ Ret(USE_DELAY_SLOT);
       __ mov(v0, heap_number_result);
-      __ sdc1(double_scratch, FieldMemOperand(v0, HeapNumber::kValueOffset));
-      __ Ret();
 
       break;
     }
@@ -4124,8 +4131,8 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ subu(a3, a0, a1);
   __ sll(t3, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(a3, fp, Operand(t3));
+  __ Ret(USE_DELAY_SLOT);
   __ lw(v0, MemOperand(a3, kDisplacement));
-  __ Ret();
 
   // Arguments adaptor case: Check index (a1) against actual arguments
   // limit found in the arguments adaptor frame. Use unsigned
@@ -4138,8 +4145,8 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ subu(a3, a0, a1);
   __ sll(t3, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(a3, a2, Operand(t3));
+  __ Ret(USE_DELAY_SLOT);
   __ lw(v0, MemOperand(a3, kDisplacement));
-  __ Ret();
 
   // Slow-case: Handle non-smi or out-of-bounds access to arguments
   // by calling the runtime system.
@@ -6002,16 +6009,18 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
   __ lw(scratch2, FieldMemOperand(right, String::kLengthOffset));
   __ Branch(&check_zero_length, eq, length, Operand(scratch2));
   __ bind(&strings_not_equal);
+  ASSERT(is_int16(NOT_EQUAL));
+  __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(Smi::FromInt(NOT_EQUAL)));
-  __ Ret();
 
   // Check if the length is zero.
   Label compare_chars;
   __ bind(&check_zero_length);
   STATIC_ASSERT(kSmiTag == 0);
   __ Branch(&compare_chars, ne, length, Operand(zero_reg));
+  ASSERT(is_int16(EQUAL));
+  __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(Smi::FromInt(EQUAL)));
-  __ Ret();
 
   // Compare characters.
   __ bind(&compare_chars);
@@ -6021,8 +6030,8 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
                                 &strings_not_equal);
 
   // Characters are equal.
+  __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(Smi::FromInt(EQUAL)));
-  __ Ret();
 }
 
 
@@ -6540,14 +6549,15 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 
   if (GetCondition() == eq) {
     // For equality we do not care about the sign of the result.
+    __ Ret(USE_DELAY_SLOT);
     __ Subu(v0, a0, a1);
   } else {
     // Untag before subtracting to avoid handling overflow.
     __ SmiUntag(a1);
     __ SmiUntag(a0);
+    __ Ret(USE_DELAY_SLOT);
     __ Subu(v0, a1, a0);
   }
-  __ Ret();
 
   __ bind(&miss);
   GenerateMiss(masm);
@@ -6608,16 +6618,17 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ BranchF(&fpu_lt, NULL, lt, f0, f2);
 
   // Otherwise it's greater, so just fall thru, and return.
+  ASSERT(is_int16(GREATER) && is_int16(EQUAL) && is_int16(LESS));
+  __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(GREATER));
-  __ Ret();
 
   __ bind(&fpu_eq);
+  __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(EQUAL));
-  __ Ret();
 
   __ bind(&fpu_lt);
+  __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(LESS));
-  __ Ret();
 
   __ bind(&unordered);
   __ bind(&generic_stub);
@@ -6676,8 +6687,9 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   __ mov(v0, right);
   // Internalized strings are compared by identity.
   __ Ret(ne, left, Operand(right));
+  ASSERT(is_int16(EQUAL));
+  __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(Smi::FromInt(EQUAL)));
-  __ Ret();
 
   __ bind(&miss);
   GenerateMiss(masm);
@@ -7561,8 +7573,8 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   }
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   __ sll(a1, a1, kPointerSizeLog2);
+  __ Ret(USE_DELAY_SLOT);
   __ Addu(sp, sp, a1);
-  __ Ret();
 }
 
 

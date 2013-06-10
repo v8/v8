@@ -52,7 +52,8 @@ class Arguments BASE_EMBEDDED {
 
   Object*& operator[] (int index) {
     ASSERT(0 <= index && index < length_);
-    return arguments_[-index];
+    return *(reinterpret_cast<Object**>(reinterpret_cast<intptr_t>(arguments_) -
+                                        index * kPointerSize));
   }
 
   template <class S> Handle<S> at(int index) {
@@ -253,6 +254,10 @@ class PropertyCallbackArguments
     values[T::kHolderIndex] = holder;
     values[T::kDataIndex] = data;
     values[T::kIsolateIndex] = reinterpret_cast<Object*>(isolate);
+    // Here the hole is set as default value.
+    // It cannot escape into js as it's remove in Call below.
+    values[T::kReturnValueDefaultValueIndex] =
+        isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
     ASSERT(values[T::kHolderIndex]->IsHeapObject());
     ASSERT(values[T::kIsolateIndex]->IsSmi());
@@ -313,6 +318,10 @@ class FunctionCallbackArguments
     values[T::kCalleeIndex] = callee;
     values[T::kHolderIndex] = holder;
     values[T::kIsolateIndex] = reinterpret_cast<internal::Object*>(isolate);
+    // Here the hole is set as default value.
+    // It cannot escape into js as it's remove in Call below.
+    values[T::kReturnValueDefaultValueIndex] =
+        isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
     ASSERT(values[T::kCalleeIndex]->IsJSFunction());
     ASSERT(values[T::kHolderIndex]->IsHeapObject());

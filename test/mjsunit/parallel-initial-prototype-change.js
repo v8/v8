@@ -25,49 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"use strict";
+// Flags: --allow-natives-syntax
+// Flags: --parallel-recompilation --parallel-recompilation-delay=50
 
-// This file relies on the fact that the following declarations have been made
-// in runtime.js:
-// var $Function = global.Function;
-
-// ----------------------------------------------------------------------------
-
-
-// Generator functions and objects are specified by ES6, sections 15.19.3 and
-// 15.19.4.
-
-function GeneratorObjectNext(value) {
-  if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.next', this]);
-  }
-
-  return %_GeneratorNext(this, value);
+function assertUnoptimized(fun) {
+  assertTrue(%GetOptimizationStatus(fun) != 1);
 }
 
-function GeneratorObjectThrow(exn) {
-  if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.throw', this]);
-  }
-
-  return %_GeneratorThrow(this, exn);
+function f1(a, i) {
+  return a[i] + 0.5;
 }
 
-function SetUpGenerators() {
-  %CheckIsBootstrapping();
-  var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
-  InstallFunctions(GeneratorObjectPrototype,
-                   DONT_ENUM | DONT_DELETE | READ_ONLY,
-                   ["next", GeneratorObjectNext,
-                    "throw", GeneratorObjectThrow]);
-  %SetProperty(GeneratorObjectPrototype, "constructor",
-               GeneratorFunctionPrototype, DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %SetPrototype(GeneratorFunctionPrototype, $Function.prototype);
-  %SetProperty(GeneratorFunctionPrototype, "constructor",
-               GeneratorFunction, DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %SetPrototype(GeneratorFunction, $Function);
-}
+var arr = [0.0,,2.5];
+assertEquals(0.5, f1(arr, 0));
+assertEquals(0.5, f1(arr, 0));
 
-SetUpGenerators();
+// Optimized code of f1 depends on initial object and array maps.
+%OptimizeFunctionOnNextCall(f1, "parallel");
+assertEquals(0.5, f1(arr, 0));
+assertUnoptimized(f1);      // Not yet optimized.
+Object.prototype[1] = 1.5;  // Invalidate current initial object map.
+assertEquals(2, f1(arr, 1));
+%CompleteOptimization(f1);  // Conclude optimization with...
+assertUnoptimized(f1);      // ... bailing out due to map dependency.

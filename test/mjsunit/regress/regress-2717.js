@@ -25,49 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"use strict";
+// Test re-initializing existing field which is already being tracked as
+// having double representation.
+(function() {
+  function test1(a) {
+    return { x: 1.5, x: a };
+  };
 
-// This file relies on the fact that the following declarations have been made
-// in runtime.js:
-// var $Function = global.Function;
+  assertEquals({}, test1({}).x);
+})();
 
-// ----------------------------------------------------------------------------
+// Test initializing new field which follows an existing transition to a
+// map that tracks it as having double representation.
+(function() {
+  function test1(a) {
+    return { y: a };
+  };
 
+  function test2(a) {
+    return { y: a };
+  };
 
-// Generator functions and objects are specified by ES6, sections 15.19.3 and
-// 15.19.4.
-
-function GeneratorObjectNext(value) {
-  if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.next', this]);
-  }
-
-  return %_GeneratorNext(this, value);
-}
-
-function GeneratorObjectThrow(exn) {
-  if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.throw', this]);
-  }
-
-  return %_GeneratorThrow(this, exn);
-}
-
-function SetUpGenerators() {
-  %CheckIsBootstrapping();
-  var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
-  InstallFunctions(GeneratorObjectPrototype,
-                   DONT_ENUM | DONT_DELETE | READ_ONLY,
-                   ["next", GeneratorObjectNext,
-                    "throw", GeneratorObjectThrow]);
-  %SetProperty(GeneratorObjectPrototype, "constructor",
-               GeneratorFunctionPrototype, DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %SetPrototype(GeneratorFunctionPrototype, $Function.prototype);
-  %SetProperty(GeneratorFunctionPrototype, "constructor",
-               GeneratorFunction, DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %SetPrototype(GeneratorFunction, $Function);
-}
-
-SetUpGenerators();
+  assertEquals(1.5, test1(1.5).y);
+  assertEquals({}, test2({}).y);
+})();

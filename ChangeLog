@@ -1,3 +1,12 @@
+2013-06-10: Version 3.19.12
+
+        Fixed arguments array access. (Chromium issue 247303)
+
+        Fixed bug in LookupForWrite. (Chromium issue 242332)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-06-07: Version 3.19.11
 
         Performance and stability improvements on all platforms.

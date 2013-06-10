@@ -2852,6 +2852,7 @@ class ReturnValue {
   template<class F> friend class ReturnValue;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
+  V8_INLINE(internal::Object* GetDefaultValue());
   V8_INLINE(explicit ReturnValue(internal::Object** slot));
   internal::Object** value_;
 };
@@ -2876,16 +2877,17 @@ class FunctionCallbackInfo {
   V8_INLINE(Isolate* GetIsolate() const);
   V8_INLINE(ReturnValue<T> GetReturnValue() const);
   // This shouldn't be public, but the arm compiler needs it.
-  static const int kArgsLength = 5;
+  static const int kArgsLength = 6;
 
  protected:
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
   static const int kReturnValueIndex = 0;
-  static const int kIsolateIndex = -1;
-  static const int kDataIndex = -2;
-  static const int kCalleeIndex = -3;
-  static const int kHolderIndex = -4;
+  static const int kReturnValueDefaultValueIndex = -1;
+  static const int kIsolateIndex = -2;
+  static const int kDataIndex = -3;
+  static const int kCalleeIndex = -4;
+  static const int kHolderIndex = -5;
 
   V8_INLINE(FunctionCallbackInfo(internal::Object** implicit_args,
                    internal::Object** values,
@@ -2920,7 +2922,7 @@ class PropertyCallbackInfo {
   V8_INLINE(Local<Object> Holder() const);
   V8_INLINE(ReturnValue<T> GetReturnValue() const);
   // This shouldn't be public, but the arm compiler needs it.
-  static const int kArgsLength = 5;
+  static const int kArgsLength = 6;
 
  protected:
   friend class MacroAssembler;
@@ -2930,7 +2932,8 @@ class PropertyCallbackInfo {
   static const int kHolderIndex = -1;
   static const int kDataIndex = -2;
   static const int kReturnValueIndex = -3;
-  static const int kIsolateIndex = -4;
+  static const int kReturnValueDefaultValueIndex = -4;
+  static const int kIsolateIndex = -5;
 
   V8_INLINE(PropertyCallbackInfo(internal::Object** args))
       : args_(args) { }
@@ -5658,7 +5661,7 @@ template<typename S>
 void ReturnValue<T>::Set(const Persistent<S>& handle) {
   TYPE_CHECK(T, S);
   if (V8_UNLIKELY(handle.IsEmpty())) {
-    SetUndefined();
+    *value_ = GetDefaultValue();
   } else {
     *value_ = *reinterpret_cast<internal::Object**>(*handle);
   }
@@ -5669,7 +5672,7 @@ template<typename S>
 void ReturnValue<T>::Set(const Handle<S> handle) {
   TYPE_CHECK(T, S);
   if (V8_UNLIKELY(handle.IsEmpty())) {
-    SetUndefined();
+    *value_ = GetDefaultValue();
   } else {
     *value_ = *reinterpret_cast<internal::Object**>(*handle);
   }
@@ -5728,8 +5731,14 @@ void ReturnValue<T>::SetUndefined() {
 
 template<typename T>
 Isolate* ReturnValue<T>::GetIsolate() {
-  // Isolate is always the pointer below value_ on the stack.
-  return *reinterpret_cast<Isolate**>(&value_[-1]);
+  // Isolate is always the pointer below the default value on the stack.
+  return *reinterpret_cast<Isolate**>(&value_[-2]);
+}
+
+template<typename T>
+internal::Object* ReturnValue<T>::GetDefaultValue() {
+  // Default value is always the pointer below value_ on the stack.
+  return value_[-1];
 }
 
 

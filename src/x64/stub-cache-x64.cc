@@ -449,12 +449,13 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   //                           (first fast api call extra argument)
   //  -- rsp[24]             : api call data
   //  -- rsp[32]             : isolate
-  //  -- rsp[40]             : ReturnValue
+  //  -- rsp[40]             : ReturnValue default value
+  //  -- rsp[48]             : ReturnValue
   //
-  //  -- rsp[48]             : last argument
+  //  -- rsp[56]             : last argument
   //  -- ...
-  //  -- rsp[(argc + 5) * 8] : first argument
-  //  -- rsp[(argc + 6) * 8] : receiver
+  //  -- rsp[(argc + 6) * 8] : first argument
+  //  -- rsp[(argc + 7) * 8] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -477,9 +478,10 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ movq(Operand(rsp, 4 * kPointerSize), kScratchRegister);
   __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
   __ movq(Operand(rsp, 5 * kPointerSize), kScratchRegister);
+  __ movq(Operand(rsp, 6 * kPointerSize), kScratchRegister);
 
   // Prepare arguments.
-  STATIC_ASSERT(kFastApiCallArguments == 5);
+  STATIC_ASSERT(kFastApiCallArguments == 6);
   __ lea(rbx, Operand(rsp, kFastApiCallArguments * kPointerSize));
 
   // Function address is a foreign pointer outside V8's heap.
@@ -1305,6 +1307,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   }
   __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
   __ push(kScratchRegister);  // return value
+  __ push(kScratchRegister);  // return value default
   __ PushAddress(ExternalReference::isolate_address(isolate()));
   __ push(name());  // name
   // Save a pointer to where we pushed the arguments pointer.  This will be
@@ -1337,8 +1340,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   const int kArgStackSpace = 1;
 
   __ PrepareCallApiFunction(kArgStackSpace, returns_handle);
-  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 5);
-  __ lea(rax, Operand(name_arg, 5 * kPointerSize));
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
+  __ lea(rax, Operand(name_arg, 6 * kPointerSize));
 
   // v8::AccessorInfo::args_.
   __ movq(StackSpaceOperand(0), rax);
@@ -1350,7 +1353,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ CallApiFunctionAndReturn(getter_address,
                               kStackSpace,
                               returns_handle,
-                              4);
+                              5);
 }
 
 

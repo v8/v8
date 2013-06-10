@@ -3195,9 +3195,8 @@ void HGraph::InsertRepresentationChanges() {
       HValue* use = it.value();
       Representation input_representation =
           use->RequiredInputRepresentation(it.index());
-      if ((input_representation.IsInteger32() &&
-           !use->CheckFlag(HValue::kTruncatingToInt32)) ||
-          input_representation.IsDouble()) {
+      if (!input_representation.IsInteger32() ||
+          !use->CheckFlag(HValue::kTruncatingToInt32)) {
         if (FLAG_trace_representation) {
           PrintF("#%d Phi is not truncating because of #%d %s\n",
                  phi->id(), it.value()->id(), it.value()->Mnemonic());
@@ -6254,7 +6253,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
 
   if (transition_to_field) {
     Handle<Map> transition(lookup->GetTransitionMapFromMap(*map));
-    instr->set_transition(transition);
+    instr->SetTransition(transition, top_info());
     // TODO(fschneider): Record the new map type of the object in the IR to
     // enable elimination of redundant checks after the transition store.
     instr->SetGVNFlag(kChangesMaps);
@@ -10918,8 +10917,8 @@ void HOptimizedGraphBuilder::GenerateFastAsciiArrayJoin(CallRuntime* call) {
 
 
 // Support for generators.
-void HOptimizedGraphBuilder::GenerateGeneratorSend(CallRuntime* call) {
-  return Bailout("inlined runtime function: GeneratorSend");
+void HOptimizedGraphBuilder::GenerateGeneratorNext(CallRuntime* call) {
+  return Bailout("inlined runtime function: GeneratorNext");
 }
 
 

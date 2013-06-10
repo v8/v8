@@ -681,6 +681,7 @@ class FooAccessorsData {
     double start = i::OS::TimeCurrentMillis();
     double duration = 0;
     while (duration < min_duration_ms_) {
+      i::OS::Sleep(1);
       duration = i::OS::TimeCurrentMillis() - start;
       ++*iterations;
     }

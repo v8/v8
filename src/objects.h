@@ -6529,7 +6529,7 @@ class JSGeneratorObject: public JSObject {
   static const int kSize = kStackHandlerIndexOffset + kPointerSize;
 
   // Resume mode, for use by runtime functions.
-  enum ResumeMode { SEND, THROW };
+  enum ResumeMode { NEXT, THROW };
 
   // Yielding from a generator returns an object with the following inobject
   // properties.  See Context::generator_result_map() for the map.

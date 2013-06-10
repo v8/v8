@@ -25,49 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"use strict";
+// Flags: --allow-natives-syntax
 
-// This file relies on the fact that the following declarations have been made
-// in runtime.js:
-// var $Function = global.Function;
-
-// ----------------------------------------------------------------------------
-
-
-// Generator functions and objects are specified by ES6, sections 15.19.3 and
-// 15.19.4.
-
-function GeneratorObjectNext(value) {
-  if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.next', this]);
+function f(i, b) {
+  var a = 0;
+  if (b) {
+    var c = 1 << i;
+    a = c + c;
   }
-
-  return %_GeneratorNext(this, value);
+  var x = a >> 3;
+  return a;
 }
 
-function GeneratorObjectThrow(exn) {
-  if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.throw', this]);
+f(1, false);
+f(1, true);
+%OptimizeFunctionOnNextCall(f);
+assertEquals((1 << 30) * 2, f(30, true));
+
+
+var global = 1;
+
+function f2(b) {
+  var a = 0;
+  if (b) {
+    a = global;
   }
-
-  return %_GeneratorThrow(this, exn);
+  var x = a >> 3;
+  return a;
 }
 
-function SetUpGenerators() {
-  %CheckIsBootstrapping();
-  var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
-  InstallFunctions(GeneratorObjectPrototype,
-                   DONT_ENUM | DONT_DELETE | READ_ONLY,
-                   ["next", GeneratorObjectNext,
-                    "throw", GeneratorObjectThrow]);
-  %SetProperty(GeneratorObjectPrototype, "constructor",
-               GeneratorFunctionPrototype, DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %SetPrototype(GeneratorFunctionPrototype, $Function.prototype);
-  %SetProperty(GeneratorFunctionPrototype, "constructor",
-               GeneratorFunction, DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %SetPrototype(GeneratorFunction, $Function);
-}
-
-SetUpGenerators();
+f2(false);
+f2(true);
+%OptimizeFunctionOnNextCall(f2);
+global = 2.5;
+assertEquals(global, f2(true));

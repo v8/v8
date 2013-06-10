@@ -893,11 +893,12 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //  -- sp[4]              : callee JS function
   //  -- sp[8]              : call data
   //  -- sp[12]             : isolate
-  //  -- sp[16]             : ReturnValue
-  //  -- sp[20]             : last JS argument
+  //  -- sp[16]             : ReturnValue default value
+  //  -- sp[20]             : ReturnValue
+  //  -- sp[24]             : last JS argument
   //  -- ...
-  //  -- sp[(argc + 4) * 4] : first JS argument
-  //  -- sp[(argc + 5) * 4] : receiver
+  //  -- sp[(argc + 5) * 4] : first JS argument
+  //  -- sp[(argc + 6) * 4] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -914,13 +915,14 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
     __ Move(r6, call_data);
   }
   __ mov(r7, Operand(ExternalReference::isolate_address(masm->isolate())));
-  // Store JS function, call data, isolate and ReturnValue.
+  // Store JS function, call data, isolate ReturnValue default and ReturnValue.
   __ stm(ib, sp, r5.bit() | r6.bit() | r7.bit());
   __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
   __ str(r5, MemOperand(sp, 4 * kPointerSize));
+  __ str(r5, MemOperand(sp, 5 * kPointerSize));
 
   // Prepare arguments.
-  __ add(r2, sp, Operand(4 * kPointerSize));
+  __ add(r2, sp, Operand(5 * kPointerSize));
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -1434,9 +1436,11 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   }
   __ Push(reg, scratch3());
   __ LoadRoot(scratch3(), Heap::kUndefinedValueRootIndex);
+  __ mov(scratch4(), scratch3());
+  __ Push(scratch3(), scratch4());
   __ mov(scratch4(),
          Operand(ExternalReference::isolate_address(isolate())));
-  __ Push(scratch3(), scratch4(), name());
+  __ Push(scratch4(), name());
   __ mov(r0, sp);  // r0 = Handle<Name>
 
   const int kApiStackSpace = 1;
@@ -1462,7 +1466,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ CallApiFunctionAndReturn(ref,
                               kStackUnwindSpace,
                               returns_handle,
-                              4);
+                              5);
 }
 
 
