@@ -2641,9 +2641,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
 // called if the suspended activation had operands on the stack, stack handlers
 // needing rewinding, or if the resume should throw an exception.  The fast path
 // is handled directly in FullCodeGenerator::EmitGeneratorResume(), which is
-// inlined into GeneratorNext, GeneratorSend, and GeneratorThrow.
-// EmitGeneratorResumeResume is called in any case, as it needs to reconstruct
-// the stack frame and make space for arguments and operands.
+// inlined into GeneratorNext and GeneratorThrow.  EmitGeneratorResumeResume is
+// called in any case, as it needs to reconstruct the stack frame and make space
+// for arguments and operands.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 3);
@@ -2676,7 +2676,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResumeJSGeneratorObject) {
   JSGeneratorObject::ResumeMode resume_mode =
       static_cast<JSGeneratorObject::ResumeMode>(resume_mode_int);
   switch (resume_mode) {
-    case JSGeneratorObject::SEND:
+    case JSGeneratorObject::NEXT:
       return value;
     case JSGeneratorObject::THROW:
       return isolate->Throw(value);

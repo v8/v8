@@ -2029,10 +2029,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // [sp + 1 * kPointerSize] iter
       // [sp + 0 * kPointerSize] g
 
-      Label l_catch, l_try, l_resume, l_send, l_call, l_loop;
+      Label l_catch, l_try, l_resume, l_next, l_call, l_loop;
       // Initial send value is undefined.
       __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-      __ b(&l_send);
+      __ b(&l_next);
 
       // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
       __ bind(&l_catch);
@@ -2063,15 +2063,15 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ bind(&l_resume);                                // received in r0
       __ PopTryHandler();
 
-      // receiver = iter; f = iter.send; arg = received;
-      __ bind(&l_send);
+      // receiver = iter; f = iter.next; arg = received;
+      __ bind(&l_next);
       __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
       __ push(r3);                                       // iter
       __ push(r0);                                       // received
       __ mov(r0, r3);                                    // iter
-      __ LoadRoot(r2, Heap::ksend_stringRootIndex);      // "send"
-      Handle<Code> send_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(send_ic);                                   // iter.send in r0
+      __ LoadRoot(r2, Heap::knext_stringRootIndex);      // "next"
+      Handle<Code> next_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(next_ic);                                   // iter.next in r0
 
       // result = f.call(receiver, arg);
       __ bind(&l_call);
@@ -2174,7 +2174,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // If we are sending a value and there is no operand stack, we can jump back
   // in directly.
-  if (resume_mode == JSGeneratorObject::SEND) {
+  if (resume_mode == JSGeneratorObject::NEXT) {
     Label slow_resume;
     __ cmp(r3, Operand(0));
     __ b(ne, &slow_resume);
