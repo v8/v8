@@ -2943,8 +2943,16 @@ void CompareNilIC::Clear(Address address, Code* target) {
 }
 
 
-MaybeObject* CompareNilIC::DoCompareNilSlow(NilValue nil,
+MaybeObject* CompareNilIC::DoCompareNilSlow(EqualityKind kind,
+                                            NilValue nil,
                                             Handle<Object> object) {
+  if (kind == kStrictEquality) {
+    if (nil == kNullValue) {
+      return Smi::FromInt(object->IsNull());
+    } else {
+      return Smi::FromInt(object->IsUndefined());
+    }
+  }
   if (object->IsNull() || object->IsUndefined()) {
     return Smi::FromInt(true);
   }
@@ -2965,6 +2973,7 @@ MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
   stub.Record(object);
   old_types.TraceTransition(stub.GetTypes());
 
+  EqualityKind kind = stub.GetKind();
   NilValue nil = stub.GetNilValue();
 
   // Find or create the specialized stub to support the new set of types.
@@ -2978,7 +2987,7 @@ MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
     code = stub.GetCode(isolate());
   }
   set_target(*code);
-  return DoCompareNilSlow(nil, object);
+  return DoCompareNilSlow(kind, nil, object);
 }
 
 

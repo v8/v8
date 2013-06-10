@@ -1698,6 +1698,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
 
 void HGraphBuilder::BuildCompareNil(
     HValue* value,
+    EqualityKind kind,
     CompareNilICStub::Types types,
     Handle<Map> map,
     int position,
@@ -1732,7 +1733,9 @@ void HGraphBuilder::BuildCompareNil(
       // emitted below is the actual monomorphic map.
       BuildCheckMap(value, map);
     } else {
-      if_nil.Deopt();
+      if (kind == kNonStrictEquality) {
+        if_nil.Deopt();
+      }
     }
   }
 
@@ -9918,22 +9921,19 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  EqualityKind kind =
+      expr->op() == Token::EQ_STRICT ? kStrictEquality : kNonStrictEquality;
   HIfContinuation continuation;
   CompareNilICStub::Types types;
-  if (expr->op() == Token::EQ_STRICT) {
-    IfBuilder if_nil(this);
-    if_nil.If<HCompareObjectEqAndBranch>(
-        value, (nil== kNullValue) ? graph()->GetConstantNull()
-                                  : graph()->GetConstantUndefined());
-    if_nil.Then();
-    if_nil.Else();
-    if_nil.CaptureContinuation(&continuation);
-    return ast_context()->ReturnContinuation(&continuation, expr->id());
+  if (kind == kStrictEquality) {
+    types.Add((nil == kNullValue) ? CompareNilICStub::NULL_TYPE :
+                                    CompareNilICStub::UNDEFINED);
+  } else {
+    types = CompareNilICStub::Types(expr->compare_nil_types());
+    if (types.IsEmpty()) types = CompareNilICStub::Types::FullCompare();
   }
-  types = CompareNilICStub::Types(expr->compare_nil_types());
-  if (types.IsEmpty()) types = CompareNilICStub::Types::FullCompare();
   Handle<Map> map_handle = expr->map();
-  BuildCompareNil(value, types, map_handle,
+  BuildCompareNil(value, kind, types, map_handle,
                   expr->position(), &continuation);
   return ast_context()->ReturnContinuation(&continuation, expr->id());
 }

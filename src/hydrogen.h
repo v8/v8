@@ -1353,6 +1353,7 @@ class HGraphBuilder {
 
   void BuildCompareNil(
       HValue* value,
+      EqualityKind kind,
       CompareNilICStub::Types types,
       Handle<Map> map,
       int position,

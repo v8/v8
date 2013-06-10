@@ -789,7 +789,8 @@ class CompareNilIC: public IC {
 
   static void Clear(Address address, Code* target);
 
-  static MUST_USE_RESULT MaybeObject* DoCompareNilSlow(NilValue nil,
+  static MUST_USE_RESULT MaybeObject* DoCompareNilSlow(EqualityKind kind,
+                                                       NilValue nil,
                                                        Handle<Object> object);
 };
 
