@@ -203,7 +203,7 @@ var knownProblems = {
 
   // Only applicable to generators.
   "_GeneratorNext": true,
-  "_GeneratorThrow": true
+  "_GeneratorThrow": true,
 };
 
 var currentlyUncallable = {
