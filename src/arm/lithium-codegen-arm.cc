@@ -93,12 +93,6 @@ void LCodeGen::FinishCode(Handle<Code> code) {
     transition_maps_.at(i)->AddDependentCode(
         DependentCode::kTransitionGroup, code);
   }
-  if (graph()->depends_on_empty_array_proto_elements()) {
-    isolate()->initial_object_prototype()->map()->AddDependentCode(
-        DependentCode::kElementsCantBeAddedGroup, code);
-    isolate()->initial_array_prototype()->map()->AddDependentCode(
-        DependentCode::kElementsCantBeAddedGroup, code);
-  }
 }
 
 
