@@ -736,7 +736,7 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
   CompareNilICStub* stub = casted_stub();
   HIfContinuation continuation;
   Handle<Map> sentinel_map(graph()->isolate()->heap()->meta_map());
-  BuildCompareNil(GetParameter(0), stub->GetKind(),
+  BuildCompareNil(GetParameter(0),
                   stub->GetTypes(), sentinel_map,
                   RelocInfo::kNoPosition, &continuation);
   IfBuilder if_nil(this, &continuation);
