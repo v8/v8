@@ -52,7 +52,8 @@ class Arguments BASE_EMBEDDED {
 
   Object*& operator[] (int index) {
     ASSERT(0 <= index && index < length_);
-    return arguments_[-index];
+    return *(reinterpret_cast<Object**>(reinterpret_cast<intptr_t>(arguments_) -
+                                        index * kPointerSize));
   }
 
   template <class S> Handle<S> at(int index) {
