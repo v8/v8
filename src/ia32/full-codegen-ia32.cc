@@ -4768,12 +4768,10 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
   VisitForAccumulatorValue(sub_expr);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
 
-  EqualityKind kind = expr->op() == Token::EQ_STRICT
-      ? kStrictEquality : kNonStrictEquality;
   Handle<Object> nil_value = nil == kNullValue
       ? isolate()->factory()->null_value()
       : isolate()->factory()->undefined_value();
-  if (kind == kStrictEquality) {
+  if (expr->op() == Token::EQ_STRICT) {
     __ cmp(eax, nil_value);
     Split(equal, if_true, if_false, fall_through);
   } else {

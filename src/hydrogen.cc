@@ -9918,11 +9918,9 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  EqualityKind kind =
-      expr->op() == Token::EQ_STRICT ? kStrictEquality : kNonStrictEquality;
   HIfContinuation continuation;
   CompareNilICStub::Types types;
-  if (kind == kStrictEquality) {
+  if (expr->op() == Token::EQ_STRICT) {
     IfBuilder if_nil(this);
     if_nil.If<HCompareObjectEqAndBranch>(
         value, (nil== kNullValue) ? graph()->GetConstantNull()
@@ -9931,10 +9929,9 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
     if_nil.Else();
     if_nil.CaptureContinuation(&continuation);
     return ast_context()->ReturnContinuation(&continuation, expr->id());
-  } else {
-    types = CompareNilICStub::Types(expr->compare_nil_types());
-    if (types.IsEmpty()) types = CompareNilICStub::Types::FullCompare();
   }
+  types = CompareNilICStub::Types(expr->compare_nil_types());
+  if (types.IsEmpty()) types = CompareNilICStub::Types::FullCompare();
   Handle<Map> map_handle = expr->map();
   BuildCompareNil(value, types, map_handle,
                   expr->position(), &continuation);
