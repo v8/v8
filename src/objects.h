@@ -1433,7 +1433,7 @@ class HeapObject: public Object {
   static inline HeapObject* cast(Object* obj);
 
   // Return the write barrier mode for this. Callers of this function
-  // must be able to present a reference to an AssertNoAllocation
+  // must be able to present a reference to an DisallowHeapAllocation
   // object as a sign that they are not going to use this function
   // from code that allocates and thus invalidates the returned write
   // barrier mode.
