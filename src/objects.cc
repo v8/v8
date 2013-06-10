@@ -4026,6 +4026,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       Representation representation = lookup.representation();
       Representation value_representation =
           value->OptimalRepresentation(value_type);
+      if (value_representation.IsNone()) break;
       if (!value_representation.fits_into(representation)) {
         MaybeObject* maybe_failure = self->GeneralizeFieldRepresentation(
             lookup.GetDescriptorIndex(), value_representation);
