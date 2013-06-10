@@ -2049,12 +2049,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ push(a3);                                       // iter
       __ push(a0);                                       // exception
       __ mov(a0, a3);                                    // iter
-      __ push(a0);                                       // push LoadIC state
       __ LoadRoot(a2, Heap::kthrow_stringRootIndex);     // "throw"
       Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(throw_ic);                                  // iter.throw in a0
       __ mov(a0, v0);
-      __ Addu(sp, sp, Operand(kPointerSize));            // drop LoadIC state
       __ jmp(&l_call);
 
       // try { received = yield result.value }
@@ -2082,12 +2080,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ push(a3);                                       // iter
       __ push(a0);                                       // received
       __ mov(a0, a3);                                    // iter
-      __ push(a0);                                       // push LoadIC state
       __ LoadRoot(a2, Heap::ksend_stringRootIndex);      // "send"
       Handle<Code> send_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(send_ic);                                   // iter.send in a0
       __ mov(a0, v0);
-      __ Addu(sp, sp, Operand(kPointerSize));            // drop LoadIC state
 
       // result = f.call(receiver, arg);
       __ bind(&l_call);
@@ -2117,11 +2113,9 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ pop(a1);                                        // result
       __ push(a0);                                       // result.value
       __ mov(a0, a1);                                    // result
-      __ push(a0);                                       // push LoadIC state
       __ LoadRoot(a2, Heap::kdone_stringRootIndex);      // "done"
       Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(done_ic);                                   // result.done in v0
-      __ Addu(sp, sp, Operand(kPointerSize));            // drop LoadIC state
       __ mov(a0, v0);
       Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
       CallIC(bool_ic);
