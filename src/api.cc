@@ -4303,6 +4303,23 @@ bool String::IsOneByte() const {
   return str->HasOnlyOneByteChars();
 }
 
+// Helpers for ContainsOnlyOneByteHelper
+template<size_t size> struct OneByteMask;
+template<> struct OneByteMask<4> {
+  static const uint32_t value = 0xFF00FF00;
+};
+template<> struct OneByteMask<8> {
+  static const uint64_t value = 0xFF00FF00FF00FF00;
+};
+static const uintptr_t kOneByteMask = OneByteMask<sizeof(uintptr_t)>::value;
+static const uintptr_t kAlignmentMask = sizeof(uintptr_t) - 1;
+static inline bool Unaligned(const uint16_t* chars) {
+  return reinterpret_cast<const uintptr_t>(chars) & kAlignmentMask;
+}
+static inline const uint16_t* Align(const uint16_t* chars) {
+  return reinterpret_cast<uint16_t*>(
+    reinterpret_cast<uintptr_t>(chars) & ~kAlignmentMask);
+}
 
 class ContainsOnlyOneByteHelper {
  public:
@@ -4348,16 +4365,6 @@ class ContainsOnlyOneByteHelper {
   }
 
  private:
-  static const uintptr_t kOneByteMask =
-      static_cast<uintptr_t>(0xFF00FF00FF00FF00ULL);
-  static const uintptr_t kAlignmentMask = sizeof(uintptr_t) - 1;
-  static inline bool Unaligned(const uint16_t* chars) {
-    return reinterpret_cast<const uintptr_t>(chars) & kAlignmentMask;
-  }
-  static inline const uint16_t* Align(const uint16_t* chars) {
-    return reinterpret_cast<uint16_t*>(
-        reinterpret_cast<uintptr_t>(chars) & ~kAlignmentMask);
-  }
   bool CheckCons(i::ConsString* cons_string) {
     while (true) {
       // Check left side if flat.
