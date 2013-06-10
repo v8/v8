@@ -88,11 +88,6 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   }
   PopulateDeoptimizationData(code);
   info()->CommitDependentMaps(code);
-
-  for (int i = 0 ; i < transition_maps_.length(); i++) {
-    transition_maps_.at(i)->AddDependentCode(
-        DependentCode::kTransitionGroup, code);
-  }
 }
 
 
@@ -4276,9 +4271,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   if (!transition.is_null()) {
-    if (transition->CanBeDeprecated()) {
-      transition_maps_.Add(transition, info()->zone());
-    }
     __ mov(scratch, Operand(transition));
     __ str(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     if (instr->hydrogen()->NeedsWriteBarrierForMap()) {

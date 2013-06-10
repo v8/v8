@@ -5689,6 +5689,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
                        = Representation::Tagged())
       : access_(access),
         field_representation_(field_representation),
+        transition_(),
         transition_unique_id_(),
         new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
@@ -5720,7 +5721,13 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HObjectAccess access() const { return access_; }
   Handle<Map> transition() const { return transition_; }
   UniqueValueId transition_unique_id() const { return transition_unique_id_; }
-  void set_transition(Handle<Map> map) { transition_ = map; }
+  void SetTransition(Handle<Map> map, CompilationInfo* info) {
+    ASSERT(transition_.is_null());  // Only set once.
+    if (map->CanBeDeprecated()) {
+      map->AddDependentCompilationInfo(DependentCode::kTransitionGroup, info);
+    }
+    transition_ = map;
+  }
   HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {
