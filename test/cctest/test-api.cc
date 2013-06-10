@@ -810,6 +810,13 @@ static void CheckReturnValue(const T& t) {
   CHECK_EQ(v8::Isolate::GetCurrent(), t.GetIsolate());
   CHECK_EQ(t.GetIsolate(), rv.GetIsolate());
   CHECK((*o)->IsTheHole() || (*o)->IsUndefined());
+  // Verify reset
+  bool is_runtime = (*o)->IsTheHole();
+  rv.Set(true);
+  CHECK(!(*o)->IsTheHole() && !(*o)->IsUndefined());
+  rv.Set(v8::Handle<v8::Object>());
+  CHECK((*o)->IsTheHole() || (*o)->IsUndefined());
+  CHECK_EQ(is_runtime, (*o)->IsTheHole());
 }
 
 static v8::Handle<Value> handle_call(const v8::Arguments& args) {
