@@ -1152,122 +1152,150 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
-  if (instr->hydrogen()->HasPowerOf2Divisor()) {
-    Register dividend = ToRegister(instr->left());
-    Register result = ToRegister(instr->result());
+  HMod* hmod = instr->hydrogen();
+  HValue* left = hmod->left();
+  HValue* right = hmod->right();
+  if (hmod->HasPowerOf2Divisor()) {
+    // TODO(svenpanne) We should really do the strength reduction on the
+    // Hydrogen level.
+    Register left_reg = ToRegister(instr->left());
+    Register result_reg = ToRegister(instr->result());
 
-    int32_t divisor =
-        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
+    // Note: The code below even works when right contains kMinInt.
+    int32_t divisor = Abs(right->GetInteger32Constant());
 
-    if (divisor < 0) divisor = -divisor;
-
-    Label positive_dividend, done;
-    __ cmp(dividend, Operand::Zero());
-    __ b(pl, &positive_dividend);
-    __ rsb(result, dividend, Operand::Zero());
-    __ and_(result, result, Operand(divisor - 1), SetCC);
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      DeoptimizeIf(eq, instr->environment());
+    Label left_is_not_negative, done;
+    if (left->CanBeNegative()) {
+      __ cmp(left_reg, Operand::Zero());
+      __ b(pl, &left_is_not_negative);
+      __ rsb(result_reg, left_reg, Operand::Zero());
+      __ and_(result_reg, result_reg, Operand(divisor - 1));
+      __ rsb(result_reg, result_reg, Operand::Zero(), SetCC);
+      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        DeoptimizeIf(eq, instr->environment());
+      }
+      __ b(&done);
     }
-    __ rsb(result, result, Operand::Zero());
-    __ b(&done);
-    __ bind(&positive_dividend);
-    __ and_(result, dividend, Operand(divisor - 1));
+
+    __ bind(&left_is_not_negative);
+    __ and_(result_reg, left_reg, Operand(divisor - 1));
     __ bind(&done);
-    return;
-  }
 
-  // These registers hold untagged 32 bit values.
-  Register left = ToRegister(instr->left());
-  Register right = ToRegister(instr->right());
-  Register result = ToRegister(instr->result());
-  Label done;
+  } else if (hmod->has_fixed_right_arg()) {
+    Register left_reg = ToRegister(instr->left());
+    Register right_reg = ToRegister(instr->right());
+    Register result_reg = ToRegister(instr->result());
 
-    // Check for x % 0.
-  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-    __ cmp(right, Operand::Zero());
-    DeoptimizeIf(eq, instr->environment());
-  }
+    int32_t divisor = hmod->fixed_right_arg_value();
+    ASSERT(IsPowerOf2(divisor));
 
-  if (CpuFeatures::IsSupported(SUDIV)) {
-    CpuFeatureScope scope(masm(), SUDIV);
-    // Check for (kMinInt % -1).
-    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-      Label left_not_min_int;
-      __ cmp(left, Operand(kMinInt));
-      __ b(ne, &left_not_min_int);
-      __ cmp(right, Operand(-1));
-      DeoptimizeIf(eq, instr->environment());
-      __ bind(&left_not_min_int);
+    // Check if our assumption of a fixed right operand still holds.
+    __ cmp(right_reg, Operand(divisor));
+    DeoptimizeIf(ne, instr->environment());
+
+    Label left_is_not_negative, done;
+    if (left->CanBeNegative()) {
+      __ cmp(left_reg, Operand::Zero());
+      __ b(pl, &left_is_not_negative);
+      __ rsb(result_reg, left_reg, Operand::Zero());
+      __ and_(result_reg, result_reg, Operand(divisor - 1));
+      __ rsb(result_reg, result_reg, Operand::Zero(), SetCC);
+      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        DeoptimizeIf(eq, instr->environment());
+      }
+      __ b(&done);
     }
 
-    // For  r3 = r1 % r2; we can have the following ARM code
-    // sdiv r3, r1, r2
-    // mls r3, r3, r2, r1
+    __ bind(&left_is_not_negative);
+    __ and_(result_reg, left_reg, Operand(divisor - 1));
+    __ bind(&done);
 
-    __ sdiv(result, left, right);
-    __ mls(result, result, right, left);
+  } else if (CpuFeatures::IsSupported(SUDIV)) {
+    CpuFeatureScope scope(masm(), SUDIV);
 
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ cmp(result, Operand::Zero());
+    Register left_reg = ToRegister(instr->left());
+    Register right_reg = ToRegister(instr->right());
+    Register result_reg = ToRegister(instr->result());
+
+    Label done;
+    // Check for x % 0, sdiv might signal an exception. We have to deopt in this
+    // case because we can't return a NaN.
+    if (right->CanBeZero()) {
+      __ cmp(right_reg, Operand::Zero());
+      DeoptimizeIf(eq, instr->environment());
+    }
+
+    // Check for kMinInt % -1, sdiv will return kMinInt, which is not what we
+    // want. We have to deopt if we care about -0, because we can't return that.
+    if (left->RangeCanInclude(kMinInt) && right->RangeCanInclude(-1)) {
+      Label no_overflow_possible;
+      __ cmp(left_reg, Operand(kMinInt));
+      __ b(ne, &no_overflow_possible);
+      __ cmp(right_reg, Operand(-1));
+      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        DeoptimizeIf(eq, instr->environment());
+      } else {
+        __ b(ne, &no_overflow_possible);
+        __ mov(result_reg, Operand::Zero());
+        __ jmp(&done);
+      }
+      __ bind(&no_overflow_possible);
+    }
+
+    // For 'r3 = r1 % r2' we can have the following ARM code:
+    //   sdiv r3, r1, r2
+    //   mls r3, r3, r2, r1
+
+    __ sdiv(result_reg, left_reg, right_reg);
+    __ mls(result_reg, result_reg, right_reg, left_reg);
+
+    // If we care about -0, test if the dividend is <0 and the result is 0.
+    if (left->CanBeNegative() &&
+        hmod->CanBeZero() &&
+        hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ cmp(result_reg, Operand::Zero());
       __ b(ne, &done);
-      __ cmp(left, Operand::Zero());
+      __ cmp(left_reg, Operand::Zero());
       DeoptimizeIf(lt, instr->environment());
     }
+    __ bind(&done);
+
   } else {
+    // General case, without any SDIV support.
+    Register left_reg = ToRegister(instr->left());
+    Register right_reg = ToRegister(instr->right());
+    Register result_reg = ToRegister(instr->result());
     Register scratch = scratch0();
-    Register scratch2 = ToRegister(instr->temp());
-    DwVfpRegister dividend = ToDoubleRegister(instr->temp2());
-    DwVfpRegister divisor = ToDoubleRegister(instr->temp3());
+    ASSERT(!scratch.is(left_reg));
+    ASSERT(!scratch.is(right_reg));
+    ASSERT(!scratch.is(result_reg));
+    DwVfpRegister dividend = ToDoubleRegister(instr->temp());
+    DwVfpRegister divisor = ToDoubleRegister(instr->temp2());
+    ASSERT(!divisor.is(dividend));
     DwVfpRegister quotient = double_scratch0();
+    ASSERT(!quotient.is(dividend));
+    ASSERT(!quotient.is(divisor));
 
-    ASSERT(!dividend.is(divisor));
-    ASSERT(!dividend.is(quotient));
-    ASSERT(!divisor.is(quotient));
-    ASSERT(!scratch.is(left));
-    ASSERT(!scratch.is(right));
-    ASSERT(!scratch.is(result));
+    Label done;
+    // Check for x % 0, we have to deopt in this case because we can't return a
+    // NaN.
+    if (right->CanBeZero()) {
+      __ cmp(right_reg, Operand::Zero());
+      DeoptimizeIf(eq, instr->environment());
+    }
 
-    Label vfp_modulo, right_negative;
-
-    __ Move(result, left);
-
-    // (0 % x) must yield 0 (if x is finite, which is the case here).
-    __ cmp(left, Operand::Zero());
-    __ b(eq, &done);
-    // Preload right in a vfp register.
-    __ vmov(divisor.low(), right);
-    __ b(lt, &vfp_modulo);
-
-    __ cmp(left, Operand(right));
-    __ b(lt, &done);
-
-    // Check for (positive) power of two on the right hand side.
-    __ JumpIfNotPowerOfTwoOrZeroAndNeg(right,
-                                       scratch,
-                                       &right_negative,
-                                       &vfp_modulo);
-    // Perform modulo operation (scratch contains right - 1).
-    __ and_(result, scratch, Operand(left));
-    __ b(&done);
-
-    __ bind(&right_negative);
-    // Negate right. The sign of the divisor does not matter.
-    __ rsb(right, right, Operand::Zero());
-
-    __ bind(&vfp_modulo);
-    // Load the arguments in VFP registers.
-    // The divisor value is preloaded before. Be careful that 'right'
-    // is only live on entry.
-    __ vmov(dividend.low(), left);
-    // From here on don't use right as it may have been reallocated
-    // (for example to scratch2).
-    right = no_reg;
+    __ Move(result_reg, left_reg);
+    // Load the arguments in VFP registers. The divisor value is preloaded
+    // before. Be careful that 'right_reg' is only live on entry.
+    // TODO(svenpanne) The last comments seems to be wrong nowadays.
+    __ vmov(dividend.low(), left_reg);
+    __ vmov(divisor.low(), right_reg);
 
     __ vcvt_f64_s32(dividend, dividend.low());
     __ vcvt_f64_s32(divisor, divisor.low());
 
-    // We do not care about the sign of the divisor.
+    // We do not care about the sign of the divisor. Note that we still handle
+    // the kMinInt % -1 case correctly, though.
     __ vabs(divisor, divisor);
     // Compute the quotient and round it to a 32bit integer.
     __ vdiv(quotient, dividend, divisor);
@@ -1279,22 +1307,18 @@ void LCodeGen::DoModI(LModI* instr) {
     __ vmul(double_scratch, divisor, quotient);
     __ vcvt_s32_f64(double_scratch.low(), double_scratch);
     __ vmov(scratch, double_scratch.low());
+    __ sub(result_reg, left_reg, scratch, SetCC);
 
-    if (!instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ sub(result, left, scratch);
-    } else {
-      Label ok;
-      // Check for -0.
-      __ sub(scratch2, left, scratch, SetCC);
-      __ b(ne, &ok);
-      __ cmp(left, Operand::Zero());
+    // If we care about -0, test if the dividend is <0 and the result is 0.
+    if (left->CanBeNegative() &&
+        hmod->CanBeZero() &&
+        hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ b(ne, &done);
+      __ cmp(left_reg, Operand::Zero());
       DeoptimizeIf(mi, instr->environment());
-      __ bind(&ok);
-      // Load the result and we are done.
-      __ mov(result, scratch2);
     }
+    __ bind(&done);
   }
-  __ bind(&done);
 }
 
 

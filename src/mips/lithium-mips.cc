@@ -1364,43 +1364,45 @@ LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
 
 
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
+  HValue* left = instr->left();
+  HValue* right = instr->right();
   if (instr->representation().IsInteger32()) {
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
-
-    LModI* mod;
+    ASSERT(left->representation().IsInteger32());
+    ASSERT(right->representation().IsInteger32());
     if (instr->HasPowerOf2Divisor()) {
-      ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
-      LOperand* value = UseRegisterAtStart(instr->left());
-      mod = new(zone()) LModI(value, UseOrConstant(instr->right()));
+      ASSERT(!right->CanBeZero());
+      LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
+                                     UseOrConstant(right));
+      LInstruction* result = DefineAsRegister(mod);
+      return (left->CanBeNegative() &&
+              instr->CheckFlag(HValue::kBailoutOnMinusZero))
+          ? AssignEnvironment(result)
+          : result;
     } else {
-      LOperand* dividend = UseRegister(instr->left());
-      LOperand* divisor = UseRegister(instr->right());
-      mod = new(zone()) LModI(dividend,
-                              divisor,
-                              TempRegister(),
-                              FixedTemp(f20),
-                              FixedTemp(f22));
-    }
-
-    if (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
-        instr->CheckFlag(HValue::kCanBeDivByZero) ||
-        instr->CheckFlag(HValue::kCanOverflow)) {
-      return AssignEnvironment(DefineAsRegister(mod));
-    } else {
-      return DefineAsRegister(mod);
+      LModI* mod = new(zone()) LModI(UseRegister(left),
+                                     UseRegister(right),
+                                     TempRegister(),
+                                     FixedTemp(f20),
+                                     FixedTemp(f22));
+      LInstruction* result = DefineAsRegister(mod);
+      return (right->CanBeZero() ||
+              (left->RangeCanInclude(kMinInt) &&
+               right->RangeCanInclude(-1)) ||
+              instr->CheckFlag(HValue::kBailoutOnMinusZero))
+          ? AssignEnvironment(result)
+          : result;
     }
   } else if (instr->representation().IsSmiOrTagged()) {
     return DoArithmeticT(Token::MOD, instr);
   } else {
     ASSERT(instr->representation().IsDouble());
-    // We call a C function for double modulo. It can't trigger a GC.
-    // We need to use fixed result register for the call.
+    // We call a C function for double modulo. It can't trigger a GC. We need
+    // to use fixed result register for the call.
     // TODO(fschneider): Allow any register as input registers.
-    LOperand* left = UseFixedDouble(instr->left(), f2);
-    LOperand* right = UseFixedDouble(instr->right(), f4);
-    LArithmeticD* result = new(zone()) LArithmeticD(Token::MOD, left, right);
-    return MarkAsCall(DefineFixedDouble(result, f2), instr);
+    LArithmeticD* mod = new(zone()) LArithmeticD(Token::MOD,
+                                                 UseFixedDouble(left, f2),
+                                                 UseFixedDouble(right, f4));
+    return MarkAsCall(DefineFixedDouble(mod, f2), instr);
   }
 }
 

@@ -1039,7 +1039,13 @@ class HValue: public ZoneObject {
   }
 
   Range* range() const { return range_; }
+  // TODO(svenpanne) We should really use the null object pattern here.
   bool HasRange() const { return range_ != NULL; }
+  bool CanBeNegative() const { return !HasRange() || range()->CanBeNegative(); }
+  bool CanBeZero() const { return !HasRange() || range()->CanBeZero(); }
+  bool RangeCanInclude(int value) const {
+    return !HasRange() || range()->Includes(value);
+  }
   void AddNewRange(Range* r, Zone* zone);
   void RemoveLastAddedRange();
   void ComputeInitialRange(Zone* zone);

@@ -1032,111 +1032,116 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
-  if (instr->hydrogen()->HasPowerOf2Divisor()) {
-    Register dividend = ToRegister(instr->left());
+  HMod* hmod = instr->hydrogen();
+  HValue* left = hmod->left();
+  HValue* right = hmod->right();
+  if (hmod->HasPowerOf2Divisor()) {
+    // TODO(svenpanne) We should really do the strength reduction on the
+    // Hydrogen level.
+    Register left_reg = ToRegister(instr->left());
+    ASSERT(left_reg.is(ToRegister(instr->result())));
 
-    int32_t divisor =
-        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
+    // Note: The code below even works when right contains kMinInt.
+    int32_t divisor = Abs(right->GetInteger32Constant());
 
-    if (divisor < 0) divisor = -divisor;
-
-    Label positive_dividend, done;
-    __ testl(dividend, dividend);
-    __ j(not_sign, &positive_dividend, Label::kNear);
-    __ negl(dividend);
-    __ andl(dividend, Immediate(divisor - 1));
-    __ negl(dividend);
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ j(not_zero, &done, Label::kNear);
-      DeoptimizeIf(no_condition, instr->environment());
-    } else {
+    Label left_is_not_negative, done;
+    if (left->CanBeNegative()) {
+      __ testl(left_reg, left_reg);
+      __ j(not_sign, &left_is_not_negative, Label::kNear);
+      __ negl(left_reg);
+      __ andl(left_reg, Immediate(divisor - 1));
+      __ negl(left_reg);
+      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        DeoptimizeIf(zero, instr->environment());
+      }
       __ jmp(&done, Label::kNear);
     }
-    __ bind(&positive_dividend);
-    __ andl(dividend, Immediate(divisor - 1));
-    __ bind(&done);
-  } else {
-    Label done, remainder_eq_dividend, slow, both_positive;
-    Register left_reg = ToRegister(instr->left());
-    Register right_reg = ToRegister(instr->right());
-    Register result_reg = ToRegister(instr->result());
 
+    __ bind(&left_is_not_negative);
+    __ andl(left_reg, Immediate(divisor - 1));
+    __ bind(&done);
+
+  } else if (hmod->has_fixed_right_arg()) {
+    Register left_reg = ToRegister(instr->left());
+    ASSERT(left_reg.is(ToRegister(instr->result())));
+    Register right_reg = ToRegister(instr->right());
+
+    int32_t divisor = hmod->fixed_right_arg_value();
+    ASSERT(IsPowerOf2(divisor));
+
+    // Check if our assumption of a fixed right operand still holds.
+    __ cmpl(right_reg, Immediate(divisor));
+    DeoptimizeIf(not_equal, instr->environment());
+
+    Label left_is_not_negative, done;
+    if (left->CanBeNegative()) {
+      __ testl(left_reg, left_reg);
+      __ j(not_sign, &left_is_not_negative, Label::kNear);
+      __ negl(left_reg);
+      __ andl(left_reg, Immediate(divisor - 1));
+      __ negl(left_reg);
+      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        DeoptimizeIf(zero, instr->environment());
+      }
+      __ jmp(&done, Label::kNear);
+    }
+
+    __ bind(&left_is_not_negative);
+    __ andl(left_reg, Immediate(divisor - 1));
+    __ bind(&done);
+
+  } else {
+    Register left_reg = ToRegister(instr->left());
     ASSERT(left_reg.is(rax));
-    ASSERT(result_reg.is(rdx));
+    Register right_reg = ToRegister(instr->right());
     ASSERT(!right_reg.is(rax));
     ASSERT(!right_reg.is(rdx));
+    Register result_reg = ToRegister(instr->result());
+    ASSERT(result_reg.is(rdx));
 
-    // Check for x % 0.
-    if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    Label done;
+    // Check for x % 0, idiv would signal a divide error. We have to
+    // deopt in this case because we can't return a NaN.
+    if (right->CanBeZero()) {
       __ testl(right_reg, right_reg);
       DeoptimizeIf(zero, instr->environment());
     }
 
-    __ testl(left_reg, left_reg);
-    __ j(zero, &remainder_eq_dividend, Label::kNear);
-    __ j(sign, &slow, Label::kNear);
-
-    __ testl(right_reg, right_reg);
-    __ j(not_sign, &both_positive, Label::kNear);
-    // The sign of the divisor doesn't matter.
-    __ neg(right_reg);
-
-    __ bind(&both_positive);
-    // If the dividend is smaller than the nonnegative
-    // divisor, the dividend is the result.
-    __ cmpl(left_reg, right_reg);
-    __ j(less, &remainder_eq_dividend, Label::kNear);
-
-    // Check if the divisor is a PowerOfTwo integer.
-    Register scratch = ToRegister(instr->temp());
-    __ movl(scratch, right_reg);
-    __ subl(scratch, Immediate(1));
-    __ testl(scratch, right_reg);
-    __ j(not_zero, &slow, Label::kNear);
-    __ andl(left_reg, scratch);
-    __ jmp(&remainder_eq_dividend, Label::kNear);
-
-    // Slow case, using idiv instruction.
-    __ bind(&slow);
-
-    // Check for (kMinInt % -1).
-    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-      Label left_not_min_int;
+    // Check for kMinInt % -1, idiv would signal a divide error. We
+    // have to deopt if we care about -0, because we can't return that.
+    if (left->RangeCanInclude(kMinInt) && right->RangeCanInclude(-1)) {
+      Label no_overflow_possible;
       __ cmpl(left_reg, Immediate(kMinInt));
-      __ j(not_zero, &left_not_min_int, Label::kNear);
+      __ j(not_zero, &no_overflow_possible, Label::kNear);
       __ cmpl(right_reg, Immediate(-1));
-      DeoptimizeIf(zero, instr->environment());
-      __ bind(&left_not_min_int);
+      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        DeoptimizeIf(equal, instr->environment());
+      } else {
+        __ j(not_equal, &no_overflow_possible, Label::kNear);
+        __ Set(result_reg, 0);
+        __ jmp(&done, Label::kNear);
+      }
+      __ bind(&no_overflow_possible);
     }
 
-    // Sign extend eax to edx.
-    // (We are using only the low 32 bits of the values.)
+    // Sign extend dividend in eax into edx:eax, since we are using only the low
+    // 32 bits of the values.
     __ cdq();
 
-    // Check for (0 % -x) that will produce negative zero.
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    // If we care about -0, test if the dividend is <0 and the result is 0.
+    if (left->CanBeNegative() &&
+        hmod->CanBeZero() &&
+        hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
       Label positive_left;
-      Label done;
       __ testl(left_reg, left_reg);
       __ j(not_sign, &positive_left, Label::kNear);
       __ idivl(right_reg);
-
-      // Test the remainder for 0, because then the result would be -0.
       __ testl(result_reg, result_reg);
-      __ j(not_zero, &done, Label::kNear);
-
-      DeoptimizeIf(no_condition, instr->environment());
+      DeoptimizeIf(zero, instr->environment());
+      __ jmp(&done, Label::kNear);
       __ bind(&positive_left);
-      __ idivl(right_reg);
-      __ bind(&done);
-    } else {
-      __ idivl(right_reg);
     }
-    __ jmp(&done, Label::kNear);
-
-    __ bind(&remainder_eq_dividend);
-    __ movl(result_reg, left_reg);
-
+    __ idivl(right_reg);
     __ bind(&done);
   }
 }

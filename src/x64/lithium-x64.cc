@@ -1437,43 +1437,54 @@ LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
 
 
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
+  HValue* left = instr->left();
+  HValue* right = instr->right();
   if (instr->representation().IsInteger32()) {
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
-
-    LInstruction* result;
+    ASSERT(left->representation().IsInteger32());
+    ASSERT(right->representation().IsInteger32());
     if (instr->HasPowerOf2Divisor()) {
-      ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
-      LOperand* value = UseRegisterAtStart(instr->left());
-      LModI* mod =
-          new(zone()) LModI(value, UseOrConstant(instr->right()), NULL);
-      result = DefineSameAsFirst(mod);
+      ASSERT(!right->CanBeZero());
+      LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
+                                     UseOrConstant(right),
+                                     NULL);
+      LInstruction* result = DefineSameAsFirst(mod);
+      return (left->CanBeNegative() &&
+              instr->CheckFlag(HValue::kBailoutOnMinusZero))
+          ? AssignEnvironment(result)
+          : result;
+    } else if (instr->has_fixed_right_arg()) {
+      LModI* mod = new(zone()) LModI(UseRegister(left),
+                                     UseRegisterAtStart(right),
+                                     NULL);
+      return AssignEnvironment(DefineSameAsFirst(mod));
     } else {
       // The temporary operand is necessary to ensure that right is not
       // allocated into edx.
-      LOperand* temp = FixedTemp(rdx);
-      LOperand* value = UseFixed(instr->left(), rax);
-      LOperand* divisor = UseRegister(instr->right());
-      LModI* mod = new(zone()) LModI(value, divisor, temp);
-      result = DefineFixed(mod, rdx);
+      LModI* mod = new(zone()) LModI(UseFixed(left, rax),
+                                     UseRegister(right),
+                                     FixedTemp(rdx));
+      LInstruction* result = DefineFixed(mod, rdx);
+      return (right->CanBeZero() ||
+              (left->RangeCanInclude(kMinInt) &&
+               right->RangeCanInclude(-1) &&
+               instr->CheckFlag(HValue::kBailoutOnMinusZero)) ||
+              (left->CanBeNegative() &&
+               instr->CanBeZero() &&
+               instr->CheckFlag(HValue::kBailoutOnMinusZero)))
+          ? AssignEnvironment(result)
+          : result;
     }
-
-    return (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
-            instr->CheckFlag(HValue::kCanBeDivByZero) ||
-            instr->CheckFlag(HValue::kCanOverflow))
-        ? AssignEnvironment(result)
-        : result;
   } else if (instr->representation().IsSmiOrTagged()) {
     return DoArithmeticT(Token::MOD, instr);
   } else {
     ASSERT(instr->representation().IsDouble());
-    // We call a C function for double modulo. It can't trigger a GC.
-    // We need to use fixed result register for the call.
+    // We call a C function for double modulo. It can't trigger a GC. We need to
+    // use fixed result register for the call.
     // TODO(fschneider): Allow any register as input registers.
-    LOperand* left = UseFixedDouble(instr->left(), xmm2);
-    LOperand* right = UseFixedDouble(instr->right(), xmm1);
-    LArithmeticD* result = new(zone()) LArithmeticD(Token::MOD, left, right);
-    return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
+    LArithmeticD* mod = new(zone()) LArithmeticD(Token::MOD,
+                                                 UseFixedDouble(left, xmm2),
+                                                 UseFixedDouble(right, xmm1));
+    return MarkAsCall(DefineFixedDouble(mod, xmm1), instr);
   }
 }
 
