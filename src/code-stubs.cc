@@ -432,25 +432,18 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 
 void CompareNilICStub::Record(Handle<Object> object) {
   ASSERT(types_ != Types::FullCompare());
-  if (equality_kind_ == kStrictEquality) {
-    // When testing for strict equality only one value will evaluate to true
-    types_.RemoveAll();
-    types_.Add((nil_value_ == kNullValue) ? NULL_TYPE:
-                                            UNDEFINED);
+  if (object->IsNull()) {
+    types_.Add(NULL_TYPE);
+  } else if (object->IsUndefined()) {
+    types_.Add(UNDEFINED);
+  } else if (object->IsUndetectableObject() ||
+             object->IsOddball() ||
+             !object->IsHeapObject()) {
+    types_ = Types::FullCompare();
+  } else if (IsMonomorphic()) {
+    types_ = Types::FullCompare();
   } else {
-    if (object->IsNull()) {
-      types_.Add(NULL_TYPE);
-    } else if (object->IsUndefined()) {
-      types_.Add(UNDEFINED);
-    } else if (object->IsUndetectableObject() ||
-               object->IsOddball() ||
-               !object->IsHeapObject()) {
-      types_ = Types::FullCompare();
-    } else if (IsMonomorphic()) {
-      types_ = Types::FullCompare();
-    } else {
-      types_.Add(MONOMORPHIC_MAP);
-    }
+    types_.Add(MONOMORPHIC_MAP);
   }
 }
 
@@ -477,8 +470,6 @@ void CompareNilICStub::PrintName(StringStream* stream) {
   types_.Print(stream);
   stream->Add((nil_value_ == kNullValue) ? "(NullValue|":
                                            "(UndefinedValue|");
-  stream->Add((equality_kind_ == kStrictEquality) ? "StrictEquality)":
-                                                    "NonStrictEquality)");
 }
 
 

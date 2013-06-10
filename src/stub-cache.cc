@@ -909,8 +909,6 @@ Handle<Code> StubCache::ComputeCallMiss(int argc,
 
 Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
                                           CompareNilICStub& stub) {
-  stub.SetKind(kNonStrictEquality);
-
   Handle<String> name(isolate_->heap()->empty_string());
   if (!receiver_map->is_shared()) {
     Handle<Code> cached_ic = FindIC(name, receiver_map, Code::COMPARE_NIL_IC,
