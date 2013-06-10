@@ -883,11 +883,12 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //  -- sp[4]              : callee JS function
   //  -- sp[8]              : call data
   //  -- sp[12]             : isolate
-  //  -- sp[16]             : ReturnValue
-  //  -- sp[20]             : last JS argument
+  //  -- sp[16]             : ReturnValue default value
+  //  -- sp[20]             : ReturnValue
+  //  -- sp[24]             : last JS argument
   //  -- ...
-  //  -- sp[(argc + 4) * 4] : first JS argument
-  //  -- sp[(argc + 5) * 4] : receiver
+  //  -- sp[(argc + 5) * 4] : first JS argument
+  //  -- sp[(argc + 6) * 4] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -905,15 +906,16 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   }
 
   __ li(t3, Operand(ExternalReference::isolate_address(masm->isolate())));
-  // Store JS function, call data, isolate and ReturnValue.
+  // Store JS function, call data, isolate ReturnValue default and ReturnValue.
   __ sw(t1, MemOperand(sp, 1 * kPointerSize));
   __ sw(t2, MemOperand(sp, 2 * kPointerSize));
   __ sw(t3, MemOperand(sp, 3 * kPointerSize));
   __ LoadRoot(t1, Heap::kUndefinedValueRootIndex);
   __ sw(t1, MemOperand(sp, 4 * kPointerSize));
+  __ sw(t1, MemOperand(sp, 5 * kPointerSize));
 
   // Prepare arguments.
-  __ Addu(a2, sp, Operand(4 * kPointerSize));
+  __ Addu(a2, sp, Operand(5 * kPointerSize));
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -1435,13 +1437,14 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   } else {
     __ li(scratch3(), Handle<Object>(callback->data(), isolate()));
   }
-  __ Subu(sp, sp, 5 * kPointerSize);
-  __ sw(reg, MemOperand(sp, 4 * kPointerSize));
-  __ sw(scratch3(), MemOperand(sp, 3 * kPointerSize));
+  __ Subu(sp, sp, 6 * kPointerSize);
+  __ sw(reg, MemOperand(sp, 5 * kPointerSize));
+  __ sw(scratch3(), MemOperand(sp, 4 * kPointerSize));
   __ LoadRoot(scratch3(), Heap::kUndefinedValueRootIndex);
+  __ sw(scratch3(), MemOperand(sp, 3 * kPointerSize));
+  __ sw(scratch3(), MemOperand(sp, 2 * kPointerSize));
   __ li(scratch4(),
         Operand(ExternalReference::isolate_address(isolate())));
-  __ sw(scratch3(), MemOperand(sp, 2 * kPointerSize));
   __ sw(scratch4(), MemOperand(sp, 1 * kPointerSize));
   __ sw(name(), MemOperand(sp, 0 * kPointerSize));
 
@@ -1481,7 +1484,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ CallApiFunctionAndReturn(ref,
                               kStackUnwindSpace,
                               returns_handle,
-                              4);
+                              5);
 }
 
 
