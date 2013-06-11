@@ -662,6 +662,7 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
 bool PreParser::CheckInOrOf() {
   if (peek() == i::Token::IN ||
       (allow_for_of() &&
+       peek() == i::Token::IDENTIFIER &&
        scanner_->is_next_contextual_keyword(v8::internal::CStrVector("of")))) {
     Next();
     return true;

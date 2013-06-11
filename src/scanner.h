@@ -331,7 +331,7 @@ class Scanner {
     return current_.literal_chars->is_ascii();
   }
   bool is_literal_contextual_keyword(Vector<const char> keyword) {
-    ASSERT_NOT_NULL(next_.literal_chars);
+    ASSERT_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->is_contextual_keyword(keyword);
   }
   int literal_length() const {
