@@ -1513,6 +1513,11 @@ HValue* HUnaryMathOperation::Canonicalize() {
     // If the input is integer32 then we replace the floor instruction
     // with its input. This happens before the representation changes are
     // introduced.
+
+    // TODO(2205): The above comment is lying. All of this happens
+    // *after* representation changes are introduced. We should check
+    // for value->IsChange() and react accordingly if yes.
+
     if (value()->representation().IsInteger32()) return value();
 
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) || \

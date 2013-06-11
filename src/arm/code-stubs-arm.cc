@@ -1707,6 +1707,7 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       __ Ret();
 
       if (CpuFeatures::IsSupported(SUDIV)) {
+        CpuFeatureScope scope(masm, SUDIV);
         Label result_not_zero;
 
         __ bind(&div_with_sdiv);
@@ -1763,6 +1764,7 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       __ Ret();
 
       if (CpuFeatures::IsSupported(SUDIV)) {
+        CpuFeatureScope scope(masm, SUDIV);
         __ bind(&modulo_with_sdiv);
         __ mov(scratch2, right);
         // Perform modulus with sdiv and mls.
@@ -2208,42 +2210,25 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
             UNREACHABLE();
         }
 
-        if (op_ != Token::DIV) {
-          // These operations produce an integer result.
-          // Try to return a smi if we can.
-          // Otherwise return a heap number if allowed, or jump to type
-          // transition.
-
-          if (result_type_ <= BinaryOpIC::INT32) {
-            __ TryDoubleToInt32Exact(scratch1, d5, d8);
-            // If the ne condition is set, result does
-            // not fit in a 32-bit integer.
-            __ b(ne, &transition);
-          } else {
-            __ vcvt_s32_f64(s8, d5);
-            __ vmov(scratch1, s8);
-          }
-
-          // Check if the result fits in a smi.
-          __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
-          // If not try to return a heap number.
-          __ b(mi, &return_heap_number);
-          // Check for minus zero. Return heap number for minus zero if
-          // double results are allowed; otherwise transition.
+        if (result_type_ <= BinaryOpIC::INT32) {
+          __ TryDoubleToInt32Exact(scratch1, d5, d8);
+          // If the ne condition is set, result does
+          // not fit in a 32-bit integer.
+          __ b(ne, &transition);
+          // Try to tag the result as a Smi, return heap number on overflow.
+          __ SmiTag(scratch1, SetCC);
+          __ b(vs, &return_heap_number);
+          // Check for minus zero, transition in that case (because we need
+          // to return a heap number).
           Label not_zero;
-          __ cmp(scratch1, Operand::Zero());
+          ASSERT(kSmiTag == 0);
           __ b(ne, &not_zero);
           __ vmov(scratch2, d5.high());
           __ tst(scratch2, Operand(HeapNumber::kSignMask));
-          __ b(ne, result_type_ <= BinaryOpIC::INT32 ? &transition
-                                                     : &return_heap_number);
+          __ b(ne, &transition);
           __ bind(&not_zero);
-
-          // Tag the result and return.
-          __ SmiTag(r0, scratch1);
+          __ mov(r0, scratch1);
           __ Ret();
-        } else {
-          // DIV just falls through to allocating a heap number.
         }
 
         __ bind(&return_heap_number);

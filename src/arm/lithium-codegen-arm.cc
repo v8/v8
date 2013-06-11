@@ -1417,21 +1417,6 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  class DeferredDivI: public LDeferredCode {
-   public:
-    DeferredDivI(LCodeGen* codegen, LDivI* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() {
-      codegen()->DoDeferredBinaryOpStub(instr_->pointer_map(),
-                                        instr_->left(),
-                                        instr_->right(),
-                                        Token::DIV);
-    }
-    virtual LInstruction* instr() { return instr_; }
-   private:
-    LDivI* instr_;
-  };
-
   if (instr->hydrogen()->HasPowerOf2Divisor()) {
     Register dividend = ToRegister(instr->left());
     int32_t divisor =
@@ -1498,40 +1483,32 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ bind(&left_not_min_int);
   }
 
-  Label done, deoptimize;
-  // Test for a few common cases first.
-  __ cmp(right, Operand(1));
-  __ mov(result, left, LeaveCC, eq);
-  __ b(eq, &done);
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    CpuFeatureScope scope(masm(), SUDIV);
+    __ sdiv(result, left, right);
 
-  __ cmp(right, Operand(2));
-  __ tst(left, Operand(1), eq);
-  __ mov(result, Operand(left, ASR, 1), LeaveCC, eq);
-  __ b(eq, &done);
+    // Compute remainder and deopt if it's not zero.
+    const Register remainder = scratch0();
+    __ mls(remainder, result, right, left);
+    __ cmp(remainder, Operand::Zero());
+    DeoptimizeIf(ne, instr->environment());
+  } else {
+    const DoubleRegister vleft = ToDoubleRegister(instr->temp());
+    const DoubleRegister vright = double_scratch0();
+    __ vmov(vleft.low(), left);
+    __ vmov(vright.low(), right);
+    __ vcvt_f64_s32(vleft, vleft.low());
+    __ vcvt_f64_s32(vright, vright.low());
+    __ vdiv(vleft, vleft, vright);  // vleft now contains the result.
 
-  __ cmp(right, Operand(4));
-  __ tst(left, Operand(3), eq);
-  __ mov(result, Operand(left, ASR, 2), LeaveCC, eq);
-  __ b(eq, &done);
-
-  // Call the stub. The numbers in r0 and r1 have
-  // to be tagged to Smis. If that is not possible, deoptimize.
-  DeferredDivI* deferred = new(zone()) DeferredDivI(this, instr);
-
-  __ TrySmiTag(left, &deoptimize);
-  __ TrySmiTag(right, &deoptimize);
-
-  __ b(al, deferred->entry());
-  __ bind(deferred->exit());
-
-  // If the result in r0 is a Smi, untag it, else deoptimize.
-  __ JumpIfNotSmi(result, &deoptimize);
-  __ SmiUntag(result);
-  __ b(&done);
-
-  __ bind(&deoptimize);
-  DeoptimizeIf(al, instr->environment());
-  __ bind(&done);
+    // Convert back to integer32; deopt if exact conversion is not possible.
+    // Use vright as scratch register.
+    __ vcvt_s32_f64(vright.low(), vleft);
+    __ vmov(result, vright.low());
+    __ vcvt_f64_s32(vright, vright.low());
+    __ VFPCompareAndSetFlags(vleft, vright);
+    DeoptimizeIf(ne, instr->environment());
+  }
 }
 
 
@@ -1627,38 +1604,6 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
 
     __ bind(&done);
   }
-}
-
-
-void LCodeGen::DoDeferredBinaryOpStub(LPointerMap* pointer_map,
-                                      LOperand* left_argument,
-                                      LOperand* right_argument,
-                                      Token::Value op) {
-  Register left = ToRegister(left_argument);
-  Register right = ToRegister(right_argument);
-
-  PushSafepointRegistersScope scope(this, Safepoint::kWithRegistersAndDoubles);
-  // Move left to r1 and right to r0 for the stub call.
-  if (left.is(r1)) {
-    __ Move(r0, right);
-  } else if (left.is(r0) && right.is(r1)) {
-    __ Swap(r0, r1, r2);
-  } else if (left.is(r0)) {
-    ASSERT(!right.is(r1));
-    __ mov(r1, r0);
-    __ mov(r0, right);
-  } else {
-    ASSERT(!left.is(r0) && !right.is(r0));
-    __ mov(r0, right);
-    __ mov(r1, left);
-  }
-  BinaryOpStub stub(op, OVERWRITE_LEFT);
-  __ CallStub(&stub);
-  RecordSafepointWithRegistersAndDoubles(pointer_map,
-                                         0,
-                                         Safepoint::kNoLazyDeopt);
-  // Overwrite the stored value of r0 with the result of the stub.
-  __ StoreToSafepointRegistersAndDoublesSlot(r0, r0);
 }
 
 
