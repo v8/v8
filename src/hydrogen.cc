@@ -2091,6 +2091,22 @@ void HGraph::FinalizeUniqueValueIds() {
 
 void HGraph::Canonicalize() {
   HPhase phase("H_Canonicalize", this);
+  // Before removing no-op instructions, save their semantic value.
+  // We must be careful not to set the flag unnecessarily, because GVN
+  // cannot identify two instructions when their flag value differs.
+  for (int i = 0; i < blocks()->length(); ++i) {
+    HInstruction* instr = blocks()->at(i)->first();
+    while (instr != NULL) {
+      if (instr->IsArithmeticBinaryOperation() &&
+          instr->representation().IsInteger32() &&
+          instr->HasAtLeastOneUseWithFlagAndNoneWithout(
+              HInstruction::kTruncatingToInt32)) {
+        instr->SetFlag(HInstruction::kAllUsesTruncatingToInt32);
+      }
+      instr = instr->next();
+    }
+  }
+  // Perform actual Canonicalization pass.
   for (int i = 0; i < blocks()->length(); ++i) {
     HInstruction* instr = blocks()->at(i)->first();
     while (instr != NULL) {

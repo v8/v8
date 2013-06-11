@@ -54,6 +54,7 @@ class LChunkBuilder;
 
 
 #define HYDROGEN_ABSTRACT_INSTRUCTION_LIST(V)  \
+  V(ArithmeticBinaryOperation)                 \
   V(BinaryOperation)                           \
   V(BitwiseBinaryOperation)                    \
   V(ControlInstruction)                        \
@@ -797,6 +798,7 @@ class HValue: public ZoneObject {
     kAllowUndefinedAsNaN,
     kIsArguments,
     kTruncatingToInt32,
+    kAllUsesTruncatingToInt32,
     // Set after an instruction is killed.
     kIsDead,
     // Instructions that are allowed to produce full range unsigned integer
@@ -996,6 +998,9 @@ class HValue: public ZoneObject {
 
   // Returns true if the flag specified is set for all uses, false otherwise.
   bool CheckUsesForFlag(Flag f);
+  // Returns true if the flag specified is set for all uses, and this set
+  // of uses is non-empty.
+  bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f);
 
   GVNFlagSet gvn_flags() const { return gvn_flags_; }
   void SetGVNFlag(GVNFlag f) { gvn_flags_.Add(f); }
@@ -3856,7 +3861,7 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
         : representation();
   }
 
-  virtual HValue* Canonicalize();
+  DECLARE_ABSTRACT_INSTRUCTION(ArithmeticBinaryOperation)
 
  private:
   virtual bool IsDeletable() const { return true; }
@@ -4488,9 +4493,8 @@ class HDiv: public HArithmeticBinaryOperation {
                            HValue* right);
 
   bool HasPowerOf2Divisor() {
-    if (right()->IsConstant() &&
-        HConstant::cast(right())->HasInteger32Value()) {
-      int32_t value = HConstant::cast(right())->Integer32Value();
+    if (right()->IsInteger32Constant()) {
+      int32_t value = right()->GetInteger32Constant();
       return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
     }
 

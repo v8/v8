@@ -1419,8 +1419,7 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
 void LCodeGen::DoDivI(LDivI* instr) {
   if (instr->hydrogen()->HasPowerOf2Divisor()) {
     Register dividend = ToRegister(instr->left());
-    int32_t divisor =
-        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
+    int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
     int32_t test_value = 0;
     int32_t power = 0;
 
@@ -1443,10 +1442,19 @@ void LCodeGen::DoDivI(LDivI* instr) {
     }
 
     if (test_value != 0) {
-      // Deoptimize if remainder is not 0.
-      __ tst(dividend, Operand(test_value));
-      DeoptimizeIf(ne, instr->environment());
-      __ mov(dividend, Operand(dividend, ASR, power));
+      if (instr->hydrogen()->CheckFlag(
+          HInstruction::kAllUsesTruncatingToInt32)) {
+        __ cmp(dividend, Operand(0));
+        __ rsb(dividend, dividend, Operand(0), LeaveCC, lt);
+        __ mov(dividend, Operand(dividend, ASR, power));
+        if (divisor > 0) __ rsb(dividend, dividend, Operand(0), LeaveCC, lt);
+        return;  // Don't fall through to "__ rsb" below.
+      } else {
+        // Deoptimize if remainder is not 0.
+        __ tst(dividend, Operand(test_value));
+        DeoptimizeIf(ne, instr->environment());
+        __ mov(dividend, Operand(dividend, ASR, power));
+      }
     }
     if (divisor < 0) __ rsb(dividend, dividend, Operand(0));
 
@@ -1487,11 +1495,14 @@ void LCodeGen::DoDivI(LDivI* instr) {
     CpuFeatureScope scope(masm(), SUDIV);
     __ sdiv(result, left, right);
 
-    // Compute remainder and deopt if it's not zero.
-    const Register remainder = scratch0();
-    __ mls(remainder, result, right, left);
-    __ cmp(remainder, Operand::Zero());
-    DeoptimizeIf(ne, instr->environment());
+    if (!instr->hydrogen()->CheckFlag(
+        HInstruction::kAllUsesTruncatingToInt32)) {
+      // Compute remainder and deopt if it's not zero.
+      const Register remainder = scratch0();
+      __ mls(remainder, result, right, left);
+      __ cmp(remainder, Operand::Zero());
+      DeoptimizeIf(ne, instr->environment());
+    }
   } else {
     const DoubleRegister vleft = ToDoubleRegister(instr->temp());
     const DoubleRegister vright = double_scratch0();
@@ -1500,14 +1511,17 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ vcvt_f64_s32(vleft, vleft.low());
     __ vcvt_f64_s32(vright, vright.low());
     __ vdiv(vleft, vleft, vright);  // vleft now contains the result.
-
-    // Convert back to integer32; deopt if exact conversion is not possible.
-    // Use vright as scratch register.
     __ vcvt_s32_f64(vright.low(), vleft);
     __ vmov(result, vright.low());
-    __ vcvt_f64_s32(vright, vright.low());
-    __ VFPCompareAndSetFlags(vleft, vright);
-    DeoptimizeIf(ne, instr->environment());
+
+    if (!instr->hydrogen()->CheckFlag(
+        HInstruction::kAllUsesTruncatingToInt32)) {
+      // Deopt if exact conversion to integer was not possible.
+      // Use vright as scratch register.
+      __ vcvt_f64_s32(vright, vright.low());
+      __ VFPCompareAndSetFlags(vleft, vright);
+      DeoptimizeIf(ne, instr->environment());
+    }
   }
 }
 
