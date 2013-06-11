@@ -1246,8 +1246,10 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ bind(&left_not_min_int);
   }
 
-  __ mfhi(result);
-  DeoptimizeIf(ne, instr->environment(), result, Operand(zero_reg));
+  if (!instr->hydrogen()->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
+    __ mfhi(result);
+    DeoptimizeIf(ne, instr->environment(), result, Operand(zero_reg));
+  }
   __ mflo(result);
 }
 
