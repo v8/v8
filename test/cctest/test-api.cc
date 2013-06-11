@@ -2570,6 +2570,19 @@ THREADED_TEST(SymbolProperties) {
 }
 
 
+class ScopedArrayBufferContents {
+ public:
+  explicit ScopedArrayBufferContents(
+      const v8::ArrayBuffer::Contents& contents)
+    : contents_(contents) {}
+  ~ScopedArrayBufferContents() { free(contents_.Data()); }
+  void* Data() const { return contents_.Data(); }
+  size_t ByteLength() const { return contents_.ByteLength(); }
+ private:
+  const v8::ArrayBuffer::Contents contents_;
+};
+
+
 THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   i::FLAG_harmony_array_buffer = true;
   i::FLAG_harmony_typed_arrays = true;
@@ -2583,8 +2596,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   CHECK(!ab->IsExternal());
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 
-  v8::ArrayBufferContents ab_contents;
-  ab->Externalize(&ab_contents);
+  ScopedArrayBufferContents ab_contents(ab->Externalize());
   CHECK(ab->IsExternal());
 
   CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
@@ -2626,8 +2638,7 @@ THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
   Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::Cast(*result);
   CHECK_EQ(2, static_cast<int>(ab1->ByteLength()));
   CHECK(!ab1->IsExternal());
-  v8::ArrayBufferContents ab1_contents;
-  ab1->Externalize(&ab1_contents);
+  ScopedArrayBufferContents ab1_contents(ab1->Externalize());
   CHECK(ab1->IsExternal());
 
   result = CompileRun("ab1.byteLength");
@@ -2734,8 +2745,7 @@ THREADED_TEST(ArrayBuffer_NeuteringApi) {
   v8::Handle<v8::Float64Array> f64a =
     CreateAndCheck<v8::Float64Array, 8>(buffer, 8, 127);
 
-  v8::ArrayBufferContents contents;
-  buffer->Externalize(&contents);
+  ScopedArrayBufferContents contents(buffer->Externalize());
   buffer->Neuter();
   CHECK_EQ(0, static_cast<int>(buffer->ByteLength()));
   CheckIsNeutered(u8a);
@@ -2786,8 +2796,7 @@ THREADED_TEST(ArrayBuffer_NeuteringScript) {
   v8::Handle<v8::Float64Array> f64a(
     v8::Float64Array::Cast(*CompileRun("f64a")));
 
-  v8::ArrayBufferContents contents;
-  ab->Externalize(&contents);
+  ScopedArrayBufferContents contents(ab->Externalize());
   ab->Neuter();
   CHECK_EQ(0, static_cast<int>(ab->ByteLength()));
   CheckIsNeutered(u8a);

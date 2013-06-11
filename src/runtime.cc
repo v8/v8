@@ -663,7 +663,8 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
         isolate, array_buffer->byte_length());
     isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
         -static_cast<intptr_t>(allocated_length));
-    free(data);
+    CHECK(V8::ArrayBufferAllocator() != NULL);
+    V8::ArrayBufferAllocator()->Free(data);
   }
   object->Dispose(external_isolate);
 }
@@ -699,8 +700,9 @@ bool Runtime::SetupArrayBufferAllocatingData(
     Handle<JSArrayBuffer> array_buffer,
     size_t allocated_length) {
   void* data;
+  CHECK(V8::ArrayBufferAllocator() != NULL);
   if (allocated_length != 0) {
-    data = malloc(allocated_length);
+    data = V8::ArrayBufferAllocator()->Allocate(allocated_length);
     if (data == NULL) return false;
     memset(data, 0, allocated_length);
   } else {

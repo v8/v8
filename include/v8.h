@@ -2370,30 +2370,6 @@ class V8EXPORT Function : public Object {
   static void CheckCast(Value* obj);
 };
 
-/**
- * The contents of an |ArrayBuffer|. Externalization of |ArrayBuffer|
- * populates an instance of this class with a pointer to data and byte length.
- *
- * |ArrayBufferContents| is the owner of its data. When an instance of
- * this class is destructed, the |Data| is freed.
- *
- * This API is experimental and may change significantly.
- */
-class V8EXPORT ArrayBufferContents {
- public:
-  ArrayBufferContents() : data_(NULL), byte_length_(0) {}
-  ~ArrayBufferContents();
-
-  void* Data() const { return data_; }
-  size_t ByteLength() const { return byte_length_; }
-
- private:
-  void* data_;
-  size_t byte_length_;
-
-  friend class ArrayBuffer;
-};
-
 #ifndef V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT
 #define V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT 2
 #endif
@@ -2404,6 +2380,53 @@ class V8EXPORT ArrayBufferContents {
  */
 class V8EXPORT ArrayBuffer : public Object {
  public:
+  /**
+   * Allocator that V8 uses to allocate |ArrayBuffer|'s memory.
+   * The allocator is a global V8 setting. It should be set with
+   * V8::SetArrayBufferAllocator prior to creation of a first ArrayBuffer.
+   *
+   * This API is experimental and may change significantly.
+   */
+  class V8EXPORT Allocator { // NOLINT
+   public:
+    virtual ~Allocator() {}
+
+    /**
+     * Allocate |length| bytes. Return NULL if allocation is not successful.
+     */
+    virtual void* Allocate(size_t length) = 0;
+    /**
+     * Free the memory pointed to |data|. That memory is guaranteed to be
+     * previously allocated by |Allocate|.
+     */
+    virtual void Free(void* data) = 0;
+  };
+
+  /**
+   * The contents of an |ArrayBuffer|. Externalization of |ArrayBuffer|
+   * returns an instance of this class, populated, with a pointer to data
+   * and byte length.
+   *
+   * The Data pointer of ArrayBuffer::Contents is always allocated with
+   * Allocator::Allocate that is set with V8::SetArrayBufferAllocator.
+   *
+   * This API is experimental and may change significantly.
+   */
+  class V8EXPORT Contents { // NOLINT
+   public:
+    Contents() : data_(NULL), byte_length_(0) {}
+
+    void* Data() const { return data_; }
+    size_t ByteLength() const { return byte_length_; }
+
+   private:
+    void* data_;
+    size_t byte_length_;
+
+    friend class ArrayBuffer;
+  };
+
+
   /**
    * Data length in bytes.
    */
@@ -2440,13 +2463,17 @@ class V8EXPORT ArrayBuffer : public Object {
   void Neuter();
 
   /**
-   * Pass the ownership of this ArrayBuffer's backing store to
-   * a given ArrayBufferContents.
+   * Make this ArrayBuffer external. The pointer to underlying memory block
+   * and byte length are returned as |Contents| structure. After ArrayBuffer
+   * had been etxrenalized, it does no longer owns the memory block. The caller
+   * should take steps to free memory when it is no longer needed.
+   *
+   * The memory block is guaranteed to be allocated with |Allocator::Allocate|
+   * that has been set with V8::SetArrayBufferAllocator.
    */
-  void Externalize(ArrayBufferContents* contents);
+  Contents Externalize();
 
   V8_INLINE(static ArrayBuffer* Cast(Value* obj));
-
 
   static const int kInternalFieldCount = V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT;
 
@@ -4192,6 +4219,14 @@ class V8EXPORT V8 {
    */
   static void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback that);
+
+  /**
+   * Set allocator to use for ArrayBuffer memory.
+   * The allocator should be set only once. The allocator should be set
+   * before any code tha uses ArrayBuffers is executed.
+   * This allocator is used in all isolates.
+   */
+  static void SetArrayBufferAllocator(ArrayBuffer::Allocator* allocator);
 
   /**
    * Ignore out-of-memory exceptions.

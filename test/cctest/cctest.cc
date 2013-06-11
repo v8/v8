@@ -98,10 +98,21 @@ static void PrintTestList(CcTest* current) {
 v8::Isolate* CcTest::default_isolate_;
 
 
+class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) { return malloc(length); }
+  virtual void Free(void* data) { free(data); }
+};
+
+
 int main(int argc, char* argv[]) {
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
   v8::internal::FLAG_harmony_array_buffer = true;
   v8::internal::FLAG_harmony_typed_arrays = true;
+
+  CcTestArrayBufferAllocator array_buffer_allocator;
+  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+
   CcTest::set_default_isolate(v8::Isolate::GetCurrent());
   CHECK(CcTest::default_isolate() != NULL);
   int tests_run = 0;
