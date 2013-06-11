@@ -1037,7 +1037,12 @@ static uint32_t fast_return_value_uint32 = 571;
 static const double kFastReturnValueDouble = 2.7;
 // variable return values
 static bool fast_return_value_bool = false;
-static bool fast_return_value_void_is_null = false;
+enum ReturnValueOddball {
+  kNullReturnValue,
+  kUndefinedReturnValue,
+  kEmptyStringReturnValue
+};
+static ReturnValueOddball fast_return_value_void;
 static bool fast_return_value_object_is_empty = false;
 
 template<>
@@ -1072,10 +1077,16 @@ template<>
 void FastReturnValueCallback<void>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CheckReturnValue(info);
-  if (fast_return_value_void_is_null) {
-    info.GetReturnValue().SetNull();
-  } else {
-    info.GetReturnValue().SetUndefined();
+  switch (fast_return_value_void) {
+    case kNullReturnValue:
+      info.GetReturnValue().SetNull();
+      break;
+    case kUndefinedReturnValue:
+      info.GetReturnValue().SetUndefined();
+      break;
+    case kEmptyStringReturnValue:
+      info.GetReturnValue().SetEmptyString();
+      break;
   }
 }
 
@@ -1135,13 +1146,25 @@ THREADED_TEST(FastReturnValues) {
     CHECK_EQ(fast_return_value_bool, value->ToBoolean()->Value());
   }
   // check oddballs
-  for (int i = 0; i < 2; i++) {
-    fast_return_value_void_is_null = i == 0;
+  ReturnValueOddball oddballs[] = {
+      kNullReturnValue,
+      kUndefinedReturnValue,
+      kEmptyStringReturnValue
+  };
+  for (size_t i = 0; i < ARRAY_SIZE(oddballs); i++) {
+    fast_return_value_void = oddballs[i];
     value = TestFastReturnValues<void>();
-    if (fast_return_value_void_is_null) {
-      CHECK(value->IsNull());
-    } else {
-      CHECK(value->IsUndefined());
+    switch (fast_return_value_void) {
+      case kNullReturnValue:
+        CHECK(value->IsNull());
+        break;
+      case kUndefinedReturnValue:
+        CHECK(value->IsUndefined());
+        break;
+      case kEmptyStringReturnValue:
+        CHECK(value->IsString());
+        CHECK_EQ(0, v8::String::Cast(*value)->Length());
+        break;
     }
   }
   // check handles

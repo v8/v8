@@ -2845,6 +2845,7 @@ class ReturnValue {
   // Fast JS primitive setters
   V8_INLINE(void SetNull());
   V8_INLINE(void SetUndefined());
+  V8_INLINE(void SetEmptyString());
   // Convenience getter for Isolate
   V8_INLINE(Isolate* GetIsolate());
 
@@ -5727,6 +5728,12 @@ template<typename T>
 void ReturnValue<T>::SetUndefined() {
   typedef internal::Internals I;
   *value_ = *I::GetRoot(GetIsolate(), I::kUndefinedValueRootIndex);
+}
+
+template<typename T>
+void ReturnValue<T>::SetEmptyString() {
+  typedef internal::Internals I;
+  *value_ = *I::GetRoot(GetIsolate(), I::kEmptyStringRootIndex);
 }
 
 template<typename T>
