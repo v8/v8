@@ -43,4 +43,4 @@ f();
 %OptimizeFunctionOnNextCall(g, "parallel");
 f(0);  // g() is disabled for optimization on inlining attempt.
 // Attempt to optimize g() should not run into any assertion.
-%CompleteOptimization(g);
+%WaitUntilOptimized(g);

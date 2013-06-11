@@ -4980,8 +4980,6 @@ class Code: public HeapObject {
 };
 
 
-class CompilationInfo;
-
 // This class describes the layout of dependent codes array of a map. The
 // array is partitioned into several groups of dependent codes. Each group
 // contains codes with the same dependency on the map. The array has the
@@ -5029,23 +5027,14 @@ class DependentCode: public FixedArray {
     void Recompute(DependentCode* entries);
     int at(int i) { return start_indexes_[i]; }
     int number_of_entries() { return start_indexes_[kGroupCount]; }
-    int number_of_code_entries() {
-      return start_indexes_[kGroupCount];
-    }
    private:
     int start_indexes_[kGroupCount + 1];
   };
 
   bool Contains(DependencyGroup group, Code* code);
   static Handle<DependentCode> Insert(Handle<DependentCode> entries,
-                                      DependencyGroup group,
-                                      Handle<Object> object);
-  void UpdateToFinishedCode(DependencyGroup group,
-                            CompilationInfo* info,
-                            Code* code);
-  void RemoveCompilationInfo(DependentCode::DependencyGroup group,
-                             CompilationInfo* info);
-
+                                       DependencyGroup group,
+                                       Handle<Code> value);
   void DeoptimizeDependentCodeGroup(Isolate* isolate,
                                     DependentCode::DependencyGroup group);
 
@@ -5053,14 +5042,10 @@ class DependentCode: public FixedArray {
   // and the mark compact collector.
   inline int number_of_entries(DependencyGroup group);
   inline void set_number_of_entries(DependencyGroup group, int value);
-  inline bool is_code_at(int i);
   inline Code* code_at(int i);
-  inline CompilationInfo* compilation_info_at(int i);
-  inline void set_object_at(int i, Object* object);
-  inline Object** slot_at(int i);
-  inline Object* object_at(int i);
-  inline void clear_at(int i);
-  inline void copy(int from, int to);
+  inline void set_code_at(int i, Code* value);
+  inline Object** code_slot_at(int i);
+  inline void clear_code_at(int i);
   static inline DependentCode* cast(Object* object);
 
  private:
@@ -5569,11 +5554,8 @@ class Map: public HeapObject {
 
   inline bool CanOmitPrototypeChecks();
 
-  void AddDependentCompilationInfo(DependentCode::DependencyGroup group,
-                                        CompilationInfo* info);
-
-  void AddDependentCode(DependentCode::DependencyGroup group,
-                        Handle<Code> code);
+  inline void AddDependentCode(DependentCode::DependencyGroup group,
+                               Handle<Code> code);
 
   bool IsMapInArrayPrototypeChain();
 

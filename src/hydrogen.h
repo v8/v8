@@ -402,13 +402,11 @@ class HGraph: public ZoneObject {
   }
 
   void MarkDependsOnEmptyArrayProtoElements() {
-    // Add map dependency if not already added.
-    if (depends_on_empty_array_proto_elements_) return;
-    isolate()->initial_object_prototype()->map()->AddDependentCompilationInfo(
-        DependentCode::kElementsCantBeAddedGroup, info());
-    isolate()->initial_array_prototype()->map()->AddDependentCompilationInfo(
-        DependentCode::kElementsCantBeAddedGroup, info());
     depends_on_empty_array_proto_elements_ = true;
+  }
+
+  bool depends_on_empty_array_proto_elements() {
+    return depends_on_empty_array_proto_elements_;
   }
 
   void RecordUint32Instruction(HInstruction* instr) {
@@ -970,7 +968,6 @@ class HGraphBuilder {
   Zone* zone() const { return info_->zone(); }
   HGraph* graph() const { return graph_; }
   Isolate* isolate() const { return graph_->isolate(); }
-  CompilationInfo* top_info() { return info_; }
 
   HGraph* CreateGraph();
 
@@ -1491,7 +1488,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   void set_ast_context(AstContext* context) { ast_context_ = context; }
 
   // Accessors forwarded to the function state.
-  CompilationInfo* current_info() const {
+  CompilationInfo* info() const {
     return function_state()->compilation_info();
   }
   AstContext* call_context() const {
