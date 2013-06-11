@@ -648,15 +648,15 @@ static const char* native_accessor_test_source = "function start(count) {\n"
 "}\n";
 
 
-class FooAccessorsData {
+class TestApiCallbacks {
  public:
-  explicit FooAccessorsData(int min_duration_ms)
+  explicit TestApiCallbacks(int min_duration_ms)
       : min_duration_ms_(min_duration_ms),
         is_warming_up_(false) {}
 
   static v8::Handle<v8::Value> Getter(v8::Local<v8::String> name,
                                       const v8::AccessorInfo& info) {
-    FooAccessorsData* data = fromInfo(info);
+    TestApiCallbacks* data = fromInfo(info);
     data->Wait();
     return v8::Int32::New(2013);
   }
@@ -664,7 +664,12 @@ class FooAccessorsData {
   static void Setter(v8::Local<v8::String> name,
                      v8::Local<v8::Value> value,
                      const v8::AccessorInfo& info) {
-    FooAccessorsData* data = fromInfo(info);
+    TestApiCallbacks* data = fromInfo(info);
+    data->Wait();
+  }
+
+  static void Callback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    TestApiCallbacks* data = fromInfo(info);
     data->Wait();
   }
 
@@ -681,9 +686,15 @@ class FooAccessorsData {
     }
   }
 
-  static FooAccessorsData* fromInfo(const v8::AccessorInfo& info) {
+  static TestApiCallbacks* fromInfo(const v8::AccessorInfo& info) {
     void* data = v8::External::Cast(*info.Data())->Value();
-    return reinterpret_cast<FooAccessorsData*>(data);
+    return reinterpret_cast<TestApiCallbacks*>(data);
+  }
+
+  static TestApiCallbacks* fromInfo(
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    void* data = v8::External::Cast(*info.Data())->Value();
+    return reinterpret_cast<TestApiCallbacks*>(data);
   }
 
   int min_duration_ms_;
@@ -704,11 +715,11 @@ TEST(NativeAccessorUninitializedIC) {
   v8::Local<v8::ObjectTemplate> instance_template =
       func_template->InstanceTemplate();
 
-  FooAccessorsData accessors(100);
+  TestApiCallbacks accessors(100);
   v8::Local<v8::External> data = v8::External::New(&accessors);
   instance_template->SetAccessor(
-      v8::String::New("foo"), &FooAccessorsData::Getter,
-      &FooAccessorsData::Setter, data);
+      v8::String::New("foo"), &TestApiCallbacks::Getter,
+      &TestApiCallbacks::Setter, data);
   v8::Local<v8::Function> func = func_template->GetFunction();
   v8::Local<v8::Object> instance = func->NewInstance();
   env->Global()->Set(v8::String::New("instance"), instance);
@@ -752,11 +763,11 @@ TEST(NativeAccessorMonomorphicIC) {
   v8::Local<v8::ObjectTemplate> instance_template =
       func_template->InstanceTemplate();
 
-  FooAccessorsData accessors(1);
+  TestApiCallbacks accessors(1);
   v8::Local<v8::External> data = v8::External::New(&accessors);
   instance_template->SetAccessor(
-      v8::String::New("foo"), &FooAccessorsData::Getter,
-      &FooAccessorsData::Setter, data);
+      v8::String::New("foo"), &TestApiCallbacks::Getter,
+      &TestApiCallbacks::Setter, data);
   v8::Local<v8::Function> func = func_template->GetFunction();
   v8::Local<v8::Object> instance = func->NewInstance();
   env->Global()->Set(v8::String::New("instance"), instance);
@@ -795,6 +806,114 @@ TEST(NativeAccessorMonomorphicIC) {
   // invocation. See r13768 where it was LoadCallbackProperty was removed.
   // GetChild(startNode, "get foo");
   GetChild(startNode, "set foo");
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}
+
+
+static const char* native_method_test_source = "function start(count) {\n"
+"  for (var i = 0; i < count; i++) {\n"
+"    instance.fooMethod();\n"
+"  }\n"
+"}\n";
+
+
+TEST(NativeMethodUninitializedIC) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  TestApiCallbacks callbacks(100);
+  v8::Local<v8::External> data = v8::External::New(&callbacks);
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  func_template->SetClassName(v8::String::New("Test_InstanceCostructor"));
+  v8::Local<v8::ObjectTemplate> proto_template =
+      func_template->PrototypeTemplate();
+  v8::Local<v8::Signature> signature = v8::Signature::New(func_template);
+  proto_template->Set(v8::String::New("fooMethod"), v8::FunctionTemplate::New(
+      &TestApiCallbacks::Callback, data, signature, 0));
+
+  v8::Local<v8::Function> func = func_template->GetFunction();
+  v8::Local<v8::Object> instance = func->NewInstance();
+  env->Global()->Set(v8::String::New("instance"), instance);
+
+  v8::Script::Compile(v8::String::New(native_method_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  int32_t repeat_count = 1;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* startNode = GetChild(root, "start");
+  GetChild(startNode, "fooMethod");
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}
+
+
+TEST(NativeMethodMonomorphicIC) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  TestApiCallbacks callbacks(1);
+  v8::Local<v8::External> data = v8::External::New(&callbacks);
+
+  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New();
+  func_template->SetClassName(v8::String::New("Test_InstanceCostructor"));
+  v8::Local<v8::ObjectTemplate> proto_template =
+      func_template->PrototypeTemplate();
+  v8::Local<v8::Signature> signature = v8::Signature::New(func_template);
+  proto_template->Set(v8::String::New("fooMethod"), v8::FunctionTemplate::New(
+      &TestApiCallbacks::Callback, data, signature, 0));
+
+  v8::Local<v8::Function> func = func_template->GetFunction();
+  v8::Local<v8::Object> instance = func->NewInstance();
+  env->Global()->Set(v8::String::New("instance"), instance);
+
+  v8::Script::Compile(v8::String::New(native_method_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+  {
+    // Make sure method ICs are in monomorphic state before starting
+    // profiling.
+    callbacks.set_warming_up(true);
+    int32_t warm_up_iterations = 3;
+    v8::Handle<v8::Value> args[] = { v8::Integer::New(warm_up_iterations) };
+    function->Call(env->Global(), ARRAY_SIZE(args), args);
+    callbacks.set_warming_up(false);
+  }
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  int32_t repeat_count = 100;
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  GetChild(root, "start");
+  // TODO(yurys): in CallIC should be changed to report external callback
+  // invocation.
+  // GetChild(startNode, "fooMethod");
 
   cpu_profiler->DeleteAllCpuProfiles();
 }
