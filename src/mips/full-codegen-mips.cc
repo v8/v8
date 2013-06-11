@@ -4799,19 +4799,15 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
 
   VisitForAccumulatorValue(sub_expr);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  EqualityKind kind = expr->op() == Token::EQ_STRICT
-      ? kStrictEquality : kNonStrictEquality;
   __ mov(a0, result_register());
-  if (kind == kStrictEquality) {
+  if (expr->op() == Token::EQ_STRICT) {
     Heap::RootListIndex nil_value = nil == kNullValue ?
         Heap::kNullValueRootIndex :
         Heap::kUndefinedValueRootIndex;
     __ LoadRoot(a1, nil_value);
     Split(eq, a0, Operand(a1), if_true, if_false, fall_through);
   } else {
-    Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(),
-                                                         kNonStrictEquality,
-                                                         nil);
+    Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(), nil);
     CallIC(ic, RelocInfo::CODE_TARGET, expr->CompareOperationFeedbackId());
     Split(ne, v0, Operand(zero_reg), if_true, if_false, fall_through);
   }

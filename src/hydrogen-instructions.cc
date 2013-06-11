@@ -528,6 +528,17 @@ bool HValue::CheckUsesForFlag(Flag f) {
 }
 
 
+bool HValue::HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) {
+  bool return_value = false;
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    if (it.value()->IsSimulate()) continue;
+    if (!it.value()->CheckFlag(f)) return false;
+    return_value = true;
+  }
+  return return_value;
+}
+
+
 HUseIterator::HUseIterator(HUseListNode* head) : next_(head) {
   Advance();
 }
@@ -1429,14 +1440,6 @@ HValue* HBitNot::Canonicalize() {
 }
 
 
-HValue* HArithmeticBinaryOperation::Canonicalize() {
-  if (representation().IsInteger32() && CheckUsesForFlag(kTruncatingToInt32)) {
-    ClearFlag(kCanOverflow);
-  }
-  return this;
-}
-
-
 static bool IsIdentityOperation(HValue* arg1, HValue* arg2, int32_t identity) {
   return arg1->representation().IsSpecialization() &&
     arg2->EqualsInteger32Constant(identity);
@@ -1446,13 +1449,13 @@ static bool IsIdentityOperation(HValue* arg1, HValue* arg2, int32_t identity) {
 HValue* HAdd::Canonicalize() {
   if (IsIdentityOperation(left(), right(), 0)) return left();
   if (IsIdentityOperation(right(), left(), 0)) return right();
-  return HArithmeticBinaryOperation::Canonicalize();
+  return this;
 }
 
 
 HValue* HSub::Canonicalize() {
   if (IsIdentityOperation(left(), right(), 0)) return left();
-  return HArithmeticBinaryOperation::Canonicalize();
+  return this;
 }
 
 
@@ -1513,6 +1516,11 @@ HValue* HUnaryMathOperation::Canonicalize() {
     // If the input is integer32 then we replace the floor instruction
     // with its input. This happens before the representation changes are
     // introduced.
+
+    // TODO(2205): The above comment is lying. All of this happens
+    // *after* representation changes are introduced. We should check
+    // for value->IsChange() and react accordingly if yes.
+
     if (value()->representation().IsInteger32()) return value();
 
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) || \
@@ -1753,11 +1761,13 @@ Range* HAdd::InferRange(Zone* zone) {
     Range* a = left()->range();
     Range* b = right()->range();
     Range* res = a->Copy(zone);
-    if (!res->AddAndCheckOverflow(b)) {
+    if (!res->AddAndCheckOverflow(b) ||
+        CheckFlag(kAllUsesTruncatingToInt32)) {
       ClearFlag(kCanOverflow);
     }
-    bool m0 = a->CanBeMinusZero() && b->CanBeMinusZero();
-    res->set_can_be_minus_zero(m0);
+    if (!CheckFlag(kAllUsesTruncatingToInt32)) {
+      res->set_can_be_minus_zero(a->CanBeMinusZero() && b->CanBeMinusZero());
+    }
     return res;
   } else {
     return HValue::InferRange(zone);
@@ -1770,10 +1780,13 @@ Range* HSub::InferRange(Zone* zone) {
     Range* a = left()->range();
     Range* b = right()->range();
     Range* res = a->Copy(zone);
-    if (!res->SubAndCheckOverflow(b)) {
+    if (!res->SubAndCheckOverflow(b) ||
+        CheckFlag(kAllUsesTruncatingToInt32)) {
       ClearFlag(kCanOverflow);
     }
-    res->set_can_be_minus_zero(a->CanBeMinusZero() && b->CanBeZero());
+    if (!CheckFlag(kAllUsesTruncatingToInt32)) {
+      res->set_can_be_minus_zero(a->CanBeMinusZero() && b->CanBeZero());
+    }
     return res;
   } else {
     return HValue::InferRange(zone);
@@ -1787,11 +1800,16 @@ Range* HMul::InferRange(Zone* zone) {
     Range* b = right()->range();
     Range* res = a->Copy(zone);
     if (!res->MulAndCheckOverflow(b)) {
+      // Clearing the kCanOverflow flag when kAllUsesAreTruncatingToInt32
+      // would be wrong, because truncated integer multiplication is too
+      // precise and therefore not the same as converting to Double and back.
       ClearFlag(kCanOverflow);
     }
-    bool m0 = (a->CanBeZero() && b->CanBeNegative()) ||
-        (a->CanBeNegative() && b->CanBeZero());
-    res->set_can_be_minus_zero(m0);
+    if (!CheckFlag(kAllUsesTruncatingToInt32)) {
+      bool m0 = (a->CanBeZero() && b->CanBeNegative()) ||
+          (a->CanBeNegative() && b->CanBeZero());
+      res->set_can_be_minus_zero(m0);
+    }
     return res;
   } else {
     return HValue::InferRange(zone);
@@ -1804,12 +1822,14 @@ Range* HDiv::InferRange(Zone* zone) {
     Range* a = left()->range();
     Range* b = right()->range();
     Range* result = new(zone) Range();
-    if (a->CanBeMinusZero()) {
-      result->set_can_be_minus_zero(true);
-    }
+    if (!CheckFlag(kAllUsesTruncatingToInt32)) {
+      if (a->CanBeMinusZero()) {
+        result->set_can_be_minus_zero(true);
+      }
 
-    if (a->CanBeZero() && b->CanBeNegative()) {
-      result->set_can_be_minus_zero(true);
+      if (a->CanBeZero() && b->CanBeNegative()) {
+        result->set_can_be_minus_zero(true);
+      }
     }
 
     if (!a->Includes(kMinInt) || !b->Includes(-1)) {
@@ -1841,7 +1861,7 @@ Range* HMod::InferRange(Zone* zone) {
     Range* result = new(zone) Range(left_can_be_negative ? -positive_bound : 0,
                                     a->CanBePositive() ? positive_bound : 0);
 
-    if (left_can_be_negative) {
+    if (left_can_be_negative && !CheckFlag(kAllUsesTruncatingToInt32)) {
       result->set_can_be_minus_zero(true);
     }
 
@@ -2293,10 +2313,6 @@ bool HBinaryOperation::IgnoreObservedOutputRepresentation(
          current_rep.IsInteger32() &&
          // Mul in Integer32 mode would be too precise.
          !this->IsMul() &&
-         // TODO(jkummerow): Remove blacklisting of Div when the Div
-         // instruction has learned not to deopt when the remainder is
-         // non-zero but all uses are truncating.
-         !this->IsDiv() &&
          CheckUsesForFlag(kTruncatingToInt32);
 }
 

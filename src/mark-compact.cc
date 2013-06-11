@@ -1002,6 +1002,10 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
     Code* code = shared->code();
     MarkBit code_mark = Marking::MarkBitFrom(code);
     if (!code_mark.Get()) {
+      if (FLAG_trace_code_flushing && shared->is_compiled()) {
+        SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+        PrintF("[code-flushing clears: %s]\n", *name);
+      }
       shared->set_code(lazy_compile);
       candidate->set_code(lazy_compile);
     } else {
@@ -1039,6 +1043,10 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
     Code* code = candidate->code();
     MarkBit code_mark = Marking::MarkBitFrom(code);
     if (!code_mark.Get()) {
+      if (FLAG_trace_code_flushing && candidate->is_compiled()) {
+        SmartArrayPointer<char> name = candidate->DebugName()->ToCString();
+        PrintF("[code-flushing clears: %s]\n", *name);
+      }
       candidate->set_code(lazy_compile);
     }
 
@@ -1122,6 +1130,11 @@ void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
   // Make sure previous flushing decisions are revisited.
   isolate_->heap()->incremental_marking()->RecordWrites(shared_info);
 
+  if (FLAG_trace_code_flushing) {
+    SmartArrayPointer<char> name = shared_info->DebugName()->ToCString();
+    PrintF("[code-flushing abandons function-info: %s]\n", *name);
+  }
+
   SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
   SharedFunctionInfo* next_candidate;
   if (candidate == shared_info) {
@@ -1153,6 +1166,11 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
   isolate_->heap()->incremental_marking()->RecordWrites(function);
   isolate_->heap()->incremental_marking()->RecordWrites(function->shared());
 
+  if (FLAG_trace_code_flushing) {
+    SmartArrayPointer<char> name = function->shared()->DebugName()->ToCString();
+    PrintF("[code-flushing abandons closure: %s]\n", *name);
+  }
+
   JSFunction* candidate = jsfunction_candidates_head_;
   JSFunction* next_candidate;
   if (candidate == function) {
@@ -1182,6 +1200,11 @@ void CodeFlusher::EvictOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
 
   // Make sure previous flushing decisions are revisited.
   isolate_->heap()->incremental_marking()->RecordWrites(code_map_holder);
+
+  if (FLAG_trace_code_flushing) {
+    SmartArrayPointer<char> name = code_map_holder->DebugName()->ToCString();
+    PrintF("[code-flushing abandons code-map: %s]\n", *name);
+  }
 
   SharedFunctionInfo* holder = optimized_code_map_holder_head_;
   SharedFunctionInfo* next_holder;
@@ -2481,12 +2504,11 @@ void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
   int number_of_entries = starts.number_of_entries();
   if (number_of_entries == 0) return;
   for (int i = 0; i < number_of_entries; i++) {
-    if (!entries->is_code_at(i)) continue;
     Code* code = entries->code_at(i);
     if (IsMarked(code) && !code->marked_for_deoptimization()) {
       code->set_marked_for_deoptimization(true);
     }
-    entries->clear_at(i);
+    entries->clear_code_at(i);
   }
   map->set_dependent_code(DependentCode::cast(heap()->empty_fixed_array()));
 }
@@ -2503,15 +2525,14 @@ void MarkCompactCollector::ClearNonLiveDependentCode(Map* map) {
   for (int g = 0; g < DependentCode::kGroupCount; g++) {
     int group_number_of_entries = 0;
     for (int i = starts.at(g); i < starts.at(g + 1); i++) {
-      if (!entries->is_code_at(i)) continue;
       Code* code = entries->code_at(i);
       if (IsMarked(code) && !code->marked_for_deoptimization()) {
         if (new_number_of_entries + group_number_of_entries != i) {
-          entries->set_object_at(
-              new_number_of_entries + group_number_of_entries, code);
+          entries->set_code_at(new_number_of_entries +
+                               group_number_of_entries, code);
         }
-        Object** slot = entries->slot_at(new_number_of_entries +
-                                         group_number_of_entries);
+        Object** slot = entries->code_slot_at(new_number_of_entries +
+                                              group_number_of_entries);
         RecordSlot(slot, slot, code);
         group_number_of_entries++;
       }
@@ -2522,7 +2543,7 @@ void MarkCompactCollector::ClearNonLiveDependentCode(Map* map) {
     new_number_of_entries += group_number_of_entries;
   }
   for (int i = new_number_of_entries; i < number_of_entries; i++) {
-    entries->clear_at(i);
+    entries->clear_code_at(i);
   }
 }
 

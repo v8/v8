@@ -54,6 +54,7 @@ class LChunkBuilder;
 
 
 #define HYDROGEN_ABSTRACT_INSTRUCTION_LIST(V)  \
+  V(ArithmeticBinaryOperation)                 \
   V(BinaryOperation)                           \
   V(BitwiseBinaryOperation)                    \
   V(ControlInstruction)                        \
@@ -797,6 +798,7 @@ class HValue: public ZoneObject {
     kAllowUndefinedAsNaN,
     kIsArguments,
     kTruncatingToInt32,
+    kAllUsesTruncatingToInt32,
     // Set after an instruction is killed.
     kIsDead,
     // Instructions that are allowed to produce full range unsigned integer
@@ -996,6 +998,9 @@ class HValue: public ZoneObject {
 
   // Returns true if the flag specified is set for all uses, false otherwise.
   bool CheckUsesForFlag(Flag f);
+  // Returns true if the flag specified is set for all uses, and this set
+  // of uses is non-empty.
+  bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f);
 
   GVNFlagSet gvn_flags() const { return gvn_flags_; }
   void SetGVNFlag(GVNFlag f) { gvn_flags_.Add(f); }
@@ -2972,32 +2977,20 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
  public:
   HCheckPrototypeMaps(Handle<JSObject> prototype,
                       Handle<JSObject> holder,
-                      Zone* zone,
-                      CompilationInfo* info)
+                      Zone* zone)
       : prototypes_(2, zone),
         maps_(2, zone),
         first_prototype_unique_id_(),
-        last_prototype_unique_id_(),
-        can_omit_prototype_maps_(true) {
+        last_prototype_unique_id_() {
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
     // Keep a list of all objects on the prototype chain up to the holder
     // and the expected maps.
     while (true) {
       prototypes_.Add(prototype, zone);
-      Handle<Map> map(prototype->map());
-      maps_.Add(map, zone);
-      can_omit_prototype_maps_ &= map->CanOmitPrototypeChecks();
+      maps_.Add(Handle<Map>(prototype->map()), zone);
       if (prototype.is_identical_to(holder)) break;
       prototype = Handle<JSObject>(JSObject::cast(prototype->GetPrototype()));
-    }
-    if (can_omit_prototype_maps_) {
-      // Mark in-flight compilation as dependent on those maps.
-      for (int i = 0; i < maps()->length(); i++) {
-        Handle<Map> map = maps()->at(i);
-        map->AddDependentCompilationInfo(DependentCode::kPrototypeCheckGroup,
-                                         info);
-      }
     }
   }
 
@@ -3023,7 +3016,12 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
     last_prototype_unique_id_ = UniqueValueId(prototypes_.last());
   }
 
-  bool CanOmitPrototypeChecks() { return can_omit_prototype_maps_; }
+  bool CanOmitPrototypeChecks() {
+    for (int i = 0; i < maps()->length(); i++) {
+      if (!maps()->at(i)->CanOmitPrototypeChecks()) return false;
+    }
+    return true;
+  }
 
  protected:
   virtual bool DataEquals(HValue* other) {
@@ -3037,7 +3035,6 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   ZoneList<Handle<Map> > maps_;
   UniqueValueId first_prototype_unique_id_;
   UniqueValueId last_prototype_unique_id_;
-  bool can_omit_prototype_maps_;
 };
 
 
@@ -3856,7 +3853,7 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
         : representation();
   }
 
-  virtual HValue* Canonicalize();
+  DECLARE_ABSTRACT_INSTRUCTION(ArithmeticBinaryOperation)
 
  private:
   virtual bool IsDeletable() const { return true; }
@@ -4488,9 +4485,8 @@ class HDiv: public HArithmeticBinaryOperation {
                            HValue* right);
 
   bool HasPowerOf2Divisor() {
-    if (right()->IsConstant() &&
-        HConstant::cast(right())->HasInteger32Value()) {
-      int32_t value = HConstant::cast(right())->Integer32Value();
+    if (right()->IsInteger32Constant()) {
+      int32_t value = right()->GetInteger32Constant();
       return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
     }
 
@@ -5695,7 +5691,6 @@ class HStoreNamedField: public HTemplateInstruction<2> {
                        = Representation::Tagged())
       : access_(access),
         field_representation_(field_representation),
-        transition_(),
         transition_unique_id_(),
         new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
@@ -5727,13 +5722,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HObjectAccess access() const { return access_; }
   Handle<Map> transition() const { return transition_; }
   UniqueValueId transition_unique_id() const { return transition_unique_id_; }
-  void SetTransition(Handle<Map> map, CompilationInfo* info) {
-    ASSERT(transition_.is_null());  // Only set once.
-    if (map->CanBeDeprecated()) {
-      map->AddDependentCompilationInfo(DependentCode::kTransitionGroup, info);
-    }
-    transition_ = map;
-  }
+  void set_transition(Handle<Map> map) { transition_ = map; }
   HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {

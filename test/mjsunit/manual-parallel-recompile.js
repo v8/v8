@@ -25,15 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --parallel-recompilation --parallel-recompilation-delay=50
+// Flags: --allow-natives-syntax --expose-gc --parallel-recompilation
 
 function assertUnoptimized(fun) {
   assertTrue(%GetOptimizationStatus(fun) != 1);
-}
-
-function assertOptimized(fun) {
-  assertTrue(%GetOptimizationStatus(fun) != 2);
 }
 
 function f(x) {
@@ -58,13 +53,10 @@ assertUnoptimized(g);
 
 %OptimizeFunctionOnNextCall(f, "parallel");
 %OptimizeFunctionOnNextCall(g, "parallel");
-f(g(2));  // Trigger optimization.
+f(g(2));
 
-assertUnoptimized(f);  // Not yet optimized.
+assertUnoptimized(f);
 assertUnoptimized(g);
 
-%CompleteOptimization(f);  // Wait till optimized code is installed.
-%CompleteOptimization(g);
-
-assertOptimized(f);  // Optimized now.
-assertOptimized(g);
+%WaitUntilOptimized(f);
+%WaitUntilOptimized(g);

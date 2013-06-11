@@ -2091,7 +2091,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               set_fpu_register_double(fd_reg, fs / ft);
               break;
             case ABS_D:
-              set_fpu_register_double(fd_reg, fs < 0 ? -fs : fs);
+              set_fpu_register_double(fd_reg, fabs(fs));
               break;
             case MOV_D:
               set_fpu_register_double(fd_reg, fs);

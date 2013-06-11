@@ -25,12 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// Flags: --parallel-recompilation --parallel-recompilation-delay=50
-
-function assertUnoptimized(fun) {
-  assertTrue(%GetOptimizationStatus(fun) != 1);
-}
+// Flags: --allow-natives-syntax --parallel-recompilation
 
 function f(foo) { return foo.bar(); }
 
@@ -41,10 +36,10 @@ assertEquals(1, f(o));
 assertEquals(1, f(o));
 
 %OptimizeFunctionOnNextCall(f, "parallel");
-assertEquals(1, f(o));     // Trigger optimization.
-assertUnoptimized(f);      // Optimization not yet done.
-// Change the prototype chain during optimization to trigger map invalidation.
+assertEquals(1, f(o));
+// Change the prototype chain during optimization.
 o.__proto__.__proto__ = { bar: function() { return 2; } };
-%CompleteOptimization(f);  // Conclude optimization with...
-assertUnoptimized(f);      // ... bailing out due to map dependency.
+
+%WaitUntilOptimized(f);
+
 assertEquals(2, f(o));

@@ -5160,6 +5160,15 @@ void v8::V8::SetJitCodeEventHandler(
   isolate->logger()->SetCodeEventHandler(options, event_handler);
 }
 
+void v8::V8::SetArrayBufferAllocator(
+    ArrayBuffer::Allocator* allocator) {
+  if (!ApiCheck(i::V8::ArrayBufferAllocator() == NULL,
+                "v8::V8::SetArrayBufferAllocator",
+                "ArrayBufferAllocator might only be set once"))
+    return;
+  i::V8::SetArrayBufferAllocator(allocator);
+}
+
 
 bool v8::V8::Dispose() {
   i::Isolate* isolate = i::Isolate::Current();
@@ -6129,25 +6138,17 @@ bool v8::ArrayBuffer::IsExternal() const {
   return Utils::OpenHandle(this)->is_external();
 }
 
-v8::ArrayBufferContents::~ArrayBufferContents() {
-  free(data_);
-  data_ = NULL;
-  byte_length_ = 0;
-}
-
-
-void v8::ArrayBuffer::Externalize(ArrayBufferContents* contents) {
+v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   ApiCheck(!obj->is_external(),
             "v8::ArrayBuffer::Externalize",
             "ArrayBuffer already externalized");
   obj->set_is_external(true);
   size_t byte_length = static_cast<size_t>(obj->byte_length()->Number());
-  ApiCheck(contents->data_ == NULL,
-           "v8::ArrayBuffer::Externalize",
-           "Externalizing into non-empty ArrayBufferContents");
-  contents->data_ = obj->backing_store();
-  contents->byte_length_ = byte_length;
+  Contents contents;
+  contents.data_ = obj->backing_store();
+  contents.byte_length_ = byte_length;
+  return contents;
 }
 
 

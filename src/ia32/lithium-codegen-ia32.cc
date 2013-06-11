@@ -109,7 +109,20 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   if (!info()->IsStub()) {
     Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(code);
   }
-  info()->CommitDependentMaps(code);
+  for (int i = 0 ; i < prototype_maps_.length(); i++) {
+    prototype_maps_.at(i)->AddDependentCode(
+        DependentCode::kPrototypeCheckGroup, code);
+  }
+  for (int i = 0 ; i < transition_maps_.length(); i++) {
+    transition_maps_.at(i)->AddDependentCode(
+        DependentCode::kTransitionGroup, code);
+  }
+  if (graph()->depends_on_empty_array_proto_elements()) {
+    isolate()->initial_object_prototype()->map()->AddDependentCode(
+        DependentCode::kElementsCantBeAddedGroup, code);
+    isolate()->initial_array_prototype()->map()->AddDependentCode(
+        DependentCode::kElementsCantBeAddedGroup, code);
+  }
 }
 
 
@@ -1338,8 +1351,7 @@ void LCodeGen::DoModI(LModI* instr) {
 void LCodeGen::DoDivI(LDivI* instr) {
   if (!instr->is_flooring() && instr->hydrogen()->HasPowerOf2Divisor()) {
     Register dividend = ToRegister(instr->left());
-    int32_t divisor =
-        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
+    int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
     int32_t test_value = 0;
     int32_t power = 0;
 
@@ -1362,10 +1374,26 @@ void LCodeGen::DoDivI(LDivI* instr) {
     }
 
     if (test_value != 0) {
-      // Deoptimize if remainder is not 0.
-      __ test(dividend, Immediate(test_value));
-      DeoptimizeIf(not_zero, instr->environment());
-      __ sar(dividend, power);
+      if (instr->hydrogen()->CheckFlag(
+          HInstruction::kAllUsesTruncatingToInt32)) {
+        Label done, negative;
+        __ cmp(dividend, 0);
+        __ j(less, &negative, Label::kNear);
+        __ sar(dividend, power);
+        __ jmp(&done, Label::kNear);
+
+        __ bind(&negative);
+        __ neg(dividend);
+        __ sar(dividend, power);
+        if (divisor > 0) __ neg(dividend);
+        __ bind(&done);
+        return;  // Don't fall through to "__ neg" below.
+      } else {
+        // Deoptimize if remainder is not 0.
+        __ test(dividend, Immediate(test_value));
+        DeoptimizeIf(not_zero, instr->environment());
+        __ sar(dividend, power);
+      }
     }
 
     if (divisor < 0) __ neg(dividend);
@@ -1412,11 +1440,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ cdq();
   __ idiv(right_reg);
 
-  if (!instr->is_flooring()) {
-    // Deoptimize if remainder is not 0.
-    __ test(edx, Operand(edx));
-    DeoptimizeIf(not_zero, instr->environment());
-  } else {
+  if (instr->is_flooring()) {
     Label done;
     __ test(edx, edx);
     __ j(zero, &done, Label::kNear);
@@ -1424,6 +1448,11 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ sar(edx, 31);
     __ add(eax, edx);
     __ bind(&done);
+  } else if (!instr->hydrogen()->CheckFlag(
+      HInstruction::kAllUsesTruncatingToInt32)) {
+    // Deoptimize if remainder is not 0.
+    __ test(edx, Operand(edx));
+    DeoptimizeIf(not_zero, instr->environment());
   }
 }
 
@@ -4302,6 +4331,9 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   if (!transition.is_null()) {
+    if (transition->CanBeDeprecated()) {
+      transition_maps_.Add(transition, info()->zone());
+    }
     if (!instr->hydrogen()->NeedsWriteBarrierForMap()) {
       __ mov(FieldOperand(object, HeapObject::kMapOffset), transition);
     } else {
@@ -5977,7 +6009,11 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
   ASSERT(prototypes->length() == maps->length());
 
-  if (!instr->hydrogen()->CanOmitPrototypeChecks()) {
+  if (instr->hydrogen()->CanOmitPrototypeChecks()) {
+    for (int i = 0; i < maps->length(); i++) {
+      prototype_maps_.Add(maps->at(i), info()->zone());
+    }
+  } else {
     for (int i = 0; i < prototypes->length(); i++) {
       __ LoadHeapObject(reg, prototypes->at(i));
       DoCheckMapCommon(reg, maps->at(i), instr);

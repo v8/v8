@@ -26,25 +26,23 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
-// Flags: --parallel-recompilation --parallel-recompilation-delay=50
 
-function assertUnoptimized(fun) {
-  assertTrue(%GetOptimizationStatus(fun) != 1);
+function mul(x, y) {
+  return (x * y) | 0;
 }
 
-function f1(a, i) {
-  return a[i] + 0.5;
+mul(0, 0);
+mul(0, 0);
+%OptimizeFunctionOnNextCall(mul);
+assertEquals(0, mul(0, -1));
+assertTrue(%GetOptimizationStatus(mul) != 2);
+
+function div(x, y) {
+  return (x / y) | 0;
 }
 
-var arr = [0.0,,2.5];
-assertEquals(0.5, f1(arr, 0));
-assertEquals(0.5, f1(arr, 0));
-
-// Optimized code of f1 depends on initial object and array maps.
-%OptimizeFunctionOnNextCall(f1, "parallel");
-assertEquals(0.5, f1(arr, 0));
-assertUnoptimized(f1);      // Not yet optimized.
-Object.prototype[1] = 1.5;  // Invalidate current initial object map.
-assertEquals(2, f1(arr, 1));
-%CompleteOptimization(f1);  // Conclude optimization with...
-assertUnoptimized(f1);      // ... bailing out due to map dependency.
+div(4, 2);
+div(4, 2);
+%OptimizeFunctionOnNextCall(div);
+assertEquals(1, div(5, 3));
+assertTrue(%GetOptimizationStatus(div) != 2);

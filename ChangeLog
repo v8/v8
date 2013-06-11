@@ -1,3 +1,8 @@
+2013-06-11: Version 3.19.13
+
+        Performance and stability improvements on all platforms.
+
+
 2013-06-10: Version 3.19.12
 
         Fixed arguments array access. (Chromium issue 247303)

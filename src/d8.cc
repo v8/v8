@@ -1571,6 +1571,13 @@ static void EnableHarmonyTypedArraysViaCommandLine() {
 #endif
 
 
+class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) { return malloc(length); }
+  virtual void Free(void* data) { free(data); }
+};
+
+
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
 #ifndef V8_SHARED
@@ -1579,6 +1586,8 @@ int Shell::Main(int argc, char* argv[]) {
 #else
   EnableHarmonyTypedArraysViaCommandLine();
 #endif
+  ShellArrayBufferAllocator array_buffer_allocator;
+  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
   int result = 0;
   Isolate* isolate = Isolate::GetCurrent();
   DumbLineEditor dumb_line_editor(isolate);

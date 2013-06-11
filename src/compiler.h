@@ -57,8 +57,12 @@ struct OffsetRange {
 // is constructed based on the resources available at compile-time.
 class CompilationInfo {
  public:
+  CompilationInfo(Handle<Script> script, Zone* zone);
+  CompilationInfo(Handle<SharedFunctionInfo> shared_info, Zone* zone);
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
-  virtual ~CompilationInfo();
+  CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate, Zone* zone);
+
+  ~CompilationInfo();
 
   Isolate* isolate() {
     ASSERT(Isolate::Current() == isolate_);
@@ -239,17 +243,6 @@ class CompilationInfo {
     deferred_handles_ = deferred_handles;
   }
 
-  ZoneList<Handle<Map> >* dependent_maps(DependentCode::DependencyGroup group) {
-    if (dependent_maps_[group] == NULL) {
-      dependent_maps_[group] = new(zone_) ZoneList<Handle<Map> >(2, zone_);
-    }
-    return dependent_maps_[group];
-  }
-
-  void CommitDependentMaps(Handle<Code> code);
-
-  void RollbackDependentMaps();
-
   void SaveHandles() {
     SaveHandle(&closure_);
     SaveHandle(&shared_info_);
@@ -283,26 +276,6 @@ class CompilationInfo {
     return result;
   }
 
-  Handle<Foreign> object_wrapper() {
-    if (object_wrapper_.is_null()) {
-      object_wrapper_ =
-          isolate()->factory()->NewForeign(reinterpret_cast<Address>(this));
-    }
-    return object_wrapper_;
-  }
-
-  void AbortDueToDependentMap() {
-    mode_ = DEPENDENT_MAP_ABORT;
-  }
-
-  bool HasAbortedDueToDependentMap() {
-    return mode_ == DEPENDENT_MAP_ABORT;
-  }
-
- protected:
-  CompilationInfo(Handle<Script> script, Zone* zone);
-  CompilationInfo(Handle<SharedFunctionInfo> shared_info, Zone* zone);
-  CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate, Zone* zone);
 
  private:
   Isolate* isolate_;
@@ -316,8 +289,7 @@ class CompilationInfo {
     BASE,
     OPTIMIZE,
     NONOPT,
-    STUB,
-    DEPENDENT_MAP_ABORT
+    STUB
   };
 
   void Initialize(Isolate* isolate, Mode mode, Zone* zone);
@@ -397,8 +369,6 @@ class CompilationInfo {
 
   DeferredHandles* deferred_handles_;
 
-  ZoneList<Handle<Map> >* dependent_maps_[DependentCode::kGroupCount];
-
   template<typename T>
   void SaveHandle(Handle<T> *object) {
     if (!object->is_null()) {
@@ -416,8 +386,6 @@ class CompilationInfo {
   // A copy of shared_info()->opt_count() to avoid handle deref
   // during graph optimization.
   int opt_count_;
-
-  Handle<Foreign> object_wrapper_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
@@ -439,17 +407,10 @@ class CompilationInfoWithZone: public CompilationInfo {
       : CompilationInfo(closure, &zone_),
         zone_(closure->GetIsolate()),
         zone_scope_(&zone_, DELETE_ON_EXIT) {}
-  CompilationInfoWithZone(HydrogenCodeStub* stub, Isolate* isolate)
+  explicit CompilationInfoWithZone(HydrogenCodeStub* stub, Isolate* isolate)
       : CompilationInfo(stub, isolate, &zone_),
         zone_(isolate),
         zone_scope_(&zone_, DELETE_ON_EXIT) {}
-
-  // Virtual destructor because a CompilationInfoWithZone has to exit the
-  // zone scope and get rid of dependent maps even when the destructor is
-  // called when cast as a CompilationInfo.
-  virtual ~CompilationInfoWithZone() {
-    RollbackDependentMaps();
-  }
 
  private:
   Zone zone_;

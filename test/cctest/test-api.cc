@@ -1037,7 +1037,12 @@ static uint32_t fast_return_value_uint32 = 571;
 static const double kFastReturnValueDouble = 2.7;
 // variable return values
 static bool fast_return_value_bool = false;
-static bool fast_return_value_void_is_null = false;
+enum ReturnValueOddball {
+  kNullReturnValue,
+  kUndefinedReturnValue,
+  kEmptyStringReturnValue
+};
+static ReturnValueOddball fast_return_value_void;
 static bool fast_return_value_object_is_empty = false;
 
 template<>
@@ -1072,10 +1077,16 @@ template<>
 void FastReturnValueCallback<void>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CheckReturnValue(info);
-  if (fast_return_value_void_is_null) {
-    info.GetReturnValue().SetNull();
-  } else {
-    info.GetReturnValue().SetUndefined();
+  switch (fast_return_value_void) {
+    case kNullReturnValue:
+      info.GetReturnValue().SetNull();
+      break;
+    case kUndefinedReturnValue:
+      info.GetReturnValue().SetUndefined();
+      break;
+    case kEmptyStringReturnValue:
+      info.GetReturnValue().SetEmptyString();
+      break;
   }
 }
 
@@ -1135,13 +1146,25 @@ THREADED_TEST(FastReturnValues) {
     CHECK_EQ(fast_return_value_bool, value->ToBoolean()->Value());
   }
   // check oddballs
-  for (int i = 0; i < 2; i++) {
-    fast_return_value_void_is_null = i == 0;
+  ReturnValueOddball oddballs[] = {
+      kNullReturnValue,
+      kUndefinedReturnValue,
+      kEmptyStringReturnValue
+  };
+  for (size_t i = 0; i < ARRAY_SIZE(oddballs); i++) {
+    fast_return_value_void = oddballs[i];
     value = TestFastReturnValues<void>();
-    if (fast_return_value_void_is_null) {
-      CHECK(value->IsNull());
-    } else {
-      CHECK(value->IsUndefined());
+    switch (fast_return_value_void) {
+      case kNullReturnValue:
+        CHECK(value->IsNull());
+        break;
+      case kUndefinedReturnValue:
+        CHECK(value->IsUndefined());
+        break;
+      case kEmptyStringReturnValue:
+        CHECK(value->IsString());
+        CHECK_EQ(0, v8::String::Cast(*value)->Length());
+        break;
     }
   }
   // check handles
@@ -2547,6 +2570,19 @@ THREADED_TEST(SymbolProperties) {
 }
 
 
+class ScopedArrayBufferContents {
+ public:
+  explicit ScopedArrayBufferContents(
+      const v8::ArrayBuffer::Contents& contents)
+    : contents_(contents) {}
+  ~ScopedArrayBufferContents() { free(contents_.Data()); }
+  void* Data() const { return contents_.Data(); }
+  size_t ByteLength() const { return contents_.ByteLength(); }
+ private:
+  const v8::ArrayBuffer::Contents contents_;
+};
+
+
 THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   i::FLAG_harmony_array_buffer = true;
   i::FLAG_harmony_typed_arrays = true;
@@ -2560,8 +2596,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   CHECK(!ab->IsExternal());
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 
-  v8::ArrayBufferContents ab_contents;
-  ab->Externalize(&ab_contents);
+  ScopedArrayBufferContents ab_contents(ab->Externalize());
   CHECK(ab->IsExternal());
 
   CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
@@ -2603,8 +2638,7 @@ THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
   Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::Cast(*result);
   CHECK_EQ(2, static_cast<int>(ab1->ByteLength()));
   CHECK(!ab1->IsExternal());
-  v8::ArrayBufferContents ab1_contents;
-  ab1->Externalize(&ab1_contents);
+  ScopedArrayBufferContents ab1_contents(ab1->Externalize());
   CHECK(ab1->IsExternal());
 
   result = CompileRun("ab1.byteLength");
@@ -2711,8 +2745,7 @@ THREADED_TEST(ArrayBuffer_NeuteringApi) {
   v8::Handle<v8::Float64Array> f64a =
     CreateAndCheck<v8::Float64Array, 8>(buffer, 8, 127);
 
-  v8::ArrayBufferContents contents;
-  buffer->Externalize(&contents);
+  ScopedArrayBufferContents contents(buffer->Externalize());
   buffer->Neuter();
   CHECK_EQ(0, static_cast<int>(buffer->ByteLength()));
   CheckIsNeutered(u8a);
@@ -2763,8 +2796,7 @@ THREADED_TEST(ArrayBuffer_NeuteringScript) {
   v8::Handle<v8::Float64Array> f64a(
     v8::Float64Array::Cast(*CompileRun("f64a")));
 
-  v8::ArrayBufferContents contents;
-  ab->Externalize(&contents);
+  ScopedArrayBufferContents contents(ab->Externalize());
   ab->Neuter();
   CHECK_EQ(0, static_cast<int>(ab->ByteLength()));
   CheckIsNeutered(u8a);

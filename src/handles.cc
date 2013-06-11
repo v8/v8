@@ -566,7 +566,8 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
 #if ENABLE_EXTRA_CHECKS
   CHECK(result.IsEmpty() || v8::Utils::OpenHandle(*result)->IsJSObject());
 #endif
-  return result;
+  return v8::Local<v8::Array>::New(reinterpret_cast<v8::Isolate*>(isolate),
+                                   result);
 }
 
 
@@ -591,7 +592,8 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
 #endif
     }
   }
-  return result;
+  return v8::Local<v8::Array>::New(reinterpret_cast<v8::Isolate*>(isolate),
+                                   result);
 }
 
 

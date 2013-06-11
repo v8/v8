@@ -663,7 +663,8 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
         isolate, array_buffer->byte_length());
     isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
         -static_cast<intptr_t>(allocated_length));
-    free(data);
+    CHECK(V8::ArrayBufferAllocator() != NULL);
+    V8::ArrayBufferAllocator()->Free(data);
   }
   object->Dispose(external_isolate);
 }
@@ -699,8 +700,9 @@ bool Runtime::SetupArrayBufferAllocatingData(
     Handle<JSArrayBuffer> array_buffer,
     size_t allocated_length) {
   void* data;
+  CHECK(V8::ArrayBufferAllocator() != NULL);
   if (allocated_length != 0) {
-    data = malloc(allocated_length);
+    data = V8::ArrayBufferAllocator()->Allocate(allocated_length);
     if (data == NULL) return false;
     memset(data, 0, allocated_length);
   } else {
@@ -8095,15 +8097,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CompleteOptimization) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_WaitUntilOptimized) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (FLAG_parallel_recompilation && V8::UseCrankshaft()) {
-    // While function is in optimization pipeline, it is marked with builtins.
-    while (function->code()->kind() == Code::BUILTIN) {
-      isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
-      OS::Sleep(50);
+  if (FLAG_parallel_recompilation) {
+    if (V8::UseCrankshaft() && function->IsOptimizable()) {
+      while (!function->IsOptimized()) OS::Sleep(50);
     }
   }
   return isolate->heap()->undefined_value();

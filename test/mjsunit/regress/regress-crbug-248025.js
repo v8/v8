@@ -25,32 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --track-fields --track-double-fields --allow-natives-syntax
-// Flags: --parallel-recompilation --parallel-recompilation-delay=50
+// Flags: --harmony-iteration
 
-function assertUnoptimized(fun) {
-  assertTrue(%GetOptimizationStatus(fun) != 1);
+// Filler long enough to trigger lazy parsing.
+var filler = "//" + new Array(1024).join('x');
+
+// Test that the pre-parser does not crash when the expected contextual
+// keyword as part if a 'for' statement is not and identifier.
+try {
+  eval(filler + "\nfunction f() { for (x : y) { } }");
+  throw "not reached";
+} catch (e) {
+  if (!(e instanceof SyntaxError)) throw e;
 }
-
-function new_object() {
-  var o = {};
-  o.a = 1;
-  o.b = 2;
-  return o;
-}
-
-function add_field(obj) {
-  obj.c = 3;
-}
-
-add_field(new_object());
-add_field(new_object());
-%OptimizeFunctionOnNextCall(add_field, "parallel");
-
-var o = new_object();
-add_field(o);                      // Trigger optimization.
-assertUnoptimized(add_field);      // Not yet optimized.
-o.c = 2.2;                         // Invalidate transition map.
-%CompleteOptimization(add_field);  // Conclude optimization with...
-assertUnoptimized(add_field);      // ... bailing out due to map dependency.
-
