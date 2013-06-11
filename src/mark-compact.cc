@@ -1002,6 +1002,10 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
     Code* code = shared->code();
     MarkBit code_mark = Marking::MarkBitFrom(code);
     if (!code_mark.Get()) {
+      if (FLAG_trace_code_flushing && shared->is_compiled()) {
+        SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+        PrintF("[code-flushing clears: %s]\n", *name);
+      }
       shared->set_code(lazy_compile);
       candidate->set_code(lazy_compile);
     } else {
@@ -1039,6 +1043,10 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
     Code* code = candidate->code();
     MarkBit code_mark = Marking::MarkBitFrom(code);
     if (!code_mark.Get()) {
+      if (FLAG_trace_code_flushing && candidate->is_compiled()) {
+        SmartArrayPointer<char> name = candidate->DebugName()->ToCString();
+        PrintF("[code-flushing clears: %s]\n", *name);
+      }
       candidate->set_code(lazy_compile);
     }
 
@@ -1122,6 +1130,11 @@ void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
   // Make sure previous flushing decisions are revisited.
   isolate_->heap()->incremental_marking()->RecordWrites(shared_info);
 
+  if (FLAG_trace_code_flushing) {
+    SmartArrayPointer<char> name = shared_info->DebugName()->ToCString();
+    PrintF("[code-flushing abandons function-info: %s]\n", *name);
+  }
+
   SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
   SharedFunctionInfo* next_candidate;
   if (candidate == shared_info) {
@@ -1153,6 +1166,11 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
   isolate_->heap()->incremental_marking()->RecordWrites(function);
   isolate_->heap()->incremental_marking()->RecordWrites(function->shared());
 
+  if (FLAG_trace_code_flushing) {
+    SmartArrayPointer<char> name = function->shared()->DebugName()->ToCString();
+    PrintF("[code-flushing abandons closure: %s]\n", *name);
+  }
+
   JSFunction* candidate = jsfunction_candidates_head_;
   JSFunction* next_candidate;
   if (candidate == function) {
@@ -1182,6 +1200,11 @@ void CodeFlusher::EvictOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
 
   // Make sure previous flushing decisions are revisited.
   isolate_->heap()->incremental_marking()->RecordWrites(code_map_holder);
+
+  if (FLAG_trace_code_flushing) {
+    SmartArrayPointer<char> name = code_map_holder->DebugName()->ToCString();
+    PrintF("[code-flushing abandons code-map: %s]\n", *name);
+  }
 
   SharedFunctionInfo* holder = optimized_code_map_holder_head_;
   SharedFunctionInfo* next_holder;
