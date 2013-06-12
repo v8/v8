@@ -324,6 +324,28 @@ TestGenerator(
     "foo",
     [2, "1foo3", 5, "4foo6", "foofoo"]);
 
+// Generator function instances.
+TestGenerator(GeneratorFunction(),
+              [undefined],
+              "foo",
+              [undefined]);
+
+TestGenerator(new GeneratorFunction(),
+              [undefined],
+              "foo",
+              [undefined]);
+
+TestGenerator(GeneratorFunction('yield 1;'),
+              [1, undefined],
+              "foo",
+              [1, undefined]);
+
+TestGenerator(
+    function() { return GeneratorFunction('x', 'y', 'yield x + y;')(1, 2) },
+    [3, undefined],
+    "foo",
+    [3, undefined]);
+
 function TestTryCatch(instantiate) {
   function* g() { yield 1; try { yield 2; } catch (e) { yield e; } yield 3; }
   function Sentinel() {}
