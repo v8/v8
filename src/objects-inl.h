@@ -3659,17 +3659,6 @@ bool Map::CanOmitPrototypeChecks() {
 }
 
 
-void Map::AddDependentCode(DependentCode::DependencyGroup group,
-                           Handle<Code> code) {
-  Handle<DependentCode> codes =
-      DependentCode::Insert(Handle<DependentCode>(dependent_code()),
-                             group, code);
-  if (*codes != dependent_code()) {
-    set_dependent_code(*codes);
-  }
-}
-
-
 int DependentCode::number_of_entries(DependencyGroup group) {
   if (length() == 0) return 0;
   return Smi::cast(get(group))->value();
@@ -3681,24 +3670,44 @@ void DependentCode::set_number_of_entries(DependencyGroup group, int value) {
 }
 
 
+bool DependentCode::is_code_at(int i) {
+  return get(kCodesStartIndex + i)->IsCode();
+}
+
 Code* DependentCode::code_at(int i) {
   return Code::cast(get(kCodesStartIndex + i));
 }
 
 
-void DependentCode::set_code_at(int i, Code* value) {
-  set(kCodesStartIndex + i, value);
+CompilationInfo* DependentCode::compilation_info_at(int i) {
+  return reinterpret_cast<CompilationInfo*>(
+      Foreign::cast(get(kCodesStartIndex + i))->foreign_address());
 }
 
 
-Object** DependentCode::code_slot_at(int i) {
+void DependentCode::set_object_at(int i, Object* object) {
+  set(kCodesStartIndex + i, object);
+}
+
+
+Object* DependentCode::object_at(int i) {
+  return get(kCodesStartIndex + i);
+}
+
+
+Object** DependentCode::slot_at(int i) {
   return HeapObject::RawField(
       this, FixedArray::OffsetOfElementAt(kCodesStartIndex + i));
 }
 
 
-void DependentCode::clear_code_at(int i) {
+void DependentCode::clear_at(int i) {
   set_undefined(kCodesStartIndex + i);
+}
+
+
+void DependentCode::copy(int from, int to) {
+  set(kCodesStartIndex + to, get(kCodesStartIndex + from));
 }
 
 
@@ -3706,7 +3715,7 @@ void DependentCode::ExtendGroup(DependencyGroup group) {
   GroupStartIndexes starts(this);
   for (int g = kGroupCount - 1; g > group; g--) {
     if (starts.at(g) < starts.at(g + 1)) {
-      set_code_at(starts.at(g + 1), code_at(starts.at(g)));
+      copy(starts.at(g), starts.at(g + 1));
     }
   }
 }

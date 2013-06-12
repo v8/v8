@@ -25,22 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --nodead-code-elimination --parallel-recompilation
-// Flags: --allow-natives-syntax
+// Flags: --track-fields --track-double-fields --allow-natives-syntax
+// Flags: --parallel-recompilation --parallel-recompilation-delay=50
 
-function g() {  // g() cannot be optimized.
-  const x = 1;
-  x++;
+function assertUnoptimized(fun) {
+  assertTrue(%GetOptimizationStatus(fun) != 1);
 }
 
-function f(x) {
-  g();
+function new_object() {
+  var o = {};
+  o.a = 1;
+  o.b = 2;
+  return o;
 }
 
-f();
-f();
-%OptimizeFunctionOnNextCall(f);
-%OptimizeFunctionOnNextCall(g, "parallel");
-f(0);  // g() is disabled for optimization on inlining attempt.
-// Attempt to optimize g() should not run into any assertion.
-%CompleteOptimization(g);
+function add_field(obj) {
+  obj.c = 3;
+}
+
+add_field(new_object());
+add_field(new_object());
+%OptimizeFunctionOnNextCall(add_field, "parallel");
+
+var o = new_object();
+add_field(o);                      // Trigger optimization.
+assertUnoptimized(add_field);      // Not yet optimized.
+o.c = 2.2;                         // Invalidate transition map.
+%CompleteOptimization(add_field);  // Conclude optimization with...
+assertUnoptimized(add_field);      // ... bailing out due to map dependency.
+

@@ -2977,20 +2977,32 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
  public:
   HCheckPrototypeMaps(Handle<JSObject> prototype,
                       Handle<JSObject> holder,
-                      Zone* zone)
+                      Zone* zone,
+                      CompilationInfo* info)
       : prototypes_(2, zone),
         maps_(2, zone),
         first_prototype_unique_id_(),
-        last_prototype_unique_id_() {
+        last_prototype_unique_id_(),
+        can_omit_prototype_maps_(true) {
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
     // Keep a list of all objects on the prototype chain up to the holder
     // and the expected maps.
     while (true) {
       prototypes_.Add(prototype, zone);
-      maps_.Add(Handle<Map>(prototype->map()), zone);
+      Handle<Map> map(prototype->map());
+      maps_.Add(map, zone);
+      can_omit_prototype_maps_ &= map->CanOmitPrototypeChecks();
       if (prototype.is_identical_to(holder)) break;
       prototype = Handle<JSObject>(JSObject::cast(prototype->GetPrototype()));
+    }
+    if (can_omit_prototype_maps_) {
+      // Mark in-flight compilation as dependent on those maps.
+      for (int i = 0; i < maps()->length(); i++) {
+        Handle<Map> map = maps()->at(i);
+        map->AddDependentCompilationInfo(DependentCode::kPrototypeCheckGroup,
+                                         info);
+      }
     }
   }
 
@@ -3016,12 +3028,7 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
     last_prototype_unique_id_ = UniqueValueId(prototypes_.last());
   }
 
-  bool CanOmitPrototypeChecks() {
-    for (int i = 0; i < maps()->length(); i++) {
-      if (!maps()->at(i)->CanOmitPrototypeChecks()) return false;
-    }
-    return true;
-  }
+  bool CanOmitPrototypeChecks() { return can_omit_prototype_maps_; }
 
  protected:
   virtual bool DataEquals(HValue* other) {
@@ -3035,6 +3042,7 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   ZoneList<Handle<Map> > maps_;
   UniqueValueId first_prototype_unique_id_;
   UniqueValueId last_prototype_unique_id_;
+  bool can_omit_prototype_maps_;
 };
 
 
@@ -5691,6 +5699,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
                        = Representation::Tagged())
       : access_(access),
         field_representation_(field_representation),
+        transition_(),
         transition_unique_id_(),
         new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
@@ -5722,7 +5731,13 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HObjectAccess access() const { return access_; }
   Handle<Map> transition() const { return transition_; }
   UniqueValueId transition_unique_id() const { return transition_unique_id_; }
-  void set_transition(Handle<Map> map) { transition_ = map; }
+  void SetTransition(Handle<Map> map, CompilationInfo* info) {
+    ASSERT(transition_.is_null());  // Only set once.
+    if (map->CanBeDeprecated()) {
+      map->AddDependentCompilationInfo(DependentCode::kTransitionGroup, info);
+    }
+    transition_ = map;
+  }
   HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {

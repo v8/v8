@@ -92,20 +92,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
     RegisterDependentCodeForEmbeddedMaps(code);
   }
   PopulateDeoptimizationData(code);
-  for (int i = 0 ; i < prototype_maps_.length(); i++) {
-    prototype_maps_.at(i)->AddDependentCode(
-        DependentCode::kPrototypeCheckGroup, code);
-  }
-  for (int i = 0 ; i < transition_maps_.length(); i++) {
-    transition_maps_.at(i)->AddDependentCode(
-        DependentCode::kTransitionGroup, code);
-  }
-  if (graph()->depends_on_empty_array_proto_elements()) {
-    isolate()->initial_object_prototype()->map()->AddDependentCode(
-        DependentCode::kElementsCantBeAddedGroup, code);
-    isolate()->initial_array_prototype()->map()->AddDependentCode(
-        DependentCode::kElementsCantBeAddedGroup, code);
-  }
+  info()->CommitDependentMaps(code);
 }
 
 
@@ -4025,9 +4012,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   if (!transition.is_null()) {
-    if (transition->CanBeDeprecated()) {
-      transition_maps_.Add(transition, info()->zone());
-    }
     if (!instr->hydrogen()->NeedsWriteBarrierForMap()) {
       __ Move(FieldOperand(object, HeapObject::kMapOffset), transition);
     } else {
@@ -5100,11 +5084,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
   ASSERT(prototypes->length() == maps->length());
 
-  if (instr->hydrogen()->CanOmitPrototypeChecks()) {
-    for (int i = 0; i < maps->length(); i++) {
-      prototype_maps_.Add(maps->at(i), info()->zone());
-    }
-  } else {
+  if (!instr->hydrogen()->CanOmitPrototypeChecks()) {
     for (int i = 0; i < prototypes->length(); i++) {
       __ LoadHeapObject(reg, prototypes->at(i));
       DoCheckMapCommon(reg, maps->at(i), instr);

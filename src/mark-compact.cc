@@ -2504,11 +2504,14 @@ void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
   int number_of_entries = starts.number_of_entries();
   if (number_of_entries == 0) return;
   for (int i = 0; i < number_of_entries; i++) {
+    // If the entry is compilation info then the map must be alive,
+    // and ClearAndDeoptimizeDependentCode shouldn't be called.
+    ASSERT(entries->is_code_at(i));
     Code* code = entries->code_at(i);
     if (IsMarked(code) && !code->marked_for_deoptimization()) {
       code->set_marked_for_deoptimization(true);
     }
-    entries->clear_code_at(i);
+    entries->clear_at(i);
   }
   map->set_dependent_code(DependentCode::cast(heap()->empty_fixed_array()));
 }
@@ -2525,15 +2528,17 @@ void MarkCompactCollector::ClearNonLiveDependentCode(Map* map) {
   for (int g = 0; g < DependentCode::kGroupCount; g++) {
     int group_number_of_entries = 0;
     for (int i = starts.at(g); i < starts.at(g + 1); i++) {
-      Code* code = entries->code_at(i);
-      if (IsMarked(code) && !code->marked_for_deoptimization()) {
+      Object* obj = entries->object_at(i);
+      ASSERT(obj->IsCode() || IsMarked(obj));
+      if (IsMarked(obj) &&
+          (!obj->IsCode() || !Code::cast(obj)->marked_for_deoptimization())) {
         if (new_number_of_entries + group_number_of_entries != i) {
-          entries->set_code_at(new_number_of_entries +
-                               group_number_of_entries, code);
+          entries->set_object_at(
+              new_number_of_entries + group_number_of_entries, obj);
         }
-        Object** slot = entries->code_slot_at(new_number_of_entries +
-                                              group_number_of_entries);
-        RecordSlot(slot, slot, code);
+        Object** slot = entries->slot_at(new_number_of_entries +
+                                         group_number_of_entries);
+        RecordSlot(slot, slot, obj);
         group_number_of_entries++;
       }
     }
@@ -2543,7 +2548,7 @@ void MarkCompactCollector::ClearNonLiveDependentCode(Map* map) {
     new_number_of_entries += group_number_of_entries;
   }
   for (int i = new_number_of_entries; i < number_of_entries; i++) {
-    entries->clear_code_at(i);
+    entries->clear_at(i);
   }
 }
 
