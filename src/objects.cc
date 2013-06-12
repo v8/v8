@@ -1385,7 +1385,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
                        global_object ? "Global Object: " : "",
                        vowel ? "n" : "");
                 accumulator->Put(str);
-                accumulator->Add(" with %smap 0x%p",
+                accumulator->Add(" with %smap %p",
                     map_of_this->is_deprecated() ? "deprecated " : "",
                     map_of_this);
                 printed = true;
@@ -10550,11 +10550,8 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         }
 
         case Translation::ARGUMENTS_OBJECT: {
-          bool args_known = iterator.Next();
-          int args_index = iterator.Next();
           int args_length = iterator.Next();
-          PrintF(out, "{index=%d, length=%d, known=%d}",
-                 args_index, args_length, args_known);
+          PrintF(out, "{length=%d}", args_length);
           break;
         }
       }
