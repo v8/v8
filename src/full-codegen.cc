@@ -1230,13 +1230,7 @@ void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
-  Comment cmnt(masm_, "[ ReturnStatement");
-  SetStatementPosition(stmt);
-  Expression* expr = stmt->expression();
-  VisitForAccumulatorValue(expr);
-
-  // Exit all nested statements.
+void FullCodeGenerator::EmitUnwindBeforeReturn() {
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
   int context_length = 0;
@@ -1244,7 +1238,15 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     current = current->Exit(&stack_depth, &context_length);
   }
   __ Drop(stack_depth);
+}
 
+
+void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
+  Comment cmnt(masm_, "[ ReturnStatement");
+  SetStatementPosition(stmt);
+  Expression* expr = stmt->expression();
+  VisitForAccumulatorValue(expr);
+  EmitUnwindBeforeReturn();
   EmitReturnSequence();
 }
 

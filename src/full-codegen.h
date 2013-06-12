@@ -410,10 +410,10 @@ class FullCodeGenerator: public AstVisitor {
   // this has to be a separate pass _before_ populating or executing any module.
   void AllocateModules(ZoneList<Declaration*>* declarations);
 
-  // Generator code to return a fresh iterator result object.  The "value"
-  // property is set to a value popped from the stack, and "done" is set
-  // according to the argument.
-  void EmitReturnIteratorResult(bool done);
+  // Generate code to create an iterator result object.  The "value" property is
+  // set to a value popped from the stack, and "done" is set according to the
+  // argument.  The result object is left in the result register.
+  void EmitCreateIteratorResult(bool done);
 
   // Try to perform a comparison as a fast inlined literal compare if
   // the operands allow it.  Returns true if the compare operations
@@ -471,6 +471,11 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitProfilingCounterDecrement(int delta);
   void EmitProfilingCounterReset();
+
+  // Emit code to pop values from the stack associated with nested statements
+  // like try/catch, try/finally, etc, running the finallies and unwinding the
+  // handlers as needed.
+  void EmitUnwindBeforeReturn();
 
   // Platform-specific return sequence
   void EmitReturnSequence();

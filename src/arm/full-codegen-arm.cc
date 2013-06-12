@@ -1991,8 +1991,12 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   VisitForStackValue(expr->expression());
 
   switch (expr->yield_kind()) {
-    case Yield::INITIAL:
-    case Yield::SUSPEND: {
+    case Yield::SUSPEND:
+      // Pop value from top-of-stack slot; box result into result register.
+      EmitCreateIteratorResult(false);
+      __ push(result_register());
+      // Fall through.
+    case Yield::INITIAL: {
       VisitForStackValue(expr->generator_object());
       __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
       __ ldr(context_register(),
@@ -2001,12 +2005,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       Label resume;
       __ CompareRoot(result_register(), Heap::kTheHoleValueRootIndex);
       __ b(ne, &resume);
-      if (expr->yield_kind() == Yield::SUSPEND) {
-        EmitReturnIteratorResult(false);
-      } else {
-        __ pop(result_register());
-        EmitReturnSequence();
-      }
+      __ pop(result_register());
+      EmitReturnSequence();
 
       __ bind(&resume);
       context()->Plug(result_register());
@@ -2018,7 +2018,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ mov(r1, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorClosed)));
       __ str(r1, FieldMemOperand(result_register(),
                                  JSGeneratorObject::kContinuationOffset));
-      EmitReturnIteratorResult(true);
+      // Pop value from top-of-stack slot, box result into result register.
+      EmitCreateIteratorResult(true);
+      EmitUnwindBeforeReturn();
+      EmitReturnSequence();
       break;
     }
 
@@ -2048,10 +2051,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       // try { received = yield result.value }
       __ bind(&l_try);
-      __ pop(r0);                                        // result.value
+      EmitCreateIteratorResult(false);                   // pop and box to r0
       __ PushTryHandler(StackHandler::CATCH, expr->index());
       const int handler_size = StackHandlerConstants::kSize;
-      __ push(r0);                                       // result.value
+      __ push(r0);                                       // result
       __ ldr(r3, MemOperand(sp, (0 + 1) * kPointerSize + handler_size));  // g
       __ push(r3);                                       // g
       __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
@@ -2059,7 +2062,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
              MemOperand(fp, StandardFrameConstants::kContextOffset));
       __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
       __ b(ne, &l_resume);
-      EmitReturnIteratorResult(false);
+      __ pop(r0);                                        // result
+      EmitReturnSequence();
       __ bind(&l_resume);                                // received in r0
       __ PopTryHandler();
 
@@ -2214,13 +2218,20 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 }
 
 
-void FullCodeGenerator::EmitReturnIteratorResult(bool done) {
+void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Label gc_required;
   Label allocated;
 
   Handle<Map> map(isolate()->native_context()->generator_result_map());
 
   __ Allocate(map->instance_size(), r0, r2, r3, &gc_required, TAG_OBJECT);
+  __ jmp(&allocated);
+
+  __ bind(&gc_required);
+  __ Push(Smi::FromInt(map->instance_size()));
+  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  __ ldr(context_register(),
+         MemOperand(fp, StandardFrameConstants::kContextOffset));
 
   __ bind(&allocated);
   __ mov(r1, Operand(map));
@@ -2240,26 +2251,6 @@ void FullCodeGenerator::EmitReturnIteratorResult(bool done) {
   // root set.
   __ RecordWriteField(r0, JSGeneratorObject::kResultValuePropertyOffset,
                       r2, r3, kLRHasBeenSaved, kDontSaveFPRegs);
-
-  if (done) {
-    // Exit all nested statements.
-    NestedStatement* current = nesting_stack_;
-    int stack_depth = 0;
-    int context_length = 0;
-    while (current != NULL) {
-      current = current->Exit(&stack_depth, &context_length);
-    }
-    __ Drop(stack_depth);
-  }
-
-  EmitReturnSequence();
-
-  __ bind(&gc_required);
-  __ Push(Smi::FromInt(map->instance_size()));
-  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-  __ ldr(context_register(),
-         MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ jmp(&allocated);
 }
 
 
