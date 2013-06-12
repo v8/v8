@@ -2624,11 +2624,13 @@ WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
 }
 
 
-bool Parser::CheckInOrOf(ForEachStatement::VisitMode* visit_mode) {
+bool Parser::CheckInOrOf(bool accept_OF,
+                         ForEachStatement::VisitMode* visit_mode) {
   if (Check(Token::IN)) {
     *visit_mode = ForEachStatement::ENUMERATE;
     return true;
-  } else if (allow_for_of() && CheckContextualKeyword(CStrVector("of"))) {
+  } else if (allow_for_of() && accept_OF &&
+             CheckContextualKeyword(CStrVector("of"))) {
     *visit_mode = ForEachStatement::ITERATE;
     return true;
   }
@@ -2726,11 +2728,14 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     if (peek() == Token::VAR || peek() == Token::CONST) {
       bool is_const = peek() == Token::CONST;
       Handle<String> name;
+      VariableDeclarationProperties decl_props = kHasNoInitializers;
       Block* variable_statement =
-          ParseVariableDeclarations(kForStatement, NULL, NULL, &name, CHECK_OK);
+          ParseVariableDeclarations(kForStatement, &decl_props, NULL, &name,
+                                    CHECK_OK);
+      bool accept_OF = decl_props == kHasNoInitializers;
       ForEachStatement::VisitMode mode;
 
-      if (!name.is_null() && CheckInOrOf(&mode)) {
+      if (!name.is_null() && CheckInOrOf(accept_OF, &mode)) {
         Interface* interface =
             is_const ? Interface::NewConst() : Interface::NewValue();
         ForEachStatement* loop = factory()->NewForEachStatement(mode, labels);
@@ -2762,9 +2767,10 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
          ParseVariableDeclarations(kForStatement, &decl_props, NULL, &name,
                                    CHECK_OK);
       bool accept_IN = !name.is_null() && decl_props != kHasInitializers;
+      bool accept_OF = decl_props == kHasNoInitializers;
       ForEachStatement::VisitMode mode;
 
-      if (accept_IN && CheckInOrOf(&mode)) {
+      if (accept_IN && CheckInOrOf(accept_OF, &mode)) {
         // Rewrite a for-in statement of the form
         //
         //   for (let x in e) b
@@ -2820,8 +2826,9 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     } else {
       Expression* expression = ParseExpression(false, CHECK_OK);
       ForEachStatement::VisitMode mode;
+      bool accept_OF = expression->AsVariableProxy();
 
-      if (CheckInOrOf(&mode)) {
+      if (CheckInOrOf(accept_OF, &mode)) {
         // Signal a reference error if the expression is an invalid
         // left-hand side expression.  We could report this as a syntax
         // error here but for compatibility with JSC we choose to report
