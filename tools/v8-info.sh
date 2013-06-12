@@ -108,7 +108,8 @@ merges_to_branch() {
     h=$(echo $merge | cut -d" " -f2)
     svn=$(svn_rev $1 $h)
     merges=$(echo $merge | grep -o "r[0-9]\+")
-    echo branches/$1 r$svn $merges
+    rev=$(v8_rev $h)
+    echo $rev r$svn $merges
   done
 }
 
