@@ -1698,39 +1698,35 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
 
 void HGraphBuilder::BuildCompareNil(
     HValue* value,
-    CompareNilICStub::Types types,
-    Handle<Map> map,
+    Handle<Type> type,
     int position,
     HIfContinuation* continuation) {
   IfBuilder if_nil(this, position);
   bool needs_or = false;
-  if (types.Contains(CompareNilICStub::NULL_TYPE)) {
+  if (type->Maybe(Type::Null())) {
     if (needs_or) if_nil.Or();
     if_nil.If<HCompareObjectEqAndBranch>(value, graph()->GetConstantNull());
     needs_or = true;
   }
-  if (types.Contains(CompareNilICStub::UNDEFINED)) {
+  if (type->Maybe(Type::Undefined())) {
     if (needs_or) if_nil.Or();
     if_nil.If<HCompareObjectEqAndBranch>(value,
                                          graph()->GetConstantUndefined());
     needs_or = true;
   }
-  // Handle either undetectable or monomorphic, not both.
-  ASSERT(!types.Contains(CompareNilICStub::UNDETECTABLE) ||
-         !types.Contains(CompareNilICStub::MONOMORPHIC_MAP));
-  if (types.Contains(CompareNilICStub::UNDETECTABLE)) {
+  if (type->Maybe(Type::Undetectable())) {
     if (needs_or) if_nil.Or();
     if_nil.If<HIsUndetectableAndBranch>(value);
   } else {
     if_nil.Then();
     if_nil.Else();
-    if (!map.is_null() && types.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
+    if (type->NumClasses() == 1) {
       BuildCheckNonSmi(value);
       // For ICs, the map checked below is a sentinel map that gets replaced by
       // the monomorphic map when the code is used as a template to generate a
       // new IC. For optimized functions, there is no sentinel map, the map
       // emitted below is the actual monomorphic map.
-      BuildCheckMap(value, map);
+      BuildCheckMap(value, type->Classes().Current());
     } else {
       if_nil.Deopt();
     }
@@ -3550,6 +3546,7 @@ FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
       function_return_(NULL),
       test_context_(NULL),
       entry_(NULL),
+      arguments_object_(NULL),
       arguments_elements_(NULL),
       outer_(owner->function_state()) {
   if (outer_ != NULL) {
@@ -3823,7 +3820,7 @@ void TestContext::BuildBranch(HValue* value) {
 
 
 void HOptimizedGraphBuilder::Bailout(const char* reason) {
-  info()->set_bailout_reason(reason);
+  current_info()->set_bailout_reason(reason);
   SetStackOverflow();
 }
 
@@ -3880,11 +3877,11 @@ void HOptimizedGraphBuilder::VisitExpressions(
 
 
 bool HOptimizedGraphBuilder::BuildGraph() {
-  if (info()->function()->is_generator()) {
+  if (current_info()->function()->is_generator()) {
     Bailout("function is a generator");
     return false;
   }
-  Scope* scope = info()->scope();
+  Scope* scope = current_info()->scope();
   if (scope->HasIllegalRedeclaration()) {
     Bailout("function with illegal redeclaration");
     return false;
@@ -3928,7 +3925,7 @@ bool HOptimizedGraphBuilder::BuildGraph() {
   AddInstruction(
       new(zone()) HStackCheck(context, HStackCheck::kFunctionEntry));
 
-  VisitStatements(info()->function()->body());
+  VisitStatements(current_info()->function()->body());
   if (HasStackOverflow()) return false;
 
   if (current_block() != NULL) {
@@ -3940,7 +3937,7 @@ bool HOptimizedGraphBuilder::BuildGraph() {
   // last time this function was compiled, then this recompile is likely not
   // due to missing/inadequate type feedback, but rather too aggressive
   // optimization. Disable optimistic LICM in that case.
-  Handle<Code> unoptimized_code(info()->shared_info()->code());
+  Handle<Code> unoptimized_code(current_info()->shared_info()->code());
   ASSERT(unoptimized_code->kind() == Code::FUNCTION);
   Handle<TypeFeedbackInfo> type_info(
       TypeFeedbackInfo::cast(unoptimized_code->type_feedback_info()));
@@ -4701,18 +4698,18 @@ void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
   AddInstruction(undefined_constant);
   graph()->set_undefined_constant(undefined_constant);
 
-  HArgumentsObject* object = new(zone()) HArgumentsObject;
-  AddInstruction(object);
-  graph()->SetArgumentsObject(object);
-
-  // Set the initial values of parameters including "this".  "This" has
-  // parameter index 0.
+  // Create an arguments object containing the initial parameters.  Set the
+  // initial values of parameters including "this" having parameter index 0.
   ASSERT_EQ(scope->num_parameters() + 1, environment()->parameter_count());
-
+  HArgumentsObject* arguments_object =
+      new(zone()) HArgumentsObject(environment()->parameter_count(), zone());
   for (int i = 0; i < environment()->parameter_count(); ++i) {
     HInstruction* parameter = AddInstruction(new(zone()) HParameter(i));
+    arguments_object->AddArgument(parameter, zone());
     environment()->Bind(i, parameter);
   }
+  AddInstruction(arguments_object);
+  graph()->SetArgumentsObject(arguments_object);
 
   // First special is HContext.
   HInstruction* context = AddInstruction(new(zone()) HContext);
@@ -5027,7 +5024,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     HControlInstruction* compare;
 
     if (stmt->switch_type() == SwitchStatement::SMI_SWITCH) {
-      if (!clause->IsSmiCompare()) {
+      if (!clause->compare_type()->Is(Type::Integer31())) {
         AddSoftDeoptimize();
       }
 
@@ -5129,7 +5126,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 
 
 bool HOptimizedGraphBuilder::HasOsrEntryAt(IterationStatement* statement) {
-  return statement->OsrEntryId() == info()->osr_ast_id();
+  return statement->OsrEntryId() == current_info()->osr_ast_id();
 }
 
 
@@ -5516,9 +5513,9 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   Handle<SharedFunctionInfo> shared_info =
-      SearchSharedFunctionInfo(info()->shared_info()->code(), expr);
+      SearchSharedFunctionInfo(current_info()->shared_info()->code(), expr);
   if (shared_info.is_null()) {
-    shared_info = Compiler::BuildFunctionInfo(expr, info()->script());
+    shared_info = Compiler::BuildFunctionInfo(expr, current_info()->script());
   }
   // We also have a stack overflow if the recursive compilation did.
   if (HasStackOverflow()) return;
@@ -5579,10 +5576,10 @@ void HOptimizedGraphBuilder::VisitConditional(Conditional* expr) {
 HOptimizedGraphBuilder::GlobalPropertyAccess
     HOptimizedGraphBuilder::LookupGlobalProperty(
         Variable* var, LookupResult* lookup, bool is_store) {
-  if (var->is_this() || !info()->has_global_object()) {
+  if (var->is_this() || !current_info()->has_global_object()) {
     return kUseGeneric;
   }
-  Handle<GlobalObject> global(info()->global_object());
+  Handle<GlobalObject> global(current_info()->global_object());
   global->Lookup(*var->name(), lookup);
   if (!lookup->IsNormal() ||
       (is_store && lookup->IsReadOnly()) ||
@@ -5597,7 +5594,7 @@ HOptimizedGraphBuilder::GlobalPropertyAccess
 HValue* HOptimizedGraphBuilder::BuildContextChainWalk(Variable* var) {
   ASSERT(var->IsContextSlot());
   HValue* context = environment()->LookupContext();
-  int length = info()->scope()->ContextChainLength(var->scope());
+  int length = current_info()->scope()->ContextChainLength(var->scope());
   while (length-- > 0) {
     HInstruction* context_instruction = new(zone()) HOuterContext(context);
     AddInstruction(context_instruction);
@@ -5633,12 +5630,12 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
           LookupGlobalProperty(variable, &lookup, false);
 
       if (type == kUseCell &&
-          info()->global_object()->IsAccessCheckNeeded()) {
+          current_info()->global_object()->IsAccessCheckNeeded()) {
         type = kUseGeneric;
       }
 
       if (type == kUseCell) {
-        Handle<GlobalObject> global(info()->global_object());
+        Handle<GlobalObject> global(current_info()->global_object());
         Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
         HLoadGlobalCell* instr =
             new(zone()) HLoadGlobalCell(cell, lookup.GetPropertyDetails());
@@ -6229,7 +6226,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     AddInstruction(new(zone()) HCheckPrototypeMaps(
         Handle<JSObject>(JSObject::cast(map->prototype())),
         Handle<JSObject>(JSObject::cast(proto)),
-        zone()));
+        zone(),
+        top_info()));
   }
 
   HObjectAccess field_access = HObjectAccess::ForField(map, lookup, name);
@@ -6265,7 +6263,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
 
   if (transition_to_field) {
     Handle<Map> transition(lookup->GetTransitionMapFromMap(*map));
-    instr->set_transition(transition);
+    instr->SetTransition(transition, top_info());
     // TODO(fschneider): Record the new map type of the object in the IR to
     // enable elimination of redundant checks after the transition store.
     instr->SetGVNFlag(kChangesMaps);
@@ -6568,7 +6566,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
   LookupResult lookup(isolate());
   GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, true);
   if (type == kUseCell) {
-    Handle<GlobalObject> global(info()->global_object());
+    Handle<GlobalObject> global(current_info()->global_object());
     Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
     HInstruction* instr =
         new(zone()) HStoreGlobalCell(value, cell, lookup.GetPropertyDetails());
@@ -6633,13 +6631,13 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         // Bail out if we try to mutate a parameter value in a function
         // using the arguments object.  We do not (yet) correctly handle the
         // arguments property of the function.
-        if (info()->scope()->arguments() != NULL) {
+        if (current_info()->scope()->arguments() != NULL) {
           // Parameters will be allocated to context slots.  We have no
           // direct way to detect that the variable is a parameter so we do
           // a linear search of the parameter variables.
-          int count = info()->scope()->num_parameters();
+          int count = current_info()->scope()->num_parameters();
           for (int i = 0; i < count; ++i) {
-            if (var == info()->scope()->parameter(i)) {
+            if (var == current_info()->scope()->parameter(i)) {
               Bailout(
                   "assignment to parameter, function uses arguments object");
             }
@@ -6859,12 +6857,12 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
         // Bail out if we try to mutate a parameter value in a function using
         // the arguments object.  We do not (yet) correctly handle the
         // arguments property of the function.
-        if (info()->scope()->arguments() != NULL) {
+        if (current_info()->scope()->arguments() != NULL) {
           // Parameters will rewrite to context slots.  We have no direct way
           // to detect that the variable is a parameter.
-          int count = info()->scope()->num_parameters();
+          int count = current_info()->scope()->num_parameters();
           for (int i = 0; i < count; ++i) {
-            if (var == info()->scope()->parameter(i)) {
+            if (var == current_info()->scope()->parameter(i)) {
               return Bailout("assignment to parameter in arguments object");
             }
           }
@@ -7026,8 +7024,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
     AddCheckMap(object, map);
-    AddInstruction(
-        new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
+    AddInstruction(new(zone()) HCheckPrototypeMaps(
+        prototype, holder, zone(), top_info()));
     HValue* holder_value = AddInstruction(new(zone())
         HConstant(holder, Representation::Tagged()));
     return BuildLoadNamedField(holder_value,
@@ -7041,7 +7039,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
     AddCheckMap(object, map);
-    AddInstruction(new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
+    AddInstruction(new(zone()) HCheckPrototypeMaps(
+        prototype, holder, zone(), top_info()));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*holder_map));
     return new(zone()) HConstant(function, Representation::Tagged());
   }
@@ -7078,8 +7077,8 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
       isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
     Handle<JSObject> prototype(JSObject::cast(map->prototype()), isolate());
     Handle<JSObject> object_prototype = isolate()->initial_object_prototype();
-    AddInstruction(
-        new(zone()) HCheckPrototypeMaps(prototype, object_prototype, zone()));
+    AddInstruction(new(zone()) HCheckPrototypeMaps(
+        prototype, object_prototype, zone(), top_info()));
     load_mode = ALLOW_RETURN_HOLE;
     graph()->MarkDependsOnEmptyArrayProtoElements();
   }
@@ -7430,7 +7429,8 @@ void HOptimizedGraphBuilder::EnsureArgumentsArePushedForAccess() {
   HEnterInlined* entry = function_state()->entry();
   entry->set_arguments_pushed();
 
-  ZoneList<HValue*>* arguments_values = entry->arguments_values();
+  HArgumentsObject* arguments = entry->arguments_object();
+  const ZoneList<HValue*>* arguments_values = arguments->arguments_values();
 
   HInstruction* insert_after = entry;
   for (int i = 0; i < arguments_values->length(); i++) {
@@ -7594,8 +7594,8 @@ void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
                                                    Handle<Map> receiver_map) {
   if (!holder.is_null()) {
     Handle<JSObject> prototype(JSObject::cast(receiver_map->prototype()));
-    AddInstruction(
-        new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
+    AddInstruction(new(zone()) HCheckPrototypeMaps(
+        prototype, holder, zone(), top_info()));
   }
 }
 
@@ -7740,7 +7740,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     expr->ComputeTarget(map, name);
     AddCheckPrototypeMaps(expr->holder(), map);
     if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
-      Handle<JSFunction> caller = info()->closure();
+      Handle<JSFunction> caller = current_info()->closure();
       SmartArrayPointer<char> caller_name =
           caller->shared()->DebugName()->ToCString();
       PrintF("Trying to inline the polymorphic call to %s from %s\n",
@@ -7824,7 +7824,7 @@ int HOptimizedGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
 
   // Precondition: call is monomorphic and we have found a target with the
   // appropriate arity.
-  Handle<JSFunction> caller = info()->closure();
+  Handle<JSFunction> caller = current_info()->closure();
   Handle<SharedFunctionInfo> target_shared(target->shared());
 
   // Do a quick check on source code length to avoid parsing large
@@ -7860,7 +7860,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
   int nodes_added = InliningAstSize(target);
   if (nodes_added == kNotInlinable) return false;
 
-  Handle<JSFunction> caller = info()->closure();
+  Handle<JSFunction> caller = current_info()->closure();
 
   if (nodes_added > Min(FLAG_max_inlined_nodes, kUnlimitedMaxInlinedNodes)) {
     TraceInline(target, caller, "target AST is too large [early]");
@@ -7869,7 +7869,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
 
 #if !defined(V8_TARGET_ARCH_IA32)
   // Target must be able to use caller's context.
-  CompilationInfo* outer_info = info();
+  CompilationInfo* outer_info = current_info();
   if (target->context() != outer_info->closure()->context() ||
       outer_info->scope()->contains_with() ||
       outer_info->scope()->num_heap_slots() > 0) {
@@ -7998,7 +7998,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
 
   // Type-check the inlined function.
   ASSERT(target_shared->has_deoptimization_support());
-  AstTyper::Type(&target_info);
+  AstTyper::Run(&target_info);
 
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it
@@ -8031,17 +8031,20 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
 
   AddSimulate(return_id);
   current_block()->UpdateEnvironment(inner_env);
-  ZoneList<HValue*>* arguments_values = NULL;
+  HArgumentsObject* arguments_object = NULL;
 
-  // If the function uses arguments copy current arguments values
-  // to use them for materialization.
+  // If the function uses arguments object create and bind one, also copy
+  // current arguments values to use them for materialization.
   if (function->scope()->arguments() != NULL) {
+    ASSERT(function->scope()->arguments()->IsStackAllocated());
     HEnvironment* arguments_env = inner_env->arguments_environment();
     int arguments_count = arguments_env->parameter_count();
-    arguments_values = new(zone()) ZoneList<HValue*>(arguments_count, zone());
+    arguments_object = new(zone()) HArgumentsObject(arguments_count, zone());
+    inner_env->Bind(function->scope()->arguments(), arguments_object);
     for (int i = 0; i < arguments_count; i++) {
-      arguments_values->Add(arguments_env->Lookup(i), zone());
+      arguments_object->AddArgument(arguments_env->Lookup(i), zone());
     }
+    AddInstruction(arguments_object);
   }
 
   HEnterInlined* enter_inlined =
@@ -8050,19 +8053,11 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
                                 function,
                                 function_state()->inlining_kind(),
                                 function->scope()->arguments(),
-                                arguments_values,
+                                arguments_object,
                                 undefined_receiver,
                                 zone());
   function_state()->set_entry(enter_inlined);
   AddInstruction(enter_inlined);
-
-  // If the function uses arguments object create and bind one.
-  if (function->scope()->arguments() != NULL) {
-    ASSERT(function->scope()->arguments()->IsStackAllocated());
-    inner_env->Bind(function->scope()->arguments(),
-                    graph()->GetArgumentsObject());
-  }
-
 
   VisitDeclarations(target_info.scope()->declarations());
   VisitStatements(function->body());
@@ -8304,7 +8299,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
             Call::GetPrototypeForPrimitiveCheck(STRING_CHECK,
                 expr->holder()->GetIsolate()),
             expr->holder(),
-            zone()));
+            zone(),
+            top_info()));
         HInstruction* char_code =
             BuildStringCharCodeAt(context, string, index);
         if (id == kStringCharCodeAt) {
@@ -8455,7 +8451,7 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
     return false;
   }
 
-  if (info()->scope()->arguments() == NULL) return false;
+  if (current_info()->scope()->arguments() == NULL) return false;
 
   ZoneList<Expression*>* args = expr->arguments();
   if (args->length() != 2) return false;
@@ -8494,13 +8490,10 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   } else {
     // We are inside inlined function and we know exactly what is inside
     // arguments object. But we need to be able to materialize at deopt.
-    // TODO(mstarzinger): For now we just ensure arguments are pushed
-    // right after HEnterInlined, but we could be smarter about this.
-    EnsureArgumentsArePushedForAccess();
     ASSERT_EQ(environment()->arguments_environment()->parameter_count(),
-              function_state()->entry()->arguments_values()->length());
-    HEnterInlined* entry = function_state()->entry();
-    ZoneList<HValue*>* arguments_values = entry->arguments_values();
+              function_state()->entry()->arguments_object()->arguments_count());
+    HArgumentsObject* args = function_state()->entry()->arguments_object();
+    const ZoneList<HValue*>* arguments_values = args->arguments_values();
     int arguments_count = arguments_values->length();
     PushAndAdd(new(zone()) HWrapReceiver(receiver, function));
     for (int i = 1; i < arguments_count; i++) {
@@ -8696,8 +8689,8 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       LookupResult lookup(isolate());
       GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, false);
       if (type == kUseCell &&
-          !info()->global_object()->IsAccessCheckNeeded()) {
-        Handle<GlobalObject> global(info()->global_object());
+          !current_info()->global_object()->IsAccessCheckNeeded()) {
+        Handle<GlobalObject> global(current_info()->global_object());
         known_global_function = expr->ComputeGlobalTarget(global, &lookup);
       }
       if (known_global_function) {
@@ -8732,7 +8725,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         }
         if (TryInlineCall(expr)) return;
 
-        if (expr->target().is_identical_to(info()->closure())) {
+        if (expr->target().is_identical_to(current_info()->closure())) {
           graph()->MarkRecursive();
         }
 
@@ -8935,7 +8928,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     CHECK_ALIVE(VisitArgumentList(expr->arguments()));
     HCallNew* call;
     if (use_call_new_array) {
-      Handle<JSGlobalPropertyCell> cell = expr->allocation_info_cell();
+      Handle<Cell> cell = expr->allocation_info_cell();
       call = new(zone()) HCallNewArray(context, constructor, argument_count,
                                        cell);
     } else {
@@ -9231,13 +9224,13 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
         // Bail out if we try to mutate a parameter value in a function
         // using the arguments object.  We do not (yet) correctly handle the
         // arguments property of the function.
-        if (info()->scope()->arguments() != NULL) {
+        if (current_info()->scope()->arguments() != NULL) {
           // Parameters will rewrite to context slots.  We have no direct
           // way to detect that the variable is a parameter so we use a
           // linear search of the parameter list.
-          int count = info()->scope()->num_parameters();
+          int count = current_info()->scope()->num_parameters();
           for (int i = 0; i < count; ++i) {
-            if (var == info()->scope()->parameter(i)) {
+            if (var == current_info()->scope()->parameter(i)) {
               return Bailout("assignment to parameter in arguments object");
             }
           }
@@ -9688,12 +9681,21 @@ void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
 }
 
 
+// TODO(rossberg): this should die eventually.
 Representation HOptimizedGraphBuilder::ToRepresentation(TypeInfo info) {
   if (info.IsUninitialized()) return Representation::None();
   if (info.IsSmi()) return Representation::Integer32();
   if (info.IsInteger32()) return Representation::Integer32();
   if (info.IsDouble()) return Representation::Double();
   if (info.IsNumber()) return Representation::Double();
+  return Representation::Tagged();
+}
+
+
+Representation HOptimizedGraphBuilder::ToRepresentation(Handle<Type> type) {
+  if (type->Is(Type::None())) return Representation::None();
+  if (type->Is(Type::Integer32())) return Representation::Integer32();
+  if (type->Is(Type::Number())) return Representation::Double();
   return Representation::Tagged();
 }
 
@@ -9787,17 +9789,17 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  TypeInfo left_type = expr->left_type();
-  TypeInfo right_type = expr->right_type();
-  TypeInfo overall_type = expr->overall_type();
+  Handle<Type> left_type = expr->left_type();
+  Handle<Type> right_type = expr->right_type();
+  Handle<Type> overall_type = expr->overall_type();
   Representation combined_rep = ToRepresentation(overall_type);
   Representation left_rep = ToRepresentation(left_type);
   Representation right_rep = ToRepresentation(right_type);
   // Check if this expression was ever executed according to type feedback.
   // Note that for the special typeof/null/undefined cases we get unknown here.
-  if (overall_type.IsUninitialized()) {
+  if (overall_type->Is(Type::None())) {
     AddSoftDeoptimize();
-    overall_type = left_type = right_type = TypeInfo::Unknown();
+    overall_type = left_type = right_type = handle(Type::Any(), isolate());
   }
 
   CHECK_ALIVE(VisitForValue(expr->left()));
@@ -9836,10 +9838,10 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     VariableProxy* proxy = expr->right()->AsVariableProxy();
     bool global_function = (proxy != NULL) && proxy->var()->IsUnallocated();
     if (global_function &&
-        info()->has_global_object() &&
-        !info()->global_object()->IsAccessCheckNeeded()) {
+        current_info()->has_global_object() &&
+        !current_info()->global_object()->IsAccessCheckNeeded()) {
       Handle<String> name = proxy->name();
-      Handle<GlobalObject> global(info()->global_object());
+      Handle<GlobalObject> global(current_info()->global_object());
       LookupResult lookup(isolate());
       global->Lookup(*name, &lookup);
       if (lookup.IsNormal() && lookup.GetValue()->IsJSFunction()) {
@@ -9869,13 +9871,13 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     HIn* result = new(zone()) HIn(context, left, right);
     result->set_position(expr->position());
     return ast_context()->ReturnInstruction(result, expr->id());
-  } else if (overall_type.IsNonPrimitive()) {
+  } else if (overall_type->Is(Type::Receiver())) {
     switch (op) {
       case Token::EQ:
       case Token::EQ_STRICT: {
         // Can we get away with map check and not instance type check?
-        Handle<Map> map = expr->map();
-        if (!map.is_null()) {
+        if (overall_type->IsClass()) {
+          Handle<Map> map = overall_type->AsClass();
           AddCheckMapsWithTransitions(left, map);
           AddCheckMapsWithTransitions(right, map);
           HCompareObjectEqAndBranch* result =
@@ -9896,7 +9898,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       default:
         return Bailout("Unsupported non-primitive compare");
     }
-  } else if (overall_type.IsInternalizedString() &&
+  } else if (overall_type->Is(Type::InternalizedString()) &&
              Token::IsEqualityOp(op)) {
     BuildCheckNonSmi(left);
     AddInstruction(HCheckInstanceType::NewIsInternalizedString(left, zone()));
@@ -9931,8 +9933,8 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  ASSERT(expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT);
   HIfContinuation continuation;
-  CompareNilICStub::Types types;
   if (expr->op() == Token::EQ_STRICT) {
     IfBuilder if_nil(this);
     if_nil.If<HCompareObjectEqAndBranch>(
@@ -9943,11 +9945,9 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
     if_nil.CaptureContinuation(&continuation);
     return ast_context()->ReturnContinuation(&continuation, expr->id());
   }
-  types = CompareNilICStub::Types(expr->compare_nil_types());
-  if (types.IsEmpty()) types = CompareNilICStub::Types::FullCompare();
-  Handle<Map> map_handle = expr->map();
-  BuildCompareNil(value, types, map_handle,
-                  expr->position(), &continuation);
+  Handle<Type> type = expr->compare_nil_type()->Is(Type::None())
+      ? handle(Type::Any(), isolate_) : expr->compare_nil_type();
+  BuildCompareNil(value, type, expr->position(), &continuation);
   return ast_context()->ReturnContinuation(&continuation, expr->id());
 }
 
@@ -10282,9 +10282,9 @@ void HOptimizedGraphBuilder::VisitDeclarations(
     Handle<FixedArray> array =
        isolate()->factory()->NewFixedArray(globals_.length(), TENURED);
     for (int i = 0; i < globals_.length(); ++i) array->set(i, *globals_.at(i));
-    int flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
-                DeclareGlobalsNativeFlag::encode(info()->is_native()) |
-                DeclareGlobalsLanguageMode::encode(info()->language_mode());
+    int flags = DeclareGlobalsEvalFlag::encode(current_info()->is_eval()) |
+        DeclareGlobalsNativeFlag::encode(current_info()->is_native()) |
+        DeclareGlobalsLanguageMode::encode(current_info()->language_mode());
     HInstruction* result = new(zone()) HDeclareGlobals(
         environment()->LookupContext(), array, flags);
     AddInstruction(result);
@@ -10338,8 +10338,8 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
       globals_.Add(variable->name(), zone());
-      Handle<SharedFunctionInfo> function =
-          Compiler::BuildFunctionInfo(declaration->fun(), info()->script());
+      Handle<SharedFunctionInfo> function = Compiler::BuildFunctionInfo(
+          declaration->fun(), current_info()->script());
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
       globals_.Add(function, zone());
@@ -11005,6 +11005,7 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       values_(arguments, zone),
       frame_type_(frame_type),
       parameter_count_(arguments),
+      specials_count_(0),
       local_count_(0),
       outer_(outer),
       entry_(NULL),

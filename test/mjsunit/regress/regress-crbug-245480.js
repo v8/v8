@@ -25,53 +25,66 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_TYPING_H_
-#define V8_TYPING_H_
+// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
+// Flags: --track-allocation-sites --noalways-opt
 
-#include "v8.h"
+// Test element kind of objects.
+// Since --smi-only-arrays affects builtins, its default setting at compile
+// time sticks if built with snapshot.  If --smi-only-arrays is deactivated
+// by default, only a no-snapshot build actually has smi-only arrays enabled
+// in this test case.  Depending on whether smi-only arrays are actually
+// enabled, this test takes the appropriate code path to check smi-only arrays.
 
-#include "allocation.h"
-#include "ast.h"
-#include "compiler.h"
-#include "type-info.h"
-#include "zone.h"
-#include "scopes.h"
+// support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
+support_smi_only_arrays = true;
 
-namespace v8 {
-namespace internal {
+if (support_smi_only_arrays) {
+  print("Tests include smi-only arrays.");
+} else {
+  print("Tests do NOT include smi-only arrays.");
+}
 
+function isHoley(obj) {
+  if (%HasFastHoleyElements(obj)) return true;
+  return false;
+}
 
-class AstTyper: public AstVisitor {
- public:
-  static void Run(CompilationInfo* info);
+function assertHoley(obj, name_opt) {
+  assertEquals(true, isHoley(obj), name_opt);
+}
 
-  void* operator new(size_t size, Zone* zone) {
-    return zone->New(static_cast<int>(size));
+function assertNotHoley(obj, name_opt) {
+  assertEquals(false, isHoley(obj), name_opt);
+}
+
+if (support_smi_only_arrays) {
+  function create_array(arg) {
+    return new Array(arg);
   }
-  void operator delete(void* pointer, Zone* zone) { }
-  void operator delete(void* pointer) { }
 
-  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
+  obj = create_array(0);
+  assertNotHoley(obj);
+  create_array(0);
+  %OptimizeFunctionOnNextCall(create_array);
+  obj = create_array(10);
+  assertHoley(obj);
+}
 
- private:
-  explicit AstTyper(CompilationInfo* info);
+// The code below would assert in debug or crash in release
+function f(length) {
+  return new Array(length)
+}
 
-  CompilationInfo* info_;
-  TypeFeedbackOracle oracle_;
+f(0);
+f(0);
+%OptimizeFunctionOnNextCall(f);
+var a = f(10);
 
-  TypeFeedbackOracle* oracle() { return &oracle_; }
-  Zone* zone() const { return info_->zone(); }
+function g(a) {
+  return a[0];
+}
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
-  void VisitStatements(ZoneList<Statement*>* statements);
-
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-  DISALLOW_COPY_AND_ASSIGN(AstTyper);
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_TYPING_H_
+var b = [0];
+g(b);
+g(b);
+assertEquals(undefined, g(a));

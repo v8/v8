@@ -119,6 +119,8 @@
 //               - ExternalTwoByteInternalizedString
 //         - Symbol
 //       - HeapNumber
+//       - Cell
+//         - JSGlobalPropertyCell
 //       - Code
 //       - Map
 //       - Oddball
@@ -348,7 +350,8 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(MAP_TYPE)                                                                  \
   V(CODE_TYPE)                                                                 \
   V(ODDBALL_TYPE)                                                              \
-  V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
+  V(CELL_TYPE)                                                                 \
+  V(PROPERTY_CELL_TYPE)                                                        \
   V(BOX_TYPE)                                                                  \
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
@@ -669,7 +672,8 @@ enum InstanceType {
   MAP_TYPE,
   CODE_TYPE,
   ODDBALL_TYPE,
-  JS_GLOBAL_PROPERTY_CELL_TYPE,
+  CELL_TYPE,
+  PROPERTY_CELL_TYPE,
   BOX_TYPE,
 
   // "Data", objects that cannot contain non-map-word pointers to heap
@@ -841,6 +845,7 @@ class Failure;
 class FixedArrayBase;
 class ObjectVisitor;
 class StringStream;
+class Type;
 
 struct ValueInfo : public Malloced {
   ValueInfo() : type(FIRST_TYPE), ptr(NULL), str(NULL), number(0) { }
@@ -1011,6 +1016,7 @@ class MaybeObject BASE_EMBEDDED {
   V(JSGlobalProxy)                             \
   V(UndetectableObject)                        \
   V(AccessCheckNeeded)                         \
+  V(Cell)                                      \
   V(JSGlobalPropertyCell)                      \
   V(ObjectHashTable)                           \
 
@@ -4378,6 +4384,7 @@ class DeoptimizationOutputData: public FixedArray {
 
 
 // Forward declaration.
+class Cell;
 class JSGlobalPropertyCell;
 
 // TypeFeedbackCells is a fixed array used to hold the association between
@@ -4395,8 +4402,8 @@ class TypeFeedbackCells: public FixedArray {
   inline void SetAstId(int index, TypeFeedbackId id);
 
   // Accessors for global property cells holding the cache values.
-  inline JSGlobalPropertyCell* Cell(int index);
-  inline void SetCell(int index, JSGlobalPropertyCell* cell);
+  inline Cell* GetCell(int index);
+  inline void SetCell(int index, Cell* cell);
 
   // The object that indicates an uninitialized cache.
   static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
@@ -4662,7 +4669,7 @@ class Code: public HeapObject {
   inline byte to_boolean_state();
 
   // [compare_nil]: For kind COMPARE_NIL_IC tells what state the stub is in.
-  byte compare_nil_types();
+  byte compare_nil_state();
 
   // [has_function_cache]: For kind STUB tells whether there is a function
   // cache is passed to the stub.
@@ -4825,6 +4832,7 @@ class Code: public HeapObject {
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
+  int GetAge();
 
   void PrintDeoptLocation(int bailout_id);
 
@@ -4966,8 +4974,8 @@ class Code: public HeapObject {
 
   // Code aging
   byte* FindCodeAgeSequence();
-  static void  GetCodeAgeAndParity(Code* code, Age* age,
-                                   MarkingParity* parity);
+  static void GetCodeAgeAndParity(Code* code, Age* age,
+                                  MarkingParity* parity);
   static void GetCodeAgeAndParity(byte* sequence, Age* age,
                                   MarkingParity* parity);
   static Code* GetCodeAgeStub(Age age, MarkingParity parity);
@@ -4979,6 +4987,8 @@ class Code: public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
 };
 
+
+class CompilationInfo;
 
 // This class describes the layout of dependent codes array of a map. The
 // array is partitioned into several groups of dependent codes. Each group
@@ -5033,8 +5043,14 @@ class DependentCode: public FixedArray {
 
   bool Contains(DependencyGroup group, Code* code);
   static Handle<DependentCode> Insert(Handle<DependentCode> entries,
-                                       DependencyGroup group,
-                                       Handle<Code> value);
+                                      DependencyGroup group,
+                                      Handle<Object> object);
+  void UpdateToFinishedCode(DependencyGroup group,
+                            CompilationInfo* info,
+                            Code* code);
+  void RemoveCompilationInfo(DependentCode::DependencyGroup group,
+                             CompilationInfo* info);
+
   void DeoptimizeDependentCodeGroup(Isolate* isolate,
                                     DependentCode::DependencyGroup group);
 
@@ -5042,10 +5058,14 @@ class DependentCode: public FixedArray {
   // and the mark compact collector.
   inline int number_of_entries(DependencyGroup group);
   inline void set_number_of_entries(DependencyGroup group, int value);
+  inline bool is_code_at(int i);
   inline Code* code_at(int i);
-  inline void set_code_at(int i, Code* value);
-  inline Object** code_slot_at(int i);
-  inline void clear_code_at(int i);
+  inline CompilationInfo* compilation_info_at(int i);
+  inline void set_object_at(int i, Object* object);
+  inline Object** slot_at(int i);
+  inline Object* object_at(int i);
+  inline void clear_at(int i);
+  inline void copy(int from, int to);
   static inline DependentCode* cast(Object* object);
 
  private:
@@ -5388,7 +5408,7 @@ class Map: public HeapObject {
     set_bit_field3(NumberOfOwnDescriptorsBits::update(bit_field3(), number));
   }
 
-  inline JSGlobalPropertyCell* RetrieveDescriptorsPointer();
+  inline Cell* RetrieveDescriptorsPointer();
 
   int EnumLength() {
     return EnumLengthBits::decode(bit_field3());
@@ -5554,8 +5574,11 @@ class Map: public HeapObject {
 
   inline bool CanOmitPrototypeChecks();
 
-  inline void AddDependentCode(DependentCode::DependencyGroup group,
-                               Handle<Code> code);
+  void AddDependentCompilationInfo(DependentCode::DependencyGroup group,
+                                        CompilationInfo* info);
+
+  void AddDependentCode(DependentCode::DependencyGroup group,
+                        Handle<Code> code);
 
   bool IsMapInArrayPrototypeChain();
 
@@ -6564,8 +6587,6 @@ class JSFunction: public JSObject {
   // [shared]: The information about the function that
   // can be shared by instances.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
-
-  inline SharedFunctionInfo* unchecked_shared();
 
   // [context]: The context for this function.
   inline Context* context();
@@ -8539,16 +8560,18 @@ class Oddball: public HeapObject {
 };
 
 
-class JSGlobalPropertyCell: public HeapObject {
+class Cell: public HeapObject {
  public:
   // [value]: value of the global property.
   DECL_ACCESSORS(value, Object)
 
   // Casting.
-  static inline JSGlobalPropertyCell* cast(Object* obj);
+  static inline Cell* cast(Object* obj);
 
-  static inline JSGlobalPropertyCell* FromValueAddress(Address value) {
-    return cast(FromAddress(value - kValueOffset));
+  static inline Cell* FromValueAddress(Address value) {
+    Object* result = FromAddress(value - kValueOffset);
+    ASSERT(result->IsCell() || result->IsJSGlobalPropertyCell());
+    return static_cast<Cell*>(result);
   }
 
   inline Address ValueAddress() {
@@ -8556,8 +8579,8 @@ class JSGlobalPropertyCell: public HeapObject {
   }
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSGlobalPropertyCell)
-  DECLARE_VERIFIER(JSGlobalPropertyCell)
+  DECLARE_PRINTER(Cell)
+  DECLARE_VERIFIER(Cell)
 
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;
@@ -8568,6 +8591,37 @@ class JSGlobalPropertyCell: public HeapObject {
                               kSize> BodyDescriptor;
 
  private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Cell);
+};
+
+
+class JSGlobalPropertyCell: public Cell {
+ public:
+  Type* type();
+  void set_type(Type* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Casting.
+  static inline JSGlobalPropertyCell* cast(Object* obj);
+
+  inline Address TypeAddress() {
+    return address() + kTypeOffset;
+  }
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSGlobalPropertyCell)
+  DECLARE_VERIFIER(JSGlobalPropertyCell)
+
+  // Layout description.
+  static const int kTypeOffset = kValueOffset + kPointerSize;
+  static const int kSize = kTypeOffset + kPointerSize;
+
+  typedef FixedBodyDescriptor<
+      kValueOffset,
+      kTypeOffset + kPointerSize,
+      JSGlobalPropertyCell::kSize> BodyDescriptor;
+
+ private:
+  DECL_ACCESSORS(type_raw, Object)
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalPropertyCell);
 };
 
@@ -9587,7 +9641,7 @@ class ObjectVisitor BASE_EMBEDDED {
   virtual void VisitCodeEntry(Address entry_address);
 
   // Visits a global property cell reference in the instruction stream.
-  virtual void VisitGlobalPropertyCell(RelocInfo* rinfo);
+  virtual void VisitCell(RelocInfo* rinfo);
 
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(RelocInfo* rinfo) {}

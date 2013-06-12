@@ -44,7 +44,7 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 static int CountArrayBuffersInWeakList(Heap* heap) {
   int count = 0;
   for (Object* o = heap->array_buffers_list();
-       o != Smi::FromInt(0);
+       !o->IsUndefined();
        o = JSArrayBuffer::cast(o)->weak_next()) {
     count++;
   }
@@ -54,7 +54,7 @@ static int CountArrayBuffersInWeakList(Heap* heap) {
 
 static bool HasArrayBufferInWeakList(Heap* heap, JSArrayBuffer* ab) {
   for (Object* o = heap->array_buffers_list();
-       o != Smi::FromInt(0);
+       !o->IsUndefined();
        o = JSArrayBuffer::cast(o)->weak_next()) {
     if (ab == o) return true;
   }
@@ -65,7 +65,7 @@ static bool HasArrayBufferInWeakList(Heap* heap, JSArrayBuffer* ab) {
 static int CountTypedArrays(JSArrayBuffer* array_buffer) {
   int count = 0;
   for (Object* o = array_buffer->weak_first_array();
-       o != Smi::FromInt(0);
+       !o->IsUndefined();
        o = JSTypedArray::cast(o)->weak_next()) {
     count++;
   }
@@ -76,7 +76,7 @@ static int CountTypedArrays(JSArrayBuffer* array_buffer) {
 static bool HasTypedArrayInWeakList(JSArrayBuffer* array_buffer,
                                     JSTypedArray* ta) {
   for (Object* o = array_buffer->weak_first_array();
-       o != Smi::FromInt(0);
+       !o->IsUndefined();
        o = JSTypedArray::cast(o)->weak_next()) {
     if (ta == o) return true;
   }

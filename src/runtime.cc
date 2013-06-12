@@ -691,7 +691,7 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
 
   array_buffer->set_weak_next(isolate->heap()->array_buffers_list());
   isolate->heap()->set_array_buffers_list(*array_buffer);
-  array_buffer->set_weak_first_array(Smi::FromInt(0));
+  array_buffer->set_weak_first_array(isolate->heap()->undefined_value());
 }
 
 
@@ -8097,13 +8097,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_WaitUntilOptimized) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CompleteOptimization) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (FLAG_parallel_recompilation) {
-    if (V8::UseCrankshaft() && function->IsOptimizable()) {
-      while (!function->IsOptimized()) OS::Sleep(50);
+  if (FLAG_parallel_recompilation && V8::UseCrankshaft()) {
+    // While function is in optimization pipeline, it is marked with builtins.
+    while (function->code()->kind() == Code::BUILTIN) {
+      isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
+      OS::Sleep(50);
     }
   }
   return isolate->heap()->undefined_value();
@@ -13479,9 +13481,9 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
   MaybeObject* maybe_array;
   if (!type_info.is_null() &&
       *type_info != isolate->heap()->undefined_value() &&
-      JSGlobalPropertyCell::cast(*type_info)->value()->IsSmi() &&
+      Cell::cast(*type_info)->value()->IsSmi() &&
       can_use_type_feedback) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(*type_info);
+    Cell* cell = Cell::cast(*type_info);
     Smi* smi = Smi::cast(cell->value());
     ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
     if (holey && !IsFastHoleyElementsKind(to_kind)) {

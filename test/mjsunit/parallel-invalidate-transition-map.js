@@ -25,53 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_TYPING_H_
-#define V8_TYPING_H_
+// Flags: --track-fields --track-double-fields --allow-natives-syntax
+// Flags: --parallel-recompilation --parallel-recompilation-delay=50
 
-#include "v8.h"
+function assertUnoptimized(fun) {
+  assertTrue(%GetOptimizationStatus(fun) != 1);
+}
 
-#include "allocation.h"
-#include "ast.h"
-#include "compiler.h"
-#include "type-info.h"
-#include "zone.h"
-#include "scopes.h"
+function new_object() {
+  var o = {};
+  o.a = 1;
+  o.b = 2;
+  return o;
+}
 
-namespace v8 {
-namespace internal {
+function add_field(obj) {
+  obj.c = 3;
+}
 
+add_field(new_object());
+add_field(new_object());
+%OptimizeFunctionOnNextCall(add_field, "parallel");
 
-class AstTyper: public AstVisitor {
- public:
-  static void Run(CompilationInfo* info);
+var o = new_object();
+add_field(o);                      // Trigger optimization.
+assertUnoptimized(add_field);      // Not yet optimized.
+o.c = 2.2;                         // Invalidate transition map.
+%CompleteOptimization(add_field);  // Conclude optimization with...
+assertUnoptimized(add_field);      // ... bailing out due to map dependency.
 
-  void* operator new(size_t size, Zone* zone) {
-    return zone->New(static_cast<int>(size));
-  }
-  void operator delete(void* pointer, Zone* zone) { }
-  void operator delete(void* pointer) { }
-
-  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
-
- private:
-  explicit AstTyper(CompilationInfo* info);
-
-  CompilationInfo* info_;
-  TypeFeedbackOracle oracle_;
-
-  TypeFeedbackOracle* oracle() { return &oracle_; }
-  Zone* zone() const { return info_->zone(); }
-
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
-  void VisitStatements(ZoneList<Statement*>* statements);
-
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-  DISALLOW_COPY_AND_ASSIGN(AstTyper);
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_TYPING_H_

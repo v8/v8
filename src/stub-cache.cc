@@ -1977,7 +1977,7 @@ bool CallStubCompiler::HasCustomCallGenerator(Handle<JSFunction> function) {
 Handle<Code> CallStubCompiler::CompileCustomCall(
     Handle<Object> object,
     Handle<JSObject> holder,
-    Handle<JSGlobalPropertyCell> cell,
+    Handle<Cell> cell,
     Handle<JSFunction> function,
     Handle<String> fname) {
   ASSERT(HasCustomCallGenerator(function));

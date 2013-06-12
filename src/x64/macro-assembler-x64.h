@@ -810,7 +810,7 @@ class MacroAssembler: public Assembler {
   }
 
   // Load a global cell into a register.
-  void LoadGlobalCell(Register dst, Handle<JSGlobalPropertyCell> cell);
+  void LoadGlobalCell(Register dst, Handle<Cell> cell);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the rsp register.

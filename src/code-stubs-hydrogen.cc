@@ -733,12 +733,13 @@ Handle<Code> InternalArrayNArgumentsConstructorStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
+  Isolate* isolate = graph()->isolate();
   CompareNilICStub* stub = casted_stub();
   HIfContinuation continuation;
-  Handle<Map> sentinel_map(graph()->isolate()->heap()->meta_map());
-  BuildCompareNil(GetParameter(0),
-                  stub->GetTypes(), sentinel_map,
-                  RelocInfo::kNoPosition, &continuation);
+  Handle<Map> sentinel_map(isolate->heap()->meta_map());
+  Handle<Type> type =
+      CompareNilICStub::StateToType(isolate, stub->GetState(), sentinel_map);
+  BuildCompareNil(GetParameter(0), type, RelocInfo::kNoPosition, &continuation);
   IfBuilder if_nil(this, &continuation);
   if_nil.Then();
   if (continuation.IsFalseReachable()) {

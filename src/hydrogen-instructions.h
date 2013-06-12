@@ -2016,6 +2016,9 @@ enum InliningKind {
 };
 
 
+class HArgumentsObject;
+
+
 class HEnterInlined: public HTemplateInstruction<0> {
  public:
   HEnterInlined(Handle<JSFunction> closure,
@@ -2023,7 +2026,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 FunctionLiteral* function,
                 InliningKind inlining_kind,
                 Variable* arguments_var,
-                ZoneList<HValue*>* arguments_values,
+                HArgumentsObject* arguments_object,
                 bool undefined_receiver,
                 Zone* zone)
       : closure_(closure),
@@ -2032,7 +2035,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
         function_(function),
         inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
-        arguments_values_(arguments_values),
+        arguments_object_(arguments_object),
         undefined_receiver_(undefined_receiver),
         return_targets_(2, zone) {
   }
@@ -2055,7 +2058,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   }
 
   Variable* arguments_var() { return arguments_var_; }
-  ZoneList<HValue*>* arguments_values() { return arguments_values_; }
+  HArgumentsObject* arguments_object() { return arguments_object_; }
 
   DECLARE_CONCRETE_INSTRUCTION(EnterInlined)
 
@@ -2066,7 +2069,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   FunctionLiteral* function_;
   InliningKind inlining_kind_;
   Variable* arguments_var_;
-  ZoneList<HValue*>* arguments_values_;
+  HArgumentsObject* arguments_object_;
   bool undefined_receiver_;
   ZoneList<HBasicBlock*> return_targets_;
 };
@@ -2473,14 +2476,14 @@ class HCallNew: public HBinaryCall {
 class HCallNewArray: public HCallNew {
  public:
   HCallNewArray(HValue* context, HValue* constructor, int argument_count,
-              Handle<JSGlobalPropertyCell> type_cell)
+                Handle<Cell> type_cell)
       : HCallNew(context, constructor, argument_count),
         type_cell_(type_cell) {
     elements_kind_ = static_cast<ElementsKind>(
         Smi::cast(type_cell->value())->value());
   }
 
-  Handle<JSGlobalPropertyCell> property_cell() const {
+  Handle<Cell> property_cell() const {
     return type_cell_;
   }
 
@@ -2490,7 +2493,7 @@ class HCallNewArray: public HCallNew {
 
  private:
   ElementsKind elements_kind_;
-  Handle<JSGlobalPropertyCell> type_cell_;
+  Handle<Cell> type_cell_;
 };
 
 
@@ -2977,20 +2980,32 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
  public:
   HCheckPrototypeMaps(Handle<JSObject> prototype,
                       Handle<JSObject> holder,
-                      Zone* zone)
+                      Zone* zone,
+                      CompilationInfo* info)
       : prototypes_(2, zone),
         maps_(2, zone),
         first_prototype_unique_id_(),
-        last_prototype_unique_id_() {
+        last_prototype_unique_id_(),
+        can_omit_prototype_maps_(true) {
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
     // Keep a list of all objects on the prototype chain up to the holder
     // and the expected maps.
     while (true) {
       prototypes_.Add(prototype, zone);
-      maps_.Add(Handle<Map>(prototype->map()), zone);
+      Handle<Map> map(prototype->map());
+      maps_.Add(map, zone);
+      can_omit_prototype_maps_ &= map->CanOmitPrototypeChecks();
       if (prototype.is_identical_to(holder)) break;
       prototype = Handle<JSObject>(JSObject::cast(prototype->GetPrototype()));
+    }
+    if (can_omit_prototype_maps_) {
+      // Mark in-flight compilation as dependent on those maps.
+      for (int i = 0; i < maps()->length(); i++) {
+        Handle<Map> map = maps()->at(i);
+        map->AddDependentCompilationInfo(DependentCode::kPrototypeCheckGroup,
+                                         info);
+      }
     }
   }
 
@@ -3016,12 +3031,7 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
     last_prototype_unique_id_ = UniqueValueId(prototypes_.last());
   }
 
-  bool CanOmitPrototypeChecks() {
-    for (int i = 0; i < maps()->length(); i++) {
-      if (!maps()->at(i)->CanOmitPrototypeChecks()) return false;
-    }
-    return true;
-  }
+  bool CanOmitPrototypeChecks() { return can_omit_prototype_maps_; }
 
  protected:
   virtual bool DataEquals(HValue* other) {
@@ -3035,6 +3045,7 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   ZoneList<Handle<Map> > maps_;
   UniqueValueId first_prototype_unique_id_;
   UniqueValueId last_prototype_unique_id_;
+  bool can_omit_prototype_maps_;
 };
 
 
@@ -3194,10 +3205,21 @@ class HInductionVariableAnnotation : public HUnaryOperation {
 
 class HArgumentsObject: public HTemplateInstruction<0> {
  public:
-  HArgumentsObject() {
+  HArgumentsObject(int count, Zone* zone) : values_(count, zone) {
     set_representation(Representation::Tagged());
     SetFlag(kIsArguments);
   }
+
+  const ZoneList<HValue*>* arguments_values() const { return &values_; }
+  int arguments_count() const { return values_.length(); }
+
+  void AddArgument(HValue* argument, Zone* zone) {
+    values_.Add(NULL, zone);  // Resize list.
+    SetOperandAt(values_.length() - 1, argument);
+  }
+
+  virtual int OperandCount() { return values_.length(); }
+  virtual HValue* OperandAt(int index) const { return values_[index]; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -3205,8 +3227,15 @@ class HArgumentsObject: public HTemplateInstruction<0> {
 
   DECLARE_CONCRETE_INSTRUCTION(ArgumentsObject)
 
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value) {
+    values_[index] = value;
+  }
+
  private:
   virtual bool IsDeletable() const { return true; }
+
+  ZoneList<HValue*> values_;
 };
 
 
@@ -4824,14 +4853,14 @@ class HUnknownOSRValue: public HTemplateInstruction<0> {
 
 class HLoadGlobalCell: public HTemplateInstruction<0> {
  public:
-  HLoadGlobalCell(Handle<JSGlobalPropertyCell> cell, PropertyDetails details)
+  HLoadGlobalCell(Handle<Cell> cell, PropertyDetails details)
       : cell_(cell), details_(details), unique_id_() {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnGlobalVars);
   }
 
-  Handle<JSGlobalPropertyCell> cell() const { return cell_; }
+  Handle<Cell> cell() const { return cell_; }
   bool RequiresHoleCheck() const;
 
   virtual void PrintDataTo(StringStream* stream);
@@ -4859,7 +4888,7 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
  private:
   virtual bool IsDeletable() const { return !RequiresHoleCheck(); }
 
-  Handle<JSGlobalPropertyCell> cell_;
+  Handle<Cell> cell_;
   PropertyDetails details_;
   UniqueValueId unique_id_;
 };
@@ -5691,6 +5720,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
                        = Representation::Tagged())
       : access_(access),
         field_representation_(field_representation),
+        transition_(),
         transition_unique_id_(),
         new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
@@ -5722,7 +5752,13 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HObjectAccess access() const { return access_; }
   Handle<Map> transition() const { return transition_; }
   UniqueValueId transition_unique_id() const { return transition_unique_id_; }
-  void set_transition(Handle<Map> map) { transition_ = map; }
+  void SetTransition(Handle<Map> map, CompilationInfo* info) {
+    ASSERT(transition_.is_null());  // Only set once.
+    if (map->CanBeDeprecated()) {
+      map->AddDependentCompilationInfo(DependentCode::kTransitionGroup, info);
+    }
+    transition_ = map;
+  }
   HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {

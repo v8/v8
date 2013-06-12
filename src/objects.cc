@@ -631,7 +631,7 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
   if (IsGlobalObject()) {
     value = JSGlobalPropertyCell::cast(value)->value();
   }
-  ASSERT(!value->IsJSGlobalPropertyCell());
+  ASSERT(!value->IsJSGlobalPropertyCell() && !value->IsCell());
   return value;
 }
 
@@ -639,9 +639,8 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
 Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
   ASSERT(!HasFastProperties());
   if (IsGlobalObject()) {
-    JSGlobalPropertyCell* cell =
-        JSGlobalPropertyCell::cast(
-            property_dictionary()->ValueAt(result->GetDictionaryEntry()));
+    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(
+        property_dictionary()->ValueAt(result->GetDictionaryEntry()));
     cell->set_value(value);
   } else {
     property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
@@ -1385,7 +1384,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
                        global_object ? "Global Object: " : "",
                        vowel ? "n" : "");
                 accumulator->Put(str);
-                accumulator->Add(" with %smap 0x%p",
+                accumulator->Add(" with %smap %p",
                     map_of_this->is_deprecated() ? "deprecated " : "",
                     map_of_this);
                 printed = true;
@@ -1567,8 +1566,12 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case FOREIGN_TYPE:
       accumulator->Add("<Foreign>");
       break;
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+    case CELL_TYPE:
       accumulator->Add("Cell for ");
+      Cell::cast(this)->value()->ShortPrint(accumulator);
+      break;
+    case PROPERTY_CELL_TYPE:
+      accumulator->Add("PropertyCell for ");
       JSGlobalPropertyCell::cast(this)->value()->ShortPrint(accumulator);
       break;
     default:
@@ -1661,7 +1664,10 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case CODE_TYPE:
       reinterpret_cast<Code*>(this)->CodeIterateBody(v);
       break;
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+    case CELL_TYPE:
+      Cell::BodyDescriptor::IterateBody(this, v);
+      break;
+    case PROPERTY_CELL_TYPE:
       JSGlobalPropertyCell::BodyDescriptor::IterateBody(this, v);
       break;
     case SYMBOL_TYPE:
@@ -8905,8 +8911,8 @@ AllocationSiteInfo* AllocationSiteInfo::FindForJSObject(JSObject* object) {
 
 bool AllocationSiteInfo::GetElementsKindPayload(ElementsKind* kind) {
   ASSERT(kind != NULL);
-  if (payload()->IsJSGlobalPropertyCell()) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(payload());
+  if (payload()->IsCell()) {
+    Cell* cell = Cell::cast(payload());
     Object* cell_contents = cell->value();
     if (cell_contents->IsSmi()) {
       *kind = static_cast<ElementsKind>(
@@ -9980,13 +9986,13 @@ void ObjectVisitor::VisitCodeEntry(Address entry_address) {
 }
 
 
-void ObjectVisitor::VisitGlobalPropertyCell(RelocInfo* rinfo) {
-  ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
+void ObjectVisitor::VisitCell(RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::CELL);
   Object* cell = rinfo->target_cell();
   Object* old_cell = cell;
   VisitPointer(&cell);
   if (cell != old_cell) {
-    rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell));
+    rinfo->set_target_cell(reinterpret_cast<Cell*>(cell));
   }
 }
 
@@ -10012,7 +10018,7 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
   VisitExternalReferences(p, p + 1);
 }
 
-byte Code::compare_nil_types() {
+byte Code::compare_nil_state() {
   ASSERT(is_compare_nil_ic_stub());
   return CompareNilICStub::ExtractTypesFromExtraICState(
       extended_extra_ic_state());
@@ -10048,7 +10054,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
   intptr_t delta = instruction_start() - desc.buffer;
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::GLOBAL_PROPERTY_CELL) |
+                  RelocInfo::ModeMask(RelocInfo::CELL) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
                   RelocInfo::kApplyMask;
   // Needed to find target_object and runtime_entry on X64
@@ -10059,8 +10065,8 @@ void Code::CopyFrom(const CodeDesc& desc) {
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(*p, SKIP_WRITE_BARRIER);
-    } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-      Handle<JSGlobalPropertyCell> cell  = it.rinfo()->target_cell_handle();
+    } else if (mode == RelocInfo::CELL) {
+      Handle<Cell> cell  = it.rinfo()->target_cell_handle();
       it.rinfo()->set_target_cell(*cell, SKIP_WRITE_BARRIER);
     } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct
@@ -10246,7 +10252,7 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
     TypeFeedbackCells* type_feedback_cells =
         TypeFeedbackInfo::cast(raw_info)->type_feedback_cells();
     for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
-      JSGlobalPropertyCell* cell = type_feedback_cells->Cell(i);
+      Cell* cell = type_feedback_cells->GetCell(i);
       cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
     }
   }
@@ -10296,6 +10302,18 @@ byte* Code::FindCodeAgeSequence() {
        (kind() == FUNCTION && !has_debug_break_slots()))
       ? instruction_start() + prologue_offset()
       : NULL;
+}
+
+
+int Code::GetAge() {
+  byte* sequence = FindCodeAgeSequence();
+  if (sequence == NULL) {
+    return Code::kNoAge;
+  }
+  Age age;
+  MarkingParity parity;
+  GetCodeAgeAndParity(sequence, &age, &parity);
+  return age;
 }
 
 
@@ -10538,11 +10556,8 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         }
 
         case Translation::ARGUMENTS_OBJECT: {
-          bool args_known = iterator.Next();
-          int args_index = iterator.Next();
           int args_length = iterator.Next();
-          PrintF(out, "{index=%d, length=%d, known=%d}",
-                 args_index, args_length, args_known);
+          PrintF(out, "{length=%d}", args_length);
           break;
         }
       }
@@ -11091,6 +11106,24 @@ void Map::ZapPrototypeTransitions() {
 }
 
 
+void Map::AddDependentCompilationInfo(DependentCode::DependencyGroup group,
+                                      CompilationInfo* info) {
+  Handle<DependentCode> dep(dependent_code());
+  Handle<DependentCode> codes =
+      DependentCode::Insert(dep, group, info->object_wrapper());
+  if (*codes != dependent_code()) set_dependent_code(*codes);
+  info->dependent_maps(group)->Add(Handle<Map>(this), info->zone());
+}
+
+
+void Map::AddDependentCode(DependentCode::DependencyGroup group,
+                           Handle<Code> code) {
+  Handle<DependentCode> codes = DependentCode::Insert(
+      Handle<DependentCode>(dependent_code()), group, code);
+  if (*codes != dependent_code()) set_dependent_code(*codes);
+}
+
+
 DependentCode::GroupStartIndexes::GroupStartIndexes(DependentCode* entries) {
   Recompute(entries);
 }
@@ -11107,13 +11140,13 @@ void DependentCode::GroupStartIndexes::Recompute(DependentCode* entries) {
 
 Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
                                             DependencyGroup group,
-                                            Handle<Code> value) {
+                                            Handle<Object> object) {
   GroupStartIndexes starts(*entries);
   int start = starts.at(group);
   int end = starts.at(group + 1);
   int number_of_entries = starts.number_of_entries();
-  if (start < end && entries->code_at(end - 1) == *value) {
-    // Do not append the code if it is already in the array.
+  if (start < end && entries->object_at(end - 1) == *object) {
+    // Do not append the compilation info if it is already in the array.
     // It is sufficient to just check only the last element because
     // we process embedded maps of an optimized code in one batch.
     return entries;
@@ -11130,7 +11163,7 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
     end = starts.at(group + 1);
     number_of_entries = starts.number_of_entries();
     for (int i = 0; i < number_of_entries; i++) {
-      entries->clear_code_at(i);
+      entries->clear_at(i);
     }
     // If the old fixed array was empty, we need to reset counters of the
     // new array.
@@ -11142,17 +11175,79 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
     entries = new_entries;
   }
   entries->ExtendGroup(group);
-  entries->set_code_at(end, *value);
+  entries->set_object_at(end, *object);
   entries->set_number_of_entries(group, end + 1 - start);
   return entries;
 }
 
 
+void DependentCode::UpdateToFinishedCode(DependencyGroup group,
+                                         CompilationInfo* info,
+                                         Code* code) {
+  DisallowHeapAllocation no_gc;
+  AllowDeferredHandleDereference get_object_wrapper;
+  Foreign* info_wrapper = *info->object_wrapper();
+  GroupStartIndexes starts(this);
+  int start = starts.at(group);
+  int end = starts.at(group + 1);
+  for (int i = start; i < end; i++) {
+    if (object_at(i) == info_wrapper) {
+      set_object_at(i, code);
+      break;
+    }
+  }
+
+#ifdef DEBUG
+  for (int i = start; i < end; i++) {
+    ASSERT(is_code_at(i) || compilation_info_at(i) != info);
+  }
+#endif
+}
+
+
+void DependentCode::RemoveCompilationInfo(DependentCode::DependencyGroup group,
+                                          CompilationInfo* info) {
+  DisallowHeapAllocation no_allocation;
+  AllowDeferredHandleDereference get_object_wrapper;
+  Foreign* info_wrapper = *info->object_wrapper();
+  GroupStartIndexes starts(this);
+  int start = starts.at(group);
+  int end = starts.at(group + 1);
+  // Find compilation info wrapper.
+  int info_pos = -1;
+  for (int i = start; i < end; i++) {
+    if (object_at(i) == info_wrapper) {
+      info_pos = i;
+      break;
+    }
+  }
+  if (info_pos == -1) return;  // Not found.
+  int gap = info_pos;
+  // Use the last of each group to fill the gap in the previous group.
+  for (int i = group; i < kGroupCount; i++) {
+    int last_of_group = starts.at(i + 1) - 1;
+    ASSERT(last_of_group >= gap);
+    if (last_of_group == gap) continue;
+    copy(last_of_group, gap);
+    gap = last_of_group;
+  }
+  ASSERT(gap == starts.number_of_entries() - 1);
+  clear_at(gap);  // Clear last gap.
+  set_number_of_entries(group, end - start - 1);
+
+#ifdef DEBUG
+  for (int i = start; i < end - 1; i++) {
+    ASSERT(is_code_at(i) || compilation_info_at(i) != info);
+  }
+#endif
+}
+
+
 bool DependentCode::Contains(DependencyGroup group, Code* code) {
   GroupStartIndexes starts(this);
-  int number_of_entries = starts.at(kGroupCount);
+  int number_of_entries = starts.number_of_entries();
   for (int i = 0; i < number_of_entries; i++) {
-    if (code_at(i) == code) return true;
+    if (object_at(i) == code) return true;
   }
   return false;
 }
@@ -11173,20 +11268,25 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   DependentCode::GroupStartIndexes starts(this);
   int start = starts.at(group);
   int end = starts.at(group + 1);
-  int number_of_entries = starts.at(DependentCode::kGroupCount);
+  int code_entries = starts.number_of_entries();
   if (start == end) return;
   for (int i = start; i < end; i++) {
-    Code* code = code_at(i);
-    code->set_marked_for_deoptimization(true);
+    if (is_code_at(i)) {
+      Code* code = code_at(i);
+      code->set_marked_for_deoptimization(true);
+    } else {
+      CompilationInfo* info = compilation_info_at(i);
+      info->AbortDueToDependentMap();
+    }
   }
   // Compact the array by moving all subsequent groups to fill in the new holes.
-  for (int src = end, dst = start; src < number_of_entries; src++, dst++) {
-    set_code_at(dst, code_at(src));
+  for (int src = end, dst = start; src < code_entries; src++, dst++) {
+    copy(src, dst);
   }
   // Now the holes are at the end of the array, zap them for heap-verifier.
   int removed = end - start;
-  for (int i = number_of_entries - removed; i < number_of_entries; i++) {
-    clear_code_at(i);
+  for (int i = code_entries - removed; i < code_entries; i++) {
+    clear_at(i);
   }
   set_number_of_entries(group, 0);
   DeoptimizeDependentCodeFilter filter;
@@ -12236,8 +12336,8 @@ MaybeObject* JSObject::UpdateAllocationSiteInfo(ElementsKind to_kind) {
         return payload->TransitionElementsKind(to_kind);
       }
     }
-  } else if (info->payload()->IsJSGlobalPropertyCell()) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(info->payload());
+  } else if (info->payload()->IsCell()) {
+    Cell* cell = Cell::cast(info->payload());
     Object* cell_contents = cell->value();
     if (cell_contents->IsSmi()) {
       ElementsKind kind = static_cast<ElementsKind>(
@@ -15709,5 +15809,16 @@ void JSTypedArray::Neuter() {
   set_length(Smi::FromInt(0));
   set_elements(GetHeap()->EmptyExternalArrayForMap(map()));
 }
+
+
+Type* JSGlobalPropertyCell::type() {
+  return static_cast<Type*>(type_raw());
+}
+
+
+void JSGlobalPropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
+  set_type_raw(type, ignored);
+}
+
 
 } }  // namespace v8::internal

@@ -1,3 +1,15 @@
+2013-06-13: Version 3.19.14
+
+        Fixed crashes when calling new Array(a) with a single argument that
+        could result in creating a holey array with a packed elements kind.
+        (Chromium issue 245480)
+
+        Fixed issues in parallel compilation.
+        (Chromium issue 248076)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-06-11: Version 3.19.13
 
         Performance and stability improvements on all platforms.

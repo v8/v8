@@ -63,12 +63,16 @@ namespace internal {
      V8.MemoryExternalFragmentationMapSpace)                          \
   HP(external_fragmentation_cell_space,                               \
      V8.MemoryExternalFragmentationCellSpace)                         \
+  HP(external_fragmentation_property_cell_space,                      \
+     V8.MemoryExternalFragmentationPropertyCellSpace)                 \
   HP(external_fragmentation_lo_space,                                 \
      V8.MemoryExternalFragmentationLoSpace)                           \
   HP(heap_fraction_map_space,                                         \
      V8.MemoryHeapFractionMapSpace)                                   \
   HP(heap_fraction_cell_space,                                        \
      V8.MemoryHeapFractionCellSpace)                                  \
+  HP(heap_fraction_property_cell_space,                               \
+     V8.MemoryHeapFractionPropertyCellSpace)                          \
 
 
 #define HISTOGRAM_MEMORY_LIST(HM)                                     \
@@ -77,7 +81,9 @@ namespace internal {
   HM(heap_sample_map_space_committed,                                 \
      V8.MemoryHeapSampleMapSpaceCommitted)                            \
   HM(heap_sample_cell_space_committed,                                \
-     V8.MemoryHeapSampleCellSpaceCommitted)
+     V8.MemoryHeapSampleCellSpaceCommitted)                           \
+  HM(heap_sample_property_cell_space_committed,                       \
+     V8.MemoryHeapSamplePropertyCellSpaceCommitted)                   \
 
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
@@ -297,6 +303,12 @@ namespace internal {
   SC(cell_space_bytes_available, V8.MemoryCellSpaceBytesAvailable)    \
   SC(cell_space_bytes_committed, V8.MemoryCellSpaceBytesCommitted)    \
   SC(cell_space_bytes_used, V8.MemoryCellSpaceBytesUsed)              \
+  SC(property_cell_space_bytes_available,                             \
+     V8.MemoryPropertyCellSpaceBytesAvailable)                        \
+  SC(property_cell_space_bytes_committed,                             \
+     V8.MemoryPropertyCellSpaceBytesCommitted)                        \
+  SC(property_cell_space_bytes_used,                                  \
+     V8.MemoryPropertyCellSpaceBytesUsed)                             \
   SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)        \
   SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)        \
   SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)

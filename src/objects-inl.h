@@ -668,7 +668,8 @@ template <> inline bool Is<JSFunction>(Object* obj) {
 
 TYPE_CHECKER(Code, CODE_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
-TYPE_CHECKER(JSGlobalPropertyCell, JS_GLOBAL_PROPERTY_CELL_TYPE)
+TYPE_CHECKER(Cell, CELL_TYPE)
+TYPE_CHECKER(JSGlobalPropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
 TYPE_CHECKER(JSGeneratorObject, JS_GENERATOR_OBJECT_TYPE)
 TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
@@ -1621,15 +1622,25 @@ void Oddball::set_kind(byte value) {
 }
 
 
-Object* JSGlobalPropertyCell::value() {
+Object* Cell::value() {
   return READ_FIELD(this, kValueOffset);
 }
 
 
-void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
+void Cell::set_value(Object* val, WriteBarrierMode ignored) {
   // The write barrier is not used for global property cells.
-  ASSERT(!val->IsJSGlobalPropertyCell());
+  ASSERT(!val->IsJSGlobalPropertyCell() && !val->IsCell());
   WRITE_FIELD(this, kValueOffset, val);
+}
+
+
+Object* JSGlobalPropertyCell::type_raw() {
+  return READ_FIELD(this, kTypeOffset);
+}
+
+
+void JSGlobalPropertyCell::set_type_raw(Object* val, WriteBarrierMode ignored) {
+  WRITE_FIELD(this, kTypeOffset, val);
 }
 
 
@@ -2552,6 +2563,7 @@ CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(Oddball)
+CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(JSGlobalPropertyCell)
 CAST_ACCESSOR(SharedFunctionInfo)
 CAST_ACCESSOR(Map)
@@ -3659,17 +3671,6 @@ bool Map::CanOmitPrototypeChecks() {
 }
 
 
-void Map::AddDependentCode(DependentCode::DependencyGroup group,
-                           Handle<Code> code) {
-  Handle<DependentCode> codes =
-      DependentCode::Insert(Handle<DependentCode>(dependent_code()),
-                             group, code);
-  if (*codes != dependent_code()) {
-    set_dependent_code(*codes);
-  }
-}
-
-
 int DependentCode::number_of_entries(DependencyGroup group) {
   if (length() == 0) return 0;
   return Smi::cast(get(group))->value();
@@ -3681,24 +3682,44 @@ void DependentCode::set_number_of_entries(DependencyGroup group, int value) {
 }
 
 
+bool DependentCode::is_code_at(int i) {
+  return get(kCodesStartIndex + i)->IsCode();
+}
+
 Code* DependentCode::code_at(int i) {
   return Code::cast(get(kCodesStartIndex + i));
 }
 
 
-void DependentCode::set_code_at(int i, Code* value) {
-  set(kCodesStartIndex + i, value);
+CompilationInfo* DependentCode::compilation_info_at(int i) {
+  return reinterpret_cast<CompilationInfo*>(
+      Foreign::cast(get(kCodesStartIndex + i))->foreign_address());
 }
 
 
-Object** DependentCode::code_slot_at(int i) {
+void DependentCode::set_object_at(int i, Object* object) {
+  set(kCodesStartIndex + i, object);
+}
+
+
+Object* DependentCode::object_at(int i) {
+  return get(kCodesStartIndex + i);
+}
+
+
+Object** DependentCode::slot_at(int i) {
   return HeapObject::RawField(
       this, FixedArray::OffsetOfElementAt(kCodesStartIndex + i));
 }
 
 
-void DependentCode::clear_code_at(int i) {
+void DependentCode::clear_at(int i) {
   set_undefined(kCodesStartIndex + i);
+}
+
+
+void DependentCode::copy(int from, int to) {
+  set(kCodesStartIndex + to, get(kCodesStartIndex + from));
 }
 
 
@@ -3706,7 +3727,7 @@ void DependentCode::ExtendGroup(DependencyGroup group) {
   GroupStartIndexes starts(this);
   for (int g = kGroupCount - 1; g > group; g--) {
     if (starts.at(g) < starts.at(g + 1)) {
-      set_code_at(starts.at(g + 1), code_at(starts.at(g)));
+      copy(starts.at(g), starts.at(g + 1));
     }
   }
 }
@@ -4960,12 +4981,6 @@ Object* JSFunction::unchecked_context() {
 }
 
 
-SharedFunctionInfo* JSFunction::unchecked_shared() {
-  return reinterpret_cast<SharedFunctionInfo*>(
-      READ_FIELD(this, kSharedFunctionInfoOffset));
-}
-
-
 void JSFunction::set_context(Object* value) {
   ASSERT(value->IsUndefined() || value->IsContext());
   WRITE_FIELD(this, kContextOffset, value);
@@ -6011,13 +6026,13 @@ TypeFeedbackId TypeFeedbackCells::AstId(int index) {
 }
 
 
-void TypeFeedbackCells::SetCell(int index, JSGlobalPropertyCell* cell) {
+void TypeFeedbackCells::SetCell(int index, Cell* cell) {
   set(index * 2, cell);
 }
 
 
-JSGlobalPropertyCell* TypeFeedbackCells::Cell(int index) {
-  return JSGlobalPropertyCell::cast(get(index * 2));
+Cell* TypeFeedbackCells::GetCell(int index) {
+  return Cell::cast(get(index * 2));
 }
 
 

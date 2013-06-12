@@ -2007,6 +2007,9 @@ Isolate::~Isolate() {
   delete external_reference_table_;
   external_reference_table_ = NULL;
 
+  delete callback_table_;
+  callback_table_ = NULL;
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   delete debugger_;
   debugger_ = NULL;

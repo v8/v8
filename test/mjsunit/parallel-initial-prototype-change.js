@@ -25,53 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_TYPING_H_
-#define V8_TYPING_H_
+// Flags: --allow-natives-syntax
+// Flags: --parallel-recompilation --parallel-recompilation-delay=50
 
-#include "v8.h"
+function assertUnoptimized(fun) {
+  assertTrue(%GetOptimizationStatus(fun) != 1);
+}
 
-#include "allocation.h"
-#include "ast.h"
-#include "compiler.h"
-#include "type-info.h"
-#include "zone.h"
-#include "scopes.h"
+function f1(a, i) {
+  return a[i] + 0.5;
+}
 
-namespace v8 {
-namespace internal {
+var arr = [0.0,,2.5];
+assertEquals(0.5, f1(arr, 0));
+assertEquals(0.5, f1(arr, 0));
 
-
-class AstTyper: public AstVisitor {
- public:
-  static void Run(CompilationInfo* info);
-
-  void* operator new(size_t size, Zone* zone) {
-    return zone->New(static_cast<int>(size));
-  }
-  void operator delete(void* pointer, Zone* zone) { }
-  void operator delete(void* pointer) { }
-
-  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
-
- private:
-  explicit AstTyper(CompilationInfo* info);
-
-  CompilationInfo* info_;
-  TypeFeedbackOracle oracle_;
-
-  TypeFeedbackOracle* oracle() { return &oracle_; }
-  Zone* zone() const { return info_->zone(); }
-
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
-  void VisitStatements(ZoneList<Statement*>* statements);
-
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-  DISALLOW_COPY_AND_ASSIGN(AstTyper);
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_TYPING_H_
+// Optimized code of f1 depends on initial object and array maps.
+%OptimizeFunctionOnNextCall(f1, "parallel");
+assertEquals(0.5, f1(arr, 0));
+assertUnoptimized(f1);      // Not yet optimized.
+Object.prototype[1] = 1.5;  // Invalidate current initial object map.
+assertEquals(2, f1(arr, 1));
+%CompleteOptimization(f1);  // Conclude optimization with...
+assertUnoptimized(f1);      // ... bailing out due to map dependency.

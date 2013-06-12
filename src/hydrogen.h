@@ -260,6 +260,7 @@ class HLoopInformation: public ZoneObject {
   HStackCheck* stack_check_;
 };
 
+
 class BoundsCheckTable;
 class HGraph: public ZoneObject {
  public:
@@ -402,6 +403,12 @@ class HGraph: public ZoneObject {
   }
 
   void MarkDependsOnEmptyArrayProtoElements() {
+    // Add map dependency if not already added.
+    if (depends_on_empty_array_proto_elements_) return;
+    isolate()->initial_object_prototype()->map()->AddDependentCompilationInfo(
+        DependentCode::kElementsCantBeAddedGroup, info());
+    isolate()->initial_array_prototype()->map()->AddDependentCompilationInfo(
+        DependentCode::kElementsCantBeAddedGroup, info());
     depends_on_empty_array_proto_elements_ = true;
   }
 
@@ -874,6 +881,11 @@ class FunctionState {
   HEnterInlined* entry() { return entry_; }
   void set_entry(HEnterInlined* entry) { entry_ = entry; }
 
+  HArgumentsObject* arguments_object() { return arguments_object_; }
+  void set_arguments_object(HArgumentsObject* arguments_object) {
+    arguments_object_ = arguments_object;
+  }
+
   HArgumentsElements* arguments_elements() { return arguments_elements_; }
   void set_arguments_elements(HArgumentsElements* arguments_elements) {
     arguments_elements_ = arguments_elements;
@@ -907,6 +919,7 @@ class FunctionState {
   // entry.
   HEnterInlined* entry_;
 
+  HArgumentsObject* arguments_object_;
   HArgumentsElements* arguments_elements_;
 
   FunctionState* outer_;
@@ -968,6 +981,7 @@ class HGraphBuilder {
   Zone* zone() const { return info_->zone(); }
   HGraph* graph() const { return graph_; }
   Isolate* isolate() const { return graph_->isolate(); }
+  CompilationInfo* top_info() { return info_; }
 
   HGraph* CreateGraph();
 
@@ -1350,8 +1364,7 @@ class HGraphBuilder {
 
   void BuildCompareNil(
       HValue* value,
-      CompareNilICStub::Types types,
-      Handle<Map> map,
+      Handle<Type> type,
       int position,
       HIfContinuation* continuation);
 
@@ -1488,7 +1501,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   void set_ast_context(AstContext* context) { ast_context_ = context; }
 
   // Accessors forwarded to the function state.
-  CompilationInfo* info() const {
+  CompilationInfo* current_info() const {
     return function_state()->compilation_info();
   }
   AstContext* call_context() const {
@@ -1622,6 +1635,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   template <class Instruction> HInstruction* PreProcessCall(Instruction* call);
 
   static Representation ToRepresentation(TypeInfo info);
+  static Representation ToRepresentation(Handle<Type> type);
 
   void SetUpScope(Scope* scope);
   virtual void VisitStatements(ZoneList<Statement*>* statements);

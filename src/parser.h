@@ -729,7 +729,7 @@ class Parser BASE_EMBEDDED {
 
   bool is_generator() const { return current_function_state_->is_generator(); }
 
-  bool CheckInOrOf(ForEachStatement::VisitMode* visit_mode);
+  bool CheckInOrOf(bool accept_OF, ForEachStatement::VisitMode* visit_mode);
 
   bool peek_any_identifier();
 

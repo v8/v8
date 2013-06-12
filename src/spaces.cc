@@ -72,6 +72,7 @@ HeapObjectIterator::HeapObjectIterator(Page* page,
          owner == page->heap()->old_data_space() ||
          owner == page->heap()->map_space() ||
          owner == page->heap()->cell_space() ||
+         owner == page->heap()->property_cell_space() ||
          owner == page->heap()->code_space());
   Initialize(reinterpret_cast<PagedSpace*>(owner),
              page->area_start(),
@@ -1041,6 +1042,9 @@ intptr_t PagedSpace::SizeOfFirstPage() {
       size = 16 * kPointerSize * KB;
       break;
     case CELL_SPACE:
+      size = 16 * kPointerSize * KB;
+      break;
+    case PROPERTY_CELL_SPACE:
       size = 16 * kPointerSize * KB;
       break;
     case CODE_SPACE:
@@ -2834,12 +2838,19 @@ void MapSpace::VerifyObject(HeapObject* object) {
 
 
 // -----------------------------------------------------------------------------
-// GlobalPropertyCellSpace implementation
+// CellSpace and PropertyCellSpace implementation
 // TODO(mvstanton): this is weird...the compiler can't make a vtable unless
 // there is at least one non-inlined virtual function. I would prefer to hide
 // the VerifyObject definition behind VERIFY_HEAP.
 
 void CellSpace::VerifyObject(HeapObject* object) {
+  // The object should be a global object property cell or a free-list node.
+  CHECK(object->IsCell() ||
+         object->map() == heap()->two_pointer_filler_map());
+}
+
+
+void PropertyCellSpace::VerifyObject(HeapObject* object) {
   // The object should be a global object property cell or a free-list node.
   CHECK(object->IsJSGlobalPropertyCell() ||
          object->map() == heap()->two_pointer_filler_map());

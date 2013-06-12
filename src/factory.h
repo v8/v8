@@ -235,6 +235,8 @@ class Factory {
       void* external_pointer,
       PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<Cell> NewCell(Handle<Object> value);
+
   Handle<JSGlobalPropertyCell> NewJSGlobalPropertyCell(
       Handle<Object> value);
 

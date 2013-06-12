@@ -106,6 +106,9 @@ void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
   opt_count_ = shared_info().is_null() ? 0 : shared_info()->opt_count();
   no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
                    ? new List<OffsetRange>(2) : NULL;
+  for (int i = 0; i < DependentCode::kGroupCount; i++) {
+    dependent_maps_[i] = NULL;
+  }
   if (mode == STUB) {
     mode_ = STUB;
     return;
@@ -125,6 +128,41 @@ void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
 CompilationInfo::~CompilationInfo() {
   delete deferred_handles_;
   delete no_frame_ranges_;
+#ifdef DEBUG
+  // Check that no dependent maps have been added or added dependent maps have
+  // been rolled back or committed.
+  for (int i = 0; i < DependentCode::kGroupCount; i++) {
+    ASSERT_EQ(NULL, dependent_maps_[i]);
+  }
+#endif  // DEBUG
+}
+
+
+void CompilationInfo::CommitDependentMaps(Handle<Code> code) {
+  for (int i = 0; i < DependentCode::kGroupCount; i++) {
+    ZoneList<Handle<Map> >* group_maps = dependent_maps_[i];
+    if (group_maps == NULL) continue;
+    ASSERT(!object_wrapper_.is_null());
+    for (int j = 0; j < group_maps->length(); j++) {
+      group_maps->at(j)->dependent_code()->UpdateToFinishedCode(
+          static_cast<DependentCode::DependencyGroup>(i), this, *code);
+    }
+    dependent_maps_[i] = NULL;  // Zone-allocated, no need to delete.
+  }
+}
+
+
+void CompilationInfo::RollbackDependentMaps() {
+  // Unregister from all dependent maps if not yet committed.
+  for (int i = 0; i < DependentCode::kGroupCount; i++) {
+    ZoneList<Handle<Map> >* group_maps = dependent_maps_[i];
+    if (group_maps == NULL) continue;
+    for (int j = 0; j < group_maps->length(); j++) {
+      group_maps->at(j)->dependent_code()->RemoveCompilationInfo(
+          static_cast<DependentCode::DependencyGroup>(i), this);
+    }
+    dependent_maps_[i] = NULL;  // Zone-allocated, no need to delete.
+  }
 }
 
 
@@ -364,7 +402,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   }
 
   // Type-check the function.
-  AstTyper::Type(info());
+  AstTyper::Run(info());
 
   graph_builder_ = new(info()->zone()) HOptimizedGraphBuilder(info());
 
@@ -982,7 +1020,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // The function may have already been optimized by OSR.  Simply continue.
   // Except when OSR already disabled optimization for some reason.
   if (info->shared_info()->optimization_disabled()) {
-    info->SetCode(Handle<Code>(info->shared_info()->code()));
+    info->AbortOptimization();
     InstallFullCode(*info);
     if (FLAG_trace_parallel_recompilation) {
       PrintF("  ** aborting optimization for ");
@@ -1000,9 +1038,11 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // If crankshaft succeeded, install the optimized code else install
   // the unoptimized code.
   OptimizingCompiler::Status status = optimizing_compiler->last_status();
-  if (status != OptimizingCompiler::SUCCEEDED) {
-    optimizing_compiler->info()->set_bailout_reason(
-        "failed/bailed out last time");
+  if (info->HasAbortedDueToDependentMap()) {
+    info->set_bailout_reason("bailed out due to dependent map");
+    status = optimizing_compiler->AbortOptimization();
+  } else if (status != OptimizingCompiler::SUCCEEDED) {
+    info->set_bailout_reason("failed/bailed out last time");
     status = optimizing_compiler->AbortOptimization();
   } else {
     status = optimizing_compiler->GenerateAndInstallCode();
@@ -1141,7 +1181,16 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     Handle<Code> code = info->code();
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
+    Handle<String> script_name;
     if (script->name()->IsString()) {
+      script_name = Handle<String>(String::cast(script->name()));
+    } else {
+      Handle<Object> name = GetScriptNameOrSourceURL(script);
+      if (!name.is_null() && name->IsString()) {
+        script_name = Handle<String>::cast(name);
+      }
+    }
+    if (!script_name.is_null()) {
       int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
       USE(line_num);
       PROFILE(info->isolate(),
@@ -1149,7 +1198,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *code,
                               *shared,
                               info,
-                              String::cast(script->name()),
+                              String::cast(*script_name),
                               line_num));
     } else {
       PROFILE(info->isolate(),

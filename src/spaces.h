@@ -2626,12 +2626,39 @@ class MapSpace : public FixedSpace {
 
 
 // -----------------------------------------------------------------------------
-// Old space for all global object property cell objects
+// Old space for simple property cell objects
 
 class CellSpace : public FixedSpace {
  public:
   // Creates a property cell space object with a maximum capacity.
   CellSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
+      : FixedSpace(heap, max_capacity, id, Cell::kSize)
+  {}
+
+  virtual int RoundSizeDownToObjectAlignment(int size) {
+    if (IsPowerOf2(Cell::kSize)) {
+      return RoundDown(size, Cell::kSize);
+    } else {
+      return (size / Cell::kSize) * Cell::kSize;
+    }
+  }
+
+ protected:
+  virtual void VerifyObject(HeapObject* obj);
+
+ public:
+  TRACK_MEMORY("CellSpace")
+};
+
+
+// -----------------------------------------------------------------------------
+// Old space for all global object property cell objects
+
+class PropertyCellSpace : public FixedSpace {
+ public:
+  // Creates a property cell space object with a maximum capacity.
+  PropertyCellSpace(Heap* heap, intptr_t max_capacity,
+                    AllocationSpace id)
       : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize)
   {}
 
@@ -2647,7 +2674,7 @@ class CellSpace : public FixedSpace {
   virtual void VerifyObject(HeapObject* obj);
 
  public:
-  TRACK_MEMORY("CellSpace")
+  TRACK_MEMORY("PropertyCellSpace")
 };
 
 

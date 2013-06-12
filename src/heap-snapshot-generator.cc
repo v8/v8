@@ -31,6 +31,7 @@
 
 #include "heap-profiler.h"
 #include "debug.h"
+#include "types.h"
 
 namespace v8 {
 namespace internal {
@@ -888,7 +889,8 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
 #undef MAKE_STRING_MAP_CASE
         default: return "system / Map";
       }
-    case JS_GLOBAL_PROPERTY_CELL_TYPE: return "system / JSGlobalPropertyCell";
+    case CELL_TYPE: return "system / Cell";
+    case PROPERTY_CELL_TYPE: return "system / JSGlobalPropertyCell";
     case FOREIGN_TYPE: return "system / Foreign";
     case ODDBALL_TYPE: return "system / Oddball";
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
@@ -976,6 +978,9 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractCodeCacheReferences(entry, CodeCache::cast(obj));
   } else if (obj->IsCode()) {
     ExtractCodeReferences(entry, Code::cast(obj));
+  } else if (obj->IsCell()) {
+    ExtractCellReferences(entry, Cell::cast(obj));
+    extract_indexed_refs = false;
   } else if (obj->IsJSGlobalPropertyCell()) {
     ExtractJSGlobalPropertyCellReferences(
         entry, JSGlobalPropertyCell::cast(obj));
@@ -1273,9 +1278,15 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
 }
 
 
+void V8HeapExplorer::ExtractCellReferences(int entry, Cell* cell) {
+  SetInternalReference(cell, entry, "value", cell->value());
+}
+
+
 void V8HeapExplorer::ExtractJSGlobalPropertyCellReferences(
     int entry, JSGlobalPropertyCell* cell) {
   SetInternalReference(cell, entry, "value", cell->value());
+  SetInternalReference(cell, entry, "type", cell->type());
 }
 
 
@@ -1562,6 +1573,7 @@ bool V8HeapExplorer::IsEssentialObject(Object* object) {
       && object != heap_->empty_fixed_array()
       && object != heap_->empty_descriptor_array()
       && object != heap_->fixed_array_map()
+      && object != heap_->cell_map()
       && object != heap_->global_property_cell_map()
       && object != heap_->shared_function_info_map()
       && object != heap_->free_space_map()
@@ -2210,6 +2222,8 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   CHECK(!debug_heap->old_pointer_space()->was_swept_conservatively());
   CHECK(!debug_heap->code_space()->was_swept_conservatively());
   CHECK(!debug_heap->cell_space()->was_swept_conservatively());
+  CHECK(!debug_heap->property_cell_space()->
+        was_swept_conservatively());
   CHECK(!debug_heap->map_space()->was_swept_conservatively());
 #endif
 
