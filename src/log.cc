@@ -1728,10 +1728,18 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
   Handle<String> func_name(shared->DebugName());
   if (shared->script()->IsScript()) {
     Handle<Script> script(Script::cast(shared->script()));
+    Handle<String> script_name;
     if (script->name()->IsString()) {
-      Handle<String> script_name(String::cast(script->name()));
+      script_name = Handle<String>(String::cast(script->name()));
+    } else {
+      Handle<Object> name = GetScriptNameOrSourceURL(script);
+      if (!name.is_null() && name->IsString()) {
+        script_name = Handle<String>::cast(name);
+      }
+    }
+    if (!script_name.is_null()) {
       int line_num = GetScriptLineNumber(script, shared->start_position());
-      if (line_num > 0) {
+      if (line_num > -1) {
         PROFILE(isolate_,
                 CodeCreateEvent(
                     Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
