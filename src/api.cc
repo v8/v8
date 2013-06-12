@@ -6162,7 +6162,7 @@ void v8::ArrayBuffer::Neuter() {
   ENTER_V8(isolate);
 
   for (i::Handle<i::Object> array_obj(obj->weak_first_array(), isolate);
-       *array_obj != i::Smi::FromInt(0);) {
+       !array_obj->IsUndefined();) {
     i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*array_obj));
     typed_array->Neuter();
     array_obj = i::handle(typed_array->weak_next(), isolate);

@@ -687,6 +687,8 @@ void Deserializer::Deserialize() {
 
   isolate_->heap()->set_native_contexts_list(
       isolate_->heap()->undefined_value());
+  isolate_->heap()->set_array_buffers_list(
+      isolate_->heap()->undefined_value());
 
   // Update data pointers to the external strings containing natives sources.
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {

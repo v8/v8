@@ -1490,53 +1490,119 @@ void Heap::UpdateReferencesInExternalStringTable(
 }
 
 
-static Object* ProcessFunctionWeakReferences(Heap* heap,
-                                             Object* function,
-                                             WeakObjectRetainer* retainer,
-                                             bool record_slots) {
+template <class T>
+struct WeakListVisitor;
+
+
+template <class T>
+static Object* VisitWeakList(Heap* heap,
+                             Object* list,
+                             WeakObjectRetainer* retainer,
+                             bool record_slots) {
   Object* undefined = heap->undefined_value();
   Object* head = undefined;
-  JSFunction* tail = NULL;
-  Object* candidate = function;
-  while (candidate != undefined) {
+  T* tail = NULL;
+  MarkCompactCollector* collector = heap->mark_compact_collector();
+  while (list != undefined) {
     // Check whether to keep the candidate in the list.
-    JSFunction* candidate_function = reinterpret_cast<JSFunction*>(candidate);
-    Object* retain = retainer->RetainAs(candidate);
-    if (retain != NULL) {
+    T* candidate = reinterpret_cast<T*>(list);
+    Object* retained = retainer->RetainAs(list);
+    if (retained != NULL) {
       if (head == undefined) {
         // First element in the list.
-        head = retain;
+        head = retained;
       } else {
         // Subsequent elements in the list.
         ASSERT(tail != NULL);
-        tail->set_next_function_link(retain);
+        WeakListVisitor<T>::SetWeakNext(tail, retained);
         if (record_slots) {
-          Object** next_function =
-              HeapObject::RawField(tail, JSFunction::kNextFunctionLinkOffset);
-          heap->mark_compact_collector()->RecordSlot(
-              next_function, next_function, retain);
+          Object** next_slot =
+            HeapObject::RawField(tail, WeakListVisitor<T>::WeakNextOffset());
+          collector->RecordSlot(next_slot, next_slot, retained);
         }
       }
-      // Retained function is new tail.
-      candidate_function = reinterpret_cast<JSFunction*>(retain);
-      tail = candidate_function;
+      // Retained object is new tail.
+      ASSERT(!retained->IsUndefined());
+      candidate = reinterpret_cast<T*>(retained);
+      tail = candidate;
 
-      ASSERT(retain->IsUndefined() || retain->IsJSFunction());
 
-      if (retain == undefined) break;
+      // tail is a live object, visit it.
+      WeakListVisitor<T>::VisitLiveObject(
+          heap, tail, retainer, record_slots);
     }
 
     // Move to next element in the list.
-    candidate = candidate_function->next_function_link();
+    list = WeakListVisitor<T>::WeakNext(candidate);
   }
 
   // Terminate the list if there is one or more elements.
   if (tail != NULL) {
-    tail->set_next_function_link(undefined);
+    WeakListVisitor<T>::SetWeakNext(tail, undefined);
   }
-
   return head;
 }
+
+
+template<>
+struct WeakListVisitor<JSFunction> {
+  static void SetWeakNext(JSFunction* function, Object* next) {
+    function->set_next_function_link(next);
+  }
+
+  static Object* WeakNext(JSFunction* function) {
+    return function->next_function_link();
+  }
+
+  static int WeakNextOffset() {
+    return JSFunction::kNextFunctionLinkOffset;
+  }
+
+  static void VisitLiveObject(Heap*, JSFunction*,
+                              WeakObjectRetainer*, bool) {
+  }
+};
+
+
+template<>
+struct WeakListVisitor<Context> {
+  static void SetWeakNext(Context* context, Object* next) {
+    context->set(Context::NEXT_CONTEXT_LINK,
+                 next,
+                 UPDATE_WRITE_BARRIER);
+  }
+
+  static Object* WeakNext(Context* context) {
+    return context->get(Context::NEXT_CONTEXT_LINK);
+  }
+
+  static void VisitLiveObject(Heap* heap,
+                              Context* context,
+                              WeakObjectRetainer* retainer,
+                              bool record_slots) {
+    // Process the weak list of optimized functions for the context.
+    Object* function_list_head =
+        VisitWeakList<JSFunction>(
+            heap,
+            context->get(Context::OPTIMIZED_FUNCTIONS_LIST),
+            retainer,
+            record_slots);
+    context->set(Context::OPTIMIZED_FUNCTIONS_LIST,
+                 function_list_head,
+                 UPDATE_WRITE_BARRIER);
+    if (record_slots) {
+      Object** optimized_functions =
+          HeapObject::RawField(
+              context, FixedArray::SizeFor(Context::OPTIMIZED_FUNCTIONS_LIST));
+      heap->mark_compact_collector()->RecordSlot(
+          optimized_functions, optimized_functions, function_list_head);
+    }
+  }
+
+  static int WeakNextOffset() {
+    return FixedArray::SizeFor(Context::NEXT_CONTEXT_LINK);
+  }
+};
 
 
 void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
@@ -1553,168 +1619,73 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
 
 void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer,
                                  bool record_slots) {
-  Object* undefined = undefined_value();
-  Object* head = undefined;
-  Context* tail = NULL;
-  Object* candidate = native_contexts_list_;
-
-  while (candidate != undefined) {
-    // Check whether to keep the candidate in the list.
-    Context* candidate_context = reinterpret_cast<Context*>(candidate);
-    Object* retain = retainer->RetainAs(candidate);
-    if (retain != NULL) {
-      if (head == undefined) {
-        // First element in the list.
-        head = retain;
-      } else {
-        // Subsequent elements in the list.
-        ASSERT(tail != NULL);
-        tail->set_unchecked(this,
-                            Context::NEXT_CONTEXT_LINK,
-                            retain,
-                            UPDATE_WRITE_BARRIER);
-
-        if (record_slots) {
-          Object** next_context =
-              HeapObject::RawField(
-                  tail, FixedArray::SizeFor(Context::NEXT_CONTEXT_LINK));
-          mark_compact_collector()->RecordSlot(
-              next_context, next_context, retain);
-        }
-      }
-      // Retained context is new tail.
-      candidate_context = reinterpret_cast<Context*>(retain);
-      tail = candidate_context;
-
-      if (retain == undefined) break;
-
-      // Process the weak list of optimized functions for the context.
-      Object* function_list_head =
-          ProcessFunctionWeakReferences(
-              this,
-              candidate_context->get(Context::OPTIMIZED_FUNCTIONS_LIST),
-              retainer,
-              record_slots);
-      candidate_context->set_unchecked(this,
-                                       Context::OPTIMIZED_FUNCTIONS_LIST,
-                                       function_list_head,
-                                       UPDATE_WRITE_BARRIER);
-      if (record_slots) {
-        Object** optimized_functions =
-            HeapObject::RawField(
-                tail, FixedArray::SizeFor(Context::OPTIMIZED_FUNCTIONS_LIST));
-        mark_compact_collector()->RecordSlot(
-            optimized_functions, optimized_functions, function_list_head);
-      }
-    }
-
-    // Move to next element in the list.
-    candidate = candidate_context->get(Context::NEXT_CONTEXT_LINK);
-  }
-
-  // Terminate the list if there is one or more elements.
-  if (tail != NULL) {
-    tail->set_unchecked(this,
-                        Context::NEXT_CONTEXT_LINK,
-                        Heap::undefined_value(),
-                        UPDATE_WRITE_BARRIER);
-  }
-
+  Object* head =
+      VisitWeakList<Context>(
+          this, native_contexts_list(), retainer, record_slots);
   // Update the head of the list of contexts.
   native_contexts_list_ = head;
 }
 
 
-template <class T>
-struct WeakListVisitor;
-
-
-template <class T>
-static Object* VisitWeakList(Object* list,
-                      MarkCompactCollector* collector,
-                      WeakObjectRetainer* retainer, bool record_slots) {
-  Object* head = Smi::FromInt(0);
-  T* tail = NULL;
-  while (list != Smi::FromInt(0)) {
-    Object* retained = retainer->RetainAs(list);
-    if (retained != NULL) {
-      if (head == Smi::FromInt(0)) {
-        head = retained;
-      } else {
-        ASSERT(tail != NULL);
-        WeakListVisitor<T>::set_weak_next(tail, retained);
-        if (record_slots) {
-          Object** next_slot =
-            HeapObject::RawField(tail, WeakListVisitor<T>::kWeakNextOffset);
-          collector->RecordSlot(next_slot, next_slot, retained);
-        }
-      }
-      tail = reinterpret_cast<T*>(retained);
-      WeakListVisitor<T>::VisitLiveObject(
-          tail, collector, retainer, record_slots);
-    }
-    list = WeakListVisitor<T>::get_weak_next(reinterpret_cast<T*>(list));
-  }
-  if (tail != NULL) {
-    tail->set_weak_next(Smi::FromInt(0));
-  }
-  return head;
-}
-
-
 template<>
 struct WeakListVisitor<JSTypedArray> {
-  static void set_weak_next(JSTypedArray* obj, Object* next) {
+  static void SetWeakNext(JSTypedArray* obj, Object* next) {
     obj->set_weak_next(next);
   }
 
-  static Object* get_weak_next(JSTypedArray* obj) {
+  static Object* WeakNext(JSTypedArray* obj) {
     return obj->weak_next();
   }
 
-  static void VisitLiveObject(JSTypedArray* obj,
-                              MarkCompactCollector* collector,
+  static void VisitLiveObject(Heap*,
+                              JSTypedArray* obj,
                               WeakObjectRetainer* retainer,
                               bool record_slots) {}
 
-  static const int kWeakNextOffset = JSTypedArray::kWeakNextOffset;
+  static int WeakNextOffset() {
+    return JSTypedArray::kWeakNextOffset;
+  }
 };
 
 
 template<>
 struct WeakListVisitor<JSArrayBuffer> {
-  static void set_weak_next(JSArrayBuffer* obj, Object* next) {
+  static void SetWeakNext(JSArrayBuffer* obj, Object* next) {
     obj->set_weak_next(next);
   }
 
-  static Object* get_weak_next(JSArrayBuffer* obj) {
+  static Object* WeakNext(JSArrayBuffer* obj) {
     return obj->weak_next();
   }
 
-  static void VisitLiveObject(JSArrayBuffer* array_buffer,
-                              MarkCompactCollector* collector,
+  static void VisitLiveObject(Heap* heap,
+                              JSArrayBuffer* array_buffer,
                               WeakObjectRetainer* retainer,
                               bool record_slots) {
     Object* typed_array_obj =
-        VisitWeakList<JSTypedArray>(array_buffer->weak_first_array(),
-                                    collector, retainer, record_slots);
+        VisitWeakList<JSTypedArray>(
+            heap,
+            array_buffer->weak_first_array(),
+            retainer, record_slots);
     array_buffer->set_weak_first_array(typed_array_obj);
-    if (typed_array_obj != Smi::FromInt(0) && record_slots) {
+    if (typed_array_obj != heap->undefined_value() && record_slots) {
       Object** slot = HeapObject::RawField(
           array_buffer, JSArrayBuffer::kWeakFirstArrayOffset);
-      collector->RecordSlot(slot, slot, typed_array_obj);
+      heap->mark_compact_collector()->RecordSlot(slot, slot, typed_array_obj);
     }
   }
 
-  static const int kWeakNextOffset = JSArrayBuffer::kWeakNextOffset;
+  static int WeakNextOffset() {
+    return JSArrayBuffer::kWeakNextOffset;
+  }
 };
 
 
 void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer,
                                bool record_slots) {
   Object* array_buffer_obj =
-      VisitWeakList<JSArrayBuffer>(array_buffers_list(),
-                                   mark_compact_collector(),
+      VisitWeakList<JSArrayBuffer>(this,
+                                   array_buffers_list(),
                                    retainer, record_slots);
   set_array_buffers_list(array_buffer_obj);
 }
@@ -6785,6 +6756,7 @@ bool Heap::CreateHeapObjects() {
   if (!CreateInitialObjects()) return false;
 
   native_contexts_list_ = undefined_value();
+  array_buffers_list_ = undefined_value();
   return true;
 }
 

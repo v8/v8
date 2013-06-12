@@ -691,7 +691,7 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
 
   array_buffer->set_weak_next(isolate->heap()->array_buffers_list());
   isolate->heap()->set_array_buffers_list(*array_buffer);
-  array_buffer->set_weak_first_array(Smi::FromInt(0));
+  array_buffer->set_weak_first_array(isolate->heap()->undefined_value());
 }
 
 
