@@ -10299,6 +10299,18 @@ byte* Code::FindCodeAgeSequence() {
 }
 
 
+int Code::GetAge() {
+  byte* sequence = FindCodeAgeSequence();
+  if (sequence == NULL) {
+    return Code::kNoAge;
+  }
+  Age age;
+  MarkingParity parity;
+  GetCodeAgeAndParity(sequence, &age, &parity);
+  return age;
+}
+
+
 void Code::GetCodeAgeAndParity(Code* code, Age* age,
                                MarkingParity* parity) {
   Isolate* isolate = Isolate::Current();

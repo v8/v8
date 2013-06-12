@@ -4825,6 +4825,7 @@ class Code: public HeapObject {
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
+  int GetAge();
 
   void PrintDeoptLocation(int bailout_id);
 
@@ -4966,8 +4967,8 @@ class Code: public HeapObject {
 
   // Code aging
   byte* FindCodeAgeSequence();
-  static void  GetCodeAgeAndParity(Code* code, Age* age,
-                                   MarkingParity* parity);
+  static void GetCodeAgeAndParity(Code* code, Age* age,
+                                  MarkingParity* parity);
   static void GetCodeAgeAndParity(byte* sequence, Age* age,
                                   MarkingParity* parity);
   static Code* GetCodeAgeStub(Age age, MarkingParity parity);

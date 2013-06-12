@@ -1004,7 +1004,7 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
     if (!code_mark.Get()) {
       if (FLAG_trace_code_flushing && shared->is_compiled()) {
         SmartArrayPointer<char> name = shared->DebugName()->ToCString();
-        PrintF("[code-flushing clears: %s]\n", *name);
+        PrintF("[code-flushing clears: %s - age: %d]\n", *name, code->GetAge());
       }
       shared->set_code(lazy_compile);
       candidate->set_code(lazy_compile);
@@ -1045,7 +1045,7 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
     if (!code_mark.Get()) {
       if (FLAG_trace_code_flushing && candidate->is_compiled()) {
         SmartArrayPointer<char> name = candidate->DebugName()->ToCString();
-        PrintF("[code-flushing clears: %s]\n", *name);
+        PrintF("[code-flushing clears: %s - age: %d]\n", *name, code->GetAge());
       }
       candidate->set_code(lazy_compile);
     }
