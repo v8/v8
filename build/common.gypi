@@ -528,8 +528,7 @@
           ['v8_enable_extra_checks==1', {
             'defines': ['ENABLE_EXTRA_CHECKS',],
           }],
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
-            or OS=="android"', {
+          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags!': [
               '-O2',
               '-Os',
@@ -538,6 +537,25 @@
               '-fdata-sections',
               '-ffunction-sections',
               '-O3',
+            ],
+            'conditions': [
+              [ 'gcc_version==44 and clang==0', {
+                'cflags': [
+                  # Avoid crashes with gcc 4.4 in the v8 test suite.
+                  '-fno-tree-vrp',
+                ],
+              }],
+            ],
+          }],
+          ['OS=="android"', {
+            'cflags!': [
+              '-O3',
+              '-Os',
+            ],
+            'cflags': [
+              '-fdata-sections',
+              '-ffunction-sections',
+              '-O2',
             ],
             'conditions': [
               [ 'gcc_version==44 and clang==0', {
