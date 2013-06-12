@@ -2496,7 +2496,7 @@ void MacroAssembler::LoadHeapObject(Register result,
   AllowDeferredHandleDereference embedding_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    mov(result, Operand::Cell(cell));
+    mov(result, Operand::ForCell(cell));
   } else {
     mov(result, object);
   }
@@ -2507,7 +2507,7 @@ void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
   AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    cmp(reg, Operand::Cell(cell));
+    cmp(reg, Operand::ForCell(cell));
   } else {
     cmp(reg, object);
   }
@@ -2518,7 +2518,7 @@ void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
   AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    push(Operand::Cell(cell));
+    push(Operand::ForCell(cell));
   } else {
     Push(object);
   }

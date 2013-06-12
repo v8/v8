@@ -2680,7 +2680,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   __ mov(map, FieldOperand(object, HeapObject::kMapOffset));
   __ bind(deferred->map_check());  // Label for calculating code patching.
   Handle<Cell> cache_cell = factory()->NewCell(factory()->the_hole_value());
-  __ cmp(map, Operand::Cell(cache_cell));  // Patched to cached map.
+  __ cmp(map, Operand::ForCell(cache_cell));  // Patched to cached map.
   __ j(not_equal, &cache_miss, Label::kNear);
   __ mov(eax, factory()->the_hole_value());  // Patched to either true or false.
   __ jmp(&done);
@@ -2862,7 +2862,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
-  __ mov(result, Operand::Cell(instr->hydrogen()->cell()));
+  __ mov(result, Operand::ForCell(instr->hydrogen()->cell()));
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ cmp(result, factory()->the_hole_value());
     DeoptimizeIf(equal, instr->environment());
@@ -2892,12 +2892,12 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   // to update the property details in the property dictionary to mark
   // it as no longer deleted. We deoptimize in that case.
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ cmp(Operand::Cell(cell_handle), factory()->the_hole_value());
+    __ cmp(Operand::ForCell(cell_handle), factory()->the_hole_value());
     DeoptimizeIf(equal, instr->environment());
   }
 
   // Store the value.
-  __ mov(Operand::Cell(cell_handle), value);
+  __ mov(Operand::ForCell(cell_handle), value);
   // Cells are always rescanned, so no write barrier here.
 }
 
@@ -5747,7 +5747,7 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   if (instr->hydrogen()->target_in_new_space()) {
     Register reg = ToRegister(instr->value());
     Handle<Cell> cell = isolate()->factory()->NewCell(target);
-    __ cmp(reg, Operand::Cell(cell));
+    __ cmp(reg, Operand::ForCell(cell));
   } else {
     Operand operand = ToOperand(instr->value());
     __ cmp(operand, target);

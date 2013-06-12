@@ -410,7 +410,7 @@ class Operand BASE_EMBEDDED {
                    RelocInfo::EXTERNAL_REFERENCE);
   }
 
-  static Operand Cell(Handle<Cell> cell) {
+  static Operand ForCell(Handle<Cell> cell) {
     AllowDeferredHandleDereference embedding_raw_address;
     return Operand(reinterpret_cast<int32_t>(cell.location()),
                    RelocInfo::CELL);

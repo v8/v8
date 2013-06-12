@@ -195,7 +195,8 @@ class FileByteSink : public SnapshotByteSink {
       int data_space_used,
       int code_space_used,
       int map_space_used,
-      int cell_space_used);
+      int cell_space_used,
+      int property_cell_space_used);
 
  private:
   FILE* fp_;
@@ -209,7 +210,8 @@ void FileByteSink::WriteSpaceUsed(
       int data_space_used,
       int code_space_used,
       int map_space_used,
-      int cell_space_used) {
+      int cell_space_used,
+      int property_cell_space_used) {
   int file_name_length = StrLength(file_name_) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
   OS::SNPrintF(name, "%s.size", file_name_);
@@ -221,6 +223,7 @@ void FileByteSink::WriteSpaceUsed(
   fprintf(fp, "code %d\n", code_space_used);
   fprintf(fp, "map %d\n", map_space_used);
   fprintf(fp, "cell %d\n", cell_space_used);
+  fprintf(fp, "property cell %d\n", property_cell_space_used);
   fclose(fp);
 }
 
@@ -236,7 +239,8 @@ static bool WriteToFile(const char* snapshot_file) {
       ser.CurrentAllocationAddress(OLD_DATA_SPACE),
       ser.CurrentAllocationAddress(CODE_SPACE),
       ser.CurrentAllocationAddress(MAP_SPACE),
-      ser.CurrentAllocationAddress(CELL_SPACE));
+      ser.CurrentAllocationAddress(CELL_SPACE),
+      ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE));
 
   return true;
 }
@@ -425,7 +429,8 @@ TEST(PartialSerialization) {
         p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
         p_ser.CurrentAllocationAddress(CODE_SPACE),
         p_ser.CurrentAllocationAddress(MAP_SPACE),
-        p_ser.CurrentAllocationAddress(CELL_SPACE));
+        p_ser.CurrentAllocationAddress(CELL_SPACE),
+        p_ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE));
 
     startup_sink.WriteSpaceUsed(
         startup_serializer.CurrentAllocationAddress(NEW_SPACE),
@@ -433,7 +438,8 @@ TEST(PartialSerialization) {
         startup_serializer.CurrentAllocationAddress(OLD_DATA_SPACE),
         startup_serializer.CurrentAllocationAddress(CODE_SPACE),
         startup_serializer.CurrentAllocationAddress(MAP_SPACE),
-        startup_serializer.CurrentAllocationAddress(CELL_SPACE));
+        startup_serializer.CurrentAllocationAddress(CELL_SPACE),
+        startup_serializer.CurrentAllocationAddress(PROPERTY_CELL_SPACE));
     startup_name.Dispose();
   }
 }
@@ -566,7 +572,8 @@ TEST(ContextSerialization) {
         p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
         p_ser.CurrentAllocationAddress(CODE_SPACE),
         p_ser.CurrentAllocationAddress(MAP_SPACE),
-        p_ser.CurrentAllocationAddress(CELL_SPACE));
+        p_ser.CurrentAllocationAddress(CELL_SPACE),
+        p_ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE));
 
     startup_sink.WriteSpaceUsed(
         startup_serializer.CurrentAllocationAddress(NEW_SPACE),
@@ -574,7 +581,8 @@ TEST(ContextSerialization) {
         startup_serializer.CurrentAllocationAddress(OLD_DATA_SPACE),
         startup_serializer.CurrentAllocationAddress(CODE_SPACE),
         startup_serializer.CurrentAllocationAddress(MAP_SPACE),
-        startup_serializer.CurrentAllocationAddress(CELL_SPACE));
+        startup_serializer.CurrentAllocationAddress(CELL_SPACE),
+        startup_serializer.CurrentAllocationAddress(PROPERTY_CELL_SPACE));
     startup_name.Dispose();
   }
 }

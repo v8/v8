@@ -762,7 +762,7 @@ static void GenerateCheckPropertyCell(MacroAssembler* masm,
     __ cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
            Immediate(the_hole));
   } else {
-    __ cmp(Operand::Cell(cell), Immediate(the_hole));
+    __ cmp(Operand::ForCell(cell), Immediate(the_hole));
   }
   __ j(not_equal, miss);
 }
@@ -1573,7 +1573,7 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(
     __ mov(edi, Immediate(cell));
     __ mov(edi, FieldOperand(edi, Cell::kValueOffset));
   } else {
-    __ mov(edi, Operand::Cell(cell));
+    __ mov(edi, Operand::ForCell(cell));
   }
 
   // Check that the cell contains the same function.
@@ -3121,7 +3121,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     __ mov(eax, Immediate(cell));
     __ mov(eax, FieldOperand(eax, JSGlobalPropertyCell::kValueOffset));
   } else {
-    __ mov(eax, Operand::Cell(cell));
+    __ mov(eax, Operand::ForCell(cell));
   }
 
   // Check for deleted property if property can actually be deleted.
