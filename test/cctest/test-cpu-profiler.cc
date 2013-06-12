@@ -941,7 +941,12 @@ TEST(SourceURLSupportForNewFunctions) {
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::New("start")));
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  int32_t profiling_interval_ms = 100;
+  int32_t profiling_interval_ms = 200;
+#if defined(_WIN32) || defined(_WIN64)
+  // 200ms is not enough on Windows. See
+  // https://code.google.com/p/v8/issues/detail?id=2628
+  profiling_interval_ms = 500;
+#endif
 
   // Cold run.
   v8::Local<v8::String> profile_name = v8::String::New("my_profile");
@@ -971,12 +976,17 @@ TEST(LogExistingFunctionSourceURLCheck) {
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::New("start")));
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  int32_t profiling_interval_ms = 100;
+  int32_t profiling_interval_ms = 200;
 
   // Warm up.
   v8::Handle<v8::Value> args[] = { v8::Integer::New(profiling_interval_ms) };
   function->Call(env->Global(), ARRAY_SIZE(args), args);
 
+#if defined(_WIN32) || defined(_WIN64)
+  // 200ms is not enough on Windows. See
+  // https://code.google.com/p/v8/issues/detail?id=2628
+  profiling_interval_ms = 500;
+#endif
   v8::Local<v8::String> profile_name = v8::String::New("my_profile");
   cpu_profiler->StartCpuProfiling(profile_name);
   function->Call(env->Global(), ARRAY_SIZE(args), args);
