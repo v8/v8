@@ -2439,8 +2439,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch with
   // the cached map.
-  Handle<JSGlobalPropertyCell> cell =
-      factory()->NewJSGlobalPropertyCell(factory()->the_hole_value());
+  Handle<Cell> cell = factory()->NewCell(factory()->the_hole_value());
   __ li(at, Operand(Handle<Object>(cell)));
   __ lw(at, FieldMemOperand(at, JSGlobalPropertyCell::kValueOffset));
   __ Branch(&cache_miss, ne, map, Operand(at));
@@ -2596,7 +2595,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
   __ li(at, Operand(Handle<Object>(instr->hydrogen()->cell())));
-  __ lw(result, FieldMemOperand(at, JSGlobalPropertyCell::kValueOffset));
+  __ lw(result, FieldMemOperand(at, Cell::kValueOffset));
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(eq, instr->environment(), result, Operand(at));
@@ -2630,13 +2629,13 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   if (instr->hydrogen()->RequiresHoleCheck()) {
     // We use a temp to check the payload.
     Register payload = ToRegister(instr->temp());
-    __ lw(payload, FieldMemOperand(cell, JSGlobalPropertyCell::kValueOffset));
+    __ lw(payload, FieldMemOperand(cell, Cell::kValueOffset));
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(eq, instr->environment(), payload, Operand(at));
   }
 
   // Store the value.
-  __ sw(value, FieldMemOperand(cell, JSGlobalPropertyCell::kValueOffset));
+  __ sw(value, FieldMemOperand(cell, Cell::kValueOffset));
   // Cells are always rescanned, so no write barrier here.
 }
 
@@ -5001,10 +5000,9 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   AllowDeferredHandleDereference smi_check;
   if (isolate()->heap()->InNewSpace(*target)) {
     Register reg = ToRegister(instr->value());
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(target);
+    Handle<Cell> cell = isolate()->factory()->NewJSGlobalPropertyCell(target);
     __ li(at, Operand(Handle<Object>(cell)));
-    __ lw(at, FieldMemOperand(at, JSGlobalPropertyCell::kValueOffset));
+    __ lw(at, FieldMemOperand(at, Cell::kValueOffset));
     DeoptimizeIf(ne, instr->environment(), reg,
                  Operand(at));
   } else {

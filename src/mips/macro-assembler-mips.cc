@@ -85,10 +85,9 @@ void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
   AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
     li(result, Operand(cell));
-    lw(result, FieldMemOperand(result, JSGlobalPropertyCell::kValueOffset));
+    lw(result, FieldMemOperand(result, Cell::kValueOffset));
   } else {
     li(result, Operand(object));
   }
