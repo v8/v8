@@ -6581,8 +6581,6 @@ class JSFunction: public JSObject {
   // can be shared by instances.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
 
-  inline SharedFunctionInfo* unchecked_shared();
-
   // [context]: The context for this function.
   inline Context* context();
   inline Object* unchecked_context();

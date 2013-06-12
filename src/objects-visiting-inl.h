@@ -414,7 +414,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(
       // Visit shared function info immediately to avoid double checking
       // of its flushability later. This is just an optimization because
       // the shared function info would eventually be visited.
-      SharedFunctionInfo* shared = function->unchecked_shared();
+      SharedFunctionInfo* shared = function->shared();
       if (StaticVisitor::MarkObjectWithoutPush(heap, shared)) {
         StaticVisitor::MarkObject(heap, shared->map());
         VisitSharedFunctionInfoWeakCode(heap, shared);
@@ -595,7 +595,7 @@ inline static bool HasSourceCode(Heap* heap, SharedFunctionInfo* info) {
 template<typename StaticVisitor>
 bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     Heap* heap, JSFunction* function) {
-  SharedFunctionInfo* shared_info = function->unchecked_shared();
+  SharedFunctionInfo* shared_info = function->shared();
 
   // Code is either on stack, in compilation cache or referenced
   // by optimized version of function.

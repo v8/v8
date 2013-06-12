@@ -4969,12 +4969,6 @@ Object* JSFunction::unchecked_context() {
 }
 
 
-SharedFunctionInfo* JSFunction::unchecked_shared() {
-  return reinterpret_cast<SharedFunctionInfo*>(
-      READ_FIELD(this, kSharedFunctionInfoOffset));
-}
-
-
 void JSFunction::set_context(Object* value) {
   ASSERT(value->IsUndefined() || value->IsContext());
   WRITE_FIELD(this, kContextOffset, value);

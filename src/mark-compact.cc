@@ -2418,7 +2418,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       // This map is used for inobject slack tracking and has been detached
       // from SharedFunctionInfo during the mark phase.
       // Since it survived the GC, reattach it now.
-      map->unchecked_constructor()->unchecked_shared()->AttachInitialMap(map);
+      map->unchecked_constructor()->shared()->AttachInitialMap(map);
     }
 
     ClearNonLivePrototypeTransitions(map);
