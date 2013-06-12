@@ -402,7 +402,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   }
 
   // Type-check the function.
-  AstTyper::Type(info());
+  AstTyper::Run(info());
 
   graph_builder_ = new(info()->zone()) HOptimizedGraphBuilder(info());
 

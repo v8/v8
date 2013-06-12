@@ -358,6 +358,7 @@ class Expression: public AstNode {
 
   // Expression type
   Handle<Type> type() { return type_; }
+  void set_type(Handle<Type> type) { type_ = type; }
 
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
@@ -388,7 +389,7 @@ class Expression: public AstNode {
 
  protected:
   explicit Expression(Isolate* isolate)
-      : type_(Type::Any(), isolate),
+      : type_(Type::None(), isolate),
         id_(GetNextId(isolate)),
         test_id_(GetNextId(isolate)) {}
 
@@ -1106,24 +1107,15 @@ class CaseClause: public ZoneObject {
   // Type feedback information.
   TypeFeedbackId CompareId() { return compare_id_; }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-  bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
-  bool IsNameCompare() { return compare_type_ == NAME_ONLY; }
-  bool IsStringCompare() { return compare_type_ == STRING_ONLY; }
-  bool IsObjectCompare() { return compare_type_ == OBJECT_ONLY; }
+  Handle<Type> compare_type() { return compare_type_; }
 
  private:
   Expression* label_;
   Label body_target_;
   ZoneList<Statement*>* statements_;
   int position_;
-  enum CompareTypeFeedback {
-    NONE,
-    SMI_ONLY,
-    NAME_ONLY,
-    STRING_ONLY,
-    OBJECT_ONLY
-  };
-  CompareTypeFeedback compare_type_;
+  Handle<Type> compare_type_;
+
   const TypeFeedbackId compare_id_;
   const BailoutId entry_id_;
 };
@@ -2003,11 +1995,10 @@ class CompareOperation: public Expression {
   // Type feedback information.
   TypeFeedbackId CompareOperationFeedbackId() const { return reuse(id()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-  TypeInfo left_type() const { return left_type_; }
-  TypeInfo right_type() const { return right_type_; }
-  TypeInfo overall_type() const { return overall_type_; }
-  byte compare_nil_types() const { return compare_nil_types_; }
-  Handle<Map> map() const { return map_; }
+  Handle<Type> left_type() const { return left_type_; }
+  Handle<Type> right_type() const { return right_type_; }
+  Handle<Type> overall_type() const { return overall_type_; }
+  Handle<Type> compare_nil_type() const { return compare_nil_type_; }
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
@@ -2034,11 +2025,10 @@ class CompareOperation: public Expression {
   Expression* right_;
   int pos_;
 
-  TypeInfo left_type_;
-  TypeInfo right_type_;
-  TypeInfo overall_type_;
-  byte compare_nil_types_;
-  Handle<Map> map_;
+  Handle<Type> left_type_;
+  Handle<Type> right_type_;
+  Handle<Type> overall_type_;
+  Handle<Type> compare_nil_type_;
 };
 
 

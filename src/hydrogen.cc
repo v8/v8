@@ -1698,39 +1698,35 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
 
 void HGraphBuilder::BuildCompareNil(
     HValue* value,
-    CompareNilICStub::Types types,
-    Handle<Map> map,
+    Handle<Type> type,
     int position,
     HIfContinuation* continuation) {
   IfBuilder if_nil(this, position);
   bool needs_or = false;
-  if (types.Contains(CompareNilICStub::NULL_TYPE)) {
+  if (type->Maybe(Type::Null())) {
     if (needs_or) if_nil.Or();
     if_nil.If<HCompareObjectEqAndBranch>(value, graph()->GetConstantNull());
     needs_or = true;
   }
-  if (types.Contains(CompareNilICStub::UNDEFINED)) {
+  if (type->Maybe(Type::Undefined())) {
     if (needs_or) if_nil.Or();
     if_nil.If<HCompareObjectEqAndBranch>(value,
                                          graph()->GetConstantUndefined());
     needs_or = true;
   }
-  // Handle either undetectable or monomorphic, not both.
-  ASSERT(!types.Contains(CompareNilICStub::UNDETECTABLE) ||
-         !types.Contains(CompareNilICStub::MONOMORPHIC_MAP));
-  if (types.Contains(CompareNilICStub::UNDETECTABLE)) {
+  if (type->Maybe(Type::Undetectable())) {
     if (needs_or) if_nil.Or();
     if_nil.If<HIsUndetectableAndBranch>(value);
   } else {
     if_nil.Then();
     if_nil.Else();
-    if (!map.is_null() && types.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
+    if (type->NumClasses() == 1) {
       BuildCheckNonSmi(value);
       // For ICs, the map checked below is a sentinel map that gets replaced by
       // the monomorphic map when the code is used as a template to generate a
       // new IC. For optimized functions, there is no sentinel map, the map
       // emitted below is the actual monomorphic map.
-      BuildCheckMap(value, map);
+      BuildCheckMap(value, type->Classes().Current());
     } else {
       if_nil.Deopt();
     }
@@ -5028,7 +5024,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     HControlInstruction* compare;
 
     if (stmt->switch_type() == SwitchStatement::SMI_SWITCH) {
-      if (!clause->IsSmiCompare()) {
+      if (!clause->compare_type()->Is(Type::Integer31())) {
         AddSoftDeoptimize();
       }
 
@@ -8002,7 +7998,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
 
   // Type-check the inlined function.
   ASSERT(target_shared->has_deoptimization_support());
-  AstTyper::Type(&target_info);
+  AstTyper::Run(&target_info);
 
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it
@@ -9685,12 +9681,21 @@ void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
 }
 
 
+// TODO(rossberg): this should die eventually.
 Representation HOptimizedGraphBuilder::ToRepresentation(TypeInfo info) {
   if (info.IsUninitialized()) return Representation::None();
   if (info.IsSmi()) return Representation::Integer32();
   if (info.IsInteger32()) return Representation::Integer32();
   if (info.IsDouble()) return Representation::Double();
   if (info.IsNumber()) return Representation::Double();
+  return Representation::Tagged();
+}
+
+
+Representation HOptimizedGraphBuilder::ToRepresentation(Handle<Type> type) {
+  if (type->Is(Type::None())) return Representation::None();
+  if (type->Is(Type::Integer32())) return Representation::Integer32();
+  if (type->Is(Type::Number())) return Representation::Double();
   return Representation::Tagged();
 }
 
@@ -9784,17 +9789,17 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  TypeInfo left_type = expr->left_type();
-  TypeInfo right_type = expr->right_type();
-  TypeInfo overall_type = expr->overall_type();
+  Handle<Type> left_type = expr->left_type();
+  Handle<Type> right_type = expr->right_type();
+  Handle<Type> overall_type = expr->overall_type();
   Representation combined_rep = ToRepresentation(overall_type);
   Representation left_rep = ToRepresentation(left_type);
   Representation right_rep = ToRepresentation(right_type);
   // Check if this expression was ever executed according to type feedback.
   // Note that for the special typeof/null/undefined cases we get unknown here.
-  if (overall_type.IsUninitialized()) {
+  if (overall_type->Is(Type::None())) {
     AddSoftDeoptimize();
-    overall_type = left_type = right_type = TypeInfo::Unknown();
+    overall_type = left_type = right_type = handle(Type::Any(), isolate());
   }
 
   CHECK_ALIVE(VisitForValue(expr->left()));
@@ -9866,13 +9871,13 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     HIn* result = new(zone()) HIn(context, left, right);
     result->set_position(expr->position());
     return ast_context()->ReturnInstruction(result, expr->id());
-  } else if (overall_type.IsNonPrimitive()) {
+  } else if (overall_type->Is(Type::Receiver())) {
     switch (op) {
       case Token::EQ:
       case Token::EQ_STRICT: {
         // Can we get away with map check and not instance type check?
-        Handle<Map> map = expr->map();
-        if (!map.is_null()) {
+        if (overall_type->IsClass()) {
+          Handle<Map> map = overall_type->AsClass();
           AddCheckMapsWithTransitions(left, map);
           AddCheckMapsWithTransitions(right, map);
           HCompareObjectEqAndBranch* result =
@@ -9893,7 +9898,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       default:
         return Bailout("Unsupported non-primitive compare");
     }
-  } else if (overall_type.IsInternalizedString() &&
+  } else if (overall_type->Is(Type::InternalizedString()) &&
              Token::IsEqualityOp(op)) {
     BuildCheckNonSmi(left);
     AddInstruction(HCheckInstanceType::NewIsInternalizedString(left, zone()));
@@ -9928,8 +9933,8 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  ASSERT(expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT);
   HIfContinuation continuation;
-  CompareNilICStub::Types types;
   if (expr->op() == Token::EQ_STRICT) {
     IfBuilder if_nil(this);
     if_nil.If<HCompareObjectEqAndBranch>(
@@ -9940,11 +9945,9 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
     if_nil.CaptureContinuation(&continuation);
     return ast_context()->ReturnContinuation(&continuation, expr->id());
   }
-  types = CompareNilICStub::Types(expr->compare_nil_types());
-  if (types.IsEmpty()) types = CompareNilICStub::Types::FullCompare();
-  Handle<Map> map_handle = expr->map();
-  BuildCompareNil(value, types, map_handle,
-                  expr->position(), &continuation);
+  Handle<Type> type = expr->compare_nil_type()->Is(Type::None())
+      ? handle(Type::Any(), isolate_) : expr->compare_nil_type();
+  BuildCompareNil(value, type, expr->position(), &continuation);
   return ast_context()->ReturnContinuation(&continuation, expr->id());
 }
 

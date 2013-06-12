@@ -30,6 +30,84 @@
 namespace v8 {
 namespace internal {
 
+int Type::NumClasses() {
+  if (is_class()) {
+    return 1;
+  } else if (is_union()) {
+    Handle<Unioned> unioned = as_union();
+    int result = 0;
+    for (int i = 0; i < unioned->length(); ++i) {
+      if (union_get(unioned, i)->is_class()) ++result;
+    }
+    return result;
+  } else {
+    return 0;
+  }
+}
+
+
+int Type::NumConstants() {
+  if (is_constant()) {
+    return 1;
+  } else if (is_union()) {
+    Handle<Unioned> unioned = as_union();
+    int result = 0;
+    for (int i = 0; i < unioned->length(); ++i) {
+      if (union_get(unioned, i)->is_constant()) ++result;
+    }
+    return result;
+  } else {
+    return 0;
+  }
+}
+
+
+template<class T>
+Handle<Type> Type::Iterator<T>::get_type() {
+  ASSERT(!Done());
+  return type_->is_union() ? union_get(type_->as_union(), index_) : type_;
+}
+
+template<>
+Handle<Map> Type::Iterator<Map>::Current() {
+  return get_type()->as_class();
+}
+
+template<>
+Handle<v8::internal::Object> Type::Iterator<v8::internal::Object>::Current() {
+  return get_type()->as_constant();
+}
+
+
+template<>
+bool Type::Iterator<Map>::matches(Handle<Type> type) {
+  return type->is_class();
+}
+
+template<>
+bool Type::Iterator<v8::internal::Object>::matches(Handle<Type> type) {
+  return type->is_constant();
+}
+
+
+template<class T>
+void Type::Iterator<T>::Advance() {
+  ++index_;
+  if (type_->is_union()) {
+    Handle<Unioned> unioned = type_->as_union();
+    for (; index_ < unioned->length(); ++index_) {
+      if (matches(union_get(unioned, index_))) return;
+    }
+  } else if (index_ == 0 && matches(type_)) {
+    return;
+  }
+  index_ = -1;
+}
+
+template class Type::Iterator<Map>;
+template class Type::Iterator<v8::internal::Object>;
+
+
 // Get the smallest bitset subsuming this type.
 int Type::LubBitset() {
   if (this->is_bitset()) {
@@ -46,9 +124,14 @@ int Type::LubBitset() {
     if (this->is_class()) {
       map = *this->as_class();
     } else {
-      v8::internal::Object* value = this->as_constant()->value();
-      if (value->IsSmi()) return kSmi;
-      map = HeapObject::cast(value)->map();
+      Handle<v8::internal::Object> value = this->as_constant();
+      if (value->IsSmi()) return kInteger31;
+      map = HeapObject::cast(*value)->map();
+      if (map->instance_type() == ODDBALL_TYPE) {
+        if (value->IsUndefined()) return kUndefined;
+        if (value->IsNull()) return kNull;
+        if (value->IsTrue() || value->IsFalse()) return kBoolean;
+      }
     }
     switch (map->instance_type()) {
       case STRING_TYPE:
@@ -56,6 +139,7 @@ int Type::LubBitset() {
       case CONS_STRING_TYPE:
       case CONS_ASCII_STRING_TYPE:
       case SLICED_STRING_TYPE:
+      case SLICED_ASCII_STRING_TYPE:
       case EXTERNAL_STRING_TYPE:
       case EXTERNAL_ASCII_STRING_TYPE:
       case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
@@ -92,6 +176,7 @@ int Type::LubBitset() {
       case JS_TYPED_ARRAY_TYPE:
       case JS_WEAK_MAP_TYPE:
       case JS_REGEXP_TYPE:
+        if (map->is_undetectable()) return kUndetectable;
         return kOtherObject;
       case JS_ARRAY_TYPE:
         return kArray;
@@ -100,6 +185,17 @@ int Type::LubBitset() {
       case JS_PROXY_TYPE:
       case JS_FUNCTION_PROXY_TYPE:
         return kProxy;
+      case MAP_TYPE:
+        // When compiling stub templates, the meta map is used as a place holder
+        // for the actual map with which the template is later instantiated.
+        // We treat it as a kind of type variable whose upper bound is Any.
+        // TODO(rossberg): for caching of CompareNilIC stubs to work correctly,
+        // we must exclude Undetectable here. This makes no sense, really,
+        // because it means that the template isn't actually parametric.
+        // Also, it doesn't apply elsewhere. 8-(
+        // We ought to find a cleaner solution for compiling stubs parameterised
+        // over type or class variables, esp ones with bounds...
+        return kDetectable;
       default:
         UNREACHABLE();
         return kNone;
@@ -122,7 +218,7 @@ int Type::GlbBitset() {
 
 
 // Check this <= that.
-bool Type::Is(Handle<Type> that) {
+bool Type::Is(Type* that) {
   // Fast path for bitsets.
   if (that->is_bitset()) {
     return (this->LubBitset() | that->as_bitset()) == that->as_bitset();
@@ -132,8 +228,7 @@ bool Type::Is(Handle<Type> that) {
     return this->is_class() && *this->as_class() == *that->as_class();
   }
   if (that->is_constant()) {
-    return this->is_constant() &&
-        this->as_constant()->value() == that->as_constant()->value();
+    return this->is_constant() && *this->as_constant() == *that->as_constant();
   }
 
   // (T1 \/ ... \/ Tn) <= T  <=>  (T1 <= T) /\ ... /\ (Tn <= T)
@@ -163,7 +258,7 @@ bool Type::Is(Handle<Type> that) {
 
 
 // Check this overlaps that.
-bool Type::Maybe(Handle<Type> that) {
+bool Type::Maybe(Type* that) {
   // Fast path for bitsets.
   if (this->is_bitset()) {
     return (this->as_bitset() & that->LubBitset()) != 0;
@@ -176,8 +271,7 @@ bool Type::Maybe(Handle<Type> that) {
     return that->is_class() && *this->as_class() == *that->as_class();
   }
   if (this->is_constant()) {
-    return that->is_constant() &&
-        this->as_constant()->value() == that->as_constant()->value();
+    return that->is_constant() && *this->as_constant() == *that->as_constant();
   }
 
   // (T1 \/ ... \/ Tn) overlaps T <=> (T1 overlaps T) \/ ... \/ (Tn overlaps T)

@@ -2420,8 +2420,8 @@ UnaryOpIC::State UnaryOpIC::ToState(TypeInfo type_info) {
 }
 
 UnaryOpIC::TypeInfo UnaryOpIC::GetTypeInfo(Handle<Object> operand) {
-  ::v8::internal::TypeInfo operand_type =
-      ::v8::internal::TypeInfo::TypeFromValue(operand);
+  v8::internal::TypeInfo operand_type =
+      v8::internal::TypeInfo::FromValue(operand);
   if (operand_type.IsSmi()) {
     return SMI;
   } else if (operand_type.IsNumber()) {
@@ -2545,8 +2545,7 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
 
 static BinaryOpIC::TypeInfo TypeInfoFromValue(Handle<Object> value,
                                               Token::Value op) {
-  ::v8::internal::TypeInfo type =
-      ::v8::internal::TypeInfo::TypeFromValue(value);
+  v8::internal::TypeInfo type = v8::internal::TypeInfo::FromValue(value);
   if (type.IsSmi()) return BinaryOpIC::SMI;
   if (type.IsInteger32()) {
     if (kSmiValueSize == 32) return BinaryOpIC::SMI;
@@ -2767,10 +2766,39 @@ const char* CompareIC::GetStateName(State state) {
     case OBJECT: return "OBJECT";
     case KNOWN_OBJECT: return "KNOWN_OBJECT";
     case GENERIC: return "GENERIC";
-    default:
-      UNREACHABLE();
-      return NULL;
   }
+  UNREACHABLE();
+  return NULL;
+}
+
+
+Handle<Type> CompareIC::StateToType(
+    Isolate* isolate,
+    CompareIC::State state,
+    Handle<Map> map) {
+  switch (state) {
+    case CompareIC::UNINITIALIZED:
+      return handle(Type::None(), isolate);
+    case CompareIC::SMI:
+      return handle(Type::Integer31(), isolate);
+    case CompareIC::NUMBER:
+      return handle(Type::Number(), isolate);
+    case CompareIC::STRING:
+      return handle(Type::String(), isolate);
+    case CompareIC::INTERNALIZED_STRING:
+      return handle(Type::InternalizedString(), isolate);
+    case CompareIC::UNIQUE_NAME:
+      return handle(Type::UniqueName(), isolate);
+    case CompareIC::OBJECT:
+      return handle(Type::Receiver(), isolate);
+    case CompareIC::KNOWN_OBJECT:
+      return handle(
+          map.is_null() ? Type::Receiver() : Type::Class(map), isolate);
+    case CompareIC::GENERIC:
+      return handle(Type::Any(), isolate);
+  }
+  UNREACHABLE();
+  return Handle<Type>();
 }
 
 
@@ -2934,7 +2962,7 @@ void CompareNilIC::Clear(Address address, Code* target) {
   Code::ExtraICState state = target->extended_extra_ic_state();
 
   CompareNilICStub stub(state, HydrogenCodeStub::UNINITIALIZED);
-  stub.ClearTypes();
+  stub.ClearState();
 
   Code* code = NULL;
   CHECK(stub.FindCodeInCache(&code, target->GetIsolate()));
@@ -2961,9 +2989,9 @@ MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
   // types must be supported as a result of the miss.
   bool already_monomorphic = stub.IsMonomorphic();
 
-  CompareNilICStub::Types old_types = stub.GetTypes();
+  CompareNilICStub::State old_state = stub.GetState();
   stub.Record(object);
-  old_types.TraceTransition(stub.GetTypes());
+  old_state.TraceTransition(stub.GetState());
 
   NilValue nil = stub.GetNilValue();
 

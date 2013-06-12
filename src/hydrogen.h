@@ -1364,8 +1364,7 @@ class HGraphBuilder {
 
   void BuildCompareNil(
       HValue* value,
-      CompareNilICStub::Types types,
-      Handle<Map> map,
+      Handle<Type> type,
       int position,
       HIfContinuation* continuation);
 
@@ -1636,6 +1635,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   template <class Instruction> HInstruction* PreProcessCall(Instruction* call);
 
   static Representation ToRepresentation(TypeInfo info);
+  static Representation ToRepresentation(Handle<Type> type);
 
   void SetUpScope(Scope* scope);
   virtual void VisitStatements(ZoneList<Statement*>* statements);

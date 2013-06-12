@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "globals.h"
+#include "types.h"
 #include "zone-inl.h"
 
 namespace v8 {
@@ -113,7 +114,7 @@ class TypeInfo {
     return false;
   }
 
-  static TypeInfo TypeFromValue(Handle<Object> value);
+  static TypeInfo FromValue(Handle<Object> value);
 
   bool Equals(const TypeInfo& other) {
     return type_ == other.type_;
@@ -217,12 +218,12 @@ enum StringStubFeedback {
 
 
 // Forward declarations.
+// TODO(rossberg): these should all go away eventually.
 class Assignment;
 class BinaryOperation;
 class Call;
 class CallNew;
 class CaseClause;
-class CompareOperation;
 class CompilationInfo;
 class CountOperation;
 class Expression;
@@ -257,7 +258,6 @@ class TypeFeedbackOracle: public ZoneObject {
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
   Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId id);
-  Handle<Map> CompareNilMonomorphicReceiverType(CompareOperation* expr);
 
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId ast_id);
 
@@ -293,12 +293,7 @@ class TypeFeedbackOracle: public ZoneObject {
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
   // headers!! :-P
-  byte ToBooleanTypes(TypeFeedbackId ast_id);
-
-  // TODO(1571) We can't use CompareNilICStub::Types as the return value because
-  // of various cylces in our headers. Death to tons of implementations in
-  // headers!! :-P
-  byte CompareNilTypes(CompareOperation* expr);
+  byte ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
   TypeInfo UnaryType(UnaryOperation* expr);
@@ -308,12 +303,15 @@ class TypeFeedbackOracle: public ZoneObject {
                   TypeInfo* result,
                   bool* has_fixed_right_arg,
                   int* fixed_right_arg_value);
-  void CompareType(CompareOperation* expr,
-                   TypeInfo* left_type,
-                   TypeInfo* right_type,
-                   TypeInfo* overall_type);
-  Handle<Map> GetCompareMap(CompareOperation* expr);
-  TypeInfo SwitchType(CaseClause* clause);
+
+  void CompareTypes(TypeFeedbackId id,
+                    Handle<Type>* left_type,
+                    Handle<Type>* right_type,
+                    Handle<Type>* overall_type,
+                    Handle<Type>* compare_nil_type);
+
+  Handle<Type> ClauseType(TypeFeedbackId id);
+
   TypeInfo IncrementType(CountOperation* expr);
 
   Zone* zone() const { return zone_; }
