@@ -1212,7 +1212,7 @@ void StoreBufferRebuilder::Callback(MemoryChunk* page, StoreBufferEvent event) {
       // Store Buffer overflowed while scanning promoted objects.  These are not
       // in any particular page, though they are likely to be clustered by the
       // allocation routines.
-      store_buffer_->EnsureSpace(StoreBuffer::kStoreBufferSize);
+      store_buffer_->EnsureSpace(StoreBuffer::kStoreBufferSize / 2);
     } else {
       // Store Buffer overflowed while scanning a particular old space page for
       // pointers to new space.
