@@ -283,7 +283,7 @@ class TypeFeedbackOracle: public ZoneObject {
   CheckType GetCallCheckType(Call* expr);
   Handle<JSFunction> GetCallTarget(Call* expr);
   Handle<JSFunction> GetCallNewTarget(CallNew* expr);
-  Handle<JSGlobalPropertyCell> GetCallNewAllocationInfoCell(CallNew* expr);
+  Handle<Cell> GetCallNewAllocationInfoCell(CallNew* expr);
 
   Handle<Map> GetObjectLiteralStoreMap(ObjectLiteralProperty* prop);
 
@@ -341,7 +341,7 @@ class TypeFeedbackOracle: public ZoneObject {
   Handle<Object> GetInfo(TypeFeedbackId ast_id);
 
   // Return the cell that contains type feedback.
-  Handle<JSGlobalPropertyCell> GetInfoCell(TypeFeedbackId ast_id);
+  Handle<Cell> GetInfoCell(TypeFeedbackId ast_id);
 
  private:
   Handle<Context> native_context_;

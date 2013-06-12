@@ -1705,7 +1705,7 @@ class Call: public Expression {
   // as the holder!
   Handle<JSObject> holder() { return holder_; }
 
-  Handle<JSGlobalPropertyCell> cell() { return cell_; }
+  Handle<Cell> cell() { return cell_; }
 
   bool ComputeTarget(Handle<Map> type, Handle<String> name);
   bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupResult* lookup);
@@ -1745,7 +1745,7 @@ class Call: public Expression {
   SmallMapList receiver_types_;
   Handle<JSFunction> target_;
   Handle<JSObject> holder_;
-  Handle<JSGlobalPropertyCell> cell_;
+  Handle<Cell> cell_;
 
   const BailoutId return_id_;
 };
@@ -1765,7 +1765,7 @@ class CallNew: public Expression {
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   Handle<JSFunction> target() const { return target_; }
   ElementsKind elements_kind() const { return elements_kind_; }
-  Handle<JSGlobalPropertyCell> allocation_info_cell() const {
+  Handle<Cell> allocation_info_cell() const {
     return allocation_info_cell_;
   }
 
@@ -1792,7 +1792,7 @@ class CallNew: public Expression {
   bool is_monomorphic_;
   Handle<JSFunction> target_;
   ElementsKind elements_kind_;
-  Handle<JSGlobalPropertyCell> allocation_info_cell_;
+  Handle<Cell> allocation_info_cell_;
 
   const BailoutId return_id_;
 };

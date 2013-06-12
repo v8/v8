@@ -80,8 +80,8 @@ Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
   int entry = dictionary_->FindEntry(IdToKey(ast_id));
   if (entry != UnseededNumberDictionary::kNotFound) {
     Object* value = dictionary_->ValueAt(entry);
-    if (value->IsJSGlobalPropertyCell()) {
-      JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(value);
+    if (value->IsCell()) {
+      Cell* cell = Cell::cast(value);
       return Handle<Object>(cell->value(), isolate_);
     } else {
       return Handle<Object>(value, isolate_);
@@ -91,15 +91,14 @@ Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
 }
 
 
-Handle<JSGlobalPropertyCell> TypeFeedbackOracle::GetInfoCell(
+Handle<Cell> TypeFeedbackOracle::GetInfoCell(
     TypeFeedbackId ast_id) {
   int entry = dictionary_->FindEntry(IdToKey(ast_id));
   if (entry != UnseededNumberDictionary::kNotFound) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(
-        dictionary_->ValueAt(entry));
-    return Handle<JSGlobalPropertyCell>(cell, isolate_);
+    Cell* cell = Cell::cast(dictionary_->ValueAt(entry));
+    return Handle<Cell>(cell, isolate_);
   }
-  return Handle<JSGlobalPropertyCell>::null();
+  return Handle<Cell>::null();
 }
 
 
@@ -335,8 +334,7 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
 }
 
 
-Handle<JSGlobalPropertyCell> TypeFeedbackOracle::GetCallNewAllocationInfoCell(
-    CallNew* expr) {
+Handle<Cell> TypeFeedbackOracle::GetCallNewAllocationInfoCell(CallNew* expr) {
   return GetInfoCell(expr->CallNewFeedbackId());
 }
 
@@ -759,7 +757,7 @@ void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
       TypeFeedbackInfo::cast(raw_info)->type_feedback_cells());
   for (int i = 0; i < cache->CellCount(); i++) {
     TypeFeedbackId ast_id = cache->AstId(i);
-    JSGlobalPropertyCell* cell = cache->Cell(i);
+    Cell* cell = cache->GetCell(i);
     Object* value = cell->value();
     if (value->IsSmi() ||
         (value->IsJSFunction() &&

@@ -570,11 +570,11 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
 bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
                                LookupResult* lookup) {
   target_ = Handle<JSFunction>::null();
-  cell_ = Handle<JSGlobalPropertyCell>::null();
+  cell_ = Handle<Cell>::null();
   ASSERT(lookup->IsFound() &&
          lookup->type() == NORMAL &&
          lookup->holder() == *global);
-  cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(lookup));
+  cell_ = Handle<Cell>(global->GetPropertyCell(lookup));
   if (cell_->value()->IsJSFunction()) {
     Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
     // If the function is in new space we assume it's more likely to

@@ -196,6 +196,11 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   // Registration for kVisitJSRegExp is done by StaticVisitor.
 
+  table_.Register(kVisitCell,
+                  &FixedBodyVisitor<StaticVisitor,
+                  Cell::BodyDescriptor,
+                  void>::Visit);
+
   table_.Register(kVisitPropertyCell,
                   &FixedBodyVisitor<StaticVisitor,
                   JSGlobalPropertyCell::BodyDescriptor,
@@ -240,10 +245,10 @@ void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
 
 
 template<typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitGlobalPropertyCell(
+void StaticMarkingVisitor<StaticVisitor>::VisitCell(
     Heap* heap, RelocInfo* rinfo) {
-  ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
-  JSGlobalPropertyCell* cell = rinfo->target_cell();
+  ASSERT(rinfo->rmode() == RelocInfo::CELL);
+  Cell* cell = rinfo->target_cell();
   StaticVisitor::MarkObject(heap, cell);
 }
 
@@ -777,7 +782,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunctionWeakCode(
 void Code::CodeIterateBody(ObjectVisitor* v) {
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::GLOBAL_PROPERTY_CELL) |
+                  RelocInfo::ModeMask(RelocInfo::CELL) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                   RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
                   RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
@@ -801,7 +806,7 @@ template<typename StaticVisitor>
 void Code::CodeIterateBody(Heap* heap) {
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::GLOBAL_PROPERTY_CELL) |
+                  RelocInfo::ModeMask(RelocInfo::CELL) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                   RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
                   RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |

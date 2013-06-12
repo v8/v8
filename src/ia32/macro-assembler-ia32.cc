@@ -2495,8 +2495,7 @@ void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
   AllowDeferredHandleDereference embedding_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
     mov(result, Operand::Cell(cell));
   } else {
     mov(result, object);
@@ -2507,8 +2506,7 @@ void MacroAssembler::LoadHeapObject(Register result,
 void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
   AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
     cmp(reg, Operand::Cell(cell));
   } else {
     cmp(reg, object);
@@ -2519,8 +2517,7 @@ void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
 void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
   AllowDeferredHandleDereference using_raw_address;
   if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
     push(Operand::Cell(cell));
   } else {
     Push(object);

@@ -2476,14 +2476,14 @@ class HCallNew: public HBinaryCall {
 class HCallNewArray: public HCallNew {
  public:
   HCallNewArray(HValue* context, HValue* constructor, int argument_count,
-              Handle<JSGlobalPropertyCell> type_cell)
+                Handle<Cell> type_cell)
       : HCallNew(context, constructor, argument_count),
         type_cell_(type_cell) {
     elements_kind_ = static_cast<ElementsKind>(
         Smi::cast(type_cell->value())->value());
   }
 
-  Handle<JSGlobalPropertyCell> property_cell() const {
+  Handle<Cell> property_cell() const {
     return type_cell_;
   }
 
@@ -2493,7 +2493,7 @@ class HCallNewArray: public HCallNew {
 
  private:
   ElementsKind elements_kind_;
-  Handle<JSGlobalPropertyCell> type_cell_;
+  Handle<Cell> type_cell_;
 };
 
 
@@ -4853,14 +4853,14 @@ class HUnknownOSRValue: public HTemplateInstruction<0> {
 
 class HLoadGlobalCell: public HTemplateInstruction<0> {
  public:
-  HLoadGlobalCell(Handle<JSGlobalPropertyCell> cell, PropertyDetails details)
+  HLoadGlobalCell(Handle<Cell> cell, PropertyDetails details)
       : cell_(cell), details_(details), unique_id_() {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnGlobalVars);
   }
 
-  Handle<JSGlobalPropertyCell> cell() const { return cell_; }
+  Handle<Cell> cell() const { return cell_; }
   bool RequiresHoleCheck() const;
 
   virtual void PrintDataTo(StringStream* stream);
@@ -4888,7 +4888,7 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
  private:
   virtual bool IsDeletable() const { return !RequiresHoleCheck(); }
 
-  Handle<JSGlobalPropertyCell> cell_;
+  Handle<Cell> cell_;
   PropertyDetails details_;
   UniqueValueId unique_id_;
 };

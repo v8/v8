@@ -105,6 +105,7 @@ Heap::Heap()
       code_space_(NULL),
       map_space_(NULL),
       cell_space_(NULL),
+      property_cell_space_(NULL),
       lo_space_(NULL),
       gc_state_(NOT_IN_GC),
       gc_post_processing_depth_(0),
@@ -199,7 +200,8 @@ intptr_t Heap::Capacity() {
       old_data_space_->Capacity() +
       code_space_->Capacity() +
       map_space_->Capacity() +
-      cell_space_->Capacity();
+      cell_space_->Capacity() +
+      property_cell_space_->Capacity();
 }
 
 
@@ -212,6 +214,7 @@ intptr_t Heap::CommittedMemory() {
       code_space_->CommittedMemory() +
       map_space_->CommittedMemory() +
       cell_space_->CommittedMemory() +
+      property_cell_space_->CommittedMemory() +
       lo_space_->Size();
 }
 
@@ -225,6 +228,7 @@ size_t Heap::CommittedPhysicalMemory() {
       code_space_->CommittedPhysicalMemory() +
       map_space_->CommittedPhysicalMemory() +
       cell_space_->CommittedPhysicalMemory() +
+      property_cell_space_->CommittedPhysicalMemory() +
       lo_space_->CommittedPhysicalMemory();
 }
 
@@ -244,7 +248,8 @@ intptr_t Heap::Available() {
       old_data_space_->Available() +
       code_space_->Available() +
       map_space_->Available() +
-      cell_space_->Available();
+      cell_space_->Available() +
+      property_cell_space_->Available();
 }
 
 
@@ -254,6 +259,7 @@ bool Heap::HasBeenSetUp() {
          code_space_ != NULL &&
          map_space_ != NULL &&
          cell_space_ != NULL &&
+         property_cell_space_ != NULL &&
          lo_space_ != NULL;
 }
 
@@ -383,6 +389,12 @@ void Heap::PrintShortHeapStatistics() {
            cell_space_->SizeOfObjects() / KB,
            cell_space_->Available() / KB,
            cell_space_->CommittedMemory() / KB);
+  PrintPID("PropertyCell space, used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           property_cell_space_->SizeOfObjects() / KB,
+           property_cell_space_->Available() / KB,
+           property_cell_space_->CommittedMemory() / KB);
   PrintPID("Large object space, used: %6" V8_PTR_PREFIX "d KB"
                ", available: %6" V8_PTR_PREFIX "d KB"
                ", committed: %6" V8_PTR_PREFIX "d KB\n",
@@ -514,6 +526,10 @@ void Heap::GarbageCollectionEpilogue() {
     isolate_->counters()->heap_fraction_cell_space()->AddSample(
         static_cast<int>(
             (cell_space()->CommittedMemory() * 100.0) / CommittedMemory()));
+    isolate_->counters()->heap_fraction_property_cell_space()->
+        AddSample(static_cast<int>(
+            (property_cell_space()->CommittedMemory() * 100.0) /
+            CommittedMemory()));
 
     isolate_->counters()->heap_sample_total_committed()->AddSample(
         static_cast<int>(CommittedMemory() / KB));
@@ -523,6 +539,10 @@ void Heap::GarbageCollectionEpilogue() {
         static_cast<int>(map_space()->CommittedMemory() / KB));
     isolate_->counters()->heap_sample_cell_space_committed()->AddSample(
         static_cast<int>(cell_space()->CommittedMemory() / KB));
+    isolate_->counters()->
+        heap_sample_property_cell_space_committed()->
+            AddSample(static_cast<int>(
+                property_cell_space()->CommittedMemory() / KB));
   }
 
 #define UPDATE_COUNTERS_FOR_SPACE(space)                                       \
@@ -548,6 +568,7 @@ void Heap::GarbageCollectionEpilogue() {
   UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(code_space)
   UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(map_space)
   UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(cell_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(property_cell_space)
   UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(lo_space)
 #undef UPDATE_COUNTERS_FOR_SPACE
 #undef UPDATE_FRAGMENTATION_FOR_SPACE
@@ -1353,15 +1374,31 @@ void Heap::Scavenge() {
     store_buffer()->IteratePointersToNewSpace(&ScavengeObject);
   }
 
-  // Copy objects reachable from cells by scavenging cell values directly.
+  // Copy objects reachable from simple cells by scavenging cell values
+  // directly.
   HeapObjectIterator cell_iterator(cell_space_);
   for (HeapObject* heap_object = cell_iterator.Next();
        heap_object != NULL;
        heap_object = cell_iterator.Next()) {
+    if (heap_object->IsCell()) {
+      Cell* cell = Cell::cast(heap_object);
+      Address value_address = cell->ValueAddress();
+      scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
+    }
+  }
+
+  // Copy objects reachable from global property cells by scavenging global
+  // property cell values directly.
+  HeapObjectIterator js_global_property_cell_iterator(property_cell_space_);
+  for (HeapObject* heap_object = js_global_property_cell_iterator.Next();
+       heap_object != NULL;
+       heap_object = js_global_property_cell_iterator.Next()) {
     if (heap_object->IsJSGlobalPropertyCell()) {
       JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(heap_object);
       Address value_address = cell->ValueAddress();
       scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
+      Address type_address = cell->TypeAddress();
+      scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(type_address));
     }
   }
 
@@ -2634,7 +2671,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_code_map(Map::cast(obj));
 
-  { MaybeObject* maybe_obj = AllocateMap(JS_GLOBAL_PROPERTY_CELL_TYPE,
+  { MaybeObject* maybe_obj = AllocateMap(CELL_TYPE, Cell::kSize);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_cell_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateMap(PROPERTY_CELL_TYPE,
                                          JSGlobalPropertyCell::kSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
@@ -2769,14 +2811,26 @@ MaybeObject* Heap::AllocateHeapNumber(double value) {
 }
 
 
-MaybeObject* Heap::AllocateJSGlobalPropertyCell(Object* value) {
+MaybeObject* Heap::AllocateCell(Object* value) {
   Object* result;
   { MaybeObject* maybe_result = AllocateRawCell();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  HeapObject::cast(result)->set_map_no_write_barrier(cell_map());
+  Cell::cast(result)->set_value(value);
+  return result;
+}
+
+
+MaybeObject* Heap::AllocateJSGlobalPropertyCell(Object* value) {
+  Object* result;
+  { MaybeObject* maybe_result = AllocateRawJSGlobalPropertyCell();
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   HeapObject::cast(result)->set_map_no_write_barrier(
       global_property_cell_map());
   JSGlobalPropertyCell::cast(result)->set_value(value);
+  JSGlobalPropertyCell::cast(result)->set_type(Type::None());
   return result;
 }
 
@@ -4440,8 +4494,7 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
   // advice
   Map* initial_map = constructor->initial_map();
 
-  JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(
-      *allocation_site_info_payload);
+  Cell* cell = Cell::cast(*allocation_site_info_payload);
   Smi* smi = Smi::cast(cell->value());
   ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
   AllocationSiteMode mode = TRACK_ALLOCATION_SITE;
@@ -6023,6 +6076,8 @@ void Heap::ReportHeapStatistics(const char* title) {
   map_space_->ReportStatistics();
   PrintF("Cell space : ");
   cell_space_->ReportStatistics();
+  PrintF("JSGlobalPropertyCell space : ");
+  property_cell_space_->ReportStatistics();
   PrintF("Large object space : ");
   lo_space_->ReportStatistics();
   PrintF(">>>>>> ========================================= >>>>>>\n");
@@ -6044,6 +6099,7 @@ bool Heap::Contains(Address addr) {
      code_space_->Contains(addr) ||
      map_space_->Contains(addr) ||
      cell_space_->Contains(addr) ||
+     property_cell_space_->Contains(addr) ||
      lo_space_->SlowContains(addr));
 }
 
@@ -6070,6 +6126,8 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
       return map_space_->Contains(addr);
     case CELL_SPACE:
       return cell_space_->Contains(addr);
+    case PROPERTY_CELL_SPACE:
+      return property_cell_space_->Contains(addr);
     case LO_SPACE:
       return lo_space_->SlowContains(addr);
   }
@@ -6096,6 +6154,7 @@ void Heap::Verify() {
   old_data_space_->Verify(&no_dirty_regions_visitor);
   code_space_->Verify(&no_dirty_regions_visitor);
   cell_space_->Verify(&no_dirty_regions_visitor);
+  property_cell_space_->Verify(&no_dirty_regions_visitor);
 
   lo_space_->Verify();
 }
@@ -6595,6 +6654,8 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->map_space_capacity = map_space_->Capacity();
   *stats->cell_space_size = cell_space_->SizeOfObjects();
   *stats->cell_space_capacity = cell_space_->Capacity();
+  *stats->property_cell_space_size = property_cell_space_->SizeOfObjects();
+  *stats->property_cell_space_capacity = property_cell_space_->Capacity();
   *stats->lo_space_size = lo_space_->Size();
   isolate_->global_handles()->RecordStats(stats);
   *stats->memory_allocator_size = isolate()->memory_allocator()->Size();
@@ -6623,6 +6684,7 @@ intptr_t Heap::PromotedSpaceSizeOfObjects() {
       + code_space_->SizeOfObjects()
       + map_space_->SizeOfObjects()
       + cell_space_->SizeOfObjects()
+      + property_cell_space_->SizeOfObjects()
       + lo_space_->SizeOfObjects();
 }
 
@@ -6711,10 +6773,16 @@ bool Heap::SetUp() {
   if (map_space_ == NULL) return false;
   if (!map_space_->SetUp()) return false;
 
-  // Initialize global property cell space.
+  // Initialize simple cell space.
   cell_space_ = new CellSpace(this, max_old_generation_size_, CELL_SPACE);
   if (cell_space_ == NULL) return false;
   if (!cell_space_->SetUp()) return false;
+
+  // Initialize global property cell space.
+  property_cell_space_ = new PropertyCellSpace(this, max_old_generation_size_,
+                                               PROPERTY_CELL_SPACE);
+  if (property_cell_space_ == NULL) return false;
+  if (!property_cell_space_->SetUp()) return false;
 
   // The large object code space may contain code or data.  We set the memory
   // to be non-executable here for safety, but this means we need to enable it
@@ -6837,6 +6905,12 @@ void Heap::TearDown() {
     cell_space_ = NULL;
   }
 
+  if (property_cell_space_ != NULL) {
+    property_cell_space_->TearDown();
+    delete property_cell_space_;
+    property_cell_space_ = NULL;
+  }
+
   if (lo_space_ != NULL) {
     lo_space_->TearDown();
     delete lo_space_;
@@ -6927,6 +7001,8 @@ Space* AllSpaces::next() {
       return heap_->map_space();
     case CELL_SPACE:
       return heap_->cell_space();
+    case PROPERTY_CELL_SPACE:
+      return heap_->property_cell_space();
     case LO_SPACE:
       return heap_->lo_space();
     default:
@@ -6947,6 +7023,8 @@ PagedSpace* PagedSpaces::next() {
       return heap_->map_space();
     case CELL_SPACE:
       return heap_->cell_space();
+    case PROPERTY_CELL_SPACE:
+      return heap_->property_cell_space();
     default:
       return NULL;
   }
@@ -7035,6 +7113,10 @@ ObjectIterator* SpaceIterator::CreateIterator() {
       break;
     case CELL_SPACE:
       iterator_ = new HeapObjectIterator(heap_->cell_space(), size_func_);
+      break;
+    case PROPERTY_CELL_SPACE:
+      iterator_ = new HeapObjectIterator(heap_->property_cell_space(),
+                                         size_func_);
       break;
     case LO_SPACE:
       iterator_ = new LargeObjectIterator(heap_->lo_space(), size_func_);

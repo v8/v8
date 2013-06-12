@@ -4703,13 +4703,13 @@ static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
   __ j(equal, &initialize, Label::kNear);
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
-  __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+  __ mov(FieldOperand(ebx, Cell::kValueOffset),
          Immediate(TypeFeedbackCells::MegamorphicSentinel(isolate)));
   __ jmp(&done, Label::kNear);
 
   // An uninitialized cache is patched with the function.
   __ bind(&initialize);
-  __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset), edi);
+  __ mov(FieldOperand(ebx, Cell::kValueOffset), edi);
   // No need for a write barrier here - cells are rescanned.
 
   __ bind(&done);
@@ -4727,7 +4727,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Label initialize, done, miss, megamorphic, not_array_function;
 
   // Load the cache state into ecx.
-  __ mov(ecx, FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset));
+  __ mov(ecx, FieldOperand(ebx, Cell::kValueOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
@@ -4762,7 +4762,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
-  __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+  __ mov(FieldOperand(ebx, Cell::kValueOffset),
          Immediate(TypeFeedbackCells::MegamorphicSentinel(isolate)));
   __ jmp(&done, Label::kNear);
 
@@ -4781,12 +4781,12 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Handle<Object> initial_kind_sentinel =
       TypeFeedbackCells::MonomorphicArraySentinel(isolate,
           GetInitialFastElementsKind());
-  __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+  __ mov(FieldOperand(ebx, Cell::kValueOffset),
          Immediate(initial_kind_sentinel));
   __ jmp(&done);
 
   __ bind(&not_array_function);
-  __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset), edi);
+  __ mov(FieldOperand(ebx, Cell::kValueOffset), edi);
   // No need for a write barrier here - cells are rescanned.
 
   __ bind(&done);
@@ -4857,7 +4857,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // If there is a call target cache, mark it megamorphic in the
     // non-function case.  MegamorphicSentinel is an immortal immovable
     // object (undefined) so no write barrier is needed.
-    __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+    __ mov(FieldOperand(ebx, Cell::kValueOffset),
            Immediate(TypeFeedbackCells::MegamorphicSentinel(isolate)));
   }
   // Check for function proxy.
@@ -7930,13 +7930,12 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ CmpObjectType(ecx, MAP_TYPE, ecx);
     __ Assert(equal, "Unexpected initial map for Array function");
 
-    // We should either have undefined in ebx or a valid jsglobalpropertycell
+    // We should either have undefined in ebx or a valid cell
     Label okay_here;
-    Handle<Map> global_property_cell_map(
-        masm->isolate()->heap()->global_property_cell_map());
+    Handle<Map> cell_map = masm->isolate()->factory()->cell_map();
     __ cmp(ebx, Immediate(undefined_sentinel));
     __ j(equal, &okay_here);
-    __ cmp(FieldOperand(ebx, 0), Immediate(global_property_cell_map));
+    __ cmp(FieldOperand(ebx, 0), Immediate(cell_map));
     __ Assert(equal, "Expected property cell in register ebx");
     __ bind(&okay_here);
   }
@@ -7946,7 +7945,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Get the elements kind and case on that.
     __ cmp(ebx, Immediate(undefined_sentinel));
     __ j(equal, &no_info);
-    __ mov(edx, FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset));
+    __ mov(edx, FieldOperand(ebx, Cell::kValueOffset));
     __ JumpIfNotSmi(edx, &no_info);
     __ SmiUntag(edx);
     __ jmp(&switch_ready);

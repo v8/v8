@@ -473,7 +473,7 @@ void FullCodeGenerator::PrepareForBailoutForId(BailoutId id, State state) {
 
 
 void FullCodeGenerator::RecordTypeFeedbackCell(
-    TypeFeedbackId id, Handle<JSGlobalPropertyCell> cell) {
+    TypeFeedbackId id, Handle<Cell> cell) {
   TypeFeedbackCellEntry entry = { id, cell };
   type_feedback_cells_.Add(entry, zone());
 }

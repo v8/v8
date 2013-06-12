@@ -437,8 +437,7 @@ class FullCodeGenerator: public AstVisitor {
 
   // Cache cell support.  This associates AST ids with global property cells
   // that will be cleared during GC and collected by the type-feedback oracle.
-  void RecordTypeFeedbackCell(TypeFeedbackId id,
-                              Handle<JSGlobalPropertyCell> cell);
+  void RecordTypeFeedbackCell(TypeFeedbackId id, Handle<Cell> cell);
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -653,7 +652,7 @@ class FullCodeGenerator: public AstVisitor {
 
   struct TypeFeedbackCellEntry {
     TypeFeedbackId ast_id;
-    Handle<JSGlobalPropertyCell> cell;
+    Handle<Cell> cell;
   };
 
 
@@ -849,7 +848,7 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
-  Handle<JSGlobalPropertyCell> profiling_counter_;
+  Handle<Cell> profiling_counter_;
   bool generate_debug_code_;
   Zone* zone_;
 

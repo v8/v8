@@ -464,6 +464,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractScriptReferences(int entry, Script* script);
   void ExtractCodeCacheReferences(int entry, CodeCache* code_cache);
   void ExtractCodeReferences(int entry, Code* code);
+  void ExtractCellReferences(int entry, Cell* cell);
   void ExtractJSGlobalPropertyCellReferences(int entry,
                                              JSGlobalPropertyCell* cell);
   void ExtractClosureReferences(JSObject* js_obj, int entry);

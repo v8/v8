@@ -8932,7 +8932,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     CHECK_ALIVE(VisitArgumentList(expr->arguments()));
     HCallNew* call;
     if (use_call_new_array) {
-      Handle<JSGlobalPropertyCell> cell = expr->allocation_info_cell();
+      Handle<Cell> cell = expr->allocation_info_cell();
       call = new(zone()) HCallNewArray(context, constructor, argument_count,
                                        cell);
     } else {

@@ -13481,9 +13481,9 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
   MaybeObject* maybe_array;
   if (!type_info.is_null() &&
       *type_info != isolate->heap()->undefined_value() &&
-      JSGlobalPropertyCell::cast(*type_info)->value()->IsSmi() &&
+      Cell::cast(*type_info)->value()->IsSmi() &&
       can_use_type_feedback) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(*type_info);
+    Cell* cell = Cell::cast(*type_info);
     Smi* smi = Smi::cast(cell->value());
     ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
     if (holey && !IsFastHoleyElementsKind(to_kind)) {

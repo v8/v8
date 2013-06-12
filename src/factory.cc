@@ -482,6 +482,15 @@ Handle<ExternalArray> Factory::NewExternalArray(int length,
 }
 
 
+Handle<Cell> Factory::NewCell(Handle<Object> value) {
+  AllowDeferredHandleDereference convert_to_cell;
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateCell(*value),
+      Cell);
+}
+
+
 Handle<JSGlobalPropertyCell> Factory::NewJSGlobalPropertyCell(
     Handle<Object> value) {
   AllowDeferredHandleDereference convert_to_cell;
