@@ -369,7 +369,7 @@ template <class T> class Handle {
   friend class Arguments;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
-  template<class F> friend class CustomArguments;
+  template<class F> friend class internal::CustomArguments;
   friend class AccessorInfo;
   friend Handle<Primitive> Undefined(Isolate* isolate);
   friend Handle<Primitive> Null(Isolate* isolate);
@@ -460,7 +460,7 @@ template <class T> class Local : public Handle<T> {
   friend class Object;
   friend class AccessorInfo;
   friend class Context;
-  template<class F> friend class CustomArguments;
+  template<class F> friend class internal::CustomArguments;
   friend class HandleScope;
 
   V8_INLINE(static Local<T> New(Isolate* isolate, T* that));
