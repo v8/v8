@@ -1181,16 +1181,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     Handle<Code> code = info->code();
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
-    Handle<String> script_name;
     if (script->name()->IsString()) {
-      script_name = Handle<String>(String::cast(script->name()));
-    } else {
-      Handle<Object> name = GetScriptNameOrSourceURL(script);
-      if (!name.is_null() && name->IsString()) {
-        script_name = Handle<String>::cast(name);
-      }
-    }
-    if (!script_name.is_null()) {
       int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
       USE(line_num);
       PROFILE(info->isolate(),
@@ -1198,7 +1189,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *code,
                               *shared,
                               info,
-                              String::cast(*script_name),
+                              String::cast(script->name()),
                               line_num));
     } else {
       PROFILE(info->isolate(),

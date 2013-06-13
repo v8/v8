@@ -405,8 +405,7 @@ TEST(LogCallbacks) {
                                            v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
-  v8::Local<v8::Signature> signature =
-      v8::Signature::New(v8::Handle<v8::FunctionTemplate>(*obj));
+  v8::Local<v8::Signature> signature = v8::Signature::New(obj);
   proto->Set(v8_str("method1"),
              v8::FunctionTemplate::New(ObjMethod1,
                                        v8::Handle<v8::Value>(),

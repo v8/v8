@@ -8919,9 +8919,11 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   } else {
     // The constructor function is both an operand to the instruction and an
     // argument to the construct call.
+    Handle<JSFunction> array_function =
+        Handle<JSFunction>(isolate()->global_context()->array_function(),
+                           isolate());
     bool use_call_new_array = FLAG_optimize_constructed_arrays &&
-        !(expr->target().is_null()) &&
-        *(expr->target()) == isolate()->global_context()->array_function();
+        expr->target().is_identical_to(array_function);
 
     CHECK_ALIVE(VisitArgument(expr->expression()));
     HValue* constructor = HPushArgument::cast(Top())->argument();
@@ -8929,6 +8931,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     HCallNew* call;
     if (use_call_new_array) {
       Handle<Cell> cell = expr->allocation_info_cell();
+      AddInstruction(new(zone()) HCheckFunction(constructor, array_function));
       call = new(zone()) HCallNewArray(context, constructor, argument_count,
                                        cell);
     } else {

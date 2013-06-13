@@ -556,7 +556,7 @@ TEST(ContextSerialization) {
       v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
     }
 
-    Object* raw_context = *(v8::Utils::OpenHandle(*env));
+    i::Object* raw_context = *v8::Utils::OpenPersistent(env);
 
     env.Dispose(v8_isolate);
 

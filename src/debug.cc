@@ -670,7 +670,7 @@ void ScriptCache::HandleWeakScript(v8::Isolate* isolate,
   ScriptCache* script_cache = reinterpret_cast<ScriptCache*>(data);
   // Find the location of the global handle.
   Script** location =
-      reinterpret_cast<Script**>(Utils::OpenHandle(**obj).location());
+      reinterpret_cast<Script**>(Utils::OpenPersistent(*obj).location());
   ASSERT((*location)->IsScript());
 
   // Remove the entry from the cache.
@@ -3066,13 +3066,14 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     v8::Local<v8::String> fun_name =
         v8::String::New("debugCommandProcessor");
     v8::Local<v8::Function> fun =
-        v8::Function::Cast(*api_exec_state->Get(fun_name));
+        v8::Local<v8::Function>::Cast(api_exec_state->Get(fun_name));
 
     v8::Handle<v8::Boolean> running =
         auto_continue ? v8::True() : v8::False();
     static const int kArgc = 1;
     v8::Handle<Value> argv[kArgc] = { running };
-    cmd_processor = v8::Object::Cast(*fun->Call(api_exec_state, kArgc, argv));
+    cmd_processor = v8::Local<v8::Object>::Cast(
+        fun->Call(api_exec_state, kArgc, argv));
     if (try_catch.HasCaught()) {
       PrintLn(try_catch.Exception());
       return;
@@ -3112,7 +3113,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     v8::Local<v8::Value> request;
     v8::TryCatch try_catch;
     fun_name = v8::String::New("processDebugRequest");
-    fun = v8::Function::Cast(*cmd_processor->Get(fun_name));
+    fun = v8::Local<v8::Function>::Cast(cmd_processor->Get(fun_name));
 
     request = v8::String::New(command.text().start(),
                               command.text().length());
@@ -3125,7 +3126,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     if (!try_catch.HasCaught()) {
       // Get response string.
       if (!response_val->IsUndefined()) {
-        response = v8::String::Cast(*response_val);
+        response = v8::Local<v8::String>::Cast(response_val);
       } else {
         response = v8::String::New("");
       }
@@ -3138,7 +3139,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
 
       // Get the running state.
       fun_name = v8::String::New("isRunning");
-      fun = v8::Function::Cast(*cmd_processor->Get(fun_name));
+      fun = v8::Local<v8::Function>::Cast(cmd_processor->Get(fun_name));
       static const int kArgc = 1;
       v8::Handle<Value> argv[kArgc] = { response };
       v8::Local<v8::Value> running_val = fun->Call(cmd_processor, kArgc, argv);

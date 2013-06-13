@@ -407,6 +407,8 @@ void Heap::PrintShortHeapStatistics() {
            this->SizeOfObjects() / KB,
            this->Available() / KB,
            this->CommittedMemory() / KB);
+  PrintPID("External memory reported: %6" V8_PTR_PREFIX "d KB\n",
+           amount_of_external_allocated_memory_ / KB);
   PrintPID("Total time spent in GC  : %.1f ms\n", total_gc_time_ms_);
 }
 

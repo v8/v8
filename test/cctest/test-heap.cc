@@ -2689,6 +2689,7 @@ TEST(ReleaseStackTraceData) {
 
 
 TEST(Regression144230) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();

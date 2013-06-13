@@ -1994,20 +1994,20 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ mov(eax, isolate()->factory()->undefined_value());
       __ jmp(&l_next);
 
-      // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
+      // catch (e) { receiver = iter; f = 'throw'; arg = e; goto l_call; }
       __ bind(&l_catch);
       handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
-      __ mov(edx, Operand(esp, 1 * kPointerSize));       // iter
-      __ push(edx);                                      // iter
-      __ push(eax);                                      // exception
       __ mov(ecx, isolate()->factory()->throw_string());  // "throw"
-      Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(throw_ic);                                  // iter.throw in eax
+      __ push(ecx);                                      // "throw"
+      __ push(Operand(esp, 2 * kPointerSize));           // iter
+      __ push(eax);                                      // exception
       __ jmp(&l_call);
 
-      // try { received = yield result.value }
+      // try { received = %yield result }
+      // Shuffle the received result above a try handler and yield it without
+      // re-boxing.
       __ bind(&l_try);
-      EmitCreateIteratorResult(false);                    // pop and box to eax
+      __ pop(eax);                                       // result
       __ PushTryHandler(StackHandler::CATCH, expr->index());
       const int handler_size = StackHandlerConstants::kSize;
       __ push(eax);                                      // result
@@ -2024,40 +2024,22 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       // receiver = iter; f = iter.next; arg = received;
       __ bind(&l_next);
-      __ mov(edx, Operand(esp, 1 * kPointerSize));       // iter
-      __ push(edx);                                      // iter
-      __ push(eax);                                      // received
       __ mov(ecx, isolate()->factory()->next_string());  // "next"
-      Handle<Code> next_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(next_ic);                                   // iter.next in eax
+      __ push(ecx);
+      __ push(Operand(esp, 2 * kPointerSize));           // iter
+      __ push(eax);                                      // received
 
-      // result = f.call(receiver, arg);
+      // result = receiver[f](arg);
       __ bind(&l_call);
-      Label l_call_runtime;
-      __ JumpIfSmi(eax, &l_call_runtime);
-      __ CmpObjectType(eax, JS_FUNCTION_TYPE, ebx);
-      __ j(not_equal, &l_call_runtime);
-      __ mov(edi, eax);
-      ParameterCount count(1);
-      __ InvokeFunction(edi, count, CALL_FUNCTION,
-                        NullCallWrapper(), CALL_AS_METHOD);
+      Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedCallInitialize(1);
+      CallIC(ic);
       __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-      __ jmp(&l_loop);
-      __ bind(&l_call_runtime);
-      __ push(eax);
-      __ CallRuntime(Runtime::kCall, 3);
+      __ Drop(1);  // The key is still on the stack; drop it.
 
-      // val = result.value; if (!result.done) goto l_try;
+      // if (!result.done) goto l_try;
       __ bind(&l_loop);
-      // result.value
       __ push(eax);                                      // save result
       __ mov(edx, eax);                                  // result
-      __ mov(ecx, isolate()->factory()->value_string());  // "value"
-      Handle<Code> value_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(value_ic);                                  // result.value in eax
-      __ pop(ebx);                                       // result
-      __ push(eax);                                      // result.value
-      __ mov(edx, ebx);                                  // result
       __ mov(ecx, isolate()->factory()->done_string());  // "done"
       Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(done_ic);                                   // result.done in eax
@@ -2067,7 +2049,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ j(zero, &l_try);
 
       // result.value
-      __ pop(eax);                                       // result.value
+      __ pop(edx);                                       // result
+      __ mov(ecx, isolate()->factory()->value_string());  // "value"
+      Handle<Code> value_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(value_ic);                                  // result.value in eax
       context()->DropAndPlug(2, eax);                    // drop iter and g
       break;
     }
