@@ -9687,6 +9687,7 @@ void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
 // TODO(rossberg): this should die eventually.
 Representation HOptimizedGraphBuilder::ToRepresentation(TypeInfo info) {
   if (info.IsUninitialized()) return Representation::None();
+  // TODO(verwaest): Return Smi rather than Integer32.
   if (info.IsSmi()) return Representation::Integer32();
   if (info.IsInteger32()) return Representation::Integer32();
   if (info.IsDouble()) return Representation::Double();
@@ -9920,6 +9921,10 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       result->set_position(expr->position());
       return ast_context()->ReturnInstruction(result, expr->id());
     } else {
+      // TODO(verwaest): Remove once ToRepresentation properly returns Smi when
+      // the IC measures Smi.
+      if (left_type->Is(Type::Integer31())) left_rep = Representation::Smi();
+      if (right_type->Is(Type::Integer31())) right_rep = Representation::Smi();
       HCompareIDAndBranch* result =
           new(zone()) HCompareIDAndBranch(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);
