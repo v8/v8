@@ -2202,6 +2202,11 @@ int FreeList::Free(Address start, int size_in_bytes) {
   // Insert other blocks at the head of a free list of the appropriate
   // magnitude.
   if (size_in_bytes <= kSmallListMax) {
+    ASSERT(!owner_->ConstantAllocationSize() ||
+        (owner_->identity() == MAP_SPACE && size_in_bytes >= Map::kSize) ||
+        (owner_->identity() == CELL_SPACE && size_in_bytes >= Cell::kSize) ||
+        (owner_->identity() == PROPERTY_CELL_SPACE &&
+            size_in_bytes >= JSGlobalPropertyCell::kSize));
     small_list_.Free(node, size_in_bytes);
     page->add_available_in_small_free_list(size_in_bytes);
   } else if (size_in_bytes <= kMediumListMax) {
@@ -2224,9 +2229,11 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   FreeListNode* node = NULL;
   Page* page = NULL;
 
-  if (size_in_bytes <= kSmallAllocationMax) {
+  if ((owner_->ConstantAllocationSize() && size_in_bytes <= kSmallListMax) ||
+      size_in_bytes <= kSmallAllocationMax) {
     node = small_list_.PickNodeFromList(node_size);
     if (node != NULL) {
+      ASSERT(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_small_free_list(-(*node_size));
       return node;
@@ -2236,6 +2243,7 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kMediumAllocationMax) {
     node = medium_list_.PickNodeFromList(node_size);
     if (node != NULL) {
+      ASSERT(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_medium_free_list(-(*node_size));
       return node;
@@ -2245,6 +2253,7 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kLargeAllocationMax) {
     node = large_list_.PickNodeFromList(node_size);
     if (node != NULL) {
+      ASSERT(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_large_free_list(-(*node_size));
       return node;

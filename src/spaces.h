@@ -1820,6 +1820,11 @@ class PagedSpace : public Space {
     return area_size_;
   }
 
+  bool ConstantAllocationSize() {
+    return identity() == MAP_SPACE || identity() == CELL_SPACE ||
+        identity() == PROPERTY_CELL_SPACE;
+  }
+
  protected:
   FreeList* free_list() { return &free_list_; }
 
