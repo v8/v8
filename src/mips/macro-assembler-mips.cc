@@ -3909,6 +3909,9 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
+                                              Address function_address,
+                                              ExternalReference thunk_ref,
+                                              Register thunk_last_arg,
                                               int stack_space,
                                               bool returns_handle,
                                               int return_value_offset_from_fp) {
@@ -3947,11 +3950,30 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
     addiu(a0, fp, ExitFrameConstants::kStackSpaceOffset);
   }
 
+  Label profiler_disabled;
+  Label end_profiler_check;
+  bool* is_profiling_flag =
+      isolate()->cpu_profiler()->is_profiling_address();
+  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
+  li(t9, reinterpret_cast<int32_t>(is_profiling_flag));
+  lb(t9, MemOperand(t9, 0));
+  beq(t9, zero_reg, &profiler_disabled);
+
+  // Third parameter is the address of the actual getter function.
+  li(thunk_last_arg, reinterpret_cast<int32_t>(function_address));
+  li(t9, Operand(thunk_ref));
+  jmp(&end_profiler_check);
+
+  bind(&profiler_disabled);
+  li(t9, Operand(function));
+
+  bind(&end_profiler_check);
+
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).
   // DirectCEntry stub itself is generated early and never moves.
   DirectCEntryStub stub;
-  stub.GenerateCall(this, function);
+  stub.GenerateCall(this, t9);
 
   if (FLAG_log_timer_events) {
     FrameScope frame(this, StackFrame::MANUAL);

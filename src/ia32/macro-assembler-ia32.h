@@ -784,6 +784,8 @@ class MacroAssembler: public Assembler {
   // caller-save registers.  Restores context.  On return removes
   // stack_space * kPointerSize (GCed).
   void CallApiFunctionAndReturn(Address function_address,
+                                Address thunk_address,
+                                Operand thunk_last_arg,
                                 int stack_space,
                                 bool returns_handle,
                                 int return_value_offset_from_ebp);

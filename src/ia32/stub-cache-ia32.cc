@@ -503,7 +503,12 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   STATIC_ASSERT(kFastApiCallArguments == 6);
   __ lea(eax, Operand(esp, kFastApiCallArguments * kPointerSize));
 
-  const int kApiArgc = 1;  // API function gets reference to the v8::Arguments.
+
+  // API function gets reference to the v8::Arguments. If CPU profiler
+  // is enabled wrapper function will be called and we need to pass
+  // address of the callback as additional parameter, always allocate
+  // space for it.
+  const int kApiArgc = 1 + 1;
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -517,20 +522,26 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ PrepareCallApiFunction(kApiArgc + kApiStackSpace, returns_handle);
 
   // v8::Arguments::implicit_args_.
-  __ mov(ApiParameterOperand(1, returns_handle), eax);
+  __ mov(ApiParameterOperand(2, returns_handle), eax);
   __ add(eax, Immediate(argc * kPointerSize));
   // v8::Arguments::values_.
-  __ mov(ApiParameterOperand(2, returns_handle), eax);
+  __ mov(ApiParameterOperand(3, returns_handle), eax);
   // v8::Arguments::length_.
-  __ Set(ApiParameterOperand(3, returns_handle), Immediate(argc));
+  __ Set(ApiParameterOperand(4, returns_handle), Immediate(argc));
   // v8::Arguments::is_construct_call_.
-  __ Set(ApiParameterOperand(4, returns_handle), Immediate(0));
+  __ Set(ApiParameterOperand(5, returns_handle), Immediate(0));
 
   // v8::InvocationCallback's argument.
-  __ lea(eax, ApiParameterOperand(1, returns_handle));
+  __ lea(eax, ApiParameterOperand(2, returns_handle));
   __ mov(ApiParameterOperand(0, returns_handle), eax);
 
+  Address thunk_address = returns_handle
+      ? FUNCTION_ADDR(&InvokeInvocationCallback)
+      : FUNCTION_ADDR(&InvokeFunctionCallback);
+
   __ CallApiFunctionAndReturn(function_address,
+                              thunk_address,
+                              ApiParameterOperand(1, returns_handle),
                               argc + kFastApiCallArguments + 1,
                               returns_handle,
                               kFastApiCallArguments + 1);
@@ -1406,7 +1417,9 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // array for v8::Arguments::values_, handler for name and pointer
   // to the values (it considered as smi in GC).
   const int kStackSpace = PropertyCallbackArguments::kArgsLength + 2;
-  const int kApiArgc = 2;
+  // Allocate space for opional callback address parameter in case
+  // CPU profiler is active.
+  const int kApiArgc = 2 + 1;
 
   Address getter_address = v8::ToCData<Address>(callback->getter());
   bool returns_handle =
@@ -1422,7 +1435,13 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // garbage collection but instead return the allocation failure
   // object.
 
+  Address thunk_address = returns_handle
+      ? FUNCTION_ADDR(&InvokeAccessorGetter)
+      : FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+
   __ CallApiFunctionAndReturn(getter_address,
+                              thunk_address,
+                              ApiParameterOperand(2, returns_handle),
                               kStackSpace,
                               returns_handle,
                               6);

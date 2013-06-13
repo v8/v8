@@ -804,7 +804,7 @@ THREADED_TEST(GlobalProperties) {
 
 
 template<typename T>
-static void CheckReturnValue(const T& t) {
+static void CheckReturnValue(const T& t, i::Address callback) {
   v8::ReturnValue<v8::Value> rv = t.GetReturnValue();
   i::Object** o = *reinterpret_cast<i::Object***>(&rv);
   CHECK_EQ(v8::Isolate::GetCurrent(), t.GetIsolate());
@@ -817,45 +817,70 @@ static void CheckReturnValue(const T& t) {
   rv.Set(v8::Handle<v8::Object>());
   CHECK((*o)->IsTheHole() || (*o)->IsUndefined());
   CHECK_EQ(is_runtime, (*o)->IsTheHole());
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(t.GetIsolate());
+  // If CPU profiler is active check that when API callback is invoked
+  // VMState is set to EXTERNAL.
+  if (isolate->cpu_profiler()->is_profiling()) {
+    CHECK_EQ(i::EXTERNAL, isolate->current_vm_state());
+    CHECK(isolate->external_callback());
+    CHECK_EQ(callback, isolate->external_callback());
+  }
 }
 
-static v8::Handle<Value> handle_call(const v8::Arguments& args) {
+static v8::Handle<Value> handle_call_impl(
+    const v8::Arguments& args,
+    i::Address callback) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(args);
+  CheckReturnValue(args, callback);
   args.GetReturnValue().Set(v8_str("bad value"));
   return v8_num(102);
 }
 
-static v8::Handle<Value> handle_call_2(const v8::Arguments& args) {
-  return handle_call(args);
+static v8::Handle<Value> handle_call(const v8::Arguments& args) {
+  return handle_call_impl(args, FUNCTION_ADDR(handle_call));
 }
 
-static v8::Handle<Value> handle_call_indirect(const v8::Arguments& args) {
+static v8::Handle<Value> handle_call_2(const v8::Arguments& args) {
+  return handle_call_impl(args, FUNCTION_ADDR(handle_call_2));
+}
+
+static v8::Handle<Value> handle_call_indirect_impl(const v8::Arguments& args,
+                                                   i::Address callback) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(args);
+  CheckReturnValue(args, callback);
   args.GetReturnValue().Set(v8_str("bad value"));
   args.GetReturnValue().Set(v8_num(102));
   return v8::Handle<Value>();
 }
 
-static v8::Handle<Value> handle_call_indirect_2(const v8::Arguments& args) {
-  return handle_call_indirect(args);
+static v8::Handle<Value> handle_call_indirect(const v8::Arguments& args) {
+  return handle_call_indirect_impl(args, FUNCTION_ADDR(handle_call_indirect));
 }
 
-static void handle_callback(const v8::FunctionCallbackInfo<Value>& info) {
+static v8::Handle<Value> handle_call_indirect_2(const v8::Arguments& args) {
+  return handle_call_indirect_impl(args, FUNCTION_ADDR(handle_call_indirect_2));
+}
+
+static void handle_callback_impl(const v8::FunctionCallbackInfo<Value>& info,
+                                 i::Address callback) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(info);
+  CheckReturnValue(info, callback);
   info.GetReturnValue().Set(v8_str("bad value"));
   info.GetReturnValue().Set(v8_num(102));
 }
 
+static void handle_callback(const v8::FunctionCallbackInfo<Value>& info) {
+  return handle_callback_impl(info, FUNCTION_ADDR(handle_callback));
+}
+
 static void handle_callback_2(const v8::FunctionCallbackInfo<Value>& info) {
-  return handle_callback(info);
+  return handle_callback_impl(info, FUNCTION_ADDR(handle_callback_2));
 }
 
 static v8::Handle<Value> construct_call(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(args);
+  CheckReturnValue(args, FUNCTION_ADDR(construct_call));
   args.This()->Set(v8_str("x"), v8_num(1));
   args.This()->Set(v8_str("y"), v8_num(2));
   args.GetReturnValue().Set(v8_str("bad value"));
@@ -864,7 +889,7 @@ static v8::Handle<Value> construct_call(const v8::Arguments& args) {
 
 static v8::Handle<Value> construct_call_indirect(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(args);
+  CheckReturnValue(args, FUNCTION_ADDR(construct_call_indirect));
   args.This()->Set(v8_str("x"), v8_num(1));
   args.This()->Set(v8_str("y"), v8_num(2));
   args.GetReturnValue().Set(v8_str("bad value"));
@@ -875,7 +900,7 @@ static v8::Handle<Value> construct_call_indirect(const v8::Arguments& args) {
 static void construct_callback(
     const v8::FunctionCallbackInfo<Value>& info) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(construct_callback));
   info.This()->Set(v8_str("x"), v8_num(1));
   info.This()->Set(v8_str("y"), v8_num(2));
   info.GetReturnValue().Set(v8_str("bad value"));
@@ -886,7 +911,7 @@ static void construct_callback(
 static v8::Handle<Value> Return239(
     Local<String> name, const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(Return239));
   info.GetReturnValue().Set(v8_str("bad value"));
   return v8_num(239);
 }
@@ -894,7 +919,7 @@ static v8::Handle<Value> Return239(
 static v8::Handle<Value> Return239Indirect(
     Local<String> name, const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(Return239Indirect));
   Handle<Value> value = v8_num(239);
   info.GetReturnValue().Set(v8_str("bad value"));
   info.GetReturnValue().Set(value);
@@ -904,7 +929,7 @@ static v8::Handle<Value> Return239Indirect(
 static void Return239Callback(
     Local<String> name, const v8::PropertyCallbackInfo<Value>& info) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(Return239Callback));
   info.GetReturnValue().Set(v8_str("bad value"));
   info.GetReturnValue().Set(v8_num(239));
 }
@@ -913,31 +938,56 @@ static void Return239Callback(
 template<typename Handler>
 static void TestFunctionTemplateInitializer(Handler handler,
                                             Handler handler_2) {
-  // Test constructor calls.
-  {
-    LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
-    Local<v8::FunctionTemplate> fun_templ =
-        v8::FunctionTemplate::New(handler);
-    Local<Function> fun = fun_templ->GetFunction();
-    env->Global()->Set(v8_str("obj"), fun);
-    Local<Script> script = v8_compile("obj()");
-    for (int i = 0; i < 30; i++) {
-      CHECK_EQ(102, script->Run()->Int32Value());
+  for (int i = 0; i < 2; i++) {
+    bool is_profiling = (i > 0);
+    // Test constructor calls.
+    {
+      LocalContext env;
+      v8::HandleScope scope(env->GetIsolate());
+
+      v8::Local<v8::String> profile_name = v8::String::New("my_profile1");
+      v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+      if (is_profiling) {
+        cpu_profiler->StartCpuProfiling(profile_name);
+      }
+
+      Local<v8::FunctionTemplate> fun_templ =
+          v8::FunctionTemplate::New(handler);
+      Local<Function> fun = fun_templ->GetFunction();
+      env->Global()->Set(v8_str("obj"), fun);
+      Local<Script> script = v8_compile("obj()");
+      for (int i = 0; i < 30; i++) {
+        CHECK_EQ(102, script->Run()->Int32Value());
+      }
+
+      if (is_profiling) {
+        cpu_profiler->StopCpuProfiling(profile_name);
+      }
     }
-  }
-  // Use SetCallHandler to initialize a function template, should work like the
-  // previous one.
-  {
-    LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
-    Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
-    fun_templ->SetCallHandler(handler_2);
-    Local<Function> fun = fun_templ->GetFunction();
-    env->Global()->Set(v8_str("obj"), fun);
-    Local<Script> script = v8_compile("obj()");
-    for (int i = 0; i < 30; i++) {
-      CHECK_EQ(102, script->Run()->Int32Value());
+    // Use SetCallHandler to initialize a function template, should work like
+    // the previous one.
+    {
+      LocalContext env;
+      v8::HandleScope scope(env->GetIsolate());
+
+      v8::Local<v8::String> profile_name = v8::String::New("my_profile2");
+      v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+      if (is_profiling) {
+        cpu_profiler->StartCpuProfiling(profile_name);
+      }
+
+      Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+      fun_templ->SetCallHandler(handler_2);
+      Local<Function> fun = fun_templ->GetFunction();
+      env->Global()->Set(v8_str("obj"), fun);
+      Local<Script> script = v8_compile("obj()");
+      for (int i = 0; i < 30; i++) {
+        CHECK_EQ(102, script->Run()->Int32Value());
+      }
+
+      if (is_profiling) {
+        cpu_profiler->DeleteAllCpuProfiles();
+      }
     }
   }
 }
@@ -946,25 +996,39 @@ static void TestFunctionTemplateInitializer(Handler handler,
 template<typename Constructor, typename Accessor>
 static void TestFunctionTemplateAccessor(Constructor constructor,
                                          Accessor accessor) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(constructor);
-  fun_templ->SetClassName(v8_str("funky"));
-  fun_templ->InstanceTemplate()->SetAccessor(v8_str("m"), accessor);
-  Local<Function> fun = fun_templ->GetFunction();
-  env->Global()->Set(v8_str("obj"), fun);
-  Local<Value> result = v8_compile("(new obj()).toString()")->Run();
-  CHECK_EQ(v8_str("[object funky]"), result);
-  CompileRun("var obj_instance = new obj();");
-  Local<Script> script;
-  script = v8_compile("obj_instance.x");
-  for (int i = 0; i < 30; i++) {
-    CHECK_EQ(1, script->Run()->Int32Value());
-  }
-  script = v8_compile("obj_instance.m");
-  for (int i = 0; i < 30; i++) {
-    CHECK_EQ(239, script->Run()->Int32Value());
+  for (int i = 0; i < 2; i++) {
+    bool is_profiling = (i > 0);
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+
+    v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+    if (is_profiling) {
+      v8::Local<v8::String> profile_name = v8::String::New("my_profile1");
+      cpu_profiler->StartCpuProfiling(profile_name);
+    }
+
+    Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(constructor);
+    fun_templ->SetClassName(v8_str("funky"));
+    fun_templ->InstanceTemplate()->SetAccessor(v8_str("m"), accessor);
+    Local<Function> fun = fun_templ->GetFunction();
+    env->Global()->Set(v8_str("obj"), fun);
+    Local<Value> result = v8_compile("(new obj()).toString()")->Run();
+    CHECK_EQ(v8_str("[object funky]"), result);
+    CompileRun("var obj_instance = new obj();");
+    Local<Script> script;
+    script = v8_compile("obj_instance.x");
+    for (int i = 0; i < 30; i++) {
+      CHECK_EQ(1, script->Run()->Int32Value());
+    }
+    script = v8_compile("obj_instance.m");
+    for (int i = 0; i < 30; i++) {
+      CHECK_EQ(239, script->Run()->Int32Value());
+    }
+
+    if (is_profiling) {
+      cpu_profiler->DeleteAllCpuProfiles();
+    }
   }
 }
 
@@ -982,41 +1046,55 @@ THREADED_TEST(FunctionTemplate) {
 
 static v8::Handle<v8::Value> SimpleDirectCallback(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(args);
+  CheckReturnValue(args, FUNCTION_ADDR(SimpleDirectCallback));
   args.GetReturnValue().Set(v8_str("bad value"));
   return v8_num(51423 + args.Length());
 }
 
 static v8::Handle<v8::Value> SimpleIndirectCallback(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(args);
+  CheckReturnValue(args, FUNCTION_ADDR(SimpleIndirectCallback));
   args.GetReturnValue().Set(v8_num(51423 + args.Length()));
   return v8::Handle<v8::Value>();
 }
 
 static void SimpleCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(SimpleCallback));
   info.GetReturnValue().Set(v8_num(51423 + info.Length()));
 }
 
 
 template<typename Callback>
 static void TestSimpleCallback(Callback callback) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
-  object_template->Set("callback", v8::FunctionTemplate::New(callback));
-  v8::Local<v8::Object> object = object_template->NewInstance();
-  (*env)->Global()->Set(v8_str("callback_object"), object);
-  v8::Handle<v8::Script> script;
-  script = v8_compile("callback_object.callback(17)");
-  for (int i = 0; i < 30; i++) {
-    CHECK_EQ(51424, script->Run()->Int32Value());
-  }
-  script = v8_compile("callback_object.callback(17, 24)");
-  for (int i = 0; i < 30; i++) {
-    CHECK_EQ(51425, script->Run()->Int32Value());
+  for (int i = 0; i < 2; i++) {
+    bool is_profiling = i;
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+
+    v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+    if (is_profiling) {
+      v8::Local<v8::String> profile_name = v8::String::New("my_profile1");
+      cpu_profiler->StartCpuProfiling(profile_name);
+    }
+
+    v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
+    object_template->Set("callback", v8::FunctionTemplate::New(callback));
+    v8::Local<v8::Object> object = object_template->NewInstance();
+    (*env)->Global()->Set(v8_str("callback_object"), object);
+    v8::Handle<v8::Script> script;
+    script = v8_compile("callback_object.callback(17)");
+    for (int i = 0; i < 30; i++) {
+      CHECK_EQ(51424, script->Run()->Int32Value());
+    }
+    script = v8_compile("callback_object.callback(17, 24)");
+    for (int i = 0; i < 30; i++) {
+      CHECK_EQ(51425, script->Run()->Int32Value());
+    }
+
+    if (is_profiling) {
+      cpu_profiler->DeleteAllCpuProfiles();
+    }
   }
 }
 
@@ -1048,35 +1126,35 @@ static bool fast_return_value_object_is_empty = false;
 template<>
 void FastReturnValueCallback<int32_t>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(FastReturnValueCallback<int32_t>));
   info.GetReturnValue().Set(fast_return_value_int32);
 }
 
 template<>
 void FastReturnValueCallback<uint32_t>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(FastReturnValueCallback<uint32_t>));
   info.GetReturnValue().Set(fast_return_value_uint32);
 }
 
 template<>
 void FastReturnValueCallback<double>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(FastReturnValueCallback<double>));
   info.GetReturnValue().Set(kFastReturnValueDouble);
 }
 
 template<>
 void FastReturnValueCallback<bool>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(FastReturnValueCallback<bool>));
   info.GetReturnValue().Set(fast_return_value_bool);
 }
 
 template<>
 void FastReturnValueCallback<void>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(FastReturnValueCallback<void>));
   switch (fast_return_value_void) {
     case kNullReturnValue:
       info.GetReturnValue().SetNull();
@@ -2053,7 +2131,7 @@ v8::Handle<v8::Object> bottom;
 static void CheckThisIndexedPropertyHandler(
     uint32_t index,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyHandler));
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
 }
@@ -2061,7 +2139,7 @@ static void CheckThisIndexedPropertyHandler(
 static void CheckThisNamedPropertyHandler(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyHandler));
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
 }
@@ -2070,7 +2148,7 @@ void CheckThisIndexedPropertySetter(
     uint32_t index,
     Local<Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertySetter));
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
 }
@@ -2080,7 +2158,7 @@ void CheckThisNamedPropertySetter(
     Local<String> property,
     Local<Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertySetter));
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
 }
@@ -2088,7 +2166,7 @@ void CheckThisNamedPropertySetter(
 void CheckThisIndexedPropertyQuery(
     uint32_t index,
     const v8::PropertyCallbackInfo<v8::Integer>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyQuery));
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
 }
@@ -2097,7 +2175,7 @@ void CheckThisIndexedPropertyQuery(
 void CheckThisNamedPropertyQuery(
     Local<String> property,
     const v8::PropertyCallbackInfo<v8::Integer>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyQuery));
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
 }
@@ -2106,7 +2184,7 @@ void CheckThisNamedPropertyQuery(
 void CheckThisIndexedPropertyDeleter(
     uint32_t index,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyDeleter));
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
 }
@@ -2115,7 +2193,7 @@ void CheckThisIndexedPropertyDeleter(
 void CheckThisNamedPropertyDeleter(
     Local<String> property,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyDeleter));
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
 }
@@ -2123,7 +2201,7 @@ void CheckThisNamedPropertyDeleter(
 
 void CheckThisIndexedPropertyEnumerator(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyEnumerator));
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
 }
@@ -2131,7 +2209,7 @@ void CheckThisIndexedPropertyEnumerator(
 
 void CheckThisNamedPropertyEnumerator(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyEnumerator));
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
 }
@@ -10637,7 +10715,7 @@ THREADED_TEST(InterceptorCallICCachedFromGlobal) {
 static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
                                                   const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(InterceptorCallICFastApi));
   int* call_count =
       reinterpret_cast<int*>(v8::External::Cast(*info.Data())->Value());
   ++(*call_count);
@@ -10650,7 +10728,7 @@ static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
 static v8::Handle<Value> FastApiCallback_TrivialSignature(
     const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(args);
+  CheckReturnValue(args, FUNCTION_ADDR(FastApiCallback_TrivialSignature));
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK_EQ(isolate, args.GetIsolate());
   CHECK_EQ(args.This(), args.Holder());
@@ -10661,7 +10739,7 @@ static v8::Handle<Value> FastApiCallback_TrivialSignature(
 static v8::Handle<Value> FastApiCallback_SimpleSignature(
     const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  CheckReturnValue(args);
+  CheckReturnValue(args, FUNCTION_ADDR(FastApiCallback_SimpleSignature));
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK_EQ(isolate, args.GetIsolate());
   CHECK_EQ(args.This()->GetPrototype(), args.Holder());
@@ -10749,7 +10827,7 @@ static Handle<Value> DoDirectGetter() {
 
 static v8::Handle<v8::Value> DirectGetter(Local<String> name,
                                   const v8::AccessorInfo& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(DirectGetter));
   info.GetReturnValue().Set(v8_str("Garbage"));
   return DoDirectGetter();
 }
@@ -10757,7 +10835,7 @@ static v8::Handle<v8::Value> DirectGetter(Local<String> name,
 static v8::Handle<v8::Value> DirectGetterIndirect(
     Local<String> name,
     const v8::AccessorInfo& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(DirectGetterIndirect));
   info.GetReturnValue().Set(DoDirectGetter());
   return v8::Handle<v8::Value>();
 }
@@ -10765,7 +10843,7 @@ static v8::Handle<v8::Value> DirectGetterIndirect(
 static void DirectGetterCallback(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CheckReturnValue(info);
+  CheckReturnValue(info, FUNCTION_ADDR(DirectGetterCallback));
   info.GetReturnValue().Set(DoDirectGetter());
 }
 

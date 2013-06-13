@@ -6912,13 +6912,6 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
-                                    ExternalReference function) {
-  __ li(t9, Operand(function));
-  this->GenerateCall(masm, t9);
-}
-
-
-void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
   __ Move(t9, target);
   __ AssertStackIsAligned();

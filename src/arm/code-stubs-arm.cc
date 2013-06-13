@@ -6482,13 +6482,6 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
-                                    ExternalReference function) {
-  __ mov(r2, Operand(function));
-  GenerateCall(masm, r2);
-}
-
-
-void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
   intptr_t code =
       reinterpret_cast<intptr_t>(GetCode(masm->isolate()).location());
