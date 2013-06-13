@@ -2052,9 +2052,11 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ push(a0);                                       // exception
       __ jmp(&l_call);
 
-      // try { received = yield result.value }
+      // try { received = %yield result }
+      // Shuffle the received result above a try handler and yield it without
+      // re-boxing.
       __ bind(&l_try);
-      EmitCreateIteratorResult(false);                   // pop and box to v0
+      __ pop(a0);                                        // result
       __ PushTryHandler(StackHandler::CATCH, expr->index());
       const int handler_size = StackHandlerConstants::kSize;
       __ push(a0);                                       // result
@@ -2085,18 +2087,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       CallIC(ic);
       __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
-      // val = result.value; if (!result.done) goto l_try;
+      // if (!result.done) goto l_try;
       __ bind(&l_loop);
       __ mov(a0, v0);
-      // result.value
       __ push(a0);                                       // save result
-      __ LoadRoot(a2, Heap::kvalue_stringRootIndex);     // "value"
-      Handle<Code> value_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(value_ic);                                  // result.value in a0
-      __ mov(a0, v0);
-      __ pop(a1);                                        // result
-      __ push(a0);                                       // result.value
-      __ mov(a0, a1);                                    // result
       __ LoadRoot(a2, Heap::kdone_stringRootIndex);      // "done"
       Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(done_ic);                                   // result.done in v0
@@ -2106,7 +2100,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ Branch(&l_try, eq, v0, Operand(zero_reg));
 
       // result.value
-      __ pop(v0);                                        // result.value
+      __ pop(a0);                                        // result
+      __ LoadRoot(a2, Heap::kvalue_stringRootIndex);     // "value"
+      Handle<Code> value_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(value_ic);                                  // result.value in v0
       context()->DropAndPlug(2, v0);                     // drop iter and g
       break;
     }
