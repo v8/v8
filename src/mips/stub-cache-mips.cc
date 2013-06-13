@@ -940,6 +940,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
       !CallbackTable::ReturnsVoid(masm->isolate(), function_address);
 
   Register first_arg = returns_handle ? a1 : a0;
+  Register second_arg = returns_handle ? a2 : a1;
 
   // first_arg = v8::Arguments&
   // Arguments is built at sp + 1 (sp is a reserved spot for ra).
@@ -966,8 +967,23 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
       ExternalReference(&fun,
                         type,
                         masm->isolate());
+
+  Address thunk_address = returns_handle
+      ? FUNCTION_ADDR(&InvokeInvocationCallback)
+      : FUNCTION_ADDR(&InvokeFunctionCallback);
+  ExternalReference::Type thunk_type =
+      returns_handle ?
+          ExternalReference::PROFILING_API_CALL :
+          ExternalReference::PROFILING_API_CALL_NEW;
+  ApiFunction thunk_fun(thunk_address);
+  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
+      masm->isolate());
+
   AllowExternalCallThatCantCauseGC scope(masm);
   __ CallApiFunctionAndReturn(ref,
+                              function_address,
+                              thunk_ref,
+                              second_arg,
                               kStackUnwindSpace,
                               returns_handle,
                               kFastApiCallArguments + 1);
@@ -1460,6 +1476,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
 
   Register first_arg = returns_handle ? a1 : a0;
   Register second_arg = returns_handle ? a2 : a1;
+  Register third_arg = returns_handle ? a3 : a2;
 
   __ mov(a2, scratch2());  // Saved in case scratch2 == a1.
   __ mov(first_arg, sp);  // (first argument - see note below) = Handle<Name>
@@ -1480,14 +1497,28 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ Addu(second_arg, sp, kPointerSize);
 
   const int kStackUnwindSpace = kFastApiCallArguments + 1;
+
   ApiFunction fun(getter_address);
   ExternalReference::Type type =
       returns_handle ?
           ExternalReference::DIRECT_GETTER_CALL :
           ExternalReference::DIRECT_GETTER_CALL_NEW;
-
   ExternalReference ref = ExternalReference(&fun, type, isolate());
+
+  Address thunk_address = returns_handle
+      ? FUNCTION_ADDR(&InvokeAccessorGetter)
+      : FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  ExternalReference::Type thunk_type =
+      returns_handle ?
+          ExternalReference::PROFILING_GETTER_CALL :
+          ExternalReference::PROFILING_GETTER_CALL_NEW;
+  ApiFunction thunk_fun(thunk_address);
+  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
+      isolate());
   __ CallApiFunctionAndReturn(ref,
+                              getter_address,
+                              thunk_ref,
+                              third_arg,
                               kStackUnwindSpace,
                               returns_handle,
                               5);

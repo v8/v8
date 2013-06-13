@@ -647,17 +647,35 @@ class ExternalReference BASE_EMBEDDED {
     // Handle<Value> f(v8::Arguments&)
     DIRECT_API_CALL,
 
+    // Call to invocation callback via InvokeInvocationCallback.
+    // Handle<Value> f(v8::Arguments&, v8::InvocationCallback)
+    PROFILING_API_CALL,
+
     // Direct call to API function callback.
     // void f(v8::Arguments&)
     DIRECT_API_CALL_NEW,
+
+    // Call to function callback via InvokeFunctionCallback.
+    // void f(v8::Arguments&, v8::FunctionCallback)
+    PROFILING_API_CALL_NEW,
 
     // Direct call to accessor getter callback.
     // Handle<value> f(Local<String> property, AccessorInfo& info)
     DIRECT_GETTER_CALL,
 
+    // Call to accessor getter callback via InvokeAccessorGetter.
+    // Handle<value> f(Local<String> property, AccessorInfo& info,
+    //     AccessorGetter getter)
+    PROFILING_GETTER_CALL,
+
     // Direct call to accessor getter callback.
     // void f(Local<String> property, AccessorInfo& info)
-    DIRECT_GETTER_CALL_NEW
+    DIRECT_GETTER_CALL_NEW,
+
+    // Call to accessor getter callback via InvokeAccessorGetterCallback.
+    // void f(Local<String> property, AccessorInfo& info,
+    //     AccessorGetterCallback callback)
+    PROFILING_GETTER_CALL_NEW
   };
 
   static void SetUp();
