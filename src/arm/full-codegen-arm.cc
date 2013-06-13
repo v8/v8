@@ -2035,16 +2035,13 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
       __ b(&l_next);
 
-      // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
+      // catch (e) { receiver = iter; f = 'throw'; arg = e; goto l_call; }
       __ bind(&l_catch);
       handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
+      __ LoadRoot(r2, Heap::kthrow_stringRootIndex);     // "throw"
       __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
       __ push(r3);                                       // iter
       __ push(r0);                                       // exception
-      __ mov(r0, r3);                                    // iter
-      __ LoadRoot(r2, Heap::kthrow_stringRootIndex);     // "throw"
-      Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(throw_ic);                                  // iter.throw in r0
       __ jmp(&l_call);
 
       // try { received = yield result.value }
@@ -2065,31 +2062,18 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ bind(&l_resume);                                // received in r0
       __ PopTryHandler();
 
-      // receiver = iter; f = iter.next; arg = received;
+      // receiver = iter; f = 'next'; arg = received;
       __ bind(&l_next);
+      __ LoadRoot(r2, Heap::knext_stringRootIndex);      // "next"
       __ ldr(r3, MemOperand(sp, 1 * kPointerSize));      // iter
       __ push(r3);                                       // iter
       __ push(r0);                                       // received
-      __ mov(r0, r3);                                    // iter
-      __ LoadRoot(r2, Heap::knext_stringRootIndex);      // "next"
-      Handle<Code> next_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(next_ic);                                   // iter.next in r0
 
-      // result = f.call(receiver, arg);
+      // result = receiver[f](arg);
       __ bind(&l_call);
-      Label l_call_runtime;
-      __ JumpIfSmi(r0, &l_call_runtime);
-      __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
-      __ b(ne, &l_call_runtime);
-      __ mov(r1, r0);
-      ParameterCount count(1);
-      __ InvokeFunction(r1, count, CALL_FUNCTION,
-                        NullCallWrapper(), CALL_AS_METHOD);
+      Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedCallInitialize(1);
+      CallIC(ic);
       __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-      __ jmp(&l_loop);
-      __ bind(&l_call_runtime);
-      __ push(r0);
-      __ CallRuntime(Runtime::kCall, 3);
 
       // val = result.value; if (!result.done) goto l_try;
       __ bind(&l_loop);

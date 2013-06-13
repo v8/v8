@@ -2017,16 +2017,13 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
       __ jmp(&l_next);
 
-      // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
+      // catch (e) { receiver = iter; f = 'throw'; arg = e; goto l_call; }
       __ bind(&l_catch);
       handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
-      __ movq(rcx, Operand(rsp, 1 * kPointerSize));      // iter
-      __ push(rcx);                                      // iter
-      __ push(rax);                                      // exception
-      __ movq(rax, rcx);                                 // iter
       __ LoadRoot(rcx, Heap::kthrow_stringRootIndex);    // "throw"
-      Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(throw_ic);                                  // iter.throw in rax
+      __ push(rcx);
+      __ push(Operand(rsp, 2 * kPointerSize));           // iter
+      __ push(rax);                                      // exception
       __ jmp(&l_call);
 
       // try { received = yield result.value }
@@ -2046,31 +2043,19 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ bind(&l_resume);                                // received in rax
       __ PopTryHandler();
 
-      // receiver = iter; f = iter.next; arg = received;
+      // receiver = iter; f = 'next'; arg = received;
       __ bind(&l_next);
-      __ movq(rcx, Operand(rsp, 1 * kPointerSize));      // iter
-      __ push(rcx);                                      // iter
-      __ push(rax);                                      // received
-      __ movq(rax, rcx);                                 // iter
       __ LoadRoot(rcx, Heap::knext_stringRootIndex);     // "next"
-      Handle<Code> next_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(next_ic);                                   // iter.next in rax
+      __ push(rcx);
+      __ push(Operand(rsp, 2 * kPointerSize));           // iter
+      __ push(rax);                                      // received
 
-      // result = f.call(receiver, arg);
+      // result = receiver[f](arg);
       __ bind(&l_call);
-      Label l_call_runtime;
-      __ JumpIfSmi(rax, &l_call_runtime);
-      __ CmpObjectType(rax, JS_FUNCTION_TYPE, rbx);
-      __ j(not_equal, &l_call_runtime);
-      __ movq(rdi, rax);
-      ParameterCount count(1);
-      __ InvokeFunction(rdi, count, CALL_FUNCTION,
-                        NullCallWrapper(), CALL_AS_METHOD);
+      Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedCallInitialize(1);
+      CallIC(ic);
       __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-      __ jmp(&l_loop);
-      __ bind(&l_call_runtime);
-      __ push(rax);
-      __ CallRuntime(Runtime::kCall, 3);
+      __ Drop(1);  // The key is still on the stack; drop it.
 
       // val = result.value; if (!result.done) goto l_try;
       __ bind(&l_loop);
