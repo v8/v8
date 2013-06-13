@@ -6316,43 +6316,13 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
 }
 
 
-bool HOptimizedGraphBuilder::HandlePolymorphicArrayLengthLoad(
+HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
     Property* expr,
     HValue* object,
     SmallMapList* types,
     Handle<String> name) {
-  if (!name->Equals(isolate()->heap()->length_string())) return false;
-
-  for (int i = 0; i < types->length(); i++) {
-    if (types->at(i)->instance_type() != JS_ARRAY_TYPE) return false;
-  }
-
-  BuildCheckNonSmi(object);
-
-  HInstruction* typecheck =
-      AddInstruction(HCheckMaps::New(object, types, zone()));
-  HInstruction* instr = new(zone())
-      HLoadNamedField(object, HObjectAccess::ForArrayLength(), typecheck);
-
-  instr->set_position(expr->position());
-  ast_context()->ReturnInstruction(instr, expr->id());
-  return true;
-}
-
-
-void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
-    HValue* object,
-    SmallMapList* types,
-    Handle<String> name) {
-
-  if (HandlePolymorphicArrayLengthLoad(expr, object, types, name))
-    return;
-
-  BuildCheckNonSmi(object);
-
   // Use monomorphic load if property lookup results in the same field index
   // for all maps. Requires special map check on the set of all handled maps.
-  HInstruction* instr = NULL;
   LookupResult lookup(isolate());
   int count;
   Representation representation = Representation::None();
@@ -6383,12 +6353,25 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
     }
   }
 
-  if (count == types->length()) {
-    // Everything matched; can use monomorphic load.
-    AddInstruction(HCheckMaps::New(object, types, zone()));
-    instr = BuildLoadNamedField(object, access, representation);
-  } else {
+  if (count != types->length()) return NULL;
+
+  // Everything matched; can use monomorphic load.
+  BuildCheckNonSmi(object);
+  AddInstruction(HCheckMaps::New(object, types, zone()));
+  return BuildLoadNamedField(object, access, representation);
+}
+
+
+void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
+    Property* expr,
+    HValue* object,
+    SmallMapList* types,
+    Handle<String> name) {
+  HInstruction* instr = TryLoadPolymorphicAsMonomorphic(
+      expr, object, types, name);
+  if (instr == NULL) {
     // Something did not match; must use a polymorphic load.
+    BuildCheckNonSmi(object);
     HValue* context = environment()->LookupContext();
     instr = new(zone()) HLoadNamedFieldPolymorphic(
         context, object, types, name, zone());
@@ -6683,10 +6666,11 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
       Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
       Handle<Map> map;
-      HInstruction* load;
+      HInstruction* load = NULL;
+      SmallMapList* types = prop->GetReceiverTypes();
       bool monomorphic = prop->IsMonomorphic();
       if (monomorphic) {
-        map = prop->GetReceiverTypes()->first();
+        map = types->first();
         // We can't generate code for a monomorphic dict mode load so
         // just pretend it is not monomorphic.
         if (map->is_dictionary_map()) monomorphic = false;
@@ -6699,9 +6683,10 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         } else {
           load = BuildLoadNamedMonomorphic(object, name, prop, map);
         }
-      } else {
-        load = BuildLoadNamedGeneric(object, name, prop);
+      } else if (types != NULL && types->length() > 1) {
+        load = TryLoadPolymorphicAsMonomorphic(prop, object, types, name);
       }
+      if (load == NULL) load = BuildLoadNamedGeneric(object, name, prop);
       PushAndAdd(load);
       if (load->HasObservableSideEffects()) {
         AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);
@@ -6967,6 +6952,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedGeneric(
     Property* expr) {
   if (expr->IsUninitialized()) {
     AddSoftDeoptimize();
+  } else {
+    // OS::DebugBreak();
   }
   HValue* context = environment()->LookupContext();
   return new(zone()) HLoadNamedGeneric(context, object, name);
@@ -9268,10 +9255,11 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
       Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
       Handle<Map> map;
-      HInstruction* load;
+      HInstruction* load = NULL;
       bool monomorphic = prop->IsMonomorphic();
+      SmallMapList* types = prop->GetReceiverTypes();
       if (monomorphic) {
-        map = prop->GetReceiverTypes()->first();
+        map = types->first();
         if (map->is_dictionary_map()) monomorphic = false;
       }
       if (monomorphic) {
@@ -9282,9 +9270,10 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
         } else {
           load = BuildLoadNamedMonomorphic(object, name, prop, map);
         }
-      } else {
-        load = BuildLoadNamedGeneric(object, name, prop);
+      } else if (types != NULL && types->length() > 1) {
+        load = TryLoadPolymorphicAsMonomorphic(prop, object, types, name);
       }
+      if (load == NULL) load = BuildLoadNamedGeneric(object, name, prop);
       PushAndAdd(load);
       if (load->HasObservableSideEffects()) {
         AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);

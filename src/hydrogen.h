@@ -1701,10 +1701,10 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                        HValue* object,
                                        SmallMapList* types,
                                        Handle<String> name);
-  bool HandlePolymorphicArrayLengthLoad(Property* expr,
-                                        HValue* object,
-                                        SmallMapList* types,
-                                        Handle<String> name);
+  HInstruction* TryLoadPolymorphicAsMonomorphic(Property* expr,
+                                                HValue* object,
+                                                SmallMapList* types,
+                                                Handle<String> name);
   void HandlePolymorphicStoreNamedField(Assignment* expr,
                                         HValue* object,
                                         HValue* value,
