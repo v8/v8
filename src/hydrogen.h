@@ -1091,8 +1091,7 @@ class HGraphBuilder {
     HInstruction* IfCompare(
         HValue* left,
         HValue* right,
-        Token::Value token,
-        Representation input_representation = Representation::Integer32());
+        Token::Value token);
 
     HInstruction* IfCompareMap(HValue* left, Handle<Map> map);
 
@@ -1124,10 +1123,9 @@ class HGraphBuilder {
     HInstruction* OrIfCompare(
         HValue* p1,
         HValue* p2,
-        Token::Value token,
-        Representation input_representation = Representation::Integer32()) {
+        Token::Value token) {
       Or();
-      return IfCompare(p1, p2, token, input_representation);
+      return IfCompare(p1, p2, token);
     }
 
     HInstruction* OrIfCompareMap(HValue* left, Handle<Map> map) {
@@ -1150,10 +1148,9 @@ class HGraphBuilder {
     HInstruction* AndIfCompare(
         HValue* p1,
         HValue* p2,
-        Token::Value token,
-        Representation input_representation = Representation::Integer32()) {
+        Token::Value token) {
       And();
-      return IfCompare(p1, p2, token, input_representation);
+      return IfCompare(p1, p2, token);
     }
 
     HInstruction* AndIfCompareMap(HValue* left, Handle<Map> map) {

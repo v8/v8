@@ -709,13 +709,9 @@ HGraphBuilder::IfBuilder::IfBuilder(
 HInstruction* HGraphBuilder::IfBuilder::IfCompare(
     HValue* left,
     HValue* right,
-    Token::Value token,
-    Representation input_representation) {
+    Token::Value token) {
   HCompareIDAndBranch* compare =
       new(zone()) HCompareIDAndBranch(left, right, token);
-  compare->set_observed_input_representation(input_representation,
-                                             input_representation);
-  compare->AssumeRepresentation(input_representation);
   AddCompare(compare);
   return compare;
 }
@@ -1169,7 +1165,6 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   if (is_js_array) {
     HValue* new_length = AddInstruction(
         HAdd::New(zone, context, length, graph_->GetConstant1()));
-    new_length->AssumeRepresentation(Representation::Integer32());
     new_length->ClearFlag(HValue::kCanOverflow);
 
     Representation representation = IsFastElementsKind(kind)
@@ -1346,14 +1341,12 @@ HValue* HGraphBuilder::BuildAllocateElements(HValue* context,
   AddInstruction(elements_size_value);
   HValue* mul = AddInstruction(
                     HMul::New(zone, context, capacity, elements_size_value));
-  mul->AssumeRepresentation(Representation::Integer32());
   mul->ClearFlag(HValue::kCanOverflow);
 
   HConstant* header_size = new(zone) HConstant(FixedArray::kHeaderSize);
   AddInstruction(header_size);
   HValue* total_size = AddInstruction(
                            HAdd::New(zone, context, mul, header_size));
-  total_size->AssumeRepresentation(Representation::Integer32());
   total_size->ClearFlag(HValue::kCanOverflow);
 
   HAllocate::Flags flags = HAllocate::DefaultFlags(kind);
@@ -1450,19 +1443,16 @@ HValue* HGraphBuilder::BuildNewElementsCapacity(HValue* context,
   HValue* half_old_capacity =
       AddInstruction(HShr::New(zone, context, old_capacity,
                                graph_->GetConstant1()));
-  half_old_capacity->AssumeRepresentation(Representation::Integer32());
   half_old_capacity->ClearFlag(HValue::kCanOverflow);
 
   HValue* new_capacity = AddInstruction(
       HAdd::New(zone, context, half_old_capacity, old_capacity));
-  new_capacity->AssumeRepresentation(Representation::Integer32());
   new_capacity->ClearFlag(HValue::kCanOverflow);
 
   HValue* min_growth = AddInstruction(new(zone) HConstant(16));
 
   new_capacity = AddInstruction(
       HAdd::New(zone, context, new_capacity, min_growth));
-  new_capacity->AssumeRepresentation(Representation::Integer32());
   new_capacity->ClearFlag(HValue::kCanOverflow);
 
   return new_capacity;
@@ -1834,14 +1824,12 @@ HValue* HGraphBuilder::JSArrayBuilder::EstablishAllocationSize(
   AddInstruction(elements_size_value);
   HInstruction* mul = HMul::New(zone(), context, length_node,
                                 elements_size_value);
-  mul->AssumeRepresentation(Representation::Integer32());
   mul->ClearFlag(HValue::kCanOverflow);
   AddInstruction(mul);
 
   HInstruction* base = new(zone()) HConstant(base_size);
   AddInstruction(base);
   HInstruction* total_size = HAdd::New(zone(), context, base, mul);
-  total_size->AssumeRepresentation(Representation::Integer32());
   total_size->ClearFlag(HValue::kCanOverflow);
   AddInstruction(total_size);
   return total_size;
