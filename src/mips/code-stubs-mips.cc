@@ -2488,47 +2488,36 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
             UNREACHABLE();
         }
 
-        if (op_ != Token::DIV) {
-          // These operations produce an integer result.
-          // Try to return a smi if we can.
-          // Otherwise return a heap number if allowed, or jump to type
-          // transition.
-
+        if (result_type_ <= BinaryOpIC::INT32) {
           Register except_flag = scratch2;
-          __ EmitFPUTruncate(kRoundToZero,
+          const FPURoundingMode kRoundingMode = op_ == Token::DIV ?
+              kRoundToMinusInf : kRoundToZero;
+          const CheckForInexactConversion kConversion = op_ == Token::DIV ?
+              kCheckForInexactConversion : kDontCheckForInexactConversion;
+          __ EmitFPUTruncate(kRoundingMode,
                              scratch1,
                              f10,
                              at,
                              f16,
-                             except_flag);
-
-          if (result_type_ <= BinaryOpIC::INT32) {
-            // If except_flag != 0, result does not fit in a 32-bit integer.
-            __ Branch(&transition, ne, except_flag, Operand(zero_reg));
-          }
-
-          // Check if the result fits in a smi.
-          __ Addu(scratch2, scratch1, Operand(0x40000000));
-          // If not try to return a heap number.
+                             except_flag,
+                             kConversion);
+          // If except_flag != 0, result does not fit in a 32-bit integer.
+          __ Branch(&transition, ne, except_flag, Operand(zero_reg));
+          // Try to tag the result as a Smi, return heap number on overflow.
+          __ SmiTagCheckOverflow(scratch1, scratch1, scratch2);
           __ Branch(&return_heap_number, lt, scratch2, Operand(zero_reg));
-          // Check for minus zero. Return heap number for minus zero if
-          // double results are allowed; otherwise transition.
+          // Check for minus zero, transition in that case (because we need
+          // to return a heap number).
           Label not_zero;
+          ASSERT(kSmiTag == 0);
           __ Branch(&not_zero, ne, scratch1, Operand(zero_reg));
           __ mfc1(scratch2, f11);
           __ And(scratch2, scratch2, HeapNumber::kSignMask);
-          __ Branch(result_type_ <= BinaryOpIC::INT32 ? &transition
-                    : &return_heap_number,
-                    ne,
-                    scratch2,
-                    Operand(zero_reg));
+          __ Branch(&transition, ne, scratch2, Operand(zero_reg));
           __ bind(&not_zero);
 
-          // Tag the result and return.
           __ Ret(USE_DELAY_SLOT);
-          __ SmiTag(v0, scratch1);  // SmiTag emits one instruction.
-        } else {
-          // DIV just falls through to allocating a heap number.
+          __ mov(v0, scratch1);
         }
 
         __ bind(&return_heap_number);
