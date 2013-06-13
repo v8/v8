@@ -655,7 +655,7 @@ static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
                                     void* data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(external_isolate);
   HandleScope scope(isolate);
-  Handle<Object> internal_object = Utils::OpenHandle(**object);
+  Handle<Object> internal_object = Utils::OpenPersistent(object);
   Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(*internal_object));
 
   if (!array_buffer->is_external()) {
@@ -711,11 +711,10 @@ bool Runtime::SetupArrayBufferAllocatingData(
 
   SetupArrayBuffer(isolate, array_buffer, false, data, allocated_length);
 
-  v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Persistent<v8::Value> weak_handle(
-      external_isolate, v8::Utils::ToLocal(Handle<Object>::cast(array_buffer)));
-  weak_handle.MakeWeak(data, ArrayBufferWeakCallback);
-  weak_handle.MarkIndependent(external_isolate);
+  Handle<Object> persistent = isolate->global_handles()->Create(*array_buffer);
+  GlobalHandles::MakeWeak(persistent.location(), data, ArrayBufferWeakCallback);
+  GlobalHandles::MarkIndependent(persistent.location());
+
   isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
 
   return true;

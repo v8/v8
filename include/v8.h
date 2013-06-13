@@ -123,7 +123,6 @@ class ImplementationUtilities;
 class Int32;
 class Integer;
 class Isolate;
-class LocalContext;
 class Number;
 class NumberObject;
 class Object;
@@ -162,8 +161,7 @@ class Heap;
 class HeapObject;
 class Isolate;
 class Object;
-template<typename T>
-class CustomArguments;
+template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
 class FunctionCallbackArguments;
 }
@@ -365,21 +363,19 @@ template <class T> class Handle {
 #endif
 
  private:
+  friend class Utils;
   template<class F> friend class Persistent;
   template<class F> friend class Local;
   friend class Arguments;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
-  friend class String;
-  friend class Object;
+  template<class F> friend class CustomArguments;
   friend class AccessorInfo;
   friend Handle<Primitive> Undefined(Isolate* isolate);
   friend Handle<Primitive> Null(Isolate* isolate);
   friend Handle<Boolean> True(Isolate* isolate);
   friend Handle<Boolean> False(Isolate* isolate);
   friend class Context;
-  friend class InternalHandleHelper;
-  friend class LocalContext;
   friend class HandleScope;
 
 #ifndef V8_USE_UNSAFE_HANDLES
@@ -454,6 +450,7 @@ template <class T> class Local : public Handle<T> {
 #endif
 
  private:
+  friend class Utils;
   template<class F> friend class Persistent;
   template<class F> friend class Handle;
   friend class Arguments;
@@ -463,8 +460,7 @@ template <class T> class Local : public Handle<T> {
   friend class Object;
   friend class AccessorInfo;
   friend class Context;
-  friend class InternalHandleHelper;
-  friend class LocalContext;
+  template<class F> friend class CustomArguments;
   friend class HandleScope;
 
   V8_INLINE(static Local<T> New(Isolate* isolate, T* that));
@@ -511,11 +507,11 @@ template <class T> class Persistent // NOLINT
    * to be separately disposed.
    */
   template <class S> V8_INLINE(Persistent(Isolate* isolate, Handle<S> that))
-      : val_(*New(isolate, that)) { }
+      : val_(New(isolate, *that)) { }
 
   template <class S> V8_INLINE(Persistent(Isolate* isolate,
                                           Persistent<S>& that)) // NOLINT
-      : val_(*New(isolate, that)) { }
+      : val_(New(isolate, *that)) { }
 
 #else
   /**
@@ -594,15 +590,9 @@ template <class T> class Persistent // NOLINT
   }
 #endif
 
+#ifdef V8_USE_UNSAFE_HANDLES
   V8_DEPRECATED(static Persistent<T> New(Handle<T> that));
-
-  /**
-   * Creates a new persistent handle for an existing local or persistent handle.
-   */
-  // TODO(dcarney): remove before cutover
   V8_INLINE(static Persistent<T> New(Isolate* isolate, Handle<T> that));
-#ifndef V8_USE_UNSAFE_HANDLES
-  // TODO(dcarney): remove before cutover
   V8_INLINE(static Persistent<T> New(Isolate* isolate, Persistent<T> that));
 #endif
 
@@ -773,11 +763,7 @@ template <class T> class Persistent // NOLINT
 #endif
   // TODO(dcarney): remove before cutover
   template <class S> V8_INLINE(Persistent(S* that)) : val_(that) { }
-  // TODO(dcarney): remove before cutover
-  template <class S> V8_INLINE(Persistent(Persistent<S> that))
-      : val_(*that) {
-    TYPE_CHECK(T, S);
-  }
+
   // TODO(dcarney): remove before cutover
   V8_INLINE(T* operator*() const) { return val_; }
 
@@ -788,16 +774,13 @@ template <class T> class Persistent // NOLINT
 #endif
 
  private:
+  friend class Utils;
   template<class F> friend class Handle;
   template<class F> friend class Local;
+  template<class F> friend class Persistent;
   template<class F> friend class ReturnValue;
-  friend class ImplementationUtilities;
-  friend class ObjectTemplate;
-  friend class Context;
-  friend class InternalHandleHelper;
-  friend class LocalContext;
 
-  V8_INLINE(static Persistent<T> New(Isolate* isolate, T* that));
+  V8_INLINE(static T* New(Isolate* isolate, T* that));
 
 #ifndef V8_USE_UNSAFE_HANDLES
   T* val_;
@@ -5504,6 +5487,7 @@ Local<T> Local<T>::New(Isolate* isolate, T* that) {
 }
 
 
+#ifdef V8_USE_UNSAFE_HANDLES
 template <class T>
 Persistent<T> Persistent<T>::New(Handle<T> that) {
   return New(Isolate::GetCurrent(), that.val_);
@@ -5515,20 +5499,20 @@ Persistent<T> Persistent<T>::New(Isolate* isolate, Handle<T> that) {
   return New(Isolate::GetCurrent(), that.val_);
 }
 
-#ifndef V8_USE_UNSAFE_HANDLES
 template <class T>
 Persistent<T> Persistent<T>::New(Isolate* isolate, Persistent<T> that) {
   return New(Isolate::GetCurrent(), that.val_);
 }
 #endif
 
+
 template <class T>
-Persistent<T> Persistent<T>::New(Isolate* isolate, T* that) {
-  if (that == NULL) return Persistent<T>();
+T* Persistent<T>::New(Isolate* isolate, T* that) {
+  if (that == NULL) return NULL;
   internal::Object** p = reinterpret_cast<internal::Object**>(that);
-  return Persistent<T>(reinterpret_cast<T*>(
+  return reinterpret_cast<T*>(
       V8::GlobalizeReference(reinterpret_cast<internal::Isolate*>(isolate),
-                             p)));
+                             p));
 }
 
 

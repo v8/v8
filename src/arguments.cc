@@ -82,7 +82,7 @@ v8::Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   Object** handle = &this->end()[kReturnValueOffset];
   // Nothing was set, return empty handle as per previous behaviour.
   if ((*handle)->IsTheHole()) return v8::Handle<V>();
-  return v8::Handle<V>(reinterpret_cast<V*>(handle));
+  return Utils::Convert<Object, V>(Handle<Object>(handle));
 }
 
 

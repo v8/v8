@@ -435,7 +435,7 @@ void Logger::IssueCodeAddedEvent(Code* code,
   event.code_len = code->instruction_size();
   Handle<Script> script_handle =
       script != NULL ? Handle<Script>(script) : Handle<Script>();
-  event.script = v8::Handle<v8::Script>(ToApi<v8::Script>(script_handle));
+  event.script = ToApiHandle<v8::Script>(script_handle);
   event.name.str = name;
   event.name.len = name_len;
 

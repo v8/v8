@@ -2630,12 +2630,12 @@ THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
   v8::HandleScope handle_scope(isolate);
 
 
-  v8::Handle<v8::Value> result =
+  v8::Local<v8::Value> result =
       CompileRun("var ab1 = new ArrayBuffer(2);"
                  "var u8_a = new Uint8Array(ab1);"
                  "u8_a[0] = 0xAA;"
                  "u8_a[1] = 0xFF; u8_a.buffer");
-  Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::Cast(*result);
+  Local<v8::ArrayBuffer> ab1 = Local<v8::ArrayBuffer>::Cast(result);
   CHECK_EQ(2, static_cast<int>(ab1->ByteLength()));
   CHECK(!ab1->IsExternal());
   ScopedArrayBufferContents ab1_contents(ab1->Externalize());
@@ -2776,25 +2776,28 @@ THREADED_TEST(ArrayBuffer_NeuteringScript) {
       "var f32a = new Float32Array(ab, 4, 255);"
       "var f64a = new Float64Array(ab, 8, 127);");
 
-  v8::Handle<v8::ArrayBuffer> ab(v8::ArrayBuffer::Cast(*CompileRun("ab")));
+  v8::Handle<v8::ArrayBuffer> ab =
+      Local<v8::ArrayBuffer>::Cast(CompileRun("ab"));
 
-  v8::Handle<v8::Uint8Array> u8a(v8::Uint8Array::Cast(*CompileRun("u8a")));
-  v8::Handle<v8::Uint8ClampedArray> u8c(
-    v8::Uint8ClampedArray::Cast(*CompileRun("u8c")));
-  v8::Handle<v8::Int8Array> i8a(v8::Int8Array::Cast(*CompileRun("i8a")));
+  v8::Handle<v8::Uint8Array> u8a =
+      v8::Handle<v8::Uint8Array>::Cast(CompileRun("u8a"));
+  v8::Handle<v8::Uint8ClampedArray> u8c =
+      v8::Handle<v8::Uint8ClampedArray>::Cast(CompileRun("u8c"));
+  v8::Handle<v8::Int8Array> i8a =
+      v8::Handle<v8::Int8Array>::Cast(CompileRun("i8a"));
 
-  v8::Handle<v8::Uint16Array> u16a(
-    v8::Uint16Array::Cast(*CompileRun("u16a")));
-  v8::Handle<v8::Int16Array> i16a(
-    v8::Int16Array::Cast(*CompileRun("i16a")));
-  v8::Handle<v8::Uint32Array> u32a(
-    v8::Uint32Array::Cast(*CompileRun("u32a")));
-  v8::Handle<v8::Int32Array> i32a(
-    v8::Int32Array::Cast(*CompileRun("i32a")));
-  v8::Handle<v8::Float32Array> f32a(
-    v8::Float32Array::Cast(*CompileRun("f32a")));
-  v8::Handle<v8::Float64Array> f64a(
-    v8::Float64Array::Cast(*CompileRun("f64a")));
+  v8::Handle<v8::Uint16Array> u16a =
+      v8::Handle<v8::Uint16Array>::Cast(CompileRun("u16a"));
+  v8::Handle<v8::Int16Array> i16a =
+      v8::Handle<v8::Int16Array>::Cast(CompileRun("i16a"));
+  v8::Handle<v8::Uint32Array> u32a =
+      v8::Handle<v8::Uint32Array>::Cast(CompileRun("u32a"));
+  v8::Handle<v8::Int32Array> i32a =
+      v8::Handle<v8::Int32Array>::Cast(CompileRun("i32a"));
+  v8::Handle<v8::Float32Array> f32a =
+      v8::Handle<v8::Float32Array>::Cast(CompileRun("f32a"));
+  v8::Handle<v8::Float64Array> f64a =
+    v8::Handle<v8::Float64Array>::Cast(CompileRun("f64a"));
 
   ScopedArrayBufferContents contents(ab->Externalize());
   ab->Neuter();
@@ -3102,6 +3105,11 @@ static void WeakPointerCallback(v8::Isolate* isolate,
 }
 
 
+static UniqueId MakeUniqueId(const Persistent<Value>& p) {
+  return UniqueId(reinterpret_cast<uintptr_t>(*v8::Utils::OpenPersistent(p)));
+}
+
+
 THREADED_TEST(ApiObjectGroups) {
   LocalContext env;
   v8::Isolate* iso = env->GetIsolate();
@@ -3139,14 +3147,14 @@ THREADED_TEST(ApiObjectGroups) {
   {
     HandleScope scope(iso);
     CHECK(Local<Object>::New(iso, g1s2.As<Object>())->
-            Set(0, Local<Value>(*g2s2)));
+            Set(0, Local<Value>::New(iso, g2s2)));
     CHECK(Local<Object>::New(iso, g2s1.As<Object>())->
-            Set(0, Local<Value>(*g1s1)));
+            Set(0, Local<Value>::New(iso, g1s1)));
   }
 
   {
-    UniqueId id1(reinterpret_cast<intptr_t>(*g1s1));
-    UniqueId id2(reinterpret_cast<intptr_t>(*g2s2));
+    UniqueId id1 = MakeUniqueId(g1s1);
+    UniqueId id2 = MakeUniqueId(g2s2);
     iso->SetObjectGroupId(g1s1, id1);
     iso->SetObjectGroupId(g1s2, id1);
     iso->SetReferenceFromGroup(id1, g1c1);
@@ -3171,8 +3179,8 @@ THREADED_TEST(ApiObjectGroups) {
 
   // Groups are deleted, rebuild groups.
   {
-    UniqueId id1(reinterpret_cast<intptr_t>(*g1s1));
-    UniqueId id2(reinterpret_cast<intptr_t>(*g2s2));
+    UniqueId id1 = MakeUniqueId(g1s1);
+    UniqueId id2 = MakeUniqueId(g2s2);
     iso->SetObjectGroupId(g1s1, id1);
     iso->SetObjectGroupId(g1s2, id1);
     iso->SetReferenceFromGroup(id1, g1c1);
@@ -3248,10 +3256,10 @@ THREADED_TEST(ApiObjectGroupsCycle) {
   // G1: { g1s1, g2s1 }, g1s1 implicitly references g2s1, ditto for other
   // groups.
   {
-    UniqueId id1(reinterpret_cast<intptr_t>(*g1s1));
-    UniqueId id2(reinterpret_cast<intptr_t>(*g2s1));
-    UniqueId id3(reinterpret_cast<intptr_t>(*g3s1));
-    UniqueId id4(reinterpret_cast<intptr_t>(*g4s1));
+    UniqueId id1 = MakeUniqueId(g1s1);
+    UniqueId id2 = MakeUniqueId(g2s1);
+    UniqueId id3 = MakeUniqueId(g3s1);
+    UniqueId id4 = MakeUniqueId(g4s1);
     iso->SetObjectGroupId(g1s1, id1);
     iso->SetObjectGroupId(g1s2, id1);
     iso->SetReferenceFromGroup(id1, g2s1);
@@ -3278,10 +3286,10 @@ THREADED_TEST(ApiObjectGroupsCycle) {
 
   // Groups are deleted, rebuild groups.
   {
-    UniqueId id1(reinterpret_cast<intptr_t>(*g1s1));
-    UniqueId id2(reinterpret_cast<intptr_t>(*g2s1));
-    UniqueId id3(reinterpret_cast<intptr_t>(*g3s1));
-    UniqueId id4(reinterpret_cast<intptr_t>(*g4s1));
+    UniqueId id1 = MakeUniqueId(g1s1);
+    UniqueId id2 = MakeUniqueId(g2s1);
+    UniqueId id3 = MakeUniqueId(g3s1);
+    UniqueId id4 = MakeUniqueId(g4s1);
     iso->SetObjectGroupId(g1s1, id1);
     iso->SetObjectGroupId(g1s2, id1);
     iso->SetReferenceFromGroup(id1, g2s1);
@@ -3356,16 +3364,16 @@ TEST(ApiObjectGroupsCycleForScavenger) {
     g3s2.MarkPartiallyDependent(iso);
     iso->SetObjectGroupId(g1s1, UniqueId(1));
     iso->SetObjectGroupId(g1s2, UniqueId(1));
-    Local<Object>::New(iso, g1s1.As<Object>())->Set(v8_str("x"),
-                                                    Local<Value>(*g2s1));
+    Local<Object>::New(iso, g1s1.As<Object>())->Set(
+        v8_str("x"), Local<Value>::New(iso, g2s1));
     iso->SetObjectGroupId(g2s1, UniqueId(2));
     iso->SetObjectGroupId(g2s2, UniqueId(2));
-    Local<Object>::New(iso, g2s1.As<Object>())->Set(v8_str("x"),
-                                                    Local<Value>(*g3s1));
+    Local<Object>::New(iso, g2s1.As<Object>())->Set(
+        v8_str("x"), Local<Value>::New(iso, g3s1));
     iso->SetObjectGroupId(g3s1, UniqueId(3));
     iso->SetObjectGroupId(g3s2, UniqueId(3));
-    Local<Object>::New(iso, g3s1.As<Object>())->Set(v8_str("x"),
-                                                    Local<Value>(*g1s1));
+    Local<Object>::New(iso, g3s1.As<Object>())->Set(
+        v8_str("x"), Local<Value>::New(iso, g1s1));
   }
 
   v8::internal::Heap* heap = reinterpret_cast<v8::internal::Isolate*>(
@@ -3391,16 +3399,16 @@ TEST(ApiObjectGroupsCycleForScavenger) {
     g3s2.MarkPartiallyDependent(isolate);
     iso->SetObjectGroupId(g1s1, UniqueId(1));
     iso->SetObjectGroupId(g1s2, UniqueId(1));
-    Local<Object>::New(iso, g1s1.As<Object>())->Set(v8_str("x"),
-                                                    Local<Value>(*g2s1));
+    Local<Object>::New(iso, g1s1.As<Object>())->Set(
+        v8_str("x"), Local<Value>::New(iso, g2s1));
     iso->SetObjectGroupId(g2s1, UniqueId(2));
     iso->SetObjectGroupId(g2s2, UniqueId(2));
-    Local<Object>::New(iso, g2s1.As<Object>())->Set(v8_str("x"),
-                                                    Local<Value>(*g3s1));
+    Local<Object>::New(iso, g2s1.As<Object>())->Set(
+        v8_str("x"), Local<Value>::New(iso, g3s1));
     iso->SetObjectGroupId(g3s1, UniqueId(3));
     iso->SetObjectGroupId(g3s2, UniqueId(3));
-    Local<Object>::New(iso, g3s1.As<Object>())->Set(v8_str("x"),
-                                                    Local<Value>(*g1s1));
+    Local<Object>::New(iso, g3s1.As<Object>())->Set(
+        v8_str("x"), Local<Value>::New(iso, g1s1));
   }
 
   heap->CollectGarbage(i::NEW_SPACE);
@@ -4853,7 +4861,7 @@ THREADED_TEST(SimplePropertyWrite) {
   for (int i = 0; i < 10; i++) {
     CHECK(xValue.IsEmpty());
     script->Run();
-    CHECK_EQ(v8_num(4), Handle<Value>(*xValue));
+    CHECK_EQ(v8_num(4), Local<Value>::New(v8::Isolate::GetCurrent(), xValue));
     xValue.Dispose(context->GetIsolate());
     xValue.Clear();
   }
@@ -4870,7 +4878,7 @@ THREADED_TEST(SetterOnly) {
   for (int i = 0; i < 10; i++) {
     CHECK(xValue.IsEmpty());
     script->Run();
-    CHECK_EQ(v8_num(4), Handle<Value>(*xValue));
+    CHECK_EQ(v8_num(4), Local<Value>::New(v8::Isolate::GetCurrent(), xValue));
     xValue.Dispose(context->GetIsolate());
     xValue.Clear();
   }
@@ -5095,7 +5103,7 @@ Handle<v8::Array> UnboxedDoubleIndexedPropertyEnumerator(
       "for(i = 0; i < 80000; i++) { keys[i] = i; };"
       "keys.length = 25; keys;"));
   Local<Value> result = indexed_property_names_script->Run();
-  return Local<v8::Array>(::v8::Array::Cast(*result));
+  return Local<v8::Array>::Cast(result);
 }
 
 
@@ -5135,8 +5143,9 @@ Handle<v8::Array> NonStrictArgsIndexedPropertyEnumerator(
       "}"
       "keys = f(0, 1, 2, 3);"
       "keys;"));
-  Local<Value> result = indexed_property_names_script->Run();
-  return Local<v8::Array>(static_cast<v8::Array*>(::v8::Object::Cast(*result)));
+  Local<Object> result =
+      Local<Object>::Cast(indexed_property_names_script->Run());
+  return *reinterpret_cast<Local<v8::Array>*>(&result);
 }
 
 
@@ -6247,7 +6256,7 @@ class Whammy {
   ~Whammy() { script_.Dispose(isolate_); }
   v8::Handle<Script> getScript() {
     if (script_.IsEmpty()) script_.Reset(isolate_, v8_compile("({}).blammo"));
-    return Local<Script>(*script_);
+    return Local<Script>::New(isolate_, script_);
   }
 
  public:
@@ -7209,12 +7218,12 @@ THREADED_TEST(Utf16Symbol) {
   Local<Value> s2 = global->Get(v8_str("sym2"));
   Local<Value> s3 = global->Get(v8_str("sym3"));
   Local<Value> s4 = global->Get(v8_str("sym4"));
-  CHECK(SameSymbol(sym0, Handle<String>(String::Cast(*s0))));
-  CHECK(SameSymbol(sym0b, Handle<String>(String::Cast(*s0b))));
-  CHECK(SameSymbol(sym1, Handle<String>(String::Cast(*s1))));
-  CHECK(SameSymbol(sym2, Handle<String>(String::Cast(*s2))));
-  CHECK(SameSymbol(sym3, Handle<String>(String::Cast(*s3))));
-  CHECK(SameSymbol(sym4, Handle<String>(String::Cast(*s4))));
+  CHECK(SameSymbol(sym0, Handle<String>::Cast(s0)));
+  CHECK(SameSymbol(sym0b, Handle<String>::Cast(s0b)));
+  CHECK(SameSymbol(sym1, Handle<String>::Cast(s1)));
+  CHECK(SameSymbol(sym2, Handle<String>::Cast(s2)));
+  CHECK(SameSymbol(sym3, Handle<String>::Cast(s3)));
+  CHECK(SameSymbol(sym4, Handle<String>::Cast(s4)));
 }
 
 
@@ -12201,7 +12210,7 @@ void HandleCreatingCallback(v8::Isolate* isolate,
                             v8::Persistent<v8::Value>* handle,
                             void*) {
   v8::HandleScope scope(isolate);
-  v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+  v8::Persistent<v8::Object>(isolate, v8::Object::New());
   handle->Dispose(isolate);
 }
 
@@ -19293,10 +19302,10 @@ THREADED_TEST(Regress2535) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Local<Value> set_value = CompileRun("new Set();");
-  Local<Object> set_object(Object::Cast(*set_value));
+  Local<Object> set_object(Local<Object>::Cast(set_value));
   CHECK_EQ(0, set_object->InternalFieldCount());
   Local<Value> map_value = CompileRun("new Map();");
-  Local<Object> map_object(Object::Cast(*map_value));
+  Local<Object> map_object(Local<Object>::Cast(map_value));
   CHECK_EQ(0, map_object->InternalFieldCount());
 }
 

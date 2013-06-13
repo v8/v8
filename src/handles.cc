@@ -347,7 +347,7 @@ Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info) {
 static void ClearWrapperCache(v8::Isolate* v8_isolate,
                               Persistent<v8::Value>* handle,
                               void*) {
-  Handle<Object> cache = Utils::OpenHandle(**handle);
+  Handle<Object> cache = Utils::OpenPersistent(handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();
   ASSERT(foreign->foreign_address() ==
