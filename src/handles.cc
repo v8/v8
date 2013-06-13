@@ -599,9 +599,6 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
 
 Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
-  if (!isolate->IsInitialized()) {
-    return isolate->factory()->undefined_value();
-  }
   Handle<String> name_or_source_url_key =
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("nameOrSourceURL"));
