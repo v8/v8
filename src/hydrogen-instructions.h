@@ -2016,9 +2016,6 @@ enum InliningKind {
 };
 
 
-class HArgumentsObject;
-
-
 class HEnterInlined: public HTemplateInstruction<0> {
  public:
   HEnterInlined(Handle<JSFunction> closure,
@@ -2026,7 +2023,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 FunctionLiteral* function,
                 InliningKind inlining_kind,
                 Variable* arguments_var,
-                HArgumentsObject* arguments_object,
+                ZoneList<HValue*>* arguments_values,
                 bool undefined_receiver,
                 Zone* zone)
       : closure_(closure),
@@ -2035,7 +2032,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
         function_(function),
         inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
-        arguments_object_(arguments_object),
+        arguments_values_(arguments_values),
         undefined_receiver_(undefined_receiver),
         return_targets_(2, zone) {
   }
@@ -2058,7 +2055,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   }
 
   Variable* arguments_var() { return arguments_var_; }
-  HArgumentsObject* arguments_object() { return arguments_object_; }
+  ZoneList<HValue*>* arguments_values() { return arguments_values_; }
 
   DECLARE_CONCRETE_INSTRUCTION(EnterInlined)
 
@@ -2069,7 +2066,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   FunctionLiteral* function_;
   InliningKind inlining_kind_;
   Variable* arguments_var_;
-  HArgumentsObject* arguments_object_;
+  ZoneList<HValue*>* arguments_values_;
   bool undefined_receiver_;
   ZoneList<HBasicBlock*> return_targets_;
 };
@@ -3205,21 +3202,10 @@ class HInductionVariableAnnotation : public HUnaryOperation {
 
 class HArgumentsObject: public HTemplateInstruction<0> {
  public:
-  HArgumentsObject(int count, Zone* zone) : values_(count, zone) {
+  HArgumentsObject() {
     set_representation(Representation::Tagged());
     SetFlag(kIsArguments);
   }
-
-  const ZoneList<HValue*>* arguments_values() const { return &values_; }
-  int arguments_count() const { return values_.length(); }
-
-  void AddArgument(HValue* argument, Zone* zone) {
-    values_.Add(NULL, zone);  // Resize list.
-    SetOperandAt(values_.length() - 1, argument);
-  }
-
-  virtual int OperandCount() { return values_.length(); }
-  virtual HValue* OperandAt(int index) const { return values_[index]; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -3227,15 +3213,8 @@ class HArgumentsObject: public HTemplateInstruction<0> {
 
   DECLARE_CONCRETE_INSTRUCTION(ArgumentsObject)
 
- protected:
-  virtual void InternalSetOperandAt(int index, HValue* value) {
-    values_[index] = value;
-  }
-
  private:
   virtual bool IsDeletable() const { return true; }
-
-  ZoneList<HValue*> values_;
 };
 
 

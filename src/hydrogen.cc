@@ -3546,7 +3546,6 @@ FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
       function_return_(NULL),
       test_context_(NULL),
       entry_(NULL),
-      arguments_object_(NULL),
       arguments_elements_(NULL),
       outer_(owner->function_state()) {
   if (outer_ != NULL) {
@@ -4698,18 +4697,18 @@ void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
   AddInstruction(undefined_constant);
   graph()->set_undefined_constant(undefined_constant);
 
-  // Create an arguments object containing the initial parameters.  Set the
-  // initial values of parameters including "this" having parameter index 0.
+  HArgumentsObject* object = new(zone()) HArgumentsObject;
+  AddInstruction(object);
+  graph()->SetArgumentsObject(object);
+
+  // Set the initial values of parameters including "this".  "This" has
+  // parameter index 0.
   ASSERT_EQ(scope->num_parameters() + 1, environment()->parameter_count());
-  HArgumentsObject* arguments_object =
-      new(zone()) HArgumentsObject(environment()->parameter_count(), zone());
+
   for (int i = 0; i < environment()->parameter_count(); ++i) {
     HInstruction* parameter = AddInstruction(new(zone()) HParameter(i));
-    arguments_object->AddArgument(parameter, zone());
     environment()->Bind(i, parameter);
   }
-  AddInstruction(arguments_object);
-  graph()->SetArgumentsObject(arguments_object);
 
   // First special is HContext.
   HInstruction* context = AddInstruction(new(zone()) HContext);
@@ -7429,8 +7428,7 @@ void HOptimizedGraphBuilder::EnsureArgumentsArePushedForAccess() {
   HEnterInlined* entry = function_state()->entry();
   entry->set_arguments_pushed();
 
-  HArgumentsObject* arguments = entry->arguments_object();
-  const ZoneList<HValue*>* arguments_values = arguments->arguments_values();
+  ZoneList<HValue*>* arguments_values = entry->arguments_values();
 
   HInstruction* insert_after = entry;
   for (int i = 0; i < arguments_values->length(); i++) {
@@ -8031,20 +8029,17 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
 
   AddSimulate(return_id);
   current_block()->UpdateEnvironment(inner_env);
-  HArgumentsObject* arguments_object = NULL;
+  ZoneList<HValue*>* arguments_values = NULL;
 
-  // If the function uses arguments object create and bind one, also copy
-  // current arguments values to use them for materialization.
+  // If the function uses arguments copy current arguments values
+  // to use them for materialization.
   if (function->scope()->arguments() != NULL) {
-    ASSERT(function->scope()->arguments()->IsStackAllocated());
     HEnvironment* arguments_env = inner_env->arguments_environment();
     int arguments_count = arguments_env->parameter_count();
-    arguments_object = new(zone()) HArgumentsObject(arguments_count, zone());
-    inner_env->Bind(function->scope()->arguments(), arguments_object);
+    arguments_values = new(zone()) ZoneList<HValue*>(arguments_count, zone());
     for (int i = 0; i < arguments_count; i++) {
-      arguments_object->AddArgument(arguments_env->Lookup(i), zone());
+      arguments_values->Add(arguments_env->Lookup(i), zone());
     }
-    AddInstruction(arguments_object);
   }
 
   HEnterInlined* enter_inlined =
@@ -8053,11 +8048,19 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
                                 function,
                                 function_state()->inlining_kind(),
                                 function->scope()->arguments(),
-                                arguments_object,
+                                arguments_values,
                                 undefined_receiver,
                                 zone());
   function_state()->set_entry(enter_inlined);
   AddInstruction(enter_inlined);
+
+  // If the function uses arguments object create and bind one.
+  if (function->scope()->arguments() != NULL) {
+    ASSERT(function->scope()->arguments()->IsStackAllocated());
+    inner_env->Bind(function->scope()->arguments(),
+                    graph()->GetArgumentsObject());
+  }
+
 
   VisitDeclarations(target_info.scope()->declarations());
   VisitStatements(function->body());
@@ -8490,10 +8493,13 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   } else {
     // We are inside inlined function and we know exactly what is inside
     // arguments object. But we need to be able to materialize at deopt.
+    // TODO(mstarzinger): For now we just ensure arguments are pushed
+    // right after HEnterInlined, but we could be smarter about this.
+    EnsureArgumentsArePushedForAccess();
     ASSERT_EQ(environment()->arguments_environment()->parameter_count(),
-              function_state()->entry()->arguments_object()->arguments_count());
-    HArgumentsObject* args = function_state()->entry()->arguments_object();
-    const ZoneList<HValue*>* arguments_values = args->arguments_values();
+              function_state()->entry()->arguments_values()->length());
+    HEnterInlined* entry = function_state()->entry();
+    ZoneList<HValue*>* arguments_values = entry->arguments_values();
     int arguments_count = arguments_values->length();
     PushAndAdd(new(zone()) HWrapReceiver(receiver, function));
     for (int i = 1; i < arguments_count; i++) {
@@ -11008,7 +11014,6 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       values_(arguments, zone),
       frame_type_(frame_type),
       parameter_count_(arguments),
-      specials_count_(0),
       local_count_(0),
       outer_(outer),
       entry_(NULL),
