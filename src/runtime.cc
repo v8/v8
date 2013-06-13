@@ -714,7 +714,7 @@ bool Runtime::SetupArrayBufferAllocatingData(
   v8::Isolate* external_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Persistent<v8::Value> weak_handle(
       external_isolate, v8::Utils::ToLocal(Handle<Object>::cast(array_buffer)));
-  weak_handle.MakeWeak(external_isolate, data, ArrayBufferWeakCallback);
+  weak_handle.MakeWeak(data, ArrayBufferWeakCallback);
   weak_handle.MarkIndependent(external_isolate);
   isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
 

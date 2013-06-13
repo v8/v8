@@ -652,23 +652,17 @@ template <class T> class Persistent // NOLINT
       P* parameters,
       typename WeakReferenceCallbacks<T, P>::Revivable callback));
 
-  // TODO(dcarney): deprecate
   template<typename S, typename P>
-  V8_INLINE(void MakeWeak(
+  V8_DEPRECATED(void MakeWeak(
       Isolate* isolate,
       P* parameters,
-      typename WeakReferenceCallbacks<S, P>::Revivable callback)) {
-    MakeWeak<S, P>(parameters, callback);
-  }
+      typename WeakReferenceCallbacks<S, P>::Revivable callback));
 
-  // TODO(dcarney): deprecate
   template<typename P>
-  V8_INLINE(void MakeWeak(
+  V8_DEPRECATED(void MakeWeak(
       Isolate* isolate,
       P* parameters,
-      typename WeakReferenceCallbacks<T, P>::Revivable callback)) {
-    MakeWeak<P>(parameters, callback);
-  }
+      typename WeakReferenceCallbacks<T, P>::Revivable callback));
 
   V8_INLINE(void ClearWeak());
 
@@ -5594,6 +5588,26 @@ void Persistent<T>::MakeWeak(
     P* parameters,
     typename WeakReferenceCallbacks<T, P>::Revivable callback) {
   MakeWeak<T, P>(parameters, callback);
+}
+
+
+template <class T>
+template <typename S, typename P>
+void Persistent<T>::MakeWeak(
+    Isolate* isolate,
+    P* parameters,
+    typename WeakReferenceCallbacks<S, P>::Revivable callback) {
+  MakeWeak<S, P>(parameters, callback);
+}
+
+
+template <class T>
+template<typename P>
+void Persistent<T>::MakeWeak(
+    Isolate* isolate,
+    P* parameters,
+    typename WeakReferenceCallbacks<T, P>::Revivable callback) {
+  MakeWeak<P>(parameters, callback);
 }
 
 
