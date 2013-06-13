@@ -1733,7 +1733,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       DescriptorArray* target_descriptors = transition->instance_descriptors();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
-      if (details.type() != FIELD || details.attributes() != NONE) break;
+      if (details.type() == CALLBACKS || details.attributes() != NONE) break;
 
       return isolate()->stub_cache()->ComputeStoreTransition(
           name, receiver, lookup, transition, strict_mode);
@@ -2099,7 +2099,7 @@ Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       DescriptorArray* target_descriptors = transition->instance_descriptors();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
-      if (details.type() == FIELD && details.attributes() == NONE) {
+      if (details.type() != CALLBACKS && details.attributes() == NONE) {
         return isolate()->stub_cache()->ComputeKeyedStoreTransition(
             name, receiver, lookup, transition, strict_mode);
       }
