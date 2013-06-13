@@ -292,6 +292,11 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
       v8::Persistent<T>* persistent) {
     return OpenPersistent(*persistent);
   }
+
+  template <class From, class To>
+  static inline v8::internal::Handle<To> OpenHandle(v8::Local<From> handle) {
+    return OpenHandle(*handle);
+  }
 };
 
 
