@@ -496,7 +496,9 @@ class SamplerThread : public Thread {
   void SampleContext(Sampler* sampler) {
     if (!SignalHandler::Installed()) return;
     pthread_t tid = sampler->platform_data()->vm_tid();
-    pthread_kill(tid, SIGPROF);
+    int result = pthread_kill(tid, SIGPROF);
+    USE(result);
+    ASSERT(result == 0);
   }
 
 #elif defined(__MACH__)

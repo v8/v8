@@ -680,24 +680,6 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
 }
 
 
-// Interceptor functions called from generated inline caches to notify
-// CPU profiler that external callbacks are invoked.
-v8::Handle<v8::Value> InvokeAccessorGetter(
-    v8::Local<v8::String> property,
-    const v8::AccessorInfo& info,
-    v8::AccessorGetter getter);
-
-
-void InvokeAccessorGetterCallback(
-    v8::Local<v8::String> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info,
-    v8::AccessorGetterCallback getter);
-
-v8::Handle<v8::Value> InvokeInvocationCallback(const v8::Arguments& args,
-                                              v8::InvocationCallback callback);
-void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
-                            v8::FunctionCallback callback);
-
 class Testing {
  public:
   static v8::Testing::StressType stress_type() { return stress_type_; }

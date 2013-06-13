@@ -599,6 +599,8 @@ class DirectCEntryStub: public PlatformCodeStub {
  public:
   DirectCEntryStub() {}
   void Generate(MacroAssembler* masm);
+  void GenerateCall(MacroAssembler* masm,
+                                ExternalReference function);
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:

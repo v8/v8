@@ -491,14 +491,11 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
 #if defined(__MINGW64__)
   Register arguments_arg = rcx;
-  Register callback_arg = rdx;
 #elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
   Register arguments_arg = returns_handle ? rdx : rcx;
-  Register callback_arg = returns_handle ? r8 : rdx;
 #else
   Register arguments_arg = rdi;
-  Register callback_arg = rsi;
 #endif
 
   // Allocate the v8::Arguments structure in the arguments' space since
@@ -517,13 +514,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // v8::InvocationCallback's argument.
   __ lea(arguments_arg, StackSpaceOperand(0));
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeInvocationCallback)
-      : FUNCTION_ADDR(&InvokeFunctionCallback);
-
   __ CallApiFunctionAndReturn(function_address,
-                              thunk_address,
-                              callback_arg,
                               argc + kFastApiCallArguments + 1,
                               returns_handle,
                               kFastApiCallArguments + 1);
@@ -1327,16 +1318,13 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
       !CallbackTable::ReturnsVoid(isolate(), getter_address);
 
 #if defined(__MINGW64__)
-  Register getter_arg = r8;
   Register accessor_info_arg = rdx;
   Register name_arg = rcx;
 #elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
-  Register getter_arg = returns_handle ? r9 : r8;
   Register accessor_info_arg = returns_handle ? r8 : rdx;
   Register name_arg = returns_handle ? rdx : rcx;
 #else
-  Register getter_arg = rdx;
   Register accessor_info_arg = rsi;
   Register name_arg = rdi;
 #endif
@@ -1362,13 +1350,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // could be used to pass arguments.
   __ lea(accessor_info_arg, StackSpaceOperand(0));
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeAccessorGetter)
-      : FUNCTION_ADDR(&InvokeAccessorGetterCallback);
-
   __ CallApiFunctionAndReturn(getter_address,
-                              thunk_address,
-                              getter_arg,
                               kStackSpace,
                               returns_handle,
                               5);
