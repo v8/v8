@@ -3241,7 +3241,7 @@ class HArgumentsObject: public HTemplateInstruction<0> {
 
 class HConstant: public HTemplateInstruction<0> {
  public:
-  HConstant(Handle<Object> handle, Representation r);
+  HConstant(Handle<Object> handle, Representation r = Representation::None());
   HConstant(int32_t value,
             Representation r = Representation::None(),
             bool is_not_in_new_space = true,
