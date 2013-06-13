@@ -5145,7 +5145,11 @@ Handle<v8::Array> NonStrictArgsIndexedPropertyEnumerator(
       "keys;"));
   Local<Object> result =
       Local<Object>::Cast(indexed_property_names_script->Run());
-  return *reinterpret_cast<Local<v8::Array>*>(&result);
+  // Have to populate the handle manually, as it's not Cast-able.
+  Local<v8::Array> array_result;
+  Object** ptr = reinterpret_cast<Object**>(&array_result);
+  *ptr = *reinterpret_cast<Object**>(&result);
+  return array_result;
 }
 
 
