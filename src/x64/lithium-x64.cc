@@ -976,7 +976,6 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
     for (int i = 1; i < arguments->arguments_count(); ++i) {
       HValue* value = arguments->arguments_values()->at(i);
       ASSERT(!value->IsArgumentsObject() && !value->IsPushArgument());
-      ASSERT(HInstruction::cast(value)->IsLinked());
       LOperand* op = UseAny(value);
       result->AddValue(op,
                        value->representation(),
