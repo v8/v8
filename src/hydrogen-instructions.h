@@ -1150,6 +1150,7 @@ class HValue: public ZoneObject {
     return representation();
   }
   Representation RepresentationFromUses();
+  Representation RepresentationFromUseRequirements();
   virtual void UpdateRepresentation(Representation new_rep,
                                     HInferRepresentation* h_infer,
                                     const char* reason);
@@ -3068,7 +3069,6 @@ class HPhi: public HValue {
 
   virtual Range* InferRange(Zone* zone);
   virtual void InferRepresentation(HInferRepresentation* h_infer);
-  Representation RepresentationFromUseRequirements();
   virtual Representation RequiredInputRepresentation(int index) {
     return representation();
   }

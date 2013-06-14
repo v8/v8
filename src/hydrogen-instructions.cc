@@ -84,6 +84,10 @@ void HValue::InferRepresentation(HInferRepresentation* h_infer) {
   UpdateRepresentation(new_rep, h_infer, "inputs");
   new_rep = RepresentationFromUses();
   UpdateRepresentation(new_rep, h_infer, "uses");
+  new_rep = RepresentationFromUseRequirements();
+  if (new_rep.fits_into(Representation::Integer32())) {
+    UpdateRepresentation(new_rep, h_infer, "use requirements");
+  }
 }
 
 
@@ -2304,6 +2308,10 @@ void HBinaryOperation::InferRepresentation(HInferRepresentation* h_infer) {
   if (!observed_output_representation_.IsNone()) return;
   new_rep = RepresentationFromUses();
   UpdateRepresentation(new_rep, h_infer, "uses");
+  new_rep = RepresentationFromUseRequirements();
+  if (new_rep.fits_into(Representation::Integer32())) {
+    UpdateRepresentation(new_rep, h_infer, "use requirements");
+  }
 }
 
 
@@ -3660,34 +3668,26 @@ Representation HPhi::RepresentationFromInputs() {
 }
 
 
-Representation HPhi::RepresentationFromUseRequirements() {
-  Representation all_uses_require = Representation::None();
-  bool all_uses_require_the_same = true;
+// Returns a representation if all uses agree on the same representation.
+// Integer32 is also returned when some uses are Smi but others are Integer32.
+Representation HValue::RepresentationFromUseRequirements() {
+  Representation rep = Representation::None();
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     // We check for observed_input_representation elsewhere.
     Representation use_rep =
         it.value()->RequiredInputRepresentation(it.index());
-    // No useful info from this use -> look at the next one.
-    if (use_rep.IsNone()) {
+    if (rep.IsNone()) {
+      rep = use_rep;
       continue;
     }
-    if (use_rep.Equals(all_uses_require)) {
+    if (use_rep.IsNone() || rep.Equals(use_rep)) continue;
+    if (rep.generalize(use_rep).IsInteger32()) {
+      rep = Representation::Integer32();
       continue;
     }
-    // This use's representation contradicts what we've seen so far.
-    if (!all_uses_require.IsNone()) {
-      ASSERT(!use_rep.Equals(all_uses_require));
-      all_uses_require_the_same = false;
-      break;
-    }
-    // Otherwise, initialize observed representation.
-    all_uses_require = use_rep;
+    return Representation::None();
   }
-  if (all_uses_require_the_same) {
-    return all_uses_require;
-  }
-
-  return Representation::None();
+  return rep;
 }
 
 
