@@ -2590,7 +2590,6 @@ class LChunkBuilder BASE_EMBEDDED {
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
 #undef DECLARE_DO
 
-  static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* val);
   static HValue* SimplifiedDivisorForMathFloorOfDiv(HValue* val);
 
   LInstruction* DoMathFloor(HUnaryMathOperation* instr);

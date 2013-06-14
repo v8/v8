@@ -1510,30 +1510,52 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
+static HValue* SimplifiedDividendForMathFloorOfDiv(
+    HValue* dividend,
+    Representation observed_representation) {
+  // A value with an integer representation does not need to be transformed.
+  if (dividend->representation().IsInteger32()) {
+    return dividend;
+  }
+  // A change from an integer32 can be replaced by the integer32 value.
+  if (dividend->IsChange() &&
+      HChange::cast(dividend)->from().IsInteger32()) {
+    return HChange::cast(dividend)->value();
+  }
+  // If we've only seen integers so far, insert an appropriate change.
+  if (observed_representation.IsSmiOrInteger32()) {
+    return new(dividend->block()->zone())
+        HChange(dividend, Representation::Integer32(), false, false);
+  }
+  return NULL;
+}
+
+
 HValue* HUnaryMathOperation::Canonicalize() {
   if (op() == kMathFloor) {
+    HValue* val = value();
+    if (val->IsChange()) val = HChange::cast(val)->value();
+
     // If the input is integer32 then we replace the floor instruction
-    // with its input. This happens before the representation changes are
-    // introduced.
-
-    // TODO(2205): The above comment is lying. All of this happens
-    // *after* representation changes are introduced. We should check
-    // for value->IsChange() and react accordingly if yes.
-
-    if (value()->representation().IsInteger32()) return value();
+    // with its input.
+    if (val->representation().IsInteger32()) return val;
 
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) || \
         defined(V8_TARGET_ARCH_X64)
-    if (value()->IsDiv() && (value()->UseCount() == 1)) {
-      // TODO(2038): Implement this optimization for non ARM architectures.
-      HDiv* hdiv = HDiv::cast(value());
+    if (val->IsDiv() && (val->UseCount() == 1)) {
+      HDiv* hdiv = HDiv::cast(val);
       HValue* left = hdiv->left();
       HValue* right = hdiv->right();
       // Try to simplify left and right values of the division.
-      HValue* new_left =
-        LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(left);
+      HValue* new_left = SimplifiedDividendForMathFloorOfDiv(
+          left, hdiv->observed_input_representation(1));
       HValue* new_right =
-        LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
+          LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
+      if (new_right == NULL &&
+          hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
+        new_right = new(block()->zone())
+            HChange(right, Representation::Integer32(), false, false);
+      }
 
       // Return if left or right are not optimizable.
       if ((new_left == NULL) || (new_right == NULL)) return this;
@@ -1547,9 +1569,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
           !HInstruction::cast(new_right)->IsLinked()) {
         HInstruction::cast(new_right)->InsertBefore(this);
       }
-      HMathFloorOfDiv* instr =  new(block()->zone()) HMathFloorOfDiv(context(),
-          new_left,
-          new_right);
+      HMathFloorOfDiv* instr = new(block()->zone())
+          HMathFloorOfDiv(context(), new_left, new_right);
       // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
       instr->InsertBefore(this);
       ReplaceAllUsesWith(instr);

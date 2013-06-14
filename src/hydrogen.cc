@@ -2985,6 +2985,15 @@ void HGraph::MergeRemovableSimulates() {
         }
         continue;
       }
+      if (current->IsReturn()) {
+        // Drop mergeable simulates in the list. This is safe because
+        // simulates after instructions with side effects are never added
+        // to the merge list.
+        while (!mergelist.is_empty()) {
+          mergelist.RemoveLast()->DeleteAndReplaceWith(NULL);
+        }
+        continue;
+      }
       // Skip the non-simulates and the first simulate.
       if (!current->IsSimulate()) continue;
       if (first) {

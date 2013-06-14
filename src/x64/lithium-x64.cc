@@ -1385,19 +1385,6 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 }
 
 
-HValue* LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
-  // A value with an integer representation does not need to be transformed.
-  if (dividend->representation().IsInteger32()) {
-    return dividend;
-  // A change from an integer32 can be replaced by the integer32 value.
-  } else if (dividend->IsChange() &&
-      HChange::cast(dividend)->from().IsInteger32()) {
-    return HChange::cast(dividend)->value();
-  }
-  return NULL;
-}
-
-
 HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
   if (divisor->IsConstant() &&
       HConstant::cast(divisor)->HasInteger32Value()) {
