@@ -1045,7 +1045,7 @@ intptr_t PagedSpace::SizeOfFirstPage() {
       size = 16 * kPointerSize * KB;
       break;
     case PROPERTY_CELL_SPACE:
-      size = 16 * kPointerSize * KB;
+      size = 8 * kPointerSize * KB;
       break;
     case CODE_SPACE:
       if (heap()->isolate()->code_range()->exists()) {
