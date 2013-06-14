@@ -5008,7 +5008,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
                                           label_value,
                                           Token::EQ_STRICT);
       compare_->set_observed_input_representation(
-          Representation::Integer32(), Representation::Integer32());
+          Representation::Smi(), Representation::Smi());
       compare = compare_;
     } else {
       compare = new(zone()) HStringCompareAndBranch(context, tag_value,
@@ -5373,7 +5373,7 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HCompareIDAndBranch* compare_index =
       new(zone()) HCompareIDAndBranch(index, limit, Token::LT);
   compare_index->set_observed_input_representation(
-      Representation::Integer32(), Representation::Integer32());
+      Representation::Smi(), Representation::Smi());
 
   HBasicBlock* loop_body = graph()->CreateBasicBlock();
   HBasicBlock* loop_successor = graph()->CreateBasicBlock();
