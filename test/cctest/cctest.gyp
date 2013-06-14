@@ -52,6 +52,7 @@
         'test-ast.cc',
         'test-bignum.cc',
         'test-bignum-dtoa.cc',
+        'test-bitrange.cc',
         'test-circular-queue.cc',
         'test-compare-nil-ic-stub.cc',
         'test-compiler.cc',

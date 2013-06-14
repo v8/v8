@@ -289,16 +289,8 @@ static int32_t MulWithoutOverflow(int32_t a, int32_t b, bool* overflow) {
 }
 
 
-int32_t Range::Mask() const {
-  if (lower_ == upper_) return lower_;
-  if (lower_ >= 0) {
-    int32_t res = 1;
-    while (res < upper_) {
-      res = (res << 1) | 1;
-    }
-    return res;
-  }
-  return 0xffffffff;
+void Range::ToBitRange(BitRange* bits) const {
+  BitRange::SetFromRange(bits, lower_, upper_);
 }
 
 
@@ -2382,50 +2374,38 @@ void HMathMinMax::InferRepresentation(HInferRepresentation* h_infer) {
 
 
 Range* HBitwise::InferRange(Zone* zone) {
-  if (op() == Token::BIT_XOR) {
-    if (left()->HasRange() && right()->HasRange()) {
-      // The maximum value has the high bit, and all bits below, set:
-      // (1 << high) - 1.
-      // If the range can be negative, the minimum int is a negative number with
-      // the high bit, and all bits below, unset:
-      // -(1 << high).
-      // If it cannot be negative, conservatively choose 0 as minimum int.
-      int64_t left_upper = left()->range()->upper();
-      int64_t left_lower = left()->range()->lower();
-      int64_t right_upper = right()->range()->upper();
-      int64_t right_lower = right()->range()->lower();
+  if (representation().IsInteger32()) {
+    BitRange left_bits, right_bits;
 
-      if (left_upper < 0) left_upper = ~left_upper;
-      if (left_lower < 0) left_lower = ~left_lower;
-      if (right_upper < 0) right_upper = ~right_upper;
-      if (right_lower < 0) right_lower = ~right_lower;
-
-      int high = MostSignificantBit(
-          static_cast<uint32_t>(
-              left_upper | left_lower | right_upper | right_lower));
-
-      int64_t limit = 1;
-      limit <<= high;
-      int32_t min = (left()->range()->CanBeNegative() ||
-                     right()->range()->CanBeNegative())
-                    ? static_cast<int32_t>(-limit) : 0;
-      return new(zone) Range(min, static_cast<int32_t>(limit - 1));
+    if (left()->HasRange()) {
+      left()->range()->ToBitRange(&left_bits);
     }
+
+    if (right()->HasRange()) {
+      right()->range()->ToBitRange(&right_bits);
+    }
+
+    BitRange result;
+    switch (op()) {
+      case Token::BIT_AND:
+        result = BitRange::And(left_bits, right_bits);
+        break;
+      case Token::BIT_OR:
+        result = BitRange::Or(left_bits, right_bits);
+        break;
+      case Token::BIT_XOR:
+        result = BitRange::Xor(left_bits, right_bits);
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    int32_t lower = kMaxInt, upper = kMinInt;  // 'empty' range.
+    result.ExtendRange(&lower, &upper);
+    return new(zone) Range(lower, upper);
+  } else {
     return HValue::InferRange(zone);
   }
-  const int32_t kDefaultMask = static_cast<int32_t>(0xffffffff);
-  int32_t left_mask = (left()->range() != NULL)
-      ? left()->range()->Mask()
-      : kDefaultMask;
-  int32_t right_mask = (right()->range() != NULL)
-      ? right()->range()->Mask()
-      : kDefaultMask;
-  int32_t result_mask = (op() == Token::BIT_AND)
-      ? left_mask & right_mask
-      : left_mask | right_mask;
-  return (result_mask >= 0)
-      ? new(zone) Range(0, result_mask)
-      : HValue::InferRange(zone);
 }
 
 
