@@ -3133,9 +3133,7 @@ THREADED_TEST(ClearAndLeakGlobal) {
   String* str = global.ClearAndLeak();
   CHECK(global.IsEmpty());
   CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count + 1);
-  v8::Persistent<String>* new_global =
-      reinterpret_cast<v8::Persistent<String>*>(&str);
-  new_global->Dispose();
+  global_handles->Destroy(reinterpret_cast<i::Object**>(str));
   CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count);
 }
 
