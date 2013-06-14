@@ -80,11 +80,17 @@ STATIC_ASSERT(kProfilerTicksBeforeOptimization < 256);
 STATIC_ASSERT(kProfilerTicksBeforeReenablingOptimization < 256);
 STATIC_ASSERT(kTicksWhenNotEnoughTypeInfo < 256);
 
+// Maximum size in bytes of generate code for a function to allow OSR.
+static const int kOSRCodeSizeAllowanceBase =
+    100 * FullCodeGenerator::kCodeSizeMultiplier;
+
+static const int kOSRCodeSizeAllowancePerTick =
+    3 * FullCodeGenerator::kCodeSizeMultiplier;
 
 // Maximum size in bytes of generated code for a function to be optimized
 // the very first time it is seen on the stack.
 static const int kMaxSizeEarlyOpt =
-    5 * FullCodeGenerator::kBackEdgeDistanceUnit;
+    5 * FullCodeGenerator::kCodeSizeMultiplier;
 
 
 RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
@@ -100,14 +106,13 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
 }
 
 
-static void GetICCounts(JSFunction* function,
+static void GetICCounts(Code* shared_code,
                         int* ic_with_type_info_count,
                         int* ic_total_count,
                         int* percentage) {
   *ic_total_count = 0;
   *ic_with_type_info_count = 0;
-  Object* raw_info =
-      function->shared()->code()->type_feedback_info();
+  Object* raw_info = shared_code->type_feedback_info();
   if (raw_info->IsTypeFeedbackInfo()) {
     TypeFeedbackInfo* info = TypeFeedbackInfo::cast(raw_info);
     *ic_with_type_info_count = info->ic_with_type_info_count();
@@ -128,7 +133,7 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     PrintF(" for recompilation, reason: %s", reason);
     if (FLAG_type_info_threshold > 0) {
       int typeinfo, total, percentage;
-      GetICCounts(function, &typeinfo, &total, &percentage);
+      GetICCounts(function->shared()->code(), &typeinfo, &total, &percentage);
       PrintF(", ICs with typeinfo: %d/%d (%d%%)", typeinfo, total, percentage);
     }
     PrintF("]\n");
@@ -274,12 +279,20 @@ void RuntimeProfiler::OptimizeNow() {
         (function->IsMarkedForLazyRecompilation() ||
          function->IsMarkedForParallelRecompilation() ||
          function->IsOptimized())) {
-      int nesting = shared_code->allow_osr_at_loop_nesting_level();
-      if (nesting < Code::kMaxLoopNestingMarker) {
-        int new_nesting = nesting + 1;
-        shared_code->set_allow_osr_at_loop_nesting_level(new_nesting);
-        AttemptOnStackReplacement(function);
+      int ticks = shared_code->profiler_ticks();
+      int allowance = kOSRCodeSizeAllowanceBase +
+                      ticks * kOSRCodeSizeAllowancePerTick;
+      if (shared_code->CodeSize() > allowance) {
+        if (ticks < 255) shared_code->set_profiler_ticks(ticks + 1);
+      } else {
+        int nesting = shared_code->allow_osr_at_loop_nesting_level();
+        if (nesting < Code::kMaxLoopNestingMarker) {
+          int new_nesting = nesting + 1;
+          shared_code->set_allow_osr_at_loop_nesting_level(new_nesting);
+          AttemptOnStackReplacement(function);
+        }
       }
+      continue;
     }
 
     // Only record top-level code on top of the execution stack and
@@ -313,7 +326,7 @@ void RuntimeProfiler::OptimizeNow() {
 
       if (ticks >= kProfilerTicksBeforeOptimization) {
         int typeinfo, total, percentage;
-        GetICCounts(function, &typeinfo, &total, &percentage);
+        GetICCounts(shared_code, &typeinfo, &total, &percentage);
         if (percentage >= FLAG_type_info_threshold) {
           // If this particular function hasn't had any ICs patched for enough
           // ticks, optimize it now.
