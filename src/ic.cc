@@ -2420,16 +2420,33 @@ const char* UnaryOpIC::GetName(TypeInfo type_info) {
 UnaryOpIC::State UnaryOpIC::ToState(TypeInfo type_info) {
   switch (type_info) {
     case UNINITIALIZED:
-      return ::v8::internal::UNINITIALIZED;
+      return v8::internal::UNINITIALIZED;
     case SMI:
     case NUMBER:
       return MONOMORPHIC;
     case GENERIC:
-      return ::v8::internal::GENERIC;
+      return v8::internal::GENERIC;
   }
   UNREACHABLE();
-  return ::v8::internal::UNINITIALIZED;
+  return v8::internal::UNINITIALIZED;
 }
+
+
+Handle<Type> UnaryOpIC::TypeInfoToType(TypeInfo type_info, Isolate* isolate) {
+  switch (type_info) {
+    case UNINITIALIZED:
+      return handle(Type::None(), isolate);
+    case SMI:
+      return handle(Type::Integer31(), isolate);
+    case NUMBER:
+      return handle(Type::Number(), isolate);
+    case GENERIC:
+      return handle(Type::Any(), isolate);
+  }
+  UNREACHABLE();
+  return handle(Type::Any(), isolate);
+}
+
 
 UnaryOpIC::TypeInfo UnaryOpIC::GetTypeInfo(Handle<Object> operand) {
   v8::internal::TypeInfo operand_type =
@@ -2498,6 +2515,46 @@ BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
   }
   UNREACHABLE();
   return ::v8::internal::UNINITIALIZED;
+}
+
+
+Handle<Type> BinaryOpIC::TypeInfoToType(BinaryOpIC::TypeInfo binary_type,
+                                        Isolate* isolate) {
+  switch (binary_type) {
+    case UNINITIALIZED:
+      return handle(Type::None(), isolate);
+    case SMI:
+      return handle(Type::Integer31(), isolate);
+    case INT32:
+      return handle(Type::Integer32(), isolate);
+    case NUMBER:
+      return handle(Type::Number(), isolate);
+    case ODDBALL:
+      return handle(Type::Optional(
+          handle(Type::Union(
+              handle(Type::Number(), isolate),
+              handle(Type::String(), isolate)), isolate)), isolate);
+    case STRING:
+      return handle(Type::String(), isolate);
+    case GENERIC:
+      return handle(Type::Any(), isolate);
+  }
+  UNREACHABLE();
+  return handle(Type::Any(), isolate);
+}
+
+
+void BinaryOpIC::StubInfoToType(int minor_key,
+                                Handle<Type>* left,
+                                Handle<Type>* right,
+                                Handle<Type>* result,
+                                Isolate* isolate) {
+  TypeInfo left_typeinfo, right_typeinfo, result_typeinfo;
+  BinaryOpStub::decode_types_from_minor_key(
+      minor_key, &left_typeinfo, &right_typeinfo, &result_typeinfo);
+  *left = TypeInfoToType(left_typeinfo, isolate);
+  *right = TypeInfoToType(right_typeinfo, isolate);
+  *result = TypeInfoToType(result_typeinfo, isolate);
 }
 
 
@@ -2814,45 +2871,60 @@ Handle<Type> CompareIC::StateToType(
 }
 
 
-static CompareIC::State InputState(CompareIC::State old_state,
-                                   Handle<Object> value) {
+void CompareIC::StubInfoToType(int stub_minor_key,
+                               Handle<Type>* left_type,
+                               Handle<Type>* right_type,
+                               Handle<Type>* overall_type,
+                               Handle<Map> map,
+                               Isolate* isolate) {
+  State left_state, right_state, handler_state;
+  ICCompareStub::DecodeMinorKey(stub_minor_key, &left_state, &right_state,
+                                &handler_state, NULL);
+  *left_type = StateToType(isolate, left_state);
+  *right_type = StateToType(isolate, right_state);
+  *overall_type = StateToType(isolate, handler_state, map);
+}
+
+
+CompareIC::State CompareIC::NewInputState(State old_state,
+                                          Handle<Object> value) {
   switch (old_state) {
-    case CompareIC::UNINITIALIZED:
-      if (value->IsSmi()) return CompareIC::SMI;
-      if (value->IsHeapNumber()) return CompareIC::NUMBER;
-      if (value->IsInternalizedString()) return CompareIC::INTERNALIZED_STRING;
-      if (value->IsString()) return CompareIC::STRING;
-      if (value->IsSymbol()) return CompareIC::UNIQUE_NAME;
-      if (value->IsJSObject()) return CompareIC::OBJECT;
+    case UNINITIALIZED:
+      if (value->IsSmi()) return SMI;
+      if (value->IsHeapNumber()) return NUMBER;
+      if (value->IsInternalizedString()) return INTERNALIZED_STRING;
+      if (value->IsString()) return STRING;
+      if (value->IsSymbol()) return UNIQUE_NAME;
+      if (value->IsJSObject()) return OBJECT;
       break;
-    case CompareIC::SMI:
-      if (value->IsSmi()) return CompareIC::SMI;
-      if (value->IsHeapNumber()) return CompareIC::NUMBER;
+    case SMI:
+      if (value->IsSmi()) return SMI;
+      if (value->IsHeapNumber()) return NUMBER;
       break;
-    case CompareIC::NUMBER:
-      if (value->IsNumber()) return CompareIC::NUMBER;
+    case NUMBER:
+      if (value->IsNumber()) return NUMBER;
       break;
-    case CompareIC::INTERNALIZED_STRING:
-      if (value->IsInternalizedString()) return CompareIC::INTERNALIZED_STRING;
-      if (value->IsString()) return CompareIC::STRING;
-      if (value->IsSymbol()) return CompareIC::UNIQUE_NAME;
+    case INTERNALIZED_STRING:
+      if (value->IsInternalizedString()) return INTERNALIZED_STRING;
+      if (value->IsString()) return STRING;
+      if (value->IsSymbol()) return UNIQUE_NAME;
       break;
-    case CompareIC::STRING:
-      if (value->IsString()) return CompareIC::STRING;
+    case STRING:
+      if (value->IsString()) return STRING;
       break;
-    case CompareIC::UNIQUE_NAME:
-      if (value->IsUniqueName()) return CompareIC::UNIQUE_NAME;
+    case UNIQUE_NAME:
+      if (value->IsUniqueName()) return UNIQUE_NAME;
       break;
-    case CompareIC::OBJECT:
-      if (value->IsJSObject()) return CompareIC::OBJECT;
+    case OBJECT:
+      if (value->IsJSObject()) return OBJECT;
       break;
-    case CompareIC::GENERIC:
+    case GENERIC:
       break;
-    case CompareIC::KNOWN_OBJECT:
+    case KNOWN_OBJECT:
       UNREACHABLE();
       break;
   }
-  return CompareIC::GENERIC;
+  return GENERIC;
 }
 
 
@@ -2925,8 +2997,8 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   State previous_left, previous_right, previous_state;
   ICCompareStub::DecodeMinorKey(target()->stub_info(), &previous_left,
                                 &previous_right, &previous_state, NULL);
-  State new_left = InputState(previous_left, x);
-  State new_right = InputState(previous_right, y);
+  State new_left = NewInputState(previous_left, x);
+  State new_right = NewInputState(previous_right, y);
   State state = TargetState(previous_state, previous_left, previous_right,
                             HasInlinedSmiCode(address()), x, y);
   ICCompareStub stub(op_, new_left, new_right, state);

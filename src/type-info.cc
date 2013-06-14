@@ -363,12 +363,8 @@ void TypeFeedbackOracle::CompareTypes(TypeFeedbackId id,
 
   if (code->is_compare_ic_stub()) {
     int stub_minor_key = code->stub_info();
-    CompareIC::State left_state, right_state, handler_state;
-    ICCompareStub::DecodeMinorKey(stub_minor_key, &left_state, &right_state,
-                                  &handler_state, NULL);
-    *left_type = CompareIC::StateToType(isolate_, left_state);
-    *right_type = CompareIC::StateToType(isolate_, right_state);
-    *overall_type = CompareIC::StateToType(isolate_, handler_state, map);
+    CompareIC::StubInfoToType(
+        stub_minor_key, left_type, right_type, overall_type, map, isolate());
   } else if (code->is_compare_nil_ic_stub()) {
     CompareNilICStub::State state(code->compare_nil_state());
     *compare_nil_type = CompareNilICStub::StateToType(isolate_, state, map);
@@ -376,70 +372,34 @@ void TypeFeedbackOracle::CompareTypes(TypeFeedbackId id,
 }
 
 
-TypeInfo TypeFeedbackOracle::UnaryType(UnaryOperation* expr) {
-  Handle<Object> object = GetInfo(expr->UnaryOperationFeedbackId());
-  TypeInfo unknown = TypeInfo::Unknown();
-  if (!object->IsCode()) return unknown;
+Handle<Type> TypeFeedbackOracle::UnaryType(TypeFeedbackId id) {
+  Handle<Object> object = GetInfo(id);
+  if (!object->IsCode()) return handle(Type::Any(), isolate());
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT(code->is_unary_op_stub());
-  UnaryOpIC::TypeInfo type = static_cast<UnaryOpIC::TypeInfo>(
-      code->unary_op_type());
-  switch (type) {
-    case UnaryOpIC::SMI:
-      return TypeInfo::Smi();
-    case UnaryOpIC::NUMBER:
-      return TypeInfo::Double();
-    default:
-      return unknown;
-  }
+  return UnaryOpIC::TypeInfoToType(
+      static_cast<UnaryOpIC::TypeInfo>(code->unary_op_type()), isolate());
 }
 
 
-static TypeInfo TypeFromBinaryOpType(BinaryOpIC::TypeInfo binary_type) {
-  switch (binary_type) {
-    // Uninitialized means never executed.
-    case BinaryOpIC::UNINITIALIZED:  return TypeInfo::Uninitialized();
-    case BinaryOpIC::SMI:            return TypeInfo::Smi();
-    case BinaryOpIC::INT32:          return TypeInfo::Integer32();
-    case BinaryOpIC::NUMBER:         return TypeInfo::Double();
-    case BinaryOpIC::ODDBALL:        return TypeInfo::Unknown();
-    case BinaryOpIC::STRING:         return TypeInfo::String();
-    case BinaryOpIC::GENERIC:        return TypeInfo::Unknown();
-  }
-  UNREACHABLE();
-  return TypeInfo::Unknown();
-}
-
-
-void TypeFeedbackOracle::BinaryType(BinaryOperation* expr,
-                                    TypeInfo* left,
-                                    TypeInfo* right,
-                                    TypeInfo* result,
+void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
+                                    Handle<Type>* left,
+                                    Handle<Type>* right,
+                                    Handle<Type>* result,
                                     bool* has_fixed_right_arg,
                                     int* fixed_right_arg_value) {
-  Handle<Object> object = GetInfo(expr->BinaryOperationFeedbackId());
-  TypeInfo unknown = TypeInfo::Unknown();
-  if (!object->IsCode()) {
-    *left = *right = *result = unknown;
-    return;
-  }
+  Handle<Object> object = GetInfo(id);
+  *left = *right = *result = handle(Type::Any(), isolate_);
+  if (!object->IsCode()) return;
   Handle<Code> code = Handle<Code>::cast(object);
-  if (code->is_binary_op_stub()) {
-    int minor_key = code->stub_info();
-    BinaryOpIC::TypeInfo left_type, right_type, result_type;
-    BinaryOpStub::decode_types_from_minor_key(
-        minor_key, &left_type, &right_type, &result_type);
-    *left = TypeFromBinaryOpType(left_type);
-    *right = TypeFromBinaryOpType(right_type);
-    *result = TypeFromBinaryOpType(result_type);
-    *has_fixed_right_arg =
-        BinaryOpStub::decode_has_fixed_right_arg_from_minor_key(minor_key);
-    *fixed_right_arg_value =
-        BinaryOpStub::decode_fixed_right_arg_value_from_minor_key(minor_key);
-    return;
-  }
-  // Not a binary op stub.
-  *left = *right = *result = unknown;
+  if (!code->is_binary_op_stub()) return;
+
+  int minor_key = code->stub_info();
+  BinaryOpIC::StubInfoToType(minor_key, left, right, result, isolate());
+  *has_fixed_right_arg =
+      BinaryOpStub::decode_has_fixed_right_arg_from_minor_key(minor_key);
+  *fixed_right_arg_value =
+      BinaryOpStub::decode_fixed_right_arg_value_from_minor_key(minor_key);
 }
 
 

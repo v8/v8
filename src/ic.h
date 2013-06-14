@@ -690,6 +690,8 @@ class UnaryOpIC: public IC {
     GENERIC
   };
 
+  static Handle<Type> TypeInfoToType(TypeInfo info, Isolate* isolate);
+
   explicit UnaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
 
   void patch(Code* code);
@@ -717,6 +719,12 @@ class BinaryOpIC: public IC {
     GENERIC
   };
 
+  static void StubInfoToType(int minor_key,
+                             Handle<Type>* left,
+                             Handle<Type>* right,
+                             Handle<Type>* result,
+                             Isolate* isolate);
+
   explicit BinaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
 
   void patch(Code* code);
@@ -724,6 +732,9 @@ class BinaryOpIC: public IC {
   static const char* GetName(TypeInfo type_info);
 
   static State ToState(TypeInfo type_info);
+
+ private:
+  static Handle<Type> TypeInfoToType(TypeInfo binary_type, Isolate* isolate);
 };
 
 
@@ -747,8 +758,18 @@ class CompareIC: public IC {
     GENERIC
   };
 
-  static Handle<Type> StateToType(
-      Isolate* isolate, State state, Handle<Map> map = Handle<Map>());
+  static State NewInputState(State old_state, Handle<Object> value);
+
+  static Handle<Type> StateToType(Isolate* isolate,
+                                  State state,
+                                  Handle<Map> map = Handle<Map>());
+
+  static void StubInfoToType(int stub_minor_key,
+                             Handle<Type>* left_type,
+                             Handle<Type>* right_type,
+                             Handle<Type>* overall_type,
+                             Handle<Map> map,
+                             Isolate* isolate);
 
   CompareIC(Isolate* isolate, Token::Value op)
       : IC(EXTRA_CALL_FRAME, isolate), op_(op) { }

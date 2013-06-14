@@ -9106,11 +9106,11 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
   HValue* context = environment()->LookupContext();
   HInstruction* instr =
       HMul::New(zone(), context, value, graph()->GetConstantMinus1());
-  TypeInfo info = expr->type();
-  Representation rep = ToRepresentation(info);
-  if (info.IsUninitialized()) {
+  Handle<Type> type = expr->type();
+  Representation rep = ToRepresentation(type);
+  if (type->Is(Type::None())) {
     AddSoftDeoptimize();
-    info = TypeInfo::Unknown();
+    type = handle(Type::Any(), isolate());
   }
   if (instr->IsBinaryOperation()) {
     HBinaryOperation::cast(instr)->set_observed_input_representation(1, rep);
@@ -9123,8 +9123,8 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
-  TypeInfo info = expr->type();
-  if (info.IsUninitialized()) {
+  Handle<Type> info = expr->type();
+  if (info->Is(Type::None())) {
     AddSoftDeoptimize();
   }
   HInstruction* instr = new(zone()) HBitNot(value);
@@ -9486,24 +9486,26 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
     HValue* left,
     HValue* right) {
   HValue* context = environment()->LookupContext();
-  TypeInfo left_info = expr->left_type();
-  TypeInfo right_info = expr->right_type();
-  TypeInfo result_info = expr->result_type();
+  Handle<Type> left_type = expr->left_type();
+  Handle<Type> right_type = expr->right_type();
+  Handle<Type> result_type = expr->result_type();
   bool has_fixed_right_arg = expr->has_fixed_right_arg();
   int fixed_right_arg_value = expr->fixed_right_arg_value();
-  Representation left_rep = ToRepresentation(left_info);
-  Representation right_rep = ToRepresentation(right_info);
-  Representation result_rep = ToRepresentation(result_info);
-  if (left_info.IsUninitialized()) {
-    // Can't have initialized one but not the other.
-    ASSERT(right_info.IsUninitialized());
+  Representation left_rep = ToRepresentation(left_type);
+  Representation right_rep = ToRepresentation(right_type);
+  Representation result_rep = ToRepresentation(result_type);
+  if (left_type->Is(Type::None())) {
     AddSoftDeoptimize();
-    left_info = right_info = TypeInfo::Unknown();
+    left_type = handle(Type::Any(), isolate());
+  }
+  if (right_type->Is(Type::None())) {
+    AddSoftDeoptimize();
+    right_type = handle(Type::Any(), isolate());
   }
   HInstruction* instr = NULL;
   switch (expr->op()) {
     case Token::ADD:
-      if (left_info.IsString() && right_info.IsString()) {
+      if (left_type->Is(Type::String()) && right_type->Is(Type::String())) {
         BuildCheckNonSmi(left);
         AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
         BuildCheckNonSmi(right);
@@ -9536,7 +9538,8 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
       break;
     case Token::BIT_OR: {
       HValue* operand, *shift_amount;
-      if (left_info.IsInteger32() && right_info.IsInteger32() &&
+      if (left_type->Is(Type::Integer32()) &&
+          right_type->Is(Type::Integer32()) &&
           MatchRotateRight(left, right, &operand, &shift_amount)) {
         instr = new(zone()) HRor(context, operand, shift_amount);
       } else {
