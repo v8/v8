@@ -43,7 +43,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class BitRange;
 class HBasicBlock;
 class HEnvironment;
 class HInferRepresentation;
@@ -260,7 +259,7 @@ class Range: public ZoneObject {
     result->set_can_be_minus_zero(CanBeMinusZero());
     return result;
   }
-  void ToBitRange(BitRange* bits) const;
+  int32_t Mask() const;
   void set_can_be_minus_zero(bool b) { can_be_minus_zero_ = b; }
   bool CanBeMinusZero() const { return CanBeZero() && can_be_minus_zero_; }
   bool CanBeZero() const { return upper_ >= 0 && lower_ <= 0; }
@@ -304,60 +303,6 @@ class Range: public ZoneObject {
   int32_t upper_;
   Range* next_;
   bool can_be_minus_zero_;
-};
-
-
-class BitRange {
- public:
-  BitRange() : known_(0), bits_(0) { }
-  BitRange(int32_t known, int32_t bits)
-      : known_(known), bits_(bits & known) { }
-
-  static void SetFromRange(BitRange* bits, int32_t lower, int32_t upper) {
-    // Find a mask for the most significant bits that are the same for all
-    // values in the range.
-    int32_t same = ~(lower ^ upper);
-    // Flood zeros to any bits lower than the most significant zero.
-    same &= (same >> 1);
-    same &= (same >> 2);
-    same &= (same >> 4);
-    same &= (same >> 8);
-    same &= (same >> 16);
-
-    bits->known_ = same;
-    bits->bits_ = lower & same;
-  }
-
-  void ExtendRange(int32_t* lower, int32_t* upper) const {
-    int32_t limit1 = (~known_ & 0x80000000) | bits_;
-    int32_t limit2 = (~known_ & 0x7fffffff) | bits_;
-    *lower = Min(*lower, Min(limit1, limit2));
-    *upper = Max(*upper, Max(limit1, limit2));
-  }
-
-  static BitRange And(BitRange a, BitRange b) {
-    int32_t known = a.known_ & b.known_;
-    // Zeros in either operand become known.
-    known |= (a.known_ & ~a.bits_);
-    known |= (b.known_ & ~b.bits_);
-    return BitRange(known, a.bits_ & b.bits_);
-  }
-
-  static BitRange Or(BitRange a, BitRange b) {
-    int32_t known = a.known_ & b.known_;
-    // Ones in either operand become known.
-    known |= (a.known_ & a.bits_);
-    known |= (b.known_ & b.bits_);
-    return BitRange(known, a.bits_ | b.bits_);
-  }
-
-  static BitRange Xor(BitRange a, BitRange b) {
-    return BitRange(a.known_ & b.known_, a.bits_ ^ b.bits_);
-  }
-
- private:
-  int32_t known_;  // A mask of known bits.
-  int32_t bits_;   // Values of known bits, zero elsewhere.
 };
 
 
