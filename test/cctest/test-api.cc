@@ -12765,7 +12765,8 @@ THREADED_TEST(DisposeEnteredContext) {
   {
     // Don't want a handle here, so do this unsafely
     v8::Handle<v8::Context> inner_local =
-        *reinterpret_cast<v8::Handle<v8::Context>*>(&inner);
+        v8::Utils::Convert<i::Object, v8::Context>(
+            v8::Utils::OpenPersistent(inner));
     inner_local->Enter();
     inner.Dispose();
     inner.Clear();
