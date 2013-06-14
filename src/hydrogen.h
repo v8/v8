@@ -1707,6 +1707,11 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                         HValue* value,
                                         SmallMapList* types,
                                         Handle<String> name);
+  bool TryStorePolymorphicAsMonomorphic(Assignment* expr,
+                                        HValue* object,
+                                        HValue* value,
+                                        SmallMapList* types,
+                                        Handle<String> name);
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,
                                   SmallMapList* types,

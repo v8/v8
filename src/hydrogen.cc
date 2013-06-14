@@ -3794,6 +3794,13 @@ void TestContext::BuildBranch(HValue* value) {
   } while (false)
 
 
+#define CHECK_ALIVE_OR_RETURN(call, value)                            \
+  do {                                                                \
+    call;                                                             \
+    if (HasStackOverflow() || current_block() == NULL) return value;  \
+  } while (false)
+
+
 void HOptimizedGraphBuilder::Bailout(const char* reason) {
   current_info()->set_bailout_reason(reason);
   SetStackOverflow();
@@ -6300,13 +6307,13 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
     Handle<String> name) {
   // Use monomorphic load if property lookup results in the same field index
   // for all maps. Requires special map check on the set of all handled maps.
+  if (types->length() > kMaxLoadPolymorphism) return NULL;
+
   LookupResult lookup(isolate());
   int count;
   Representation representation = Representation::None();
   HObjectAccess access = HObjectAccess::ForMap();  // initial value unused.
-  for (count = 0;
-       count < types->length() && count < kMaxLoadPolymorphism;
-       ++count) {
+  for (count = 0; count < types->length(); ++count) {
     Handle<Map> map = types->at(count);
     if (!ComputeLoadStoreField(map, name, &lookup, false)) break;
 
@@ -6317,7 +6324,6 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
     if (count == 0) {
       // First time through the loop; set access and representation.
       access = new_access;
-      representation = new_representation;
     } else if (!representation.IsCompatibleForLoad(new_representation)) {
       // Representations did not match.
       break;
@@ -6328,6 +6334,7 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
       // In-objectness did not match.
       break;
     }
+    representation = representation.generalize(new_representation);
   }
 
   if (count != types->length()) return NULL;
@@ -6359,12 +6366,75 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
 }
 
 
+bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
+    Assignment* expr,
+    HValue* object,
+    HValue* value,
+    SmallMapList* types,
+    Handle<String> name) {
+  // Use monomorphic store if property lookup results in the same field index
+  // for all maps. Requires special map check on the set of all handled maps.
+  if (types->length() > kMaxStorePolymorphism) return false;
+
+  // TODO(verwaest): Merge the checking logic with the code in
+  // TryLoadPolymorphicAsMonomorphic.
+  LookupResult lookup(isolate());
+  int count;
+  Representation representation = Representation::None();
+  HObjectAccess access = HObjectAccess::ForMap();  // initial value unused.
+  for (count = 0; count < types->length(); ++count) {
+    Handle<Map> map = types->at(count);
+    // Pass false to ignore transitions.
+    if (!ComputeLoadStoreField(map, name, &lookup, false)) break;
+
+    HObjectAccess new_access = HObjectAccess::ForField(map, &lookup, name);
+    Representation new_representation =
+        ComputeLoadStoreRepresentation(map, &lookup);
+
+    if (count == 0) {
+      // First time through the loop; set access and representation.
+      access = new_access;
+      representation = new_representation;
+    } else if (!representation.IsCompatibleForStore(new_representation)) {
+      // Representations did not match.
+      break;
+    } else if (access.offset() != new_access.offset()) {
+      // Offsets did not match.
+      break;
+    } else if (access.IsInobject() != new_access.IsInobject()) {
+      // In-objectness did not match.
+      break;
+    }
+  }
+
+  if (count != types->length()) return false;
+
+  // Everything matched; can use monomorphic store.
+  BuildCheckNonSmi(object);
+  AddInstruction(HCheckMaps::New(object, types, zone()));
+  HInstruction* store;
+  CHECK_ALIVE_OR_RETURN(
+      store = BuildStoreNamedField(object, name, value, types->at(0), &lookup),
+      true);
+  Push(value);
+  store->set_position(expr->position());
+  AddInstruction(store);
+  AddSimulate(expr->AssignmentId());
+  ast_context()->ReturnValue(Pop());
+  return true;
+}
+
+
 void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
     Assignment* expr,
     HValue* object,
     HValue* value,
     SmallMapList* types,
     Handle<String> name) {
+  if (TryStorePolymorphicAsMonomorphic(expr, object, value, types, name)) {
+    return;
+  }
+
   // TODO(ager): We should recognize when the prototype chains for different
   // maps are identical. In that case we can avoid repeatedly generating the
   // same prototype map checks.
@@ -6387,8 +6457,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
 
       set_current_block(if_true);
       HInstruction* instr;
-      CHECK_ALIVE(instr =
-          BuildStoreNamedField(object, name, value, map, &lookup));
+      CHECK_ALIVE(
+          instr = BuildStoreNamedField(object, name, value, map, &lookup));
       instr->set_position(expr->position());
       // Goto will add the HSimulate for the store.
       AddInstruction(instr);
@@ -6432,7 +6502,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
   ASSERT(join != NULL);
   join->SetJoinId(expr->id());
   set_current_block(join);
-  if (!ast_context()->IsEffect()) return ast_context()->ReturnValue(Pop());
+  if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
 }
 
 
