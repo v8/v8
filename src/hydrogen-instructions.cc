@@ -1550,6 +1550,9 @@ HValue* HUnaryMathOperation::Canonicalize() {
       HValue* new_right =
           LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
       if (new_right == NULL &&
+#ifdef V8_TARGET_ARCH_ARM
+          CpuFeatures::IsSupported(SUDIV) &&
+#endif
           hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
         new_right = new(block()->zone())
             HChange(right, Representation::Integer32(), false, false);
