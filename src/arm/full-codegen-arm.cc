@@ -1836,13 +1836,14 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
     if (!result_saved) {
       __ push(r0);
+      __ Push(Smi::FromInt(expr->literal_index()));
       result_saved = true;
     }
     VisitForAccumulatorValue(subexpr);
 
     if (IsFastObjectElementsKind(constant_elements_kind)) {
       int offset = FixedArray::kHeaderSize + (i * kPointerSize);
-      __ ldr(r6, MemOperand(sp));  // Copy of array literal.
+      __ ldr(r6, MemOperand(sp, kPointerSize));  // Copy of array literal.
       __ ldr(r1, FieldMemOperand(r6, JSObject::kElementsOffset));
       __ str(result_register(), FieldMemOperand(r1, offset));
       // Update the write barrier for the array store.
@@ -1850,10 +1851,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
                           kLRHasBeenSaved, kDontSaveFPRegs,
                           EMIT_REMEMBERED_SET, INLINE_SMI_CHECK);
     } else {
-      __ ldr(r1, MemOperand(sp));  // Copy of array literal.
-      __ ldr(r2, FieldMemOperand(r1, JSObject::kMapOffset));
       __ mov(r3, Operand(Smi::FromInt(i)));
-      __ mov(r4, Operand(Smi::FromInt(expr->literal_index())));
       StoreArrayLiteralElementStub stub;
       __ CallStub(&stub);
     }
@@ -1862,6 +1860,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   if (result_saved) {
+    __ pop();  // literal index
     context()->PlugTOS();
   } else {
     context()->Plug(r0);

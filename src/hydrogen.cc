@@ -6073,6 +6073,8 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // The array is expected in the bailout environment during computation
   // of the property values and is the value of the entire expression.
   Push(literal);
+  // The literal index is on the stack, too.
+  Push(AddInstruction(new(zone()) HConstant(expr->literal_index())));
 
   HInstruction* elements = NULL;
 
@@ -6110,6 +6112,8 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
     AddSimulate(expr->GetIdForElement(i));
   }
+
+  Drop(1);  // array literal index
   return ast_context()->ReturnValue(Pop());
 }
 

@@ -1840,7 +1840,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     }
 
     if (!result_saved) {
-      __ push(v0);
+      __ push(v0);  // array literal
+      __ Push(Smi::FromInt(expr->literal_index()));
       result_saved = true;
     }
 
@@ -1848,7 +1849,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
     if (IsFastObjectElementsKind(constant_elements_kind)) {
       int offset = FixedArray::kHeaderSize + (i * kPointerSize);
-      __ lw(t2, MemOperand(sp));  // Copy of array literal.
+      __ lw(t2, MemOperand(sp, kPointerSize));  // Copy of array literal.
       __ lw(a1, FieldMemOperand(t2, JSObject::kElementsOffset));
       __ sw(result_register(), FieldMemOperand(a1, offset));
       // Update the write barrier for the array store.
@@ -1856,10 +1857,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
                           kRAHasBeenSaved, kDontSaveFPRegs,
                           EMIT_REMEMBERED_SET, INLINE_SMI_CHECK);
     } else {
-      __ lw(a1, MemOperand(sp));  // Copy of array literal.
-      __ lw(a2, FieldMemOperand(a1, JSObject::kMapOffset));
       __ li(a3, Operand(Smi::FromInt(i)));
-      __ li(t0, Operand(Smi::FromInt(expr->literal_index())));
       __ mov(a0, result_register());
       StoreArrayLiteralElementStub stub;
       __ CallStub(&stub);
@@ -1868,6 +1866,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
   if (result_saved) {
+    __ Pop();  // literal index
     context()->PlugTOS();
   } else {
     context()->Plug(v0);

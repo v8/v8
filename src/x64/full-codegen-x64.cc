@@ -1812,7 +1812,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     }
 
     if (!result_saved) {
-      __ push(rax);
+      __ push(rax);  // array literal
+      __ Push(Smi::FromInt(expr->literal_index()));
       result_saved = true;
     }
     VisitForAccumulatorValue(subexpr);
@@ -1821,7 +1822,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       // Fast-case array literal with ElementsKind of FAST_*_ELEMENTS, they
       // cannot transition and don't need to call the runtime stub.
       int offset = FixedArray::kHeaderSize + (i * kPointerSize);
-      __ movq(rbx, Operand(rsp, 0));  // Copy of array literal.
+      __ movq(rbx, Operand(rsp, kPointerSize));  // Copy of array literal.
       __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
       // Store the subexpression value in the array's elements.
       __ movq(FieldOperand(rbx, offset), result_register());
@@ -1832,10 +1833,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
                           INLINE_SMI_CHECK);
     } else {
       // Store the subexpression value in the array's elements.
-      __ movq(rbx, Operand(rsp, 0));  // Copy of array literal.
-      __ movq(rdi, FieldOperand(rbx, JSObject::kMapOffset));
       __ Move(rcx, Smi::FromInt(i));
-      __ Move(rdx, Smi::FromInt(expr->literal_index()));
       StoreArrayLiteralElementStub stub;
       __ CallStub(&stub);
     }
@@ -1844,6 +1842,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   if (result_saved) {
+    __ addq(rsp, Immediate(kPointerSize));  // literal index
     context()->PlugTOS();
   } else {
     context()->Plug(rax);

@@ -7661,11 +7661,11 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : element value to store
-  //  -- ebx    : array literal
-  //  -- edi    : map of array literal
   //  -- ecx    : element index as smi
-  //  -- edx    : array literal index in function
   //  -- esp[0] : return address
+  //  -- esp[4] : array literal index in function
+  //  -- esp[8] : array literal
+  // clobbers ebx, edx, edi
   // -----------------------------------
 
   Label element_done;
@@ -7674,6 +7674,11 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   Label slow_elements;
   Label slow_elements_from_double;
   Label fast_elements;
+
+  // Get array literal index, array literal and its map.
+  __ mov(edx, Operand(esp, 1 * kPointerSize));
+  __ mov(ebx, Operand(esp, 2 * kPointerSize));
+  __ mov(edi, FieldOperand(ebx, JSObject::kMapOffset));
 
   __ CheckFastElements(edi, &double_elements);
 
