@@ -152,7 +152,6 @@ Heap::Heap()
       last_idle_notification_gc_count_(0),
       last_idle_notification_gc_count_init_(false),
       mark_sweeps_since_idle_round_started_(0),
-      ms_count_at_last_idle_notification_(0),
       gc_count_at_last_idle_gc_(0),
       scavenges_since_last_idle_round_(kIdleScavengeThreshold),
       gcs_since_last_deopt_(0),
@@ -5859,6 +5858,7 @@ void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
       uncommit = true;
     }
     CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
+    mark_sweeps_since_idle_round_started_++;
     gc_count_at_last_idle_gc_ = gc_count_;
     if (uncommit) {
       new_space_.Shrink();
@@ -5872,6 +5872,7 @@ bool Heap::IdleNotification(int hint) {
   // Hints greater than this value indicate that
   // the embedder is requesting a lot of GC work.
   const int kMaxHint = 1000;
+  const int kMinHintForIncrementalMarking = 10;
   // Minimal hint that allows to do full GC.
   const int kMinHintForFullGC = 100;
   intptr_t size_factor = Min(Max(hint, 20), kMaxHint) / 4;
@@ -5934,17 +5935,8 @@ bool Heap::IdleNotification(int hint) {
     }
   }
 
-  int new_mark_sweeps = ms_count_ - ms_count_at_last_idle_notification_;
-  mark_sweeps_since_idle_round_started_ += new_mark_sweeps;
-  ms_count_at_last_idle_notification_ = ms_count_;
-
   int remaining_mark_sweeps = kMaxMarkSweepsInIdleRound -
                               mark_sweeps_since_idle_round_started_;
-
-  if (remaining_mark_sweeps <= 0) {
-    FinishIdleRound();
-    return true;
-  }
 
   if (incremental_marking()->IsStopped()) {
     // If there are no more than two GCs left in this idle round and we are
@@ -5955,13 +5947,21 @@ bool Heap::IdleNotification(int hint) {
     if (remaining_mark_sweeps <= 2 && hint >= kMinHintForFullGC) {
       CollectAllGarbage(kReduceMemoryFootprintMask,
                         "idle notification: finalize idle round");
-    } else {
+      mark_sweeps_since_idle_round_started_++;
+    } else if (hint > kMinHintForIncrementalMarking) {
       incremental_marking()->Start();
     }
   }
-  if (!incremental_marking()->IsStopped()) {
+  if (!incremental_marking()->IsStopped() &&
+      hint > kMinHintForIncrementalMarking) {
     AdvanceIdleIncrementalMarking(step_size);
   }
+
+  if (mark_sweeps_since_idle_round_started_ >= kMaxMarkSweepsInIdleRound) {
+    FinishIdleRound();
+    return true;
+  }
+
   return false;
 }
 
