@@ -1510,9 +1510,7 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
-static HValue* SimplifiedDividendForMathFloorOfDiv(
-    HValue* dividend,
-    Representation observed_representation) {
+static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
   // A value with an integer representation does not need to be transformed.
   if (dividend->representation().IsInteger32()) {
     return dividend;
@@ -1521,11 +1519,6 @@ static HValue* SimplifiedDividendForMathFloorOfDiv(
   if (dividend->IsChange() &&
       HChange::cast(dividend)->from().IsInteger32()) {
     return HChange::cast(dividend)->value();
-  }
-  // If we've only seen integers so far, insert an appropriate change.
-  if (observed_representation.IsSmiOrInteger32()) {
-    return new(dividend->block()->zone())
-        HChange(dividend, Representation::Integer32(), false, false);
   }
   return NULL;
 }
@@ -1547,14 +1540,20 @@ HValue* HUnaryMathOperation::Canonicalize() {
       HValue* left = hdiv->left();
       HValue* right = hdiv->right();
       // Try to simplify left and right values of the division.
-      HValue* new_left = SimplifiedDividendForMathFloorOfDiv(
-          left, hdiv->observed_input_representation(1));
+      HValue* new_left = SimplifiedDividendForMathFloorOfDiv(left);
+      if (new_left == NULL &&
+          hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
+        new_left = new(block()->zone())
+            HChange(left, Representation::Integer32(), false, false);
+        HChange::cast(new_left)->InsertBefore(this);
+      }
       HValue* new_right =
           LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
       if (new_right == NULL &&
           hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
         new_right = new(block()->zone())
             HChange(right, Representation::Integer32(), false, false);
+        HChange::cast(new_right)->InsertBefore(this);
       }
 
       // Return if left or right are not optimizable.
@@ -1576,13 +1575,9 @@ HValue* HUnaryMathOperation::Canonicalize() {
       ReplaceAllUsesWith(instr);
       Kill();
       // We know the division had no other uses than this HMathFloor. Delete it.
-      // Also delete the arguments of the division if they are not used any
-      // more.
+      // Dead code elimination will deal with |left| and |right| if
+      // appropriate.
       hdiv->DeleteAndReplaceWith(NULL);
-      ASSERT(left->IsChange() || left->IsConstant());
-      ASSERT(right->IsChange() || right->IsConstant());
-      if (left->HasNoUses())  left->DeleteAndReplaceWith(NULL);
-      if (right->HasNoUses())  right->DeleteAndReplaceWith(NULL);
 
       // Return NULL to remove this instruction from the graph.
       return NULL;
