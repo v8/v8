@@ -7777,7 +7777,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     Label no_info, switch_ready;
     // Get the elements kind and case on that.
     __ Branch(&no_info, eq, a2, Operand(undefined_sentinel));
-    __ lw(a3, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
+    __ lw(a3, FieldMemOperand(a2, PropertyCell::kValueOffset));
     __ JumpIfNotSmi(a3, &no_info);
     __ SmiUntag(a3);
     __ jmp(&switch_ready);
