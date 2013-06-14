@@ -356,7 +356,7 @@ void TypeFeedbackOracle::CompareTypes(TypeFeedbackId id,
   Map* raw_map = code->FindFirstMap();
   if (raw_map != NULL) {
     raw_map = raw_map->CurrentMapForDeprecated();
-    if (!CanRetainOtherContext(raw_map, *native_context_)) {
+    if (raw_map != NULL && !CanRetainOtherContext(raw_map, *native_context_)) {
       map = handle(raw_map, isolate_);
     }
   }
