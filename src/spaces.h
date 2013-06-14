@@ -1454,6 +1454,7 @@ class FreeListCategory {
   void Free(FreeListNode* node, int size_in_bytes);
 
   FreeListNode* PickNodeFromList(int *node_size);
+  FreeListNode* PickNodeFromList(int size_in_bytes, int *node_size);
 
   intptr_t EvictFreeListItemsInList(Page* p);
 
@@ -1818,11 +1819,6 @@ class PagedSpace : public Space {
   // Return size of allocatable area on a page in this space.
   inline int AreaSize() {
     return area_size_;
-  }
-
-  bool ConstantAllocationSize() {
-    return identity() == MAP_SPACE || identity() == CELL_SPACE ||
-        identity() == PROPERTY_CELL_SPACE;
   }
 
  protected:
