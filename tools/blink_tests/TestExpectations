@@ -21,3 +21,8 @@
 [ Linux Debug ] fast/text/international/danda-space.html [ Skip ]
 [ Linux Debug ] fast/text/international/thai-baht-space.html [ Skip ]
 [ Linux Debug ] fast/text/international/thai-line-breaks.html [ Skip ]
+
+# Manually added tests:
+
+# Fails sometimes on all platforms:
+fast/js/concat-large-strings-crash.html [ Skip ]
