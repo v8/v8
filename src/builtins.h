@@ -166,6 +166,10 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(StoreIC_Megamorphic,            STORE_IC, MEGAMORPHIC,              \
                                     Code::kNoExtraICState)              \
+  V(StoreIC_Generic,                STORE_IC, GENERIC,                  \
+                                    Code::kNoExtraICState)              \
+  V(StoreIC_Generic_Strict,         STORE_IC, GENERIC,                  \
+                                    kStrictMode)                        \
   V(StoreIC_GlobalProxy,            STORE_IC, GENERIC,                  \
                                     Code::kNoExtraICState)              \
   V(StoreIC_Initialize_Strict,      STORE_IC, UNINITIALIZED,            \
