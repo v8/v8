@@ -1286,7 +1286,7 @@ Representation HBranch::observed_input_representation(int index) {
   } else if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
     return Representation::Double();
   } else if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
-    return Representation::Integer32();
+    return Representation::Smi();
   } else {
     return Representation::None();
   }
