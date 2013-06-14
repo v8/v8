@@ -2091,30 +2091,6 @@ void FixedArray::set_the_hole(int index) {
 }
 
 
-void FixedArray::set_unchecked(int index, Smi* value) {
-  ASSERT(reinterpret_cast<Object*>(value)->IsSmi());
-  int offset = kHeaderSize + index * kPointerSize;
-  WRITE_FIELD(this, offset, value);
-}
-
-
-void FixedArray::set_unchecked(Heap* heap,
-                               int index,
-                               Object* value,
-                               WriteBarrierMode mode) {
-  int offset = kHeaderSize + index * kPointerSize;
-  WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(heap, this, offset, value, mode);
-}
-
-
-void FixedArray::set_null_unchecked(Heap* heap, int index) {
-  ASSERT(index >= 0 && index < this->length());
-  ASSERT(!heap->InNewSpace(heap->null_value()));
-  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, heap->null_value());
-}
-
-
 double* FixedDoubleArray::data_start() {
   return reinterpret_cast<double*>(FIELD_ADDR(this, kHeaderSize));
 }
@@ -3577,11 +3553,6 @@ bool Map::is_dictionary_map() {
 }
 
 
-JSFunction* Map::unchecked_constructor() {
-  return reinterpret_cast<JSFunction*>(READ_FIELD(this, kConstructorOffset));
-}
-
-
 Code::Flags Code::flags() {
   return static_cast<Flags>(READ_INT_FIELD(this, kFlagsOffset));
 }
@@ -4744,11 +4715,6 @@ Code* SharedFunctionInfo::code() {
 }
 
 
-Code* SharedFunctionInfo::unchecked_code() {
-  return reinterpret_cast<Code*>(READ_FIELD(this, kCodeOffset));
-}
-
-
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kCodeOffset, value);
   CONDITIONAL_WRITE_BARRIER(value->GetHeap(), this, kCodeOffset, value, mode);
@@ -5285,12 +5251,6 @@ int Code::body_size() {
 }
 
 
-FixedArray* Code::unchecked_deoptimization_data() {
-  return reinterpret_cast<FixedArray*>(
-      READ_FIELD(this, kDeoptimizationDataOffset));
-}
-
-
 ByteArray* Code::unchecked_relocation_info() {
   return reinterpret_cast<ByteArray*>(READ_FIELD(this, kRelocationInfoOffset));
 }
@@ -5366,12 +5326,6 @@ JSRegExp::Type JSRegExp::TypeTag() {
 }
 
 
-JSRegExp::Type JSRegExp::TypeTagUnchecked() {
-  Smi* smi = Smi::cast(DataAtUnchecked(kTagIndex));
-  return static_cast<JSRegExp::Type>(smi->value());
-}
-
-
 int JSRegExp::CaptureCount() {
   switch (TypeTag()) {
     case ATOM:
@@ -5407,29 +5361,10 @@ Object* JSRegExp::DataAt(int index) {
 }
 
 
-Object* JSRegExp::DataAtUnchecked(int index) {
-  FixedArray* fa = reinterpret_cast<FixedArray*>(data());
-  int offset = FixedArray::kHeaderSize + index * kPointerSize;
-  return READ_FIELD(fa, offset);
-}
-
-
 void JSRegExp::SetDataAt(int index, Object* value) {
   ASSERT(TypeTag() != NOT_COMPILED);
   ASSERT(index >= kDataIndex);  // Only implementation data can be set this way.
   FixedArray::cast(data())->set(index, value);
-}
-
-
-void JSRegExp::SetDataAtUnchecked(int index, Object* value, Heap* heap) {
-  ASSERT(index >= kDataIndex);  // Only implementation data can be set this way.
-  FixedArray* fa = reinterpret_cast<FixedArray*>(data());
-  if (value->IsSmi()) {
-    fa->set_unchecked(index, Smi::cast(value));
-  } else {
-    // We only do this during GC, so we don't need to notify the write barrier.
-    fa->set_unchecked(heap, index, value, SKIP_WRITE_BARRIER);
-  }
 }
 
 

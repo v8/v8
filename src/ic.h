@@ -511,8 +511,8 @@ class StoreIC: public IC {
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   StrictModeFlag strict_mode);
   static void GenerateNormal(MacroAssembler* masm);
-  static void GenerateGlobalProxy(MacroAssembler* masm,
-                                  StrictModeFlag strict_mode);
+  static void GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                         StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* Store(
       State state,
@@ -531,6 +531,12 @@ class StoreIC: public IC {
   // Stub accessors.
   virtual Handle<Code> megamorphic_stub_strict() {
     return isolate()->builtins()->StoreIC_Megamorphic_Strict();
+  }
+  virtual Handle<Code> generic_stub() const {
+    return isolate()->builtins()->StoreIC_Generic();
+  }
+  virtual Handle<Code> generic_stub_strict() const {
+    return isolate()->builtins()->StoreIC_Generic_Strict();
   }
   virtual Handle<Code> global_proxy_stub() {
     return isolate()->builtins()->StoreIC_GlobalProxy();

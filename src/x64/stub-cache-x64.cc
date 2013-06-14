@@ -491,11 +491,14 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
 #if defined(__MINGW64__)
   Register arguments_arg = rcx;
+  Register callback_arg = rdx;
 #elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
   Register arguments_arg = returns_handle ? rdx : rcx;
+  Register callback_arg = returns_handle ? r8 : rdx;
 #else
   Register arguments_arg = rdi;
+  Register callback_arg = rsi;
 #endif
 
   // Allocate the v8::Arguments structure in the arguments' space since
@@ -514,7 +517,13 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // v8::InvocationCallback's argument.
   __ lea(arguments_arg, StackSpaceOperand(0));
 
+  Address thunk_address = returns_handle
+      ? FUNCTION_ADDR(&InvokeInvocationCallback)
+      : FUNCTION_ADDR(&InvokeFunctionCallback);
+
   __ CallApiFunctionAndReturn(function_address,
+                              thunk_address,
+                              callback_arg,
                               argc + kFastApiCallArguments + 1,
                               returns_handle,
                               kFastApiCallArguments + 1);
@@ -817,7 +826,13 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
 
   Register storage_reg = name_reg;
 
-  if (FLAG_track_fields && representation.IsSmi()) {
+  if (details.type() == CONSTANT_FUNCTION) {
+    Handle<HeapObject> constant(
+        HeapObject::cast(descriptors->GetValue(descriptor)));
+    __ LoadHeapObject(scratch1, constant);
+    __ cmpq(value_reg, scratch1);
+    __ j(not_equal, miss_restore_name);
+  } else if (FLAG_track_fields && representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_restore_name);
   } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     __ JumpIfSmi(value_reg, miss_restore_name);
@@ -844,7 +859,8 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
   // Perform map transition for the receiver if necessary.
-  if (object->map()->unused_property_fields() == 0) {
+  if (details.type() == FIELD &&
+      object->map()->unused_property_fields() == 0) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
     __ pop(scratch1);  // Return address.
@@ -872,6 +888,8 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                       kDontSaveFPRegs,
                       OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
+
+  if (details.type() == CONSTANT_FUNCTION) return;
 
   int index = transition->instance_descriptors()->GetFieldIndex(
       transition->LastAdded());
@@ -1318,13 +1336,16 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
       !CallbackTable::ReturnsVoid(isolate(), getter_address);
 
 #if defined(__MINGW64__)
+  Register getter_arg = r8;
   Register accessor_info_arg = rdx;
   Register name_arg = rcx;
 #elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
+  Register getter_arg = returns_handle ? r9 : r8;
   Register accessor_info_arg = returns_handle ? r8 : rdx;
   Register name_arg = returns_handle ? rdx : rcx;
 #else
+  Register getter_arg = rdx;
   Register accessor_info_arg = rsi;
   Register name_arg = rdi;
 #endif
@@ -1350,7 +1371,13 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // could be used to pass arguments.
   __ lea(accessor_info_arg, StackSpaceOperand(0));
 
+  Address thunk_address = returns_handle
+      ? FUNCTION_ADDR(&InvokeAccessorGetter)
+      : FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+
   __ CallApiFunctionAndReturn(getter_address,
+                              thunk_address,
+                              getter_arg,
                               kStackSpace,
                               returns_handle,
                               5);

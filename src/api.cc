@@ -8005,4 +8005,55 @@ void DeferredHandles::Iterate(ObjectVisitor* v) {
 }
 
 
+v8::Handle<v8::Value> InvokeAccessorGetter(
+    v8::Local<v8::String> property,
+    const v8::AccessorInfo& info,
+    v8::AccessorGetter getter) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  Address getter_address = reinterpret_cast<Address>(reinterpret_cast<intptr_t>(
+      getter));
+  // Leaving JavaScript.
+  VMState<EXTERNAL> state(isolate);
+  ExternalCallbackScope call_scope(isolate, getter_address);
+  return getter(property, info);
+}
+
+
+void InvokeAccessorGetterCallback(
+    v8::Local<v8::String> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info,
+    v8::AccessorGetterCallback getter) {
+  // Leaving JavaScript.
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  Address getter_address = reinterpret_cast<Address>(reinterpret_cast<intptr_t>(
+      getter));
+  VMState<EXTERNAL> state(isolate);
+  ExternalCallbackScope call_scope(isolate, getter_address);
+  return getter(property, info);
+}
+
+
+v8::Handle<v8::Value> InvokeInvocationCallback(
+    const v8::Arguments& args,
+    v8::InvocationCallback callback) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
+  Address callback_address =
+      reinterpret_cast<Address>(reinterpret_cast<intptr_t>(callback));
+  VMState<EXTERNAL> state(isolate);
+  ExternalCallbackScope call_scope(isolate, callback_address);
+  return callback(args);
+}
+
+
+void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
+                            v8::FunctionCallback callback) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  Address callback_address =
+      reinterpret_cast<Address>(reinterpret_cast<intptr_t>(callback));
+  VMState<EXTERNAL> state(isolate);
+  ExternalCallbackScope call_scope(isolate, callback_address);
+  return callback(info);
+}
+
+
 } }  // namespace v8::internal

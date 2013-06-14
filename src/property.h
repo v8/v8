@@ -392,6 +392,11 @@ class LookupResult BASE_EMBEDDED {
     return IsTransition() && GetTransitionDetails(map).type() == FIELD;
   }
 
+  bool IsTransitionToConstantFunction(Map* map) {
+    return IsTransition() &&
+        GetTransitionDetails(map).type() == CONSTANT_FUNCTION;
+  }
+
   Map* GetTransitionMap() {
     ASSERT(IsTransition());
     return Map::cast(GetValue());

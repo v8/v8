@@ -363,7 +363,7 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
     ASSERT(back_edge_target->is_bound());
     int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
     weight = Min(kMaxBackEdgeWeight,
-                 Max(1, distance / kBackEdgeDistanceUnit));
+                 Max(1, distance / kCodeSizeMultiplier));
   }
   EmitProfilingCounterDecrement(weight);
   __ slt(at, a3, zero_reg);
@@ -406,7 +406,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       } else if (FLAG_weighted_back_edges) {
         int distance = masm_->pc_offset();
         weight = Min(kMaxBackEdgeWeight,
-                     Max(1, distance / kBackEdgeDistanceUnit));
+                     Max(1, distance / kCodeSizeMultiplier));
       }
       EmitProfilingCounterDecrement(weight);
       Label ok;
@@ -1840,7 +1840,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     }
 
     if (!result_saved) {
-      __ push(v0);
+      __ push(v0);  // array literal
+      __ Push(Smi::FromInt(expr->literal_index()));
       result_saved = true;
     }
 
@@ -1848,7 +1849,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
     if (IsFastObjectElementsKind(constant_elements_kind)) {
       int offset = FixedArray::kHeaderSize + (i * kPointerSize);
-      __ lw(t2, MemOperand(sp));  // Copy of array literal.
+      __ lw(t2, MemOperand(sp, kPointerSize));  // Copy of array literal.
       __ lw(a1, FieldMemOperand(t2, JSObject::kElementsOffset));
       __ sw(result_register(), FieldMemOperand(a1, offset));
       // Update the write barrier for the array store.
@@ -1856,10 +1857,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
                           kRAHasBeenSaved, kDontSaveFPRegs,
                           EMIT_REMEMBERED_SET, INLINE_SMI_CHECK);
     } else {
-      __ lw(a1, MemOperand(sp));  // Copy of array literal.
-      __ lw(a2, FieldMemOperand(a1, JSObject::kMapOffset));
       __ li(a3, Operand(Smi::FromInt(i)));
-      __ li(t0, Operand(Smi::FromInt(expr->literal_index())));
       __ mov(a0, result_register());
       StoreArrayLiteralElementStub stub;
       __ CallStub(&stub);
@@ -1868,6 +1866,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
   if (result_saved) {
+    __ Pop();  // literal index
     context()->PlugTOS();
   } else {
     context()->Plug(v0);
@@ -2042,23 +2041,21 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ LoadRoot(a0, Heap::kUndefinedValueRootIndex);
       __ Branch(&l_next);
 
-      // catch (e) { receiver = iter; f = iter.throw; arg = e; goto l_call; }
+      // catch (e) { receiver = iter; f = 'throw'; arg = e; goto l_call; }
       __ bind(&l_catch);
       __ mov(a0, v0);
       handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
+      __ LoadRoot(a2, Heap::kthrow_stringRootIndex);     // "throw"
       __ lw(a3, MemOperand(sp, 1 * kPointerSize));       // iter
       __ push(a3);                                       // iter
       __ push(a0);                                       // exception
-      __ mov(a0, a3);                                    // iter
-      __ LoadRoot(a2, Heap::kthrow_stringRootIndex);     // "throw"
-      Handle<Code> throw_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(throw_ic);                                  // iter.throw in a0
-      __ mov(a0, v0);
       __ jmp(&l_call);
 
-      // try { received = yield result.value }
+      // try { received = %yield result }
+      // Shuffle the received result above a try handler and yield it without
+      // re-boxing.
       __ bind(&l_try);
-      EmitCreateIteratorResult(false);                   // pop and box to v0
+      __ pop(a0);                                        // result
       __ PushTryHandler(StackHandler::CATCH, expr->index());
       const int handler_size = StackHandlerConstants::kSize;
       __ push(a0);                                       // result
@@ -2076,45 +2073,23 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ bind(&l_resume);                                // received in a0
       __ PopTryHandler();
 
-      // receiver = iter; f = iter.next; arg = received;
+      // receiver = iter; f = 'next'; arg = received;
       __ bind(&l_next);
+      __ LoadRoot(a2, Heap::knext_stringRootIndex);      // "next"
       __ lw(a3, MemOperand(sp, 1 * kPointerSize));       // iter
       __ push(a3);                                       // iter
       __ push(a0);                                       // received
-      __ mov(a0, a3);                                    // iter
-      __ LoadRoot(a2, Heap::knext_stringRootIndex);      // "next"
-      Handle<Code> next_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(next_ic);                                   // iter.next in a0
-      __ mov(a0, v0);
 
-      // result = f.call(receiver, arg);
+      // result = receiver[f](arg);
       __ bind(&l_call);
-      Label l_call_runtime;
-      __ JumpIfSmi(a0, &l_call_runtime);
-      __ GetObjectType(a0, a1, a1);
-      __ Branch(&l_call_runtime, ne, a1, Operand(JS_FUNCTION_TYPE));
-      __ mov(a1, a0);
-      ParameterCount count(1);
-      __ InvokeFunction(a1, count, CALL_FUNCTION,
-                        NullCallWrapper(), CALL_AS_METHOD);
+      Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedCallInitialize(1);
+      CallIC(ic);
       __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-      __ jmp(&l_loop);
-      __ bind(&l_call_runtime);
-      __ push(a0);
-      __ CallRuntime(Runtime::kCall, 3);
 
-      // val = result.value; if (!result.done) goto l_try;
+      // if (!result.done) goto l_try;
       __ bind(&l_loop);
       __ mov(a0, v0);
-      // result.value
       __ push(a0);                                       // save result
-      __ LoadRoot(a2, Heap::kvalue_stringRootIndex);     // "value"
-      Handle<Code> value_ic = isolate()->builtins()->LoadIC_Initialize();
-      CallIC(value_ic);                                  // result.value in a0
-      __ mov(a0, v0);
-      __ pop(a1);                                        // result
-      __ push(a0);                                       // result.value
-      __ mov(a0, a1);                                    // result
       __ LoadRoot(a2, Heap::kdone_stringRootIndex);      // "done"
       Handle<Code> done_ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(done_ic);                                   // result.done in v0
@@ -2124,7 +2099,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ Branch(&l_try, eq, v0, Operand(zero_reg));
 
       // result.value
-      __ pop(v0);                                        // result.value
+      __ pop(a0);                                        // result
+      __ LoadRoot(a2, Heap::kvalue_stringRootIndex);     // "value"
+      Handle<Code> value_ic = isolate()->builtins()->LoadIC_Initialize();
+      CallIC(value_ic);                                  // result.value in v0
       context()->DropAndPlug(2, v0);                     // drop iter and g
       break;
     }
