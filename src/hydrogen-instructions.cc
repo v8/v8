@@ -1151,19 +1151,14 @@ void HBoundsCheck::PrintDataTo(StringStream* stream) {
 
 void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
-  Representation r;
   HValue* actual_index = index()->ActualValue();
   HValue* actual_length = length()->ActualValue();
   Representation index_rep = actual_index->representation();
-  if (!actual_length->representation().IsSmiOrTagged()) {
-    r = Representation::Integer32();
-  } else if ((index_rep.IsTagged() && actual_index->type().IsSmi()) ||
-      index_rep.IsSmi()) {
-    // If the index is smi, allow the length to be smi, since it is usually
-    // already smi from loading it out of the length field of a JSArray.  This
-    // allows for direct comparison without untagging.
-    r = Representation::Smi();
-  } else {
+  Representation length_rep = actual_length->representation();
+  if (index_rep.IsTagged()) index_rep = Representation::Smi();
+  if (length_rep.IsTagged()) length_rep = Representation::Smi();
+  Representation r = index_rep.generalize(length_rep);
+  if (r.is_more_general_than(Representation::Integer32())) {
     r = Representation::Integer32();
   }
   UpdateRepresentation(r, h_infer, "boundscheck");
