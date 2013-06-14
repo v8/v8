@@ -220,8 +220,6 @@ class WeakReferenceCallbacks {
   }
 
 
-#define V8_USE_UNSAFE_HANDLES
-
 /**
  * An object reference managed by the v8 garbage collector.
  *
