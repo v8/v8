@@ -1010,8 +1010,9 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
     MarkBit code_mark = Marking::MarkBitFrom(code);
     if (!code_mark.Get()) {
       if (FLAG_trace_code_flushing && shared->is_compiled()) {
-        SmartArrayPointer<char> name = shared->DebugName()->ToCString();
-        PrintF("[code-flushing clears: %s - age: %d]\n", *name, code->GetAge());
+        PrintF("[code-flushing clears: ");
+        shared->ShortPrint();
+        PrintF(" - age: %d]\n", code->GetAge());
       }
       shared->set_code(lazy_compile);
       candidate->set_code(lazy_compile);
@@ -1051,8 +1052,9 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
     MarkBit code_mark = Marking::MarkBitFrom(code);
     if (!code_mark.Get()) {
       if (FLAG_trace_code_flushing && candidate->is_compiled()) {
-        SmartArrayPointer<char> name = candidate->DebugName()->ToCString();
-        PrintF("[code-flushing clears: %s - age: %d]\n", *name, code->GetAge());
+        PrintF("[code-flushing clears: ");
+        candidate->ShortPrint();
+        PrintF(" - age: %d]\n", code->GetAge());
       }
       candidate->set_code(lazy_compile);
     }
@@ -1093,7 +1095,7 @@ void CodeFlusher::ProcessOptimizedCodeMaps() {
         continue;
       }
 
-      // Update and record the context slot in the optimizled code map.
+      // Update and record the context slot in the optimized code map.
       Object** context_slot = HeapObject::RawField(code_map,
           FixedArray::OffsetOfElementAt(new_length));
       code_map->set(new_length++, code_map->get(i + kContextOffset));
@@ -1138,8 +1140,9 @@ void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
   isolate_->heap()->incremental_marking()->RecordWrites(shared_info);
 
   if (FLAG_trace_code_flushing) {
-    SmartArrayPointer<char> name = shared_info->DebugName()->ToCString();
-    PrintF("[code-flushing abandons function-info: %s]\n", *name);
+    PrintF("[code-flushing abandons function-info: ");
+    shared_info->ShortPrint();
+    PrintF("]\n");
   }
 
   SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
@@ -1174,8 +1177,9 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
   isolate_->heap()->incremental_marking()->RecordWrites(function->shared());
 
   if (FLAG_trace_code_flushing) {
-    SmartArrayPointer<char> name = function->shared()->DebugName()->ToCString();
-    PrintF("[code-flushing abandons closure: %s]\n", *name);
+    PrintF("[code-flushing abandons closure: ");
+    function->shared()->ShortPrint();
+    PrintF("]\n");
   }
 
   JSFunction* candidate = jsfunction_candidates_head_;
@@ -1209,8 +1213,9 @@ void CodeFlusher::EvictOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
   isolate_->heap()->incremental_marking()->RecordWrites(code_map_holder);
 
   if (FLAG_trace_code_flushing) {
-    SmartArrayPointer<char> name = code_map_holder->DebugName()->ToCString();
-    PrintF("[code-flushing abandons code-map: %s]\n", *name);
+    PrintF("[code-flushing abandons code-map: ");
+    code_map_holder->ShortPrint();
+    PrintF("]\n");
   }
 
   SharedFunctionInfo* holder = optimized_code_map_holder_head_;
