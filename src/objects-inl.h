@@ -669,7 +669,7 @@ template <> inline bool Is<JSFunction>(Object* obj) {
 TYPE_CHECKER(Code, CODE_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
-TYPE_CHECKER(JSGlobalPropertyCell, PROPERTY_CELL_TYPE)
+TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
 TYPE_CHECKER(JSGeneratorObject, JS_GENERATOR_OBJECT_TYPE)
 TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
@@ -1629,17 +1629,17 @@ Object* Cell::value() {
 
 void Cell::set_value(Object* val, WriteBarrierMode ignored) {
   // The write barrier is not used for global property cells.
-  ASSERT(!val->IsJSGlobalPropertyCell() && !val->IsCell());
+  ASSERT(!val->IsPropertyCell() && !val->IsCell());
   WRITE_FIELD(this, kValueOffset, val);
 }
 
 
-Object* JSGlobalPropertyCell::type_raw() {
+Object* PropertyCell::type_raw() {
   return READ_FIELD(this, kTypeOffset);
 }
 
 
-void JSGlobalPropertyCell::set_type_raw(Object* val, WriteBarrierMode ignored) {
+void PropertyCell::set_type_raw(Object* val, WriteBarrierMode ignored) {
   WRITE_FIELD(this, kTypeOffset, val);
 }
 
@@ -2540,7 +2540,7 @@ CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(Cell)
-CAST_ACCESSOR(JSGlobalPropertyCell)
+CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(SharedFunctionInfo)
 CAST_ACCESSOR(Map)
 CAST_ACCESSOR(JSFunction)

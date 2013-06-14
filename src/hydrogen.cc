@@ -5626,7 +5626,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
 
       if (type == kUseCell) {
         Handle<GlobalObject> global(current_info()->global_object());
-        Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
+        Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
         HLoadGlobalCell* instr =
             new(zone()) HLoadGlobalCell(cell, lookup.GetPropertyDetails());
         return ast_context()->ReturnInstruction(instr, expr->id());
@@ -6606,7 +6606,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
   GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, true);
   if (type == kUseCell) {
     Handle<GlobalObject> global(current_info()->global_object());
-    Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
+    Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
     HInstruction* instr =
         new(zone()) HStoreGlobalCell(value, cell, lookup.GetPropertyDetails());
     instr->set_position(position);

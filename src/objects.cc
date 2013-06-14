@@ -629,9 +629,9 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
   if (IsGlobalObject()) {
-    value = JSGlobalPropertyCell::cast(value)->value();
+    value = PropertyCell::cast(value)->value();
   }
-  ASSERT(!value->IsJSGlobalPropertyCell() && !value->IsCell());
+  ASSERT(!value->IsPropertyCell() && !value->IsCell());
   return value;
 }
 
@@ -639,7 +639,7 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
 Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
   ASSERT(!HasFastProperties());
   if (IsGlobalObject()) {
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(
+    PropertyCell* cell = PropertyCell::cast(
         property_dictionary()->ValueAt(result->GetDictionaryEntry()));
     cell->set_value(value);
   } else {
@@ -669,7 +669,7 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
     if (IsGlobalObject()) {
       Heap* heap = name->GetHeap();
       MaybeObject* maybe_store_value =
-          heap->AllocateJSGlobalPropertyCell(value);
+          heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
     Object* dict;
@@ -696,8 +696,8 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
       details.attributes(), details.type(), enumeration_index);
 
   if (IsGlobalObject()) {
-    JSGlobalPropertyCell* cell =
-        JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
+    PropertyCell* cell =
+        PropertyCell::cast(property_dictionary()->ValueAt(entry));
     cell->set_value(value);
     // Please note we have to update the property details.
     property_dictionary()->DetailsAtPut(entry, details);
@@ -729,8 +729,7 @@ MaybeObject* JSObject::DeleteNormalizedProperty(Name* name, DeleteMode mode) {
         ASSERT(new_map->is_dictionary_map());
         set_map(new_map);
       }
-      JSGlobalPropertyCell* cell =
-          JSGlobalPropertyCell::cast(dictionary->ValueAt(entry));
+      PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
       cell->set_value(cell->GetHeap()->the_hole_value());
       dictionary->DetailsAtPut(entry, details.AsDeleted());
     } else {
@@ -1572,7 +1571,7 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       break;
     case PROPERTY_CELL_TYPE:
       accumulator->Add("PropertyCell for ");
-      JSGlobalPropertyCell::cast(this)->value()->ShortPrint(accumulator);
+      PropertyCell::cast(this)->value()->ShortPrint(accumulator);
       break;
     default:
       accumulator->Add("<Other heap object (%d)>", map()->instance_type());
@@ -1668,7 +1667,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       Cell::BodyDescriptor::IterateBody(this, v);
       break;
     case PROPERTY_CELL_TYPE:
-      JSGlobalPropertyCell::BodyDescriptor::IterateBody(this, v);
+      PropertyCell::BodyDescriptor::IterateBody(this, v);
       break;
     case SYMBOL_TYPE:
       Symbol::BodyDescriptor::IterateBody(this, v);
@@ -1937,7 +1936,7 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
     int entry = dict->FindEntry(name);
     if (entry != NameDictionary::kNotFound) {
       store_value = dict->ValueAt(entry);
-      JSGlobalPropertyCell::cast(store_value)->set_value(value);
+      PropertyCell::cast(store_value)->set_value(value);
       // Assign an enumeration index to the property and update
       // SetNextEnumerationIndex.
       int index = dict->NextEnumerationIndex();
@@ -1948,10 +1947,10 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
     }
     Heap* heap = GetHeap();
     { MaybeObject* maybe_store_value =
-          heap->AllocateJSGlobalPropertyCell(value);
+          heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
-    JSGlobalPropertyCell::cast(store_value)->set_value(value);
+    PropertyCell::cast(store_value)->set_value(value);
   }
   PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
   Object* result;
@@ -3273,7 +3272,7 @@ void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
         result->NotFound();
         return;
       }
-      value = JSGlobalPropertyCell::cast(value)->value();
+      value = PropertyCell::cast(value)->value();
     }
     // Make sure to disallow caching for uninitialized constants
     // found in the dictionary-mode objects.
@@ -14259,20 +14258,20 @@ MaybeObject* ExternalDoubleArray::SetValue(uint32_t index, Object* value) {
 }
 
 
-JSGlobalPropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
+PropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
-  return JSGlobalPropertyCell::cast(value);
+  return PropertyCell::cast(value);
 }
 
 
-Handle<JSGlobalPropertyCell> GlobalObject::EnsurePropertyCell(
+Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
     Handle<GlobalObject> global,
     Handle<Name> name) {
   Isolate* isolate = global->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
                      global->EnsurePropertyCell(*name),
-                     JSGlobalPropertyCell);
+                     PropertyCell);
 }
 
 
@@ -14283,7 +14282,7 @@ MaybeObject* GlobalObject::EnsurePropertyCell(Name* name) {
     Heap* heap = GetHeap();
     Object* cell;
     { MaybeObject* maybe_cell =
-          heap->AllocateJSGlobalPropertyCell(heap->the_hole_value());
+          heap->AllocatePropertyCell(heap->the_hole_value());
       if (!maybe_cell->ToObject(&cell)) return maybe_cell;
     }
     PropertyDetails details(NONE, NORMAL, 0);
@@ -14297,7 +14296,7 @@ MaybeObject* GlobalObject::EnsurePropertyCell(Name* name) {
     return cell;
   } else {
     Object* value = property_dictionary()->ValueAt(entry);
-    ASSERT(value->IsJSGlobalPropertyCell());
+    ASSERT(value->IsPropertyCell());
     return value;
   }
 }
@@ -15080,8 +15079,8 @@ Object* Dictionary<Shape, Key>::SlowReverseLookup(Object* value) {
     Object* k =  HashTable<Shape, Key>::KeyAt(i);
     if (Dictionary<Shape, Key>::IsKey(k)) {
       Object* e = ValueAt(i);
-      if (e->IsJSGlobalPropertyCell()) {
-        e = JSGlobalPropertyCell::cast(e)->value();
+      if (e->IsPropertyCell()) {
+        e = PropertyCell::cast(e)->value();
       }
       if (e == value) return k;
     }
@@ -15811,12 +15810,12 @@ void JSTypedArray::Neuter() {
 }
 
 
-Type* JSGlobalPropertyCell::type() {
+Type* PropertyCell::type() {
   return static_cast<Type*>(type_raw());
 }
 
 
-void JSGlobalPropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
+void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
   set_type_raw(type, ignored);
 }
 

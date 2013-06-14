@@ -5068,7 +5068,7 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
 class HStoreGlobalCell: public HUnaryOperation {
  public:
   HStoreGlobalCell(HValue* value,
-                   Handle<JSGlobalPropertyCell> cell,
+                   Handle<PropertyCell> cell,
                    PropertyDetails details)
       : HUnaryOperation(value),
         cell_(cell),
@@ -5076,7 +5076,7 @@ class HStoreGlobalCell: public HUnaryOperation {
     SetGVNFlag(kChangesGlobalVars);
   }
 
-  Handle<JSGlobalPropertyCell> cell() const { return cell_; }
+  Handle<PropertyCell> cell() const { return cell_; }
   bool RequiresHoleCheck() {
     return !details_.IsDontDelete() || details_.IsReadOnly();
   }
@@ -5092,7 +5092,7 @@ class HStoreGlobalCell: public HUnaryOperation {
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell)
 
  private:
-  Handle<JSGlobalPropertyCell> cell_;
+  Handle<PropertyCell> cell_;
   PropertyDetails details_;
 };
 

@@ -491,13 +491,12 @@ Handle<Cell> Factory::NewCell(Handle<Object> value) {
 }
 
 
-Handle<JSGlobalPropertyCell> Factory::NewJSGlobalPropertyCell(
-    Handle<Object> value) {
+Handle<PropertyCell> Factory::NewPropertyCell(Handle<Object> value) {
   AllowDeferredHandleDereference convert_to_cell;
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateJSGlobalPropertyCell(*value),
-      JSGlobalPropertyCell);
+      isolate()->heap()->AllocatePropertyCell(*value),
+      PropertyCell);
 }
 
 

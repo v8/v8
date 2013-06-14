@@ -1394,8 +1394,8 @@ void Heap::Scavenge() {
   for (HeapObject* heap_object = js_global_property_cell_iterator.Next();
        heap_object != NULL;
        heap_object = js_global_property_cell_iterator.Next()) {
-    if (heap_object->IsJSGlobalPropertyCell()) {
-      JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(heap_object);
+    if (heap_object->IsPropertyCell()) {
+      PropertyCell* cell = PropertyCell::cast(heap_object);
       Address value_address = cell->ValueAddress();
       scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
       Address type_address = cell->TypeAddress();
@@ -2678,7 +2678,7 @@ bool Heap::CreateInitialMaps() {
   set_cell_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateMap(PROPERTY_CELL_TYPE,
-                                         JSGlobalPropertyCell::kSize);
+                                         PropertyCell::kSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_global_property_cell_map(Map::cast(obj));
@@ -2823,15 +2823,15 @@ MaybeObject* Heap::AllocateCell(Object* value) {
 }
 
 
-MaybeObject* Heap::AllocateJSGlobalPropertyCell(Object* value) {
+MaybeObject* Heap::AllocatePropertyCell(Object* value) {
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawJSGlobalPropertyCell();
+  { MaybeObject* maybe_result = AllocateRawPropertyCell();
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   HeapObject::cast(result)->set_map_no_write_barrier(
       global_property_cell_map());
-  JSGlobalPropertyCell::cast(result)->set_value(value);
-  JSGlobalPropertyCell::cast(result)->set_type(Type::None());
+  PropertyCell::cast(result)->set_value(value);
+  PropertyCell::cast(result)->set_type(Type::None());
   return result;
 }
 
@@ -4724,7 +4724,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
 
   // Make sure no field properties are described in the initial map.
   // This guarantees us that normalizing the properties does not
-  // require us to change property values to JSGlobalPropertyCells.
+  // require us to change property values to PropertyCells.
   ASSERT(map->NextFreePropertyIndex() == 0);
 
   // Make sure we don't have a ton of pre-allocated slots in the
@@ -4753,7 +4753,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
     ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
     PropertyDetails d = PropertyDetails(details.attributes(), CALLBACKS, i + 1);
     Object* value = descs->GetCallbacksObject(i);
-    MaybeObject* maybe_value = AllocateJSGlobalPropertyCell(value);
+    MaybeObject* maybe_value = AllocatePropertyCell(value);
     if (!maybe_value->ToObject(&value)) return maybe_value;
 
     MaybeObject* maybe_added = dictionary->Add(descs->GetKey(i), value, d);
@@ -6078,7 +6078,7 @@ void Heap::ReportHeapStatistics(const char* title) {
   map_space_->ReportStatistics();
   PrintF("Cell space : ");
   cell_space_->ReportStatistics();
-  PrintF("JSGlobalPropertyCell space : ");
+  PrintF("PropertyCell space : ");
   property_cell_space_->ReportStatistics();
   PrintF("Large object space : ");
   lo_space_->ReportStatistics();

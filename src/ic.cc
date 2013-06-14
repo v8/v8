@@ -686,7 +686,7 @@ Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
 
       if (holder->IsGlobalObject()) {
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
-        Handle<JSGlobalPropertyCell> cell(
+        Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
         if (!cell->value()->IsJSFunction()) return Handle<Code>::null();
         Handle<JSFunction> function(JSFunction::cast(cell->value()));
@@ -1258,7 +1258,7 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
     case NORMAL:
       if (holder->IsGlobalObject()) {
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
-        Handle<JSGlobalPropertyCell> cell(
+        Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
         return isolate()->stub_cache()->ComputeLoadGlobal(
             name, receiver, global, cell, lookup->IsDontDelete());
@@ -1696,7 +1696,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         // from the property cell. So the property must be directly on the
         // global object.
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
-        Handle<JSGlobalPropertyCell> cell(
+        Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
         return isolate()->stub_cache()->ComputeStoreGlobal(
             name, global, cell, strict_mode);

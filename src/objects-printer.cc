@@ -186,7 +186,7 @@ void HeapObject::HeapObjectPrint(FILE* out) {
       Cell::cast(this)->CellPrint(out);
       break;
     case PROPERTY_CELL_TYPE:
-      JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellPrint(out);
+      PropertyCell::cast(this)->PropertyCellPrint(out);
       break;
     case JS_ARRAY_BUFFER_TYPE:
       JSArrayBuffer::cast(this)->JSArrayBufferPrint(out);
@@ -926,8 +926,8 @@ void Cell::CellPrint(FILE* out) {
 }
 
 
-void JSGlobalPropertyCell::JSGlobalPropertyCellPrint(FILE* out) {
-  HeapObject::PrintHeader(out, "JSGlobalPropertyCell");
+void PropertyCell::PropertyCellPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "PropertyCell");
 }
 
 

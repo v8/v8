@@ -2500,8 +2500,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),
                                               isolate());
         ASSERT(!value->IsCell());
-        if (value->IsJSGlobalPropertyCell()) {
-          value = Handle<Object>(JSGlobalPropertyCell::cast(*value)->value(),
+        if (value->IsPropertyCell()) {
+          value = Handle<Object>(PropertyCell::cast(*value)->value(),
                                  isolate());
         }
         PropertyDetails details = properties->DetailsAt(i);

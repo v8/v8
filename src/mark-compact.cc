@@ -2267,13 +2267,13 @@ void MarkCompactCollector::MarkLiveObjects() {
           heap()->property_cell_space());
       HeapObject* cell;
       while ((cell = js_global_property_cell_iterator.Next()) != NULL) {
-        ASSERT(cell->IsJSGlobalPropertyCell());
+        ASSERT(cell->IsPropertyCell());
         if (IsMarked(cell)) {
-          int offset = JSGlobalPropertyCell::kValueOffset;
+          int offset = PropertyCell::kValueOffset;
           MarkCompactMarkingVisitor::VisitPointer(
               heap(),
               reinterpret_cast<Object**>(cell->address() + offset));
-          offset = JSGlobalPropertyCell::kTypeOffset;
+          offset = PropertyCell::kTypeOffset;
           MarkCompactMarkingVisitor::VisitPointer(
               heap(),
               reinterpret_cast<Object**>(cell->address() + offset));
@@ -3429,14 +3429,14 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   for (HeapObject* cell = js_global_property_cell_iterator.Next();
        cell != NULL;
        cell = js_global_property_cell_iterator.Next()) {
-    if (cell->IsJSGlobalPropertyCell()) {
+    if (cell->IsPropertyCell()) {
       Address value_address =
           reinterpret_cast<Address>(cell) +
-          (JSGlobalPropertyCell::kValueOffset - kHeapObjectTag);
+          (PropertyCell::kValueOffset - kHeapObjectTag);
       updating_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
       Address type_address =
           reinterpret_cast<Address>(cell) +
-          (JSGlobalPropertyCell::kTypeOffset - kHeapObjectTag);
+          (PropertyCell::kTypeOffset - kHeapObjectTag);
       updating_visitor.VisitPointer(reinterpret_cast<Object**>(type_address));
     }
   }

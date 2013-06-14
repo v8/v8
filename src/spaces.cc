@@ -2897,7 +2897,7 @@ void CellSpace::VerifyObject(HeapObject* object) {
 
 void PropertyCellSpace::VerifyObject(HeapObject* object) {
   // The object should be a global object property cell or a free-list node.
-  CHECK(object->IsJSGlobalPropertyCell() ||
+  CHECK(object->IsPropertyCell() ||
          object->map() == heap()->two_pointer_filler_map());
 }
 

@@ -764,13 +764,13 @@ static void GenerateCheckPropertyCell(MacroAssembler* masm,
                                       Handle<Name> name,
                                       Register scratch,
                                       Label* miss) {
-  Handle<JSGlobalPropertyCell> cell =
+  Handle<PropertyCell> cell =
       GlobalObject::EnsurePropertyCell(global, name);
   ASSERT(cell->value()->IsTheHole());
   Handle<Oddball> the_hole = masm->isolate()->factory()->the_hole_value();
   if (Serializer::enabled()) {
     __ mov(scratch, Immediate(cell));
-    __ cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
+    __ cmp(FieldOperand(scratch, PropertyCell::kValueOffset),
            Immediate(the_hole));
   } else {
     __ cmp(Operand::ForCell(cell), Immediate(the_hole));
@@ -2780,7 +2780,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
 Handle<Code> CallStubCompiler::CompileCallGlobal(
     Handle<JSObject> object,
     Handle<GlobalObject> holder,
-    Handle<JSGlobalPropertyCell> cell,
+    Handle<PropertyCell> cell,
     Handle<JSFunction> function,
     Handle<Name> name) {
   // ----------- S t a t e -------------
@@ -2963,7 +2963,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 
 Handle<Code> StoreStubCompiler::CompileStoreGlobal(
     Handle<GlobalObject> object,
-    Handle<JSGlobalPropertyCell> cell,
+    Handle<PropertyCell> cell,
     Handle<Name> name) {
   Label miss;
 
@@ -2975,7 +2975,7 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
   // Compute the cell operand to use.
   __ mov(scratch1(), Immediate(cell));
   Operand cell_operand =
-      FieldOperand(scratch1(), JSGlobalPropertyCell::kValueOffset);
+      FieldOperand(scratch1(), PropertyCell::kValueOffset);
 
   // Check that the value in the cell is not the hole. If it is, this
   // cell could have been deleted and reintroducing the global needs
@@ -3136,7 +3136,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
 Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     Handle<JSObject> object,
     Handle<GlobalObject> global,
-    Handle<JSGlobalPropertyCell> cell,
+    Handle<PropertyCell> cell,
     Handle<Name> name,
     bool is_dont_delete) {
   Label success, miss;
@@ -3147,7 +3147,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   // Get the value from the cell.
   if (Serializer::enabled()) {
     __ mov(eax, Immediate(cell));
-    __ mov(eax, FieldOperand(eax, JSGlobalPropertyCell::kValueOffset));
+    __ mov(eax, FieldOperand(eax, PropertyCell::kValueOffset));
   } else {
     __ mov(eax, Operand::ForCell(cell));
   }

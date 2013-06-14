@@ -313,13 +313,13 @@ MaybeObject* Heap::AllocateRawCell() {
 }
 
 
-MaybeObject* Heap::AllocateRawJSGlobalPropertyCell() {
+MaybeObject* Heap::AllocateRawPropertyCell() {
 #ifdef DEBUG
   isolate_->counters()->objs_since_last_full()->Increment();
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
   MaybeObject* result =
-      property_cell_space_->AllocateRaw(JSGlobalPropertyCell::kSize);
+      property_cell_space_->AllocateRaw(PropertyCell::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
   return result;
 }

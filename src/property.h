@@ -351,7 +351,7 @@ class LookupResult BASE_EMBEDDED {
         Object* value;
         value = holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
         if (holder()->IsGlobalObject()) {
-          value = JSGlobalPropertyCell::cast(value)->value();
+          value = PropertyCell::cast(value)->value();
         }
         return value;
       }

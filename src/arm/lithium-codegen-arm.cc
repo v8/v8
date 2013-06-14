@@ -2764,7 +2764,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
     PredictableCodeSizeScope predictable(masm_, 5 * Assembler::kInstrSize);
     Handle<Cell> cell = factory()->NewCell(factory()->the_hole_value());
     __ mov(ip, Operand(Handle<Object>(cell)));
-    __ ldr(ip, FieldMemOperand(ip, JSGlobalPropertyCell::kValueOffset));
+    __ ldr(ip, FieldMemOperand(ip, PropertyCell::kValueOffset));
     __ cmp(map, Operand(ip));
     __ b(ne, &cache_miss);
     // We use Factory::the_hole_value() on purpose instead of loading from the
@@ -5253,7 +5253,7 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   AllowDeferredHandleDereference smi_check;
   if (isolate()->heap()->InNewSpace(*target)) {
     Register reg = ToRegister(instr->value());
-    Handle<Cell> cell = isolate()->factory()->NewJSGlobalPropertyCell(target);
+    Handle<Cell> cell = isolate()->factory()->NewPropertyCell(target);
     __ mov(ip, Operand(Handle<Object>(cell)));
     __ ldr(ip, FieldMemOperand(ip, Cell::kValueOffset));
     __ cmp(reg, ip);

@@ -890,7 +890,7 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
         default: return "system / Map";
       }
     case CELL_TYPE: return "system / Cell";
-    case PROPERTY_CELL_TYPE: return "system / JSGlobalPropertyCell";
+    case PROPERTY_CELL_TYPE: return "system / PropertyCell";
     case FOREIGN_TYPE: return "system / Foreign";
     case ODDBALL_TYPE: return "system / Oddball";
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
@@ -981,9 +981,9 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
   } else if (obj->IsCell()) {
     ExtractCellReferences(entry, Cell::cast(obj));
     extract_indexed_refs = false;
-  } else if (obj->IsJSGlobalPropertyCell()) {
-    ExtractJSGlobalPropertyCellReferences(
-        entry, JSGlobalPropertyCell::cast(obj));
+  } else if (obj->IsPropertyCell()) {
+    ExtractPropertyCellReferences(
+        entry, PropertyCell::cast(obj));
     extract_indexed_refs = false;
   }
   if (extract_indexed_refs) {
@@ -1283,8 +1283,8 @@ void V8HeapExplorer::ExtractCellReferences(int entry, Cell* cell) {
 }
 
 
-void V8HeapExplorer::ExtractJSGlobalPropertyCellReferences(
-    int entry, JSGlobalPropertyCell* cell) {
+void V8HeapExplorer::ExtractPropertyCellReferences(int entry,
+                                                   PropertyCell* cell) {
   SetInternalReference(cell, entry, "value", cell->value());
   SetInternalReference(cell, entry, "type", cell->type());
 }
@@ -1386,8 +1386,8 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
       if (dictionary->IsKey(k)) {
         Object* target = dictionary->ValueAt(i);
         // We assume that global objects can only have slow properties.
-        Object* value = target->IsJSGlobalPropertyCell()
-            ? JSGlobalPropertyCell::cast(target)->value()
+        Object* value = target->IsPropertyCell()
+            ? PropertyCell::cast(target)->value()
             : target;
         if (k != heap_->hidden_string()) {
           SetPropertyReference(js_obj, entry, String::cast(k), value);

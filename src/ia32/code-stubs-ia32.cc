@@ -4688,7 +4688,7 @@ static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
   Label initialize, done;
 
   // Load the cache state into ecx.
-  __ mov(ecx, FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset));
+  __ mov(ecx, FieldOperand(ebx, PropertyCell::kValueOffset));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.

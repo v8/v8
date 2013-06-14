@@ -949,7 +949,7 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateJSGlobalPropertyCell(Object* value);
+  MUST_USE_RESULT MaybeObject* AllocatePropertyCell(Object* value);
 
   // Allocate Box.
   MUST_USE_RESULT MaybeObject* AllocateBox(Object* value,
@@ -2131,7 +2131,7 @@ class Heap {
   MUST_USE_RESULT inline MaybeObject* AllocateRawCell();
 
   // Allocate an uninitialized object in the global property cell space.
-  MUST_USE_RESULT inline MaybeObject* AllocateRawJSGlobalPropertyCell();
+  MUST_USE_RESULT inline MaybeObject* AllocateRawPropertyCell();
 
   // Initializes a JSObject based on its map.
   void InitializeJSObjectFromMap(JSObject* obj,
