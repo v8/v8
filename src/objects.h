@@ -2571,7 +2571,7 @@ class FixedArray: public FixedArrayBase {
   inline void set(int index, Object* value);
   inline bool is_the_hole(int index);
 
-  // Setter that doesn't need write barrier.
+  // Setter that doesn't need write barrier).
   inline void set(int index, Smi* value);
   // Setter with explicit barrier mode.
   inline void set(int index, Object* value, WriteBarrierMode mode);
@@ -2584,6 +2584,12 @@ class FixedArray: public FixedArrayBase {
   // TODO(isolates): duplicate.
   inline void set_null(Heap* heap, int index);
   inline void set_the_hole(int index);
+
+  // Setters with less debug checks for the GC to use.
+  inline void set_unchecked(int index, Smi* value);
+  inline void set_null_unchecked(Heap* heap, int index);
+  inline void set_unchecked(Heap* heap, int index, Object* value,
+                            WriteBarrierMode mode);
 
   inline Object** GetFirstElementAddress();
   inline bool ContainsOnlySmisOrHoles();
@@ -4547,6 +4553,7 @@ class Code: public HeapObject {
 
   // Unchecked accessors to be used during GC.
   inline ByteArray* unchecked_relocation_info();
+  inline FixedArray* unchecked_deoptimization_data();
 
   inline int relocation_size();
 
@@ -5313,6 +5320,8 @@ class Map: public HeapObject {
   // [constructor]: points back to the function responsible for this map.
   DECL_ACCESSORS(constructor, Object)
 
+  inline JSFunction* unchecked_constructor();
+
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
   inline void InitializeDescriptors(DescriptorArray* descriptors);
@@ -5364,7 +5373,8 @@ class Map: public HeapObject {
   inline void SetNumberOfProtoTransitions(int value) {
     FixedArray* cache = GetPrototypeTransitions();
     ASSERT(cache->length() != 0);
-    cache->set(kProtoTransitionNumberOfEntriesOffset, Smi::FromInt(value));
+    cache->set_unchecked(kProtoTransitionNumberOfEntriesOffset,
+                         Smi::FromInt(value));
   }
 
   // Lookup in the map's instance descriptors and fill out the result
@@ -5929,6 +5939,8 @@ class SharedFunctionInfo: public HeapObject {
 
   // [construct stub]: Code stub for constructing instances of this function.
   DECL_ACCESSORS(construct_stub, Code)
+
+  inline Code* unchecked_code();
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
@@ -7119,6 +7131,11 @@ class JSRegExp: public JSObject {
   inline Object* DataAt(int index);
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object* value);
+
+  // Used during GC when flushing code or setting age.
+  inline Object* DataAtUnchecked(int index);
+  inline void SetDataAtUnchecked(int index, Object* value, Heap* heap);
+  inline Type TypeTagUnchecked();
 
   static int code_index(bool is_ascii) {
     if (is_ascii) {

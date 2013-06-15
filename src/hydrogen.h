@@ -260,7 +260,6 @@ class HLoopInformation: public ZoneObject {
   HStackCheck* stack_check_;
 };
 
-
 class BoundsCheckTable;
 class HGraph: public ZoneObject {
  public:
@@ -410,10 +409,6 @@ class HGraph: public ZoneObject {
     isolate()->initial_array_prototype()->map()->AddDependentCompilationInfo(
         DependentCode::kElementsCantBeAddedGroup, info());
     depends_on_empty_array_proto_elements_ = true;
-  }
-
-  bool depends_on_empty_array_proto_elements() {
-    return depends_on_empty_array_proto_elements_;
   }
 
   void RecordUint32Instruction(HInstruction* instr) {
@@ -881,11 +876,6 @@ class FunctionState {
   HEnterInlined* entry() { return entry_; }
   void set_entry(HEnterInlined* entry) { entry_ = entry; }
 
-  HArgumentsObject* arguments_object() { return arguments_object_; }
-  void set_arguments_object(HArgumentsObject* arguments_object) {
-    arguments_object_ = arguments_object;
-  }
-
   HArgumentsElements* arguments_elements() { return arguments_elements_; }
   void set_arguments_elements(HArgumentsElements* arguments_elements) {
     arguments_elements_ = arguments_elements;
@@ -919,7 +909,6 @@ class FunctionState {
   // entry.
   HEnterInlined* entry_;
 
-  HArgumentsObject* arguments_object_;
   HArgumentsElements* arguments_elements_;
 
   FunctionState* outer_;
@@ -1091,7 +1080,8 @@ class HGraphBuilder {
     HInstruction* IfCompare(
         HValue* left,
         HValue* right,
-        Token::Value token);
+        Token::Value token,
+        Representation input_representation = Representation::Integer32());
 
     HInstruction* IfCompareMap(HValue* left, Handle<Map> map);
 
@@ -1123,9 +1113,10 @@ class HGraphBuilder {
     HInstruction* OrIfCompare(
         HValue* p1,
         HValue* p2,
-        Token::Value token) {
+        Token::Value token,
+        Representation input_representation = Representation::Integer32()) {
       Or();
-      return IfCompare(p1, p2, token);
+      return IfCompare(p1, p2, token, input_representation);
     }
 
     HInstruction* OrIfCompareMap(HValue* left, Handle<Map> map) {
@@ -1148,9 +1139,10 @@ class HGraphBuilder {
     HInstruction* AndIfCompare(
         HValue* p1,
         HValue* p2,
-        Token::Value token) {
+        Token::Value token,
+        Representation input_representation = Representation::Integer32()) {
       And();
-      return IfCompare(p1, p2, token);
+      return IfCompare(p1, p2, token, input_representation);
     }
 
     HInstruction* AndIfCompareMap(HValue* left, Handle<Map> map) {
@@ -1698,10 +1690,10 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                        HValue* object,
                                        SmallMapList* types,
                                        Handle<String> name);
-  HInstruction* TryLoadPolymorphicAsMonomorphic(Property* expr,
-                                                HValue* object,
-                                                SmallMapList* types,
-                                                Handle<String> name);
+  bool HandlePolymorphicArrayLengthLoad(Property* expr,
+                                        HValue* object,
+                                        SmallMapList* types,
+                                        Handle<String> name);
   void HandlePolymorphicStoreNamedField(Assignment* expr,
                                         HValue* object,
                                         HValue* value,

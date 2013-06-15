@@ -1495,13 +1495,15 @@ class MarkCompactMarkingVisitor
             FIXED_ARRAY_TYPE) return;
 
     // Make sure this is a RegExp that actually contains code.
-    if (re->TypeTag() != JSRegExp::IRREGEXP) return;
+    if (re->TypeTagUnchecked() != JSRegExp::IRREGEXP) return;
 
-    Object* code = re->DataAt(JSRegExp::code_index(is_ascii));
+    Object* code = re->DataAtUnchecked(JSRegExp::code_index(is_ascii));
     if (!code->IsSmi() &&
         HeapObject::cast(code)->map()->instance_type() == CODE_TYPE) {
       // Save a copy that can be reinstated if we need the code again.
-      re->SetDataAt(JSRegExp::saved_code_index(is_ascii), code);
+      re->SetDataAtUnchecked(JSRegExp::saved_code_index(is_ascii),
+                             code,
+                             heap);
 
       // Saving a copy might create a pointer into compaction candidate
       // that was not observed by marker.  This might happen if JSRegExp data
@@ -1513,8 +1515,9 @@ class MarkCompactMarkingVisitor
           RecordSlot(slot, slot, code);
 
       // Set a number in the 0-255 range to guarantee no smi overflow.
-      re->SetDataAt(JSRegExp::code_index(is_ascii),
-                    Smi::FromInt(heap->sweep_generation() & 0xff));
+      re->SetDataAtUnchecked(JSRegExp::code_index(is_ascii),
+                             Smi::FromInt(heap->sweep_generation() & 0xff),
+                             heap);
     } else if (code->IsSmi()) {
       int value = Smi::cast(code)->value();
       // The regexp has not been compiled yet or there was a compilation error.
@@ -1525,10 +1528,12 @@ class MarkCompactMarkingVisitor
 
       // Check if we should flush now.
       if (value == ((heap->sweep_generation() - kRegExpCodeThreshold) & 0xff)) {
-        re->SetDataAt(JSRegExp::code_index(is_ascii),
-                      Smi::FromInt(JSRegExp::kUninitializedValue));
-        re->SetDataAt(JSRegExp::saved_code_index(is_ascii),
-                      Smi::FromInt(JSRegExp::kUninitializedValue));
+        re->SetDataAtUnchecked(JSRegExp::code_index(is_ascii),
+                               Smi::FromInt(JSRegExp::kUninitializedValue),
+                               heap);
+        re->SetDataAtUnchecked(JSRegExp::saved_code_index(is_ascii),
+                               Smi::FromInt(JSRegExp::kUninitializedValue),
+                               heap);
       }
     }
   }
@@ -2443,7 +2448,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       // This map is used for inobject slack tracking and has been detached
       // from SharedFunctionInfo during the mark phase.
       // Since it survived the GC, reattach it now.
-      JSFunction::cast(map->constructor())->shared()->AttachInitialMap(map);
+      map->unchecked_constructor()->shared()->AttachInitialMap(map);
     }
 
     ClearNonLivePrototypeTransitions(map);
@@ -2474,11 +2479,13 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
       int proto_index = proto_offset + new_number_of_transitions * step;
       int map_index = map_offset + new_number_of_transitions * step;
       if (new_number_of_transitions != i) {
-        prototype_transitions->set(
+        prototype_transitions->set_unchecked(
+            heap_,
             proto_index,
             prototype,
             UPDATE_WRITE_BARRIER);
-        prototype_transitions->set(
+        prototype_transitions->set_unchecked(
+            heap_,
             map_index,
             cached_map,
             SKIP_WRITE_BARRIER);

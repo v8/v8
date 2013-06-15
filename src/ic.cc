@@ -936,7 +936,15 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   // Update inline cache and stub cache.
-  if (FLAG_use_ic) UpdateCaches(&lookup, state, object, name);
+  if (FLAG_use_ic) {
+    if (!object->IsJSObject()) {
+      // TODO(jkummerow): It would be nice to support non-JSObjects in
+      // UpdateCaches, then we wouldn't need to go generic here.
+      set_target(*generic_stub());
+    } else {
+      UpdateCaches(&lookup, state, object, name);
+    }
+  }
 
   PropertyAttributes attr;
   if (lookup.IsInterceptor() || lookup.IsHandler()) {
@@ -1196,17 +1204,11 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
                           Handle<Object> object,
                           Handle<String> name) {
   // Bail out if the result is not cacheable.
-  if (!lookup->IsCacheable()) {
-    set_target(*generic_stub());
-    return;
-  }
+  if (!lookup->IsCacheable()) return;
 
-  // TODO(jkummerow): It would be nice to support non-JSObjects in
-  // UpdateCaches, then we wouldn't need to go generic here.
-  if (!object->IsJSObject()) {
-    set_target(*generic_stub());
-    return;
-  }
+  // Loading properties from values is not common, so don't try to
+  // deal with non-JS objects here.
+  if (!object->IsJSObject()) return;
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   Handle<Code> code;
@@ -1217,10 +1219,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     code = pre_monomorphic_stub();
   } else {
     code = ComputeLoadHandler(lookup, receiver, name);
-    if (code.is_null()) {
-      set_target(*generic_stub());
-      return;
-    }
+    if (code.is_null()) return;
   }
 
   PatchCache(state, kNonStrictMode, receiver, name, code);
@@ -1641,12 +1640,6 @@ MaybeObject* StoreIC::Store(State state,
              IsUndeclaredGlobal(object)) {
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
-  } else if (FLAG_use_ic &&
-             (lookup.IsNormal() ||
-              (lookup.IsField() && lookup.CanHoldValue(value)))) {
-    Handle<Code> stub = strict_mode == kStrictMode
-        ? generic_stub_strict() : generic_stub();
-    set_target(*stub);
   }
 
   // Set the property.
@@ -1667,14 +1660,9 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   // These are not cacheable, so we never see such LookupResults here.
   ASSERT(!lookup->IsHandler());
 
-  Handle<Code> code = ComputeStoreMonomorphic(
-      lookup, strict_mode, receiver, name);
-  if (code.is_null()) {
-    Handle<Code> stub = strict_mode == kStrictMode
-        ? generic_stub_strict() : generic_stub();
-    set_target(*stub);
-    return;
-  }
+  Handle<Code> code =
+      ComputeStoreMonomorphic(lookup, strict_mode, receiver, name);
+  if (code.is_null()) return;
 
   PatchCache(state, strict_mode, receiver, name, code);
   TRACE_IC("StoreIC", name, state, target());
@@ -1745,7 +1733,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       DescriptorArray* target_descriptors = transition->instance_descriptors();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
-      if (details.type() == CALLBACKS || details.attributes() != NONE) break;
+      if (details.type() != FIELD || details.attributes() != NONE) break;
 
       return isolate()->stub_cache()->ComputeStoreTransition(
           name, receiver, lookup, transition, strict_mode);
@@ -2111,7 +2099,7 @@ Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       DescriptorArray* target_descriptors = transition->instance_descriptors();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
-      if (details.type() != CALLBACKS && details.attributes() == NONE) {
+      if (details.type() == FIELD && details.attributes() == NONE) {
         return isolate()->stub_cache()->ComputeKeyedStoreTransition(
             name, receiver, lookup, transition, strict_mode);
       }

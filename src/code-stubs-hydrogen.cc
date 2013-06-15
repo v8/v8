@@ -144,7 +144,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   set_current_block(next_block);
 
   HConstant* undefined_constant = new(zone) HConstant(
-      isolate()->factory()->undefined_value());
+      isolate()->factory()->undefined_value(), Representation::Tagged());
   AddInstruction(undefined_constant);
   graph()->set_undefined_constant(undefined_constant);
 
@@ -196,7 +196,8 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
       stack_pop_count->ClearFlag(HValue::kCanOverflow);
     } else {
       int count = descriptor_->hint_stack_parameter_count_;
-      stack_pop_count = AddInstruction(new(zone) HConstant(count));
+      stack_pop_count = AddInstruction(new(zone)
+          HConstant(count, Representation::Integer32()));
     }
   }
 
@@ -390,11 +391,13 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HValue* boilerplate_size =
       AddInstruction(new(zone) HInstanceSize(boilerplate));
   HValue* size_in_words =
-      AddInstruction(new(zone) HConstant(size >> kPointerSizeLog2));
+      AddInstruction(new(zone) HConstant(size >> kPointerSizeLog2,
+                                         Representation::Integer32()));
   checker.IfCompare(boilerplate_size, size_in_words, Token::EQ);
   checker.Then();
 
-  HValue* size_in_bytes = AddInstruction(new(zone) HConstant(size));
+  HValue* size_in_bytes =
+      AddInstruction(new(zone) HConstant(size, Representation::Integer32()));
   HAllocate::Flags flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
   if (isolate()->heap()->ShouldGloballyPretenure()) {
     flags = static_cast<HAllocate::Flags>(

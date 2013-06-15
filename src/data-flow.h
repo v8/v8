@@ -215,8 +215,6 @@ class GrowableBitVector BASE_EMBEDDED {
   };
 
   GrowableBitVector() : bits_(NULL) { }
-  GrowableBitVector(int length, Zone* zone)
-      : bits_(new(zone) BitVector(length, zone)) { }
 
   bool Contains(int value) const {
     if (!InBitsRange(value)) return false;

@@ -248,9 +248,6 @@ class CpuProfiler {
   void SharedFunctionInfoMoveEvent(Address from, Address to);
 
   INLINE(bool is_profiling() const) { return is_profiling_; }
-  bool* is_profiling_address() {
-    return &is_profiling_;
-  }
 
  private:
   void StartProcessorIfNotStarted();

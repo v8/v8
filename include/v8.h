@@ -220,6 +220,8 @@ class WeakReferenceCallbacks {
   }
 
 
+#define V8_USE_UNSAFE_HANDLES
+
 /**
  * An object reference managed by the v8 garbage collector.
  *
@@ -490,10 +492,10 @@ template <class T> class Persistent // NOLINT
  public:
 #ifndef V8_USE_UNSAFE_HANDLES
   V8_INLINE(Persistent()) : val_(0) { }
-  // TODO(dcarney): add this back before cutover.
-//  V8_INLINE(~Persistent()) {
-//  Dispose();
-//  }
+  V8_INLINE(~Persistent()) {
+    // TODO(dcarney): add this back before cutover.
+    // Dispose();
+  }
   V8_INLINE(bool IsEmpty() const) { return val_ == 0; }
   // TODO(dcarney): remove somehow before cutover
   // The handle should either be 0, or a pointer to a live cell.

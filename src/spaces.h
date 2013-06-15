@@ -1454,7 +1454,6 @@ class FreeListCategory {
   void Free(FreeListNode* node, int size_in_bytes);
 
   FreeListNode* PickNodeFromList(int *node_size);
-  FreeListNode* PickNodeFromList(int size_in_bytes, int *node_size);
 
   intptr_t EvictFreeListItemsInList(Page* p);
 

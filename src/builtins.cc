@@ -1496,27 +1496,17 @@ static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kNonStrictMode);
+  StoreIC::GenerateGlobalProxy(masm, kNonStrictMode);
 }
 
 
 static void Generate_StoreIC_GlobalProxy_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kStrictMode);
+  StoreIC::GenerateGlobalProxy(masm, kStrictMode);
 }
 
 
 static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
   StoreStubCompiler::GenerateStoreViaSetter(masm, Handle<JSFunction>());
-}
-
-
-static void Generate_StoreIC_Generic(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kNonStrictMode);
-}
-
-
-static void Generate_StoreIC_Generic_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateRuntimeSetProperty(masm, kStrictMode);
 }
 
 
