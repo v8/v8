@@ -566,7 +566,12 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
                       OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
 
-  if (details.type() == CONSTANT_FUNCTION) return;
+  if (details.type() == CONSTANT_FUNCTION) {
+    ASSERT(value_reg.is(a0));
+    __ Ret(USE_DELAY_SLOT);
+    __ mov(v0, a0);
+    return;
+  }
 
   int index = transition->instance_descriptors()->GetFieldIndex(
       transition->LastAdded());
