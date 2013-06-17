@@ -3624,6 +3624,9 @@ bool Map::CanBeDeprecated() {
         details.representation().IsHeapObject()) {
       return true;
     }
+    if (FLAG_track_fields && details.type() == CONSTANT_FUNCTION) {
+      return true;
+    }
   }
   return false;
 }
