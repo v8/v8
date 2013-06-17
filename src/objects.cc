@@ -12060,7 +12060,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
                                     StrictModeFlag strict_mode,
                                     SetPropertyMode set_mode) {
   if (object->HasExternalArrayElements()) {
-    if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
+    if (!value->IsNumber() && !value->IsUndefined()) {
       bool has_exception;
       Handle<Object> number = Execution::ToNumber(value, &has_exception);
       if (has_exception) return Handle<Object>();

@@ -4753,25 +4753,40 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
     }
 
     js_object->ValidateElements();
-    Handle<Object> result = JSObject::SetElement(
-        js_object, index, value, attr, strict_mode, set_mode);
+    if (js_object->HasExternalArrayElements()) {
+      if (!value->IsNumber() && !value->IsUndefined()) {
+        bool has_exception;
+        Handle<Object> number = Execution::ToNumber(value, &has_exception);
+        if (has_exception) return Failure::Exception();
+        value = number;
+      }
+    }
+    MaybeObject* result = js_object->SetElement(
+        index, *value, attr, strict_mode, true, set_mode);
     js_object->ValidateElements();
-    if (result.is_null()) return Failure::Exception();
+    if (result->IsFailure()) return result;
     return *value;
   }
 
   if (key->IsName()) {
-    Handle<Object> result;
+    MaybeObject* result;
     Handle<Name> name = Handle<Name>::cast(key);
     if (name->AsArrayIndex(&index)) {
-      result = JSObject::SetElement(
-          js_object, index, value, attr, strict_mode, set_mode);
+      if (js_object->HasExternalArrayElements()) {
+        if (!value->IsNumber() && !value->IsUndefined()) {
+          bool has_exception;
+          Handle<Object> number = Execution::ToNumber(value, &has_exception);
+          if (has_exception) return Failure::Exception();
+          value = number;
+        }
+      }
+      result = js_object->SetElement(
+          index, *value, attr, strict_mode, true, set_mode);
     } else {
       if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-      result = JSReceiver::SetProperty(
-          js_object, name, value, attr, strict_mode);
+      result = js_object->SetProperty(*name, *value, attr, strict_mode);
     }
-    if (result.is_null()) return Failure::Exception();
+    if (result->IsFailure()) return result;
     return *value;
   }
 
