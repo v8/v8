@@ -384,6 +384,17 @@ class LCodeGen BASE_EMBEDDED {
                     Register source,
                     int* offset,
                     AllocationSiteMode mode);
+  // Emit optimized code for integer division.
+  // Inputs are signed.
+  // All registers are clobbered.
+  // If 'remainder' is no_reg, it is not computed.
+  void EmitSignedIntegerDivisionByConstant(Register result,
+                                           Register dividend,
+                                           int32_t divisor,
+                                           Register remainder,
+                                           Register scratch,
+                                           LEnvironment* environment);
+
 
   void EnsureSpaceForLazyDeopt();
   void DoLoadKeyedExternalArray(LLoadKeyed* instr);

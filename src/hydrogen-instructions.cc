@@ -1533,8 +1533,6 @@ HValue* HUnaryMathOperation::Canonicalize() {
     // with its input.
     if (val->representation().IsInteger32()) return val;
 
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) || \
-        defined(V8_TARGET_ARCH_X64)
     if (val->IsDiv() && (val->UseCount() == 1)) {
       HDiv* hdiv = HDiv::cast(val);
       HValue* left = hdiv->left();
@@ -1585,7 +1583,6 @@ HValue* HUnaryMathOperation::Canonicalize() {
       // Return NULL to remove this instruction from the graph.
       return NULL;
     }
-#endif  // V8_TARGET_ARCH_ARM
   }
   return this;
 }

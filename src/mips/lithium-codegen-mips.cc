@@ -1176,6 +1176,109 @@ void LCodeGen::DoModI(LModI* instr) {
 }
 
 
+void LCodeGen::EmitSignedIntegerDivisionByConstant(
+    Register result,
+    Register dividend,
+    int32_t divisor,
+    Register remainder,
+    Register scratch,
+    LEnvironment* environment) {
+  ASSERT(!AreAliased(dividend, scratch, at, no_reg));
+  ASSERT(LChunkBuilder::HasMagicNumberForDivisor(divisor));
+
+  uint32_t divisor_abs = abs(divisor);
+
+  int32_t power_of_2_factor =
+    CompilerIntrinsics::CountTrailingZeros(divisor_abs);
+
+  switch (divisor_abs) {
+    case 0:
+      DeoptimizeIf(al, environment);
+      return;
+
+    case 1:
+      if (divisor > 0) {
+        __ Move(result, dividend);
+      } else {
+        __ SubuAndCheckForOverflow(result, zero_reg, dividend, scratch);
+        DeoptimizeIf(lt, environment, scratch, Operand(zero_reg));
+      }
+      // Compute the remainder.
+      __ Move(remainder, zero_reg);
+      return;
+
+    default:
+      if (IsPowerOf2(divisor_abs)) {
+        // Branch and condition free code for integer division by a power
+        // of two.
+        int32_t power = WhichPowerOf2(divisor_abs);
+        if (power > 1) {
+          __ sra(scratch, dividend, power - 1);
+        }
+        __ srl(scratch, scratch, 32 - power);
+        __ Addu(scratch, dividend, Operand(scratch));
+        __ sra(result, scratch,  power);
+        // Negate if necessary.
+        // We don't need to check for overflow because the case '-1' is
+        // handled separately.
+        if (divisor < 0) {
+          ASSERT(divisor != -1);
+          __ Subu(result, zero_reg, Operand(result));
+        }
+        // Compute the remainder.
+        if (divisor > 0) {
+          __ sll(scratch, result, power);
+          __ Subu(remainder, dividend, Operand(scratch));
+        } else {
+          __ sll(scratch, result, power);
+          __ Addu(remainder, dividend, Operand(scratch));
+        }
+        return;
+      } else if (LChunkBuilder::HasMagicNumberForDivisor(divisor)) {
+        // Use magic numbers for a few specific divisors.
+        // Details and proofs can be found in:
+        // - Hacker's Delight, Henry S. Warren, Jr.
+        // - The PowerPC Compiler Writer's Guide
+        // and probably many others.
+        //
+        // We handle
+        //   <divisor with magic numbers> * <power of 2>
+        // but not
+        //   <divisor with magic numbers> * <other divisor with magic numbers>
+        DivMagicNumbers magic_numbers =
+          DivMagicNumberFor(divisor_abs >> power_of_2_factor);
+        // Branch and condition free code for integer division by a power
+        // of two.
+        const int32_t M = magic_numbers.M;
+        const int32_t s = magic_numbers.s + power_of_2_factor;
+
+        __ li(scratch, Operand(M));
+        __ mult(dividend, scratch);
+        __ mfhi(scratch);
+        if (M < 0) {
+          __ Addu(scratch, scratch, Operand(dividend));
+        }
+        if (s > 0) {
+          __ sra(scratch, scratch, s);
+          __ mov(scratch, scratch);
+        }
+        __ srl(at, dividend, 31);
+        __ Addu(result, scratch, Operand(at));
+        if (divisor < 0) __ Subu(result, zero_reg, Operand(result));
+        // Compute the remainder.
+        __ li(scratch, Operand(divisor));
+        __ Mul(scratch, result, Operand(scratch));
+        __ Subu(remainder, dividend, Operand(scratch));
+      } else {
+        __ li(scratch, Operand(divisor));
+        __ div(dividend, scratch);
+        __ mfhi(remainder);
+        __ mflo(result);
+      }
+  }
+}
+
+
 void LCodeGen::DoDivI(LDivI* instr) {
   const Register left = ToRegister(instr->left());
   const Register right = ToRegister(instr->right());
@@ -1223,6 +1326,70 @@ void LCodeGen::DoMultiplyAddD(LMultiplyAddD* instr) {
   ASSERT(addend.is(ToDoubleRegister(instr->result())));
 
   __ madd_d(addend, addend, multiplier, multiplicand);
+}
+
+
+void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
+  const Register result = ToRegister(instr->result());
+  const Register left = ToRegister(instr->left());
+  const Register remainder = ToRegister(instr->temp());
+  const Register scratch = scratch0();
+
+  if (instr->right()->IsConstantOperand()) {
+    Label done;
+    int32_t divisor = ToInteger32(LConstantOperand::cast(instr->right()));
+    if (divisor < 0) {
+      DeoptimizeIf(eq, instr->environment(), left, Operand(zero_reg));
+    }
+    EmitSignedIntegerDivisionByConstant(result,
+                                        left,
+                                        divisor,
+                                        remainder,
+                                        scratch,
+                                        instr->environment());
+    // We performed a truncating division. Correct the result if necessary.
+    __ Branch(&done, eq, remainder, Operand(zero_reg), USE_DELAY_SLOT);
+    __ Xor(scratch , remainder, Operand(divisor));
+    __ Branch(&done, ge, scratch, Operand(zero_reg));
+    __ Subu(result, result, Operand(1));
+    __ bind(&done);
+  } else {
+    Label done;
+    const Register right = ToRegister(instr->right());
+
+    // On MIPS div is asynchronous - it will run in the background while we
+    // check for special cases.
+    __ div(left, right);
+
+    // Check for x / 0.
+    DeoptimizeIf(eq, instr->environment(), right, Operand(zero_reg));
+
+    // Check for (0 / -x) that will produce negative zero.
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      Label left_not_zero;
+      __ Branch(&left_not_zero, ne, left, Operand(zero_reg));
+      DeoptimizeIf(lt, instr->environment(), right, Operand(zero_reg));
+      __ bind(&left_not_zero);
+    }
+
+    // Check for (kMinInt / -1).
+    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+      Label left_not_min_int;
+      __ Branch(&left_not_min_int, ne, left, Operand(kMinInt));
+      DeoptimizeIf(eq, instr->environment(), right, Operand(-1));
+      __ bind(&left_not_min_int);
+    }
+
+    __ mfhi(remainder);
+    __ mflo(result);
+
+    // We performed a truncating division. Correct the result if necessary.
+    __ Branch(&done, eq, remainder, Operand(zero_reg), USE_DELAY_SLOT);
+    __ Xor(scratch , remainder, Operand(right));
+    __ Branch(&done, ge, scratch, Operand(zero_reg));
+    __ Subu(result, result, Operand(1));
+    __ bind(&done);
+  }
 }
 
 
