@@ -2215,6 +2215,7 @@ static int CountMapTransitions(Map* map) {
 // Test that map transitions are cleared and maps are collected with
 // incremental marking as well.
 TEST(Regress1465) {
+  i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_trace_incremental_marking = true;
   CcTest::InitializeVM();
