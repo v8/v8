@@ -2382,6 +2382,7 @@ TEST(ReleaseOverReservedPages) {
 
 
 TEST(Regress2237) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
