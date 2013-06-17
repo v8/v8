@@ -8070,6 +8070,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsParallelRecompilationSupported) {
+  HandleScope scope(isolate);
+  return FLAG_parallel_recompilation
+      ? isolate->heap()->true_value() : isolate->heap()->false_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);

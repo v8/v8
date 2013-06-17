@@ -9198,7 +9198,10 @@ void JSFunction::MarkForLazyRecompilation() {
 void JSFunction::MarkForParallelRecompilation() {
   ASSERT(is_compiled() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  ASSERT(FLAG_parallel_recompilation);
+  if (!FLAG_parallel_recompilation) {
+    JSFunction::MarkForLazyRecompilation();
+    return;
+  }
   if (FLAG_trace_parallel_recompilation) {
     PrintF("  ** Marking ");
     PrintName();
