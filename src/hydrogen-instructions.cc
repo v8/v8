@@ -84,6 +84,10 @@ void HValue::InferRepresentation(HInferRepresentation* h_infer) {
   UpdateRepresentation(new_rep, h_infer, "inputs");
   new_rep = RepresentationFromUses();
   UpdateRepresentation(new_rep, h_infer, "uses");
+  new_rep = RepresentationFromUseRequirements();
+  if (new_rep.fits_into(Representation::Integer32())) {
+    UpdateRepresentation(new_rep, h_infer, "use requirements");
+  }
 }
 
 
@@ -1147,19 +1151,14 @@ void HBoundsCheck::PrintDataTo(StringStream* stream) {
 
 void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
-  Representation r;
   HValue* actual_index = index()->ActualValue();
   HValue* actual_length = length()->ActualValue();
   Representation index_rep = actual_index->representation();
-  if (!actual_length->representation().IsSmiOrTagged()) {
-    r = Representation::Integer32();
-  } else if ((index_rep.IsTagged() && actual_index->type().IsSmi()) ||
-      index_rep.IsSmi()) {
-    // If the index is smi, allow the length to be smi, since it is usually
-    // already smi from loading it out of the length field of a JSArray.  This
-    // allows for direct comparison without untagging.
-    r = Representation::Smi();
-  } else {
+  Representation length_rep = actual_length->representation();
+  if (index_rep.IsTagged()) index_rep = Representation::Smi();
+  if (length_rep.IsTagged()) length_rep = Representation::Smi();
+  Representation r = index_rep.generalize(length_rep);
+  if (r.is_more_general_than(Representation::Integer32())) {
     r = Representation::Integer32();
   }
   UpdateRepresentation(r, h_infer, "boundscheck");
@@ -1287,7 +1286,7 @@ Representation HBranch::observed_input_representation(int index) {
   } else if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
     return Representation::Double();
   } else if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
-    return Representation::Integer32();
+    return Representation::Smi();
   } else {
     return Representation::None();
   }
@@ -1511,30 +1510,52 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
+static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
+  // A value with an integer representation does not need to be transformed.
+  if (dividend->representation().IsInteger32()) {
+    return dividend;
+  }
+  // A change from an integer32 can be replaced by the integer32 value.
+  if (dividend->IsChange() &&
+      HChange::cast(dividend)->from().IsInteger32()) {
+    return HChange::cast(dividend)->value();
+  }
+  return NULL;
+}
+
+
 HValue* HUnaryMathOperation::Canonicalize() {
   if (op() == kMathFloor) {
+    HValue* val = value();
+    if (val->IsChange()) val = HChange::cast(val)->value();
+
     // If the input is integer32 then we replace the floor instruction
-    // with its input. This happens before the representation changes are
-    // introduced.
+    // with its input.
+    if (val->representation().IsInteger32()) return val;
 
-    // TODO(2205): The above comment is lying. All of this happens
-    // *after* representation changes are introduced. We should check
-    // for value->IsChange() and react accordingly if yes.
-
-    if (value()->representation().IsInteger32()) return value();
-
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) || \
-        defined(V8_TARGET_ARCH_X64)
-    if (value()->IsDiv() && (value()->UseCount() == 1)) {
-      // TODO(2038): Implement this optimization for non ARM architectures.
-      HDiv* hdiv = HDiv::cast(value());
+    if (val->IsDiv() && (val->UseCount() == 1)) {
+      HDiv* hdiv = HDiv::cast(val);
       HValue* left = hdiv->left();
       HValue* right = hdiv->right();
       // Try to simplify left and right values of the division.
-      HValue* new_left =
-        LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(left);
+      HValue* new_left = SimplifiedDividendForMathFloorOfDiv(left);
+      if (new_left == NULL &&
+          hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
+        new_left = new(block()->zone())
+            HChange(left, Representation::Integer32(), false, false);
+        HChange::cast(new_left)->InsertBefore(this);
+      }
       HValue* new_right =
-        LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
+          LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
+      if (new_right == NULL &&
+#ifdef V8_TARGET_ARCH_ARM
+          CpuFeatures::IsSupported(SUDIV) &&
+#endif
+          hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
+        new_right = new(block()->zone())
+            HChange(right, Representation::Integer32(), false, false);
+        HChange::cast(new_right)->InsertBefore(this);
+      }
 
       // Return if left or right are not optimizable.
       if ((new_left == NULL) || (new_right == NULL)) return this;
@@ -1548,26 +1569,20 @@ HValue* HUnaryMathOperation::Canonicalize() {
           !HInstruction::cast(new_right)->IsLinked()) {
         HInstruction::cast(new_right)->InsertBefore(this);
       }
-      HMathFloorOfDiv* instr =  new(block()->zone()) HMathFloorOfDiv(context(),
-          new_left,
-          new_right);
+      HMathFloorOfDiv* instr = new(block()->zone())
+          HMathFloorOfDiv(context(), new_left, new_right);
       // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
       instr->InsertBefore(this);
       ReplaceAllUsesWith(instr);
       Kill();
       // We know the division had no other uses than this HMathFloor. Delete it.
-      // Also delete the arguments of the division if they are not used any
-      // more.
+      // Dead code elimination will deal with |left| and |right| if
+      // appropriate.
       hdiv->DeleteAndReplaceWith(NULL);
-      ASSERT(left->IsChange() || left->IsConstant());
-      ASSERT(right->IsChange() || right->IsConstant());
-      if (left->HasNoUses())  left->DeleteAndReplaceWith(NULL);
-      if (right->HasNoUses())  right->DeleteAndReplaceWith(NULL);
 
       // Return NULL to remove this instruction from the graph.
       return NULL;
     }
-#endif  // V8_TARGET_ARCH_ARM
   }
   return this;
 }
@@ -2304,6 +2319,10 @@ void HBinaryOperation::InferRepresentation(HInferRepresentation* h_infer) {
   if (!observed_output_representation_.IsNone()) return;
   new_rep = RepresentationFromUses();
   UpdateRepresentation(new_rep, h_infer, "uses");
+  new_rep = RepresentationFromUseRequirements();
+  if (new_rep.fits_into(Representation::Integer32())) {
+    UpdateRepresentation(new_rep, h_infer, "use requirements");
+  }
 }
 
 
@@ -3660,34 +3679,26 @@ Representation HPhi::RepresentationFromInputs() {
 }
 
 
-Representation HPhi::RepresentationFromUseRequirements() {
-  Representation all_uses_require = Representation::None();
-  bool all_uses_require_the_same = true;
+// Returns a representation if all uses agree on the same representation.
+// Integer32 is also returned when some uses are Smi but others are Integer32.
+Representation HValue::RepresentationFromUseRequirements() {
+  Representation rep = Representation::None();
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     // We check for observed_input_representation elsewhere.
     Representation use_rep =
         it.value()->RequiredInputRepresentation(it.index());
-    // No useful info from this use -> look at the next one.
-    if (use_rep.IsNone()) {
+    if (rep.IsNone()) {
+      rep = use_rep;
       continue;
     }
-    if (use_rep.Equals(all_uses_require)) {
+    if (use_rep.IsNone() || rep.Equals(use_rep)) continue;
+    if (rep.generalize(use_rep).IsInteger32()) {
+      rep = Representation::Integer32();
       continue;
     }
-    // This use's representation contradicts what we've seen so far.
-    if (!all_uses_require.IsNone()) {
-      ASSERT(!use_rep.Equals(all_uses_require));
-      all_uses_require_the_same = false;
-      break;
-    }
-    // Otherwise, initialize observed representation.
-    all_uses_require = use_rep;
+    return Representation::None();
   }
-  if (all_uses_require_the_same) {
-    return all_uses_require;
-  }
-
-  return Representation::None();
+  return rep;
 }
 
 

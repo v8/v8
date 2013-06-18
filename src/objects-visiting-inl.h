@@ -203,7 +203,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitPropertyCell,
                   &FixedBodyVisitor<StaticVisitor,
-                  JSGlobalPropertyCell::BodyDescriptor,
+                  PropertyCell::BodyDescriptor,
                   void>::Visit);
 
   table_.template RegisterSpecializations<DataObjectVisitor,

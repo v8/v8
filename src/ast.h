@@ -1837,7 +1837,7 @@ class UnaryOperation: public Expression {
 
   TypeFeedbackId UnaryOperationFeedbackId() const { return reuse(id()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-  TypeInfo type() const { return type_; }
+  Handle<Type> type() const { return type_; }
 
  protected:
   UnaryOperation(Isolate* isolate,
@@ -1858,7 +1858,7 @@ class UnaryOperation: public Expression {
   Expression* expression_;
   int pos_;
 
-  TypeInfo type_;
+  Handle<Type> type_;
 
   // For unary not (Token::NOT), the AST ids where true and false will
   // actually be materialized, respectively.
@@ -1882,9 +1882,9 @@ class BinaryOperation: public Expression {
 
   TypeFeedbackId BinaryOperationFeedbackId() const { return reuse(id()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-  TypeInfo left_type() const { return left_type_; }
-  TypeInfo right_type() const { return right_type_; }
-  TypeInfo result_type() const { return result_type_; }
+  Handle<Type> left_type() const { return left_type_; }
+  Handle<Type> right_type() const { return right_type_; }
+  Handle<Type> result_type() const { return result_type_; }
   bool has_fixed_right_arg() const { return has_fixed_right_arg_; }
   int fixed_right_arg_value() const { return fixed_right_arg_value_; }
 
@@ -1909,9 +1909,9 @@ class BinaryOperation: public Expression {
   Expression* right_;
   int pos_;
 
-  TypeInfo left_type_;
-  TypeInfo right_type_;
-  TypeInfo result_type_;
+  Handle<Type> left_type_;
+  Handle<Type> right_type_;
+  Handle<Type> result_type_;
   bool has_fixed_right_arg_;
   int fixed_right_arg_value_;
 

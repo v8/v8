@@ -237,8 +237,7 @@ class Factory {
 
   Handle<Cell> NewCell(Handle<Object> value);
 
-  Handle<JSGlobalPropertyCell> NewJSGlobalPropertyCell(
-      Handle<Object> value);
+  Handle<PropertyCell> NewPropertyCell(Handle<Object> value);
 
   Handle<Map> NewMap(
       InstanceType type,

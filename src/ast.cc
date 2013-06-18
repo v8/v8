@@ -663,12 +663,13 @@ void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 void UnaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  type_ = oracle->UnaryType(this);
+  type_ = oracle->UnaryType(UnaryOperationFeedbackId());
 }
 
 
 void BinaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  oracle->BinaryType(this, &left_type_, &right_type_, &result_type_,
+  oracle->BinaryType(BinaryOperationFeedbackId(),
+                     &left_type_, &right_type_, &result_type_,
                      &has_fixed_right_arg_, &fixed_right_arg_value_);
 }
 

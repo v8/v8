@@ -6482,13 +6482,6 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
-                                    ExternalReference function) {
-  __ mov(r2, Operand(function));
-  GenerateCall(masm, r2);
-}
-
-
-void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
   intptr_t code =
       reinterpret_cast<intptr_t>(GetCode(masm->isolate()).location());
@@ -7062,10 +7055,10 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0    : element value to store
-  //  -- r1    : array literal
-  //  -- r2    : map of array literal
   //  -- r3    : element index as smi
-  //  -- r4    : array literal index in function as smi
+  //  -- sp[0] : array literal index in function as smi
+  //  -- sp[4] : array literal
+  // clobbers r1, r2, r4
   // -----------------------------------
 
   Label element_done;
@@ -7073,6 +7066,11 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   Label smi_element;
   Label slow_elements;
   Label fast_elements;
+
+  // Get array literal index, array literal and its map.
+  __ ldr(r4, MemOperand(sp, 0 * kPointerSize));
+  __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
+  __ ldr(r2, FieldMemOperand(r1, JSObject::kMapOffset));
 
   __ CheckFastElements(r2, r5, &double_elements);
   // FAST_*_SMI_ELEMENTS or FAST_*_ELEMENTS
@@ -7348,7 +7346,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Get the elements kind and case on that.
     __ cmp(r2, Operand(undefined_sentinel));
     __ b(eq, &no_info);
-    __ ldr(r3, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+    __ ldr(r3, FieldMemOperand(r2, PropertyCell::kValueOffset));
     __ JumpIfNotSmi(r3, &no_info);
     __ SmiUntag(r3);
     __ jmp(&switch_ready);

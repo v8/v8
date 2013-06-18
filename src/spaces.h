@@ -1454,6 +1454,7 @@ class FreeListCategory {
   void Free(FreeListNode* node, int size_in_bytes);
 
   FreeListNode* PickNodeFromList(int *node_size);
+  FreeListNode* PickNodeFromList(int size_in_bytes, int *node_size);
 
   intptr_t EvictFreeListItemsInList(Page* p);
 
@@ -2659,14 +2660,14 @@ class PropertyCellSpace : public FixedSpace {
   // Creates a property cell space object with a maximum capacity.
   PropertyCellSpace(Heap* heap, intptr_t max_capacity,
                     AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize)
+      : FixedSpace(heap, max_capacity, id, PropertyCell::kSize)
   {}
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
-    if (IsPowerOf2(JSGlobalPropertyCell::kSize)) {
-      return RoundDown(size, JSGlobalPropertyCell::kSize);
+    if (IsPowerOf2(PropertyCell::kSize)) {
+      return RoundDown(size, PropertyCell::kSize);
     } else {
-      return (size / JSGlobalPropertyCell::kSize) * JSGlobalPropertyCell::kSize;
+      return (size / PropertyCell::kSize) * PropertyCell::kSize;
     }
   }
 

@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,72 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_RUNTIME_PROFILER_H_
-#define V8_RUNTIME_PROFILER_H_
+// Test that the length property of a function is read-only in strict mode.
 
-#include "allocation.h"
-#include "atomicops.h"
+"use strict";
 
-namespace v8 {
-namespace internal {
+function foo(a, b, c) {
+  return b;
+}
 
-class Isolate;
-class JSFunction;
-class Object;
-class Semaphore;
-
-class RuntimeProfiler {
- public:
-  explicit RuntimeProfiler(Isolate* isolate);
-
-  void OptimizeNow();
-
-  void SetUp();
-  void Reset();
-  void TearDown();
-
-  Object** SamplerWindowAddress();
-  int SamplerWindowSize();
-
-  void NotifyICChanged() { any_ic_changed_ = true; }
-
-  // Rate limiting support.
-
-  void UpdateSamplesAfterScavenge();
-  void RemoveDeadSamples();
-  void UpdateSamplesAfterCompact(ObjectVisitor* visitor);
-
-  void AttemptOnStackReplacement(JSFunction* function);
-
- private:
-  static const int kSamplerWindowSize = 16;
-
-  void Optimize(JSFunction* function, const char* reason);
-
-  void ClearSampleBuffer();
-
-  void ClearSampleBufferNewSpaceEntries();
-
-  int LookupSample(JSFunction* function);
-
-  void AddSample(JSFunction* function, int weight);
-
-  bool CodeSizeOKForOSR(Code* shared_code);
-
-  Isolate* isolate_;
-
-  int sampler_threshold_;
-  int sampler_threshold_size_factor_;
-  int sampler_ticks_until_threshold_adjustment_;
-
-  Object* sampler_window_[kSamplerWindowSize];
-  int sampler_window_position_;
-  int sampler_window_weight_[kSamplerWindowSize];
-
-  bool any_ic_changed_;
-  bool code_generated_;
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_RUNTIME_PROFILER_H_
+var desc = Object.getOwnPropertyDescriptor(foo, 'length');
+assertEquals(3, desc.value);
+assertFalse(desc.writable);
+assertFalse(desc.enumerable);
+assertFalse(desc.configurable);
+assertThrows(function() { foo.length = 2; }, TypeError);
