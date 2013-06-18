@@ -5712,11 +5712,13 @@ void ReturnValue<T>::Set(const Handle<S> handle) {
 
 template<typename T>
 void ReturnValue<T>::Set(double i) {
+  TYPE_CHECK(T, Number);
   Set(Number::New(GetIsolate(), i));
 }
 
 template<typename T>
 void ReturnValue<T>::Set(int32_t i) {
+  TYPE_CHECK(T, Integer);
   typedef internal::Internals I;
   if (V8_LIKELY(I::IsValidSmi(i))) {
     *value_ = I::IntToSmi(i);
@@ -5727,6 +5729,7 @@ void ReturnValue<T>::Set(int32_t i) {
 
 template<typename T>
 void ReturnValue<T>::Set(uint32_t i) {
+  TYPE_CHECK(T, Integer);
   typedef internal::Internals I;
   // Can't simply use INT32_MAX here for whatever reason.
   bool fits_into_int32_t = (i & (1 << 31)) == 0;
@@ -5739,6 +5742,7 @@ void ReturnValue<T>::Set(uint32_t i) {
 
 template<typename T>
 void ReturnValue<T>::Set(bool value) {
+  TYPE_CHECK(T, Boolean);
   typedef internal::Internals I;
   int root_index;
   if (value) {
@@ -5751,18 +5755,21 @@ void ReturnValue<T>::Set(bool value) {
 
 template<typename T>
 void ReturnValue<T>::SetNull() {
+  TYPE_CHECK(T, Primitive);
   typedef internal::Internals I;
   *value_ = *I::GetRoot(GetIsolate(), I::kNullValueRootIndex);
 }
 
 template<typename T>
 void ReturnValue<T>::SetUndefined() {
+  TYPE_CHECK(T, Primitive);
   typedef internal::Internals I;
   *value_ = *I::GetRoot(GetIsolate(), I::kUndefinedValueRootIndex);
 }
 
 template<typename T>
 void ReturnValue<T>::SetEmptyString() {
+  TYPE_CHECK(T, String);
   typedef internal::Internals I;
   *value_ = *I::GetRoot(GetIsolate(), I::kEmptyStringRootIndex);
 }
