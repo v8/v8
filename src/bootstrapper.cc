@@ -538,31 +538,33 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
     prototype = factory()->NewForeign(&Accessors::FunctionPrototype);
   }
-  PropertyAttributes attribs = static_cast<PropertyAttributes>(
-      DONT_ENUM | DONT_DELETE);
+  PropertyAttributes rw_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
+  PropertyAttributes ro_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
   map->set_instance_descriptors(*descriptors);
 
   {  // Add length.
-    CallbacksDescriptor d(*factory()->length_string(), *length, attribs);
+    CallbacksDescriptor d(*factory()->length_string(), *length, ro_attribs);
     map->AppendDescriptor(&d, witness);
   }
   {  // Add name.
-    CallbacksDescriptor d(*factory()->name_string(), *name, attribs);
+    CallbacksDescriptor d(*factory()->name_string(), *name, rw_attribs);
     map->AppendDescriptor(&d, witness);
   }
   {  // Add arguments.
-    CallbacksDescriptor d(*factory()->arguments_string(), *arguments, attribs);
+    CallbacksDescriptor d(*factory()->arguments_string(), *arguments,
+                          rw_attribs);
     map->AppendDescriptor(&d, witness);
   }
   {  // Add caller.
-    CallbacksDescriptor d(*factory()->caller_string(), *caller, attribs);
+    CallbacksDescriptor d(*factory()->caller_string(), *caller, rw_attribs);
     map->AppendDescriptor(&d, witness);
   }
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
     // Add prototype.
-    if (prototypeMode != ADD_WRITEABLE_PROTOTYPE) {
-      attribs = static_cast<PropertyAttributes>(attribs | READ_ONLY);
-    }
+    PropertyAttributes attribs =
+        prototypeMode == ADD_WRITEABLE_PROTOTYPE ? rw_attribs : ro_attribs;
     CallbacksDescriptor d(*factory()->prototype_string(), *prototype, attribs);
     map->AppendDescriptor(&d, witness);
   }
