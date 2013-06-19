@@ -901,7 +901,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     __ popfd();
   }
 
-  if (FLAG_trap_on_deopt) {
+  if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
     Label done;
     if (cc != no_condition) {
       __ j(NegateCondition(cc), &done, Label::kNear);

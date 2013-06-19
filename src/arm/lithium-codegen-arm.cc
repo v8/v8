@@ -825,7 +825,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     return;
   }
 
-  if (FLAG_trap_on_deopt) {
+  if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
     __ stop("trap_on_deopt", cc);
   }
 
