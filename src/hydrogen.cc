@@ -6064,6 +6064,11 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                                  isolate()->factory()->empty_string(),
                                  Runtime::FunctionForId(function_id),
                                  3));
+
+    // De-opt if elements kind changed from boilerplate_elements_kind.
+    Handle<Map> map = Handle<Map>(original_boilerplate_object->map(),
+                                  isolate());
+    AddInstruction(HCheckMaps::New(literal, map, zone()));
   }
 
   // The array is expected in the bailout environment during computation
