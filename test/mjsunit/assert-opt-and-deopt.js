@@ -27,6 +27,11 @@
 
 // Flags: --allow-natives-syntax --noparallel-recompilation
 
+if (%IsParallelRecompilationSupported()) {
+  print("Parallel recompilation is turned on after all. Skipping this test.");
+  quit();
+}
+
 /**
  * This class shows how to use %GetOptimizationCount() and
  * %GetOptimizationStatus() to infer information about opts and deopts.
