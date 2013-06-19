@@ -85,6 +85,7 @@ static bool HasTypedArrayInWeakList(JSArrayBuffer* array_buffer,
 
 
 TEST(WeakArrayBuffersFromApi) {
+  i::FLAG_stress_compaction = false;
   v8::V8::Initialize();
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);

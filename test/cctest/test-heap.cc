@@ -403,6 +403,7 @@ static void TestWeakGlobalHandleCallback(v8::Isolate* isolate,
 
 
 TEST(WeakGlobalHandlesScavenge) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
@@ -489,6 +490,7 @@ TEST(WeakGlobalHandlesMark) {
 
 
 TEST(DeleteWeakGlobalHandle) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
@@ -1978,6 +1980,7 @@ TEST(PrototypeTransitionClearing) {
 
 
 TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
+  i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
@@ -2034,6 +2037,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 
 
 TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
+  i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;

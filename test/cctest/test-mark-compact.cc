@@ -283,6 +283,7 @@ static void GCEpilogueCallbackFunc() {
 
 
 TEST(GCCallback) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
 
   HEAP->SetGlobalGCPrologueCallback(&GCPrologueCallbackFunc);
