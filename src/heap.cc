@@ -1568,6 +1568,8 @@ static Object* VisitWeakList(Heap* heap,
       // tail is a live object, visit it.
       WeakListVisitor<T>::VisitLiveObject(
           heap, tail, retainer, record_slots);
+    } else {
+      WeakListVisitor<T>::VisitPhantomObject(heap, candidate);
     }
 
     // Move to next element in the list.
@@ -1598,6 +1600,9 @@ struct WeakListVisitor<JSFunction> {
 
   static void VisitLiveObject(Heap*, JSFunction*,
                               WeakObjectRetainer*, bool) {
+  }
+
+  static void VisitPhantomObject(Heap*, JSFunction*) {
   }
 };
 
@@ -1635,6 +1640,9 @@ struct WeakListVisitor<Context> {
       heap->mark_compact_collector()->RecordSlot(
           optimized_functions, optimized_functions, function_list_head);
     }
+  }
+
+  static void VisitPhantomObject(Heap*, Context*) {
   }
 
   static int WeakNextOffset() {
@@ -1680,6 +1688,8 @@ struct WeakListVisitor<JSTypedArray> {
                               WeakObjectRetainer* retainer,
                               bool record_slots) {}
 
+  static void VisitPhantomObject(Heap*, JSTypedArray*) {}
+
   static int WeakNextOffset() {
     return JSTypedArray::kWeakNextOffset;
   }
@@ -1713,6 +1723,10 @@ struct WeakListVisitor<JSArrayBuffer> {
     }
   }
 
+  static void VisitPhantomObject(Heap* heap, JSArrayBuffer* phantom) {
+    Runtime::FreeArrayBuffer(heap->isolate(), phantom);
+  }
+
   static int WeakNextOffset() {
     return JSArrayBuffer::kWeakNextOffset;
   }
@@ -1726,6 +1740,17 @@ void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer,
                                    array_buffers_list(),
                                    retainer, record_slots);
   set_array_buffers_list(array_buffer_obj);
+}
+
+
+void Heap::TearDownArrayBuffers() {
+  Object* undefined = undefined_value();
+  for (Object* o = array_buffers_list(); o != undefined;) {
+    JSArrayBuffer* buffer = JSArrayBuffer::cast(o);
+    Runtime::FreeArrayBuffer(isolate(), buffer);
+    o = buffer->weak_next();
+  }
+  array_buffers_list_ = undefined;
 }
 
 
@@ -6868,6 +6893,8 @@ void Heap::TearDown() {
     PrintF("total_sweeping_time=%.1f ", sweeping_time());
     PrintF("\n\n");
   }
+
+  TearDownArrayBuffers();
 
   isolate_->global_handles()->TearDown();
 

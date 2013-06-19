@@ -105,7 +105,6 @@ TEST(WeakArrayBuffersFromApi) {
       CHECK(HasArrayBufferInWeakList(isolate->heap(), *iab2));
     }
     isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
-    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()));
     {
       HandleScope scope2(isolate);
@@ -115,7 +114,6 @@ TEST(WeakArrayBuffersFromApi) {
     }
   }
 
-  isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
   isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
   CHECK_EQ(0, CountArrayBuffersInWeakList(isolate->heap()));
 }
@@ -158,7 +156,6 @@ TEST(WeakArrayBuffersFromScript) {
       i::OS::SNPrintF(source, "ab%d = null;", i);
       CompileRun(source.start());
       isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
-      isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
       CHECK_EQ(2, CountArrayBuffersInWeakList(isolate->heap()));
 
@@ -177,7 +174,6 @@ TEST(WeakArrayBuffersFromScript) {
       CompileRun("ab1 = null; ab2 = null; ab3 = null;");
     }
 
-    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
     isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(0, CountArrayBuffersInWeakList(isolate->heap()));
   }
@@ -206,12 +202,10 @@ void TestTypedArrayFromApi() {
       CHECK(HasTypedArrayInWeakList(*iab, *ita2));
     }
     isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
-    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(1, CountTypedArrays(*iab));
     Handle<JSTypedArray> ita1 = v8::Utils::OpenHandle(*ta1);
     CHECK(HasTypedArrayInWeakList(*iab, *ita1));
   }
-  isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
   isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   CHECK_EQ(0, CountTypedArrays(*iab));
@@ -305,7 +299,6 @@ static void TestTypedArrayFromScript(const char* constructor) {
     i::OS::SNPrintF(source, "ta%d = null;", i);
     CompileRun(source.start());
     isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
-    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
     CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()));
 
@@ -325,7 +318,6 @@ static void TestTypedArrayFromScript(const char* constructor) {
     }
 
     CompileRun("ta1 = null; ta2 = null; ta3 = null;");
-    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
     isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
     CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()));

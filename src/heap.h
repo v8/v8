@@ -2192,6 +2192,9 @@ class Heap {
   void ProcessNativeContexts(WeakObjectRetainer* retainer, bool record_slots);
   void ProcessArrayBuffers(WeakObjectRetainer* retainer, bool record_slots);
 
+  // Called on heap tear-down.
+  void TearDownArrayBuffers();
+
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();
   void ReportStatisticsAfterGC();

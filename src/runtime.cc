@@ -650,23 +650,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
 }
 
 
-static void ArrayBufferWeakCallback(v8::Isolate* external_isolate,
-                                    Persistent<Value>* object,
-                                    void* data) {
-  Isolate* isolate = reinterpret_cast<Isolate*>(external_isolate);
-  HandleScope scope(isolate);
-  Handle<Object> internal_object = Utils::OpenPersistent(object);
-  Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(*internal_object));
+void Runtime::FreeArrayBuffer(Isolate* isolate,
+                              JSArrayBuffer* phantom_array_buffer) {
+  if (phantom_array_buffer->is_external()) return;
 
-  if (!array_buffer->is_external()) {
-    size_t allocated_length = NumberToSize(
-        isolate, array_buffer->byte_length());
-    isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
-        -static_cast<intptr_t>(allocated_length));
-    CHECK(V8::ArrayBufferAllocator() != NULL);
-    V8::ArrayBufferAllocator()->Free(data);
-  }
-  object->Dispose(external_isolate);
+  size_t allocated_length = NumberToSize(
+      isolate, phantom_array_buffer->byte_length());
+
+  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
+      -static_cast<intptr_t>(allocated_length));
+  CHECK(V8::ArrayBufferAllocator() != NULL);
+  V8::ArrayBufferAllocator()->Free(phantom_array_buffer->backing_store());
 }
 
 
@@ -710,10 +704,6 @@ bool Runtime::SetupArrayBufferAllocatingData(
   }
 
   SetupArrayBuffer(isolate, array_buffer, false, data, allocated_length);
-
-  Handle<Object> persistent = isolate->global_handles()->Create(*array_buffer);
-  GlobalHandles::MakeWeak(persistent.location(), data, ArrayBufferWeakCallback);
-  GlobalHandles::MarkIndependent(persistent.location());
 
   isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
 

@@ -769,6 +769,10 @@ class Runtime : public AllStatic {
       Handle<JSArrayBuffer> array_buffer,
       size_t allocated_length);
 
+  static void FreeArrayBuffer(
+      Isolate* isolate,
+      JSArrayBuffer* phantom_array_buffer);
+
   // Helper functions used stubs.
   static void PerformGC(Object* result);
 
