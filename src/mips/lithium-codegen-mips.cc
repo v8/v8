@@ -796,7 +796,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     return;
   }
 
-  if (FLAG_trap_on_deopt) {
+  if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
     Label skip;
     if (cc != al) {
       __ Branch(&skip, NegateCondition(cc), src1, src2);

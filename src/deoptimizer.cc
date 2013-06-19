@@ -2429,6 +2429,7 @@ void Deoptimizer::RevertInterruptCode(Code* unoptimized_code,
     back_edge_cursor += FullCodeGenerator::kBackEdgeEntrySize;
   }
   unoptimized_code->set_back_edges_patched_for_osr(false);
+  unoptimized_code->set_allow_osr_at_loop_nesting_level(0);
 #ifdef DEBUG
   // Assert that none of the back edges are patched anymore.
   Deoptimizer::VerifyInterruptCode(

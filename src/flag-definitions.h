@@ -317,7 +317,7 @@ DEFINE_bool(weighted_back_edges, false,
            // 0x1700 fits in the immediate field of an ARM instruction.
 DEFINE_int(interrupt_budget, 0x1700,
            "execution budget before interrupt is triggered")
-DEFINE_int(type_info_threshold, 30,
+DEFINE_int(type_info_threshold, 25,
            "percentage of ICs that must have type info to allow optimization")
 DEFINE_int(self_opt_count, 130, "call count before self-optimization")
 

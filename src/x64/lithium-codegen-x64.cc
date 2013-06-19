@@ -706,7 +706,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
 
   ASSERT(FLAG_deopt_every_n_times == 0);  // Not yet implemented on x64.
 
-  if (FLAG_trap_on_deopt) {
+  if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
     Label done;
     if (cc != no_condition) {
       __ j(NegateCondition(cc), &done, Label::kNear);
@@ -1717,10 +1717,11 @@ void LCodeGen::DoAddI(LAddI* instr) {
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
       int32_t offset = ToInteger32(LConstantOperand::cast(right));
-      __ lea(ToRegister(instr->result()), MemOperand(ToRegister(left), offset));
+      __ leal(ToRegister(instr->result()),
+              MemOperand(ToRegister(left), offset));
     } else {
       Operand address(ToRegister(left), ToRegister(right), times_1, 0);
-      __ lea(ToRegister(instr->result()), address);
+      __ leal(ToRegister(instr->result()), address);
     }
   } else {
     if (right->IsConstantOperand()) {

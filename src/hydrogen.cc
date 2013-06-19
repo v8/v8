@@ -6084,6 +6084,11 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                                  isolate()->factory()->empty_string(),
                                  Runtime::FunctionForId(function_id),
                                  3));
+
+    // De-opt if elements kind changed from boilerplate_elements_kind.
+    Handle<Map> map = Handle<Map>(original_boilerplate_object->map(),
+                                  isolate());
+    AddInstruction(HCheckMaps::New(literal, map, zone()));
   }
 
   // The array is expected in the bailout environment during computation
@@ -6423,7 +6428,8 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
   AddInstruction(HCheckMaps::New(object, types, zone()));
   HInstruction* store;
   CHECK_ALIVE_OR_RETURN(
-      store = BuildStoreNamedField(object, name, value, types->at(0), &lookup),
+      store = BuildStoreNamedField(
+          object, name, value, types->at(count - 1), &lookup),
       true);
   Push(value);
   store->set_position(expr->position());
