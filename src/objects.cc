@@ -9403,7 +9403,6 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
   bool result = true;
   if (function->shared()->is_compiled()) {
     function->ReplaceCode(function->shared()->code());
-    function->shared()->set_code_age(0);
   } else {
     ASSERT(function->shared()->allows_lazy_compilation());
     CompilationInfoWithZone info(function);

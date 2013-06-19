@@ -480,7 +480,7 @@ DEFINE_bool(flush_code_incrementally, true,
 DEFINE_bool(trace_code_flushing, false, "trace code flushing progress")
 DEFINE_bool(age_code, true,
             "track un-executed functions to age code and flush only "
-            "old code")
+            "old code (required for code flushing)")
 DEFINE_bool(incremental_marking, true, "use incremental marking")
 DEFINE_bool(incremental_marking_steps, true, "do incremental marking steps")
 DEFINE_bool(trace_incremental_marking, false,

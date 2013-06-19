@@ -606,11 +606,6 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   // by optimized version of function.
   MarkBit code_mark = Marking::MarkBitFrom(function->code());
   if (code_mark.Get()) {
-    if (!FLAG_age_code) {
-      if (!Marking::MarkBitFrom(shared_info).Get()) {
-        shared_info->set_code_age(0);
-      }
-    }
     return false;
   }
 
@@ -682,20 +677,12 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
-  if (FLAG_age_code) {
-    return shared_info->code()->IsOld();
-  } else {
-    // How many collections newly compiled code object will survive before being
-    // flushed.
-    static const int kCodeAgeThreshold = 5;
-
-    // Age this shared function info.
-    if (shared_info->code_age() < kCodeAgeThreshold) {
-      shared_info->set_code_age(shared_info->code_age() + 1);
-      return false;
-    }
-    return true;
+  // Check age of code. If code aging is disabled we never flush.
+  if (!FLAG_age_code || !shared_info->code()->IsOld()) {
+    return false;
   }
+
+  return true;
 }
 
 

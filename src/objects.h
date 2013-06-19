@@ -4820,7 +4820,10 @@ class Code: public HeapObject {
   };
 #undef DECLARE_CODE_AGE_ENUM
 
-  // Code aging
+  // Code aging.  Indicates how many full GCs this code has survived without
+  // being entered through the prologue.  Used to determine when it is
+  // relatively safe to flush this code object and replace it with the lazy
+  // compilation stub.
   static void MakeCodeAgeSequenceYoung(byte* sequence);
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
@@ -6139,14 +6142,6 @@ class SharedFunctionInfo: public HeapObject {
   // iteration by the debugger).
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation_without_context)
 
-  // Indicates how many full GCs this function has survived with assigned
-  // code object. Used to determine when it is relatively safe to flush
-  // this code object and replace it with lazy compilation stub.
-  // Age is reset when GC notices that the code object is referenced
-  // from the stack or compilation cache.
-  inline int code_age();
-  inline void set_code_age(int age);
-
   // Indicates whether optimizations have been disabled for this
   // shared function info. If a function is repeatedly optimized or if
   // we cannot optimize the function we disable optimization to avoid
@@ -6390,15 +6385,11 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStartPositionMask  = ~((1 << kStartPositionShift) - 1);
 
   // Bit positions in compiler_hints.
-  static const int kCodeAgeSize = 3;
-  static const int kCodeAgeMask = (1 << kCodeAgeSize) - 1;
-
   enum CompilerHints {
     kAllowLazyCompilation,
     kAllowLazyCompilationWithoutContext,
     kLiveObjectsMayExist,
-    kCodeAgeShift,
-    kOptimizationDisabled = kCodeAgeShift + kCodeAgeSize,
+    kOptimizationDisabled,
     kStrictModeFunction,
     kExtendedModeFunction,
     kUsesArguments,

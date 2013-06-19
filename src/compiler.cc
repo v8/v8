@@ -811,7 +811,6 @@ static bool InstallFullCode(CompilationInfo* info) {
 
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
-  shared->set_code_age(0);
   shared->set_dont_optimize(lit->flags()->Contains(kDontOptimize));
   shared->set_dont_inline(lit->flags()->Contains(kDontInline));
   shared->set_ast_node_count(lit->ast_node_count());

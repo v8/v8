@@ -4781,17 +4781,6 @@ BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
 }
 
 
-int SharedFunctionInfo::code_age() {
-  return (compiler_hints() >> kCodeAgeShift) & kCodeAgeMask;
-}
-
-
-void SharedFunctionInfo::set_code_age(int code_age) {
-  int hints = compiler_hints() & ~(kCodeAgeMask << kCodeAgeShift);
-  set_compiler_hints(hints | ((code_age & kCodeAgeMask) << kCodeAgeShift));
-}
-
-
 int SharedFunctionInfo::ic_age() {
   return ICAgeBits::decode(counters());
 }
