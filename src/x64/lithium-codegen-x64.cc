@@ -1717,10 +1717,11 @@ void LCodeGen::DoAddI(LAddI* instr) {
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
       int32_t offset = ToInteger32(LConstantOperand::cast(right));
-      __ lea(ToRegister(instr->result()), MemOperand(ToRegister(left), offset));
+      __ leal(ToRegister(instr->result()),
+              MemOperand(ToRegister(left), offset));
     } else {
       Operand address(ToRegister(left), ToRegister(right), times_1, 0);
-      __ lea(ToRegister(instr->result()), address);
+      __ leal(ToRegister(instr->result()), address);
     }
   } else {
     if (right->IsConstantOperand()) {
