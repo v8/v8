@@ -495,8 +495,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
       }
     }
   }
-  var resultBuilder = new ReplaceResultBuilder(subject, res);
-  var result = resultBuilder.generate();
+  var result = %StringBuilderConcat(res, res.length, subject);
   resultArray.length = 0;
   reusableReplaceArray = resultArray;
   return result;
@@ -949,43 +948,6 @@ function StringSub() {
 function StringSup() {
   return "<sup>" + this + "</sup>";
 }
-
-
-// ReplaceResultBuilder support.
-function ReplaceResultBuilder(str) {
-  if (%_ArgumentsLength() > 1) {
-    this.elements = %_Arguments(1);
-  } else {
-    this.elements = new InternalArray();
-  }
-  this.special_string = str;
-}
-
-SetUpLockedPrototype(ReplaceResultBuilder,
-  $Array("elements", "special_string"), $Array(
-  "add", function(str) {
-    str = TO_STRING_INLINE(str);
-    if (str.length > 0) this.elements.push(str);
-  },
-  "addSpecialSlice", function(start, end) {
-    var len = end - start;
-    if (start < 0 || len <= 0) return;
-    if (start < 0x80000 && len < 0x800) {
-      this.elements.push((start << 11) | len);
-    } else {
-      // 0 < len <= String::kMaxLength and Smi::kMaxValue >= String::kMaxLength,
-      // so -len is a smi.
-      var elements = this.elements;
-      elements.push(-len);
-      elements.push(start);
-    }
-  },
-  "generate", function() {
-    var elements = this.elements;
-    return %StringBuilderConcat(elements, elements.length, this.special_string);
-  }
-));
-
 
 // -------------------------------------------------------------------
 
