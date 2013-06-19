@@ -6408,7 +6408,8 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
   AddInstruction(HCheckMaps::New(object, types, zone()));
   HInstruction* store;
   CHECK_ALIVE_OR_RETURN(
-      store = BuildStoreNamedField(object, name, value, types->at(0), &lookup),
+      store = BuildStoreNamedField(
+          object, name, value, types->at(count - 1), &lookup),
       true);
   Push(value);
   store->set_position(expr->position());
