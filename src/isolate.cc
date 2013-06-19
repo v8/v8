@@ -2259,46 +2259,20 @@ bool Isolate::Init(Deserializer* des) {
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
 
-  if (FLAG_parallel_marking && FLAG_marking_threads == 0) {
-    FLAG_marking_threads = SystemThreadManager::
-        NumberOfParallelSystemThreads(
-            SystemThreadManager::PARALLEL_MARKING);
-  }
   if (FLAG_marking_threads > 0) {
     marking_thread_ = new MarkingThread*[FLAG_marking_threads];
     for (int i = 0; i < FLAG_marking_threads; i++) {
       marking_thread_[i] = new MarkingThread(this);
       marking_thread_[i]->Start();
     }
-  } else {
-    FLAG_parallel_marking = false;
   }
 
-  if (FLAG_sweeper_threads == 0) {
-    if (FLAG_concurrent_sweeping) {
-      FLAG_sweeper_threads = SystemThreadManager::
-          NumberOfParallelSystemThreads(
-              SystemThreadManager::CONCURRENT_SWEEPING);
-    } else if (FLAG_parallel_sweeping) {
-      FLAG_sweeper_threads = SystemThreadManager::
-          NumberOfParallelSystemThreads(
-              SystemThreadManager::PARALLEL_SWEEPING);
-    }
-  }
   if (FLAG_sweeper_threads > 0) {
     sweeper_thread_ = new SweeperThread*[FLAG_sweeper_threads];
     for (int i = 0; i < FLAG_sweeper_threads; i++) {
       sweeper_thread_[i] = new SweeperThread(this);
       sweeper_thread_[i]->Start();
     }
-  } else {
-    FLAG_concurrent_sweeping = false;
-    FLAG_parallel_sweeping = false;
-  }
-  if (FLAG_parallel_recompilation &&
-      SystemThreadManager::NumberOfParallelSystemThreads(
-          SystemThreadManager::PARALLEL_RECOMPILATION) == 0) {
-    FLAG_parallel_recompilation = false;
   }
   return true;
 }
