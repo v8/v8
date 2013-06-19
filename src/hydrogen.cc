@@ -963,7 +963,7 @@ void HGraphBuilder::LoopBuilder::EndBody() {
 HGraph* HGraphBuilder::CreateGraph() {
   graph_ = new(zone()) HGraph(info_);
   if (FLAG_hydrogen_stats) isolate()->GetHStatistics()->Initialize(info_);
-  HPhase phase("H_Block building", isolate());
+  HPhase phase("H_Block building", isolate(), zone());
   set_current_block(graph()->entry_block());
   if (!BuildGraph()) return NULL;
   graph()->FinalizeUniqueValueIds();
@@ -2384,7 +2384,7 @@ class PostorderProcessor : public ZoneObject {
 
 
 void HGraph::OrderBlocks() {
-  HPhase phase("H_Block ordering", isolate());
+  HPhase phase("H_Block ordering", isolate(), zone());
   BitVector visited(blocks_.length(), zone());
 
   ZoneList<HBasicBlock*> reverse_result(8, zone());
@@ -11575,33 +11575,35 @@ void HStatistics::SaveTiming(const char* name, int64_t ticks, unsigned size) {
 const char* const HPhase::kFullCodeGen = "Full code generator";
 
 
-HPhase::HPhase(const char* name, Isolate* isolate) {
-  Init(isolate, name, NULL, NULL, NULL);
+HPhase::HPhase(const char* name, Isolate* isolate, Zone* zone) {
+  Init(isolate, name, zone, NULL, NULL, NULL);
 }
 
 
 HPhase::HPhase(const char* name, HGraph* graph) {
-  Init(graph->isolate(), name, graph, NULL, NULL);
+  Init(graph->isolate(), name, graph->zone(), graph, NULL, NULL);
 }
 
 
 HPhase::HPhase(const char* name, LChunk* chunk) {
-  Init(chunk->isolate(), name, NULL, chunk, NULL);
+  Init(chunk->isolate(), name, chunk->zone(), NULL, chunk, NULL);
 }
 
 
 HPhase::HPhase(const char* name, LAllocator* allocator) {
-  Init(allocator->isolate(), name, NULL, NULL, allocator);
+  Init(allocator->isolate(), name, allocator->zone(), NULL, NULL, allocator);
 }
 
 
 void HPhase::Init(Isolate* isolate,
                   const char* name,
+                  Zone* zone,
                   HGraph* graph,
                   LChunk* chunk,
                   LAllocator* allocator) {
   isolate_ = isolate;
   name_ = name;
+  zone_ = zone;
   graph_ = graph;
   chunk_ = chunk;
   allocator_ = allocator;
@@ -11610,7 +11612,7 @@ void HPhase::Init(Isolate* isolate,
   }
   if (FLAG_hydrogen_stats) {
     start_ticks_ = OS::Ticks();
-    start_allocation_size_ = Zone::allocation_size_;
+    start_allocation_size_ = zone_->allocation_size();
   }
 }
 
@@ -11618,7 +11620,7 @@ void HPhase::Init(Isolate* isolate,
 HPhase::~HPhase() {
   if (FLAG_hydrogen_stats) {
     int64_t ticks = OS::Ticks() - start_ticks_;
-    unsigned size = Zone::allocation_size_ - start_allocation_size_;
+    unsigned size = zone_->allocation_size() - start_allocation_size_;
     isolate_->GetHStatistics()->SaveTiming(name_, ticks, size);
   }
 

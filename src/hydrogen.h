@@ -1935,7 +1935,7 @@ class HPhase BASE_EMBEDDED {
  public:
   static const char* const kFullCodeGen;
 
-  HPhase(const char* name, Isolate* isolate);
+  HPhase(const char* name, Isolate* isolate, Zone* zone);
   HPhase(const char* name, HGraph* graph);
   HPhase(const char* name, LChunk* chunk);
   HPhase(const char* name, LAllocator* allocator);
@@ -1944,12 +1944,14 @@ class HPhase BASE_EMBEDDED {
  private:
   void Init(Isolate* isolate,
             const char* name,
+            Zone* zone,
             HGraph* graph,
             LChunk* chunk,
             LAllocator* allocator);
 
   Isolate* isolate_;
   const char* name_;
+  Zone* zone_;
   HGraph* graph_;
   LChunk* chunk_;
   LAllocator* allocator_;

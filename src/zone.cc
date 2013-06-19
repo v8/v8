@@ -69,6 +69,7 @@ class Segment {
 
 Zone::Zone(Isolate* isolate)
     : zone_excess_limit_(256 * MB),
+      allocation_size_(0),
       segment_bytes_allocated_(0),
       position_(0),
       limit_(0),
@@ -76,7 +77,7 @@ Zone::Zone(Isolate* isolate)
       segment_head_(NULL),
       isolate_(isolate) {
 }
-unsigned Zone::allocation_size_ = 0;
+
 
 ZoneScope::~ZoneScope() {
   if (ShouldDeleteOnExit()) zone_->DeleteAll();
