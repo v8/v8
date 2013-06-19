@@ -5860,8 +5860,8 @@ class Script: public Struct {
   V(Math, min, MathMin)                             \
   V(Math, imul, MathImul)
 
-
 enum BuiltinFunctionId {
+  kArrayCode,
 #define DECLARE_FUNCTION_ID(ignored1, ignore2, name)    \
   k##name,
   FUNCTIONS_WITH_ID_LIST(DECLARE_FUNCTION_ID)

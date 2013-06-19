@@ -1612,12 +1612,59 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
 }
 
 
+Handle<Code> CallStubCompiler::CompileArrayCodeCall(
+    Handle<Object> object,
+    Handle<JSObject> holder,
+    Handle<Cell> cell,
+    Handle<JSFunction> function,
+    Handle<String> name,
+    Code::StubType type) {
+  Label miss;
+
+  // Check that function is still array
+  const int argc = arguments().immediate();
+  GenerateNameCheck(name, &miss);
+
+  if (cell.is_null()) {
+    // Get the receiver from the stack.
+    __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+
+    // Check that the receiver isn't a smi.
+    __ JumpIfSmi(rdx, &miss);
+    CheckPrototypes(Handle<JSObject>::cast(object), rdx, holder, rbx, rax, rdi,
+                    name, &miss);
+  } else {
+    ASSERT(cell->value() == *function);
+    GenerateGlobalReceiverCheck(Handle<JSObject>::cast(object), holder, name,
+                                &miss);
+    GenerateLoadFunctionFromCell(cell, function, &miss);
+  }
+
+  Handle<Smi> kind(Smi::FromInt(GetInitialFastElementsKind()), isolate());
+  Handle<Cell> kind_feedback_cell =
+      isolate()->factory()->NewCell(kind);
+  __ movq(rax, Immediate(argc));
+  __ Move(rbx, kind_feedback_cell);
+  __ Move(rdi, function);
+
+  ArrayConstructorStub stub(isolate());
+  __ TailCallStub(&stub);
+
+  __ bind(&miss);
+  GenerateMissBranch();
+
+  // Return the generated code.
+  return GetCode(type, name);
+}
+
+
 Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> name) {
+    Handle<String> name,
+    Code::StubType type) {
   // ----------- S t a t e -------------
   //  -- rcx                 : name
   //  -- rsp[0]              : return address
@@ -1858,7 +1905,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
   GenerateMissBranch();
 
   // Return the generated code.
-  return GetCode(function);
+  return GetCode(type, name);
 }
 
 
@@ -1867,7 +1914,8 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
     Handle<JSObject> holder,
     Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> name) {
+    Handle<String> name,
+    Code::StubType type) {
   // ----------- S t a t e -------------
   //  -- rcx                 : name
   //  -- rsp[0]              : return address
@@ -1939,7 +1987,7 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
   GenerateMissBranch();
 
   // Return the generated code.
-  return GetCode(function);
+  return GetCode(type, name);
 }
 
 
@@ -1948,7 +1996,8 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
     Handle<JSObject> holder,
     Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> name) {
+    Handle<String> name,
+    Code::StubType type) {
   // ----------- S t a t e -------------
   //  -- rcx                 : function name
   //  -- rsp[0]              : return address
@@ -2019,7 +2068,7 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
   GenerateMissBranch();
 
   // Return the generated code.
-  return GetCode(function);
+  return GetCode(type, name);
 }
 
 
@@ -2028,7 +2077,8 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
     Handle<JSObject> holder,
     Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> name) {
+    Handle<String> name,
+    Code::StubType type) {
   // ----------- S t a t e -------------
   //  -- rcx                 : function name
   //  -- rsp[0]              : return address
@@ -2099,7 +2149,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
   GenerateMissBranch();
 
   // Return the generated code.
-  return GetCode(function);
+  return GetCode(type, name);
 }
 
 
@@ -2108,7 +2158,8 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
     Handle<JSObject> holder,
     Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> name) {
+    Handle<String> name,
+    Code::StubType type) {
   // ----------- S t a t e -------------
   //  -- rcx                 : function name
   //  -- rsp[0]              : return address
@@ -2170,7 +2221,7 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
   GenerateMissBranch();
 
   // Return the generated code.
-  return cell.is_null() ? GetCode(function) : GetCode(Code::NORMAL, name);
+  return GetCode(type, name);
 }
 
 
@@ -2179,7 +2230,8 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
     Handle<JSObject> holder,
     Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> name) {
+    Handle<String> name,
+    Code::StubType type) {
   // TODO(872): implement this.
   return Handle<Code>::null();
 }
@@ -2190,7 +2242,8 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
     Handle<JSObject> holder,
     Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> name) {
+    Handle<String> name,
+    Code::StubType type) {
   // ----------- S t a t e -------------
   //  -- rcx                 : function name
   //  -- rsp[0]              : return address
@@ -2286,7 +2339,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   GenerateMissBranch();
 
   // Return the generated code.
-  return cell.is_null() ? GetCode(function) : GetCode(Code::NORMAL, name);
+  return GetCode(type, name);
 }
 
 
@@ -2477,7 +2530,8 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
   if (HasCustomCallGenerator(function)) {
     Handle<Code> code = CompileCustomCall(object, holder,
                                           Handle<PropertyCell>::null(),
-                                          function, Handle<String>::cast(name));
+                                          function, Handle<String>::cast(name),
+                                          Code::CONSTANT_FUNCTION);
     // A null handle means bail out to the regular compiler code below.
     if (!code.is_null()) return code;
   }
@@ -2571,7 +2625,8 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
 
   if (HasCustomCallGenerator(function)) {
     Handle<Code> code = CompileCustomCall(
-        object, holder, cell, function, Handle<String>::cast(name));
+        object, holder, cell, function, Handle<String>::cast(name),
+        Code::NORMAL);
     // A null handle means bail out to the regular compiler code below.
     if (!code.is_null()) return code;
   }

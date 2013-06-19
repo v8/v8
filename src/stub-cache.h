@@ -969,7 +969,12 @@ class KeyedStoreStubCompiler: public BaseStoreStubCompiler {
   V(StringCharAt)                               \
   V(StringFromCharCode)                         \
   V(MathFloor)                                  \
-  V(MathAbs)
+  V(MathAbs)                                    \
+  V(ArrayCode)
+
+
+#define SITE_SPECIFIC_CALL_GENERATORS(V)        \
+  V(ArrayCode)
 
 
 class CallOptimization;
@@ -1012,6 +1017,7 @@ class CallStubCompiler: public StubCompiler {
                                  Handle<Name> name);
 
   static bool HasCustomCallGenerator(Handle<JSFunction> function);
+  static bool CanBeCached(Handle<JSFunction> function);
 
  private:
   // Compiles a custom call constant/global IC.  For constant calls cell is
@@ -1021,14 +1027,16 @@ class CallStubCompiler: public StubCompiler {
                                  Handle<JSObject> holder,
                                  Handle<Cell> cell,
                                  Handle<JSFunction> function,
-                                 Handle<String> name);
+                                 Handle<String> name,
+                                 Code::StubType type);
 
 #define DECLARE_CALL_GENERATOR(name)                                    \
   Handle<Code> Compile##name##Call(Handle<Object> object,               \
                                    Handle<JSObject> holder,             \
                                    Handle<Cell> cell,                   \
                                    Handle<JSFunction> function,         \
-                                   Handle<String> fname);
+                                   Handle<String> fname,                \
+                                   Code::StubType type);
   CUSTOM_CALL_IC_GENERATORS(DECLARE_CALL_GENERATOR)
 #undef DECLARE_CALL_GENERATOR
 

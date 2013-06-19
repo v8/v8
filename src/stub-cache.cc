@@ -644,7 +644,10 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   PROFILE(isolate_,
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  JSObject::UpdateMapCodeCache(stub_holder, name, code);
+
+  if (CallStubCompiler::CanBeCached(function)) {
+    JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  }
   return code;
 }
 
@@ -753,7 +756,9 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  if (CallStubCompiler::CanBeCached(function)) {
+    JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  }
   return code;
 }
 
@@ -1974,12 +1979,25 @@ bool CallStubCompiler::HasCustomCallGenerator(Handle<JSFunction> function) {
 }
 
 
+bool CallStubCompiler::CanBeCached(Handle<JSFunction> function) {
+  if (function->shared()->HasBuiltinFunctionId()) {
+    BuiltinFunctionId id = function->shared()->builtin_function_id();
+#define CALL_GENERATOR_CASE(name) if (id == k##name) return false;
+    SITE_SPECIFIC_CALL_GENERATORS(CALL_GENERATOR_CASE)
+#undef CALL_GENERATOR_CASE
+  }
+
+  return true;
+}
+
+
 Handle<Code> CallStubCompiler::CompileCustomCall(
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> fname) {
+    Handle<String> fname,
+    Code::StubType type) {
   ASSERT(HasCustomCallGenerator(function));
 
   if (function->shared()->HasBuiltinFunctionId()) {
@@ -1990,7 +2008,8 @@ Handle<Code> CallStubCompiler::CompileCustomCall(
                                                    holder,      \
                                                    cell,        \
                                                    function,    \
-                                                   fname);      \
+                                                   fname,       \
+                                                   type);       \
     }
     CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
 #undef CALL_GENERATOR_CASE

@@ -859,6 +859,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                         isolate->initial_object_prototype(),
                         Builtins::kArrayCode, true, true);
     array_function->shared()->DontAdaptArguments();
+    array_function->shared()->set_function_data(Smi::FromInt(kArrayCode));
 
     // This seems a bit hackish, but we need to make sure Array.length
     // is 1.

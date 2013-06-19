@@ -8748,8 +8748,16 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
           graph()->MarkRecursive();
         }
 
-        call = PreProcessCall(new(zone()) HCallKnownGlobal(expr->target(),
+        if (CallStubCompiler::HasCustomCallGenerator(expr->target())) {
+          // When the target has a custom call IC generator, use the IC,
+          // because it is likely to generate better code.
+          HValue* context = environment()->LookupContext();
+          call = PreProcessCall(
+              new(zone()) HCallNamed(context, var->name(), argument_count));
+        } else {
+          call = PreProcessCall(new(zone()) HCallKnownGlobal(expr->target(),
                                                            argument_count));
+        }
       } else {
         HValue* context = environment()->LookupContext();
         HGlobalObject* receiver = new(zone()) HGlobalObject(context);
