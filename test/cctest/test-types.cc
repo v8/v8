@@ -41,6 +41,62 @@ static Map* AsClass(Type* type) { return Map::cast(type); }
 static Object* AsConstant(Type* type) { return Box::cast(type)->value(); }
 static FixedArray* AsUnion(Type* type) { return FixedArray::cast(type); }
 
+
+static void CheckEqual(Handle<Type> type1, Handle<Type> type2) {
+  CHECK_EQ(IsBitset(*type1), IsBitset(*type2));
+  CHECK_EQ(IsClass(*type1), IsClass(*type2));
+  CHECK_EQ(IsConstant(*type1), IsConstant(*type2));
+  CHECK_EQ(IsUnion(*type1), IsUnion(*type2));
+  CHECK_EQ(type1->NumClasses(), type2->NumClasses());
+  CHECK_EQ(type1->NumConstants(), type2->NumConstants());
+  if (IsBitset(*type1)) {
+    CHECK_EQ(AsBitset(*type1), AsBitset(*type2));
+  } else if (IsClass(*type1)) {
+    CHECK_EQ(AsClass(*type1), AsClass(*type2));
+  } else if (IsConstant(*type1)) {
+    CHECK_EQ(AsConstant(*type1), AsConstant(*type2));
+  } else if (IsUnion(*type1)) {
+    CHECK_EQ(AsUnion(*type1)->length(), AsUnion(*type2)->length());
+  }
+  CHECK(type1->Is(type2));
+  CHECK(type2->Is(type1));
+}
+
+static void CheckSub(Handle<Type> type1, Handle<Type> type2) {
+  CHECK(type1->Is(type2));
+  CHECK(!type2->Is(type1));
+  if (IsBitset(*type1) && IsBitset(*type2)) {
+    CHECK_NE(AsBitset(*type1), AsBitset(*type2));
+  }
+}
+
+static void CheckUnordered(Handle<Type> type1, Handle<Type> type2) {
+  CHECK(!type1->Is(type2));
+  CHECK(!type2->Is(type1));
+  if (IsBitset(*type1) && IsBitset(*type2)) {
+    CHECK_NE(AsBitset(*type1), AsBitset(*type2));
+  }
+}
+
+static void CheckOverlap(Handle<Type> type1, Handle<Type> type2) {
+  CHECK(type1->Maybe(type2));
+  CHECK(type2->Maybe(type1));
+  if (IsBitset(*type1) && IsBitset(*type2)) {
+    CHECK_NE(0, AsBitset(*type1) & AsBitset(*type2));
+  }
+}
+
+static void CheckDisjoint(Handle<Type> type1, Handle<Type> type2) {
+  CHECK(!type1->Is(type2));
+  CHECK(!type2->Is(type1));
+  CHECK(!type1->Maybe(type2));
+  CHECK(!type2->Maybe(type1));
+  if (IsBitset(*type1) && IsBitset(*type2)) {
+    CHECK_EQ(0, AsBitset(*type1) & AsBitset(*type2));
+  }
+}
+
+
 class HandlifiedTypes {
  public:
   explicit HandlifiedTypes(Isolate* isolate) :
@@ -76,7 +132,8 @@ class HandlifiedTypes {
     Integer31Constant = handle(Type::Constant(smi, isolate), isolate);
     ObjectConstant1 = handle(Type::Constant(object1), isolate);
     ObjectConstant2 = handle(Type::Constant(object2), isolate);
-    ArrayConstant = handle(Type::Constant(array), isolate);
+    ArrayConstant1 = handle(Type::Constant(array), isolate);
+    ArrayConstant2 = handle(Type::Constant(array), isolate);
   }
 
   Handle<Type> None;
@@ -106,7 +163,8 @@ class HandlifiedTypes {
   Handle<Type> Integer31Constant;
   Handle<Type> ObjectConstant1;
   Handle<Type> ObjectConstant2;
-  Handle<Type> ArrayConstant;
+  Handle<Type> ArrayConstant1;
+  Handle<Type> ArrayConstant2;
 
   Handle<Map> object_map;
   Handle<Map> array_map;
@@ -118,6 +176,9 @@ class HandlifiedTypes {
 
   Handle<Type> Union(Handle<Type> type1, Handle<Type> type2) {
     return handle(Type::Union(type1, type2), isolate_);
+  }
+  Handle<Type> Intersect(Handle<Type> type1, Handle<Type> type2) {
+    return handle(Type::Intersect(type1, type2), isolate_);
   }
 
  private:
@@ -173,31 +234,17 @@ TEST(Constant) {
   CHECK(IsConstant(*T.Integer31Constant));
   CHECK(IsConstant(*T.ObjectConstant1));
   CHECK(IsConstant(*T.ObjectConstant2));
-  CHECK(IsConstant(*T.ArrayConstant));
+  CHECK(IsConstant(*T.ArrayConstant1));
+  CHECK(IsConstant(*T.ArrayConstant2));
 
   CHECK(*T.smi == AsConstant(*T.Integer31Constant));
   CHECK(*T.object1 == AsConstant(*T.ObjectConstant1));
   CHECK(*T.object2 == AsConstant(*T.ObjectConstant2));
   CHECK(*T.object1 != AsConstant(*T.ObjectConstant2));
-  CHECK(*T.array == AsConstant(*T.ArrayConstant));
+  CHECK(*T.array == AsConstant(*T.ArrayConstant1));
+  CHECK(*T.array == AsConstant(*T.ArrayConstant2));
 }
 
-
-static void CheckSub(Handle<Type> type1, Handle<Type> type2) {
-  CHECK(type1->Is(type2));
-  CHECK(!type2->Is(type1));
-  if (IsBitset(*type1) && IsBitset(*type2)) {
-    CHECK_NE(AsBitset(*type1), AsBitset(*type2));
-  }
-}
-
-static void CheckUnordered(Handle<Type> type1, Handle<Type> type2) {
-  CHECK(!type1->Is(type2));
-  CHECK(!type2->Is(type1));
-  if (IsBitset(*type1) && IsBitset(*type2)) {
-    CHECK_NE(AsBitset(*type1), AsBitset(*type2));
-  }
-}
 
 TEST(Is) {
   CcTest::InitializeVM();
@@ -212,6 +259,7 @@ TEST(Is) {
 
   CHECK(T.ObjectClass->Is(T.ObjectClass));
   CHECK(T.ObjectConstant1->Is(T.ObjectConstant1));
+  CHECK(T.ArrayConstant1->Is(T.ArrayConstant2));
 
   // Symmetry and Transitivity
   CheckSub(T.None, T.Number);
@@ -265,36 +313,18 @@ TEST(Is) {
   CheckSub(T.Integer31Constant, T.Number);
   CheckSub(T.ObjectConstant1, T.Object);
   CheckSub(T.ObjectConstant2, T.Object);
-  CheckSub(T.ArrayConstant, T.Object);
-  CheckSub(T.ArrayConstant, T.Array);
+  CheckSub(T.ArrayConstant1, T.Object);
+  CheckSub(T.ArrayConstant1, T.Array);
   CheckUnordered(T.ObjectConstant1, T.ObjectConstant2);
-  CheckUnordered(T.ObjectConstant1, T.ArrayConstant);
+  CheckUnordered(T.ObjectConstant1, T.ArrayConstant1);
 
   CheckUnordered(T.ObjectConstant1, T.ObjectClass);
   CheckUnordered(T.ObjectConstant2, T.ObjectClass);
   CheckUnordered(T.ObjectConstant1, T.ArrayClass);
   CheckUnordered(T.ObjectConstant2, T.ArrayClass);
-  CheckUnordered(T.ArrayConstant, T.ObjectClass);
+  CheckUnordered(T.ArrayConstant1, T.ObjectClass);
 }
 
-
-static void CheckOverlap(Handle<Type> type1, Handle<Type> type2) {
-  CHECK(type1->Maybe(type2));
-  CHECK(type2->Maybe(type1));
-  if (IsBitset(*type1) && IsBitset(*type2)) {
-    CHECK_NE(0, AsBitset(*type1) & AsBitset(*type2));
-  }
-}
-
-static void CheckDisjoint(Handle<Type> type1, Handle<Type> type2) {
-  CHECK(!type1->Is(type2));
-  CHECK(!type2->Is(type1));
-  CHECK(!type1->Maybe(type2));
-  CHECK(!type2->Maybe(type1));
-  if (IsBitset(*type1) && IsBitset(*type2)) {
-    CHECK_EQ(0, AsBitset(*type1) & AsBitset(*type2));
-  }
-}
 
 TEST(Maybe) {
   CcTest::InitializeVM();
@@ -352,37 +382,20 @@ TEST(Maybe) {
   CheckDisjoint(T.Integer31Constant, T.Double);
   CheckOverlap(T.ObjectConstant1, T.Object);
   CheckOverlap(T.ObjectConstant2, T.Object);
-  CheckOverlap(T.ArrayConstant, T.Object);
-  CheckOverlap(T.ArrayConstant, T.Array);
+  CheckOverlap(T.ArrayConstant1, T.Object);
+  CheckOverlap(T.ArrayConstant1, T.Array);
+  CheckOverlap(T.ArrayConstant1, T.ArrayConstant2);
   CheckOverlap(T.ObjectConstant1, T.ObjectConstant1);
   CheckDisjoint(T.ObjectConstant1, T.ObjectConstant2);
-  CheckDisjoint(T.ObjectConstant1, T.ArrayConstant);
+  CheckDisjoint(T.ObjectConstant1, T.ArrayConstant1);
 
   CheckDisjoint(T.ObjectConstant1, T.ObjectClass);
   CheckDisjoint(T.ObjectConstant2, T.ObjectClass);
   CheckDisjoint(T.ObjectConstant1, T.ArrayClass);
   CheckDisjoint(T.ObjectConstant2, T.ArrayClass);
-  CheckDisjoint(T.ArrayConstant, T.ObjectClass);
+  CheckDisjoint(T.ArrayConstant1, T.ObjectClass);
 }
 
-
-static void CheckEqual(Handle<Type> type1, Handle<Type> type2) {
-  CHECK_EQ(IsBitset(*type1), IsBitset(*type2));
-  CHECK_EQ(IsClass(*type1), IsClass(*type2));
-  CHECK_EQ(IsConstant(*type1), IsConstant(*type2));
-  CHECK_EQ(IsUnion(*type1), IsUnion(*type2));
-  if (IsBitset(*type1)) {
-    CHECK_EQ(AsBitset(*type1), AsBitset(*type2));
-  } else if (IsClass(*type1)) {
-    CHECK_EQ(AsClass(*type1), AsClass(*type2));
-  } else if (IsConstant(*type1)) {
-    CHECK_EQ(AsConstant(*type1), AsConstant(*type2));
-  } else if (IsUnion(*type1)) {
-    CHECK_EQ(AsUnion(*type1)->length(), AsUnion(*type2)->length());
-  }
-  CHECK(type1->Is(type2));
-  CHECK(type2->Is(type1));
-}
 
 TEST(Union) {
   CcTest::InitializeVM();
@@ -414,17 +427,22 @@ TEST(Union) {
 
   // Constant-constant
   CHECK(IsConstant(Type::Union(T.ObjectConstant1, T.ObjectConstant1)));
+  CHECK(IsConstant(Type::Union(T.ArrayConstant1, T.ArrayConstant1)));
   CHECK(IsUnion(Type::Union(T.ObjectConstant1, T.ObjectConstant2)));
 
   CheckEqual(T.Union(T.ObjectConstant1, T.ObjectConstant1), T.ObjectConstant1);
+  CheckEqual(T.Union(T.ArrayConstant1, T.ArrayConstant1), T.ArrayConstant1);
+  CheckEqual(T.Union(T.ArrayConstant1, T.ArrayConstant1), T.ArrayConstant2);
   CheckSub(T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2));
   CheckSub(T.ObjectConstant2, T.Union(T.ObjectConstant1, T.ObjectConstant2));
+  CheckSub(T.ArrayConstant2, T.Union(T.ArrayConstant1, T.ObjectConstant2));
   CheckSub(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.Object);
   CheckUnordered(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.ObjectClass);
-  CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayConstant), T.Array);
-  CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant), T.Array);
-  CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayConstant), T.Number);
-  CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayConstant), T.ObjectClass);
+  CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayConstant1), T.Array);
+  CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant1), T.Array);
+  CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant1), T.ArrayConstant2);
+  CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayConstant1), T.Number);
+  CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayConstant1), T.ObjectClass);
 
   // Bitset-class
   CHECK(IsBitset(Type::Union(T.ObjectClass, T.Object)));
@@ -463,7 +481,7 @@ TEST(Union) {
   CheckUnordered(T.ObjectClass, T.Union(T.ObjectConstant1, T.ArrayClass));
   CheckSub(
       T.Union(T.ObjectConstant1, T.ArrayClass), T.Union(T.Array, T.Object));
-  CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass), T.ArrayConstant);
+  CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass), T.ArrayConstant1);
   CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectConstant2);
   CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectClass);
 
@@ -512,30 +530,177 @@ TEST(Union) {
   CHECK(IsUnion(Type::Union(
       T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2))));
   CHECK(IsUnion(Type::Union(
-      T.Union(T.ArrayConstant, T.ObjectClass), T.ObjectConstant1)));
+      T.Union(T.ArrayConstant1, T.ObjectClass), T.ObjectConstant1)));
   CHECK(IsUnion(Type::Union(
-      T.Union(T.ArrayConstant, T.ObjectConstant2), T.ObjectConstant1)));
+      T.Union(T.ArrayConstant1, T.ObjectConstant2), T.ObjectConstant1)));
 
   CheckEqual(
       T.Union(T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2)),
       T.Union(T.ObjectConstant2, T.ObjectConstant1));
   CheckEqual(
-      T.Union(T.Union(T.ArrayConstant, T.ObjectConstant2), T.ObjectConstant1),
-      T.Union(T.ObjectConstant2, T.Union(T.ArrayConstant, T.ObjectConstant1)));
+      T.Union(T.Union(T.ArrayConstant1, T.ObjectConstant2), T.ObjectConstant1),
+      T.Union(T.ObjectConstant2, T.Union(T.ArrayConstant1, T.ObjectConstant1)));
 
   // Union-union
   CHECK(IsBitset(Type::Union(
       T.Union(T.Number, T.ArrayClass), T.Union(T.Integer32, T.Array))));
+  CHECK(IsUnion(Type::Union(
+      T.Union(T.Number, T.ArrayClass), T.Union(T.ObjectClass, T.ArrayClass))));
 
   CheckEqual(
-      T.Union(T.Union(T.ObjectConstant2, T.ObjectConstant1),
-              T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+      T.Union(
+          T.Union(T.ObjectConstant2, T.ObjectConstant1),
+          T.Union(T.ObjectConstant1, T.ObjectConstant2)),
       T.Union(T.ObjectConstant2, T.ObjectConstant1));
   CheckEqual(
-      T.Union(T.Union(T.ObjectConstant2, T.ArrayConstant),
-              T.Union(T.ObjectConstant1, T.ArrayConstant)),
-      T.Union(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.ArrayConstant));
+      T.Union(
+          T.Union(T.ObjectConstant2, T.ArrayConstant1),
+          T.Union(T.ObjectConstant1, T.ArrayConstant2)),
+      T.Union(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.ArrayConstant1));
   CheckEqual(
       T.Union(T.Union(T.Number, T.ArrayClass), T.Union(T.Integer31, T.Array)),
       T.Union(T.Number, T.Array));
+}
+
+
+TEST(Intersect) {
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
+  HandlifiedTypes T(isolate);
+
+  // Bitset-bitset
+  CHECK(IsBitset(Type::Intersect(T.Object, T.Number)));
+  CHECK(IsBitset(Type::Intersect(T.Object, T.Object)));
+  CHECK(IsBitset(Type::Intersect(T.Any, T.None)));
+
+  CheckEqual(T.Intersect(T.None, T.Number), T.None);
+  CheckEqual(T.Intersect(T.Object, T.Proxy), T.None);
+  CheckEqual(T.Intersect(T.Name, T.String), T.Intersect(T.String, T.Name));
+  CheckEqual(T.Intersect(T.UniqueName, T.String), T.InternalizedString);
+
+  // Class-class
+  CHECK(IsClass(Type::Intersect(T.ObjectClass, T.ObjectClass)));
+  CHECK(IsBitset(Type::Intersect(T.ObjectClass, T.ArrayClass)));
+
+  CheckEqual(T.Intersect(T.ObjectClass, T.ObjectClass), T.ObjectClass);
+  CheckEqual(T.Intersect(T.ObjectClass, T.ArrayClass), T.None);
+
+  // Constant-constant
+  CHECK(IsConstant(Type::Intersect(T.ObjectConstant1, T.ObjectConstant1)));
+  CHECK(IsConstant(Type::Intersect(T.ArrayConstant1, T.ArrayConstant2)));
+  CHECK(IsBitset(Type::Intersect(T.ObjectConstant1, T.ObjectConstant2)));
+
+  CheckEqual(
+      T.Intersect(T.ObjectConstant1, T.ObjectConstant1), T.ObjectConstant1);
+  CheckEqual(
+      T.Intersect(T.ArrayConstant1, T.ArrayConstant2), T.ArrayConstant1);
+  CheckEqual(T.Intersect(T.ObjectConstant1, T.ObjectConstant2), T.None);
+
+  // Bitset-class
+  CHECK(IsClass(Type::Intersect(T.ObjectClass, T.Object)));
+  CHECK(IsBitset(Type::Intersect(T.ObjectClass, T.Number)));
+
+  CheckEqual(T.Intersect(T.ObjectClass, T.Object), T.ObjectClass);
+  CheckEqual(T.Intersect(T.ObjectClass, T.Array), T.None);
+  CheckEqual(T.Intersect(T.ObjectClass, T.Number), T.None);
+
+  // Bitset-constant
+  CHECK(IsBitset(Type::Intersect(T.Integer31, T.Number)));
+  CHECK(IsConstant(Type::Intersect(T.Integer31Constant, T.Number)));
+  CHECK(IsConstant(Type::Intersect(T.ObjectConstant1, T.Object)));
+
+  CheckEqual(T.Intersect(T.Integer31, T.Number), T.Integer31);
+  CheckEqual(T.Intersect(T.Integer31Constant, T.Number), T.Integer31Constant);
+  CheckEqual(T.Intersect(T.ObjectConstant1, T.Object), T.ObjectConstant1);
+
+  // Class-constant
+  CHECK(IsBitset(Type::Intersect(T.ObjectConstant1, T.ObjectClass)));
+  CHECK(IsBitset(Type::Intersect(T.ArrayClass, T.ObjectConstant2)));
+
+  CheckEqual(T.Intersect(T.ObjectConstant1, T.ObjectClass), T.None);
+  CheckEqual(T.Intersect(T.ArrayClass, T.ObjectConstant2), T.None);
+
+  // Bitset-union
+  CHECK(IsUnion(
+      Type::Intersect(T.Object, T.Union(T.ObjectConstant1, T.ObjectClass))));
+  CHECK(IsBitset(
+      Type::Intersect(T.Union(T.ArrayClass, T.ObjectConstant2), T.Number)));
+
+  CheckEqual(
+      T.Intersect(T.Object, T.Union(T.ObjectConstant1, T.ObjectClass)),
+      T.Union(T.ObjectConstant1, T.ObjectClass));
+  CheckEqual(
+      T.Intersect(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number),
+      T.None);
+
+  // Class-union
+  CHECK(IsClass(
+      Type::Intersect(T.Union(T.ArrayClass, T.ObjectConstant2), T.ArrayClass)));
+  CHECK(IsClass(
+      Type::Intersect(T.Union(T.Object, T.Integer31Constant), T.ArrayClass)));
+  CHECK(IsBitset(
+      Type::Intersect(T.Union(T.ObjectClass, T.ArrayConstant1), T.ArrayClass)));
+
+  CheckEqual(
+      T.Intersect(T.ArrayClass, T.Union(T.ObjectConstant2, T.ArrayClass)),
+      T.ArrayClass);
+  CheckEqual(
+      T.Intersect(T.ArrayClass, T.Union(T.Object, T.Integer31Constant)),
+      T.ArrayClass);
+  CheckEqual(
+      T.Intersect(T.Union(T.ObjectClass, T.ArrayConstant1), T.ArrayClass),
+      T.None);
+
+  // Constant-union
+  CHECK(IsConstant(Type::Intersect(
+      T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2))));
+  CHECK(IsConstant(Type::Intersect(
+      T.Union(T.Number, T.ObjectClass), T.Integer31Constant)));
+  CHECK(IsBitset(Type::Intersect(
+      T.Union(T.ArrayConstant1, T.ObjectClass), T.ObjectConstant1)));
+
+  CheckEqual(
+      T.Intersect(
+          T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+      T.ObjectConstant1);
+  CheckEqual(
+      T.Intersect(T.Integer31Constant, T.Union(T.Number, T.ObjectConstant2)),
+      T.Integer31Constant);
+  CheckEqual(
+      T.Intersect(T.Union(T.ArrayConstant1, T.ObjectClass), T.ObjectConstant1),
+      T.None);
+
+  // Union-union
+  CHECK(IsUnion(Type::Intersect(
+      T.Union(T.Number, T.ArrayClass), T.Union(T.Integer32, T.Array))));
+  CHECK(IsBitset(Type::Intersect(
+      T.Union(T.Number, T.ObjectClass), T.Union(T.Integer32, T.Array))));
+
+  CheckEqual(
+      T.Intersect(
+          T.Union(T.Number, T.ArrayClass),
+          T.Union(T.Integer31, T.Array)),
+      T.Union(T.Integer31, T.ArrayClass));
+  CheckEqual(
+      T.Intersect(
+          T.Union(T.Number, T.ObjectClass),
+          T.Union(T.Integer32, T.Array)),
+      T.Integer32);
+  CheckEqual(
+      T.Intersect(
+          T.Union(T.ObjectConstant2, T.ObjectConstant1),
+          T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+      T.Union(T.ObjectConstant2, T.ObjectConstant1));
+  CheckEqual(
+      T.Intersect(
+          T.Union(T.Union(T.ObjectConstant2, T.ObjectConstant1), T.ArrayClass),
+          T.Union(
+              T.ObjectConstant1, T.Union(T.ArrayConstant1, T.ObjectConstant2))),
+      T.Union(T.ObjectConstant2, T.ObjectConstant1));
+  CheckEqual(
+      T.Intersect(
+          T.Union(T.ObjectConstant2, T.ArrayConstant1),
+          T.Union(T.ObjectConstant1, T.ArrayConstant2)),
+      T.ArrayConstant1);
 }

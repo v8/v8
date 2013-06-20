@@ -86,6 +86,7 @@ namespace internal {
 // Internally, all 'primitive' types, and their unions, are represented as
 // bitsets via smis. Class is a heap pointer to the respective map. Only
 // Constant's, or unions containing Class'es or Constant's, require allocation.
+// Note that the bitset representation is closed under both Union and Intersect.
 //
 // The type representation is heap-allocated, so cannot (currently) be used in
 // a parallel compilation context.
@@ -129,6 +130,7 @@ class Type : public Object {
   }
 
   static Type* Union(Handle<Type> type1, Handle<Type> type2);
+  static Type* Intersect(Handle<Type> type1, Handle<Type> type2);
   static Type* Optional(Handle<Type> type);  // type \/ Undefined
 
   bool Is(Type* that);
@@ -248,6 +250,8 @@ class Type : public Object {
   int GlbBitset();  // greatest lower bound that's a bitset
   bool InUnion(Handle<Unioned> unioned, int current_size);
   int ExtendUnion(Handle<Unioned> unioned, int current_size);
+  int ExtendIntersection(
+      Handle<Unioned> unioned, Handle<Type> type, int current_size);
 };
 
 } }  // namespace v8::internal
