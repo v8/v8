@@ -135,6 +135,7 @@ Assignment::Assignment(Isolate* isolate,
       binary_operation_(NULL),
       assignment_id_(GetNextId(isolate)),
       is_monomorphic_(false),
+      is_uninitialized_(false),
       store_mode_(STANDARD_STORE) { }
 
 
@@ -465,6 +466,8 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   Property* prop = target()->AsProperty();
   ASSERT(prop != NULL);
   TypeFeedbackId id = AssignmentFeedbackId();
+  is_uninitialized_ = oracle->StoreIsUninitialized(id);
+  if (is_uninitialized_) return;
   is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
   receiver_types_.Clear();
   if (prop->key()->IsPropertyName()) {

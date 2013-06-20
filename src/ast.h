@@ -2096,6 +2096,7 @@ class Assignment: public Expression {
   TypeFeedbackId AssignmentFeedbackId() { return reuse(id()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
+  bool IsUninitialized() { return is_uninitialized_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
   virtual KeyedAccessStoreMode GetStoreMode() {
     return store_mode_;
@@ -2126,6 +2127,7 @@ class Assignment: public Expression {
   const BailoutId assignment_id_;
 
   bool is_monomorphic_ : 1;
+  bool is_uninitialized_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
   SmallMapList receiver_types_;

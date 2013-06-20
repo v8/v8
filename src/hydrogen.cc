@@ -6516,6 +6516,7 @@ void HOptimizedGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     HValue* value = environment()->ExpressionStackAt(0);
     HValue* object = environment()->ExpressionStackAt(1);
 
+    if (expr->IsUninitialized()) AddSoftDeoptimize();
     return BuildStoreNamed(expr, expr->id(), expr->position(),
                            expr->AssignmentId(), prop, object, value);
   } else {
@@ -6988,8 +6989,6 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedGeneric(
     Property* expr) {
   if (expr->IsUninitialized()) {
     AddSoftDeoptimize();
-  } else {
-    // OS::DebugBreak();
   }
   HValue* context = environment()->LookupContext();
   return new(zone()) HLoadNamedGeneric(context, object, name);

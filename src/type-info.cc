@@ -138,6 +138,15 @@ bool TypeFeedbackOracle::LoadIsPolymorphic(Property* expr) {
 }
 
 
+bool TypeFeedbackOracle::StoreIsUninitialized(TypeFeedbackId ast_id) {
+  Handle<Object> map_or_code = GetInfo(ast_id);
+  if (map_or_code->IsMap()) return false;
+  if (!map_or_code->IsCode()) return true;
+  Handle<Code> code = Handle<Code>::cast(map_or_code);
+  return code->ic_state() == UNINITIALIZED;
+}
+
+
 bool TypeFeedbackOracle::StoreIsMonomorphicNormal(TypeFeedbackId ast_id) {
   Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsMap()) return true;
