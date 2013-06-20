@@ -1669,7 +1669,8 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
   bool TryInlineGetter(Handle<JSFunction> getter, Property* prop);
   bool TryInlineSetter(Handle<JSFunction> setter,
-                       Assignment* assignment,
+                       BailoutId id,
+                       BailoutId assignment_id,
                        HValue* implicit_return_value);
   bool TryInlineApply(Handle<JSFunction> function,
                       Call* expr,
@@ -1702,12 +1703,15 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                                 HValue* object,
                                                 SmallMapList* types,
                                                 Handle<String> name);
-  void HandlePolymorphicStoreNamedField(Assignment* expr,
+  void HandlePolymorphicStoreNamedField(BailoutId id,
+                                        int position,
+                                        BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
                                         SmallMapList* types,
                                         Handle<String> name);
-  bool TryStorePolymorphicAsMonomorphic(Assignment* expr,
+  bool TryStorePolymorphicAsMonomorphic(int position,
+                                        BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
                                         SmallMapList* types,
@@ -1782,6 +1786,14 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
   void AddCheckMapsWithTransitions(HValue* object,
                                    Handle<Map> map);
+
+  void BuildStoreNamed(Expression* expression,
+                       BailoutId id,
+                       int position,
+                       BailoutId assignment_id,
+                       Property* prop,
+                       HValue* object,
+                       HValue* value);
 
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
