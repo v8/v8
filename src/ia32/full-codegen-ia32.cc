@@ -2091,7 +2091,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ mov(ecx, isolate()->factory()->the_hole_value());
   Label push_argument_holes, push_frame;
   __ bind(&push_argument_holes);
-  __ sub(edx, Immediate(1));
+  __ sub(edx, Immediate(Smi::FromInt(1)));
   __ j(carry, &push_frame);
   __ push(ecx);
   __ jmp(&push_argument_holes);

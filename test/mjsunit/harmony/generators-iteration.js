@@ -346,6 +346,15 @@ TestGenerator(
     "foo",
     [3, undefined]);
 
+// Access to this with formal arguments.
+TestGenerator(
+    function () {
+      return ({ x: 42, g: function* (a) { yield this.x } }).g(0);
+    },
+    [42, undefined],
+    "foo",
+    [42, undefined]);
+
 // Test that yield* re-yields received results without re-boxing.
 function TestDelegatingYield() {
   function results(results) {
