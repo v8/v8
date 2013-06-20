@@ -961,6 +961,22 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 }
 
 
+// TODO(dcarney): Remove this abstraction when old callbacks are removed.
+class CallHandlerHelper {
+ public:
+  static inline void Set(Local<FunctionTemplate> function_template,
+                         InvocationCallback callback,
+                         v8::Handle<Value> data) {
+    function_template->SetCallHandlerInternal(callback, data);
+  }
+  static inline void Set(Local<FunctionTemplate> function_template,
+                         FunctionCallback callback,
+                         v8::Handle<Value> data) {
+    function_template->SetCallHandler(callback, data);
+  }
+};
+
+
 template<typename Callback>
 static Local<FunctionTemplate> FunctionTemplateNew(
     Callback callback,
@@ -981,7 +997,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (callback != 0) {
     if (data.IsEmpty()) data = v8::Undefined();
-    Utils::ToLocal(obj)->SetCallHandler(callback, data);
+    CallHandlerHelper::Set(Utils::ToLocal(obj), callback, data);
   }
   obj->set_length(length);
   obj->set_undetectable(false);
@@ -1222,6 +1238,11 @@ static void FunctionTemplateSetCallHandler(FunctionTemplate* function_template,
 
 void FunctionTemplate::SetCallHandler(InvocationCallback callback,
                                       v8::Handle<Value> data) {
+  FunctionTemplateSetCallHandler(this, callback, data);
+}
+
+void FunctionTemplate::SetCallHandlerInternal(InvocationCallback callback,
+                                              v8::Handle<Value> data) {
   FunctionTemplateSetCallHandler(this, callback, data);
 }
 

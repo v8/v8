@@ -154,6 +154,7 @@ class Isolate;
 class DeclaredAccessorDescriptor;
 class ObjectOperationDescriptor;
 class RawOperationDescriptor;
+class CallHandlerHelper;
 
 namespace internal {
 class Arguments;
@@ -2053,13 +2054,12 @@ class V8EXPORT Object : public Value {
 
   bool Delete(uint32_t index);
 
-  // TODO(dcarney): deprecate
-  bool SetAccessor(Handle<String> name,
-                   AccessorGetter getter,
-                   AccessorSetter setter = 0,
-                   Handle<Value> data = Handle<Value>(),
-                   AccessControl settings = DEFAULT,
-                   PropertyAttribute attribute = None);
+  V8_DEPRECATED(bool SetAccessor(Handle<String> name,
+                                 AccessorGetter getter,
+                                 AccessorSetter setter = 0,
+                                 Handle<Value> data = Handle<Value>(),
+                                 AccessControl settings = DEFAULT,
+                                 PropertyAttribute attribute = None));
   bool SetAccessor(Handle<String> name,
                    AccessorGetterCallback getter,
                    AccessorSetterCallback setter = 0,
@@ -3195,14 +3195,13 @@ typedef bool (*IndexedSecurityCallback)(Local<Object> host,
 class V8EXPORT FunctionTemplate : public Template {
  public:
   /** Creates a function template.*/
-  // TODO(dcarney): deprecate
-  static Local<FunctionTemplate> New(
-      InvocationCallback callback = 0,
+  V8_DEPRECATED(static Local<FunctionTemplate> New(
+      InvocationCallback callback,
       Handle<Value> data = Handle<Value>(),
       Handle<Signature> signature = Handle<Signature>(),
-      int length = 0);
+      int length = 0));
   static Local<FunctionTemplate> New(
-      FunctionCallback callback,  // TODO(dcarney): add back default param.
+      FunctionCallback callback = 0,
       Handle<Value> data = Handle<Value>(),
       Handle<Signature> signature = Handle<Signature>(),
       int length = 0);
@@ -3215,9 +3214,8 @@ class V8EXPORT FunctionTemplate : public Template {
    * callback is called whenever the function created from this
    * FunctionTemplate is called.
    */
-  // TODO(dcarney): deprecate
-  void SetCallHandler(InvocationCallback callback,
-                      Handle<Value> data = Handle<Value>());
+  V8_DEPRECATED(void SetCallHandler(InvocationCallback callback,
+                                    Handle<Value> data = Handle<Value>()));
   void SetCallHandler(FunctionCallback callback,
                       Handle<Value> data = Handle<Value>());
 
@@ -3271,6 +3269,9 @@ class V8EXPORT FunctionTemplate : public Template {
 
  private:
   FunctionTemplate();
+  // TODO(dcarney): Remove with SetCallHandler.
+  friend class v8::CallHandlerHelper;
+  void SetCallHandlerInternal(InvocationCallback callback, Handle<Value> data);
   friend class Context;
   friend class ObjectTemplate;
 };
@@ -3319,15 +3320,14 @@ class V8EXPORT ObjectTemplate : public Template {
    *   defined by FunctionTemplate::HasInstance()), an implicit TypeError is
    *   thrown and no callback is invoked.
    */
-  // TODO(dcarney): deprecate
-  void SetAccessor(Handle<String> name,
-                   AccessorGetter getter,
-                   AccessorSetter setter = 0,
-                   Handle<Value> data = Handle<Value>(),
-                   AccessControl settings = DEFAULT,
-                   PropertyAttribute attribute = None,
-                   Handle<AccessorSignature> signature =
-                       Handle<AccessorSignature>());
+  V8_DEPRECATED(void SetAccessor(Handle<String> name,
+                                 AccessorGetter getter,
+                                 AccessorSetter setter = 0,
+                                 Handle<Value> data = Handle<Value>(),
+                                 AccessControl settings = DEFAULT,
+                                 PropertyAttribute attribute = None,
+                                 Handle<AccessorSignature> signature =
+                                     Handle<AccessorSignature>()));
   void SetAccessor(Handle<String> name,
                    AccessorGetterCallback getter,
                    AccessorSetterCallback setter = 0,
@@ -3362,13 +3362,13 @@ class V8EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
-  // TODO(dcarney): deprecate
-  void SetNamedPropertyHandler(NamedPropertyGetter getter,
-                               NamedPropertySetter setter = 0,
-                               NamedPropertyQuery query = 0,
-                               NamedPropertyDeleter deleter = 0,
-                               NamedPropertyEnumerator enumerator = 0,
-                               Handle<Value> data = Handle<Value>());
+  V8_DEPRECATED(void SetNamedPropertyHandler(
+      NamedPropertyGetter getter,
+      NamedPropertySetter setter = 0,
+      NamedPropertyQuery query = 0,
+      NamedPropertyDeleter deleter = 0,
+      NamedPropertyEnumerator enumerator = 0,
+      Handle<Value> data = Handle<Value>()));
   void SetNamedPropertyHandler(
       NamedPropertyGetterCallback getter,
       NamedPropertySetterCallback setter = 0,
@@ -3393,13 +3393,13 @@ class V8EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
-  // TODO(dcarney): deprecate
-  void SetIndexedPropertyHandler(IndexedPropertyGetter getter,
-                                 IndexedPropertySetter setter = 0,
-                                 IndexedPropertyQuery query = 0,
-                                 IndexedPropertyDeleter deleter = 0,
-                                 IndexedPropertyEnumerator enumerator = 0,
-                                 Handle<Value> data = Handle<Value>());
+  V8_DEPRECATED(void SetIndexedPropertyHandler(
+      IndexedPropertyGetter getter,
+      IndexedPropertySetter setter = 0,
+      IndexedPropertyQuery query = 0,
+      IndexedPropertyDeleter deleter = 0,
+      IndexedPropertyEnumerator enumerator = 0,
+      Handle<Value> data = Handle<Value>()));
   void SetIndexedPropertyHandler(
       IndexedPropertyGetterCallback getter,
       IndexedPropertySetterCallback setter = 0,
@@ -3414,9 +3414,9 @@ class V8EXPORT ObjectTemplate : public Template {
    * behave like normal JavaScript objects that cannot be called as a
    * function.
    */
-  // TODO(dcarney): deprecate
-  void SetCallAsFunctionHandler(InvocationCallback callback,
-                                Handle<Value> data = Handle<Value>());
+  V8_DEPRECATED(void SetCallAsFunctionHandler(
+      InvocationCallback callback,
+      Handle<Value> data = Handle<Value>()));
   void SetCallAsFunctionHandler(FunctionCallback callback,
                                 Handle<Value> data = Handle<Value>());
 
