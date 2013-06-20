@@ -30,6 +30,8 @@
 
 #include "unbound-queue.h"
 
+#include "atomicops.h"
+
 namespace v8 {
 namespace internal {
 
@@ -70,7 +72,7 @@ void UnboundQueue<Record>::Dequeue(Record* rec) {
   ASSERT(divider_ != last_);
   Node* next = reinterpret_cast<Node*>(divider_)->next;
   *rec = next->value;
-  OS::ReleaseStore(&divider_, reinterpret_cast<AtomicWord>(next));
+  Release_Store(&divider_, reinterpret_cast<AtomicWord>(next));
 }
 
 
@@ -78,7 +80,7 @@ template<typename Record>
 void UnboundQueue<Record>::Enqueue(const Record& rec) {
   Node*& next = reinterpret_cast<Node*>(last_)->next;
   next = new Node(rec);
-  OS::ReleaseStore(&last_, reinterpret_cast<AtomicWord>(next));
+  Release_Store(&last_, reinterpret_cast<AtomicWord>(next));
   while (first_ != reinterpret_cast<Node*>(divider_)) DeleteFirst();
 }
 
