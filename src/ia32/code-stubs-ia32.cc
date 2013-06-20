@@ -5050,11 +5050,6 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     Label okay;
     __ cmp(eax, masm->isolate()->factory()->the_hole_value());
     __ j(not_equal, &okay, Label::kNear);
-    // TODO(wingo): Currently SuspendJSGeneratorObject returns the hole.  Change
-    // to return another sentinel like a harmony symbol.
-    __ cmp(ebx, Immediate(ExternalReference(
-        Runtime::kSuspendJSGeneratorObject, masm->isolate())));
-    __ j(equal, &okay, Label::kNear);
     __ int3();
     __ bind(&okay);
   }

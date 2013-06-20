@@ -2583,18 +2583,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
 
   JavaScriptFrameIterator stack_iterator(isolate);
   JavaScriptFrame* frame = stack_iterator.frame();
-  JSFunction* function = JSFunction::cast(frame->function());
-  RUNTIME_ASSERT(function->shared()->is_generator());
-  ASSERT_EQ(function, generator_object->function());
+  RUNTIME_ASSERT(JSFunction::cast(frame->function())->shared()->is_generator());
+  ASSERT_EQ(JSFunction::cast(frame->function()), generator_object->function());
+
+  // The caller should have saved the context and continuation already.
+  ASSERT_EQ(generator_object->context(), Context::cast(frame->context()));
+  ASSERT_LT(0, generator_object->continuation());
 
   // We expect there to be at least two values on the operand stack: the return
   // value of the yield expression, and the argument to this runtime call.
   // Neither of those should be saved.
   int operands_count = frame->ComputeOperandsCount();
-  ASSERT(operands_count >= 2);
+  ASSERT_GE(operands_count, 2);
   operands_count -= 2;
 
   if (operands_count == 0) {
+    // Although it's semantically harmless to call this function with an
+    // operands_count of zero, it is also unnecessary.
     ASSERT_EQ(generator_object->operand_stack(),
               isolate->heap()->empty_fixed_array());
     ASSERT_EQ(generator_object->stack_handler_index(), -1);
@@ -2611,20 +2616,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
     generator_object->set_stack_handler_index(stack_handler_index);
   }
 
-  // Set continuation down here to avoid side effects if the operand stack
-  // allocation fails.
-  intptr_t offset = frame->pc() - function->code()->instruction_start();
-  ASSERT(offset > 0 && Smi::IsValid(offset));
-  generator_object->set_continuation(static_cast<int>(offset));
-
-  // It's possible for the context to be other than the initial context even if
-  // there is no stack handler active.  For example, this is the case in the
-  // body of a "with" statement.  Therefore we always save the context.
-  generator_object->set_context(Context::cast(frame->context()));
-
-  // The return value is the hole for a suspend return, and anything else for a
-  // resume return.
-  return isolate->heap()->the_hole_value();
+  return isolate->heap()->undefined_value();
 }
 
 
