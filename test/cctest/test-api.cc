@@ -16841,6 +16841,7 @@ TEST(GCCallbacks) {
 
 
 THREADED_TEST(AddToJSFunctionResultCache) {
+  i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
 
