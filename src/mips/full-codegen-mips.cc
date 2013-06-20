@@ -2001,14 +2001,28 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ push(result_register());
       // Fall through.
     case Yield::INITIAL: {
-      VisitForStackValue(expr->generator_object());
-      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
-      __ lw(context_register(),
-            MemOperand(fp, StandardFrameConstants::kContextOffset));
+      Label suspend, continuation, post_runtime, resume;
 
-      Label resume;
-      __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-      __ Branch(&resume, ne, result_register(), Operand(at));
+      __ jmp(&suspend);
+
+      __ bind(&continuation);
+      __ jmp(&resume);
+
+      __ bind(&suspend);
+      VisitForAccumulatorValue(expr->generator_object());
+      ASSERT(continuation.pos() > 0 && Smi::IsValid(continuation.pos()));
+      __ li(a1, Operand(Smi::FromInt(continuation.pos())));
+      __ sw(a1, FieldMemOperand(v0, JSGeneratorObject::kContinuationOffset));
+      __ sw(cp, FieldMemOperand(v0, JSGeneratorObject::kContextOffset));
+      __ mov(a1, cp);
+      __ RecordWriteField(v0, JSGeneratorObject::kContextOffset, a1, a2,
+                          kRAHasBeenSaved, kDontSaveFPRegs);
+      __ Addu(a1, fp, Operand(StandardFrameConstants::kExpressionsOffset));
+      __ Branch(&post_runtime, eq, sp, Operand(a1));
+      __ push(v0);  // generator object
+      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+      __ bind(&post_runtime);
       __ pop(result_register());
       EmitReturnSequence();
 
@@ -2036,7 +2050,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // [sp + 1 * kPointerSize] iter
       // [sp + 0 * kPointerSize] g
 
-      Label l_catch, l_try, l_resume, l_next, l_call, l_loop;
+      Label l_catch, l_try, l_suspend, l_continuation, l_resume;
+      Label l_next, l_call, l_loop;
       // Initial send value is undefined.
       __ LoadRoot(a0, Heap::kUndefinedValueRootIndex);
       __ Branch(&l_next);
@@ -2059,14 +2074,23 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ PushTryHandler(StackHandler::CATCH, expr->index());
       const int handler_size = StackHandlerConstants::kSize;
       __ push(a0);                                       // result
-      __ lw(a3, MemOperand(sp, (0 + 1) * kPointerSize + handler_size));  // g
-      __ push(a3);                                       // g
-      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ jmp(&l_suspend);
+      __ bind(&l_continuation);
       __ mov(a0, v0);
-      __ lw(context_register(),
-            MemOperand(fp, StandardFrameConstants::kContextOffset));
-      __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-      __ Branch(&l_resume, ne, a0, Operand(at));
+      __ jmp(&l_resume);
+      __ bind(&l_suspend);
+      const int generator_object_depth = kPointerSize + handler_size;
+      __ lw(a0, MemOperand(sp, generator_object_depth));
+      __ push(a0);                                       // g
+      ASSERT(l_continuation.pos() > 0 && Smi::IsValid(l_continuation.pos()));
+      __ li(a1, Operand(Smi::FromInt(l_continuation.pos())));
+      __ sw(a1, FieldMemOperand(a0, JSGeneratorObject::kContinuationOffset));
+      __ sw(cp, FieldMemOperand(a0, JSGeneratorObject::kContextOffset));
+      __ mov(a1, cp);
+      __ RecordWriteField(a0, JSGeneratorObject::kContextOffset, a1, a2,
+                          kRAHasBeenSaved, kDontSaveFPRegs);
+      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
       __ pop(v0);                                        // result
       EmitReturnSequence();
       __ mov(a0, v0);
