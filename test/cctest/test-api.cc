@@ -73,6 +73,25 @@ using ::v8::V8;
 using ::v8::Value;
 
 
+#define THREADED_PROFILED_TEST(Name)                                 \
+  static void Test##Name();                                          \
+  TEST(Name##WithProfiler) {                                         \
+    RunWithProfiler(&Test##Name);                                    \
+  }                                                                  \
+  THREADED_TEST(Name)
+
+void RunWithProfiler(void (*test)()) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile1");
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  (*test)();
+  cpu_profiler->DeleteAllCpuProfiles();
+}
+
+
 static void ExpectString(const char* code, const char* expected) {
   Local<Value> result = CompileRun(code);
   CHECK(result->IsString());
@@ -938,56 +957,33 @@ static void Return239Callback(
 template<typename Handler>
 static void TestFunctionTemplateInitializer(Handler handler,
                                             Handler handler_2) {
-  for (int i = 0; i < 2; i++) {
-    bool is_profiling = (i > 0);
-    // Test constructor calls.
-    {
-      LocalContext env;
-      v8::HandleScope scope(env->GetIsolate());
+  // Test constructor calls.
+  {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
 
-      v8::Local<v8::String> profile_name = v8::String::New("my_profile1");
-      v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-      if (is_profiling) {
-        cpu_profiler->StartCpuProfiling(profile_name);
-      }
-
-      Local<v8::FunctionTemplate> fun_templ =
-          v8::FunctionTemplate::New(handler);
-      Local<Function> fun = fun_templ->GetFunction();
-      env->Global()->Set(v8_str("obj"), fun);
-      Local<Script> script = v8_compile("obj()");
-      for (int i = 0; i < 30; i++) {
-        CHECK_EQ(102, script->Run()->Int32Value());
-      }
-
-      if (is_profiling) {
-        cpu_profiler->StopCpuProfiling(profile_name);
-      }
+    Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(handler);
+    Local<Function> fun = fun_templ->GetFunction();
+    env->Global()->Set(v8_str("obj"), fun);
+    Local<Script> script = v8_compile("obj()");
+    for (int i = 0; i < 30; i++) {
+      CHECK_EQ(102, script->Run()->Int32Value());
     }
-    // Use SetCallHandler to initialize a function template, should work like
-    // the previous one.
-    {
-      LocalContext env;
-      v8::HandleScope scope(env->GetIsolate());
+  }
+  // Use SetCallHandler to initialize a function template, should work like
+  // the previous one.
+  {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
 
-      v8::Local<v8::String> profile_name = v8::String::New("my_profile2");
-      v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-      if (is_profiling) {
-        cpu_profiler->StartCpuProfiling(profile_name);
-      }
-
-      Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
-      fun_templ->SetCallHandler(handler_2);
-      Local<Function> fun = fun_templ->GetFunction();
-      env->Global()->Set(v8_str("obj"), fun);
-      Local<Script> script = v8_compile("obj()");
-      for (int i = 0; i < 30; i++) {
-        CHECK_EQ(102, script->Run()->Int32Value());
-      }
-
-      if (is_profiling) {
-        cpu_profiler->DeleteAllCpuProfiles();
-      }
+    Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+    fun_templ->SetCallHandler(handler_2);
+    Local<Function> fun = fun_templ->GetFunction();
+    env->Global()->Set(v8_str("obj"), fun);
+    Local<Script> script = v8_compile("obj()");
+    for (int i = 0; i < 30; i++) {
+      CHECK_EQ(102, script->Run()->Int32Value());
     }
   }
 }
@@ -996,44 +992,31 @@ static void TestFunctionTemplateInitializer(Handler handler,
 template<typename Constructor, typename Accessor>
 static void TestFunctionTemplateAccessor(Constructor constructor,
                                          Accessor accessor) {
-  for (int i = 0; i < 2; i++) {
-    bool is_profiling = (i > 0);
-    LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
-    v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-    if (is_profiling) {
-      v8::Local<v8::String> profile_name = v8::String::New("my_profile1");
-      cpu_profiler->StartCpuProfiling(profile_name);
-    }
-
-    Local<v8::FunctionTemplate> fun_templ =
-        v8::FunctionTemplate::New(constructor);
-    fun_templ->SetClassName(v8_str("funky"));
-    fun_templ->InstanceTemplate()->SetAccessor(v8_str("m"), accessor);
-    Local<Function> fun = fun_templ->GetFunction();
-    env->Global()->Set(v8_str("obj"), fun);
-    Local<Value> result = v8_compile("(new obj()).toString()")->Run();
-    CHECK_EQ(v8_str("[object funky]"), result);
-    CompileRun("var obj_instance = new obj();");
-    Local<Script> script;
-    script = v8_compile("obj_instance.x");
-    for (int i = 0; i < 30; i++) {
-      CHECK_EQ(1, script->Run()->Int32Value());
-    }
-    script = v8_compile("obj_instance.m");
-    for (int i = 0; i < 30; i++) {
-      CHECK_EQ(239, script->Run()->Int32Value());
-    }
-
-    if (is_profiling) {
-      cpu_profiler->DeleteAllCpuProfiles();
-    }
+  Local<v8::FunctionTemplate> fun_templ =
+      v8::FunctionTemplate::New(constructor);
+  fun_templ->SetClassName(v8_str("funky"));
+  fun_templ->InstanceTemplate()->SetAccessor(v8_str("m"), accessor);
+  Local<Function> fun = fun_templ->GetFunction();
+  env->Global()->Set(v8_str("obj"), fun);
+  Local<Value> result = v8_compile("(new obj()).toString()")->Run();
+  CHECK_EQ(v8_str("[object funky]"), result);
+  CompileRun("var obj_instance = new obj();");
+  Local<Script> script;
+  script = v8_compile("obj_instance.x");
+  for (int i = 0; i < 30; i++) {
+    CHECK_EQ(1, script->Run()->Int32Value());
+  }
+  script = v8_compile("obj_instance.m");
+  for (int i = 0; i < 30; i++) {
+    CHECK_EQ(239, script->Run()->Int32Value());
   }
 }
 
 
-THREADED_TEST(FunctionTemplate) {
+THREADED_PROFILED_TEST(FunctionTemplate) {
   TestFunctionTemplateInitializer(handle_call, handle_call_2);
   TestFunctionTemplateInitializer(handle_call_indirect, handle_call_indirect_2);
   TestFunctionTemplateInitializer(handle_callback, handle_callback_2);
@@ -1067,39 +1050,26 @@ static void SimpleCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 template<typename Callback>
 static void TestSimpleCallback(Callback callback) {
-  for (int i = 0; i < 2; i++) {
-    bool is_profiling = i;
-    LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
-    v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-    if (is_profiling) {
-      v8::Local<v8::String> profile_name = v8::String::New("my_profile1");
-      cpu_profiler->StartCpuProfiling(profile_name);
-    }
-
-    v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
-    object_template->Set("callback", v8::FunctionTemplate::New(callback));
-    v8::Local<v8::Object> object = object_template->NewInstance();
-    (*env)->Global()->Set(v8_str("callback_object"), object);
-    v8::Handle<v8::Script> script;
-    script = v8_compile("callback_object.callback(17)");
-    for (int i = 0; i < 30; i++) {
-      CHECK_EQ(51424, script->Run()->Int32Value());
-    }
-    script = v8_compile("callback_object.callback(17, 24)");
-    for (int i = 0; i < 30; i++) {
-      CHECK_EQ(51425, script->Run()->Int32Value());
-    }
-
-    if (is_profiling) {
-      cpu_profiler->DeleteAllCpuProfiles();
-    }
+  v8::Handle<v8::ObjectTemplate> object_template = v8::ObjectTemplate::New();
+  object_template->Set("callback", v8::FunctionTemplate::New(callback));
+  v8::Local<v8::Object> object = object_template->NewInstance();
+  (*env)->Global()->Set(v8_str("callback_object"), object);
+  v8::Handle<v8::Script> script;
+  script = v8_compile("callback_object.callback(17)");
+  for (int i = 0; i < 30; i++) {
+    CHECK_EQ(51424, script->Run()->Int32Value());
+  }
+  script = v8_compile("callback_object.callback(17, 24)");
+  for (int i = 0; i < 30; i++) {
+    CHECK_EQ(51425, script->Run()->Int32Value());
   }
 }
 
 
-THREADED_TEST(SimpleCallback) {
+THREADED_PROFILED_TEST(SimpleCallback) {
   TestSimpleCallback(SimpleDirectCallback);
   TestSimpleCallback(SimpleIndirectCallback);
   TestSimpleCallback(SimpleCallback);
