@@ -47,7 +47,6 @@
 #include "safepoint-table.h"
 #include "string-stream.h"
 #include "utils.h"
-#include "vm-state-inl.h"
 
 #ifdef ENABLE_DISASSEMBLER
 #include "disasm.h"
@@ -375,14 +374,8 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("load", self, name));
     PropertyCallbackArguments args(isolate, data->data(), self, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      ExternalCallbackScope call_scope(isolate,
-                                       v8::ToCData<Address>(fun_obj));
-      result = args.Call(call_fun, v8::Utils::ToLocal(key));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(call_fun, v8::Utils::ToLocal(key));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) {
       return isolate->heap()->undefined_value();
@@ -2736,18 +2729,13 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
     PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
     v8::NamedPropertySetter setter =
         v8::ToCData<v8::NamedPropertySetter>(interceptor->setter());
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      Handle<Object> value_unhole(value->IsTheHole() ?
-                                  isolate->heap()->undefined_value() :
-                                  value,
-                                  isolate);
-      result = args.Call(setter,
-                         v8::Utils::ToLocal(name_handle),
-                         v8::Utils::ToLocal(value_unhole));
-    }
+    Handle<Object> value_unhole(value->IsTheHole() ?
+                                isolate->heap()->undefined_value() :
+                                value,
+                                isolate);
+    v8::Handle<v8::Value> result = args.Call(setter,
+                                             v8::Utils::ToLocal(name_handle),
+                                             v8::Utils::ToLocal(value_unhole));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
   }
@@ -2846,17 +2834,11 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     if (call_fun == NULL) return value;
     Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("store", this, name));
-    PropertyCallbackArguments
-      args(isolate, data->data(), this, JSObject::cast(holder));
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      ExternalCallbackScope call_scope(isolate,
-                                       v8::ToCData<Address>(call_obj));
-      args.Call(call_fun,
-                v8::Utils::ToLocal(key),
-                v8::Utils::ToLocal(value_handle));
-    }
+    PropertyCallbackArguments args(
+        isolate, data->data(), this, JSObject::cast(holder));
+    args.Call(call_fun,
+              v8::Utils::ToLocal(key),
+              v8::Utils::ToLocal(value_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
   }
@@ -4187,12 +4169,8 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
         v8::ToCData<v8::NamedPropertyQuery>(interceptor->query());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-has", *holder_handle, name));
-    v8::Handle<v8::Integer> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(query, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Integer> result =
+        args.Call(query, v8::Utils::ToLocal(name_handle));
     if (!result.IsEmpty()) {
       ASSERT(result->IsInt32());
       return static_cast<PropertyAttributes>(result->Int32Value());
@@ -4202,12 +4180,8 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
         v8::ToCData<v8::NamedPropertyGetter>(interceptor->getter());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-get-has", this, name));
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(getter, v8::Utils::ToLocal(name_handle));
     if (!result.IsEmpty()) return DONT_ENUM;
   }
   return holder_handle->GetPropertyAttributePostInterceptor(*receiver_handle,
@@ -4327,12 +4301,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
         v8::ToCData<v8::IndexedPropertyQuery>(interceptor->query());
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-has", this, index));
-    v8::Handle<v8::Integer> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(query, index);
-    }
+    v8::Handle<v8::Integer> result = args.Call(query, index);
     if (!result.IsEmpty())
       return static_cast<PropertyAttributes>(result->Int32Value());
   } else if (!interceptor->getter()->IsUndefined()) {
@@ -4340,12 +4309,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
         v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-get-has", this, index));
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, index);
-    }
+    v8::Handle<v8::Value> result = args.Call(getter, index);
     if (!result.IsEmpty()) return NONE;
   }
 
@@ -5015,12 +4979,8 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(Name* name) {
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-delete", *this_handle, name));
     PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
-    v8::Handle<v8::Boolean> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(deleter, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Boolean> result =
+        args.Call(deleter, v8::Utils::ToLocal(name_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       ASSERT(result->IsBoolean());
@@ -5051,12 +5011,7 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   LOG(isolate,
       ApiIndexedPropertyAccess("interceptor-indexed-delete", this, index));
   PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
-  v8::Handle<v8::Boolean> result;
-  {
-    // Leaving JavaScript.
-    VMState<EXTERNAL> state(isolate);
-    result = args.Call(deleter, index);
-  }
+  v8::Handle<v8::Boolean> result = args.Call(deleter, index);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (!result.IsEmpty()) {
     ASSERT(result->IsBoolean());
@@ -11464,12 +11419,8 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-set", this, index));
     PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(setter, index, v8::Utils::ToLocal(value_handle));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(setter, index, v8::Utils::ToLocal(value_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
   }
@@ -11507,12 +11458,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     LOG(isolate, ApiNamedPropertyAccess("load", *self, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *self, *holder_handle);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(call_fun, v8::Utils::ToLocal(key));
-    }
+    v8::Handle<v8::Value> result = args.Call(call_fun, v8::Utils::ToLocal(key));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) return isolate->heap()->undefined_value();
     Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
@@ -11574,13 +11520,9 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
     LOG(isolate, ApiNamedPropertyAccess("store", *self, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *self, *holder_handle);
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      args.Call(call_fun,
-                v8::Utils::ToLocal(key),
-                v8::Utils::ToLocal(value_handle));
-    }
+    args.Call(call_fun,
+              v8::Utils::ToLocal(key),
+              v8::Utils::ToLocal(value_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
   }
@@ -12480,12 +12422,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
         ApiIndexedPropertyAccess("interceptor-indexed-get", this, index));
     PropertyCallbackArguments
         args(isolate, interceptor->data(), receiver, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, index);
-    }
+    v8::Handle<v8::Value> result = args.Call(getter, index);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
@@ -12790,12 +12727,8 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
         ApiNamedPropertyAccess("interceptor-named-get", *holder_handle, name));
     PropertyCallbackArguments
         args(isolate, interceptor->data(), receiver, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(getter, v8::Utils::ToLocal(name_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       *attributes = NONE;

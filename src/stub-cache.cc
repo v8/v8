@@ -1113,12 +1113,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   LOG(isolate, ApiNamedPropertyAccess("store", recv, *name));
   PropertyCallbackArguments
       custom_args(isolate, callback->data(), recv, recv);
-  {
-    // Leaving JavaScript.
-    VMState<EXTERNAL> state(isolate);
-    ExternalCallbackScope call_scope(isolate, setter_address);
-    custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
-  }
+  custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
 }
@@ -1164,12 +1159,8 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   {
     // Use the interceptor getter.
     HandleScope scope(isolate);
-    v8::Handle<v8::Value> r;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      r = callback_args.Call(getter, v8::Utils::ToLocal(name));
-    }
+    v8::Handle<v8::Value> r =
+        callback_args.Call(getter, v8::Utils::ToLocal(name));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       Handle<Object> result = v8::Utils::OpenHandle(*r);
@@ -1234,12 +1225,8 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
   {
     // Use the interceptor getter.
     HandleScope scope(isolate);
-    v8::Handle<v8::Value> r;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      r = callback_args.Call(getter, v8::Utils::ToLocal(name));
-    }
+    v8::Handle<v8::Value> r =
+        callback_args.Call(getter, v8::Utils::ToLocal(name));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       *attrs = NONE;

@@ -1074,7 +1074,7 @@ Handle<Value> TestFastReturnValues() {
   return scope.Close(CompileRun("callback_object.callback()"));
 }
 
-THREADED_TEST(FastReturnValues) {
+THREADED_PROFILED_TEST(FastReturnValues) {
   LocalContext env;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::Value> value;
@@ -2102,7 +2102,7 @@ void CheckThisNamedPropertyEnumerator(
 }
 
 
-THREADED_TEST(PropertyHandlerInPrototype) {
+THREADED_PROFILED_TEST(PropertyHandlerInPrototype) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -10757,7 +10757,7 @@ static void LoadICFastApi_DirectCall_GCMoveStub(Accessor accessor) {
   CHECK_EQ(31, p_getter_count);
 }
 
-THREADED_TEST(LoadICFastApi_DirectCall_GCMoveStub) {
+THREADED_PROFILED_TEST(LoadICFastApi_DirectCall_GCMoveStub) {
   LoadICFastApi_DirectCall_GCMoveStub(DirectGetterCallback);
 }
 
@@ -10785,7 +10785,7 @@ THREADED_TEST(LoadICFastApi_DirectCall_Throw) {
 }
 
 
-THREADED_TEST(InterceptorCallICFastApi_TrivialSignature) {
+THREADED_PROFILED_TEST(InterceptorCallICFastApi_TrivialSignature) {
   int interceptor_call_count = 0;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
@@ -10812,7 +10812,7 @@ THREADED_TEST(InterceptorCallICFastApi_TrivialSignature) {
   CHECK_EQ(100, interceptor_call_count);
 }
 
-THREADED_TEST(InterceptorCallICFastApi_SimpleSignature) {
+THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature) {
   int interceptor_call_count = 0;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
@@ -10843,7 +10843,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature) {
   CHECK_EQ(100, interceptor_call_count);
 }
 
-THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
+THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
   int interceptor_call_count = 0;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
@@ -10880,7 +10880,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
   CHECK_GE(interceptor_call_count, 50);
 }
 
-THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
+THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
   int interceptor_call_count = 0;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
@@ -10917,7 +10917,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
   CHECK_GE(interceptor_call_count, 50);
 }
 
-THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
+THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
   int interceptor_call_count = 0;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
@@ -10957,7 +10957,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
   CHECK_GE(interceptor_call_count, 50);
 }
 
-THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
+THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
   int interceptor_call_count = 0;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
@@ -10997,7 +10997,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
   CHECK_GE(interceptor_call_count, 50);
 }
 
-THREADED_TEST(CallICFastApi_TrivialSignature) {
+THREADED_PROFILED_TEST(CallICFastApi_TrivialSignature) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
   v8::Handle<v8::FunctionTemplate> method_templ =
@@ -11021,7 +11021,7 @@ THREADED_TEST(CallICFastApi_TrivialSignature) {
   CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
 }
 
-THREADED_TEST(CallICFastApi_SimpleSignature) {
+THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
   v8::Handle<v8::FunctionTemplate> method_templ =
@@ -11049,7 +11049,7 @@ THREADED_TEST(CallICFastApi_SimpleSignature) {
   CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
 }
 
-THREADED_TEST(CallICFastApi_SimpleSignature_Miss1) {
+THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss1) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
   v8::Handle<v8::FunctionTemplate> method_templ =
@@ -11082,7 +11082,7 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss1) {
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
 
-THREADED_TEST(CallICFastApi_SimpleSignature_Miss2) {
+THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss2) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
   v8::Handle<v8::FunctionTemplate> method_templ =
@@ -11118,7 +11118,7 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss2) {
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
 
-THREADED_TEST(CallICFastApi_SimpleSignature_TypeError) {
+THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_TypeError) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
   v8::Handle<v8::FunctionTemplate> method_templ =
