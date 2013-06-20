@@ -128,9 +128,8 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
   ASSERT(!IsOptimizerThread());
   HandleScope handle_scope(isolate_);
   int functions_installed = 0;
-  while (!output_queue_.IsEmpty()) {
-    OptimizingCompiler* compiler;
-    output_queue_.Dequeue(&compiler);
+  OptimizingCompiler* compiler;
+  while (output_queue_.Dequeue(&compiler)) {
     Compiler::InstallOptimizedCode(compiler);
     functions_installed++;
   }
