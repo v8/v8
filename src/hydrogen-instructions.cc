@@ -1761,9 +1761,12 @@ Range* HConstant::InferRange(Zone* zone) {
 
 
 Range* HPhi::InferRange(Zone* zone) {
-  if (representation().IsInteger32()) {
+  Representation r = representation();
+  if (r.IsSmiOrInteger32()) {
     if (block()->IsLoopHeader()) {
-      Range* range = new(zone) Range(kMinInt, kMaxInt);
+      Range* range = r.IsSmi()
+          ? new(zone) Range(Smi::kMinValue, Smi::kMaxValue)
+          : new(zone) Range(kMinInt, kMaxInt);
       return range;
     } else {
       Range* range = OperandAt(0)->range()->Copy(zone);
