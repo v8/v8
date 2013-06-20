@@ -644,6 +644,8 @@ function StringSplit(separator, limit) {
 }
 
 
+var ArrayPushBuiltin = $Array.prototype.push;
+
 function StringSplitOnRegExp(subject, separator, limit, length) {
   %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
 
@@ -657,19 +659,21 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
   var currentIndex = 0;
   var startIndex = 0;
   var startMatch = 0;
-  var result = new InternalArray();
+  var result = [];
 
   outer_loop:
   while (true) {
 
     if (startIndex === length) {
-      result.push(%_SubString(subject, currentIndex, length));
+      %_CallFunction(result, %_SubString(subject, currentIndex, length),
+                     ArrayPushBuiltin);
       break;
     }
 
     var matchInfo = DoRegExpExec(separator, subject, startIndex);
     if (matchInfo == null || length === (startMatch = matchInfo[CAPTURE0])) {
-      result.push(%_SubString(subject, currentIndex, length));
+      %_CallFunction(result, %_SubString(subject, currentIndex, length),
+                     ArrayPushBuiltin);
       break;
     }
     var endIndex = matchInfo[CAPTURE1];
@@ -680,7 +684,8 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
       continue;
     }
 
-    result.push(%_SubString(subject, currentIndex, startMatch));
+    %_CallFunction(result, %_SubString(subject, currentIndex, startMatch),
+                   ArrayPushBuiltin);
 
     if (result.length === limit) break;
 
@@ -689,16 +694,17 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
       var start = matchInfo[i++];
       var end = matchInfo[i++];
       if (end != -1) {
-        result.push(%_SubString(subject, start, end));
+        %_CallFunction(result, %_SubString(subject, start, end),
+                       ArrayPushBuiltin);
       } else {
-        result.push(void 0);
+        %_CallFunction(result, void 0, ArrayPushBuiltin);
       }
       if (result.length === limit) break outer_loop;
     }
 
     startIndex = currentIndex = endIndex;
   }
-  return %MoveArrayContents(result, []);
+  return result;
 }
 
 
