@@ -247,7 +247,9 @@ KeyedAccessStoreMode TypeFeedbackOracle::GetStoreMode(
 void TypeFeedbackOracle::LoadReceiverTypes(Property* expr,
                                            Handle<String> name,
                                            SmallMapList* types) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::STUB, MONOMORPHIC, Code::kNoExtraICState,
+      Code::NORMAL, Code::LOAD_IC);
   CollectReceiverTypes(expr->PropertyFeedbackId(), name, flags, types);
 }
 
