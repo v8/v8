@@ -1060,20 +1060,28 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
     return new(zone()) LGoto(successor->block_id());
   }
 
-  // Untagged integers or doubles, smis and booleans don't require a
-  // deoptimization environment nor a temp register.
+  ToBooleanStub::Types expected = instr->expected_input_types();
+
+  // Tagged values that are not known smis or booleans require a
+  // deoptimization environment. If the instruction is generic no
+  // environment is needed since all cases are handled.
   Representation rep = value->representation();
   HType type = value->type();
   if (!rep.IsTagged() || type.IsSmi() || type.IsBoolean()) {
     return new(zone()) LBranch(UseRegister(value), NULL);
   }
 
-  ToBooleanStub::Types expected = instr->expected_input_types();
+  bool needs_temp = expected.NeedsMap() || expected.IsEmpty();
+  LOperand* temp = needs_temp ? TempRegister() : NULL;
+
+  // The Generic stub does not have a deopt, so we need no environment.
+  if (expected.IsGeneric()) {
+    return new(zone()) LBranch(UseRegister(value), temp);
+  }
+
   // We need a temporary register when we have to access the map *or* we have
   // no type info yet, in which case we handle all cases (including the ones
   // involving maps).
-  bool needs_temp = expected.NeedsMap() || expected.IsEmpty();
-  LOperand* temp = needs_temp ? TempRegister() : NULL;
   return AssignEnvironment(new(zone()) LBranch(UseRegister(value), temp));
 }
 

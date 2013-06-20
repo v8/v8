@@ -1599,17 +1599,21 @@ class HBranch: public HUnaryControlInstruction {
   HBranch(HValue* value,
           HBasicBlock* true_target,
           HBasicBlock* false_target,
-          ToBooleanStub::Types expected_input_types = ToBooleanStub::no_types())
+          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types())
       : HUnaryControlInstruction(value, true_target, false_target),
         expected_input_types_(expected_input_types) {
     ASSERT(true_target != NULL && false_target != NULL);
+    SetFlag(kAllowUndefinedAsNaN);
   }
   explicit HBranch(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) { }
+      : HUnaryControlInstruction(value, NULL, NULL) {
+    SetFlag(kAllowUndefinedAsNaN);
+  }
   HBranch(HValue* value, ToBooleanStub::Types expected_input_types)
       : HUnaryControlInstruction(value, NULL, NULL),
-        expected_input_types_(expected_input_types) { }
-
+        expected_input_types_(expected_input_types) {
+    SetFlag(kAllowUndefinedAsNaN);
+  }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();

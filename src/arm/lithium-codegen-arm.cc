@@ -2196,7 +2196,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     DwVfpRegister reg = ToDoubleRegister(instr->value());
     // Test the double value. Zero and NaN are false.
     __ VFPCompareAndSetFlags(reg, 0.0);
-    __ cmp(r0, r0, vs);  // If NaN, set the Z flag.
+    __ cmp(r0, r0, vs);  // If NaN, set the Z flag. (NaN -> false)
     EmitBranch(instr, ne);
   } else {
     ASSERT(r.IsTagged());
@@ -2210,10 +2210,26 @@ void LCodeGen::DoBranch(LBranch* instr) {
       ASSERT(!info()->IsStub());
       __ cmp(reg, Operand::Zero());
       EmitBranch(instr, ne);
+    } else if (type.IsJSArray()) {
+      ASSERT(!info()->IsStub());
+      EmitBranch(instr, al);
+    } else if (type.IsHeapNumber()) {
+      ASSERT(!info()->IsStub());
+      DwVfpRegister dbl_scratch = double_scratch0();
+      __ vldr(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
+      // Test the double value. Zero and NaN are false.
+      __ VFPCompareAndSetFlags(dbl_scratch, 0.0);
+      __ cmp(r0, r0, vs);  // If NaN, set the Z flag. (NaN)
+      EmitBranch(instr, ne);
+    } else if (type.IsString()) {
+      ASSERT(!info()->IsStub());
+      __ ldr(ip, FieldMemOperand(reg, String::kLengthOffset));
+      __ cmp(ip, Operand::Zero());
+      EmitBranch(instr, ne);
     } else {
       ToBooleanStub::Types expected = instr->hydrogen()->expected_input_types();
       // Avoid deopts in the case where we've never executed this path before.
-      if (expected.IsEmpty()) expected = ToBooleanStub::all_types();
+      if (expected.IsEmpty()) expected = ToBooleanStub::Types::Generic();
 
       if (expected.Contains(ToBooleanStub::UNDEFINED)) {
         // undefined -> false.
@@ -2294,8 +2310,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ bind(&not_heap_number);
       }
 
-      // We've seen something for the first time -> deopt.
-      DeoptimizeIf(al, instr->environment());
+      if (!expected.IsGeneric()) {
+        // We've seen something for the first time -> deopt.
+        // This can only happen if we are not generic already.
+        DeoptimizeIf(al, instr->environment());
+      }
     }
   }
 }

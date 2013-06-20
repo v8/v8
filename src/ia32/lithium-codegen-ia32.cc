@@ -2133,10 +2133,22 @@ void LCodeGen::DoBranch(LBranch* instr) {
       ASSERT(!info()->IsStub());
       __ test(reg, Operand(reg));
       EmitBranch(instr, not_equal);
+    } else if (type.IsJSArray()) {
+      ASSERT(!info()->IsStub());
+      EmitBranch(instr, no_condition);
+    } else if (type.IsHeapNumber()) {
+      ASSERT(!info()->IsStub());
+      CpuFeatureScope scope(masm(), SSE2);
+      __ xorps(xmm0, xmm0);
+      __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+      EmitBranch(instr, not_equal);
+    } else if (type.IsString()) {
+      ASSERT(!info()->IsStub());
+      __ cmp(FieldOperand(reg, String::kLengthOffset), Immediate(0));
+      EmitBranch(instr, not_equal);
     } else {
       ToBooleanStub::Types expected = instr->hydrogen()->expected_input_types();
-      // Avoid deopts in the case where we've never executed this path before.
-      if (expected.IsEmpty()) expected = ToBooleanStub::all_types();
+      if (expected.IsEmpty()) expected = ToBooleanStub::Types::Generic();
 
       if (expected.Contains(ToBooleanStub::UNDEFINED)) {
         // undefined -> false.
@@ -2225,8 +2237,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ bind(&not_heap_number);
       }
 
-      // We've seen something for the first time -> deopt.
-      DeoptimizeIf(no_condition, instr->environment());
+      if (!expected.IsGeneric()) {
+        // We've seen something for the first time -> deopt.
+        // This can only happen if we are not generic already.
+        DeoptimizeIf(no_condition, instr->environment());
+      }
     }
   }
 }

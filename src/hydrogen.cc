@@ -803,7 +803,7 @@ void HGraphBuilder::IfBuilder::Then() {
     // so that the graph builder visits it and sees any live range extending
     // constructs within it.
     HConstant* constant_false = builder_->graph()->GetConstantFalse();
-    ToBooleanStub::Types boolean_type = ToBooleanStub::no_types();
+    ToBooleanStub::Types boolean_type = ToBooleanStub::Types();
     boolean_type.Add(ToBooleanStub::BOOLEAN);
     HBranch* branch =
         new(zone()) HBranch(constant_false, first_true_block_,

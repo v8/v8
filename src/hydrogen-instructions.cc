@@ -1277,20 +1277,26 @@ void HReturn::PrintDataTo(StringStream* stream) {
 
 Representation HBranch::observed_input_representation(int index) {
   static const ToBooleanStub::Types tagged_types(
-      ToBooleanStub::UNDEFINED |
       ToBooleanStub::NULL_TYPE |
       ToBooleanStub::SPEC_OBJECT |
       ToBooleanStub::STRING |
       ToBooleanStub::SYMBOL);
   if (expected_input_types_.ContainsAnyOf(tagged_types)) {
     return Representation::Tagged();
-  } else if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
-    return Representation::Double();
-  } else if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
-    return Representation::Smi();
-  } else {
-    return Representation::None();
   }
+  if (expected_input_types_.Contains(ToBooleanStub::UNDEFINED)) {
+    if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+      return Representation::Double();
+    }
+    return Representation::Tagged();
+  }
+  if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+    return Representation::Double();
+  }
+  if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
+    return Representation::Smi();
+  }
+  return Representation::None();
 }
 
 

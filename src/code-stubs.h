@@ -1973,7 +1973,7 @@ class ToBooleanStub: public HydrogenCodeStub {
 
   class Types : public EnumSet<Type, byte> {
    public:
-    Types() {}
+    Types() : EnumSet<Type, byte>(0) {}
     explicit Types(byte bits) : EnumSet<Type, byte>(bits) {}
 
     byte ToByte() const { return ToIntegral(); }
@@ -1982,10 +1982,10 @@ class ToBooleanStub: public HydrogenCodeStub {
     bool Record(Handle<Object> object);
     bool NeedsMap() const;
     bool CanBeUndetectable() const;
-  };
+    bool IsGeneric() const { return ToIntegral() == Generic().ToIntegral(); }
 
-  static Types no_types() { return Types(); }
-  static Types all_types() { return Types((1 << NUMBER_OF_TYPES) - 1); }
+    static Types Generic() { return Types((1 << NUMBER_OF_TYPES) - 1); }
+  };
 
   explicit ToBooleanStub(Types types = Types())
       : types_(types) { }
