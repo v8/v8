@@ -488,17 +488,44 @@ class LUnknownOSRValue: public LTemplateInstruction<1, 0, 0> {
 template<int I, int T>
 class LControlInstruction: public LTemplateInstruction<0, I, T> {
  public:
+  LControlInstruction() : false_label_(NULL), true_label_(NULL) { }
+
   virtual bool IsControl() const { return true; }
 
   int SuccessorCount() { return hydrogen()->SuccessorCount(); }
   HBasicBlock* SuccessorAt(int i) { return hydrogen()->SuccessorAt(i); }
-  int true_block_id() { return hydrogen()->SuccessorAt(0)->block_id(); }
-  int false_block_id() { return hydrogen()->SuccessorAt(1)->block_id(); }
+
+  int TrueDestination(LChunk* chunk) {
+    return chunk->LookupDestination(true_block_id());
+  }
+  int FalseDestination(LChunk* chunk) {
+    return chunk->LookupDestination(false_block_id());
+  }
+
+  Label* TrueLabel(LChunk* chunk) {
+    if (true_label_ == NULL) {
+      true_label_ = chunk->GetAssemblyLabel(TrueDestination(chunk));
+    }
+    return true_label_;
+  }
+  Label* FalseLabel(LChunk* chunk) {
+    if (false_label_ == NULL) {
+      false_label_ = chunk->GetAssemblyLabel(FalseDestination(chunk));
+    }
+    return false_label_;
+  }
+
+ protected:
+  int true_block_id() { return SuccessorAt(0)->block_id(); }
+  int false_block_id() { return SuccessorAt(1)->block_id(); }
 
  private:
   HControlInstruction* hydrogen() {
     return HControlInstruction::cast(this->hydrogen_value());
   }
+
+  Label* false_label_;
+  Label* true_label_;
 };
 
 
@@ -1216,7 +1243,7 @@ class LBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LCmpMapAndBranch: public LTemplateInstruction<0, 1, 1> {
+class LCmpMapAndBranch: public LControlInstruction<1, 1> {
  public:
   LCmpMapAndBranch(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
@@ -1229,15 +1256,7 @@ class LCmpMapAndBranch: public LTemplateInstruction<0, 1, 1> {
   DECLARE_CONCRETE_INSTRUCTION(CmpMapAndBranch, "cmp-map-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareMap)
 
-  virtual bool IsControl() const { return true; }
-
   Handle<Map> map() const { return hydrogen()->map(); }
-  int true_block_id() const {
-    return hydrogen()->FirstSuccessor()->block_id();
-  }
-  int false_block_id() const {
-    return hydrogen()->SecondSuccessor()->block_id();
-  }
 };
 
 
