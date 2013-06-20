@@ -392,8 +392,7 @@ TEST(Issue23768) {
 }
 
 
-static v8::Handle<v8::Value> ObjMethod1(const v8::Arguments& args) {
-  return v8::Handle<v8::Value>();
+static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 TEST(LogCallbacks) {
@@ -431,19 +430,17 @@ TEST(LogCallbacks) {
 }
 
 
-static v8::Handle<v8::Value> Prop1Getter(v8::Local<v8::String> property,
-                                         const v8::AccessorInfo& info) {
-  return v8::Handle<v8::Value>();
+static void Prop1Getter(v8::Local<v8::String> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
 
 static void Prop1Setter(v8::Local<v8::String> property,
-                                         v8::Local<v8::Value> value,
-                                         const v8::AccessorInfo& info) {
+                        v8::Local<v8::Value> value,
+                        const v8::PropertyCallbackInfo<void>& info) {
 }
 
-static v8::Handle<v8::Value> Prop2Getter(v8::Local<v8::String> property,
-                                         const v8::AccessorInfo& info) {
-  return v8::Handle<v8::Value>();
+static void Prop2Getter(v8::Local<v8::String> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
 
 TEST(LogAccessorCallbacks) {

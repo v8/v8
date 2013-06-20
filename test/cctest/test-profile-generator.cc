@@ -804,8 +804,8 @@ class ProfilerExtension : public v8::Extension {
   ProfilerExtension() : v8::Extension("v8/profiler", kSource) { }
   virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
       v8::Handle<v8::String> name);
-  static v8::Handle<v8::Value> StartProfiling(const v8::Arguments& args);
-  static v8::Handle<v8::Value> StopProfiling(const v8::Arguments& args);
+  static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
  private:
   static const char* kSource;
 };
@@ -828,25 +828,23 @@ v8::Handle<v8::FunctionTemplate> ProfilerExtension::GetNativeFunction(
 }
 
 
-v8::Handle<v8::Value> ProfilerExtension::StartProfiling(
-    const v8::Arguments& args) {
+void ProfilerExtension::StartProfiling(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::CpuProfiler* cpu_profiler = args.GetIsolate()->GetCpuProfiler();
   if (args.Length() > 0)
     cpu_profiler->StartCpuProfiling(args[0].As<v8::String>());
   else
     cpu_profiler->StartCpuProfiling(v8::String::New(""));
-  return v8::Undefined();
 }
 
 
-v8::Handle<v8::Value> ProfilerExtension::StopProfiling(
-    const v8::Arguments& args) {
+void ProfilerExtension::StopProfiling(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::CpuProfiler* cpu_profiler = args.GetIsolate()->GetCpuProfiler();
   if (args.Length() > 0)
     cpu_profiler->StopCpuProfiling(args[0].As<v8::String>());
   else
     cpu_profiler->StopCpuProfiling(v8::String::New(""));
-  return v8::Undefined();
 }
 
 
