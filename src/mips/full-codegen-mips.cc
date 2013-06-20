@@ -2142,7 +2142,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ LoadRoot(a2, Heap::kTheHoleValueRootIndex);
   Label push_argument_holes, push_frame;
   __ bind(&push_argument_holes);
-  __ Subu(a3, a3, Operand(1));
+  __ Subu(a3, a3, Operand(Smi::FromInt(1)));
   __ Branch(&push_frame, lt, a3, Operand(zero_reg));
   __ push(a2);
   __ jmp(&push_argument_holes);
