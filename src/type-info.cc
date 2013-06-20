@@ -486,7 +486,8 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
     ASSERT(Handle<Code>::cast(object)->ic_state() == GENERIC);
   } else if (object->IsMap()) {
     types->AddMapIfMissing(Handle<Map>::cast(object), zone());
-  } else if (Handle<Code>::cast(object)->ic_state() == POLYMORPHIC) {
+  } else if (Handle<Code>::cast(object)->ic_state() == POLYMORPHIC ||
+             Handle<Code>::cast(object)->ic_state() == MONOMORPHIC) {
     CollectPolymorphicMaps(Handle<Code>::cast(object), types);
   } else if (FLAG_collect_megamorphic_maps_from_stub_cache &&
       Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC) {
