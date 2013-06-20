@@ -1315,8 +1315,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
     Register reg,
     Handle<ExecutableAccessorInfo> callback) {
   // Insert additional parameters into the stack frame above return address.
-  ASSERT(!scratch2().is(reg));
-  __ pop(scratch2());  // Get return address to place it below.
+  ASSERT(!scratch4().is(reg));
+  __ pop(scratch4());  // Get return address to place it below.
 
   __ push(receiver());  // receiver
   __ push(reg);  // holder
@@ -1354,9 +1354,9 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   Register name_arg = rdi;
 #endif
 
-  ASSERT(!name_arg.is(scratch2()));
+  ASSERT(!name_arg.is(scratch4()));
   __ movq(name_arg, rsp);
-  __ push(scratch2());  // Restore return address.
+  __ push(scratch4());  // Restore return address.
 
   // v8::Arguments::values_ and handler for name.
   const int kStackSpace = PropertyCallbackArguments::kArgsLength + 1;
