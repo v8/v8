@@ -8827,8 +8827,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
   return constructor->has_initial_map() &&
       constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
-      constructor->initial_map()->instance_size() < HAllocate::kMaxInlineSize &&
-      constructor->initial_map()->InitialPropertiesLength() == 0;
+      constructor->initial_map()->instance_size() < HAllocateObject::kMaxSize;
 }
 
 
@@ -8838,7 +8837,6 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   ASSERT(current_block()->HasPredecessor());
   int argument_count = expr->arguments()->length() + 1;  // Plus constructor.
   HValue* context = environment()->LookupContext();
-  Factory* factory = isolate()->factory();
 
   if (FLAG_inline_construct &&
       expr->IsMonomorphic() &&
@@ -8858,81 +8856,20 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
       constructor->shared()->CompleteInobjectSlackTracking();
     }
 
-    // Calculate instance size from initial map of constructor.
-    ASSERT(constructor->has_initial_map());
-    Handle<Map> initial_map(constructor->initial_map());
-    int instance_size = initial_map->instance_size();
-    ASSERT(initial_map->InitialPropertiesLength() == 0);
-
-    // Allocate an instance of the implicit receiver object.
-    HValue* size_in_bytes =
-        AddInstruction(new(zone()) HConstant(instance_size));
-
-    HAllocate::Flags flags = HAllocate::DefaultFlags();
-    if (FLAG_pretenuring_call_new &&
-        isolate()->heap()->ShouldGloballyPretenure()) {
-      flags = static_cast<HAllocate::Flags>(
-          flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
-    }
-
-    HInstruction* receiver =
-        AddInstruction(new(zone()) HAllocate(context,
-                                             size_in_bytes,
-                                             HType::JSObject(),
-                                             flags));
-    HAllocate::cast(receiver)->set_known_initial_map(initial_map);
-
-    // Load the initial map from the constructor.
-    HValue* constructor_value =
-        AddInstruction(new(zone()) HConstant(constructor));
-    HValue* initial_map_value =
-        AddLoad(constructor_value, HObjectAccess::ForJSObjectOffset(
-            JSFunction::kPrototypeOrInitialMapOffset));
-
-    // Initialize map and fields of the newly allocated object.
-    { NoObservableSideEffectsScope no_effects(this);
-      ASSERT(initial_map->instance_type() == JS_OBJECT_TYPE);
-      AddStore(receiver,
-               HObjectAccess::ForJSObjectOffset(JSObject::kMapOffset),
-               initial_map_value);
-      HValue* empty_fixed_array =
-          AddInstruction(new(zone()) HConstant(factory->empty_fixed_array()));
-      AddStore(receiver,
-               HObjectAccess::ForJSObjectOffset(JSObject::kPropertiesOffset),
-               empty_fixed_array);
-      AddStore(receiver,
-               HObjectAccess::ForJSObjectOffset(JSObject::kElementsOffset),
-               empty_fixed_array);
-      if (initial_map->inobject_properties() != 0) {
-        HConstant* undefined = graph()->GetConstantUndefined();
-        for (int i = 0; i < initial_map->inobject_properties(); i++) {
-          int property_offset = JSObject::kHeaderSize + i * kPointerSize;
-          AddStore(receiver,
-                   HObjectAccess::ForJSObjectOffset(property_offset),
-                   undefined);
-        }
-      }
-    }
-
-    // Replace the constructor function with a newly allocated receiver using
-    // the index of the receiver from the top of the expression stack.
+    // Replace the constructor function with a newly allocated receiver.
+    HInstruction* receiver = new(zone()) HAllocateObject(context, constructor);
+    // Index of the receiver from the top of the expression stack.
     const int receiver_index = argument_count - 1;
+    AddInstruction(receiver);
     ASSERT(environment()->ExpressionStackAt(receiver_index) == function);
     environment()->SetExpressionStackAt(receiver_index, receiver);
 
     if (TryInlineConstruct(expr, receiver)) return;
 
-    // TODO(mstarzinger): For now we remove the previous HAllocate and all
-    // corresponding instructions and instead add HPushArgument for the
-    // arguments in case inlining failed.  What we actually should do is for
-    // inlining to try to build a subgraph without mutating the parent graph.
-    HInstruction* instr = current_block()->last();
-    while (instr != initial_map_value) {
-      HInstruction* prev_instr = instr->previous();
-      instr->DeleteAndReplaceWith(NULL);
-      instr = prev_instr;
-    }
-    initial_map_value->DeleteAndReplaceWith(NULL);
+    // TODO(mstarzinger): For now we remove the previous HAllocateObject and
+    // add HPushArgument for the arguments in case inlining failed.  What we
+    // actually should do is emit HInvokeFunction on the constructor instead
+    // of using HCallNew as a fallback.
     receiver->DeleteAndReplaceWith(NULL);
     check->DeleteAndReplaceWith(NULL);
     environment()->SetExpressionStackAt(receiver_index, function);
