@@ -547,6 +547,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   if (function != NULL && function->IsOptimized()) {
     function->shared()->increment_deopt_count();
     if (bailout_type_ == Deoptimizer::SOFT) {
+      isolate->counters()->soft_deopts_executed()->Increment();
       // Soft deopts shouldn't count against the overall re-optimization count
       // that can eventually lead to disabling optimization for a function.
       int opt_count = function->shared()->opt_count();

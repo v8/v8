@@ -4664,9 +4664,11 @@ void HOptimizedGraphBuilder::PushAndAdd(HInstruction* instr) {
 
 
 void HOptimizedGraphBuilder::AddSoftDeoptimize() {
+  isolate()->counters()->soft_deopts_requested()->Increment();
   if (FLAG_always_opt) return;
   if (current_block()->IsDeoptimizing()) return;
   AddInstruction(new(zone()) HSoftDeoptimize());
+  isolate()->counters()->soft_deopts_inserted()->Increment();
   current_block()->MarkAsDeoptimizing();
   graph()->set_has_soft_deoptimize(true);
 }

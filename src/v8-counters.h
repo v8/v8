@@ -238,6 +238,9 @@ namespace internal {
   SC(transcendental_cache_miss, V8.TranscendentalCacheMiss)           \
   SC(stack_interrupts, V8.StackInterrupts)                            \
   SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                 \
+  SC(soft_deopts_requested, V8.SoftDeoptsRequested)                   \
+  SC(soft_deopts_inserted, V8.SoftDeoptsInserted)                     \
+  SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                     \
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)      \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)      \
   SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                \
