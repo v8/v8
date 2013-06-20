@@ -2689,7 +2689,7 @@ void HRangeAnalysis::Analyze(HBasicBlock* block) {
 void HRangeAnalysis::InferControlFlowRange(HCompareIDAndBranch* test,
                                            HBasicBlock* dest) {
   ASSERT((test->FirstSuccessor() == dest) == (test->SecondSuccessor() != dest));
-  if (test->representation().IsInteger32()) {
+  if (test->representation().IsSmiOrInteger32()) {
     Token::Value op = test->token();
     if (test->SecondSuccessor() == dest) {
       op = Token::NegateCompareOp(op);
