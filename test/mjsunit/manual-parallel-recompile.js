@@ -28,6 +28,11 @@
 // Flags: --allow-natives-syntax --expose-gc
 // Flags: --parallel-recompilation --parallel-recompilation-delay=50
 
+if (!%IsParallelRecompilationSupported()) {
+  print("Parallel recompilation is disabled. Skipping this test.");
+  quit();
+}
+
 function assertUnoptimized(fun) {
   assertTrue(%GetOptimizationStatus(fun) != 1);
 }
@@ -60,10 +65,8 @@ assertUnoptimized(g);
 %OptimizeFunctionOnNextCall(g, "parallel");
 f(g(2));  // Trigger optimization.
 
-if (%IsParallelRecompilationSupported()) {
-  assertUnoptimized(f);  // Not yet optimized.
-  assertUnoptimized(g);
-}
+assertUnoptimized(f);  // Not yet optimized.
+assertUnoptimized(g);
 
 %CompleteOptimization(f);  // Wait till optimized code is installed.
 %CompleteOptimization(g);
