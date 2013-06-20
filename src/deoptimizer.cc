@@ -1511,8 +1511,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   output_frame_offset -= kPointerSize;
-  value = frame_ptr - (output_frame_size - output_frame_offset) -
-      StandardFrameConstants::kMarkerOffset + kPointerSize;
+  value = frame_ptr + StandardFrameConstants::kCallerSPOffset -
+      (output_frame_size - output_frame_offset) + kPointerSize;
   output_frame->SetFrameSlot(output_frame_offset, value);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
