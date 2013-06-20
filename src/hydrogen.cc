@@ -2953,7 +2953,11 @@ void HInferRepresentation::Analyze() {
          current != NULL; current = current->next()) {
       if (current->representation().IsNone() &&
           current->CheckFlag(HInstruction::kFlexibleRepresentation)) {
-        current->ChangeRepresentation(Representation::Tagged());
+        if (current->CheckFlag(HInstruction::kCannotBeTagged)) {
+          current->ChangeRepresentation(Representation::Double());
+        } else {
+          current->ChangeRepresentation(Representation::Tagged());
+        }
       }
     }
   }
@@ -9106,8 +9110,8 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
   // The input to the count operation is on top of the expression stack.
   TypeInfo info = expr->type();
   Representation rep = ToRepresentation(info);
-  if (rep.IsTagged()) {
-    rep = Representation::Integer32();
+  if (rep.IsNone() || rep.IsTagged()) {
+    rep = Representation::Smi();
   }
 
   if (returns_original_input) {
@@ -9116,6 +9120,10 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     // phase, so it is not available now to be used as an input to HAdd and
     // as the return value.
     HInstruction* number_input = new(zone()) HForceRepresentation(Pop(), rep);
+    if (!rep.IsDouble()) {
+      number_input->SetFlag(HInstruction::kFlexibleRepresentation);
+      number_input->SetFlag(HInstruction::kCannotBeTagged);
+    }
     AddInstruction(number_input);
     Push(number_input);
   }
@@ -9128,10 +9136,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
       : graph()->GetConstantMinus1();
   HValue* context = environment()->LookupContext();
   HInstruction* instr = HAdd::New(zone(), context, Top(), delta);
-  // We can't insert a simulate here, because it would break deoptimization,
-  // so the HAdd must not have side effects, so we must freeze its
-  // representation.
-  instr->AssumeRepresentation(rep);
+  instr->SetFlag(HInstruction::kCannotBeTagged);
   instr->ClearAllSideEffects();
   AddInstruction(instr);
   return instr;

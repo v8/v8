@@ -784,6 +784,7 @@ class HValue: public ZoneObject {
 
   enum Flag {
     kFlexibleRepresentation,
+    kCannotBeTagged,
     // Participate in Global Value Numbering, i.e. elimination of
     // unnecessary recomputations. If an instruction sets this flag, it must
     // implement DataEquals(), which will be used to determine if other
@@ -891,7 +892,8 @@ class HValue: public ZoneObject {
     ASSERT(CheckFlag(kFlexibleRepresentation));
     RepresentationChanged(r);
     representation_ = r;
-    if (r.IsTagged()) {
+    if (r.IsTagged() ||
+        (r.IsDouble() && CheckFlag(kCannotBeTagged))) {
       // Tagged is the bottom of the lattice, don't go any further.
       ClearFlag(kFlexibleRepresentation);
     }
