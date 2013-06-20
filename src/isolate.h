@@ -1107,13 +1107,13 @@ class Isolate {
     callback_table_ = callback_table;
   }
 
+  int id() const { return static_cast<int>(id_); }
+
   HStatistics* GetHStatistics();
   HTracer* GetHTracer();
 
  private:
   Isolate();
-
-  int id() const { return static_cast<int>(id_); }
 
   friend struct GlobalState;
   friend struct InitializeGlobalState;
