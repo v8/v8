@@ -2099,7 +2099,7 @@ bool Isolate::Init(Deserializer* des) {
   isolate_addresses_[Isolate::k##CamelName##Address] =          \
       reinterpret_cast<Address>(hacker_name##_address());
   FOR_EACH_ISOLATE_ADDRESS_NAME(ASSIGN_ELEMENT)
-#undef C
+#undef ASSIGN_ELEMENT
 
   string_tracker_ = new StringTracker();
   string_tracker_->isolate_ = this;
