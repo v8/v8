@@ -303,9 +303,9 @@ class TypeFeedbackOracle: public ZoneObject {
                   Maybe<int>* fixed_right_arg);
 
   void CompareType(TypeFeedbackId id,
-                   Handle<Type>* left_type,
-                   Handle<Type>* right_type,
-                   Handle<Type>* combined_type);
+                   Handle<Type>* left,
+                   Handle<Type>* right,
+                   Handle<Type>* combined);
 
   Handle<Type> ClauseType(TypeFeedbackId id);
 
