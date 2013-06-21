@@ -106,12 +106,15 @@ void OptimizingCompilerThread::Stop() {
   stop_semaphore_->Wait();
 
   if (FLAG_parallel_recompilation_delay != 0) {
-    InstallOptimizedFunctions();
     // Barrier when loading queue length is not necessary since the write
     // happens in CompileNext on the same thread.
-    while (NoBarrier_Load(&queue_length_) > 0) {
-      CompileNext();
-      InstallOptimizedFunctions();
+    while (NoBarrier_Load(&queue_length_) > 0) CompileNext();
+    InstallOptimizedFunctions();
+  } else {
+    OptimizingCompiler* optimizing_compiler;
+    while (input_queue_.Dequeue(&optimizing_compiler)) {
+      // The optimizing compiler is allocated in the CompilationInfo's zone.
+      delete optimizing_compiler->info();
     }
   }
 
