@@ -2661,7 +2661,8 @@ void MacroAssembler::JumpToHandlerEntry() {
   // rax = exception, rdi = code object, rdx = state.
   movq(rbx, FieldOperand(rdi, Code::kHandlerTableOffset));
   shr(rdx, Immediate(StackHandler::kKindWidth));
-  movq(rdx, FieldOperand(rbx, rdx, times_8, FixedArray::kHeaderSize));
+  movq(rdx,
+       FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize));
   SmiToInteger64(rdx, rdx);
   lea(rdi, FieldOperand(rdi, rdx, times_1, Code::kHeaderSize));
   jmp(rdi);
