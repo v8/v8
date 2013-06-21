@@ -2956,7 +2956,7 @@ THREADED_TEST(ResettingGlobalHandle) {
   }
   v8::internal::GlobalHandles* global_handles =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
-  int initial_handle_count = global_handles->NumberOfGlobalHandles();
+  int initial_handle_count = global_handles->global_handles_count();
   {
     v8::HandleScope scope(isolate);
     CHECK_EQ(v8::Local<String>::New(isolate, global)->Length(), 3);
@@ -2965,13 +2965,13 @@ THREADED_TEST(ResettingGlobalHandle) {
     v8::HandleScope scope(isolate);
     global.Reset(isolate, v8_str("longer"));
   }
-  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count);
+  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count);
   {
     v8::HandleScope scope(isolate);
     CHECK_EQ(v8::Local<String>::New(isolate, global)->Length(), 6);
   }
   global.Dispose(isolate);
-  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count - 1);
+  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count - 1);
 }
 
 
@@ -2984,7 +2984,7 @@ THREADED_TEST(ResettingGlobalHandleToEmpty) {
   }
   v8::internal::GlobalHandles* global_handles =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
-  int initial_handle_count = global_handles->NumberOfGlobalHandles();
+  int initial_handle_count = global_handles->global_handles_count();
   {
     v8::HandleScope scope(isolate);
     CHECK_EQ(v8::Local<String>::New(isolate, global)->Length(), 3);
@@ -2995,7 +2995,7 @@ THREADED_TEST(ResettingGlobalHandleToEmpty) {
     global.Reset(isolate, empty);
   }
   CHECK(global.IsEmpty());
-  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count - 1);
+  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count - 1);
 }
 
 
@@ -3009,15 +3009,15 @@ THREADED_TEST(ClearAndLeakGlobal) {
     Local<String> str = v8_str("str");
     global_handles =
         reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
-    initial_handle_count = global_handles->NumberOfGlobalHandles();
+    initial_handle_count = global_handles->global_handles_count();
     global.Reset(isolate, str);
   }
-  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count + 1);
+  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count + 1);
   String* str = global.ClearAndLeak();
   CHECK(global.IsEmpty());
-  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count + 1);
+  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count + 1);
   global_handles->Destroy(reinterpret_cast<i::Object**>(str));
-  CHECK_EQ(global_handles->NumberOfGlobalHandles(), initial_handle_count);
+  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count);
 }
 
 

@@ -7325,30 +7325,8 @@ int CpuProfile::GetSamplesCount() const {
 }
 
 
-int CpuProfiler::GetProfilesCount() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::GetProfilesCount");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  return profiler->GetProfilesCount();
-}
-
-
 int CpuProfiler::GetProfileCount() {
   return reinterpret_cast<i::CpuProfiler*>(this)->GetProfilesCount();
-}
-
-
-const CpuProfile* CpuProfiler::GetProfile(int index,
-                                          Handle<Value> security_token) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::GetProfile");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  return reinterpret_cast<const CpuProfile*>(
-      profiler->GetProfile(
-          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
-          index));
 }
 
 
@@ -7367,19 +7345,6 @@ const CpuProfile* CpuProfiler::GetCpuProfile(int index) {
 }
 
 
-const CpuProfile* CpuProfiler::FindProfile(unsigned uid,
-                                           Handle<Value> security_token) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::FindProfile");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  return reinterpret_cast<const CpuProfile*>(
-      profiler->FindProfile(
-          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
-          uid));
-}
-
-
 const CpuProfile* CpuProfiler::FindCpuProfile(unsigned uid,
                                               Handle<Value> security_token) {
   return reinterpret_cast<const CpuProfile*>(
@@ -7389,31 +7354,9 @@ const CpuProfile* CpuProfiler::FindCpuProfile(unsigned uid,
 }
 
 
-void CpuProfiler::StartProfiling(Handle<String> title, bool record_samples) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::StartProfiling");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  profiler->StartProfiling(*Utils::OpenHandle(*title), record_samples);
-}
-
-
 void CpuProfiler::StartCpuProfiling(Handle<String> title, bool record_samples) {
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), record_samples);
-}
-
-
-const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
-                                             Handle<Value> security_token) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::StopProfiling");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  return reinterpret_cast<const CpuProfile*>(
-      profiler->StopProfiling(
-          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
-          *Utils::OpenHandle(*title)));
 }
 
 
@@ -7431,15 +7374,6 @@ const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title) {
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
           NULL,
           *Utils::OpenHandle(*title)));
-}
-
-
-void CpuProfiler::DeleteAllProfiles() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::DeleteAllProfiles");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  profiler->DeleteAllProfiles();
 }
 
 
@@ -7576,13 +7510,6 @@ void HeapSnapshot::Delete() {
 }
 
 
-HeapSnapshot::Type HeapSnapshot::GetType() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshot::GetType");
-  return kFull;
-}
-
-
 unsigned HeapSnapshot::GetUid() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetUid");
@@ -7653,23 +7580,8 @@ void HeapSnapshot::Serialize(OutputStream* stream,
 }
 
 
-int HeapProfiler::GetSnapshotsCount() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshotsCount");
-  return isolate->heap_profiler()->GetSnapshotsCount();
-}
-
-
 int HeapProfiler::GetSnapshotCount() {
   return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotsCount();
-}
-
-
-const HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshot");
-  return reinterpret_cast<const HeapSnapshot*>(
-      isolate->heap_profiler()->GetSnapshot(index));
 }
 
 
@@ -7679,43 +7591,15 @@ const HeapSnapshot* HeapProfiler::GetHeapSnapshot(int index) {
 }
 
 
-const HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::FindSnapshot");
-  return reinterpret_cast<const HeapSnapshot*>(
-      isolate->heap_profiler()->FindSnapshot(uid));
-}
-
-
 const HeapSnapshot* HeapProfiler::FindHeapSnapshot(unsigned uid) {
   return reinterpret_cast<const HeapSnapshot*>(
       reinterpret_cast<i::HeapProfiler*>(this)->FindSnapshot(uid));
 }
 
 
-SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Value> value) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshotObjectId");
-  i::Handle<i::Object> obj = Utils::OpenHandle(*value);
-  return isolate->heap_profiler()->GetSnapshotObjectId(obj);
-}
-
-
 SnapshotObjectId HeapProfiler::GetObjectId(Handle<Value> value) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*value);
   return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotObjectId(obj);
-}
-
-
-const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
-                                               HeapSnapshot::Type type,
-                                               ActivityControl* control,
-                                               ObjectNameResolver* resolver) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::TakeSnapshot");
-  return reinterpret_cast<const HeapSnapshot*>(
-      isolate->heap_profiler()->TakeSnapshot(
-          *Utils::OpenHandle(*title), control, resolver));
 }
 
 
@@ -7729,22 +7613,8 @@ const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
 }
 
 
-void HeapProfiler::StartHeapObjectsTracking() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::StartHeapObjectsTracking");
-  isolate->heap_profiler()->StartHeapObjectsTracking();
-}
-
-
 void HeapProfiler::StartTrackingHeapObjects() {
   reinterpret_cast<i::HeapProfiler*>(this)->StartHeapObjectsTracking();
-}
-
-
-void HeapProfiler::StopHeapObjectsTracking() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::StopHeapObjectsTracking");
-  isolate->heap_profiler()->StopHeapObjectsTracking();
 }
 
 
@@ -7753,22 +7623,8 @@ void HeapProfiler::StopTrackingHeapObjects() {
 }
 
 
-SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::PushHeapObjectsStats");
-  return isolate->heap_profiler()->PushHeapObjectsStats(stream);
-}
-
-
 SnapshotObjectId HeapProfiler::GetHeapStats(OutputStream* stream) {
   return reinterpret_cast<i::HeapProfiler*>(this)->PushHeapObjectsStats(stream);
-}
-
-
-void HeapProfiler::DeleteAllSnapshots() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::DeleteAllSnapshots");
-  isolate->heap_profiler()->DeleteAllSnapshots();
 }
 
 
@@ -7777,28 +7633,10 @@ void HeapProfiler::DeleteAllHeapSnapshots() {
 }
 
 
-void HeapProfiler::DefineWrapperClass(uint16_t class_id,
-                                      WrapperInfoCallback callback) {
-  i::Isolate::Current()->heap_profiler()->DefineWrapperClass(class_id,
-                                                             callback);
-}
-
-
 void HeapProfiler::SetWrapperClassInfoProvider(uint16_t class_id,
                                                WrapperInfoCallback callback) {
   reinterpret_cast<i::HeapProfiler*>(this)->DefineWrapperClass(class_id,
                                                                callback);
-}
-
-
-int HeapProfiler::GetPersistentHandleCount() {
-  i::Isolate* isolate = i::Isolate::Current();
-  return isolate->global_handles()->NumberOfGlobalHandles();
-}
-
-
-size_t HeapProfiler::GetMemorySizeUsedByProfiler() {
-  return i::Isolate::Current()->heap_profiler()->GetMemorySizeUsedByProfiler();
 }
 
 
