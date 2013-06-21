@@ -3338,10 +3338,9 @@ HInstruction* HStringAdd::New(
     HConstant* c_right = HConstant::cast(right);
     HConstant* c_left = HConstant::cast(left);
     if (c_left->HasStringValue() && c_right->HasStringValue()) {
-      Factory* factory = Isolate::Current()->factory();
-      return new(zone) HConstant(factory->NewConsString(c_left->StringValue(),
-                                                        c_right->StringValue()),
-                                 Representation::Tagged());
+      Handle<String> concat = zone->isolate()->factory()->NewFlatConcatString(
+          c_left->StringValue(), c_right->StringValue());
+      return new(zone) HConstant(concat, Representation::Tagged());
     }
   }
   return new(zone) HStringAdd(context, left, right);
