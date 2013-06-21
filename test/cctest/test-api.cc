@@ -14200,6 +14200,18 @@ static void GetCallingContextCallback(
 }
 
 
+THREADED_TEST(GetCurrentContextWhenNotInContext) {
+  i::Isolate* isolate = i::Isolate::Current();
+  CHECK(isolate != NULL);
+  CHECK(isolate->context() == NULL);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::HandleScope scope(v8_isolate);
+  // The following should not crash, but return an empty handle.
+  v8::Local<v8::Context> current = v8_isolate->GetCurrentContext();
+  CHECK(current.IsEmpty());
+}
+
+
 THREADED_TEST(GetCallingContext) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
