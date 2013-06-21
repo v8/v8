@@ -174,6 +174,7 @@ int Type::LubBitset() {
       case JS_GLOBAL_PROXY_TYPE:
       case JS_ARRAY_BUFFER_TYPE:
       case JS_TYPED_ARRAY_TYPE:
+      case JS_DATA_VIEW_TYPE:
       case JS_WEAK_MAP_TYPE:
       case JS_REGEXP_TYPE:
         if (map->is_undetectable()) return kUndetectable;

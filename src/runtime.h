@@ -369,6 +369,28 @@ namespace internal {
   F(TypedArrayGetLength, 1, 1) \
   F(TypedArraySetFastCases, 3, 1) \
   \
+  F(DataViewInitialize, 4, 1) \
+  F(DataViewGetBuffer, 1, 1) \
+  F(DataViewGetByteLength, 1, 1) \
+  F(DataViewGetByteOffset, 1, 1) \
+  F(DataViewGetInt8, 3, 1) \
+  F(DataViewGetUint8, 3, 1) \
+  F(DataViewGetInt16, 3, 1) \
+  F(DataViewGetUint16, 3, 1) \
+  F(DataViewGetInt32, 3, 1) \
+  F(DataViewGetUint32, 3, 1) \
+  F(DataViewGetFloat32, 3, 1) \
+  F(DataViewGetFloat64, 3, 1) \
+  \
+  F(DataViewSetInt8, 4, 1) \
+  F(DataViewSetUint8, 4, 1) \
+  F(DataViewSetInt16, 4, 1) \
+  F(DataViewSetUint16, 4, 1) \
+  F(DataViewSetInt32, 4, 1) \
+  F(DataViewSetUint32, 4, 1) \
+  F(DataViewSetFloat32, 4, 1) \
+  F(DataViewSetFloat64, 4, 1) \
+  \
   /* Statements */ \
   F(NewClosure, 3, 1) \
   F(NewObject, 1, 1) \

@@ -6182,11 +6182,17 @@ void v8::ArrayBuffer::Neuter() {
   LOG_API(obj->GetIsolate(), "v8::ArrayBuffer::Neuter()");
   ENTER_V8(isolate);
 
-  for (i::Handle<i::Object> array_obj(obj->weak_first_array(), isolate);
-       !array_obj->IsUndefined();) {
-    i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*array_obj));
-    typed_array->Neuter();
-    array_obj = i::handle(typed_array->weak_next(), isolate);
+  for (i::Handle<i::Object> view_obj(obj->weak_first_view(), isolate);
+       !view_obj->IsUndefined();) {
+    i::Handle<i::JSArrayBufferView> view(i::JSArrayBufferView::cast(*view_obj));
+    if (view->IsJSTypedArray()) {
+      i::JSTypedArray::cast(*view)->Neuter();
+    } else if (view->IsJSDataView()) {
+      i::JSDataView::cast(*view)->Neuter();
+    } else {
+      UNREACHABLE();
+    }
+    view_obj = i::handle(view->weak_next(), isolate);
   }
   obj->Neuter();
 }
@@ -6286,8 +6292,8 @@ i::Handle<i::JSTypedArray> NewTypedArray(
 
   obj->set_buffer(*buffer);
 
-  obj->set_weak_next(buffer->weak_first_array());
-  buffer->set_weak_first_array(*obj);
+  obj->set_weak_next(buffer->weak_first_view());
+  buffer->set_weak_first_view(*obj);
 
   i::Handle<i::Object> byte_offset_object = isolate->factory()->NewNumber(
         static_cast<double>(byte_offset));

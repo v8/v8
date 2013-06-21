@@ -148,6 +148,19 @@ namespace internal {
 #endif
 #endif
 
+// Determine architecture endiannes (we only support little-endian).
+#if defined(V8_TARGET_ARCH_IA32)
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif defined(V8_TARGET_ARCH_X64)
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif defined(V8_TARGET_ARCH_ARM)
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif defined(V8_TARGET_ARCH_MIPS)
+#define V8_TARGET_LITTLE_ENDIAN 1
+#else
+#error Unknown target architecture endiannes
+#endif
+
 // Support for alternative bool type. This is only enabled if the code is
 // compiled with USE_MYBOOL defined. This catches some nasty type bugs.
 // For instance, 'bool b = "false";' results in b == true! This is a hidden

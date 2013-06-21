@@ -197,3 +197,248 @@ SetupTypedArray(6, "Int32Array", global.Int32Array, 4);
 SetupTypedArray(7, "Float32Array", global.Float32Array, 4);
 SetupTypedArray(8, "Float64Array", global.Float64Array, 8);
 SetupTypedArray(9, "Uint8ClampedArray", global.Uint8ClampedArray, 1);
+
+
+// --------------------------- DataView -----------------------------
+
+var $DataView = global.DataView;
+
+function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
+  if (%_IsConstructCall()) {
+    if (!IS_ARRAYBUFFER(buffer)) {
+      throw MakeTypeError('data_view_not_array_buffer', []);
+    }
+    var bufferByteLength = %ArrayBufferGetByteLength(buffer);
+    var offset = IS_UNDEFINED(byteOffset) ? 0 : TO_POSITIVE_INTEGER(byteOffset);
+    if (offset > bufferByteLength) {
+      throw MakeRangeError('invalid_data_view_offset', []);
+    }
+    var length = IS_UNDEFINED(byteLength) ?
+      bufferByteLength - offset : TO_POSITIVE_INTEGER(byteLength);
+    if (offset + length > bufferByteLength) {
+      throw new MakeRangeError('invalid_data_view_length');
+    }
+    %DataViewInitialize(this, buffer, offset, length);
+  } else {
+    return new $DataView(buffer, byteOffset, byteLength)
+  }
+}
+
+function DataViewGetBuffer() {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.buffer', this]);
+  }
+  return %DataViewGetBuffer(this);
+}
+
+function DataViewGetByteOffset() {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.byteOffset', this]);
+  }
+  return %DataViewGetByteOffset(this);
+}
+
+function DataViewGetByteLength() {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.byteLength', this]);
+  }
+  return %DataViewGetByteLength(this);
+}
+
+function DataViewGetInt8(offset, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.getInt8', this]);
+  }
+  return %DataViewGetInt8(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+}
+
+function DataViewSetInt8(offset, value, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.setInt8', this]);
+  }
+  %DataViewSetInt8(this,
+                   TO_POSITIVE_INTEGER(offset),
+                   TO_NUMBER_INLINE(value),
+                   !!little_endian);
+}
+
+function DataViewGetUint8(offset, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.getUint8', this]);
+  }
+  return %DataViewGetUint8(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+}
+
+function DataViewSetUint8(offset, value, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.setUint8', this]);
+  }
+  %DataViewSetUint8(this,
+                   TO_POSITIVE_INTEGER(offset),
+                   TO_NUMBER_INLINE(value),
+                   !!little_endian);
+}
+
+function DataViewGetInt16(offset, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.getInt16', this]);
+  }
+  return %DataViewGetInt16(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+}
+
+function DataViewSetInt16(offset, value, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.setInt16', this]);
+  }
+  %DataViewSetInt16(this,
+                    TO_POSITIVE_INTEGER(offset),
+                    TO_NUMBER_INLINE(value),
+                    !!little_endian);
+}
+
+function DataViewGetUint16(offset, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.getUint16', this]);
+  }
+  return %DataViewGetUint16(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+}
+
+function DataViewSetUint16(offset, value, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.setUint16', this]);
+  }
+  %DataViewSetUint16(this,
+                     TO_POSITIVE_INTEGER(offset),
+                     TO_NUMBER_INLINE(value),
+                     !!little_endian);
+}
+
+function DataViewGetInt32(offset, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.getInt32', this]);
+  }
+  return %DataViewGetInt32(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+}
+
+function DataViewSetInt32(offset, value, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.setInt32', this]);
+  }
+  %DataViewSetInt32(this,
+                    TO_POSITIVE_INTEGER(offset),
+                    TO_NUMBER_INLINE(value),
+                    !!little_endian);
+}
+
+function DataViewGetUint32(offset, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.getUint32', this]);
+  }
+  return %DataViewGetUint32(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+}
+
+function DataViewSetUint32(offset, value, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.setUint32', this]);
+  }
+  %DataViewSetUint32(this,
+                     TO_POSITIVE_INTEGER(offset),
+                     TO_NUMBER_INLINE(value),
+                     !!little_endian);
+}
+
+function DataViewGetFloat32(offset, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.getFloat32', this]);
+  }
+  return %DataViewGetFloat32(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+}
+
+function DataViewSetFloat32(offset, value, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.setFloat32', this]);
+  }
+  %DataViewSetFloat32(this,
+                      TO_POSITIVE_INTEGER(offset),
+                      TO_NUMBER_INLINE(value),
+                      !!little_endian);
+}
+
+function DataViewGetFloat64(offset, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.getFloat64', this]);
+  }
+  return %DataViewGetFloat64(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+}
+
+function DataViewSetFloat64(offset, value, little_endian) {
+  if (!IS_DATAVIEW(this)) {
+    throw MakeTypeError('incompatible_method_reciever',
+                        ['DataView.setFloat64', this]);
+  }
+  %DataViewSetFloat64(this,
+                      TO_POSITIVE_INTEGER(offset),
+                      TO_NUMBER_INLINE(value),
+                      !!little_endian);
+}
+
+function SetupDataView() {
+  %CheckIsBootstrapping();
+
+  // Setup the DataView constructor.
+  %SetCode($DataView, DataViewConstructor);
+  %FunctionSetPrototype($DataView, new $Object);
+
+  // Set up constructor property on the DataView prototype.
+  %SetProperty($DataView.prototype, "constructor", $DataView, DONT_ENUM);
+
+  InstallGetter($DataView.prototype, "buffer", DataViewGetBuffer);
+  InstallGetter($DataView.prototype, "byteOffset", DataViewGetByteOffset);
+  InstallGetter($DataView.prototype, "byteLength", DataViewGetByteLength);
+
+  InstallFunctions($DataView.prototype, DONT_ENUM, $Array(
+      "getInt8", DataViewGetInt8,
+      "setInt8", DataViewSetInt8,
+
+      "getUint8", DataViewGetUint8,
+      "setUint8", DataViewSetUint8,
+
+      "getInt16", DataViewGetInt16,
+      "setInt16", DataViewSetInt16,
+
+      "getUint16", DataViewGetUint16,
+      "setUint16", DataViewSetUint16,
+
+      "getInt32", DataViewGetInt32,
+      "setInt32", DataViewSetInt32,
+
+      "getUint32", DataViewGetUint32,
+      "setUint32", DataViewSetUint32,
+
+      "getFloat32", DataViewGetFloat32,
+      "setFloat32", DataViewSetFloat32,
+
+      "getFloat64", DataViewGetFloat64,
+      "setFloat64", DataViewSetFloat64
+  ));
+}
+
+SetupDataView();

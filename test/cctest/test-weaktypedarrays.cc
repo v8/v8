@@ -62,22 +62,22 @@ static bool HasArrayBufferInWeakList(Heap* heap, JSArrayBuffer* ab) {
 }
 
 
-static int CountTypedArrays(JSArrayBuffer* array_buffer) {
+static int CountViews(JSArrayBuffer* array_buffer) {
   int count = 0;
-  for (Object* o = array_buffer->weak_first_array();
+  for (Object* o = array_buffer->weak_first_view();
        !o->IsUndefined();
-       o = JSTypedArray::cast(o)->weak_next()) {
+       o = JSArrayBufferView::cast(o)->weak_next()) {
     count++;
   }
 
   return count;
 }
 
-static bool HasTypedArrayInWeakList(JSArrayBuffer* array_buffer,
-                                    JSTypedArray* ta) {
-  for (Object* o = array_buffer->weak_first_array();
+static bool HasViewInWeakList(JSArrayBuffer* array_buffer,
+                              JSObject* ta) {
+  for (Object* o = array_buffer->weak_first_view();
        !o->IsUndefined();
-       o = JSTypedArray::cast(o)->weak_next()) {
+       o = JSArrayBufferView::cast(o)->weak_next()) {
     if (ta == o) return true;
   }
   return false;
@@ -196,18 +196,18 @@ void TestTypedArrayFromApi() {
 
       Handle<JSTypedArray> ita1 = v8::Utils::OpenHandle(*ta1);
       Handle<JSTypedArray> ita2 = v8::Utils::OpenHandle(*ta2);
-      CHECK_EQ(2, CountTypedArrays(*iab));
-      CHECK(HasTypedArrayInWeakList(*iab, *ita1));
-      CHECK(HasTypedArrayInWeakList(*iab, *ita2));
+      CHECK_EQ(2, CountViews(*iab));
+      CHECK(HasViewInWeakList(*iab, *ita1));
+      CHECK(HasViewInWeakList(*iab, *ita2));
     }
     isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-    CHECK_EQ(1, CountTypedArrays(*iab));
+    CHECK_EQ(1, CountViews(*iab));
     Handle<JSTypedArray> ita1 = v8::Utils::OpenHandle(*ta1);
-    CHECK(HasTypedArrayInWeakList(*iab, *ita1));
+    CHECK(HasViewInWeakList(*iab, *ita1));
   }
   isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
-  CHECK_EQ(0, CountTypedArrays(*iab));
+  CHECK_EQ(0, CountViews(*iab));
 }
 
 
@@ -289,10 +289,10 @@ static void TestTypedArrayFromScript(const char* constructor) {
           v8::Handle<TypedArray>::Cast(CompileRun("ta3"));
       CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()));
       Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
-      CHECK_EQ(3, CountTypedArrays(*iab));
-      CHECK(HasTypedArrayInWeakList(*iab, *v8::Utils::OpenHandle(*ta1)));
-      CHECK(HasTypedArrayInWeakList(*iab, *v8::Utils::OpenHandle(*ta2)));
-      CHECK(HasTypedArrayInWeakList(*iab, *v8::Utils::OpenHandle(*ta3)));
+      CHECK_EQ(3, CountViews(*iab));
+      CHECK(HasViewInWeakList(*iab, *v8::Utils::OpenHandle(*ta1)));
+      CHECK(HasViewInWeakList(*iab, *v8::Utils::OpenHandle(*ta2)));
+      CHECK(HasViewInWeakList(*iab, *v8::Utils::OpenHandle(*ta3)));
     }
 
     i::OS::SNPrintF(source, "ta%d = null;", i);
@@ -306,13 +306,13 @@ static void TestTypedArrayFromScript(const char* constructor) {
       v8::Handle<v8::ArrayBuffer> ab =
           v8::Handle<v8::ArrayBuffer>::Cast(CompileRun("ab"));
       Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
-      CHECK_EQ(2, CountTypedArrays(*iab));
+      CHECK_EQ(2, CountViews(*iab));
       for (int j = 1; j <= 3; j++) {
         if (j == i) continue;
         i::OS::SNPrintF(source, "ta%d", j);
         v8::Handle<TypedArray> ta =
             v8::Handle<TypedArray>::Cast(CompileRun(source.start()));
-        CHECK(HasTypedArrayInWeakList(*iab, *v8::Utils::OpenHandle(*ta)));
+        CHECK(HasViewInWeakList(*iab, *v8::Utils::OpenHandle(*ta)));
       }
     }
 
@@ -326,7 +326,7 @@ static void TestTypedArrayFromScript(const char* constructor) {
       v8::Handle<v8::ArrayBuffer> ab =
           v8::Handle<v8::ArrayBuffer>::Cast(CompileRun("ab"));
       Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
-      CHECK_EQ(0, CountTypedArrays(*iab));
+      CHECK_EQ(0, CountViews(*iab));
     }
   }
 }
@@ -376,3 +376,7 @@ TEST(Uint8ClampedArrayFromScript) {
   TestTypedArrayFromScript<v8::Uint8ClampedArray>("Uint8ClampedArray");
 }
 
+
+TEST(DataViewFromScript) {
+  TestTypedArrayFromScript<v8::Object>("DataView");
+}

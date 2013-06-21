@@ -1106,6 +1106,16 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer() {
 }
 
 
+Handle<JSDataView> Factory::NewJSDataView() {
+  JSFunction* data_view_fun =
+      isolate()->context()->native_context()->data_view_fun();
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSObject(data_view_fun),
+      JSDataView);
+}
+
+
 Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
   JSFunction* typed_array_fun;
   Context* native_context = isolate()->context()->native_context();

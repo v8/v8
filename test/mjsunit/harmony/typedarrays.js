@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-typed-arrays
-
 // ArrayBuffer
 
 function TestByteLength(param, expectedByteLength) {
@@ -457,6 +455,83 @@ function TestTypedArraySet() {
 
 TestTypedArraySet();
 
+// DataView
+function TestDataViewConstructor() {
+  var ab = new ArrayBuffer(256);
+
+  var d1 = new DataView(ab, 1, 255);
+  assertSame(ab, d1.buffer);
+  assertSame(1, d1.byteOffset);
+  assertSame(255, d1.byteLength);
+
+  var d2 = new DataView(ab, 2);
+  assertSame(ab, d2.buffer);
+  assertSame(2, d2.byteOffset);
+  assertSame(254, d2.byteLength);
+
+  var d3 = new DataView(ab);
+  assertSame(ab, d3.buffer);
+  assertSame(0, d3.byteOffset);
+  assertSame(256, d3.byteLength);
+
+  var d3a = new DataView(ab, 1, 0);
+  assertSame(ab, d3a.buffer);
+  assertSame(1, d3a.byteOffset);
+  assertSame(0, d3a.byteLength);
+
+  var d3b = new DataView(ab, 256, 0);
+  assertSame(ab, d3b.buffer);
+  assertSame(256, d3b.byteOffset);
+  assertSame(0, d3b.byteLength);
+
+  var d3c = new DataView(ab, 256);
+  assertSame(ab, d3c.buffer);
+  assertSame(256, d3c.byteOffset);
+  assertSame(0, d3c.byteLength);
+
+  // weird args
+  var d4 = new DataView(ab, -1);
+  assertSame(ab, d4.buffer);
+  assertSame(0, d4.byteOffset);
+  assertSame(256, d4.byteLength);
+
+  var d5 = new DataView(ab, 1, -1);
+  assertSame(ab, d5.buffer);
+  assertSame(1, d5.byteOffset);
+  assertSame(0, d5.byteLength);
+
+  var d6 = new DataView(ab, 1, 3.1415926);
+  assertSame(ab, d6.buffer);
+  assertSame(1, d6.byteOffset);
+  assertSame(3, d6.byteLength);
+
+
+  // error cases
+  assertThrows(function() { new DataView(); }, TypeError);
+  assertThrows(function() { new DataView([]); }, TypeError);
+  assertThrows(function() { new DataView(ab, 257); }, RangeError);
+  assertThrows(function() { new DataView(ab, 1, 1024); }, RangeError);
+}
+
+TestDataViewConstructor();
+
+function TestDataViewPropertyTypeChecks() {
+  var a = new DataView(new ArrayBuffer(10));
+  function CheckProperty(name) {
+    var d = Object.getOwnPropertyDescriptor(DataView.prototype, name);
+    var o = {}
+    assertThrows(function() {d.get.call(o);}, TypeError);
+    d.get.call(a); // shouldn't throw
+  }
+
+  CheckProperty("buffer");
+  CheckProperty("byteOffset");
+  CheckProperty("byteLength");
+}
+
+
+TestDataViewPropertyTypeChecks();
+
 // General tests for properties
 
 // Test property attribute [[Enumerable]]
@@ -475,6 +550,7 @@ TestEnumerable(ArrayBuffer, new ArrayBuffer());
 for(i = 0; i < typedArrayConstructors.lenght; i++) {
   TestEnumerable(typedArrayConstructors[i]);
 }
+TestEnumerable(DataView, new DataView(new ArrayBuffer()));
 
 // Test arbitrary properties on ArrayBuffer
 function TestArbitrary(m) {
@@ -491,8 +567,9 @@ TestArbitrary(new ArrayBuffer(256));
 for(i = 0; i < typedArrayConstructors.lenght; i++) {
   TestArbitary(new typedArrayConstructors[i](10));
 }
-
+TestArbitrary(new DataView(new ArrayBuffer(256)));
 
 
 // Test direct constructor call
 assertTrue(ArrayBuffer() instanceof ArrayBuffer);
+assertTrue(DataView(new ArrayBuffer()) instanceof DataView);

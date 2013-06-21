@@ -1362,6 +1362,14 @@ void Genesis::InitializeExperimentalGlobal() {
     Handle<JSFunction> uint8c_fun = InstallTypedArray("Uint8ClampedArray",
         EXTERNAL_PIXEL_ELEMENTS);
     native_context()->set_uint8c_array_fun(*uint8c_fun);
+
+    Handle<JSFunction> data_view_fun =
+        InstallFunction(
+            global, "DataView", JS_DATA_VIEW_TYPE,
+            JSDataView::kSize,
+            isolate()->initial_object_prototype(),
+            Builtins::kIllegal, true, true);
+    native_context()->set_data_view_fun(*data_view_fun);
   }
 
   if (FLAG_harmony_generators) {

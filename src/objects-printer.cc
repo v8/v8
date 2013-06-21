@@ -194,6 +194,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_TYPED_ARRAY_TYPE:
       JSTypedArray::cast(this)->JSTypedArrayPrint(out);
       break;
+    case JS_DATA_VIEW_TYPE:
+      JSDataView::cast(this)->JSDataViewPrint(out);
+      break;
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
     Name::cast(this)->Name##Print(out);    \
@@ -551,8 +554,9 @@ static const char* TypeToString(InstanceType type) {
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
     case JS_BUILTINS_OBJECT_TYPE: return "JS_BUILTINS_OBJECT";
     case JS_GLOBAL_PROXY_TYPE: return "JS_GLOBAL_PROXY";
-    case JS_TYPED_ARRAY_TYPE: return "JS_TYPED_ARRAY";
     case JS_ARRAY_BUFFER_TYPE: return "JS_ARRAY_BUFFER";
+    case JS_TYPED_ARRAY_TYPE: return "JS_TYPED_ARRAY";
+    case JS_DATA_VIEW_TYPE: return "JS_DATA_VIEW";
     case FOREIGN_TYPE: return "FOREIGN";
     case JS_MESSAGE_OBJECT_TYPE: return "JS_MESSAGE_OBJECT_TYPE";
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
@@ -821,7 +825,7 @@ void JSArrayBuffer::JSArrayBufferPrint(FILE* out) {
 
 void JSTypedArray::JSTypedArrayPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSTypedArray");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - buffer =");
   buffer()->ShortPrint(out);
   PrintF(out, "\n - byte_offset = ");
@@ -832,6 +836,19 @@ void JSTypedArray::JSTypedArrayPrint(FILE* out) {
   length()->ShortPrint(out);
   PrintF("\n");
   PrintElements(out);
+}
+
+
+void JSDataView::JSDataViewPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSDataView");
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - buffer =");
+  buffer()->ShortPrint(out);
+  PrintF(out, "\n - byte_offset = ");
+  byte_offset()->ShortPrint(out);
+  PrintF(out, "\n - byte_length = ");
+  byte_length()->ShortPrint(out);
+  PrintF("\n");
 }
 
 

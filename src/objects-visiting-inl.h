@@ -83,6 +83,8 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitJSTypedArray, &VisitJSTypedArray);
 
+  table_.Register(kVisitJSDataView, &VisitJSDataView);
+
   table_.Register(kVisitFreeSpace, &VisitFreeSpace);
 
   table_.Register(kVisitJSWeakMap, &JSObjectVisitor::Visit);
@@ -108,7 +110,7 @@ int StaticNewSpaceVisitor<StaticVisitor>::VisitJSArrayBuffer(
   Heap* heap = map->GetHeap();
 
   STATIC_ASSERT(
-      JSArrayBuffer::kWeakFirstArrayOffset ==
+      JSArrayBuffer::kWeakFirstViewOffset ==
       JSArrayBuffer::kWeakNextOffset + kPointerSize);
   VisitPointers(
       heap,
@@ -136,6 +138,22 @@ int StaticNewSpaceVisitor<StaticVisitor>::VisitJSTypedArray(
           JSTypedArray::kWeakNextOffset + kPointerSize),
       HeapObject::RawField(object, JSTypedArray::kSize));
   return JSTypedArray::kSize;
+}
+
+
+template<typename StaticVisitor>
+int StaticNewSpaceVisitor<StaticVisitor>::VisitJSDataView(
+    Map* map, HeapObject* object) {
+  VisitPointers(
+      map->GetHeap(),
+      HeapObject::RawField(object, JSDataView::BodyDescriptor::kStartOffset),
+      HeapObject::RawField(object, JSDataView::kWeakNextOffset));
+  VisitPointers(
+      map->GetHeap(),
+      HeapObject::RawField(object,
+          JSDataView::kWeakNextOffset + kPointerSize),
+      HeapObject::RawField(object, JSDataView::kSize));
+  return JSDataView::kSize;
 }
 
 
@@ -193,6 +211,8 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
   table_.Register(kVisitJSArrayBuffer, &VisitJSArrayBuffer);
 
   table_.Register(kVisitJSTypedArray, &VisitJSTypedArray);
+
+  table_.Register(kVisitJSDataView, &VisitJSDataView);
 
   // Registration for kVisitJSRegExp is done by StaticVisitor.
 
@@ -456,7 +476,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSArrayBuffer(
   Heap* heap = map->GetHeap();
 
   STATIC_ASSERT(
-      JSArrayBuffer::kWeakFirstArrayOffset ==
+      JSArrayBuffer::kWeakFirstViewOffset ==
       JSArrayBuffer::kWeakNextOffset + kPointerSize);
   StaticVisitor::VisitPointers(
       heap,
@@ -482,6 +502,21 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSTypedArray(
       HeapObject::RawField(object,
         JSTypedArray::kWeakNextOffset + kPointerSize),
       HeapObject::RawField(object, JSTypedArray::kSize));
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitJSDataView(
+    Map* map, HeapObject* object) {
+  StaticVisitor::VisitPointers(
+      map->GetHeap(),
+      HeapObject::RawField(object, JSDataView::BodyDescriptor::kStartOffset),
+      HeapObject::RawField(object, JSDataView::kWeakNextOffset));
+  StaticVisitor::VisitPointers(
+      map->GetHeap(),
+      HeapObject::RawField(object,
+        JSDataView::kWeakNextOffset + kPointerSize),
+      HeapObject::RawField(object, JSDataView::kSize));
 }
 
 

@@ -1674,24 +1674,24 @@ void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer,
 
 
 template<>
-struct WeakListVisitor<JSTypedArray> {
-  static void SetWeakNext(JSTypedArray* obj, Object* next) {
+struct WeakListVisitor<JSArrayBufferView> {
+  static void SetWeakNext(JSArrayBufferView* obj, Object* next) {
     obj->set_weak_next(next);
   }
 
-  static Object* WeakNext(JSTypedArray* obj) {
+  static Object* WeakNext(JSArrayBufferView* obj) {
     return obj->weak_next();
   }
 
   static void VisitLiveObject(Heap*,
-                              JSTypedArray* obj,
+                              JSArrayBufferView* obj,
                               WeakObjectRetainer* retainer,
                               bool record_slots) {}
 
-  static void VisitPhantomObject(Heap*, JSTypedArray*) {}
+  static void VisitPhantomObject(Heap*, JSArrayBufferView*) {}
 
   static int WeakNextOffset() {
-    return JSTypedArray::kWeakNextOffset;
+    return JSArrayBufferView::kWeakNextOffset;
   }
 };
 
@@ -1711,14 +1711,14 @@ struct WeakListVisitor<JSArrayBuffer> {
                               WeakObjectRetainer* retainer,
                               bool record_slots) {
     Object* typed_array_obj =
-        VisitWeakList<JSTypedArray>(
+        VisitWeakList<JSArrayBufferView>(
             heap,
-            array_buffer->weak_first_array(),
+            array_buffer->weak_first_view(),
             retainer, record_slots);
-    array_buffer->set_weak_first_array(typed_array_obj);
+    array_buffer->set_weak_first_view(typed_array_obj);
     if (typed_array_obj != heap->undefined_value() && record_slots) {
       Object** slot = HeapObject::RawField(
-          array_buffer, JSArrayBuffer::kWeakFirstArrayOffset);
+          array_buffer, JSArrayBuffer::kWeakFirstViewOffset);
       heap->mark_compact_collector()->RecordSlot(slot, slot, typed_array_obj);
     }
   }
@@ -1934,6 +1934,10 @@ class ScavengingVisitor : public StaticVisitorBase {
                     Visit);
 
     table_.Register(kVisitJSTypedArray,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                    Visit);
+
+    table_.Register(kVisitJSDataView,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                     Visit);
 

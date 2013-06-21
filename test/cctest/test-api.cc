@@ -2742,7 +2742,8 @@ THREADED_TEST(ArrayBuffer_NeuteringScript) {
       "var u32a = new Uint32Array(ab, 4, 255);"
       "var i32a = new Int32Array(ab, 4, 255);"
       "var f32a = new Float32Array(ab, 4, 255);"
-      "var f64a = new Float64Array(ab, 8, 127);");
+      "var f64a = new Float64Array(ab, 8, 127);"
+      "var dv = new DataView(ab, 1, 1023);");
 
   v8::Handle<v8::ArrayBuffer> ab =
       Local<v8::ArrayBuffer>::Cast(CompileRun("ab"));
@@ -2779,6 +2780,7 @@ THREADED_TEST(ArrayBuffer_NeuteringScript) {
   CheckIsNeutered(i32a);
   CheckIsNeutered(f32a);
   CheckIsNeutered(f64a);
+  CHECK(CompileRun("dv.byteLength == 0 && dv.byteOffset == 0")->IsTrue());
 }
 
 
