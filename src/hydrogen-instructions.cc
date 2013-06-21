@@ -1155,8 +1155,12 @@ void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
   HValue* actual_length = length()->ActualValue();
   Representation index_rep = actual_index->representation();
   Representation length_rep = actual_length->representation();
-  if (index_rep.IsTagged()) index_rep = Representation::Smi();
-  if (length_rep.IsTagged()) length_rep = Representation::Smi();
+  if (index_rep.IsTagged() && actual_index->type().IsSmi()) {
+    index_rep = Representation::Smi();
+  }
+  if (length_rep.IsTagged() && actual_length->type().IsSmi()) {
+    length_rep = Representation::Smi();
+  }
   Representation r = index_rep.generalize(length_rep);
   if (r.is_more_general_than(Representation::Integer32())) {
     r = Representation::Integer32();
@@ -3323,10 +3327,9 @@ HInstruction* HStringAdd::New(
     HConstant* c_right = HConstant::cast(right);
     HConstant* c_left = HConstant::cast(left);
     if (c_left->HasStringValue() && c_right->HasStringValue()) {
-      Factory* factory = Isolate::Current()->factory();
-      return new(zone) HConstant(factory->NewConsString(c_left->StringValue(),
-                                                        c_right->StringValue()),
-                                 Representation::Tagged());
+      Handle<String> concat = zone->isolate()->factory()->NewFlatConcatString(
+          c_left->StringValue(), c_right->StringValue());
+      return new(zone) HConstant(concat, Representation::Tagged());
     }
   }
   return new(zone) HStringAdd(context, left, right);
