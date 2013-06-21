@@ -53,7 +53,7 @@ static void ProbeTable(Isolate* isolate,
   ASSERT(kPointerSizeLog2 == kHeapObjectTagSize + 1);
   ScaleFactor scale_factor = times_2;
 
-  ASSERT_EQ(24, sizeof(StubCache::Entry));
+  ASSERT_EQ(3 * kPointerSize, sizeof(StubCache::Entry));
   // The offset register holds the entry offset times four (due to masking
   // and shifting optimizations).
   ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
@@ -171,8 +171,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   USE(extra2);  // The register extra2 is not used on the X64 platform.
   USE(extra3);  // The register extra2 is not used on the X64 platform.
   // Make sure that code is valid. The multiplying code relies on the
-  // entry size being 24.
-  ASSERT(sizeof(Entry) == 24);
+  // entry size being 3 * kPointerSize.
+  ASSERT(sizeof(Entry) == 3 * kPointerSize);
 
   // Make sure the flags do not name a specific type.
   ASSERT(Code::ExtractTypeFromFlags(flags) == 0);
