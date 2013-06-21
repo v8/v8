@@ -2039,10 +2039,23 @@ void LCodeGen::DoBranch(LBranch* instr) {
     } else if (type.IsSmi()) {
       ASSERT(!info()->IsStub());
       EmitBranch(instr, ne, reg, Operand(zero_reg));
+    } else if (type.IsJSArray()) {
+      ASSERT(!info()->IsStub());
+      EmitBranch(instr, al, zero_reg, Operand(zero_reg));
+    } else if (type.IsHeapNumber()) {
+      ASSERT(!info()->IsStub());
+      DoubleRegister dbl_scratch = double_scratch0();
+      __ ldc1(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
+      // Test the double value. Zero and NaN are false.
+      EmitBranchF(instr, nue, dbl_scratch, kDoubleRegZero);
+    } else if (type.IsString()) {
+      ASSERT(!info()->IsStub());
+      __ lw(at, FieldMemOperand(reg, String::kLengthOffset));
+      EmitBranch(instr, ne, at, Operand(zero_reg));
     } else {
       ToBooleanStub::Types expected = instr->hydrogen()->expected_input_types();
       // Avoid deopts in the case where we've never executed this path before.
-      if (expected.IsEmpty()) expected = ToBooleanStub::all_types();
+      if (expected.IsEmpty()) expected = ToBooleanStub::Types::Generic();
 
       if (expected.Contains(ToBooleanStub::UNDEFINED)) {
         // undefined -> false.
@@ -2122,8 +2135,11 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ bind(&not_heap_number);
       }
 
-      // We've seen something for the first time -> deopt.
-      DeoptimizeIf(al, instr->environment(), zero_reg, Operand(zero_reg));
+      if (!expected.IsGeneric()) {
+        // We've seen something for the first time -> deopt.
+        // This can only happen if we are not generic already.
+        DeoptimizeIf(al, instr->environment(), zero_reg, Operand(zero_reg));
+      }
     }
   }
 }

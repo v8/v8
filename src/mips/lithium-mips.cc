@@ -1003,10 +1003,13 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 
   LBranch* result = new(zone()) LBranch(UseRegister(value));
   // Tagged values that are not known smis or booleans require a
-  // deoptimization environment.
+  // deoptimization environment. If the instruction is generic no
+  // environment is needed since all cases are handled.
   Representation rep = value->representation();
   HType type = value->type();
-  if (rep.IsTagged() && !type.IsSmi() && !type.IsBoolean()) {
+  ToBooleanStub::Types expected = instr->expected_input_types();
+  if (rep.IsTagged() && !type.IsSmi() && !type.IsBoolean() &&
+      !expected.IsGeneric()) {
     return AssignEnvironment(result);
   }
   return result;
