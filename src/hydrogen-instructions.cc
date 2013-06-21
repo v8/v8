@@ -3497,8 +3497,7 @@ HInstruction* HMod::New(Zone* zone,
                         HValue* context,
                         HValue* left,
                         HValue* right,
-                        bool has_fixed_right_arg,
-                        int fixed_right_arg_value) {
+                        Maybe<int> fixed_right_arg) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -3517,11 +3516,7 @@ HInstruction* HMod::New(Zone* zone,
       }
     }
   }
-  return new(zone) HMod(context,
-                        left,
-                        right,
-                        has_fixed_right_arg,
-                        fixed_right_arg_value);
+  return new(zone) HMod(context, left, right, fixed_right_arg);
 }
 
 

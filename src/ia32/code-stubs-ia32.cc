@@ -1527,7 +1527,7 @@ void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
       UNREACHABLE();
   }
 
-  if (op_ == Token::MOD && has_fixed_right_arg_) {
+  if (op_ == Token::MOD && encoded_right_arg_.has_value) {
     // It is guaranteed that the value will fit into a Smi, because if it
     // didn't, we wouldn't be here, see BinaryOp_Patch.
     __ cmp(eax, Immediate(Smi::FromInt(fixed_right_arg_value())));
@@ -1669,7 +1669,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         FloatingPointHelper::CheckSSE2OperandIsInt32(
             masm, &not_int32, xmm1, edi, ecx, xmm2);
         if (op_ == Token::MOD) {
-          if (has_fixed_right_arg_) {
+          if (encoded_right_arg_.has_value) {
             __ cmp(edi, Immediate(fixed_right_arg_value()));
             __ j(not_equal, &right_arg_changed);
           }

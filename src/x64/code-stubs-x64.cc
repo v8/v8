@@ -1232,7 +1232,7 @@ void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
 void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   Label right_arg_changed, call_runtime;
 
-  if (op_ == Token::MOD && has_fixed_right_arg_) {
+  if (op_ == Token::MOD && encoded_right_arg_.has_value) {
     // It is guaranteed that the value will fit into a Smi, because if it
     // didn't, we wouldn't be here, see BinaryOp_Patch.
     __ Cmp(rax, Smi::FromInt(fixed_right_arg_value()));

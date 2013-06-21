@@ -1223,12 +1223,12 @@ void LCodeGen::DoModI(LModI* instr) {
     __ and_(left_reg, divisor - 1);
     __ bind(&done);
 
-  } else if (hmod->has_fixed_right_arg()) {
+  } else if (hmod->fixed_right_arg().has_value) {
     Register left_reg = ToRegister(instr->left());
     ASSERT(left_reg.is(ToRegister(instr->result())));
     Register right_reg = ToRegister(instr->right());
 
-    int32_t divisor = hmod->fixed_right_arg_value();
+    int32_t divisor = hmod->fixed_right_arg().value;
     ASSERT(IsPowerOf2(divisor));
 
     // Check if our assumption of a fixed right operand still holds.

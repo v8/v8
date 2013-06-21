@@ -9036,11 +9036,10 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
   HValue* context = environment()->LookupContext();
   HInstruction* instr =
       HMul::New(zone(), context, value, graph()->GetConstantMinus1());
-  Handle<Type> type = expr->type();
-  Representation rep = ToRepresentation(type);
-  if (type->Is(Type::None())) {
+  Handle<Type> operand_type = expr->expression()->lower_type();
+  Representation rep = ToRepresentation(operand_type);
+  if (operand_type->Is(Type::None())) {
     AddSoftDeoptimize();
-    type = handle(Type::Any(), isolate());
   }
   if (instr->IsBinaryOperation()) {
     HBinaryOperation::cast(instr)->set_observed_input_representation(1, rep);
@@ -9053,8 +9052,8 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
-  Handle<Type> info = expr->type();
-  if (info->Is(Type::None())) {
+  Handle<Type> operand_type = expr->expression()->lower_type();
+  if (operand_type->Is(Type::None())) {
     AddSoftDeoptimize();
   }
   HInstruction* instr = new(zone()) HBitNot(value);
@@ -9417,16 +9416,16 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
     HValue* left,
     HValue* right) {
   HValue* context = environment()->LookupContext();
-  Handle<Type> left_type = expr->left_type();
-  Handle<Type> right_type = expr->right_type();
+  Handle<Type> left_type = expr->left()->lower_type();
+  Handle<Type> right_type = expr->right()->lower_type();
   Handle<Type> result_type = expr->result_type();
-  bool has_fixed_right_arg = expr->has_fixed_right_arg();
-  int fixed_right_arg_value = expr->fixed_right_arg_value();
+  Maybe<int> fixed_right_arg = expr->fixed_right_arg();
   Representation left_rep = ToRepresentation(left_type);
   Representation right_rep = ToRepresentation(right_type);
   Representation result_rep = ToRepresentation(result_type);
   if (left_type->Is(Type::None())) {
     AddSoftDeoptimize();
+    // TODO(rossberg): we should be able to get rid of non-continuous defaults.
     left_type = handle(Type::Any(), isolate());
   }
   if (right_type->Is(Type::None())) {
@@ -9453,12 +9452,7 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
       instr = HMul::New(zone(), context, left, right);
       break;
     case Token::MOD:
-      instr = HMod::New(zone(),
-                        context,
-                        left,
-                        right,
-                        has_fixed_right_arg,
-                        fixed_right_arg_value);
+      instr = HMod::New(zone(), context, left, right, fixed_right_arg);
       break;
     case Token::DIV:
       instr = HDiv::New(zone(), context, left, right);
@@ -9765,17 +9759,17 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  Handle<Type> left_type = expr->left_type();
-  Handle<Type> right_type = expr->right_type();
-  Handle<Type> overall_type = expr->overall_type();
-  Representation combined_rep = ToRepresentation(overall_type);
+  Handle<Type> left_type = expr->left()->lower_type();
+  Handle<Type> right_type = expr->right()->lower_type();
+  Handle<Type> combined_type = expr->combined_type();
+  Representation combined_rep = ToRepresentation(combined_type);
   Representation left_rep = ToRepresentation(left_type);
   Representation right_rep = ToRepresentation(right_type);
   // Check if this expression was ever executed according to type feedback.
   // Note that for the special typeof/null/undefined cases we get unknown here.
-  if (overall_type->Is(Type::None())) {
+  if (combined_type->Is(Type::None())) {
     AddSoftDeoptimize();
-    overall_type = left_type = right_type = handle(Type::Any(), isolate());
+    combined_type = left_type = right_type = handle(Type::Any(), isolate());
   }
 
   CHECK_ALIVE(VisitForValue(expr->left()));
@@ -9847,13 +9841,13 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     HIn* result = new(zone()) HIn(context, left, right);
     result->set_position(expr->position());
     return ast_context()->ReturnInstruction(result, expr->id());
-  } else if (overall_type->Is(Type::Receiver())) {
+  } else if (combined_type->Is(Type::Receiver())) {
     switch (op) {
       case Token::EQ:
       case Token::EQ_STRICT: {
         // Can we get away with map check and not instance type check?
-        if (overall_type->IsClass()) {
-          Handle<Map> map = overall_type->AsClass();
+        if (combined_type->IsClass()) {
+          Handle<Map> map = combined_type->AsClass();
           AddCheckMapsWithTransitions(left, map);
           AddCheckMapsWithTransitions(right, map);
           HCompareObjectEqAndBranch* result =
@@ -9874,7 +9868,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       default:
         return Bailout("Unsupported non-primitive compare");
     }
-  } else if (overall_type->Is(Type::InternalizedString()) &&
+  } else if (combined_type->Is(Type::InternalizedString()) &&
              Token::IsEqualityOp(op)) {
     BuildCheckNonSmi(left);
     AddInstruction(HCheckInstanceType::NewIsInternalizedString(left, zone()));
@@ -9925,8 +9919,8 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
     if_nil.CaptureContinuation(&continuation);
     return ast_context()->ReturnContinuation(&continuation, expr->id());
   }
-  Handle<Type> type = expr->compare_nil_type()->Is(Type::None())
-      ? handle(Type::Any(), isolate_) : expr->compare_nil_type();
+  Handle<Type> type = expr->combined_type()->Is(Type::None())
+      ? handle(Type::Any(), isolate_) : expr->combined_type();
   BuildCompareNil(value, type, expr->position(), &continuation);
   return ast_context()->ReturnContinuation(&continuation, expr->id());
 }

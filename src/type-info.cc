@@ -352,13 +352,11 @@ bool TypeFeedbackOracle::LoadIsStub(Property* expr, ICStub* stub) {
 }
 
 
-void TypeFeedbackOracle::CompareTypes(TypeFeedbackId id,
-                                      Handle<Type>* left_type,
-                                      Handle<Type>* right_type,
-                                      Handle<Type>* overall_type,
-                                      Handle<Type>* compare_nil_type) {
-  *left_type = *right_type = *overall_type = *compare_nil_type =
-      handle(Type::Any(), isolate_);
+void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
+                                     Handle<Type>* left_type,
+                                     Handle<Type>* right_type,
+                                     Handle<Type>* combined_type) {
+  *left_type = *right_type = *combined_type = handle(Type::Any(), isolate_);
   Handle<Object> info = GetInfo(id);
   if (!info->IsCode()) return;
   Handle<Code> code = Handle<Code>::cast(info);
@@ -375,10 +373,14 @@ void TypeFeedbackOracle::CompareTypes(TypeFeedbackId id,
   if (code->is_compare_ic_stub()) {
     int stub_minor_key = code->stub_info();
     CompareIC::StubInfoToType(
-        stub_minor_key, left_type, right_type, overall_type, map, isolate());
+        stub_minor_key, left_type, right_type, combined_type, map, isolate());
   } else if (code->is_compare_nil_ic_stub()) {
     CompareNilICStub::State state(code->compare_nil_state());
-    *compare_nil_type = CompareNilICStub::StateToType(isolate_, state, map);
+    *combined_type = CompareNilICStub::StateToType(isolate_, state, map);
+    Handle<Type> nil_type = handle(code->compare_nil_value() == kNullValue
+        ? Type::Null() : Type::Undefined(), isolate_);
+    *left_type = *right_type =
+        handle(Type::Union(*combined_type, nil_type), isolate_);
   }
 }
 
@@ -397,8 +399,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
                                     Handle<Type>* left,
                                     Handle<Type>* right,
                                     Handle<Type>* result,
-                                    bool* has_fixed_right_arg,
-                                    int* fixed_right_arg_value) {
+                                    Maybe<int>* fixed_right_arg) {
   Handle<Object> object = GetInfo(id);
   *left = *right = *result = handle(Type::Any(), isolate_);
   if (!object->IsCode()) return;
@@ -407,10 +408,8 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
 
   int minor_key = code->stub_info();
   BinaryOpIC::StubInfoToType(minor_key, left, right, result, isolate());
-  *has_fixed_right_arg =
-      BinaryOpStub::decode_has_fixed_right_arg_from_minor_key(minor_key);
-  *fixed_right_arg_value =
-      BinaryOpStub::decode_fixed_right_arg_value_from_minor_key(minor_key);
+  *fixed_right_arg =
+      BinaryOpStub::decode_fixed_right_arg_from_minor_key(minor_key);
 }
 
 

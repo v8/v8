@@ -2653,11 +2653,10 @@ static BinaryOpIC::TypeInfo InputState(BinaryOpIC::TypeInfo old_type,
 #ifdef DEBUG
 static void TraceBinaryOp(BinaryOpIC::TypeInfo left,
                           BinaryOpIC::TypeInfo right,
-                          bool has_fixed_right_arg,
-                          int32_t fixed_right_arg_value,
+                          Maybe<int32_t> fixed_right_arg,
                           BinaryOpIC::TypeInfo result) {
   PrintF("%s*%s", BinaryOpIC::GetName(left), BinaryOpIC::GetName(right));
-  if (has_fixed_right_arg) PrintF("{%d}", fixed_right_arg_value);
+  if (fixed_right_arg.has_value) PrintF("{%d}", fixed_right_arg.value);
   PrintF("->%s", BinaryOpIC::GetName(result));
 }
 #endif
@@ -2689,10 +2688,8 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   BinaryOpIC::TypeInfo new_overall = Max(new_left, new_right);
   BinaryOpIC::TypeInfo previous_overall = Max(previous_left, previous_right);
 
-  bool previous_has_fixed_right_arg =
-      BinaryOpStub::decode_has_fixed_right_arg_from_minor_key(key);
-  int previous_fixed_right_arg_value =
-      BinaryOpStub::decode_fixed_right_arg_value_from_minor_key(key);
+  Maybe<int> previous_fixed_right_arg =
+      BinaryOpStub::decode_fixed_right_arg_from_minor_key(key);
 
   int32_t value;
   bool new_has_fixed_right_arg =
@@ -2700,11 +2697,12 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
       right->ToInt32(&value) &&
       BinaryOpStub::can_encode_arg_value(value) &&
       (previous_overall == BinaryOpIC::UNINITIALIZED ||
-       (previous_has_fixed_right_arg &&
-        previous_fixed_right_arg_value == value));
-  int32_t new_fixed_right_arg_value = new_has_fixed_right_arg ? value : 1;
+       (previous_fixed_right_arg.has_value &&
+        previous_fixed_right_arg.value == value));
+  Maybe<int32_t> new_fixed_right_arg(
+      new_has_fixed_right_arg, new_has_fixed_right_arg ? value : 1);
 
-  if (previous_has_fixed_right_arg == new_has_fixed_right_arg) {
+  if (previous_fixed_right_arg.has_value == new_fixed_right_arg.has_value) {
     if (new_overall == BinaryOpIC::SMI && previous_overall == BinaryOpIC::SMI) {
       if (op == Token::DIV ||
           op == Token::MUL ||
@@ -2728,8 +2726,7 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
     }
   }
 
-  BinaryOpStub stub(key, new_left, new_right, result_type,
-                    new_has_fixed_right_arg, new_fixed_right_arg_value);
+  BinaryOpStub stub(key, new_left, new_right, result_type, new_fixed_right_arg);
   Handle<Code> code = stub.GetCode(isolate);
   if (!code.is_null()) {
 #ifdef DEBUG
@@ -2737,11 +2734,10 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
       PrintF("[BinaryOpIC in ");
       JavaScriptFrame::PrintTop(isolate, stdout, false, true);
       PrintF(" ");
-      TraceBinaryOp(previous_left, previous_right, previous_has_fixed_right_arg,
-                    previous_fixed_right_arg_value, previous_result);
+      TraceBinaryOp(previous_left, previous_right, previous_fixed_right_arg,
+                    previous_result);
       PrintF(" => ");
-      TraceBinaryOp(new_left, new_right, new_has_fixed_right_arg,
-                    new_fixed_right_arg_value, result_type);
+      TraceBinaryOp(new_left, new_right, new_fixed_right_arg, result_type);
       PrintF(" #%s @ %p]\n", Token::Name(op), static_cast<void*>(*code));
     }
 #endif

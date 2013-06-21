@@ -418,6 +418,10 @@ bool FunctionDeclaration::IsInlineable() const {
 // ----------------------------------------------------------------------------
 // Recording of type feedback
 
+// TODO(rossberg): all RecordTypeFeedback functions should disappear
+// once we use the common type field in the AST consistently.
+
+
 void ForInStatement::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   for_in_type_ = static_cast<ForInType>(oracle->ForInType(this));
 }
@@ -662,26 +666,6 @@ void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   receiver_type_ = oracle->ObjectLiteralStoreIsMonomorphic(this)
       ? oracle->GetObjectLiteralStoreMap(this)
       : Handle<Map>::null();
-}
-
-
-void UnaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  type_ = oracle->UnaryType(UnaryOperationFeedbackId());
-}
-
-
-void BinaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  oracle->BinaryType(BinaryOperationFeedbackId(),
-                     &left_type_, &right_type_, &result_type_,
-                     &has_fixed_right_arg_, &fixed_right_arg_value_);
-}
-
-
-// TODO(rossberg): this function (and all other RecordTypeFeedback functions)
-// should disappear once we use the common type field in the AST consistently.
-void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  oracle->CompareTypes(CompareOperationFeedbackId(),
-      &left_type_, &right_type_, &overall_type_, &compare_nil_type_);
 }
 
 

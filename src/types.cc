@@ -336,6 +336,12 @@ Type* Type::Union(Handle<Type> type1, Handle<Type> type2) {
     return from_bitset(type1->as_bitset() | type2->as_bitset());
   }
 
+  // Fast case: top or bottom types.
+  if (type1->SameValue(Type::Any())) return *type1;
+  if (type2->SameValue(Type::Any())) return *type2;
+  if (type1->SameValue(Type::None())) return *type2;
+  if (type2->SameValue(Type::None())) return *type1;
+
   // Semi-fast case: Unioned objects are neither involved nor produced.
   if (!(type1->is_union() || type2->is_union())) {
     if (type1->Is(type2)) return *type2;
@@ -405,6 +411,12 @@ Type* Type::Intersect(Handle<Type> type1, Handle<Type> type2) {
   if (type1->is_bitset() && type2->is_bitset()) {
     return from_bitset(type1->as_bitset() & type2->as_bitset());
   }
+
+  // Fast case: top or bottom types.
+  if (type1->SameValue(Type::None())) return *type1;
+  if (type2->SameValue(Type::None())) return *type2;
+  if (type1->SameValue(Type::Any())) return *type2;
+  if (type2->SameValue(Type::Any())) return *type1;
 
   // Semi-fast case: Unioned objects are neither involved nor produced.
   if (!(type1->is_union() || type2->is_union())) {

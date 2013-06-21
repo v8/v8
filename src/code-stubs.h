@@ -904,8 +904,7 @@ class BinaryOpStub: public PlatformCodeStub {
         left_type_(BinaryOpIC::UNINITIALIZED),
         right_type_(BinaryOpIC::UNINITIALIZED),
         result_type_(BinaryOpIC::UNINITIALIZED),
-        has_fixed_right_arg_(false),
-        encoded_right_arg_(encode_arg_value(1)) {
+        encoded_right_arg_(false, encode_arg_value(1)) {
     Initialize();
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
@@ -915,16 +914,15 @@ class BinaryOpStub: public PlatformCodeStub {
       BinaryOpIC::TypeInfo left_type,
       BinaryOpIC::TypeInfo right_type,
       BinaryOpIC::TypeInfo result_type,
-      bool has_fixed_right_arg,
-      int32_t fixed_right_arg_value)
+      Maybe<int32_t> fixed_right_arg)
       : op_(OpBits::decode(key)),
         mode_(ModeBits::decode(key)),
         platform_specific_bit_(PlatformSpecificBits::decode(key)),
         left_type_(left_type),
         right_type_(right_type),
         result_type_(result_type),
-        has_fixed_right_arg_(has_fixed_right_arg),
-        encoded_right_arg_(encode_arg_value(fixed_right_arg_value)) { }
+        encoded_right_arg_(fixed_right_arg.has_value,
+                           encode_arg_value(fixed_right_arg.value)) { }
 
   static void decode_types_from_minor_key(int minor_key,
                                           BinaryOpIC::TypeInfo* left_type,
@@ -942,16 +940,14 @@ class BinaryOpStub: public PlatformCodeStub {
     return static_cast<Token::Value>(OpBits::decode(minor_key));
   }
 
-  static bool decode_has_fixed_right_arg_from_minor_key(int minor_key) {
-    return HasFixedRightArgBits::decode(minor_key);
-  }
-
-  static int decode_fixed_right_arg_value_from_minor_key(int minor_key) {
-    return decode_arg_value(FixedRightArgValueBits::decode(minor_key));
+  static Maybe<int> decode_fixed_right_arg_from_minor_key(int minor_key) {
+    return Maybe<int>(
+        HasFixedRightArgBits::decode(minor_key),
+        decode_arg_value(FixedRightArgValueBits::decode(minor_key)));
   }
 
   int fixed_right_arg_value() const {
-    return decode_arg_value(encoded_right_arg_);
+    return decode_arg_value(encoded_right_arg_.value);
   }
 
   static bool can_encode_arg_value(int32_t value) {
@@ -975,8 +971,7 @@ class BinaryOpStub: public PlatformCodeStub {
   BinaryOpIC::TypeInfo right_type_;
   BinaryOpIC::TypeInfo result_type_;
 
-  bool has_fixed_right_arg_;
-  int encoded_right_arg_;
+  Maybe<int> encoded_right_arg_;
 
   static int encode_arg_value(int32_t value) {
     ASSERT(can_encode_arg_value(value));
@@ -1009,8 +1004,8 @@ class BinaryOpStub: public PlatformCodeStub {
            | LeftTypeBits::encode(left_type_)
            | RightTypeBits::encode(right_type_)
            | ResultTypeBits::encode(result_type_)
-           | HasFixedRightArgBits::encode(has_fixed_right_arg_)
-           | FixedRightArgValueBits::encode(encoded_right_arg_);
+           | HasFixedRightArgBits::encode(encoded_right_arg_.has_value)
+           | FixedRightArgValueBits::encode(encoded_right_arg_.value);
   }
 
 
@@ -1206,6 +1201,9 @@ class CompareNilICStub : public HydrogenCodeStub  {
   }
   static byte ExtractTypesFromExtraICState(Code::ExtraICState state) {
     return state & ((1 << NUMBER_OF_TYPES) - 1);
+  }
+  static NilValue ExtractNilValueFromExtraICState(Code::ExtraICState state) {
+    return NilValueField::decode(state);
   }
 
   void Record(Handle<Object> object);
