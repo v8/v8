@@ -89,8 +89,9 @@ void OptimizingCompilerThread::CompileNext() {
   ASSERT(status != OptimizingCompiler::FAILED);
 
   // The function may have already been optimized by OSR.  Simply continue.
-  // Mark it for installing before queuing so that we can be sure of the write
-  // order: marking first and (after being queued) installing code second.
+  // Use a mutex to make sure that functions marked for install
+  // are always also queued.
+  ScopedLock mark_and_queue(install_mutex_);
   { Heap::RelocationLock relocation_lock(isolate_->heap());
     AllowHandleDereference ahd;
     optimizing_compiler->info()->closure()->MarkForInstallingRecompiledCode();
@@ -130,11 +131,13 @@ void OptimizingCompilerThread::Stop() {
 void OptimizingCompilerThread::InstallOptimizedFunctions() {
   ASSERT(!IsOptimizerThread());
   HandleScope handle_scope(isolate_);
-  int functions_installed = 0;
   OptimizingCompiler* compiler;
-  while (output_queue_.Dequeue(&compiler)) {
+  while (true) {
+    { // Memory barrier to ensure marked functions are queued.
+      ScopedLock marked_and_queued(install_mutex_);
+      if (!output_queue_.Dequeue(&compiler)) return;
+    }
     Compiler::InstallOptimizedCode(compiler);
-    functions_installed++;
   }
 }
 

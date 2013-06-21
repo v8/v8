@@ -7912,12 +7912,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   ASSERT(V8::UseCrankshaft() && FLAG_parallel_recompilation);
-  OptimizingCompilerThread* opt_thread = isolate->optimizing_compiler_thread();
-  do {
-    // The function could have been marked for installing, but not queued just
-    // yet.  In this case, retry until installed.
-    opt_thread->InstallOptimizedFunctions();
-  } while (function->IsMarkedForInstallingRecompiledCode());
+  isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
   return function->code();
 }
 
