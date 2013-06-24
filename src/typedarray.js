@@ -37,7 +37,7 @@
 
 function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
   function ConstructByArrayBuffer(obj, buffer, byteOffset, length) {
-    var offset = IS_UNDEFINED(byteOffset) ? 0 : TO_POSITIVE_INTEGER(byteOffset);
+    var offset = ToPositiveInteger(byteOffset, "invalid_typed_array_length")
 
     if (offset % elementSize !== 0) {
       throw MakeRangeError("invalid_typed_array_alignment",
@@ -58,7 +58,7 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
       newByteLength = bufferByteLength - offset;
       newLength = newByteLength / elementSize;
     } else {
-      var newLength = TO_POSITIVE_INTEGER(length);
+      var newLength = ToPositiveInteger(length, "invalid_typed_array_length");
       newByteLength = newLength * elementSize;
     }
     if (offset + newByteLength > bufferByteLength) {
@@ -68,7 +68,7 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
   }
 
   function ConstructByLength(obj, length) {
-    var l = IS_UNDEFINED(length) ? 0 : TO_POSITIVE_INTEGER(length);
+    var l = ToPositiveInteger(length, "invalid_typed_array_length");
     var byteLength = l * elementSize;
     var buffer = new global.ArrayBuffer(byteLength);
     %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
@@ -76,7 +76,7 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
 
   function ConstructByArrayLike(obj, arrayLike) {
     var length = arrayLike.length;
-    var l =  IS_UNDEFINED(length) ? 0 : TO_POSITIVE_INTEGER(length);
+    var l =  ToPositiveInteger(length, "invalid_typed_array_length");
     var byteLength = l * elementSize;
     var buffer = new $ArrayBuffer(byteLength);
     %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
@@ -146,7 +146,10 @@ function CreateSubArray(elementSize, constructor) {
 }
 
 function TypedArraySet(obj, offset) {
-  var intOffset = IS_UNDEFINED(offset) ? 0 : TO_POSITIVE_INTEGER(offset);
+  var intOffset = IS_UNDEFINED(offset) ? 0 : TO_INTEGER(offset);
+  if (intOffset < 0) {
+    throw MakeTypeError("typed_array_set_negative_offset");
+  }
   if (%TypedArraySetFastCases(this, obj, intOffset))
     return;
 
@@ -209,13 +212,13 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
       throw MakeTypeError('data_view_not_array_buffer', []);
     }
     var bufferByteLength = %ArrayBufferGetByteLength(buffer);
-    var offset = IS_UNDEFINED(byteOffset) ? 0 : TO_POSITIVE_INTEGER(byteOffset);
+    var offset = ToPositiveInteger(byteOffset, 'invalid_data_view_offset');
     if (offset > bufferByteLength) {
-      throw MakeRangeError('invalid_data_view_offset', []);
+      throw MakeRangeError('invalid_data_view_offset');
     }
     var length = IS_UNDEFINED(byteLength) ?
-      bufferByteLength - offset : TO_POSITIVE_INTEGER(byteLength);
-    if (offset + length > bufferByteLength) {
+      bufferByteLength - offset : TO_INTEGER(byteLength);
+    if (length < 0 || offset + length > bufferByteLength) {
       throw new MakeRangeError('invalid_data_view_length');
     }
     %DataViewInitialize(this, buffer, offset, length);
@@ -248,12 +251,18 @@ function DataViewGetByteLength() {
   return %DataViewGetByteLength(this);
 }
 
+function ToPositiveDataViewOffset(offset) {
+  return ToPositiveInteger(offset, 'invalid_data_view_accessor_offset');
+}
+
 function DataViewGetInt8(offset, little_endian) {
   if (!IS_DATAVIEW(this)) {
     throw MakeTypeError('incompatible_method_reciever',
                         ['DataView.getInt8', this]);
   }
-  return %DataViewGetInt8(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+  return %DataViewGetInt8(this,
+                          ToPositiveDataViewOffset(offset),
+                          !!little_endian);
 }
 
 function DataViewSetInt8(offset, value, little_endian) {
@@ -262,7 +271,7 @@ function DataViewSetInt8(offset, value, little_endian) {
                         ['DataView.setInt8', this]);
   }
   %DataViewSetInt8(this,
-                   TO_POSITIVE_INTEGER(offset),
+                   ToPositiveDataViewOffset(offset),
                    TO_NUMBER_INLINE(value),
                    !!little_endian);
 }
@@ -272,7 +281,9 @@ function DataViewGetUint8(offset, little_endian) {
     throw MakeTypeError('incompatible_method_reciever',
                         ['DataView.getUint8', this]);
   }
-  return %DataViewGetUint8(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+  return %DataViewGetUint8(this,
+                           ToPositiveDataViewOffset(offset),
+                           !!little_endian);
 }
 
 function DataViewSetUint8(offset, value, little_endian) {
@@ -281,7 +292,7 @@ function DataViewSetUint8(offset, value, little_endian) {
                         ['DataView.setUint8', this]);
   }
   %DataViewSetUint8(this,
-                   TO_POSITIVE_INTEGER(offset),
+                   ToPositiveDataViewOffset(offset),
                    TO_NUMBER_INLINE(value),
                    !!little_endian);
 }
@@ -291,7 +302,9 @@ function DataViewGetInt16(offset, little_endian) {
     throw MakeTypeError('incompatible_method_reciever',
                         ['DataView.getInt16', this]);
   }
-  return %DataViewGetInt16(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+  return %DataViewGetInt16(this,
+                           ToPositiveDataViewOffset(offset),
+                           !!little_endian);
 }
 
 function DataViewSetInt16(offset, value, little_endian) {
@@ -300,7 +313,7 @@ function DataViewSetInt16(offset, value, little_endian) {
                         ['DataView.setInt16', this]);
   }
   %DataViewSetInt16(this,
-                    TO_POSITIVE_INTEGER(offset),
+                    ToPositiveDataViewOffset(offset),
                     TO_NUMBER_INLINE(value),
                     !!little_endian);
 }
@@ -310,7 +323,9 @@ function DataViewGetUint16(offset, little_endian) {
     throw MakeTypeError('incompatible_method_reciever',
                         ['DataView.getUint16', this]);
   }
-  return %DataViewGetUint16(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+  return %DataViewGetUint16(this,
+                            ToPositiveDataViewOffset(offset),
+                            !!little_endian);
 }
 
 function DataViewSetUint16(offset, value, little_endian) {
@@ -319,7 +334,7 @@ function DataViewSetUint16(offset, value, little_endian) {
                         ['DataView.setUint16', this]);
   }
   %DataViewSetUint16(this,
-                     TO_POSITIVE_INTEGER(offset),
+                     ToPositiveDataViewOffset(offset),
                      TO_NUMBER_INLINE(value),
                      !!little_endian);
 }
@@ -329,7 +344,9 @@ function DataViewGetInt32(offset, little_endian) {
     throw MakeTypeError('incompatible_method_reciever',
                         ['DataView.getInt32', this]);
   }
-  return %DataViewGetInt32(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+  return %DataViewGetInt32(this,
+                           ToPositiveDataViewOffset(offset),
+                           !!little_endian);
 }
 
 function DataViewSetInt32(offset, value, little_endian) {
@@ -338,7 +355,7 @@ function DataViewSetInt32(offset, value, little_endian) {
                         ['DataView.setInt32', this]);
   }
   %DataViewSetInt32(this,
-                    TO_POSITIVE_INTEGER(offset),
+                    ToPositiveDataViewOffset(offset),
                     TO_NUMBER_INLINE(value),
                     !!little_endian);
 }
@@ -348,7 +365,9 @@ function DataViewGetUint32(offset, little_endian) {
     throw MakeTypeError('incompatible_method_reciever',
                         ['DataView.getUint32', this]);
   }
-  return %DataViewGetUint32(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+  return %DataViewGetUint32(this,
+                            ToPositiveDataViewOffset(offset),
+                            !!little_endian);
 }
 
 function DataViewSetUint32(offset, value, little_endian) {
@@ -357,7 +376,7 @@ function DataViewSetUint32(offset, value, little_endian) {
                         ['DataView.setUint32', this]);
   }
   %DataViewSetUint32(this,
-                     TO_POSITIVE_INTEGER(offset),
+                     ToPositiveDataViewOffset(offset),
                      TO_NUMBER_INLINE(value),
                      !!little_endian);
 }
@@ -367,7 +386,9 @@ function DataViewGetFloat32(offset, little_endian) {
     throw MakeTypeError('incompatible_method_reciever',
                         ['DataView.getFloat32', this]);
   }
-  return %DataViewGetFloat32(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+  return %DataViewGetFloat32(this,
+                             ToPositiveDataViewOffset(offset),
+                             !!little_endian);
 }
 
 function DataViewSetFloat32(offset, value, little_endian) {
@@ -376,7 +397,7 @@ function DataViewSetFloat32(offset, value, little_endian) {
                         ['DataView.setFloat32', this]);
   }
   %DataViewSetFloat32(this,
-                      TO_POSITIVE_INTEGER(offset),
+                      ToPositiveDataViewOffset(offset),
                       TO_NUMBER_INLINE(value),
                       !!little_endian);
 }
@@ -386,7 +407,13 @@ function DataViewGetFloat64(offset, little_endian) {
     throw MakeTypeError('incompatible_method_reciever',
                         ['DataView.getFloat64', this]);
   }
-  return %DataViewGetFloat64(this, TO_POSITIVE_INTEGER(offset), !!little_endian);
+  offset = TO_INTEGER(offset);
+  if (offset < 0) {
+    throw MakeRangeError("invalid_data_view_accessor_offset");
+  }
+  return %DataViewGetFloat64(this,
+                             ToPositiveDataViewOffset(offset),
+                             !!little_endian);
 }
 
 function DataViewSetFloat64(offset, value, little_endian) {
@@ -394,8 +421,12 @@ function DataViewSetFloat64(offset, value, little_endian) {
     throw MakeTypeError('incompatible_method_reciever',
                         ['DataView.setFloat64', this]);
   }
+  offset = TO_INTEGER(offset);
+  if (offset < 0) {
+    throw MakeRangeError("invalid_data_view_accessor_offset");
+  }
   %DataViewSetFloat64(this,
-                      TO_POSITIVE_INTEGER(offset),
+                      ToPositiveDataViewOffset(offset),
                       TO_NUMBER_INLINE(value),
                       !!little_endian);
 }

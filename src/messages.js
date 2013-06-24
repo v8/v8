@@ -112,13 +112,15 @@ var kMessages = {
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
-  invalid_typed_array_offset:    ["Start offset is too large"],
-  invalid_typed_array_length:    ["Length is too large"],
+  invalid_typed_array_offset:    ["Start offset is too large:"],
+  invalid_typed_array_length:    ["Invalid typed array length"],
   invalid_typed_array_alignment: ["%0", "of", "%1", "should be a multiple of", "%3"],
   typed_array_set_source_too_large:
                                  ["Source is too large"],
+  typed_array_set_negative_offset:
+                                 ["Start offset is negative"],
   invalid_data_view_offset:      ["Start offset is outside the bounds of the buffer"],
-  invalid_data_view_length:      ["Length is too large"],
+  invalid_data_view_length:      ["Invalid data view length"],
   invalid_data_view_accessor_offset:
                                  ["Offset is outside the bounds of the DataView"],
 

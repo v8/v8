@@ -64,8 +64,7 @@ function checkGet(func, index, expected, littleEndian) {
   function doGet() {
     return view["get" + func](index, littleEndian);
   }
-  if (index < 0) index = 0;
-  if (index + getElementSize(func) - 1 < view.byteLength)
+  if (index >=0 && index + getElementSize(func) - 1 < view.byteLength)
       assertSame(expected, doGet());
   else
       assertThrows(doGet, RangeError);
@@ -75,9 +74,8 @@ function checkSet(func, index, value, littleEndian) {
   function doSet() {
     view["set" + func](index, value, littleEndian);
   }
-  actualIndex = index < 0 ? 0 : index;
-  if (actualIndex >= 0 &&
-      actualIndex + getElementSize(func) - 1 < view.byteLength) {
+  if (index >= 0 &&
+      index + getElementSize(func) - 1 < view.byteLength) {
     assertSame(undefined, doSet());
     checkGet(func, index, value, littleEndian);
   } else {

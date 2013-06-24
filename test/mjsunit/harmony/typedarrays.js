@@ -35,13 +35,14 @@ function TestByteLength(param, expectedByteLength) {
 function TestArrayBufferCreation() {
   TestByteLength(1, 1);
   TestByteLength(256, 256);
-  TestByteLength(-10, 0);
   TestByteLength(2.567, 2);
-  TestByteLength(-2.567, 0);
 
   TestByteLength("abc", 0);
 
   TestByteLength(0, 0);
+
+  assertThrows(function() { new ArrayBuffer(-10); }, RangeError);
+  assertThrows(function() { new ArrayBuffer(-2.567); }, RangeError);
 
 /* TODO[dslomov]: Reenable the test
   assertThrows(function() {
@@ -89,6 +90,7 @@ function TestArrayBufferSlice() {
   TestSlice(0, 0, 1, 20);
   TestSlice(100, 100, 0, 100);
   TestSlice(100, 100, 0, 1000);
+
   TestSlice(0, 100, 5, 1);
 
   TestSlice(1, 100, -11, -10);
@@ -99,14 +101,13 @@ function TestArrayBufferSlice() {
   TestSlice(10, 100, 90, "100");
   TestSlice(10, 100, "90", "100");
 
-  TestSlice(0, 100, 90, "abc");
+  TestSlice(0,  100, 90, "abc");
   TestSlice(10, 100, "abc", 10);
 
   TestSlice(10, 100, 0.96, 10.96);
   TestSlice(10, 100, 0.96, 10.01);
   TestSlice(10, 100, 0.01, 10.01);
   TestSlice(10, 100, 0.01, 10.96);
-
 
   TestSlice(10, 100, 90);
   TestSlice(10, 100, -10);
@@ -489,24 +490,15 @@ function TestDataViewConstructor() {
   assertSame(256, d3c.byteOffset);
   assertSame(0, d3c.byteLength);
 
-  // weird args
-  var d4 = new DataView(ab, -1);
+  var d4 = new DataView(ab, 1, 3.1415926);
   assertSame(ab, d4.buffer);
-  assertSame(0, d4.byteOffset);
-  assertSame(256, d4.byteLength);
-
-  var d5 = new DataView(ab, 1, -1);
-  assertSame(ab, d5.buffer);
-  assertSame(1, d5.byteOffset);
-  assertSame(0, d5.byteLength);
-
-  var d6 = new DataView(ab, 1, 3.1415926);
-  assertSame(ab, d6.buffer);
-  assertSame(1, d6.byteOffset);
-  assertSame(3, d6.byteLength);
+  assertSame(1, d4.byteOffset);
+  assertSame(3, d4.byteLength);
 
 
   // error cases
+  assertThrows(function() { new DataView(ab, -1); }, RangeError);
+  assertThrows(function() { new DataView(ab, 1, -1); }, RangeError);
   assertThrows(function() { new DataView(); }, TypeError);
   assertThrows(function() { new DataView([]); }, TypeError);
   assertThrows(function() { new DataView(ab, 257); }, RangeError);
