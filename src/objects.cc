@@ -10365,6 +10365,7 @@ const char* Code::Kind2String(Kind kind) {
     case COMPARE_IC: return "COMPARE_IC";
     case COMPARE_NIL_IC: return "COMPARE_NIL_IC";
     case TO_BOOLEAN_IC: return "TO_BOOLEAN_IC";
+    case REGEXP: return "REGEXP";
   }
   UNREACHABLE();
   return NULL;

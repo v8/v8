@@ -862,7 +862,7 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
                                    Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,-3,",
+  msg.Append("%s,%s,-2,",
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[CALLBACK_TAG]);
   msg.AppendAddress(entry_point);
@@ -947,6 +947,32 @@ void Logger::LogRecordedBuffer(Code* code, SharedFunctionInfo* shared) {
 }
 
 
+void Logger::AppendCodeCreateHeader(LogMessageBuilder* msg,
+                                    LogEventsAndTags tag,
+                                    Code* code) {
+  ASSERT(msg);
+  msg->Append("%s,%s,%d,",
+              kLogEventsNames[CODE_CREATION_EVENT],
+              kLogEventsNames[tag],
+              code->kind());
+  msg->AppendAddress(code->address());
+  msg->Append(",%d,", code->ExecutableSize());
+}
+
+
+void Logger::AppendSymbolName(LogMessageBuilder* msg,
+                              Symbol* symbol) {
+    ASSERT(symbol);
+    msg->Append("symbol(");
+    if (!symbol->name()->IsUndefined()) {
+      msg->Append("\"");
+      msg->AppendDetailed(String::cast(symbol->name()), false);
+      msg->Append("\" ");
+    }
+    msg->Append("hash %x)", symbol->Hash());
+}
+
+
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              const char* comment) {
@@ -959,19 +985,8 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,%d,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag],
-             code->kind());
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"", code->ExecutableSize());
-  for (const char* p = comment; *p != '\0'; p++) {
-    if (*p == '"') {
-      msg.Append('\\');
-    }
-    msg.Append(*p);
-  }
-  msg.Append('"');
+  AppendCodeCreateHeader(&msg, tag, code);
+  msg.AppendDoubleQuotedString(comment);
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -989,25 +1004,13 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,%d,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag],
-             code->kind());
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,", code->ExecutableSize());
+  AppendCodeCreateHeader(&msg, tag, code);
   if (name->IsString()) {
     msg.Append('"');
     msg.AppendDetailed(String::cast(name), false);
     msg.Append('"');
   } else {
-    Symbol* symbol = Symbol::cast(name);
-    msg.Append("symbol(");
-    if (!symbol->name()->IsUndefined()) {
-      msg.Append("\"");
-      msg.AppendDetailed(String::cast(symbol->name()), false);
-      msg.Append("\" ");
-    }
-    msg.Append("hash %x)", symbol->Hash());
+    AppendSymbolName(&msg, Symbol::cast(name));
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1043,25 +1046,13 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     return;
 
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,%d,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag],
-             code->kind());
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,", code->ExecutableSize());
+  AppendCodeCreateHeader(&msg, tag, code);
   if (name->IsString()) {
     SmartArrayPointer<char> str =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("\"%s\"", *str);
   } else {
-    Symbol* symbol = Symbol::cast(name);
-    msg.Append("symbol(");
-    if (!symbol->name()->IsUndefined()) {
-      msg.Append("\"");
-      msg.AppendDetailed(String::cast(symbol->name()), false);
-      msg.Append("\" ");
-    }
-    msg.Append("hash %x)", symbol->Hash());
+    AppendSymbolName(&msg, Symbol::cast(name));
   }
   msg.Append(',');
   msg.AppendAddress(shared->address());
@@ -1099,27 +1090,16 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
+  AppendCodeCreateHeader(&msg, tag, code);
   SmartArrayPointer<char> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("%s,%s,%d,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag],
-             code->kind());
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s ", code->ExecutableSize(), *name);
+  msg.Append("\"%s ", *name);
   if (source->IsString()) {
     SmartArrayPointer<char> sourcestr =
        String::cast(source)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("%s", *sourcestr);
   } else {
-    Symbol* symbol = Symbol::cast(source);
-    msg.Append("symbol(");
-    if (!symbol->name()->IsUndefined()) {
-      msg.Append("\"");
-      msg.AppendDetailed(String::cast(symbol->name()), false);
-      msg.Append("\" ");
-    }
-    msg.Append("hash %x)", symbol->Hash());
+    AppendSymbolName(&msg, Symbol::cast(source));
   }
   msg.Append(":%d\",", line);
   msg.AppendAddress(shared->address());
@@ -1139,12 +1119,8 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,%d,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag],
-             code->kind());
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"args_count: %d\"", code->ExecutableSize(), args_count);
+  AppendCodeCreateHeader(&msg, tag, code);
+  msg.Append("\"args_count: %d\"", args_count);
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -1167,13 +1143,10 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,-2,",
-             kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[REG_EXP_TAG]);
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"", code->ExecutableSize());
+  AppendCodeCreateHeader(&msg, REG_EXP_TAG, code);
+  msg.Append('"');
   msg.AppendDetailed(source, false);
-  msg.Append('\"');
+  msg.Append('"');
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -1242,12 +1215,9 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
     const char* code_name = address_to_name_map_->Lookup(addr);
     if (code_name == NULL) return;  // Not a code object.
     LogMessageBuilder msg(this);
-    msg.Append("%s,%d,\"", kLogEventsNames[SNAPSHOT_CODE_NAME_EVENT], pos);
-    for (const char* p = code_name; *p != '\0'; ++p) {
-      if (*p == '"') msg.Append('\\');
-      msg.Append(*p);
-    }
-    msg.Append("\"\n");
+    msg.Append("%s,%d,", kLogEventsNames[SNAPSHOT_CODE_NAME_EVENT], pos);
+    msg.AppendDoubleQuotedString(code_name);
+    msg.Append("\n");
     msg.WriteToLogFile();
   }
   if (!FLAG_log_snapshot_positions) return;
@@ -1319,14 +1289,7 @@ void Logger::SuspectReadEvent(Name* name, Object* obj) {
     msg.Append(String::cast(name));
     msg.Append('"');
   } else {
-    Symbol* symbol = Symbol::cast(name);
-    msg.Append("symbol(");
-    if (!symbol->name()->IsUndefined()) {
-      msg.Append("\"");
-      msg.AppendDetailed(String::cast(symbol->name()), false);
-      msg.Append("\" ");
-    }
-    msg.Append("hash %x)", symbol->Hash());
+    AppendSymbolName(&msg, Symbol::cast(name));
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1547,6 +1510,10 @@ void Logger::LogCodeObject(Object* object) {
       if (description == NULL)
         description = "A stub from the snapshot";
       tag = Logger::STUB_TAG;
+      break;
+    case Code::REGEXP:
+      description = "Regular expression code";
+      tag = Logger::REG_EXP_TAG;
       break;
     case Code::BUILTIN:
       description = "A builtin from the snapshot";

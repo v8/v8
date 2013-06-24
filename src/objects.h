@@ -4454,7 +4454,9 @@ class Code: public HeapObject {
   V(BINARY_OP_IC)         \
   V(COMPARE_IC)           \
   V(COMPARE_NIL_IC)       \
-  V(TO_BOOLEAN_IC)
+  V(TO_BOOLEAN_IC)        \
+  V(REGEXP)
+
 
   enum Kind {
 #define DEFINE_CODE_KIND_ENUM(name) name,
@@ -4463,7 +4465,6 @@ class Code: public HeapObject {
 
     // Pseudo-kinds.
     LAST_CODE_KIND = TO_BOOLEAN_IC,
-    REGEXP = BUILTIN,
     FIRST_IC_KIND = LOAD_IC,
     LAST_IC_KIND = TO_BOOLEAN_IC
   };

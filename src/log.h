@@ -422,6 +422,12 @@ class Logger {
   // Helper method. It dumps name into name_buffer_.
   void AppendName(Name* name);
 
+  // Appends standard code header.
+  void AppendCodeCreateHeader(LogMessageBuilder*, LogEventsAndTags, Code*);
+
+  // Appends symbol for the name.
+  void AppendSymbolName(LogMessageBuilder*, Symbol*);
+
   // Emits general information about generated code.
   void LogCodeInfo();
 

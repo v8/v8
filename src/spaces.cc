@@ -1823,6 +1823,7 @@ static void ReportCodeKindStatistics() {
       CASE(COMPARE_IC);
       CASE(COMPARE_NIL_IC);
       CASE(TO_BOOLEAN_IC);
+      CASE(REGEXP);
     }
   }
 

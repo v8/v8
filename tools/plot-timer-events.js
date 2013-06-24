@@ -104,14 +104,14 @@ function CodeKind(color, kinds) {
 
 
 var CodeKinds = {
-  'external ': new CodeKind("#3399FF", [-3]),
-  'reg.exp. ': new CodeKind("#0000FF", [-2]),
+  'external ': new CodeKind("#3399FF", [-2]),
   'runtime  ': new CodeKind("#000000", [-1]),
   'full code': new CodeKind("#DD0000", [0]),
   'opt code ': new CodeKind("#00EE00", [1]),
   'code stub': new CodeKind("#FF00FF", [2]),
   'built-in ': new CodeKind("#AA00AA", [3]),
-  'inl.cache': new CodeKind("#4444AA", [4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
+  'inl.cache': new CodeKind("#4444AA", [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]),
+  'reg.exp. ': new CodeKind("#0000FF", [15]),
 }
 
 
@@ -197,7 +197,7 @@ function ProcessCodeDeleteEvent(address) {
 
 function ProcessSharedLibrary(name, start, end) {
   var code_entry = new CodeMap.CodeEntry(end - start, name);
-  code_entry.kind = -3;  // External code kind.
+  code_entry.kind = -2;  // External code kind.
   for (var i = 0; i < kV8BinarySuffixes.length; i++) {
     var suffix = kV8BinarySuffixes[i];
     if (name.indexOf(suffix, name.length - suffix.length) >= 0) {
