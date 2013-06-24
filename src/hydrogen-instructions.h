@@ -890,10 +890,10 @@ class HValue: public ZoneObject {
   Representation representation() const { return representation_; }
   void ChangeRepresentation(Representation r) {
     ASSERT(CheckFlag(kFlexibleRepresentation));
+    ASSERT(!CheckFlag(kCannotBeTagged) || !r.IsTagged());
     RepresentationChanged(r);
     representation_ = r;
-    if (r.IsTagged() ||
-        (r.IsDouble() && CheckFlag(kCannotBeTagged))) {
+    if (r.IsTagged()) {
       // Tagged is the bottom of the lattice, don't go any further.
       ClearFlag(kFlexibleRepresentation);
     }

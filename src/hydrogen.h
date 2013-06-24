@@ -1624,8 +1624,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   // Visit a list of expressions from left to right, each in a value context.
   void VisitExpressions(ZoneList<Expression*>* exprs);
 
-  void AddPhi(HPhi* phi);
-
   void PushAndAdd(HInstruction* instr);
 
   // Remove the arguments from the bailout environment and emit instructions

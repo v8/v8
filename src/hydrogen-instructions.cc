@@ -128,7 +128,7 @@ void HValue::UpdateRepresentation(Representation new_rep,
                                   const char* reason) {
   Representation r = representation();
   if (new_rep.is_more_general_than(r)) {
-    if (CheckFlag(kCannotBeTagged) && r.IsTagged()) return;
+    if (CheckFlag(kCannotBeTagged) && new_rep.IsTagged()) return;
     if (FLAG_trace_representation) {
       PrintF("Changing #%d %s representation %s -> %s based on %s\n",
              id(), Mnemonic(), r.Mnemonic(), new_rep.Mnemonic(), reason);
