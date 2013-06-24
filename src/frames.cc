@@ -289,8 +289,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     stack_validator_(low_bound, high_bound),
     is_valid_top_(IsValidTop(isolate, low_bound, high_bound)),
     is_valid_fp_(IsWithinBounds(low_bound, high_bound, fp)),
-    is_working_iterator_(is_valid_top_ || is_valid_fp_),
-    iteration_done_(!is_working_iterator_),
+    iteration_done_(!is_valid_top_ && !is_valid_fp_),
     iterator_(isolate, is_valid_top_, is_valid_fp_ ? fp : NULL, sp) {
 }
 
@@ -310,7 +309,6 @@ bool SafeStackFrameIterator::IsValidTop(Isolate* isolate,
 
 
 void SafeStackFrameIterator::Advance() {
-  ASSERT(is_working_iterator_);
   ASSERT(!done());
   StackFrame* last_frame = iterator_.frame();
   Address last_sp = last_frame->sp(), last_fp = last_frame->fp();
@@ -561,6 +559,11 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   FillState(fp, sp, state);
   ASSERT(*state->pc_address != NULL);
   return EXIT;
+}
+
+
+Address ExitFrame::ComputeStackPointer(Address fp) {
+  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
 }
 
 

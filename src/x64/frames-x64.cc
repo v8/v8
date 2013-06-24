@@ -32,15 +32,10 @@
 #include "assembler.h"
 #include "assembler-x64.h"
 #include "assembler-x64-inl.h"
-#include "frames-inl.h"
+#include "frames.h"
 
 namespace v8 {
 namespace internal {
-
-
-Address ExitFrame::ComputeStackPointer(Address fp) {
-  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
-}
 
 
 Register JavaScriptFrame::fp_register() { return rbp; }

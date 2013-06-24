@@ -860,7 +860,6 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
 // functions in runtime.js.
 class StackTraceFrameIterator: public JavaScriptFrameIterator {
  public:
-  StackTraceFrameIterator();
   explicit StackTraceFrameIterator(Isolate* isolate);
   void Advance();
 
@@ -876,22 +875,22 @@ class SafeStackFrameIterator BASE_EMBEDDED {
                          Address low_bound, Address high_bound);
 
   StackFrame* frame() const {
-    ASSERT(is_working_iterator_);
+    ASSERT(!iteration_done_);
     return iterator_.frame();
   }
 
-  bool done() const { return iteration_done_ ? true : iterator_.done(); }
+  bool done() const { return iteration_done_ || iterator_.done(); }
 
   void Advance();
 
   static bool is_active(Isolate* isolate);
 
+ private:
   static bool IsWithinBounds(
       Address low_bound, Address high_bound, Address addr) {
     return low_bound <= addr && addr <= high_bound;
   }
 
- private:
   class StackAddressValidator {
    public:
     StackAddressValidator(Address low_bound, Address high_bound)
@@ -941,7 +940,6 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   StackAddressValidator stack_validator_;
   const bool is_valid_top_;
   const bool is_valid_fp_;
-  const bool is_working_iterator_;
   bool iteration_done_;
   StackFrameIterator iterator_;
 };
