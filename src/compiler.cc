@@ -53,46 +53,56 @@ namespace v8 {
 namespace internal {
 
 
-CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
+CompilationInfo::CompilationInfo(Handle<Script> script,
+                                 Zone* zone,
+                                 Zone* phase_zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE)),
       script_(script),
       osr_ast_id_(BailoutId::None()) {
-  Initialize(script->GetIsolate(), BASE, zone);
+  Initialize(script->GetIsolate(), BASE, zone, phase_zone);
 }
 
 
 CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
-                                 Zone* zone)
+                                 Zone* zone,
+                                 Zone* phase_zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       osr_ast_id_(BailoutId::None()) {
-  Initialize(script_->GetIsolate(), BASE, zone);
+  Initialize(script_->GetIsolate(), BASE, zone, phase_zone);
 }
 
 
-CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
+CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
+                                 Zone* zone,
+                                 Zone* phase_zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
       closure_(closure),
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       context_(closure->context()),
       osr_ast_id_(BailoutId::None()) {
-  Initialize(script_->GetIsolate(), BASE, zone);
+  Initialize(script_->GetIsolate(), BASE, zone, phase_zone);
 }
 
 
 CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
-                                 Isolate* isolate, Zone* zone)
+                                 Isolate* isolate,
+                                 Zone* zone,
+                                 Zone* phase_zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE) |
              IsLazy::encode(true)),
       osr_ast_id_(BailoutId::None()) {
-  Initialize(isolate, STUB, zone);
+  Initialize(isolate, STUB, zone, phase_zone);
   code_stub_ = stub;
 }
 
 
-void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
+void CompilationInfo::Initialize(Isolate* isolate,
+                                 Mode mode,
+                                 Zone* zone,
+                                 Zone* phase_zone) {
   isolate_ = isolate;
   function_ = NULL;
   scope_ = NULL;
@@ -100,6 +110,7 @@ void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
   extension_ = NULL;
   pre_parse_data_ = NULL;
   zone_ = zone;
+  phase_zone_ = phase_zone;
   deferred_handles_ = NULL;
   code_stub_ = NULL;
   prologue_offset_ = kPrologueOffsetNotSet;

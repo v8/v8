@@ -100,11 +100,14 @@ class HGlobalValueNumberer BASE_EMBEDDED {
 
   HGraph* graph() { return graph_; }
   CompilationInfo* info() { return info_; }
-  Zone* zone() const { return graph_->zone(); }
+  Zone* phase_zone() const { return info_->phase_zone(); }
 
   HGraph* graph_;
   CompilationInfo* info_;
   bool removed_side_effects_;
+
+  Zone* phase_zone_;
+  ZoneScope phase_zone_scope_;
 
   // A map of block IDs to their side effects.
   ZoneList<GVNFlagSet> block_side_effects_;

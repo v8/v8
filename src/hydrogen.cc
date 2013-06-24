@@ -7938,7 +7938,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
   }
 
   // Parse and allocate variables.
-  CompilationInfo target_info(target, zone());
+  CompilationInfo target_info(target, zone(), current_info()->phase_zone());
   Handle<SharedFunctionInfo> target_shared(target->shared());
   if (!Parser::Parse(&target_info) || !Scope::Analyze(&target_info)) {
     if (target_info.isolate()->has_pending_exception()) {
