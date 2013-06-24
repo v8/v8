@@ -2216,6 +2216,8 @@ bool Isolate::Init(Deserializer* des) {
     LOG(this, LogCompiledFunctions());
   }
 
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, state_)),
+           Internals::kIsolateStateOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.roots_)),
