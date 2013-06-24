@@ -3734,18 +3734,6 @@ bool CompileTimeValue::IsCompileTimeValue(Expression* expression) {
 }
 
 
-bool CompileTimeValue::ArrayLiteralElementNeedsInitialization(
-    Expression* value) {
-  // If value is a literal the property value is already set in the
-  // boilerplate object.
-  if (value->AsLiteral() != NULL) return false;
-  // If value is a materialized literal the property value is already set
-  // in the boilerplate object if it is simple.
-  if (CompileTimeValue::IsCompileTimeValue(value)) return false;
-  return true;
-}
-
-
 Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
   Factory* factory = Isolate::Current()->factory();
   ASSERT(IsCompileTimeValue(expression));
