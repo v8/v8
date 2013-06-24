@@ -509,7 +509,7 @@ template <class T> class Persistent // NOLINT
       : val_(New(isolate, *that)) { }
 
   template <class S> V8_INLINE(Persistent(Isolate* isolate,
-                                          Persistent<S>& that)) // NOLINT
+                                          const Persistent<S>& that)) // NOLINT
       : val_(New(isolate, *that)) { }
 
 #else
