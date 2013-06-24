@@ -903,18 +903,39 @@ void Logger::SetterCallbackEvent(Name* name, Address entry_point) {
 }
 
 
-void Logger::CodeCreateEvent(LogEventsAndTags tag,
-                             Code* code,
-                             const char* comment) {
-  if (!is_logging_code_events()) return;
-  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
+void Logger::AppendName(Name* name) {
+  if (name->IsString()) {
+    name_buffer_->AppendString(String::cast(name));
+  } else {
+    Symbol* symbol = Symbol::cast(name);
+    name_buffer_->AppendBytes("symbol(");
+    if (!symbol->name()->IsUndefined()) {
+      name_buffer_->AppendBytes("\"");
+      name_buffer_->AppendString(String::cast(symbol->name()));
+      name_buffer_->AppendBytes("\" ");
+    }
+    name_buffer_->AppendBytes("hash ");
+    name_buffer_->AppendHex(symbol->Hash());
+    name_buffer_->AppendByte(')');
+  }
+}
+
+
+void Logger::InitNameBuffer(LogEventsAndTags tag) {
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
-    name_buffer_->AppendBytes(comment);
-  }
+}
+
+
+void Logger::LogRecordedBuffer(Code* code, SharedFunctionInfo* shared) {
   if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
+    Script* script = shared && shared->script()->IsScript() ?
+        Script::cast(shared->script()) : NULL;
+    IssueCodeAddedEvent(code,
+                        script,
+                        name_buffer_->get(),
+                        name_buffer_->size());
   }
   if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
@@ -923,7 +944,20 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   if (Serializer::enabled()) {
     RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
   }
-  if (!FLAG_log_code) return;
+}
+
+
+void Logger::CodeCreateEvent(LogEventsAndTags tag,
+                             Code* code,
+                             const char* comment) {
+  if (!is_logging_code_events()) return;
+  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
+    InitNameBuffer(tag);
+    name_buffer_->AppendBytes(comment);
+    LogRecordedBuffer(code, NULL);
+  }
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
   msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
@@ -948,35 +982,12 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Name* name) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
-    name_buffer_->Reset();
-    name_buffer_->AppendBytes(kLogEventsNames[tag]);
-    name_buffer_->AppendByte(':');
-    if (name->IsString()) {
-      name_buffer_->AppendString(String::cast(name));
-    } else {
-      Symbol* symbol = Symbol::cast(name);
-      name_buffer_->AppendBytes("symbol(");
-      if (!symbol->name()->IsUndefined()) {
-        name_buffer_->AppendBytes("\"");
-        name_buffer_->AppendString(String::cast(symbol->name()));
-        name_buffer_->AppendBytes("\" ");
-      }
-      name_buffer_->AppendBytes("hash ");
-      name_buffer_->AppendHex(symbol->Hash());
-      name_buffer_->AppendByte(')');
-    }
+    InitNameBuffer(tag);
+    AppendName(name);
+    LogRecordedBuffer(code, NULL);
   }
-  if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (Serializer::enabled()) {
-    RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!FLAG_log_code) return;
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
   msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
@@ -1020,41 +1031,13 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Name* name) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
-    name_buffer_->Reset();
-    name_buffer_->AppendBytes(kLogEventsNames[tag]);
-    name_buffer_->AppendByte(':');
+    InitNameBuffer(tag);
     name_buffer_->AppendBytes(ComputeMarker(code));
-    if (name->IsString()) {
-      name_buffer_->AppendString(String::cast(name));
-    } else {
-      Symbol* symbol = Symbol::cast(name);
-      name_buffer_->AppendBytes("symbol(");
-      if (!symbol->name()->IsUndefined()) {
-        name_buffer_->AppendBytes("\"");
-        name_buffer_->AppendString(String::cast(symbol->name()));
-        name_buffer_->AppendBytes("\" ");
-      }
-      name_buffer_->AppendBytes("hash ");
-      name_buffer_->AppendHex(symbol->Hash());
-      name_buffer_->AppendByte(')');
-    }
+    AppendName(name);
+    LogRecordedBuffer(code, shared);
   }
-  if (code_event_handler_ != NULL) {
-    Script* script =
-        shared->script()->IsScript() ? Script::cast(shared->script()) : NULL;
-    IssueCodeAddedEvent(code,
-                        script,
-                        name_buffer_->get(),
-                        name_buffer_->size());
-  }
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (Serializer::enabled()) {
-    RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!FLAG_log_code) return;
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   if (code == Isolate::Current()->builtins()->builtin(
       Builtins::kLazyCompile))
     return;
@@ -1098,9 +1081,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Name* source, int line) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
-    name_buffer_->Reset();
-    name_buffer_->AppendBytes(kLogEventsNames[tag]);
-    name_buffer_->AppendByte(':');
+    InitNameBuffer(tag);
     name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(shared->DebugName());
     name_buffer_->AppendByte(' ');
@@ -1113,23 +1094,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     }
     name_buffer_->AppendByte(':');
     name_buffer_->AppendInt(line);
+    LogRecordedBuffer(code, shared);
   }
-  if (code_event_handler_ != NULL) {
-    Script* script =
-        shared->script()->IsScript() ? Script::cast(shared->script()) : NULL;
-    IssueCodeAddedEvent(code,
-                        script,
-                        name_buffer_->get(),
-                        name_buffer_->size());
-  }
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (Serializer::enabled()) {
-    RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!FLAG_log_code) return;
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
   SmartArrayPointer<char> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -1164,22 +1132,12 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
-    name_buffer_->Reset();
-    name_buffer_->AppendBytes(kLogEventsNames[tag]);
-    name_buffer_->AppendByte(':');
+    InitNameBuffer(tag);
     name_buffer_->AppendInt(args_count);
+    LogRecordedBuffer(code, NULL);
   }
-  if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (Serializer::enabled()) {
-    RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!FLAG_log_code) return;
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
   msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
@@ -1202,22 +1160,12 @@ void Logger::CodeMovingGCEvent() {
 void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
   if (!is_logging_code_events()) return;
   if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
-    name_buffer_->Reset();
-    name_buffer_->AppendBytes(kLogEventsNames[REG_EXP_TAG]);
-    name_buffer_->AppendByte(':');
+    InitNameBuffer(REG_EXP_TAG);
     name_buffer_->AppendString(source);
+    LogRecordedBuffer(code, NULL);
   }
-  if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof) {
-    LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (Serializer::enabled()) {
-    RegisterSnapshotCodeName(code, name_buffer_->get(), name_buffer_->size());
-  }
-  if (!FLAG_log_code) return;
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
   msg.Append("%s,%s,-2,",
              kLogEventsNames[CODE_CREATION_EVENT],

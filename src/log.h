@@ -413,6 +413,15 @@ class Logger {
   // Used for logging stubs found in the snapshot.
   void LogCodeObject(Object* code_object);
 
+  // Helper method. It resets name_buffer_ and add tag name into it.
+  void InitNameBuffer(LogEventsAndTags tag);
+
+  // Helper method. It push recorded buffer into different handlers.
+  void LogRecordedBuffer(Code*, SharedFunctionInfo*);
+
+  // Helper method. It dumps name into name_buffer_.
+  void AppendName(Name* name);
+
   // Emits general information about generated code.
   void LogCodeInfo();
 
