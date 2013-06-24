@@ -835,7 +835,7 @@ class MarkCompactCollector {
 
   // Mark the string table specially.  References to internalized strings from
   // the string table are weak.
-  void MarkStringTable();
+  void MarkStringTable(RootMarkingVisitor* visitor);
 
   // Mark objects in implicit references groups if their parent object
   // is marked.

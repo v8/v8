@@ -1713,23 +1713,6 @@ VisitorDispatchTable<MarkCompactMarkingVisitor::Callback>
     MarkCompactMarkingVisitor::non_count_table_;
 
 
-class MarkingVisitor : public ObjectVisitor {
- public:
-  explicit MarkingVisitor(Heap* heap) : heap_(heap) { }
-
-  void VisitPointer(Object** p) {
-    MarkCompactMarkingVisitor::VisitPointer(heap_, p);
-  }
-
-  void VisitPointers(Object** start, Object** end) {
-    MarkCompactMarkingVisitor::VisitPointers(heap_, start, end);
-  }
-
- private:
-  Heap* heap_;
-};
-
-
 class CodeMarkingVisitor : public ThreadVisitor {
  public:
   explicit CodeMarkingVisitor(MarkCompactCollector* collector)
@@ -2038,14 +2021,13 @@ bool MarkCompactCollector::IsUnmarkedHeapObjectWithHeap(Heap* heap,
 }
 
 
-void MarkCompactCollector::MarkStringTable() {
+void MarkCompactCollector::MarkStringTable(RootMarkingVisitor* visitor) {
   StringTable* string_table = heap()->string_table();
   // Mark the string table itself.
   MarkBit string_table_mark = Marking::MarkBitFrom(string_table);
   SetMark(string_table, string_table_mark);
   // Explicitly mark the prefix.
-  MarkingVisitor marker(heap());
-  string_table->IteratePrefix(&marker);
+  string_table->IteratePrefix(visitor);
   ProcessMarkingDeque();
 }
 
@@ -2056,7 +2038,7 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   heap()->IterateStrongRoots(visitor, VISIT_ONLY_STRONG);
 
   // Handle the string table specially.
-  MarkStringTable();
+  MarkStringTable(visitor);
 
   // There may be overflowed objects in the heap.  Visit them now.
   while (marking_deque_.overflowed()) {
@@ -3291,10 +3273,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   bool code_slots_filtering_required;
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
     code_slots_filtering_required = MarkInvalidatedCode();
-
     EvacuateNewSpace();
   }
-
 
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_EVACUATE_PAGES);
     EvacuatePages();
