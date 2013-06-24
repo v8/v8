@@ -797,10 +797,10 @@ class StackFrameIterator BASE_EMBEDDED {
   bool done() const { return frame_ == NULL; }
   void Advance() { (this->*advance_)(); }
 
+ private:
   // Go back to the first frame.
   void Reset();
 
- private:
   Isolate* isolate_;
 #define DECLARE_SINGLETON(ignore, type) type type##_;
   STACK_FRAME_TYPE_LIST(DECLARE_SINGLETON)
@@ -832,34 +832,12 @@ class StackFrameIterator BASE_EMBEDDED {
 
 
 // Iterator that supports iterating through all JavaScript frames.
-template<typename Iterator>
-class JavaScriptFrameIteratorTemp BASE_EMBEDDED {
+class JavaScriptFrameIterator BASE_EMBEDDED {
  public:
-  inline explicit JavaScriptFrameIteratorTemp(Isolate* isolate);
-
-  inline JavaScriptFrameIteratorTemp(Isolate* isolate, ThreadLocalTop* top);
-
+  inline explicit JavaScriptFrameIterator(Isolate* isolate);
+  inline JavaScriptFrameIterator(Isolate* isolate, ThreadLocalTop* top);
   // Skip frames until the frame with the given id is reached.
-  explicit JavaScriptFrameIteratorTemp(StackFrame::Id id) { AdvanceToId(id); }
-
-  inline JavaScriptFrameIteratorTemp(Isolate* isolate, StackFrame::Id id);
-
-  JavaScriptFrameIteratorTemp(Address fp,
-                              Address sp,
-                              Address low_bound,
-                              Address high_bound) :
-      iterator_(fp, sp, low_bound, high_bound) {
-    if (!done()) Advance();
-  }
-
-  JavaScriptFrameIteratorTemp(Isolate* isolate,
-                              Address fp,
-                              Address sp,
-                              Address low_bound,
-                              Address high_bound) :
-      iterator_(isolate, fp, sp, low_bound, high_bound) {
-    if (!done()) Advance();
-  }
+  JavaScriptFrameIterator(Isolate* isolate, StackFrame::Id id);
 
   inline JavaScriptFrame* frame() const;
 
@@ -871,17 +849,9 @@ class JavaScriptFrameIteratorTemp BASE_EMBEDDED {
   // arguments.
   void AdvanceToArgumentsFrame();
 
-  // Go back to the first frame.
-  void Reset();
-
  private:
-  inline void AdvanceToId(StackFrame::Id id);
-
-  Iterator iterator_;
+  StackFrameIterator iterator_;
 };
-
-
-typedef JavaScriptFrameIteratorTemp<StackFrameIterator> JavaScriptFrameIterator;
 
 
 // NOTE: The stack trace frame iterator is an iterator that only
@@ -913,7 +883,6 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   bool done() const { return iteration_done_ ? true : iterator_.done(); }
 
   void Advance();
-  void Reset();
 
   static bool is_active(Isolate* isolate);
 
@@ -978,16 +947,21 @@ class SafeStackFrameIterator BASE_EMBEDDED {
 };
 
 
-typedef JavaScriptFrameIteratorTemp<SafeStackFrameIterator>
-    SafeJavaScriptFrameIterator;
-
-
-class SafeStackTraceFrameIterator: public SafeJavaScriptFrameIterator {
+class SafeStackTraceFrameIterator BASE_EMBEDDED {
  public:
-  explicit SafeStackTraceFrameIterator(Isolate* isolate,
-                                       Address fp, Address sp,
-                                       Address low_bound, Address high_bound);
+  SafeStackTraceFrameIterator(Isolate* isolate,
+                              Address fp,
+                              Address sp,
+                              Address low_bound,
+                              Address high_bound);
+
+  inline JavaScriptFrame* frame() const;
+
+  bool done() const { return iterator_.done(); }
   void Advance();
+
+ private:
+  SafeStackFrameIterator iterator_;
 };
 
 

@@ -299,24 +299,21 @@ inline ConstructFrame::ConstructFrame(StackFrameIterator* iterator)
 }
 
 
-template<typename Iterator>
-inline JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
+inline JavaScriptFrameIterator::JavaScriptFrameIterator(
     Isolate* isolate)
     : iterator_(isolate) {
   if (!done()) Advance();
 }
 
 
-template<typename Iterator>
-inline JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
+inline JavaScriptFrameIterator::JavaScriptFrameIterator(
     Isolate* isolate, ThreadLocalTop* top)
     : iterator_(isolate, top) {
   if (!done()) Advance();
 }
 
 
-template<typename Iterator>
-inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
+inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
   // TODO(1233797): The frame hierarchy needs to change. It's
   // problematic that we can't use the safe-cast operator to cast to
   // the JavaScript frame type, because we may encounter arguments
@@ -327,43 +324,14 @@ inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
 }
 
 
-template<typename Iterator>
-JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
-    Isolate* isolate, StackFrame::Id id)
-    : iterator_(isolate) {
-  AdvanceToId(id);
-}
-
-
-template<typename Iterator>
-void JavaScriptFrameIteratorTemp<Iterator>::Advance() {
-  do {
-    iterator_.Advance();
-  } while (!iterator_.done() && !iterator_.frame()->is_java_script());
-}
-
-
-template<typename Iterator>
-void JavaScriptFrameIteratorTemp<Iterator>::AdvanceToArgumentsFrame() {
-  if (!frame()->has_adapted_arguments()) return;
-  iterator_.Advance();
-  ASSERT(iterator_.frame()->is_arguments_adaptor());
-}
-
-
-template<typename Iterator>
-void JavaScriptFrameIteratorTemp<Iterator>::AdvanceToId(StackFrame::Id id) {
-  while (!done()) {
-    Advance();
-    if (frame()->id() == id) return;
-  }
-}
-
-
-template<typename Iterator>
-void JavaScriptFrameIteratorTemp<Iterator>::Reset() {
-  iterator_.Reset();
-  if (!done()) Advance();
+inline JavaScriptFrame* SafeStackTraceFrameIterator::frame() const {
+  // TODO(1233797): The frame hierarchy needs to change. It's
+  // problematic that we can't use the safe-cast operator to cast to
+  // the JavaScript frame type, because we may encounter arguments
+  // adaptor frames.
+  StackFrame* frame = iterator_.frame();
+  ASSERT(frame->is_java_script());
+  return static_cast<JavaScriptFrame*>(frame);
 }
 
 

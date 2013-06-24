@@ -202,6 +202,33 @@ StackFrame* StackFrameIterator::SingletonFor(StackFrame::Type type) {
 // -------------------------------------------------------------------------
 
 
+JavaScriptFrameIterator::JavaScriptFrameIterator(
+    Isolate* isolate, StackFrame::Id id)
+    : iterator_(isolate) {
+  while (!done()) {
+    Advance();
+    if (frame()->id() == id) return;
+  }
+}
+
+
+void JavaScriptFrameIterator::Advance() {
+  do {
+    iterator_.Advance();
+  } while (!iterator_.done() && !iterator_.frame()->is_java_script());
+}
+
+
+void JavaScriptFrameIterator::AdvanceToArgumentsFrame() {
+  if (!frame()->has_adapted_arguments()) return;
+  iterator_.Advance();
+  ASSERT(iterator_.frame()->is_arguments_adaptor());
+}
+
+
+// -------------------------------------------------------------------------
+
+
 StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate)
     : JavaScriptFrameIterator(isolate) {
   if (!done() && !IsValidFrame()) Advance();
@@ -341,30 +368,22 @@ bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
 }
 
 
-void SafeStackFrameIterator::Reset() {
-  if (is_working_iterator_) {
-    iterator_.Reset();
-    iteration_done_ = false;
-  }
-}
-
-
 // -------------------------------------------------------------------------
 
 
 SafeStackTraceFrameIterator::SafeStackTraceFrameIterator(
     Isolate* isolate,
-    Address fp, Address sp, Address low_bound, Address high_bound) :
-    SafeJavaScriptFrameIterator(isolate, fp, sp, low_bound, high_bound) {
-  if (!done() && !frame()->is_java_script()) Advance();
+    Address fp, Address sp, Address low_bound, Address high_bound)
+    : iterator_(isolate, fp, sp, low_bound, high_bound) {
+  if (!done()) Advance();
 }
 
 
 void SafeStackTraceFrameIterator::Advance() {
   while (true) {
-    SafeJavaScriptFrameIterator::Advance();
-    if (done()) return;
-    if (frame()->is_java_script()) return;
+    iterator_.Advance();
+    if (iterator_.done()) return;
+    if (iterator_.frame()->is_java_script()) return;
   }
 }
 
