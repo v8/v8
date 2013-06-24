@@ -11499,25 +11499,18 @@ void HStatistics::Print() {
 
 
 void HStatistics::SaveTiming(const char* name, int64_t ticks, unsigned size) {
-  if (name == HPhase::kFullCodeGen) {
-    full_code_gen_ += ticks;
-  } else {
-    total_size_ += size;
-    for (int i = 0; i < names_.length(); ++i) {
-      if (strcmp(names_[i], name) == 0) {
-        timing_[i] += ticks;
-        sizes_[i] += size;
-        return;
-      }
+  total_size_ += size;
+  for (int i = 0; i < names_.length(); ++i) {
+    if (strcmp(names_[i], name) == 0) {
+      timing_[i] += ticks;
+      sizes_[i] += size;
+      return;
     }
-    names_.Add(name);
-    timing_.Add(ticks);
-    sizes_.Add(size);
   }
+  names_.Add(name);
+  timing_.Add(ticks);
+  sizes_.Add(size);
 }
-
-
-const char* const HPhase::kFullCodeGen = "Full code generator";
 
 
 HPhase::HPhase(const char* name, Isolate* isolate, Zone* zone) {

@@ -367,7 +367,10 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // performance of the hydrogen-based compiler.
   bool should_recompile = !info()->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
-    HPhase phase(HPhase::kFullCodeGen, isolate(), info()->zone());
+    int64_t start_ticks = 0;
+    if (FLAG_hydrogen_stats) {
+      start_ticks = OS::Ticks();
+    }
     CompilationInfoWithZone unoptimized(info()->shared_info());
     // Note that we use the same AST that we will use for generating the
     // optimized code.
@@ -383,6 +386,10 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
       // The existing unoptimized code was replaced with the new one.
       Compiler::RecordFunctionCompilation(
           Logger::LAZY_COMPILE_TAG, &unoptimized, shared);
+    }
+    if (FLAG_hydrogen_stats) {
+      int64_t ticks = OS::Ticks() - start_ticks;
+      isolate()->GetHStatistics()->IncrementFullCodeGen(ticks);
     }
   }
 

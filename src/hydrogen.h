@@ -1923,6 +1923,10 @@ class HStatistics: public Malloced {
   void Print();
   void SaveTiming(const char* name, int64_t ticks, unsigned size);
 
+  void IncrementFullCodeGen(int64_t full_code_gen) {
+    full_code_gen_ += full_code_gen;
+  }
+
   void IncrementSubtotals(int64_t create_graph,
                           int64_t optimize_graph,
                           int64_t generate_code) {
@@ -1946,8 +1950,6 @@ class HStatistics: public Malloced {
 
 class HPhase BASE_EMBEDDED {
  public:
-  static const char* const kFullCodeGen;
-
   HPhase(const char* name, Isolate* isolate, Zone* zone);
   HPhase(const char* name, HGraph* graph);
   HPhase(const char* name, LChunk* chunk);
