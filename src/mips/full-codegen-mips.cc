@@ -1694,11 +1694,11 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         ASSERT(!CompileTimeValue::IsCompileTimeValue(property->value()));
         // Fall through.
       case ObjectLiteral::Property::COMPUTED:
-        if (key->handle()->IsInternalizedString()) {
+        if (key->value()->IsInternalizedString()) {
           if (property->emit_store()) {
             VisitForAccumulatorValue(value);
             __ mov(a0, result_register());
-            __ li(a2, Operand(key->handle()));
+            __ li(a2, Operand(key->value()));
             __ lw(a1, MemOperand(sp));
             Handle<Code> ic = is_classic_mode()
                 ? isolate()->builtins()->StoreIC_Initialize()
@@ -2268,7 +2268,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ mov(a0, result_register());
-  __ li(a2, Operand(key->handle()));
+  __ li(a2, Operand(key->value()));
   // Call load IC. It has arguments receiver and property name a0 and a2.
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
   CallIC(ic, RelocInfo::CODE_TARGET, prop->PropertyFeedbackId());
@@ -2430,7 +2430,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       VisitForAccumulatorValue(prop->obj());
       __ mov(a1, result_register());
       __ pop(a0);  // Restore value.
-      __ li(a2, Operand(prop->key()->AsLiteral()->handle()));
+      __ li(a2, Operand(prop->key()->AsLiteral()->value()));
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->StoreIC_Initialize()
           : isolate()->builtins()->StoreIC_Initialize_Strict();
@@ -2561,7 +2561,7 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   __ mov(a0, result_register());  // Load the value.
-  __ li(a2, Operand(prop->key()->AsLiteral()->handle()));
+  __ li(a2, Operand(prop->key()->AsLiteral()->value()));
   __ pop(a1);
 
   Handle<Code> ic = is_classic_mode()
@@ -2839,7 +2839,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     }
     if (property->key()->IsPropertyName()) {
       EmitCallWithIC(expr,
-                     property->key()->AsLiteral()->handle(),
+                     property->key()->AsLiteral()->value(),
                      RelocInfo::CODE_TARGET);
     } else {
       EmitKeyedCallWithIC(expr, property->key());
@@ -3444,7 +3444,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   ASSERT_NE(NULL, args->at(1)->AsLiteral());
-  Smi* index = Smi::cast(*(args->at(1)->AsLiteral()->handle()));
+  Smi* index = Smi::cast(*(args->at(1)->AsLiteral()->value()));
 
   VisitForAccumulatorValue(args->at(0));  // Load the object.
 
@@ -3876,7 +3876,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   ASSERT_EQ(2, args->length());
 
   ASSERT_NE(NULL, args->at(0)->AsLiteral());
-  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
+  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->value()))->value();
 
   Handle<FixedArray> jsfunction_result_caches(
       isolate()->native_context()->jsfunction_result_caches());
@@ -4551,7 +4551,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     case NAMED_PROPERTY: {
       __ mov(a0, result_register());  // Value.
-      __ li(a2, Operand(prop->key()->AsLiteral()->handle()));  // Name.
+      __ li(a2, Operand(prop->key()->AsLiteral()->value()));  // Name.
       __ pop(a1);  // Receiver.
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->StoreIC_Initialize()
