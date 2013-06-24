@@ -2666,11 +2666,30 @@ THREADED_TEST(ArrayBuffer_External) {
 }
 
 
+static void CheckDataViewIsNeutered(v8::Handle<v8::DataView> dv) {
+  CHECK_EQ(0, static_cast<int>(dv->ByteLength()));
+  CHECK_EQ(0, static_cast<int>(dv->ByteOffset()));
+}
+
+
 static void CheckIsNeutered(v8::Handle<v8::TypedArray> ta) {
   CHECK_EQ(0, static_cast<int>(ta->ByteLength()));
   CHECK_EQ(0, static_cast<int>(ta->Length()));
   CHECK_EQ(0, static_cast<int>(ta->ByteOffset()));
 }
+
+
+static void CheckIsTypedArrayVarNeutered(const char* name) {
+  i::ScopedVector<char> source(1024);
+  i::OS::SNPrintF(source,
+      "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
+      name, name, name);
+  CHECK(CompileRun(source.start())->IsTrue());
+  v8::Handle<v8::TypedArray> ta =
+    v8::Handle<v8::TypedArray>::Cast(CompileRun(name));
+  CheckIsNeutered(ta);
+}
+
 
 template <typename TypedArray, int kElementSize>
 static Handle<TypedArray> CreateAndCheck(Handle<v8::ArrayBuffer> ab,
@@ -2713,6 +2732,10 @@ THREADED_TEST(ArrayBuffer_NeuteringApi) {
   v8::Handle<v8::Float64Array> f64a =
     CreateAndCheck<v8::Float64Array, 8>(buffer, 8, 127);
 
+  v8::Handle<v8::DataView> dv = v8::DataView::New(buffer, 1, 1023);
+  CHECK_EQ(1, static_cast<int>(dv->ByteOffset()));
+  CHECK_EQ(1023, static_cast<int>(dv->ByteLength()));
+
   ScopedArrayBufferContents contents(buffer->Externalize());
   buffer->Neuter();
   CHECK_EQ(0, static_cast<int>(buffer->ByteLength()));
@@ -2725,6 +2748,7 @@ THREADED_TEST(ArrayBuffer_NeuteringApi) {
   CheckIsNeutered(i32a);
   CheckIsNeutered(f32a);
   CheckIsNeutered(f64a);
+  CheckDataViewIsNeutered(dv);
 }
 
 THREADED_TEST(ArrayBuffer_NeuteringScript) {
@@ -2748,39 +2772,26 @@ THREADED_TEST(ArrayBuffer_NeuteringScript) {
   v8::Handle<v8::ArrayBuffer> ab =
       Local<v8::ArrayBuffer>::Cast(CompileRun("ab"));
 
-  v8::Handle<v8::Uint8Array> u8a =
-      v8::Handle<v8::Uint8Array>::Cast(CompileRun("u8a"));
-  v8::Handle<v8::Uint8ClampedArray> u8c =
-      v8::Handle<v8::Uint8ClampedArray>::Cast(CompileRun("u8c"));
-  v8::Handle<v8::Int8Array> i8a =
-      v8::Handle<v8::Int8Array>::Cast(CompileRun("i8a"));
-
-  v8::Handle<v8::Uint16Array> u16a =
-      v8::Handle<v8::Uint16Array>::Cast(CompileRun("u16a"));
-  v8::Handle<v8::Int16Array> i16a =
-      v8::Handle<v8::Int16Array>::Cast(CompileRun("i16a"));
-  v8::Handle<v8::Uint32Array> u32a =
-      v8::Handle<v8::Uint32Array>::Cast(CompileRun("u32a"));
-  v8::Handle<v8::Int32Array> i32a =
-      v8::Handle<v8::Int32Array>::Cast(CompileRun("i32a"));
-  v8::Handle<v8::Float32Array> f32a =
-      v8::Handle<v8::Float32Array>::Cast(CompileRun("f32a"));
-  v8::Handle<v8::Float64Array> f64a =
-    v8::Handle<v8::Float64Array>::Cast(CompileRun("f64a"));
+  v8::Handle<v8::DataView> dv =
+    v8::Handle<v8::DataView>::Cast(CompileRun("dv"));
 
   ScopedArrayBufferContents contents(ab->Externalize());
   ab->Neuter();
   CHECK_EQ(0, static_cast<int>(ab->ByteLength()));
-  CheckIsNeutered(u8a);
-  CheckIsNeutered(u8c);
-  CheckIsNeutered(i8a);
-  CheckIsNeutered(u16a);
-  CheckIsNeutered(i16a);
-  CheckIsNeutered(u32a);
-  CheckIsNeutered(i32a);
-  CheckIsNeutered(f32a);
-  CheckIsNeutered(f64a);
+  CHECK_EQ(0, CompileRun("ab.byteLength")->Int32Value());
+
+  CheckIsTypedArrayVarNeutered("u8a");
+  CheckIsTypedArrayVarNeutered("u8c");
+  CheckIsTypedArrayVarNeutered("i8a");
+  CheckIsTypedArrayVarNeutered("u16a");
+  CheckIsTypedArrayVarNeutered("i16a");
+  CheckIsTypedArrayVarNeutered("u32a");
+  CheckIsTypedArrayVarNeutered("i32a");
+  CheckIsTypedArrayVarNeutered("f32a");
+  CheckIsTypedArrayVarNeutered("f64a");
+
   CHECK(CompileRun("dv.byteLength == 0 && dv.byteOffset == 0")->IsTrue());
+  CheckDataViewIsNeutered(dv);
 }
 
 
@@ -15458,8 +15469,6 @@ template <typename ElementType, typename TypedArray,
 void TypedArrayTestHelper(v8::ExternalArrayType array_type,
                           int64_t low, int64_t high) {
   const int kElementCount = 50;
-  i::FLAG_harmony_array_buffer = true;
-  i::FLAG_harmony_typed_arrays = true;
 
   i::ScopedVector<ElementType> backing_store(kElementCount+2);
 
@@ -15543,8 +15552,27 @@ THREADED_TEST(Uint8ClampedArray) {
 }
 
 
-#define IS_TYPED_ARRAY_TEST(TypedArray) \
-  THREADED_TEST(Is##TypedArray) {                                             \
+THREADED_TEST(DataView) {
+  const int kSize = 50;
+
+  i::ScopedVector<uint8_t> backing_store(kSize+2);
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(
+      backing_store.start(), 2 + kSize);
+  Local<v8::DataView> dv =
+      v8::DataView::New(ab, 2, kSize);
+  CHECK_EQ(2, static_cast<int>(dv->ByteOffset()));
+  CHECK_EQ(kSize, static_cast<int>(dv->ByteLength()));
+  CHECK_EQ(ab, dv->Buffer());
+}
+
+
+#define IS_ARRAY_BUFFER_VIEW_TEST(View)                                       \
+  THREADED_TEST(Is##View) {                                                   \
     i::FLAG_harmony_array_buffer = true;                                      \
     i::FLAG_harmony_typed_arrays = true;                                      \
     LocalContext env;                                                         \
@@ -15553,21 +15581,23 @@ THREADED_TEST(Uint8ClampedArray) {
                                                                               \
     Handle<Value> result = CompileRun(                                        \
         "var ab = new ArrayBuffer(128);"                                      \
-        "new " #TypedArray "(ab)");                                           \
-    CHECK(result->Is##TypedArray());                                          \
+        "new " #View "(ab)");                                                 \
+    CHECK(result->IsArrayBufferView());                                       \
+    CHECK(result->Is##View());                                                \
   }
 
-IS_TYPED_ARRAY_TEST(Uint8Array)
-IS_TYPED_ARRAY_TEST(Int8Array)
-IS_TYPED_ARRAY_TEST(Uint16Array)
-IS_TYPED_ARRAY_TEST(Int16Array)
-IS_TYPED_ARRAY_TEST(Uint32Array)
-IS_TYPED_ARRAY_TEST(Int32Array)
-IS_TYPED_ARRAY_TEST(Float32Array)
-IS_TYPED_ARRAY_TEST(Float64Array)
-IS_TYPED_ARRAY_TEST(Uint8ClampedArray)
+IS_ARRAY_BUFFER_VIEW_TEST(Uint8Array)
+IS_ARRAY_BUFFER_VIEW_TEST(Int8Array)
+IS_ARRAY_BUFFER_VIEW_TEST(Uint16Array)
+IS_ARRAY_BUFFER_VIEW_TEST(Int16Array)
+IS_ARRAY_BUFFER_VIEW_TEST(Uint32Array)
+IS_ARRAY_BUFFER_VIEW_TEST(Int32Array)
+IS_ARRAY_BUFFER_VIEW_TEST(Float32Array)
+IS_ARRAY_BUFFER_VIEW_TEST(Float64Array)
+IS_ARRAY_BUFFER_VIEW_TEST(Uint8ClampedArray)
+IS_ARRAY_BUFFER_VIEW_TEST(DataView)
 
-#undef IS_TYPED_ARRAY_TEST
+#undef IS_ARRAY_BUFFER_VIEW_TEST
 
 
 

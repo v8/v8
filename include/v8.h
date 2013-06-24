@@ -1362,6 +1362,12 @@ class V8EXPORT Value : public Data {
   bool IsArrayBuffer() const;
 
   /**
+   * Returns true if this value is an ArrayBufferView.
+   * This is an experimental feature.
+   */
+  bool IsArrayBufferView() const;
+
+  /**
    * Returns true if this value is one of TypedArrays.
    * This is an experimental feature.
    */
@@ -1420,6 +1426,12 @@ class V8EXPORT Value : public Data {
    * This is an experimental feature.
    */
   bool IsFloat64Array() const;
+
+  /**
+   * Returns true if this value is a DataView.
+   * This is an experimental feature.
+   */
+  bool IsDataView() const;
 
   Local<Boolean> ToBoolean() const;
   Local<Number> ToNumber() const;
@@ -2459,32 +2471,50 @@ class V8EXPORT ArrayBuffer : public Object {
 
 
 /**
- * A base class for an instance of TypedArray series of constructors
- * (ES6 draft 15.13.6).
+ * A base class for an instance of one of "views" over ArrayBuffer,
+ * including TypedArrays and DataView (ES6 draft 15.13).
+ *
  * This API is experimental and may change significantly.
  */
-class V8EXPORT TypedArray : public Object {
+class V8EXPORT ArrayBufferView : public Object {
  public:
   /**
    * Returns underlying ArrayBuffer.
    */
   Local<ArrayBuffer> Buffer();
   /**
-   * Byte offset in |Buffer|
+   * Byte offset in |Buffer|.
    */
   size_t ByteOffset();
   /**
-   * Numbe of elements in this typed array.
-   */
-  size_t Length();
-  /**
-   * Size of typed array in bytes (e.g. for Int16Array, 2*|Length|).
+   * Size of a view in bytes.
    */
   size_t ByteLength();
   /**
-   * Base address of typed array.
+   * Base address of a view.
    */
   void* BaseAddress();
+
+  V8_INLINE(static ArrayBufferView* Cast(Value* obj));
+
+ private:
+  ArrayBufferView();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * A base class for an instance of TypedArray series of constructors
+ * (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT TypedArray : public ArrayBufferView {
+ public:
+  /**
+   * Number of elements in this typed array
+   * (e.g. for Int16Array, |ByteLength|/2).
+   */
+  size_t Length();
 
   V8_INLINE(static TypedArray* Cast(Value* obj));
 
@@ -2633,6 +2663,22 @@ class V8EXPORT Float64Array : public TypedArray {
 
  private:
   Float64Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of DataView constructor (ES6 draft 15.13.7).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT DataView : public ArrayBufferView {
+ public:
+  static Local<DataView> New(Handle<ArrayBuffer> array_buffer,
+                             size_t byte_offset, size_t length);
+  V8_INLINE(static DataView* Cast(Value* obj));
+
+ private:
+  DataView();
   static void CheckCast(Value* obj);
 };
 
@@ -6163,6 +6209,14 @@ ArrayBuffer* ArrayBuffer::Cast(v8::Value* value) {
 }
 
 
+ArrayBufferView* ArrayBufferView::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<ArrayBufferView*>(value);
+}
+
+
 TypedArray* TypedArray::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
@@ -6240,6 +6294,14 @@ Uint8ClampedArray* Uint8ClampedArray::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Uint8ClampedArray*>(value);
+}
+
+
+DataView* DataView::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<DataView*>(value);
 }
 
 

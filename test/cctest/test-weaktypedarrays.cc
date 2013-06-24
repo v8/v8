@@ -74,7 +74,7 @@ static int CountViews(JSArrayBuffer* array_buffer) {
 }
 
 static bool HasViewInWeakList(JSArrayBuffer* array_buffer,
-                              JSObject* ta) {
+                              JSArrayBufferView* ta) {
   for (Object* o = array_buffer->weak_first_view();
        !o->IsUndefined();
        o = JSArrayBufferView::cast(o)->weak_next()) {
@@ -178,8 +178,8 @@ TEST(WeakArrayBuffersFromScript) {
   }
 }
 
-template <typename TypedArray>
-void TestTypedArrayFromApi() {
+template <typename View>
+void TestViewFromApi() {
   v8::V8::Initialize();
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
@@ -189,20 +189,20 @@ void TestTypedArrayFromApi() {
   Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
   {
     v8::HandleScope s2(context->GetIsolate());
-    v8::Handle<TypedArray> ta1 = TypedArray::New(ab, 0, 256);
+    v8::Handle<View> ta1 = View::New(ab, 0, 256);
     {
       v8::HandleScope s3(context->GetIsolate());
-      v8::Handle<TypedArray> ta2 = TypedArray::New(ab, 0, 128);
+      v8::Handle<View> ta2 = View::New(ab, 0, 128);
 
-      Handle<JSTypedArray> ita1 = v8::Utils::OpenHandle(*ta1);
-      Handle<JSTypedArray> ita2 = v8::Utils::OpenHandle(*ta2);
+      Handle<JSArrayBufferView> ita1 = v8::Utils::OpenHandle(*ta1);
+      Handle<JSArrayBufferView> ita2 = v8::Utils::OpenHandle(*ta2);
       CHECK_EQ(2, CountViews(*iab));
       CHECK(HasViewInWeakList(*iab, *ita1));
       CHECK(HasViewInWeakList(*iab, *ita2));
     }
     isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
     CHECK_EQ(1, CountViews(*iab));
-    Handle<JSTypedArray> ita1 = v8::Utils::OpenHandle(*ta1);
+    Handle<JSArrayBufferView> ita1 = v8::Utils::OpenHandle(*ta1);
     CHECK(HasViewInWeakList(*iab, *ita1));
   }
   isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
@@ -212,47 +212,52 @@ void TestTypedArrayFromApi() {
 
 
 TEST(Uint8ArrayFromApi) {
-  TestTypedArrayFromApi<v8::Uint8Array>();
+  TestViewFromApi<v8::Uint8Array>();
 }
 
 
 TEST(Int8ArrayFromApi) {
-  TestTypedArrayFromApi<v8::Int8Array>();
+  TestViewFromApi<v8::Int8Array>();
 }
 
 
 TEST(Uint16ArrayFromApi) {
-  TestTypedArrayFromApi<v8::Uint16Array>();
+  TestViewFromApi<v8::Uint16Array>();
 }
 
 
 TEST(Int16ArrayFromApi) {
-  TestTypedArrayFromApi<v8::Int16Array>();
+  TestViewFromApi<v8::Int16Array>();
 }
 
 
 TEST(Uint32ArrayFromApi) {
-  TestTypedArrayFromApi<v8::Uint32Array>();
+  TestViewFromApi<v8::Uint32Array>();
 }
 
 
 TEST(Int32ArrayFromApi) {
-  TestTypedArrayFromApi<v8::Int32Array>();
+  TestViewFromApi<v8::Int32Array>();
 }
 
 
 TEST(Float32ArrayFromApi) {
-  TestTypedArrayFromApi<v8::Float32Array>();
+  TestViewFromApi<v8::Float32Array>();
 }
 
 
 TEST(Float64ArrayFromApi) {
-  TestTypedArrayFromApi<v8::Float64Array>();
+  TestViewFromApi<v8::Float64Array>();
 }
 
 
 TEST(Uint8ClampedArrayFromApi) {
-  TestTypedArrayFromApi<v8::Uint8ClampedArray>();
+  TestViewFromApi<v8::Uint8ClampedArray>();
+}
+
+
+TEST(DataViewFromApi) {
+  TestViewFromApi<v8::DataView>();
 }
 
 template <typename TypedArray>
@@ -378,5 +383,5 @@ TEST(Uint8ClampedArrayFromScript) {
 
 
 TEST(DataViewFromScript) {
-  TestTypedArrayFromScript<v8::Object>("DataView");
+  TestTypedArrayFromScript<v8::DataView>("DataView");
 }

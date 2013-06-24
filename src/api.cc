@@ -2594,6 +2594,11 @@ bool Value::IsArrayBuffer() const {
 }
 
 
+bool Value::IsArrayBufferView() const {
+  return Utils::OpenHandle(this)->IsJSArrayBufferView();
+}
+
+
 bool Value::IsTypedArray() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsArrayBuffer()"))
     return false;
@@ -2625,6 +2630,11 @@ F(Uint8ClampedArray, kExternalPixelArray)
 TYPED_ARRAY_LIST(VALUE_IS_TYPED_ARRAY)
 
 #undef VALUE_IS_TYPED_ARRAY
+
+
+bool Value::IsDataView() const {
+  return Utils::OpenHandle(this)->IsJSDataView();
+}
 
 
 bool Value::IsObject() const {
@@ -2973,6 +2983,14 @@ void v8::ArrayBuffer::CheckCast(Value* that) {
 }
 
 
+void v8::ArrayBufferView::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->IsJSArrayBufferView(),
+           "v8::ArrayBufferView::Cast()",
+           "Could not convert to ArrayBufferView");
+}
+
+
 void v8::TypedArray::CheckCast(Value* that) {
   if (IsDeadCheck(i::Isolate::Current(), "v8::TypedArray::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
@@ -2997,6 +3015,14 @@ void v8::TypedArray::CheckCast(Value* that) {
 TYPED_ARRAY_LIST(CHECK_TYPED_ARRAY_CAST)
 
 #undef CHECK_TYPED_ARRAY_CAST
+
+
+void v8::DataView::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->IsJSDataView(),
+           "v8::DataView::Cast()",
+           "Could not convert to DataView");
+}
 
 
 void v8::Date::CheckCast(v8::Value* that) {
@@ -6230,30 +6256,32 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(void* data, size_t byte_length) {
 }
 
 
-Local<ArrayBuffer> v8::TypedArray::Buffer() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::TypedArray::Buffer()"))
-    return Local<ArrayBuffer>();
-  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
+  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   ASSERT(obj->buffer()->IsJSArrayBuffer());
   i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
   return Utils::ToLocal(buffer);
 }
 
 
-size_t v8::TypedArray::ByteOffset() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::TypedArray::ByteOffset()")) return 0;
-  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+size_t v8::ArrayBufferView::ByteOffset() {
+  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->byte_offset()->Number());
 }
 
 
-size_t v8::TypedArray::ByteLength() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::TypedArray::ByteLength()")) return 0;
-  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+size_t v8::ArrayBufferView::ByteLength() {
+  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->byte_length()->Number());
+}
+
+
+void* v8::ArrayBufferView::BaseAddress() {
+  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
+  void* buffer_data = buffer->backing_store();
+  size_t byte_offset = static_cast<size_t>(obj->byte_offset()->Number());
+  return static_cast<uint8_t*>(buffer_data) + byte_offset;
 }
 
 
@@ -6265,16 +6293,28 @@ size_t v8::TypedArray::Length() {
 }
 
 
-void* v8::TypedArray::BaseAddress() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::TypedArray::BaseAddress()")) return NULL;
-  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
-  void* buffer_data = buffer->backing_store();
-  size_t byte_offset = static_cast<size_t>(obj->byte_offset()->Number());
-  return static_cast<uint8_t*>(buffer_data) + byte_offset;
-}
+static inline void SetupArrayBufferView(
+    i::Isolate* isolate,
+    i::Handle<i::JSArrayBufferView> obj,
+    i::Handle<i::JSArrayBuffer> buffer,
+    size_t byte_offset,
+    size_t byte_length) {
+  ASSERT(byte_offset + byte_length <=
+      static_cast<size_t>(buffer->byte_length()->Number()));
 
+  obj->set_buffer(*buffer);
+
+  obj->set_weak_next(buffer->weak_first_view());
+  buffer->set_weak_first_view(*obj);
+
+  i::Handle<i::Object> byte_offset_object =
+    isolate->factory()->NewNumberFromSize(byte_offset);
+  obj->set_byte_offset(*byte_offset_object);
+
+  i::Handle<i::Object> byte_length_object =
+    isolate->factory()->NewNumberFromSize(byte_length);
+  obj->set_byte_length(*byte_length_object);
+}
 
 template<typename ElementType,
          ExternalArrayType array_type,
@@ -6287,24 +6327,12 @@ i::Handle<i::JSTypedArray> NewTypedArray(
   i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
 
   ASSERT(byte_offset % sizeof(ElementType) == 0);
-  ASSERT(byte_offset + length * sizeof(ElementType) <=
-      static_cast<size_t>(buffer->byte_length()->Number()));
 
-  obj->set_buffer(*buffer);
+  SetupArrayBufferView(
+      isolate, obj, buffer, byte_offset, length * sizeof(ElementType));
 
-  obj->set_weak_next(buffer->weak_first_view());
-  buffer->set_weak_first_view(*obj);
-
-  i::Handle<i::Object> byte_offset_object = isolate->factory()->NewNumber(
-        static_cast<double>(byte_offset));
-  obj->set_byte_offset(*byte_offset_object);
-
-  i::Handle<i::Object> byte_length_object = isolate->factory()->NewNumber(
-        static_cast<double>(length * sizeof(ElementType)));
-  obj->set_byte_length(*byte_length_object);
-
-  i::Handle<i::Object> length_object = isolate->factory()->NewNumber(
-        static_cast<double>(length));
+  i::Handle<i::Object> length_object =
+    isolate->factory()->NewNumberFromSize(length);
   obj->set_length(*length_object);
 
   i::Handle<i::ExternalArray> elements =
@@ -6352,6 +6380,20 @@ TYPED_ARRAY_NEW(Float64Array, double, kExternalDoubleArray,
                 i::EXTERNAL_DOUBLE_ELEMENTS)
 
 #undef TYPED_ARRAY_NEW
+
+Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,
+                              size_t byte_offset, size_t byte_length) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(
+      isolate, "v8::DataView::New(void*, size_t, size_t)");
+  LOG_API(isolate, "v8::DataView::New(void*, size_t, size_t)");
+  ENTER_V8(isolate);
+  i::Handle<i::JSDataView> obj = isolate->factory()->NewJSDataView();
+  i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
+  SetupArrayBufferView(
+      isolate, obj, buffer, byte_offset, byte_length);
+  return Utils::ToLocal(obj);
+}
 
 
 Local<Symbol> v8::Symbol::New(Isolate* isolate) {
