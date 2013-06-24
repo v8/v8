@@ -5677,7 +5677,7 @@ void HOptimizedGraphBuilder::VisitLiteral(Literal* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  HConstant* instr = new(zone()) HConstant(expr->handle());
+  HConstant* instr = new(zone()) HConstant(expr->value());
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -5938,7 +5938,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         ASSERT(!CompileTimeValue::IsCompileTimeValue(value));
         // Fall through.
       case ObjectLiteral::Property::COMPUTED:
-        if (key->handle()->IsInternalizedString()) {
+        if (key->value()->IsInternalizedString()) {
           if (property->emit_store()) {
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
@@ -6591,7 +6591,7 @@ void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
                                              HValue* object,
                                              HValue* value) {
   Literal* key = prop->key()->AsLiteral();
-  Handle<String> name = Handle<String>::cast(key->handle());
+  Handle<String> name = Handle<String>::cast(key->value());
   ASSERT(!name.is_null());
 
   HInstruction* instr = NULL;
@@ -9506,7 +9506,7 @@ static bool IsClassOfTest(CompareOperation* expr) {
   if (call == NULL) return false;
   Literal* literal = expr->right()->AsLiteral();
   if (literal == NULL) return false;
-  if (!literal->handle()->IsString()) return false;
+  if (!literal->value()->IsString()) return false;
   if (!call->name()->IsOneByteEqualTo(STATIC_ASCII_VECTOR("_ClassOf"))) {
     return false;
   }
@@ -9752,7 +9752,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
     HValue* value = Pop();
     Literal* literal = expr->right()->AsLiteral();
-    Handle<String> rhs = Handle<String>::cast(literal->handle());
+    Handle<String> rhs = Handle<String>::cast(literal->value());
     HClassOfTestAndBranch* instr =
         new(zone()) HClassOfTestAndBranch(value, rhs);
     instr->set_position(expr->position());
@@ -10543,7 +10543,7 @@ void HOptimizedGraphBuilder::GenerateValueOf(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateDateField(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 2);
   ASSERT_NE(NULL, call->arguments()->at(1)->AsLiteral());
-  Smi* index = Smi::cast(*(call->arguments()->at(1)->AsLiteral()->handle()));
+  Smi* index = Smi::cast(*(call->arguments()->at(1)->AsLiteral()->value()));
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* date = Pop();
   HDateField* result = new(zone()) HDateField(date, index);

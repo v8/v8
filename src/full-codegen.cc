@@ -1545,7 +1545,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
 
 void FullCodeGenerator::VisitLiteral(Literal* expr) {
   Comment cmnt(masm_, "[ Literal");
-  context()->Plug(expr->handle());
+  context()->Plug(expr->value());
 }
 
 

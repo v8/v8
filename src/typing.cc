@@ -295,7 +295,7 @@ void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
     if ((prop->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL &&
         !CompileTimeValue::IsCompileTimeValue(prop->value())) ||
         prop->kind() == ObjectLiteral::Property::COMPUTED) {
-      if (prop->key()->handle()->IsInternalizedString() && prop->emit_store())
+      if (prop->key()->value()->IsInternalizedString() && prop->emit_store())
         prop->RecordTypeFeedback(oracle());
     }
   }

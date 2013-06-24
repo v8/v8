@@ -1312,36 +1312,36 @@ class Literal: public Expression {
   DECLARE_NODE_TYPE(Literal)
 
   virtual bool IsPropertyName() {
-    if (handle_->IsInternalizedString()) {
+    if (value_->IsInternalizedString()) {
       uint32_t ignored;
-      return !String::cast(*handle_)->AsArrayIndex(&ignored);
+      return !String::cast(*value_)->AsArrayIndex(&ignored);
     }
     return false;
   }
 
   Handle<String> AsPropertyName() {
     ASSERT(IsPropertyName());
-    return Handle<String>::cast(handle_);
+    return Handle<String>::cast(value_);
   }
 
-  virtual bool ToBooleanIsTrue() { return handle_->BooleanValue(); }
-  virtual bool ToBooleanIsFalse() { return !handle_->BooleanValue(); }
+  virtual bool ToBooleanIsTrue() { return value_->BooleanValue(); }
+  virtual bool ToBooleanIsFalse() { return !value_->BooleanValue(); }
 
   // Identity testers.
   bool IsNull() const {
-    ASSERT(!handle_.is_null());
-    return handle_->IsNull();
+    ASSERT(!value_.is_null());
+    return value_->IsNull();
   }
   bool IsTrue() const {
-    ASSERT(!handle_.is_null());
-    return handle_->IsTrue();
+    ASSERT(!value_.is_null());
+    return value_->IsTrue();
   }
   bool IsFalse() const {
-    ASSERT(!handle_.is_null());
-    return handle_->IsFalse();
+    ASSERT(!value_.is_null());
+    return value_->IsFalse();
   }
 
-  Handle<Object> handle() const { return handle_; }
+  Handle<Object> value() const { return value_; }
 
   // Support for using Literal as a HashMap key. NOTE: Currently, this works
   // only for string and number literals!
@@ -1356,14 +1356,14 @@ class Literal: public Expression {
   TypeFeedbackId LiteralFeedbackId() const { return reuse(id()); }
 
  protected:
-  Literal(Isolate* isolate, Handle<Object> handle)
+  Literal(Isolate* isolate, Handle<Object> value)
       : Expression(isolate),
-        handle_(handle) { }
+        value_(value) { }
 
  private:
   Handle<String> ToString();
 
-  Handle<Object> handle_;
+  Handle<Object> value_;
 };
 
 
