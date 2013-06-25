@@ -383,7 +383,7 @@ class Expression: public AstNode {
   }
 
   // TODO(rossberg): this should move to its own AST node eventually.
-  void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
+  virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
   byte to_boolean_types() const { return to_boolean_types_; }
 
   BailoutId id() const { return id_; }
@@ -395,6 +395,7 @@ class Expression: public AstNode {
         lower_type_(Type::None(), isolate),
         id_(GetNextId(isolate)),
         test_id_(GetNextId(isolate)) {}
+  void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
 
  private:
   Handle<Type> upper_type_;
@@ -1841,6 +1842,8 @@ class UnaryOperation: public Expression {
 
   TypeFeedbackId UnaryOperationFeedbackId() const { return reuse(id()); }
 
+  virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
+
  protected:
   UnaryOperation(Isolate* isolate,
                  Token::Value op,
@@ -1883,6 +1886,8 @@ class BinaryOperation: public Expression {
   TypeFeedbackId BinaryOperationFeedbackId() const { return reuse(id()); }
   Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
   void set_fixed_right_arg(Maybe<int> arg) { fixed_right_arg_ = arg; }
+
+  virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
 
  protected:
   BinaryOperation(Isolate* isolate,

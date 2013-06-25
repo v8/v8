@@ -288,6 +288,16 @@ void TargetCollector::AddTarget(Label* target, Zone* zone) {
 }
 
 
+void UnaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
+  // TODO(olivf) If this Operation is used in a test context, then the
+  // expression has a ToBoolean stub and we want to collect the type
+  // information. However the GraphBuilder expects it to be on the instruction
+  // corresponding to the TestContext, therefore we have to store it here and
+  // not on the operand.
+  set_to_boolean_types(oracle->ToBooleanTypes(expression()->test_id()));
+}
+
+
 bool UnaryOperation::ResultOverwriteAllowed() {
   switch (op_) {
     case Token::BIT_NOT:
@@ -296,6 +306,16 @@ bool UnaryOperation::ResultOverwriteAllowed() {
     default:
       return false;
   }
+}
+
+
+void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
+  // TODO(olivf) If this Operation is used in a test context, then the right
+  // hand side has a ToBoolean stub and we want to collect the type information.
+  // However the GraphBuilder expects it to be on the instruction corresponding
+  // to the TestContext, therefore we have to store it here and not on the
+  // right hand operand.
+  set_to_boolean_types(oracle->ToBooleanTypes(right()->test_id()));
 }
 
 
