@@ -3339,9 +3339,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
-  if (FLAG_optimize_constructed_arrays) {
-    ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
-  }
+  ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
 
@@ -5018,55 +5016,12 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
-  // Cache the called function in a global property cell.  Cache states
-  // are uninitialized, monomorphic (indicated by a JSFunction), and
-  // megamorphic.
-  // a1 : the function to call
-  // a2 : cache cell for call target
-  Label done;
-
-  ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
-            masm->isolate()->heap()->undefined_value());
-  ASSERT_EQ(*TypeFeedbackCells::UninitializedSentinel(masm->isolate()),
-            masm->isolate()->heap()->the_hole_value());
-
-  // Load the cache state into a3.
-  __ lw(a3, FieldMemOperand(a2, Cell::kValueOffset));
-
-  // A monomorphic cache hit or an already megamorphic state: invoke the
-  // function without changing the state.
-  __ Branch(&done, eq, a3, Operand(a1));
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  __ Branch(&done, eq, a3, Operand(at));
-
-  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
-  // megamorphic.
-  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-
-  __ Branch(USE_DELAY_SLOT, &done, eq, a3, Operand(at));
-  // An uninitialized cache is patched with the function.
-  // Store a1 in the delay slot. This may or may not get overwritten depending
-  // on the result of the comparison.
-  __ sw(a1, FieldMemOperand(a2, Cell::kValueOffset));
-  // No need for a write barrier here - cells are rescanned.
-
-  // MegamorphicSentinel is an immortal immovable object (undefined) so no
-  // write-barrier is needed.
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  __ sw(at, FieldMemOperand(a2, Cell::kValueOffset));
-
-  __ bind(&done);
-}
-
-
 static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
   // a1 : the function to call
   // a2 : cache cell for call target
-  ASSERT(FLAG_optimize_constructed_arrays);
   Label initialize, done, miss, megamorphic, not_array_function;
 
   ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
@@ -5166,11 +5121,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
 
   if (RecordCallTarget()) {
-    if (FLAG_optimize_constructed_arrays) {
-      GenerateRecordCallTarget(masm);
-    } else {
-      GenerateRecordCallTargetNoArray(masm);
-    }
+    GenerateRecordCallTarget(masm);
   }
 
   // Fast-case: Invoke the function now.
@@ -5244,15 +5195,11 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Branch(&slow, ne, a3, Operand(JS_FUNCTION_TYPE));
 
   if (RecordCallTarget()) {
-    if (FLAG_optimize_constructed_arrays) {
-      GenerateRecordCallTarget(masm);
-    } else {
-      GenerateRecordCallTargetNoArray(masm);
-    }
+    GenerateRecordCallTarget(masm);
   }
 
   // Jump to the function-specific construct stub.
-  Register jmp_reg = FLAG_optimize_constructed_arrays ? a3 : a2;
+  Register jmp_reg = a3;
   __ lw(jmp_reg, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(jmp_reg, FieldMemOperand(jmp_reg,
                                  SharedFunctionInfo::kConstructStubOffset));
@@ -7773,50 +7720,37 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ bind(&okay_here);
   }
 
-  if (FLAG_optimize_constructed_arrays) {
-    Label no_info, switch_ready;
-    // Get the elements kind and case on that.
-    __ Branch(&no_info, eq, a2, Operand(undefined_sentinel));
-    __ lw(a3, FieldMemOperand(a2, PropertyCell::kValueOffset));
-    __ JumpIfNotSmi(a3, &no_info);
-    __ SmiUntag(a3);
-    __ jmp(&switch_ready);
-    __ bind(&no_info);
-    __ li(a3, Operand(GetInitialFastElementsKind()));
-    __ bind(&switch_ready);
+  Label no_info, switch_ready;
+  // Get the elements kind and case on that.
+  __ Branch(&no_info, eq, a2, Operand(undefined_sentinel));
+  __ lw(a3, FieldMemOperand(a2, Cell::kValueOffset));
+  __ JumpIfNotSmi(a3, &no_info);
+  __ SmiUntag(a3);
+  __ jmp(&switch_ready);
+  __ bind(&no_info);
+  __ li(a3, Operand(GetInitialFastElementsKind()));
+  __ bind(&switch_ready);
 
-    if (argument_count_ == ANY) {
-      Label not_zero_case, not_one_case;
-      __ And(at, a0, a0);
-      __ Branch(&not_zero_case, ne, at, Operand(zero_reg));
-      CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
+  if (argument_count_ == ANY) {
+    Label not_zero_case, not_one_case;
+    __ And(at, a0, a0);
+    __ Branch(&not_zero_case, ne, at, Operand(zero_reg));
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
 
-      __ bind(&not_zero_case);
-      __ Branch(&not_one_case, gt, a0, Operand(1));
-      CreateArrayDispatchOneArgument(masm);
+    __ bind(&not_zero_case);
+    __ Branch(&not_one_case, gt, a0, Operand(1));
+    CreateArrayDispatchOneArgument(masm);
 
-      __ bind(&not_one_case);
-      CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-    } else if (argument_count_ == NONE) {
-      CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
-    } else if (argument_count_ == ONE) {
-      CreateArrayDispatchOneArgument(masm);
-    } else if (argument_count_ == MORE_THAN_ONE) {
-      CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-    } else {
-     UNREACHABLE();
-    }
+    __ bind(&not_one_case);
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
+  } else if (argument_count_ == NONE) {
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
+  } else if (argument_count_ == ONE) {
+    CreateArrayDispatchOneArgument(masm);
+  } else if (argument_count_ == MORE_THAN_ONE) {
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
   } else {
-     Label generic_constructor;
-     // Run the native code for the Array function called as a constructor.
-     ArrayNativeCode(masm, &generic_constructor);
-
-     // Jump to the generic construct code in case the specialized code cannot
-     // handle the construction.
-     __ bind(&generic_constructor);
-     Handle<Code> generic_construct_stub =
-         masm->isolate()->builtins()->JSConstructStubGeneric();
-     __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+    UNREACHABLE();
   }
 }
 
@@ -7877,43 +7811,30 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
         t0, Operand(MAP_TYPE));
   }
 
-  if (FLAG_optimize_constructed_arrays) {
-    // Figure out the right elements kind.
-    __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
+  // Figure out the right elements kind.
+  __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
 
-    // Load the map's "bit field 2" into a3. We only need the first byte,
-    // but the following bit field extraction takes care of that anyway.
-    __ lbu(a3, FieldMemOperand(a3, Map::kBitField2Offset));
-    // Retrieve elements_kind from bit field 2.
-    __ Ext(a3, a3, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  // Load the map's "bit field 2" into a3. We only need the first byte,
+  // but the following bit field extraction takes care of that anyway.
+  __ lbu(a3, FieldMemOperand(a3, Map::kBitField2Offset));
+  // Retrieve elements_kind from bit field 2.
+  __ Ext(a3, a3, Map::kElementsKindShift, Map::kElementsKindBitCount);
 
-    if (FLAG_debug_code) {
-      Label done;
-      __ Branch(&done, eq, a3, Operand(FAST_ELEMENTS));
-      __ Assert(
-          eq, "Invalid ElementsKind for InternalArray or InternalPackedArray",
-          a3, Operand(FAST_HOLEY_ELEMENTS));
-      __ bind(&done);
-    }
-
-    Label fast_elements_case;
-    __ Branch(&fast_elements_case, eq, a3, Operand(FAST_ELEMENTS));
-    GenerateCase(masm, FAST_HOLEY_ELEMENTS);
-
-    __ bind(&fast_elements_case);
-    GenerateCase(masm, FAST_ELEMENTS);
-  } else {
-    Label generic_constructor;
-    // Run the native code for the Array function called as constructor.
-    ArrayNativeCode(masm, &generic_constructor);
-
-    // Jump to the generic construct code in case the specialized code cannot
-    // handle the construction.
-    __ bind(&generic_constructor);
-    Handle<Code> generic_construct_stub =
-        masm->isolate()->builtins()->JSConstructStubGeneric();
-    __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+  if (FLAG_debug_code) {
+    Label done;
+    __ Branch(&done, eq, a3, Operand(FAST_ELEMENTS));
+    __ Assert(
+        eq, "Invalid ElementsKind for InternalArray or InternalPackedArray",
+        a3, Operand(FAST_HOLEY_ELEMENTS));
+    __ bind(&done);
   }
+
+  Label fast_elements_case;
+  __ Branch(&fast_elements_case, eq, a3, Operand(FAST_ELEMENTS));
+  GenerateCase(masm, FAST_HOLEY_ELEMENTS);
+
+  __ bind(&fast_elements_case);
+  GenerateCase(masm, FAST_ELEMENTS);
 }
 
 

@@ -1375,7 +1375,6 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
-  ASSERT(FLAG_optimize_constructed_arrays);
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* constructor = UseFixed(instr->constructor(), edi);
   argument_count_ -= instr->argument_count();

@@ -4169,12 +4169,9 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   ASSERT(ToRegister(instr->constructor()).is(edi));
   ASSERT(ToRegister(instr->result()).is(eax));
 
-  if (FLAG_optimize_constructed_arrays) {
-    // No cell in ebx for construct type feedback in optimized code
-    Handle<Object> undefined_value(isolate()->heap()->undefined_value(),
-                                   isolate());
-    __ mov(ebx, Immediate(undefined_value));
-  }
+  // No cell in ebx for construct type feedback in optimized code
+  Handle<Object> undefined_value(isolate()->factory()->undefined_value());
+  __ mov(ebx, Immediate(undefined_value));
   CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   __ Set(eax, Immediate(instr->arity()));
   CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
@@ -4185,7 +4182,6 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
   ASSERT(ToRegister(instr->constructor()).is(edi));
   ASSERT(ToRegister(instr->result()).is(eax));
-  ASSERT(FLAG_optimize_constructed_arrays);
 
   __ Set(eax, Immediate(instr->arity()));
   __ mov(ebx, instr->hydrogen()->property_cell());

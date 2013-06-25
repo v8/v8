@@ -886,16 +886,11 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // overwritten by JS code.
     native_context()->set_array_function(*array_function);
 
-    if (FLAG_optimize_constructed_arrays) {
-      // Cache the array maps, needed by ArrayConstructorStub
-      CacheInitialJSArrayMaps(native_context(), initial_map);
-      ArrayConstructorStub array_constructor_stub(isolate);
-      Handle<Code> code = array_constructor_stub.GetCode(isolate);
-      array_function->shared()->set_construct_stub(*code);
-    } else {
-      array_function->shared()->set_construct_stub(
-          isolate->builtins()->builtin(Builtins::kCommonArrayConstructCode));
-    }
+    // Cache the array maps, needed by ArrayConstructorStub
+    CacheInitialJSArrayMaps(native_context(), initial_map);
+    ArrayConstructorStub array_constructor_stub(isolate);
+    Handle<Code> code = array_constructor_stub.GetCode(isolate);
+    array_function->shared()->set_construct_stub(*code);
   }
 
   {  // --- N u m b e r ---
@@ -1623,15 +1618,9 @@ Handle<JSFunction> Genesis::InstallInternalArray(
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   SetPrototype(array_function, prototype);
 
-  if (FLAG_optimize_constructed_arrays) {
-    InternalArrayConstructorStub internal_array_constructor_stub(isolate());
-    Handle<Code> code = internal_array_constructor_stub.GetCode(isolate());
-    array_function->shared()->set_construct_stub(*code);
-  } else {
-    array_function->shared()->set_construct_stub(
-        isolate()->builtins()->builtin(Builtins::kCommonArrayConstructCode));
-  }
-
+  InternalArrayConstructorStub internal_array_constructor_stub(isolate());
+  Handle<Code> code = internal_array_constructor_stub.GetCode(isolate());
+  array_function->shared()->set_construct_stub(*code);
   array_function->shared()->DontAdaptArguments();
 
   Handle<Map> original_map(array_function->initial_map());

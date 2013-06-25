@@ -209,23 +209,21 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     MaybeObject* maybe_array = array->Initialize(0);
     if (maybe_array->IsFailure()) return maybe_array;
 
-    if (FLAG_optimize_constructed_arrays) {
-      AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(array);
-      ElementsKind to_kind = array->GetElementsKind();
-      if (info != NULL && info->GetElementsKindPayload(&to_kind)) {
-        if (IsMoreGeneralElementsKindTransition(array->GetElementsKind(),
-                                                to_kind)) {
-          // We have advice that we should change the elements kind
-          if (FLAG_trace_track_allocation_sites) {
-            PrintF("AllocationSiteInfo: pre-transitioning array %p(%s->%s)\n",
-                   reinterpret_cast<void*>(array),
-                   ElementsKindToString(array->GetElementsKind()),
-                   ElementsKindToString(to_kind));
-          }
-
-          maybe_array = array->TransitionElementsKind(to_kind);
-          if (maybe_array->IsFailure()) return maybe_array;
+    AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(array);
+    ElementsKind to_kind = array->GetElementsKind();
+    if (info != NULL && info->GetElementsKindPayload(&to_kind)) {
+      if (IsMoreGeneralElementsKindTransition(array->GetElementsKind(),
+                                              to_kind)) {
+        // We have advice that we should change the elements kind
+        if (FLAG_trace_track_allocation_sites) {
+          PrintF("AllocationSiteInfo: pre-transitioning array %p(%s->%s)\n",
+                 reinterpret_cast<void*>(array),
+                 ElementsKindToString(array->GetElementsKind()),
+                 ElementsKindToString(to_kind));
         }
+
+        maybe_array = array->TransitionElementsKind(to_kind);
+        if (maybe_array->IsFailure()) return maybe_array;
       }
     }
 

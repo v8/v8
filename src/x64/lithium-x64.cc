@@ -1290,7 +1290,6 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
-  ASSERT(FLAG_optimize_constructed_arrays);
   LOperand* constructor = UseFixed(instr->constructor(), rdi);
   argument_count_ -= instr->argument_count();
   LCallNewArray* result = new(zone()) LCallNewArray(constructor);

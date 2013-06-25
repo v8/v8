@@ -3717,51 +3717,12 @@ void InterruptStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
-  // Cache the called function in a global property cell.  Cache states
-  // are uninitialized, monomorphic (indicated by a JSFunction), and
-  // megamorphic.
-  // rbx : cache cell for call target
-  // rdi : the function to call
-  Isolate* isolate = masm->isolate();
-  Label initialize, done;
-
-  // Load the cache state into rcx.
-  __ movq(rcx, FieldOperand(rbx, Cell::kValueOffset));
-
-  // A monomorphic cache hit or an already megamorphic state: invoke the
-  // function without changing the state.
-  __ cmpq(rcx, rdi);
-  __ j(equal, &done, Label::kNear);
-  __ Cmp(rcx, TypeFeedbackCells::MegamorphicSentinel(isolate));
-  __ j(equal, &done, Label::kNear);
-
-  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
-  // megamorphic.
-  __ Cmp(rcx, TypeFeedbackCells::UninitializedSentinel(isolate));
-  __ j(equal, &initialize, Label::kNear);
-  // MegamorphicSentinel is an immortal immovable object (undefined) so no
-  // write-barrier is needed.
-  __ Move(FieldOperand(rbx, Cell::kValueOffset),
-          TypeFeedbackCells::MegamorphicSentinel(isolate));
-  __ jmp(&done, Label::kNear);
-
-  // An uninitialized cache is patched with the function.
-  __ bind(&initialize);
-  __ movq(FieldOperand(rbx, Cell::kValueOffset), rdi);
-  // No need for a write barrier here - cells are rescanned.
-
-  __ bind(&done);
-}
-
-
 static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
   // rbx : cache cell for call target
   // rdi : the function to call
-  ASSERT(FLAG_optimize_constructed_arrays);
   Isolate* isolate = masm->isolate();
   Label initialize, done, miss, megamorphic, not_array_function;
 
@@ -3860,11 +3821,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
-    if (FLAG_optimize_constructed_arrays) {
-      GenerateRecordCallTarget(masm);
-    } else {
-      GenerateRecordCallTargetNoArray(masm);
-    }
+    GenerateRecordCallTarget(masm);
   }
 
   // Fast-case: Just invoke the function.
@@ -3939,15 +3896,11 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
-    if (FLAG_optimize_constructed_arrays) {
-      GenerateRecordCallTarget(masm);
-    } else {
-      GenerateRecordCallTargetNoArray(masm);
-    }
+    GenerateRecordCallTarget(masm);
   }
 
   // Jump to the function-specific construct stub.
-  Register jmp_reg = FLAG_optimize_constructed_arrays ? rcx : rbx;
+  Register jmp_reg = rcx;
   __ movq(jmp_reg, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ movq(jmp_reg, FieldOperand(jmp_reg,
                                 SharedFunctionInfo::kConstructStubOffset));
@@ -3995,9 +3948,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   // It is important that the store buffer overflow stubs are generated first.
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
-  if (FLAG_optimize_constructed_arrays) {
-    ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
-  }
+  ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
 
@@ -6949,52 +6900,39 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ bind(&okay_here);
   }
 
-  if (FLAG_optimize_constructed_arrays) {
-    Label no_info, switch_ready;
-    // Get the elements kind and case on that.
-    __ Cmp(rbx, undefined_sentinel);
-    __ j(equal, &no_info);
-    __ movq(rdx, FieldOperand(rbx, Cell::kValueOffset));
-    __ JumpIfNotSmi(rdx, &no_info);
-    __ SmiToInteger32(rdx, rdx);
-    __ jmp(&switch_ready);
-    __ bind(&no_info);
-    __ movq(rdx, Immediate(GetInitialFastElementsKind()));
-    __ bind(&switch_ready);
+  Label no_info, switch_ready;
+  // Get the elements kind and case on that.
+  __ Cmp(rbx, undefined_sentinel);
+  __ j(equal, &no_info);
+  __ movq(rdx, FieldOperand(rbx, Cell::kValueOffset));
+  __ JumpIfNotSmi(rdx, &no_info);
+  __ SmiToInteger32(rdx, rdx);
+  __ jmp(&switch_ready);
+  __ bind(&no_info);
+  __ movq(rdx, Immediate(GetInitialFastElementsKind()));
+  __ bind(&switch_ready);
 
-    if (argument_count_ == ANY) {
-      Label not_zero_case, not_one_case;
-      __ testq(rax, rax);
-      __ j(not_zero, &not_zero_case);
-      CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
+  if (argument_count_ == ANY) {
+    Label not_zero_case, not_one_case;
+    __ testq(rax, rax);
+    __ j(not_zero, &not_zero_case);
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
 
-      __ bind(&not_zero_case);
-      __ cmpl(rax, Immediate(1));
-      __ j(greater, &not_one_case);
-      CreateArrayDispatchOneArgument(masm);
+    __ bind(&not_zero_case);
+    __ cmpl(rax, Immediate(1));
+    __ j(greater, &not_one_case);
+    CreateArrayDispatchOneArgument(masm);
 
-      __ bind(&not_one_case);
-      CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-    } else if (argument_count_ == NONE) {
-      CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
-    } else if (argument_count_ == ONE) {
-      CreateArrayDispatchOneArgument(masm);
-    } else if (argument_count_ == MORE_THAN_ONE) {
-      CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
-    } else {
-      UNREACHABLE();
-    }
+    __ bind(&not_one_case);
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
+  } else if (argument_count_ == NONE) {
+    CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm);
+  } else if (argument_count_ == ONE) {
+    CreateArrayDispatchOneArgument(masm);
+  } else if (argument_count_ == MORE_THAN_ONE) {
+    CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm);
   } else {
-    Label generic_constructor;
-    // Run the native code for the Array function called as constructor.
-    ArrayNativeCode(masm, &generic_constructor);
-
-    // Jump to the generic construct code in case the specialized code cannot
-    // handle the construction.
-    __ bind(&generic_constructor);
-    Handle<Code> generic_construct_stub =
-        masm->isolate()->builtins()->JSConstructStubGeneric();
-    __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
+    UNREACHABLE();
   }
 }
 
@@ -7058,46 +6996,33 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Check(equal, "Unexpected initial map for Array function");
   }
 
-  if (FLAG_optimize_constructed_arrays) {
-    // Figure out the right elements kind
-    __ movq(rcx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+  // Figure out the right elements kind
+  __ movq(rcx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
 
-    // Load the map's "bit field 2" into |result|. We only need the first byte,
-    // but the following masking takes care of that anyway.
-    __ movzxbq(rcx, FieldOperand(rcx, Map::kBitField2Offset));
-    // Retrieve elements_kind from bit field 2.
-    __ and_(rcx, Immediate(Map::kElementsKindMask));
-    __ shr(rcx, Immediate(Map::kElementsKindShift));
+  // Load the map's "bit field 2" into |result|. We only need the first byte,
+  // but the following masking takes care of that anyway.
+  __ movzxbq(rcx, FieldOperand(rcx, Map::kBitField2Offset));
+  // Retrieve elements_kind from bit field 2.
+  __ and_(rcx, Immediate(Map::kElementsKindMask));
+  __ shr(rcx, Immediate(Map::kElementsKindShift));
 
-    if (FLAG_debug_code) {
-      Label done;
-      __ cmpl(rcx, Immediate(FAST_ELEMENTS));
-      __ j(equal, &done);
-      __ cmpl(rcx, Immediate(FAST_HOLEY_ELEMENTS));
-      __ Assert(equal,
-          "Invalid ElementsKind for InternalArray or InternalPackedArray");
-      __ bind(&done);
-    }
-
-    Label fast_elements_case;
+  if (FLAG_debug_code) {
+    Label done;
     __ cmpl(rcx, Immediate(FAST_ELEMENTS));
-    __ j(equal, &fast_elements_case);
-    GenerateCase(masm, FAST_HOLEY_ELEMENTS);
-
-    __ bind(&fast_elements_case);
-    GenerateCase(masm, FAST_ELEMENTS);
-  } else {
-    Label generic_constructor;
-    // Run the native code for the Array function called as constructor.
-    ArrayNativeCode(masm, &generic_constructor);
-
-    // Jump to the generic construct code in case the specialized code cannot
-    // handle the construction.
-    __ bind(&generic_constructor);
-    Handle<Code> generic_construct_stub =
-        masm->isolate()->builtins()->JSConstructStubGeneric();
-    __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
+    __ j(equal, &done);
+    __ cmpl(rcx, Immediate(FAST_HOLEY_ELEMENTS));
+    __ Assert(equal,
+              "Invalid ElementsKind for InternalArray or InternalPackedArray");
+    __ bind(&done);
   }
+
+  Label fast_elements_case;
+  __ cmpl(rcx, Immediate(FAST_ELEMENTS));
+  __ j(equal, &fast_elements_case);
+  GenerateCase(masm, FAST_HOLEY_ELEMENTS);
+
+  __ bind(&fast_elements_case);
+  GenerateCase(masm, FAST_ELEMENTS);
 }
 
 
