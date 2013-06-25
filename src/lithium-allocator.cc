@@ -1101,7 +1101,7 @@ bool LAllocator::Allocate(LChunk* chunk) {
 
 
 void LAllocator::MeetRegisterConstraints() {
-  HPhase phase("L_Register constraints", chunk_);
+  LAllocatorPhase phase("L_Register constraints", this);
   first_artificial_register_ = next_virtual_register_;
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
   for (int i = 0; i < blocks->length(); ++i) {
@@ -1113,7 +1113,7 @@ void LAllocator::MeetRegisterConstraints() {
 
 
 void LAllocator::ResolvePhis() {
-  HPhase phase("L_Resolve phis", chunk_);
+  LAllocatorPhase phase("L_Resolve phis", this);
 
   // Process the blocks in reverse order.
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
@@ -1204,7 +1204,7 @@ HBasicBlock* LAllocator::GetBlock(LifetimePosition pos) {
 
 
 void LAllocator::ConnectRanges() {
-  HPhase phase("L_Connect ranges", this);
+  LAllocatorPhase phase("L_Connect ranges", this);
   for (int i = 0; i < live_ranges()->length(); ++i) {
     LiveRange* first_range = live_ranges()->at(i);
     if (first_range == NULL || first_range->parent() != NULL) continue;
@@ -1244,7 +1244,7 @@ bool LAllocator::CanEagerlyResolveControlFlow(HBasicBlock* block) const {
 
 
 void LAllocator::ResolveControlFlow() {
-  HPhase phase("L_Resolve control flow", this);
+  LAllocatorPhase phase("L_Resolve control flow", this);
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
   for (int block_id = 1; block_id < blocks->length(); ++block_id) {
     HBasicBlock* block = blocks->at(block_id);
@@ -1265,7 +1265,7 @@ void LAllocator::ResolveControlFlow() {
 
 
 void LAllocator::BuildLiveRanges() {
-  HPhase phase("L_Build live ranges", this);
+  LAllocatorPhase phase("L_Build live ranges", this);
   InitializeLivenessAnalysis();
   // Process the blocks in reverse order.
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
@@ -1377,7 +1377,7 @@ bool LAllocator::SafePointsAreInOrder() const {
 
 
 void LAllocator::PopulatePointerMaps() {
-  HPhase phase("L_Populate pointer maps", this);
+  LAllocatorPhase phase("L_Populate pointer maps", this);
   const ZoneList<LPointerMap*>* pointer_maps = chunk_->pointer_maps();
 
   ASSERT(SafePointsAreInOrder());
@@ -1496,14 +1496,14 @@ void LAllocator::ProcessOsrEntry() {
 
 
 void LAllocator::AllocateGeneralRegisters() {
-  HPhase phase("L_Allocate general registers", this);
+  LAllocatorPhase phase("L_Allocate general registers", this);
   num_registers_ = Register::NumAllocatableRegisters();
   AllocateRegisters();
 }
 
 
 void LAllocator::AllocateDoubleRegisters() {
-  HPhase phase("L_Allocate double registers", this);
+  LAllocatorPhase phase("L_Allocate double registers", this);
   num_registers_ = DoubleRegister::NumAllocatableRegisters();
   mode_ = DOUBLE_REGISTERS;
   AllocateRegisters();
@@ -2190,6 +2190,18 @@ void LAllocator::Verify() const {
 
 
 #endif
+
+
+LAllocatorPhase::~LAllocatorPhase() {
+  if (ShouldProduceTraceOutput()) {
+    isolate()->GetHTracer()->TraceLithium(name(), allocator_->chunk());
+    isolate()->GetHTracer()->TraceLiveRanges(name(), allocator_);
+  }
+
+#ifdef DEBUG
+  if (allocator_ != NULL) allocator_->Verify();
+#endif
+}
 
 
 } }  // namespace v8::internal

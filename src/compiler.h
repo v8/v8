@@ -633,6 +633,29 @@ class Compiler : public AllStatic {
 };
 
 
+class CompilationPhase BASE_EMBEDDED {
+ public:
+  CompilationPhase(const char* name, Isolate* isolate, Zone* zone);
+  ~CompilationPhase();
+
+ protected:
+  bool ShouldProduceTraceOutput() const;
+
+  const char* name() const { return name_; }
+  Isolate* isolate() const { return isolate_; }
+  Zone* zone() const { return zone_scope_.zone(); }
+
+ private:
+  const char* name_;
+  Isolate* isolate_;
+  ZoneScope zone_scope_;
+  unsigned start_allocation_size_;
+  int64_t start_ticks_;
+
+  DISALLOW_COPY_AND_ASSIGN(CompilationPhase);
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_COMPILER_H_

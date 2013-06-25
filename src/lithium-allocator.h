@@ -646,6 +646,20 @@ class LAllocator BASE_EMBEDDED {
 };
 
 
+class LAllocatorPhase : public CompilationPhase {
+ public:
+  LAllocatorPhase(const char* name, LAllocator* allocator)
+      : CompilationPhase(name, allocator->isolate(), allocator->zone()),
+        allocator_(allocator) { }
+  ~LAllocatorPhase();
+
+ private:
+  LAllocator* allocator_;
+
+  DISALLOW_COPY_AND_ASSIGN(LAllocatorPhase);
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_LITHIUM_ALLOCATOR_H_

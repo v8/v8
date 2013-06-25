@@ -1224,4 +1224,32 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                  info));
 }
 
+
+CompilationPhase::CompilationPhase(const char* name,
+                                   Isolate* isolate,
+                                   Zone* zone)
+    : name_(name), isolate_(isolate), zone_scope_(zone, DELETE_ON_EXIT) {
+  if (FLAG_hydrogen_stats) {
+    start_allocation_size_ = zone->allocation_size();
+    start_ticks_ = OS::Ticks();
+  }
+}
+
+
+CompilationPhase::~CompilationPhase() {
+  if (FLAG_hydrogen_stats) {
+    unsigned size = zone()->allocation_size() - start_allocation_size_;
+    int64_t ticks = OS::Ticks() - start_ticks_;
+    isolate_->GetHStatistics()->SaveTiming(name_, ticks, size);
+  }
+}
+
+
+bool CompilationPhase::ShouldProduceTraceOutput() const {
+  // Produce trace output if flag is set so that the first letter of the
+  // phase name matches the command line parameter FLAG_trace_phase.
+  return (FLAG_trace_hydrogen &&
+          OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
+}
+
 } }  // namespace v8::internal

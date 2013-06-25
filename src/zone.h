@@ -241,6 +241,8 @@ class ZoneScope BASE_EMBEDDED {
 
   virtual ~ZoneScope();
 
+  Zone* zone() const { return zone_; }
+
   inline bool ShouldDeleteOnExit();
 
   // For ZoneScopes that do not delete on exit by default, call this

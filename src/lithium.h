@@ -778,6 +778,20 @@ enum NumberUntagDMode {
 };
 
 
+class LPhase : public CompilationPhase {
+ public:
+  LPhase(const char* name, LChunk* chunk)
+      : CompilationPhase(name, chunk->isolate(), chunk->zone()),
+        chunk_(chunk) { }
+  ~LPhase();
+
+ private:
+  LChunk* chunk_;
+
+  DISALLOW_COPY_AND_ASSIGN(LPhase);
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_LITHIUM_H_

@@ -1955,30 +1955,17 @@ class HStatistics: public Malloced {
 };
 
 
-class HPhase BASE_EMBEDDED {
+class HPhase : public CompilationPhase {
  public:
-  HPhase(const char* name, Isolate* isolate, Zone* zone);
-  HPhase(const char* name, HGraph* graph);
-  HPhase(const char* name, LChunk* chunk);
-  HPhase(const char* name, LAllocator* allocator);
+  HPhase(const char* name, HGraph* graph)
+      : CompilationPhase(name, graph->isolate(), graph->zone()),
+        graph_(graph) { }
   ~HPhase();
 
  private:
-  void Init(Isolate* isolate,
-            const char* name,
-            Zone* zone,
-            HGraph* graph,
-            LChunk* chunk,
-            LAllocator* allocator);
-
-  Isolate* isolate_;
-  const char* name_;
-  Zone* zone_;
   HGraph* graph_;
-  LChunk* chunk_;
-  LAllocator* allocator_;
-  int64_t start_ticks_;
-  unsigned start_allocation_size_;
+
+  DISALLOW_COPY_AND_ASSIGN(HPhase);
 };
 
 
