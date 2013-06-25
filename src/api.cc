@@ -2903,6 +2903,16 @@ Local<Integer> Value::ToInteger() const {
 }
 
 
+#ifdef V8_ENABLE_CHECKS
+void i::Internals::CheckInitialized(v8::Isolate* external_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
+  ApiCheck(isolate != NULL && isolate->IsInitialized() && !i::V8::IsDead(),
+           "v8::internal::Internals::CheckInitialized()",
+           "Isolate is not initialized or V8 has died");
+}
+#endif
+
+
 void External::CheckCast(v8::Value* that) {
   if (IsDeadCheck(i::Isolate::Current(), "v8::External::Cast()")) return;
   ApiCheck(Utils::OpenHandle(that)->IsExternal(),

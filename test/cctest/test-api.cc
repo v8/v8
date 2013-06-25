@@ -18826,13 +18826,6 @@ TEST(PrimaryStubCache) {
 }
 
 
-static int fatal_error_callback_counter = 0;
-static void CountingErrorCallback(const char* location, const char* message) {
-  printf("CountingErrorCallback(\"%s\", \"%s\")\n", location, message);
-  fatal_error_callback_counter++;
-}
-
-
 TEST(StaticGetters) {
   LocalContext context;
   i::Factory* factory = i::Isolate::Current()->factory();
@@ -18850,31 +18843,6 @@ TEST(StaticGetters) {
   i::Handle<i::Object> false_value = factory->false_value();
   CHECK(*v8::Utils::OpenHandle(*v8::False()) == *false_value);
   CHECK(*v8::Utils::OpenHandle(*v8::False(isolate)) == *false_value);
-
-  // Test after-death behavior.
-  CHECK(i::Internals::IsInitialized(isolate));
-  CHECK_EQ(0, fatal_error_callback_counter);
-  v8::V8::SetFatalErrorHandler(CountingErrorCallback);
-  v8::Utils::ReportApiFailure("StaticGetters()", "Kill V8");
-  i::Isolate::Current()->TearDown();
-  CHECK(!i::Internals::IsInitialized(isolate));
-  CHECK_EQ(1, fatal_error_callback_counter);
-  CHECK(v8::Undefined().IsEmpty());
-  CHECK_EQ(2, fatal_error_callback_counter);
-  CHECK(v8::Undefined(isolate).IsEmpty());
-  CHECK_EQ(3, fatal_error_callback_counter);
-  CHECK(v8::Null().IsEmpty());
-  CHECK_EQ(4, fatal_error_callback_counter);
-  CHECK(v8::Null(isolate).IsEmpty());
-  CHECK_EQ(5, fatal_error_callback_counter);
-  CHECK(v8::True().IsEmpty());
-  CHECK_EQ(6, fatal_error_callback_counter);
-  CHECK(v8::True(isolate).IsEmpty());
-  CHECK_EQ(7, fatal_error_callback_counter);
-  CHECK(v8::False().IsEmpty());
-  CHECK_EQ(8, fatal_error_callback_counter);
-  CHECK(v8::False(isolate).IsEmpty());
-  CHECK_EQ(9, fatal_error_callback_counter);
 }
 
 
@@ -18904,19 +18872,6 @@ TEST(StringEmpty) {
   i::Handle<i::Object> empty_string = factory->empty_string();
   CHECK(*v8::Utils::OpenHandle(*v8::String::Empty()) == *empty_string);
   CHECK(*v8::Utils::OpenHandle(*v8::String::Empty(isolate)) == *empty_string);
-
-  // Test after-death behavior.
-  CHECK(i::Internals::IsInitialized(isolate));
-  CHECK_EQ(0, fatal_error_callback_counter);
-  v8::V8::SetFatalErrorHandler(CountingErrorCallback);
-  v8::Utils::ReportApiFailure("StringEmpty()", "Kill V8");
-  i::Isolate::Current()->TearDown();
-  CHECK(!i::Internals::IsInitialized(isolate));
-  CHECK_EQ(1, fatal_error_callback_counter);
-  CHECK(v8::String::Empty().IsEmpty());
-  CHECK_EQ(2, fatal_error_callback_counter);
-  CHECK(v8::String::Empty(isolate).IsEmpty());
-  CHECK_EQ(3, fatal_error_callback_counter);
 }
 
 
