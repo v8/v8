@@ -2109,8 +2109,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 }
 
 
-// Test pretenuring of array literals allocated with HAllocate.
-TEST(OptimizedPretenuringArrayLiterals) {
+TEST(OptimizedPretenuringObjectArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
@@ -2118,11 +2117,9 @@ TEST(OptimizedPretenuringArrayLiterals) {
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
 
-  AlwaysAllocateScope always_allocate;
   v8::Local<v8::Value> res = CompileRun(
       "function f() {"
-      "  var numbers = [1, 2, 3];"
-      "  numbers[0] = {};"
+      "  var numbers = [{}, {}, {}];"
       "  return numbers;"
       "};"
       "f(); f(); f();"
@@ -2133,21 +2130,22 @@ TEST(OptimizedPretenuringArrayLiterals) {
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
   CHECK(HEAP->InOldPointerSpace(o->elements()));
+  CHECK(HEAP->InOldPointerSpace(*o));
 }
 
 
-TEST(OptimizedPretenuringSimpleArrayLiterals) {
+TEST(OptimizedPretenuringMixedInObjectProperties) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_pretenuring = false;
   CcTest::InitializeVM();
   if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
+  HEAP->SetNewSpaceHighPromotionModeActive(true);
 
-  AlwaysAllocateScope always_allocate;
   v8::Local<v8::Value> res = CompileRun(
       "function f() {"
-      "  return [1, 2, 3];"
+      "  var numbers = {a: {c: 2.2, d: {}}, b: 1.1};"
+      "  return numbers;"
       "};"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
@@ -2156,7 +2154,168 @@ TEST(OptimizedPretenuringSimpleArrayLiterals) {
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
-  CHECK(HEAP->InNewSpace(*o));
+  CHECK(HEAP->InOldPointerSpace(*o));
+  CHECK(HEAP->InOldPointerSpace(o->RawFastPropertyAt(0)));
+  CHECK(HEAP->InOldDataSpace(o->RawFastPropertyAt(1)));
+
+  JSObject* inner_object = reinterpret_cast<JSObject*>(o->RawFastPropertyAt(0));
+  CHECK(HEAP->InOldPointerSpace(inner_object));
+  CHECK(HEAP->InOldDataSpace(inner_object->RawFastPropertyAt(0)));
+  CHECK(HEAP->InOldPointerSpace(inner_object->RawFastPropertyAt(1)));
+}
+
+
+TEST(OptimizedPretenuringDoubleArrayProperties) {
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope(CcTest::isolate());
+  HEAP->SetNewSpaceHighPromotionModeActive(true);
+
+  v8::Local<v8::Value> res = CompileRun(
+      "function f() {"
+      "  var numbers = {a: 1.1, b: 2.2};"
+      "  return numbers;"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+
+  CHECK(HEAP->InOldPointerSpace(*o));
+  CHECK(HEAP->InOldDataSpace(o->properties()));
+}
+
+
+TEST(OptimizedPretenuringdoubleArrayLiterals) {
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope(CcTest::isolate());
+  HEAP->SetNewSpaceHighPromotionModeActive(true);
+
+  v8::Local<v8::Value> res = CompileRun(
+      "function f() {"
+      "  var numbers = [1.1, 2.2, 3.3];"
+      "  return numbers;"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+
+  CHECK(HEAP->InOldDataSpace(o->elements()));
+  CHECK(HEAP->InOldPointerSpace(*o));
+}
+
+
+TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope(CcTest::isolate());
+  HEAP->SetNewSpaceHighPromotionModeActive(true);
+
+  v8::Local<v8::Value> res = CompileRun(
+      "function f() {"
+      "  var numbers = [[{}, {}, {}],[1.1, 2.2, 3.3]];"
+      "  return numbers;"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+
+  v8::Local<v8::Value> int_array = v8::Object::Cast(*res)->Get(v8_str("0"));
+  Handle<JSObject> int_array_handle =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(int_array));
+  v8::Local<v8::Value> double_array = v8::Object::Cast(*res)->Get(v8_str("1"));
+  Handle<JSObject> double_array_handle =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(double_array));
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  CHECK(HEAP->InOldPointerSpace(*o));
+  CHECK(HEAP->InOldPointerSpace(*int_array_handle));
+  CHECK(HEAP->InOldPointerSpace(int_array_handle->elements()));
+  CHECK(HEAP->InOldPointerSpace(*double_array_handle));
+  CHECK(HEAP->InOldDataSpace(double_array_handle->elements()));
+}
+
+
+TEST(OptimizedPretenuringNestedObjectLiterals) {
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope(CcTest::isolate());
+  HEAP->SetNewSpaceHighPromotionModeActive(true);
+
+  v8::Local<v8::Value> res = CompileRun(
+      "function f() {"
+      "  var numbers = [[{}, {}, {}],[{}, {}, {}]];"
+      "  return numbers;"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+
+  v8::Local<v8::Value> int_array_1 = v8::Object::Cast(*res)->Get(v8_str("0"));
+  Handle<JSObject> int_array_handle_1 =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(int_array_1));
+  v8::Local<v8::Value> int_array_2 = v8::Object::Cast(*res)->Get(v8_str("1"));
+  Handle<JSObject> int_array_handle_2 =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(int_array_2));
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  CHECK(HEAP->InOldPointerSpace(*o));
+  CHECK(HEAP->InOldPointerSpace(*int_array_handle_1));
+  CHECK(HEAP->InOldPointerSpace(int_array_handle_1->elements()));
+  CHECK(HEAP->InOldPointerSpace(*int_array_handle_2));
+  CHECK(HEAP->InOldPointerSpace(int_array_handle_2->elements()));
+}
+
+
+TEST(OptimizedPretenuringNestedDoubleLiterals) {
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope(CcTest::isolate());
+  HEAP->SetNewSpaceHighPromotionModeActive(true);
+
+  v8::Local<v8::Value> res = CompileRun(
+      "function f() {"
+      "  var numbers = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
+      "  return numbers;"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+
+  v8::Local<v8::Value> double_array_1 =
+      v8::Object::Cast(*res)->Get(v8_str("0"));
+  Handle<JSObject> double_array_handle_1 =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(double_array_1));
+  v8::Local<v8::Value> double_array_2 =
+      v8::Object::Cast(*res)->Get(v8_str("1"));
+  Handle<JSObject> double_array_handle_2 =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(double_array_2));
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  CHECK(HEAP->InOldPointerSpace(*o));
+  CHECK(HEAP->InOldPointerSpace(*double_array_handle_1));
+  CHECK(HEAP->InOldDataSpace(double_array_handle_1->elements()));
+  CHECK(HEAP->InOldPointerSpace(*double_array_handle_2));
+  CHECK(HEAP->InOldDataSpace(double_array_handle_2->elements()));
 }
 
 
@@ -2168,7 +2327,6 @@ TEST(OptimizedAllocationArrayLiterals) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
-  AlwaysAllocateScope always_allocate;
   v8::Local<v8::Value> res = CompileRun(
       "function f() {"
       "  var numbers = new Array(1, 2, 3);"

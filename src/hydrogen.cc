@@ -9940,28 +9940,46 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     int pointer_size,
     AllocationSiteMode mode) {
   Zone* zone = this->zone();
-  int total_size = data_size + pointer_size;
-
   NoObservableSideEffectsScope no_effects(this);
 
-  HAllocate::Flags flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
-  // TODO(hpayer): add support for old data space
-  if (isolate()->heap()->ShouldGloballyPretenure() &&
-      data_size == 0) {
-    flags = static_cast<HAllocate::Flags>(
-        flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
+  HInstruction* target = NULL;
+  HInstruction* data_target = NULL;
+
+  HAllocate::Flags flags = HAllocate::DefaultFlags();
+
+  if (isolate()->heap()->ShouldGloballyPretenure()) {
+    if (data_size != 0) {
+      HAllocate::Flags data_flags =
+          static_cast<HAllocate::Flags>(HAllocate::DefaultFlags() |
+              HAllocate::CAN_ALLOCATE_IN_OLD_DATA_SPACE);
+      HValue* size_in_bytes = AddInstruction(new(zone) HConstant(data_size));
+      data_target = AddInstruction(new(zone) HAllocate(
+          context, size_in_bytes, HType::JSObject(), data_flags));
+      Handle<Map> free_space_map = isolate()->factory()->free_space_map();
+      AddStoreMapConstant(data_target, free_space_map);
+      HObjectAccess access =
+          HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset);
+      AddStore(data_target, access, size_in_bytes);
+    }
+    if (pointer_size != 0) {
+      flags = static_cast<HAllocate::Flags>(
+          flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
+      HValue* size_in_bytes = AddInstruction(new(zone) HConstant(pointer_size));
+      target = AddInstruction(new(zone) HAllocate(context,
+          size_in_bytes, HType::JSObject(), flags));
+    }
+  } else {
+    HValue* size_in_bytes =
+        AddInstruction(new(zone) HConstant(data_size + pointer_size));
+    target = AddInstruction(new(zone) HAllocate(context, size_in_bytes,
+        HType::JSObject(), flags));
   }
 
-  HValue* size_in_bytes = AddInstruction(new(zone) HConstant(total_size));
-  HInstruction* result =
-      AddInstruction(new(zone) HAllocate(context,
-                                         size_in_bytes,
-                                         HType::JSObject(),
-                                         flags));
   int offset = 0;
-  BuildEmitDeepCopy(boilerplate_object, original_boilerplate_object, result,
-                    &offset, mode);
-  return result;
+  int data_offset = 0;
+  BuildEmitDeepCopy(boilerplate_object, original_boilerplate_object, target,
+                    &offset, data_target, &data_offset, mode);
+  return target;
 }
 
 
@@ -9970,6 +9988,8 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
     Handle<JSObject> original_boilerplate_object,
     HInstruction* target,
     int* offset,
+    HInstruction* data_target,
+    int* data_offset,
     AllocationSiteMode mode) {
   Zone* zone = this->zone();
 
@@ -9978,30 +9998,38 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
       original_boilerplate_object->elements());
   ElementsKind kind = boilerplate_object->map()->elements_kind();
 
-  // Increase the offset so that subsequent objects end up right after
-  // this object and its backing store.
   int object_offset = *offset;
   int object_size = boilerplate_object->map()->instance_size();
   int elements_size = (elements->length() > 0 &&
       elements->map() != isolate()->heap()->fixed_cow_array_map()) ?
           elements->Size() : 0;
-  int elements_offset = *offset + object_size;
+  int elements_offset = 0;
 
-  *offset += object_size + elements_size;
+  if (data_target != NULL && boilerplate_object->HasFastDoubleElements()) {
+    elements_offset = *data_offset;
+    *data_offset += elements_size;
+  } else {
+    // Place elements right after this object.
+    elements_offset = *offset + object_size;
+    *offset += elements_size;
+  }
+  // Increase the offset so that subsequent objects end up right after this
+  // object (and it's elements if they are allocated in the same space).
+  *offset += object_size;
 
   // Copy object elements if non-COW.
   HValue* object_elements = BuildEmitObjectHeader(boilerplate_object, target,
-      object_offset, elements_offset, elements_size);
+      data_target, object_offset, elements_offset, elements_size);
   if (object_elements != NULL) {
     BuildEmitElements(elements, original_elements, kind, object_elements,
-        target, offset);
+        target, offset, data_target, data_offset);
   }
 
   // Copy in-object properties.
   HValue* object_properties =
       AddInstruction(new(zone) HInnerAllocatedObject(target, object_offset));
   BuildEmitInObjectProperties(boilerplate_object, original_boilerplate_object,
-      object_properties, target, offset);
+      object_properties, target, offset, data_target, data_offset);
 
   // Create allocation site info.
   if (mode == TRACK_ALLOCATION_SITE &&
@@ -10018,6 +10046,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
 HValue* HOptimizedGraphBuilder::BuildEmitObjectHeader(
     Handle<JSObject> boilerplate_object,
     HInstruction* target,
+    HInstruction* data_target,
     int object_offset,
     int elements_offset,
     int elements_size) {
@@ -10036,8 +10065,13 @@ HValue* HOptimizedGraphBuilder::BuildEmitObjectHeader(
         Handle<Object>(boilerplate_object->elements(), isolate());
     elements = AddInstruction(new(zone) HConstant(elements_field));
   } else {
-    elements = AddInstruction(new(zone) HInnerAllocatedObject(
-        target, elements_offset));
+    if (data_target != NULL && boilerplate_object->HasFastDoubleElements()) {
+      elements = AddInstruction(new(zone) HInnerAllocatedObject(
+          data_target, elements_offset));
+    } else {
+      elements = AddInstruction(new(zone) HInnerAllocatedObject(
+          target, elements_offset));
+    }
     result = elements;
   }
   AddStore(object_header, HObjectAccess::ForElementsPointer(), elements);
@@ -10074,7 +10108,9 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     Handle<JSObject> original_boilerplate_object,
     HValue* object_properties,
     HInstruction* target,
-    int* offset) {
+    int* offset,
+    HInstruction* data_target,
+    int* data_offset) {
   Zone* zone = this->zone();
   Handle<DescriptorArray> descriptors(
       boilerplate_object->map()->instance_descriptors());
@@ -10108,7 +10144,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
       AddStore(object_properties, access, value_instruction);
 
       BuildEmitDeepCopy(value_object, original_value_object, target,
-          offset, DONT_TRACK_ALLOCATION_SITE);
+          offset, data_target, data_offset, DONT_TRACK_ALLOCATION_SITE);
     } else {
       Representation representation = details.representation();
       HInstruction* value_instruction =
@@ -10116,14 +10152,21 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
 
       if (representation.IsDouble()) {
         // Allocate a HeapNumber box and store the value into it.
-        HInstruction* double_box =
-            AddInstruction(new(zone) HInnerAllocatedObject(target, *offset));
+        HInstruction* double_box;
+        if (data_target != NULL) {
+          double_box = AddInstruction(new(zone) HInnerAllocatedObject(
+              data_target, *data_offset));
+          *data_offset += HeapNumber::kSize;
+        } else {
+          double_box = AddInstruction(new(zone) HInnerAllocatedObject(
+              target, *offset));
+          *offset += HeapNumber::kSize;
+        }
         AddStoreMapConstant(double_box,
             isolate()->factory()->heap_number_map());
         AddStore(double_box, HObjectAccess::ForHeapNumberValue(),
             value_instruction, Representation::Double());
         value_instruction = double_box;
-        *offset += HeapNumber::kSize;
       }
 
       AddStore(object_properties, access, value_instruction);
@@ -10148,7 +10191,9 @@ void HOptimizedGraphBuilder::BuildEmitElements(
     ElementsKind kind,
     HValue* object_elements,
     HInstruction* target,
-    int* offset) {
+    int* offset,
+    HInstruction* data_target,
+    int* data_offset) {
   Zone* zone = this->zone();
 
   int elements_length = elements->length();
@@ -10162,7 +10207,7 @@ void HOptimizedGraphBuilder::BuildEmitElements(
     BuildEmitFixedDoubleArray(elements, kind, object_elements);
   } else if (elements->IsFixedArray()) {
     BuildEmitFixedArray(elements, original_elements, kind, object_elements,
-        target, offset);
+        target, offset, data_target, data_offset);
   } else {
     UNREACHABLE();
   }
@@ -10195,7 +10240,9 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
     ElementsKind kind,
     HValue* object_elements,
     HInstruction* target,
-    int* offset) {
+    int* offset,
+    HInstruction* data_target,
+    int* data_offset) {
   Zone* zone = this->zone();
   HInstruction* boilerplate_elements =
       AddInstruction(new(zone) HConstant(elements));
@@ -10215,7 +10262,7 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
       AddInstruction(new(zone) HStoreKeyed(
           object_elements, key_constant, value_instruction, kind));
       BuildEmitDeepCopy(value_object, original_value_object, target,
-          offset, DONT_TRACK_ALLOCATION_SITE);
+          offset, data_target, data_offset, DONT_TRACK_ALLOCATION_SITE);
     } else {
       HInstruction* value_instruction =
           AddInstruction(new(zone) HLoadKeyed(
