@@ -910,7 +910,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
     Address start;
     CodeEntry* pc_entry = code_map_.FindEntry(sample.pc, &start);
     // If pc is in the function code before it set up stack frame or after the
-    // frame was destroyed SafeStackTraceFrameIterator incorrectly thinks that
+    // frame was destroyed SafeStackFrameIterator incorrectly thinks that
     // ebp contains return address of the current function and skips caller's
     // frame. Check for this case and just skip such samples.
     if (pc_entry) {

@@ -291,6 +291,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     is_valid_fp_(IsWithinBounds(low_bound, high_bound, fp)),
     iteration_done_(!is_valid_top_ && !is_valid_fp_),
     iterator_(isolate, is_valid_top_, is_valid_fp_ ? fp : NULL, sp) {
+  if (!done()) Advance();
 }
 
 bool SafeStackFrameIterator::is_active(Isolate* isolate) {
@@ -308,7 +309,7 @@ bool SafeStackFrameIterator::IsValidTop(Isolate* isolate,
 }
 
 
-void SafeStackFrameIterator::Advance() {
+void SafeStackFrameIterator::AdvanceOneFrame() {
   ASSERT(!done());
   StackFrame* last_frame = iterator_.frame();
   Address last_sp = last_frame->sp(), last_fp = last_frame->fp();
@@ -366,24 +367,16 @@ bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
 }
 
 
-// -------------------------------------------------------------------------
-
-
-SafeStackTraceFrameIterator::SafeStackTraceFrameIterator(
-    Isolate* isolate,
-    Address fp, Address sp, Address low_bound, Address high_bound)
-    : iterator_(isolate, fp, sp, low_bound, high_bound) {
-  if (!done()) Advance();
-}
-
-
-void SafeStackTraceFrameIterator::Advance() {
+void SafeStackFrameIterator::Advance() {
   while (true) {
-    iterator_.Advance();
-    if (iterator_.done()) return;
+    AdvanceOneFrame();
+    if (done()) return;
     if (iterator_.frame()->is_java_script()) return;
   }
 }
+
+
+// -------------------------------------------------------------------------
 
 
 Code* StackFrame::GetSafepointData(Isolate* isolate,

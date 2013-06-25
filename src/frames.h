@@ -874,18 +874,16 @@ class SafeStackFrameIterator BASE_EMBEDDED {
                          Address fp, Address sp,
                          Address low_bound, Address high_bound);
 
-  StackFrame* frame() const {
-    ASSERT(!iteration_done_);
-    return iterator_.frame();
-  }
+  inline JavaScriptFrame* frame() const;
 
   bool done() const { return iteration_done_ || iterator_.done(); }
-
   void Advance();
 
   static bool is_active(Isolate* isolate);
 
  private:
+  void AdvanceOneFrame();
+
   static bool IsWithinBounds(
       Address low_bound, Address high_bound, Address addr) {
     return low_bound <= addr && addr <= high_bound;
@@ -942,24 +940,6 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   const bool is_valid_fp_;
   bool iteration_done_;
   StackFrameIterator iterator_;
-};
-
-
-class SafeStackTraceFrameIterator BASE_EMBEDDED {
- public:
-  SafeStackTraceFrameIterator(Isolate* isolate,
-                              Address fp,
-                              Address sp,
-                              Address low_bound,
-                              Address high_bound);
-
-  inline JavaScriptFrame* frame() const;
-
-  bool done() const { return iterator_.done(); }
-  void Advance();
-
- private:
-  SafeStackFrameIterator iterator_;
 };
 
 

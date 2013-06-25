@@ -636,7 +636,7 @@ DISABLE_ASAN void TickSample::Trace(Isolate* isolate) {
     has_external_callback = false;
   }
 
-  SafeStackTraceFrameIterator it(isolate, fp, sp, sp, js_entry_sp);
+  SafeStackFrameIterator it(isolate, fp, sp, sp, js_entry_sp);
   int i = 0;
   while (!it.done() && i < TickSample::kMaxFramesCount) {
     stack[i++] = it.frame()->pc();

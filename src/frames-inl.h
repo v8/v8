@@ -324,7 +324,8 @@ inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
 }
 
 
-inline JavaScriptFrame* SafeStackTraceFrameIterator::frame() const {
+inline JavaScriptFrame* SafeStackFrameIterator::frame() const {
+  ASSERT(!iteration_done_);
   // TODO(1233797): The frame hierarchy needs to change. It's
   // problematic that we can't use the safe-cast operator to cast to
   // the JavaScript frame type, because we may encounter arguments
