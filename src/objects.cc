@@ -10353,6 +10353,7 @@ const char* Code::Kind2String(Kind kind) {
 #define CASE(name) case name: return #name;
     CODE_KIND_LIST(CASE)
 #undef CASE
+    case NUMBER_OF_KINDS: break;
   }
   UNREACHABLE();
   return NULL;

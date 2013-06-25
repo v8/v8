@@ -4467,12 +4467,7 @@ class Code: public HeapObject {
 #define DEFINE_CODE_KIND_ENUM(name) name,
     CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
 #undef DEFINE_CODE_KIND_ENUM
-  };
-
-  enum {
-#define COUNT_FLAG(name) + 1
-    NUMBER_OF_KINDS = 0 CODE_KIND_LIST(COUNT_FLAG)
-#undef COUNT_FLAG
+    NUMBER_OF_KINDS
   };
 
   // No more than 16 kinds. The value is currently encoded in four bits in

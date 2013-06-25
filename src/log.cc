@@ -1543,6 +1543,8 @@ void Logger::LogCodeObject(Object* object) {
       description = "A keyed call IC from the snapshot";
       tag = Logger::KEYED_CALL_IC_TAG;
       break;
+    case Code::NUMBER_OF_KINDS:
+      break;
   }
   PROFILE(isolate_, CodeCreateEvent(tag, code_object, description));
 }
