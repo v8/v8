@@ -243,7 +243,6 @@ bool LCodeGen::GeneratePrologue() {
   if (FLAG_trace && info()->IsOptimizing()) {
     __ CallRuntime(Runtime::kTraceEnter, 0);
   }
-  EnsureSpaceForLazyDeopt();
   return !is_aborted();
 }
 
@@ -271,6 +270,7 @@ bool LCodeGen::GenerateBody() {
 
     instr->CompileToNative(this);
   }
+  EnsureSpaceForLazyDeopt();
   return !is_aborted();
 }
 
@@ -706,6 +706,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                RelocInfo::Mode mode,
                                LInstruction* instr,
                                SafepointMode safepoint_mode) {
+  EnsureSpaceForLazyDeopt();
   ASSERT(instr != NULL);
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
