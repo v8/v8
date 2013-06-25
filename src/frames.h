@@ -321,7 +321,11 @@ class StackFrame BASE_EMBEDDED {
   inline StackHandler* top_handler() const;
 
   // Compute the stack frame type for the given state.
-  static Type ComputeType(Isolate* isolate, State* state);
+  static Type ComputeType(const StackFrameIterator* iterator, State* state);
+
+#ifdef DEBUG
+  bool can_access_heap_objects() const;
+#endif
 
  private:
   const StackFrameIterator* iterator_;
@@ -782,11 +786,6 @@ class StackFrameIterator BASE_EMBEDDED {
   // An iterator that iterates over a given thread's stack.
   StackFrameIterator(Isolate* isolate, ThreadLocalTop* t);
 
-  // An iterator that can start from a given FP address.
-  // If use_top, then work as usual, if fp isn't NULL, use it,
-  // otherwise, do nothing.
-  StackFrameIterator(Isolate* isolate, bool use_top, Address fp, Address sp);
-
   StackFrame* frame() const {
     ASSERT(!done());
     return frame_;
@@ -798,6 +797,12 @@ class StackFrameIterator BASE_EMBEDDED {
   void Advance() { (this->*advance_)(); }
 
  private:
+  // An iterator that can start from a given FP address.
+  // If use_top, then work as usual, if fp isn't NULL, use it,
+  // otherwise, do nothing. This constructor is used to create
+  // StackFrameIterator for "safe" stack iteration.
+  StackFrameIterator(Isolate* isolate, bool use_top, Address fp, Address sp);
+
   // Go back to the first frame.
   void Reset();
 
@@ -811,6 +816,7 @@ class StackFrameIterator BASE_EMBEDDED {
   Address fp_;
   Address sp_;
   void (StackFrameIterator::*advance_)();
+  const bool can_access_heap_objects_;
 
   StackHandler* handler() const {
     ASSERT(!done());
@@ -879,8 +885,6 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   bool done() const { return iteration_done_ || iterator_.done(); }
   void Advance();
 
-  static bool is_active(Isolate* isolate);
-
  private:
   void AdvanceOneFrame();
 
@@ -921,20 +925,6 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   static bool IsValidTop(Isolate* isolate,
                          Address low_bound, Address high_bound);
 
-  // This is a nasty hack to make sure the active count is incremented
-  // before the constructor for the embedded iterator is invoked. This
-  // is needed because the constructor will start looking at frames
-  // right away and we need to make sure it doesn't start inspecting
-  // heap objects.
-  class ActiveCountMaintainer BASE_EMBEDDED {
-   public:
-    explicit ActiveCountMaintainer(Isolate* isolate);
-    ~ActiveCountMaintainer();
-   private:
-    Isolate* isolate_;
-  };
-
-  ActiveCountMaintainer maintainer_;
   StackAddressValidator stack_validator_;
   const bool is_valid_top_;
   const bool is_valid_fp_;

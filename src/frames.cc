@@ -93,14 +93,16 @@ StackFrameIterator::StackFrameIterator(Isolate* isolate)
       STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
       frame_(NULL), handler_(NULL),
       thread_(isolate_->thread_local_top()),
-      fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler) {
+      fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler),
+      can_access_heap_objects_(true) {
   Reset();
 }
 StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t)
     : isolate_(isolate),
       STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
       frame_(NULL), handler_(NULL), thread_(t),
-      fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler) {
+      fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler),
+      can_access_heap_objects_(true) {
   Reset();
 }
 StackFrameIterator::StackFrameIterator(Isolate* isolate,
@@ -111,7 +113,8 @@ StackFrameIterator::StackFrameIterator(Isolate* isolate,
       thread_(use_top ? isolate_->thread_local_top() : NULL),
       fp_(use_top ? NULL : fp), sp_(sp),
       advance_(use_top ? &StackFrameIterator::AdvanceWithHandler :
-               &StackFrameIterator::AdvanceWithoutHandler) {
+               &StackFrameIterator::AdvanceWithoutHandler),
+      can_access_heap_objects_(false) {
   if (use_top || fp != NULL) {
     Reset();
   }
@@ -166,7 +169,7 @@ void StackFrameIterator::Reset() {
     state.sp = sp_;
     state.pc_address = ResolveReturnAddressLocation(
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp_)));
-    type = StackFrame::ComputeType(isolate(), &state);
+    type = StackFrame::ComputeType(this, &state);
   }
   if (SingletonFor(type) == NULL) return;
   frame_ = SingletonFor(type, &state);
@@ -268,34 +271,15 @@ bool SafeStackFrameIterator::ExitFrameValidator::IsValidFP(Address fp) {
 }
 
 
-SafeStackFrameIterator::ActiveCountMaintainer::ActiveCountMaintainer(
-    Isolate* isolate)
-    : isolate_(isolate) {
-  isolate_->set_safe_stack_iterator_counter(
-      isolate_->safe_stack_iterator_counter() + 1);
-}
-
-
-SafeStackFrameIterator::ActiveCountMaintainer::~ActiveCountMaintainer() {
-  isolate_->set_safe_stack_iterator_counter(
-      isolate_->safe_stack_iterator_counter() - 1);
-}
-
-
 SafeStackFrameIterator::SafeStackFrameIterator(
     Isolate* isolate,
     Address fp, Address sp, Address low_bound, Address high_bound) :
-    maintainer_(isolate),
     stack_validator_(low_bound, high_bound),
     is_valid_top_(IsValidTop(isolate, low_bound, high_bound)),
     is_valid_fp_(IsWithinBounds(low_bound, high_bound, fp)),
     iteration_done_(!is_valid_top_ && !is_valid_fp_),
     iterator_(isolate, is_valid_top_, is_valid_fp_ ? fp : NULL, sp) {
   if (!done()) Advance();
-}
-
-bool SafeStackFrameIterator::is_active(Isolate* isolate) {
-  return isolate->safe_stack_iterator_counter() > 0;
 }
 
 
@@ -435,7 +419,8 @@ void StackFrame::SetReturnAddressLocationResolver(
 }
 
 
-StackFrame::Type StackFrame::ComputeType(Isolate* isolate, State* state) {
+StackFrame::Type StackFrame::ComputeType(const StackFrameIterator* iterator,
+                                         State* state) {
   ASSERT(state->fp != NULL);
   if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
     return ARGUMENTS_ADAPTOR;
@@ -450,8 +435,9 @@ StackFrame::Type StackFrame::ComputeType(Isolate* isolate, State* state) {
     // frames as normal JavaScript frames to avoid having to look
     // into the heap to determine the state. This is safe as long
     // as nobody tries to GC...
-    if (SafeStackFrameIterator::is_active(isolate)) return JAVA_SCRIPT;
-    Code::Kind kind = GetContainingCode(isolate, *(state->pc_address))->kind();
+    if (!iterator->can_access_heap_objects_) return JAVA_SCRIPT;
+    Code::Kind kind = GetContainingCode(iterator->isolate(),
+                                        *(state->pc_address))->kind();
     ASSERT(kind == Code::FUNCTION || kind == Code::OPTIMIZED_FUNCTION);
     return (kind == Code::OPTIMIZED_FUNCTION) ? OPTIMIZED : JAVA_SCRIPT;
   }
@@ -459,10 +445,16 @@ StackFrame::Type StackFrame::ComputeType(Isolate* isolate, State* state) {
 }
 
 
+#ifdef DEBUG
+bool StackFrame::can_access_heap_objects() const {
+  return iterator_->can_access_heap_objects_;
+}
+#endif
+
 
 StackFrame::Type StackFrame::GetCallerState(State* state) const {
   ComputeCallerState(state);
-  return ComputeType(isolate(), state);
+  return ComputeType(iterator_, state);
 }
 
 
@@ -622,7 +614,7 @@ bool StandardFrame::IsExpressionInsideHandler(int n) const {
 void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
   // possibly find pointers in optimized frames in that state.
-  ASSERT(!SafeStackFrameIterator::is_active(isolate()));
+  ASSERT(can_access_heap_objects());
 
   // Compute the safepoint information.
   unsigned stack_slots = 0;
@@ -754,7 +746,7 @@ Code* JavaScriptFrame::unchecked_code() const {
 
 
 int JavaScriptFrame::GetNumberOfIncomingArguments() const {
-  ASSERT(!SafeStackFrameIterator::is_active(isolate()) &&
+  ASSERT(can_access_heap_objects() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
 
   JSFunction* function = JSFunction::cast(this->function());
