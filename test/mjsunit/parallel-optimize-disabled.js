@@ -28,6 +28,11 @@
 // Flags: --nodead-code-elimination --parallel-recompilation
 // Flags: --allow-natives-syntax
 
+if (!%IsParallelRecompilationSupported()) {
+  print("Parallel recompilation is disabled. Skipping this test.");
+  quit();
+}
+
 function g() {  // g() cannot be optimized.
   const x = 1;
   x++;
