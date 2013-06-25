@@ -10350,22 +10350,9 @@ void Code::PrintDeoptLocation(int bailout_id) {
 // Identify kind of code.
 const char* Code::Kind2String(Kind kind) {
   switch (kind) {
-    case FUNCTION: return "FUNCTION";
-    case OPTIMIZED_FUNCTION: return "OPTIMIZED_FUNCTION";
-    case STUB: return "STUB";
-    case BUILTIN: return "BUILTIN";
-    case LOAD_IC: return "LOAD_IC";
-    case KEYED_LOAD_IC: return "KEYED_LOAD_IC";
-    case STORE_IC: return "STORE_IC";
-    case KEYED_STORE_IC: return "KEYED_STORE_IC";
-    case CALL_IC: return "CALL_IC";
-    case KEYED_CALL_IC: return "KEYED_CALL_IC";
-    case UNARY_OP_IC: return "UNARY_OP_IC";
-    case BINARY_OP_IC: return "BINARY_OP_IC";
-    case COMPARE_IC: return "COMPARE_IC";
-    case COMPARE_NIL_IC: return "COMPARE_NIL_IC";
-    case TO_BOOLEAN_IC: return "TO_BOOLEAN_IC";
-    case REGEXP: return "REGEXP";
+#define CASE(name) case name: return #name;
+    CODE_KIND_LIST(CASE)
+#undef CASE
   }
   UNREACHABLE();
   return NULL;
