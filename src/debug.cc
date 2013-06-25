@@ -620,7 +620,7 @@ const int Debug::kFrameDropperFrameSize = 4;
 void ScriptCache::Add(Handle<Script> script) {
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
   // Create an entry in the hash map for the script.
-  int id = Smi::cast(script->id())->value();
+  int id = script->id()->value();
   HashMap::Entry* entry =
       HashMap::Lookup(reinterpret_cast<void*>(id), Hash(id), true);
   if (entry->value != NULL) {
@@ -688,7 +688,7 @@ void ScriptCache::HandleWeakScript(v8::Isolate* isolate,
   ASSERT((*location)->IsScript());
 
   // Remove the entry from the cache.
-  int id = Smi::cast((*location)->id())->value();
+  int id = (*location)->id()->value();
   script_cache->Remove(reinterpret_cast<void*>(id), Hash(id));
   script_cache->collected_scripts_.Add(id);
 

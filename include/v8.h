@@ -1043,8 +1043,14 @@ class V8EXPORT Script {
 
   /**
    * Returns the script id value.
+   * DEPRECATED: Please use GetId().
    */
   Local<Value> Id();
+
+  /**
+   * Returns the script id.
+   */
+  int GetId();
 
   /**
    * Associate an additional data object with the script. This is mainly used
@@ -1063,6 +1069,8 @@ class V8EXPORT Script {
    * -1 will be returned if no information available.
    */
   int GetLineNumber(int code_pos);
+
+  static const int kNoScriptId = 0;
 };
 
 
@@ -2347,7 +2355,18 @@ class V8EXPORT Function : public Object {
    * kLineOffsetNotFound if no information available.
    */
   int GetScriptColumnNumber() const;
+
+  /**
+   * Returns scriptId object.
+   * DEPRECATED: use ScriptId() instead.
+   */
   Handle<Value> GetScriptId() const;
+
+  /**
+   * Returns scriptId.
+   */
+  int ScriptId() const;
+
   ScriptOrigin GetScriptOrigin() const;
   V8_INLINE(static Function* Cast(Value* obj));
   static const int kLineOffsetNotFound;

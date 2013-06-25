@@ -2026,6 +2026,19 @@ Local<Value> Script::Id() {
 }
 
 
+int Script::GetId() {
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Script::Id()", return -1);
+  LOG_API(isolate, "Script::Id");
+  {
+    i::HandleScope scope(isolate);
+    i::Handle<i::SharedFunctionInfo> function_info = OpenScript(this);
+    i::Handle<i::Script> script(i::Script::cast(function_info->script()));
+    return script->id()->value();
+  }
+}
+
+
 int Script::GetLineNumber(int code_pos) {
   i::Isolate* isolate = i::Isolate::Current();
   ON_BAILOUT(isolate, "v8::Script::GetLineNumber()", return -1);
@@ -4336,6 +4349,7 @@ int Function::GetScriptColumnNumber() const {
   return kLineOffsetNotFound;
 }
 
+
 Handle<Value> Function::GetScriptId() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (!func->shared()->script()->IsScript())
@@ -4343,6 +4357,15 @@ Handle<Value> Function::GetScriptId() const {
   i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
   return Utils::ToLocal(i::Handle<i::Object>(script->id(), func->GetIsolate()));
 }
+
+
+int Function::ScriptId() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  if (!func->shared()->script()->IsScript()) return v8::Script::kNoScriptId;
+  i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+  return script->id()->value();
+}
+
 
 int String::Length() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);

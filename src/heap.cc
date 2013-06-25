@@ -3155,7 +3155,7 @@ bool Heap::CreateInitialObjects() {
   set_empty_slow_element_dictionary(SeededNumberDictionary::cast(obj));
 
   // Handling of script id generation is in Factory::NewScript.
-  set_last_script_id(undefined_value());
+  set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
 
   // Initialize keyed lookup cache.
   isolate_->keyed_lookup_cache()->Clear();
