@@ -1509,6 +1509,11 @@ FrameDetails.prototype.scopeCount = function() {
 };
 
 
+FrameDetails.prototype.stepInPositionsImpl = function() {
+  return %GetStepInPositions(this.break_id_, this.frameId());
+};
+
+
 /**
  * Mirror object for stack frames.
  * @param {number} break_id The break id in the VM for which this frame is
@@ -1666,6 +1671,29 @@ FrameMirror.prototype.scopeCount = function() {
 
 FrameMirror.prototype.scope = function(index) {
   return new ScopeMirror(this, void 0, index);
+};
+
+
+FrameMirror.prototype.stepInPositions = function() {
+  var script = this.func().script();
+  var funcOffset = this.func().sourcePosition_();
+
+  var stepInRaw = this.details_.stepInPositionsImpl();
+  var result = [];
+  if (stepInRaw) {
+    for (var i = 0; i < stepInRaw.length; i++) {
+      var posStruct = {};
+      var offset = script.locationFromPosition(funcOffset + stepInRaw[i],
+                                               true);
+      serializeLocationFields(offset, posStruct);
+      var item = {
+        position: posStruct
+      };
+      result.push(item);
+    }
+  }
+
+  return result;
 };
 
 

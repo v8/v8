@@ -490,6 +490,7 @@ namespace internal {
   F(GetFrameCount, 1, 1) \
   F(GetFrameDetails, 2, 1) \
   F(GetScopeCount, 2, 1) \
+  F(GetStepInPositions, 2, 1) \
   F(GetScopeDetails, 4, 1) \
   F(GetFunctionScopeCount, 1, 1) \
   F(GetFunctionScopeDetails, 2, 1) \

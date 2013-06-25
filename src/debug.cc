@@ -390,6 +390,20 @@ void BreakLocationIterator::ClearDebugBreak() {
 }
 
 
+bool BreakLocationIterator::IsStepInLocation(Isolate* isolate) {
+  if (RelocInfo::IsConstructCall(rmode())) {
+    return true;
+  } else if (RelocInfo::IsCodeTarget(rmode())) {
+    HandleScope scope(debug_info_->GetIsolate());
+    Address target = rinfo()->target_address();
+    Handle<Code> target_code(Code::GetCodeFromTargetAddress(target));
+    return target_code->is_call_stub() || target_code->is_keyed_call_stub();
+  } else {
+    return false;
+  }
+}
+
+
 void BreakLocationIterator::PrepareStepIn(Isolate* isolate) {
   HandleScope scope(isolate);
 

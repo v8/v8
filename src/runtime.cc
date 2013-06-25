@@ -11778,6 +11778,58 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeCount) {
 }
 
 
+// Returns the list of step-in positions (text offset) in a function of the
+// stack frame in a range from the current debug break position to the end
+// of the corresponding statement.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+
+  // Check arguments.
+  Object* check;
+  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
+      RUNTIME_ARGUMENTS(isolate, args));
+    if (!maybe_check->ToObject(&check)) return maybe_check;
+  }
+  CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
+
+  // Get the frame where the debugging is performed.
+  StackFrame::Id id = UnwrapFrameId(wrapped_id);
+  JavaScriptFrameIterator frame_it(isolate, id);
+  JavaScriptFrame* frame = frame_it.frame();
+
+  Handle<SharedFunctionInfo> shared =
+      Handle<SharedFunctionInfo>(JSFunction::cast(frame->function())->shared());
+  Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared);
+
+  int len = 0;
+  Handle<JSArray> array(isolate->factory()->NewJSArray(10));
+  // Find the break point where execution has stopped.
+  BreakLocationIterator break_location_iterator(debug_info,
+                                                ALL_BREAK_LOCATIONS);
+
+  break_location_iterator.FindBreakLocationFromAddress(frame->pc());
+  int current_statement_pos = break_location_iterator.statement_position();
+
+  while (!break_location_iterator.Done()) {
+    if (break_location_iterator.IsStepInLocation(isolate)) {
+      Smi* position_value = Smi::FromInt(break_location_iterator.position());
+      JSObject::SetElement(array, len,
+          Handle<Object>(position_value, isolate),
+          NONE, kNonStrictMode);
+      len++;
+    }
+    // Advance iterator.
+    break_location_iterator.Next();
+    if (current_statement_pos !=
+        break_location_iterator.statement_position()) {
+      break;
+    }
+  }
+  return *array;
+}
+
+
 static const int kScopeDetailsTypeIndex = 0;
 static const int kScopeDetailsObjectIndex = 1;
 static const int kScopeDetailsSize = 2;
