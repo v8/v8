@@ -1699,13 +1699,30 @@ FrameMirror.prototype.stepInPositions = function() {
 
 FrameMirror.prototype.evaluate = function(source, disable_break,
                                           opt_context_object) {
-  var result = %DebugEvaluate(this.break_id_,
-                              this.details_.frameId(),
-                              this.details_.inlinedFrameIndex(),
-                              source,
-                              Boolean(disable_break),
-                              opt_context_object);
-  return MakeMirror(result);
+  var result_array = %DebugEvaluate(this.break_id_,
+                                    this.details_.frameId(),
+                                    this.details_.inlinedFrameIndex(),
+                                    source,
+                                    Boolean(disable_break),
+                                    opt_context_object);
+  // Silently ignore local variables changes if the frame is optimized.
+  if (!this.isOptimizedFrame()) {
+    var local_scope_before = result_array[1];
+    var local_scope_after = result_array[2];
+    for (var n in local_scope_after) {
+      var value_before = local_scope_before[n];
+      var value_after = local_scope_after[n];
+      if (value_before !== value_after) {
+        %SetScopeVariableValue(this.break_id_,
+                               this.details_.frameId(),
+                               this.details_.inlinedFrameIndex(),
+                               0,
+                               n,
+                               value_after);
+      }
+    }
+  }
+  return MakeMirror(result_array[0]);
 };
 
 

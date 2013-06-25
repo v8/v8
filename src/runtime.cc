@@ -12424,6 +12424,13 @@ static MaybeObject* DebugEvaluate(Isolate* isolate,
 // the same view of the values of parameters and local variables as if the
 // piece of JavaScript was evaluated at the point where the function on the
 // stack frame is currently stopped when we compile and run the (direct) eval.
+// Returns array of
+// #0: evaluate result
+// #1: local variables scope materizalized as object before evaluation
+// #2: local variables scope materizalized as object after evaluation
+// Since user expression only reaches (and modifies) copies of local variables,
+// those copies are returned to the caller to allow tracking the changes and
+// manually updating the actual variables.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   HandleScope scope(isolate);
 
@@ -12523,7 +12530,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   }
 
   Handle<Object> receiver(frame->receiver(), isolate);
-  return DebugEvaluate(isolate, context, context_extension, receiver, source);
+  Object* evaluate_result_object;
+  { MaybeObject* maybe_result =
+    DebugEvaluate(isolate, context, context_extension, receiver, source);
+    if (!maybe_result->ToObject(&evaluate_result_object)) return maybe_result;
+  }
+  Handle<Object> evaluate_result(evaluate_result_object, isolate);
+
+  Handle<JSObject> local_scope_after = MaterializeLocalScopeWithFrameInspector(
+      isolate, frame, &frame_inspector);
+
+  Handle<FixedArray> resultArray =
+      isolate->factory()->NewFixedArray(3);
+  resultArray->set(0, *evaluate_result);
+  resultArray->set(2, *local_scope);
+  resultArray->set(1, *local_scope_after);
+
+  return *(isolate->factory()->NewJSArrayWithElements(resultArray));
 }
 
 
