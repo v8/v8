@@ -1790,50 +1790,20 @@ static void ClearHistograms() {
 }
 
 
-static void ClearCodeKindStatistics() {
-  Isolate* isolate = Isolate::Current();
+static void ClearCodeKindStatistics(int* code_kind_statistics) {
   for (int i = 0; i < Code::NUMBER_OF_KINDS; i++) {
-    isolate->code_kind_statistics()[i] = 0;
+    code_kind_statistics[i] = 0;
   }
 }
 
 
-static void ReportCodeKindStatistics() {
-  Isolate* isolate = Isolate::Current();
-  const char* table[Code::NUMBER_OF_KINDS] = { NULL };
-
-#define CASE(name)                            \
-  case Code::name: table[Code::name] = #name; \
-  break
-
-  for (int i = 0; i < Code::NUMBER_OF_KINDS; i++) {
-    switch (static_cast<Code::Kind>(i)) {
-      CASE(FUNCTION);
-      CASE(OPTIMIZED_FUNCTION);
-      CASE(STUB);
-      CASE(BUILTIN);
-      CASE(LOAD_IC);
-      CASE(KEYED_LOAD_IC);
-      CASE(STORE_IC);
-      CASE(KEYED_STORE_IC);
-      CASE(CALL_IC);
-      CASE(KEYED_CALL_IC);
-      CASE(UNARY_OP_IC);
-      CASE(BINARY_OP_IC);
-      CASE(COMPARE_IC);
-      CASE(COMPARE_NIL_IC);
-      CASE(TO_BOOLEAN_IC);
-      CASE(REGEXP);
-    }
-  }
-
-#undef CASE
-
+static void ReportCodeKindStatistics(int* code_kind_statistics) {
   PrintF("\n   Code kind histograms: \n");
   for (int i = 0; i < Code::NUMBER_OF_KINDS; i++) {
-    if (isolate->code_kind_statistics()[i] > 0) {
-      PrintF("     %-20s: %10d bytes\n", table[i],
-          isolate->code_kind_statistics()[i]);
+    if (code_kind_statistics[i] > 0) {
+      PrintF("     %-20s: %10d bytes\n",
+             Code::Kind2String(static_cast<Code::Kind>(i)),
+             code_kind_statistics[i]);
     }
   }
   PrintF("\n");
@@ -1841,7 +1811,7 @@ static void ReportCodeKindStatistics() {
 
 
 static int CollectHistogramInfo(HeapObject* obj) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = obj->GetIsolate();
   InstanceType type = obj->map()->instance_type();
   ASSERT(0 <= type && type <= LAST_TYPE);
   ASSERT(isolate->heap_histograms()[type].name() != NULL);
@@ -2715,7 +2685,7 @@ void PagedSpace::ReportCodeStatistics() {
   Isolate* isolate = Isolate::Current();
   CommentStatistic* comments_statistics =
       isolate->paged_space_comments_statistics();
-  ReportCodeKindStatistics();
+  ReportCodeKindStatistics(isolate->code_kind_statistics());
   PrintF("Code comment statistics (\"   [ comment-txt   :    size/   "
          "count  (average)\"):\n");
   for (int i = 0; i <= CommentStatistic::kMaxComments; i++) {
@@ -2733,7 +2703,7 @@ void PagedSpace::ResetCodeStatistics() {
   Isolate* isolate = Isolate::Current();
   CommentStatistic* comments_statistics =
       isolate->paged_space_comments_statistics();
-  ClearCodeKindStatistics();
+  ClearCodeKindStatistics(isolate->code_kind_statistics());
   for (int i = 0; i < CommentStatistic::kMaxComments; i++) {
     comments_statistics[i].Clear();
   }

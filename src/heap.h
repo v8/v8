@@ -1873,7 +1873,7 @@ class Heap {
   enum {
     FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
     FIRST_FIXED_ARRAY_SUB_TYPE =
-        FIRST_CODE_KIND_SUB_TYPE + Code::LAST_CODE_KIND + 1,
+        FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
     OBJECT_STATS_COUNT =
         FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1
   };
@@ -1885,7 +1885,7 @@ class Heap {
       object_sizes_[type] += size;
     } else {
       if (type == CODE_TYPE) {
-        ASSERT(sub_type <= Code::LAST_CODE_KIND);
+        ASSERT(sub_type < Code::NUMBER_OF_KINDS);
         object_counts_[FIRST_CODE_KIND_SUB_TYPE + sub_type]++;
         object_sizes_[FIRST_CODE_KIND_SUB_TYPE + sub_type] += size;
       } else if (type == FIXED_ARRAY_TYPE) {

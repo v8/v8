@@ -4439,39 +4439,45 @@ class Code: public HeapObject {
   // cache state, and arguments count.
   typedef uint32_t Flags;
 
-#define CODE_KIND_LIST(V) \
-  V(FUNCTION)             \
-  V(OPTIMIZED_FUNCTION)   \
-  V(STUB)                 \
-  V(BUILTIN)              \
-  V(LOAD_IC)              \
-  V(KEYED_LOAD_IC)        \
-  V(CALL_IC)              \
-  V(KEYED_CALL_IC)        \
-  V(STORE_IC)             \
-  V(KEYED_STORE_IC)       \
-  V(UNARY_OP_IC)          \
-  V(BINARY_OP_IC)         \
-  V(COMPARE_IC)           \
-  V(COMPARE_NIL_IC)       \
-  V(TO_BOOLEAN_IC)        \
+#define NON_IC_KIND_LIST(V) \
+  V(FUNCTION)               \
+  V(OPTIMIZED_FUNCTION)     \
+  V(STUB)                   \
+  V(BUILTIN)                \
   V(REGEXP)
 
+#define IC_KIND_LIST(V) \
+  V(LOAD_IC)            \
+  V(KEYED_LOAD_IC)      \
+  V(CALL_IC)            \
+  V(KEYED_CALL_IC)      \
+  V(STORE_IC)           \
+  V(KEYED_STORE_IC)     \
+  V(UNARY_OP_IC)        \
+  V(BINARY_OP_IC)       \
+  V(COMPARE_IC)         \
+  V(COMPARE_NIL_IC)     \
+  V(TO_BOOLEAN_IC)
+
+#define CODE_KIND_LIST(V) \
+  NON_IC_KIND_LIST(V)     \
+  IC_KIND_LIST(V)
 
   enum Kind {
 #define DEFINE_CODE_KIND_ENUM(name) name,
     CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
 #undef DEFINE_CODE_KIND_ENUM
+  };
 
-    // Pseudo-kinds.
-    LAST_CODE_KIND = TO_BOOLEAN_IC,
-    FIRST_IC_KIND = LOAD_IC,
-    LAST_IC_KIND = TO_BOOLEAN_IC
+  enum {
+#define COUNT_FLAG(name) + 1
+    NUMBER_OF_KINDS = 0 CODE_KIND_LIST(COUNT_FLAG)
+#undef COUNT_FLAG
   };
 
   // No more than 16 kinds. The value is currently encoded in four bits in
   // Flags.
-  STATIC_ASSERT(LAST_CODE_KIND < 16);
+  STATIC_ASSERT(NUMBER_OF_KINDS <= 16);
 
   static const char* Kind2String(Kind kind);
 
@@ -4489,10 +4495,6 @@ class Code: public HeapObject {
   enum StubHolder {
     OWN_STUB,
     PROTOTYPE_STUB
-  };
-
-  enum {
-    NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
 
   typedef int ExtraICState;

@@ -4041,7 +4041,12 @@ void Code::set_marked_for_deoptimization(bool flag) {
 
 bool Code::is_inline_cache_stub() {
   Kind kind = this->kind();
-  return kind >= FIRST_IC_KIND && kind <= LAST_IC_KIND;
+  switch (kind) {
+#define CASE(name) case name: return true;
+    IC_KIND_LIST(CASE)
+#undef CASE
+    default: return false;
+  }
 }
 
 
