@@ -349,6 +349,7 @@ TEST(OptimizedCodeSharing) {
   // Skip test if --cache-optimized-code is not activated by default because
   // FastNewClosureStub that is baked into the snapshot is incorrect.
   if (!FLAG_cache_optimized_code) return;
+  FLAG_stress_compaction = false;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());

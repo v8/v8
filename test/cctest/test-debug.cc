@@ -6578,7 +6578,7 @@ TEST(ScriptCollectedEvent) {
 
   // Do garbage collection to ensure that only the script in this test will be
   // collected afterwards.
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   script_collected_count = 0;
   v8::Debug::SetDebugEventListener(DebugEventScriptCollectedEvent,
@@ -6590,7 +6590,7 @@ TEST(ScriptCollectedEvent) {
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   CHECK_EQ(2, script_collected_count);
 
@@ -6640,7 +6640,7 @@ TEST(ScriptCollectedEventContext) {
 
   // Do garbage collection to ensure that only the script in this test will be
   // collected afterwards.
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   v8::Debug::SetMessageHandler2(ScriptCollectedMessageHandler);
   v8::Script::Compile(v8::String::New("eval('a=1')"))->Run();
@@ -6657,7 +6657,7 @@ TEST(ScriptCollectedEventContext) {
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   CHECK_EQ(2, script_collected_message_count);
 
