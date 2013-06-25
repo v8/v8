@@ -1507,7 +1507,7 @@ TEST(GetConstructorName) {
 }
 
 
-TEST(FastCaseGetter) {
+TEST(FastCaseAccessors) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -1520,20 +1520,57 @@ TEST(FastCaseGetter) {
              "  return this.value_ = value;\n"
              "});\n");
   const v8::HeapSnapshot* snapshot =
-      heap_profiler->TakeHeapSnapshot(v8_str("fastCaseGetter"));
+      heap_profiler->TakeHeapSnapshot(v8_str("fastCaseAccessors"));
 
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK_NE(NULL, global);
   const v8::HeapGraphNode* obj1 =
       GetProperty(global, v8::HeapGraphEdge::kProperty, "obj1");
   CHECK_NE(NULL, obj1);
-  const v8::HeapGraphNode* getterFunction =
-      GetProperty(obj1, v8::HeapGraphEdge::kProperty, "get-propWithGetter");
-  CHECK_NE(NULL, getterFunction);
-  const v8::HeapGraphNode* setterFunction =
-      GetProperty(obj1, v8::HeapGraphEdge::kProperty, "set-propWithSetter");
-  CHECK_NE(NULL, setterFunction);
+  const v8::HeapGraphNode* func;
+  func = GetProperty(obj1, v8::HeapGraphEdge::kProperty, "get propWithGetter");
+  CHECK_NE(NULL, func);
+  func = GetProperty(obj1, v8::HeapGraphEdge::kProperty, "set propWithGetter");
+  CHECK_EQ(NULL, func);
+  func = GetProperty(obj1, v8::HeapGraphEdge::kProperty, "set propWithSetter");
+  CHECK_NE(NULL, func);
+  func = GetProperty(obj1, v8::HeapGraphEdge::kProperty, "get propWithSetter");
+  CHECK_EQ(NULL, func);
 }
+
+
+TEST(SlowCaseAccessors) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun("var obj1 = {};\n"
+             "for (var i = 0; i < 100; ++i) obj1['z' + i] = {};"
+             "obj1.__defineGetter__('propWithGetter', function Y() {\n"
+             "  return 42;\n"
+             "});\n"
+             "obj1.__defineSetter__('propWithSetter', function Z(value) {\n"
+             "  return this.value_ = value;\n"
+             "});\n");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("slowCaseAccessors"));
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  const v8::HeapGraphNode* obj1 =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "obj1");
+  CHECK_NE(NULL, obj1);
+  const v8::HeapGraphNode* func;
+  func = GetProperty(obj1, v8::HeapGraphEdge::kProperty, "get propWithGetter");
+  CHECK_NE(NULL, func);
+  func = GetProperty(obj1, v8::HeapGraphEdge::kProperty, "set propWithGetter");
+  CHECK_EQ(NULL, func);
+  func = GetProperty(obj1, v8::HeapGraphEdge::kProperty, "set propWithSetter");
+  CHECK_NE(NULL, func);
+  func = GetProperty(obj1, v8::HeapGraphEdge::kProperty, "get propWithSetter");
+  CHECK_EQ(NULL, func);
+}
+
 
 TEST(HiddenPropertiesFastCase) {
   LocalContext env;
