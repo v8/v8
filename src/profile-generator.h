@@ -99,9 +99,9 @@ class CodeEntry {
   INLINE(CodeEntry(Logger::LogEventsAndTags tag,
                    const char* name_prefix,
                    const char* name,
-                   const char* resource_name,
-                   int line_number,
-                   int security_token_id));
+                   int security_token_id = TokenEnumerator::kNoSecurityToken,
+                   const char* resource_name = "",
+                   int line_number = v8::CpuProfileNode::kNoLineNumberInfo));
   ~CodeEntry();
 
   INLINE(bool is_js_function() const) { return is_js_function_tag(tag_); }
