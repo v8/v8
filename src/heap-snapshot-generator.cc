@@ -1050,9 +1050,9 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     SetInternalReference(js_fun, entry,
                          "shared", shared_info,
                          JSFunction::kSharedFunctionInfoOffset);
-    TagObject(js_fun->unchecked_context(), "(context)");
+    TagObject(js_fun->context(), "(context)");
     SetInternalReference(js_fun, entry,
-                         "context", js_fun->unchecked_context(),
+                         "context", js_fun->context(),
                          JSFunction::kContextOffset);
     for (int i = JSFunction::kNonWeakFieldsEndOffset;
          i < JSFunction::kSize;

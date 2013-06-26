@@ -645,7 +645,7 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   }
 
   // The function must have a valid context and not be a builtin.
-  if (!IsValidNonBuiltinContext(function->unchecked_context())) {
+  if (!IsValidNonBuiltinContext(function->context())) {
     return false;
   }
 

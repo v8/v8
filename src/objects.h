@@ -6567,7 +6567,6 @@ class JSFunction: public JSObject {
 
   // [context]: The context for this function.
   inline Context* context();
-  inline Object* unchecked_context();
   inline void set_context(Object* context);
 
   // [code]: The generated code object for this function.  Executed
@@ -6578,8 +6577,6 @@ class JSFunction: public JSObject {
   inline void set_code(Code* code);
   inline void set_code_no_write_barrier(Code* code);
   inline void ReplaceCode(Code* code);
-
-  inline Code* unchecked_code();
 
   // Tells whether this function is builtin.
   inline bool IsBuiltin();

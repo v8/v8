@@ -4901,12 +4901,7 @@ bool JSFunction::IsInRecompileQueue() {
 
 
 Code* JSFunction::code() {
-  return Code::cast(unchecked_code());
-}
-
-
-Code* JSFunction::unchecked_code() {
-  return reinterpret_cast<Code*>(
+  return Code::cast(
       Code::GetObjectFromEntryAddress(FIELD_ADDR(this, kCodeEntryOffset)));
 }
 
@@ -4948,11 +4943,6 @@ void JSFunction::ReplaceCode(Code* code) {
 
 Context* JSFunction::context() {
   return Context::cast(READ_FIELD(this, kContextOffset));
-}
-
-
-Object* JSFunction::unchecked_context() {
-  return READ_FIELD(this, kContextOffset);
 }
 
 

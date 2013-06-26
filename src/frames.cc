@@ -741,7 +741,7 @@ int JavaScriptFrame::GetArgumentsLength() const {
 
 Code* JavaScriptFrame::unchecked_code() const {
   JSFunction* function = JSFunction::cast(this->function());
-  return function->unchecked_code();
+  return function->code();
 }
 
 

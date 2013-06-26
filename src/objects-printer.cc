@@ -864,7 +864,7 @@ void JSFunction::JSFunctionPrint(FILE* out) {
   PrintF(out, "\n   - name = ");
   shared()->name()->Print(out);
   PrintF(out, "\n - context = ");
-  unchecked_context()->ShortPrint(out);
+  context()->ShortPrint(out);
   PrintF(out, "\n - literals = ");
   literals()->ShortPrint(out);
   PrintF(out, "\n - code = ");

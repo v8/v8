@@ -1319,7 +1319,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   InstanceType type = map->instance_type();
   if ((type & kShortcutTypeMask) != kShortcutTypeTag) return object;
 
-  Object* second = reinterpret_cast<ConsString*>(object)->unchecked_second();
+  Object* second = reinterpret_cast<ConsString*>(object)->second();
   Heap* heap = map->GetHeap();
   if (second != heap->empty_string()) {
     return object;
@@ -1328,7 +1328,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   // Since we don't have the object's start, it is impossible to update the
   // page dirty marks. Therefore, we only replace the string with its left
   // substring when page dirty marks do not change.
-  Object* first = reinterpret_cast<ConsString*>(object)->unchecked_first();
+  Object* first = reinterpret_cast<ConsString*>(object)->first();
   if (!heap->InNewSpace(object) && heap->InNewSpace(first)) return object;
 
   *p = first;
