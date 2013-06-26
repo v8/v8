@@ -13380,6 +13380,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOverflowedStackTrace) {
   CONVERT_ARG_CHECKED(JSObject, error_object, 0);
   String* key = isolate->heap()->hidden_stack_trace_string();
   Object* result = error_object->GetHiddenProperty(key);
+  if (result->IsTheHole()) result = isolate->heap()->undefined_value();
   RUNTIME_ASSERT(result->IsJSArray() ||
                  result->IsString() ||
                  result->IsUndefined());

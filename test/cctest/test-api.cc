@@ -19280,6 +19280,18 @@ THREADED_TEST(Regress2535) {
 }
 
 
+THREADED_TEST(Regress2746) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Local<Object> obj = Object::New();
+  Local<String> key = String::New("key");
+  obj->SetHiddenValue(key, v8::Undefined());
+  Local<Value> value = obj->GetHiddenValue(key);
+  CHECK(!value.IsEmpty());
+  CHECK(value->IsUndefined());
+}
+
+
 #ifndef WIN32
 class ThreadInterruptTest {
  public:
