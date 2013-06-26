@@ -1707,18 +1707,18 @@ FrameMirror.prototype.evaluate = function(source, disable_break,
                                     opt_context_object);
   // Silently ignore local variables changes if the frame is optimized.
   if (!this.isOptimizedFrame()) {
-    var local_scope_before = result_array[1];
-    var local_scope_after = result_array[2];
-    for (var n in local_scope_after) {
-      var value_before = local_scope_before[n];
-      var value_after = local_scope_after[n];
-      if (value_before !== value_after) {
+    var local_scope_on_stack = result_array[1];
+    var local_scope_modifed = result_array[2];
+    for (var n in local_scope_modifed) {
+      var value_on_stack = local_scope_on_stack[n];
+      var value_modifed = local_scope_modifed[n];
+      if (value_on_stack !== value_modifed) {
         %SetScopeVariableValue(this.break_id_,
                                this.details_.frameId(),
                                this.details_.inlinedFrameIndex(),
                                0,
                                n,
-                               value_after);
+                               value_modifed);
       }
     }
   }
