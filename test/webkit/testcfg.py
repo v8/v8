@@ -1,4 +1,4 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+# Copyright 2013 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -30,22 +30,27 @@ import os
 import re
 
 from testrunner.local import testsuite
-from testrunner.local import utils
 from testrunner.objects import testcase
 
-
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
+SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 
 
-class MessageTestSuite(testsuite.TestSuite):
+# TODO (machenbach): Share commonalities with mjstest.
+class WebkitTestSuite(testsuite.TestSuite):
+
   def __init__(self, name, root):
-    super(MessageTestSuite, self).__init__(name, root)
+    super(WebkitTestSuite, self).__init__(name, root)
 
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
       for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
+      if 'resources' in dirs:
+        dirs.remove('resources')
+
       dirs.sort()
       files.sort()
       for filename in files:
@@ -57,19 +62,43 @@ class MessageTestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
-    result = []
+    flags = [] + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
-      result += match.strip().split()
-    result += context.mode_flags
-    result.append(os.path.join(self.root, testcase.path + ".js"))
-    return testcase.flags + result
+      flags += match.strip().split()
+
+    files_list = []  # List of file names to append to command arguments.
+    files_match = FILES_PATTERN.search(source);
+    # Accept several lines of 'Files:'.
+    while True:
+      if files_match:
+        files_list += files_match.group(1).strip().split()
+        files_match = FILES_PATTERN.search(source, files_match.end())
+      else:
+        break
+    files = [ os.path.normpath(os.path.join(self.root, '..', '..', f))
+              for f in files_list ]
+    testfilename = os.path.join(self.root, testcase.path + self.suffix())
+    if SELF_SCRIPT_PATTERN.search(source):
+      env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")]
+      files = env + files
+    files.append(os.path.join(self.root, "resources/standalone-pre.js"))
+    files.append(testfilename)
+    files.append(os.path.join(self.root, "resources/standalone-post.js"))
+
+    flags += files
+    if context.isolates:
+      flags.append("--isolate")
+      flags += files
+
+    return testcase.flags + flags
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())
     with open(filename) as f:
       return f.read()
 
+  # TODO(machenbach): Share with test/message/testcfg.py
   def _IgnoreLine(self, string):
     """Ignore empty lines, valgrind output and Android output."""
     if not string: return True
@@ -83,30 +112,24 @@ class MessageTestSuite(testsuite.TestSuite):
             string.find("NaClHostDescOpen:") > 0)
 
   def IsFailureOutput(self, output, testpath):
-    expected_path = os.path.join(self.root, testpath + ".out")
-    expected_lines = []
-    # Can't use utils.ReadLinesFrom() here because it strips whitespace.
-    with open(expected_path) as f:
-      for line in f:
-        if line.startswith("#") or not line.strip(): continue
-        expected_lines.append(line)
-    raw_lines = output.stdout.splitlines()
-    actual_lines = [ s for s in raw_lines if not self._IgnoreLine(s) ]
-    env = { "basename": os.path.basename(testpath + ".js") }
-    if len(expected_lines) != len(actual_lines):
+    if super(WebkitTestSuite, self).IsFailureOutput(output, testpath):
       return True
-    for (expected, actual) in itertools.izip_longest(
-        expected_lines, actual_lines, fillvalue=''):
-      pattern = re.escape(expected.rstrip() % env)
-      pattern = pattern.replace("\\*", ".*")
-      pattern = "^%s$" % pattern
-      if not re.match(pattern, actual):
-        return True
-    return False
-
-  def StripOutputForTransmit(self, testcase):
-    pass
+    file_name = os.path.join(self.root, testpath) + "-expected.txt"
+    with file(file_name, "r") as expected:
+      def ExpIterator():
+        for line in expected.readlines():
+          if line.startswith("#") or not line.strip(): continue
+          yield line.strip()
+      def ActIterator():
+        for line in output.stdout.splitlines():
+          if self._IgnoreLine(line.strip()): continue
+          yield line.strip()
+      for (expected, actual) in itertools.izip_longest(
+          ExpIterator(), ActIterator(), fillvalue=''):
+        if expected != actual:
+          return True
+      return False
 
 
 def GetSuite(name, root):
-  return MessageTestSuite(name, root)
+  return WebkitTestSuite(name, root)
