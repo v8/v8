@@ -566,7 +566,6 @@ Parser::Parser(CompilationInfo* info)
 
 
 FunctionLiteral* Parser::ParseProgram() {
-  ZoneScope zone_scope(zone(), DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(isolate()->counters()->parse());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -583,11 +582,11 @@ FunctionLiteral* Parser::ParseProgram() {
     ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
-    result = DoParseProgram(info(), source, &zone_scope);
+    result = DoParseProgram(info(), source);
   } else {
     GenericStringUtf16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
-    result = DoParseProgram(info(), source, &zone_scope);
+    result = DoParseProgram(info(), source);
   }
 
   if (FLAG_trace_parse && result != NULL) {
@@ -608,8 +607,7 @@ FunctionLiteral* Parser::ParseProgram() {
 
 
 FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
-                                        Handle<String> source,
-                                        ZoneScope* zone_scope) {
+                                        Handle<String> source) {
   ASSERT(top_scope_ == NULL);
   ASSERT(target_stack_ == NULL);
   if (pre_parse_data_ != NULL) pre_parse_data_->Initialize();
@@ -690,15 +688,11 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   // Make sure the target stack is empty.
   ASSERT(target_stack_ == NULL);
 
-  // If there was a syntax error we have to get rid of the AST
-  // and it is not safe to do so before the scope has been deleted.
-  if (result == NULL) zone_scope->DeleteOnExit();
   return result;
 }
 
 
 FunctionLiteral* Parser::ParseLazy() {
-  ZoneScope zone_scope(zone(), DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -713,12 +707,12 @@ FunctionLiteral* Parser::ParseLazy() {
         Handle<ExternalTwoByteString>::cast(source),
         shared_info->start_position(),
         shared_info->end_position());
-    result = ParseLazy(&stream, &zone_scope);
+    result = ParseLazy(&stream);
   } else {
     GenericStringUtf16CharacterStream stream(source,
                                              shared_info->start_position(),
                                              shared_info->end_position());
-    result = ParseLazy(&stream, &zone_scope);
+    result = ParseLazy(&stream);
   }
 
   if (FLAG_trace_parse && result != NULL) {
@@ -730,8 +724,7 @@ FunctionLiteral* Parser::ParseLazy() {
 }
 
 
-FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
-                                   ZoneScope* zone_scope) {
+FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
   scanner_.Initialize(source);
   ASSERT(top_scope_ == NULL);
@@ -779,10 +772,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
   // Make sure the target stack is empty.
   ASSERT(target_stack_ == NULL);
 
-  // If there was a stack overflow we have to get rid of AST and it is
-  // not safe to do before scope has been deleted.
   if (result == NULL) {
-    zone_scope->DeleteOnExit();
     if (stack_overflow_) isolate()->StackOverflow();
   } else {
     Handle<String> inferred_name(shared_info->inferred_name());
