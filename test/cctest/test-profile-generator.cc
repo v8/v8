@@ -87,17 +87,20 @@ TEST(TokenEnumerator) {
 TEST(ProfileNodeFindOrAddChild) {
   ProfileTree tree;
   ProfileNode node(&tree, NULL);
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
   CHECK_NE(NULL, childNode1);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb");
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   ProfileNode* childNode2 = node.FindOrAddChild(&entry2);
   CHECK_NE(NULL, childNode2);
   CHECK_NE(childNode1, childNode2);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
   CHECK_EQ(childNode2, node.FindOrAddChild(&entry2));
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc");
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   ProfileNode* childNode3 = node.FindOrAddChild(&entry3);
   CHECK_NE(NULL, childNode3);
   CHECK_NE(childNode1, childNode3);
@@ -113,15 +116,17 @@ TEST(ProfileNodeFindOrAddChildForSameFunction) {
   const char* aaa = "aaa";
   ProfileTree tree;
   ProfileNode node(&tree, NULL);
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, empty, aaa);
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, empty, aaa, empty, 0,
+                     TokenEnumerator::kNoSecurityToken);
   ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
   CHECK_NE(NULL, childNode1);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
   // The same function again.
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, empty, aaa);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, empty, aaa, empty, 0,
+                   TokenEnumerator::kNoSecurityToken);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry2));
   // Now with a different security token.
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, empty, aaa,
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, empty, aaa, empty, 0,
                    TokenEnumerator::kNoSecurityToken + 1);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry3));
 }
@@ -157,9 +162,12 @@ class ProfileTreeTestHelper {
 }  // namespace
 
 TEST(ProfileTreeAddPathFromStart) {
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa");
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb");
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   ProfileTree tree;
   ProfileTreeTestHelper helper(&tree);
   CHECK_EQ(NULL, helper.Walk(&entry1));
@@ -224,9 +232,12 @@ TEST(ProfileTreeAddPathFromStart) {
 
 
 TEST(ProfileTreeAddPathFromEnd) {
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa");
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb");
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   ProfileTree tree;
   ProfileTreeTestHelper helper(&tree);
   CHECK_EQ(NULL, helper.Walk(&entry1));
@@ -304,7 +315,8 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CHECK_EQ(1, empty_tree.root()->total_ticks());
   CHECK_EQ(1, empty_tree.root()->self_ticks());
 
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   CodeEntry* e1_path[] = {&entry1};
   Vector<CodeEntry*> e1_path_vec(
       e1_path, sizeof(e1_path) / sizeof(e1_path[0]));
@@ -325,7 +337,8 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CHECK_EQ(1, node1->total_ticks());
   CHECK_EQ(1, node1->self_ticks());
 
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb");
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   CodeEntry* e1_e2_path[] = {&entry1, &entry2};
   Vector<CodeEntry*> e1_e2_path_vec(
       e1_e2_path, sizeof(e1_e2_path) / sizeof(e1_e2_path[0]));
@@ -360,7 +373,8 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CodeEntry* e2_path[] = {&entry2};
   Vector<CodeEntry*> e2_path_vec(
       e2_path, sizeof(e2_path) / sizeof(e2_path[0]));
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc");
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   CodeEntry* e3_path[] = {&entry3};
   Vector<CodeEntry*> e3_path_vec(
       e3_path, sizeof(e3_path) / sizeof(e3_path[0]));
@@ -418,11 +432,12 @@ TEST(ProfileTreeCalculateTotalTicks) {
 TEST(ProfileTreeFilteredClone) {
   ProfileTree source_tree;
   const int token0 = 0, token1 = 1, token2 = 2;
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", token0);
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", token1);
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", token0);
-  CodeEntry entry4(i::Logger::FUNCTION_TAG, "", "ddd",
-                   TokenEnumerator::kInheritsSecurityToken);
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0, token0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0, token1);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0, token0);
+  CodeEntry entry4(
+      i::Logger::FUNCTION_TAG, "", "ddd", "", 0,
+      TokenEnumerator::kInheritsSecurityToken);
 
   {
     CodeEntry* e1_e2_path[] = {&entry1, &entry2};
@@ -519,10 +534,14 @@ static inline i::Address ToAddress(int n) {
 
 TEST(CodeMapAddCode) {
   CodeMap code_map;
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa");
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb");
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc");
-  CodeEntry entry4(i::Logger::FUNCTION_TAG, "", "ddd");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
+  CodeEntry entry4(i::Logger::FUNCTION_TAG, "", "ddd", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   code_map.AddCode(ToAddress(0x1500), &entry1, 0x200);
   code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
   code_map.AddCode(ToAddress(0x1900), &entry3, 0x50);
@@ -549,8 +568,10 @@ TEST(CodeMapAddCode) {
 
 TEST(CodeMapMoveAndDeleteCode) {
   CodeMap code_map;
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa");
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   code_map.AddCode(ToAddress(0x1500), &entry1, 0x200);
   code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
   CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500)));
@@ -558,7 +579,8 @@ TEST(CodeMapMoveAndDeleteCode) {
   code_map.MoveCode(ToAddress(0x1500), ToAddress(0x1700));  // Deprecate bbb.
   CHECK_EQ(NULL, code_map.FindEntry(ToAddress(0x1500)));
   CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1700)));
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc");
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0,
+                   TokenEnumerator::kNoSecurityToken);
   code_map.AddCode(ToAddress(0x1750), &entry3, 0x100);
   CHECK_EQ(NULL, code_map.FindEntry(ToAddress(0x1700)));
   CHECK_EQ(&entry3, code_map.FindEntry(ToAddress(0x1750)));

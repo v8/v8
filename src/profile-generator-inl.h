@@ -46,9 +46,9 @@ const char* StringsStorage::GetFunctionName(const char* name) {
 CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
                      const char* name_prefix,
                      const char* name,
-                     int security_token_id,
                      const char* resource_name,
-                     int line_number)
+                     int line_number,
+                     int security_token_id)
     : tag_(tag),
       name_prefix_(name_prefix),
       name_(name),
