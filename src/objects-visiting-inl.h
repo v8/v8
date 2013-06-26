@@ -221,10 +221,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
                   Cell::BodyDescriptor,
                   void>::Visit);
 
-  table_.Register(kVisitPropertyCell,
-                  &FixedBodyVisitor<StaticVisitor,
-                  PropertyCell::BodyDescriptor,
-                  void>::Visit);
+  table_.Register(kVisitPropertyCell, &VisitPropertyCell);
 
   table_.template RegisterSpecializations<DataObjectVisitor,
                                           kVisitDataObject,
@@ -355,6 +352,30 @@ void StaticMarkingVisitor<StaticVisitor>::VisitMap(
         HeapObject::RawField(object, Map::kPointerFieldsBeginOffset),
         HeapObject::RawField(object, Map::kPointerFieldsEndOffset));
   }
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitPropertyCell(
+    Map* map, HeapObject* object) {
+  Heap* heap = map->GetHeap();
+
+  Object** slot =
+      HeapObject::RawField(object, PropertyCell::kDependentCodeOffset);
+  if (FLAG_collect_maps) {
+    // Mark property cell dependent codes array but do not push it onto marking
+    // stack, this will make references from it weak. We will clean dead
+    // codes when we iterate over property cells in ClearNonLiveReferences.
+    HeapObject* obj = HeapObject::cast(*slot);
+    heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
+    StaticVisitor::MarkObjectWithoutPush(heap, obj);
+  } else {
+    StaticVisitor::VisitPointer(heap, slot);
+  }
+
+  StaticVisitor::VisitPointers(heap,
+      HeapObject::RawField(object, PropertyCell::kPointerFieldsBeginOffset),
+      HeapObject::RawField(object, PropertyCell::kPointerFieldsEndOffset));
 }
 
 

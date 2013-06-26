@@ -1641,6 +1641,7 @@ void Cell::set_value(Object* val, WriteBarrierMode ignored) {
   WRITE_FIELD(this, kValueOffset, val);
 }
 
+ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 
 Object* PropertyCell::type_raw() {
   return READ_FIELD(this, kTypeOffset);

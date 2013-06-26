@@ -118,7 +118,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
                    ? new List<OffsetRange>(2) : NULL;
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    dependent_maps_[i] = NULL;
+    dependencies_[i] = NULL;
   }
   if (mode == STUB) {
     mode_ = STUB;
@@ -143,36 +143,42 @@ CompilationInfo::~CompilationInfo() {
   // Check that no dependent maps have been added or added dependent maps have
   // been rolled back or committed.
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    ASSERT_EQ(NULL, dependent_maps_[i]);
+    ASSERT_EQ(NULL, dependencies_[i]);
   }
 #endif  // DEBUG
 }
 
 
-void CompilationInfo::CommitDependentMaps(Handle<Code> code) {
+void CompilationInfo::CommitDependencies(Handle<Code> code) {
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    ZoneList<Handle<Map> >* group_maps = dependent_maps_[i];
-    if (group_maps == NULL) continue;
+    ZoneList<Handle<HeapObject> >* group_objects = dependencies_[i];
+    if (group_objects == NULL) continue;
     ASSERT(!object_wrapper_.is_null());
-    for (int j = 0; j < group_maps->length(); j++) {
-      group_maps->at(j)->dependent_code()->UpdateToFinishedCode(
-          static_cast<DependentCode::DependencyGroup>(i), this, *code);
+    for (int j = 0; j < group_objects->length(); j++) {
+      DependentCode::DependencyGroup group =
+          static_cast<DependentCode::DependencyGroup>(i);
+      DependentCode* dependent_code =
+          DependentCode::ForObject(group_objects->at(j), group);
+      dependent_code->UpdateToFinishedCode(group, this, *code);
     }
-    dependent_maps_[i] = NULL;  // Zone-allocated, no need to delete.
+    dependencies_[i] = NULL;  // Zone-allocated, no need to delete.
   }
 }
 
 
-void CompilationInfo::RollbackDependentMaps() {
+void CompilationInfo::RollbackDependencies() {
   // Unregister from all dependent maps if not yet committed.
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    ZoneList<Handle<Map> >* group_maps = dependent_maps_[i];
-    if (group_maps == NULL) continue;
-    for (int j = 0; j < group_maps->length(); j++) {
-      group_maps->at(j)->dependent_code()->RemoveCompilationInfo(
-          static_cast<DependentCode::DependencyGroup>(i), this);
+    ZoneList<Handle<HeapObject> >* group_objects = dependencies_[i];
+    if (group_objects == NULL) continue;
+    for (int j = 0; j < group_objects->length(); j++) {
+      DependentCode::DependencyGroup group =
+          static_cast<DependentCode::DependencyGroup>(i);
+      DependentCode* dependent_code =
+          DependentCode::ForObject(group_objects->at(j), group);
+      dependent_code->RemoveCompilationInfo(group, this);
     }
-    dependent_maps_[i] = NULL;  // Zone-allocated, no need to delete.
+    dependencies_[i] = NULL;  // Zone-allocated, no need to delete.
   }
 }
 
@@ -1052,7 +1058,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // If crankshaft succeeded, install the optimized code else install
   // the unoptimized code.
   OptimizingCompiler::Status status = optimizing_compiler->last_status();
-  if (info->HasAbortedDueToDependentMap()) {
+  if (info->HasAbortedDueToDependencyChange()) {
     info->set_bailout_reason("bailed out due to dependent map");
     status = optimizing_compiler->AbortOptimization();
   } else if (status != OptimizingCompiler::SUCCEEDED) {

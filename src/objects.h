@@ -5027,7 +5027,10 @@ class DependentCode: public FixedArray {
     // Group of code that depends on elements not being added to objects with
     // this map.
     kElementsCantBeAddedGroup,
-    kGroupCount = kElementsCantBeAddedGroup + 1
+    // Group of code that depends on global property values in property cells
+    // not being changed.
+    kPropertyCellChangedGroup,
+    kGroupCount = kPropertyCellChangedGroup + 1
   };
 
   // Array for holding the index of the first code object of each group.
@@ -5068,6 +5071,9 @@ class DependentCode: public FixedArray {
   inline void clear_at(int i);
   inline void copy(int from, int to);
   static inline DependentCode* cast(Object* object);
+
+  static DependentCode* ForObject(Handle<HeapObject> object,
+                                  DependencyGroup group);
 
  private:
   // Make a room at the end of the given group by moving out the first
@@ -5566,7 +5572,7 @@ class Map: public HeapObject {
   inline bool CanOmitPrototypeChecks();
 
   void AddDependentCompilationInfo(DependentCode::DependencyGroup group,
-                                        CompilationInfo* info);
+                                   CompilationInfo* info);
 
   void AddDependentCode(DependentCode::DependencyGroup group,
                         Handle<Code> code);
@@ -8566,8 +8572,13 @@ class Cell: public HeapObject {
 
 class PropertyCell: public Cell {
  public:
+  // [type]: type of the global property.
   Type* type();
   void set_type(Type* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // [dependent_code]: dependent code that depends on the type of the global
+  // property.
+  DECL_ACCESSORS(dependent_code, DependentCode)
 
   // Casting.
   static inline PropertyCell* cast(Object* obj);
@@ -8582,12 +8593,19 @@ class PropertyCell: public Cell {
 
   // Layout description.
   static const int kTypeOffset = kValueOffset + kPointerSize;
-  static const int kSize = kTypeOffset + kPointerSize;
+  static const int kDependentCodeOffset = kTypeOffset + kPointerSize;
+  static const int kSize = kDependentCodeOffset + kPointerSize;
 
-  typedef FixedBodyDescriptor<
-      kValueOffset,
-      kTypeOffset + kPointerSize,
-      PropertyCell::kSize> BodyDescriptor;
+  static const int kPointerFieldsBeginOffset = kValueOffset;
+  static const int kPointerFieldsEndOffset = kDependentCodeOffset;
+
+  typedef FixedBodyDescriptor<kValueOffset,
+                              kSize,
+                              kSize> BodyDescriptor;
+
+  void AddDependentCompilationInfo(CompilationInfo* info);
+
+  void AddDependentCode(Handle<Code> code);
 
  private:
   DECL_ACCESSORS(type_raw, Object)

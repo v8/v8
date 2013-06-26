@@ -2251,14 +2251,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       while ((cell = js_global_property_cell_iterator.Next()) != NULL) {
         ASSERT(cell->IsPropertyCell());
         if (IsMarked(cell)) {
-          int offset = PropertyCell::kValueOffset;
-          MarkCompactMarkingVisitor::VisitPointer(
-              heap(),
-              reinterpret_cast<Object**>(cell->address() + offset));
-          offset = PropertyCell::kTypeOffset;
-          MarkCompactMarkingVisitor::VisitPointer(
-              heap(),
-              reinterpret_cast<Object**>(cell->address() + offset));
+          MarkCompactMarkingVisitor::VisitPropertyCell(cell->map(), cell);
         }
       }
     }
@@ -2437,9 +2430,20 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     ClearNonLiveMapTransitions(map, map_mark);
 
     if (map_mark.Get()) {
-      ClearNonLiveDependentCode(map);
+      ClearNonLiveDependentCode(map->dependent_code());
     } else {
       ClearAndDeoptimizeDependentCode(map);
+    }
+  }
+
+  // Iterate over property cell space, removing dependent code that is not
+  // otherwise kept alive by strong references.
+  HeapObjectIterator cell_iterator(heap_->property_cell_space());
+  for (HeapObject* cell = cell_iterator.Next();
+       cell != NULL;
+       cell = cell_iterator.Next()) {
+    if (IsMarked(cell)) {
+      ClearNonLiveDependentCode(PropertyCell::cast(cell)->dependent_code());
     }
   }
 }
@@ -2527,9 +2531,8 @@ void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
 }
 
 
-void MarkCompactCollector::ClearNonLiveDependentCode(Map* map) {
+void MarkCompactCollector::ClearNonLiveDependentCode(DependentCode* entries) {
   DisallowHeapAllocation no_allocation;
-  DependentCode* entries = map->dependent_code();
   DependentCode::GroupStartIndexes starts(entries);
   int number_of_entries = starts.number_of_entries();
   if (number_of_entries == 0) return;
@@ -3398,9 +3401,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
        cell != NULL;
        cell = cell_iterator.Next()) {
     if (cell->IsCell()) {
-      Address value_address = reinterpret_cast<Address>(cell) +
-          (Cell::kValueOffset - kHeapObjectTag);
-      updating_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
+      Cell::BodyDescriptor::IterateBody(cell, &updating_visitor);
     }
   }
 
@@ -3410,14 +3411,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
        cell != NULL;
        cell = js_global_property_cell_iterator.Next()) {
     if (cell->IsPropertyCell()) {
-      Address value_address =
-          reinterpret_cast<Address>(cell) +
-          (PropertyCell::kValueOffset - kHeapObjectTag);
-      updating_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
-      Address type_address =
-          reinterpret_cast<Address>(cell) +
-          (PropertyCell::kTypeOffset - kHeapObjectTag);
-      updating_visitor.VisitPointer(reinterpret_cast<Object**>(type_address));
+      PropertyCell::BodyDescriptor::IterateBody(cell, &updating_visitor);
     }
   }
 

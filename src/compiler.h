@@ -240,16 +240,17 @@ class CompilationInfo {
     deferred_handles_ = deferred_handles;
   }
 
-  ZoneList<Handle<Map> >* dependent_maps(DependentCode::DependencyGroup group) {
-    if (dependent_maps_[group] == NULL) {
-      dependent_maps_[group] = new(zone_) ZoneList<Handle<Map> >(2, zone_);
+  ZoneList<Handle<HeapObject> >* dependencies(
+      DependentCode::DependencyGroup group) {
+    if (dependencies_[group] == NULL) {
+      dependencies_[group] = new(zone_) ZoneList<Handle<HeapObject> >(2, zone_);
     }
-    return dependent_maps_[group];
+    return dependencies_[group];
   }
 
-  void CommitDependentMaps(Handle<Code> code);
+  void CommitDependencies(Handle<Code> code);
 
-  void RollbackDependentMaps();
+  void RollbackDependencies();
 
   void SaveHandles() {
     SaveHandle(&closure_);
@@ -292,12 +293,12 @@ class CompilationInfo {
     return object_wrapper_;
   }
 
-  void AbortDueToDependentMap() {
-    mode_ = DEPENDENT_MAP_ABORT;
+  void AbortDueToDependencyChange() {
+    mode_ = DEPENDENCY_CHANGE_ABORT;
   }
 
-  bool HasAbortedDueToDependentMap() {
-    return mode_ == DEPENDENT_MAP_ABORT;
+  bool HasAbortedDueToDependencyChange() {
+    return mode_ == DEPENDENCY_CHANGE_ABORT;
   }
 
  protected:
@@ -325,7 +326,7 @@ class CompilationInfo {
     OPTIMIZE,
     NONOPT,
     STUB,
-    DEPENDENT_MAP_ABORT
+    DEPENDENCY_CHANGE_ABORT
   };
 
   void Initialize(Isolate* isolate, Mode mode, Zone* zone, Zone* phase_zone);
@@ -408,7 +409,7 @@ class CompilationInfo {
 
   DeferredHandles* deferred_handles_;
 
-  ZoneList<Handle<Map> >* dependent_maps_[DependentCode::kGroupCount];
+  ZoneList<Handle<HeapObject> >* dependencies_[DependentCode::kGroupCount];
 
   template<typename T>
   void SaveHandle(Handle<T> *object) {
@@ -459,7 +460,7 @@ class CompilationInfoWithZone: public CompilationInfo {
   // zone scope and get rid of dependent maps even when the destructor is
   // called when cast as a CompilationInfo.
   virtual ~CompilationInfoWithZone() {
-    RollbackDependentMaps();
+    RollbackDependencies();
   }
 
  private:

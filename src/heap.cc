@@ -2859,8 +2859,11 @@ MaybeObject* Heap::AllocatePropertyCell(Object* value) {
   }
   HeapObject::cast(result)->set_map_no_write_barrier(
       global_property_cell_map());
-  PropertyCell::cast(result)->set_value(value);
-  PropertyCell::cast(result)->set_type(Type::None());
+  PropertyCell* cell = PropertyCell::cast(result);
+  cell->set_dependent_code(DependentCode::cast(empty_fixed_array()),
+                           SKIP_WRITE_BARRIER);
+  cell->set_value(value);
+  cell->set_type(Type::None());
   return result;
 }
 

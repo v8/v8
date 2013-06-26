@@ -661,8 +661,7 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
     Object* store_value = value;
     if (IsGlobalObject()) {
       Heap* heap = name->GetHeap();
-      MaybeObject* maybe_store_value =
-          heap->AllocatePropertyCell(value);
+      MaybeObject* maybe_store_value = heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
     Object* dict;
@@ -11060,7 +11059,7 @@ void Map::AddDependentCompilationInfo(DependentCode::DependencyGroup group,
   Handle<DependentCode> codes =
       DependentCode::Insert(dep, group, info->object_wrapper());
   if (*codes != dependent_code()) set_dependent_code(*codes);
-  info->dependent_maps(group)->Add(Handle<Map>(this), info->zone());
+  info->dependencies(group)->Add(Handle<HeapObject>(this), info->zone());
 }
 
 
@@ -11083,6 +11082,16 @@ void DependentCode::GroupStartIndexes::Recompute(DependentCode* entries) {
     int count = entries->number_of_entries(static_cast<DependencyGroup>(g - 1));
     start_indexes_[g] = start_indexes_[g - 1] + count;
   }
+}
+
+
+DependentCode* DependentCode::ForObject(Handle<HeapObject> object,
+                                        DependencyGroup group) {
+  AllowDeferredHandleDereference dependencies_are_safe;
+  if (group == DependentCode::kPropertyCellChangedGroup) {
+    return Handle<PropertyCell>::cast(object)->dependent_code();
+  }
+  return Handle<Map>::cast(object)->dependent_code();
 }
 
 
@@ -11224,7 +11233,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
       code->set_marked_for_deoptimization(true);
     } else {
       CompilationInfo* info = compilation_info_at(i);
-      info->AbortDueToDependentMap();
+      info->AbortDueToDependencyChange();
     }
   }
   // Compact the array by moving all subsequent groups to fill in the new holes.
@@ -15754,6 +15763,25 @@ Type* PropertyCell::type() {
 
 void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
   set_type_raw(type, ignored);
+}
+
+
+void PropertyCell::AddDependentCompilationInfo(CompilationInfo* info) {
+  Handle<DependentCode> dep(dependent_code());
+  Handle<DependentCode> codes =
+      DependentCode::Insert(dep, DependentCode::kPropertyCellChangedGroup,
+                            info->object_wrapper());
+  if (*codes != dependent_code()) set_dependent_code(*codes);
+  info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
+      Handle<HeapObject>(this), info->zone());
+}
+
+
+void PropertyCell::AddDependentCode(Handle<Code> code) {
+  Handle<DependentCode> codes = DependentCode::Insert(
+      Handle<DependentCode>(dependent_code()),
+      DependentCode::kPropertyCellChangedGroup, code);
+  if (*codes != dependent_code()) set_dependent_code(*codes);
 }
 
 

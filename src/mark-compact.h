@@ -880,7 +880,7 @@ class MarkCompactCollector {
   void ClearNonLiveMapTransitions(Map* map, MarkBit map_mark);
 
   void ClearAndDeoptimizeDependentCode(Map* map);
-  void ClearNonLiveDependentCode(Map* map);
+  void ClearNonLiveDependentCode(DependentCode* dependent_code);
 
   // Marking detaches initial maps from SharedFunctionInfo objects
   // to make this reference weak. We need to reattach initial maps
