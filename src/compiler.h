@@ -441,22 +441,22 @@ class CompilationInfoWithZone: public CompilationInfo {
   explicit CompilationInfoWithZone(Handle<Script> script)
       : CompilationInfo(script, &zone_, &phase_zone_),
         zone_(script->GetIsolate()),
-        zone_scope_(&zone_, DELETE_ON_EXIT),
+        zone_scope_(&zone_),
         phase_zone_(script->GetIsolate()) {}
   explicit CompilationInfoWithZone(Handle<SharedFunctionInfo> shared_info)
       : CompilationInfo(shared_info, &zone_, &phase_zone_),
         zone_(shared_info->GetIsolate()),
-        zone_scope_(&zone_, DELETE_ON_EXIT),
+        zone_scope_(&zone_),
         phase_zone_(shared_info->GetIsolate()) {}
   explicit CompilationInfoWithZone(Handle<JSFunction> closure)
       : CompilationInfo(closure, &zone_, &phase_zone_),
         zone_(closure->GetIsolate()),
-        zone_scope_(&zone_, DELETE_ON_EXIT),
+        zone_scope_(&zone_),
         phase_zone_(closure->GetIsolate()) {}
   CompilationInfoWithZone(HydrogenCodeStub* stub, Isolate* isolate)
       : CompilationInfo(stub, isolate, &zone_, &phase_zone_),
         zone_(isolate),
-        zone_scope_(&zone_, DELETE_ON_EXIT),
+        zone_scope_(&zone_),
         phase_zone_(isolate) {}
 
   // Virtual destructor because a CompilationInfoWithZone has to exit the

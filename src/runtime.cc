@@ -3601,7 +3601,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalAtomRegExpWithString(
   ASSERT(replacement->IsFlat());
 
   Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_space(zone, DELETE_ON_EXIT);
+  ZoneScope zone_space(zone);
   ZoneList<int> indices(8, zone);
   ASSERT_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
   String* pattern =
@@ -3688,7 +3688,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithString(
 
   // CompiledReplacement uses zone allocation.
   Zone* zone = isolate->runtime_zone();
-  ZoneScope zonescope(zone, DELETE_ON_EXIT);
+  ZoneScope zonescope(zone);
   CompiledReplacement compiled_replacement(zone);
   bool simple_replace = compiled_replacement.Compile(replacement,
                                                      capture_count,
@@ -4223,7 +4223,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
   int capture_count = regexp->CaptureCount();
 
   Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_space(zone, DELETE_ON_EXIT);
+  ZoneScope zone_space(zone);
   ZoneList<int> offsets(8, zone);
 
   while (true) {
@@ -6316,7 +6316,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   static const int kMaxInitialListCapacity = 16;
 
   Zone* zone = isolate->runtime_zone();
-  ZoneScope scope(zone, DELETE_ON_EXIT);
+  ZoneScope scope(zone);
 
   // Find (up to limit) indices of separator and end-of-string in subject
   int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);

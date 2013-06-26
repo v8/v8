@@ -546,7 +546,7 @@ static bool DebuggerWantsEagerCompilation(CompilationInfo* info,
 
 static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
-  ZoneScope zone_scope(info->zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(info->zone());
   PostponeInterruptsScope postpone(isolate);
 
   ASSERT(!isolate->native_context().is_null());
@@ -910,7 +910,7 @@ static bool InstallCodeFromOptimizedCodeMap(CompilationInfo* info) {
 bool Compiler::CompileLazy(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
-  ZoneScope zone_scope(info->zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(info->zone());
 
   // The VM is in the COMPILER state until exiting this function.
   VMState<COMPILER> state(isolate);
@@ -1228,7 +1228,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
 CompilationPhase::CompilationPhase(const char* name,
                                    Isolate* isolate,
                                    Zone* zone)
-    : name_(name), isolate_(isolate), zone_scope_(zone, DELETE_ON_EXIT) {
+    : name_(name), isolate_(isolate), zone_scope_(zone) {
   if (FLAG_hydrogen_stats) {
     start_allocation_size_ = zone->allocation_size();
     start_ticks_ = OS::Ticks();

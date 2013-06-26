@@ -1835,7 +1835,7 @@ static const char* DropActivationsInActiveThreadImpl(
     TARGET& target, bool do_drop, Zone* zone) {
   Isolate* isolate = Isolate::Current();
   Debug* debug = isolate->debug();
-  ZoneScope scope(zone, DELETE_ON_EXIT);
+  ZoneScope scope(zone);
   Vector<StackFrame*> frames = CreateStackMap(isolate, zone);
 
 

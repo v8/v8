@@ -110,14 +110,14 @@ void* ZoneList<T>::operator new(size_t size, Zone* zone) {
 }
 
 
-ZoneScope::ZoneScope(Zone* zone, ZoneScopeMode mode)
-    : zone_(zone), mode_(mode) {
+ZoneScope::ZoneScope(Zone* zone)
+    : zone_(zone) {
   zone_->scope_nesting_++;
 }
 
 
 bool ZoneScope::ShouldDeleteOnExit() {
-  return zone_->scope_nesting_ == 1 && mode_ == DELETE_ON_EXIT;
+  return zone_->scope_nesting_ == 1;
 }
 
 

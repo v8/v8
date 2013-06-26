@@ -570,7 +570,7 @@ TEST(Traverse) {
   printf("TestTraverse\n");
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone(Isolate::Current()->runtime_zone());
   ConsStringGenerationData data(false);
   Handle<String> flat = ConstructBalanced(&data);
   FlattenString(flat);
@@ -660,7 +660,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
   HandleScope outer_scope(isolate);
-  ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone(Isolate::Current()->runtime_zone());
   ConsStringGenerationData data(true);
   for (int i = 0; i < test_cases; i++) {
     printf("%d\n", i);
@@ -929,7 +929,7 @@ TEST(Utf8Conversion) {
 
 
 TEST(ExternalShortStringAdd) {
-  ZoneScope zonescope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zonescope(Isolate::Current()->runtime_zone());
 
   CcTest::InitializeVM();
   v8::HandleScope handle_scope(CcTest::isolate());
@@ -1021,7 +1021,7 @@ TEST(CachedHashOverflow) {
   // values didn't fit in the hash field.
   // See http://code.google.com/p/v8/issues/detail?id=728
   Isolate* isolate = Isolate::Current();
-  ZoneScope zone(isolate->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone(isolate->runtime_zone());
 
   CcTest::InitializeVM();
   v8::HandleScope handle_scope(CcTest::isolate());

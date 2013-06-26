@@ -323,7 +323,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
   Handle<JSObject> json_object =
       factory()->NewJSObject(object_constructor(), pretenure_);
   Handle<Map> map(json_object->map());
-  ZoneScope zone_scope(zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(zone());
   ZoneList<Handle<Object> > properties(8, zone());
   ASSERT_EQ(c0_, '{');
 
@@ -469,7 +469,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonArray() {
   HandleScope scope(isolate());
-  ZoneScope zone_scope(zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(zone());
   ZoneList<Handle<Object> > elements(4, zone());
   ASSERT_EQ(c0_, '[');
 

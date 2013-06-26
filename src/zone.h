@@ -39,13 +39,6 @@ namespace v8 {
 namespace internal {
 
 
-// Zone scopes are in one of two modes.  Either they delete the zone
-// on exit or they do not.
-enum ZoneScopeMode {
-  DELETE_ON_EXIT,
-  DONT_DELETE_ON_EXIT
-};
-
 class Segment;
 class Isolate;
 
@@ -237,7 +230,7 @@ class ZoneList: public List<T, ZoneAllocationPolicy> {
 // outer-most scope.
 class ZoneScope BASE_EMBEDDED {
  public:
-  INLINE(ZoneScope(Zone* zone, ZoneScopeMode mode));
+  INLINE(ZoneScope(Zone* zone));
 
   virtual ~ZoneScope();
 
@@ -245,17 +238,10 @@ class ZoneScope BASE_EMBEDDED {
 
   inline bool ShouldDeleteOnExit();
 
-  // For ZoneScopes that do not delete on exit by default, call this
-  // method to request deletion on exit.
-  void DeleteOnExit() {
-    mode_ = DELETE_ON_EXIT;
-  }
-
   inline static int nesting();
 
  private:
   Zone* zone_;
-  ZoneScopeMode mode_;
 };
 
 

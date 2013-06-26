@@ -366,7 +366,7 @@ HGlobalValueNumberer::HGlobalValueNumberer(HGraph* graph, CompilationInfo* info)
         info_(info),
         removed_side_effects_(false),
         phase_zone_(info->phase_zone()),
-        phase_zone_scope_(phase_zone_, DELETE_ON_EXIT),
+        phase_zone_scope_(phase_zone_),
         block_side_effects_(graph->blocks()->length(), phase_zone_),
         loop_side_effects_(graph->blocks()->length(), phase_zone_),
         visited_on_paths_(phase_zone_, graph->blocks()->length()) {

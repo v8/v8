@@ -170,7 +170,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                    Handle<String> pattern,
                                    Handle<String> flag_str,
                                    Zone* zone) {
-  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
+  ZoneScope zone_scope(zone);
   Isolate* isolate = re->GetIsolate();
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
   CompilationCache* compilation_cache = isolate->compilation_cache();
@@ -410,7 +410,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  bool is_ascii) {
   // Compile the RegExp.
   Isolate* isolate = re->GetIsolate();
-  ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate->runtime_zone());
   PostponeInterruptsScope postpone(isolate);
   // If we had a compilation error the last time this is saved at the
   // saved code index.

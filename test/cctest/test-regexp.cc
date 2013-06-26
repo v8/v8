@@ -72,7 +72,7 @@ using namespace v8::internal;
 static bool CheckParse(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
   return v8::internal::RegExpParser::ParseRegExp(
@@ -83,7 +83,7 @@ static bool CheckParse(const char* input) {
 static SmartArrayPointer<const char> Parse(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
@@ -98,7 +98,7 @@ static SmartArrayPointer<const char> Parse(const char* input) {
 static bool CheckSimple(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
@@ -116,7 +116,7 @@ struct MinMaxPair {
 static MinMaxPair CheckMinMaxMatch(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
@@ -389,7 +389,7 @@ static void ExpectError(const char* input,
                         const char* expected) {
   V8::Initialize(NULL);
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
   CHECK(!v8::internal::RegExpParser::ParseRegExp(
@@ -473,7 +473,7 @@ static bool NotWord(uc16 c) {
 
 
 static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
-  ZoneScope scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope scope(Isolate::Current()->runtime_zone());
   Zone* zone = Isolate::Current()->runtime_zone();
   ZoneList<CharacterRange>* ranges =
       new(zone) ZoneList<CharacterRange>(2, zone);
@@ -531,7 +531,7 @@ static void Execute(const char* input,
                     bool is_ascii,
                     bool dot_output = false) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   RegExpNode* node = Compile(input, multiline, is_ascii);
   USE(node);
 #ifdef DEBUG
@@ -571,7 +571,7 @@ static unsigned PseudoRandom(int i, int j) {
 TEST(SplayTreeSimple) {
   v8::internal::V8::Initialize(NULL);
   static const unsigned kLimit = 1000;
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   ZoneSplayTree<TestConfig> tree(Isolate::Current()->runtime_zone());
   bool seen[kLimit];
   for (unsigned i = 0; i < kLimit; i++) seen[i] = false;
@@ -639,7 +639,7 @@ TEST(DispatchTableConstruction) {
     }
   }
   // Enter test data into dispatch table.
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   DispatchTable table(Isolate::Current()->runtime_zone());
   for (int i = 0; i < kRangeCount; i++) {
     uc16* range = ranges[i];
@@ -709,7 +709,7 @@ class ContextInitializer {
   ContextInitializer()
       : scope_(v8::Isolate::GetCurrent()),
         env_(v8::Context::New(v8::Isolate::GetCurrent())),
-        zone_(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT) {
+        zone_(Isolate::Current()->runtime_zone()) {
     env_->Enter();
   }
   ~ContextInitializer() {
@@ -1428,7 +1428,7 @@ TEST(AddInverseToTable) {
   static const int kLimit = 1000;
   static const int kRangeCount = 16;
   for (int t = 0; t < 10; t++) {
-    ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+    ZoneScope zone_scope(Isolate::Current()->runtime_zone());
     Zone* zone = Isolate::Current()->runtime_zone();
     ZoneList<CharacterRange>* ranges =
         new(zone)
@@ -1452,7 +1452,7 @@ TEST(AddInverseToTable) {
       CHECK_EQ(is_on, set->Get(0) == false);
     }
   }
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   Zone* zone = Isolate::Current()->runtime_zone();
   ZoneList<CharacterRange>* ranges =
       new(zone) ZoneList<CharacterRange>(1, zone);
@@ -1567,7 +1567,7 @@ TEST(UncanonicalizeEquivalence) {
 
 static void TestRangeCaseIndependence(CharacterRange input,
                                       Vector<CharacterRange> expected) {
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   Zone* zone = Isolate::Current()->runtime_zone();
   int count = expected.length();
   ZoneList<CharacterRange>* list =
@@ -1633,7 +1633,7 @@ static bool InClass(uc16 c, ZoneList<CharacterRange>* ranges) {
 
 TEST(CharClassDifference) {
   v8::internal::V8::Initialize(NULL);
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   Zone* zone = Isolate::Current()->runtime_zone();
   ZoneList<CharacterRange>* base =
       new(zone) ZoneList<CharacterRange>(1, zone);
@@ -1663,7 +1663,7 @@ TEST(CharClassDifference) {
 
 TEST(CanonicalizeCharacterSets) {
   v8::internal::V8::Initialize(NULL);
-  ZoneScope scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope scope(Isolate::Current()->runtime_zone());
   Zone* zone = Isolate::Current()->runtime_zone();
   ZoneList<CharacterRange>* list =
       new(zone) ZoneList<CharacterRange>(4, zone);
@@ -1726,7 +1726,7 @@ TEST(CanonicalizeCharacterSets) {
 
 TEST(CharacterRangeMerge) {
   v8::internal::V8::Initialize(NULL);
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone());
   ZoneList<CharacterRange> l1(4, Isolate::Current()->runtime_zone());
   ZoneList<CharacterRange> l2(4, Isolate::Current()->runtime_zone());
   Zone* zone = Isolate::Current()->runtime_zone();

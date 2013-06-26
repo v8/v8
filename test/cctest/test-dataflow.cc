@@ -37,7 +37,7 @@ using namespace v8::internal;
 TEST(BitVector) {
   v8::internal::V8::Initialize(NULL);
   Zone* zone = Isolate::Current()->runtime_zone();
-  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
+  ZoneScope zone_scope(zone);
   {
     BitVector v(15, zone);
     v.Add(1);

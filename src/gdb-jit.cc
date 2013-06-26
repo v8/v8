@@ -1917,7 +1917,7 @@ static void UnregisterCodeEntry(JITCodeEntry* entry) {
 
 
 static JITCodeEntry* CreateELFObject(CodeDescription* desc, Zone* zone) {
-  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
+  ZoneScope zone_scope(zone);
 #ifdef __MACH_O
   MachO mach_o;
   Writer w(&mach_o);

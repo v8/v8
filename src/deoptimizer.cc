@@ -284,7 +284,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     Context* context, OptimizedFunctionVisitor* visitor) {
   Isolate* isolate = context->GetIsolate();
-  ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate->runtime_zone());
   DisallowHeapAllocation no_allocation;
 
   ASSERT(context->IsNativeContext());
@@ -421,7 +421,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   Isolate* isolate = context->GetIsolate();
   Object* undefined = isolate->heap()->undefined_value();
   Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
+  ZoneScope zone_scope(zone);
   ZoneList<Code*> codes(1, zone);
   DeoptimizeWithMatchingCodeFilter filter(code);
   PartitionOptimizedFunctions(context, &filter, &codes, zone, undefined);
@@ -438,7 +438,7 @@ void Deoptimizer::DeoptimizeAllFunctionsForContext(
   Isolate* isolate = context->GetIsolate();
   Object* undefined = isolate->heap()->undefined_value();
   Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
+  ZoneScope zone_scope(zone);
   ZoneList<Code*> codes(1, zone);
   PartitionOptimizedFunctions(context, filter, &codes, zone, undefined);
   for (int i = 0; i < codes.length(); ++i) {

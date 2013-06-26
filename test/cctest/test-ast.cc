@@ -41,7 +41,7 @@ TEST(List) {
 
   Isolate* isolate = Isolate::Current();
   Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
+  ZoneScope zone_scope(zone);
   AstNodeFactory<AstNullVisitor> factory(isolate, zone);
   AstNode* node = factory.NewEmptyStatement();
   list->Add(node);
