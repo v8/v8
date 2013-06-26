@@ -2391,7 +2391,6 @@ void MarkCompactCollector::ReattachInitialMaps() {
   for (HeapObject* obj = map_iterator.Next();
        obj != NULL;
        obj = map_iterator.Next()) {
-    if (obj->IsFreeSpace()) continue;
     Map* map = Map::cast(obj);
 
     STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
@@ -2405,21 +2404,19 @@ void MarkCompactCollector::ReattachInitialMaps() {
 
 
 void MarkCompactCollector::ClearNonLiveReferences() {
-  HeapObjectIterator map_iterator(heap()->map_space());
   // Iterate over the map space, setting map transitions that go from
   // a marked map to an unmarked map to null transitions.  This action
   // is carried out only on maps of JSObjects and related subtypes.
+  HeapObjectIterator map_iterator(heap()->map_space());
   for (HeapObject* obj = map_iterator.Next();
-       obj != NULL; obj = map_iterator.Next()) {
-    Map* map = reinterpret_cast<Map*>(obj);
-    MarkBit map_mark = Marking::MarkBitFrom(map);
-    if (map->IsFreeSpace()) continue;
+       obj != NULL;
+       obj = map_iterator.Next()) {
+    Map* map = Map::cast(obj);
 
-    ASSERT(map->IsMap());
     if (!map->CanTransition()) continue;
 
-    if (map_mark.Get() &&
-        map->attached_to_shared_function_info()) {
+    MarkBit map_mark = Marking::MarkBitFrom(map);
+    if (map_mark.Get() && map->attached_to_shared_function_info()) {
       // This map is used for inobject slack tracking and has been detached
       // from SharedFunctionInfo during the mark phase.
       // Since it survived the GC, reattach it now.
