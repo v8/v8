@@ -40,7 +40,6 @@ namespace internal {
 
 
 inline void* Zone::New(int size) {
-  ASSERT(scope_nesting_ > 0);
   // Round up the requested size to fit the alignment.
   size = RoundUp(size, kAlignment);
 
@@ -107,17 +106,6 @@ inline void* ZoneAllocationPolicy::New(size_t size) {
 template <typename T>
 void* ZoneList<T>::operator new(size_t size, Zone* zone) {
   return zone->New(static_cast<int>(size));
-}
-
-
-ZoneScope::ZoneScope(Zone* zone)
-    : zone_(zone) {
-  zone_->scope_nesting_++;
-}
-
-
-bool ZoneScope::ShouldDeleteOnExit() {
-  return zone_->scope_nesting_ == 1;
 }
 
 

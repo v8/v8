@@ -43,7 +43,7 @@ namespace internal {
 // StubCache implementation.
 
 
-StubCache::StubCache(Isolate* isolate, Zone* zone)
+StubCache::StubCache(Isolate* isolate)
     : isolate_(isolate) {
   ASSERT(isolate == Isolate::Current());
 }

@@ -58,20 +58,13 @@ class Isolate;
 class Zone {
  public:
   explicit Zone(Isolate* isolate);
-  ~Zone() { DeleteKeptSegment(); }
+  ~Zone();
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
   // allocating new segments of memory on demand using malloc().
   inline void* New(int size);
 
   template <typename T>
   inline T* NewArray(int length);
-
-  // Deletes all objects and free all memory allocated in the Zone. Keeps one
-  // small (size <= kMaximumKeptSegmentSize) segment around if it finds one.
-  void DeleteAll();
-
-  // Deletes the last small segment kept around by DeleteAll().
-  void DeleteKeptSegment();
 
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
@@ -85,7 +78,6 @@ class Zone {
 
  private:
   friend class Isolate;
-  friend class ZoneScope;
 
   // All pointers returned from New() have this alignment.  In addition, if the
   // object being allocated has a size that is divisible by 8 then its alignment
@@ -97,9 +89,6 @@ class Zone {
 
   // Never allocate segments larger than this size in bytes.
   static const int kMaximumSegmentSize = 1 * MB;
-
-  // Never keep segments larger than this size in bytes around.
-  static const int kMaximumKeptSegmentSize = 64 * KB;
 
   // Report zone excess when allocation exceeds this limit.
   int zone_excess_limit_;
@@ -130,8 +119,6 @@ class Zone {
   // is guaranteed to be aligned as dictated by kAlignment.
   Address position_;
   Address limit_;
-
-  int scope_nesting_;
 
   Segment* segment_head_;
   Isolate* isolate_;
@@ -222,26 +209,6 @@ class ZoneList: public List<T, ZoneAllocationPolicy> {
 
   void operator delete(void* pointer) { UNREACHABLE(); }
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
-};
-
-
-// ZoneScopes keep track of the current parsing and compilation
-// nesting and cleans up generated ASTs in the Zone when exiting the
-// outer-most scope.
-class ZoneScope BASE_EMBEDDED {
- public:
-  INLINE(ZoneScope(Zone* zone));
-
-  virtual ~ZoneScope();
-
-  Zone* zone() const { return zone_; }
-
-  inline bool ShouldDeleteOnExit();
-
-  inline static int nesting();
-
- private:
-  Zone* zone_;
 };
 
 

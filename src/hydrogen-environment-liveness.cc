@@ -37,7 +37,6 @@ EnvironmentSlotLivenessAnalyzer::EnvironmentSlotLivenessAnalyzer(
     HGraph* graph)
     : graph_(graph),
       zone_(graph->isolate()),
-      zone_scope_(&zone_),
       block_count_(graph->blocks()->length()),
       maximum_environment_size_(graph->maximum_environment_size()),
       collect_markers_(true),
@@ -147,7 +146,7 @@ void EnvironmentSlotLivenessAnalyzer::UpdateLivenessAtInstruction(
       }
       if (collect_markers_) {
         // Populate |markers_| list during the first pass.
-        markers_->Add(marker, &zone_);
+        markers_->Add(marker, zone());
       }
       break;
     }

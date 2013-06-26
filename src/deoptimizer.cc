@@ -284,7 +284,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     Context* context, OptimizedFunctionVisitor* visitor) {
   Isolate* isolate = context->GetIsolate();
-  ZoneScope zone_scope(isolate->runtime_zone());
+  Zone zone(isolate);
   DisallowHeapAllocation no_allocation;
 
   ASSERT(context->IsNativeContext());
@@ -293,11 +293,11 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
 
   // Create a snapshot of the optimized functions list. This is needed because
   // visitors might remove more than one link from the list at once.
-  ZoneList<JSFunction*> snapshot(1, isolate->runtime_zone());
+  ZoneList<JSFunction*> snapshot(1, &zone);
   Object* element = context->OptimizedFunctionsListHead();
   while (!element->IsUndefined()) {
     JSFunction* element_function = JSFunction::cast(element);
-    snapshot.Add(element_function, isolate->runtime_zone());
+    snapshot.Add(element_function, &zone);
     element = element_function->next_function_link();
   }
 
@@ -420,11 +420,10 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   Context* context = function->context()->native_context();
   Isolate* isolate = context->GetIsolate();
   Object* undefined = isolate->heap()->undefined_value();
-  Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_scope(zone);
-  ZoneList<Code*> codes(1, zone);
+  Zone zone(isolate);
+  ZoneList<Code*> codes(1, &zone);
   DeoptimizeWithMatchingCodeFilter filter(code);
-  PartitionOptimizedFunctions(context, &filter, &codes, zone, undefined);
+  PartitionOptimizedFunctions(context, &filter, &codes, &zone, undefined);
   ASSERT_EQ(1, codes.length());
   DeoptimizeFunctionWithPreparedFunctionList(
       JSFunction::cast(codes.at(0)->deoptimizing_functions()));
@@ -437,10 +436,9 @@ void Deoptimizer::DeoptimizeAllFunctionsForContext(
   ASSERT(context->IsNativeContext());
   Isolate* isolate = context->GetIsolate();
   Object* undefined = isolate->heap()->undefined_value();
-  Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_scope(zone);
-  ZoneList<Code*> codes(1, zone);
-  PartitionOptimizedFunctions(context, filter, &codes, zone, undefined);
+  Zone zone(isolate);
+  ZoneList<Code*> codes(1, &zone);
+  PartitionOptimizedFunctions(context, filter, &codes, &zone, undefined);
   for (int i = 0; i < codes.length(); ++i) {
     DeoptimizeFunctionWithPreparedFunctionList(
         JSFunction::cast(codes.at(i)->deoptimizing_functions()));

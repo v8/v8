@@ -1916,8 +1916,7 @@ static void UnregisterCodeEntry(JITCodeEntry* entry) {
 }
 
 
-static JITCodeEntry* CreateELFObject(CodeDescription* desc, Zone* zone) {
-  ZoneScope zone_scope(zone);
+static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
 #ifdef __MACH_O
   MachO mach_o;
   Writer w(&mach_o);
@@ -1930,11 +1929,12 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Zone* zone) {
 
   mach_o.Write(&w, desc->CodeStart(), desc->CodeSize());
 #else
-  ELF elf(zone);
+  Zone zone(isolate);
+  ELF elf(&zone);
   Writer w(&elf);
 
   int text_section_index = elf.AddSection(
-      new(zone) FullHeaderELFSection(
+      new(&zone) FullHeaderELFSection(
           ".text",
           ELFSection::TYPE_NOBITS,
           kCodeAlignment,
@@ -1942,11 +1942,11 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Zone* zone) {
           0,
           desc->CodeSize(),
           ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC),
-      zone);
+      &zone);
 
-  CreateSymbolsTable(desc, zone, &elf, text_section_index);
+  CreateSymbolsTable(desc, &zone, &elf, text_section_index);
 
-  CreateDWARFSections(desc, zone, &elf);
+  CreateDWARFSections(desc, &zone, &elf);
 
   elf.Write(&w);
 #endif
@@ -2083,8 +2083,9 @@ void GDBJITInterface::AddCode(const char* name,
   }
 
   AddUnwindInfo(&code_desc);
+  Isolate* isolate = code->GetIsolate();
   Zone* zone = code->GetIsolate()->runtime_zone();
-  JITCodeEntry* entry = CreateELFObject(&code_desc, zone);
+  JITCodeEntry* entry = CreateELFObject(&code_desc, isolate);
   ASSERT(!IsLineInfoTagged(entry));
 
   delete lineinfo;

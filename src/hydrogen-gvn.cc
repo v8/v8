@@ -365,16 +365,15 @@ HGlobalValueNumberer::HGlobalValueNumberer(HGraph* graph, CompilationInfo* info)
       : graph_(graph),
         info_(info),
         removed_side_effects_(false),
-        phase_zone_(info->phase_zone()),
-        phase_zone_scope_(phase_zone_),
-        block_side_effects_(graph->blocks()->length(), phase_zone_),
-        loop_side_effects_(graph->blocks()->length(), phase_zone_),
-        visited_on_paths_(phase_zone_, graph->blocks()->length()) {
+        zone_(graph->isolate()),
+        block_side_effects_(graph->blocks()->length(), zone()),
+        loop_side_effects_(graph->blocks()->length(), zone()),
+        visited_on_paths_(zone(), graph->blocks()->length()) {
     ASSERT(!AllowHandleAllocation::IsAllowed());
     block_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
-                                 phase_zone_);
+                                 zone());
     loop_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
-                                phase_zone_);
+                                zone());
   }
 
 bool HGlobalValueNumberer::Analyze() {
@@ -758,9 +757,9 @@ class GvnBasicBlockState: public ZoneObject {
 // GvnBasicBlockState instances.
 void HGlobalValueNumberer::AnalyzeGraph() {
   HBasicBlock* entry_block = graph_->entry_block();
-  HValueMap* entry_map = new(phase_zone()) HValueMap(phase_zone());
+  HValueMap* entry_map = new(zone()) HValueMap(zone());
   GvnBasicBlockState* current =
-      GvnBasicBlockState::CreateEntry(phase_zone(), entry_block, entry_map);
+      GvnBasicBlockState::CreateEntry(zone(), entry_block, entry_map);
 
   while (current != NULL) {
     HBasicBlock* block = current->block();
@@ -802,7 +801,7 @@ void HGlobalValueNumberer::AnalyzeGraph() {
           if (instr->HasSideEffects()) removed_side_effects_ = true;
           instr->DeleteAndReplaceWith(other);
         } else {
-          map->Add(instr, phase_zone());
+          map->Add(instr, zone());
         }
       }
       if (instr->IsLinked() &&
@@ -828,7 +827,7 @@ void HGlobalValueNumberer::AnalyzeGraph() {
 
     HBasicBlock* dominator_block;
     GvnBasicBlockState* next =
-        current->next_in_dominator_tree_traversal(phase_zone(),
+        current->next_in_dominator_tree_traversal(zone(),
                                                   &dominator_block);
 
     if (next != NULL) {

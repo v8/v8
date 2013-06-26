@@ -441,22 +441,18 @@ class CompilationInfoWithZone: public CompilationInfo {
   explicit CompilationInfoWithZone(Handle<Script> script)
       : CompilationInfo(script, &zone_, &phase_zone_),
         zone_(script->GetIsolate()),
-        zone_scope_(&zone_),
         phase_zone_(script->GetIsolate()) {}
   explicit CompilationInfoWithZone(Handle<SharedFunctionInfo> shared_info)
       : CompilationInfo(shared_info, &zone_, &phase_zone_),
         zone_(shared_info->GetIsolate()),
-        zone_scope_(&zone_),
         phase_zone_(shared_info->GetIsolate()) {}
   explicit CompilationInfoWithZone(Handle<JSFunction> closure)
       : CompilationInfo(closure, &zone_, &phase_zone_),
         zone_(closure->GetIsolate()),
-        zone_scope_(&zone_),
         phase_zone_(closure->GetIsolate()) {}
   CompilationInfoWithZone(HydrogenCodeStub* stub, Isolate* isolate)
       : CompilationInfo(stub, isolate, &zone_, &phase_zone_),
         zone_(isolate),
-        zone_scope_(&zone_),
         phase_zone_(isolate) {}
 
   // Virtual destructor because a CompilationInfoWithZone has to exit the
@@ -468,7 +464,6 @@ class CompilationInfoWithZone: public CompilationInfo {
 
  private:
   Zone zone_;
-  ZoneScope zone_scope_;
   Zone phase_zone_;
 };
 
@@ -643,12 +638,12 @@ class CompilationPhase BASE_EMBEDDED {
 
   const char* name() const { return name_; }
   Isolate* isolate() const { return isolate_; }
-  Zone* zone() const { return zone_scope_.zone(); }
+  Zone* zone() const { return zone_; }
 
  private:
   const char* name_;
   Isolate* isolate_;
-  ZoneScope zone_scope_;
+  Zone* zone_;
   unsigned start_allocation_size_;
   int64_t start_ticks_;
 

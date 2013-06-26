@@ -1700,7 +1700,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpCompile) {
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);
   Handle<Object> result =
-      RegExpImpl::Compile(re, pattern, flags, isolate->runtime_zone());
+      RegExpImpl::Compile(re, pattern, flags);
   if (result.is_null()) return Failure::Exception();
   return *result;
 }
@@ -3600,9 +3600,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalAtomRegExpWithString(
   ASSERT(subject->IsFlat());
   ASSERT(replacement->IsFlat());
 
-  Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_space(zone);
-  ZoneList<int> indices(8, zone);
+  Zone zone(isolate);
+  ZoneList<int> indices(8, &zone);
   ASSERT_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
   String* pattern =
       String::cast(pattern_regexp->DataAt(JSRegExp::kAtomPatternIndex));
@@ -3611,7 +3610,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalAtomRegExpWithString(
   int replacement_len = replacement->length();
 
   FindStringIndicesDispatch(
-      isolate, *subject, pattern, &indices, 0xffffffff, zone);
+      isolate, *subject, pattern, &indices, 0xffffffff, &zone);
 
   int matches = indices.length();
   if (matches == 0) return *subject;
@@ -3687,9 +3686,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithString(
   int subject_length = subject->length();
 
   // CompiledReplacement uses zone allocation.
-  Zone* zone = isolate->runtime_zone();
-  ZoneScope zonescope(zone);
-  CompiledReplacement compiled_replacement(zone);
+  Zone zone(isolate);
+  CompiledReplacement compiled_replacement(&zone);
   bool simple_replace = compiled_replacement.Compile(replacement,
                                                      capture_count,
                                                      subject_length);
@@ -4222,15 +4220,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
 
   int capture_count = regexp->CaptureCount();
 
-  Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_space(zone);
-  ZoneList<int> offsets(8, zone);
+  Zone zone(isolate);
+  ZoneList<int> offsets(8, &zone);
 
   while (true) {
     int32_t* match = global_cache.FetchNext();
     if (match == NULL) break;
-    offsets.Add(match[0], zone);  // start
-    offsets.Add(match[1], zone);  // end
+    offsets.Add(match[0], &zone);  // start
+    offsets.Add(match[1], &zone);  // end
   }
 
   if (global_cache.HasException()) return Failure::Exception();
@@ -6315,18 +6312,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 
   static const int kMaxInitialListCapacity = 16;
 
-  Zone* zone = isolate->runtime_zone();
-  ZoneScope scope(zone);
+  Zone zone(isolate);
 
   // Find (up to limit) indices of separator and end-of-string in subject
   int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
-  ZoneList<int> indices(initial_capacity, zone);
+  ZoneList<int> indices(initial_capacity, &zone);
   if (!pattern->IsFlat()) FlattenString(pattern);
 
-  FindStringIndicesDispatch(isolate, *subject, *pattern, &indices, limit, zone);
+  FindStringIndicesDispatch(isolate, *subject, *pattern,
+                            &indices, limit, &zone);
 
   if (static_cast<uint32_t>(indices.length()) < limit) {
-    indices.Add(subject_length, zone);
+    indices.Add(subject_length, &zone);
   }
 
   // The list indices now contains the end of each part to create.
@@ -9318,14 +9315,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   ASSERT_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
 
-  Zone* zone = isolate->runtime_zone();
   source = Handle<String>(source->TryFlattenGetString());
   // Optimized fast case where we only have ASCII characters.
   Handle<Object> result;
   if (source->IsSeqOneByteString()) {
-    result = JsonParser<true>::Parse(source, zone);
+    result = JsonParser<true>::Parse(source);
   } else {
-    result = JsonParser<false>::Parse(source, zone);
+    result = JsonParser<false>::Parse(source);
   }
   if (result.is_null()) {
     // Syntax error or stack overflow in scanner.
@@ -13120,8 +13116,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditCheckAndDropActivations) {
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(do_drop, 1);
 
-  return *LiveEdit::CheckAndDropActivations(shared_array, do_drop,
-                                            isolate->runtime_zone());
+  return *LiveEdit::CheckAndDropActivations(shared_array, do_drop);
 }
 
 // Compares 2 strings line-by-line, then token-wise and returns diff in form
@@ -13169,8 +13164,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditRestartFrame) {
   }
   if (it.done()) return heap->undefined_value();
 
-  const char* error_message =
-      LiveEdit::RestartFrame(it.frame(), isolate->runtime_zone());
+  const char* error_message = LiveEdit::RestartFrame(it.frame());
   if (error_message) {
     return *(isolate->factory()->InternalizeUtf8String(error_message));
   }

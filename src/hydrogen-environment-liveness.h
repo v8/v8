@@ -62,7 +62,6 @@ class EnvironmentSlotLivenessAnalyzer {
   // Use a dedicated Zone for this phase, with a ZoneScope to ensure it
   // gets freed.
   Zone zone_;
-  ZoneScope zone_scope_;
 
   int block_count_;
 
