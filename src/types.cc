@@ -125,7 +125,7 @@ int Type::LubBitset() {
       map = *this->as_class();
     } else {
       Handle<v8::internal::Object> value = this->as_constant();
-      if (value->IsSmi()) return kInteger31;
+      if (value->IsSmi()) return kSmi;
       map = HeapObject::cast(*value)->map();
       if (map->instance_type() == ODDBALL_TYPE) {
         if (value->IsUndefined()) return kUndefined;
@@ -175,14 +175,17 @@ int Type::LubBitset() {
       case JS_ARRAY_BUFFER_TYPE:
       case JS_TYPED_ARRAY_TYPE:
       case JS_DATA_VIEW_TYPE:
+      case JS_SET_TYPE:
+      case JS_MAP_TYPE:
       case JS_WEAK_MAP_TYPE:
-      case JS_REGEXP_TYPE:
         if (map->is_undetectable()) return kUndetectable;
         return kOtherObject;
       case JS_ARRAY_TYPE:
         return kArray;
       case JS_FUNCTION_TYPE:
         return kFunction;
+      case JS_REGEXP_TYPE:
+        return kRegExp;
       case JS_PROXY_TYPE:
       case JS_FUNCTION_PROXY_TYPE:
         return kProxy;

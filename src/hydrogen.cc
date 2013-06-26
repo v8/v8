@@ -5015,7 +5015,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     HControlInstruction* compare;
 
     if (stmt->switch_type() == SwitchStatement::SMI_SWITCH) {
-      if (!clause->compare_type()->Is(Type::Integer31())) {
+      if (!clause->compare_type()->Is(Type::Smi())) {
         AddSoftDeoptimize();
       }
 
@@ -9453,8 +9453,8 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
       break;
     case Token::BIT_OR: {
       HValue* operand, *shift_amount;
-      if (left_type->Is(Type::Integer32()) &&
-          right_type->Is(Type::Integer32()) &&
+      if (left_type->Is(Type::Signed32()) &&
+          right_type->Is(Type::Signed32()) &&
           MatchRotateRight(left, right, &operand, &shift_amount)) {
         instr = new(zone()) HRor(context, operand, shift_amount);
       } else {
@@ -9654,7 +9654,7 @@ Representation HOptimizedGraphBuilder::ToRepresentation(TypeInfo info) {
 
 Representation HOptimizedGraphBuilder::ToRepresentation(Handle<Type> type) {
   if (type->Is(Type::None())) return Representation::None();
-  if (type->Is(Type::Integer32())) return Representation::Integer32();
+  if (type->Is(Type::Signed32())) return Representation::Integer32();
   if (type->Is(Type::Number())) return Representation::Double();
   return Representation::Tagged();
 }
@@ -9879,8 +9879,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     } else {
       // TODO(verwaest): Remove once ToRepresentation properly returns Smi when
       // the IC measures Smi.
-      if (left_type->Is(Type::Integer31())) left_rep = Representation::Smi();
-      if (right_type->Is(Type::Integer31())) right_rep = Representation::Smi();
+      if (left_type->Is(Type::Smi())) left_rep = Representation::Smi();
+      if (right_type->Is(Type::Smi())) right_rep = Representation::Smi();
       HCompareIDAndBranch* result =
           new(zone()) HCompareIDAndBranch(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);

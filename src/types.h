@@ -48,8 +48,8 @@ namespace internal {
 //   T <= Any
 //
 //   Oddball = Boolean \/ Null \/ Undefined
-//   Number = Integer32 \/ Double
-//   Integer31 < Integer32
+//   Number = Signed32 \/ Unsigned32 \/ Double
+//   Smi <= Signed32
 //   Name = String \/ Symbol
 //   UniqueName = InternalizedString \/ Symbol
 //   InternalizedString < String
@@ -60,6 +60,7 @@ namespace internal {
 //   Receiver = Object \/ Proxy
 //   Array < Object
 //   Function < Object
+//   RegExp < Object
 //
 //   Class(map) < T   iff instance_type(map) < T
 //   Constant(x) < T  iff instance_type(map(x)) < T
@@ -83,6 +84,8 @@ namespace internal {
 // lattice (e.g., splitting up number types further) without invalidating any
 // existing assumptions or tests.
 //
+// Consequently, do not use pointer equality for type tests, always use Is!
+//
 // Internally, all 'primitive' types, and their unions, are represented as
 // bitsets via smis. Class is a heap pointer to the respective map. Only
 // Constant's, or unions containing Class'es or Constant's, require allocation.
@@ -104,9 +107,11 @@ class Type : public Object {
   static Type* Undefined() { return from_bitset(kUndefined); }
 
   static Type* Number() { return from_bitset(kNumber); }
-  static Type* Integer31() { return from_bitset(kInteger31); }
-  static Type* Integer32() { return from_bitset(kInteger32); }
+  static Type* Smi() { return from_bitset(kSmi); }
+  static Type* Signed32() { return from_bitset(kSigned32); }
+  static Type* Unsigned32() { return from_bitset(kUnsigned32); }
   static Type* Double() { return from_bitset(kDouble); }
+  static Type* NumberOrString() { return from_bitset(kNumberOrString); }
 
   static Type* Name() { return from_bitset(kName); }
   static Type* UniqueName() { return from_bitset(kUniqueName); }
@@ -119,6 +124,7 @@ class Type : public Object {
   static Type* Undetectable() { return from_bitset(kUndetectable); }
   static Type* Array() { return from_bitset(kArray); }
   static Type* Function() { return from_bitset(kFunction); }
+  static Type* RegExp() { return from_bitset(kRegExp); }
   static Type* Proxy() { return from_bitset(kProxy); }
 
   static Type* Class(Handle<Map> map) { return from_handle(map); }
@@ -188,25 +194,28 @@ class Type : public Object {
     kNull = 1 << 0,
     kUndefined = 1 << 1,
     kBoolean = 1 << 2,
-    kInteger31 = 1 << 3,
-    kOtherInteger = 1 << 4,
-    kDouble = 1 << 5,
-    kSymbol = 1 << 6,
-    kInternalizedString = 1 << 7,
-    kOtherString = 1 << 8,
-    kUndetectable = 1 << 9,
-    kArray = 1 << 10,
-    kFunction = 1 << 11,
-    kOtherObject = 1 << 12,
-    kProxy = 1 << 13,
+    kSmi = 1 << 3,
+    kOtherSigned32 = 1 << 4,
+    kUnsigned32 = 1 << 5,
+    kDouble = 1 << 6,
+    kSymbol = 1 << 7,
+    kInternalizedString = 1 << 8,
+    kOtherString = 1 << 9,
+    kUndetectable = 1 << 10,
+    kArray = 1 << 11,
+    kFunction = 1 << 12,
+    kRegExp = 1 << 13,
+    kOtherObject = 1 << 14,
+    kProxy = 1 << 15,
 
     kOddball = kBoolean | kNull | kUndefined,
-    kInteger32 = kInteger31 | kOtherInteger,
-    kNumber = kInteger32 | kDouble,
+    kSigned32 = kSmi | kOtherSigned32,
+    kNumber = kSigned32 | kUnsigned32 | kDouble,
     kString = kInternalizedString | kOtherString,
     kUniqueName = kSymbol | kInternalizedString,
     kName = kSymbol | kString,
-    kObject = kUndetectable | kArray | kFunction | kOtherObject,
+    kNumberOrString = kNumber | kString,
+    kObject = kUndetectable | kArray | kFunction | kRegExp | kOtherObject,
     kReceiver = kObject | kProxy,
     kAllocated = kDouble | kName | kReceiver,
     kAny = kOddball | kNumber | kAllocated,

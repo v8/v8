@@ -2437,7 +2437,7 @@ Handle<Type> UnaryOpIC::TypeInfoToType(TypeInfo type_info, Isolate* isolate) {
     case UNINITIALIZED:
       return handle(Type::None(), isolate);
     case SMI:
-      return handle(Type::Integer31(), isolate);
+      return handle(Type::Smi(), isolate);
     case NUMBER:
       return handle(Type::Number(), isolate);
     case GENERIC:
@@ -2524,9 +2524,9 @@ Handle<Type> BinaryOpIC::TypeInfoToType(BinaryOpIC::TypeInfo binary_type,
     case UNINITIALIZED:
       return handle(Type::None(), isolate);
     case SMI:
-      return handle(Type::Integer31(), isolate);
+      return handle(Type::Smi(), isolate);
     case INT32:
-      return handle(Type::Integer32(), isolate);
+      return handle(Type::Signed32(), isolate);
     case NUMBER:
       return handle(Type::Number(), isolate);
     case ODDBALL:
@@ -2845,7 +2845,7 @@ Handle<Type> CompareIC::StateToType(
     case CompareIC::UNINITIALIZED:
       return handle(Type::None(), isolate);
     case CompareIC::SMI:
-      return handle(Type::Integer31(), isolate);
+      return handle(Type::Smi(), isolate);
     case CompareIC::NUMBER:
       return handle(Type::Number(), isolate);
     case CompareIC::STRING:
