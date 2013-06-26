@@ -3065,9 +3065,8 @@ HType HCheckFunction::CalculateInferredType() {
 }
 
 
-HType HCheckNonSmi::CalculateInferredType() {
-  // TODO(kasperl): Is there any way to signal that this isn't a smi?
-  return HType::Tagged();
+HType HCheckHeapObject::CalculateInferredType() {
+  return HType::NonPrimitive();
 }
 
 
@@ -3736,7 +3735,7 @@ void HSimulate::Verify() {
 }
 
 
-void HCheckNonSmi::Verify() {
+void HCheckHeapObject::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }

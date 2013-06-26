@@ -1012,7 +1012,7 @@ class HGraphBuilder {
   HBasicBlock* CreateBasicBlock(HEnvironment* env);
   HBasicBlock* CreateLoopHeaderBlock();
 
-  HValue* BuildCheckNonSmi(HValue* object);
+  HValue* BuildCheckHeapObject(HValue* object);
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
 
   // Building common constructs

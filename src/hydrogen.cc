@@ -1024,9 +1024,9 @@ HBasicBlock* HGraphBuilder::CreateLoopHeaderBlock() {
 }
 
 
-HValue* HGraphBuilder::BuildCheckNonSmi(HValue* obj) {
+HValue* HGraphBuilder::BuildCheckHeapObject(HValue* obj) {
   if (obj->type().IsHeapObject()) return obj;
-  HCheckNonSmi* check = new(zone()) HCheckNonSmi(obj);
+  HCheckHeapObject* check = new(zone()) HCheckHeapObject(obj);
   AddInstruction(check);
   return check;
 }
@@ -1703,7 +1703,7 @@ void HGraphBuilder::BuildCompareNil(
     if_nil.Then();
     if_nil.Else();
     if (type->NumClasses() == 1) {
-      BuildCheckNonSmi(value);
+      BuildCheckHeapObject(value);
       // For ICs, the map checked below is a sentinel map that gets replaced by
       // the monomorphic map when the code is used as a template to generate a
       // new IC. For optimized functions, there is no sentinel map, the map
@@ -6158,14 +6158,14 @@ static Representation ComputeLoadStoreRepresentation(Handle<Map> type,
 
 
 void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
-  BuildCheckNonSmi(object);
+  BuildCheckHeapObject(object);
   AddInstruction(HCheckMaps::New(object, map, zone()));
 }
 
 
 void HOptimizedGraphBuilder::AddCheckMapsWithTransitions(HValue* object,
                                                          Handle<Map> map) {
-  BuildCheckNonSmi(object);
+  BuildCheckHeapObject(object);
   AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
 }
 
@@ -6334,7 +6334,7 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
   if (count != types->length()) return NULL;
 
   // Everything matched; can use monomorphic load.
-  BuildCheckNonSmi(object);
+  BuildCheckHeapObject(object);
   AddInstruction(HCheckMaps::New(object, types, zone()));
   return BuildLoadNamedField(object, access, representation);
 }
@@ -6349,7 +6349,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
       expr, object, types, name);
   if (instr == NULL) {
     // Something did not match; must use a polymorphic load.
-    BuildCheckNonSmi(object);
+    BuildCheckHeapObject(object);
     HValue* context = environment()->LookupContext();
     instr = new(zone()) HLoadNamedFieldPolymorphic(
         context, object, types, name, zone());
@@ -6405,7 +6405,7 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
   if (count != types->length()) return false;
 
   // Everything matched; can use monomorphic store.
-  BuildCheckNonSmi(object);
+  BuildCheckHeapObject(object);
   AddInstruction(HCheckMaps::New(object, types, zone()));
   HInstruction* store;
   CHECK_ALIVE_OR_RETURN(
@@ -6444,7 +6444,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
     LookupResult lookup(isolate());
     if (ComputeLoadStoreField(map, name, &lookup, true)) {
       if (count == 0) {
-        BuildCheckNonSmi(object);
+        BuildCheckHeapObject(object);
         join = graph()->CreateBasicBlock();
       }
       ++count;
@@ -7178,7 +7178,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     KeyedAccessStoreMode store_mode,
     bool* has_side_effects) {
   *has_side_effects = false;
-  BuildCheckNonSmi(object);
+  BuildCheckHeapObject(object);
   SmallMapList* maps = prop->GetReceiverTypes();
   bool todo_external_array = false;
 
@@ -7403,7 +7403,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
                        : BuildLoadKeyedGeneric(obj, key);
       AddInstruction(instr);
     } else {
-      BuildCheckNonSmi(obj);
+      BuildCheckHeapObject(obj);
       instr = BuildMonomorphicElementAccess(
           obj, key, val, NULL, map, is_store, expr->GetStoreMode());
     }
@@ -7535,7 +7535,7 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   HInstruction* instr = NULL;
   if (expr->IsStringLength()) {
     HValue* string = Pop();
-    BuildCheckNonSmi(string);
+    BuildCheckHeapObject(string);
     AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
     instr = HStringLength::New(zone(), string);
   } else if (expr->IsStringAccess()) {
@@ -7550,7 +7550,7 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
 
   } else if (expr->IsFunctionPrototype()) {
     HValue* function = Pop();
-    BuildCheckNonSmi(function);
+    BuildCheckHeapObject(function);
     instr = new(zone()) HLoadFunctionPrototype(function);
 
   } else if (expr->key()->IsPropertyName()) {
@@ -7724,7 +7724,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
         empty_smi_block->Goto(number_block);
         set_current_block(not_smi_block);
       } else {
-        BuildCheckNonSmi(receiver);
+        BuildCheckHeapObject(receiver);
       }
     }
     HBasicBlock* if_true = graph()->CreateBasicBlock();
@@ -9335,7 +9335,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
       return new(zone()) HConstant(s->Get(i));
     }
   }
-  BuildCheckNonSmi(string);
+  BuildCheckHeapObject(string);
   AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
   HInstruction* length = HStringLength::New(zone(), string);
   AddInstruction(length);
@@ -9426,9 +9426,9 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   switch (expr->op()) {
     case Token::ADD:
       if (left_type->Is(Type::String()) && right_type->Is(Type::String())) {
-        BuildCheckNonSmi(left);
+        BuildCheckHeapObject(left);
         AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
-        BuildCheckNonSmi(right);
+        BuildCheckHeapObject(right);
         AddInstruction(HCheckInstanceType::NewIsString(right, zone()));
         instr = HStringAdd::New(zone(), context, left, right);
       } else {
@@ -9845,9 +9845,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
           result->set_position(expr->position());
           return ast_context()->ReturnControl(result, expr->id());
         } else {
-          BuildCheckNonSmi(left);
+          BuildCheckHeapObject(left);
           AddInstruction(HCheckInstanceType::NewIsSpecObject(left, zone()));
-          BuildCheckNonSmi(right);
+          BuildCheckHeapObject(right);
           AddInstruction(HCheckInstanceType::NewIsSpecObject(right, zone()));
           HCompareObjectEqAndBranch* result =
               new(zone()) HCompareObjectEqAndBranch(left, right);
@@ -9860,9 +9860,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     }
   } else if (combined_type->Is(Type::InternalizedString()) &&
              Token::IsEqualityOp(op)) {
-    BuildCheckNonSmi(left);
+    BuildCheckHeapObject(left);
     AddInstruction(HCheckInstanceType::NewIsInternalizedString(left, zone()));
-    BuildCheckNonSmi(right);
+    BuildCheckHeapObject(right);
     AddInstruction(HCheckInstanceType::NewIsInternalizedString(right, zone()));
     HCompareObjectEqAndBranch* result =
         new(zone()) HCompareObjectEqAndBranch(left, right);

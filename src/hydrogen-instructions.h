@@ -89,9 +89,9 @@ class LChunkBuilder;
   V(CallStub)                                  \
   V(Change)                                    \
   V(CheckFunction)                             \
+  V(CheckHeapObject)                           \
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
-  V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
@@ -434,7 +434,7 @@ class HType {
 
   bool IsHeapObject() const {
     ASSERT(type_ != kUninitialized);
-    return IsHeapNumber() || IsString() || IsNonPrimitive();
+    return IsHeapNumber() || IsString() || IsBoolean() || IsNonPrimitive();
   }
 
   static HType TypeFromValue(Handle<Object> value);
@@ -916,6 +916,10 @@ class HValue: public ZoneObject {
   void set_type(HType new_type) {
     ASSERT(new_type.IsSubtypeOf(type_));
     type_ = new_type;
+  }
+
+  bool IsHeapObject() {
+    return representation_.IsHeapObject() || type_.IsHeapObject();
   }
 
   // An operation needs to override this function iff:
@@ -2948,9 +2952,9 @@ class HCheckInstanceType: public HUnaryOperation {
 };
 
 
-class HCheckNonSmi: public HUnaryOperation {
+class HCheckHeapObject: public HUnaryOperation {
  public:
-  explicit HCheckNonSmi(HValue* value) : HUnaryOperation(value) {
+  explicit HCheckHeapObject(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
@@ -2967,17 +2971,13 @@ class HCheckNonSmi: public HUnaryOperation {
 
   virtual HValue* Canonicalize() {
     HType value_type = value()->type();
-    if (!value_type.IsUninitialized() &&
-        (value_type.IsHeapNumber() ||
-         value_type.IsString() ||
-         value_type.IsBoolean() ||
-         value_type.IsNonPrimitive())) {
+    if (!value_type.IsUninitialized() && value_type.IsHeapObject()) {
       return NULL;
     }
     return this;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(CheckNonSmi)
+  DECLARE_CONCRETE_INSTRUCTION(CheckHeapObject)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
