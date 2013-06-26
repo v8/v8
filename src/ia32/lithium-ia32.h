@@ -2691,26 +2691,10 @@ class LDeleteProperty: public LTemplateInstruction<1, 3, 0> {
 
 class LOsrEntry: public LTemplateInstruction<0, 0, 0> {
  public:
-  LOsrEntry();
+  LOsrEntry() {}
 
   virtual bool HasInterestingComment(LCodeGen* gen) const { return false; }
   DECLARE_CONCRETE_INSTRUCTION(OsrEntry, "osr-entry")
-
-  LOperand** SpilledRegisterArray() { return register_spills_; }
-  LOperand** SpilledDoubleRegisterArray() { return double_register_spills_; }
-
-  void MarkSpilledRegister(int allocation_index, LOperand* spill_operand);
-  void MarkSpilledDoubleRegister(int allocation_index,
-                                 LOperand* spill_operand);
-
- private:
-  // Arrays of spill slot operands for registers with an assigned spill
-  // slot, i.e., that must also be restored to the spill slot on OSR entry.
-  // NULL if the register has no assigned spill slot.  Indexed by allocation
-  // index.
-  LOperand* register_spills_[Register::kMaxNumAllocatableRegisters];
-  LOperand* double_register_spills_[
-      DoubleRegister::kMaxNumAllocatableRegisters];
 };
 
 

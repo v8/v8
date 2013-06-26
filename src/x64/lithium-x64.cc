@@ -43,31 +43,6 @@ namespace internal {
 LITHIUM_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
-LOsrEntry::LOsrEntry() {
-  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
-    register_spills_[i] = NULL;
-  }
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
-    double_register_spills_[i] = NULL;
-  }
-}
-
-
-void LOsrEntry::MarkSpilledRegister(int allocation_index,
-                                    LOperand* spill_operand) {
-  ASSERT(spill_operand->IsStackSlot());
-  ASSERT(register_spills_[allocation_index] == NULL);
-  register_spills_[allocation_index] = spill_operand;
-}
-
-
-void LOsrEntry::MarkSpilledDoubleRegister(int allocation_index,
-                                          LOperand* spill_operand) {
-  ASSERT(spill_operand->IsDoubleStackSlot());
-  ASSERT(double_register_spills_[allocation_index] == NULL);
-  double_register_spills_[allocation_index] = spill_operand;
-}
-
 
 #ifdef DEBUG
 void LInstruction::VerifyCall() {

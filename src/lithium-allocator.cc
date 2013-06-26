@@ -1093,7 +1093,6 @@ bool LAllocator::Allocate(LChunk* chunk) {
   AllocateDoubleRegisters();
   if (!AllocationOk()) return false;
   PopulatePointerMaps();
-  if (has_osr_entry_) ProcessOsrEntry();
   ConnectRanges();
   ResolveControlFlow();
   return true;
@@ -1458,37 +1457,6 @@ void LAllocator::PopulatePointerMaps() {
         LOperand* operand = cur->CreateAssignedOperand(zone_);
         ASSERT(!operand->IsStackSlot());
         map->RecordPointer(operand, zone());
-      }
-    }
-  }
-}
-
-
-void LAllocator::ProcessOsrEntry() {
-  const ZoneList<LInstruction*>* instrs = chunk_->instructions();
-
-  // Linear search for the OSR entry instruction in the chunk.
-  int index = -1;
-  while (++index < instrs->length() &&
-         !instrs->at(index)->IsOsrEntry()) {
-  }
-  ASSERT(index < instrs->length());
-  LOsrEntry* instruction = LOsrEntry::cast(instrs->at(index));
-
-  LifetimePosition position = LifetimePosition::FromInstructionIndex(index);
-  for (int i = 0; i < live_ranges()->length(); ++i) {
-    LiveRange* range = live_ranges()->at(i);
-    if (range != NULL) {
-      if (range->Covers(position) &&
-          range->HasRegisterAssigned() &&
-          range->TopLevel()->HasAllocatedSpillOperand()) {
-        int reg_index = range->assigned_register();
-        LOperand* spill_operand = range->TopLevel()->GetSpillOperand();
-        if (range->IsDouble()) {
-          instruction->MarkSpilledDoubleRegister(reg_index, spill_operand);
-        } else {
-          instruction->MarkSpilledRegister(reg_index, spill_operand);
-        }
       }
     }
   }

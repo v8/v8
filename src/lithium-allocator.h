@@ -474,7 +474,6 @@ class LAllocator BASE_EMBEDDED {
   void ConnectRanges();
   void ResolveControlFlow();
   void PopulatePointerMaps();
-  void ProcessOsrEntry();
   void AllocateRegisters();
   bool CanEagerlyResolveControlFlow(HBasicBlock* block) const;
   inline bool SafePointsAreInOrder() const;

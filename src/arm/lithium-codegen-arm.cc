@@ -622,27 +622,6 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
 
   for (int i = 0; i < translation_size; ++i) {
     LOperand* value = environment->values()->at(i);
-    // spilled_registers_ and spilled_double_registers_ are either
-    // both NULL or both set.
-    if (environment->spilled_registers() != NULL && value != NULL) {
-      if (value->IsRegister() &&
-          environment->spilled_registers()[value->index()] != NULL) {
-        translation->MarkDuplicate();
-        AddToTranslation(translation,
-                         environment->spilled_registers()[value->index()],
-                         environment->HasTaggedValueAt(i),
-                         environment->HasUint32ValueAt(i));
-      } else if (
-          value->IsDoubleRegister() &&
-          environment->spilled_double_registers()[value->index()] != NULL) {
-        translation->MarkDuplicate();
-        AddToTranslation(
-            translation,
-            environment->spilled_double_registers()[value->index()],
-            false,
-            false);
-      }
-    }
 
     // TODO(mstarzinger): Introduce marker operands to indicate that this value
     // is not present and must be reconstructed from the deoptimizer. Currently
@@ -652,12 +631,6 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
       translation->BeginArgumentsObject(arguments_count);
       for (int i = 0; i < arguments_count; ++i) {
         LOperand* value = environment->values()->at(translation_size + i);
-        ASSERT(environment->spilled_registers() == NULL ||
-               !value->IsRegister() ||
-               environment->spilled_registers()[value->index()] == NULL);
-        ASSERT(environment->spilled_registers() == NULL ||
-               !value->IsDoubleRegister() ||
-               environment->spilled_double_registers()[value->index()] == NULL);
         AddToTranslation(translation,
                          value,
                          environment->HasTaggedValueAt(translation_size + i),
@@ -1120,7 +1093,8 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
 
 
 void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
-  // Nothing to do.
+  // Record the address of the first unknown OSR value as the place to enter.
+  if (osr_pc_offset_ == -1) osr_pc_offset_ = masm()->pc_offset();
 }
 
 
@@ -5818,15 +5792,15 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
   // properly registered for deoptimization and records the assembler's PC
   // offset.
   LEnvironment* environment = instr->environment();
-  environment->SetSpilledRegisters(instr->SpilledRegisterArray(),
-                                   instr->SpilledDoubleRegisterArray());
 
   // If the environment were already registered, we would have no way of
   // backpatching it with the spill slot operands.
   ASSERT(!environment->HasBeenRegistered());
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
-  ASSERT(osr_pc_offset_ == -1);
-  osr_pc_offset_ = masm()->pc_offset();
+
+  // Normally we record the first unknown OSR value as the entrypoint to the OSR
+  // code, but if there were none, record the entrypoint here.
+  if (osr_pc_offset_ == -1) osr_pc_offset_ = masm()->pc_offset();
 }
 
 

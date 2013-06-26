@@ -789,7 +789,6 @@ void Deoptimizer::DoComputeOutputFrames() {
       case Translation::DOUBLE_STACK_SLOT:
       case Translation::LITERAL:
       case Translation::ARGUMENTS_OBJECT:
-      case Translation::DUPLICATE:
       default:
         UNREACHABLE();
         break;
@@ -1725,14 +1724,8 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
   disasm::NameConverter converter;
   Address object_slot = deferred_objects_.last().slot_address();
 
-  // Ignore commands marked as duplicate and act on the first non-duplicate.
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator->Next());
-  while (opcode == Translation::DUPLICATE) {
-    opcode = static_cast<Translation::Opcode>(iterator->Next());
-    iterator->Skip(Translation::NumberOfOperandsFor(opcode));
-    opcode = static_cast<Translation::Opcode>(iterator->Next());
-  }
 
   switch (opcode) {
     case Translation::BEGIN:
@@ -1743,7 +1736,6 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
     case Translation::SETTER_STUB_FRAME:
     case Translation::COMPILED_STUB_FRAME:
     case Translation::ARGUMENTS_OBJECT:
-    case Translation::DUPLICATE:
       UNREACHABLE();
       return;
 
@@ -1926,14 +1918,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
   const intptr_t kPlaceholder = reinterpret_cast<intptr_t>(Smi::FromInt(0));
   bool is_native = value_type == TRANSLATED_VALUE_IS_NATIVE;
 
-  // Ignore commands marked as duplicate and act on the first non-duplicate.
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator->Next());
-  while (opcode == Translation::DUPLICATE) {
-    opcode = static_cast<Translation::Opcode>(iterator->Next());
-    iterator->Skip(Translation::NumberOfOperandsFor(opcode));
-    opcode = static_cast<Translation::Opcode>(iterator->Next());
-  }
 
   switch (opcode) {
     case Translation::BEGIN:
@@ -1943,7 +1929,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
     case Translation::COMPILED_STUB_FRAME:
-    case Translation::DUPLICATE:
       UNREACHABLE();
       return;
 
@@ -2197,10 +2182,6 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator->Next());
-  bool duplicate = (opcode == Translation::DUPLICATE);
-  if (duplicate) {
-    opcode = static_cast<Translation::Opcode>(iterator->Next());
-  }
 
   switch (opcode) {
     case Translation::BEGIN:
@@ -2210,21 +2191,20 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
     case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
     case Translation::COMPILED_STUB_FRAME:
-    case Translation::DUPLICATE:
       UNREACHABLE();  // Malformed input.
-       return false;
+      return false;
 
-     case Translation::REGISTER: {
-       int output_reg = iterator->Next();
-       if (FLAG_trace_osr) {
-         PrintF("    %s <- 0x%08" V8PRIxPTR " ; [sp + %d]\n",
-                converter.NameOfCPURegister(output_reg),
-                input_value,
-                *input_offset);
-       }
-       output->SetRegister(output_reg, input_value);
-       break;
-     }
+    case Translation::REGISTER: {
+      int output_reg = iterator->Next();
+      if (FLAG_trace_osr) {
+        PrintF("    %s <- 0x%08" V8PRIxPTR " ; [sp + %d]\n",
+               converter.NameOfCPURegister(output_reg),
+               input_value,
+               *input_offset);
+      }
+      output->SetRegister(output_reg, input_value);
+      break;
+    }
 
     case Translation::INT32_REGISTER: {
       int32_t int32_value = 0;
@@ -2369,7 +2349,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
     }
   }
 
-  if (!duplicate) *input_offset -= kPointerSize;
+  *input_offset -= kPointerSize;
   return true;
 }
 
@@ -2823,15 +2803,18 @@ void Translation::StoreLiteral(int literal_id) {
 }
 
 
-void Translation::MarkDuplicate() {
-  buffer_->Add(DUPLICATE, zone());
+void Translation::StoreArgumentsObject(bool args_known,
+                                       int args_index,
+                                       int args_length) {
+  buffer_->Add(ARGUMENTS_OBJECT, zone());
+  buffer_->Add(args_known, zone());
+  buffer_->Add(args_index, zone());
+  buffer_->Add(args_length, zone());
 }
 
 
 int Translation::NumberOfOperandsFor(Opcode opcode) {
   switch (opcode) {
-    case DUPLICATE:
-      return 0;
     case GETTER_STUB_FRAME:
     case SETTER_STUB_FRAME:
     case ARGUMENTS_OBJECT:
@@ -2896,8 +2879,6 @@ const char* Translation::StringFor(Opcode opcode) {
       return "LITERAL";
     case ARGUMENTS_OBJECT:
       return "ARGUMENTS_OBJECT";
-    case DUPLICATE:
-      return "DUPLICATE";
   }
   UNREACHABLE();
   return "";
@@ -2949,7 +2930,6 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
     case Translation::INT32_REGISTER:
     case Translation::UINT32_REGISTER:
     case Translation::DOUBLE_REGISTER:
-    case Translation::DUPLICATE:
       // We are at safepoint which corresponds to call.  All registers are
       // saved by caller so there would be no live registers at this
       // point. Thus these translation commands should not be used.

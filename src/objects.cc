@@ -10447,9 +10447,6 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
-        case Translation::DUPLICATE:
-          break;
-
         case Translation::REGISTER: {
           int reg_code = iterator.Next();
             PrintF(out, "{input=%s}", converter.NameOfCPURegister(reg_code));
