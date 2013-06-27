@@ -136,6 +136,17 @@ inline Code* StackFrame::GetContainingCode(Isolate* isolate, Address pc) {
 }
 
 
+inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
+  if (return_address_location_resolver_ == NULL) {
+    return pc_address;
+  } else {
+    return reinterpret_cast<Address*>(
+        return_address_location_resolver_(
+            reinterpret_cast<uintptr_t>(pc_address)));
+  }
+}
+
+
 inline EntryFrame::EntryFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
 }

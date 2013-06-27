@@ -31,6 +31,8 @@
 #include <signal.h>  // kill
 #include <unistd.h>  // getpid
 #endif  // WIN32
+#include <string>
+#include <map>
 
 #include "v8.h"
 
@@ -12263,68 +12265,268 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
 }
 
 
-static i::Handle<i::JSFunction>* foo_ptr = NULL;
-static int foo_entry_count = 0;
-static i::Handle<i::JSFunction>* bar_ptr = NULL;
-static int bar_entry_count = 0;
-static int bar_caller_count = 0;
+static bool MatchPointers(void* key1, void* key2) {
+  return key1 == key2;
+}
 
 
-static void entry_hook(uintptr_t function,
-                       uintptr_t return_addr_location) {
-  i::Code* code = i::Code::GetCodeFromTargetAddress(
-      reinterpret_cast<i::Address>(function));
-  CHECK(code != NULL);
+struct SymbolInfo {
+  size_t id;
+  size_t size;
+  std::string name;
+};
 
-  if (bar_ptr != NULL && code == (*bar_ptr)->code())
-    ++bar_entry_count;
 
-  if (foo_ptr != NULL && code == (*foo_ptr)->code())
-    ++foo_entry_count;
+class SetFunctionEntryHookTest {
+ public:
+  SetFunctionEntryHookTest() {
+    CHECK(instance_ == NULL);
+    instance_ = this;
+  }
+  ~SetFunctionEntryHookTest() {
+    CHECK(instance_ == this);
+    instance_ = NULL;
+  }
+  void Reset() {
+    symbols_.clear();
+    symbol_locations_.clear();
+    invocations_.clear();
+  }
+  void RunTest();
+  void OnJitEvent(const v8::JitCodeEvent* event);
+  static void JitEvent(const v8::JitCodeEvent* event) {
+    CHECK(instance_ != NULL);
+    instance_->OnJitEvent(event);
+  }
 
-  // Let's check whether bar is the caller.
-  if (bar_ptr != NULL) {
-    const v8::internal::byte* caller =
-        *reinterpret_cast<v8::internal::byte**>(return_addr_location);
+  void OnEntryHook(uintptr_t function,
+                   uintptr_t return_addr_location);
+  static void EntryHook(uintptr_t function,
+                        uintptr_t return_addr_location) {
+    CHECK(instance_ != NULL);
+    instance_->OnEntryHook(function, return_addr_location);
+  }
 
-    if ((*bar_ptr)->code()->instruction_start() <= caller &&
-        (*bar_ptr)->code()->instruction_end() > caller) {
-      ++bar_caller_count;
-    }
+  static void RuntimeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    CHECK(instance_ != NULL);
+    args.GetReturnValue().Set(v8_num(42));
+  }
+  void RunLoopInNewEnv(v8::Isolate* isolate);
+
+  // Records addr as location of symbol.
+  void InsertSymbolAt(i::Address addr, SymbolInfo* symbol);
+
+  // Finds the symbol containing addr
+  SymbolInfo* FindSymbolForAddr(i::Address addr);
+  // Returns the number of invocations where the caller name contains
+  // \p caller_name and the function name contains \p function_name.
+  size_t CountInvocations(const char* caller_name,
+                          const char* function_name);
+
+  i::Handle<i::JSFunction> foo_func_;
+  i::Handle<i::JSFunction> bar_func_;
+
+  typedef std::map<size_t, SymbolInfo> SymbolMap;
+  typedef std::map<i::Address, SymbolInfo*> SymbolLocationMap;
+  typedef std::map<std::pair<SymbolInfo*, SymbolInfo*>, size_t> InvocationMap;
+  SymbolMap symbols_;
+  SymbolLocationMap symbol_locations_;
+  InvocationMap invocations_;
+
+  static SetFunctionEntryHookTest* instance_;
+};
+SetFunctionEntryHookTest* SetFunctionEntryHookTest::instance_ = NULL;
+
+
+// Returns true if addr is in the range [start, start+len).
+static bool Overlaps(i::Address start, size_t len, i::Address addr) {
+  if (start <= addr && start + len > addr)
+    return true;
+
+  return false;
+}
+
+void SetFunctionEntryHookTest::InsertSymbolAt(i::Address addr,
+                                              SymbolInfo* symbol) {
+  // Insert the symbol at the new location.
+  SymbolLocationMap::iterator it =
+      symbol_locations_.insert(std::make_pair(addr, symbol)).first;
+  // Now erase symbols to the left and right that overlap this one.
+  while (it != symbol_locations_.begin()) {
+    SymbolLocationMap::iterator left = it;
+    --left;
+    if (!Overlaps(left->first, left->second->size, addr))
+      break;
+    symbol_locations_.erase(left);
+  }
+
+  // Now erase symbols to the left and right that overlap this one.
+  while (true) {
+    SymbolLocationMap::iterator right = it;
+    ++right;
+    if (right == symbol_locations_.end())
+        break;
+    if (!Overlaps(addr, symbol->size, right->first))
+      break;
+    symbol_locations_.erase(right);
   }
 }
 
 
-static void RunLoopInNewEnv() {
-  bar_ptr = NULL;
-  foo_ptr = NULL;
+void SetFunctionEntryHookTest::OnJitEvent(const v8::JitCodeEvent* event) {
+  switch (event->type) {
+    case v8::JitCodeEvent::CODE_ADDED: {
+        CHECK(event->code_start != NULL);
+        CHECK_NE(0, static_cast<int>(event->code_len));
+        CHECK(event->name.str != NULL);
+        size_t symbol_id = symbols_.size();
 
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+        // Record the new symbol.
+        SymbolInfo& info = symbols_[symbol_id];
+        info.id = symbol_id;
+        info.size = event->code_len;
+        info.name.assign(event->name.str, event->name.str + event->name.len);
+
+        // And record it's location.
+        InsertSymbolAt(reinterpret_cast<i::Address>(event->code_start), &info);
+      }
+      break;
+
+    case v8::JitCodeEvent::CODE_MOVED: {
+        // We would like to never see code move that we haven't seen before,
+        // but the code creation event does not happen until the line endings
+        // have been calculated (this is so that we can report the line in the
+        // script at which the function source is found, see
+        // Compiler::RecordFunctionCompilation) and the line endings
+        // calculations can cause a GC, which can move the newly created code
+        // before its existence can be logged.
+        SymbolLocationMap::iterator it(
+            symbol_locations_.find(
+                reinterpret_cast<i::Address>(event->code_start)));
+        if (it != symbol_locations_.end()) {
+          // Found a symbol at this location, move it.
+          SymbolInfo* info = it->second;
+          symbol_locations_.erase(it);
+          InsertSymbolAt(reinterpret_cast<i::Address>(event->new_code_start),
+                         info);
+        }
+      }
+    default:
+      break;
+  }
+}
+
+void SetFunctionEntryHookTest::OnEntryHook(
+    uintptr_t function, uintptr_t return_addr_location) {
+  // Get the function's code object.
+  i::Code* function_code = i::Code::GetCodeFromTargetAddress(
+      reinterpret_cast<i::Address>(function));
+  CHECK(function_code != NULL);
+
+  // Then try and look up the caller's code object.
+  i::Address caller = *reinterpret_cast<i::Address*>(return_addr_location);
+
+  // Count the invocation.
+  SymbolInfo* caller_symbol = FindSymbolForAddr(caller);
+  SymbolInfo* function_symbol =
+      FindSymbolForAddr(reinterpret_cast<i::Address>(function));
+  ++invocations_[std::make_pair(caller_symbol, function_symbol)];
+
+  if (!bar_func_.is_null() && function_code == bar_func_->code()) {
+    // Check that we have a symbol for the "bar" function at the right location.
+    SymbolLocationMap::iterator it(
+        symbol_locations_.find(function_code->instruction_start()));
+    CHECK(it != symbol_locations_.end());
+  }
+
+  if (!foo_func_.is_null() && function_code == foo_func_->code()) {
+    // Check that we have a symbol for "foo" at the right location.
+    SymbolLocationMap::iterator it(
+        symbol_locations_.find(function_code->instruction_start()));
+    CHECK(it != symbol_locations_.end());
+  }
+}
+
+
+SymbolInfo* SetFunctionEntryHookTest::FindSymbolForAddr(i::Address addr) {
+  SymbolLocationMap::iterator it(symbol_locations_.lower_bound(addr));
+  // Do we have a direct hit on a symbol?
+  if (it != symbol_locations_.end()) {
+    if (it->first == addr)
+      return it->second;
+  }
+
+  // If not a direct hit, it'll have to be the previous symbol.
+  if (it == symbol_locations_.begin())
+    return NULL;
+
+  --it;
+  size_t offs = addr - it->first;
+  if (offs < it->second->size)
+    return it->second;
+
+  return NULL;
+}
+
+
+size_t SetFunctionEntryHookTest::CountInvocations(
+    const char* caller_name, const char* function_name) {
+  InvocationMap::iterator it(invocations_.begin());
+  size_t invocations = 0;
+  for (; it != invocations_.end(); ++it) {
+    SymbolInfo* caller = it->first.first;
+    SymbolInfo* function = it->first.second;
+
+    // Filter out non-matching functions.
+    if (function_name != NULL) {
+      if (function->name.find(function_name) == std::string::npos)
+        continue;
+    }
+
+    // Filter out non-matching callers.
+    if (caller_name != NULL) {
+      if (caller == NULL)
+        continue;
+      if (caller->name.find(caller_name) == std::string::npos)
+        continue;
+    }
+
+    // It matches add the invocation count to the tally.
+    invocations += it->second;
+  }
+
+  return invocations;
+}
+
+
+void SetFunctionEntryHookTest::RunLoopInNewEnv(v8::Isolate* isolate) {
   v8::HandleScope outer(isolate);
   v8::Local<Context> env = Context::New(isolate);
   env->Enter();
 
-  const char* script =
-      "function bar() {"
-      "  var sum = 0;"
-      "  for (i = 0; i < 100; ++i)"
-      "    sum = foo(i);"
-      "  return sum;"
-      "}"
-      "function foo(i) { return i * i; }";
-  CompileRun(script);
-  i::Handle<i::JSFunction> bar =
-      i::Handle<i::JSFunction>::cast(
-          v8::Utils::OpenHandle(*env->Global()->Get(v8_str("bar"))));
-  ASSERT(*bar);
+  Local<ObjectTemplate> t = ObjectTemplate::New();
+  t->Set(v8_str("asdf"), v8::FunctionTemplate::New(RuntimeCallback));
+  env->Global()->Set(v8_str("obj"), t->NewInstance());
 
-  i::Handle<i::JSFunction> foo =
+  const char* script =
+      "function bar() {\n"
+      "  var sum = 0;\n"
+      "  for (i = 0; i < 100; ++i)\n"
+      "    sum = foo(i);\n"
+      "  return sum;\n"
+      "}\n"
+      "function foo(i) { return i * i; }\n"
+      "// Invoke on the runtime function.\n"
+      "obj.asdf()";
+  CompileRun(script);
+  bar_func_ = i::Handle<i::JSFunction>::cast(
+          v8::Utils::OpenHandle(*env->Global()->Get(v8_str("bar"))));
+  ASSERT(!bar_func_.is_null());
+
+  foo_func_ =
       i::Handle<i::JSFunction>::cast(
            v8::Utils::OpenHandle(*env->Global()->Get(v8_str("foo"))));
-  ASSERT(*foo);
-
-  bar_ptr = &bar;
-  foo_ptr = &foo;
+  ASSERT(!foo_func_.is_null());
 
   v8::Handle<v8::Value> value = CompileRun("bar();");
   CHECK(value->IsNumber());
@@ -12339,6 +12541,55 @@ static void RunLoopInNewEnv() {
   env->Exit();
 }
 
+void SetFunctionEntryHookTest::RunTest() {
+  // Work in a new isolate throughout.
+  v8::Isolate* isolate = v8::Isolate::New();
+
+  // Test setting the entry hook on the new isolate.
+  CHECK(v8::V8::SetFunctionEntryHook(isolate, EntryHook));
+
+  // Replacing the hook, once set should fail.
+  CHECK_EQ(false, v8::V8::SetFunctionEntryHook(isolate, EntryHook));
+
+  {
+    v8::Isolate::Scope scope(isolate);
+
+    v8::V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, JitEvent);
+
+    RunLoopInNewEnv(isolate);
+
+    // Check the exepected invocation counts.
+    CHECK_EQ(2, CountInvocations(NULL, "bar"));
+    CHECK_EQ(200, CountInvocations("bar", "foo"));
+    CHECK_EQ(200, CountInvocations(NULL, "foo"));
+
+    // Verify that we have an entry hook on some specific stubs.
+    CHECK_NE(0, CountInvocations(NULL, "CEntryStub"));
+    CHECK_NE(0, CountInvocations(NULL, "JSEntryStub"));
+    CHECK_NE(0, CountInvocations(NULL, "JSEntryTrampoline"));
+  }
+  isolate->Dispose();
+
+  Reset();
+
+  // Make sure a second isolate is unaffected by the previous entry hook.
+  isolate = v8::Isolate::New();
+  {
+    v8::Isolate::Scope scope(isolate);
+
+    // Reset the entry count to zero and set the entry hook.
+    RunLoopInNewEnv(isolate);
+
+    // We should record no invocations in this isolate.
+    CHECK_EQ(0, invocations_.size());
+  }
+  // Since the isolate has been used, we shouldn't be able to set an entry
+  // hook anymore.
+  CHECK_EQ(false, v8::V8::SetFunctionEntryHook(isolate, EntryHook));
+
+  isolate->Dispose();
+}
+
 
 TEST(SetFunctionEntryHook) {
   // FunctionEntryHook does not work well with experimental natives.
@@ -12351,42 +12602,8 @@ TEST(SetFunctionEntryHook) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_use_inlining = false;
 
-  // Test setting and resetting the entry hook.
-  // Nulling it should always succeed.
-  CHECK(v8::V8::SetFunctionEntryHook(NULL));
-
-  CHECK(v8::V8::SetFunctionEntryHook(entry_hook));
-  // Setting a hook while one's active should fail.
-  CHECK_EQ(false, v8::V8::SetFunctionEntryHook(entry_hook));
-
-  CHECK(v8::V8::SetFunctionEntryHook(NULL));
-
-  // Reset the entry count to zero and set the entry hook.
-  bar_entry_count = 0;
-  bar_caller_count = 0;
-  foo_entry_count = 0;
-  CHECK(v8::V8::SetFunctionEntryHook(entry_hook));
-  RunLoopInNewEnv();
-
-  CHECK_EQ(2, bar_entry_count);
-  CHECK_EQ(200, bar_caller_count);
-  CHECK_EQ(200, foo_entry_count);
-
-  // Clear the entry hook and count.
-  bar_entry_count = 0;
-  bar_caller_count = 0;
-  foo_entry_count = 0;
-  v8::V8::SetFunctionEntryHook(NULL);
-
-  // Clear the compilation cache to make sure we don't reuse the
-  // functions from the previous invocation.
-  v8::internal::Isolate::Current()->compilation_cache()->Clear();
-
-  // Verify that entry hooking is now disabled.
-  RunLoopInNewEnv();
-  CHECK_EQ(0u, bar_entry_count);
-  CHECK_EQ(0u, bar_caller_count);
-  CHECK_EQ(0u, foo_entry_count);
+  SetFunctionEntryHookTest test;
+  test.RunTest();
 }
 
 
@@ -12525,11 +12742,6 @@ static void event_handler(const v8::JitCodeEvent* event) {
       CHECK(false);
       break;
   }
-}
-
-
-static bool MatchPointers(void* key1, void* key2) {
-  return key1 == key2;
 }
 
 

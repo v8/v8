@@ -1753,8 +1753,10 @@ Isolate::Isolate()
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
       context_exit_happened_(false),
+      initialized_from_snapshot_(false),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
+      function_entry_hook_(NULL),
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
@@ -2077,6 +2079,14 @@ bool Isolate::Init(Deserializer* des) {
   ASSERT(Isolate::Current() == this);
   TRACE_ISOLATE(init);
 
+  if (function_entry_hook() != NULL) {
+    // When function entry hooking is in effect, we have to create the code
+    // stubs from scratch to get entry hooks, rather than loading the previously
+    // generated stubs from disk.
+    // If this assert fires, the initialization path has regressed.
+    ASSERT(des == NULL);
+  }
+
   // The initialization process does not handle memory exhaustion.
   DisallowAllocationFailure disallow_allocation_failure;
 
@@ -2268,6 +2278,9 @@ bool Isolate::Init(Deserializer* des) {
       sweeper_thread_[i]->Start();
     }
   }
+
+  initialized_from_snapshot_ = (des != NULL);
+
   return true;
 }
 

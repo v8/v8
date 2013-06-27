@@ -757,24 +757,11 @@ void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-FunctionEntryHook ProfileEntryHookStub::entry_hook_ = NULL;
-
-
 void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
                                                intptr_t stack_pointer) {
-  if (entry_hook_ != NULL)
-    entry_hook_(function, stack_pointer);
-}
-
-
-bool ProfileEntryHookStub::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
-  // We don't allow setting a new entry hook over one that's
-  // already active, as the hooks won't stack.
-  if (entry_hook != 0 && entry_hook_ != 0)
-    return false;
-
-  entry_hook_ = entry_hook;
-  return true;
+  FunctionEntryHook entry_hook = Isolate::Current()->function_entry_hook();
+  ASSERT(entry_hook != NULL);
+  entry_hook(function, stack_pointer);
 }
 
 

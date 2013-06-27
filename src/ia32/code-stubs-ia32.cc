@@ -5077,6 +5077,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // esi: current context (C callee-saved)
   // edi: JS function of the caller (C callee-saved)
 
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
   // NOTE: Invocations of builtins may return failure objects instead
   // of a proper result. The builtin entry handles this by performing
   // a garbage collection and retrying the builtin (twice).
@@ -5149,6 +5151,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
+
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Set up frame.
   __ push(ebp);
@@ -7691,7 +7695,11 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (entry_hook_ != NULL) {
+  if (masm->isolate()->function_entry_hook() != NULL) {
+    // It's always safe to call the entry hook stub, as the hook itself
+    // is not allowed to call back to V8.
+    AllowStubCallsScope allow_stub_calls(masm, true);
+
     ProfileEntryHookStub stub;
     masm->CallStub(&stub);
   }
@@ -7699,9 +7707,11 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  // Ecx is the only volatile register we must save.
-  const int kNumSavedRegisters = 1;
+  // Save volatile registers.
+  const int kNumSavedRegisters = 3;
+  __ push(eax);
   __ push(ecx);
+  __ push(edx);
 
   // Calculate and push the original stack pointer.
   __ lea(eax, Operand(esp, (kNumSavedRegisters + 1) * kPointerSize));
@@ -7714,12 +7724,16 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __ push(eax);
 
   // Call the entry hook.
-  int32_t hook_location = reinterpret_cast<int32_t>(&entry_hook_);
-  __ call(Operand(hook_location, RelocInfo::NONE32));
+  ASSERT(masm->isolate()->function_entry_hook() != NULL);
+  __ call(FUNCTION_ADDR(masm->isolate()->function_entry_hook()),
+          RelocInfo::RUNTIME_ENTRY);
   __ add(esp, Immediate(2 * kPointerSize));
 
   // Restore ecx.
+  __ pop(edx);
   __ pop(ecx);
+  __ pop(eax);
+
   __ ret(0);
 }
 

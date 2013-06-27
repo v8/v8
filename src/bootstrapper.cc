@@ -2575,7 +2575,14 @@ Genesis::Genesis(Isolate* isolate,
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return;
 
-  native_context_ = Snapshot::NewContextFromSnapshot();
+  // We can only de-serialize a context if the isolate was initialized from
+  // a snapshot. Otherwise we have to build the context from scratch.
+  if (isolate->initialized_from_snapshot()) {
+    native_context_ = Snapshot::NewContextFromSnapshot();
+  } else {
+    native_context_ = Handle<Context>();
+  }
+
   if (!native_context().is_null()) {
     AddToWeakNativeContextList(*native_context());
     isolate->set_context(*native_context());
