@@ -9999,10 +9999,12 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
   }
 
   // Copy in-object properties.
-  HValue* object_properties =
-      AddInstruction(new(zone) HInnerAllocatedObject(target, object_offset));
-  BuildEmitInObjectProperties(boilerplate_object, original_boilerplate_object,
-      object_properties, target, offset, data_target, data_offset);
+  if (boilerplate_object->map()->NumberOfFields() != 0) {
+    HValue* object_properties =
+        AddInstruction(new(zone) HInnerAllocatedObject(target, object_offset));
+    BuildEmitInObjectProperties(boilerplate_object, original_boilerplate_object,
+        object_properties, target, offset, data_target, data_offset);
+  }
 
   // Create allocation site info.
   if (mode == TRACK_ALLOCATION_SITE &&
