@@ -2488,12 +2488,10 @@ class HCallNew: public HBinaryCall {
 class HCallNewArray: public HCallNew {
  public:
   HCallNewArray(HValue* context, HValue* constructor, int argument_count,
-                Handle<Cell> type_cell)
+                Handle<Cell> type_cell, ElementsKind elements_kind)
       : HCallNew(context, constructor, argument_count),
-        type_cell_(type_cell) {
-    elements_kind_ = static_cast<ElementsKind>(
-        Smi::cast(type_cell->value())->value());
-  }
+        elements_kind_(elements_kind),
+        type_cell_(type_cell) {}
 
   Handle<Cell> property_cell() const {
     return type_cell_;

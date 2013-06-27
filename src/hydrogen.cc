@@ -8873,7 +8873,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
       Handle<Cell> cell = expr->allocation_info_cell();
       AddInstruction(new(zone()) HCheckFunction(constructor, array_function));
       call = new(zone()) HCallNewArray(context, constructor, argument_count,
-                                       cell);
+                                       cell, expr->elements_kind());
     } else {
       call = new(zone()) HCallNew(context, constructor, argument_count);
     }
