@@ -112,8 +112,7 @@ StackFrameIterator::StackFrameIterator(Isolate* isolate,
       frame_(NULL), handler_(NULL),
       thread_(use_top ? isolate_->thread_local_top() : NULL),
       fp_(use_top ? NULL : fp), sp_(sp),
-      advance_(use_top ? &StackFrameIterator::AdvanceWithHandler :
-               &StackFrameIterator::AdvanceWithoutHandler),
+      advance_(&StackFrameIterator::AdvanceWithoutHandler),
       can_access_heap_objects_(false) {
   if (use_top || fp != NULL) {
     Reset();
@@ -299,7 +298,6 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
   Address last_sp = last_frame->sp(), last_fp = last_frame->fp();
   // Before advancing to the next stack frame, perform pointer validity tests
   iteration_done_ = !IsValidFrame(last_frame) ||
-      !CanIterateHandles(last_frame, iterator_.handler()) ||
       !IsValidCaller(last_frame);
   if (iteration_done_) return;
 
@@ -308,15 +306,6 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
   // Check that we have actually moved to the previous frame in the stack
   StackFrame* prev_frame = iterator_.frame();
   iteration_done_ = prev_frame->sp() < last_sp || prev_frame->fp() < last_fp;
-}
-
-
-bool SafeStackFrameIterator::CanIterateHandles(StackFrame* frame,
-                                               StackHandler* handler) {
-  // If StackIterator iterates over StackHandles, verify that
-  // StackHandlerIterator can be instantiated (see StackHandlerIterator
-  // constructor.)
-  return !is_valid_top_ || (frame->sp() <= handler->address());
 }
 
 

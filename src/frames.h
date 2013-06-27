@@ -919,7 +919,6 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   bool IsValidStackAddress(Address addr) const {
     return stack_validator_.IsValid(addr);
   }
-  bool CanIterateHandles(StackFrame* frame, StackHandler* handler);
   bool IsValidFrame(StackFrame* frame) const;
   bool IsValidCaller(StackFrame* frame);
   static bool IsValidTop(Isolate* isolate,
