@@ -2084,7 +2084,6 @@ void GDBJITInterface::AddCode(const char* name,
 
   AddUnwindInfo(&code_desc);
   Isolate* isolate = code->GetIsolate();
-  Zone* zone = code->GetIsolate()->runtime_zone();
   JITCodeEntry* entry = CreateELFObject(&code_desc, isolate);
   ASSERT(!IsLineInfoTagged(entry));
 
