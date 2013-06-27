@@ -427,6 +427,9 @@ class HGraph: public ZoneObject {
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
                          int32_t integer_value);
 
+  template<class Phase>
+  void Run() { Phase phase(this); phase.Run(); }
+
   void MarkLive(HValue* ref, HValue* instr, ZoneList<HValue*>* worklist);
   void MarkLiveInstructions();
   void RemoveDeadInstructions();

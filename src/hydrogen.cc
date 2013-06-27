@@ -4014,10 +4014,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
 
   if (FLAG_use_canonicalizing) Canonicalize();
 
-  if (FLAG_use_gvn) {
-    HGlobalValueNumberingPhase phase(this);
-    phase.Run();
-  }
+  if (FLAG_use_gvn) Run<HGlobalValueNumberingPhase>();
 
   if (FLAG_use_range) {
     HRangeAnalysis rangeAnalysis(this);
