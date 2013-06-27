@@ -109,6 +109,7 @@ var kMessages = {
   not_typed_array:               ["this is not a typed array."],
   invalid_argument:              ["invalid_argument"],
   data_view_not_array_buffer:    ["First argument to DataView constructor must be an ArrayBuffer"],
+  constructor_not_function:      ["Constructor ", "%0", " requires 'new'"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],

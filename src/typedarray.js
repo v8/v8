@@ -97,7 +97,7 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
         throw MakeTypeError("parameterless_typed_array_constr", [name]);
       }
     } else {
-      return new constructor(arg1, arg2, arg3);
+      throw MakeTypeError("constructor_not_function", [name])
     }
   }
 }
@@ -223,7 +223,7 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
     }
     %DataViewInitialize(this, buffer, offset, length);
   } else {
-    return new $DataView(buffer, byteOffset, byteLength)
+    throw MakeTypeError('constructor_not_function', ["DataView"]);
   }
 }
 

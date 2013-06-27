@@ -563,5 +563,5 @@ TestArbitrary(new DataView(new ArrayBuffer(256)));
 
 
 // Test direct constructor call
-assertTrue(ArrayBuffer() instanceof ArrayBuffer);
-assertTrue(DataView(new ArrayBuffer()) instanceof DataView);
+assertThrows(function() { ArrayBuffer(); }, TypeError);
+assertThrows(function() { DataView(new ArrayBuffer()); }, TypeError);
