@@ -116,16 +116,40 @@ class WebkitTestSuite(testsuite.TestSuite):
       return True
     file_name = os.path.join(self.root, testpath) + "-expected.txt"
     with file(file_name, "r") as expected:
-      def ExpIterator():
-        for line in expected.readlines():
-          if line.startswith("#") or not line.strip(): continue
-          yield line.strip()
-      def ActIterator():
-        for line in output.stdout.splitlines():
-          if self._IgnoreLine(line.strip()): continue
-          yield line.strip()
+      expected_lines = expected.readlines()
+
+    def ExpIterator():
+      for line in expected_lines:
+        if line.startswith("#") or not line.strip(): continue
+        yield line.strip()
+
+    def ActIterator(lines):
+      for line in lines:
+        if self._IgnoreLine(line.strip()): continue
+        yield line.strip()
+
+    def ActBlockIterator():
+      """Iterates over blocks of actual output lines."""
+      lines = output.stdout.splitlines()
+      start_index = 0
+      found_eqeq = False
+      for index, line in enumerate(lines):
+        # If a stress test separator is found:
+        if line.startswith("=="):
+          # Iterate over all lines before a separator except the first.
+          if not found_eqeq:
+            found_eqeq = True
+          else:
+            yield ActIterator(lines[start_index:index])
+          # The next block of ouput lines starts after the separator.
+          start_index = index + 1
+      # Iterate over complete output if no separator was found.
+      if not found_eqeq:
+        yield ActIterator(lines)
+
+    for act_iterator in ActBlockIterator():
       for (expected, actual) in itertools.izip_longest(
-          ExpIterator(), ActIterator(), fillvalue=''):
+          ExpIterator(), act_iterator, fillvalue=''):
         if expected != actual:
           return True
       return False
