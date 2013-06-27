@@ -575,8 +575,7 @@ const uint32_t kStringTag = 0x0;
 const uint32_t kNotStringTag = 0x80;
 
 // Bit 6 indicates that the object is an internalized string (if set) or not.
-// There are not enough types that the non-string types (with bit 7 set) can
-// have bit 6 set too.
+// Bit 7 has to be clear as well.
 const uint32_t kIsInternalizedMask = 0x40;
 const uint32_t kNotInternalizedTag = 0x0;
 const uint32_t kInternalizedTag = 0x40;

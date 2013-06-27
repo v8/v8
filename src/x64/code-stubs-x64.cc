@@ -3436,11 +3436,10 @@ static void BranchIfNotInternalizedString(MacroAssembler* masm,
   __ movq(scratch, FieldOperand(object, HeapObject::kMapOffset));
   __ movzxbq(scratch,
              FieldOperand(scratch, Map::kInstanceTypeOffset));
-  // Ensure that no non-strings have the internalized bit set.
-  STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsInternalizedMask);
   STATIC_ASSERT(kInternalizedTag != 0);
-  __ testb(scratch, Immediate(kIsInternalizedMask));
-  __ j(zero, label);
+  __ and_(scratch, Immediate(kIsNotStringMask | kIsInternalizedMask));
+  __ cmpb(scratch, Immediate(kInternalizedTag | kStringTag));
+  __ j(not_equal, label);
 }
 
 
@@ -5845,9 +5844,13 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   __ movzxbq(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
   __ movzxbq(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kInternalizedTag != 0);
-  __ and_(tmp1, tmp2);
-  __ testb(tmp1, Immediate(kIsInternalizedMask));
-  __ j(zero, &miss, Label::kNear);
+  __ and_(tmp1, Immediate(kIsNotStringMask | kIsInternalizedMask));
+  __ cmpb(tmp1, Immediate(kInternalizedTag | kStringTag));
+  __ j(not_equal, &miss, Label::kNear);
+
+  __ and_(tmp2, Immediate(kIsNotStringMask | kIsInternalizedMask));
+  __ cmpb(tmp2, Immediate(kInternalizedTag | kStringTag));
+  __ j(not_equal, &miss, Label::kNear);
 
   // Internalized strings are compared by identity.
   Label done;
@@ -5890,19 +5893,8 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
   __ movzxbq(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
   __ movzxbq(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
 
-  Label succeed1;
-  __ testb(tmp1, Immediate(kIsInternalizedMask));
-  __ j(not_zero, &succeed1, Label::kNear);
-  __ cmpb(tmp1, Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
-  __ j(not_equal, &miss, Label::kNear);
-  __ bind(&succeed1);
-
-  Label succeed2;
-  __ testb(tmp2, Immediate(kIsInternalizedMask));
-  __ j(not_zero, &succeed2, Label::kNear);
-  __ cmpb(tmp2, Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
-  __ j(not_equal, &miss, Label::kNear);
-  __ bind(&succeed2);
+  __ JumpIfNotUniqueName(tmp1, &miss, Label::kNear);
+  __ JumpIfNotUniqueName(tmp2, &miss, Label::kNear);
 
   // Unique names are compared by identity.
   Label done;
@@ -5964,7 +5956,8 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   __ bind(&not_same);
 
   // Check that both strings are internalized strings. If they are, we're done
-  // because we already know they are not identical.
+  // because we already know they are not identical. We also know they are both
+  // strings.
   if (equality) {
     Label do_compare;
     STATIC_ASSERT(kInternalizedTag != 0);
@@ -6120,13 +6113,8 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
     // Check if the entry name is not a unique name.
     __ movq(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
-    __ testb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
-             Immediate(kIsInternalizedMask));
-    __ j(not_zero, &good, Label::kNear);
-    __ cmpb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
-            Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
-    __ j(not_equal, miss);
-
+    __ JumpIfNotUniqueName(FieldOperand(entity_name, Map::kInstanceTypeOffset),
+                           miss);
     __ bind(&good);
   }
 
@@ -6252,15 +6240,9 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
       // key we are looking for.
 
       // Check if the entry name is not a unique name.
-      Label cont;
       __ movq(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
-      __ testb(FieldOperand(scratch, Map::kInstanceTypeOffset),
-               Immediate(kIsInternalizedMask));
-      __ j(not_zero, &cont);
-      __ cmpb(FieldOperand(scratch, Map::kInstanceTypeOffset),
-              Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
-      __ j(not_equal, &maybe_in_dictionary);
-      __ bind(&cont);
+      __ JumpIfNotUniqueName(FieldOperand(scratch, Map::kInstanceTypeOffset),
+                             &maybe_in_dictionary);
     }
   }
 

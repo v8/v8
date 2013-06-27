@@ -892,12 +892,17 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
 
     // Now that we have the types we might as well check for
     // internalized-internalized.
-    // Ensure that no non-strings have the internalized bit set.
-    STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsInternalizedMask);
+    Label not_internalized;
     STATIC_ASSERT(kInternalizedTag != 0);
-    __ and_(r2, r2, Operand(r3));
-    __ tst(r2, Operand(kIsInternalizedMask));
-    __ b(ne, &return_not_equal);
+    __ and_(r2, r2, Operand(kIsNotStringMask | kIsInternalizedMask));
+    __ cmp(r2, Operand(kInternalizedTag | kStringTag));
+    __ b(ne, &not_internalized);  // r2 (rhs) is not an internalized string
+
+    __ and_(r3, r3, Operand(kIsNotStringMask | kIsInternalizedMask));
+    __ cmp(r3, Operand(kInternalizedTag | kStringTag));
+    __ b(eq, &return_not_equal);  // both rhs and lhs are internalized strings
+
+    __ bind(&not_internalized);
 }
 
 
@@ -937,7 +942,6 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
          (lhs.is(r1) && rhs.is(r0)));
 
   // r2 is object type of rhs.
-  // Ensure that no non-strings have the internalized bit set.
   Label object_test;
   STATIC_ASSERT(kInternalizedTag != 0);
   __ tst(r2, Operand(kIsNotStringMask));
@@ -6213,9 +6217,14 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   __ ldrb(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
   __ ldrb(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kInternalizedTag != 0);
-  __ and_(tmp1, tmp1, Operand(tmp2));
-  __ tst(tmp1, Operand(kIsInternalizedMask));
-  __ b(eq, &miss);
+
+  __ and_(tmp1, tmp1, Operand(kIsNotStringMask | kIsInternalizedMask));
+  __ cmp(tmp1, Operand(kInternalizedTag | kStringTag));
+  __ b(ne, &miss);
+
+  __ and_(tmp2, tmp2, Operand(kIsNotStringMask | kIsInternalizedMask));
+  __ cmp(tmp2, Operand(kInternalizedTag | kStringTag));
+  __ b(ne, &miss);
 
   // Internalized strings are compared by identity.
   __ cmp(left, right);
@@ -6254,19 +6263,8 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
   __ ldrb(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
   __ ldrb(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
 
-  Label succeed1;
-  __ tst(tmp1, Operand(kIsInternalizedMask));
-  __ b(ne, &succeed1);
-  __ cmp(tmp1, Operand(SYMBOL_TYPE));
-  __ b(ne, &miss);
-  __ bind(&succeed1);
-
-  Label succeed2;
-  __ tst(tmp2, Operand(kIsInternalizedMask));
-  __ b(ne, &succeed2);
-  __ cmp(tmp2, Operand(SYMBOL_TYPE));
-  __ b(ne, &miss);
-  __ bind(&succeed2);
+  __ JumpIfNotUniqueName(tmp1, &miss);
+  __ JumpIfNotUniqueName(tmp2, &miss);
 
   // Unique names are compared by identity.
   __ cmp(left, right);
@@ -6321,7 +6319,8 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // Handle not identical strings.
 
   // Check that both strings are internalized strings. If they are, we're done
-  // because we already know they are not identical.
+  // because we already know they are not identical. We know they are both
+  // strings.
   if (equality) {
     ASSERT(GetCondition() == eq);
     STATIC_ASSERT(kInternalizedTag != 0);
@@ -6507,11 +6506,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
     __ ldrb(entity_name,
             FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-    __ tst(entity_name, Operand(kIsInternalizedMask));
-    __ b(ne, &good);
-    __ cmp(entity_name, Operand(SYMBOL_TYPE));
-    __ b(ne, miss);
-
+    __ JumpIfNotUniqueName(entity_name, miss);
     __ bind(&good);
 
     // Restore the properties.
@@ -6678,15 +6673,10 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
     if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
       // Check if the entry name is not a unique name.
-      Label cont;
       __ ldr(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
       __ ldrb(entry_key,
               FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      __ tst(entry_key, Operand(kIsInternalizedMask));
-      __ b(ne, &cont);
-      __ cmp(entry_key, Operand(SYMBOL_TYPE));
-      __ b(ne, &maybe_in_dictionary);
-      __ bind(&cont);
+      __ JumpIfNotUniqueName(entry_key, &maybe_in_dictionary);
     }
   }
 
