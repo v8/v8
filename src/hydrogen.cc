@@ -3946,21 +3946,6 @@ bool HOptimizedGraphBuilder::BuildGraph() {
 }
 
 
-// Perform common subexpression elimination and loop-invariant code motion.
-void HGraph::GlobalValueNumbering() {
-  HPhase phase("H_Global value numbering", this);
-  HGlobalValueNumberer gvn(this, info());
-  bool removed_side_effects = gvn.Analyze();
-  // Trigger a second analysis pass to further eliminate duplicate values that
-  // could only be discovered by removing side-effect-generating instructions
-  // during the first pass.
-  if (FLAG_smi_only_arrays && removed_side_effects) {
-    removed_side_effects = gvn.Analyze();
-    ASSERT(!removed_side_effects);
-  }
-}
-
-
 bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   *bailout_reason = SmartArrayPointer<char>();
   OrderBlocks();
@@ -4029,7 +4014,10 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
 
   if (FLAG_use_canonicalizing) Canonicalize();
 
-  if (FLAG_use_gvn) GlobalValueNumbering();
+  if (FLAG_use_gvn) {
+    HGlobalValueNumberingPhase phase(this);
+    phase.Run();
+  }
 
   if (FLAG_use_range) {
     HRangeAnalysis rangeAnalysis(this);

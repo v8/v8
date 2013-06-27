@@ -284,7 +284,6 @@ class HGraph: public ZoneObject {
   void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
   void ComputeSafeUint32Operations();
-  void GlobalValueNumbering();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
   void Canonicalize();
@@ -1961,6 +1960,9 @@ class HPhase : public CompilationPhase {
       : CompilationPhase(name, graph->info()),
         graph_(graph) { }
   ~HPhase();
+
+ protected:
+  HGraph* graph() const { return graph_; }
 
  private:
   HGraph* graph_;

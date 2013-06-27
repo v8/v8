@@ -626,7 +626,8 @@ class CompilationPhase BASE_EMBEDDED {
   bool ShouldProduceTraceOutput() const;
 
   const char* name() const { return name_; }
-  Isolate* isolate() const { return info_->isolate(); }
+  CompilationInfo* info() const { return info_; }
+  Isolate* isolate() const { return info()->isolate(); }
   Zone* zone() { return &zone_; }
 
  private:
