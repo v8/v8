@@ -57,7 +57,7 @@ struct OffsetRange {
 // is constructed based on the resources available at compile-time.
 class CompilationInfo {
  public:
-  CompilationInfo(Handle<JSFunction> closure, Zone* zone, Zone* phase_zone);
+  CompilationInfo(Handle<JSFunction> closure, Zone* zone);
   virtual ~CompilationInfo();
 
   Isolate* isolate() {
@@ -65,7 +65,6 @@ class CompilationInfo {
     return isolate_;
   }
   Zone* zone() { return zone_; }
-  Zone* phase_zone() { return phase_zone_; }
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
@@ -303,15 +302,12 @@ class CompilationInfo {
 
  protected:
   CompilationInfo(Handle<Script> script,
-                  Zone* zone,
-                  Zone* phase_zone);
+                  Zone* zone);
   CompilationInfo(Handle<SharedFunctionInfo> shared_info,
-                  Zone* zone,
-                  Zone* phase_zone);
+                  Zone* zone);
   CompilationInfo(HydrogenCodeStub* stub,
                   Isolate* isolate,
-                  Zone* zone,
-                  Zone* phase_zone);
+                  Zone* zone);
 
  private:
   Isolate* isolate_;
@@ -329,7 +325,7 @@ class CompilationInfo {
     DEPENDENCY_CHANGE_ABORT
   };
 
-  void Initialize(Isolate* isolate, Mode mode, Zone* zone, Zone* phase_zone);
+  void Initialize(Isolate* isolate, Mode mode, Zone* zone);
 
   void SetMode(Mode mode) {
     ASSERT(V8::UseCrankshaft());
@@ -403,9 +399,6 @@ class CompilationInfo {
   // The zone from which the compilation pipeline working on this
   // CompilationInfo allocates.
   Zone* zone_;
-  // The phase zone where allocations local to a specific phase are
-  // performed; be aware that this zone is cleared after each phase
-  Zone* phase_zone_;
 
   DeferredHandles* deferred_handles_;
 
@@ -440,21 +433,17 @@ class CompilationInfo {
 class CompilationInfoWithZone: public CompilationInfo {
  public:
   explicit CompilationInfoWithZone(Handle<Script> script)
-      : CompilationInfo(script, &zone_, &phase_zone_),
-        zone_(script->GetIsolate()),
-        phase_zone_(script->GetIsolate()) {}
+      : CompilationInfo(script, &zone_),
+        zone_(script->GetIsolate()) {}
   explicit CompilationInfoWithZone(Handle<SharedFunctionInfo> shared_info)
-      : CompilationInfo(shared_info, &zone_, &phase_zone_),
-        zone_(shared_info->GetIsolate()),
-        phase_zone_(shared_info->GetIsolate()) {}
+      : CompilationInfo(shared_info, &zone_),
+        zone_(shared_info->GetIsolate()) {}
   explicit CompilationInfoWithZone(Handle<JSFunction> closure)
-      : CompilationInfo(closure, &zone_, &phase_zone_),
-        zone_(closure->GetIsolate()),
-        phase_zone_(closure->GetIsolate()) {}
+      : CompilationInfo(closure, &zone_),
+        zone_(closure->GetIsolate()) {}
   CompilationInfoWithZone(HydrogenCodeStub* stub, Isolate* isolate)
-      : CompilationInfo(stub, isolate, &zone_, &phase_zone_),
-        zone_(isolate),
-        phase_zone_(isolate) {}
+      : CompilationInfo(stub, isolate, &zone_),
+        zone_(isolate) {}
 
   // Virtual destructor because a CompilationInfoWithZone has to exit the
   // zone scope and get rid of dependent maps even when the destructor is
@@ -465,7 +454,6 @@ class CompilationInfoWithZone: public CompilationInfo {
 
  private:
   Zone zone_;
-  Zone phase_zone_;
 };
 
 
@@ -631,21 +619,21 @@ class Compiler : public AllStatic {
 
 class CompilationPhase BASE_EMBEDDED {
  public:
-  CompilationPhase(const char* name, Isolate* isolate, Zone* zone);
+  CompilationPhase(const char* name, CompilationInfo* info);
   ~CompilationPhase();
 
  protected:
   bool ShouldProduceTraceOutput() const;
 
   const char* name() const { return name_; }
-  Isolate* isolate() const { return isolate_; }
-  Zone* zone() const { return zone_; }
+  Isolate* isolate() const { return info_->isolate(); }
+  Zone* zone() { return &zone_; }
 
  private:
   const char* name_;
-  Isolate* isolate_;
-  Zone* zone_;
-  unsigned start_allocation_size_;
+  CompilationInfo* info_;
+  Zone zone_;
+  unsigned info_zone_start_allocation_size_;
   int64_t start_ticks_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationPhase);

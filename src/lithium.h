@@ -762,7 +762,7 @@ enum NumberUntagDMode {
 class LPhase : public CompilationPhase {
  public:
   LPhase(const char* name, LChunk* chunk)
-      : CompilationPhase(name, chunk->isolate(), chunk->zone()),
+      : CompilationPhase(name, chunk->info()),
         chunk_(chunk) { }
   ~LPhase();
 

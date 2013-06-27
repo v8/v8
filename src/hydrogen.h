@@ -1958,7 +1958,7 @@ class HStatistics: public Malloced {
 class HPhase : public CompilationPhase {
  public:
   HPhase(const char* name, HGraph* graph)
-      : CompilationPhase(name, graph->isolate(), graph->zone()),
+      : CompilationPhase(name, graph->info()),
         graph_(graph) { }
   ~HPhase();
 

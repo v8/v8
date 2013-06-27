@@ -648,7 +648,7 @@ class LAllocator BASE_EMBEDDED {
 class LAllocatorPhase : public CompilationPhase {
  public:
   LAllocatorPhase(const char* name, LAllocator* allocator)
-      : CompilationPhase(name, allocator->isolate(), allocator->zone()),
+      : CompilationPhase(name, allocator->graph()->info()),
         allocator_(allocator) { }
   ~LAllocatorPhase();
 

@@ -54,55 +54,50 @@ namespace internal {
 
 
 CompilationInfo::CompilationInfo(Handle<Script> script,
-                                 Zone* zone,
-                                 Zone* phase_zone)
+                                 Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE)),
       script_(script),
       osr_ast_id_(BailoutId::None()) {
-  Initialize(script->GetIsolate(), BASE, zone, phase_zone);
+  Initialize(script->GetIsolate(), BASE, zone);
 }
 
 
 CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
-                                 Zone* zone,
-                                 Zone* phase_zone)
+                                 Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       osr_ast_id_(BailoutId::None()) {
-  Initialize(script_->GetIsolate(), BASE, zone, phase_zone);
+  Initialize(script_->GetIsolate(), BASE, zone);
 }
 
 
 CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
-                                 Zone* zone,
-                                 Zone* phase_zone)
+                                 Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
       closure_(closure),
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       context_(closure->context()),
       osr_ast_id_(BailoutId::None()) {
-  Initialize(script_->GetIsolate(), BASE, zone, phase_zone);
+  Initialize(script_->GetIsolate(), BASE, zone);
 }
 
 
 CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
                                  Isolate* isolate,
-                                 Zone* zone,
-                                 Zone* phase_zone)
+                                 Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE) |
              IsLazy::encode(true)),
       osr_ast_id_(BailoutId::None()) {
-  Initialize(isolate, STUB, zone, phase_zone);
+  Initialize(isolate, STUB, zone);
   code_stub_ = stub;
 }
 
 
 void CompilationInfo::Initialize(Isolate* isolate,
                                  Mode mode,
-                                 Zone* zone,
-                                 Zone* phase_zone) {
+                                 Zone* zone) {
   isolate_ = isolate;
   function_ = NULL;
   scope_ = NULL;
@@ -110,7 +105,6 @@ void CompilationInfo::Initialize(Isolate* isolate,
   extension_ = NULL;
   pre_parse_data_ = NULL;
   zone_ = zone;
-  phase_zone_ = phase_zone;
   deferred_handles_ = NULL;
   code_stub_ = NULL;
   prologue_offset_ = kPrologueOffsetNotSet;
@@ -1228,12 +1222,10 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
 }
 
 
-CompilationPhase::CompilationPhase(const char* name,
-                                   Isolate* isolate,
-                                   Zone* zone)
-    : name_(name), isolate_(isolate), zone_(zone) {
+CompilationPhase::CompilationPhase(const char* name, CompilationInfo* info)
+    : name_(name), info_(info), zone_(info->isolate()) {
   if (FLAG_hydrogen_stats) {
-    start_allocation_size_ = zone->allocation_size();
+    info_zone_start_allocation_size_ = info->zone()->allocation_size();
     start_ticks_ = OS::Ticks();
   }
 }
@@ -1241,9 +1233,10 @@ CompilationPhase::CompilationPhase(const char* name,
 
 CompilationPhase::~CompilationPhase() {
   if (FLAG_hydrogen_stats) {
-    unsigned size = zone()->allocation_size() - start_allocation_size_;
+    unsigned size = zone()->allocation_size();
+    size += info_->zone()->allocation_size() - info_zone_start_allocation_size_;
     int64_t ticks = OS::Ticks() - start_ticks_;
-    isolate_->GetHStatistics()->SaveTiming(name_, ticks, size);
+    isolate()->GetHStatistics()->SaveTiming(name_, ticks, size);
   }
 }
 

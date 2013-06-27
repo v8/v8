@@ -963,7 +963,7 @@ void HGraphBuilder::LoopBuilder::EndBody() {
 HGraph* HGraphBuilder::CreateGraph() {
   graph_ = new(zone()) HGraph(info_);
   if (FLAG_hydrogen_stats) isolate()->GetHStatistics()->Initialize(info_);
-  CompilationPhase phase("H_Block building", isolate(), zone());
+  CompilationPhase phase("H_Block building", info_);
   set_current_block(graph()->entry_block());
   if (!BuildGraph()) return NULL;
   graph()->FinalizeUniqueValueIds();
@@ -2384,7 +2384,7 @@ class PostorderProcessor : public ZoneObject {
 
 
 void HGraph::OrderBlocks() {
-  CompilationPhase phase("H_Block ordering", isolate(), zone());
+  CompilationPhase phase("H_Block ordering", info());
   BitVector visited(blocks_.length(), zone());
 
   ZoneList<HBasicBlock*> reverse_result(8, zone());
@@ -7932,7 +7932,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
   }
 
   // Parse and allocate variables.
-  CompilationInfo target_info(target, zone(), current_info()->phase_zone());
+  CompilationInfo target_info(target, zone());
   Handle<SharedFunctionInfo> target_shared(target->shared());
   if (!Parser::Parse(&target_info) || !Scope::Analyze(&target_info)) {
     if (target_info.isolate()->has_pending_exception()) {
