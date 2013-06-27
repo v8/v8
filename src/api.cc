@@ -300,13 +300,8 @@ static inline bool EmptyCheck(const char* location, const v8::Data* obj) {
 // --- S t a t i c s ---
 
 
-static bool InitializeHelper(i::Isolate* isolate) {
-  // If the isolate has a function entry hook, it needs to re-build all its
-  // code stubs with entry hooks embedded, so let's deserialize a snapshot.
-  if (isolate == NULL || isolate->function_entry_hook() == NULL) {
-    if (i::Snapshot::Initialize())
-      return true;
-  }
+static bool InitializeHelper() {
+  if (i::Snapshot::Initialize()) return true;
   return i::V8::Initialize(NULL);
 }
 
@@ -318,7 +313,7 @@ static inline bool EnsureInitializedForIsolate(i::Isolate* isolate,
     if (isolate->IsInitialized()) return true;
   }
   ASSERT(isolate == i::Isolate::Current());
-  return ApiCheck(InitializeHelper(isolate), location, "Error initializing V8");
+  return ApiCheck(InitializeHelper(), location, "Error initializing V8");
 }
 
 // Some initializing API functions are called early and may be
@@ -5216,7 +5211,7 @@ bool v8::V8::Initialize() {
   if (isolate != NULL && isolate->IsInitialized()) {
     return true;
   }
-  return InitializeHelper(isolate);
+  return InitializeHelper();
 }
 
 
@@ -5232,30 +5227,7 @@ void v8::V8::SetReturnAddressLocationResolver(
 
 
 bool v8::V8::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
-  return SetFunctionEntryHook(Isolate::GetCurrent(), entry_hook);
-}
-
-
-bool v8::V8::SetFunctionEntryHook(Isolate* ext_isolate,
-                                  FunctionEntryHook entry_hook) {
-  ASSERT(ext_isolate != NULL);
-  ASSERT(entry_hook != NULL);
-
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(ext_isolate);
-
-  // The entry hook can only be set before the Isolate is initialized, as
-  // otherwise the Isolate's code stubs generated at initialization won't
-  // contain entry hooks.
-  if (isolate->IsInitialized())
-    return false;
-
-  // Setting an entry hook is a one-way operation, once set, it cannot be
-  // changed or unset.
-  if (isolate->function_entry_hook() != NULL)
-    return false;
-
-  isolate->set_function_entry_hook(entry_hook);
-  return true;
+  return i::ProfileEntryHookStub::SetFunctionEntryHook(entry_hook);
 }
 
 

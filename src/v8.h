@@ -101,8 +101,6 @@ class V8 : public AllStatic {
   // Support for return-address rewriting profilers.
   static void SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver resolver);
-  // Support for entry hooking JITed code.
-  static void SetFunctionEntryHook(FunctionEntryHook entry_hook);
   // Random number generation support. Not cryptographically safe.
   static uint32_t Random(Context* context);
   // We use random numbers internally in memory allocation and in the

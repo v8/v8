@@ -456,8 +456,6 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
   // Expects five C++ function parameters.
   // - Address entry (ignored)
   // - JSFunction* function (
