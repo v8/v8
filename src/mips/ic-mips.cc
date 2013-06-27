@@ -326,7 +326,8 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
   __ And(at, hash, Operand(Name::kContainsCachedArrayIndexMask));
   __ Branch(index_string, eq, at, Operand(zero_reg));
 
-  // Is the string internalized?
+  // Is the string internalized? We know it's a string, so a single
+  // bit test is enough.
   // map: key map
   __ lbu(hash, FieldMemOperand(map, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kInternalizedTag != 0);
