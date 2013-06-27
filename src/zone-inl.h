@@ -74,7 +74,7 @@ T* Zone::NewArray(int length) {
 
 
 bool Zone::excess_allocation() {
-  return segment_bytes_allocated_ > zone_excess_limit_;
+  return segment_bytes_allocated_ > kExcessLimit;
 }
 
 

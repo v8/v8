@@ -91,7 +91,7 @@ class Zone {
   static const int kMaximumSegmentSize = 1 * MB;
 
   // Report zone excess when allocation exceeds this limit.
-  int zone_excess_limit_;
+  static const int kExcessLimit = 256 * MB;
 
   // The number of bytes allocated in this zone so far.
   unsigned allocation_size_;
