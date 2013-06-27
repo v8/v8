@@ -3962,9 +3962,8 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   Verify(true);
 #endif
 
-  if (FLAG_analyze_environment_liveness) {
-    EnvironmentSlotLivenessAnalyzer esla(this);
-    esla.AnalyzeAndTrim();
+  if (FLAG_analyze_environment_liveness && maximum_environment_size() != 0) {
+    Run<HEnvironmentLivenessAnalysisPhase>();
   }
 
   PropagateDeoptimizingMark();
