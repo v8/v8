@@ -10109,29 +10109,45 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 }
 
 
-Map* Code::FindFirstMap() {
+Object* Code::FindNthObject(int n, Map* match_map) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
-    if (object->IsMap()) return Map::cast(object);
+    if (object->IsHeapObject()) {
+      if (HeapObject::cast(object)->map() == match_map) {
+        if (--n == 0) return object;
+      }
+    }
   }
   return NULL;
 }
 
 
-void Code::ReplaceFirstMap(Map* replace_with) {
+Map* Code::FindFirstMap() {
+  Object* result = FindNthObject(1, GetHeap()->meta_map());
+  return (result != NULL) ? Map::cast(result) : NULL;
+}
+
+
+void Code::ReplaceNthObject(int n,
+                            Map* match_map,
+                            Object* replace_with) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
-    if (object->IsMap()) {
-      info->set_target_object(replace_with);
-      return;
+    if (object->IsHeapObject()) {
+      if (HeapObject::cast(object)->map() == match_map) {
+        if (--n == 0) {
+          info->set_target_object(replace_with);
+          return;
+        }
+      }
     }
   }
   UNREACHABLE();
@@ -10147,6 +10163,11 @@ void Code::FindAllMaps(MapHandleList* maps) {
     Object* object = info->target_object();
     if (object->IsMap()) maps->Add(Handle<Map>(Map::cast(object)));
   }
+}
+
+
+void Code::ReplaceFirstMap(Map* replace_with) {
+  ReplaceNthObject(1, GetHeap()->meta_map(), replace_with);
 }
 
 
@@ -10188,6 +10209,21 @@ Name* Code::FindFirstName() {
     if (object->IsName()) return Name::cast(object);
   }
   return NULL;
+}
+
+
+void Code::ReplaceNthCell(int n, Cell* replace_with) {
+  ASSERT(is_inline_cache_stub());
+  DisallowHeapAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::CELL);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    if (--n == 0) {
+      info->set_target_cell(replace_with);
+      return;
+    }
+  }
+  UNREACHABLE();
 }
 
 
