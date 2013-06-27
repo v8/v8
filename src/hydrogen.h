@@ -994,9 +994,27 @@ class HGraphBuilder {
 
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
+
+  template<class I>
+  I* Add() { return static_cast<I*>(AddInstruction(new(zone()) I())); }
+
+  template<class I, class P1>
+  I* Add(P1 p1) {
+    return static_cast<I*>(AddInstruction(new(zone()) I(p1)));
+  }
+
+  template<class I, class P1, class P2>
+  I* Add(P1 p1, P2 p2) {
+      return static_cast<I*>(AddInstruction(new(zone()) I(p1, p2)));
+  }
+
+  template<class I, class P1, class P2, class P3>
+  I* Add(P1 p1, P2 p2, P3 p3) {
+    return static_cast<I*>(AddInstruction(new(zone()) I(p1, p2, p3)));
+  }
+
   void AddSimulate(BailoutId id,
                    RemovableSimulate removable = FIXED_SIMULATE);
-  HBoundsCheck* AddBoundsCheck(HValue* index, HValue* length);
 
   HReturn* AddReturn(HValue* value);
 

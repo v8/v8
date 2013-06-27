@@ -599,7 +599,7 @@ HValue* CodeStubGraphBuilderBase::BuildArraySingleArgumentConstructor(
   HConstant* initial_capacity_node = new(zone()) HConstant(initial_capacity);
   AddInstruction(initial_capacity_node);
 
-  HBoundsCheck* checked_arg = AddBoundsCheck(argument, max_alloc_length);
+  HBoundsCheck* checked_arg = Add<HBoundsCheck>(argument, max_alloc_length);
   IfBuilder if_builder(this);
   if_builder.IfCompare(checked_arg, constant_zero, Token::EQ);
   if_builder.Then();
