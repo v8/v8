@@ -4141,6 +4141,7 @@ TEST(StepWithException) {
 
 
 TEST(DebugBreak) {
+  i::FLAG_stress_compaction = false;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
@@ -6614,6 +6615,7 @@ static void ScriptCollectedMessageHandler(const v8::Debug::Message& message) {
 // Test that GetEventContext doesn't fail and return empty handle for
 // ScriptCollected events.
 TEST(ScriptCollectedEventContext) {
+  i::FLAG_stress_compaction = false;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::internal::Debug* debug =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->debug();
