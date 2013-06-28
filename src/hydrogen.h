@@ -997,6 +997,36 @@ class HGraphBuilder {
     return static_cast<I*>(AddInstruction(new(zone()) I(p1, p2, p3)));
   }
 
+  template<class I, class P1, class P2, class P3, class P4>
+  I* Add(P1 p1, P2 p2, P3 p3, P4 p4) {
+    return static_cast<I*>(AddInstruction(new(zone()) I(p1, p2, p3, p4)));
+  }
+
+  template<class I, class P1, class P2, class P3, class P4, class P5>
+  I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
+    return static_cast<I*>(AddInstruction(new(zone()) I(p1, p2, p3, p4, p5)));
+  }
+
+  template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
+  I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6) {
+    return static_cast<I*>(AddInstruction(
+            new(zone()) I(p1, p2, p3, p4, p5, p6)));
+  }
+
+  template<class I, class P1, class P2, class P3,
+           class P4, class P5, class P6, class P7>
+  I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7) {
+    return static_cast<I*>(AddInstruction(
+            new(zone()) I(p1, p2, p3, p4, p5, p6, p7)));
+  }
+
+  template<class I, class P1, class P2, class P3, class P4,
+           class P5, class P6, class P7, class P8>
+  I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8) {
+    return static_cast<I*>(AddInstruction(
+            new(zone()) I(p1, p2, p3, p4, p5, p6, p7, p8)));
+  }
+
   void AddSimulate(BailoutId id,
                    RemovableSimulate removable = FIXED_SIMULATE);
 
@@ -1290,9 +1320,6 @@ class HGraphBuilder {
     Zone* zone() const { return builder_->zone(); }
     int elements_size() const {
       return IsFastDoubleElementsKind(kind_) ? kDoubleSize : kPointerSize;
-    }
-    HInstruction* AddInstruction(HInstruction* instr) {
-      return builder_->AddInstruction(instr);
     }
     HGraphBuilder* builder() { return builder_; }
     HGraph* graph() { return builder_->graph(); }
