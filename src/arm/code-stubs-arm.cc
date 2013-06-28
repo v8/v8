@@ -4651,12 +4651,15 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Special handling of the Array() function, which caches not only the
   // monomorphic Array function but the initial ElementsKind with special
   // sentinels
-  Handle<Object> terminal_kind_sentinel =
-      TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
-                                                  LAST_FAST_ELEMENTS_KIND);
   __ JumpIfNotSmi(r3, &miss);
-  __ cmp(r3, Operand(terminal_kind_sentinel));
-  __ b(gt, &miss);
+  if (FLAG_debug_code) {
+    Handle<Object> terminal_kind_sentinel =
+        TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
+                                                    LAST_FAST_ELEMENTS_KIND);
+    __ cmp(r3, Operand(terminal_kind_sentinel));
+    __ Assert(le, "Array function sentinel is not an ElementsKind");
+  }
+
   // Make sure the function is the Array() function
   __ LoadArrayFunction(r3);
   __ cmp(r1, r3);
@@ -7182,6 +7185,10 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   __ cmp(r2, Operand(undefined_sentinel));
   __ b(eq, &normal_sequence);
 
+  // The type cell may have gone megamorphic, don't overwrite if so
+  __ ldr(r5, FieldMemOperand(r2, kPointerSize));
+  __ JumpIfNotSmi(r5, &normal_sequence);
+
   // Save the resulting elements kind in type info
   __ SmiTag(r3);
   __ str(r3, FieldMemOperand(r2, kPointerSize));
@@ -7214,7 +7221,7 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
     T stub(kind);
     stub.GetCode(isolate)->set_is_pregenerated(true);
     if (AllocationSiteInfo::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
-      T stub1(kind, true);
+      T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate)->set_is_pregenerated(true);
     }
   }

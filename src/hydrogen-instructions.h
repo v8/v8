@@ -2493,6 +2493,8 @@ class HCallNewArray: public HCallNew {
         elements_kind_(elements_kind),
         type_cell_(type_cell) {}
 
+  virtual void PrintDataTo(StringStream* stream);
+
   Handle<Cell> property_cell() const {
     return type_cell_;
   }

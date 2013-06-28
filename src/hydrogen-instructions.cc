@@ -1225,6 +1225,13 @@ void HCallKnownGlobal::PrintDataTo(StringStream* stream) {
 }
 
 
+void HCallNewArray::PrintDataTo(StringStream* stream) {
+  stream->Add(ElementsKindToString(elements_kind()));
+  stream->Add(" ");
+  HBinaryCall::PrintDataTo(stream);
+}
+
+
 void HCallRuntime::PrintDataTo(StringStream* stream) {
   stream->Add("%o ", *name());
   stream->Add("#%d", argument_count());

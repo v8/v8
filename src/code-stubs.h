@@ -1733,27 +1733,51 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 };
 
 
+enum ContextCheckMode {
+  CONTEXT_CHECK_REQUIRED,
+  CONTEXT_CHECK_NOT_REQUIRED,
+  LAST_CONTEXT_CHECK_MODE = CONTEXT_CHECK_NOT_REQUIRED
+};
+
+
+enum AllocationSiteOverrideMode {
+  DONT_OVERRIDE,
+  DISABLE_ALLOCATION_SITES,
+  LAST_ALLOCATION_SITE_OVERRIDE_MODE = DISABLE_ALLOCATION_SITES
+};
+
+
 class ArrayConstructorStubBase : public HydrogenCodeStub {
  public:
-  ArrayConstructorStubBase(ElementsKind kind, bool disable_allocation_sites) {
+  ArrayConstructorStubBase(ElementsKind kind, ContextCheckMode context_mode,
+                           AllocationSiteOverrideMode override_mode) {
     // It only makes sense to override local allocation site behavior
     // if there is a difference between the global allocation site policy
     // for an ElementsKind and the desired usage of the stub.
-    ASSERT(!disable_allocation_sites ||
+    ASSERT(override_mode != DISABLE_ALLOCATION_SITES ||
            AllocationSiteInfo::GetMode(kind) == TRACK_ALLOCATION_SITE);
     bit_field_ = ElementsKindBits::encode(kind) |
-        DisableAllocationSitesBits::encode(disable_allocation_sites);
+        AllocationSiteOverrideModeBits::encode(override_mode) |
+        ContextCheckModeBits::encode(context_mode);
   }
 
   ElementsKind elements_kind() const {
     return ElementsKindBits::decode(bit_field_);
   }
 
-  bool disable_allocation_sites() const {
-    return DisableAllocationSitesBits::decode(bit_field_);
+  AllocationSiteOverrideMode override_mode() const {
+    return AllocationSiteOverrideModeBits::decode(bit_field_);
   }
 
-  virtual bool IsPregenerated() { return true; }
+  ContextCheckMode context_mode() const {
+    return ContextCheckModeBits::decode(bit_field_);
+  }
+
+  virtual bool IsPregenerated() {
+    // We only pre-generate stubs that verify correct context
+    return context_mode() == CONTEXT_CHECK_REQUIRED;
+  }
+
   static void GenerateStubsAheadOfTime(Isolate* isolate);
   static void InstallDescriptors(Isolate* isolate);
 
@@ -1764,8 +1788,14 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
  private:
   int NotMissMinorKey() { return bit_field_; }
 
+  // Ensure data fits within available bits.
+  STATIC_ASSERT(LAST_ALLOCATION_SITE_OVERRIDE_MODE == 1);
+  STATIC_ASSERT(LAST_CONTEXT_CHECK_MODE == 1);
+
   class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
-  class DisableAllocationSitesBits: public BitField<bool, 8, 1> {};
+  class AllocationSiteOverrideModeBits: public
+      BitField<AllocationSiteOverrideMode, 8, 1> {};  // NOLINT
+  class ContextCheckModeBits: public BitField<ContextCheckMode, 9, 1> {};
   uint32_t bit_field_;
 
   DISALLOW_COPY_AND_ASSIGN(ArrayConstructorStubBase);
@@ -1776,8 +1806,9 @@ class ArrayNoArgumentConstructorStub : public ArrayConstructorStubBase {
  public:
   ArrayNoArgumentConstructorStub(
       ElementsKind kind,
-      bool disable_allocation_sites = false)
-      : ArrayConstructorStubBase(kind, disable_allocation_sites) {
+      ContextCheckMode context_mode = CONTEXT_CHECK_REQUIRED,
+      AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
+      : ArrayConstructorStubBase(kind, context_mode, override_mode) {
   }
 
   virtual Handle<Code> GenerateCode();
@@ -1797,8 +1828,9 @@ class ArraySingleArgumentConstructorStub : public ArrayConstructorStubBase {
  public:
   ArraySingleArgumentConstructorStub(
       ElementsKind kind,
-      bool disable_allocation_sites = false)
-      : ArrayConstructorStubBase(kind, disable_allocation_sites) {
+      ContextCheckMode context_mode = CONTEXT_CHECK_REQUIRED,
+      AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
+      : ArrayConstructorStubBase(kind, context_mode, override_mode) {
   }
 
   virtual Handle<Code> GenerateCode();
@@ -1818,8 +1850,9 @@ class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
  public:
   ArrayNArgumentsConstructorStub(
       ElementsKind kind,
-      bool disable_allocation_sites = false)
-      : ArrayConstructorStubBase(kind, disable_allocation_sites) {
+      ContextCheckMode context_mode = CONTEXT_CHECK_REQUIRED,
+      AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
+      : ArrayConstructorStubBase(kind, context_mode, override_mode) {
   }
 
   virtual Handle<Code> GenerateCode();

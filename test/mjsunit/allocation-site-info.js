@@ -89,7 +89,6 @@ function assertNotHoley(obj, name_opt) {
 }
 
 if (support_smi_only_arrays) {
-
   obj = [];
   assertNotHoley(obj);
   assertKind(elements_kind.fast_smi_only, obj);
@@ -305,9 +304,26 @@ if (support_smi_only_arrays) {
   var realmBArray = Realm.eval(realmB, "Array");
   instanceof_check(Array);
   instanceof_check(realmBArray);
-    %OptimizeFunctionOnNextCall(instanceof_check);
+  %OptimizeFunctionOnNextCall(instanceof_check);
+
+  // No de-opt will occur because HCallNewArray wasn't selected, on account of
+  // the call site not being monomorphic to Array.
   instanceof_check(Array);
   assertTrue(2 != %GetOptimizationStatus(instanceof_check));
+  instanceof_check(realmBArray);
+  assertTrue(2 != %GetOptimizationStatus(instanceof_check));
+
+  // Try to optimize again, but first clear all type feedback, and allow it
+  // to be monomorphic on first call. Only after crankshafting do we introduce
+  // realmBArray. This should deopt the method.
+  %DeoptimizeFunction(instanceof_check);
+  %ClearFunctionTypeFeedback(instanceof_check);
+  instanceof_check(Array);
+  instanceof_check(Array);
+  %OptimizeFunctionOnNextCall(instanceof_check);
+  instanceof_check(Array);
+  assertTrue(2 != %GetOptimizationStatus(instanceof_check));
+
   instanceof_check(realmBArray);
   assertTrue(1 != %GetOptimizationStatus(instanceof_check));
 }

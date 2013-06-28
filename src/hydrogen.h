@@ -1305,7 +1305,8 @@ class HGraphBuilder {
     JSArrayBuilder(HGraphBuilder* builder,
                    ElementsKind kind,
                    HValue* allocation_site_payload,
-                   bool disable_allocation_sites);
+                   HValue* constructor_function,
+                   AllocationSiteOverrideMode override_mode);
 
     JSArrayBuilder(HGraphBuilder* builder,
                    ElementsKind kind,

@@ -1714,14 +1714,15 @@ HInstruction* HGraphBuilder::BuildGetArrayFunction(HValue* context) {
 
 
 HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
-                                              ElementsKind kind,
-                                              HValue* allocation_site_payload,
-                                              bool disable_allocation_sites) :
+    ElementsKind kind,
+    HValue* allocation_site_payload,
+    HValue* constructor_function,
+    AllocationSiteOverrideMode override_mode) :
         builder_(builder),
         kind_(kind),
         allocation_site_payload_(allocation_site_payload),
-        constructor_function_(NULL) {
-  mode_ = disable_allocation_sites
+        constructor_function_(constructor_function) {
+  mode_ = override_mode == DISABLE_ALLOCATION_SITES
       ? DONT_TRACK_ALLOCATION_SITE
       : AllocationSiteInfo::GetMode(kind);
 }
@@ -1739,8 +1740,18 @@ HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
 
 
 HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode(HValue* context) {
-  HInstruction* native_context = builder()->BuildGetNativeContext(context);
+  if (kind_ == GetInitialFastElementsKind()) {
+    // No need for a context lookup if the kind_ matches the initial
+    // map, because we can just load the map in that case.
+    HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
+    HInstruction* load =
+        builder()->BuildLoadNamedField(constructor_function_,
+                                       access,
+                                       Representation::Tagged());
+    return builder()->AddInstruction(load);
+  }
 
+  HInstruction* native_context = builder()->BuildGetNativeContext(context);
   HInstruction* index = builder()->Add<HConstant>(
       static_cast<int32_t>(Context::JS_ARRAY_MAPS_INDEX));
 
@@ -1840,7 +1851,7 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
 
   // Fill in the fields: map, properties, length
   HValue* map;
-  if (constructor_function_ != NULL) {
+  if (allocation_site_payload_ == NULL) {
     map = EmitInternalMapCode();
   } else {
     map = EmitMapCode(context);

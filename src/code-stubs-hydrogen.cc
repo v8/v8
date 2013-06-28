@@ -106,7 +106,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   };
 
   HValue* BuildArrayConstructor(ElementsKind kind,
-                                bool disable_allocation_sites,
+                                ContextCheckMode context_mode,
+                                AllocationSiteOverrideMode override_mode,
                                 ArgumentClass argument_class);
   HValue* BuildInternalArrayConstructor(ElementsKind kind,
                                         ArgumentClass argument_class);
@@ -534,15 +535,19 @@ Handle<Code> TransitionElementsKindStub::GenerateCode() {
 }
 
 HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
-    ElementsKind kind, bool disable_allocation_sites,
+    ElementsKind kind,
+    ContextCheckMode context_mode,
+    AllocationSiteOverrideMode override_mode,
     ArgumentClass argument_class) {
   HValue* constructor = GetParameter(ArrayConstructorStubBase::kConstructor);
-  HValue* property_cell = GetParameter(ArrayConstructorStubBase::kPropertyCell);
-  HInstruction* array_function = BuildGetArrayFunction(context());
+  if (context_mode == CONTEXT_CHECK_REQUIRED) {
+    HInstruction* array_function = BuildGetArrayFunction(context());
+    ArrayContextChecker checker(this, constructor, array_function);
+  }
 
-  ArrayContextChecker(this, constructor, array_function);
-  JSArrayBuilder array_builder(this, kind, property_cell,
-                               disable_allocation_sites);
+  HValue* property_cell = GetParameter(ArrayConstructorStubBase::kPropertyCell);
+  JSArrayBuilder array_builder(this, kind, property_cell, constructor,
+                               override_mode);
   HValue* result = NULL;
   switch (argument_class) {
     case NONE:
@@ -555,6 +560,7 @@ HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
       result = BuildArrayNArgumentsConstructor(&array_builder, kind);
       break;
   }
+
   return result;
 }
 
@@ -652,8 +658,9 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
 template <>
 HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
   ElementsKind kind = casted_stub()->elements_kind();
-  bool disable_allocation_sites = casted_stub()->disable_allocation_sites();
-  return BuildArrayConstructor(kind, disable_allocation_sites, NONE);
+  ContextCheckMode context_mode = casted_stub()->context_mode();
+  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
+  return BuildArrayConstructor(kind, context_mode, override_mode, NONE);
 }
 
 
@@ -666,8 +673,9 @@ template <>
 HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
     BuildCodeStub() {
   ElementsKind kind = casted_stub()->elements_kind();
-  bool disable_allocation_sites = casted_stub()->disable_allocation_sites();
-  return BuildArrayConstructor(kind, disable_allocation_sites, SINGLE);
+  ContextCheckMode context_mode = casted_stub()->context_mode();
+  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
+  return BuildArrayConstructor(kind, context_mode, override_mode, SINGLE);
 }
 
 
@@ -679,8 +687,9 @@ Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
   ElementsKind kind = casted_stub()->elements_kind();
-  bool disable_allocation_sites = casted_stub()->disable_allocation_sites();
-  return BuildArrayConstructor(kind, disable_allocation_sites, MULTIPLE);
+  ContextCheckMode context_mode = casted_stub()->context_mode();
+  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
+  return BuildArrayConstructor(kind, context_mode, override_mode, MULTIPLE);
 }
 
 
