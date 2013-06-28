@@ -2060,13 +2060,30 @@ void Debug::PrepareForBreakPoints() {
         if (obj->IsJSFunction()) {
           JSFunction* function = JSFunction::cast(obj);
           SharedFunctionInfo* shared = function->shared();
-          if (shared->allows_lazy_compilation() &&
-              shared->script()->IsScript() &&
-              function->code()->kind() == Code::FUNCTION &&
-              !function->code()->has_debug_break_slots() &&
-              shared->code()->gc_metadata() != active_code_marker) {
+
+          if (!shared->allows_lazy_compilation()) continue;
+          if (!shared->script()->IsScript()) continue;
+          if (shared->code()->gc_metadata() == active_code_marker) continue;
+
+          Code::Kind kind = function->code()->kind();
+          if (kind == Code::FUNCTION &&
+              !function->code()->has_debug_break_slots()) {
             function->set_code(*lazy_compile);
             function->shared()->set_code(*lazy_compile);
+          } else if (kind == Code::BUILTIN &&
+              (function->IsMarkedForInstallingRecompiledCode() ||
+               function->IsInRecompileQueue() ||
+               function->IsMarkedForLazyRecompilation() ||
+               function->IsMarkedForParallelRecompilation())) {
+            // Abort in-flight compilation.
+            Code* shared_code = function->shared()->code();
+            if (shared_code->kind() == Code::FUNCTION &&
+                shared_code->has_debug_break_slots()) {
+              function->set_code(shared_code);
+            } else {
+              function->set_code(*lazy_compile);
+              function->shared()->set_code(*lazy_compile);
+            }
           }
         }
       }

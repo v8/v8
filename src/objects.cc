@@ -9140,7 +9140,8 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 
 
 void JSFunction::MarkForLazyRecompilation() {
-  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
   set_code_no_write_barrier(
@@ -9150,7 +9151,8 @@ void JSFunction::MarkForLazyRecompilation() {
 
 
 void JSFunction::MarkForParallelRecompilation() {
-  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   if (!FLAG_parallel_recompilation) {
     JSFunction::MarkForLazyRecompilation();
@@ -9168,7 +9170,8 @@ void JSFunction::MarkForParallelRecompilation() {
 
 
 void JSFunction::MarkForInstallingRecompiledCode() {
-  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(FLAG_parallel_recompilation);
   set_code_no_write_barrier(
@@ -9178,7 +9181,8 @@ void JSFunction::MarkForInstallingRecompiledCode() {
 
 
 void JSFunction::MarkInRecompileQueue() {
-  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(FLAG_parallel_recompilation);
   if (FLAG_trace_parallel_recompilation) {
