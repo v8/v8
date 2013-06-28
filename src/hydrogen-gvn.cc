@@ -394,17 +394,16 @@ void HGlobalValueNumberingPhase::ComputeBlockSideEffects() {
   for (int i = graph()->blocks()->length() - 1; i >= 0; --i) {
     // Compute side effects for the block.
     HBasicBlock* block = graph()->blocks()->at(i);
-    HInstruction* instr = block->first();
     int id = block->block_id();
     GVNFlagSet side_effects;
-    while (instr != NULL) {
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* instr = it.Current();
       side_effects.Add(instr->ChangesFlags());
       if (instr->IsSoftDeoptimize()) {
         block_side_effects_[id].RemoveAll();
         side_effects.RemoveAll();
         break;
       }
-      instr = instr->next();
     }
     block_side_effects_[id].Add(side_effects);
 

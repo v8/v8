@@ -2009,10 +2009,8 @@ void HGraph::FinalizeUniqueValueIds() {
   DisallowHeapAllocation no_gc;
   ASSERT(!isolate()->optimizing_compiler_thread()->IsOptimizerThread());
   for (int i = 0; i < blocks()->length(); ++i) {
-    for (HInstruction* instr = blocks()->at(i)->first();
-        instr != NULL;
-        instr = instr->next()) {
-      instr->FinalizeUniqueValueId();
+    for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
+      it.Current()->FinalizeUniqueValueId();
     }
   }
 }
@@ -2024,24 +2022,22 @@ void HGraph::Canonicalize() {
   // We must be careful not to set the flag unnecessarily, because GVN
   // cannot identify two instructions when their flag value differs.
   for (int i = 0; i < blocks()->length(); ++i) {
-    HInstruction* instr = blocks()->at(i)->first();
-    while (instr != NULL) {
+    for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
+      HInstruction* instr = it.Current();
       if (instr->IsArithmeticBinaryOperation() &&
           instr->representation().IsInteger32() &&
           instr->HasAtLeastOneUseWithFlagAndNoneWithout(
               HInstruction::kTruncatingToInt32)) {
         instr->SetFlag(HInstruction::kAllUsesTruncatingToInt32);
       }
-      instr = instr->next();
     }
   }
   // Perform actual Canonicalization pass.
   for (int i = 0; i < blocks()->length(); ++i) {
-    HInstruction* instr = blocks()->at(i)->first();
-    while (instr != NULL) {
+    for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
+      HInstruction* instr = it.Current();
       HValue* value = instr->Canonicalize();
       if (value != instr) instr->DeleteAndReplaceWith(value);
-      instr = instr->next();
     }
   }
 }
@@ -2416,8 +2412,8 @@ void HGraph::NullifyUnreachableInstructions() {
       }
     }
     if (all_predecessors_deoptimizing) nullify = true;
-    for (HInstruction* instr = block->first(); instr != NULL;
-         instr = instr->next()) {
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* instr = it.Current();
       // Leave the basic structure of the graph intact.
       if (instr->IsBlockEntry()) continue;
       if (instr->IsControlInstruction()) continue;
@@ -2629,10 +2625,8 @@ void HRangeAnalysis::Analyze(HBasicBlock* block) {
   }
 
   // Go through all instructions of the current block.
-  HInstruction* instr = block->first();
-  while (instr != block->end()) {
-    InferRange(instr);
-    instr = instr->next();
+  for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+    InferRange(it.Current());
   }
 
   // Continue analysis in all dominated blocks.
@@ -2759,13 +2753,11 @@ void HStackCheckEliminator::Process() {
       HBasicBlock* back_edge = block->loop_information()->GetLastBackEdge();
       HBasicBlock* dominator = back_edge;
       while (true) {
-        HInstruction* instr = dominator->first();
-        while (instr != NULL) {
-          if (instr->IsCall()) {
+        for (HInstructionIterator it(dominator); !it.Done(); it.Advance()) {
+          if (it.Current()->IsCall()) {
             block->loop_information()->stack_check()->Eliminate();
             break;
           }
-          instr = instr->next();
         }
 
         // Done when the loop header is processed.
@@ -2789,8 +2781,8 @@ void HGraph::MergeRemovableSimulates() {
     // Nasty heuristic: Never remove the first simulate in a block. This
     // just so happens to have a beneficial effect on register allocation.
     bool first = true;
-    for (HInstruction* current = block->first();
-         current != NULL; current = current->next()) {
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* current = it.Current();
       if (current->IsLeaveInlined()) {
         // Never fold simulates from inlined environments into simulates
         // in the outer environment.
@@ -2857,10 +2849,8 @@ void HGraph::InitializeInferredTypes(int from_inclusive, int to_inclusive) {
       phis->at(j)->UpdateInferredType();
     }
 
-    HInstruction* current = block->first();
-    while (current != NULL) {
-      current->UpdateInferredType();
-      current = current->next();
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      it.Current()->UpdateInferredType();
     }
 
     if (block->IsLoopHeader()) {
@@ -3314,9 +3304,8 @@ void HGraph::ComputeMinusZeroChecks() {
   HPhase phase("H_Compute minus zero checks", this);
   BitVector visited(GetMaximumValueID(), zone());
   for (int i = 0; i < blocks_.length(); ++i) {
-    for (HInstruction* current = blocks_[i]->first();
-         current != NULL;
-         current = current->next()) {
+    for (HInstructionIterator it(blocks_[i]); !it.Done(); it.Advance()) {
+      HInstruction* current = it.Current();
       if (current->IsChange()) {
         HChange* change = HChange::cast(current);
         // Propagate flags for negative zero checks upwards from conversions
@@ -3867,7 +3856,8 @@ void HGraph::SetupInformativeDefinitionsInBlock(HBasicBlock* block) {
     ASSERT(!phi->IsInformativeDefinition());
   }
 
-  for (HInstruction* i = block->first(); i != NULL; i = i->next()) {
+  for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+    HInstruction* i = it.Current();
     i->AddInformativeDefinitions();
     i->SetFlag(HValue::kIDefsProcessingDone);
     i->UpdateRedefinedUsesWhileSettingUpInformativeDefinitions();
@@ -3885,7 +3875,8 @@ void HGraph::SetupInformativeDefinitionsRecursively(HBasicBlock* block) {
     SetupInformativeDefinitionsRecursively(block->dominated_blocks()->at(i));
   }
 
-  for (HInstruction* i = block->first(); i != NULL; i = i->next()) {
+  for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+    HInstruction* i = it.Current();
     if (i->IsBoundsCheck()) {
       HBoundsCheck* check = HBoundsCheck::cast(i);
       check->ApplyIndexChange();
@@ -4188,7 +4179,8 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
                                             BoundsCheckTable* table) {
   BoundsCheckBbData* bb_data_list = NULL;
 
-  for (HInstruction* i = bb->first(); i != NULL; i = i->next()) {
+  for (HInstructionIterator it(bb); !it.Done(); it.Advance()) {
+    HInstruction* i = it.Current();
     if (!i->IsBoundsCheck()) continue;
 
     HBoundsCheck* check = HBoundsCheck::cast(i);
@@ -4310,9 +4302,8 @@ static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
 void HGraph::DehoistSimpleArrayIndexComputations() {
   HPhase phase("H_Dehoist index computations", this);
   for (int i = 0; i < blocks()->length(); ++i) {
-    for (HInstruction* instr = blocks()->at(i)->first();
-        instr != NULL;
-        instr = instr->next()) {
+    for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
+      HInstruction* instr = it.Current();
       ArrayInstructionInterface* array_instruction = NULL;
       if (instr->IsLoadKeyed()) {
         HLoadKeyed* op = HLoadKeyed::cast(instr);
@@ -4342,9 +4333,8 @@ void HGraph::MarkLiveInstructions() {
   // Mark initial root instructions for dead code elimination.
   for (int i = 0; i < blocks()->length(); ++i) {
     HBasicBlock* block = blocks()->at(i);
-    for (HInstruction* instr = block->first();
-         instr != NULL;
-         instr = instr->next()) {
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* instr = it.Current();
       if (instr->CannotBeEliminated()) MarkLive(NULL, instr, &worklist);
     }
     for (int j = 0; j < block->phis()->length(); j++) {
@@ -4390,9 +4380,8 @@ void HGraph::RemoveDeadInstructions() {
   // Remove any instruction not marked kIsLive.
   for (int i = 0; i < blocks()->length(); ++i) {
     HBasicBlock* block = blocks()->at(i);
-    for (HInstruction* instr = block->first();
-         instr != NULL;
-         instr = instr->next()) {
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* instr = it.Current();
       if (!instr->CheckFlag(HValue::kIsLive)) {
         // Instruction has not been marked live; assume it is dead and remove.
         // TODO(titzer): we don't remove constants because some special ones
@@ -4437,9 +4426,8 @@ void HGraph::RestoreActualValues() {
     }
 #endif
 
-    for (HInstruction* instruction = block->first();
-        instruction != NULL;
-        instruction = instruction->next()) {
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* instruction = it.Current();
       if (instruction->ActualValue() != instruction) {
         ASSERT(instruction->IsInformativeDefinition());
         if (instruction->IsPurelyInformativeDefinition()) {
@@ -11058,8 +11046,8 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
 
     {
       Tag HIR_tag(this, "HIR");
-      HInstruction* instruction = current->first();
-      while (instruction != NULL) {
+      for (HInstructionIterator it(current); !it.Done(); it.Advance()) {
+        HInstruction* instruction = it.Current();
         int bci = 0;
         int uses = instruction->UseCount();
         PrintIndent();
@@ -11068,7 +11056,6 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
         trace_.Add(" ");
         instruction->PrintTo(&trace_);
         trace_.Add(" <|@\n");
-        instruction = instruction->next();
       }
     }
 
