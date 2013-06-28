@@ -1706,7 +1706,8 @@ HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* context) {
 
 HInstruction* HGraphBuilder::BuildGetArrayFunction(HValue* context) {
   HInstruction* native_context = BuildGetNativeContext(context);
-  HInstruction* index = Add<HConstant>(Context::ARRAY_FUNCTION_INDEX);
+  HInstruction* index =
+      Add<HConstant>(static_cast<int32_t>(Context::ARRAY_FUNCTION_INDEX));
   return Add<HLoadKeyed>(
       native_context, index, static_cast<HValue*>(NULL), FAST_ELEMENTS);
 }
@@ -1740,7 +1741,8 @@ HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
 HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode(HValue* context) {
   HInstruction* native_context = builder()->BuildGetNativeContext(context);
 
-  HInstruction* index = builder()->Add<HConstant>(Context::JS_ARRAY_MAPS_INDEX);
+  HInstruction* index = builder()->Add<HConstant>(
+      static_cast<int32_t>(Context::JS_ARRAY_MAPS_INDEX));
 
   HInstruction* map_array = builder()->Add<HLoadKeyed>(
       native_context, index, static_cast<HValue*>(NULL), FAST_ELEMENTS);
