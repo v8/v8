@@ -597,7 +597,8 @@ namespace internal {
   F(GetCachedArrayIndex, 1, 1)                                               \
   F(FastAsciiArrayJoin, 2, 1)                                                \
   F(GeneratorNext, 2, 1)                                                     \
-  F(GeneratorThrow, 2, 1)
+  F(GeneratorThrow, 2, 1)                                                    \
+  F(DebugBreakInOptimizedCode, 0, 1)
 
 
 // ----------------------------------------------------------------------------

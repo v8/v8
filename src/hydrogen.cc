@@ -10635,6 +10635,13 @@ void HOptimizedGraphBuilder::GenerateGeneratorThrow(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateDebugBreakInOptimizedCode(
+    CallRuntime* call) {
+  AddInstruction(new(zone()) HDebugBreak());
+  return ast_context()->ReturnValue(graph()->GetConstant0());
+}
+
+
 #undef CHECK_BAILOUT
 #undef CHECK_ALIVE
 
