@@ -454,7 +454,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   const char* GetSystemEntryName(HeapObject* object);
 
   void ExtractReferences(HeapObject* obj);
-  void ExtractJSGlobalProxyReferences(JSGlobalProxy* proxy);
+  void ExtractJSGlobalProxyReferences(int entry, JSGlobalProxy* proxy);
   void ExtractJSObjectReferences(int entry, JSObject* js_obj);
   void ExtractStringReferences(int entry, String* obj);
   void ExtractContextReferences(int entry, Context* context);
@@ -532,6 +532,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   SnapshotFillerInterface* filler_;
   HeapObjectsSet objects_tags_;
   HeapObjectsSet strong_gc_subroot_names_;
+  HeapObjectsSet user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   static HeapObject* const kGcRootsObject;

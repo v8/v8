@@ -961,7 +961,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 
   bool extract_indexed_refs = true;
   if (obj->IsJSGlobalProxy()) {
-    ExtractJSGlobalProxyReferences(JSGlobalProxy::cast(obj));
+    ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
   } else if (obj->IsJSObject()) {
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
@@ -996,19 +996,11 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 }
 
 
-void V8HeapExplorer::ExtractJSGlobalProxyReferences(JSGlobalProxy* proxy) {
-  // We need to reference JS global objects from snapshot's root.
-  // We use JSGlobalProxy because this is what embedder (e.g. browser)
-  // uses for the global object.
-  Object* object = proxy->map()->prototype();
-  bool is_debug_object = false;
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  is_debug_object = object->IsGlobalObject() &&
-      Isolate::Current()->debug()->IsDebugGlobal(GlobalObject::cast(object));
-#endif
-  if (!is_debug_object) {
-    SetUserGlobalReference(object);
-  }
+void V8HeapExplorer::ExtractJSGlobalProxyReferences(
+    int entry, JSGlobalProxy* proxy) {
+  SetInternalReference(proxy, entry,
+                       "native_context", proxy->native_context(),
+                       JSGlobalProxy::kNativeContextOffset);
 }
 
 
@@ -1777,6 +1769,22 @@ void V8HeapExplorer::SetGcSubrootReference(
           is_weak ? HeapGraphEdge::kWeak : HeapGraphEdge::kElement,
           snapshot_->gc_subroot(tag)->index(),
           child_entry);
+    }
+
+    // Add a shortcut to JS global object reference at snapshot root.
+    if (child_obj->IsNativeContext()) {
+      Context* context = Context::cast(child_obj);
+      GlobalObject* global = context->global_object();
+      if (global->IsJSGlobalObject()) {
+        bool is_debug_object = false;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+        is_debug_object = heap_->isolate()->debug()->IsDebugGlobal(global);
+#endif
+        if (!is_debug_object && !user_roots_.Contains(global)) {
+          user_roots_.Insert(global);
+          SetUserGlobalReference(global);
+        }
+      }
     }
   }
 }

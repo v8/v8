@@ -92,8 +92,9 @@ class NamedEntriesDetector {
 static const v8::HeapGraphNode* GetGlobalObject(
     const v8::HeapSnapshot* snapshot) {
   CHECK_EQ(2, snapshot->GetRoot()->GetChildrenCount());
+  // The 0th-child is (GC Roots), 1st is the user root.
   const v8::HeapGraphNode* global_obj =
-      snapshot->GetRoot()->GetChild(0)->GetToNode();
+      snapshot->GetRoot()->GetChild(1)->GetToNode();
   CHECK_EQ(0, strncmp("Object", const_cast<i::HeapEntry*>(
       reinterpret_cast<const i::HeapEntry*>(global_obj))->name(), 6));
   return global_obj;
@@ -658,7 +659,8 @@ TEST(HeapSnapshotJSONSerialization) {
       "  first_edge_indexes[i] = first_edge_index;\n"
       "  first_edge_index += edge_fields_count *\n"
       "      parsed.nodes[i * node_fields_count + edge_count_offset];\n"
-      "}\n");
+      "}\n"
+      "first_edge_indexes[node_count] = first_edge_index;\n");
   CHECK(!meta_analysis_result.IsEmpty());
 
   // A helper function for processing encoded nodes.
@@ -682,7 +684,7 @@ TEST(HeapSnapshotJSONSerialization) {
       "GetChildPosByProperty(\n"
       "  GetChildPosByProperty(\n"
       "    GetChildPosByProperty("
-      "      parsed.edges[edge_to_node_offset],"
+      "      parsed.edges[edge_fields_count + edge_to_node_offset],"
       "      \"b\", property_type),\n"
       "    \"x\", property_type),"
       "  \"s\", property_type)");
