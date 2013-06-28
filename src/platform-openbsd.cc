@@ -79,7 +79,7 @@ static void* GetRandomMmapAddr() {
   // CpuFeatures::Probe. We don't care about randomization in this case because
   // the code page is immediately freed.
   if (isolate != NULL) {
-#ifdef V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64
     uint64_t rnd1 = V8::RandomPrivate(isolate);
     uint64_t rnd2 = V8::RandomPrivate(isolate);
     uint64_t raw_addr = (rnd1 << 32) ^ rnd2;

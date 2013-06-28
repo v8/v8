@@ -1955,7 +1955,7 @@ class Heap {
 
   int scan_on_scavenge_pages_;
 
-#if defined(V8_TARGET_ARCH_X64)
+#if V8_TARGET_ARCH_X64
   static const int kMaxObjectSizeInNewSpace = 1024*KB;
 #else
   static const int kMaxObjectSizeInNewSpace = 512*KB;

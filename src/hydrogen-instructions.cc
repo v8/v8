@@ -1566,7 +1566,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
       HValue* new_right =
           LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
       if (new_right == NULL &&
-#ifdef V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
           CpuFeatures::IsSupported(SUDIV) &&
 #endif
           hdiv->observed_input_representation(2).IsSmiOrInteger32()) {

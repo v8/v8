@@ -295,7 +295,7 @@ bool OS::MipsCpuHasFeature(CpuFeature feature) {
 
 
 int OS::ActivationFrameAlignment() {
-#ifdef V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the
   // runtime system.
   return 8;

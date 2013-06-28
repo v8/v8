@@ -116,7 +116,7 @@ void ThreadLocalTop::InitializeInternal() {
 void ThreadLocalTop::Initialize() {
   InitializeInternal();
 #ifdef USE_SIMULATOR
-#ifdef V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
   simulator_ = Simulator::current(isolate_);
 #elif V8_TARGET_ARCH_MIPS
   simulator_ = Simulator::current(isolate_);
@@ -1625,7 +1625,7 @@ char* Isolate::RestoreThread(char* from) {
   // This might be just paranoia, but it seems to be needed in case a
   // thread_local_top_ is restored on a separate OS thread.
 #ifdef USE_SIMULATOR
-#ifdef V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
   thread_local_top()->simulator_ = Simulator::current(this);
 #elif V8_TARGET_ARCH_MIPS
   thread_local_top()->simulator_ = Simulator::current(this);
@@ -1776,8 +1776,8 @@ Isolate::Isolate()
   thread_manager_ = new ThreadManager();
   thread_manager_->isolate_ = this;
 
-#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
-    defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
+#if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
+    V8_TARGET_ARCH_MIPS && !defined(__mips__)
   simulator_initialized_ = false;
   simulator_i_cache_ = NULL;
   simulator_redirection_ = NULL;
@@ -2134,7 +2134,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   Simulator::Initialize(this);
 #endif
 #endif

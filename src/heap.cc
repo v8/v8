@@ -66,7 +66,7 @@ Heap::Heap()
     : isolate_(NULL),
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
-#if defined(V8_TARGET_ARCH_X64)
+#if V8_TARGET_ARCH_X64
 #define LUMP_OF_MEMORY (2 * MB)
       code_range_size_(512*MB),
 #else

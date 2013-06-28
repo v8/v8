@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_MIPS)
+#if V8_TARGET_ARCH_MIPS
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
@@ -7540,7 +7540,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
     __ And(sp, sp, Operand(-frame_alignment));
   }
 
-#if defined(V8_HOST_ARCH_MIPS)
+#if V8_HOST_ARCH_MIPS
   __ li(at, Operand(reinterpret_cast<int32_t>(&entry_hook_)));
   __ lw(at, MemOperand(at));
 #else
