@@ -1,3 +1,17 @@
+2013-06-28: Version 3.20.0
+
+        Migrated several tests from blink to V8 repository.
+
+        Allowed users of the V8 API to distinguish between unset and undefined
+        HiddenValues (issue 2746).
+
+        Deprecated old style callbacks in the V8 API.
+
+        Turned on parallel recompilation.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-06-18: Version 3.19.18
 
 	Fixed read-only attribute of Function.length in strict mode.
