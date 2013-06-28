@@ -368,8 +368,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   /* AstNode state. */                                                         \
   V(int, ast_node_id, 0)                                                       \
   V(unsigned, ast_node_count, 0)                                               \
-  /* SafeStackFrameIterator activations count. */                              \
-  V(int, safe_stack_iterator_counter, 0)                                       \
   V(bool, observer_delivery_pending, false)                                    \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
@@ -549,7 +547,7 @@ class Isolate {
   }
   Context** context_address() { return &thread_local_top_.context_; }
 
-  SaveContext* save_context() {return thread_local_top_.save_context_; }
+  SaveContext* save_context() { return thread_local_top_.save_context_; }
   void set_save_context(SaveContext* save) {
     thread_local_top_.save_context_ = save;
   }
@@ -894,7 +892,6 @@ class Isolate {
     ASSERT(handle_scope_implementer_);
     return handle_scope_implementer_;
   }
-  Zone* runtime_zone() { return &runtime_zone_; }
 
   UnicodeCache* unicode_cache() {
     return unicode_cache_;
@@ -1053,6 +1050,8 @@ class Isolate {
     context_exit_happened_ = context_exit_happened;
   }
 
+  bool initialized_from_snapshot() { return initialized_from_snapshot_; }
+
   double time_millis_since_init() {
     return OS::TimeCurrentMillis() - time_millis_at_init_;
   }
@@ -1107,13 +1106,18 @@ class Isolate {
     callback_table_ = callback_table;
   }
 
+  int id() const { return static_cast<int>(id_); }
+
   HStatistics* GetHStatistics();
   HTracer* GetHTracer();
 
+  FunctionEntryHook function_entry_hook() { return function_entry_hook_; }
+  void set_function_entry_hook(FunctionEntryHook function_entry_hook) {
+    function_entry_hook_ = function_entry_hook;
+  }
+
  private:
   Isolate();
-
-  int id() const { return static_cast<int>(id_); }
 
   friend struct GlobalState;
   friend struct InitializeGlobalState;
@@ -1262,7 +1266,6 @@ class Isolate {
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
-  Zone runtime_zone_;
   PreallocatedStorage in_use_list_;
   PreallocatedStorage free_list_;
   bool preallocated_storage_preallocated_;
@@ -1292,6 +1295,9 @@ class Isolate {
   // that a context was recently exited.
   bool context_exit_happened_;
 
+  // True if this isolate was initialized from a snapshot.
+  bool initialized_from_snapshot_;
+
   // Time stamp at initialization.
   double time_millis_at_init_;
 
@@ -1315,6 +1321,7 @@ class Isolate {
 #endif
   CpuProfiler* cpu_profiler_;
   HeapProfiler* heap_profiler_;
+  FunctionEntryHook function_entry_hook_;
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
   type name##_;

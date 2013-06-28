@@ -191,9 +191,8 @@ void ProfilerEventsProcessor::AddCurrentStack() {
 
 
 bool ProfilerEventsProcessor::ProcessCodeEvent(unsigned* dequeue_order) {
-  if (!events_buffer_.IsEmpty()) {
-    CodeEventsContainer record;
-    events_buffer_.Dequeue(&record);
+  CodeEventsContainer record;
+  if (events_buffer_.Dequeue(&record)) {
     switch (record.generic.type) {
 #define PROFILER_TYPE_CASE(type, clss)                          \
       case CodeEventRecord::type:                               \

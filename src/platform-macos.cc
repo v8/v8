@@ -295,12 +295,6 @@ int OS::ActivationFrameAlignment() {
 }
 
 
-void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
-  OSMemoryBarrier();
-  *ptr = value;
-}
-
-
 const char* OS::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));

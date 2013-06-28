@@ -283,6 +283,7 @@ static void GCEpilogueCallbackFunc() {
 
 
 TEST(GCCallback) {
+  i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
 
   HEAP->SetGlobalGCPrologueCallback(&GCPrologueCallbackFunc);
@@ -557,7 +558,7 @@ TEST(BootUpMemoryUse) {
       }
     } else {                            // 32-bit.
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(delta, 2910 * 1024);
+        CHECK_LE(delta, 3100 * 1024);
       } else {
         CHECK_LE(delta, 3400 * 1024);
       }

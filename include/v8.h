@@ -154,6 +154,7 @@ class Isolate;
 class DeclaredAccessorDescriptor;
 class ObjectOperationDescriptor;
 class RawOperationDescriptor;
+class CallHandlerHelper;
 
 namespace internal {
 class Arguments;
@@ -508,7 +509,7 @@ template <class T> class Persistent // NOLINT
       : val_(New(isolate, *that)) { }
 
   template <class S> V8_INLINE(Persistent(Isolate* isolate,
-                                          Persistent<S>& that)) // NOLINT
+                                          const Persistent<S>& that)) // NOLINT
       : val_(New(isolate, *that)) { }
 
 #else
@@ -1042,8 +1043,14 @@ class V8EXPORT Script {
 
   /**
    * Returns the script id value.
+   * DEPRECATED: Please use GetId().
    */
   Local<Value> Id();
+
+  /**
+   * Returns the script id.
+   */
+  int GetId();
 
   /**
    * Associate an additional data object with the script. This is mainly used
@@ -1062,6 +1069,8 @@ class V8EXPORT Script {
    * -1 will be returned if no information available.
    */
   int GetLineNumber(int code_pos);
+
+  static const int kNoScriptId = 0;
 };
 
 
@@ -1361,6 +1370,12 @@ class V8EXPORT Value : public Data {
   bool IsArrayBuffer() const;
 
   /**
+   * Returns true if this value is an ArrayBufferView.
+   * This is an experimental feature.
+   */
+  bool IsArrayBufferView() const;
+
+  /**
    * Returns true if this value is one of TypedArrays.
    * This is an experimental feature.
    */
@@ -1419,6 +1434,12 @@ class V8EXPORT Value : public Data {
    * This is an experimental feature.
    */
   bool IsFloat64Array() const;
+
+  /**
+   * Returns true if this value is a DataView.
+   * This is an experimental feature.
+   */
+  bool IsDataView() const;
 
   Local<Boolean> ToBoolean() const;
   Local<Number> ToNumber() const;
@@ -2053,13 +2074,12 @@ class V8EXPORT Object : public Value {
 
   bool Delete(uint32_t index);
 
-  // TODO(dcarney): deprecate
-  bool SetAccessor(Handle<String> name,
-                   AccessorGetter getter,
-                   AccessorSetter setter = 0,
-                   Handle<Value> data = Handle<Value>(),
-                   AccessControl settings = DEFAULT,
-                   PropertyAttribute attribute = None);
+  V8_DEPRECATED(bool SetAccessor(Handle<String> name,
+                                 AccessorGetter getter,
+                                 AccessorSetter setter = 0,
+                                 Handle<Value> data = Handle<Value>(),
+                                 AccessControl settings = DEFAULT,
+                                 PropertyAttribute attribute = None));
   bool SetAccessor(Handle<String> name,
                    AccessorGetterCallback getter,
                    AccessorSetterCallback setter = 0,
@@ -2335,7 +2355,18 @@ class V8EXPORT Function : public Object {
    * kLineOffsetNotFound if no information available.
    */
   int GetScriptColumnNumber() const;
+
+  /**
+   * Returns scriptId object.
+   * DEPRECATED: use ScriptId() instead.
+   */
   Handle<Value> GetScriptId() const;
+
+  /**
+   * Returns scriptId.
+   */
+  int ScriptId() const;
+
   ScriptOrigin GetScriptOrigin() const;
   V8_INLINE(static Function* Cast(Value* obj));
   static const int kLineOffsetNotFound;
@@ -2459,32 +2490,50 @@ class V8EXPORT ArrayBuffer : public Object {
 
 
 /**
- * A base class for an instance of TypedArray series of constructors
- * (ES6 draft 15.13.6).
+ * A base class for an instance of one of "views" over ArrayBuffer,
+ * including TypedArrays and DataView (ES6 draft 15.13).
+ *
  * This API is experimental and may change significantly.
  */
-class V8EXPORT TypedArray : public Object {
+class V8EXPORT ArrayBufferView : public Object {
  public:
   /**
    * Returns underlying ArrayBuffer.
    */
   Local<ArrayBuffer> Buffer();
   /**
-   * Byte offset in |Buffer|
+   * Byte offset in |Buffer|.
    */
   size_t ByteOffset();
   /**
-   * Numbe of elements in this typed array.
-   */
-  size_t Length();
-  /**
-   * Size of typed array in bytes (e.g. for Int16Array, 2*|Length|).
+   * Size of a view in bytes.
    */
   size_t ByteLength();
   /**
-   * Base address of typed array.
+   * Base address of a view.
    */
   void* BaseAddress();
+
+  V8_INLINE(static ArrayBufferView* Cast(Value* obj));
+
+ private:
+  ArrayBufferView();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * A base class for an instance of TypedArray series of constructors
+ * (ES6 draft 15.13.6).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT TypedArray : public ArrayBufferView {
+ public:
+  /**
+   * Number of elements in this typed array
+   * (e.g. for Int16Array, |ByteLength|/2).
+   */
+  size_t Length();
 
   V8_INLINE(static TypedArray* Cast(Value* obj));
 
@@ -2633,6 +2682,22 @@ class V8EXPORT Float64Array : public TypedArray {
 
  private:
   Float64Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of DataView constructor (ES6 draft 15.13.7).
+ * This API is experimental and may change significantly.
+ */
+class V8EXPORT DataView : public ArrayBufferView {
+ public:
+  static Local<DataView> New(Handle<ArrayBuffer> array_buffer,
+                             size_t byte_offset, size_t length);
+  V8_INLINE(static DataView* Cast(Value* obj));
+
+ private:
+  DataView();
   static void CheckCast(Value* obj);
 };
 
@@ -3195,14 +3260,13 @@ typedef bool (*IndexedSecurityCallback)(Local<Object> host,
 class V8EXPORT FunctionTemplate : public Template {
  public:
   /** Creates a function template.*/
-  // TODO(dcarney): deprecate
-  static Local<FunctionTemplate> New(
-      InvocationCallback callback = 0,
+  V8_DEPRECATED(static Local<FunctionTemplate> New(
+      InvocationCallback callback,
       Handle<Value> data = Handle<Value>(),
       Handle<Signature> signature = Handle<Signature>(),
-      int length = 0);
+      int length = 0));
   static Local<FunctionTemplate> New(
-      FunctionCallback callback,  // TODO(dcarney): add back default param.
+      FunctionCallback callback = 0,
       Handle<Value> data = Handle<Value>(),
       Handle<Signature> signature = Handle<Signature>(),
       int length = 0);
@@ -3215,9 +3279,8 @@ class V8EXPORT FunctionTemplate : public Template {
    * callback is called whenever the function created from this
    * FunctionTemplate is called.
    */
-  // TODO(dcarney): deprecate
-  void SetCallHandler(InvocationCallback callback,
-                      Handle<Value> data = Handle<Value>());
+  V8_DEPRECATED(void SetCallHandler(InvocationCallback callback,
+                                    Handle<Value> data = Handle<Value>()));
   void SetCallHandler(FunctionCallback callback,
                       Handle<Value> data = Handle<Value>());
 
@@ -3271,6 +3334,9 @@ class V8EXPORT FunctionTemplate : public Template {
 
  private:
   FunctionTemplate();
+  // TODO(dcarney): Remove with SetCallHandler.
+  friend class v8::CallHandlerHelper;
+  void SetCallHandlerInternal(InvocationCallback callback, Handle<Value> data);
   friend class Context;
   friend class ObjectTemplate;
 };
@@ -3319,15 +3385,14 @@ class V8EXPORT ObjectTemplate : public Template {
    *   defined by FunctionTemplate::HasInstance()), an implicit TypeError is
    *   thrown and no callback is invoked.
    */
-  // TODO(dcarney): deprecate
-  void SetAccessor(Handle<String> name,
-                   AccessorGetter getter,
-                   AccessorSetter setter = 0,
-                   Handle<Value> data = Handle<Value>(),
-                   AccessControl settings = DEFAULT,
-                   PropertyAttribute attribute = None,
-                   Handle<AccessorSignature> signature =
-                       Handle<AccessorSignature>());
+  V8_DEPRECATED(void SetAccessor(Handle<String> name,
+                                 AccessorGetter getter,
+                                 AccessorSetter setter = 0,
+                                 Handle<Value> data = Handle<Value>(),
+                                 AccessControl settings = DEFAULT,
+                                 PropertyAttribute attribute = None,
+                                 Handle<AccessorSignature> signature =
+                                     Handle<AccessorSignature>()));
   void SetAccessor(Handle<String> name,
                    AccessorGetterCallback getter,
                    AccessorSetterCallback setter = 0,
@@ -3362,13 +3427,13 @@ class V8EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
-  // TODO(dcarney): deprecate
-  void SetNamedPropertyHandler(NamedPropertyGetter getter,
-                               NamedPropertySetter setter = 0,
-                               NamedPropertyQuery query = 0,
-                               NamedPropertyDeleter deleter = 0,
-                               NamedPropertyEnumerator enumerator = 0,
-                               Handle<Value> data = Handle<Value>());
+  V8_DEPRECATED(void SetNamedPropertyHandler(
+      NamedPropertyGetter getter,
+      NamedPropertySetter setter = 0,
+      NamedPropertyQuery query = 0,
+      NamedPropertyDeleter deleter = 0,
+      NamedPropertyEnumerator enumerator = 0,
+      Handle<Value> data = Handle<Value>()));
   void SetNamedPropertyHandler(
       NamedPropertyGetterCallback getter,
       NamedPropertySetterCallback setter = 0,
@@ -3393,13 +3458,13 @@ class V8EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
-  // TODO(dcarney): deprecate
-  void SetIndexedPropertyHandler(IndexedPropertyGetter getter,
-                                 IndexedPropertySetter setter = 0,
-                                 IndexedPropertyQuery query = 0,
-                                 IndexedPropertyDeleter deleter = 0,
-                                 IndexedPropertyEnumerator enumerator = 0,
-                                 Handle<Value> data = Handle<Value>());
+  V8_DEPRECATED(void SetIndexedPropertyHandler(
+      IndexedPropertyGetter getter,
+      IndexedPropertySetter setter = 0,
+      IndexedPropertyQuery query = 0,
+      IndexedPropertyDeleter deleter = 0,
+      IndexedPropertyEnumerator enumerator = 0,
+      Handle<Value> data = Handle<Value>()));
   void SetIndexedPropertyHandler(
       IndexedPropertyGetterCallback getter,
       IndexedPropertySetterCallback setter = 0,
@@ -3414,9 +3479,9 @@ class V8EXPORT ObjectTemplate : public Template {
    * behave like normal JavaScript objects that cannot be called as a
    * function.
    */
-  // TODO(dcarney): deprecate
-  void SetCallAsFunctionHandler(InvocationCallback callback,
-                                Handle<Value> data = Handle<Value>());
+  V8_DEPRECATED(void SetCallAsFunctionHandler(
+      InvocationCallback callback,
+      Handle<Value> data = Handle<Value>()));
   void SetCallAsFunctionHandler(FunctionCallback callback,
                                 Handle<Value> data = Handle<Value>());
 
@@ -4412,18 +4477,25 @@ class V8EXPORT V8 {
       ReturnAddressLocationResolver return_address_resolver);
 
   /**
+   * Deprecated, use the variant with the Isolate parameter below instead.
+   */
+  V8_DEPRECATED(static bool SetFunctionEntryHook(FunctionEntryHook entry_hook));
+
+  /**
    * Allows the host application to provide the address of a function that's
    * invoked on entry to every V8-generated function.
    * Note that \p entry_hook is invoked at the very start of each
    * generated function.
    *
+   * \param isolate the isolate to operate on.
    * \param entry_hook a function that will be invoked on entry to every
    *   V8-generated function.
    * \returns true on success on supported platforms, false on failure.
-   * \note Setting a new entry hook function when one is already active will
-   *   fail.
+   * \note Setting an entry hook can only be done very early in an isolates
+   *   lifetime, and once set, the entry hook cannot be revoked.
    */
-  static bool SetFunctionEntryHook(FunctionEntryHook entry_hook);
+  static bool SetFunctionEntryHook(Isolate* isolate,
+                                   FunctionEntryHook entry_hook);
 
   /**
    * Allows the host application to provide the address of a function that is
@@ -5295,13 +5367,12 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 64;
+  static const int kContextEmbedderDataIndex = 65;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
   static const int kExternalAsciiRepresentationTag = 0x06;
 
-  static const int kIsolateStateOffset = 0;
   static const int kIsolateEmbedderDataOffset = 1 * kApiPointerSize;
   static const int kIsolateRootsOffset = 3 * kApiPointerSize;
   static const int kUndefinedValueRootIndex = 5;
@@ -5325,6 +5396,12 @@ class Internals {
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
+
+#ifdef V8_ENABLE_CHECKS
+  static void CheckInitialized(v8::Isolate* isolate);
+#else
+  static void CheckInitialized(v8::Isolate* isolate) { }
+#endif
 
   V8_INLINE(static bool HasHeapObjectTag(internal::Object* value)) {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
@@ -5357,11 +5434,6 @@ class Internals {
   V8_INLINE(static bool IsExternalTwoByteString(int instance_type)) {
     int representation = (instance_type & kFullStringRepresentationMask);
     return representation == kExternalTwoByteRepresentationTag;
-  }
-
-  V8_INLINE(static bool IsInitialized(v8::Isolate* isolate)) {
-    uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) + kIsolateStateOffset;
-    return *reinterpret_cast<int*>(addr) == 1;
   }
 
   V8_INLINE(static uint8_t GetNodeFlag(internal::Object** obj, int shift)) {
@@ -5939,7 +6011,7 @@ String* String::Cast(v8::Value* value) {
 Local<String> String::Empty(Isolate* isolate) {
   typedef internal::Object* S;
   typedef internal::Internals I;
-  if (!I::IsInitialized(isolate)) return Empty();
+  I::CheckInitialized(isolate);
   S* slot = I::GetRoot(isolate, I::kEmptyStringRootIndex);
   return Local<String>(reinterpret_cast<String*>(slot));
 }
@@ -6163,6 +6235,14 @@ ArrayBuffer* ArrayBuffer::Cast(v8::Value* value) {
 }
 
 
+ArrayBufferView* ArrayBufferView::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<ArrayBufferView*>(value);
+}
+
+
 TypedArray* TypedArray::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
@@ -6243,6 +6323,14 @@ Uint8ClampedArray* Uint8ClampedArray::Cast(v8::Value* value) {
 }
 
 
+DataView* DataView::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<DataView*>(value);
+}
+
+
 Function* Function::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
@@ -6292,7 +6380,7 @@ ReturnValue<T> PropertyCallbackInfo<T>::GetReturnValue() const {
 Handle<Primitive> Undefined(Isolate* isolate) {
   typedef internal::Object* S;
   typedef internal::Internals I;
-  if (!I::IsInitialized(isolate)) return Undefined();
+  I::CheckInitialized(isolate);
   S* slot = I::GetRoot(isolate, I::kUndefinedValueRootIndex);
   return Handle<Primitive>(reinterpret_cast<Primitive*>(slot));
 }
@@ -6301,7 +6389,7 @@ Handle<Primitive> Undefined(Isolate* isolate) {
 Handle<Primitive> Null(Isolate* isolate) {
   typedef internal::Object* S;
   typedef internal::Internals I;
-  if (!I::IsInitialized(isolate)) return Null();
+  I::CheckInitialized(isolate);
   S* slot = I::GetRoot(isolate, I::kNullValueRootIndex);
   return Handle<Primitive>(reinterpret_cast<Primitive*>(slot));
 }
@@ -6310,7 +6398,7 @@ Handle<Primitive> Null(Isolate* isolate) {
 Handle<Boolean> True(Isolate* isolate) {
   typedef internal::Object* S;
   typedef internal::Internals I;
-  if (!I::IsInitialized(isolate)) return True();
+  I::CheckInitialized(isolate);
   S* slot = I::GetRoot(isolate, I::kTrueValueRootIndex);
   return Handle<Boolean>(reinterpret_cast<Boolean*>(slot));
 }
@@ -6319,7 +6407,7 @@ Handle<Boolean> True(Isolate* isolate) {
 Handle<Boolean> False(Isolate* isolate) {
   typedef internal::Object* S;
   typedef internal::Internals I;
-  if (!I::IsInitialized(isolate)) return False();
+  I::CheckInitialized(isolate);
   S* slot = I::GetRoot(isolate, I::kFalseValueRootIndex);
   return Handle<Boolean>(reinterpret_cast<Boolean*>(slot));
 }

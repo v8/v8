@@ -57,22 +57,22 @@ AST_NODE_LIST(DECL_ACCEPT)
 
 
 bool Expression::IsSmiLiteral() {
-  return AsLiteral() != NULL && AsLiteral()->handle()->IsSmi();
+  return AsLiteral() != NULL && AsLiteral()->value()->IsSmi();
 }
 
 
 bool Expression::IsStringLiteral() {
-  return AsLiteral() != NULL && AsLiteral()->handle()->IsString();
+  return AsLiteral() != NULL && AsLiteral()->value()->IsString();
 }
 
 
 bool Expression::IsNullLiteral() {
-  return AsLiteral() != NULL && AsLiteral()->handle()->IsNull();
+  return AsLiteral() != NULL && AsLiteral()->value()->IsNull();
 }
 
 
 bool Expression::IsUndefinedLiteral() {
-  return AsLiteral() != NULL && AsLiteral()->handle()->IsUndefined();
+  return AsLiteral() != NULL && AsLiteral()->value()->IsUndefined();
 }
 
 
@@ -135,6 +135,7 @@ Assignment::Assignment(Isolate* isolate,
       binary_operation_(NULL),
       assignment_id_(GetNextId(isolate)),
       is_monomorphic_(false),
+      is_uninitialized_(false),
       store_mode_(STANDARD_STORE) { }
 
 
@@ -188,7 +189,7 @@ ObjectLiteralProperty::ObjectLiteralProperty(Literal* key,
   emit_store_ = true;
   key_ = key;
   value_ = value;
-  Object* k = *key->handle();
+  Object* k = *key->value();
   if (k->IsInternalizedString() &&
       isolate->heap()->proto_string()->Equals(String::cast(k))) {
     kind_ = PROTOTYPE;
@@ -262,7 +263,7 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
     Literal* literal = property->key();
-    if (literal->handle()->IsNull()) continue;
+    if (literal->value()->IsNull()) continue;
     uint32_t hash = literal->Hash();
     // If the key of a computed property is in the table, do not emit
     // a store for the property later.
@@ -287,6 +288,16 @@ void TargetCollector::AddTarget(Label* target, Zone* zone) {
 }
 
 
+void UnaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
+  // TODO(olivf) If this Operation is used in a test context, then the
+  // expression has a ToBoolean stub and we want to collect the type
+  // information. However the GraphBuilder expects it to be on the instruction
+  // corresponding to the TestContext, therefore we have to store it here and
+  // not on the operand.
+  set_to_boolean_types(oracle->ToBooleanTypes(expression()->test_id()));
+}
+
+
 bool UnaryOperation::ResultOverwriteAllowed() {
   switch (op_) {
     case Token::BIT_NOT:
@@ -295,6 +306,16 @@ bool UnaryOperation::ResultOverwriteAllowed() {
     default:
       return false;
   }
+}
+
+
+void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
+  // TODO(olivf) If this Operation is used in a test context, then the right
+  // hand side has a ToBoolean stub and we want to collect the type information.
+  // However the GraphBuilder expects it to be on the instruction corresponding
+  // to the TestContext, therefore we have to store it here and not on the
+  // right hand operand.
+  set_to_boolean_types(oracle->ToBooleanTypes(right()->test_id()));
 }
 
 
@@ -337,7 +358,7 @@ static bool MatchLiteralCompareTypeof(Expression* left,
                                       Handle<String>* check) {
   if (IsTypeof(left) && right->IsStringLiteral() && Token::IsEqualityOp(op)) {
     *expr = left->AsUnaryOperation()->expression();
-    *check = Handle<String>::cast(right->AsLiteral()->handle());
+    *check = Handle<String>::cast(right->AsLiteral()->value());
     return true;
   }
   return false;
@@ -417,6 +438,10 @@ bool FunctionDeclaration::IsInlineable() const {
 // ----------------------------------------------------------------------------
 // Recording of type feedback
 
+// TODO(rossberg): all RecordTypeFeedback functions should disappear
+// once we use the common type field in the AST consistently.
+
+
 void ForInStatement::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   for_in_type_ = static_cast<ForInType>(oracle->ForInType(this));
 }
@@ -444,8 +469,8 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
       is_function_prototype_ = true;
     } else {
       Literal* lit_key = key()->AsLiteral();
-      ASSERT(lit_key != NULL && lit_key->handle()->IsString());
-      Handle<String> name = Handle<String>::cast(lit_key->handle());
+      ASSERT(lit_key != NULL && lit_key->value()->IsString());
+      Handle<String> name = Handle<String>::cast(lit_key->value());
       oracle->LoadReceiverTypes(this, name, &receiver_types_);
     }
   } else if (oracle->LoadIsBuiltin(this, Builtins::kKeyedLoadIC_String)) {
@@ -465,12 +490,14 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   Property* prop = target()->AsProperty();
   ASSERT(prop != NULL);
   TypeFeedbackId id = AssignmentFeedbackId();
+  is_uninitialized_ = oracle->StoreIsUninitialized(id);
+  if (is_uninitialized_) return;
   is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
   receiver_types_.Clear();
   if (prop->key()->IsPropertyName()) {
     Literal* lit_key = prop->key()->AsLiteral();
-    ASSERT(lit_key != NULL && lit_key->handle()->IsString());
-    Handle<String> name = Handle<String>::cast(lit_key->handle());
+    ASSERT(lit_key != NULL && lit_key->value()->IsString());
+    Handle<String> name = Handle<String>::cast(lit_key->value());
     oracle->StoreReceiverTypes(this, name, &receiver_types_);
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
@@ -612,8 +639,8 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   } else {
     // Method call.  Specialize for the receiver types seen at runtime.
     Literal* key = property->key()->AsLiteral();
-    ASSERT(key != NULL && key->handle()->IsString());
-    Handle<String> name = Handle<String>::cast(key->handle());
+    ASSERT(key != NULL && key->value()->IsString());
+    Handle<String> name = Handle<String>::cast(key->value());
     receiver_types_.Clear();
     oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
 #ifdef DEBUG
@@ -659,26 +686,6 @@ void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   receiver_type_ = oracle->ObjectLiteralStoreIsMonomorphic(this)
       ? oracle->GetObjectLiteralStoreMap(this)
       : Handle<Map>::null();
-}
-
-
-void UnaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  type_ = oracle->UnaryType(UnaryOperationFeedbackId());
-}
-
-
-void BinaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  oracle->BinaryType(BinaryOperationFeedbackId(),
-                     &left_type_, &right_type_, &result_type_,
-                     &has_fixed_right_arg_, &fixed_right_arg_value_);
-}
-
-
-// TODO(rossberg): this function (and all other RecordTypeFeedback functions)
-// should disappear once we use the common type field in the AST consistently.
-void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  oracle->CompareTypes(CompareOperationFeedbackId(),
-      &left_type_, &right_type_, &overall_type_, &compare_nil_type_);
 }
 
 
@@ -1165,18 +1172,18 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 
 
 Handle<String> Literal::ToString() {
-  if (handle_->IsString()) return Handle<String>::cast(handle_);
+  if (value_->IsString()) return Handle<String>::cast(value_);
   Factory* factory = Isolate::Current()->factory();
-  ASSERT(handle_->IsNumber());
+  ASSERT(value_->IsNumber());
   char arr[100];
   Vector<char> buffer(arr, ARRAY_SIZE(arr));
   const char* str;
-  if (handle_->IsSmi()) {
+  if (value_->IsSmi()) {
     // Optimization only, the heap number case would subsume this.
-    OS::SNPrintF(buffer, "%d", Smi::cast(*handle_)->value());
+    OS::SNPrintF(buffer, "%d", Smi::cast(*value_)->value());
     str = arr;
   } else {
-    str = DoubleToCString(handle_->Number(), buffer);
+    str = DoubleToCString(value_->Number(), buffer);
   }
   return factory->NewStringFromAscii(CStrVector(str));
 }

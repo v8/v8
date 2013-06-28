@@ -66,6 +66,7 @@ class HBasicBlock: public ZoneObject {
   HInstruction* first() const { return first_; }
   HInstruction* last() const { return last_; }
   void set_last(HInstruction* instr) { last_ = instr; }
+  HInstruction* GetLastInstruction();
   HControlInstruction* end() const { return end_; }
   HLoopInformation* loop_information() const { return loop_information_; }
   const ZoneList<HBasicBlock*>* predecessors() const { return &predecessors_; }
@@ -283,7 +284,6 @@ class HGraph: public ZoneObject {
   void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
   void ComputeSafeUint32Operations();
-  void GlobalValueNumbering();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
   void Canonicalize();
@@ -426,6 +426,12 @@ class HGraph: public ZoneObject {
  private:
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
                          int32_t integer_value);
+
+  template<class Phase>
+  void Run() {
+    Phase phase(this);
+    phase.Run();
+  }
 
   void MarkLive(HValue* ref, HValue* instr, ZoneList<HValue*>* worklist);
   void MarkLiveInstructions();
@@ -697,25 +703,6 @@ class HEnvironment: public ZoneObject {
   int push_count_;
   BailoutId ast_id_;
   Zone* zone_;
-};
-
-
-class HInferRepresentation BASE_EMBEDDED {
- public:
-  explicit HInferRepresentation(HGraph* graph)
-      : graph_(graph),
-        worklist_(8, graph->zone()),
-        in_worklist_(graph->GetMaximumValueID(), graph->zone()) { }
-
-  void Analyze();
-  void AddToWorklist(HValue* current);
-
- private:
-  Zone* zone() const { return graph_->zone(); }
-
-  HGraph* graph_;
-  ZoneList<HValue*> worklist_;
-  BitVector in_worklist_;
 };
 
 
@@ -991,9 +978,57 @@ class HGraphBuilder {
 
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
+
+  template<class I>
+  I* Add() { return static_cast<I*>(AddInstruction(new(zone()) I())); }
+
+  template<class I, class P1>
+  I* Add(P1 p1) {
+    return static_cast<I*>(AddInstruction(new(zone()) I(p1)));
+  }
+
+  template<class I, class P1, class P2>
+  I* Add(P1 p1, P2 p2) {
+      return static_cast<I*>(AddInstruction(new(zone()) I(p1, p2)));
+  }
+
+  template<class I, class P1, class P2, class P3>
+  I* Add(P1 p1, P2 p2, P3 p3) {
+    return static_cast<I*>(AddInstruction(new(zone()) I(p1, p2, p3)));
+  }
+
+  template<class I, class P1, class P2, class P3, class P4>
+  I* Add(P1 p1, P2 p2, P3 p3, P4 p4) {
+    return static_cast<I*>(AddInstruction(new(zone()) I(p1, p2, p3, p4)));
+  }
+
+  template<class I, class P1, class P2, class P3, class P4, class P5>
+  I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
+    return static_cast<I*>(AddInstruction(new(zone()) I(p1, p2, p3, p4, p5)));
+  }
+
+  template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
+  I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6) {
+    return static_cast<I*>(AddInstruction(
+            new(zone()) I(p1, p2, p3, p4, p5, p6)));
+  }
+
+  template<class I, class P1, class P2, class P3,
+           class P4, class P5, class P6, class P7>
+  I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7) {
+    return static_cast<I*>(AddInstruction(
+            new(zone()) I(p1, p2, p3, p4, p5, p6, p7)));
+  }
+
+  template<class I, class P1, class P2, class P3, class P4,
+           class P5, class P6, class P7, class P8>
+  I* Add(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8) {
+    return static_cast<I*>(AddInstruction(
+            new(zone()) I(p1, p2, p3, p4, p5, p6, p7, p8)));
+  }
+
   void AddSimulate(BailoutId id,
                    RemovableSimulate removable = FIXED_SIMULATE);
-  HBoundsCheck* AddBoundsCheck(HValue* index, HValue* length);
 
   HReturn* AddReturn(HValue* value);
 
@@ -1011,7 +1046,7 @@ class HGraphBuilder {
   HBasicBlock* CreateBasicBlock(HEnvironment* env);
   HBasicBlock* CreateLoopHeaderBlock();
 
-  HValue* BuildCheckNonSmi(HValue* object);
+  HValue* BuildCheckHeapObject(HValue* object);
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
 
   // Building common constructs
@@ -1270,7 +1305,8 @@ class HGraphBuilder {
     JSArrayBuilder(HGraphBuilder* builder,
                    ElementsKind kind,
                    HValue* allocation_site_payload,
-                   bool disable_allocation_sites);
+                   HValue* constructor_function,
+                   AllocationSiteOverrideMode override_mode);
 
     JSArrayBuilder(HGraphBuilder* builder,
                    ElementsKind kind,
@@ -1285,9 +1321,6 @@ class HGraphBuilder {
     Zone* zone() const { return builder_->zone(); }
     int elements_size() const {
       return IsFastDoubleElementsKind(kind_) ? kDoubleSize : kPointerSize;
-    }
-    HInstruction* AddInstruction(HInstruction* instr) {
-      return builder_->AddInstruction(instr);
     }
     HGraphBuilder* builder() { return builder_; }
     HGraph* graph() { return builder_->graph(); }
@@ -1623,8 +1656,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   // Visit a list of expressions from left to right, each in a value context.
   void VisitExpressions(ZoneList<Expression*>* exprs);
 
-  void AddPhi(HPhi* phi);
-
   void PushAndAdd(HInstruction* instr);
 
   // Remove the arguments from the bailout environment and emit instructions
@@ -1829,13 +1860,16 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
   void BuildEmitDeepCopy(Handle<JSObject> boilerplat_object,
                          Handle<JSObject> object,
-                         HInstruction* result,
+                         HInstruction* target,
                          int* offset,
+                         HInstruction* data_target,
+                         int* data_offset,
                          AllocationSiteMode mode);
 
   MUST_USE_RESULT HValue* BuildEmitObjectHeader(
       Handle<JSObject> boilerplat_object,
       HInstruction* target,
+      HInstruction* data_target,
       int object_offset,
       int elements_offset,
       int elements_size);
@@ -1844,14 +1878,18 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                    Handle<JSObject> original_boilerplate_object,
                                    HValue* object_properties,
                                    HInstruction* target,
-                                   int* offset);
+                                   int* offset,
+                                   HInstruction* data_target,
+                                   int* data_offset);
 
   void BuildEmitElements(Handle<FixedArrayBase> elements,
                          Handle<FixedArrayBase> original_elements,
                          ElementsKind kind,
                          HValue* object_elements,
                          HInstruction* target,
-                         int* offset);
+                         int* offset,
+                         HInstruction* data_target,
+                         int* data_offset);
 
   void BuildEmitFixedDoubleArray(Handle<FixedArrayBase> elements,
                                  ElementsKind kind,
@@ -1862,7 +1900,9 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                            ElementsKind kind,
                            HValue* object_elements,
                            HInstruction* target,
-                           int* offset);
+                           int* offset,
+                           HInstruction* data_target,
+                           int* data_offset);
 
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);
@@ -1922,6 +1962,10 @@ class HStatistics: public Malloced {
   void Print();
   void SaveTiming(const char* name, int64_t ticks, unsigned size);
 
+  void IncrementFullCodeGen(int64_t full_code_gen) {
+    full_code_gen_ += full_code_gen;
+  }
+
   void IncrementSubtotals(int64_t create_graph,
                           int64_t optimize_graph,
                           int64_t generate_code) {
@@ -1943,30 +1987,20 @@ class HStatistics: public Malloced {
 };
 
 
-class HPhase BASE_EMBEDDED {
+class HPhase : public CompilationPhase {
  public:
-  static const char* const kFullCodeGen;
-
-  HPhase(const char* name, Isolate* isolate);
-  HPhase(const char* name, HGraph* graph);
-  HPhase(const char* name, LChunk* chunk);
-  HPhase(const char* name, LAllocator* allocator);
+  HPhase(const char* name, HGraph* graph)
+      : CompilationPhase(name, graph->info()),
+        graph_(graph) { }
   ~HPhase();
 
- private:
-  void Init(Isolate* isolate,
-            const char* name,
-            HGraph* graph,
-            LChunk* chunk,
-            LAllocator* allocator);
+ protected:
+  HGraph* graph() const { return graph_; }
 
-  Isolate* isolate_;
-  const char* name_;
+ private:
   HGraph* graph_;
-  LChunk* chunk_;
-  LAllocator* allocator_;
-  int64_t start_ticks_;
-  unsigned start_allocation_size_;
+
+  DISALLOW_COPY_AND_ASSIGN(HPhase);
 };
 
 

@@ -961,7 +961,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 
   bool extract_indexed_refs = true;
   if (obj->IsJSGlobalProxy()) {
-    ExtractJSGlobalProxyReferences(JSGlobalProxy::cast(obj));
+    ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
   } else if (obj->IsJSObject()) {
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
@@ -974,6 +974,8 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractSharedFunctionInfoReferences(entry, SharedFunctionInfo::cast(obj));
   } else if (obj->IsScript()) {
     ExtractScriptReferences(entry, Script::cast(obj));
+  } else if (obj->IsAccessorPair()) {
+    ExtractAccessorPairReferences(entry, AccessorPair::cast(obj));
   } else if (obj->IsCodeCache()) {
     ExtractCodeCacheReferences(entry, CodeCache::cast(obj));
   } else if (obj->IsCode()) {
@@ -994,19 +996,11 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 }
 
 
-void V8HeapExplorer::ExtractJSGlobalProxyReferences(JSGlobalProxy* proxy) {
-  // We need to reference JS global objects from snapshot's root.
-  // We use JSGlobalProxy because this is what embedder (e.g. browser)
-  // uses for the global object.
-  Object* object = proxy->map()->prototype();
-  bool is_debug_object = false;
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  is_debug_object = object->IsGlobalObject() &&
-      Isolate::Current()->debug()->IsDebugGlobal(GlobalObject::cast(object));
-#endif
-  if (!is_debug_object) {
-    SetUserGlobalReference(object);
-  }
+void V8HeapExplorer::ExtractJSGlobalProxyReferences(
+    int entry, JSGlobalProxy* proxy) {
+  SetInternalReference(proxy, entry,
+                       "native_context", proxy->native_context(),
+                       JSGlobalProxy::kNativeContextOffset);
 }
 
 
@@ -1048,9 +1042,9 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     SetInternalReference(js_fun, entry,
                          "shared", shared_info,
                          JSFunction::kSharedFunctionInfoOffset);
-    TagObject(js_fun->unchecked_context(), "(context)");
+    TagObject(js_fun->context(), "(context)");
     SetInternalReference(js_fun, entry,
-                         "context", js_fun->unchecked_context(),
+                         "context", js_fun->context(),
                          JSFunction::kContextOffset);
     for (int i = JSFunction::kNonWeakFieldsEndOffset;
          i < JSFunction::kSize;
@@ -1242,6 +1236,15 @@ void V8HeapExplorer::ExtractScriptReferences(int entry, Script* script) {
 }
 
 
+void V8HeapExplorer::ExtractAccessorPairReferences(
+    int entry, AccessorPair* accessors) {
+  SetInternalReference(accessors, entry, "getter", accessors->getter(),
+                       AccessorPair::kGetterOffset);
+  SetInternalReference(accessors, entry, "setter", accessors->setter(),
+                       AccessorPair::kSetterOffset);
+}
+
+
 void V8HeapExplorer::ExtractCodeCacheReferences(
     int entry, CodeCache* code_cache) {
   TagObject(code_cache->default_cache(), "(default code cache)");
@@ -1353,21 +1356,11 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
               js_obj, entry,
               descs->GetKey(i), descs->GetConstantFunction(i));
           break;
-        case CALLBACKS: {
-          Object* callback_obj = descs->GetValue(i);
-          if (callback_obj->IsAccessorPair()) {
-            AccessorPair* accessors = AccessorPair::cast(callback_obj);
-            if (Object* getter = accessors->getter()) {
-              SetPropertyReference(js_obj, entry, descs->GetKey(i),
-                                   getter, "get-%s");
-            }
-            if (Object* setter = accessors->setter()) {
-              SetPropertyReference(js_obj, entry, descs->GetKey(i),
-                                   setter, "set-%s");
-            }
-          }
+        case CALLBACKS:
+          ExtractAccessorPairProperty(
+              js_obj, entry,
+              descs->GetKey(i), descs->GetValue(i));
           break;
-        }
         case NORMAL:  // only in slow mode
         case HANDLER:  // only in lookup results, not in descriptors
         case INTERCEPTOR:  // only in lookup results, not in descriptors
@@ -1389,15 +1382,32 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
         Object* value = target->IsPropertyCell()
             ? PropertyCell::cast(target)->value()
             : target;
-        if (k != heap_->hidden_string()) {
-          SetPropertyReference(js_obj, entry, String::cast(k), value);
-        } else {
+        if (k == heap_->hidden_string()) {
           TagObject(value, "(hidden properties)");
           SetInternalReference(js_obj, entry, "hidden_properties", value);
+          continue;
         }
+        if (ExtractAccessorPairProperty(js_obj, entry, k, value)) continue;
+        SetPropertyReference(js_obj, entry, String::cast(k), value);
       }
     }
   }
+}
+
+
+bool V8HeapExplorer::ExtractAccessorPairProperty(
+    JSObject* js_obj, int entry, Object* key, Object* callback_obj) {
+  if (!callback_obj->IsAccessorPair()) return false;
+  AccessorPair* accessors = AccessorPair::cast(callback_obj);
+  Object* getter = accessors->getter();
+  if (!getter->IsOddball()) {
+    SetPropertyReference(js_obj, entry, String::cast(key), getter, "get %s");
+  }
+  Object* setter = accessors->setter();
+  if (!setter->IsOddball()) {
+    SetPropertyReference(js_obj, entry, String::cast(key), setter, "set %s");
+  }
+  return true;
 }
 
 
@@ -1759,6 +1769,22 @@ void V8HeapExplorer::SetGcSubrootReference(
           is_weak ? HeapGraphEdge::kWeak : HeapGraphEdge::kElement,
           snapshot_->gc_subroot(tag)->index(),
           child_entry);
+    }
+
+    // Add a shortcut to JS global object reference at snapshot root.
+    if (child_obj->IsNativeContext()) {
+      Context* context = Context::cast(child_obj);
+      GlobalObject* global = context->global_object();
+      if (global->IsJSGlobalObject()) {
+        bool is_debug_object = false;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+        is_debug_object = heap_->isolate()->debug()->IsDebugGlobal(global);
+#endif
+        if (!is_debug_object && !user_roots_.Contains(global)) {
+          user_roots_.Insert(global);
+          SetUserGlobalReference(global);
+        }
+      }
     }
   }
 }

@@ -43,31 +43,6 @@ namespace internal {
 LITHIUM_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
-LOsrEntry::LOsrEntry() {
-  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
-    register_spills_[i] = NULL;
-  }
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
-    double_register_spills_[i] = NULL;
-  }
-}
-
-
-void LOsrEntry::MarkSpilledRegister(int allocation_index,
-                                    LOperand* spill_operand) {
-  ASSERT(spill_operand->IsStackSlot());
-  ASSERT(register_spills_[allocation_index] == NULL);
-  register_spills_[allocation_index] = spill_operand;
-}
-
-
-void LOsrEntry::MarkSpilledDoubleRegister(int allocation_index,
-                                          LOperand* spill_operand) {
-  ASSERT(spill_operand->IsDoubleStackSlot());
-  ASSERT(double_register_spills_[allocation_index] == NULL);
-  double_register_spills_[allocation_index] = spill_operand;
-}
-
 
 #ifdef DEBUG
 void LInstruction::VerifyCall() {
@@ -376,8 +351,7 @@ void LCallNewArray::PrintDataTo(StringStream* stream) {
   constructor()->PrintTo(stream);
   stream->Add(" #%d / ", arity());
   ASSERT(hydrogen()->property_cell()->value()->IsSmi());
-  ElementsKind kind = static_cast<ElementsKind>(
-      Smi::cast(hydrogen()->property_cell()->value())->value());
+  ElementsKind kind = hydrogen()->elements_kind();
   stream->Add(" (%s) ", ElementsKindToString(kind));
 }
 
@@ -481,7 +455,7 @@ void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
 LPlatformChunk* LChunkBuilder::Build() {
   ASSERT(is_unused());
   chunk_ = new(zone()) LPlatformChunk(info(), graph());
-  HPhase phase("L_Building chunk", chunk_);
+  LPhase phase("L_Building chunk", chunk_);
   status_ = BUILDING;
 
   // Reserve the first spill slot for the state of dynamic alignment.
@@ -1060,20 +1034,28 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
     return new(zone()) LGoto(successor->block_id());
   }
 
-  // Untagged integers or doubles, smis and booleans don't require a
-  // deoptimization environment nor a temp register.
+  ToBooleanStub::Types expected = instr->expected_input_types();
+
+  // Tagged values that are not known smis or booleans require a
+  // deoptimization environment. If the instruction is generic no
+  // environment is needed since all cases are handled.
   Representation rep = value->representation();
   HType type = value->type();
   if (!rep.IsTagged() || type.IsSmi() || type.IsBoolean()) {
     return new(zone()) LBranch(UseRegister(value), NULL);
   }
 
-  ToBooleanStub::Types expected = instr->expected_input_types();
+  bool needs_temp = expected.NeedsMap() || expected.IsEmpty();
+  LOperand* temp = needs_temp ? TempRegister() : NULL;
+
+  // The Generic stub does not have a deopt, so we need no environment.
+  if (expected.IsGeneric()) {
+    return new(zone()) LBranch(UseRegister(value), temp);
+  }
+
   // We need a temporary register when we have to access the map *or* we have
   // no type info yet, in which case we handle all cases (including the ones
   // involving maps).
-  bool needs_temp = expected.NeedsMap() || expected.IsEmpty();
-  LOperand* temp = needs_temp ? TempRegister() : NULL;
   return AssignEnvironment(new(zone()) LBranch(UseRegister(value), temp));
 }
 
@@ -1367,7 +1349,6 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
-  ASSERT(FLAG_optimize_constructed_arrays);
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* constructor = UseFixed(instr->constructor(), edi);
   argument_count_ -= instr->argument_count();
@@ -1543,7 +1524,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
               instr->CheckFlag(HValue::kBailoutOnMinusZero))
           ? AssignEnvironment(result)
           : result;
-    } else if (instr->has_fixed_right_arg()) {
+    } else if (instr->fixed_right_arg().has_value) {
       LModI* mod = new(zone()) LModI(UseRegister(left),
                                      UseRegisterAtStart(right),
                                      NULL);
@@ -2024,7 +2005,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       if (val->HasRange() && val->range()->IsInSmiRange()) {
         return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else if (val->CheckFlag(HInstruction::kUint32)) {
-        LNumberTagU* result = new(zone()) LNumberTagU(value);
+        LOperand* temp = CpuFeatures::IsSupported(SSE2) ? FixedTemp(xmm1)
+                                                        : NULL;
+        LNumberTagU* result = new(zone()) LNumberTagU(value, temp);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
       } else {
         LNumberTagI* result = new(zone()) LNumberTagI(value);
@@ -2056,7 +2039,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
+LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
   LOperand* value = UseAtStart(instr->value());
   return AssignEnvironment(new(zone()) LCheckNonSmi(value));
 }
@@ -2545,6 +2528,15 @@ LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
 LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
   LOperand* string = UseRegisterAtStart(instr->value());
   return DefineAsRegister(new(zone()) LStringLength(string));
+}
+
+
+LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
+  info()->MarkAsDeferredCalling();
+  LOperand* context = UseAny(instr->context());
+  LOperand* temp = TempRegister();
+  LAllocateObject* result = new(zone()) LAllocateObject(context, temp);
+  return AssignPointerMap(DefineAsRegister(result));
 }
 
 

@@ -533,8 +533,6 @@ class LEnvironment: public ZoneObject {
         values_(value_count, zone),
         is_tagged_(value_count, zone),
         is_uint32_(value_count, zone),
-        spilled_registers_(NULL),
-        spilled_double_registers_(NULL),
         outer_(outer),
         entry_(entry),
         zone_(zone) { }
@@ -548,10 +546,6 @@ class LEnvironment: public ZoneObject {
   int translation_size() const { return translation_size_; }
   int parameter_count() const { return parameter_count_; }
   int pc_offset() const { return pc_offset_; }
-  LOperand** spilled_registers() const { return spilled_registers_; }
-  LOperand** spilled_double_registers() const {
-    return spilled_double_registers_;
-  }
   const ZoneList<LOperand*>* values() const { return &values_; }
   LEnvironment* outer() const { return outer_; }
   HEnterInlined* entry() { return entry_; }
@@ -591,12 +585,6 @@ class LEnvironment: public ZoneObject {
     return deoptimization_index_ != Safepoint::kNoDeoptimizationIndex;
   }
 
-  void SetSpilledRegisters(LOperand** registers,
-                           LOperand** double_registers) {
-    spilled_registers_ = registers;
-    spilled_double_registers_ = double_registers;
-  }
-
   void PrintTo(StringStream* stream);
 
  private:
@@ -615,13 +603,6 @@ class LEnvironment: public ZoneObject {
   ZoneList<LOperand*> values_;
   GrowableBitVector is_tagged_;
   GrowableBitVector is_uint32_;
-
-  // Allocation index indexed arrays of spill slot operands for registers
-  // that are also in spill slots at an OSR entry.  NULL for environments
-  // that do not correspond to an OSR entry.
-  LOperand** spilled_registers_;
-  LOperand** spilled_double_registers_;
-
   LEnvironment* outer_;
   HEnterInlined* entry_;
   Zone* zone_;
@@ -775,6 +756,20 @@ enum NumberUntagDMode {
   NUMBER_CANDIDATE_IS_SMI,
   NUMBER_CANDIDATE_IS_ANY_TAGGED,
   NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE
+};
+
+
+class LPhase : public CompilationPhase {
+ public:
+  LPhase(const char* name, LChunk* chunk)
+      : CompilationPhase(name, chunk->info()),
+        chunk_(chunk) { }
+  ~LPhase();
+
+ private:
+  LChunk* chunk_;
+
+  DISALLOW_COPY_AND_ASSIGN(LPhase);
 };
 
 

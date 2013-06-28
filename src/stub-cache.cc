@@ -43,7 +43,7 @@ namespace internal {
 // StubCache implementation.
 
 
-StubCache::StubCache(Isolate* isolate, Zone* zone)
+StubCache::StubCache(Isolate* isolate)
     : isolate_(isolate) {
   ASSERT(isolate == Isolate::Current());
 }
@@ -644,7 +644,10 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   PROFILE(isolate_,
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  JSObject::UpdateMapCodeCache(stub_holder, name, code);
+
+  if (CallStubCompiler::CanBeCached(function)) {
+    JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  }
   return code;
 }
 
@@ -753,7 +756,9 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
-  JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  if (CallStubCompiler::CanBeCached(function)) {
+    JSObject::UpdateMapCodeCache(stub_holder, name, code);
+  }
   return code;
 }
 
@@ -1108,12 +1113,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   LOG(isolate, ApiNamedPropertyAccess("store", recv, *name));
   PropertyCallbackArguments
       custom_args(isolate, callback->data(), recv, recv);
-  {
-    // Leaving JavaScript.
-    VMState<EXTERNAL> state(isolate);
-    ExternalCallbackScope call_scope(isolate, setter_address);
-    custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
-  }
+  custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
 }
@@ -1159,12 +1159,8 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   {
     // Use the interceptor getter.
     HandleScope scope(isolate);
-    v8::Handle<v8::Value> r;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      r = callback_args.Call(getter, v8::Utils::ToLocal(name));
-    }
+    v8::Handle<v8::Value> r =
+        callback_args.Call(getter, v8::Utils::ToLocal(name));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       Handle<Object> result = v8::Utils::OpenHandle(*r);
@@ -1229,12 +1225,8 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
   {
     // Use the interceptor getter.
     HandleScope scope(isolate);
-    v8::Handle<v8::Value> r;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      r = callback_args.Call(getter, v8::Utils::ToLocal(name));
-    }
+    v8::Handle<v8::Value> r =
+        callback_args.Call(getter, v8::Utils::ToLocal(name));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       *attrs = NONE;
@@ -1974,12 +1966,25 @@ bool CallStubCompiler::HasCustomCallGenerator(Handle<JSFunction> function) {
 }
 
 
+bool CallStubCompiler::CanBeCached(Handle<JSFunction> function) {
+  if (function->shared()->HasBuiltinFunctionId()) {
+    BuiltinFunctionId id = function->shared()->builtin_function_id();
+#define CALL_GENERATOR_CASE(name) if (id == k##name) return false;
+    SITE_SPECIFIC_CALL_GENERATORS(CALL_GENERATOR_CASE)
+#undef CALL_GENERATOR_CASE
+  }
+
+  return true;
+}
+
+
 Handle<Code> CallStubCompiler::CompileCustomCall(
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
     Handle<JSFunction> function,
-    Handle<String> fname) {
+    Handle<String> fname,
+    Code::StubType type) {
   ASSERT(HasCustomCallGenerator(function));
 
   if (function->shared()->HasBuiltinFunctionId()) {
@@ -1990,7 +1995,8 @@ Handle<Code> CallStubCompiler::CompileCustomCall(
                                                    holder,      \
                                                    cell,        \
                                                    function,    \
-                                                   fname);      \
+                                                   fname,       \
+                                                   type);       \
     }
     CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
 #undef CALL_GENERATOR_CASE

@@ -112,7 +112,7 @@ class ConstantFunctionDescriptor: public Descriptor {
                              JSFunction* function,
                              PropertyAttributes attributes)
       : Descriptor(key, function, attributes, CONSTANT_FUNCTION,
-                   Representation::Tagged()) {}
+                   Representation::HeapObject()) {}
 };
 
 

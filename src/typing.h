@@ -62,6 +62,13 @@ class AstTyper: public AstVisitor {
   TypeFeedbackOracle* oracle() { return &oracle_; }
   Zone* zone() const { return info_->zone(); }
 
+  void MergeLowerType(Expression* e, Handle<Type> t) {
+    e->set_lower_type(handle(Type::Union(e->lower_type(), t), isolate_));
+  }
+  void MergeUpperType(Expression* e, Handle<Type> t) {
+    e->set_upper_type(handle(Type::Intersect(e->upper_type(), t), isolate_));
+  }
+
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void VisitStatements(ZoneList<Statement*>* statements);
 

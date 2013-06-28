@@ -109,10 +109,10 @@ TEST(ExternalReferenceEncoder) {
            Encode(encoder, Builtins::kArrayCode));
   CHECK_EQ(make_code(v8::internal::RUNTIME_FUNCTION, Runtime::kAbort),
            Encode(encoder, Runtime::kAbort));
-  ExternalReference keyed_load_function_prototype =
-      ExternalReference(isolate->counters()->keyed_load_function_prototype());
-  CHECK_EQ(make_code(STATS_COUNTER, Counters::k_keyed_load_function_prototype),
-           encoder.Encode(keyed_load_function_prototype.address()));
+  ExternalReference total_compile_size =
+      ExternalReference(isolate->counters()->total_compile_size());
+  CHECK_EQ(make_code(STATS_COUNTER, Counters::k_total_compile_size),
+           encoder.Encode(total_compile_size.address()));
   ExternalReference stack_limit_address =
       ExternalReference::address_of_stack_limit(isolate);
   CHECK_EQ(make_code(UNCLASSIFIED, 4),
@@ -147,12 +147,12 @@ TEST(ExternalReferenceDecoder) {
   CHECK_EQ(AddressOf(Runtime::kAbort),
            decoder.Decode(make_code(v8::internal::RUNTIME_FUNCTION,
                                     Runtime::kAbort)));
-  ExternalReference keyed_load_function =
-      ExternalReference(isolate->counters()->keyed_load_function_prototype());
-  CHECK_EQ(keyed_load_function.address(),
+  ExternalReference total_compile_size =
+      ExternalReference(isolate->counters()->total_compile_size());
+  CHECK_EQ(total_compile_size.address(),
            decoder.Decode(
                make_code(STATS_COUNTER,
-                         Counters::k_keyed_load_function_prototype)));
+                         Counters::k_total_compile_size)));
   CHECK_EQ(ExternalReference::address_of_stack_limit(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 4)));
   CHECK_EQ(ExternalReference::address_of_real_stack_limit(isolate).address(),

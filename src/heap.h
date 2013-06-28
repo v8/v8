@@ -175,7 +175,7 @@ namespace internal {
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
-  V(Object, last_script_id, LastScriptId)                                      \
+  V(Smi, last_script_id, LastScriptId)                                         \
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
@@ -1440,9 +1440,6 @@ class Heap {
     roots_[kStoreBufferTopRootIndex] = reinterpret_cast<Smi*>(top);
   }
 
-  // Update the next script id.
-  inline void SetLastScriptId(Object* last_script_id);
-
   // Generated code can embed this address to get access to the roots.
   Object** roots_array_start() { return roots_; }
 
@@ -1873,7 +1870,7 @@ class Heap {
   enum {
     FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
     FIRST_FIXED_ARRAY_SUB_TYPE =
-        FIRST_CODE_KIND_SUB_TYPE + Code::LAST_CODE_KIND + 1,
+        FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
     OBJECT_STATS_COUNT =
         FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1
   };
@@ -1885,7 +1882,7 @@ class Heap {
       object_sizes_[type] += size;
     } else {
       if (type == CODE_TYPE) {
-        ASSERT(sub_type <= Code::LAST_CODE_KIND);
+        ASSERT(sub_type < Code::NUMBER_OF_KINDS);
         object_counts_[FIRST_CODE_KIND_SUB_TYPE + sub_type]++;
         object_sizes_[FIRST_CODE_KIND_SUB_TYPE + sub_type] += size;
       } else if (type == FIXED_ARRAY_TYPE) {
@@ -2191,6 +2188,9 @@ class Heap {
 
   void ProcessNativeContexts(WeakObjectRetainer* retainer, bool record_slots);
   void ProcessArrayBuffers(WeakObjectRetainer* retainer, bool record_slots);
+
+  // Called on heap tear-down.
+  void TearDownArrayBuffers();
 
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();

@@ -47,7 +47,6 @@
 #include "safepoint-table.h"
 #include "string-stream.h"
 #include "utils.h"
-#include "vm-state-inl.h"
 
 #ifdef ENABLE_DISASSEMBLER
 #include "disasm.h"
@@ -375,14 +374,8 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("load", self, name));
     PropertyCallbackArguments args(isolate, data->data(), self, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      ExternalCallbackScope call_scope(isolate,
-                                       v8::ToCData<Address>(fun_obj));
-      result = args.Call(call_fun, v8::Utils::ToLocal(key));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(call_fun, v8::Utils::ToLocal(key));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) {
       return isolate->heap()->undefined_value();
@@ -668,8 +661,7 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
     Object* store_value = value;
     if (IsGlobalObject()) {
       Heap* heap = name->GetHeap();
-      MaybeObject* maybe_store_value =
-          heap->AllocatePropertyCell(value);
+      MaybeObject* maybe_store_value = heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
     Object* dict;
@@ -1631,6 +1623,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_ARRAY_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_TYPED_ARRAY_TYPE:
+    case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
     case JS_WEAK_MAP_TYPE:
@@ -2736,18 +2729,13 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
     PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
     v8::NamedPropertySetter setter =
         v8::ToCData<v8::NamedPropertySetter>(interceptor->setter());
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      Handle<Object> value_unhole(value->IsTheHole() ?
-                                  isolate->heap()->undefined_value() :
-                                  value,
-                                  isolate);
-      result = args.Call(setter,
-                         v8::Utils::ToLocal(name_handle),
-                         v8::Utils::ToLocal(value_unhole));
-    }
+    Handle<Object> value_unhole(value->IsTheHole() ?
+                                isolate->heap()->undefined_value() :
+                                value,
+                                isolate);
+    v8::Handle<v8::Value> result = args.Call(setter,
+                                             v8::Utils::ToLocal(name_handle),
+                                             v8::Utils::ToLocal(value_unhole));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
   }
@@ -2846,17 +2834,11 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     if (call_fun == NULL) return value;
     Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("store", this, name));
-    PropertyCallbackArguments
-      args(isolate, data->data(), this, JSObject::cast(holder));
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      ExternalCallbackScope call_scope(isolate,
-                                       v8::ToCData<Address>(call_obj));
-      args.Call(call_fun,
-                v8::Utils::ToLocal(key),
-                v8::Utils::ToLocal(value_handle));
-    }
+    PropertyCallbackArguments args(
+        isolate, data->data(), this, JSObject::cast(holder));
+    args.Call(call_fun,
+              v8::Utils::ToLocal(key),
+              v8::Utils::ToLocal(value_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
   }
@@ -4187,12 +4169,8 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
         v8::ToCData<v8::NamedPropertyQuery>(interceptor->query());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-has", *holder_handle, name));
-    v8::Handle<v8::Integer> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(query, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Integer> result =
+        args.Call(query, v8::Utils::ToLocal(name_handle));
     if (!result.IsEmpty()) {
       ASSERT(result->IsInt32());
       return static_cast<PropertyAttributes>(result->Int32Value());
@@ -4202,12 +4180,8 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
         v8::ToCData<v8::NamedPropertyGetter>(interceptor->getter());
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-get-has", this, name));
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(getter, v8::Utils::ToLocal(name_handle));
     if (!result.IsEmpty()) return DONT_ENUM;
   }
   return holder_handle->GetPropertyAttributePostInterceptor(*receiver_handle,
@@ -4327,12 +4301,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
         v8::ToCData<v8::IndexedPropertyQuery>(interceptor->query());
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-has", this, index));
-    v8::Handle<v8::Integer> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(query, index);
-    }
+    v8::Handle<v8::Integer> result = args.Call(query, index);
     if (!result.IsEmpty())
       return static_cast<PropertyAttributes>(result->Int32Value());
   } else if (!interceptor->getter()->IsUndefined()) {
@@ -4340,12 +4309,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
         v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-get-has", this, index));
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, index);
-    }
+    v8::Handle<v8::Value> result = args.Call(getter, index);
     if (!result.IsEmpty()) return NONE;
   }
 
@@ -4769,7 +4733,7 @@ Object* JSObject::GetHiddenProperty(Name* key) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
     // If the proxy is detached, return undefined.
-    if (proxy_parent->IsNull()) return GetHeap()->undefined_value();
+    if (proxy_parent->IsNull()) return GetHeap()->the_hole_value();
     ASSERT(proxy_parent->IsJSGlobalObject());
     return JSObject::cast(proxy_parent)->GetHiddenProperty(key);
   }
@@ -4783,15 +4747,14 @@ Object* JSObject::GetHiddenProperty(Name* key) {
     if (key == GetHeap()->identity_hash_string()) {
       return inline_value;
     } else {
-      return GetHeap()->undefined_value();
+      return GetHeap()->the_hole_value();
     }
   }
 
-  if (inline_value->IsUndefined()) return GetHeap()->undefined_value();
+  if (inline_value->IsUndefined()) return GetHeap()->the_hole_value();
 
   ObjectHashTable* hashtable = ObjectHashTable::cast(inline_value);
   Object* entry = hashtable->Lookup(key);
-  if (entry->IsTheHole()) return GetHeap()->undefined_value();
   return entry;
 }
 
@@ -5015,12 +4978,8 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(Name* name) {
     LOG(isolate,
         ApiNamedPropertyAccess("interceptor-named-delete", *this_handle, name));
     PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
-    v8::Handle<v8::Boolean> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(deleter, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Boolean> result =
+        args.Call(deleter, v8::Utils::ToLocal(name_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       ASSERT(result->IsBoolean());
@@ -5051,12 +5010,7 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   LOG(isolate,
       ApiIndexedPropertyAccess("interceptor-indexed-delete", this, index));
   PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
-  v8::Handle<v8::Boolean> result;
-  {
-    // Leaving JavaScript.
-    VMState<EXTERNAL> state(isolate);
-    result = args.Call(deleter, index);
-  }
+  v8::Handle<v8::Boolean> result = args.Call(deleter, index);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (!result.IsEmpty()) {
     ASSERT(result->IsBoolean());
@@ -9186,7 +9140,8 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 
 
 void JSFunction::MarkForLazyRecompilation() {
-  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
   set_code_no_write_barrier(
@@ -9196,7 +9151,8 @@ void JSFunction::MarkForLazyRecompilation() {
 
 
 void JSFunction::MarkForParallelRecompilation() {
-  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   if (!FLAG_parallel_recompilation) {
     JSFunction::MarkForLazyRecompilation();
@@ -9214,7 +9170,8 @@ void JSFunction::MarkForParallelRecompilation() {
 
 
 void JSFunction::MarkForInstallingRecompiledCode() {
-  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(FLAG_parallel_recompilation);
   set_code_no_write_barrier(
@@ -9224,7 +9181,8 @@ void JSFunction::MarkForInstallingRecompiledCode() {
 
 
 void JSFunction::MarkInRecompileQueue() {
-  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(FLAG_parallel_recompilation);
   if (FLAG_trace_parallel_recompilation) {
@@ -9403,7 +9361,6 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
   bool result = true;
   if (function->shared()->is_compiled()) {
     function->ReplaceCode(function->shared()->code());
-    function->shared()->set_code_age(0);
   } else {
     ASSERT(function->shared()->allows_lazy_compilation());
     CompilationInfoWithZone info(function);
@@ -10026,6 +9983,12 @@ byte Code::compare_nil_state() {
       extended_extra_ic_state());
 }
 
+byte Code::compare_nil_value() {
+  ASSERT(is_compare_nil_ic_stub());
+  return CompareNilICStub::ExtractNilValueFromExtraICState(
+      extended_extra_ic_state());
+}
+
 
 void Code::InvalidateRelocation() {
   set_relocation_info(GetHeap()->empty_byte_array());
@@ -10150,29 +10113,45 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 }
 
 
-Map* Code::FindFirstMap() {
+Object* Code::FindNthObject(int n, Map* match_map) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
-    if (object->IsMap()) return Map::cast(object);
+    if (object->IsHeapObject()) {
+      if (HeapObject::cast(object)->map() == match_map) {
+        if (--n == 0) return object;
+      }
+    }
   }
   return NULL;
 }
 
 
-void Code::ReplaceFirstMap(Map* replace_with) {
+Map* Code::FindFirstMap() {
+  Object* result = FindNthObject(1, GetHeap()->meta_map());
+  return (result != NULL) ? Map::cast(result) : NULL;
+}
+
+
+void Code::ReplaceNthObject(int n,
+                            Map* match_map,
+                            Object* replace_with) {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Object* object = info->target_object();
-    if (object->IsMap()) {
-      info->set_target_object(replace_with);
-      return;
+    if (object->IsHeapObject()) {
+      if (HeapObject::cast(object)->map() == match_map) {
+        if (--n == 0) {
+          info->set_target_object(replace_with);
+          return;
+        }
+      }
     }
   }
   UNREACHABLE();
@@ -10188,6 +10167,11 @@ void Code::FindAllMaps(MapHandleList* maps) {
     Object* object = info->target_object();
     if (object->IsMap()) maps->Add(Handle<Map>(Map::cast(object)));
   }
+}
+
+
+void Code::ReplaceFirstMap(Map* replace_with) {
+  ReplaceNthObject(1, GetHeap()->meta_map(), replace_with);
 }
 
 
@@ -10229,6 +10213,21 @@ Name* Code::FindFirstName() {
     if (object->IsName()) return Name::cast(object);
   }
   return NULL;
+}
+
+
+void Code::ReplaceNthCell(int n, Cell* replace_with) {
+  ASSERT(is_inline_cache_stub());
+  DisallowHeapAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::CELL);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    if (--n == 0) {
+      info->set_target_cell(replace_with);
+      return;
+    }
+  }
+  UNREACHABLE();
 }
 
 
@@ -10389,21 +10388,10 @@ void Code::PrintDeoptLocation(int bailout_id) {
 // Identify kind of code.
 const char* Code::Kind2String(Kind kind) {
   switch (kind) {
-    case FUNCTION: return "FUNCTION";
-    case OPTIMIZED_FUNCTION: return "OPTIMIZED_FUNCTION";
-    case STUB: return "STUB";
-    case BUILTIN: return "BUILTIN";
-    case LOAD_IC: return "LOAD_IC";
-    case KEYED_LOAD_IC: return "KEYED_LOAD_IC";
-    case STORE_IC: return "STORE_IC";
-    case KEYED_STORE_IC: return "KEYED_STORE_IC";
-    case CALL_IC: return "CALL_IC";
-    case KEYED_CALL_IC: return "KEYED_CALL_IC";
-    case UNARY_OP_IC: return "UNARY_OP_IC";
-    case BINARY_OP_IC: return "BINARY_OP_IC";
-    case COMPARE_IC: return "COMPARE_IC";
-    case COMPARE_NIL_IC: return "COMPARE_NIL_IC";
-    case TO_BOOLEAN_IC: return "TO_BOOLEAN_IC";
+#define CASE(name) case name: return #name;
+    CODE_KIND_LIST(CASE)
+#undef CASE
+    case NUMBER_OF_KINDS: break;
   }
   UNREACHABLE();
   return NULL;
@@ -10497,9 +10485,6 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           PrintF(out, "}");
           break;
         }
-
-        case Translation::DUPLICATE:
-          break;
 
         case Translation::REGISTER: {
           int reg_code = iterator.Next();
@@ -11114,7 +11099,7 @@ void Map::AddDependentCompilationInfo(DependentCode::DependencyGroup group,
   Handle<DependentCode> codes =
       DependentCode::Insert(dep, group, info->object_wrapper());
   if (*codes != dependent_code()) set_dependent_code(*codes);
-  info->dependent_maps(group)->Add(Handle<Map>(this), info->zone());
+  info->dependencies(group)->Add(Handle<HeapObject>(this), info->zone());
 }
 
 
@@ -11137,6 +11122,16 @@ void DependentCode::GroupStartIndexes::Recompute(DependentCode* entries) {
     int count = entries->number_of_entries(static_cast<DependencyGroup>(g - 1));
     start_indexes_[g] = start_indexes_[g - 1] + count;
   }
+}
+
+
+DependentCode* DependentCode::ForObject(Handle<HeapObject> object,
+                                        DependencyGroup group) {
+  AllowDeferredHandleDereference dependencies_are_safe;
+  if (group == DependentCode::kPropertyCellChangedGroup) {
+    return Handle<PropertyCell>::cast(object)->dependent_code();
+  }
+  return Handle<Map>::cast(object)->dependent_code();
 }
 
 
@@ -11278,7 +11273,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
       code->set_marked_for_deoptimization(true);
     } else {
       CompilationInfo* info = compilation_info_at(i);
-      info->AbortDueToDependentMap();
+      info->AbortDueToDependencyChange();
     }
   }
   // Compact the array by moving all subsequent groups to fill in the new holes.
@@ -11465,12 +11460,8 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
     LOG(isolate,
         ApiIndexedPropertyAccess("interceptor-indexed-set", this, index));
     PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(setter, index, v8::Utils::ToLocal(value_handle));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(setter, index, v8::Utils::ToLocal(value_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
   }
@@ -11508,12 +11499,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     LOG(isolate, ApiNamedPropertyAccess("load", *self, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *self, *holder_handle);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(call_fun, v8::Utils::ToLocal(key));
-    }
+    v8::Handle<v8::Value> result = args.Call(call_fun, v8::Utils::ToLocal(key));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) return isolate->heap()->undefined_value();
     Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
@@ -11575,13 +11561,9 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
     LOG(isolate, ApiNamedPropertyAccess("store", *self, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *self, *holder_handle);
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      args.Call(call_fun,
-                v8::Utils::ToLocal(key),
-                v8::Utils::ToLocal(value_handle));
-    }
+    args.Call(call_fun,
+              v8::Utils::ToLocal(key),
+              v8::Utils::ToLocal(value_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
   }
@@ -12481,12 +12463,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
         ApiIndexedPropertyAccess("interceptor-indexed-get", this, index));
     PropertyCallbackArguments
         args(isolate, interceptor->data(), receiver, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, index);
-    }
+    v8::Handle<v8::Value> result = args.Call(getter, index);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
@@ -12791,12 +12768,8 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
         ApiNamedPropertyAccess("interceptor-named-get", *holder_handle, name));
     PropertyCallbackArguments
         args(isolate, interceptor->data(), receiver, this);
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState<EXTERNAL> state(isolate);
-      result = args.Call(getter, v8::Utils::ToLocal(name_handle));
-    }
+    v8::Handle<v8::Value> result =
+        args.Call(getter, v8::Utils::ToLocal(name_handle));
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       *attributes = NONE;
@@ -15805,9 +15778,19 @@ void JSArrayBuffer::Neuter() {
 }
 
 
-void JSTypedArray::Neuter() {
+void JSArrayBufferView::NeuterView() {
   set_byte_offset(Smi::FromInt(0));
   set_byte_length(Smi::FromInt(0));
+}
+
+
+void JSDataView::Neuter() {
+  NeuterView();
+}
+
+
+void JSTypedArray::Neuter() {
+  NeuterView();
   set_length(Smi::FromInt(0));
   set_elements(GetHeap()->EmptyExternalArrayForMap(map()));
 }
@@ -15820,6 +15803,25 @@ Type* PropertyCell::type() {
 
 void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
   set_type_raw(type, ignored);
+}
+
+
+void PropertyCell::AddDependentCompilationInfo(CompilationInfo* info) {
+  Handle<DependentCode> dep(dependent_code());
+  Handle<DependentCode> codes =
+      DependentCode::Insert(dep, DependentCode::kPropertyCellChangedGroup,
+                            info->object_wrapper());
+  if (*codes != dependent_code()) set_dependent_code(*codes);
+  info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
+      Handle<HeapObject>(this), info->zone());
+}
+
+
+void PropertyCell::AddDependentCode(Handle<Code> code) {
+  Handle<DependentCode> codes = DependentCode::Insert(
+      Handle<DependentCode>(dependent_code()),
+      DependentCode::kPropertyCellChangedGroup, code);
+  if (*codes != dependent_code()) set_dependent_code(*codes);
 }
 
 

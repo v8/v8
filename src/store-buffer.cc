@@ -121,6 +121,7 @@ void StoreBuffer::TearDown() {
 
 void StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
   isolate->heap()->store_buffer()->Compact();
+  isolate->counters()->store_buffer_overflows()->Increment();
 }
 
 

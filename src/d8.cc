@@ -1105,7 +1105,7 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Handle<v8::ArrayBuffer> buffer = ArrayBuffer::New(data, length);
   v8::Persistent<v8::ArrayBuffer> weak_handle(isolate, buffer);
-  weak_handle.MakeWeak(isolate, data, ReadBufferWeakCallback);
+  weak_handle.MakeWeak(data, ReadBufferWeakCallback);
   weak_handle.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(length);
 

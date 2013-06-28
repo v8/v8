@@ -1296,6 +1296,7 @@ class MacroAssembler: public Assembler {
                                               Register scratch,
                                               Label* failure);
 
+  void JumpIfNotUniqueName(Register reg, Label* not_unique_name);
 
   // ---------------------------------------------------------------------------
   // Patching helpers.

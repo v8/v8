@@ -330,6 +330,8 @@
         '../../src/hydrogen.h',
         '../../src/hydrogen-gvn.cc',
         '../../src/hydrogen-gvn.h',
+        '../../src/hydrogen-infer-representation.cc',
+        '../../src/hydrogen-infer-representation.h',
         '../../src/ic-inl.h',
         '../../src/ic.cc',
         '../../src/ic.h',

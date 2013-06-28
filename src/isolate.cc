@@ -1738,7 +1738,6 @@ Isolate::Isolate()
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
       unicode_cache_(NULL),
-      runtime_zone_(this),
       in_use_list_(0),
       free_list_(0),
       preallocated_storage_preallocated_(false),
@@ -1754,8 +1753,10 @@ Isolate::Isolate()
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
       context_exit_happened_(false),
+      initialized_from_snapshot_(false),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
+      function_entry_hook_(NULL),
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
@@ -1935,9 +1936,6 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
 
-  // Has to be called while counters_ are still alive.
-  runtime_zone_.DeleteKeptSegment();
-
   delete[] assembler_spare_buffer_;
   assembler_spare_buffer_ = NULL;
 
@@ -2081,6 +2079,14 @@ bool Isolate::Init(Deserializer* des) {
   ASSERT(Isolate::Current() == this);
   TRACE_ISOLATE(init);
 
+  if (function_entry_hook() != NULL) {
+    // When function entry hooking is in effect, we have to create the code
+    // stubs from scratch to get entry hooks, rather than loading the previously
+    // generated stubs from disk.
+    // If this assert fires, the initialization path has regressed.
+    ASSERT(des == NULL);
+  }
+
   // The initialization process does not handle memory exhaustion.
   DisallowAllocationFailure disallow_allocation_failure;
 
@@ -2099,7 +2105,7 @@ bool Isolate::Init(Deserializer* des) {
   isolate_addresses_[Isolate::k##CamelName##Address] =          \
       reinterpret_cast<Address>(hacker_name##_address());
   FOR_EACH_ISOLATE_ADDRESS_NAME(ASSIGN_ELEMENT)
-#undef C
+#undef ASSIGN_ELEMENT
 
   string_tracker_ = new StringTracker();
   string_tracker_->isolate_ = this;
@@ -2114,7 +2120,7 @@ bool Isolate::Init(Deserializer* des) {
   global_handles_ = new GlobalHandles(this);
   bootstrapper_ = new Bootstrapper(this);
   handle_scope_implementer_ = new HandleScopeImplementer(this);
-  stub_cache_ = new StubCache(this, runtime_zone());
+  stub_cache_ = new StubCache(this);
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();
@@ -2216,8 +2222,6 @@ bool Isolate::Init(Deserializer* des) {
     LOG(this, LogCompiledFunctions());
   }
 
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, state_)),
-           Internals::kIsolateStateOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.roots_)),
@@ -2259,47 +2263,24 @@ bool Isolate::Init(Deserializer* des) {
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
 
-  if (FLAG_parallel_marking && FLAG_marking_threads == 0) {
-    FLAG_marking_threads = SystemThreadManager::
-        NumberOfParallelSystemThreads(
-            SystemThreadManager::PARALLEL_MARKING);
-  }
   if (FLAG_marking_threads > 0) {
     marking_thread_ = new MarkingThread*[FLAG_marking_threads];
     for (int i = 0; i < FLAG_marking_threads; i++) {
       marking_thread_[i] = new MarkingThread(this);
       marking_thread_[i]->Start();
     }
-  } else {
-    FLAG_parallel_marking = false;
   }
 
-  if (FLAG_sweeper_threads == 0) {
-    if (FLAG_concurrent_sweeping) {
-      FLAG_sweeper_threads = SystemThreadManager::
-          NumberOfParallelSystemThreads(
-              SystemThreadManager::CONCURRENT_SWEEPING);
-    } else if (FLAG_parallel_sweeping) {
-      FLAG_sweeper_threads = SystemThreadManager::
-          NumberOfParallelSystemThreads(
-              SystemThreadManager::PARALLEL_SWEEPING);
-    }
-  }
   if (FLAG_sweeper_threads > 0) {
     sweeper_thread_ = new SweeperThread*[FLAG_sweeper_threads];
     for (int i = 0; i < FLAG_sweeper_threads; i++) {
       sweeper_thread_[i] = new SweeperThread(this);
       sweeper_thread_[i]->Start();
     }
-  } else {
-    FLAG_concurrent_sweeping = false;
-    FLAG_parallel_sweeping = false;
   }
-  if (FLAG_parallel_recompilation &&
-      SystemThreadManager::NumberOfParallelSystemThreads(
-          SystemThreadManager::PARALLEL_RECOMPILATION) == 0) {
-    FLAG_parallel_recompilation = false;
-  }
+
+  initialized_from_snapshot_ = (des != NULL);
+
   return true;
 }
 

@@ -1568,6 +1568,8 @@ static Object* VisitWeakList(Heap* heap,
       // tail is a live object, visit it.
       WeakListVisitor<T>::VisitLiveObject(
           heap, tail, retainer, record_slots);
+    } else {
+      WeakListVisitor<T>::VisitPhantomObject(heap, candidate);
     }
 
     // Move to next element in the list.
@@ -1598,6 +1600,9 @@ struct WeakListVisitor<JSFunction> {
 
   static void VisitLiveObject(Heap*, JSFunction*,
                               WeakObjectRetainer*, bool) {
+  }
+
+  static void VisitPhantomObject(Heap*, JSFunction*) {
   }
 };
 
@@ -1637,6 +1642,9 @@ struct WeakListVisitor<Context> {
     }
   }
 
+  static void VisitPhantomObject(Heap*, Context*) {
+  }
+
   static int WeakNextOffset() {
     return FixedArray::SizeFor(Context::NEXT_CONTEXT_LINK);
   }
@@ -1666,22 +1674,24 @@ void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer,
 
 
 template<>
-struct WeakListVisitor<JSTypedArray> {
-  static void SetWeakNext(JSTypedArray* obj, Object* next) {
+struct WeakListVisitor<JSArrayBufferView> {
+  static void SetWeakNext(JSArrayBufferView* obj, Object* next) {
     obj->set_weak_next(next);
   }
 
-  static Object* WeakNext(JSTypedArray* obj) {
+  static Object* WeakNext(JSArrayBufferView* obj) {
     return obj->weak_next();
   }
 
   static void VisitLiveObject(Heap*,
-                              JSTypedArray* obj,
+                              JSArrayBufferView* obj,
                               WeakObjectRetainer* retainer,
                               bool record_slots) {}
 
+  static void VisitPhantomObject(Heap*, JSArrayBufferView*) {}
+
   static int WeakNextOffset() {
-    return JSTypedArray::kWeakNextOffset;
+    return JSArrayBufferView::kWeakNextOffset;
   }
 };
 
@@ -1701,16 +1711,20 @@ struct WeakListVisitor<JSArrayBuffer> {
                               WeakObjectRetainer* retainer,
                               bool record_slots) {
     Object* typed_array_obj =
-        VisitWeakList<JSTypedArray>(
+        VisitWeakList<JSArrayBufferView>(
             heap,
-            array_buffer->weak_first_array(),
+            array_buffer->weak_first_view(),
             retainer, record_slots);
-    array_buffer->set_weak_first_array(typed_array_obj);
+    array_buffer->set_weak_first_view(typed_array_obj);
     if (typed_array_obj != heap->undefined_value() && record_slots) {
       Object** slot = HeapObject::RawField(
-          array_buffer, JSArrayBuffer::kWeakFirstArrayOffset);
+          array_buffer, JSArrayBuffer::kWeakFirstViewOffset);
       heap->mark_compact_collector()->RecordSlot(slot, slot, typed_array_obj);
     }
+  }
+
+  static void VisitPhantomObject(Heap* heap, JSArrayBuffer* phantom) {
+    Runtime::FreeArrayBuffer(heap->isolate(), phantom);
   }
 
   static int WeakNextOffset() {
@@ -1726,6 +1740,17 @@ void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer,
                                    array_buffers_list(),
                                    retainer, record_slots);
   set_array_buffers_list(array_buffer_obj);
+}
+
+
+void Heap::TearDownArrayBuffers() {
+  Object* undefined = undefined_value();
+  for (Object* o = array_buffers_list(); o != undefined;) {
+    JSArrayBuffer* buffer = JSArrayBuffer::cast(o);
+    Runtime::FreeArrayBuffer(isolate(), buffer);
+    o = buffer->weak_next();
+  }
+  array_buffers_list_ = undefined;
 }
 
 
@@ -1909,6 +1934,10 @@ class ScavengingVisitor : public StaticVisitorBase {
                     Visit);
 
     table_.Register(kVisitJSTypedArray,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                    Visit);
+
+    table_.Register(kVisitJSDataView,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                     Visit);
 
@@ -2830,8 +2859,11 @@ MaybeObject* Heap::AllocatePropertyCell(Object* value) {
   }
   HeapObject::cast(result)->set_map_no_write_barrier(
       global_property_cell_map());
-  PropertyCell::cast(result)->set_value(value);
-  PropertyCell::cast(result)->set_type(Type::None());
+  PropertyCell* cell = PropertyCell::cast(result);
+  cell->set_dependent_code(DependentCode::cast(empty_fixed_array()),
+                           SKIP_WRITE_BARRIER);
+  cell->set_value(value);
+  cell->set_type(Type::None());
   return result;
 }
 
@@ -3126,7 +3158,7 @@ bool Heap::CreateInitialObjects() {
   set_empty_slow_element_dictionary(SeededNumberDictionary::cast(obj));
 
   // Handling of script id generation is in Factory::NewScript.
-  set_last_script_id(undefined_value());
+  set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
 
   // Initialize keyed lookup cache.
   isolate_->keyed_lookup_cache()->Clear();
@@ -4396,7 +4428,10 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
   // Allocate the backing storage for the properties.
-  int prop_size = map->InitialPropertiesLength();
+  int prop_size =
+      map->pre_allocated_property_fields() +
+      map->unused_property_fields() -
+      map->inobject_properties();
   ASSERT(prop_size >= 0);
   Object* properties;
   { MaybeObject* maybe_properties = AllocateFixedArray(prop_size, pretenure);
@@ -4433,7 +4468,10 @@ MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(Map* map,
   ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
   // Allocate the backing storage for the properties.
-  int prop_size = map->InitialPropertiesLength();
+  int prop_size =
+      map->pre_allocated_property_fields() +
+      map->unused_property_fields() -
+      map->inobject_properties();
   ASSERT(prop_size >= 0);
   Object* properties;
   { MaybeObject* maybe_properties = AllocateFixedArray(prop_size);
@@ -6620,7 +6658,12 @@ bool Heap::ConfigureHeap(int max_semispace_size,
   max_semispace_size_ = RoundUpToPowerOf2(max_semispace_size_);
   reserved_semispace_size_ = RoundUpToPowerOf2(reserved_semispace_size_);
   initial_semispace_size_ = Min(initial_semispace_size_, max_semispace_size_);
-  external_allocation_limit_ = 16 * max_semispace_size_;
+
+  // The external allocation limit should be below 256 MB on all architectures
+  // to avoid unnecessary low memory notifications, as that is the threshold
+  // for some embedders.
+  external_allocation_limit_ = 12 * max_semispace_size_;
+  ASSERT(external_allocation_limit_ <= 256 * MB);
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
@@ -6868,6 +6911,8 @@ void Heap::TearDown() {
     PrintF("total_sweeping_time=%.1f ", sweeping_time());
     PrintF("\n\n");
   }
+
+  TearDownArrayBuffers();
 
   isolate_->global_handles()->TearDown();
 

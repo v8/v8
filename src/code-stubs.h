@@ -904,8 +904,7 @@ class BinaryOpStub: public PlatformCodeStub {
         left_type_(BinaryOpIC::UNINITIALIZED),
         right_type_(BinaryOpIC::UNINITIALIZED),
         result_type_(BinaryOpIC::UNINITIALIZED),
-        has_fixed_right_arg_(false),
-        encoded_right_arg_(encode_arg_value(1)) {
+        encoded_right_arg_(false, encode_arg_value(1)) {
     Initialize();
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
@@ -915,16 +914,15 @@ class BinaryOpStub: public PlatformCodeStub {
       BinaryOpIC::TypeInfo left_type,
       BinaryOpIC::TypeInfo right_type,
       BinaryOpIC::TypeInfo result_type,
-      bool has_fixed_right_arg,
-      int32_t fixed_right_arg_value)
+      Maybe<int32_t> fixed_right_arg)
       : op_(OpBits::decode(key)),
         mode_(ModeBits::decode(key)),
         platform_specific_bit_(PlatformSpecificBits::decode(key)),
         left_type_(left_type),
         right_type_(right_type),
         result_type_(result_type),
-        has_fixed_right_arg_(has_fixed_right_arg),
-        encoded_right_arg_(encode_arg_value(fixed_right_arg_value)) { }
+        encoded_right_arg_(fixed_right_arg.has_value,
+                           encode_arg_value(fixed_right_arg.value)) { }
 
   static void decode_types_from_minor_key(int minor_key,
                                           BinaryOpIC::TypeInfo* left_type,
@@ -942,16 +940,14 @@ class BinaryOpStub: public PlatformCodeStub {
     return static_cast<Token::Value>(OpBits::decode(minor_key));
   }
 
-  static bool decode_has_fixed_right_arg_from_minor_key(int minor_key) {
-    return HasFixedRightArgBits::decode(minor_key);
-  }
-
-  static int decode_fixed_right_arg_value_from_minor_key(int minor_key) {
-    return decode_arg_value(FixedRightArgValueBits::decode(minor_key));
+  static Maybe<int> decode_fixed_right_arg_from_minor_key(int minor_key) {
+    return Maybe<int>(
+        HasFixedRightArgBits::decode(minor_key),
+        decode_arg_value(FixedRightArgValueBits::decode(minor_key)));
   }
 
   int fixed_right_arg_value() const {
-    return decode_arg_value(encoded_right_arg_);
+    return decode_arg_value(encoded_right_arg_.value);
   }
 
   static bool can_encode_arg_value(int32_t value) {
@@ -975,8 +971,7 @@ class BinaryOpStub: public PlatformCodeStub {
   BinaryOpIC::TypeInfo right_type_;
   BinaryOpIC::TypeInfo result_type_;
 
-  bool has_fixed_right_arg_;
-  int encoded_right_arg_;
+  Maybe<int> encoded_right_arg_;
 
   static int encode_arg_value(int32_t value) {
     ASSERT(can_encode_arg_value(value));
@@ -1009,8 +1004,8 @@ class BinaryOpStub: public PlatformCodeStub {
            | LeftTypeBits::encode(left_type_)
            | RightTypeBits::encode(right_type_)
            | ResultTypeBits::encode(result_type_)
-           | HasFixedRightArgBits::encode(has_fixed_right_arg_)
-           | FixedRightArgValueBits::encode(encoded_right_arg_);
+           | HasFixedRightArgBits::encode(encoded_right_arg_.has_value)
+           | FixedRightArgValueBits::encode(encoded_right_arg_.value);
   }
 
 
@@ -1206,6 +1201,9 @@ class CompareNilICStub : public HydrogenCodeStub  {
   }
   static byte ExtractTypesFromExtraICState(Code::ExtraICState state) {
     return state & ((1 << NUMBER_OF_TYPES) - 1);
+  }
+  static NilValue ExtractNilValueFromExtraICState(Code::ExtraICState state) {
+    return NilValueField::decode(state);
   }
 
   void Record(Handle<Object> object);
@@ -1735,27 +1733,51 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 };
 
 
+enum ContextCheckMode {
+  CONTEXT_CHECK_REQUIRED,
+  CONTEXT_CHECK_NOT_REQUIRED,
+  LAST_CONTEXT_CHECK_MODE = CONTEXT_CHECK_NOT_REQUIRED
+};
+
+
+enum AllocationSiteOverrideMode {
+  DONT_OVERRIDE,
+  DISABLE_ALLOCATION_SITES,
+  LAST_ALLOCATION_SITE_OVERRIDE_MODE = DISABLE_ALLOCATION_SITES
+};
+
+
 class ArrayConstructorStubBase : public HydrogenCodeStub {
  public:
-  ArrayConstructorStubBase(ElementsKind kind, bool disable_allocation_sites) {
+  ArrayConstructorStubBase(ElementsKind kind, ContextCheckMode context_mode,
+                           AllocationSiteOverrideMode override_mode) {
     // It only makes sense to override local allocation site behavior
     // if there is a difference between the global allocation site policy
     // for an ElementsKind and the desired usage of the stub.
-    ASSERT(!disable_allocation_sites ||
+    ASSERT(override_mode != DISABLE_ALLOCATION_SITES ||
            AllocationSiteInfo::GetMode(kind) == TRACK_ALLOCATION_SITE);
     bit_field_ = ElementsKindBits::encode(kind) |
-        DisableAllocationSitesBits::encode(disable_allocation_sites);
+        AllocationSiteOverrideModeBits::encode(override_mode) |
+        ContextCheckModeBits::encode(context_mode);
   }
 
   ElementsKind elements_kind() const {
     return ElementsKindBits::decode(bit_field_);
   }
 
-  bool disable_allocation_sites() const {
-    return DisableAllocationSitesBits::decode(bit_field_);
+  AllocationSiteOverrideMode override_mode() const {
+    return AllocationSiteOverrideModeBits::decode(bit_field_);
   }
 
-  virtual bool IsPregenerated() { return true; }
+  ContextCheckMode context_mode() const {
+    return ContextCheckModeBits::decode(bit_field_);
+  }
+
+  virtual bool IsPregenerated() {
+    // We only pre-generate stubs that verify correct context
+    return context_mode() == CONTEXT_CHECK_REQUIRED;
+  }
+
   static void GenerateStubsAheadOfTime(Isolate* isolate);
   static void InstallDescriptors(Isolate* isolate);
 
@@ -1766,8 +1788,14 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
  private:
   int NotMissMinorKey() { return bit_field_; }
 
+  // Ensure data fits within available bits.
+  STATIC_ASSERT(LAST_ALLOCATION_SITE_OVERRIDE_MODE == 1);
+  STATIC_ASSERT(LAST_CONTEXT_CHECK_MODE == 1);
+
   class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
-  class DisableAllocationSitesBits: public BitField<bool, 8, 1> {};
+  class AllocationSiteOverrideModeBits: public
+      BitField<AllocationSiteOverrideMode, 8, 1> {};  // NOLINT
+  class ContextCheckModeBits: public BitField<ContextCheckMode, 9, 1> {};
   uint32_t bit_field_;
 
   DISALLOW_COPY_AND_ASSIGN(ArrayConstructorStubBase);
@@ -1778,8 +1806,9 @@ class ArrayNoArgumentConstructorStub : public ArrayConstructorStubBase {
  public:
   ArrayNoArgumentConstructorStub(
       ElementsKind kind,
-      bool disable_allocation_sites = false)
-      : ArrayConstructorStubBase(kind, disable_allocation_sites) {
+      ContextCheckMode context_mode = CONTEXT_CHECK_REQUIRED,
+      AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
+      : ArrayConstructorStubBase(kind, context_mode, override_mode) {
   }
 
   virtual Handle<Code> GenerateCode();
@@ -1799,8 +1828,9 @@ class ArraySingleArgumentConstructorStub : public ArrayConstructorStubBase {
  public:
   ArraySingleArgumentConstructorStub(
       ElementsKind kind,
-      bool disable_allocation_sites = false)
-      : ArrayConstructorStubBase(kind, disable_allocation_sites) {
+      ContextCheckMode context_mode = CONTEXT_CHECK_REQUIRED,
+      AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
+      : ArrayConstructorStubBase(kind, context_mode, override_mode) {
   }
 
   virtual Handle<Code> GenerateCode();
@@ -1820,8 +1850,9 @@ class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
  public:
   ArrayNArgumentsConstructorStub(
       ElementsKind kind,
-      bool disable_allocation_sites = false)
-      : ArrayConstructorStubBase(kind, disable_allocation_sites) {
+      ContextCheckMode context_mode = CONTEXT_CHECK_REQUIRED,
+      AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
+      : ArrayConstructorStubBase(kind, context_mode, override_mode) {
   }
 
   virtual Handle<Code> GenerateCode();
@@ -1973,7 +2004,7 @@ class ToBooleanStub: public HydrogenCodeStub {
 
   class Types : public EnumSet<Type, byte> {
    public:
-    Types() {}
+    Types() : EnumSet<Type, byte>(0) {}
     explicit Types(byte bits) : EnumSet<Type, byte>(bits) {}
 
     byte ToByte() const { return ToIntegral(); }
@@ -1982,10 +2013,10 @@ class ToBooleanStub: public HydrogenCodeStub {
     bool Record(Handle<Object> object);
     bool NeedsMap() const;
     bool CanBeUndetectable() const;
-  };
+    bool IsGeneric() const { return ToIntegral() == Generic().ToIntegral(); }
 
-  static Types no_types() { return Types(); }
-  static Types all_types() { return Types((1 << NUMBER_OF_TYPES) - 1); }
+    static Types Generic() { return Types((1 << NUMBER_OF_TYPES) - 1); }
+  };
 
   explicit ToBooleanStub(Types types = Types())
       : types_(types) { }
@@ -2137,13 +2168,6 @@ class ProfileEntryHookStub : public PlatformCodeStub {
   // Generates a call to the entry hook if it's enabled.
   static void MaybeCallEntryHook(MacroAssembler* masm);
 
-  // Sets or unsets the entry hook function. Returns true on success,
-  // false on an attempt to replace a non-NULL entry hook with another
-  // non-NULL hook.
-  static bool SetFunctionEntryHook(FunctionEntryHook entry_hook);
-
-  static bool HasEntryHook() { return entry_hook_ != NULL; }
-
  private:
   static void EntryHookTrampoline(intptr_t function,
                                   intptr_t stack_pointer);
@@ -2152,9 +2176,6 @@ class ProfileEntryHookStub : public PlatformCodeStub {
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
-
-  // The current function entry hook.
-  static FunctionEntryHook entry_hook_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileEntryHookStub);
 };

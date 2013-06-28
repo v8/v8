@@ -58,7 +58,9 @@
 //         - JSObject
 //           - JSArray
 //           - JSArrayBuffer
-//           - JSTypedArray
+//           - JSArrayBufferView
+//              - JSTypedArray
+//              - JSDataView
 //           - JSSet
 //           - JSMap
 //           - JSWeakMap
@@ -408,6 +410,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(JS_ARRAY_TYPE)                                                             \
   V(JS_ARRAY_BUFFER_TYPE)                                                      \
   V(JS_TYPED_ARRAY_TYPE)                                                       \
+  V(JS_DATA_VIEW_TYPE)                                                         \
   V(JS_PROXY_TYPE)                                                             \
   V(JS_WEAK_MAP_TYPE)                                                          \
   V(JS_REGEXP_TYPE)                                                            \
@@ -572,8 +575,7 @@ const uint32_t kStringTag = 0x0;
 const uint32_t kNotStringTag = 0x80;
 
 // Bit 6 indicates that the object is an internalized string (if set) or not.
-// There are not enough types that the non-string types (with bit 7 set) can
-// have bit 6 set too.
+// Bit 7 has to be clear as well.
 const uint32_t kIsInternalizedMask = 0x40;
 const uint32_t kNotInternalizedTag = 0x0;
 const uint32_t kInternalizedTag = 0x40;
@@ -744,6 +746,7 @@ enum InstanceType {
   JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
   JS_TYPED_ARRAY_TYPE,
+  JS_DATA_VIEW_TYPE,
   JS_SET_TYPE,
   JS_MAP_TYPE,
   JS_WEAK_MAP_TYPE,
@@ -993,7 +996,9 @@ class MaybeObject BASE_EMBEDDED {
   V(Boolean)                                   \
   V(JSArray)                                   \
   V(JSArrayBuffer)                             \
+  V(JSArrayBufferView)                         \
   V(JSTypedArray)                              \
+  V(JSDataView)                                \
   V(JSProxy)                                   \
   V(JSFunctionProxy)                           \
   V(JSSet)                                     \
@@ -1990,7 +1995,7 @@ class JSObject: public JSReceiver {
                                           Handle<Object> value);
   // Returns a failure if a GC is required.
   MUST_USE_RESULT MaybeObject* SetHiddenProperty(Name* key, Object* value);
-  // Gets the value of a hidden property with the given key. Returns undefined
+  // Gets the value of a hidden property with the given key. Returns the hole
   // if the property doesn't exist (or if called on a detached proxy),
   // otherwise returns the value set for the key.
   Object* GetHiddenProperty(Name* key);
@@ -4433,38 +4438,40 @@ class Code: public HeapObject {
   // cache state, and arguments count.
   typedef uint32_t Flags;
 
-#define CODE_KIND_LIST(V) \
-  V(FUNCTION)             \
-  V(OPTIMIZED_FUNCTION)   \
-  V(STUB)                 \
-  V(BUILTIN)              \
-  V(LOAD_IC)              \
-  V(KEYED_LOAD_IC)        \
-  V(CALL_IC)              \
-  V(KEYED_CALL_IC)        \
-  V(STORE_IC)             \
-  V(KEYED_STORE_IC)       \
-  V(UNARY_OP_IC)          \
-  V(BINARY_OP_IC)         \
-  V(COMPARE_IC)           \
-  V(COMPARE_NIL_IC)       \
+#define NON_IC_KIND_LIST(V) \
+  V(FUNCTION)               \
+  V(OPTIMIZED_FUNCTION)     \
+  V(STUB)                   \
+  V(BUILTIN)                \
+  V(REGEXP)
+
+#define IC_KIND_LIST(V) \
+  V(LOAD_IC)            \
+  V(KEYED_LOAD_IC)      \
+  V(CALL_IC)            \
+  V(KEYED_CALL_IC)      \
+  V(STORE_IC)           \
+  V(KEYED_STORE_IC)     \
+  V(UNARY_OP_IC)        \
+  V(BINARY_OP_IC)       \
+  V(COMPARE_IC)         \
+  V(COMPARE_NIL_IC)     \
   V(TO_BOOLEAN_IC)
+
+#define CODE_KIND_LIST(V) \
+  NON_IC_KIND_LIST(V)     \
+  IC_KIND_LIST(V)
 
   enum Kind {
 #define DEFINE_CODE_KIND_ENUM(name) name,
     CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
 #undef DEFINE_CODE_KIND_ENUM
-
-    // Pseudo-kinds.
-    LAST_CODE_KIND = TO_BOOLEAN_IC,
-    REGEXP = BUILTIN,
-    FIRST_IC_KIND = LOAD_IC,
-    LAST_IC_KIND = TO_BOOLEAN_IC
+    NUMBER_OF_KINDS
   };
 
   // No more than 16 kinds. The value is currently encoded in four bits in
   // Flags.
-  STATIC_ASSERT(LAST_CODE_KIND < 16);
+  STATIC_ASSERT(NUMBER_OF_KINDS <= 16);
 
   static const char* Kind2String(Kind kind);
 
@@ -4482,10 +4489,6 @@ class Code: public HeapObject {
   enum StubHolder {
     OWN_STUB,
     PROTOTYPE_STUB
-  };
-
-  enum {
-    NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
 
   typedef int ExtraICState;
@@ -4663,6 +4666,7 @@ class Code: public HeapObject {
 
   // [compare_nil]: For kind COMPARE_NIL_IC tells what state the stub is in.
   byte compare_nil_state();
+  byte compare_nil_value();
 
   // [has_function_cache]: For kind STUB tells whether there is a function
   // cache is passed to the stub.
@@ -4680,6 +4684,10 @@ class Code: public HeapObject {
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
 
+  // Find an object in a stub with a specified map
+  Object* FindNthObject(int n, Map* match_map);
+  void ReplaceNthObject(int n, Map* match_map, Object* replace_with);
+
   // Find the first map in an IC stub.
   Map* FindFirstMap();
   void FindAllMaps(MapHandleList* maps);
@@ -4691,6 +4699,8 @@ class Code: public HeapObject {
 
   // Find the first name in an IC stub.
   Name* FindFirstName();
+
+  void ReplaceNthCell(int n, Cell* replace_with);
 
   class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
   class ExtraICStateKeyedAccessStoreMode:
@@ -4820,7 +4830,10 @@ class Code: public HeapObject {
   };
 #undef DECLARE_CODE_AGE_ENUM
 
-  // Code aging
+  // Code aging.  Indicates how many full GCs this code has survived without
+  // being entered through the prologue.  Used to determine when it is
+  // relatively safe to flush this code object and replace it with the lazy
+  // compilation stub.
   static void MakeCodeAgeSequenceYoung(byte* sequence);
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
@@ -5019,7 +5032,10 @@ class DependentCode: public FixedArray {
     // Group of code that depends on elements not being added to objects with
     // this map.
     kElementsCantBeAddedGroup,
-    kGroupCount = kElementsCantBeAddedGroup + 1
+    // Group of code that depends on global property values in property cells
+    // not being changed.
+    kPropertyCellChangedGroup,
+    kGroupCount = kPropertyCellChangedGroup + 1
   };
 
   // Array for holding the index of the first code object of each group.
@@ -5060,6 +5076,9 @@ class DependentCode: public FixedArray {
   inline void clear_at(int i);
   inline void copy(int from, int to);
   static inline DependentCode* cast(Object* object);
+
+  static DependentCode* ForObject(Handle<HeapObject> object,
+                                  DependencyGroup group);
 
  private:
   // Make a room at the end of the given group by moving out the first
@@ -5473,13 +5492,6 @@ class Map: public HeapObject {
   int NumberOfDescribedProperties(DescriptorFlag which = OWN_DESCRIPTORS,
                                   PropertyAttributes filter = NONE);
 
-  // Returns the number of slots allocated for the initial properties
-  // backing storage for instances of this map.
-  int InitialPropertiesLength() {
-    return pre_allocated_property_fields() + unused_property_fields() -
-        inobject_properties();
-  }
-
   // Casting.
   static inline Map* cast(Object* obj);
 
@@ -5565,7 +5577,7 @@ class Map: public HeapObject {
   inline bool CanOmitPrototypeChecks();
 
   void AddDependentCompilationInfo(DependentCode::DependencyGroup group,
-                                        CompilationInfo* info);
+                                   CompilationInfo* info);
 
   void AddDependentCode(DependentCode::DependencyGroup group,
                         Handle<Code> code);
@@ -5751,7 +5763,7 @@ class Script: public Struct {
   DECL_ACCESSORS(name, Object)
 
   // [id]: the script id.
-  DECL_ACCESSORS(id, Object)
+  DECL_ACCESSORS(id, Smi)
 
   // [line_offset]: script line offset in resource from where it was extracted.
   DECL_ACCESSORS(line_offset, Smi)
@@ -5860,8 +5872,8 @@ class Script: public Struct {
   V(Math, min, MathMin)                             \
   V(Math, imul, MathImul)
 
-
 enum BuiltinFunctionId {
+  kArrayCode,
 #define DECLARE_FUNCTION_ID(ignored1, ignore2, name)    \
   k##name,
   FUNCTIONS_WITH_ID_LIST(DECLARE_FUNCTION_ID)
@@ -6139,14 +6151,6 @@ class SharedFunctionInfo: public HeapObject {
   // iteration by the debugger).
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation_without_context)
 
-  // Indicates how many full GCs this function has survived with assigned
-  // code object. Used to determine when it is relatively safe to flush
-  // this code object and replace it with lazy compilation stub.
-  // Age is reset when GC notices that the code object is referenced
-  // from the stack or compilation cache.
-  inline int code_age();
-  inline void set_code_age(int age);
-
   // Indicates whether optimizations have been disabled for this
   // shared function info. If a function is repeatedly optimized or if
   // we cannot optimize the function we disable optimization to avoid
@@ -6390,15 +6394,11 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStartPositionMask  = ~((1 << kStartPositionShift) - 1);
 
   // Bit positions in compiler_hints.
-  static const int kCodeAgeSize = 3;
-  static const int kCodeAgeMask = (1 << kCodeAgeSize) - 1;
-
   enum CompilerHints {
     kAllowLazyCompilation,
     kAllowLazyCompilationWithoutContext,
     kLiveObjectsMayExist,
-    kCodeAgeShift,
-    kOptimizationDisabled = kCodeAgeShift + kCodeAgeSize,
+    kOptimizationDisabled,
     kStrictModeFunction,
     kExtendedModeFunction,
     kUsesArguments,
@@ -6578,7 +6578,6 @@ class JSFunction: public JSObject {
 
   // [context]: The context for this function.
   inline Context* context();
-  inline Object* unchecked_context();
   inline void set_context(Object* context);
 
   // [code]: The generated code object for this function.  Executed
@@ -6589,8 +6588,6 @@ class JSFunction: public JSObject {
   inline void set_code(Code* code);
   inline void set_code_no_write_barrier(Code* code);
   inline void ReplaceCode(Code* code);
-
-  inline Code* unchecked_code();
 
   // Tells whether this function is builtin.
   inline bool IsBuiltin();
@@ -8580,8 +8577,13 @@ class Cell: public HeapObject {
 
 class PropertyCell: public Cell {
  public:
+  // [type]: type of the global property.
   Type* type();
   void set_type(Type* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // [dependent_code]: dependent code that depends on the type of the global
+  // property.
+  DECL_ACCESSORS(dependent_code, DependentCode)
 
   // Casting.
   static inline PropertyCell* cast(Object* obj);
@@ -8596,12 +8598,19 @@ class PropertyCell: public Cell {
 
   // Layout description.
   static const int kTypeOffset = kValueOffset + kPointerSize;
-  static const int kSize = kTypeOffset + kPointerSize;
+  static const int kDependentCodeOffset = kTypeOffset + kPointerSize;
+  static const int kSize = kDependentCodeOffset + kPointerSize;
 
-  typedef FixedBodyDescriptor<
-      kValueOffset,
-      kTypeOffset + kPointerSize,
-      PropertyCell::kSize> BodyDescriptor;
+  static const int kPointerFieldsBeginOffset = kValueOffset;
+  static const int kPointerFieldsEndOffset = kDependentCodeOffset;
+
+  typedef FixedBodyDescriptor<kValueOffset,
+                              kSize,
+                              kSize> BodyDescriptor;
+
+  void AddDependentCompilationInfo(CompilationInfo* info);
+
+  void AddDependentCode(Handle<Code> code);
 
  private:
   DECL_ACCESSORS(type_raw, Object)
@@ -8826,8 +8835,8 @@ class JSArrayBuffer: public JSObject {
   // [weak_next]: linked list of array buffers.
   DECL_ACCESSORS(weak_next, Object)
 
-  // [weak_first_array]: weak linked list of typed arrays.
-  DECL_ACCESSORS(weak_first_array, Object)
+  // [weak_first_array]: weak linked list of views.
+  DECL_ACCESSORS(weak_first_view, Object)
 
   // Casting.
   static inline JSArrayBuffer* cast(Object* obj);
@@ -8843,8 +8852,8 @@ class JSArrayBuffer: public JSObject {
   static const int kByteLengthOffset = kBackingStoreOffset + kPointerSize;
   static const int kFlagOffset = kByteLengthOffset + kPointerSize;
   static const int kWeakNextOffset = kFlagOffset + kPointerSize;
-  static const int kWeakFirstArrayOffset = kWeakNextOffset + kPointerSize;
-  static const int kSize = kWeakFirstArrayOffset + kPointerSize;
+  static const int kWeakFirstViewOffset = kWeakNextOffset + kPointerSize;
+  static const int kSize = kWeakFirstViewOffset + kPointerSize;
 
   static const int kSizeWithInternalFields =
       kSize + v8::ArrayBuffer::kInternalFieldCount * kPointerSize;
@@ -8857,7 +8866,7 @@ class JSArrayBuffer: public JSObject {
 };
 
 
-class JSTypedArray: public JSObject {
+class JSArrayBufferView: public JSObject {
  public:
   // [buffer]: ArrayBuffer that this typed array views.
   DECL_ACCESSORS(buffer, Object)
@@ -8868,11 +8877,32 @@ class JSTypedArray: public JSObject {
   // [byte_length]: length of typed array in bytes.
   DECL_ACCESSORS(byte_length, Object)
 
-  // [length]: length of typed array in elements.
-  DECL_ACCESSORS(length, Object)
-
   // [weak_next]: linked list of typed arrays over the same array buffer.
   DECL_ACCESSORS(weak_next, Object)
+
+  // Casting.
+  static inline JSArrayBufferView* cast(Object* obj);
+
+  DECLARE_VERIFIER(JSArrayBufferView)
+
+  static const int kBufferOffset = JSObject::kHeaderSize;
+  static const int kByteOffsetOffset = kBufferOffset + kPointerSize;
+  static const int kByteLengthOffset = kByteOffsetOffset + kPointerSize;
+  static const int kWeakNextOffset = kByteLengthOffset + kPointerSize;
+  static const int kViewSize = kWeakNextOffset + kPointerSize;
+
+ protected:
+  void NeuterView();
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBufferView);
+};
+
+
+class JSTypedArray: public JSArrayBufferView {
+ public:
+  // [length]: length of typed array in elements.
+  DECL_ACCESSORS(length, Object)
 
   // Neutering. Only neuters this typed array.
   void Neuter();
@@ -8887,15 +8917,30 @@ class JSTypedArray: public JSObject {
   DECLARE_PRINTER(JSTypedArray)
   DECLARE_VERIFIER(JSTypedArray)
 
-  static const int kBufferOffset = JSObject::kHeaderSize;
-  static const int kByteOffsetOffset = kBufferOffset + kPointerSize;
-  static const int kByteLengthOffset = kByteOffsetOffset + kPointerSize;
-  static const int kLengthOffset = kByteLengthOffset + kPointerSize;
-  static const int kWeakNextOffset = kLengthOffset + kPointerSize;
-  static const int kSize = kWeakNextOffset + kPointerSize;
+  static const int kLengthOffset = kViewSize + kPointerSize;
+  static const int kSize = kLengthOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);
+};
+
+
+class JSDataView: public JSArrayBufferView {
+ public:
+  // Only neuters this DataView
+  void Neuter();
+
+  // Casting.
+  static inline JSDataView* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSDataView)
+  DECLARE_VERIFIER(JSDataView)
+
+  static const int kSize = kViewSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataView);
 };
 
 

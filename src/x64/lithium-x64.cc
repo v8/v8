@@ -43,31 +43,6 @@ namespace internal {
 LITHIUM_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
-LOsrEntry::LOsrEntry() {
-  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
-    register_spills_[i] = NULL;
-  }
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
-    double_register_spills_[i] = NULL;
-  }
-}
-
-
-void LOsrEntry::MarkSpilledRegister(int allocation_index,
-                                    LOperand* spill_operand) {
-  ASSERT(spill_operand->IsStackSlot());
-  ASSERT(register_spills_[allocation_index] == NULL);
-  register_spills_[allocation_index] = spill_operand;
-}
-
-
-void LOsrEntry::MarkSpilledDoubleRegister(int allocation_index,
-                                          LOperand* spill_operand) {
-  ASSERT(spill_operand->IsDoubleStackSlot());
-  ASSERT(double_register_spills_[allocation_index] == NULL);
-  double_register_spills_[allocation_index] = spill_operand;
-}
-
 
 #ifdef DEBUG
 void LInstruction::VerifyCall() {
@@ -354,8 +329,7 @@ void LCallNewArray::PrintDataTo(StringStream* stream) {
   constructor()->PrintTo(stream);
   stream->Add(" #%d / ", arity());
   ASSERT(hydrogen()->property_cell()->value()->IsSmi());
-  ElementsKind kind = static_cast<ElementsKind>(
-      Smi::cast(hydrogen()->property_cell()->value())->value());
+  ElementsKind kind = hydrogen()->elements_kind();
   stream->Add(" (%s) ", ElementsKindToString(kind));
 }
 
@@ -456,7 +430,7 @@ void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
 LPlatformChunk* LChunkBuilder::Build() {
   ASSERT(is_unused());
   chunk_ = new(zone()) LPlatformChunk(info(), graph());
-  HPhase phase("L_Building chunk", chunk_);
+  LPhase phase("L_Building chunk", chunk_);
   status_ = BUILDING;
   const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
   for (int i = 0; i < blocks->length(); i++) {
@@ -1014,10 +988,13 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 
   LBranch* result = new(zone()) LBranch(UseRegister(value));
   // Tagged values that are not known smis or booleans require a
-  // deoptimization environment.
+  // deoptimization environment. If the instruction is generic no
+  // environment is needed since all cases are handled.
+  ToBooleanStub::Types expected = instr->expected_input_types();
   Representation rep = value->representation();
   HType type = value->type();
-  if (rep.IsTagged() && !type.IsSmi() && !type.IsBoolean()) {
+  if (rep.IsTagged() && !type.IsSmi() && !type.IsBoolean() &&
+      !expected.IsGeneric()) {
     return AssignEnvironment(result);
   }
   return result;
@@ -1287,7 +1264,6 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
-  ASSERT(FLAG_optimize_constructed_arrays);
   LOperand* constructor = UseFixed(instr->constructor(), rdi);
   argument_count_ -= instr->argument_count();
   LCallNewArray* result = new(zone()) LCallNewArray(constructor);
@@ -1456,7 +1432,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
               instr->CheckFlag(HValue::kBailoutOnMinusZero))
           ? AssignEnvironment(result)
           : result;
-    } else if (instr->has_fixed_right_arg()) {
+    } else if (instr->fixed_right_arg().has_value) {
       LModI* mod = new(zone()) LModI(UseRegister(left),
                                      UseRegisterAtStart(right),
                                      NULL);
@@ -1936,7 +1912,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
+LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   return AssignEnvironment(new(zone()) LCheckNonSmi(value));
 }
@@ -2354,6 +2330,13 @@ LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
 LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
   LOperand* string = UseRegisterAtStart(instr->value());
   return DefineAsRegister(new(zone()) LStringLength(string));
+}
+
+
+LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
+  info()->MarkAsDeferredCalling();
+  LAllocateObject* result = new(zone()) LAllocateObject(TempRegister());
+  return AssignPointerMap(DefineAsRegister(result));
 }
 
 

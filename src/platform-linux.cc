@@ -308,19 +308,6 @@ int OS::ActivationFrameAlignment() {
 }
 
 
-void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
-#if (defined(V8_TARGET_ARCH_ARM) && defined(__arm__)) || \
-    (defined(V8_TARGET_ARCH_MIPS) && defined(__mips__))
-  // Only use on ARM or MIPS hardware.
-  MemoryBarrier();
-#else
-  __asm__ __volatile__("" : : : "memory");
-  // An x86 store acts as a release barrier.
-#endif
-  *ptr = value;
-}
-
-
 const char* OS::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));

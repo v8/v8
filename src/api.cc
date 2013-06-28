@@ -300,8 +300,13 @@ static inline bool EmptyCheck(const char* location, const v8::Data* obj) {
 // --- S t a t i c s ---
 
 
-static bool InitializeHelper() {
-  if (i::Snapshot::Initialize()) return true;
+static bool InitializeHelper(i::Isolate* isolate) {
+  // If the isolate has a function entry hook, it needs to re-build all its
+  // code stubs with entry hooks embedded, so let's deserialize a snapshot.
+  if (isolate == NULL || isolate->function_entry_hook() == NULL) {
+    if (i::Snapshot::Initialize())
+      return true;
+  }
   return i::V8::Initialize(NULL);
 }
 
@@ -313,7 +318,7 @@ static inline bool EnsureInitializedForIsolate(i::Isolate* isolate,
     if (isolate->IsInitialized()) return true;
   }
   ASSERT(isolate == i::Isolate::Current());
-  return ApiCheck(InitializeHelper(), location, "Error initializing V8");
+  return ApiCheck(InitializeHelper(isolate), location, "Error initializing V8");
 }
 
 // Some initializing API functions are called early and may be
@@ -961,6 +966,22 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 }
 
 
+// TODO(dcarney): Remove this abstraction when old callbacks are removed.
+class CallHandlerHelper {
+ public:
+  static inline void Set(Local<FunctionTemplate> function_template,
+                         InvocationCallback callback,
+                         v8::Handle<Value> data) {
+    function_template->SetCallHandlerInternal(callback, data);
+  }
+  static inline void Set(Local<FunctionTemplate> function_template,
+                         FunctionCallback callback,
+                         v8::Handle<Value> data) {
+    function_template->SetCallHandler(callback, data);
+  }
+};
+
+
 template<typename Callback>
 static Local<FunctionTemplate> FunctionTemplateNew(
     Callback callback,
@@ -981,7 +1002,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (callback != 0) {
     if (data.IsEmpty()) data = v8::Undefined();
-    Utils::ToLocal(obj)->SetCallHandler(callback, data);
+    CallHandlerHelper::Set(Utils::ToLocal(obj), callback, data);
   }
   obj->set_length(length);
   obj->set_undetectable(false);
@@ -1222,6 +1243,11 @@ static void FunctionTemplateSetCallHandler(FunctionTemplate* function_template,
 
 void FunctionTemplate::SetCallHandler(InvocationCallback callback,
                                       v8::Handle<Value> data) {
+  FunctionTemplateSetCallHandler(this, callback, data);
+}
+
+void FunctionTemplate::SetCallHandlerInternal(InvocationCallback callback,
+                                              v8::Handle<Value> data) {
   FunctionTemplateSetCallHandler(this, callback, data);
 }
 
@@ -2005,6 +2031,19 @@ Local<Value> Script::Id() {
 }
 
 
+int Script::GetId() {
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Script::Id()", return -1);
+  LOG_API(isolate, "Script::Id");
+  {
+    i::HandleScope scope(isolate);
+    i::Handle<i::SharedFunctionInfo> function_info = OpenScript(this);
+    i::Handle<i::Script> script(i::Script::cast(function_info->script()));
+    return script->id()->value();
+  }
+}
+
+
 int Script::GetLineNumber(int code_pos) {
   i::Isolate* isolate = i::Isolate::Current();
   ON_BAILOUT(isolate, "v8::Script::GetLineNumber()", return -1);
@@ -2573,6 +2612,11 @@ bool Value::IsArrayBuffer() const {
 }
 
 
+bool Value::IsArrayBufferView() const {
+  return Utils::OpenHandle(this)->IsJSArrayBufferView();
+}
+
+
 bool Value::IsTypedArray() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsArrayBuffer()"))
     return false;
@@ -2604,6 +2648,11 @@ F(Uint8ClampedArray, kExternalPixelArray)
 TYPED_ARRAY_LIST(VALUE_IS_TYPED_ARRAY)
 
 #undef VALUE_IS_TYPED_ARRAY
+
+
+bool Value::IsDataView() const {
+  return Utils::OpenHandle(this)->IsJSDataView();
+}
 
 
 bool Value::IsObject() const {
@@ -2872,6 +2921,16 @@ Local<Integer> Value::ToInteger() const {
 }
 
 
+#ifdef V8_ENABLE_CHECKS
+void i::Internals::CheckInitialized(v8::Isolate* external_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
+  ApiCheck(isolate != NULL && isolate->IsInitialized() && !i::V8::IsDead(),
+           "v8::internal::Internals::CheckInitialized()",
+           "Isolate is not initialized or V8 has died");
+}
+#endif
+
+
 void External::CheckCast(v8::Value* that) {
   if (IsDeadCheck(i::Isolate::Current(), "v8::External::Cast()")) return;
   ApiCheck(Utils::OpenHandle(that)->IsExternal(),
@@ -2952,6 +3011,14 @@ void v8::ArrayBuffer::CheckCast(Value* that) {
 }
 
 
+void v8::ArrayBufferView::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->IsJSArrayBufferView(),
+           "v8::ArrayBufferView::Cast()",
+           "Could not convert to ArrayBufferView");
+}
+
+
 void v8::TypedArray::CheckCast(Value* that) {
   if (IsDeadCheck(i::Isolate::Current(), "v8::TypedArray::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
@@ -2976,6 +3043,14 @@ void v8::TypedArray::CheckCast(Value* that) {
 TYPED_ARRAY_LIST(CHECK_TYPED_ARRAY_CAST)
 
 #undef CHECK_TYPED_ARRAY_CAST
+
+
+void v8::DataView::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->IsJSDataView(),
+           "v8::DataView::Cast()",
+           "Could not convert to DataView");
+}
 
 
 void v8::Date::CheckCast(v8::Value* that) {
@@ -3865,7 +3940,7 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
   i::Handle<i::String> key_string =
       isolate->factory()->InternalizeString(key_obj);
   i::Handle<i::Object> result(self->GetHiddenProperty(*key_string), isolate);
-  if (result->IsUndefined()) return v8::Local<v8::Value>();
+  if (result->IsTheHole()) return v8::Local<v8::Value>();
   return Utils::ToLocal(result);
 }
 
@@ -4279,6 +4354,7 @@ int Function::GetScriptColumnNumber() const {
   return kLineOffsetNotFound;
 }
 
+
 Handle<Value> Function::GetScriptId() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (!func->shared()->script()->IsScript())
@@ -4286,6 +4362,15 @@ Handle<Value> Function::GetScriptId() const {
   i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
   return Utils::ToLocal(i::Handle<i::Object>(script->id(), func->GetIsolate()));
 }
+
+
+int Function::ScriptId() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  if (!func->shared()->script()->IsScript()) return v8::Script::kNoScriptId;
+  i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+  return script->id()->value();
+}
+
 
 int String::Length() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
@@ -5131,7 +5216,7 @@ bool v8::V8::Initialize() {
   if (isolate != NULL && isolate->IsInitialized()) {
     return true;
   }
-  return InitializeHelper();
+  return InitializeHelper(isolate);
 }
 
 
@@ -5147,7 +5232,30 @@ void v8::V8::SetReturnAddressLocationResolver(
 
 
 bool v8::V8::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
-  return i::ProfileEntryHookStub::SetFunctionEntryHook(entry_hook);
+  return SetFunctionEntryHook(Isolate::GetCurrent(), entry_hook);
+}
+
+
+bool v8::V8::SetFunctionEntryHook(Isolate* ext_isolate,
+                                  FunctionEntryHook entry_hook) {
+  ASSERT(ext_isolate != NULL);
+  ASSERT(entry_hook != NULL);
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(ext_isolate);
+
+  // The entry hook can only be set before the Isolate is initialized, as
+  // otherwise the Isolate's code stubs generated at initialization won't
+  // contain entry hooks.
+  if (isolate->IsInitialized())
+    return false;
+
+  // Setting an entry hook is a one-way operation, once set, it cannot be
+  // changed or unset.
+  if (isolate->function_entry_hook() != NULL)
+    return false;
+
+  isolate->set_function_entry_hook(entry_hook);
+  return true;
 }
 
 
@@ -6161,11 +6269,17 @@ void v8::ArrayBuffer::Neuter() {
   LOG_API(obj->GetIsolate(), "v8::ArrayBuffer::Neuter()");
   ENTER_V8(isolate);
 
-  for (i::Handle<i::Object> array_obj(obj->weak_first_array(), isolate);
-       !array_obj->IsUndefined();) {
-    i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*array_obj));
-    typed_array->Neuter();
-    array_obj = i::handle(typed_array->weak_next(), isolate);
+  for (i::Handle<i::Object> view_obj(obj->weak_first_view(), isolate);
+       !view_obj->IsUndefined();) {
+    i::Handle<i::JSArrayBufferView> view(i::JSArrayBufferView::cast(*view_obj));
+    if (view->IsJSTypedArray()) {
+      i::JSTypedArray::cast(*view)->Neuter();
+    } else if (view->IsJSDataView()) {
+      i::JSDataView::cast(*view)->Neuter();
+    } else {
+      UNREACHABLE();
+    }
+    view_obj = i::handle(view->weak_next(), isolate);
   }
   obj->Neuter();
 }
@@ -6203,30 +6317,32 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(void* data, size_t byte_length) {
 }
 
 
-Local<ArrayBuffer> v8::TypedArray::Buffer() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::TypedArray::Buffer()"))
-    return Local<ArrayBuffer>();
-  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
+  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   ASSERT(obj->buffer()->IsJSArrayBuffer());
   i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
   return Utils::ToLocal(buffer);
 }
 
 
-size_t v8::TypedArray::ByteOffset() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::TypedArray::ByteOffset()")) return 0;
-  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+size_t v8::ArrayBufferView::ByteOffset() {
+  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->byte_offset()->Number());
 }
 
 
-size_t v8::TypedArray::ByteLength() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::TypedArray::ByteLength()")) return 0;
-  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
+size_t v8::ArrayBufferView::ByteLength() {
+  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->byte_length()->Number());
+}
+
+
+void* v8::ArrayBufferView::BaseAddress() {
+  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
+  void* buffer_data = buffer->backing_store();
+  size_t byte_offset = static_cast<size_t>(obj->byte_offset()->Number());
+  return static_cast<uint8_t*>(buffer_data) + byte_offset;
 }
 
 
@@ -6238,16 +6354,28 @@ size_t v8::TypedArray::Length() {
 }
 
 
-void* v8::TypedArray::BaseAddress() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::TypedArray::BaseAddress()")) return NULL;
-  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(obj->buffer()));
-  void* buffer_data = buffer->backing_store();
-  size_t byte_offset = static_cast<size_t>(obj->byte_offset()->Number());
-  return static_cast<uint8_t*>(buffer_data) + byte_offset;
-}
+static inline void SetupArrayBufferView(
+    i::Isolate* isolate,
+    i::Handle<i::JSArrayBufferView> obj,
+    i::Handle<i::JSArrayBuffer> buffer,
+    size_t byte_offset,
+    size_t byte_length) {
+  ASSERT(byte_offset + byte_length <=
+      static_cast<size_t>(buffer->byte_length()->Number()));
 
+  obj->set_buffer(*buffer);
+
+  obj->set_weak_next(buffer->weak_first_view());
+  buffer->set_weak_first_view(*obj);
+
+  i::Handle<i::Object> byte_offset_object =
+    isolate->factory()->NewNumberFromSize(byte_offset);
+  obj->set_byte_offset(*byte_offset_object);
+
+  i::Handle<i::Object> byte_length_object =
+    isolate->factory()->NewNumberFromSize(byte_length);
+  obj->set_byte_length(*byte_length_object);
+}
 
 template<typename ElementType,
          ExternalArrayType array_type,
@@ -6260,24 +6388,12 @@ i::Handle<i::JSTypedArray> NewTypedArray(
   i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
 
   ASSERT(byte_offset % sizeof(ElementType) == 0);
-  ASSERT(byte_offset + length * sizeof(ElementType) <=
-      static_cast<size_t>(buffer->byte_length()->Number()));
 
-  obj->set_buffer(*buffer);
+  SetupArrayBufferView(
+      isolate, obj, buffer, byte_offset, length * sizeof(ElementType));
 
-  obj->set_weak_next(buffer->weak_first_array());
-  buffer->set_weak_first_array(*obj);
-
-  i::Handle<i::Object> byte_offset_object = isolate->factory()->NewNumber(
-        static_cast<double>(byte_offset));
-  obj->set_byte_offset(*byte_offset_object);
-
-  i::Handle<i::Object> byte_length_object = isolate->factory()->NewNumber(
-        static_cast<double>(length * sizeof(ElementType)));
-  obj->set_byte_length(*byte_length_object);
-
-  i::Handle<i::Object> length_object = isolate->factory()->NewNumber(
-        static_cast<double>(length));
+  i::Handle<i::Object> length_object =
+    isolate->factory()->NewNumberFromSize(length);
   obj->set_length(*length_object);
 
   i::Handle<i::ExternalArray> elements =
@@ -6325,6 +6441,20 @@ TYPED_ARRAY_NEW(Float64Array, double, kExternalDoubleArray,
                 i::EXTERNAL_DOUBLE_ELEMENTS)
 
 #undef TYPED_ARRAY_NEW
+
+Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,
+                              size_t byte_offset, size_t byte_length) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(
+      isolate, "v8::DataView::New(void*, size_t, size_t)");
+  LOG_API(isolate, "v8::DataView::New(void*, size_t, size_t)");
+  ENTER_V8(isolate);
+  i::Handle<i::JSDataView> obj = isolate->factory()->NewJSDataView();
+  i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
+  SetupArrayBufferView(
+      isolate, obj, buffer, byte_offset, byte_length);
+  return Utils::ToLocal(obj);
+}
 
 
 Local<Symbol> v8::Symbol::New(Isolate* isolate) {
@@ -6538,10 +6668,11 @@ CpuProfiler* Isolate::GetCpuProfiler() {
 
 v8::Local<v8::Context> Isolate::GetCurrentContext() {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Handle<i::Object> current = internal_isolate->native_context();
-  if (current.is_null()) return Local<Context>();
-  i::Handle<i::Context> context = i::Handle<i::Context>::cast(current);
-  return Utils::ToLocal(context);
+  i::Context* context = internal_isolate->context();
+  if (context == NULL) return Local<Context>();
+  i::Context* native_context = context->global_object()->native_context();
+  if (native_context == NULL) return Local<Context>();
+  return Utils::ToLocal(i::Handle<i::Context>(native_context));
 }
 
 
@@ -7304,30 +7435,8 @@ int CpuProfile::GetSamplesCount() const {
 }
 
 
-int CpuProfiler::GetProfilesCount() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::GetProfilesCount");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  return profiler->GetProfilesCount();
-}
-
-
 int CpuProfiler::GetProfileCount() {
   return reinterpret_cast<i::CpuProfiler*>(this)->GetProfilesCount();
-}
-
-
-const CpuProfile* CpuProfiler::GetProfile(int index,
-                                          Handle<Value> security_token) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::GetProfile");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  return reinterpret_cast<const CpuProfile*>(
-      profiler->GetProfile(
-          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
-          index));
 }
 
 
@@ -7346,19 +7455,6 @@ const CpuProfile* CpuProfiler::GetCpuProfile(int index) {
 }
 
 
-const CpuProfile* CpuProfiler::FindProfile(unsigned uid,
-                                           Handle<Value> security_token) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::FindProfile");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  return reinterpret_cast<const CpuProfile*>(
-      profiler->FindProfile(
-          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
-          uid));
-}
-
-
 const CpuProfile* CpuProfiler::FindCpuProfile(unsigned uid,
                                               Handle<Value> security_token) {
   return reinterpret_cast<const CpuProfile*>(
@@ -7368,31 +7464,9 @@ const CpuProfile* CpuProfiler::FindCpuProfile(unsigned uid,
 }
 
 
-void CpuProfiler::StartProfiling(Handle<String> title, bool record_samples) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::StartProfiling");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  profiler->StartProfiling(*Utils::OpenHandle(*title), record_samples);
-}
-
-
 void CpuProfiler::StartCpuProfiling(Handle<String> title, bool record_samples) {
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), record_samples);
-}
-
-
-const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
-                                             Handle<Value> security_token) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::StopProfiling");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  return reinterpret_cast<const CpuProfile*>(
-      profiler->StopProfiling(
-          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
-          *Utils::OpenHandle(*title)));
 }
 
 
@@ -7410,15 +7484,6 @@ const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title) {
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
           NULL,
           *Utils::OpenHandle(*title)));
-}
-
-
-void CpuProfiler::DeleteAllProfiles() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfiler::DeleteAllProfiles");
-  i::CpuProfiler* profiler = isolate->cpu_profiler();
-  ASSERT(profiler != NULL);
-  profiler->DeleteAllProfiles();
 }
 
 
@@ -7555,13 +7620,6 @@ void HeapSnapshot::Delete() {
 }
 
 
-HeapSnapshot::Type HeapSnapshot::GetType() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshot::GetType");
-  return kFull;
-}
-
-
 unsigned HeapSnapshot::GetUid() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetUid");
@@ -7632,23 +7690,8 @@ void HeapSnapshot::Serialize(OutputStream* stream,
 }
 
 
-int HeapProfiler::GetSnapshotsCount() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshotsCount");
-  return isolate->heap_profiler()->GetSnapshotsCount();
-}
-
-
 int HeapProfiler::GetSnapshotCount() {
   return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotsCount();
-}
-
-
-const HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshot");
-  return reinterpret_cast<const HeapSnapshot*>(
-      isolate->heap_profiler()->GetSnapshot(index));
 }
 
 
@@ -7658,43 +7701,15 @@ const HeapSnapshot* HeapProfiler::GetHeapSnapshot(int index) {
 }
 
 
-const HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::FindSnapshot");
-  return reinterpret_cast<const HeapSnapshot*>(
-      isolate->heap_profiler()->FindSnapshot(uid));
-}
-
-
 const HeapSnapshot* HeapProfiler::FindHeapSnapshot(unsigned uid) {
   return reinterpret_cast<const HeapSnapshot*>(
       reinterpret_cast<i::HeapProfiler*>(this)->FindSnapshot(uid));
 }
 
 
-SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Value> value) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshotObjectId");
-  i::Handle<i::Object> obj = Utils::OpenHandle(*value);
-  return isolate->heap_profiler()->GetSnapshotObjectId(obj);
-}
-
-
 SnapshotObjectId HeapProfiler::GetObjectId(Handle<Value> value) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*value);
   return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotObjectId(obj);
-}
-
-
-const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
-                                               HeapSnapshot::Type type,
-                                               ActivityControl* control,
-                                               ObjectNameResolver* resolver) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::TakeSnapshot");
-  return reinterpret_cast<const HeapSnapshot*>(
-      isolate->heap_profiler()->TakeSnapshot(
-          *Utils::OpenHandle(*title), control, resolver));
 }
 
 
@@ -7708,22 +7723,8 @@ const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
 }
 
 
-void HeapProfiler::StartHeapObjectsTracking() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::StartHeapObjectsTracking");
-  isolate->heap_profiler()->StartHeapObjectsTracking();
-}
-
-
 void HeapProfiler::StartTrackingHeapObjects() {
   reinterpret_cast<i::HeapProfiler*>(this)->StartHeapObjectsTracking();
-}
-
-
-void HeapProfiler::StopHeapObjectsTracking() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::StopHeapObjectsTracking");
-  isolate->heap_profiler()->StopHeapObjectsTracking();
 }
 
 
@@ -7732,22 +7733,8 @@ void HeapProfiler::StopTrackingHeapObjects() {
 }
 
 
-SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::PushHeapObjectsStats");
-  return isolate->heap_profiler()->PushHeapObjectsStats(stream);
-}
-
-
 SnapshotObjectId HeapProfiler::GetHeapStats(OutputStream* stream) {
   return reinterpret_cast<i::HeapProfiler*>(this)->PushHeapObjectsStats(stream);
-}
-
-
-void HeapProfiler::DeleteAllSnapshots() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::DeleteAllSnapshots");
-  isolate->heap_profiler()->DeleteAllSnapshots();
 }
 
 
@@ -7756,28 +7743,10 @@ void HeapProfiler::DeleteAllHeapSnapshots() {
 }
 
 
-void HeapProfiler::DefineWrapperClass(uint16_t class_id,
-                                      WrapperInfoCallback callback) {
-  i::Isolate::Current()->heap_profiler()->DefineWrapperClass(class_id,
-                                                             callback);
-}
-
-
 void HeapProfiler::SetWrapperClassInfoProvider(uint16_t class_id,
                                                WrapperInfoCallback callback) {
   reinterpret_cast<i::HeapProfiler*>(this)->DefineWrapperClass(class_id,
                                                                callback);
-}
-
-
-int HeapProfiler::GetPersistentHandleCount() {
-  i::Isolate* isolate = i::Isolate::Current();
-  return isolate->global_handles()->NumberOfGlobalHandles();
-}
-
-
-size_t HeapProfiler::GetMemorySizeUsedByProfiler() {
-  return i::Isolate::Current()->heap_profiler()->GetMemorySizeUsedByProfiler();
 }
 
 

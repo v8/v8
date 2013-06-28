@@ -209,8 +209,6 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(ArrayCode,                      BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
-  V(CommonArrayConstructCode,       BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)              \
                                                                         \
   V(StringConstructCode,            BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -399,7 +397,6 @@ class Builtins {
 
   static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
-  static void Generate_CommonArrayConstructCode(MacroAssembler* masm);
 
   static void Generate_StringConstructCode(MacroAssembler* masm);
   static void Generate_OnStackReplacement(MacroAssembler* masm);

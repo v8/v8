@@ -3202,6 +3202,14 @@ void MacroAssembler::AllocateAsciiSlicedString(Register result,
 }
 
 
+void MacroAssembler::JumpIfNotUniqueName(Register reg,
+                                         Label* not_unique_name) {
+  STATIC_ASSERT(((SYMBOL_TYPE - 1) & kIsInternalizedMask) == kInternalizedTag);
+  Branch(not_unique_name, lt, reg, Operand(kIsInternalizedMask));
+  Branch(not_unique_name, gt, reg, Operand(SYMBOL_TYPE));
+}
+
+
 // Allocates a heap number or jumps to the label if the young space is full and
 // a scavenge is needed.
 void MacroAssembler::AllocateHeapNumber(Register result,

@@ -53,7 +53,8 @@ namespace v8 {
 namespace internal {
 
 
-CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
+CompilationInfo::CompilationInfo(Handle<Script> script,
+                                 Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE)),
       script_(script),
       osr_ast_id_(BailoutId::None()) {
@@ -71,7 +72,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
 }
 
 
-CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
+CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
+                                 Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
       closure_(closure),
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
@@ -83,7 +85,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
 
 
 CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
-                                 Isolate* isolate, Zone* zone)
+                                 Isolate* isolate,
+                                 Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE) |
              IsLazy::encode(true)),
       osr_ast_id_(BailoutId::None()) {
@@ -92,7 +95,9 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
 }
 
 
-void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
+void CompilationInfo::Initialize(Isolate* isolate,
+                                 Mode mode,
+                                 Zone* zone) {
   isolate_ = isolate;
   function_ = NULL;
   scope_ = NULL;
@@ -107,7 +112,7 @@ void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
   no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
                    ? new List<OffsetRange>(2) : NULL;
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    dependent_maps_[i] = NULL;
+    dependencies_[i] = NULL;
   }
   if (mode == STUB) {
     mode_ = STUB;
@@ -132,36 +137,42 @@ CompilationInfo::~CompilationInfo() {
   // Check that no dependent maps have been added or added dependent maps have
   // been rolled back or committed.
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    ASSERT_EQ(NULL, dependent_maps_[i]);
+    ASSERT_EQ(NULL, dependencies_[i]);
   }
 #endif  // DEBUG
 }
 
 
-void CompilationInfo::CommitDependentMaps(Handle<Code> code) {
+void CompilationInfo::CommitDependencies(Handle<Code> code) {
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    ZoneList<Handle<Map> >* group_maps = dependent_maps_[i];
-    if (group_maps == NULL) continue;
+    ZoneList<Handle<HeapObject> >* group_objects = dependencies_[i];
+    if (group_objects == NULL) continue;
     ASSERT(!object_wrapper_.is_null());
-    for (int j = 0; j < group_maps->length(); j++) {
-      group_maps->at(j)->dependent_code()->UpdateToFinishedCode(
-          static_cast<DependentCode::DependencyGroup>(i), this, *code);
+    for (int j = 0; j < group_objects->length(); j++) {
+      DependentCode::DependencyGroup group =
+          static_cast<DependentCode::DependencyGroup>(i);
+      DependentCode* dependent_code =
+          DependentCode::ForObject(group_objects->at(j), group);
+      dependent_code->UpdateToFinishedCode(group, this, *code);
     }
-    dependent_maps_[i] = NULL;  // Zone-allocated, no need to delete.
+    dependencies_[i] = NULL;  // Zone-allocated, no need to delete.
   }
 }
 
 
-void CompilationInfo::RollbackDependentMaps() {
+void CompilationInfo::RollbackDependencies() {
   // Unregister from all dependent maps if not yet committed.
   for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    ZoneList<Handle<Map> >* group_maps = dependent_maps_[i];
-    if (group_maps == NULL) continue;
-    for (int j = 0; j < group_maps->length(); j++) {
-      group_maps->at(j)->dependent_code()->RemoveCompilationInfo(
-          static_cast<DependentCode::DependencyGroup>(i), this);
+    ZoneList<Handle<HeapObject> >* group_objects = dependencies_[i];
+    if (group_objects == NULL) continue;
+    for (int j = 0; j < group_objects->length(); j++) {
+      DependentCode::DependencyGroup group =
+          static_cast<DependentCode::DependencyGroup>(i);
+      DependentCode* dependent_code =
+          DependentCode::ForObject(group_objects->at(j), group);
+      dependent_code->RemoveCompilationInfo(group, this);
     }
-    dependent_maps_[i] = NULL;  // Zone-allocated, no need to delete.
+    dependencies_[i] = NULL;  // Zone-allocated, no need to delete.
   }
 }
 
@@ -367,7 +378,10 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // performance of the hydrogen-based compiler.
   bool should_recompile = !info()->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
-    HPhase phase(HPhase::kFullCodeGen, isolate());
+    int64_t start_ticks = 0;
+    if (FLAG_hydrogen_stats) {
+      start_ticks = OS::Ticks();
+    }
     CompilationInfoWithZone unoptimized(info()->shared_info());
     // Note that we use the same AST that we will use for generating the
     // optimized code.
@@ -383,6 +397,10 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
       // The existing unoptimized code was replaced with the new one.
       Compiler::RecordFunctionCompilation(
           Logger::LAZY_COMPILE_TAG, &unoptimized, shared);
+    }
+    if (FLAG_hydrogen_stats) {
+      int64_t ticks = OS::Ticks() - start_ticks;
+      isolate()->GetHStatistics()->IncrementFullCodeGen(ticks);
     }
   }
 
@@ -528,7 +546,6 @@ static bool DebuggerWantsEagerCompilation(CompilationInfo* info,
 
 static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
-  ZoneScope zone_scope(info->zone(), DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
 
   ASSERT(!isolate->native_context().is_null());
@@ -811,7 +828,6 @@ static bool InstallFullCode(CompilationInfo* info) {
 
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
-  shared->set_code_age(0);
   shared->set_dont_optimize(lit->flags()->Contains(kDontOptimize));
   shared->set_dont_inline(lit->flags()->Contains(kDontInline));
   shared->set_ast_node_count(lit->ast_node_count());
@@ -892,8 +908,6 @@ static bool InstallCodeFromOptimizedCodeMap(CompilationInfo* info) {
 
 bool Compiler::CompileLazy(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
-
-  ZoneScope zone_scope(info->zone(), DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState<COMPILER> state(isolate);
@@ -1038,11 +1052,14 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // If crankshaft succeeded, install the optimized code else install
   // the unoptimized code.
   OptimizingCompiler::Status status = optimizing_compiler->last_status();
-  if (info->HasAbortedDueToDependentMap()) {
+  if (info->HasAbortedDueToDependencyChange()) {
     info->set_bailout_reason("bailed out due to dependent map");
     status = optimizing_compiler->AbortOptimization();
   } else if (status != OptimizingCompiler::SUCCEEDED) {
     info->set_bailout_reason("failed/bailed out last time");
+    status = optimizing_compiler->AbortOptimization();
+  } else if (isolate->debugger()->IsDebuggerActive()) {
+    info->set_bailout_reason("debugger is active");
     status = optimizing_compiler->AbortOptimization();
   } else {
     status = optimizing_compiler->GenerateAndInstallCode();
@@ -1205,6 +1222,33 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                  Handle<Script>(info->script()),
                  Handle<Code>(info->code()),
                  info));
+}
+
+
+CompilationPhase::CompilationPhase(const char* name, CompilationInfo* info)
+    : name_(name), info_(info), zone_(info->isolate()) {
+  if (FLAG_hydrogen_stats) {
+    info_zone_start_allocation_size_ = info->zone()->allocation_size();
+    start_ticks_ = OS::Ticks();
+  }
+}
+
+
+CompilationPhase::~CompilationPhase() {
+  if (FLAG_hydrogen_stats) {
+    unsigned size = zone()->allocation_size();
+    size += info_->zone()->allocation_size() - info_zone_start_allocation_size_;
+    int64_t ticks = OS::Ticks() - start_ticks_;
+    isolate()->GetHStatistics()->SaveTiming(name_, ticks, size);
+  }
+}
+
+
+bool CompilationPhase::ShouldProduceTraceOutput() const {
+  // Produce trace output if flag is set so that the first letter of the
+  // phase name matches the command line parameter FLAG_trace_phase.
+  return (FLAG_trace_hydrogen &&
+          OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
 }
 
 } }  // namespace v8::internal

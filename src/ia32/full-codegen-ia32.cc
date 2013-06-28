@@ -1639,10 +1639,10 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         ASSERT(!CompileTimeValue::IsCompileTimeValue(value));
         // Fall through.
       case ObjectLiteral::Property::COMPUTED:
-        if (key->handle()->IsInternalizedString()) {
+        if (key->value()->IsInternalizedString()) {
           if (property->emit_store()) {
             VisitForAccumulatorValue(value);
-            __ mov(ecx, Immediate(key->handle()));
+            __ mov(ecx, Immediate(key->value()));
             __ mov(edx, Operand(esp, 0));
             Handle<Code> ic = is_classic_mode()
                 ? isolate()->builtins()->StoreIC_Initialize()
@@ -1782,10 +1782,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     Expression* subexpr = subexprs->at(i);
     // If the subexpression is a literal or a simple materialized literal it
     // is already set in the cloned array.
-    if (subexpr->AsLiteral() != NULL ||
-        CompileTimeValue::IsCompileTimeValue(subexpr)) {
-      continue;
-    }
+    if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
 
     if (!result_saved) {
       __ push(eax);  // array literal.
@@ -1953,14 +1950,30 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ push(result_register());
       // Fall through.
     case Yield::INITIAL: {
-      VisitForStackValue(expr->generator_object());
+      Label suspend, continuation, post_runtime, resume;
+
+      __ jmp(&suspend);
+
+      __ bind(&continuation);
+      __ jmp(&resume);
+
+      __ bind(&suspend);
+      VisitForAccumulatorValue(expr->generator_object());
+      ASSERT(continuation.pos() > 0 && Smi::IsValid(continuation.pos()));
+      __ mov(FieldOperand(eax, JSGeneratorObject::kContinuationOffset),
+             Immediate(Smi::FromInt(continuation.pos())));
+      __ mov(FieldOperand(eax, JSGeneratorObject::kContextOffset), esi);
+      __ mov(ecx, esi);
+      __ RecordWriteField(eax, JSGeneratorObject::kContextOffset, ecx, edx,
+                          kDontSaveFPRegs);
+      __ lea(ebx, Operand(ebp, StandardFrameConstants::kExpressionsOffset));
+      __ cmp(esp, ebx);
+      __ j(equal, &post_runtime);
+      __ push(eax);  // generator object
       __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
       __ mov(context_register(),
              Operand(ebp, StandardFrameConstants::kContextOffset));
-
-      Label resume;
-      __ CompareRoot(result_register(), Heap::kTheHoleValueRootIndex);
-      __ j(not_equal, &resume);
+      __ bind(&post_runtime);
       __ pop(result_register());
       EmitReturnSequence();
 
@@ -1988,7 +2001,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // [sp + 1 * kPointerSize] iter
       // [sp + 0 * kPointerSize] g
 
-      Label l_catch, l_try, l_resume, l_next, l_call, l_loop;
+      Label l_catch, l_try, l_suspend, l_continuation, l_resume;
+      Label l_next, l_call, l_loop;
       // Initial send value is undefined.
       __ mov(eax, isolate()->factory()->undefined_value());
       __ jmp(&l_next);
@@ -2010,12 +2024,23 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ PushTryHandler(StackHandler::CATCH, expr->index());
       const int handler_size = StackHandlerConstants::kSize;
       __ push(eax);                                      // result
-      __ push(Operand(esp, (0 + 1) * kPointerSize + handler_size));  // g
+      __ jmp(&l_suspend);
+      __ bind(&l_continuation);
+      __ jmp(&l_resume);
+      __ bind(&l_suspend);
+      const int generator_object_depth = kPointerSize + handler_size;
+      __ mov(eax, Operand(esp, generator_object_depth));
+      __ push(eax);                                      // g
+      ASSERT(l_continuation.pos() > 0 && Smi::IsValid(l_continuation.pos()));
+      __ mov(FieldOperand(eax, JSGeneratorObject::kContinuationOffset),
+             Immediate(Smi::FromInt(l_continuation.pos())));
+      __ mov(FieldOperand(eax, JSGeneratorObject::kContextOffset), esi);
+      __ mov(ecx, esi);
+      __ RecordWriteField(eax, JSGeneratorObject::kContextOffset, ecx, edx,
+                          kDontSaveFPRegs);
       __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
       __ mov(context_register(),
              Operand(ebp, StandardFrameConstants::kContextOffset));
-      __ CompareRoot(eax, Heap::kTheHoleValueRootIndex);
-      __ j(not_equal, &l_resume);
       __ pop(eax);                                       // result
       EmitReturnSequence();
       __ bind(&l_resume);                                // received in eax
@@ -2091,7 +2116,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ mov(ecx, isolate()->factory()->the_hole_value());
   Label push_argument_holes, push_frame;
   __ bind(&push_argument_holes);
-  __ sub(edx, Immediate(1));
+  __ sub(edx, Immediate(Smi::FromInt(1)));
   __ j(carry, &push_frame);
   __ push(ecx);
   __ jmp(&push_argument_holes);
@@ -2193,8 +2218,8 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
-  ASSERT(!key->handle()->IsSmi());
-  __ mov(ecx, Immediate(key->handle()));
+  ASSERT(!key->value()->IsSmi());
+  __ mov(ecx, Immediate(key->value()));
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
   CallIC(ic, RelocInfo::CODE_TARGET, prop->PropertyFeedbackId());
 }
@@ -2348,7 +2373,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       VisitForAccumulatorValue(prop->obj());
       __ mov(edx, eax);
       __ pop(eax);  // Restore value.
-      __ mov(ecx, prop->key()->AsLiteral()->handle());
+      __ mov(ecx, prop->key()->AsLiteral()->value());
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->StoreIC_Initialize()
           : isolate()->builtins()->StoreIC_Initialize_Strict();
@@ -2475,7 +2500,7 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
-  __ mov(ecx, prop->key()->AsLiteral()->handle());
+  __ mov(ecx, prop->key()->AsLiteral()->value());
   __ pop(edx);
   Handle<Code> ic = is_classic_mode()
       ? isolate()->builtins()->StoreIC_Initialize()
@@ -2740,7 +2765,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     }
     if (property->key()->IsPropertyName()) {
       EmitCallWithIC(expr,
-                     property->key()->AsLiteral()->handle(),
+                     property->key()->AsLiteral()->value(),
                      RelocInfo::CODE_TARGET);
     } else {
       EmitKeyedCallWithIC(expr, property->key());
@@ -3358,7 +3383,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   ASSERT_NE(NULL, args->at(1)->AsLiteral());
-  Smi* index = Smi::cast(*(args->at(1)->AsLiteral()->handle()));
+  Smi* index = Smi::cast(*(args->at(1)->AsLiteral()->value()));
 
   VisitForAccumulatorValue(args->at(0));  // Load the object.
 
@@ -3787,7 +3812,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   ASSERT_EQ(2, args->length());
 
   ASSERT_NE(NULL, args->at(0)->AsLiteral());
-  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
+  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->value()))->value();
 
   Handle<FixedArray> jsfunction_result_caches(
       isolate()->native_context()->jsfunction_result_caches());
@@ -4499,7 +4524,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
       break;
     case NAMED_PROPERTY: {
-      __ mov(ecx, prop->key()->AsLiteral()->handle());
+      __ mov(ecx, prop->key()->AsLiteral()->value());
       __ pop(edx);
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->StoreIC_Initialize()

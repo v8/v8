@@ -98,8 +98,8 @@
        or OS=="netbsd"', {
       'target_defaults': {
         'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
-                    '-Wnon-virtual-dtor', '-pthread', '-fno-rtti',
-                    '-fno-exceptions', '-pedantic' ],
+                    '-pthread', '-fno-exceptions', '-pedantic' ],
+        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
           [ 'OS=="linux"', {
@@ -198,6 +198,7 @@
           'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
           'GCC_VERSION': 'com.apple.compilers.llvmgcc42',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
+          'GCC_WARN_NON_VIRTUAL_DESTRUCTOR': 'YES', # -Wnon-virtual-dtor
           # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
           'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
           'PREBINDING': 'NO',                       # No -Wl,-prebind
@@ -211,7 +212,6 @@
             '-Wendif-labels',
             '-W',
             '-Wno-unused-parameter',
-            '-Wnon-virtual-dtor',
           ],
         },
         'target_conditions': [

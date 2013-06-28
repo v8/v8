@@ -259,6 +259,32 @@ Handle<String> Factory::NewConsString(Handle<String> first,
 }
 
 
+template<typename SinkChar, typename StringType>
+Handle<String> ConcatStringContent(Handle<StringType> result,
+                                   Handle<String> first,
+                                   Handle<String> second) {
+  DisallowHeapAllocation pointer_stays_valid;
+  SinkChar* sink = result->GetChars();
+  String::WriteToFlat(*first, sink, 0, first->length());
+  String::WriteToFlat(*second, sink + first->length(), 0, second->length());
+  return result;
+}
+
+
+Handle<String> Factory::NewFlatConcatString(Handle<String> first,
+                                            Handle<String> second) {
+  int total_length = first->length() + second->length();
+  if (first->IsOneByteRepresentationUnderneath() &&
+      second->IsOneByteRepresentationUnderneath()) {
+    return ConcatStringContent<uint8_t>(
+        NewRawOneByteString(total_length), first, second);
+  } else {
+    return ConcatStringContent<uc16>(
+        NewRawTwoByteString(total_length), first, second);
+  }
+}
+
+
 Handle<String> Factory::NewSubString(Handle<String> str,
                                      int begin,
                                      int end) {
@@ -408,27 +434,17 @@ Handle<ExecutableAccessorInfo> Factory::NewExecutableAccessorInfo() {
 
 Handle<Script> Factory::NewScript(Handle<String> source) {
   // Generate id for this script.
-  int id;
   Heap* heap = isolate()->heap();
-  if (heap->last_script_id()->IsUndefined()) {
-    // Script ids start from one.
-    id = 1;
-  } else {
-    // Increment id, wrap when positive smi is exhausted.
-    id = Smi::cast(heap->last_script_id())->value();
-    id++;
-    if (!Smi::IsValid(id)) {
-      id = 0;
-    }
-  }
-  heap->SetLastScriptId(Smi::FromInt(id));
+  int id = heap->last_script_id()->value() + 1;
+  if (!Smi::IsValid(id) || id < 0) id = 1;
+  heap->set_last_script_id(Smi::FromInt(id));
 
   // Create and initialize script object.
   Handle<Foreign> wrapper = NewForeign(0, TENURED);
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
   script->set_name(heap->undefined_value());
-  script->set_id(heap->last_script_id());
+  script->set_id(Smi::FromInt(id));
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
   script->set_data(heap->undefined_value());
@@ -1077,6 +1093,16 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer() {
       isolate(),
       isolate()->heap()->AllocateJSObject(array_buffer_fun),
       JSArrayBuffer);
+}
+
+
+Handle<JSDataView> Factory::NewJSDataView() {
+  JSFunction* data_view_fun =
+      isolate()->context()->native_context()->data_view_fun();
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSObject(data_view_fun),
+      JSDataView);
 }
 
 

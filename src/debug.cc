@@ -390,6 +390,20 @@ void BreakLocationIterator::ClearDebugBreak() {
 }
 
 
+bool BreakLocationIterator::IsStepInLocation(Isolate* isolate) {
+  if (RelocInfo::IsConstructCall(rmode())) {
+    return true;
+  } else if (RelocInfo::IsCodeTarget(rmode())) {
+    HandleScope scope(debug_info_->GetIsolate());
+    Address target = rinfo()->target_address();
+    Handle<Code> target_code(Code::GetCodeFromTargetAddress(target));
+    return target_code->is_call_stub() || target_code->is_keyed_call_stub();
+  } else {
+    return false;
+  }
+}
+
+
 void BreakLocationIterator::PrepareStepIn(Isolate* isolate) {
   HandleScope scope(isolate);
 
@@ -606,7 +620,7 @@ const int Debug::kFrameDropperFrameSize = 4;
 void ScriptCache::Add(Handle<Script> script) {
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
   // Create an entry in the hash map for the script.
-  int id = Smi::cast(script->id())->value();
+  int id = script->id()->value();
   HashMap::Entry* entry =
       HashMap::Lookup(reinterpret_cast<void*>(id), Hash(id), true);
   if (entry->value != NULL) {
@@ -674,7 +688,7 @@ void ScriptCache::HandleWeakScript(v8::Isolate* isolate,
   ASSERT((*location)->IsScript());
 
   // Remove the entry from the cache.
-  int id = Smi::cast((*location)->id())->value();
+  int id = (*location)->id()->value();
   script_cache->Remove(reinterpret_cast<void*>(id), Hash(id));
   script_cache->collected_scripts_.Add(id);
 
@@ -2046,13 +2060,30 @@ void Debug::PrepareForBreakPoints() {
         if (obj->IsJSFunction()) {
           JSFunction* function = JSFunction::cast(obj);
           SharedFunctionInfo* shared = function->shared();
-          if (shared->allows_lazy_compilation() &&
-              shared->script()->IsScript() &&
-              function->code()->kind() == Code::FUNCTION &&
-              !function->code()->has_debug_break_slots() &&
-              shared->code()->gc_metadata() != active_code_marker) {
+
+          if (!shared->allows_lazy_compilation()) continue;
+          if (!shared->script()->IsScript()) continue;
+          if (shared->code()->gc_metadata() == active_code_marker) continue;
+
+          Code::Kind kind = function->code()->kind();
+          if (kind == Code::FUNCTION &&
+              !function->code()->has_debug_break_slots()) {
             function->set_code(*lazy_compile);
             function->shared()->set_code(*lazy_compile);
+          } else if (kind == Code::BUILTIN &&
+              (function->IsMarkedForInstallingRecompiledCode() ||
+               function->IsInRecompileQueue() ||
+               function->IsMarkedForLazyRecompilation() ||
+               function->IsMarkedForParallelRecompilation())) {
+            // Abort in-flight compilation.
+            Code* shared_code = function->shared()->code();
+            if (shared_code->kind() == Code::FUNCTION &&
+                shared_code->has_debug_break_slots()) {
+              function->set_code(shared_code);
+            } else {
+              function->set_code(*lazy_compile);
+              function->shared()->set_code(*lazy_compile);
+            }
           }
         }
       }

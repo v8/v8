@@ -284,7 +284,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     Context* context, OptimizedFunctionVisitor* visitor) {
   Isolate* isolate = context->GetIsolate();
-  ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
+  Zone zone(isolate);
   DisallowHeapAllocation no_allocation;
 
   ASSERT(context->IsNativeContext());
@@ -293,11 +293,11 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
 
   // Create a snapshot of the optimized functions list. This is needed because
   // visitors might remove more than one link from the list at once.
-  ZoneList<JSFunction*> snapshot(1, isolate->runtime_zone());
+  ZoneList<JSFunction*> snapshot(1, &zone);
   Object* element = context->OptimizedFunctionsListHead();
   while (!element->IsUndefined()) {
     JSFunction* element_function = JSFunction::cast(element);
-    snapshot.Add(element_function, isolate->runtime_zone());
+    snapshot.Add(element_function, &zone);
     element = element_function->next_function_link();
   }
 
@@ -420,11 +420,10 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   Context* context = function->context()->native_context();
   Isolate* isolate = context->GetIsolate();
   Object* undefined = isolate->heap()->undefined_value();
-  Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
-  ZoneList<Code*> codes(1, zone);
+  Zone zone(isolate);
+  ZoneList<Code*> codes(1, &zone);
   DeoptimizeWithMatchingCodeFilter filter(code);
-  PartitionOptimizedFunctions(context, &filter, &codes, zone, undefined);
+  PartitionOptimizedFunctions(context, &filter, &codes, &zone, undefined);
   ASSERT_EQ(1, codes.length());
   DeoptimizeFunctionWithPreparedFunctionList(
       JSFunction::cast(codes.at(0)->deoptimizing_functions()));
@@ -437,10 +436,9 @@ void Deoptimizer::DeoptimizeAllFunctionsForContext(
   ASSERT(context->IsNativeContext());
   Isolate* isolate = context->GetIsolate();
   Object* undefined = isolate->heap()->undefined_value();
-  Zone* zone = isolate->runtime_zone();
-  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
-  ZoneList<Code*> codes(1, zone);
-  PartitionOptimizedFunctions(context, filter, &codes, zone, undefined);
+  Zone zone(isolate);
+  ZoneList<Code*> codes(1, &zone);
+  PartitionOptimizedFunctions(context, filter, &codes, &zone, undefined);
   for (int i = 0; i < codes.length(); ++i) {
     DeoptimizeFunctionWithPreparedFunctionList(
         JSFunction::cast(codes.at(i)->deoptimizing_functions()));
@@ -547,6 +545,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   if (function != NULL && function->IsOptimized()) {
     function->shared()->increment_deopt_count();
     if (bailout_type_ == Deoptimizer::SOFT) {
+      isolate->counters()->soft_deopts_executed()->Increment();
       // Soft deopts shouldn't count against the overall re-optimization count
       // that can eventually lead to disabling optimization for a function.
       int opt_count = function->shared()->opt_count();
@@ -788,7 +787,6 @@ void Deoptimizer::DoComputeOutputFrames() {
       case Translation::DOUBLE_STACK_SLOT:
       case Translation::LITERAL:
       case Translation::ARGUMENTS_OBJECT:
-      case Translation::DUPLICATE:
       default:
         UNREACHABLE();
         break;
@@ -1511,8 +1509,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   output_frame_offset -= kPointerSize;
-  value = frame_ptr - (output_frame_size - output_frame_offset) -
-      StandardFrameConstants::kMarkerOffset + kPointerSize;
+  value = frame_ptr + StandardFrameConstants::kCallerSPOffset -
+      (output_frame_size - output_frame_offset) + kPointerSize;
   output_frame->SetFrameSlot(output_frame_offset, value);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
@@ -1724,14 +1722,8 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
   disasm::NameConverter converter;
   Address object_slot = deferred_objects_.last().slot_address();
 
-  // Ignore commands marked as duplicate and act on the first non-duplicate.
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator->Next());
-  while (opcode == Translation::DUPLICATE) {
-    opcode = static_cast<Translation::Opcode>(iterator->Next());
-    iterator->Skip(Translation::NumberOfOperandsFor(opcode));
-    opcode = static_cast<Translation::Opcode>(iterator->Next());
-  }
 
   switch (opcode) {
     case Translation::BEGIN:
@@ -1742,7 +1734,6 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
     case Translation::SETTER_STUB_FRAME:
     case Translation::COMPILED_STUB_FRAME:
     case Translation::ARGUMENTS_OBJECT:
-    case Translation::DUPLICATE:
       UNREACHABLE();
       return;
 
@@ -1925,14 +1916,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
   const intptr_t kPlaceholder = reinterpret_cast<intptr_t>(Smi::FromInt(0));
   bool is_native = value_type == TRANSLATED_VALUE_IS_NATIVE;
 
-  // Ignore commands marked as duplicate and act on the first non-duplicate.
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator->Next());
-  while (opcode == Translation::DUPLICATE) {
-    opcode = static_cast<Translation::Opcode>(iterator->Next());
-    iterator->Skip(Translation::NumberOfOperandsFor(opcode));
-    opcode = static_cast<Translation::Opcode>(iterator->Next());
-  }
 
   switch (opcode) {
     case Translation::BEGIN:
@@ -1942,7 +1927,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
     case Translation::COMPILED_STUB_FRAME:
-    case Translation::DUPLICATE:
       UNREACHABLE();
       return;
 
@@ -2196,10 +2180,6 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator->Next());
-  bool duplicate = (opcode == Translation::DUPLICATE);
-  if (duplicate) {
-    opcode = static_cast<Translation::Opcode>(iterator->Next());
-  }
 
   switch (opcode) {
     case Translation::BEGIN:
@@ -2209,21 +2189,20 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
     case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
     case Translation::COMPILED_STUB_FRAME:
-    case Translation::DUPLICATE:
       UNREACHABLE();  // Malformed input.
-       return false;
+      return false;
 
-     case Translation::REGISTER: {
-       int output_reg = iterator->Next();
-       if (FLAG_trace_osr) {
-         PrintF("    %s <- 0x%08" V8PRIxPTR " ; [sp + %d]\n",
-                converter.NameOfCPURegister(output_reg),
-                input_value,
-                *input_offset);
-       }
-       output->SetRegister(output_reg, input_value);
-       break;
-     }
+    case Translation::REGISTER: {
+      int output_reg = iterator->Next();
+      if (FLAG_trace_osr) {
+        PrintF("    %s <- 0x%08" V8PRIxPTR " ; [sp + %d]\n",
+               converter.NameOfCPURegister(output_reg),
+               input_value,
+               *input_offset);
+      }
+      output->SetRegister(output_reg, input_value);
+      break;
+    }
 
     case Translation::INT32_REGISTER: {
       int32_t int32_value = 0;
@@ -2368,7 +2347,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
     }
   }
 
-  if (!duplicate) *input_offset -= kPointerSize;
+  *input_offset -= kPointerSize;
   return true;
 }
 
@@ -2822,15 +2801,18 @@ void Translation::StoreLiteral(int literal_id) {
 }
 
 
-void Translation::MarkDuplicate() {
-  buffer_->Add(DUPLICATE, zone());
+void Translation::StoreArgumentsObject(bool args_known,
+                                       int args_index,
+                                       int args_length) {
+  buffer_->Add(ARGUMENTS_OBJECT, zone());
+  buffer_->Add(args_known, zone());
+  buffer_->Add(args_index, zone());
+  buffer_->Add(args_length, zone());
 }
 
 
 int Translation::NumberOfOperandsFor(Opcode opcode) {
   switch (opcode) {
-    case DUPLICATE:
-      return 0;
     case GETTER_STUB_FRAME:
     case SETTER_STUB_FRAME:
     case ARGUMENTS_OBJECT:
@@ -2895,8 +2877,6 @@ const char* Translation::StringFor(Opcode opcode) {
       return "LITERAL";
     case ARGUMENTS_OBJECT:
       return "ARGUMENTS_OBJECT";
-    case DUPLICATE:
-      return "DUPLICATE";
   }
   UNREACHABLE();
   return "";
@@ -2948,7 +2928,6 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
     case Translation::INT32_REGISTER:
     case Translation::UINT32_REGISTER:
     case Translation::DOUBLE_REGISTER:
-    case Translation::DUPLICATE:
       // We are at safepoint which corresponds to call.  All registers are
       // saved by caller so there would be no live registers at this
       // point. Thus these translation commands should not be used.
