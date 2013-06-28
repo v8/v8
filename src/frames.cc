@@ -43,19 +43,8 @@ namespace v8 {
 namespace internal {
 
 
-static ReturnAddressLocationResolver return_address_location_resolver = NULL;
-
-
-// Resolves pc_address through the resolution address function if one is set.
-static inline Address* ResolveReturnAddressLocation(Address* pc_address) {
-  if (return_address_location_resolver == NULL) {
-    return pc_address;
-  } else {
-    return reinterpret_cast<Address*>(
-        return_address_location_resolver(
-            reinterpret_cast<uintptr_t>(pc_address)));
-  }
-}
+ReturnAddressLocationResolver
+    StackFrame::return_address_location_resolver_ = NULL;
 
 
 // Iterator that supports traversing the stack handlers of a
@@ -239,7 +228,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     ASSERT(fp != NULL);
     state.fp = fp;
     state.sp = sp;
-    state.pc_address = ResolveReturnAddressLocation(
+    state.pc_address = StackFrame::ResolveReturnAddressLocation(
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp)));
     type = StackFrame::ComputeType(this, &state);
   } else {
@@ -389,8 +378,8 @@ void StackFrame::IteratePc(ObjectVisitor* v,
 
 void StackFrame::SetReturnAddressLocationResolver(
     ReturnAddressLocationResolver resolver) {
-  ASSERT(return_address_location_resolver == NULL);
-  return_address_location_resolver = resolver;
+  ASSERT(return_address_location_resolver_ == NULL);
+  return_address_location_resolver_ = resolver;
 }
 
 

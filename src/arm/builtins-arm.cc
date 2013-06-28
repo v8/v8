@@ -717,6 +717,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r3: argc
   // r4: argv
   // r5-r7, cp may be clobbered
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Clear the context before we push it when entering the internal frame.
   __ mov(cp, Operand::Zero());

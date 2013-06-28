@@ -144,7 +144,7 @@ IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
   ASSERT(fp == frame->fp() && pc_address == frame->pc_address());
 #endif
   fp_ = fp;
-  pc_address_ = pc_address;
+  pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
 }
 
 

@@ -547,7 +547,7 @@ class Isolate {
   }
   Context** context_address() { return &thread_local_top_.context_; }
 
-  SaveContext* save_context() {return thread_local_top_.save_context_; }
+  SaveContext* save_context() { return thread_local_top_.save_context_; }
   void set_save_context(SaveContext* save) {
     thread_local_top_.save_context_ = save;
   }
@@ -1050,6 +1050,8 @@ class Isolate {
     context_exit_happened_ = context_exit_happened;
   }
 
+  bool initialized_from_snapshot() { return initialized_from_snapshot_; }
+
   double time_millis_since_init() {
     return OS::TimeCurrentMillis() - time_millis_at_init_;
   }
@@ -1108,6 +1110,11 @@ class Isolate {
 
   HStatistics* GetHStatistics();
   HTracer* GetHTracer();
+
+  FunctionEntryHook function_entry_hook() { return function_entry_hook_; }
+  void set_function_entry_hook(FunctionEntryHook function_entry_hook) {
+    function_entry_hook_ = function_entry_hook;
+  }
 
  private:
   Isolate();
@@ -1288,6 +1295,9 @@ class Isolate {
   // that a context was recently exited.
   bool context_exit_happened_;
 
+  // True if this isolate was initialized from a snapshot.
+  bool initialized_from_snapshot_;
+
   // Time stamp at initialization.
   double time_millis_at_init_;
 
@@ -1311,6 +1321,7 @@ class Isolate {
 #endif
   CpuProfiler* cpu_profiler_;
   HeapProfiler* heap_profiler_;
+  FunctionEntryHook function_entry_hook_;
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
   type name##_;

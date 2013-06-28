@@ -4132,6 +4132,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // this by performing a garbage collection and retrying the
   // builtin once.
 
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
   // Enter the exit frame that transitions from JavaScript to C++.
 #ifdef _WIN64
   int arg_stack_space = (result_size_ < 2 ? 2 : 4);
@@ -4211,6 +4213,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
+
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   {  // NOLINT. Scope block confuses linter.
     MacroAssembler::NoRootArrayScope uninitialized_root_register(masm);
@@ -6666,7 +6670,11 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (entry_hook_ != NULL) {
+  if (masm->isolate()->function_entry_hook() != NULL) {
+    // It's always safe to call the entry hook stub, as the hook itself
+    // is not allowed to call back to V8.
+    AllowStubCallsScope allow_stub_calls(masm, true);
+
     ProfileEntryHookStub stub;
     masm->CallStub(&stub);
   }
@@ -6674,45 +6682,25 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  // Save volatile registers.
-  // Live registers at this point are the same as at the start of any
-  // JS function:
-  //   o rdi: the JS function object being called (i.e. ourselves)
-  //   o rsi: our context
-  //   o rbp: our caller's frame pointer
-  //   o rsp: stack pointer (pointing to return address)
-  //   o rcx: rcx is zero for method calls and non-zero for function calls.
-#ifdef _WIN64
-  const int kNumSavedRegisters = 1;
-
-  __ push(rcx);
-#else
-  const int kNumSavedRegisters = 3;
-
-  __ push(rcx);
-  __ push(rdi);
-  __ push(rsi);
-#endif
+  // This stub can be called from essentially anywhere, so it needs to save
+  // all volatile and callee-save registers.
+  const size_t kNumSavedRegisters = 2;
+  __ push(arg_reg_1);
+  __ push(arg_reg_2);
 
   // Calculate the original stack pointer and store it in the second arg.
-#ifdef _WIN64
-  __ lea(rdx, Operand(rsp, (kNumSavedRegisters + 1) * kPointerSize));
-#else
-  __ lea(rsi, Operand(rsp, (kNumSavedRegisters + 1) * kPointerSize));
-#endif
+  __ lea(arg_reg_2, Operand(rsp, (kNumSavedRegisters + 1) * kPointerSize));
 
   // Calculate the function address to the first arg.
-#ifdef _WIN64
-  __ movq(rcx, Operand(rsp, kNumSavedRegisters * kPointerSize));
-  __ subq(rcx, Immediate(Assembler::kShortCallInstructionLength));
-#else
-  __ movq(rdi, Operand(rsp, kNumSavedRegisters * kPointerSize));
-  __ subq(rdi, Immediate(Assembler::kShortCallInstructionLength));
-#endif
+  __ movq(arg_reg_1, Operand(rsp, kNumSavedRegisters * kPointerSize));
+  __ subq(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
+
+  // Save the remainder of the volatile registers.
+  masm->PushCallerSaved(kSaveFPRegs, arg_reg_1, arg_reg_2);
 
   // Call the entry hook function.
-  __ movq(rax, &entry_hook_, RelocInfo::NONE64);
-  __ movq(rax, Operand(rax, 0));
+  __ movq(rax, FUNCTION_ADDR(masm->isolate()->function_entry_hook()),
+          RelocInfo::NONE64);
 
   AllowExternalCallThatCantCauseGC scope(masm);
 
@@ -6721,13 +6709,9 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __ CallCFunction(rax, kArgumentCount);
 
   // Restore volatile regs.
-#ifdef _WIN64
-  __ pop(rcx);
-#else
-  __ pop(rsi);
-  __ pop(rdi);
-  __ pop(rcx);
-#endif
+  masm->PopCallerSaved(kSaveFPRegs, arg_reg_1, arg_reg_2);
+  __ pop(arg_reg_2);
+  __ pop(arg_reg_1);
 
   __ Ret();
 }

@@ -4477,18 +4477,25 @@ class V8EXPORT V8 {
       ReturnAddressLocationResolver return_address_resolver);
 
   /**
+   * Deprecated, use the variant with the Isolate parameter below instead.
+   */
+  V8_DEPRECATED(static bool SetFunctionEntryHook(FunctionEntryHook entry_hook));
+
+  /**
    * Allows the host application to provide the address of a function that's
    * invoked on entry to every V8-generated function.
    * Note that \p entry_hook is invoked at the very start of each
    * generated function.
    *
+   * \param isolate the isolate to operate on.
    * \param entry_hook a function that will be invoked on entry to every
    *   V8-generated function.
    * \returns true on success on supported platforms, false on failure.
-   * \note Setting a new entry hook function when one is already active will
-   *   fail.
+   * \note Setting an entry hook can only be done very early in an isolates
+   *   lifetime, and once set, the entry hook cannot be revoked.
    */
-  static bool SetFunctionEntryHook(FunctionEntryHook entry_hook);
+  static bool SetFunctionEntryHook(Isolate* isolate,
+                                   FunctionEntryHook entry_hook);
 
   /**
    * Allows the host application to provide the address of a function that is

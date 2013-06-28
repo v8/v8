@@ -2168,13 +2168,6 @@ class ProfileEntryHookStub : public PlatformCodeStub {
   // Generates a call to the entry hook if it's enabled.
   static void MaybeCallEntryHook(MacroAssembler* masm);
 
-  // Sets or unsets the entry hook function. Returns true on success,
-  // false on an attempt to replace a non-NULL entry hook with another
-  // non-NULL hook.
-  static bool SetFunctionEntryHook(FunctionEntryHook entry_hook);
-
-  static bool HasEntryHook() { return entry_hook_ != NULL; }
-
  private:
   static void EntryHookTrampoline(intptr_t function,
                                   intptr_t stack_pointer);
@@ -2183,9 +2176,6 @@ class ProfileEntryHookStub : public PlatformCodeStub {
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
-
-  // The current function entry hook.
-  static FunctionEntryHook entry_hook_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileEntryHookStub);
 };
