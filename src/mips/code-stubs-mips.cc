@@ -7572,7 +7572,6 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   }
 
   // Also pop ra to get Ret(0).
-  __ stop("check 1");
   __ MultiPop(kJSCallerSaved | ra.bit());
   __ Ret();
 }
