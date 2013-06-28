@@ -740,6 +740,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   //  -- a3: argc
   //  -- s0: argv
   // -----------------------------------
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Clear the context before we push it when entering the JS frame.
   __ mov(cp, zero_reg);

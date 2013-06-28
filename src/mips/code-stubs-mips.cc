@@ -3530,6 +3530,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // sp: stack pointer    (restored as callee's sp after C call)
   // cp: current context  (C callee-saved)
 
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
   // NOTE: Invocations of builtins may return failure objects
   // instead of a proper result. The builtin entry handles
   // this by performing a garbage collection and retrying the
@@ -3622,6 +3624,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Stack:
   // 4 args slots
   // args
+
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Save callee saved registers on the stack.
   __ MultiPush(kCalleeSaved | ra.bit());
@@ -7510,7 +7514,8 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (entry_hook_ != NULL) {
+  if (masm->isolate()->function_entry_hook() != NULL) {
+    AllowStubCallsScope allow_stub_calls(masm, true);
     ProfileEntryHookStub stub;
     __ push(ra);
     __ CallStub(&stub);
@@ -7526,8 +7531,11 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
       Assembler::kCallTargetAddressOffset + (2 * Assembler::kInstrSize);
 
   // Save live volatile registers.
-  __ Push(ra, t1, a1);
-  const int32_t kNumSavedRegs = 3;
+  // We also save ra, so the count here is one higher than the mask indicates.
+  const int32_t kNumSavedRegs = kNumJSCallerSaved + 1;
+
+  // Save all caller-save registers as this may be called from anywhere.
+  __ MultiPush(kJSCallerSaved | ra.bit());
 
   // Compute the function's address for the first argument.
   __ Subu(a0, ra, Operand(kReturnAddressDistanceFromFunctionStart));
@@ -7544,15 +7552,14 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
     __ And(sp, sp, Operand(-frame_alignment));
   }
 
-#if V8_HOST_ARCH_MIPS
-  __ li(at, Operand(reinterpret_cast<int32_t>(&entry_hook_)));
-  __ lw(at, MemOperand(at));
+#if defined(V8_HOST_ARCH_MIPS)
+  int32_t entry_hook =
+      reinterpret_cast<int32_t>(masm->isolate()->function_entry_hook());
+  __ li(at, Operand(entry_hook));
 #else
   // Under the simulator we need to indirect the entry hook through a
   // trampoline function at a known address.
-  Address trampoline_address = reinterpret_cast<Address>(
-      reinterpret_cast<intptr_t>(EntryHookTrampoline));
-  ApiFunction dispatcher(trampoline_address);
+  ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
   __ li(at, Operand(ExternalReference(&dispatcher,
                                       ExternalReference::BUILTIN_CALL,
                                       masm->isolate())));
@@ -7564,7 +7571,9 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
     __ mov(sp, t1);
   }
 
-  __ Pop(ra, t1, a1);
+  // Also pop ra to get Ret(0).
+  __ stop("check 1");
+  __ MultiPop(kJSCallerSaved | ra.bit());
   __ Ret();
 }
 
