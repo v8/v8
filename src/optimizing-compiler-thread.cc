@@ -39,7 +39,9 @@ namespace internal {
 
 void OptimizingCompilerThread::Run() {
 #ifdef DEBUG
-  thread_id_ = ThreadId::Current().ToInteger();
+  { ScopedLock lock(thread_id_mutex_);
+    thread_id_ = ThreadId::Current().ToInteger();
+  }
 #endif
   Isolate::SetIsolateThreadLocals(isolate_, NULL);
   DisallowHeapAllocation no_allocation;
@@ -156,6 +158,7 @@ void OptimizingCompilerThread::QueueForOptimization(
 #ifdef DEBUG
 bool OptimizingCompilerThread::IsOptimizerThread() {
   if (!FLAG_parallel_recompilation) return false;
+  ScopedLock lock(thread_id_mutex_);
   return ThreadId::Current().ToInteger() == thread_id_;
 }
 #endif

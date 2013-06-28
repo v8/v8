@@ -46,6 +46,7 @@ class OptimizingCompilerThread : public Thread {
       Thread("OptimizingCompilerThread"),
 #ifdef DEBUG
       thread_id_(0),
+      thread_id_mutex_(OS::CreateMutex()),
 #endif
       isolate_(isolate),
       stop_semaphore_(OS::CreateSemaphore(0)),
@@ -89,6 +90,7 @@ class OptimizingCompilerThread : public Thread {
  private:
 #ifdef DEBUG
   int thread_id_;
+  Mutex* thread_id_mutex_;
 #endif
 
   Isolate* isolate_;
