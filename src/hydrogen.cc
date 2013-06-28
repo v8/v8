@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "hydrogen.h"
-#include "hydrogen-gvn.h"
 
 #include <algorithm>
 
@@ -35,7 +34,9 @@
 #include "full-codegen.h"
 #include "hashmap.h"
 #include "hydrogen-environment-liveness.h"
+#include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
+#include "hydrogen-gvn.h"
 #include "lithium-allocator.h"
 #include "parser.h"
 #include "scopeinfo.h"
@@ -3825,11 +3826,16 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
 
   if (FLAG_use_canonicalizing) Canonicalize();
 
+  if (FLAG_use_escape_analysis) {
+    HEscapeAnalysis escape_analysis(this);
+    escape_analysis.Analyze();
+  }
+
   if (FLAG_use_gvn) Run<HGlobalValueNumberingPhase>();
 
   if (FLAG_use_range) {
-    HRangeAnalysis rangeAnalysis(this);
-    rangeAnalysis.Analyze();
+    HRangeAnalysis range_analysis(this);
+    range_analysis.Analyze();
   }
   ComputeMinusZeroChecks();
 

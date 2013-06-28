@@ -230,6 +230,21 @@ class HPredecessorIterator BASE_EMBEDDED {
 };
 
 
+class HInstructionIterator BASE_EMBEDDED {
+ public:
+  explicit HInstructionIterator(HBasicBlock* block)
+      : block_(block), instr_(block->first()) { }
+
+  bool Done() { return instr_ == block_->last(); }
+  HInstruction* Current() { return instr_; }
+  void Advance() { instr_ = instr_->next(); }
+
+ private:
+  HBasicBlock* block_;
+  HInstruction* instr_;
+};
+
+
 class HLoopInformation: public ZoneObject {
  public:
   HLoopInformation(HBasicBlock* loop_header, Zone* zone)

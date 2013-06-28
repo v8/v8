@@ -327,6 +327,8 @@
         '../../src/heap.h',
         '../../src/hydrogen-environment-liveness.cc',
         '../../src/hydrogen-environment-liveness.h',
+        '../../src/hydrogen-escape-analysis.cc',
+        '../../src/hydrogen-escape-analysis.h',
         '../../src/hydrogen-instructions.cc',
         '../../src/hydrogen-instructions.h',
         '../../src/hydrogen.cc',
