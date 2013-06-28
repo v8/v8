@@ -4216,12 +4216,12 @@ void MacroAssembler::CopyBytes(Register destination,
   // we keep source aligned for the rep movs operation by copying the odd bytes
   // at the end of the ranges.
   movq(scratch, length);
-  shrl(length, Immediate(3));
+  shrl(length, Immediate(kPointerSizeLog2));
   repmovsq();
   // Move remaining bytes of length.
-  andl(scratch, Immediate(0x7));
-  movq(length, Operand(source, scratch, times_1, -8));
-  movq(Operand(destination, scratch, times_1, -8), length);
+  andl(scratch, Immediate(kPointerSize - 1));
+  movq(length, Operand(source, scratch, times_1, -kPointerSize));
+  movq(Operand(destination, scratch, times_1, -kPointerSize), length);
   addq(destination, scratch);
 
   if (min_length <= kLongStringLimit) {

@@ -1558,7 +1558,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     char* elem_in1  = reinterpret_cast<char*>(&(test_elem[0].in[1]));
     char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
     // Two uint_32's and a pointer per element.
-    CHECK_EQ(16, static_cast<int>(elem2_start - elem_start));
+    CHECK_EQ(2 * kIntSize + 1 * kPointerSize,
+             static_cast<int>(elem2_start - elem_start));
     CHECK_EQ(0, static_cast<int>(elem_in0 - elem_start));
     CHECK_EQ(kIntSize, static_cast<int>(elem_in1 - elem_start));
     CHECK_EQ(2 * kIntSize, static_cast<int>(elem_out - elem_start));
@@ -5111,17 +5112,17 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
 
   // Don't enter the rep movs if there are less than 4 bytes to copy.
   Label last_bytes;
-  __ testl(count, Immediate(~7));
+  __ testl(count, Immediate(~(kPointerSize - 1)));
   __ j(zero, &last_bytes, Label::kNear);
 
   // Copy from edi to esi using rep movs instruction.
   __ movl(kScratchRegister, count);
-  __ shr(count, Immediate(3));  // Number of doublewords to copy.
+  __ shr(count, Immediate(kPointerSizeLog2));  // Number of doublewords to copy.
   __ repmovsq();
 
   // Find number of bytes left.
   __ movl(count, kScratchRegister);
-  __ and_(count, Immediate(7));
+  __ and_(count, Immediate(kPointerSize - 1));
 
   // Check if there are more bytes to copy.
   __ bind(&last_bytes);

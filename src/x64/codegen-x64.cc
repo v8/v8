@@ -735,7 +735,11 @@ void Code::PatchPlatformCodeAge(byte* sequence,
     Code* stub = GetCodeAgeStub(age, parity);
     CodePatcher patcher(sequence, young_length);
     patcher.masm()->call(stub->instruction_start());
-    patcher.masm()->nop();
+    for (int i = 0;
+         i < kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength;
+         i++) {
+      patcher.masm()->nop();
+    }
   }
 }
 
