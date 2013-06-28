@@ -65,6 +65,13 @@
     'target_arch%': '<(target_arch)',
     'v8_target_arch%': '<(v8_target_arch)',
     'werror%': '-Werror',
+
+    # .gyp files or targets should set v8_code to 1 if they build V8 specific
+    # code, as opposed to external code.  This variable is used to control such
+    # things as the set of warnings to enable, and whether warnings are treated
+    # as errors.
+    'v8_code%': 0,
+
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
         (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
@@ -73,6 +80,11 @@
         'want_separate_host_toolset': 1,
       }, {
         'want_separate_host_toolset': 0,
+      }],
+      ['OS == "win"', {
+        'os_posix%': 0,
+      }, {
+        'os_posix%': 1,
       }],
     ],
     # Default ARM variable settings.
@@ -83,6 +95,9 @@
     'arm_thumb': 'default',
   },
   'target_defaults': {
+    'variables': {
+      'v8_code%': '<(v8_code)',
+    },
     'default_configuration': 'Debug',
     'configurations': {
       'Debug': {
@@ -92,6 +107,29 @@
         # Xcode insists on this empty entry.
       },
     },
+    'target_conditions': [
+      ['v8_code == 0', {
+        'conditions': [
+          ['os_posix == 1 and OS != "mac"', {
+            'cflags!': [
+              '-Werror',
+            ],
+          }],
+          ['OS == "mac"', {
+            'xcode_settings': {
+              'GCC_TREAT_WARNINGS_AS_ERRORS': 'NO',    # -Werror
+            },
+          }],
+          ['OS == "win"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'WarnAsError': 'false',
+              },
+            },
+          }],
+        ],
+      }],
+    ],
   },
   'conditions': [
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
