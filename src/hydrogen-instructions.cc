@@ -29,7 +29,7 @@
 
 #include "double.h"
 #include "factory.h"
-#include "hydrogen.h"
+#include "hydrogen-infer-representation.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/lithium-ia32.h"
@@ -78,7 +78,7 @@ void HValue::AssumeRepresentation(Representation r) {
 }
 
 
-void HValue::InferRepresentation(HInferRepresentation* h_infer) {
+void HValue::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
@@ -124,7 +124,7 @@ Representation HValue::RepresentationFromUses() {
 
 
 void HValue::UpdateRepresentation(Representation new_rep,
-                                  HInferRepresentation* h_infer,
+                                  HInferRepresentationPhase* h_infer,
                                   const char* reason) {
   Representation r = representation();
   if (new_rep.is_more_general_than(r)) {
@@ -139,7 +139,7 @@ void HValue::UpdateRepresentation(Representation new_rep,
 }
 
 
-void HValue::AddDependantsToWorklist(HInferRepresentation* h_infer) {
+void HValue::AddDependantsToWorklist(HInferRepresentationPhase* h_infer) {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     h_infer->AddToWorklist(it.value());
   }
@@ -1150,7 +1150,7 @@ void HBoundsCheck::PrintDataTo(StringStream* stream) {
 }
 
 
-void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
+void HBoundsCheck::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   HValue* actual_index = index()->ActualValue();
   HValue* actual_length = length()->ActualValue();
@@ -2324,7 +2324,7 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) {
 }
 
 
-void HBinaryOperation::InferRepresentation(HInferRepresentation* h_infer) {
+void HBinaryOperation::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
@@ -2387,7 +2387,7 @@ void HBinaryOperation::AssumeRepresentation(Representation r) {
 }
 
 
-void HMathMinMax::InferRepresentation(HInferRepresentation* h_infer) {
+void HMathMinMax::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
@@ -2566,7 +2566,8 @@ void HGoto::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
+void HCompareIDAndBranch::InferRepresentation(
+    HInferRepresentationPhase* h_infer) {
   Representation left_rep = left()->representation();
   Representation right_rep = right()->representation();
   Representation observed_left = observed_input_representation(0);
@@ -3671,7 +3672,7 @@ void HPhi::SimplifyConstantInputs() {
 }
 
 
-void HPhi::InferRepresentation(HInferRepresentation* h_infer) {
+void HPhi::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");

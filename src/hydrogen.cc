@@ -35,6 +35,7 @@
 #include "full-codegen.h"
 #include "hashmap.h"
 #include "hydrogen-environment-liveness.h"
+#include "hydrogen-infer-representation.h"
 #include "lithium-allocator.h"
 #include "parser.h"
 #include "scopeinfo.h"
@@ -2814,149 +2815,6 @@ void HStackCheckEliminator::Process() {
 }
 
 
-void HInferRepresentation::AddToWorklist(HValue* current) {
-  if (current->representation().IsTagged()) return;
-  if (!current->CheckFlag(HValue::kFlexibleRepresentation)) return;
-  if (in_worklist_.Contains(current->id())) return;
-  worklist_.Add(current, zone());
-  in_worklist_.Add(current->id());
-}
-
-
-void HInferRepresentation::Analyze() {
-  HPhase phase("H_Infer representations", graph_);
-
-  // (1) Initialize bit vectors and count real uses. Each phi gets a
-  // bit-vector of length <number of phis>.
-  const ZoneList<HPhi*>* phi_list = graph_->phi_list();
-  int phi_count = phi_list->length();
-  ZoneList<BitVector*> connected_phis(phi_count, graph_->zone());
-  for (int i = 0; i < phi_count; ++i) {
-    phi_list->at(i)->InitRealUses(i);
-    BitVector* connected_set = new(zone()) BitVector(phi_count, graph_->zone());
-    connected_set->Add(i);
-    connected_phis.Add(connected_set, zone());
-  }
-
-  // (2) Do a fixed point iteration to find the set of connected phis.  A
-  // phi is connected to another phi if its value is used either directly or
-  // indirectly through a transitive closure of the def-use relation.
-  bool change = true;
-  while (change) {
-    change = false;
-    // We normally have far more "forward edges" than "backward edges",
-    // so we terminate faster when we walk backwards.
-    for (int i = phi_count - 1; i >= 0; --i) {
-      HPhi* phi = phi_list->at(i);
-      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-        HValue* use = it.value();
-        if (use->IsPhi()) {
-          int id = HPhi::cast(use)->phi_id();
-          if (connected_phis[i]->UnionIsChanged(*connected_phis[id]))
-            change = true;
-        }
-      }
-    }
-  }
-
-  // Set truncation flags for groups of connected phis. This is a conservative
-  // approximation; the flag will be properly re-computed after representations
-  // have been determined.
-  if (phi_count > 0) {
-    BitVector* done = new(zone()) BitVector(phi_count, graph_->zone());
-    for (int i = 0; i < phi_count; ++i) {
-      if (done->Contains(i)) continue;
-
-      // Check if all uses of all connected phis in this group are truncating.
-      bool all_uses_everywhere_truncating = true;
-      for (BitVector::Iterator it(connected_phis.at(i));
-           !it.Done();
-           it.Advance()) {
-        int index = it.Current();
-        all_uses_everywhere_truncating &=
-            phi_list->at(index)->CheckFlag(HInstruction::kTruncatingToInt32);
-        done->Add(index);
-      }
-      if (all_uses_everywhere_truncating) {
-        continue;  // Great, nothing to do.
-      }
-      // Clear truncation flag of this group of connected phis.
-      for (BitVector::Iterator it(connected_phis.at(i));
-           !it.Done();
-           it.Advance()) {
-        int index = it.Current();
-        phi_list->at(index)->ClearFlag(HInstruction::kTruncatingToInt32);
-      }
-    }
-  }
-
-  // Simplify constant phi inputs where possible.
-  // This step uses kTruncatingToInt32 flags of phis.
-  for (int i = 0; i < phi_count; ++i) {
-    phi_list->at(i)->SimplifyConstantInputs();
-  }
-
-  // Use the phi reachability information from step 2 to
-  // sum up the non-phi use counts of all connected phis.
-  for (int i = 0; i < phi_count; ++i) {
-    HPhi* phi = phi_list->at(i);
-    for (BitVector::Iterator it(connected_phis.at(i));
-         !it.Done();
-         it.Advance()) {
-      int index = it.Current();
-      HPhi* it_use = phi_list->at(index);
-      if (index != i) phi->AddNonPhiUsesFrom(it_use);  // Don't count twice.
-    }
-  }
-
-  // Initialize work list
-  for (int i = 0; i < graph_->blocks()->length(); ++i) {
-    HBasicBlock* block = graph_->blocks()->at(i);
-    const ZoneList<HPhi*>* phis = block->phis();
-    for (int j = 0; j < phis->length(); ++j) {
-      AddToWorklist(phis->at(j));
-    }
-
-    HInstruction* current = block->first();
-    while (current != NULL) {
-      AddToWorklist(current);
-      current = current->next();
-    }
-  }
-
-  // Do a fixed point iteration, trying to improve representations
-  while (!worklist_.is_empty()) {
-    HValue* current = worklist_.RemoveLast();
-    in_worklist_.Remove(current->id());
-    current->InferRepresentation(this);
-  }
-
-  // Lastly: any instruction that we don't have representation information
-  // for defaults to Tagged.
-  for (int i = 0; i < graph_->blocks()->length(); ++i) {
-    HBasicBlock* block = graph_->blocks()->at(i);
-    const ZoneList<HPhi*>* phis = block->phis();
-    for (int j = 0; j < phis->length(); ++j) {
-      HPhi* phi = phis->at(j);
-      if (phi->representation().IsNone()) {
-        phi->ChangeRepresentation(Representation::Tagged());
-      }
-    }
-    for (HInstruction* current = block->first();
-         current != NULL; current = current->next()) {
-      if (current->representation().IsNone() &&
-          current->CheckFlag(HInstruction::kFlexibleRepresentation)) {
-        if (current->CheckFlag(HInstruction::kCannotBeTagged)) {
-          current->ChangeRepresentation(Representation::Double());
-        } else {
-          current->ChangeRepresentation(Representation::Tagged());
-        }
-      }
-    }
-  }
-}
-
-
 void HGraph::MergeRemovableSimulates() {
   HPhase phase("H_Merge removable simulates", this);
   ZoneList<HSimulate*> mergelist(2, zone());
@@ -3986,8 +3844,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
     }
   }
 
-  HInferRepresentation rep(this);
-  rep.Analyze();
+  Run<HInferRepresentationPhase>();
 
   // Remove HSimulate instructions that have turned out not to be needed
   // after all by folding them into the following HSimulate.

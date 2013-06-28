@@ -706,25 +706,6 @@ class HEnvironment: public ZoneObject {
 };
 
 
-class HInferRepresentation BASE_EMBEDDED {
- public:
-  explicit HInferRepresentation(HGraph* graph)
-      : graph_(graph),
-        worklist_(8, graph->zone()),
-        in_worklist_(graph->GetMaximumValueID(), graph->zone()) { }
-
-  void Analyze();
-  void AddToWorklist(HValue* current);
-
- private:
-  Zone* zone() const { return graph_->zone(); }
-
-  HGraph* graph_;
-  ZoneList<HValue*> worklist_;
-  BitVector in_worklist_;
-};
-
-
 class HOptimizedGraphBuilder;
 
 enum ArgumentsAllowedFlag {

@@ -45,7 +45,7 @@ namespace internal {
 // Forward declarations.
 class HBasicBlock;
 class HEnvironment;
-class HInferRepresentation;
+class HInferRepresentationPhase;
 class HInstruction;
 class HLoopInformation;
 class HValue;
@@ -1067,7 +1067,7 @@ class HValue: public ZoneObject {
     return Representation::None();
   }
   virtual Representation RequiredInputRepresentation(int index) = 0;
-  virtual void InferRepresentation(HInferRepresentation* h_infer);
+  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
 
   // This gives the instruction an opportunity to replace itself with an
   // instruction that does the same in some better way.  To replace an
@@ -1159,9 +1159,9 @@ class HValue: public ZoneObject {
   Representation RepresentationFromUses();
   Representation RepresentationFromUseRequirements();
   virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentation* h_infer,
+                                    HInferRepresentationPhase* h_infer,
                                     const char* reason);
-  void AddDependantsToWorklist(HInferRepresentation* h_infer);
+  void AddDependantsToWorklist(HInferRepresentationPhase* h_infer);
 
   virtual void RepresentationChanged(Representation to) { }
 
@@ -3073,7 +3073,7 @@ class HPhi: public HValue {
   virtual Representation RepresentationFromInputs();
 
   virtual Range* InferRange(Zone* zone);
-  virtual void InferRepresentation(HInferRepresentation* h_infer);
+  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
   virtual Representation RequiredInputRepresentation(int index) {
     return representation();
   }
@@ -3495,12 +3495,12 @@ class HBinaryOperation: public HTemplateInstruction<3> {
     return observed_input_representation_[index - 1];
   }
 
-  virtual void InferRepresentation(HInferRepresentation* h_infer);
+  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
   virtual Representation RepresentationFromInputs();
   virtual void AssumeRepresentation(Representation r);
 
   virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentation* h_infer,
+                                    HInferRepresentationPhase* h_infer,
                                     const char* reason) {
     // By default, binary operations don't handle Smis.
     if (new_rep.IsSmi()) {
@@ -3712,7 +3712,7 @@ class HBoundsCheck: public HTemplateInstruction<2> {
                                       int scale = 0);
 
   virtual void PrintDataTo(StringStream* stream);
-  virtual void InferRepresentation(HInferRepresentation* h_infer);
+  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
 
   HValue* index() { return OperandAt(0); }
   HValue* length() { return OperandAt(1); }
@@ -3809,7 +3809,7 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
   }
 
   virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentation* h_infer,
+                                    HInferRepresentationPhase* h_infer,
                                     const char* reason) {
     // We only generate either int32 or generic tagged bitwise operations.
     if (new_rep.IsSmi() || new_rep.IsDouble()) {
@@ -3944,7 +3944,7 @@ class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
       observed_input_representation_[1] = right;
   }
 
-  virtual void InferRepresentation(HInferRepresentation* h_infer);
+  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
 
   virtual Representation RequiredInputRepresentation(int index) {
     return representation();
@@ -4561,7 +4561,7 @@ class HMathMinMax: public HArithmeticBinaryOperation {
     return RequiredInputRepresentation(index);
   }
 
-  virtual void InferRepresentation(HInferRepresentation* h_infer);
+  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
 
   virtual Representation RepresentationFromInputs() {
     Representation left_rep = left()->representation();
