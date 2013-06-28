@@ -35,7 +35,7 @@ GYPFLAGS ?=
 TESTFLAGS ?=
 ANDROID_NDK_ROOT ?=
 ANDROID_TOOLCHAIN ?=
-ANDROID_V8 ?= /data/local/v8
+ANDROID_V8 ?= /data/local/tmp/v8
 NACL_SDK_ROOT ?=
 
 # Special build flags. Use them like this: "make library=shared"
