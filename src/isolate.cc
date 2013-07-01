@@ -29,6 +29,7 @@
 
 #include "v8.h"
 
+#include "allocation-inl.h"
 #include "ast.h"
 #include "bootstrapper.h"
 #include "codegen.h"
@@ -2024,6 +2025,9 @@ Isolate::~Isolate() {
   code_range_ = NULL;
   delete global_handles_;
   global_handles_ = NULL;
+
+  delete string_stream_debug_object_cache_;
+  string_stream_debug_object_cache_ = NULL;
 
   delete external_reference_table_;
   external_reference_table_ = NULL;
