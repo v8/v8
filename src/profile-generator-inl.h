@@ -56,7 +56,6 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
       resource_name_(resource_name),
       line_number_(line_number),
       shared_id_(0),
-      script_id_(v8::Script::kNoScriptId),
       security_token_id_(security_token_id),
       no_frame_ranges_(NULL) {
 }

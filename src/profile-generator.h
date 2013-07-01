@@ -111,8 +111,6 @@ class CodeEntry {
   INLINE(const char* resource_name() const) { return resource_name_; }
   INLINE(int line_number() const) { return line_number_; }
   INLINE(void set_shared_id(int shared_id)) { shared_id_ = shared_id; }
-  INLINE(int script_id() const) { return script_id_; }
-  INLINE(void set_script_id(int script_id)) { script_id_ = script_id; }
   INLINE(int security_token_id() const) { return security_token_id_; }
 
   INLINE(static bool is_js_function_tag(Logger::LogEventsAndTags tag));
@@ -140,7 +138,6 @@ class CodeEntry {
   const char* resource_name_;
   int line_number_;
   int shared_id_;
-  int script_id_;
   int security_token_id_;
   List<OffsetRange>* no_frame_ranges_;
 

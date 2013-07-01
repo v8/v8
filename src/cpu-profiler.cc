@@ -255,12 +255,9 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
   rec->entry = profiles_->NewCodeEntry(tag, profiles_->GetFunctionName(name));
-  if (info) {
-    rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
-  }
-  ASSERT(Script::cast(shared->script()));
-  Script* script = Script::cast(shared->script());
-  rec->entry->set_script_id(script->id()->value());
+  rec->entry->set_no_frame_ranges(info ?
+                                  info->ReleaseNoFrameRanges() :
+                                  NULL);
   rec->size = code->ExecutableSize();
   rec->shared = shared->address();
   processor_->Enqueue(evt_rec);
@@ -283,12 +280,9 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       CodeEntry::kEmptyNamePrefix,
       profiles_->GetName(source),
       line);
-  if (info) {
-    rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
-  }
-  ASSERT(Script::cast(shared->script()));
-  Script* script = Script::cast(shared->script());
-  rec->entry->set_script_id(script->id()->value());
+  rec->entry->set_no_frame_ranges(info ?
+                                  info->ReleaseNoFrameRanges() :
+                                  NULL);
   rec->size = code->ExecutableSize();
   rec->shared = shared->address();
   processor_->Enqueue(evt_rec);
