@@ -141,8 +141,7 @@ class CodeEventsContainer {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public Thread {
  public:
-  ProfilerEventsProcessor(ProfileGenerator* generator,
-                          CpuProfilesCollection* profiles);
+  explicit ProfilerEventsProcessor(ProfileGenerator* generator);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.

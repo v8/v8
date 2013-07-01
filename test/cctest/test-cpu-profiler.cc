@@ -51,7 +51,7 @@ using i::Vector;
 TEST(StartStop) {
   CpuProfilesCollection profiles;
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(&generator, &profiles);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
   processor.Stop();
   processor.Join();
@@ -141,7 +141,7 @@ TEST(CodeEvents) {
   CpuProfilesCollection* profiles = new CpuProfilesCollection;
   profiles->StartProfiling("", 1, false);
   ProfileGenerator generator(profiles);
-  ProfilerEventsProcessor processor(&generator, profiles);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
   CpuProfiler profiler(isolate, profiles, &generator, &processor);
 
@@ -202,7 +202,7 @@ TEST(TickEvents) {
   CpuProfilesCollection* profiles = new CpuProfilesCollection;
   profiles->StartProfiling("", 1, false);
   ProfileGenerator generator(profiles);
-  ProfilerEventsProcessor processor(&generator, profiles);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
   CpuProfiler profiler(isolate, profiles, &generator, &processor);
 
@@ -272,7 +272,7 @@ TEST(Issue1398) {
   CpuProfilesCollection* profiles = new CpuProfilesCollection;
   profiles->StartProfiling("", 1, false);
   ProfileGenerator generator(profiles);
-  ProfilerEventsProcessor processor(&generator, profiles);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
   CpuProfiler profiler(isolate, profiles, &generator, &processor);
 
