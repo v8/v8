@@ -2174,7 +2174,6 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     has_double_value_(false),
     is_internalized_string_(false),
     is_not_in_new_space_(true),
-    is_cell_(false),
     boolean_value_(handle->BooleanValue()) {
   if (handle_->IsHeapObject()) {
     Heap* heap = Handle<HeapObject>::cast(handle)->GetHeap();
@@ -2191,9 +2190,6 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     type_from_value_ = HType::TypeFromValue(handle_);
     is_internalized_string_ = handle_->IsInternalizedString();
   }
-
-  is_cell_ = !handle_.is_null() &&
-      (handle_->IsCell() || handle_->IsPropertyCell());
   Initialize(r);
 }
 
@@ -2204,7 +2200,6 @@ HConstant::HConstant(Handle<Object> handle,
                      HType type,
                      bool is_internalize_string,
                      bool is_not_in_new_space,
-                     bool is_cell,
                      bool boolean_value)
     : handle_(handle),
       unique_id_(unique_id),
@@ -2213,7 +2208,6 @@ HConstant::HConstant(Handle<Object> handle,
       has_double_value_(false),
       is_internalized_string_(is_internalize_string),
       is_not_in_new_space_(is_not_in_new_space),
-      is_cell_(is_cell),
       boolean_value_(boolean_value),
       type_from_value_(type) {
   ASSERT(!handle.is_null());
@@ -2233,7 +2227,6 @@ HConstant::HConstant(int32_t integer_value,
       has_double_value_(true),
       is_internalized_string_(false),
       is_not_in_new_space_(is_not_in_new_space),
-      is_cell_(false),
       boolean_value_(integer_value != 0),
       int32_value_(integer_value),
       double_value_(FastI2D(integer_value)) {
@@ -2252,7 +2245,6 @@ HConstant::HConstant(double double_value,
       has_double_value_(true),
       is_internalized_string_(false),
       is_not_in_new_space_(is_not_in_new_space),
-      is_cell_(false),
       boolean_value_(double_value != 0 && !std::isnan(double_value)),
       int32_value_(DoubleToInt32(double_value)),
       double_value_(double_value) {
@@ -2275,17 +2267,9 @@ void HConstant::Initialize(Representation r) {
   }
   set_representation(r);
   SetFlag(kUseGVN);
-}
-
-
-bool HConstant::EmitAtUses() {
-  ASSERT(IsLinked());
-  if (block()->graph()->has_osr_loop_entry()) {
-    return block()->graph()->IsStandardConstant(this);
+  if (representation().IsInteger32()) {
+    ClearGVNFlag(kDependsOnOsrEntries);
   }
-  if (IsCell()) return false;
-  if (representation().IsDouble()) return false;
-  return true;
 }
 
 
@@ -2306,7 +2290,6 @@ HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
                              type_from_value_,
                              is_internalized_string_,
                              is_not_in_new_space_,
-                             is_cell_,
                              boolean_value_);
 }
 
@@ -3838,13 +3821,6 @@ HObjectAccess HObjectAccess::ForField(Handle<Map> map,
     int offset = (index * kPointerSize) + FixedArray::kHeaderSize;
     return HObjectAccess(kBackingStore, offset, name);
   }
-}
-
-
-HObjectAccess HObjectAccess::ForCellPayload(Isolate* isolate) {
-  return HObjectAccess(
-      kInobject, Cell::kValueOffset,
-      Handle<String>(isolate->heap()->cell_value_string()));
 }
 
 

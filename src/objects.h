@@ -8585,13 +8585,6 @@ class PropertyCell: public Cell {
   // property.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
-  // Sets the value of the cell and updates the type field to be the union
-  // of the cell's current type and the value's type. If the change causes
-  // a change of the type of the cell's contents, code dependent on the cell
-  // will be deoptimized.
-  void SetValueInferType(Object* value,
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   // Casting.
   static inline PropertyCell* cast(Object* obj);
 
@@ -8618,8 +8611,6 @@ class PropertyCell: public Cell {
   void AddDependentCompilationInfo(CompilationInfo* info);
 
   void AddDependentCode(Handle<Code> code);
-
-  Type* UpdateType(Object* value);
 
  private:
   DECL_ACCESSORS(type_raw, Object)

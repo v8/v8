@@ -261,7 +261,6 @@ namespace internal {
   V(map_field_string, "%map")                                            \
   V(elements_field_string, "%elements")                                  \
   V(length_field_string, "%length")                                      \
-  V(cell_value_string, "%cell_value")                                    \
   V(function_class_string, "Function")                                   \
   V(properties_field_symbol, "%properties")                              \
   V(payload_field_symbol, "%payload")                                    \

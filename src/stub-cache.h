@@ -184,7 +184,6 @@ class StubCache {
   Handle<Code> ComputeStoreGlobal(Handle<Name> name,
                                   Handle<GlobalObject> object,
                                   Handle<PropertyCell> cell,
-                                  Handle<Object> value,
                                   StrictModeFlag strict_mode);
 
   Handle<Code> ComputeStoreCallback(Handle<Name> name,

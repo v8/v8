@@ -634,7 +634,7 @@ Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
   if (IsGlobalObject()) {
     PropertyCell* cell = PropertyCell::cast(
         property_dictionary()->ValueAt(result->GetDictionaryEntry()));
-    cell->SetValueInferType(value);
+    cell->set_value(value);
   } else {
     property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
   }
@@ -690,7 +690,7 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
   if (IsGlobalObject()) {
     PropertyCell* cell =
         PropertyCell::cast(property_dictionary()->ValueAt(entry));
-    cell->SetValueInferType(value);
+    cell->set_value(value);
     // Please note we have to update the property details.
     property_dictionary()->DetailsAtPut(entry, details);
   } else {
@@ -722,7 +722,7 @@ MaybeObject* JSObject::DeleteNormalizedProperty(Name* name, DeleteMode mode) {
         set_map(new_map);
       }
       PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
-      cell->SetValueInferType(cell->GetHeap()->the_hole_value());
+      cell->set_value(cell->GetHeap()->the_hole_value());
       dictionary->DetailsAtPut(entry, details.AsDeleted());
     } else {
       Object* deleted = dictionary->DeleteProperty(entry, mode);
@@ -1929,7 +1929,7 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
     int entry = dict->FindEntry(name);
     if (entry != NameDictionary::kNotFound) {
       store_value = dict->ValueAt(entry);
-      PropertyCell::cast(store_value)->SetValueInferType(value);
+      PropertyCell::cast(store_value)->set_value(value);
       // Assign an enumeration index to the property and update
       // SetNextEnumerationIndex.
       int index = dict->NextEnumerationIndex();
@@ -1943,7 +1943,7 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
           heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
-    PropertyCell::cast(store_value)->SetValueInferType(value);
+    PropertyCell::cast(store_value)->set_value(value);
   }
   PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
   Object* result;
@@ -15803,38 +15803,6 @@ Type* PropertyCell::type() {
 
 void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
   set_type_raw(type, ignored);
-}
-
-
-Type* PropertyCell::UpdateType(Object* value) {
-  Isolate* isolate = GetIsolate();
-  Handle<Object> value_handle(value, isolate);
-  Handle<Type> old_type(type(), isolate);
-  Handle<Type> new_type((value->IsSmi() || value->IsUndefined())
-                        ? Type::Constant(value_handle, isolate)
-                        : Type::Any(), isolate);
-
-  if (new_type->Is(old_type)) {
-    return *old_type;
-  }
-
-  dependent_code()->DeoptimizeDependentCodeGroup(
-      isolate, DependentCode::kPropertyCellChangedGroup);
-
-  if (old_type->Is(Type::None()) || old_type->Is(Type::Undefined())) {
-    return *new_type;
-  }
-
-  return Type::Any();
-}
-
-
-void PropertyCell::SetValueInferType(Object* value,
-                                     WriteBarrierMode ignored) {
-  set_value(value, ignored);
-  if (!Type::Any()->Is(type())) {
-    set_type(UpdateType(value));
-  }
 }
 
 

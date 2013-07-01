@@ -2110,7 +2110,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
   } else if (lookup.IsNormal()) {
     if (global->GetNormalizedProperty(&lookup)->IsTheHole() ||
         !lookup.IsReadOnly()) {
-      HandleScope scope(isolate);
       global->SetNormalizedProperty(&lookup, *value);
     }
   } else {

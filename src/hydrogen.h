@@ -333,8 +333,6 @@ class HGraph: public ZoneObject {
   HConstant* GetConstantNull();
   HConstant* GetInvalidContext();
 
-  bool IsStandardConstant(HConstant* constant);
-
   HBasicBlock* CreateBasicBlock();
   HArgumentsObject* GetArgumentsObject() const {
     return arguments_object_.get();
@@ -1494,12 +1492,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
   bool inline_bailout() { return inline_bailout_; }
 
-  enum SoftDeoptimizeMode {
-    MUST_EMIT_SOFT_DEOPT,
-    CAN_OMIT_SOFT_DEOPT
-  };
-
-  void AddSoftDeoptimize(SoftDeoptimizeMode mode = CAN_OMIT_SOFT_DEOPT);
+  void AddSoftDeoptimize();
 
   void Bailout(const char* reason);
 

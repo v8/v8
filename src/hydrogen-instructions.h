@@ -3270,7 +3270,6 @@ class HConstant: public HTemplateInstruction<0> {
             HType type,
             bool is_internalized_string,
             bool is_not_in_new_space,
-            bool is_cell,
             bool boolean_value);
 
   Handle<Object> handle() {
@@ -3319,10 +3318,6 @@ class HConstant: public HTemplateInstruction<0> {
            unique_id_ == UniqueValueId(heap->empty_string());
   }
 
-  bool IsCell() const {
-    return is_cell_;
-  }
-
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
@@ -3334,7 +3329,7 @@ class HConstant: public HTemplateInstruction<0> {
     return Representation::Tagged();
   }
 
-  virtual bool EmitAtUses();
+  virtual bool EmitAtUses() { return !representation().IsDouble(); }
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
@@ -3449,7 +3444,6 @@ class HConstant: public HTemplateInstruction<0> {
   bool has_double_value_ : 1;
   bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
   bool is_not_in_new_space_ : 1;
-  bool is_cell_ : 1;
   bool boolean_value_ : 1;
   int32_t int32_value_;
   double double_value_;
@@ -5102,9 +5096,6 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
         HInnerAllocatedObject::cast(object)->base_object(),
         new_space_dominator);
   }
-  if (object->IsConstant() && HConstant::cast(object)->IsCell()) {
-    return false;
-  }
   if (object != new_space_dominator) return true;
   if (object->IsAllocateObject()) return false;
   if (object->IsAllocate()) {
@@ -5365,9 +5356,6 @@ class HObjectAccess {
   // Create an access to a resolved field (in-object or backing store).
   static HObjectAccess ForField(Handle<Map> map,
       LookupResult *lookup, Handle<String> name = Handle<String>::null());
-
-  // Create an access for the payload of a Cell or JSGlobalPropertyCell.
-  static HObjectAccess ForCellPayload(Isolate* isolate);
 
   void PrintTo(StringStream* stream);
 

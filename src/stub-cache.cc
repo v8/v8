@@ -498,30 +498,15 @@ Handle<Code> StubCache::ComputeStoreNormal(StrictModeFlag strict_mode) {
 Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
                                            Handle<GlobalObject> receiver,
                                            Handle<PropertyCell> cell,
-                                           Handle<Object> value,
                                            StrictModeFlag strict_mode) {
-  Isolate* isolate = cell->GetIsolate();
-  Handle<Type> union_type(cell->UpdateType(*value), isolate);
-  bool is_constant = union_type->IsConstant();
-  StoreGlobalStub stub(strict_mode, is_constant);
-
-  Handle<Code> code = FindIC(
+  Handle<Code> stub = FindIC(
       name, Handle<JSObject>::cast(receiver),
-      Code::STORE_IC, Code::NORMAL, stub.GetExtraICState());
-  if (!code.is_null()) return code;
+      Code::STORE_IC, Code::NORMAL, strict_mode);
+  if (!stub.is_null()) return stub;
 
-  if (is_constant) return stub.GetCode(isolate_);
-
-  // Replace the placeholder cell and global object map with the actual global
-  // cell and receiver map.
-  Handle<Map> cell_map(isolate_->heap()->global_property_cell_map());
-  Handle<Map> meta_map(isolate_->heap()->meta_map());
-  Handle<Object> receiver_map(receiver->map(), isolate_);
-  code = stub.GetCodeCopyFromTemplate(isolate_);
-  code->ReplaceNthObject(1, *meta_map, *receiver_map);
-  code->ReplaceNthObject(1, *cell_map, *cell);
+  StoreStubCompiler compiler(isolate_, strict_mode);
+  Handle<Code> code = compiler.CompileStoreGlobal(receiver, cell, name);
   JSObject::UpdateMapCodeCache(receiver, name, code);
-
   return code;
 }
 
@@ -936,8 +921,12 @@ Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
     if (!cached_ic.is_null()) return cached_ic;
   }
 
-  Handle<Code> ic = stub.GetCodeCopyFromTemplate(isolate_);
-  ic->ReplaceNthObject(1, isolate_->heap()->meta_map(), *receiver_map);
+  Handle<Code> ic = stub.GetCode(isolate_);
+
+  // For monomorphic maps, use the code as a template, copying and replacing
+  // the monomorphic map that checks the object's type.
+  ic = isolate_->factory()->CopyCode(ic);
+  ic->ReplaceFirstMap(*receiver_map);
 
   if (!receiver_map->is_shared()) {
     Map::UpdateCodeCache(receiver_map, name, ic);
