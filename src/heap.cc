@@ -2864,6 +2864,7 @@ MaybeObject* Heap::AllocatePropertyCell(Object* value) {
                            SKIP_WRITE_BARRIER);
   cell->set_value(value);
   cell->set_type(Type::None());
+  cell->SetValueInferType(value);
   return result;
 }
 

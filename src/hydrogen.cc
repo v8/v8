@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -646,6 +646,7 @@ HConstant* HGraph::GetConstant##Name() {                                       \
         htype,                                                                 \
         false,                                                                 \
         true,                                                                  \
+        false,                                                                 \
         boolean_value);                                                        \
     constant->InsertAfter(GetConstantUndefined());                             \
     constant_##name##_.set(constant);                                          \
@@ -665,6 +666,19 @@ DEFINE_GET_CONSTANT(Null, null, HType::Tagged(), false)
 
 HConstant* HGraph::GetInvalidContext() {
   return GetConstant(&constant_invalid_context_, 0xFFFFC0C7);
+}
+
+
+bool HGraph::IsStandardConstant(HConstant* constant) {
+  if (constant == GetConstantUndefined()) return true;
+  if (constant == GetConstant0()) return true;
+  if (constant == GetConstant1()) return true;
+  if (constant == GetConstantMinus1()) return true;
+  if (constant == GetConstantTrue()) return true;
+  if (constant == GetConstantFalse()) return true;
+  if (constant == GetConstantHole()) return true;
+  if (constant == GetConstantNull()) return true;
+  return false;
 }
 
 
@@ -4447,9 +4461,9 @@ void HOptimizedGraphBuilder::PushAndAdd(HInstruction* instr) {
 }
 
 
-void HOptimizedGraphBuilder::AddSoftDeoptimize() {
+void HOptimizedGraphBuilder::AddSoftDeoptimize(SoftDeoptimizeMode mode) {
   isolate()->counters()->soft_deopts_requested()->Increment();
-  if (FLAG_always_opt) return;
+  if (FLAG_always_opt && mode == CAN_OMIT_SOFT_DEOPT) return;
   if (current_block()->IsDeoptimizing()) return;
   Add<HSoftDeoptimize>();
   isolate()->counters()->soft_deopts_inserted()->Increment();
@@ -5402,9 +5416,20 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       if (type == kUseCell) {
         Handle<GlobalObject> global(current_info()->global_object());
         Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
-        HLoadGlobalCell* instr =
-            new(zone()) HLoadGlobalCell(cell, lookup.GetPropertyDetails());
-        return ast_context()->ReturnInstruction(instr, expr->id());
+        if (cell->type()->IsConstant()) {
+          cell->AddDependentCompilationInfo(top_info());
+          Handle<Object> constant_object = cell->type()->AsConstant();
+          if (constant_object->IsConsString()) {
+            constant_object =
+                FlattenGetString(Handle<String>::cast(constant_object));
+          }
+          HConstant* constant = new(zone()) HConstant(constant_object);
+          return ast_context()->ReturnInstruction(constant, expr->id());
+        } else {
+          HLoadGlobalCell* instr =
+              new(zone()) HLoadGlobalCell(cell, lookup.GetPropertyDetails());
+          return ast_context()->ReturnInstruction(instr, expr->id());
+        }
       } else {
         HValue* context = environment()->LookupContext();
         HGlobalObject* global_object = new(zone()) HGlobalObject(context);
@@ -6311,8 +6336,21 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
   if (type == kUseCell) {
     Handle<GlobalObject> global(current_info()->global_object());
     Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
-    HInstruction* instr = Add<HStoreGlobalCell>(value, cell,
-                                                lookup.GetPropertyDetails());
+    if (cell->type()->IsConstant()) {
+      IfBuilder builder(this);
+      HValue* constant = Add<HConstant>(cell->type()->AsConstant());
+      if (cell->type()->AsConstant()->IsNumber()) {
+        builder.IfCompare(value, constant, Token::EQ);
+      } else {
+        builder.If<HCompareObjectEqAndBranch>(value, constant);
+      }
+      builder.Then();
+      builder.Else();
+      AddSoftDeoptimize(MUST_EMIT_SOFT_DEOPT);
+      builder.End();
+    }
+    HInstruction* instr =
+        Add<HStoreGlobalCell>(value, cell, lookup.GetPropertyDetails());
     instr->set_position(position);
     if (instr->HasObservableSideEffects()) {
       AddSimulate(ast_id, REMOVABLE_SIMULATE);

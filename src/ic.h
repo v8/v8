@@ -560,7 +560,8 @@ class StoreIC: public IC {
   virtual Handle<Code> ComputeStoreMonomorphic(LookupResult* lookup,
                                                StrictModeFlag strict_mode,
                                                Handle<JSObject> receiver,
-                                               Handle<String> name);
+                                               Handle<String> name,
+                                               Handle<Object> value);
 
  private:
   void set_target(Code* code) {
@@ -627,7 +628,8 @@ class KeyedStoreIC: public StoreIC {
   virtual Handle<Code> ComputeStoreMonomorphic(LookupResult* lookup,
                                                StrictModeFlag strict_mode,
                                                Handle<JSObject> receiver,
-                                               Handle<String> name);
+                                               Handle<String> name,
+                                               Handle<Object> value);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
   virtual Handle<Code> megamorphic_stub() {
@@ -838,6 +840,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
 
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, CompareNilIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, ToBooleanIC_Miss);
 

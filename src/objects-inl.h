@@ -3787,6 +3787,7 @@ int Code::major_key() {
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
          kind() == COMPARE_NIL_IC ||
+         kind() == STORE_IC ||
          kind() == LOAD_IC ||
          kind() == KEYED_LOAD_IC ||
          kind() == TO_BOOLEAN_IC);

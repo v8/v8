@@ -771,7 +771,7 @@ HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
   IfBuilder if_true(this);
   if_true.If<HBranch>(GetParameter(0), stub->GetTypes());
   if_true.Then();
-    if_true.Return(graph()->GetConstant1());
+  if_true.Return(graph()->GetConstant1());
   if_true.Else();
   if_true.End();
   return graph()->GetConstant0();
@@ -779,6 +779,51 @@ HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
 
 
 Handle<Code> ToBooleanStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
+  StoreGlobalStub* stub = casted_stub();
+  Handle<Object> hole(isolate()->heap()->the_hole_value(), isolate());
+  Handle<Object> placeholer_value(Smi::FromInt(0), isolate());
+  Handle<PropertyCell> placeholder_cell =
+      isolate()->factory()->NewPropertyCell(placeholer_value);
+
+  HParameter* receiver = GetParameter(0);
+  HParameter* value = GetParameter(2);
+
+  if (stub->is_constant()) {
+    // Assume every store to a constant value changes it.
+    current_block()->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
+    set_current_block(NULL);
+  } else {
+    HValue* cell = Add<HConstant>(placeholder_cell, Representation::Tagged());
+    // Check that the map of the global has not changed.
+    AddInstruction(HCheckMaps::New(receiver,
+                                   Handle<Map>(isolate()->heap()->meta_map()),
+                                   zone()));
+
+    // Load the payload of the global parameter cell. A hole indicates that the
+    // property has been deleted and that the store must be handled by the
+    // runtime.
+    HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
+    HValue* cell_contents = Add<HLoadNamedField>(cell, access);
+    IfBuilder builder(this);
+    HValue* hole_value = Add<HConstant>(hole, Representation::Tagged());
+    builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
+    builder.Then();
+    builder.Deopt();
+    builder.Else();
+    Add<HStoreNamedField>(cell, access, value);
+    builder.End();
+  }
+  return value;
+}
+
+
+Handle<Code> StoreGlobalStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
