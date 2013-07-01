@@ -30,6 +30,7 @@
 {
   'variables': {
     'component%': 'static_library',
+    'clang%': 0,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'msvs_multi_core_compile%': '1',
