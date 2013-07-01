@@ -3530,6 +3530,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // sp: stack pointer    (restored as callee's sp after C call)
   // cp: current context  (C callee-saved)
 
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
   // NOTE: Invocations of builtins may return failure objects
   // instead of a proper result. The builtin entry handles
   // this by performing a garbage collection and retrying the
@@ -3622,6 +3624,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Stack:
   // 4 args slots
   // args
+
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Save callee saved registers on the stack.
   __ MultiPush(kCalleeSaved | ra.bit());
@@ -5045,11 +5049,15 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Special handling of the Array() function, which caches not only the
   // monomorphic Array function but the initial ElementsKind with special
   // sentinels
-  Handle<Object> terminal_kind_sentinel =
-      TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
-                                                  LAST_FAST_ELEMENTS_KIND);
   __ JumpIfNotSmi(a3, &miss);
-  __ Branch(&miss, gt, a3, Operand(terminal_kind_sentinel));
+  if (FLAG_debug_code) {
+    Handle<Object> terminal_kind_sentinel =
+    TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
+                                                LAST_FAST_ELEMENTS_KIND);
+    __ Assert(le, "Array function sentinel is not an ElementsKind",
+              a3, Operand(terminal_kind_sentinel));
+  }
+
   // Make sure the function is the Array() function
   __ LoadArrayFunction(a3);
   __ Branch(&megamorphic, ne, a1, Operand(a3));
@@ -7506,7 +7514,8 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (entry_hook_ != NULL) {
+  if (masm->isolate()->function_entry_hook() != NULL) {
+    AllowStubCallsScope allow_stub_calls(masm, true);
     ProfileEntryHookStub stub;
     __ push(ra);
     __ CallStub(&stub);
@@ -7522,8 +7531,11 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
       Assembler::kCallTargetAddressOffset + (2 * Assembler::kInstrSize);
 
   // Save live volatile registers.
-  __ Push(ra, t1, a1);
-  const int32_t kNumSavedRegs = 3;
+  // We also save ra, so the count here is one higher than the mask indicates.
+  const int32_t kNumSavedRegs = kNumJSCallerSaved + 1;
+
+  // Save all caller-save registers as this may be called from anywhere.
+  __ MultiPush(kJSCallerSaved | ra.bit());
 
   // Compute the function's address for the first argument.
   __ Subu(a0, ra, Operand(kReturnAddressDistanceFromFunctionStart));
@@ -7541,14 +7553,13 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   }
 
 #if defined(V8_HOST_ARCH_MIPS)
-  __ li(at, Operand(reinterpret_cast<int32_t>(&entry_hook_)));
-  __ lw(at, MemOperand(at));
+  int32_t entry_hook =
+      reinterpret_cast<int32_t>(masm->isolate()->function_entry_hook());
+  __ li(at, Operand(entry_hook));
 #else
   // Under the simulator we need to indirect the entry hook through a
   // trampoline function at a known address.
-  Address trampoline_address = reinterpret_cast<Address>(
-      reinterpret_cast<intptr_t>(EntryHookTrampoline));
-  ApiFunction dispatcher(trampoline_address);
+  ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
   __ li(at, Operand(ExternalReference(&dispatcher,
                                       ExternalReference::BUILTIN_CALL,
                                       masm->isolate())));
@@ -7560,7 +7571,8 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
     __ mov(sp, t1);
   }
 
-  __ Pop(ra, t1, a1);
+  // Also pop ra to get Ret(0).
+  __ MultiPop(kJSCallerSaved | ra.bit());
   __ Ret();
 }
 
@@ -7614,6 +7626,10 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   __ Addu(a3, a3, Operand(1));
   __ Branch(&normal_sequence, eq, a2, Operand(undefined_sentinel));
 
+  // The type cell may have gone megamorphic, don't overwrite if so.
+  __ lw(t1, FieldMemOperand(a2, kPointerSize));
+  __ JumpIfNotSmi(t1, &normal_sequence);
+
   // Save the resulting elements kind in type info
   __ SmiTag(a3);
   __ sw(a3, FieldMemOperand(a2, kPointerSize));
@@ -7645,7 +7661,7 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
     T stub(kind);
     stub.GetCode(isolate)->set_is_pregenerated(true);
     if (AllocationSiteInfo::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
-      T stub1(kind, true);
+      T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate)->set_is_pregenerated(true);
     }
   }
