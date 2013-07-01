@@ -499,9 +499,9 @@ namespace internal {
   F(GetThreadCount, 1, 1) \
   F(GetThreadDetails, 2, 1) \
   F(SetDisableBreak, 1, 1) \
-  F(GetBreakLocations, 1, 1) \
+  F(GetBreakLocations, 2, 1) \
   F(SetFunctionBreakPoint, 3, 1) \
-  F(SetScriptBreakPoint, 3, 1) \
+  F(SetScriptBreakPoint, 4, 1) \
   F(ClearBreakPoint, 1, 1) \
   F(ChangeBreakOnException, 2, 1) \
   F(IsBreakOnException, 1, 1) \

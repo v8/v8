@@ -509,7 +509,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   Handle<v8::internal::SharedFunctionInfo> shared(fun->shared());
   CHECK(Debug::HasDebugInfo(shared));
   TestBreakLocationIterator it1(Debug::GetDebugInfo(shared));
-  it1.FindBreakLocationFromPosition(position);
+  it1.FindBreakLocationFromPosition(position, v8::internal::STATEMENT_ALIGNED);
   v8::internal::RelocInfo::Mode actual_mode = it1.it()->rinfo()->rmode();
   if (actual_mode == v8::internal::RelocInfo::CODE_TARGET_WITH_ID) {
     actual_mode = v8::internal::RelocInfo::CODE_TARGET;
@@ -528,7 +528,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   CHECK(!debug->HasDebugInfo(shared));
   CHECK(debug->EnsureDebugInfo(shared, fun));
   TestBreakLocationIterator it2(Debug::GetDebugInfo(shared));
-  it2.FindBreakLocationFromPosition(position);
+  it2.FindBreakLocationFromPosition(position, v8::internal::STATEMENT_ALIGNED);
   actual_mode = it2.it()->rinfo()->rmode();
   if (actual_mode == v8::internal::RelocInfo::CODE_TARGET_WITH_ID) {
     actual_mode = v8::internal::RelocInfo::CODE_TARGET;
