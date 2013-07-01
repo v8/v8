@@ -8314,8 +8314,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompleteOptimization) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (FLAG_parallel_recompilation && V8::UseCrankshaft()) {
-    // While function is in optimization pipeline, it is marked with builtins.
-    while (function->code()->kind() == Code::BUILTIN) {
+    // While function is in optimization pipeline, it is marked accordingly.
+    // Note that if the debugger is activated during parallel recompilation,
+    // the function will be marked with the lazy-recompile builtin, which is
+    // not related to parallel recompilation.
+    while (function->IsMarkedForParallelRecompilation() ||
+           function->IsInRecompileQueue() ||
+           function->IsMarkedForInstallingRecompiledCode()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
       OS::Sleep(50);
     }
