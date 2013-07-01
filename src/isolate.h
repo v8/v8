@@ -246,8 +246,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   ThreadId thread_id_;
   MaybeObject* pending_exception_;
   bool has_pending_message_;
+  bool rethrowing_message_;
   Object* pending_message_obj_;
-  Script* pending_message_script_;
+  Object* pending_message_script_;
   int pending_message_start_pos_;
   int pending_message_end_pos_;
   // Use a separate value for scheduled exceptions to preserve the
@@ -582,7 +583,7 @@ class Isolate {
   void clear_pending_message() {
     thread_local_top_.has_pending_message_ = false;
     thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
-    thread_local_top_.pending_message_script_ = NULL;
+    thread_local_top_.pending_message_script_ = heap_.the_hole_value();
   }
   v8::TryCatch* try_catch_handler() {
     return thread_local_top_.TryCatchHandler();
@@ -760,6 +761,9 @@ class Isolate {
   // originally.
   Failure* ReThrow(MaybeObject* exception);
   void ScheduleThrow(Object* exception);
+  // Re-set pending message, script and positions reported to the TryCatch
+  // back to the TLS for re-use when rethrowing.
+  void RestorePendingMessageFromTryCatch(v8::TryCatch* handler);
   void ReportPendingMessages();
   // Return pending location if any or unfilled structure.
   MessageLocation GetMessageLocation();

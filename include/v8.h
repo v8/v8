@@ -4823,7 +4823,10 @@ class V8EXPORT TryCatch {
   v8::internal::Isolate* isolate_;
   void* next_;
   void* exception_;
-  void* message_;
+  void* message_obj_;
+  void* message_script_;
+  int message_start_pos_;
+  int message_end_pos_;
   bool is_verbose_ : 1;
   bool can_continue_ : 1;
   bool capture_message_ : 1;
