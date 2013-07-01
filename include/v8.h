@@ -5401,11 +5401,12 @@ class Internals {
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
 
+  static void CheckInitializedImpl(v8::Isolate* isolate);
+  V8_INLINE(static void CheckInitialized(v8::Isolate* isolate)) {
 #ifdef V8_ENABLE_CHECKS
-  static void CheckInitialized(v8::Isolate* isolate);
-#else
-  static void CheckInitialized(v8::Isolate* isolate) { }
+    CheckInitializedImpl(isolate);
 #endif
+  }
 
   V8_INLINE(static bool HasHeapObjectTag(internal::Object* value)) {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
