@@ -97,9 +97,9 @@ class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
   INLINE(CodeEntry(Logger::LogEventsAndTags tag,
-                   const char* name_prefix,
                    const char* name,
                    int security_token_id = TokenEnumerator::kNoSecurityToken,
+                   const char* name_prefix = CodeEntry::kEmptyNamePrefix,
                    const char* resource_name = CodeEntry::kEmptyResourceName,
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo));
   ~CodeEntry();
@@ -318,18 +318,24 @@ class CpuProfilesCollection {
   const char* GetName(int args_count) {
     return function_and_resource_names_.GetName(args_count);
   }
+  const char* GetFunctionName(Name* name) {
+    return function_and_resource_names_.GetFunctionName(name);
+  }
+  const char* GetFunctionName(const char* name) {
+    return function_and_resource_names_.GetFunctionName(name);
+  }
   CpuProfile* GetProfile(int security_token_id, unsigned uid);
   bool IsLastProfile(const char* title);
   void RemoveProfile(CpuProfile* profile);
   bool HasDetachedProfiles() { return detached_profiles_.length() > 0; }
 
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                          Name* name, String* resource_name, int line_number);
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, const char* name);
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
-                          const char* name_prefix, Name* name);
-  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, int args_count);
-  CodeEntry* NewCodeEntry(int security_token_id);
+  CodeEntry* NewCodeEntry(
+      Logger::LogEventsAndTags tag,
+      const char* name,
+      int security_token_id = TokenEnumerator::kNoSecurityToken,
+      const char* name_prefix = CodeEntry::kEmptyNamePrefix,
+      const char* resource_name = CodeEntry::kEmptyResourceName,
+      int line_number = v8::CpuProfileNode::kNoLineNumberInfo);
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
@@ -338,12 +344,6 @@ class CpuProfilesCollection {
   static const int kMaxSimultaneousProfiles = 100;
 
  private:
-  const char* GetFunctionName(Name* name) {
-    return function_and_resource_names_.GetFunctionName(name);
-  }
-  const char* GetFunctionName(const char* name) {
-    return function_and_resource_names_.GetFunctionName(name);
-  }
   int GetProfileIndex(unsigned uid);
   List<CpuProfile*>* GetProfilesList(int security_token_id);
   int TokenToIndex(int security_token_id);
