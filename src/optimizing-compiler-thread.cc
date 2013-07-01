@@ -115,8 +115,11 @@ void OptimizingCompilerThread::Stop() {
     InstallOptimizedFunctions();
   } else {
     OptimizingCompiler* optimizing_compiler;
+    // The optimizing compiler is allocated in the CompilationInfo's zone.
     while (input_queue_.Dequeue(&optimizing_compiler)) {
-      // The optimizing compiler is allocated in the CompilationInfo's zone.
+      delete optimizing_compiler->info();
+    }
+    while (output_queue_.Dequeue(&optimizing_compiler)) {
       delete optimizing_compiler->info();
     }
   }
