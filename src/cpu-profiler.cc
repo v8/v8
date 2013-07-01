@@ -405,6 +405,7 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
 
 
 CpuProfiler::~CpuProfiler() {
+  ASSERT(!is_profiling_);
   delete token_enumerator_;
   delete profiles_;
 }
@@ -430,23 +431,23 @@ void CpuProfiler::StartProfiling(String* title, bool record_samples) {
 
 void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_ == NULL) {
+    Logger* logger = isolate_->logger();
     // Disable logging when using the new implementation.
-    saved_logging_nesting_ = isolate_->logger()->logging_nesting_;
-    isolate_->logger()->logging_nesting_ = 0;
+    saved_logging_nesting_ = logger->logging_nesting_;
+    logger->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
     processor_ = new ProfilerEventsProcessor(generator_);
     is_profiling_ = true;
     processor_->StartSynchronously();
     // Enumerate stuff we already have in the heap.
-    if (isolate_->heap()->HasBeenSetUp()) {
-      if (!FLAG_prof_browser_mode) {
-        isolate_->logger()->LogCodeObjects();
-      }
-      isolate_->logger()->LogCompiledFunctions();
-      isolate_->logger()->LogAccessorCallbacks();
+    ASSERT(isolate_->heap()->HasBeenSetUp());
+    if (!FLAG_prof_browser_mode) {
+      logger->LogCodeObjects();
     }
+    logger->LogCompiledFunctions();
+    logger->LogAccessorCallbacks();
     // Enable stack sampling.
-    Sampler* sampler = isolate_->logger()->sampler();
+    Sampler* sampler = logger->sampler();
     sampler->IncreaseProfilingDepth();
     if (!sampler->IsActive()) {
       sampler->Start();

@@ -3993,8 +3993,9 @@ class V8EXPORT Isolate {
   HeapProfiler* GetHeapProfiler();
 
   /**
-   * Returns CPU profiler for this isolate. Will return NULL until the isolate
-   * is initialized.
+   * Returns CPU profiler for this isolate. Will return NULL unless the isolate
+   * is initialized. It is the embedder's responsibility to stop all CPU
+   * profiling activities if it has started any.
    */
   CpuProfiler* GetCpuProfiler();
 
