@@ -7530,12 +7530,16 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   const int32_t kReturnAddressDistanceFromFunctionStart =
       Assembler::kCallTargetAddressOffset + (2 * Assembler::kInstrSize);
 
-  // Save live volatile registers.
+  // This should contain all kJSCallerSaved registers.
+  const RegList kSavedRegs =
+     kJSCallerSaved |  // Caller saved registers.
+     s5.bit();         // Saved stack pointer.
+
   // We also save ra, so the count here is one higher than the mask indicates.
-  const int32_t kNumSavedRegs = kNumJSCallerSaved + 1;
+  const int32_t kNumSavedRegs = kNumJSCallerSaved + 2;
 
   // Save all caller-save registers as this may be called from anywhere.
-  __ MultiPush(kJSCallerSaved | ra.bit());
+  __ MultiPush(kSavedRegs | ra.bit());
 
   // Compute the function's address for the first argument.
   __ Subu(a0, ra, Operand(kReturnAddressDistanceFromFunctionStart));
@@ -7547,7 +7551,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // Align the stack if necessary.
   int frame_alignment = masm->ActivationFrameAlignment();
   if (frame_alignment > kPointerSize) {
-    __ mov(t1, sp);
+    __ mov(s5, sp);
     ASSERT(IsPowerOf2(frame_alignment));
     __ And(sp, sp, Operand(-frame_alignment));
   }
@@ -7568,11 +7572,11 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Restore the stack pointer if needed.
   if (frame_alignment > kPointerSize) {
-    __ mov(sp, t1);
+    __ mov(sp, s5);
   }
 
   // Also pop ra to get Ret(0).
-  __ MultiPop(kJSCallerSaved | ra.bit());
+  __ MultiPop(kSavedRegs | ra.bit());
   __ Ret();
 }
 
