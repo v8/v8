@@ -905,3 +905,62 @@ TEST(Issue51919) {
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)
     i::DeleteArray(titles[i]);
 }
+
+
+static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
+                                           const char* name) {
+  for (int i = 0; i < parent->GetChildrenCount(); ++i) {
+    const v8::CpuProfileNode* child = parent->GetChild(i);
+    v8::String::AsciiValue function_name(child->GetFunctionName());
+    if (strcmp(*function_name, name) == 0) return child;
+  }
+  return NULL;
+}
+
+
+TEST(ProfileNodeScriptId) {
+  // This test does not pass with inlining enabled since inlined functions
+  // don't appear in the stack trace.
+  i::FLAG_use_inlining = false;
+
+  const char* extensions[] = { "v8/profiler" };
+  v8::ExtensionConfiguration config(1, extensions);
+  LocalContext env(&config);
+  v8::HandleScope hs(env->GetIsolate());
+
+  v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
+  CHECK_EQ(0, profiler->GetProfileCount());
+  v8::Handle<v8::Script> script_a = v8::Script::Compile(v8::String::New(
+      "function a() { startProfiling(); }\n"));
+  script_a->Run();
+  v8::Handle<v8::Script> script_b = v8::Script::Compile(v8::String::New(
+      "function b() { a(); }\n"
+      "b();\n"
+      "stopProfiling();\n"));
+  script_b->Run();
+  CHECK_EQ(1, profiler->GetProfileCount());
+  const v8::CpuProfile* profile = profiler->GetCpuProfile(0);
+  const v8::CpuProfileNode* current = profile->GetTopDownRoot();
+  reinterpret_cast<ProfileNode*>(
+      const_cast<v8::CpuProfileNode*>(current))->Print(0);
+  // The tree should look like this:
+  //  (root)
+  //   (anonymous function)
+  //     b
+  //       a
+  // There can also be:
+  //         startProfiling
+  // if the sampler managed to get a tick.
+  current = PickChild(current, i::ProfileGenerator::kAnonymousFunctionName);
+  CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
+
+  current = PickChild(current, "b");
+  CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
+  CHECK_EQ(script_b->GetId(), current->GetScriptId());
+
+  current = PickChild(current, "a");
+  CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
+  CHECK_EQ(script_a->GetId(), current->GetScriptId());
+}
+
+
