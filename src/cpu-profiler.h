@@ -166,7 +166,6 @@ class ProfilerEventsProcessor : public Thread {
   bool ProcessTicks(unsigned dequeue_order);
 
   ProfileGenerator* generator_;
-  CpuProfilesCollection* profiles_;
   bool running_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
   SamplingCircularQueue ticks_buffer_;

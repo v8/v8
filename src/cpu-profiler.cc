@@ -49,7 +49,6 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(
     ProfileGenerator* generator, CpuProfilesCollection* profiles)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
-      profiles_(profiles),
       running_(true),
       ticks_buffer_(sizeof(TickSampleEventRecord),
                     kTickSamplesBufferChunkSize,
