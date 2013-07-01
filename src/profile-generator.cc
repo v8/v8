@@ -235,6 +235,12 @@ bool CodeEntry::IsSameAs(CodeEntry* entry) const {
 }
 
 
+void CodeEntry::SetBuiltinId(Builtins::Name id) {
+  tag_ = Logger::BUILTIN_TAG;
+  builtin_id_ = id;
+}
+
+
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
   HashMap::Entry* map_entry =
       children_.Lookup(entry, CodeEntryHash(entry), false);
@@ -847,6 +853,8 @@ const char* const ProfileGenerator::kProgramEntryName =
     "(program)";
 const char* const ProfileGenerator::kGarbageCollectorEntryName =
     "(garbage collector)";
+const char* const ProfileGenerator::kUnresolvedFunctionName =
+    "(unresolved function)";
 
 
 ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
@@ -855,7 +863,10 @@ ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
           profiles->NewCodeEntry(Logger::FUNCTION_TAG, kProgramEntryName)),
       gc_entry_(
           profiles->NewCodeEntry(Logger::BUILTIN_TAG,
-                                 kGarbageCollectorEntryName)) {
+                                 kGarbageCollectorEntryName)),
+      unresolved_entry_(
+          profiles->NewCodeEntry(Logger::FUNCTION_TAG,
+                                 kUnresolvedFunctionName)) {
 }
 
 
@@ -867,33 +878,40 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   CodeEntry** entry = entries.start();
   memset(entry, 0, entries.length() * sizeof(*entry));
   if (sample.pc != NULL) {
-    Address start;
-    CodeEntry* pc_entry = code_map_.FindEntry(sample.pc, &start);
-    // If pc is in the function code before it set up stack frame or after the
-    // frame was destroyed SafeStackFrameIterator incorrectly thinks that
-    // ebp contains return address of the current function and skips caller's
-    // frame. Check for this case and just skip such samples.
-    if (pc_entry) {
-      List<OffsetRange>* ranges = pc_entry->no_frame_ranges();
-      if (ranges) {
-        Code* code = Code::cast(HeapObject::FromAddress(start));
-        int pc_offset = static_cast<int>(sample.pc - code->instruction_start());
-        for (int i = 0; i < ranges->length(); i++) {
-          OffsetRange& range = ranges->at(i);
-          if (range.from <= pc_offset && pc_offset < range.to) {
-            return;
-          }
-        }
-      }
-    }
-    *entry++ = pc_entry;
-
     if (sample.has_external_callback) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
-      *(entries.start()) = NULL;
       *entry++ = code_map_.FindEntry(sample.external_callback);
+    } else {
+      Address start;
+      CodeEntry* pc_entry = code_map_.FindEntry(sample.pc, &start);
+      // If pc is in the function code before it set up stack frame or after the
+      // frame was destroyed SafeStackFrameIterator incorrectly thinks that
+      // ebp contains return address of the current function and skips caller's
+      // frame. Check for this case and just skip such samples.
+      if (pc_entry) {
+        List<OffsetRange>* ranges = pc_entry->no_frame_ranges();
+        if (ranges) {
+          Code* code = Code::cast(HeapObject::FromAddress(start));
+          int pc_offset = static_cast<int>(
+              sample.pc - code->instruction_start());
+          for (int i = 0; i < ranges->length(); i++) {
+            OffsetRange& range = ranges->at(i);
+            if (range.from <= pc_offset && pc_offset < range.to) {
+              return;
+            }
+          }
+        }
+        *entry++ = pc_entry;
+
+        if (pc_entry->builtin_id() == Builtins::kFunctionCall) {
+          // When current function is FunctionCall builtin tos is sometimes
+          // address of the function that invoked it but sometimes it's one
+          // of the arguments. We simply replace the frame with 'unknown' entry.
+          *entry++ = unresolved_entry_;
+        }
+      }
     }
 
     for (const Address* stack_pos = sample.stack,

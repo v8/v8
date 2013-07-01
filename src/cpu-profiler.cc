@@ -446,6 +446,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     }
     logger->LogCompiledFunctions();
     logger->LogAccessorCallbacks();
+    LogBuiltins();
     // Enable stack sampling.
     Sampler* sampler = logger->sampler();
     sampler->IncreaseProfilingDepth();
@@ -503,6 +504,20 @@ void CpuProfiler::StopProcessor() {
   processor_ = NULL;
   generator_ = NULL;
   logger->logging_nesting_ = saved_logging_nesting_;
+}
+
+
+void CpuProfiler::LogBuiltins() {
+  Builtins* builtins = isolate_->builtins();
+  ASSERT(builtins->is_initialized());
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    CodeEventsContainer evt_rec(CodeEventRecord::REPORT_BUILTIN);
+    ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
+    Builtins::Name id = static_cast<Builtins::Name>(i);
+    rec->start = builtins->builtin(id)->address();
+    rec->builtin_id = id;
+    processor_->Enqueue(evt_rec);
+  }
 }
 
 

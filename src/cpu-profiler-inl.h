@@ -56,6 +56,17 @@ void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
 }
 
 
+void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
+  CodeEntry* entry = code_map->FindEntry(start);
+  if (!entry) {
+    // Code objects for builtins should already have been added to the map.
+    UNREACHABLE();
+    return;
+  }
+  entry->SetBuiltinId(builtin_id);
+}
+
+
 TickSample* ProfilerEventsProcessor::TickSampleEvent() {
   generator_->Tick();
   TickSampleEventRecord* evt =
