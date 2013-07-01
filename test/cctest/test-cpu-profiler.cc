@@ -97,87 +97,64 @@ class TestSetup {
 
 }  // namespace
 
-
-i::Code* CreateCode(LocalContext* env) {
-  static int counter = 0;
-  char script[256];
-  char name[32];
-  snprintf(name, sizeof(name), "function_%d", ++counter);
-  snprintf(script, sizeof(script),
-      "function %s() {\n"
-           "var counter = 0;\n"
-           "for (var i = 0; i < %d; ++i) counter += i;\n"
-           "return '%s_' + counter;\n"
-       "}\n"
-       "%s();\n", name, counter, name, name);
-  CompileRun(script);
-  i::Handle<i::JSFunction> fun = v8::Utils::OpenHandle(
-      *v8::Local<v8::Function>::Cast((*env)->Global()->Get(v8_str(name))));
-  fprintf(stderr, "code size: %d\n", fun->code()->ExecutableSize());
-  return fun->code();
-}
-
-
 TEST(CodeEvents) {
   CcTest::InitializeVM();
-  LocalContext env;
   i::Isolate* isolate = i::Isolate::Current();
+  i::Heap* heap = isolate->heap();
   i::Factory* factory = isolate->factory();
   TestSetup test_setup;
-
-  i::HandleScope scope(isolate);
-
-  i::Code* aaa_code = CreateCode(&env);
-  i::Code* comment_code = CreateCode(&env);
-  i::Code* args5_code = CreateCode(&env);
-  i::Code* comment2_code = CreateCode(&env);
-  i::Code* moved_code = CreateCode(&env);
-  i::Code* args3_code = CreateCode(&env);
-  i::Code* args4_code = CreateCode(&env);
-
-  CpuProfilesCollection* profiles = new CpuProfilesCollection;
-  profiles->StartProfiling("", 1, false);
-  ProfileGenerator generator(profiles);
-  ProfilerEventsProcessor processor(&generator, profiles);
+  CpuProfilesCollection profiles;
+  profiles.StartProfiling("", 1, false);
+  ProfileGenerator generator(&profiles);
+  ProfilerEventsProcessor processor(&generator, &profiles);
   processor.Start();
-  CpuProfiler profiler(isolate, profiles, &generator, &processor);
 
   // Enqueue code creation events.
+  i::HandleScope scope(isolate);
   const char* aaa_str = "aaa";
   i::Handle<i::String> aaa_name = factory->NewStringFromAscii(
       i::Vector<const char>(aaa_str, i::StrLength(aaa_str)));
-  profiler.CodeCreateEvent(i::Logger::FUNCTION_TAG, aaa_code, *aaa_name);
-  profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code, "comment");
-  profiler.CodeCreateEvent(i::Logger::STUB_TAG, args5_code, 5);
-  profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code, "comment2");
-  profiler.CodeMoveEvent(comment2_code->address(), moved_code->address());
-  profiler.CodeCreateEvent(i::Logger::STUB_TAG, args3_code, 3);
-  profiler.CodeCreateEvent(i::Logger::STUB_TAG, args4_code, 4);
-
+  processor.CodeCreateEvent(i::Logger::FUNCTION_TAG,
+                            *aaa_name,
+                            heap->empty_string(),
+                            0,
+                            ToAddress(0x1000),
+                            0x100,
+                            ToAddress(0x10000),
+                            NULL);
+  processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
+                            "bbb",
+                            ToAddress(0x1200),
+                            0x80);
+  processor.CodeCreateEvent(i::Logger::STUB_TAG, 5, ToAddress(0x1300), 0x10);
+  processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
+                            "ddd",
+                            ToAddress(0x1400),
+                            0x80);
+  processor.CodeMoveEvent(ToAddress(0x1400), ToAddress(0x1500));
+  processor.CodeCreateEvent(i::Logger::STUB_TAG, 3, ToAddress(0x1600), 0x10);
+  processor.CodeCreateEvent(i::Logger::STUB_TAG, 4, ToAddress(0x1605), 0x10);
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(&processor, aaa_code->address());
+  EnqueueTickSampleEvent(&processor, ToAddress(0x1000));
 
   processor.Stop();
   processor.Join();
 
   // Check the state of profile generator.
-  CodeEntry* aaa = generator.code_map()->FindEntry(aaa_code->address());
-  CHECK_NE(NULL, aaa);
-  CHECK_EQ(aaa_str, aaa->name());
-
-  CodeEntry* comment = generator.code_map()->FindEntry(comment_code->address());
-  CHECK_NE(NULL, comment);
-  CHECK_EQ("comment", comment->name());
-
-  CodeEntry* args5 = generator.code_map()->FindEntry(args5_code->address());
-  CHECK_NE(NULL, args5);
-  CHECK_EQ("5", args5->name());
-
-  CHECK_EQ(NULL, generator.code_map()->FindEntry(comment2_code->address()));
-
-  CodeEntry* comment2 = generator.code_map()->FindEntry(moved_code->address());
-  CHECK_NE(NULL, comment2);
-  CHECK_EQ("comment2", comment2->name());
+  CodeEntry* entry1 = generator.code_map()->FindEntry(ToAddress(0x1000));
+  CHECK_NE(NULL, entry1);
+  CHECK_EQ(aaa_str, entry1->name());
+  CodeEntry* entry2 = generator.code_map()->FindEntry(ToAddress(0x1200));
+  CHECK_NE(NULL, entry2);
+  CHECK_EQ("bbb", entry2->name());
+  CodeEntry* entry3 = generator.code_map()->FindEntry(ToAddress(0x1300));
+  CHECK_NE(NULL, entry3);
+  CHECK_EQ("5", entry3->name());
+  CHECK_EQ(NULL, generator.code_map()->FindEntry(ToAddress(0x1400)));
+  CodeEntry* entry4 = generator.code_map()->FindEntry(ToAddress(0x1500));
+  CHECK_NE(NULL, entry4);
+  CHECK_EQ("ddd", entry4->name());
+  CHECK_EQ(NULL, generator.code_map()->FindEntry(ToAddress(0x1600)));
 }
 
 
@@ -188,40 +165,32 @@ static int CompareProfileNodes(const T* p1, const T* p2) {
 
 TEST(TickEvents) {
   TestSetup test_setup;
-  LocalContext env;
-  i::Isolate* isolate = i::Isolate::Current();
-  i::HandleScope scope(isolate);
-
-  i::Code* frame1_code = CreateCode(&env);
-  i::Code* frame2_code = CreateCode(&env);
-  i::Code* frame3_code = CreateCode(&env);
-
-  CpuProfilesCollection* profiles = new CpuProfilesCollection;
-  profiles->StartProfiling("", 1, false);
-  ProfileGenerator generator(profiles);
-  ProfilerEventsProcessor processor(&generator, profiles);
+  CpuProfilesCollection profiles;
+  profiles.StartProfiling("", 1, false);
+  ProfileGenerator generator(&profiles);
+  ProfilerEventsProcessor processor(&generator, &profiles);
   processor.Start();
-  CpuProfiler profiler(isolate, profiles, &generator, &processor);
 
-  profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
-  profiler.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, 5);
-  profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
-
-  EnqueueTickSampleEvent(&processor, frame1_code->instruction_start());
-  EnqueueTickSampleEvent(
-      &processor,
-      frame2_code->instruction_start() + frame2_code->ExecutableSize() / 2,
-      frame1_code->instruction_start() + frame2_code->ExecutableSize() / 2);
-  EnqueueTickSampleEvent(
-      &processor,
-      frame3_code->instruction_end() - 1,
-      frame2_code->instruction_end() - 1,
-      frame1_code->instruction_end() - 1);
+  processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
+                            "bbb",
+                            ToAddress(0x1200),
+                            0x80);
+  processor.CodeCreateEvent(i::Logger::STUB_TAG, 5, ToAddress(0x1300), 0x10);
+  processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
+                            "ddd",
+                            ToAddress(0x1400),
+                            0x80);
+  EnqueueTickSampleEvent(&processor, ToAddress(0x1210));
+  EnqueueTickSampleEvent(&processor, ToAddress(0x1305), ToAddress(0x1220));
+  EnqueueTickSampleEvent(&processor,
+                         ToAddress(0x1404),
+                         ToAddress(0x1305),
+                         ToAddress(0x1230));
 
   processor.Stop();
   processor.Join();
   CpuProfile* profile =
-      profiles->StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
+      profiles.StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
   CHECK_NE(NULL, profile);
 
   // Check call trees.
@@ -260,33 +229,29 @@ TEST(CrashIfStoppingLastNonExistentProfile) {
 // Long stacks (exceeding max frames limit) must not be erased.
 TEST(Issue1398) {
   TestSetup test_setup;
-  LocalContext env;
-  i::Isolate* isolate = i::Isolate::Current();
-  i::HandleScope scope(isolate);
-
-  i::Code* code = CreateCode(&env);
-
-  CpuProfilesCollection* profiles = new CpuProfilesCollection;
-  profiles->StartProfiling("", 1, false);
-  ProfileGenerator generator(profiles);
-  ProfilerEventsProcessor processor(&generator, profiles);
+  CpuProfilesCollection profiles;
+  profiles.StartProfiling("", 1, false);
+  ProfileGenerator generator(&profiles);
+  ProfilerEventsProcessor processor(&generator, &profiles);
   processor.Start();
-  CpuProfiler profiler(isolate, profiles, &generator, &processor);
 
-  profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
+  processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
+                            "bbb",
+                            ToAddress(0x1200),
+                            0x80);
 
   i::TickSample* sample = processor.TickSampleEvent();
-  sample->pc = code->address();
+  sample->pc = ToAddress(0x1200);
   sample->tos = 0;
   sample->frames_count = i::TickSample::kMaxFramesCount;
   for (int i = 0; i < sample->frames_count; ++i) {
-    sample->stack[i] = code->address();
+    sample->stack[i] = ToAddress(0x1200);
   }
 
   processor.Stop();
   processor.Join();
   CpuProfile* profile =
-      profiles->StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
+      profiles.StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
   CHECK_NE(NULL, profile);
 
   int actual_depth = 0;

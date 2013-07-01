@@ -298,7 +298,7 @@ class DeleteNodesCallback {
 
 
 ProfileTree::ProfileTree()
-    : root_entry_(Logger::FUNCTION_TAG, "(root)"),
+    : root_entry_(Logger::FUNCTION_TAG, "", "(root)"),
       next_node_id_(1),
       root_(new ProfileNode(this, &root_entry_)) {
 }
@@ -787,6 +787,54 @@ List<CpuProfile*>* CpuProfilesCollection::Profiles(int security_token_id) {
 }
 
 
+CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
+                                               Name* name,
+                                               String* resource_name,
+                                               int line_number) {
+  CodeEntry* entry = new CodeEntry(tag,
+                                   CodeEntry::kEmptyNamePrefix,
+                                   GetFunctionName(name),
+                                   TokenEnumerator::kNoSecurityToken,
+                                   GetName(resource_name),
+                                   line_number);
+  code_entries_.Add(entry);
+  return entry;
+}
+
+
+CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
+                                               const char* name) {
+  CodeEntry* entry = new CodeEntry(tag,
+                                   CodeEntry::kEmptyNamePrefix,
+                                   GetFunctionName(name));
+  code_entries_.Add(entry);
+  return entry;
+}
+
+
+CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
+                                               const char* name_prefix,
+                                               Name* name) {
+  CodeEntry* entry = new CodeEntry(tag,
+                                   name_prefix,
+                                   GetName(name),
+                                   TokenEnumerator::kInheritsSecurityToken);
+  code_entries_.Add(entry);
+  return entry;
+}
+
+
+CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
+                                               int args_count) {
+  CodeEntry* entry = new CodeEntry(tag,
+                                   "args_count: ",
+                                   GetName(args_count),
+                                   TokenEnumerator::kInheritsSecurityToken);
+  code_entries_.Add(entry);
+  return entry;
+}
+
+
 void CpuProfilesCollection::AddPathToCurrentProfiles(
     const Vector<CodeEntry*>& path) {
   // As starting / stopping profiles is rare relatively to this
@@ -797,24 +845,6 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
     current_profiles_[i]->AddPath(path);
   }
   current_profiles_semaphore_->Signal();
-}
-
-
-CodeEntry* CpuProfilesCollection::NewCodeEntry(
-      Logger::LogEventsAndTags tag,
-      const char* name,
-      int security_token_id,
-      const char* name_prefix,
-      const char* resource_name,
-      int line_number) {
-  CodeEntry* code_entry = new CodeEntry(tag,
-                                        name,
-                                        security_token_id,
-                                        name_prefix,
-                                        resource_name,
-                                        line_number);
-  code_entries_.Add(code_entry);
-  return code_entry;
 }
 
 

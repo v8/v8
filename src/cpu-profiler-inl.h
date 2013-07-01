@@ -64,6 +64,16 @@ TickSample* ProfilerEventsProcessor::TickSampleEvent() {
 }
 
 
+bool ProfilerEventsProcessor::FilterOutCodeCreateEvent(
+    Logger::LogEventsAndTags tag) {
+  return FLAG_prof_browser_mode
+      && (tag != Logger::CALLBACK_TAG
+          && tag != Logger::FUNCTION_TAG
+          && tag != Logger::LAZY_COMPILE_TAG
+          && tag != Logger::REG_EXP_TAG
+          && tag != Logger::SCRIPT_TAG);
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_CPU_PROFILER_INL_H_

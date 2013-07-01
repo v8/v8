@@ -58,9 +58,120 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(
 }
 
 
-void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
-  event.generic.order = ++enqueue_order_;
-  events_buffer_.Enqueue(event);
+void ProfilerEventsProcessor::CallbackCreateEvent(Logger::LogEventsAndTags tag,
+                                                  const char* prefix,
+                                                  Name* name,
+                                                  Address start) {
+  if (FilterOutCodeCreateEvent(tag)) return;
+  CodeEventsContainer evt_rec;
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->type = CodeEventRecord::CODE_CREATION;
+  rec->order = ++enqueue_order_;
+  rec->start = start;
+  rec->entry = profiles_->NewCodeEntry(tag, prefix, name);
+  rec->size = 1;
+  rec->shared = NULL;
+  events_buffer_.Enqueue(evt_rec);
+}
+
+
+void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
+                                              Name* name,
+                                              String* resource_name,
+                                              int line_number,
+                                              Address start,
+                                              unsigned size,
+                                              Address shared,
+                                              CompilationInfo* info) {
+  if (FilterOutCodeCreateEvent(tag)) return;
+  CodeEventsContainer evt_rec;
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->type = CodeEventRecord::CODE_CREATION;
+  rec->order = ++enqueue_order_;
+  rec->start = start;
+  rec->entry = profiles_->NewCodeEntry(tag, name, resource_name, line_number);
+  if (info) {
+    rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
+  }
+  rec->size = size;
+  rec->shared = shared;
+  events_buffer_.Enqueue(evt_rec);
+}
+
+
+void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
+                                              const char* name,
+                                              Address start,
+                                              unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
+  CodeEventsContainer evt_rec;
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->type = CodeEventRecord::CODE_CREATION;
+  rec->order = ++enqueue_order_;
+  rec->start = start;
+  rec->entry = profiles_->NewCodeEntry(tag, name);
+  rec->size = size;
+  rec->shared = NULL;
+  events_buffer_.Enqueue(evt_rec);
+}
+
+
+void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
+                                              int args_count,
+                                              Address start,
+                                              unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
+  CodeEventsContainer evt_rec;
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->type = CodeEventRecord::CODE_CREATION;
+  rec->order = ++enqueue_order_;
+  rec->start = start;
+  rec->entry = profiles_->NewCodeEntry(tag, args_count);
+  rec->size = size;
+  rec->shared = NULL;
+  events_buffer_.Enqueue(evt_rec);
+}
+
+
+void ProfilerEventsProcessor::CodeMoveEvent(Address from, Address to) {
+  CodeEventsContainer evt_rec;
+  CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
+  rec->type = CodeEventRecord::CODE_MOVE;
+  rec->order = ++enqueue_order_;
+  rec->from = from;
+  rec->to = to;
+  events_buffer_.Enqueue(evt_rec);
+}
+
+
+void ProfilerEventsProcessor::SharedFunctionInfoMoveEvent(Address from,
+                                                          Address to) {
+  CodeEventsContainer evt_rec;
+  SharedFunctionInfoMoveEventRecord* rec =
+      &evt_rec.SharedFunctionInfoMoveEventRecord_;
+  rec->type = CodeEventRecord::SHARED_FUNC_MOVE;
+  rec->order = ++enqueue_order_;
+  rec->from = from;
+  rec->to = to;
+  events_buffer_.Enqueue(evt_rec);
+}
+
+
+void ProfilerEventsProcessor::RegExpCodeCreateEvent(
+    Logger::LogEventsAndTags tag,
+    const char* prefix,
+    String* name,
+    Address start,
+    unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
+  CodeEventsContainer evt_rec;
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->type = CodeEventRecord::CODE_CREATION;
+  rec->order = ++enqueue_order_;
+  rec->start = start;
+  rec->entry = profiles_->NewCodeEntry(tag, prefix, name);
+  rec->size = size;
+  events_buffer_.Enqueue(evt_rec);
 }
 
 
@@ -194,56 +305,30 @@ bool CpuProfiler::HasDetachedProfiles() {
 }
 
 
-static bool FilterOutCodeCreateEvent(Logger::LogEventsAndTags tag) {
-  return FLAG_prof_browser_mode
-      && (tag != Logger::CALLBACK_TAG
-          && tag != Logger::FUNCTION_TAG
-          && tag != Logger::LAZY_COMPILE_TAG
-          && tag != Logger::REG_EXP_TAG
-          && tag != Logger::SCRIPT_TAG);
-}
-
-
 void CpuProfiler::CallbackEvent(Name* name, Address entry_point) {
-  if (FilterOutCodeCreateEvent(Logger::CALLBACK_TAG)) return;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = entry_point;
-  rec->entry = profiles_->NewCodeEntry(
-      Logger::CALLBACK_TAG,
-      profiles_->GetName(name),
-      TokenEnumerator::kInheritsSecurityToken);
-  rec->size = 1;
-  rec->shared = NULL;
-  processor_->Enqueue(evt_rec);
+  processor_->CallbackCreateEvent(
+      Logger::CALLBACK_TAG, CodeEntry::kEmptyNamePrefix, name, entry_point);
 }
 
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                                  Code* code,
-                                  const char* name) {
-  if (FilterOutCodeCreateEvent(tag)) return;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = code->address();
-  rec->entry = profiles_->NewCodeEntry(tag, profiles_->GetFunctionName(name));
-  rec->size = code->ExecutableSize();
-  rec->shared = NULL;
-  processor_->Enqueue(evt_rec);
+                           Code* code, const char* comment) {
+  processor_->CodeCreateEvent(
+      tag, comment, code->address(), code->ExecutableSize());
 }
 
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                                  Code* code,
-                                  Name* name) {
-  if (FilterOutCodeCreateEvent(tag)) return;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = code->address();
-  rec->entry = profiles_->NewCodeEntry(tag, profiles_->GetFunctionName(name));
-  rec->size = code->ExecutableSize();
-  rec->shared = NULL;
-  processor_->Enqueue(evt_rec);
+                           Code* code, Name* name) {
+  processor_->CodeCreateEvent(
+      tag,
+      name,
+      isolate_->heap()->empty_string(),
+      v8::CpuProfileNode::kNoLineNumberInfo,
+      code->address(),
+      code->ExecutableSize(),
+      NULL,
+      NULL);
 }
 
 
@@ -252,17 +337,15 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   SharedFunctionInfo* shared,
                                   CompilationInfo* info,
                                   Name* name) {
-  if (FilterOutCodeCreateEvent(tag)) return;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = code->address();
-  rec->entry = profiles_->NewCodeEntry(tag, profiles_->GetFunctionName(name));
-  rec->entry->set_no_frame_ranges(info ?
-                                  info->ReleaseNoFrameRanges() :
-                                  NULL);
-  rec->size = code->ExecutableSize();
-  rec->shared = shared->address();
-  processor_->Enqueue(evt_rec);
+  processor_->CodeCreateEvent(
+      tag,
+      name,
+      isolate_->heap()->empty_string(),
+      v8::CpuProfileNode::kNoLineNumberInfo,
+      code->address(),
+      code->ExecutableSize(),
+      shared->address(),
+      info);
 }
 
 
@@ -271,50 +354,30 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   SharedFunctionInfo* shared,
                                   CompilationInfo* info,
                                   String* source, int line) {
-  if (FilterOutCodeCreateEvent(tag)) return;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = code->address();
-  rec->entry = profiles_->NewCodeEntry(
+  processor_->CodeCreateEvent(
       tag,
-      profiles_->GetFunctionName(shared->DebugName()),
-      TokenEnumerator::kNoSecurityToken,
-      CodeEntry::kEmptyNamePrefix,
-      profiles_->GetName(source),
-      line);
-  rec->entry->set_no_frame_ranges(info ?
-                                  info->ReleaseNoFrameRanges() :
-                                  NULL);
-  rec->size = code->ExecutableSize();
-  rec->shared = shared->address();
-  processor_->Enqueue(evt_rec);
+      shared->DebugName(),
+      source,
+      line,
+      code->address(),
+      code->ExecutableSize(),
+      shared->address(),
+      info);
 }
 
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                                  Code* code,
-                                  int args_count) {
-  if (FilterOutCodeCreateEvent(tag)) return;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = code->address();
-  rec->entry = profiles_->NewCodeEntry(
+                           Code* code, int args_count) {
+  processor_->CodeCreateEvent(
       tag,
-      profiles_->GetName(args_count),
-      TokenEnumerator::kInheritsSecurityToken,
-      "args_count: ");
-  rec->size = code->ExecutableSize();
-  rec->shared = NULL;
-  processor_->Enqueue(evt_rec);
+      args_count,
+      code->address(),
+      code->ExecutableSize());
 }
 
 
 void CpuProfiler::CodeMoveEvent(Address from, Address to) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_MOVE);
-  CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
-  rec->from = from;
-  rec->to = to;
-  processor_->Enqueue(evt_rec);
+  processor_->CodeMoveEvent(from, to);
 }
 
 
@@ -323,59 +386,29 @@ void CpuProfiler::CodeDeleteEvent(Address from) {
 
 
 void CpuProfiler::SharedFunctionInfoMoveEvent(Address from, Address to) {
-  CodeEventsContainer evt_rec(CodeEventRecord::SHARED_FUNC_MOVE);
-  SharedFunctionInfoMoveEventRecord* rec =
-      &evt_rec.SharedFunctionInfoMoveEventRecord_;
-  rec->from = from;
-  rec->to = to;
-  processor_->Enqueue(evt_rec);
+  processor_->SharedFunctionInfoMoveEvent(from, to);
 }
 
 
 void CpuProfiler::GetterCallbackEvent(Name* name, Address entry_point) {
-  if (FilterOutCodeCreateEvent(Logger::CALLBACK_TAG)) return;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = entry_point;
-  rec->entry = profiles_->NewCodeEntry(
-      Logger::CALLBACK_TAG,
-      profiles_->GetName(name),
-      TokenEnumerator::kInheritsSecurityToken,
-      "get ");
-  rec->size = 1;
-  rec->shared = NULL;
-  processor_->Enqueue(evt_rec);
+  processor_->CallbackCreateEvent(
+      Logger::CALLBACK_TAG, "get ", name, entry_point);
 }
 
 
 void CpuProfiler::RegExpCodeCreateEvent(Code* code, String* source) {
-  if (FilterOutCodeCreateEvent(Logger::REG_EXP_TAG)) return;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = code->address();
-  rec->entry = profiles_->NewCodeEntry(
+  processor_->RegExpCodeCreateEvent(
       Logger::REG_EXP_TAG,
-      profiles_->GetName(source),
-      TokenEnumerator::kInheritsSecurityToken,
-      "RegExp: ");
-  rec->size = code->ExecutableSize();
-  processor_->Enqueue(evt_rec);
+      "RegExp: ",
+      source,
+      code->address(),
+      code->ExecutableSize());
 }
 
 
 void CpuProfiler::SetterCallbackEvent(Name* name, Address entry_point) {
-  if (FilterOutCodeCreateEvent(Logger::CALLBACK_TAG)) return;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = entry_point;
-  rec->entry = profiles_->NewCodeEntry(
-      Logger::CALLBACK_TAG,
-      profiles_->GetName(name),
-      TokenEnumerator::kInheritsSecurityToken,
-      "set ");
-  rec->size = 1;
-  rec->shared = NULL;
-  processor_->Enqueue(evt_rec);
+  processor_->CallbackCreateEvent(
+      Logger::CALLBACK_TAG, "set ", name, entry_point);
 }
 
 
@@ -386,21 +419,6 @@ CpuProfiler::CpuProfiler(Isolate* isolate)
       token_enumerator_(new TokenEnumerator()),
       generator_(NULL),
       processor_(NULL),
-      need_to_stop_sampler_(false),
-      is_profiling_(false) {
-}
-
-
-CpuProfiler::CpuProfiler(Isolate* isolate,
-                         CpuProfilesCollection* test_profiles,
-                         ProfileGenerator* test_generator,
-                         ProfilerEventsProcessor* test_processor)
-    : isolate_(isolate),
-      profiles_(test_profiles),
-      next_profile_uid_(1),
-      token_enumerator_(new TokenEnumerator()),
-      generator_(test_generator),
-      processor_(test_processor),
       need_to_stop_sampler_(false),
       is_profiling_(false) {
 }
