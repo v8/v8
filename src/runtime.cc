@@ -12102,28 +12102,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetDisableBreak) {
 }
 
 
-static bool IsPositionAlignmentValueCorrect(BreakPositionAlignment alignment) {
-  return alignment == STATEMENT_ALIGNED || alignment == BREAK_POSITION_ALIGNED;
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetBreakLocations) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 1);
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  CONVERT_NUMBER_CHECKED(int32_t, statement_alighned_code, Int32, args[1]);
-
-  BreakPositionAlignment alignment =
-      static_cast<BreakPositionAlignment>(statement_alighned_code);
-  if (!IsPositionAlignmentValueCorrect(alignment)) {
-    return isolate->ThrowIllegalOperation();
-  }
-
   Handle<SharedFunctionInfo> shared(fun->shared());
   // Find the number of break points
-  Handle<Object> break_locations =
-      Debug::GetSourceBreakLocations(shared, alignment);
+  Handle<Object> break_locations = Debug::GetSourceBreakLocations(shared);
   if (break_locations->IsUndefined()) return isolate->heap()->undefined_value();
   // Return array as JS array
   return *isolate->factory()->NewJSArrayWithElements(
@@ -12156,22 +12142,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFunctionBreakPoint) {
 // GetScriptFromScriptData.
 // args[0]: script to set break point in
 // args[1]: number: break source position (within the script source)
-// args[2]: number, breakpoint position alignment
-// args[3]: number: break point object
+// args[2]: number: break point object
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetScriptBreakPoint) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 4);
+  ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSValue, wrapper, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
   RUNTIME_ASSERT(source_position >= 0);
-  CONVERT_NUMBER_CHECKED(int32_t, statement_alighned_code, Int32, args[2]);
-  Handle<Object> break_point_object_arg = args.at<Object>(3);
-
-  BreakPositionAlignment alignment =
-      static_cast<BreakPositionAlignment>(statement_alighned_code);
-  if (!IsPositionAlignmentValueCorrect(alignment)) {
-    return isolate->ThrowIllegalOperation();
-  }
+  Handle<Object> break_point_object_arg = args.at<Object>(2);
 
   // Get the script from the script wrapper.
   RUNTIME_ASSERT(wrapper->value()->IsScript());
@@ -12179,8 +12157,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetScriptBreakPoint) {
 
   // Set break point.
   if (!isolate->debug()->SetBreakPointForScript(script, break_point_object_arg,
-                                                &source_position,
-                                                alignment)) {
+                                                &source_position)) {
     return  isolate->heap()->undefined_value();
   }
 

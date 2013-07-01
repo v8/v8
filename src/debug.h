@@ -79,14 +79,6 @@ enum BreakLocatorType {
 };
 
 
-// The different types of breakpoint position alignments.
-// Must match Debug.BreakPositionAlignment in debug-debugger.js
-enum BreakPositionAlignment {
-  STATEMENT_ALIGNED = 0,
-  BREAK_POSITION_ALIGNED = 1
-};
-
-
 // Class for iterating through the break points in a function and changing
 // them.
 class BreakLocationIterator {
@@ -98,8 +90,7 @@ class BreakLocationIterator {
   void Next();
   void Next(int count);
   void FindBreakLocationFromAddress(Address pc);
-  void FindBreakLocationFromPosition(int position,
-      BreakPositionAlignment alignment);
+  void FindBreakLocationFromPosition(int position);
   void Reset();
   bool Done() const;
   void SetBreakPoint(Handle<Object> break_point_object);
@@ -250,8 +241,7 @@ class Debug {
                      int* source_position);
   bool SetBreakPointForScript(Handle<Script> script,
                               Handle<Object> break_point_object,
-                              int* source_position,
-                              BreakPositionAlignment alignment);
+                              int* source_position);
   void ClearBreakPoint(Handle<Object> break_point_object);
   void ClearAllBreakPoints();
   void FloodWithOneShot(Handle<JSFunction> function);
@@ -294,8 +284,7 @@ class Debug {
   static Handle<Code> FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode);
 
   static Handle<Object> GetSourceBreakLocations(
-      Handle<SharedFunctionInfo> shared,
-      BreakPositionAlignment position_aligment);
+      Handle<SharedFunctionInfo> shared);
 
   // Getter for the debug_context.
   inline Handle<Context> debug_context() { return debug_context_; }
