@@ -63,7 +63,7 @@ class CodeEventRecord {
 #undef DECLARE_TYPE
 
   Type type;
-  unsigned order;
+  mutable unsigned order;
 };
 
 
@@ -122,6 +122,21 @@ class TickSampleEventRecord {
 };
 
 
+class CodeEventsContainer {
+ public:
+  explicit CodeEventsContainer(
+      CodeEventRecord::Type type = CodeEventRecord::NONE) {
+    generic.type = type;
+  }
+  union  {
+    CodeEventRecord generic;
+#define DECLARE_CLASS(ignore, type) type type##_;
+    CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
+#undef DECLARE_TYPE
+  };
+};
+
+
 // This class implements both the profile events processor thread and
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public Thread {
@@ -134,29 +149,8 @@ class ProfilerEventsProcessor : public Thread {
   virtual void Run();
   inline void Stop() { running_ = false; }
   INLINE(bool running()) { return running_; }
+  void Enqueue(const CodeEventsContainer& event);
 
-  // Events adding methods. Called by VM threads.
-  void CallbackCreateEvent(Logger::LogEventsAndTags tag,
-                           const char* prefix, Name* name,
-                           Address start);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       Name* name,
-                       String* resource_name, int line_number,
-                       Address start, unsigned size,
-                       Address shared,
-                       CompilationInfo* info);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       const char* name,
-                       Address start, unsigned size);
-  void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       int args_count,
-                       Address start, unsigned size);
-  void CodeMoveEvent(Address from, Address to);
-  void CodeDeleteEvent(Address from);
-  void SharedFunctionInfoMoveEvent(Address from, Address to);
-  void RegExpCodeCreateEvent(Logger::LogEventsAndTags tag,
-                             const char* prefix, String* name,
-                             Address start, unsigned size);
   // Puts current stack into tick sample events buffer.
   void AddCurrentStack();
 
@@ -167,18 +161,9 @@ class ProfilerEventsProcessor : public Thread {
   INLINE(TickSample* TickSampleEvent());
 
  private:
-  union CodeEventsContainer {
-    CodeEventRecord generic;
-#define DECLARE_CLASS(ignore, type) type type##_;
-    CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
-#undef DECLARE_TYPE
-  };
-
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent(unsigned* dequeue_order);
   bool ProcessTicks(unsigned dequeue_order);
-
-  INLINE(static bool FilterOutCodeCreateEvent(Logger::LogEventsAndTags tag));
 
   ProfileGenerator* generator_;
   CpuProfilesCollection* profiles_;
@@ -204,6 +189,12 @@ class ProfilerEventsProcessor : public Thread {
 class CpuProfiler {
  public:
   explicit CpuProfiler(Isolate* isolate);
+
+  CpuProfiler(Isolate* isolate,
+              CpuProfilesCollection* test_collection,
+              ProfileGenerator* test_generator,
+              ProfilerEventsProcessor* test_processor);
+
   ~CpuProfiler();
 
   void StartProfiling(const char* title, bool record_samples = false);
