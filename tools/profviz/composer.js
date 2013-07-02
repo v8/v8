@@ -422,6 +422,7 @@ function PlotScriptComposer(kResX, kResY) {
     output("set style fill pattern 2 bo 1");
     output("set style rect fs solid 1 noborder");
     output("set style line 1 lt 1 lw 1 lc rgb \"#000000\"");
+    output("set border 15 lw 0.2");  // Draw thin border box.
     output("set xtics out nomirror");
     output("unset key");
 

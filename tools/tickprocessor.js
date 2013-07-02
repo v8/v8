@@ -204,7 +204,7 @@ function TickProcessor(
   // Convert picoseconds to nanoseconds.
   this.distortion_per_entry = isNaN(distortion) ? 0 : (distortion / 1000);
   this.distortion = 0;
-  var rangelimits = range.split(",");
+  var rangelimits = range ? range.split(",") : [];
   var range_start = parseInt(rangelimits[0]);
   var range_end = parseInt(rangelimits[1]);
   // Convert milliseconds to nanoseconds.
