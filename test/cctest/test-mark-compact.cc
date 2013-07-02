@@ -581,9 +581,9 @@ intptr_t ShortLivingIsolate() {
 
 
 TEST(RegressJoinThreadsOnIsolateDeinit) {
-  intptr_t first_size = ShortLivingIsolate();
+  intptr_t size_limit = ShortLivingIsolate() * 2;
   for (int i = 0; i < 10; i++) {
-    CHECK_EQ(first_size, ShortLivingIsolate());
+    CHECK_GT(size_limit, ShortLivingIsolate());
   }
 }
 
