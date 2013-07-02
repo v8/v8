@@ -1062,6 +1062,11 @@ TEST(FunctionCallSample) {
 
   cpu_profiler->StartCpuProfiling(profile_name);
   int32_t duration_ms = 100;
+#if defined(_WIN32) || defined(_WIN64)
+  // 100ms is not enough on Windows. See
+  // https://code.google.com/p/v8/issues/detail?id=2628
+  duration_ms = 400;
+#endif
   v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
   function->Call(env->Global(), ARRAY_SIZE(args), args);
   const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
