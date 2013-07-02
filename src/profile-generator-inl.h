@@ -50,6 +50,7 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
                      const char* resource_name,
                      int line_number)
     : tag_(tag),
+      builtin_id_(Builtins::builtin_count),
       name_prefix_(name_prefix),
       name_(name),
       resource_name_(resource_name),
