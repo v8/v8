@@ -1932,19 +1932,7 @@ class JSObject: public JSReceiver {
                              Handle<Object> getter,
                              Handle<Object> setter,
                              PropertyAttributes attributes);
-  // Can cause GC.
-  MUST_USE_RESULT MaybeObject* DefineAccessor(Name* name,
-                                              Object* getter,
-                                              Object* setter,
-                                              PropertyAttributes attributes);
-  // Try to define a single accessor paying attention to map transitions.
-  // Returns a JavaScript null if this was not possible and we have to use the
-  // slow case. Note that we can fail due to allocations, too.
-  MUST_USE_RESULT MaybeObject* DefineFastAccessor(
-      Name* name,
-      AccessorComponent component,
-      Object* accessor,
-      PropertyAttributes attributes);
+
   Object* LookupAccessor(Name* name, AccessorComponent component);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
@@ -2515,18 +2503,26 @@ class JSObject: public JSReceiver {
       Name* name,
       Object* structure,
       PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* DefineElementAccessor(
-      uint32_t index,
-      Object* getter,
-      Object* setter,
-      PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* CreateAccessorPairFor(Name* name);
-  MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
-      Name* name,
-      Object* getter,
-      Object* setter,
-      PropertyAttributes attributes);
+  static void DefineElementAccessor(Handle<JSObject> object,
+                                    uint32_t index,
+                                    Handle<Object> getter,
+                                    Handle<Object> setter,
+                                    PropertyAttributes attributes);
+  static Handle<AccessorPair> CreateAccessorPairFor(Handle<JSObject> object,
+                                                    Handle<Name> name);
+  static void DefinePropertyAccessor(Handle<JSObject> object,
+                                     Handle<Name> name,
+                                     Handle<Object> getter,
+                                     Handle<Object> setter,
+                                     PropertyAttributes attributes);
 
+  // Try to define a single accessor paying attention to map transitions.
+  // Returns false if this was not possible and we have to use the slow case.
+  static bool DefineFastAccessor(Handle<JSObject> object,
+                                 Handle<Name> name,
+                                 AccessorComponent component,
+                                 Handle<Object> accessor,
+                                 PropertyAttributes attributes);
 
   enum InitializeHiddenProperties {
     CREATE_NEW_IF_ABSENT,
@@ -9259,7 +9255,7 @@ class AccessorPair: public Struct {
 
   static inline AccessorPair* cast(Object* obj);
 
-  MUST_USE_RESULT MaybeObject* Copy();
+  static Handle<AccessorPair> Copy(Handle<AccessorPair> pair);
 
   Object* get(AccessorComponent component) {
     return component == ACCESSOR_GETTER ? getter() : setter();
