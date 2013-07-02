@@ -213,7 +213,11 @@ void HUint32AnalysisPhase::Run() {
     // Analyze instruction and mark it with kUint32 if all
     // its uses are uint32 safe.
     HInstruction* current = uint32_instructions->at(i);
-    if (Uint32UsesAreSafe(current)) current->SetFlag(HInstruction::kUint32);
+    if (current->IsLinked() &&
+        current->representation().IsInteger32() &&
+        Uint32UsesAreSafe(current)) {
+      current->SetFlag(HInstruction::kUint32);
+    }
   }
 
   // Some phis might have been optimistically marked with kUint32 flag.
