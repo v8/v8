@@ -30,7 +30,7 @@
 #include <cstdarg>
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_ARM)
+#if V8_TARGET_ARCH_ARM
 
 #include "disasm.h"
 #include "assembler.h"

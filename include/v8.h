@@ -3993,8 +3993,9 @@ class V8EXPORT Isolate {
   HeapProfiler* GetHeapProfiler();
 
   /**
-   * Returns CPU profiler for this isolate. Will return NULL until the isolate
-   * is initialized.
+   * Returns CPU profiler for this isolate. Will return NULL unless the isolate
+   * is initialized. It is the embedder's responsibility to stop all CPU
+   * profiling activities if it has started any.
    */
   CpuProfiler* GetCpuProfiler();
 
@@ -4823,7 +4824,10 @@ class V8EXPORT TryCatch {
   v8::internal::Isolate* isolate_;
   void* next_;
   void* exception_;
-  void* message_;
+  void* message_obj_;
+  void* message_script_;
+  int message_start_pos_;
+  int message_end_pos_;
   bool is_verbose_ : 1;
   bool can_continue_ : 1;
   bool capture_message_ : 1;
@@ -5397,11 +5401,12 @@ class Internals {
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
 
+  static void CheckInitializedImpl(v8::Isolate* isolate);
+  V8_INLINE(static void CheckInitialized(v8::Isolate* isolate)) {
 #ifdef V8_ENABLE_CHECKS
-  static void CheckInitialized(v8::Isolate* isolate);
-#else
-  static void CheckInitialized(v8::Isolate* isolate) { }
+    CheckInitializedImpl(isolate);
 #endif
+  }
 
   V8_INLINE(static bool HasHeapObjectTag(internal::Object* value)) {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==

@@ -2092,13 +2092,12 @@ void Script::SetData(v8::Handle<String> data) {
 v8::TryCatch::TryCatch()
     : isolate_(i::Isolate::Current()),
       next_(isolate_->try_catch_handler_address()),
-      exception_(isolate_->heap()->the_hole_value()),
-      message_(i::Smi::FromInt(0)),
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
       rethrow_(false),
       has_terminated_(false) {
+  Reset();
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -2108,8 +2107,17 @@ v8::TryCatch::~TryCatch() {
   if (rethrow_) {
     v8::HandleScope scope(reinterpret_cast<Isolate*>(isolate_));
     v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
+    if (HasCaught() && capture_message_) {
+      // If an exception was caught and rethrow_ is indicated, the saved
+      // message, script, and location need to be restored to Isolate TLS
+      // for reuse.  capture_message_ needs to be disabled so that DoThrow()
+      // does not create a new message.
+      isolate_->thread_local_top()->rethrowing_message_ = true;
+      isolate_->RestorePendingMessageFromTryCatch(this);
+    }
     isolate_->UnregisterTryCatchHandler(this);
     v8::ThrowException(exc);
+    ASSERT(!isolate_->thread_local_top()->rethrowing_message_);
   } else {
     isolate_->UnregisterTryCatchHandler(this);
   }
@@ -2170,8 +2178,9 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {
   ASSERT(isolate_ == i::Isolate::Current());
-  if (HasCaught() && message_ != i::Smi::FromInt(0)) {
-    i::Object* message = reinterpret_cast<i::Object*>(message_);
+  i::Object* message = reinterpret_cast<i::Object*>(message_obj_);
+  ASSERT(message->IsJSMessageObject() || message->IsTheHole());
+  if (HasCaught() && !message->IsTheHole()) {
     return v8::Utils::MessageToLocal(i::Handle<i::Object>(message, isolate_));
   } else {
     return v8::Local<v8::Message>();
@@ -2181,8 +2190,12 @@ v8::Local<v8::Message> v8::TryCatch::Message() const {
 
 void v8::TryCatch::Reset() {
   ASSERT(isolate_ == i::Isolate::Current());
-  exception_ = isolate_->heap()->the_hole_value();
-  message_ = i::Smi::FromInt(0);
+  i::Object* the_hole = isolate_->heap()->the_hole_value();
+  exception_ = the_hole;
+  message_obj_ = the_hole;
+  message_script_ = the_hole;
+  message_start_pos_ = 0;
+  message_end_pos_ = 0;
 }
 
 
@@ -2921,14 +2934,12 @@ Local<Integer> Value::ToInteger() const {
 }
 
 
-#ifdef V8_ENABLE_CHECKS
-void i::Internals::CheckInitialized(v8::Isolate* external_isolate) {
+void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   ApiCheck(isolate != NULL && isolate->IsInitialized() && !i::V8::IsDead(),
            "v8::internal::Internals::CheckInitialized()",
            "Isolate is not initialized or V8 has died");
 }
-#endif
 
 
 void External::CheckCast(v8::Value* that) {
@@ -7312,6 +7323,15 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
         isolate->factory()->InternalizeUtf8String(entry->name_prefix()),
         isolate->factory()->InternalizeUtf8String(entry->name())));
   }
+}
+
+
+int CpuProfileNode::GetScriptId() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetScriptId");
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  const i::CodeEntry* entry = node->entry();
+  return entry->script_id();
 }
 
 

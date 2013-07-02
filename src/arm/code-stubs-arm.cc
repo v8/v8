@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_ARM)
+#if V8_TARGET_ARCH_ARM
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
@@ -3077,7 +3077,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ mov(r0, Operand(r4));
   __ mov(r1, Operand(r6));
 
-#if defined(V8_HOST_ARCH_ARM)
+#if V8_HOST_ARCH_ARM
   int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   int frame_alignment_mask = frame_alignment - 1;
   if (FLAG_debug_code) {
@@ -7125,7 +7125,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
     __ and_(sp, sp, Operand(-frame_alignment));
   }
 
-#if defined(V8_HOST_ARCH_ARM)
+#if V8_HOST_ARCH_ARM
   int32_t entry_hook =
       reinterpret_cast<int32_t>(masm->isolate()->function_entry_hook());
   __ mov(ip, Operand(entry_hook));

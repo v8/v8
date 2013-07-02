@@ -583,7 +583,7 @@ static void InitializeTlsBaseOffset() {
   if (kernel_version_major < 11) {
     // 8.x.x (Tiger), 9.x.x (Leopard), 10.x.x (Snow Leopard) have the
     // same offsets.
-#if defined(V8_HOST_ARCH_IA32)
+#if V8_HOST_ARCH_IA32
     kMacTlsBaseOffset = 0x48;
 #else
     kMacTlsBaseOffset = 0x60;

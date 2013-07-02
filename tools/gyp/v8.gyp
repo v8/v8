@@ -26,6 +26,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
+  'variables': {
+    'v8_code': 1,
+  },
   'includes': ['../../build/common.gypi'],
   'targets': [
     {
@@ -324,6 +327,8 @@
         '../../src/heap.h',
         '../../src/hydrogen-environment-liveness.cc',
         '../../src/hydrogen-environment-liveness.h',
+        '../../src/hydrogen-escape-analysis.cc',
+        '../../src/hydrogen-escape-analysis.h',
         '../../src/hydrogen-instructions.cc',
         '../../src/hydrogen-instructions.h',
         '../../src/hydrogen.cc',
@@ -332,6 +337,8 @@
         '../../src/hydrogen-gvn.h',
         '../../src/hydrogen-infer-representation.cc',
         '../../src/hydrogen-infer-representation.h',
+        '../../src/hydrogen-uint32-analysis.cc',
+        '../../src/hydrogen-uint32-analysis.h',
         '../../src/ic-inl.h',
         '../../src/ic.cc',
         '../../src/ic.h',

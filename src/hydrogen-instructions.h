@@ -1062,6 +1062,9 @@ class HValue: public ZoneObject {
   void RemoveLastAddedRange();
   void ComputeInitialRange(Zone* zone);
 
+  // Escape analysis helpers.
+  virtual bool HasEscapingOperandAt(int index) { return true; }
+
   // Representation helpers.
   virtual Representation observed_input_representation(int index) {
     return Representation::None();
@@ -1433,6 +1436,7 @@ class HDummyUse: public HTemplateInstruction<1> {
 
   HValue* value() { return OperandAt(0); }
 
+  virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
@@ -1892,6 +1896,7 @@ class HSimulate: public HInstruction {
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) const { return values_[index]; }
 
+  virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
@@ -2801,6 +2806,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
     return check_map;
   }
 
+  virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
@@ -3228,6 +3234,7 @@ class HArgumentsObject: public HTemplateInstruction<0> {
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) const { return values_[index]; }
 
+  virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
@@ -5431,6 +5438,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
   HObjectAccess access() const { return access_; }
   Representation field_representation() const { return representation_; }
 
+  virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
@@ -5763,6 +5771,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField)
 
+  virtual bool HasEscapingOperandAt(int index) { return index == 1; }
   virtual Representation RequiredInputRepresentation(int index) {
     if (FLAG_track_double_fields &&
         index == 1 && field_representation_.IsDouble()) {
@@ -5895,6 +5904,7 @@ class HStoreKeyed
     }
   }
 
+  virtual bool HasEscapingOperandAt(int index) { return index != 0; }
   virtual Representation RequiredInputRepresentation(int index) {
     // kind_fast:       tagged[int32] = tagged
     // kind_double:     tagged[int32] = double

@@ -83,8 +83,12 @@ class OptimizingCompilerThread : public Thread {
 #endif
 
   ~OptimizingCompilerThread() {
+    delete install_mutex_;
     delete input_queue_semaphore_;
     delete stop_semaphore_;
+#ifdef DEBUG
+    delete thread_id_mutex_;
+#endif
   }
 
  private:

@@ -179,13 +179,16 @@ if (support_smi_only_arrays) {
     a[0] = 3.5;
     %OptimizeFunctionOnNextCall(create0);
     create0();
-    create0();
-    b = create0();
-    assertKind(elements_kind.fast_smi_only, b);
-    b[0] = 3.5;
-    c = create0();
-    assertKind(elements_kind.fast_double, c);
-    assertTrue(2 != %GetOptimizationStatus(create0));
+    // This test only makes sense if crankshaft is allowed
+    if (4 != %GetOptimizationStatus(create0)) {
+      create0();
+      b = create0();
+      assertKind(elements_kind.fast_smi_only, b);
+      b[0] = 3.5;
+      c = create0();
+      assertKind(elements_kind.fast_double, c);
+      assertTrue(2 != %GetOptimizationStatus(create0));
+    }
   })();
 
 

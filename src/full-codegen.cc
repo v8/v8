@@ -940,6 +940,11 @@ void FullCodeGenerator::EmitGeneratorThrow(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitDebugBreakInOptimizedCode(CallRuntime* expr) {
+  context()->Plug(handle(Smi::FromInt(0), isolate()));
+}
+
+
 void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA:

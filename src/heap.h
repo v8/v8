@@ -1955,7 +1955,7 @@ class Heap {
 
   int scan_on_scavenge_pages_;
 
-#if defined(V8_TARGET_ARCH_X64)
+#if V8_TARGET_ARCH_X64
   static const int kMaxObjectSizeInNewSpace = 1024*KB;
 #else
   static const int kMaxObjectSizeInNewSpace = 512*KB;
@@ -2950,6 +2950,10 @@ class TranscendentalCache {
 
   TranscendentalCache() {
     for (int i = 0; i < kNumberOfCaches; ++i) caches_[i] = NULL;
+  }
+
+  ~TranscendentalCache() {
+    for (int i = 0; i < kNumberOfCaches; ++i) delete caches_[i];
   }
 
   // Used to create an external reference.

@@ -1308,7 +1308,7 @@ ExternalReference ExternalReference::address_of_the_hole_nan() {
 ExternalReference ExternalReference::re_check_stack_guard_state(
     Isolate* isolate) {
   Address function;
-#ifdef V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64
   function = FUNCTION_ADDR(RegExpMacroAssemblerX64::CheckStackGuardState);
 #elif V8_TARGET_ARCH_IA32
   function = FUNCTION_ADDR(RegExpMacroAssemblerIA32::CheckStackGuardState);

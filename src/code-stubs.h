@@ -95,7 +95,7 @@ namespace internal {
   V(KeyedLoadField)
 
 // List of code stubs only used on ARM platforms.
-#ifdef V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
 #define CODE_STUB_LIST_ARM(V)  \
   V(GetProperty)               \
   V(SetProperty)               \
@@ -107,7 +107,7 @@ namespace internal {
 #endif
 
 // List of code stubs only used on MIPS platforms.
-#ifdef V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS
 #define CODE_STUB_LIST_MIPS(V)  \
   V(RegExpCEntry)               \
   V(DirectCEntry)

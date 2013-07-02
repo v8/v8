@@ -131,10 +131,9 @@ void HInferRepresentationPhase::Run() {
       AddToWorklist(phis->at(j));
     }
 
-    HInstruction* current = block->first();
-    while (current != NULL) {
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* current = it.Current();
       AddToWorklist(current);
-      current = current->next();
     }
   }
 
@@ -156,8 +155,8 @@ void HInferRepresentationPhase::Run() {
         phi->ChangeRepresentation(Representation::Tagged());
       }
     }
-    for (HInstruction* current = block->first();
-         current != NULL; current = current->next()) {
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* current = it.Current();
       if (current->representation().IsNone() &&
           current->CheckFlag(HInstruction::kFlexibleRepresentation)) {
         if (current->CheckFlag(HInstruction::kCannotBeTagged)) {
