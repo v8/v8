@@ -296,7 +296,6 @@ class HGraph: public ZoneObject {
   void InsertRepresentationChanges();
   void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
-  void ComputeSafeUint32Operations();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
   void Canonicalize();
@@ -429,7 +428,18 @@ class HGraph: public ZoneObject {
     return depends_on_empty_array_proto_elements_;
   }
 
+  bool has_uint32_instructions() {
+    ASSERT(uint32_instructions_ == NULL || !uint32_instructions_->is_empty());
+    return uint32_instructions_ != NULL;
+  }
+
+  ZoneList<HInstruction*>* uint32_instructions() {
+    ASSERT(uint32_instructions_ == NULL || !uint32_instructions_->is_empty());
+    return uint32_instructions_;
+  }
+
   void RecordUint32Instruction(HInstruction* instr) {
+    ASSERT(uint32_instructions_ == NULL || !uint32_instructions_->is_empty());
     if (uint32_instructions_ == NULL) {
       uint32_instructions_ = new(zone()) ZoneList<HInstruction*>(4, zone());
     }
