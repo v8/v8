@@ -45,12 +45,12 @@ AstTyper::AstTyper(CompilationInfo* info)
 }
 
 
-#define RECURSE(call)                         \
+#define CHECK_ALIVE(call)                     \
   do {                                        \
-    ASSERT(!visitor->HasStackOverflow());     \
     call;                                     \
     if (visitor->HasStackOverflow()) return;  \
   } while (false)
+
 
 void AstTyper::Run(CompilationInfo* info) {
   AstTyper* visitor = new(info->zone()) AstTyper(info);
@@ -59,48 +59,52 @@ void AstTyper::Run(CompilationInfo* info) {
   // Handle implicit declaration of the function name in named function
   // expressions before other declarations.
   if (scope->is_function_scope() && scope->function() != NULL) {
-    RECURSE(visitor->VisitVariableDeclaration(scope->function()));
+    CHECK_ALIVE(visitor->VisitVariableDeclaration(scope->function()));
   }
-  RECURSE(visitor->VisitDeclarations(scope->declarations()));
-  RECURSE(visitor->VisitStatements(info->function()->body()));
+  CHECK_ALIVE(visitor->VisitDeclarations(scope->declarations()));
+  CHECK_ALIVE(visitor->VisitStatements(info->function()->body()));
 }
 
-#undef RECURSE
 
-#define RECURSE(call)                \
+#undef CHECK_ALIVE
+#define CHECK_ALIVE(call)            \
   do {                               \
-    ASSERT(!HasStackOverflow());     \
     call;                            \
     if (HasStackOverflow()) return;  \
   } while (false)
 
 
 void AstTyper::VisitStatements(ZoneList<Statement*>* stmts) {
+  ASSERT(!HasStackOverflow());
   for (int i = 0; i < stmts->length(); ++i) {
     Statement* stmt = stmts->at(i);
-    RECURSE(Visit(stmt));
+    CHECK_ALIVE(Visit(stmt));
   }
 }
 
 
 void AstTyper::VisitBlock(Block* stmt) {
-  RECURSE(VisitStatements(stmt->statements()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(VisitStatements(stmt->statements()));
 }
 
 
 void AstTyper::VisitExpressionStatement(ExpressionStatement* stmt) {
-  RECURSE(Visit(stmt->expression()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->expression()));
 }
 
 
 void AstTyper::VisitEmptyStatement(EmptyStatement* stmt) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitIfStatement(IfStatement* stmt) {
-  RECURSE(Visit(stmt->condition()));
-  RECURSE(Visit(stmt->then_statement()));
-  RECURSE(Visit(stmt->else_statement()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->condition()));
+  CHECK_ALIVE(Visit(stmt->then_statement()));
+  CHECK_ALIVE(Visit(stmt->else_statement()));
 
   if (!stmt->condition()->ToBooleanIsTrue() &&
       !stmt->condition()->ToBooleanIsFalse()) {
@@ -110,15 +114,18 @@ void AstTyper::VisitIfStatement(IfStatement* stmt) {
 
 
 void AstTyper::VisitContinueStatement(ContinueStatement* stmt) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitBreakStatement(BreakStatement* stmt) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitReturnStatement(ReturnStatement* stmt) {
-  RECURSE(Visit(stmt->expression()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->expression()));
 
   // TODO(rossberg): we only need this for inlining into test contexts...
   stmt->expression()->RecordToBooleanTypeFeedback(oracle());
@@ -126,20 +133,22 @@ void AstTyper::VisitReturnStatement(ReturnStatement* stmt) {
 
 
 void AstTyper::VisitWithStatement(WithStatement* stmt) {
-  RECURSE(stmt->expression());
-  RECURSE(stmt->statement());
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(stmt->expression());
+  CHECK_ALIVE(stmt->statement());
 }
 
 
 void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
-  RECURSE(Visit(stmt->tag()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->tag()));
   ZoneList<CaseClause*>* clauses = stmt->cases();
   SwitchStatement::SwitchType switch_type = stmt->switch_type();
   for (int i = 0; i < clauses->length(); ++i) {
     CaseClause* clause = clauses->at(i);
     if (!clause->is_default()) {
       Expression* label = clause->label();
-      RECURSE(Visit(label));
+      CHECK_ALIVE(Visit(label));
 
       SwitchStatement::SwitchType label_switch_type =
           label->IsSmiLiteral() ? SwitchStatement::SMI_SWITCH :
@@ -150,7 +159,7 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
       else if (switch_type != label_switch_type)
         switch_type = SwitchStatement::GENERIC_SWITCH;
     }
-    RECURSE(VisitStatements(clause->statements()));
+    CHECK_ALIVE(VisitStatements(clause->statements()));
   }
   if (switch_type == SwitchStatement::UNKNOWN_SWITCH)
     switch_type = SwitchStatement::GENERIC_SWITCH;
@@ -168,8 +177,9 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
 
 
 void AstTyper::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  RECURSE(Visit(stmt->body()));
-  RECURSE(Visit(stmt->cond()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->body()));
+  CHECK_ALIVE(Visit(stmt->cond()));
 
   if (!stmt->cond()->ToBooleanIsTrue()) {
     stmt->cond()->RecordToBooleanTypeFeedback(oracle());
@@ -178,8 +188,9 @@ void AstTyper::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
 
 void AstTyper::VisitWhileStatement(WhileStatement* stmt) {
-  RECURSE(Visit(stmt->cond()));
-  RECURSE(Visit(stmt->body()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->cond()));
+  CHECK_ALIVE(Visit(stmt->body()));
 
   if (!stmt->cond()->ToBooleanIsTrue()) {
     stmt->cond()->RecordToBooleanTypeFeedback(oracle());
@@ -188,185 +199,171 @@ void AstTyper::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void AstTyper::VisitForStatement(ForStatement* stmt) {
+  ASSERT(!HasStackOverflow());
   if (stmt->init() != NULL) {
-    RECURSE(Visit(stmt->init()));
+    CHECK_ALIVE(Visit(stmt->init()));
   }
   if (stmt->cond() != NULL) {
-    RECURSE(Visit(stmt->cond()));
+    CHECK_ALIVE(Visit(stmt->cond()));
 
     stmt->cond()->RecordToBooleanTypeFeedback(oracle());
   }
-  RECURSE(Visit(stmt->body()));
+  CHECK_ALIVE(Visit(stmt->body()));
   if (stmt->next() != NULL) {
-    RECURSE(Visit(stmt->next()));
+    CHECK_ALIVE(Visit(stmt->next()));
   }
 }
 
 
 void AstTyper::VisitForInStatement(ForInStatement* stmt) {
-  RECURSE(Visit(stmt->enumerable()));
-  RECURSE(Visit(stmt->body()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->enumerable()));
+  CHECK_ALIVE(Visit(stmt->body()));
 
   stmt->RecordTypeFeedback(oracle());
 }
 
 
 void AstTyper::VisitForOfStatement(ForOfStatement* stmt) {
-  RECURSE(Visit(stmt->iterable()));
-  RECURSE(Visit(stmt->body()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->iterable()));
+  CHECK_ALIVE(Visit(stmt->body()));
 }
 
 
 void AstTyper::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  RECURSE(Visit(stmt->try_block()));
-  RECURSE(Visit(stmt->catch_block()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->try_block()));
+  CHECK_ALIVE(Visit(stmt->catch_block()));
 }
 
 
 void AstTyper::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  RECURSE(Visit(stmt->try_block()));
-  RECURSE(Visit(stmt->finally_block()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->try_block()));
+  CHECK_ALIVE(Visit(stmt->finally_block()));
 }
 
 
 void AstTyper::VisitDebuggerStatement(DebuggerStatement* stmt) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitSharedFunctionInfoLiteral(SharedFunctionInfoLiteral* expr) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitConditional(Conditional* expr) {
-  RECURSE(Visit(expr->condition()));
-  RECURSE(Visit(expr->then_expression()));
-  RECURSE(Visit(expr->else_expression()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->condition()));
+  CHECK_ALIVE(Visit(expr->then_expression()));
+  CHECK_ALIVE(Visit(expr->else_expression()));
 
   expr->condition()->RecordToBooleanTypeFeedback(oracle());
-
-  MergeLowerType(expr, Type::Intersect(
-      expr->then_expression()->lower_type(),
-      expr->else_expression()->lower_type()));
-  MergeUpperType(expr, Type::Union(
-      expr->then_expression()->upper_type(),
-      expr->else_expression()->upper_type()));
 }
 
 
 void AstTyper::VisitVariableProxy(VariableProxy* expr) {
-  // TODO(rossberg): typing of variables
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitLiteral(Literal* expr) {
-  Type* type = Type::Constant(expr->value(), isolate_);
-  MergeLowerType(expr, type);
-  MergeUpperType(expr, type);
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitRegExpLiteral(RegExpLiteral* expr) {
-  MergeLowerType(expr, Type::RegExp());
-  MergeUpperType(expr, Type::RegExp());
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
+  ASSERT(!HasStackOverflow());
   ZoneList<ObjectLiteral::Property*>* properties = expr->properties();
   for (int i = 0; i < properties->length(); ++i) {
     ObjectLiteral::Property* prop = properties->at(i);
-    RECURSE(Visit(prop->value()));
+    CHECK_ALIVE(Visit(prop->value()));
 
     if ((prop->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL &&
         !CompileTimeValue::IsCompileTimeValue(prop->value())) ||
         prop->kind() == ObjectLiteral::Property::COMPUTED) {
-      if (prop->key()->value()->IsInternalizedString() && prop->emit_store()) {
+      if (prop->key()->value()->IsInternalizedString() && prop->emit_store())
         prop->RecordTypeFeedback(oracle());
-      }
     }
   }
-
-  MergeLowerType(expr, Type::Object());
-  MergeUpperType(expr, Type::Object());
 }
 
 
 void AstTyper::VisitArrayLiteral(ArrayLiteral* expr) {
+  ASSERT(!HasStackOverflow());
   ZoneList<Expression*>* values = expr->values();
   for (int i = 0; i < values->length(); ++i) {
     Expression* value = values->at(i);
-    RECURSE(Visit(value));
+    CHECK_ALIVE(Visit(value));
   }
-
-  MergeLowerType(expr, Type::Array());
-  MergeUpperType(expr, Type::Array());
 }
 
 
 void AstTyper::VisitAssignment(Assignment* expr) {
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->target()));
+  CHECK_ALIVE(Visit(expr->value()));
+
   // TODO(rossberg): Can we clean this up?
   if (expr->is_compound()) {
-    RECURSE(Visit(expr->binary_operation()));
+    CHECK_ALIVE(Visit(expr->binary_operation()));
 
     Expression* target = expr->target();
     Property* prop = target->AsProperty();
     if (prop != NULL) {
       prop->RecordTypeFeedback(oracle(), zone());
-      if (!prop->key()->IsPropertyName()) {  // i.e., keyed
+      if (!prop->key()->IsPropertyName())  // i.e., keyed
         expr->RecordTypeFeedback(oracle(), zone());
-      }
     }
-  } else {
-    RECURSE(Visit(expr->target()));
-    RECURSE(Visit(expr->value()));
-
-    if (expr->target()->AsProperty()) {
-      expr->RecordTypeFeedback(oracle(), zone());
-    }
-
-    MergeLowerType(expr, expr->value()->lower_type());
-    MergeUpperType(expr, expr->value()->upper_type());
+    return;
   }
-  // TODO(rossberg): handle target variables
+  if (expr->target()->AsProperty())
+    expr->RecordTypeFeedback(oracle(), zone());
 }
 
 
 void AstTyper::VisitYield(Yield* expr) {
-  RECURSE(Visit(expr->generator_object()));
-  RECURSE(Visit(expr->expression()));
-
-  // We don't know anything about the type.
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->generator_object()));
+  CHECK_ALIVE(Visit(expr->expression()));
 }
 
 
 void AstTyper::VisitThrow(Throw* expr) {
-  RECURSE(Visit(expr->exception()));
-
-  // Lower type is None already.
-  MergeUpperType(expr, Type::None());
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->exception()));
 }
 
 
 void AstTyper::VisitProperty(Property* expr) {
-  RECURSE(Visit(expr->obj()));
-  RECURSE(Visit(expr->key()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->obj()));
+  CHECK_ALIVE(Visit(expr->key()));
 
   expr->RecordTypeFeedback(oracle(), zone());
-
-  // We don't know anything about the type.
 }
 
 
 void AstTyper::VisitCall(Call* expr) {
-  RECURSE(Visit(expr->expression()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->expression()));
   ZoneList<Expression*>* args = expr->arguments();
   for (int i = 0; i < args->length(); ++i) {
     Expression* arg = args->at(i);
-    RECURSE(Visit(arg));
+    CHECK_ALIVE(Visit(arg));
   }
 
   Expression* callee = expr->expression();
@@ -377,38 +374,35 @@ void AstTyper::VisitCall(Call* expr) {
   } else {
     expr->RecordTypeFeedback(oracle(), CALL_AS_FUNCTION);
   }
-
-  // We don't know anything about the type.
 }
 
 
 void AstTyper::VisitCallNew(CallNew* expr) {
-  RECURSE(Visit(expr->expression()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->expression()));
   ZoneList<Expression*>* args = expr->arguments();
   for (int i = 0; i < args->length(); ++i) {
     Expression* arg = args->at(i);
-    RECURSE(Visit(arg));
+    CHECK_ALIVE(Visit(arg));
   }
 
   expr->RecordTypeFeedback(oracle());
-
-  // We don't know anything about the type.
 }
 
 
 void AstTyper::VisitCallRuntime(CallRuntime* expr) {
+  ASSERT(!HasStackOverflow());
   ZoneList<Expression*>* args = expr->arguments();
   for (int i = 0; i < args->length(); ++i) {
     Expression* arg = args->at(i);
-    RECURSE(Visit(arg));
+    CHECK_ALIVE(Visit(arg));
   }
-
-  // We don't know anything about the type.
 }
 
 
 void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
-  RECURSE(Visit(expr->expression()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->expression()));
 
   // Collect type feedback.
   Handle<Type> op_type = oracle()->UnaryType(expr->UnaryOperationFeedbackId());
@@ -417,55 +411,25 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
     // TODO(rossberg): only do in test or value context.
     expr->expression()->RecordToBooleanTypeFeedback(oracle());
   }
-
-  switch (expr->op()) {
-    case Token::NOT:
-    case Token::DELETE:
-      MergeLowerType(expr, Type::Boolean());
-      MergeUpperType(expr, Type::Boolean());
-      break;
-    case Token::VOID:
-      MergeLowerType(expr, Type::Undefined());
-      MergeUpperType(expr, Type::Undefined());
-      break;
-    case Token::ADD:
-    case Token::SUB: {
-      MergeLowerType(expr, Type::Smi());
-      Type* upper = *expr->expression()->upper_type();
-      MergeUpperType(expr, upper->Is(Type::Number()) ? upper : Type::Number());
-      break;
-    }
-    case Token::BIT_NOT:
-      MergeLowerType(expr, Type::Smi());
-      MergeUpperType(expr, Type::Signed32());
-      break;
-    case Token::TYPEOF:
-      MergeLowerType(expr, Type::InternalizedString());
-      MergeUpperType(expr, Type::InternalizedString());
-      break;
-    default:
-      UNREACHABLE();
-  }
 }
 
 
 void AstTyper::VisitCountOperation(CountOperation* expr) {
-  RECURSE(Visit(expr->expression()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->expression()));
 
   expr->RecordTypeFeedback(oracle(), zone());
   Property* prop = expr->expression()->AsProperty();
   if (prop != NULL) {
     prop->RecordTypeFeedback(oracle(), zone());
   }
-
-  MergeLowerType(expr, Type::Smi());
-  MergeUpperType(expr, Type::Number());
 }
 
 
 void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
-  RECURSE(Visit(expr->left()));
-  RECURSE(Visit(expr->right()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->left()));
+  CHECK_ALIVE(Visit(expr->right()));
 
   // Collect type feedback.
   Handle<Type> type, left_type, right_type;
@@ -479,69 +443,13 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
   if (expr->op() == Token::OR || expr->op() == Token::AND) {
     expr->left()->RecordToBooleanTypeFeedback(oracle());
   }
-
-  switch (expr->op()) {
-    case Token::COMMA:
-      MergeLowerType(expr, expr->right()->lower_type());
-      MergeUpperType(expr, expr->right()->upper_type());
-      break;
-    case Token::OR:
-    case Token::AND:
-      MergeLowerType(expr, Type::Intersect(
-          expr->left()->lower_type(), expr->right()->lower_type()));
-      MergeUpperType(expr, Type::Union(
-          expr->left()->upper_type(), expr->right()->upper_type()));
-      break;
-    case Token::BIT_OR:
-    case Token::BIT_AND: {
-      MergeLowerType(expr, Type::Smi());
-      Type* upper =
-          Type::Union(expr->left()->upper_type(), expr->right()->upper_type());
-      MergeUpperType(expr,
-          upper->Is(Type::Signed32()) ? upper : Type::Signed32());
-      break;
-    }
-    case Token::BIT_XOR:
-    case Token::SHL:
-    case Token::SAR:
-      MergeLowerType(expr, Type::Smi());
-      MergeUpperType(expr, Type::Signed32());
-      break;
-    case Token::SHR:
-      MergeLowerType(expr, Type::Smi());
-      MergeUpperType(expr, Type::Unsigned32());
-      break;
-    case Token::ADD: {
-      Handle<Type> l = expr->left()->lower_type();
-      Handle<Type> r = expr->right()->lower_type();
-      MergeLowerType(expr,
-          l->Is(Type::Number()) && r->Is(Type::Number()) ? Type::Smi() :
-          l->Is(Type::String()) || r->Is(Type::String()) ? Type::String() :
-              Type::None());
-      l = expr->left()->upper_type();
-      r = expr->right()->upper_type();
-      MergeUpperType(expr,
-          l->Is(Type::Number()) && r->Is(Type::Number()) ? Type::Number() :
-          l->Is(Type::String()) || r->Is(Type::String()) ? Type::String() :
-              Type::NumberOrString());
-      break;
-    }
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-    case Token::MOD:
-      MergeLowerType(expr, Type::Smi());
-      MergeUpperType(expr, Type::Number());
-      break;
-    default:
-      UNREACHABLE();
-  }
 }
 
 
 void AstTyper::VisitCompareOperation(CompareOperation* expr) {
-  RECURSE(Visit(expr->left()));
-  RECURSE(Visit(expr->right()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(expr->left()));
+  CHECK_ALIVE(Visit(expr->right()));
 
   // Collect type feedback.
   Handle<Type> left_type, right_type, combined_type;
@@ -550,67 +458,76 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
   MergeLowerType(expr->left(), left_type);
   MergeLowerType(expr->right(), right_type);
   expr->set_combined_type(combined_type);
-
-  MergeLowerType(expr, Type::Boolean());
-  MergeUpperType(expr, Type::Boolean());
 }
 
 
 void AstTyper::VisitThisFunction(ThisFunction* expr) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {
+  ASSERT(!HasStackOverflow());
   for (int i = 0; i < decls->length(); ++i) {
     Declaration* decl = decls->at(i);
-    RECURSE(Visit(decl));
+    CHECK_ALIVE(Visit(decl));
   }
 }
 
 
 void AstTyper::VisitVariableDeclaration(VariableDeclaration* declaration) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitFunctionDeclaration(FunctionDeclaration* declaration) {
-  RECURSE(Visit(declaration->fun()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(declaration->fun()));
 }
 
 
 void AstTyper::VisitModuleDeclaration(ModuleDeclaration* declaration) {
-  RECURSE(Visit(declaration->module()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(declaration->module()));
 }
 
 
 void AstTyper::VisitImportDeclaration(ImportDeclaration* declaration) {
-  RECURSE(Visit(declaration->module()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(declaration->module()));
 }
 
 
 void AstTyper::VisitExportDeclaration(ExportDeclaration* declaration) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitModuleLiteral(ModuleLiteral* module) {
-  RECURSE(Visit(module->body()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(module->body()));
 }
 
 
 void AstTyper::VisitModuleVariable(ModuleVariable* module) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitModulePath(ModulePath* module) {
-  RECURSE(Visit(module->module()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(module->module()));
 }
 
 
 void AstTyper::VisitModuleUrl(ModuleUrl* module) {
+  ASSERT(!HasStackOverflow());
 }
 
 
 void AstTyper::VisitModuleStatement(ModuleStatement* stmt) {
-  RECURSE(Visit(stmt->body()));
+  ASSERT(!HasStackOverflow());
+  CHECK_ALIVE(Visit(stmt->body()));
 }
 
 
