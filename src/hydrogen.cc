@@ -1132,7 +1132,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   length_checker.IfCompare(length, key, Token::EQ);
   length_checker.Then();
 
-  HValue* current_capacity = Add<HFixedArrayBaseLength>(elements);
+  HValue* current_capacity = AddLoadFixedArrayLength(elements);
 
   IfBuilder capacity_checker(this);
 
@@ -1188,7 +1188,7 @@ HValue* HGraphBuilder::BuildCopyElementsOnWrite(HValue* object,
                            Handle<Map>(heap->fixed_cow_array_map()));
   cow_checker.Then();
 
-  HValue* capacity = Add<HFixedArrayBaseLength>(elements);
+  HValue* capacity = AddLoadFixedArrayLength(elements);
 
   HValue* new_elements = BuildGrowElementsCapacity(object, elements,
                                                    kind, length, capacity);
@@ -1243,10 +1243,10 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   if (is_js_array) {
     length = AddLoad(object, HObjectAccess::ForArrayLength(), mapcheck,
         Representation::Smi());
-    length->set_type(HType::Smi());
   } else {
-    length = Add<HFixedArrayBaseLength>(elements);
+    length = AddLoadFixedArrayLength(elements);
   }
+  length->set_type(HType::Smi());
   HValue* checked_key = NULL;
   if (IsExternalArrayElementsKind(elements_kind)) {
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
@@ -1413,6 +1413,14 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
 HLoadNamedField* HGraphBuilder::AddLoadElements(HValue* object,
                                                 HValue* typecheck) {
   return AddLoad(object, HObjectAccess::ForElementsPointer(), typecheck);
+}
+
+
+HLoadNamedField* HGraphBuilder::AddLoadFixedArrayLength(HValue* object) {
+  HLoadNamedField* instr = AddLoad(object, HObjectAccess::ForFixedArrayLength(),
+                                   NULL, Representation::Smi());
+  instr->set_type(HType::Smi());
+  return instr;
 }
 
 
@@ -6813,7 +6821,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
                   LAST_ELEMENTS_KIND);
     if (elements_kind == FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
         && todo_external_array) {
-      HInstruction* length = Add<HFixedArrayBaseLength>(elements);
+      HInstruction* length = AddLoadFixedArrayLength(elements);
       checked_key = Add<HBoundsCheck>(key, length);
       external_elements = Add<HLoadExternalArrayPointer>(elements);
     }
@@ -6873,7 +6881,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         if_jsarray->GotoNoSimulate(join);
 
         set_current_block(if_fastobject);
-        length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
+        length = AddLoadFixedArrayLength(elements);
         checked_key = Add<HBoundsCheck>(key, length);
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind_branch,

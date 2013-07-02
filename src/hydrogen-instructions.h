@@ -111,7 +111,6 @@ class LChunkBuilder;
   V(ElementsKind)                              \
   V(EnterInlined)                              \
   V(EnvironmentMarker)                         \
-  V(FixedArrayBaseLength)                      \
   V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
@@ -2539,29 +2538,6 @@ class HCallRuntime: public HCall<1> {
  private:
   const Runtime::Function* c_function_;
   Handle<String> name_;
-};
-
-
-class HFixedArrayBaseLength: public HUnaryOperation {
- public:
-  explicit HFixedArrayBaseLength(HValue* value) : HUnaryOperation(value) {
-    set_type(HType::Smi());
-    set_representation(Representation::Smi());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnArrayLengths);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(FixedArrayBaseLength)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-
- private:
-  virtual bool IsDeletable() const { return true; }
 };
 
 

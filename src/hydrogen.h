@@ -1135,6 +1135,8 @@ class HGraphBuilder {
 
   HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck = NULL);
 
+  HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
+
   class IfBuilder {
    public:
     explicit IfBuilder(HGraphBuilder* builder,

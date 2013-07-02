@@ -99,7 +99,6 @@ class LCodeGen;
   V(DoubleToSmi)                                \
   V(DummyUse)                                   \
   V(ElementsKind)                               \
-  V(FixedArrayBaseLength)                       \
   V(MapEnumLength)                              \
   V(FunctionLiteral)                            \
   V(GetCachedArrayIndex)                        \
@@ -1230,20 +1229,6 @@ class LCmpMapAndBranch: public LControlInstruction<1, 0> {
   DECLARE_HYDROGEN_ACCESSOR(CompareMap)
 
   Handle<Map> map() const { return hydrogen()->map(); }
-};
-
-
-class LFixedArrayBaseLength: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LFixedArrayBaseLength(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(FixedArrayBaseLength,
-                               "fixed-array-base-length")
-  DECLARE_HYDROGEN_ACCESSOR(FixedArrayBaseLength)
 };
 
 

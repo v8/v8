@@ -510,8 +510,7 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 
   HInstruction* elements = AddLoadElements(js_array);
 
-  HInstruction* elements_length =
-      AddInstruction(new(zone) HFixedArrayBaseLength(elements));
+  HInstruction* elements_length = AddLoadFixedArrayLength(elements);
 
   HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
       context(), to_kind, elements_length);
