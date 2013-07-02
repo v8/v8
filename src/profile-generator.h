@@ -122,9 +122,6 @@ class CodeEntry {
     no_frame_ranges_ = ranges;
   }
 
-  void SetBuiltinId(Builtins::Name id);
-  Builtins::Name builtin_id() const { return builtin_id_; }
-
   void CopyData(const CodeEntry& source);
   uint32_t GetCallUid() const;
   bool IsSameAs(CodeEntry* entry) const;
@@ -133,8 +130,7 @@ class CodeEntry {
   static const char* const kEmptyResourceName;
 
  private:
-  Logger::LogEventsAndTags tag_ : 8;
-  Builtins::Name builtin_id_ : 8;
+  Logger::LogEventsAndTags tag_;
   const char* name_prefix_;
   const char* name_;
   const char* resource_name_;
@@ -429,9 +425,6 @@ class ProfileGenerator {
   static const char* const kAnonymousFunctionName;
   static const char* const kProgramEntryName;
   static const char* const kGarbageCollectorEntryName;
-  // Used to represent frames for which we have no reliable way to
-  // detect function.
-  static const char* const kUnresolvedFunctionName;
 
  private:
   INLINE(CodeEntry* EntryForVMState(StateTag tag));
@@ -440,7 +433,6 @@ class ProfileGenerator {
   CodeMap code_map_;
   CodeEntry* program_entry_;
   CodeEntry* gc_entry_;
-  CodeEntry* unresolved_entry_;
   SampleRateCalculator sample_rate_calc_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);

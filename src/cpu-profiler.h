@@ -49,8 +49,7 @@ class TokenEnumerator;
 #define CODE_EVENTS_TYPE_LIST(V)                                   \
   V(CODE_CREATION,    CodeCreateEventRecord)                       \
   V(CODE_MOVE,        CodeMoveEventRecord)                         \
-  V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord)           \
-  V(REPORT_BUILTIN,   ReportBuiltinEventRecord)
+  V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord)
 
 
 class CodeEventRecord {
@@ -92,15 +91,6 @@ class SharedFunctionInfoMoveEventRecord : public CodeEventRecord {
  public:
   Address from;
   Address to;
-
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
-};
-
-
-class ReportBuiltinEventRecord : public CodeEventRecord {
- public:
-  Address start;
-  Builtins::Name builtin_id;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -256,7 +246,6 @@ class CpuProfiler {
   void StopProcessorIfLastProfile(const char* title);
   void StopProcessor();
   void ResetProfiles();
-  void LogBuiltins();
 
   Isolate* isolate_;
   CpuProfilesCollection* profiles_;
