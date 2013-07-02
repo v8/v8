@@ -853,6 +853,11 @@ class MarkCompactCollector {
   //      or implicit references' groups.
   void ProcessEphemeralMarking(ObjectVisitor* visitor);
 
+  // If the call-site of the top optimized code was not prepared for
+  // deoptimization, then treat the maps in the code as strong pointers,
+  // otherwise a map can die and deoptimize the code.
+  void ProcessTopOptimizedFrame(ObjectVisitor* visitor);
+
   // Mark objects reachable (transitively) from objects in the marking
   // stack.  This function empties the marking stack, but may leave
   // overflowed objects in the heap, in which case the marking stack's

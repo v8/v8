@@ -2181,6 +2181,32 @@ void MarkCompactCollector::ProcessEphemeralMarking(ObjectVisitor* visitor) {
 }
 
 
+static StackFrame* TopOptimizedFrame(Isolate* isolate) {
+  for (StackFrameIterator it(isolate, isolate->thread_local_top());
+       !it.done(); it.Advance()) {
+    if (it.frame()->type() == StackFrame::JAVA_SCRIPT) {
+      return NULL;
+    }
+    if (it.frame()->type() == StackFrame::OPTIMIZED) {
+      return it.frame();
+    }
+  }
+  return NULL;
+}
+
+
+void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
+  StackFrame* frame = TopOptimizedFrame(isolate());
+  if (frame != NULL) {
+    Code* code = frame->LookupCode();
+    if (!code->CanDeoptAt(frame->pc())) {
+      code->CodeIterateBody(visitor);
+    }
+    ProcessMarkingDeque();
+  }
+}
+
+
 void MarkCompactCollector::MarkLiveObjects() {
   GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_MARK);
   // The recursive GC marker detects when it is nearing stack overflow,
@@ -2259,6 +2285,8 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   RootMarkingVisitor root_visitor(heap());
   MarkRoots(&root_visitor);
+
+  ProcessTopOptimizedFrame(&root_visitor);
 
   // The objects reachable from the roots are marked, yet unreachable
   // objects are unmarked.  Mark objects reachable due to host
