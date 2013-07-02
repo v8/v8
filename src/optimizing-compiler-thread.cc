@@ -130,6 +130,8 @@ void OptimizingCompilerThread::Stop() {
     double percentage = (compile_time * 100) / total_time;
     PrintF("  ** Compiler thread did %.2f%% useful work\n", percentage);
   }
+
+  Join();
 }
 
 

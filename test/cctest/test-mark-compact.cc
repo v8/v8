@@ -566,4 +566,25 @@ TEST(BootUpMemoryUse) {
   }
 }
 
+
+intptr_t ShortLivingIsolate() {
+  v8::Isolate* isolate = v8::Isolate::New();
+  { v8::Isolate::Scope isolate_scope(isolate);
+    v8::Locker lock(isolate);
+    v8::HandleScope handle_scope;
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    CHECK(!context.IsEmpty());
+  }
+  isolate->Dispose();
+  return MemoryInUse();
+}
+
+
+TEST(RegressJoinThreadsOnIsolateDeinit) {
+  intptr_t first_size = ShortLivingIsolate();
+  for (int i = 0; i < 10; i++) {
+    CHECK_EQ(first_size, ShortLivingIsolate());
+  }
+}
+
 #endif  // __linux__ and !USE_SIMULATOR
