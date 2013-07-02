@@ -1703,10 +1703,6 @@ class JSReceiver: public HeapObject {
   // Return the constructor function (may be Heap::null_value()).
   inline Object* GetConstructor();
 
-  // Set the object's prototype (only JSReceiver and null are allowed).
-  MUST_USE_RESULT MaybeObject* SetPrototype(Object* value,
-                                            bool skip_hidden_prototypes);
-
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet and OMIT_CREATION was used.
   inline MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
@@ -1908,6 +1904,7 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* DeleteNormalizedProperty(Name* name,
                                                         DeleteMode mode);
 
+  static void OptimizeAsPrototype(Handle<JSObject> object);
   MUST_USE_RESULT MaybeObject* OptimizeAsPrototype();
 
   // Retrieve interceptors.
@@ -2310,6 +2307,11 @@ class JSObject: public JSReceiver {
                                        Object* value,
                                        WriteBarrierMode mode
                                        = UPDATE_WRITE_BARRIER);
+
+  // Set the object's prototype (only JSReceiver and null are allowed values).
+  static Handle<Object> SetPrototype(Handle<JSObject> object,
+                                     Handle<Object> value,
+                                     bool skip_hidden_prototypes = false);
 
   // Initializes the body after properties slot, properties slot is
   // initialized by set_properties.  Fill the pre-allocated fields with
@@ -5483,6 +5485,7 @@ class Map: public HeapObject {
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
+  static Handle<Map> Copy(Handle<Map> map);
   MUST_USE_RESULT MaybeObject* Copy();
 
   // Returns the next free property index (only valid for FAST MODE).
@@ -5609,11 +5612,11 @@ class Map: public HeapObject {
   // transitions are in the form of a map where the keys are prototype objects
   // and the values are the maps the are transitioned to.
   static const int kMaxCachedPrototypeTransitions = 256;
-
-  Map* GetPrototypeTransition(Object* prototype);
-
-  MUST_USE_RESULT MaybeObject* PutPrototypeTransition(Object* prototype,
-                                                      Map* map);
+  static Handle<Map> GetPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype);
+  static Handle<Map> PutPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype,
+                                            Handle<Map> target_map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 

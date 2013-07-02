@@ -1972,10 +1972,10 @@ TEST(PrototypeTransitionClearing) {
   CHECK(!space->LastPage()->Contains(
       map->GetPrototypeTransitions()->address()));
   CHECK(space->LastPage()->Contains(prototype->address()));
-  baseObject->SetPrototype(*prototype, false)->ToObjectChecked();
-  CHECK(map->GetPrototypeTransition(*prototype)->IsMap());
+  JSObject::SetPrototype(baseObject, prototype, false);
+  CHECK(Map::GetPrototypeTransition(map, prototype)->IsMap());
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(map->GetPrototypeTransition(*prototype)->IsMap());
+  CHECK(Map::GetPrototypeTransition(map, prototype)->IsMap());
 }
 
 

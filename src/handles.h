@@ -244,8 +244,6 @@ Handle<Object> GetProperty(Isolate* isolate,
                            Handle<Object> obj,
                            Handle<Object> key);
 
-Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
-
 Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index);
 

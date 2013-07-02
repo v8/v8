@@ -6690,6 +6690,11 @@ MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
 }
 
 
+Handle<Map> Map::Copy(Handle<Map> map) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(), map->Copy(), Map);
+}
+
+
 MaybeObject* Map::Copy() {
   DescriptorArray* descriptors = instance_descriptors();
   DescriptorArray* new_descriptors;
@@ -9405,6 +9410,11 @@ bool JSFunction::IsInlineable() {
 }
 
 
+void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(), object->OptimizeAsPrototype());
+}
+
+
 MaybeObject* JSObject::OptimizeAsPrototype() {
   if (IsGlobalObject()) return this;
 
@@ -11030,63 +11040,61 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
 }
 
 
-Map* Map::GetPrototypeTransition(Object* prototype) {
-  FixedArray* cache = GetPrototypeTransitions();
-  int number_of_transitions = NumberOfProtoTransitions();
+Handle<Map> Map::GetPrototypeTransition(Handle<Map> map,
+                                        Handle<Object> prototype) {
+  FixedArray* cache = map->GetPrototypeTransitions();
+  int number_of_transitions = map->NumberOfProtoTransitions();
   const int proto_offset =
       kProtoTransitionHeaderSize + kProtoTransitionPrototypeOffset;
   const int map_offset = kProtoTransitionHeaderSize + kProtoTransitionMapOffset;
   const int step = kProtoTransitionElementsPerEntry;
   for (int i = 0; i < number_of_transitions; i++) {
-    if (cache->get(proto_offset + i * step) == prototype) {
-      Object* map = cache->get(map_offset + i * step);
-      return Map::cast(map);
+    if (cache->get(proto_offset + i * step) == *prototype) {
+      Object* result = cache->get(map_offset + i * step);
+      return Handle<Map>(Map::cast(result));
     }
   }
-  return NULL;
+  return Handle<Map>();
 }
 
 
-MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
-  ASSERT(map->IsMap());
-  ASSERT(HeapObject::cast(prototype)->map()->IsMap());
+Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
+                                        Handle<Object> prototype,
+                                        Handle<Map> target_map) {
+  ASSERT(target_map->IsMap());
+  ASSERT(HeapObject::cast(*prototype)->map()->IsMap());
   // Don't cache prototype transition if this map is shared.
-  if (is_shared() || !FLAG_cache_prototype_transitions) return this;
-
-  FixedArray* cache = GetPrototypeTransitions();
+  if (map->is_shared() || !FLAG_cache_prototype_transitions) return map;
 
   const int step = kProtoTransitionElementsPerEntry;
   const int header = kProtoTransitionHeaderSize;
 
+  Handle<FixedArray> cache(map->GetPrototypeTransitions());
   int capacity = (cache->length() - header) / step;
-
-  int transitions = NumberOfProtoTransitions() + 1;
+  int transitions = map->NumberOfProtoTransitions() + 1;
 
   if (transitions > capacity) {
-    if (capacity > kMaxCachedPrototypeTransitions) return this;
+    if (capacity > kMaxCachedPrototypeTransitions) return map;
 
-    FixedArray* new_cache;
     // Grow array by factor 2 over and above what we need.
-    { MaybeObject* maybe_cache =
-          GetHeap()->AllocateFixedArray(transitions * 2 * step + header);
-      if (!maybe_cache->To(&new_cache)) return maybe_cache;
-    }
+    Factory* factory = map->GetIsolate()->factory();
+    cache = factory->CopySizeFixedArray(cache, transitions * 2 * step + header);
 
-    for (int i = 0; i < capacity * step; i++) {
-      new_cache->set(i + header, cache->get(i + header));
-    }
-    cache = new_cache;
-    MaybeObject* set_result = SetPrototypeTransitions(cache);
-    if (set_result->IsFailure()) return set_result;
+    CALL_AND_RETRY_OR_DIE(map->GetIsolate(),
+                          map->SetPrototypeTransitions(*cache),
+                          break,
+                          return Handle<Map>());
   }
 
-  int last = transitions - 1;
+  // Reload number of transitions as GC might shrink them.
+  int last = map->NumberOfProtoTransitions();
+  int entry = header + last * step;
 
-  cache->set(header + last * step + kProtoTransitionPrototypeOffset, prototype);
-  cache->set(header + last * step + kProtoTransitionMapOffset, map);
-  SetNumberOfProtoTransitions(transitions);
+  cache->set(entry + kProtoTransitionPrototypeOffset, *prototype);
+  cache->set(entry + kProtoTransitionMapOffset, *target_map);
+  map->SetNumberOfProtoTransitions(transitions);
 
-  return cache;
+  return map;
 }
 
 
@@ -11309,13 +11317,14 @@ void DependentCode::DeoptimizeDependentCodeGroup(
 }
 
 
-MaybeObject* JSReceiver::SetPrototype(Object* value,
+Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
+                                      Handle<Object> value,
                                       bool skip_hidden_prototypes) {
 #ifdef DEBUG
-  int size = Size();
+  int size = object->Size();
 #endif
 
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = object->GetIsolate();
   Heap* heap = isolate->heap();
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.
@@ -11329,70 +11338,64 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   // Implementation specific extensions that modify [[Class]], [[Prototype]]
   // or [[Extensible]] must not violate the invariants defined in the preceding
   // paragraph.
-  if (!this->map()->is_extensible()) {
-    HandleScope scope(isolate);
-    Handle<Object> handle(this, isolate);
-    return isolate->Throw(
-        *isolate->factory()->NewTypeError("non_extensible_proto",
-                                          HandleVector<Object>(&handle, 1)));
+  if (!object->map()->is_extensible()) {
+    Handle<Object> args[] = { object };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "non_extensible_proto", HandleVector(args, ARRAY_SIZE(args)));
+    isolate->Throw(*error);
+    return Handle<Object>();
   }
 
   // Before we can set the prototype we need to be sure
   // prototype cycles are prevented.
   // It is sufficient to validate that the receiver is not in the new prototype
   // chain.
-  for (Object* pt = value;
+  for (Object* pt = *value;
        pt != heap->null_value();
        pt = pt->GetPrototype(isolate)) {
-    if (JSReceiver::cast(pt) == this) {
+    if (JSReceiver::cast(pt) == *object) {
       // Cycle detected.
-      HandleScope scope(isolate);
-      return isolate->Throw(
-          *isolate->factory()->NewError("cyclic_proto",
-                                        HandleVector<Object>(NULL, 0)));
+      Handle<Object> error = isolate->factory()->NewError(
+          "cyclic_proto", HandleVector<Object>(NULL, 0));
+      isolate->Throw(*error);
+      return Handle<Object>();
     }
   }
 
-  JSReceiver* real_receiver = this;
+  Handle<JSObject> real_receiver = object;
 
   if (skip_hidden_prototypes) {
     // Find the first object in the chain whose prototype object is not
     // hidden and set the new prototype on that object.
     Object* current_proto = real_receiver->GetPrototype();
     while (current_proto->IsJSObject() &&
-          JSReceiver::cast(current_proto)->map()->is_hidden_prototype()) {
-      real_receiver = JSReceiver::cast(current_proto);
+          JSObject::cast(current_proto)->map()->is_hidden_prototype()) {
+      real_receiver = handle(JSObject::cast(current_proto), isolate);
       current_proto = current_proto->GetPrototype(isolate);
     }
   }
 
   // Set the new prototype of the object.
-  Map* map = real_receiver->map();
+  Handle<Map> map(real_receiver->map());
 
   // Nothing to do if prototype is already set.
-  if (map->prototype() == value) return value;
+  if (map->prototype() == *value) return value;
 
   if (value->IsJSObject()) {
-    MaybeObject* ok = JSObject::cast(value)->OptimizeAsPrototype();
-    if (ok->IsFailure()) return ok;
+    JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
   }
 
-  Map* new_map = map->GetPrototypeTransition(value);
-  if (new_map == NULL) {
-    MaybeObject* maybe_new_map = map->Copy();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
-    MaybeObject* maybe_new_cache =
-        map->PutPrototypeTransition(value, new_map);
-    if (maybe_new_cache->IsFailure()) return maybe_new_cache;
-
-    new_map->set_prototype(value);
+  Handle<Map> new_map = Map::GetPrototypeTransition(map, value);
+  if (new_map.is_null()) {
+    new_map = Map::Copy(map);
+    Map::PutPrototypeTransition(map, value, new_map);
+    new_map->set_prototype(*value);
   }
-  ASSERT(new_map->prototype() == value);
-  real_receiver->set_map(new_map);
+  ASSERT(new_map->prototype() == *value);
+  real_receiver->set_map(*new_map);
 
   heap->ClearInstanceofCache();
-  ASSERT(size == Size());
+  ASSERT(size == object->Size());
   return value;
 }
 

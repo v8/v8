@@ -1450,31 +1450,29 @@ static inline Object* GetPrototypeSkipHiddenPrototypes(Isolate* isolate,
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  CONVERT_ARG_CHECKED(Object, prototype, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
   if (FLAG_harmony_observation && obj->map()->is_observed()) {
-    HandleScope scope(isolate);
-    Handle<JSObject> receiver(obj);
-    Handle<Object> value(prototype, isolate);
     Handle<Object> old_value(
-        GetPrototypeSkipHiddenPrototypes(isolate, *receiver), isolate);
+        GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
 
-    MaybeObject* result = receiver->SetPrototype(*value, true);
-    Handle<Object> hresult;
-    if (!result->ToHandle(&hresult, isolate)) return result;
+    Handle<Object> result = JSObject::SetPrototype(obj, prototype, true);
+    if (result.is_null()) return Failure::Exception();
 
     Handle<Object> new_value(
-        GetPrototypeSkipHiddenPrototypes(isolate, *receiver), isolate);
+        GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
     if (!new_value->SameValue(*old_value)) {
-      JSObject::EnqueueChangeRecord(receiver, "prototype",
+      JSObject::EnqueueChangeRecord(obj, "prototype",
                                     isolate->factory()->proto_string(),
                                     old_value);
     }
-    return *hresult;
+    return *result;
   }
-  return obj->SetPrototype(prototype, true);
+  Handle<Object> result = JSObject::SetPrototype(obj, prototype, true);
+  if (result.is_null()) return Failure::Exception();
+  return *result;
 }
 
 
