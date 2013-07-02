@@ -3815,10 +3815,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
 
   if (FLAG_use_canonicalizing) Canonicalize();
 
-  if (FLAG_use_escape_analysis) {
-    HEscapeAnalysis escape_analysis(this);
-    escape_analysis.Analyze();
-  }
+  if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
 
   if (FLAG_use_gvn) Run<HGlobalValueNumberingPhase>();
 

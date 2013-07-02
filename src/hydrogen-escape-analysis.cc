@@ -31,7 +31,7 @@ namespace v8 {
 namespace internal {
 
 
-void HEscapeAnalysis::CollectIfNoEscapingUses(HInstruction* instr) {
+void HEscapeAnalysisPhase::CollectIfNoEscapingUses(HInstruction* instr) {
   for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
     if (use->HasEscapingOperandAt(it.index())) {
@@ -45,14 +45,14 @@ void HEscapeAnalysis::CollectIfNoEscapingUses(HInstruction* instr) {
   if (FLAG_trace_escape_analysis) {
     PrintF("#%d (%s) is being captured\n", instr->id(), instr->Mnemonic());
   }
-  captured_.Add(instr, zone_);
+  captured_.Add(instr, zone());
 }
 
 
-void HEscapeAnalysis::CollectCapturedValues() {
-  int block_count = graph_->blocks()->length();
+void HEscapeAnalysisPhase::CollectCapturedValues() {
+  int block_count = graph()->blocks()->length();
   for (int i = 0; i < block_count; ++i) {
-    HBasicBlock* block = graph_->blocks()->at(i);
+    HBasicBlock* block = graph()->blocks()->at(i);
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
       HInstruction* instr = it.Current();
       if (instr->IsAllocate() || instr->IsAllocateObject()) {
@@ -60,12 +60,6 @@ void HEscapeAnalysis::CollectCapturedValues() {
       }
     }
   }
-}
-
-
-void HEscapeAnalysis::Analyze() {
-  HPhase phase("H_Escape analysis", graph_);
-  CollectCapturedValues();
 }
 
 

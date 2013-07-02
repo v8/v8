@@ -35,19 +35,19 @@ namespace v8 {
 namespace internal {
 
 
-class HEscapeAnalysis BASE_EMBEDDED {
+class HEscapeAnalysisPhase : public HPhase {
  public:
-  explicit HEscapeAnalysis(HGraph* graph)
-      : graph_(graph), zone_(graph->zone()), captured_(0, zone_) { }
+  explicit HEscapeAnalysisPhase(HGraph* graph)
+      : HPhase("H_Escape analysis", graph), captured_(0, zone()) { }
 
-  void Analyze();
+  void Run() {
+    CollectCapturedValues();
+  }
 
  private:
   void CollectCapturedValues();
   void CollectIfNoEscapingUses(HInstruction* instr);
 
-  HGraph* graph_;
-  Zone* zone_;
   ZoneList<HValue*> captured_;
 };
 
