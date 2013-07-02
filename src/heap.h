@@ -2952,6 +2952,10 @@ class TranscendentalCache {
     for (int i = 0; i < kNumberOfCaches; ++i) caches_[i] = NULL;
   }
 
+  ~TranscendentalCache() {
+    for (int i = 0; i < kNumberOfCaches; ++i) delete caches_[i];
+  }
+
   // Used to create an external reference.
   inline Address cache_array_address();
 
