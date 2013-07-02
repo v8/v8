@@ -1960,6 +1960,15 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
 
+  // The entry stack must be empty when we get here,
+  // except for the default isolate, where it can
+  // still contain up to one entry stack item
+  ASSERT(entry_stack_ == NULL || this == default_isolate_);
+  ASSERT(entry_stack_ == NULL || entry_stack_->previous_item == NULL);
+
+  delete entry_stack_;
+  entry_stack_ = NULL;
+
   delete[] assembler_spare_buffer_;
   assembler_spare_buffer_ = NULL;
 
