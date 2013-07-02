@@ -1041,7 +1041,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  if (code == Isolate::Current()->builtins()->builtin(
+  if (code == isolate_->builtins()->builtin(
       Builtins::kLazyCompile))
     return;
 
@@ -1698,7 +1698,7 @@ void Logger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
-    if (*code_objects[i] == Isolate::Current()->builtins()->builtin(
+    if (*code_objects[i] == isolate_->builtins()->builtin(
         Builtins::kLazyCompile))
       continue;
     LogExistingFunction(sfis[i], code_objects[i]);
@@ -1778,7 +1778,7 @@ void Logger::SetCodeEventHandler(uint32_t options,
   code_event_handler_ = event_handler;
 
   if (code_event_handler_ != NULL && (options & kJitCodeEventEnumExisting)) {
-    HandleScope scope(Isolate::Current());
+    HandleScope scope(isolate_);
     LogCodeObjects();
     LogCompiledFunctions();
   }
