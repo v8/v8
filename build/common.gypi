@@ -452,6 +452,26 @@
           }],
         ],
       }],
+      ['(OS=="linux") and (v8_target_arch=="x64")', {
+        # Check whether the host compiler and target compiler support the
+        # '-m64' option and set it if so.
+        'target_conditions': [
+          ['_toolset=="host"', {
+            'variables': {
+              'm64flag': '<!((echo | $(echo ${CXX_host:-$(which g++)}) -m64 -E - > /dev/null 2>&1) && echo "-m64" || true)',
+            },
+            'cflags': [ '<(m64flag)' ],
+            'ldflags': [ '<(m64flag)' ],
+          }],
+          ['_toolset=="target"', {
+            'variables': {
+              'm64flag': '<!((echo | $(echo ${CXX_target:-<(CXX)}) -m64 -E - > /dev/null 2>&1) && echo "-m64" || true)',
+            },
+            'cflags': [ '<(m64flag)' ],
+            'ldflags': [ '<(m64flag)' ],
+          }]
+        ],
+      }],
       ['OS=="freebsd" or OS=="openbsd"', {
         'cflags': [ '-I/usr/local/include' ],
       }],
