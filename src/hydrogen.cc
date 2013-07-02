@@ -8897,7 +8897,7 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   HValue* context = environment()->LookupContext();
   Handle<Type> left_type = expr->left()->lower_type();
   Handle<Type> right_type = expr->right()->lower_type();
-  Handle<Type> result_type = expr->lower_type();
+  Handle<Type> result_type = expr->result_type();
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
   Representation left_rep = ToRepresentation(left_type);
   Representation right_rep = ToRepresentation(right_type);
