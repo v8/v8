@@ -9256,12 +9256,6 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   Representation combined_rep = ToRepresentation(combined_type);
   Representation left_rep = ToRepresentation(left_type);
   Representation right_rep = ToRepresentation(right_type);
-  // Check if this expression was ever executed according to type feedback.
-  // Note that for the special typeof/null/undefined cases we get unknown here.
-  if (combined_type->Is(Type::None())) {
-    AddSoftDeoptimize();
-    combined_type = left_type = right_type = handle(Type::Any(), isolate());
-  }
 
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
@@ -9328,11 +9322,23 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       result->set_position(expr->position());
       return ast_context()->ReturnInstruction(result, expr->id());
     }
+
+    // Code below assumes that we don't fall through.
+    UNREACHABLE();
   } else if (op == Token::IN) {
     HIn* result = new(zone()) HIn(context, left, right);
     result->set_position(expr->position());
     return ast_context()->ReturnInstruction(result, expr->id());
-  } else if (combined_type->Is(Type::Receiver())) {
+  }
+
+  // Cases handled below depend on collected type feedback. They should
+  // soft deoptimize when there is no type feedback.
+  if (combined_type->Is(Type::None())) {
+    AddSoftDeoptimize();
+    combined_type = left_type = right_type = handle(Type::Any(), isolate());
+  }
+
+  if (combined_type->Is(Type::Receiver())) {
     switch (op) {
       case Token::EQ:
       case Token::EQ_STRICT: {
