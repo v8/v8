@@ -1,3 +1,13 @@
+2013-07-02: Version 3.20.1
+
+        Implemented WeakMap.prototype.clear function. (issue 2753)
+
+        Ensure CheckInitialized is present independent of define.
+        (Chromium issue 255779)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-06-28: Version 3.20.0
 
         Migrated several tests from blink to V8 repository.
