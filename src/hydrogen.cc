@@ -5544,7 +5544,9 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Handle<Object> raw_boilerplate(literals->get(expr->literal_index()),
                                  isolate());
 
+  bool uninitialized = false;
   if (raw_boilerplate->IsUndefined()) {
+    uninitialized = true;
     raw_boilerplate = Runtime::CreateArrayLiteralBoilerplate(
         isolate(), literals, expr->constant_elements());
     if (raw_boilerplate.is_null()) {
@@ -5640,10 +5642,12 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       case FAST_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-        Add<HStoreKeyed>(elements, key, value,
-                         boilerplate_elements_kind);
+      case FAST_HOLEY_DOUBLE_ELEMENTS: {
+        HStoreKeyed* instr = Add<HStoreKeyed>(elements, key, value,
+                                              boilerplate_elements_kind);
+        instr->SetUninitialized(uninitialized);
         break;
+      }
       default:
         UNREACHABLE();
         break;

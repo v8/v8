@@ -5877,6 +5877,7 @@ class HStoreKeyed
       : elements_kind_(elements_kind),
       index_offset_(0),
       is_dehoisted_(false),
+      is_uninitialized_(false),
       new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
@@ -5937,6 +5938,9 @@ class HStoreKeyed
 
   virtual Representation observed_input_representation(int index) {
     if (index < 2) return RequiredInputRepresentation(index);
+    if (IsUninitialized()) {
+      return Representation::None();
+    }
     if (IsFastSmiElementsKind(elements_kind())) {
       return Representation::Smi();
     }
@@ -5963,6 +5967,10 @@ class HStoreKeyed
   void SetKey(HValue* key) { SetOperandAt(1, key); }
   bool IsDehoisted() { return is_dehoisted_; }
   void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
+  bool IsUninitialized() { return is_uninitialized_; }
+  void SetUninitialized(bool is_uninitialized) {
+    is_uninitialized_ = is_uninitialized;
+  }
 
   bool IsConstantHoleStore() {
     return value()->IsConstant() && HConstant::cast(value())->IsTheHole();
@@ -5993,7 +6001,8 @@ class HStoreKeyed
  private:
   ElementsKind elements_kind_;
   uint32_t index_offset_;
-  bool is_dehoisted_;
+  bool is_dehoisted_ : 1;
+  bool is_uninitialized_ : 1;
   HValue* new_space_dominator_;
 };
 
