@@ -1058,7 +1058,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   } else if (status != OptimizingCompiler::SUCCEEDED) {
     info->set_bailout_reason("failed/bailed out last time");
     status = optimizing_compiler->AbortOptimization();
-  } else if (isolate->debugger()->IsDebuggerActive()) {
+  } else if (isolate->DebuggerHasBreakPoints()) {
     info->set_bailout_reason("debugger is active");
     status = optimizing_compiler->AbortOptimization();
   } else {

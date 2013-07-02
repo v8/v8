@@ -39,6 +39,7 @@
 #include "execution.h"
 #include "full-codegen.h"
 #include "hydrogen.h"
+#include "isolate-inl.h"
 #include "objects-inl.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
@@ -9140,7 +9141,7 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 
 
 void JSFunction::MarkForLazyRecompilation() {
-  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
@@ -9151,7 +9152,7 @@ void JSFunction::MarkForLazyRecompilation() {
 
 
 void JSFunction::MarkForParallelRecompilation() {
-  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   if (!FLAG_parallel_recompilation) {
@@ -9170,7 +9171,9 @@ void JSFunction::MarkForParallelRecompilation() {
 
 
 void JSFunction::MarkForInstallingRecompiledCode() {
-  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
+  // The debugger could have switched the builtin to lazy compile.
+  // In that case, simply carry on.  It will be dealt with later.
+  ASSERT(IsInRecompileQueue() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(FLAG_parallel_recompilation);
@@ -9181,8 +9184,10 @@ void JSFunction::MarkForInstallingRecompiledCode() {
 
 
 void JSFunction::MarkInRecompileQueue() {
-  ASSERT(is_compiled() || GetIsolate()->debugger()->IsDebuggerActive());
-  ASSERT(!IsOptimized());
+  // We can only arrive here via the parallel-recompilation builtin.  If
+  // break points were set, the code would point to the lazy-compile builtin.
+  ASSERT(!GetIsolate()->DebuggerHasBreakPoints());
+  ASSERT(IsMarkedForParallelRecompilation() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(FLAG_parallel_recompilation);
   if (FLAG_trace_parallel_recompilation) {
