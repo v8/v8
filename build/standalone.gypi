@@ -87,6 +87,12 @@
       }, {
         'os_posix%': 1,
       }],
+      ['(v8_target_arch=="ia32" or v8_target_arch=="x64") and \
+        (OS=="linux" or OS=="mac")', {
+        'v8_enable_gdbjit%': 1,
+      }, {
+        'v8_enable_gdbjit%': 0,
+      }],
     ],
     # Default ARM variable settings.
     'armv7%': 'default',

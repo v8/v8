@@ -80,9 +80,12 @@ endif
 ifeq ($(extrachecks), off)
   GYPFLAGS += -Dv8_enable_extra_checks=0
 endif
-# gdbjit=on
+# gdbjit=on/off
 ifeq ($(gdbjit), on)
   GYPFLAGS += -Dv8_enable_gdbjit=1
+endif
+ifeq ($(gdbjit), off)
+  GYPFLAGS += -Dv8_enable_gdbjit=0
 endif
 # vtunejit=on
 ifeq ($(vtunejit), on)
