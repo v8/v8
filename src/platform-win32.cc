@@ -1479,10 +1479,6 @@ double OS::nan_value() {
 int OS::ActivationFrameAlignment() {
 #ifdef _WIN64
   return 16;  // Windows 64-bit ABI requires the stack to be 16-byte aligned.
-#elif defined(__MINGW32__)
-  // With gcc 4.4 the tree vectorization optimizer can generate code
-  // that requires 16 byte alignment such as movdqa on x86.
-  return 16;
 #else
   return 8;  // Floating-point math runs faster with 8-byte alignment.
 #endif
