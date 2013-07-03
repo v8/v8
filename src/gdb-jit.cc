@@ -1919,14 +1919,15 @@ static void UnregisterCodeEntry(JITCodeEntry* entry) {
 
 static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
 #ifdef __MACH_O
-  MachO mach_o(zone);
+  Zone zone(isolate);
+  MachO mach_o(&zone);
   Writer w(&mach_o);
 
-  mach_o.AddSection(new(zone) MachOTextSection(kCodeAlignment,
-                                               desc->CodeStart(),
-                                               desc->CodeSize()));
+  mach_o.AddSection(new(&zone) MachOTextSection(kCodeAlignment,
+                                                desc->CodeStart(),
+                                                desc->CodeSize()));
 
-  CreateDWARFSections(desc, zone, &mach_o);
+  CreateDWARFSections(desc, &zone, &mach_o);
 
   mach_o.Write(&w, desc->CodeStart(), desc->CodeSize());
 #else
