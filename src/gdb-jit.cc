@@ -2166,6 +2166,24 @@ void GDBJITInterface::RemoveCode(Code* code) {
 }
 
 
+void GDBJITInterface::RemoveCodeRange(Address start, Address end) {
+  HashMap* entries = GetEntries();
+  Zone zone(Isolate::Current());
+  ZoneList<Code*> dead_codes(1, &zone);
+
+  for (HashMap::Entry* e = entries->Start(); e != NULL; e = entries->Next(e)) {
+    Code* code = reinterpret_cast<Code*>(e->key);
+    if (code->address() >= start && code->address() < end) {
+      dead_codes.Add(code, &zone);
+    }
+  }
+
+  for (int i = 0; i < dead_codes.length(); i++) {
+    RemoveCode(dead_codes.at(i));
+  }
+}
+
+
 void GDBJITInterface::RegisterDetailedLineInfo(Code* code,
                                                GDBJITLineInfo* line_info) {
   ScopedLock lock(mutex.Pointer());

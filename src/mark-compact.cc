@@ -3137,6 +3137,11 @@ static void SweepPrecisely(PagedSpace* space,
       Address free_end = object_address + offsets[live_index++] * kPointerSize;
       if (free_end != free_start) {
         space->Free(free_start, static_cast<int>(free_end - free_start));
+#ifdef ENABLE_GDB_JIT_INTERFACE
+        if (FLAG_gdbjit && space->identity() == CODE_SPACE) {
+          GDBJITInterface::RemoveCodeRange(free_start, free_end);
+        }
+#endif
       }
       HeapObject* live_object = HeapObject::FromAddress(free_end);
       ASSERT(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
@@ -3163,6 +3168,11 @@ static void SweepPrecisely(PagedSpace* space,
   }
   if (free_start != p->area_end()) {
     space->Free(free_start, static_cast<int>(p->area_end() - free_start));
+#ifdef ENABLE_GDB_JIT_INTERFACE
+    if (FLAG_gdbjit && space->identity() == CODE_SPACE) {
+      GDBJITInterface::RemoveCodeRange(free_start, p->area_end());
+    }
+#endif
   }
   p->ResetLiveBytes();
   if (FLAG_print_cumulative_gc_stat) {
