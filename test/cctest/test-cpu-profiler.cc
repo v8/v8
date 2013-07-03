@@ -1089,8 +1089,9 @@ TEST(FunctionCallSample) {
 
   const v8::CpuProfileNode* startNode = GetChild(root, "start");
   {
-    ScopedVector<v8::Handle<v8::String> > names(1);
+    ScopedVector<v8::Handle<v8::String> > names(2);
     names[0] = v8::String::New("bar");
+    names[1] = v8::String::New("call");
     CheckChildrenNames(startNode, names);
   }
 
@@ -1105,3 +1106,101 @@ TEST(FunctionCallSample) {
   cpu_profiler->DeleteAllCpuProfiles();
 }
 
+
+static const char* function_apply_test_source = "function bar(iterations) {\n"
+"}\n"
+"function test() {\n"
+"  bar.apply(this, [10 * 1000]);\n"
+"}\n"
+"function start(duration) {\n"
+"  var start = Date.now();\n"
+"  while (Date.now() - start < duration) {\n"
+"    try {\n"
+"      test();\n"
+"    } catch(e) {}\n"
+"  }\n"
+"}";
+
+
+// [Top down]:
+//    94     0   (root) [-1] #0 1
+//     2     2    (garbage collector) [-1] #0 7
+//    82    49    start [-1] #16 3
+//     1     0      (unresolved function) [-1] #0 8
+//     1     1        apply [-1] #0 9
+//    32    21      test [-1] #16 4
+//     2     2        bar [-1] #16 6
+//     9     9        apply [-1] #0 5
+//    10    10    (program) [-1] #0 2
+TEST(FunctionApplySample) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Script::Compile(v8::String::New(function_apply_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("start")));
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+  int32_t duration_ms = 100;
+#if defined(_WIN32) || defined(_WIN64)
+  // 100ms is not enough on Windows. See
+  // https://code.google.com/p/v8/issues/detail?id=2628
+  duration_ms = 400;
+#endif
+  v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  {
+    ScopedVector<v8::Handle<v8::String> > names(3);
+    names[0] = v8::String::New(ProfileGenerator::kGarbageCollectorEntryName);
+    names[1] = v8::String::New(ProfileGenerator::kProgramEntryName);
+    names[2] = v8::String::New("start");
+    // Don't allow |test|, |bar| and |apply| nodes to be at the top level.
+    CheckChildrenNames(root, names);
+  }
+
+  // In case of GC stress tests all samples may be in GC phase and there
+  // won't be |start| node in the profile.
+  bool is_gc_stress_testing =
+      (i::FLAG_gc_interval != -1) || i::FLAG_stress_compaction;
+
+  const v8::CpuProfileNode* startNode = FindChild(root, "start");
+  CHECK(is_gc_stress_testing || startNode);
+  if (startNode) {
+    {
+      ScopedVector<v8::Handle<v8::String> > names(2);
+      names[0] = v8::String::New("test");
+      names[1] = v8::String::New(ProfileGenerator::kUnresolvedFunctionName);
+      CheckChildrenNames(startNode, names);
+    }
+
+    const v8::CpuProfileNode* testNode = FindChild(startNode, "test");
+    CHECK(is_gc_stress_testing || testNode);
+    if (testNode) {
+      ScopedVector<v8::Handle<v8::String> > names(2);
+      names[0] = v8::String::New("bar");
+      names[1] = v8::String::New("apply");
+      CheckChildrenNames(testNode, names);
+    }
+
+    if (const v8::CpuProfileNode* unresolvedNode =
+            FindChild(startNode, ProfileGenerator::kUnresolvedFunctionName)) {
+      ScopedVector<v8::Handle<v8::String> > names(1);
+      names[0] = v8::String::New("apply");
+      CheckChildrenNames(unresolvedNode, names);
+      GetChild(unresolvedNode, "apply");
+    }
+  }
+
+  cpu_profiler->DeleteAllCpuProfiles();
+}

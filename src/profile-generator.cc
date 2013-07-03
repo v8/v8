@@ -906,11 +906,16 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
         }
         *entry++ = pc_entry;
 
-        if (pc_entry->builtin_id() == Builtins::kFunctionCall) {
-          // When current function is FunctionCall builtin tos is sometimes
-          // address of the function that invoked it but sometimes it's one
-          // of the arguments. We simply replace the frame with 'unknown' entry.
-          *entry++ = unresolved_entry_;
+        if (pc_entry->builtin_id() == Builtins::kFunctionCall ||
+            pc_entry->builtin_id() == Builtins::kFunctionApply) {
+          // When current function is FunctionCall or FunctionApply builtin the
+          // top frame is either frame of the calling JS function or internal
+          // frame. In the latter case we know the caller for sure but in the
+          // former case we don't so we simply replace the frame with
+          // 'unresolved' entry.
+          if (sample.top_frame_type == StackFrame::JAVA_SCRIPT) {
+            *entry++ = unresolved_entry_;
+          }
         }
       }
     }

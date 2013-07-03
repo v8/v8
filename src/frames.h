@@ -886,6 +886,8 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
   inline JavaScriptFrame* frame() const;
   void Advance();
 
+  StackFrame::Type top_frame_type() const { return top_frame_type_; }
+
  private:
   void AdvanceOneFrame();
 
@@ -899,6 +901,7 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
 
   const Address low_bound_;
   const Address high_bound_;
+  StackFrame::Type top_frame_type_;
 };
 
 

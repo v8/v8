@@ -218,19 +218,37 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     Isolate* isolate,
     Address fp, Address sp, Address low_bound, Address high_bound) :
     StackFrameIteratorBase(isolate, false),
-    low_bound_(low_bound), high_bound_(high_bound) {
+    low_bound_(low_bound), high_bound_(high_bound),
+    top_frame_type_(StackFrame::NONE) {
   StackFrame::State state;
   StackFrame::Type type;
   ThreadLocalTop* top = isolate->thread_local_top();
   if (IsValidTop(top)) {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
+    top_frame_type_ = type;
   } else if (IsValidStackAddress(fp)) {
     ASSERT(fp != NULL);
     state.fp = fp;
     state.sp = sp;
     state.pc_address = StackFrame::ResolveReturnAddressLocation(
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp)));
-    type = StackFrame::ComputeType(this, &state);
+    // StackFrame::ComputeType will read both kContextOffset and kMarkerOffset,
+    // we check only that kMarkerOffset is within the stack bounds and do
+    // compile time check that kContextOffset slot is pushed on the stack before
+    // kMarkerOffset.
+    STATIC_ASSERT(StandardFrameConstants::kMarkerOffset <
+                  StandardFrameConstants::kContextOffset);
+    Address frame_marker = fp + StandardFrameConstants::kMarkerOffset;
+    if (IsValidStackAddress(frame_marker)) {
+      type = StackFrame::ComputeType(this, &state);
+      top_frame_type_ = type;
+    } else {
+      // Mark the frame as JAVA_SCRIPT if we cannot determine its type.
+      // The frame anyways will be skipped.
+      type = StackFrame::JAVA_SCRIPT;
+      // Top frame is incomplete so we cannot reliably determine its type.
+      top_frame_type_ = StackFrame::NONE;
+    }
   } else {
     return;
   }
