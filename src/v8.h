@@ -64,7 +64,6 @@
 #include "incremental-marking-inl.h"
 #include "mark-compact-inl.h"
 #include "log-inl.h"
-#include "cpu-profiler-inl.h"
 #include "handles-inl.h"
 #include "heap-snapshot-generator-inl.h"
 #include "zone-inl.h"

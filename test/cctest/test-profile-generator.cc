@@ -30,6 +30,7 @@
 #include "v8.h"
 #include "profile-generator-inl.h"
 #include "cctest.h"
+#include "cpu-profiler.h"
 #include "../include/v8-profiler.h"
 
 using i::CodeEntry;

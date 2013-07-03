@@ -32,6 +32,7 @@
 #include "hashmap.h"
 #include "list.h"
 #include "log.h"
+#include "v8utils.h"
 
 namespace v8 {
 namespace internal {

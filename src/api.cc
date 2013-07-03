@@ -38,6 +38,7 @@
 #include "compiler.h"
 #include "conversions-inl.h"
 #include "counters.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "execution.h"

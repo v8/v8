@@ -31,6 +31,7 @@
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "cpu-profiler.h"
 #include "deoptimizer.h"
 #include "global-handles.h"
 #include "log.h"

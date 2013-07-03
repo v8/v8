@@ -28,6 +28,8 @@
 #ifndef V8_HEAP_SNAPSHOT_GENERATOR_H_
 #define V8_HEAP_SNAPSHOT_GENERATOR_H_
 
+#include "profile-generator-inl.h"
+
 namespace v8 {
 namespace internal {
 

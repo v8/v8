@@ -32,6 +32,7 @@
 #include "assert-scope.h"
 #include "builtins.h"
 #include "elements-kind.h"
+#include "flags.h"
 #include "list.h"
 #include "property-details.h"
 #include "smart-pointers.h"

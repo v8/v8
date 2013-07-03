@@ -29,6 +29,7 @@
 
 #include "code-stubs.h"
 #include "compilation-cache.h"
+#include "cpu-profiler.h"
 #include "deoptimizer.h"
 #include "execution.h"
 #include "gdb-jit.h"

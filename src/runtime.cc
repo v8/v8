@@ -38,6 +38,7 @@
 #include "compilation-cache.h"
 #include "compiler.h"
 #include "cpu.h"
+#include "cpu-profiler.h"
 #include "dateparser-inl.h"
 #include "debug.h"
 #include "deoptimizer.h"

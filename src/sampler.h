@@ -29,6 +29,7 @@
 #define V8_SAMPLER_H_
 
 #include "atomicops.h"
+#include "frames.h"
 #include "v8globals.h"
 
 namespace v8 {

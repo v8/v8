@@ -31,7 +31,7 @@
 #include "atomicops.h"
 #include "flags.h"
 #include "platform.h"
-#include "unbound-queue.h"
+#include "unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {

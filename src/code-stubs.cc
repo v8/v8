@@ -29,6 +29,7 @@
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "cpu-profiler.h"
 #include "stub-cache.h"
 #include "factory.h"
 #include "gdb-jit.h"

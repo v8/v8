@@ -32,11 +32,12 @@
 #include "v8.h"
 
 #include "api.h"
-#include "codegen.h"
-#include "log.h"
-#include "isolate.h"
 #include "cctest.h"
+#include "codegen.h"
 #include "disassembler.h"
+#include "isolate.h"
+#include "log.h"
+#include "sampler.h"
 #include "vm-state-inl.h"
 
 using v8::Function;

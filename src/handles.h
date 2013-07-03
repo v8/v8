@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "apiutils.h"
+#include "objects.h"
 
 namespace v8 {
 namespace internal {

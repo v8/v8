@@ -38,16 +38,17 @@
 
 #include "api.h"
 #include "arguments.h"
-#include "isolate.h"
-#include "compilation-cache.h"
-#include "execution.h"
-#include "objects.h"
-#include "snapshot.h"
-#include "platform.h"
-#include "utils.h"
 #include "cctest.h"
+#include "compilation-cache.h"
+#include "cpu-profiler.h"
+#include "execution.h"
+#include "isolate.h"
+#include "objects.h"
 #include "parser.h"
+#include "platform.h"
+#include "snapshot.h"
 #include "unicode-inl.h"
+#include "utils.h"
 
 static const bool kLogThreading = false;
 

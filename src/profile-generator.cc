@@ -30,11 +30,12 @@
 #include "profile-generator-inl.h"
 
 #include "compiler.h"
+#include "debug.h"
+#include "sampler.h"
 #include "global-handles.h"
 #include "scopeinfo.h"
 #include "unicode.h"
 #include "zone-inl.h"
-#include "debug.h"
 
 namespace v8 {
 namespace internal {

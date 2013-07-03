@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "sampler.h"
+
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) \
     || defined(__NetBSD__) || defined(__sun) || defined(__ANDROID__) \
     || defined(__native_client__)
@@ -60,6 +62,8 @@
 
 #include "v8.h"
 
+#include "cpu-profiler.h"
+#include "flags.h"
 #include "frames-inl.h"
 #include "log.h"
 #include "platform.h"
