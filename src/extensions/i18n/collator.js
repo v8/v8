@@ -168,7 +168,9 @@ function initializeCollator(collator, locales, options) {
   },
   ATTRIBUTES.DONT_ENUM
 );
+%FunctionSetName(Intl.Collator.prototype.resolvedOptions, 'resolvedOptions');
 %FunctionRemovePrototype(Intl.Collator.prototype.resolvedOptions);
+%SetNativeFlag(Intl.Collator.prototype.resolvedOptions);
 
 
 /**
@@ -186,7 +188,9 @@ function initializeCollator(collator, locales, options) {
   },
   ATTRIBUTES.DONT_ENUM
 );
+%FunctionSetName(Intl.Collator.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.Collator.supportedLocalesOf);
+%SetNativeFlag(Intl.Collator.supportedLocalesOf);
 
 
 /**

@@ -377,7 +377,10 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
   },
   ATTRIBUTES.DONT_ENUM
 );
+%FunctionSetName(Intl.DateTimeFormat.prototype.resolvedOptions,
+                 'resolvedOptions');
 %FunctionRemovePrototype(Intl.DateTimeFormat.prototype.resolvedOptions);
+%SetNativeFlag(Intl.DateTimeFormat.prototype.resolvedOptions);
 
 
 /**
@@ -395,7 +398,9 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
   },
   ATTRIBUTES.DONT_ENUM
 );
+%FunctionSetName(Intl.DateTimeFormat.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.DateTimeFormat.supportedLocalesOf);
+%SetNativeFlag(Intl.DateTimeFormat.supportedLocalesOf);
 
 
 /**

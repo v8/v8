@@ -91,7 +91,9 @@ Object.defineProperty(String.prototype, 'localeCompare', {
   configurable: true,
   enumerable: false
 });
+%FunctionSetName(String.prototype.localeCompare, 'localeCompare');
 %FunctionRemovePrototype(String.prototype.localeCompare);
+%SetNativeFlag(String.prototype.localeCompare);
 
 
 /**
@@ -117,7 +119,9 @@ Object.defineProperty(Number.prototype, 'toLocaleString', {
   configurable: true,
   enumerable: false
 });
+%FunctionSetName(Number.prototype.toLocaleString, 'toLocaleString');
 %FunctionRemovePrototype(Number.prototype.toLocaleString);
+%SetNativeFlag(Number.prototype.toLocaleString);
 
 
 /**
@@ -161,7 +165,9 @@ Object.defineProperty(Date.prototype, 'toLocaleString', {
   configurable: true,
   enumerable: false
 });
+%FunctionSetName(Date.prototype.toLocaleString, 'toLocaleString');
 %FunctionRemovePrototype(Date.prototype.toLocaleString);
+%SetNativeFlag(Date.prototype.toLocaleString);
 
 
 /**
@@ -184,7 +190,9 @@ Object.defineProperty(Date.prototype, 'toLocaleDateString', {
   configurable: true,
   enumerable: false
 });
+%FunctionSetName(Date.prototype.toLocaleDateString, 'toLocaleDateString');
 %FunctionRemovePrototype(Date.prototype.toLocaleDateString);
+%SetNativeFlag(Date.prototype.toLocaleDateString);
 
 
 /**
@@ -207,4 +215,6 @@ Object.defineProperty(Date.prototype, 'toLocaleTimeString', {
   configurable: true,
   enumerable: false
 });
+%FunctionSetName(Date.prototype.toLocaleTimeString, 'toLocaleTimeString');
 %FunctionRemovePrototype(Date.prototype.toLocaleTimeString);
+%SetNativeFlag(Date.prototype.toLocaleTimeString);

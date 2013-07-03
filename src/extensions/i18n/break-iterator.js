@@ -118,7 +118,10 @@ function initializeBreakIterator(iterator, locales, options) {
   },
   ATTRIBUTES.DONT_ENUM
 );
+%FunctionSetName(Intl.v8BreakIterator.prototype.resolvedOptions,
+                 'resolvedOptions');
 %FunctionRemovePrototype(Intl.v8BreakIterator.prototype.resolvedOptions);
+%SetNativeFlag(Intl.v8BreakIterator.prototype.resolvedOptions);
 
 
 /**
@@ -136,7 +139,9 @@ function initializeBreakIterator(iterator, locales, options) {
   },
   ATTRIBUTES.DONT_ENUM
 );
+%FunctionSetName(Intl.v8BreakIterator.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.v8BreakIterator.supportedLocalesOf);
+%SetNativeFlag(Intl.v8BreakIterator.supportedLocalesOf);
 
 
 /**

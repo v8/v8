@@ -38,7 +38,3 @@ CLEANUP_RE.test('');
 
 return Intl;
 }());
-
-// Alias v8Intl to Intl so we don't break existing applications.
-// TODO(cira): Remove in a couple of months (starting at Oct 1st 2012).
-var v8Intl = Intl;

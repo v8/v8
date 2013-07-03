@@ -237,7 +237,10 @@ function initializeNumberFormat(numberFormat, locales, options) {
   },
   ATTRIBUTES.DONT_ENUM
 );
+%FunctionSetName(Intl.NumberFormat.prototype.resolvedOptions,
+                 'resolvedOptions');
 %FunctionRemovePrototype(Intl.NumberFormat.prototype.resolvedOptions);
+%SetNativeFlag(Intl.NumberFormat.prototype.resolvedOptions);
 
 
 /**
@@ -255,7 +258,9 @@ function initializeNumberFormat(numberFormat, locales, options) {
   },
   ATTRIBUTES.DONT_ENUM
 );
+%FunctionSetName(Intl.NumberFormat.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.NumberFormat.supportedLocalesOf);
+%SetNativeFlag(Intl.NumberFormat.supportedLocalesOf);
 
 
 /**

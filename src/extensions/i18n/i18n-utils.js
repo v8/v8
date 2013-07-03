@@ -73,13 +73,17 @@ function addBoundMethod(obj, methodName, implementation, length) {
           }
         }
       }
+      %FunctionSetName(boundMethod, internalName);
       %FunctionRemovePrototype(boundMethod);
+      %SetNativeFlag(boundMethod);
       this[internalName] = boundMethod;
     }
     return this[internalName];
   }
 
+  %FunctionSetName(getter, methodName);
   %FunctionRemovePrototype(getter);
+  %SetNativeFlag(getter);
 
   Object.defineProperty(obj.prototype, methodName, {
     get: getter,
@@ -185,7 +189,7 @@ function getGetOption(options, caller) {
                     'Default options are missing.');
   }
 
-  function getOption(property, type, values, defaultValue) {
+  var getOption = function getOption(property, type, values, defaultValue) {
     if (options[property] !== undefined) {
       var value = options[property];
       switch (type) {
@@ -362,11 +366,11 @@ function toObject(value) {
 function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
   var extension = '';
 
-  function updateExtension(key, value) {
+  var updateExtension = function updateExtension(key, value) {
     return '-' + key + '-' + String(value);
   }
 
-  function updateProperty(property, type, value) {
+  var updateProperty = function updateProperty(property, type, value) {
     if (type === 'boolean' && (typeof value === 'string')) {
       value = (value === 'true') ? true : false;
     }
