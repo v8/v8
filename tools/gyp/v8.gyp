@@ -129,6 +129,11 @@
             ],
           },
         }],
+        ['v8_enable_i18n_support==1', {
+          'sources': [
+            '<(SHARED_INTERMEDIATE_DIR)/i18n-libraries.cc',
+          ],
+        }],
       ],
       'dependencies': [
         'v8_base.<(v8_target_arch)',
@@ -190,6 +195,11 @@
           'defines': [
             'BUILDING_V8_SHARED',
             'V8_SHARED',
+          ],
+        }],
+        ['v8_enable_i18n_support==1', {
+          'sources': [
+            '<(SHARED_INTERMEDIATE_DIR)/i18n-libraries.cc',
           ],
         }],
       ]
@@ -781,6 +791,27 @@
             '<(SHARED_INTERMEDIATE_DIR)/debug-support.cc',
           ]
         }],
+        ['v8_enable_i18n_support==1', {
+          'sources': [
+            '../../src/extensions/i18n/break-iterator.cc',
+            '../../src/extensions/i18n/break-iterator.h',
+            '../../src/extensions/i18n/collator.cc',
+            '../../src/extensions/i18n/collator.h',
+            '../../src/extensions/i18n/date-format.cc',
+            '../../src/extensions/i18n/date-format.h',
+            '../../src/extensions/i18n/i18n-extension.cc',
+            '../../src/extensions/i18n/i18n-extension.h',
+            '../../src/extensions/i18n/i18n-utils.cc',
+            '../../src/extensions/i18n/i18n-utils.h',
+            '../../src/extensions/i18n/locale.cc',
+            '../../src/extensions/i18n/locale.h',
+            '../../src/extensions/i18n/number-format.cc',
+            '../../src/extensions/i18n/number-format.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/third_party/icu/icu.gyp:*',
+          ]
+        }],
       ],
     },
     {
@@ -791,6 +822,26 @@
           'toolsets': ['host'],
         }, {
           'toolsets': ['target'],
+        }],
+        ['v8_enable_i18n_support==1', {
+          'actions': [{
+            'action_name': 'js2c_i18n',
+            'inputs': [
+              '../../tools/js2c.py',
+              '<@(i18n_library_files)',
+            ],
+            'outputs': [
+              '<(SHARED_INTERMEDIATE_DIR)/i18n-libraries.cc',
+            ],
+            'action': [
+              'python',
+              '../../tools/js2c.py',
+              '<@(_outputs)',
+              'I18N',
+              '<(v8_compress_startup_data)',
+              '<@(i18n_library_files)'
+            ],
+          }],
         }],
       ],
       'variables': {
@@ -820,6 +871,18 @@
           '../../src/arraybuffer.js',
           '../../src/typedarray.js',
           '../../src/generator.js'
+        ],
+        'i18n_library_files': [
+          '../../src/extensions/i18n/break-iterator.js',
+          '../../src/extensions/i18n/collator.js',
+          '../../src/extensions/i18n/date-format.js',
+          '../../src/extensions/i18n/footer.js',
+          '../../src/extensions/i18n/globals.js',
+          '../../src/extensions/i18n/header.js',
+          '../../src/extensions/i18n/i18n-utils.js',
+          '../../src/extensions/i18n/locale.js',
+          '../../src/extensions/i18n/number-format.js',
+          '../../src/extensions/i18n/overrides.js',
         ],
       },
       'actions': [

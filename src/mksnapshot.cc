@@ -312,6 +312,9 @@ int main(int argc, char** argv) {
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
 
+  // Disable the i18n extension, as it doesn't support being snapshotted yet.
+  i::FLAG_enable_i18n = false;
+
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);

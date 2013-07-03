@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,45 +24,48 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// limitations under the License.
 
-#ifndef V8_NATIVES_H_
-#define V8_NATIVES_H_
+#ifndef V8_EXTENSIONS_I18N_DATE_FORMAT_H_
+#define V8_EXTENSIONS_I18N_DATE_FORMAT_H_
 
-namespace v8 {
-namespace internal {
+#include "unicode/uversion.h"
+#include "v8.h"
 
-typedef bool (*NativeSourceCallback)(Vector<const char> name,
-                                     Vector<const char> source,
-                                     int index);
+namespace U_ICU_NAMESPACE {
+class SimpleDateFormat;
+}
 
-enum NativeType {
-  CORE, EXPERIMENTAL, D8, TEST, I18N
-};
+namespace v8_i18n {
 
-template <NativeType type>
-class NativesCollection {
+class DateFormat {
  public:
-  // Number of built-in scripts.
-  static int GetBuiltinsCount();
-  // Number of debugger implementation scripts.
-  static int GetDebuggerCount();
+  static void JSCreateDateTimeFormat(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  // These are used to access built-in scripts.  The debugger implementation
-  // scripts have an index in the interval [0, GetDebuggerCount()).  The
-  // non-debugger scripts have an index in the interval [GetDebuggerCount(),
-  // GetNativesCount()).
-  static int GetIndex(const char* name);
-  static int GetRawScriptsSize();
-  static Vector<const char> GetRawScriptSource(int index);
-  static Vector<const char> GetScriptName(int index);
-  static Vector<const byte> GetScriptsSource();
-  static void SetRawScriptsSource(Vector<const char> raw_source);
+  // Helper methods for various bindings.
+
+  // Unpacks date format object from corresponding JavaScript object.
+  static icu::SimpleDateFormat* UnpackDateFormat(
+      v8::Handle<v8::Object> obj);
+
+  // Release memory we allocated for the DateFormat once the JS object that
+  // holds the pointer gets garbage collected.
+  static void DeleteDateFormat(v8::Isolate* isolate,
+                               v8::Persistent<v8::Object>* object,
+                               void* param);
+
+  // Formats date and returns corresponding string.
+  static void JSInternalFormat(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // Parses date and returns corresponding Date object or undefined if parse
+  // failed.
+  static void JSInternalParse(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+ private:
+  DateFormat();
 };
 
-typedef NativesCollection<CORE> Natives;
-typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
-typedef NativesCollection<I18N> I18NNatives;
+}  // namespace v8_i18n
 
-} }  // namespace v8::internal
-
-#endif  // V8_NATIVES_H_
+#endif  // V8_EXTENSIONS_I18N_DATE_FORMAT_H_

@@ -45,6 +45,10 @@
 #include "extensions/statistics-extension.h"
 #include "code-stubs.h"
 
+#if defined(V8_I18N_SUPPORT)
+#include "extensions/i18n/i18n-extension.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -102,6 +106,9 @@ void Bootstrapper::InitializeOncePerProcess() {
   GCExtension::Register();
   ExternalizeStringExtension::Register();
   StatisticsExtension::Register();
+#if defined(V8_I18N_SUPPORT)
+  v8_i18n::Extension::Register();
+#endif
 }
 
 
@@ -2278,6 +2285,12 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
   if (FLAG_track_gc_object_stats) {
     InstallExtension(isolate, "v8/statistics", &extension_states);
   }
+
+#if defined(V8_I18N_SUPPORT)
+  if (FLAG_enable_i18n) {
+    InstallExtension(isolate, "v8/i18n", &extension_states);
+  }
+#endif
 
   if (extensions == NULL) return true;
   // Install required extensions

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,45 +24,18 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// limitations under the License.
 
-#ifndef V8_NATIVES_H_
-#define V8_NATIVES_H_
+// ECMAScript 402 API implementation is broken into separate files for
+// each service. The build system combines them together into one
+// Intl namespace.
 
-namespace v8 {
-namespace internal {
+/**
+ * Intl object is a single object that has some named properties,
+ * all of which are constructors.
+ */
+var Intl = (function() {
 
-typedef bool (*NativeSourceCallback)(Vector<const char> name,
-                                     Vector<const char> source,
-                                     int index);
+'use strict';
 
-enum NativeType {
-  CORE, EXPERIMENTAL, D8, TEST, I18N
-};
-
-template <NativeType type>
-class NativesCollection {
- public:
-  // Number of built-in scripts.
-  static int GetBuiltinsCount();
-  // Number of debugger implementation scripts.
-  static int GetDebuggerCount();
-
-  // These are used to access built-in scripts.  The debugger implementation
-  // scripts have an index in the interval [0, GetDebuggerCount()).  The
-  // non-debugger scripts have an index in the interval [GetDebuggerCount(),
-  // GetNativesCount()).
-  static int GetIndex(const char* name);
-  static int GetRawScriptsSize();
-  static Vector<const char> GetRawScriptSource(int index);
-  static Vector<const char> GetScriptName(int index);
-  static Vector<const byte> GetScriptsSource();
-  static void SetRawScriptsSource(Vector<const char> raw_source);
-};
-
-typedef NativesCollection<CORE> Natives;
-typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
-typedef NativesCollection<I18N> I18NNatives;
-
-} }  // namespace v8::internal
-
-#endif  // V8_NATIVES_H_
+var Intl = {};

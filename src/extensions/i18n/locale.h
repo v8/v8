@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,45 +24,33 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// limitations under the License.
 
-#ifndef V8_NATIVES_H_
-#define V8_NATIVES_H_
+#ifndef V8_EXTENSIONS_I18N_SRC_LOCALE_H_
+#define V8_EXTENSIONS_I18N_SRC_LOCALE_H_
 
-namespace v8 {
-namespace internal {
+#include "unicode/uversion.h"
+#include "v8.h"
 
-typedef bool (*NativeSourceCallback)(Vector<const char> name,
-                                     Vector<const char> source,
-                                     int index);
+namespace v8_i18n {
 
-enum NativeType {
-  CORE, EXPERIMENTAL, D8, TEST, I18N
-};
+// Canonicalizes the BCP47 language tag using BCP47 rules.
+// Returns 'invalid-tag' in case input was not well formed.
+void JSCanonicalizeLanguageTag(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-template <NativeType type>
-class NativesCollection {
- public:
-  // Number of built-in scripts.
-  static int GetBuiltinsCount();
-  // Number of debugger implementation scripts.
-  static int GetDebuggerCount();
+// Returns a list of available locales for collator, date or number formatter.
+void JSAvailableLocalesOf(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  // These are used to access built-in scripts.  The debugger implementation
-  // scripts have an index in the interval [0, GetDebuggerCount()).  The
-  // non-debugger scripts have an index in the interval [GetDebuggerCount(),
-  // GetNativesCount()).
-  static int GetIndex(const char* name);
-  static int GetRawScriptsSize();
-  static Vector<const char> GetRawScriptSource(int index);
-  static Vector<const char> GetScriptName(int index);
-  static Vector<const byte> GetScriptsSource();
-  static void SetRawScriptsSource(Vector<const char> raw_source);
-};
+// Returns default ICU locale.
+void JSGetDefaultICULocale(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-typedef NativesCollection<CORE> Natives;
-typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
-typedef NativesCollection<I18N> I18NNatives;
+// Returns an array of objects, that have maximized and base names of inputs.
+// Unicode extensions are dropped from both.
+// Input: ['zh-TW-u-nu-thai', 'sr']
+// Output: [{maximized: 'zh-Hant-TW', base: 'zh-TW'},
+//          {maximized: 'sr-Cyrl-RS', base: 'sr'}]
+void JSGetLanguageTagVariants(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-} }  // namespace v8::internal
+}  // namespace v8_i18n
 
-#endif  // V8_NATIVES_H_
+#endif  // V8_EXTENSIONS_I18N_LOCALE_H_
