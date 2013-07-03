@@ -2130,12 +2130,12 @@ int LCodeGen::GetNextEmittedBlock() const {
 
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
-  int right_block = instr->FalseDestination(chunk_);
   int left_block = instr->TrueDestination(chunk_);
+  int right_block = instr->FalseDestination(chunk_);
 
   int next_block = GetNextEmittedBlock();
 
-  if (right_block == left_block) {
+  if (right_block == left_block || cc == al) {
     EmitGoto(left_block);
   } else if (left_block == next_block) {
     __ b(NegateCondition(cc), chunk_->GetAssemblyLabel(right_block));
@@ -2150,6 +2150,25 @@ void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
 
 void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
   __ stop("LBreak");
+}
+
+
+void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
+  Representation r = instr->hydrogen()->value()->representation();
+  if (r.IsSmiOrInteger32() || r.IsDouble()) {
+    EmitBranch(instr, al);
+  } else {
+    ASSERT(r.IsTagged());
+    Register reg = ToRegister(instr->value());
+    HType type = instr->hydrogen()->value()->type();
+    if (type.IsTaggedNumber()) {
+      EmitBranch(instr, al);
+    }
+    __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
+    __ ldr(scratch0(), FieldMemOperand(reg, HeapObject::kMapOffset));
+    __ CompareRoot(scratch0(), Heap::kHeapNumberMapRootIndex);
+    EmitBranch(instr, eq);
+  }
 }
 
 

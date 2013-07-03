@@ -395,8 +395,7 @@ Handle<Type> TypeFeedbackOracle::UnaryType(TypeFeedbackId id) {
   }
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT(code->is_unary_op_stub());
-  return UnaryOpIC::TypeInfoToType(
-      static_cast<UnaryOpIC::TypeInfo>(code->unary_op_type()), isolate());
+  return UnaryOpStub(code->extra_ic_state()).GetType(isolate());
 }
 
 
@@ -697,5 +696,17 @@ void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
   ASSERT(*dictionary_ == result);
 #endif
 }
+
+
+Representation Representation::FromType(TypeInfo info) {
+  if (info.IsUninitialized()) return Representation::None();
+  // TODO(verwaest): Return Smi rather than Integer32.
+  if (info.IsSmi()) return Representation::Integer32();
+  if (info.IsInteger32()) return Representation::Integer32();
+  if (info.IsDouble()) return Representation::Double();
+  if (info.IsNumber()) return Representation::Double();
+  return Representation::Tagged();
+}
+
 
 } }  // namespace v8::internal

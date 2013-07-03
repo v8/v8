@@ -10610,6 +10610,7 @@ const char* Code::StubType2String(StubType type) {
 
 
 void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
+  PrintF(out, "extra_ic_state = ");
   const char* name = NULL;
   switch (kind) {
     case CALL_IC:
@@ -10627,9 +10628,9 @@ void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
       break;
   }
   if (name != NULL) {
-    PrintF(out, "extra_ic_state = %s\n", name);
+    PrintF(out, "%s\n", name);
   } else {
-    PrintF(out, "extra_ic_state = %d\n", extra);
+    PrintF(out, "%d\n", extra);
   }
 }
 
@@ -10638,7 +10639,8 @@ void Code::Disassemble(const char* name, FILE* out) {
   PrintF(out, "kind = %s\n", Kind2String(kind()));
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
-    PrintExtraICState(out, kind(), extra_ic_state());
+    PrintExtraICState(out, kind(), needs_extended_extra_ic_state(kind()) ?
+        extended_extra_ic_state() : extra_ic_state());
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", StubType2String(type()));
     }

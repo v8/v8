@@ -764,6 +764,44 @@ Handle<Code> CompareNilICStub::GenerateCode() {
 
 
 template <>
+HValue* CodeStubGraphBuilder<UnaryOpStub>::BuildCodeInitializedStub() {
+  UnaryOpStub* stub = casted_stub();
+  Handle<Type> type = stub->GetType(graph()->isolate());
+  HValue* input = GetParameter(0);
+
+  // Prevent unwanted HChange being inserted to ensure that the stub
+  // deopts on newly encountered types.
+  if (!type->Maybe(Type::Double())) {
+    input = AddInstruction(new(zone())
+        HForceRepresentation(input, Representation::Smi()));
+  }
+
+  if (!type->Is(Type::Number())) {
+    // If we expect to see other things than Numbers, we will create a generic
+    // stub, which handles all numbers and calls into the runtime for the rest.
+    IfBuilder if_number(this);
+    if_number.If<HIsNumberAndBranch>(input);
+    if_number.Then();
+    HInstruction* res = BuildUnaryMathOp(input, type, stub->operation());
+    if_number.Return(AddInstruction(res));
+    if_number.Else();
+    AddInstruction(new(zone()) HPushArgument(GetParameter(0)));
+    if_number.Return(AddInstruction(new(zone()) HCallConstantFunction(
+        stub->ToJSFunction(isolate()), 1)));
+    if_number.End();
+    return graph()->GetConstantUndefined();
+  }
+
+  return AddInstruction(BuildUnaryMathOp(input, type, stub->operation()));
+}
+
+
+Handle<Code> UnaryOpStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
   ToBooleanStub* stub = casted_stub();
 
