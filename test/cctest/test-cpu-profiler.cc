@@ -1169,13 +1169,7 @@ TEST(FunctionApplySample) {
     CheckChildrenNames(root, names);
   }
 
-  // In case of GC stress tests all samples may be in GC phase and there
-  // won't be |start| node in the profile.
-  bool is_gc_stress_testing =
-      (i::FLAG_gc_interval != -1) || i::FLAG_stress_compaction;
-
   const v8::CpuProfileNode* startNode = FindChild(root, "start");
-  CHECK(is_gc_stress_testing || startNode);
   if (startNode) {
     {
       ScopedVector<v8::Handle<v8::String> > names(2);
@@ -1185,7 +1179,6 @@ TEST(FunctionApplySample) {
     }
 
     const v8::CpuProfileNode* testNode = FindChild(startNode, "test");
-    CHECK(is_gc_stress_testing || testNode);
     if (testNode) {
       ScopedVector<v8::Handle<v8::String> > names(2);
       names[0] = v8::String::New("bar");
