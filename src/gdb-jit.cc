@@ -500,10 +500,10 @@ void ELFSection::PopulateHeader(Writer::Slot<ELFSection::Header> header,
 #if defined(__MACH_O)
 class MachO BASE_EMBEDDED {
  public:
-  MachO() : sections_(6) { }
+  explicit MachO(Zone* zone) : zone_(zone), sections_(6, zone) { }
 
   uint32_t AddSection(MachOSection* section) {
-    sections_.Add(section);
+    sections_.Add(section, zone_);
     return sections_.length() - 1;
   }
 
@@ -620,7 +620,7 @@ class MachO BASE_EMBEDDED {
     cmd->filesize = w->position() - (uintptr_t)cmd->fileoff;
   }
 
-
+  Zone* zone_;
   ZoneList<MachOSection*> sections_;
 };
 #endif  // defined(__MACH_O)
@@ -1793,9 +1793,9 @@ static void CreateDWARFSections(CodeDescription* desc,
                                 Zone* zone,
                                 DebugObject* obj) {
   if (desc->IsLineInfoAvailable()) {
-    obj->AddSection(new(zone) DebugInfoSection(desc), zone);
-    obj->AddSection(new(zone) DebugAbbrevSection(desc), zone);
-    obj->AddSection(new(zone) DebugLineSection(desc), zone);
+    obj->AddSection(new(zone) DebugInfoSection(desc));
+    obj->AddSection(new(zone) DebugAbbrevSection(desc));
+    obj->AddSection(new(zone) DebugLineSection(desc));
   }
 #if V8_TARGET_ARCH_X64
   obj->AddSection(new(zone) UnwindInfoSection(desc), zone);
@@ -1918,14 +1918,14 @@ static void UnregisterCodeEntry(JITCodeEntry* entry) {
 
 static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
 #ifdef __MACH_O
-  MachO mach_o;
+  MachO mach_o(zone);
   Writer w(&mach_o);
 
-  mach_o.AddSection(new MachOTextSection(kCodeAlignment,
-                                         desc->CodeStart(),
-                                         desc->CodeSize()));
+  mach_o.AddSection(new(zone) MachOTextSection(kCodeAlignment,
+                                               desc->CodeStart(),
+                                               desc->CodeSize()));
 
-  CreateDWARFSections(desc, &mach_o);
+  CreateDWARFSections(desc, zone, &mach_o);
 
   mach_o.Write(&w, desc->CodeStart(), desc->CodeSize());
 #else
