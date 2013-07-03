@@ -169,7 +169,7 @@ function TickProcessor(
       'snapshot-pos': { parsers: [parseInt, parseInt],
           processor: this.processSnapshotPosition },
       'tick': {
-          parsers: [parseInt, parseInt, parseInt, parseInt,
+          parsers: [parseInt, parseInt, parseInt,
                     parseInt, parseInt, 'var-args'],
           processor: this.processTick },
       'heap-sample-begin': { parsers: [null, null, parseInt],
@@ -365,7 +365,6 @@ TickProcessor.prototype.includeTick = function(vmState) {
 };
 
 TickProcessor.prototype.processTick = function(pc,
-                                               sp,
                                                ns_since_start,
                                                is_external_callback,
                                                tos_or_external_callback,

@@ -52,6 +52,7 @@ using v8::internal::Address;
 using v8::internal::Handle;
 using v8::internal::Isolate;
 using v8::internal::JSFunction;
+using v8::internal::RegisterState;
 using v8::internal::TickSample;
 
 
@@ -66,11 +67,12 @@ static void InitTraceEnv(TickSample* sample) {
 
 
 static void DoTrace(Address fp) {
-  trace_env.sample->fp = fp;
+  RegisterState regs;
+  regs.fp = fp;
   // sp is only used to define stack high bound
-  trace_env.sample->sp =
+  regs.sp =
       reinterpret_cast<Address>(trace_env.sample) - 10240;
-  trace_env.sample->Trace(Isolate::Current());
+  trace_env.sample->Init(Isolate::Current(), regs);
 }
 
 

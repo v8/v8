@@ -1364,8 +1364,6 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   LogMessageBuilder msg(this);
   msg.Append("%s,", kLogEventsNames[TICK_EVENT]);
   msg.AppendAddress(sample->pc);
-  msg.Append(',');
-  msg.AppendAddress(sample->sp);
   msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
   if (sample->has_external_callback) {
     msg.Append(",1,");

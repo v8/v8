@@ -216,10 +216,11 @@ bool StackTraceFrameIterator::IsValidFrame() {
 
 SafeStackFrameIterator::SafeStackFrameIterator(
     Isolate* isolate,
-    Address fp, Address sp, Address low_bound, Address high_bound) :
-    StackFrameIteratorBase(isolate, false),
-    low_bound_(low_bound), high_bound_(high_bound),
-    top_frame_type_(StackFrame::NONE) {
+    Address fp, Address sp, Address js_entry_sp)
+    : StackFrameIteratorBase(isolate, false),
+      low_bound_(sp),
+      high_bound_(js_entry_sp),
+      top_frame_type_(StackFrame::NONE) {
   StackFrame::State state;
   StackFrame::Type type;
   ThreadLocalTop* top = isolate->thread_local_top();

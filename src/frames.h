@@ -881,7 +881,7 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
  public:
   SafeStackFrameIterator(Isolate* isolate,
                          Address fp, Address sp,
-                         Address low_bound, Address high_bound);
+                         Address js_entry_sp);
 
   inline JavaScriptFrame* frame() const;
   void Advance();
