@@ -873,16 +873,16 @@
           '../../src/generator.js'
         ],
         'i18n_library_files': [
-          '../../src/extensions/i18n/break-iterator.js',
-          '../../src/extensions/i18n/collator.js',
-          '../../src/extensions/i18n/date-format.js',
-          '../../src/extensions/i18n/footer.js',
-          '../../src/extensions/i18n/globals.js',
           '../../src/extensions/i18n/header.js',
-          '../../src/extensions/i18n/i18n-utils.js',
+          '../../src/extensions/i18n/globals.js',
           '../../src/extensions/i18n/locale.js',
+          '../../src/extensions/i18n/collator.js',
           '../../src/extensions/i18n/number-format.js',
+          '../../src/extensions/i18n/date-format.js',
+          '../../src/extensions/i18n/break-iterator.js',
+          '../../src/extensions/i18n/i18n-utils.js',
           '../../src/extensions/i18n/overrides.js',
+          '../../src/extensions/i18n/footer.js',
         ],
       },
       'actions': [
