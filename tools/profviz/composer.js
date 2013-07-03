@@ -41,7 +41,9 @@ function PlotScriptComposer(kResX, kResY) {
   var kStackFrameWidth = 0.1;       // Width of the lower stack frame lines.
   var kGapWidth = 0.05;             // Gap between stack frame lines.
 
-  var kY1Offset = 10;               // Offset for stack frame vs. event lines.
+  var kY1Offset = 11;               // Offset for stack frame vs. event lines.
+  var kDeoptRow = 7;                // Row displaying deopts.
+  var kMaxDeoptLength = 4;          // Draw size of the largest deopt.
   var kPauseLabelPadding = 5;       // Padding for pause time labels.
   var kNumPauseLabels = 7;          // Number of biggest pauses to label.
   var kCodeKindLabelPadding = 100;  // Padding for code kind labels.
@@ -51,6 +53,9 @@ function PlotScriptComposer(kResX, kResY) {
 
   var kNumThreads = 2;              // Number of threads.
   var kExecutionThreadId = 0;       // ID of main thread.
+
+  // Init values.
+  var num_timer_event = kY1Offset + 0.5;
 
   // Data structures.
   function TimerEvent(label, color, pause, thread_id) {
@@ -72,9 +77,13 @@ function PlotScriptComposer(kResX, kResY) {
   }
 
   function Range(start, end) {
-    // Everthing here are in milliseconds.
-    this.start = start;
-    this.end = end;
+    this.start = start;  // In milliseconds.
+    this.end = end;      // In milliseconds.
+  }
+
+  function Deopt(time, size) {
+    this.time = time;  // In milliseconds.
+    this.size = size;  // In bytes.
   }
 
   Range.prototype.duration = function() { return this.end - this.start; }
@@ -82,9 +91,6 @@ function PlotScriptComposer(kResX, kResY) {
   function Tick(tick) {
     this.tick = tick;
   }
-
-  // Init values.
-  var num_timer_event = kY1Offset + 0.5;
 
   var TimerEvents = {
       'V8.Execute':
@@ -127,6 +133,7 @@ function PlotScriptComposer(kResX, kResY) {
 
   var code_map = new CodeMap();
   var execution_pauses = [];
+  var deopts = [];
   var event_stack = [];
   var last_time_stamp = [];
   for (var i = 0; i < kNumThreads; i++) {
@@ -312,6 +319,10 @@ function PlotScriptComposer(kResX, kResY) {
       code_map.deleteCode(address);
     };
 
+    var processCodeDeoptEvent = function(time, size) {
+      deopts.push(new Deopt(time, size));
+    }
+
     var processSharedLibrary = function(name, start, end) {
       var code_entry = new CodeMap.CodeEntry(end - start, name);
       code_entry.kind = -3;  // External code kind.
@@ -352,6 +363,8 @@ function PlotScriptComposer(kResX, kResY) {
                             processor: processCodeMoveEvent },
         'code-delete':    { parsers: [parseInt],
                             processor: processCodeDeleteEvent },
+        'code-deopt':     { parsers: [parseTimeStamp, parseInt],
+                            processor: processCodeDeoptEvent },
         'tick':           { parsers: [parseInt, parseInt, parseTimeStamp,
                                       null, null, parseInt, 'var-args'],
                             processor: processTickEvent }
@@ -423,16 +436,25 @@ function PlotScriptComposer(kResX, kResY) {
     output("set style rect fs solid 1 noborder");
     output("set style line 1 lt 1 lw 1 lc rgb \"#000000\"");
     output("set border 15 lw 0.2");  // Draw thin border box.
+    output("set style line 2 lt 1 lw 1 lc rgb \"#9944CC\"");
     output("set xtics out nomirror");
     output("unset key");
 
-    function DrawBar(row, color, start, end, width) {
+    function DrawBarBase(color, start, end, top, bottom) {
       obj_index++;
       command = "set object " + obj_index + " rect";
-      command += " from " + start + ", " + (row - width);
-      command += " to " + end + ", " + (row + width);
+      command += " from " + start + ", " + top;
+      command += " to " + end + ", " + bottom;
       command += " fc rgb \"" + color + "\"";
       output(command);
+    }
+
+    function DrawBar(row, color, start, end, width) {
+      DrawBarBase(color, start, end, row + width, row - width);
+    }
+
+    function DrawHalfBar(row, color, start, end, width) {
+      DrawBarBase(color, start, end, row, row - width);
     }
 
     var percentages = {};
@@ -447,6 +469,17 @@ function PlotScriptComposer(kResX, kResY) {
       percentages[name] = (sum / (range_end - range_start) * 100).toFixed(1);
     }
 
+    // Plot deopts.
+    deopts.sort(function(a, b) { return b.size - a.size; });
+    var max_deopt_size = deopts.length > 0 ? deopts[0].size : Infinity;
+
+    for (var i = 0; i < deopts.length; i++) {
+      var deopt = deopts[i];
+      DrawHalfBar(kDeoptRow, "#9944CC", deopt.time,
+                  deopt.time + 10 * pause_tolerance,
+                  deopt.size / max_deopt_size * kMaxDeoptLength);
+    }
+
     // Name Y-axis.
     var ytics = [];
     for (name in TimerEvents) {
@@ -459,6 +492,8 @@ function PlotScriptComposer(kResX, kResY) {
     ytics.push('"top ' + kStackFrames + ' js stack frames"' + ' ' +
                (kY1Offset - 2));
     ytics.push('"pause times" 0');
+    ytics.push('"max deopt size: ' + (max_deopt_size / 1024).toFixed(1) +
+               ' kB" ' + kDeoptRow);
     output("set ytics out nomirror (" + ytics.join(', ') + ")");
 
     // Plot timeline.

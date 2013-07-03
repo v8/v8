@@ -637,6 +637,16 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 }
 
 
+void Logger::CodeDeoptEvent(Code* code) {
+  if (!log_->IsEnabled()) return;
+  ASSERT(FLAG_log_internal_timer_events);
+  LogMessageBuilder msg(this);
+  int since_epoch = static_cast<int>(OS::Ticks() - epoch_);
+  msg.Append("code-deopt,%ld,%d\n", since_epoch, code->CodeSize());
+  msg.WriteToLogFile();
+}
+
+
 void Logger::TimerEvent(StartEnd se, const char* name) {
   if (!log_->IsEnabled()) return;
   ASSERT(FLAG_log_internal_timer_events);
