@@ -476,13 +476,4 @@ Type* Type::Optional(Handle<Type> type) {
       : Union(type, Undefined()->handle_via_isolate_of(*type));
 }
 
-
-Representation Representation::FromType(Handle<Type> type) {
-  if (type->Is(Type::None())) return Representation::None();
-  if (type->Is(Type::Signed32())) return Representation::Integer32();
-  if (type->Is(Type::Number())) return Representation::Double();
-  return Representation::Tagged();
-}
-
-
 } }  // namespace v8::internal

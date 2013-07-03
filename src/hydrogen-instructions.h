@@ -92,7 +92,6 @@ class LChunkBuilder;
   V(CheckHeapObject)                           \
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
-  V(CheckSmi)                                  \
   V(CheckPrototypeMaps)                        \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
@@ -129,7 +128,6 @@ class LChunkBuilder;
   V(InvokeFunction)                            \
   V(IsConstructCallAndBranch)                  \
   V(IsObjectAndBranch)                         \
-  V(IsNumberAndBranch)                         \
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
@@ -2933,49 +2931,6 @@ class HCheckInstanceType: public HUnaryOperation {
   }
 
   const Check check_;
-};
-
-
-class HCheckSmi: public HUnaryOperation {
- public:
-  explicit HCheckSmi(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Smi());
-    SetFlag(kUseGVN);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType();
-
-  virtual HValue* Canonicalize() {
-    HType value_type = value()->type();
-    if (value_type.IsSmi()) {
-      return NULL;
-    }
-    return this;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckSmi)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
-class HIsNumberAndBranch: public HUnaryControlInstruction {
- public:
-  explicit HIsNumberAndBranch(HValue* value)
-    : HUnaryControlInstruction(value, NULL, NULL) {
-    SetFlag(kFlexibleRepresentation);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch)
 };
 
 

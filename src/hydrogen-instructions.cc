@@ -3078,11 +3078,6 @@ HType HCheckHeapObject::CalculateInferredType() {
 }
 
 
-HType HCheckSmi::CalculateInferredType() {
-  return HType::Smi();
-}
-
-
 HType HPhi::CalculateInferredType() {
   HType result = HType::Uninitialized();
   for (int i = 0; i < OperandCount(); ++i) {

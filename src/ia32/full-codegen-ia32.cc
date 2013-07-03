@@ -4363,7 +4363,10 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
                                            const char* comment) {
   Comment cmt(masm_, comment);
-  UnaryOpStub stub(expr->op());
+  bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
+  UnaryOverwriteMode overwrite =
+      can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+  UnaryOpStub stub(expr->op(), overwrite);
   // UnaryOpStub expects the argument to be in the
   // accumulator register eax.
   VisitForAccumulatorValue(expr->expression());

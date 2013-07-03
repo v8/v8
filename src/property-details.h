@@ -55,8 +55,6 @@ namespace v8 {
 namespace internal {
 
 class Smi;
-class Type;
-class TypeInfo;
 
 // Type of properties.
 // Order of properties is significant.
@@ -102,10 +100,6 @@ class Representation {
   static Representation External() { return Representation(kExternal); }
 
   static Representation FromKind(Kind kind) { return Representation(kind); }
-
-  // TODO(rossberg): this should die eventually.
-  static Representation FromType(TypeInfo info);
-  static Representation FromType(Handle<Type> type);
 
   bool Equals(const Representation& other) const {
     return kind_ == other.kind_;
