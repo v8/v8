@@ -496,10 +496,10 @@ class SamplerThread : public Thread {
 
   void SampleContext(Sampler* sampler) {
     thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
-    Isolate* isolate = sampler->isolate();
 
 #if defined(USE_SIMULATOR)
     SimulatorHelper helper;
+    Isolate* isolate = sampler->isolate();
     if (!helper.Init(sampler, isolate)) return;
 #endif
 
@@ -507,7 +507,7 @@ class SamplerThread : public Thread {
 
 #if V8_HOST_ARCH_X64
     thread_state_flavor_t flavor = x86_THREAD_STATE64;
-    x86_thread_state64_t state;
+    x86_thread_state64_t thread_state;
     mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
 #if __DARWIN_UNIX03
 #define REGISTER_FIELD(name) __r ## name
@@ -516,7 +516,7 @@ class SamplerThread : public Thread {
 #endif  // __DARWIN_UNIX03
 #elif V8_HOST_ARCH_IA32
     thread_state_flavor_t flavor = i386_THREAD_STATE;
-    i386_thread_state_t state;
+    i386_thread_state_t thread_state;
     mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
 #if __DARWIN_UNIX03
 #define REGISTER_FIELD(name) __e ## name
@@ -529,15 +529,15 @@ class SamplerThread : public Thread {
 
     if (thread_get_state(profiled_thread,
                          flavor,
-                         reinterpret_cast<natural_t*>(&state),
+                         reinterpret_cast<natural_t*>(&thread_state),
                          &count) == KERN_SUCCESS) {
       RegisterState state;
 #if defined(USE_SIMULATOR)
       helper.FillRegisters(&state);
 #else
-      state.pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
-      state.sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
-      state.fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
+      state.pc = reinterpret_cast<Address>(thread_state.REGISTER_FIELD(ip));
+      state.sp = reinterpret_cast<Address>(thread_state.REGISTER_FIELD(sp));
+      state.fp = reinterpret_cast<Address>(thread_state.REGISTER_FIELD(bp));
 #endif  // USE_SIMULATOR
 #undef REGISTER_FIELD
       sampler->SampleStack(state);
