@@ -1799,7 +1799,7 @@ static void CreateDWARFSections(CodeDescription* desc,
     obj->AddSection(new(zone) DebugLineSection(desc));
   }
 #if V8_TARGET_ARCH_X64
-  obj->AddSection(new(zone) UnwindInfoSection(desc), zone);
+  obj->AddSection(new(zone) UnwindInfoSection(desc));
 #endif
 }
 
