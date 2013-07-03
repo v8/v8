@@ -2181,28 +2181,20 @@ void MarkCompactCollector::ProcessEphemeralMarking(ObjectVisitor* visitor) {
 }
 
 
-static StackFrame* TopOptimizedFrame(Isolate* isolate) {
-  for (StackFrameIterator it(isolate, isolate->thread_local_top());
+void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
+  for (StackFrameIterator it(isolate(), isolate()->thread_local_top());
        !it.done(); it.Advance()) {
     if (it.frame()->type() == StackFrame::JAVA_SCRIPT) {
-      return NULL;
+      return;
     }
     if (it.frame()->type() == StackFrame::OPTIMIZED) {
-      return it.frame();
+      Code* code = it.frame()->LookupCode();
+      if (!code->CanDeoptAt(it.frame()->pc())) {
+        code->CodeIterateBody(visitor);
+      }
+      ProcessMarkingDeque();
+      return;
     }
-  }
-  return NULL;
-}
-
-
-void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
-  StackFrame* frame = TopOptimizedFrame(isolate());
-  if (frame != NULL) {
-    Code* code = frame->LookupCode();
-    if (!code->CanDeoptAt(frame->pc())) {
-      code->CodeIterateBody(visitor);
-    }
-    ProcessMarkingDeque();
   }
 }
 
