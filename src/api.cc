@@ -439,7 +439,7 @@ void V8::GetCompressedStartupData(StartupData* compressed_data) {
 
 #if defined(ENABLE_I18N_SUPPORT)
   i::Vector<const ii:byte> i18n_extension_source =
-      i::I18NNatvies::GetScriptsSource();
+      i::I18NNatives::GetScriptsSource();
   compressed_data[kI18NExtension].data =
       reinterpret_cast<const char*>(i18n_extension_source.start());
   compressed_data[kI18NExtension].compressed_size =
