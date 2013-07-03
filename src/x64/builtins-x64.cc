@@ -44,15 +44,15 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 CFunctionId id,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
-  //  -- rax                : number of arguments excluding receiver
-  //  -- rdi                : called function (only guaranteed when
-  //                          extra_args requires it)
-  //  -- rsi                : context
-  //  -- rsp[0]             : return address
-  //  -- rsp[8]             : last argument
+  //  -- rax                 : number of arguments excluding receiver
+  //  -- rdi                 : called function (only guaranteed when
+  //                           extra_args requires it)
+  //  -- rsi                 : context
+  //  -- rsp[0]              : return address
+  //  -- rsp[8]              : last argument
   //  -- ...
-  //  -- rsp[8 * argc]      : first argument (argc == rax)
-  //  -- rsp[8 * (argc +1)] : receiver
+  //  -- rsp[8 * argc]       : first argument (argc == rax)
+  //  -- rsp[8 * (argc + 1)] : receiver
   // -----------------------------------
 
   // Insert extra arguments.
@@ -475,10 +475,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
 #ifdef _WIN64
     // MSVC parameters in:
-    // rcx : entry (ignored)
-    // rdx : function
-    // r8 : receiver
-    // r9 : argc
+    // rcx        : entry (ignored)
+    // rdx        : function
+    // r8         : receiver
+    // r9         : argc
     // [rsp+0x20] : argv
 
     // Clear the context before we push it when entering the internal frame.
@@ -527,9 +527,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 #endif  // _WIN64
 
     // Current stack contents:
-    // [rsp + 2 * kPointerSize ... ]: Internal frame
-    // [rsp + kPointerSize]         : function
-    // [rsp]                        : receiver
+    // [rsp + 2 * kPointerSize ... ] : Internal frame
+    // [rsp + kPointerSize]          : function
+    // [rsp]                         : receiver
     // Current register contents:
     // rax : argc
     // rbx : argv
@@ -758,12 +758,12 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // Stack Layout:
-  // rsp[0]:   Return address
-  // rsp[1]:   Argument n
-  // rsp[2]:   Argument n-1
+  // rsp[0]           : Return address
+  // rsp[8]           : Argument n
+  // rsp[16]          : Argument n-1
   //  ...
-  // rsp[n]:   Argument 1
-  // rsp[n+1]: Receiver (function to call)
+  // rsp[8 * n]       : Argument 1
+  // rsp[8 * (n + 1)] : Receiver (function to call)
   //
   // rax contains the number of arguments, n, not counting the receiver.
   //
@@ -931,18 +931,18 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
 void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Stack at entry:
-  //    rsp: return address
-  //  rsp+8: arguments
-  // rsp+16: receiver ("this")
-  // rsp+24: function
+  // rsp     : return address
+  // rsp[8]  : arguments
+  // rsp[16] : receiver ("this")
+  // rsp[24] : function
   {
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
     // Stack frame:
-    //    rbp: Old base pointer
-    // rbp[1]: return address
-    // rbp[2]: function arguments
-    // rbp[3]: receiver
-    // rbp[4]: function
+    // rbp     : Old base pointer
+    // rbp[8]  : return address
+    // rbp[16] : function arguments
+    // rbp[24] : receiver
+    // rbp[32] : function
     static const int kArgumentsOffset = 2 * kPointerSize;
     static const int kReceiverOffset = 3 * kPointerSize;
     static const int kFunctionOffset = 4 * kPointerSize;
@@ -1097,7 +1097,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
 void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax : argc
+  //  -- rax    : argc
   //  -- rsp[0] : return address
   //  -- rsp[8] : last argument
   // -----------------------------------
@@ -1127,7 +1127,7 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
 
 void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax : argc
+  //  -- rax    : argc
   //  -- rsp[0] : return address
   //  -- rsp[8] : last argument
   // -----------------------------------

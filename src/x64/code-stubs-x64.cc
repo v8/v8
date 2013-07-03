@@ -265,7 +265,7 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
 
 
 void ToNumberStub::Generate(MacroAssembler* masm) {
-  // The ToNumber stub takes one argument in eax.
+  // The ToNumber stub takes one argument in rax.
   Label check_heap_number, call_builtin;
   __ SmiTest(rax);
   __ j(not_zero, &check_heap_number, Label::kNear);
@@ -344,7 +344,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1);
 
-  // rcx holds native context, ebx points to fixed array of 3-element entries
+  // rcx holds native context, rbx points to fixed array of 3-element entries
   // (native context, optimized code, literals).
   // The optimized code map must never be empty, so check the first elements.
   Label install_optimized;
@@ -463,8 +463,8 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Stack layout on entry:
   //
-  // [rsp + (1 * kPointerSize)]: function
-  // [rsp + (2 * kPointerSize)]: serialized scope info
+  // [rsp + (1 * kPointerSize)] : function
+  // [rsp + (2 * kPointerSize)] : serialized scope info
 
   // Try to allocate the context in new space.
   Label gc;
@@ -1182,7 +1182,7 @@ static void BinaryOpStub_GenerateHeapResultAllocation(MacroAssembler* masm,
       // If the argument in rdx is already an object, we skip the
       // allocation of a heap number.
       __ JumpIfNotSmi(rdx, &skip_allocation);
-      // Allocate a heap number for the result. Keep eax and edx intact
+      // Allocate a heap number for the result. Keep rax and rdx intact
       // for the possible runtime call.
       __ AllocateHeapNumber(rbx, rcx, alloc_failure);
       // Now rdx can be overwritten losing one of the arguments as we are
@@ -1221,16 +1221,16 @@ void BinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
 void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   // TAGGED case:
   //   Input:
-  //     rsp[8]: argument (should be number).
-  //     rsp[0]: return address.
+  //     rsp[8] : argument (should be number).
+  //     rsp[0] : return address.
   //   Output:
   //     rax: tagged double result.
   // UNTAGGED case:
   //   Input::
-  //     rsp[0]: return address.
-  //     xmm1: untagged double input argument
+  //     rsp[0] : return address.
+  //     xmm1   : untagged double input argument
   //   Output:
-  //     xmm1: untagged double result.
+  //     xmm1   : untagged double result.
 
   Label runtime_call;
   Label runtime_call_clear_stack;
@@ -1971,7 +1971,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
 
     // The stub is called from non-optimized code, which expects the result
-    // as heap number in eax.
+    // as heap number in rax.
     __ bind(&done);
     __ AllocateHeapNumber(rax, rcx, &call_runtime);
     __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), double_result);
@@ -2182,8 +2182,8 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
 void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // Stack layout:
-  //  rsp[0] : return address
-  //  rsp[8] : number of parameters (tagged)
+  //  rsp[0]  : return address
+  //  rsp[8]  : number of parameters (tagged)
   //  rsp[16] : receiver displacement
   //  rsp[24] : function
   // Registers used over the whole function:
@@ -2398,10 +2398,10 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
-  // esp[0] : return address
-  // esp[8] : number of parameters
-  // esp[16] : receiver displacement
-  // esp[24] : function
+  // rsp[0]  : return address
+  // rsp[8]  : number of parameters
+  // rsp[16] : receiver displacement
+  // rsp[24] : function
 
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
@@ -2424,8 +2424,8 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
-  // rsp[0] : return address
-  // rsp[8] : number of parameters
+  // rsp[0]  : return address
+  // rsp[8]  : number of parameters
   // rsp[16] : receiver displacement
   // rsp[24] : function
 
@@ -2532,11 +2532,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 #else  // V8_INTERPRETED_REGEXP
 
   // Stack frame on entry.
-  //  rsp[0]: return address
-  //  rsp[8]: last_match_info (expected JSArray)
-  //  rsp[16]: previous index
-  //  rsp[24]: subject string
-  //  rsp[32]: JSRegExp object
+  //  rsp[0]  : return address
+  //  rsp[8]  : last_match_info (expected JSArray)
+  //  rsp[16] : previous index
+  //  rsp[24] : subject string
+  //  rsp[32] : JSRegExp object
 
   static const int kLastMatchInfoOffset = 1 * kPointerSize;
   static const int kPreviousIndexOffset = 2 * kPointerSize;
@@ -4141,14 +4141,14 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 void InstanceofStub::Generate(MacroAssembler* masm) {
   // Implements "value instanceof function" operator.
   // Expected input state with no inline cache:
-  //   rsp[0] : return address
-  //   rsp[1] : function pointer
-  //   rsp[2] : value
+  //   rsp[0]  : return address
+  //   rsp[8]  : function pointer
+  //   rsp[16] : value
   // Expected input state with an inline one-element cache:
-  //   rsp[0] : return address
-  //   rsp[1] : offset from return address to location of inline cache
-  //   rsp[2] : function pointer
-  //   rsp[3] : value
+  //   rsp[0]  : return address
+  //   rsp[8]  : offset from return address to location of inline cache
+  //   rsp[16] : function pointer
+  //   rsp[24] : value
   // Returns a bitwise zero to indicate that the value
   // is and instance of the function and anything else to
   // indicate that the value is not an instance.
@@ -5090,10 +5090,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
   // Stack frame on entry.
-  //  rsp[0]: return address
-  //  rsp[8]: to
-  //  rsp[16]: from
-  //  rsp[24]: string
+  //  rsp[0]  : return address
+  //  rsp[8]  : to
+  //  rsp[16] : from
+  //  rsp[24] : string
 
   const int kToOffset = 1 * kPointerSize;
   const int kFromOffset = kToOffset + kPointerSize;
@@ -5452,9 +5452,9 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
   // Stack frame on entry.
-  //  rsp[0]: return address
-  //  rsp[8]: right string
-  //  rsp[16]: left string
+  //  rsp[0]  : return address
+  //  rsp[8]  : right string
+  //  rsp[16] : left string
 
   __ movq(rdx, Operand(rsp, 2 * kPointerSize));  // left
   __ movq(rax, Operand(rsp, 1 * kPointerSize));  // right
@@ -5951,9 +5951,9 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   // This stub overrides SometimesSetsUpAFrame() to return false.  That means
   // we cannot call anything that could cause a GC from this stub.
   // Stack frame on entry:
-  //  esp[0 * kPointerSize]: return address.
-  //  esp[1 * kPointerSize]: key's hash.
-  //  esp[2 * kPointerSize]: key.
+  //  rsp[0 * kPointerSize] : return address.
+  //  rsp[1 * kPointerSize] : key's hash.
+  //  rsp[2 * kPointerSize] : key.
   // Registers:
   //  dictionary_: NameDictionary to probe.
   //  result_: used as scratch.
@@ -6334,11 +6334,11 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
 void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax    : element value to store
-  //  -- rcx    : element index as smi
-  //  -- rsp[0] : return address
-  //  -- rsp[8] : array literal index in function
-  //  -- rsp[16]: array literal
+  //  -- rax     : element value to store
+  //  -- rcx     : element index as smi
+  //  -- rsp[0]  : return address
+  //  -- rsp[8]  : array literal index in function
+  //  -- rsp[16] : array literal
   // clobbers rbx, rdx, rdi
   // -----------------------------------
 
@@ -6500,8 +6500,8 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   // rdx - kind
   // rax - number of arguments
   // rdi - constructor?
-  // esp[0] - return address
-  // esp[4] - last argument
+  // rsp[0] - return address
+  // rsp[8] - last argument
   ASSERT(FAST_SMI_ELEMENTS == 0);
   ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
   ASSERT(FAST_ELEMENTS == 2);
@@ -6599,11 +6599,11 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax : argc
-  //  -- rbx : type info cell
-  //  -- rdi : constructor
+  //  -- rax    : argc
+  //  -- rbx    : type info cell
+  //  -- rdi    : constructor
   //  -- rsp[0] : return address
-  //  -- rsp[4] : last argument
+  //  -- rsp[8] : last argument
   // -----------------------------------
   Handle<Object> undefined_sentinel(
       masm->isolate()->heap()->undefined_value(),
@@ -6622,7 +6622,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ CmpObjectType(rcx, MAP_TYPE, rcx);
     __ Check(equal, "Unexpected initial map for Array function");
 
-    // We should either have undefined in ebx or a valid cell
+    // We should either have undefined in rbx or a valid cell
     Label okay_here;
     Handle<Map> cell_map = masm->isolate()->factory()->cell_map();
     __ Cmp(rbx, undefined_sentinel);
@@ -6707,11 +6707,11 @@ void InternalArrayConstructorStub::GenerateCase(
 
 void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- eax : argc
-  //  -- ebx : type info cell
-  //  -- edi : constructor
-  //  -- esp[0] : return address
-  //  -- esp[4] : last argument
+  //  -- rax    : argc
+  //  -- rbx    : type info cell
+  //  -- rdi    : constructor
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : last argument
   // -----------------------------------
 
   if (FLAG_debug_code) {

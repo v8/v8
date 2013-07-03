@@ -712,10 +712,10 @@ static void KeyedStoreGenerateGenericHelper(
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
                                    StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
+  //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
   Label slow, slow_with_tagged_index, fast_object, fast_object_grow;
   Label fast_double, fast_double_grow;
@@ -870,14 +870,14 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
                                      int argc,
                                      Label* miss) {
   // ----------- S t a t e -------------
-  // rcx                    : function name
-  // rdi                    : function
-  // rsp[0]                 : return address
-  // rsp[8]                 : argument argc
-  // rsp[16]                : argument argc - 1
+  // rcx                 : function name
+  // rdi                 : function
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
   // ...
-  // rsp[argc * 8]          : argument 1
-  // rsp[(argc + 1) * 8]    : argument 0 = receiver
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
   // -----------------------------------
   __ JumpIfSmi(rdi, miss);
   // Check that the value is a JavaScript function.
@@ -894,13 +894,13 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 // The generated code falls through if the call should be handled by runtime.
 void CallICBase::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  // rcx                    : function name
-  // rsp[0]                 : return address
-  // rsp[8]                 : argument argc
-  // rsp[16]                : argument argc - 1
+  // rcx                 : function name
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
   // ...
-  // rsp[argc * 8]          : argument 1
-  // rsp[(argc + 1) * 8]    : argument 0 = receiver
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
   // -----------------------------------
   Label miss;
 
@@ -924,13 +924,13 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
                               IC::UtilityId id,
                               Code::ExtraICState extra_state) {
   // ----------- S t a t e -------------
-  // rcx                      : function name
-  // rsp[0]                   : return address
-  // rsp[8]                   : argument argc
-  // rsp[16]                  : argument argc - 1
+  // rcx                 : function name
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
   // ...
-  // rsp[argc * 8]            : argument 1
-  // rsp[(argc + 1) * 8]      : argument 0 = receiver
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
   // -----------------------------------
 
   Counters* counters = masm->isolate()->counters();
@@ -996,13 +996,13 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm,
                                  int argc,
                                  Code::ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
-  // rcx                      : function name
-  // rsp[0]                   : return address
-  // rsp[8]                   : argument argc
-  // rsp[16]                  : argument argc - 1
+  // rcx                 : function name
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
   // ...
-  // rsp[argc * 8]            : argument 1
-  // rsp[(argc + 1) * 8]      : argument 0 = receiver
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
   // -----------------------------------
 
   // Get the receiver of the function from the stack; 1 ~ return address.
@@ -1014,13 +1014,13 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm,
 
 void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  // rcx                      : function name
-  // rsp[0]                   : return address
-  // rsp[8]                   : argument argc
-  // rsp[16]                  : argument argc - 1
+  // rcx                 : function name
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
   // ...
-  // rsp[argc * 8]            : argument 1
-  // rsp[(argc + 1) * 8]      : argument 0 = receiver
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
   // -----------------------------------
 
   // Get the receiver of the function from the stack; 1 ~ return address.
@@ -1125,13 +1125,13 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
 void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  // rcx                      : function name
-  // rsp[0]                   : return address
-  // rsp[8]                   : argument argc
-  // rsp[16]                  : argument argc - 1
+  // rcx                 : function name
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
   // ...
-  // rsp[argc * 8]            : argument 1
-  // rsp[(argc + 1) * 8]      : argument 0 = receiver
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
   // -----------------------------------
 
   // Check if the name is really a name.
@@ -1230,7 +1230,7 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
-  //  -- rsp[0]  : return address
+  //  -- rsp[0] : return address
   // -----------------------------------
   Label slow, notin;
   Operand mapped_location =
@@ -1253,10 +1253,10 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
 
 void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
+  //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
   Label slow, notin;
   Operand mapped_location = GenerateMappedArgumentsLookup(
@@ -1293,13 +1293,13 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
 void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
                                              int argc) {
   // ----------- S t a t e -------------
-  // rcx                      : function name
-  // rsp[0]                   : return address
-  // rsp[8]                   : argument argc
-  // rsp[16]                  : argument argc - 1
+  // rcx                 : function name
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
   // ...
-  // rsp[argc * 8]            : argument 1
-  // rsp[(argc + 1) * 8]      : argument 0 = receiver
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
   // -----------------------------------
   Label slow, notin;
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
@@ -1385,7 +1385,7 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
   //  -- rcx    : name
-  //  -- rsp[0]  : return address
+  //  -- rsp[0] : return address
   // -----------------------------------
 
   __ pop(rbx);
@@ -1402,7 +1402,7 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
-  //  -- rsp[0]  : return address
+  //  -- rsp[0] : return address
   // -----------------------------------
 
   Counters* counters = masm->isolate()->counters();
@@ -1426,7 +1426,7 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
-  //  -- rsp[0]  : return address
+  //  -- rsp[0] : return address
   // -----------------------------------
 
   __ pop(rbx);
@@ -1527,10 +1527,10 @@ void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
                                               StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
+  //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
 
   __ pop(rbx);
@@ -1548,10 +1548,10 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 
 void StoreIC::GenerateSlow(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
+  //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
 
   __ pop(rbx);
@@ -1568,10 +1568,10 @@ void StoreIC::GenerateSlow(MacroAssembler* masm) {
 
 void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
+  //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
 
   __ pop(rbx);
@@ -1588,10 +1588,10 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
+  //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
 
   __ pop(rbx);
@@ -1611,9 +1611,9 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
 
 void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rbx     : target map
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
+  //  -- rbx    : target map
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
   // Must return the modified receiver in eax.
   if (!FLAG_trace_elements_transitions) {
@@ -1636,9 +1636,9 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
 void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rbx     : target map
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
+  //  -- rbx    : target map
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
   // Must return the modified receiver in eax.
   if (!FLAG_trace_elements_transitions) {
