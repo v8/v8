@@ -1762,6 +1762,7 @@ Isolate::Isolate()
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
       unicode_cache_(NULL),
+      runtime_zone_(this),
       in_use_list_(0),
       free_list_(0),
       preallocated_storage_preallocated_(false),
@@ -1959,6 +1960,9 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 
 Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
+
+  // Has to be called while counters_ are still alive
+  runtime_zone_.DeleteKeptSegment();
 
   // The entry stack must be empty when we get here,
   // except for the default isolate, where it can
