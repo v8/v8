@@ -629,7 +629,7 @@ class MachO BASE_EMBEDDED {
 #if defined(__ELF)
 class ELF BASE_EMBEDDED {
  public:
-  explicit ELF(Zone* zone) : sections_(6, zone) {
+  explicit ELF(Zone* zone) : zone_(zone), sections_(6, zone) {
     sections_.Add(new(zone) ELFSection("", ELFSection::TYPE_NULL, 0), zone);
     sections_.Add(new(zone) ELFStringTable(".shstrtab"), zone);
   }
@@ -644,8 +644,8 @@ class ELF BASE_EMBEDDED {
     return sections_[index];
   }
 
-  uint32_t AddSection(ELFSection* section, Zone* zone) {
-    sections_.Add(section, zone);
+  uint32_t AddSection(ELFSection* section) {
+    sections_.Add(section, zone_);
     section->set_index(sections_.length() - 1);
     return sections_.length() - 1;
   }
@@ -743,6 +743,7 @@ class ELF BASE_EMBEDDED {
     }
   }
 
+  Zone* zone_;
   ZoneList<ELFSection*> sections_;
 };
 
@@ -1026,8 +1027,8 @@ static void CreateSymbolsTable(CodeDescription* desc,
   ELFStringTable* strtab = new(zone) ELFStringTable(".strtab");
 
   // Symbol table should be followed by the linked string table.
-  elf->AddSection(symtab, zone);
-  elf->AddSection(strtab, zone);
+  elf->AddSection(symtab);
+  elf->AddSection(strtab);
 
   symtab->Add(ELFSymbol("V8 Code",
                         0,
@@ -1941,8 +1942,7 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
           desc->CodeStart(),
           0,
           desc->CodeSize(),
-          ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC),
-      &zone);
+          ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC));
 
   CreateSymbolsTable(desc, &zone, &elf, text_section_index);
 
