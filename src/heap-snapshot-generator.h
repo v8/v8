@@ -303,7 +303,6 @@ class HeapSnapshotsCollection {
   HeapSnapshot* NewSnapshot(const char* name, unsigned uid);
   void SnapshotGenerationFinished(HeapSnapshot* snapshot);
   List<HeapSnapshot*>* snapshots() { return &snapshots_; }
-  HeapSnapshot* GetSnapshot(unsigned uid);
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
   StringsStorage* names() { return &names_; }
@@ -323,14 +322,8 @@ class HeapSnapshotsCollection {
   size_t GetUsedMemorySize() const;
 
  private:
-  INLINE(static bool HeapSnapshotsMatch(void* key1, void* key2)) {
-    return key1 == key2;
-  }
-
   bool is_tracking_objects_;  // Whether tracking object moves is needed.
   List<HeapSnapshot*> snapshots_;
-  // Mapping from snapshots' uids to HeapSnapshot* pointers.
-  HashMap snapshots_uids_;
   StringsStorage names_;
   TokenEnumerator* token_enumerator_;
   // Mapping from HeapObject addresses to objects' uids.

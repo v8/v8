@@ -189,15 +189,11 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 24;
-  static const int kExpectedHeapSnapshotsCollectionSize = 100;
-  static const int kExpectedHeapSnapshotSize = 132;
 };
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 32;
-  static const int kExpectedHeapSnapshotsCollectionSize = 152;
-  static const int kExpectedHeapSnapshotSize = 160;
 };
 
 }  // namespace
@@ -353,8 +349,6 @@ static size_t GetMemoryUsedByList(const List<T, P>& list) {
 
 
 size_t HeapSnapshot::RawSnapshotSize() const {
-  STATIC_CHECK(SnapshotSizeConstants<kPointerSize>::kExpectedHeapSnapshotSize ==
-      sizeof(HeapSnapshot));  // NOLINT
   return
       sizeof(*this) +
       GetMemoryUsedByList(entries_) +
@@ -578,7 +572,6 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 
 HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
-      snapshots_uids_(HeapSnapshotsMatch),
       token_enumerator_(new TokenEnumerator()),
       ids_(heap) {
 }
@@ -607,29 +600,12 @@ void HeapSnapshotsCollection::SnapshotGenerationFinished(
   ids_.SnapshotGenerationFinished();
   if (snapshot != NULL) {
     snapshots_.Add(snapshot);
-    HashMap::Entry* entry =
-        snapshots_uids_.Lookup(reinterpret_cast<void*>(snapshot->uid()),
-                               static_cast<uint32_t>(snapshot->uid()),
-                               true);
-    ASSERT(entry->value == NULL);
-    entry->value = snapshot;
   }
-}
-
-
-HeapSnapshot* HeapSnapshotsCollection::GetSnapshot(unsigned uid) {
-  HashMap::Entry* entry = snapshots_uids_.Lookup(reinterpret_cast<void*>(uid),
-                                                 static_cast<uint32_t>(uid),
-                                                 false);
-  return entry != NULL ? reinterpret_cast<HeapSnapshot*>(entry->value) : NULL;
 }
 
 
 void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
   snapshots_.RemoveElement(snapshot);
-  unsigned uid = snapshot->uid();
-  snapshots_uids_.Remove(reinterpret_cast<void*>(uid),
-                         static_cast<uint32_t>(uid));
 }
 
 
@@ -656,13 +632,9 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
 
 
 size_t HeapSnapshotsCollection::GetUsedMemorySize() const {
-  STATIC_CHECK(SnapshotSizeConstants<kPointerSize>::
-      kExpectedHeapSnapshotsCollectionSize ==
-      sizeof(HeapSnapshotsCollection));  // NOLINT
   size_t size = sizeof(*this);
   size += names_.GetUsedMemorySize();
   size += ids_.GetUsedMemorySize();
-  size += sizeof(HashMap::Entry) * snapshots_uids_.capacity();
   size += GetMemoryUsedByList(snapshots_);
   for (int i = 0; i < snapshots_.length(); ++i) {
     size += snapshots_[i]->RawSnapshotSize();

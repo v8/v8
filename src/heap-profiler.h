@@ -66,7 +66,6 @@ class HeapProfiler {
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
   int GetSnapshotsCount();
   HeapSnapshot* GetSnapshot(int index);
-  HeapSnapshot* FindSnapshot(unsigned uid);
   SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
   void DeleteAllSnapshots();
 

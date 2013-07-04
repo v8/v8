@@ -7745,12 +7745,6 @@ const HeapSnapshot* HeapProfiler::GetHeapSnapshot(int index) {
 }
 
 
-const HeapSnapshot* HeapProfiler::FindHeapSnapshot(unsigned uid) {
-  return reinterpret_cast<const HeapSnapshot*>(
-      reinterpret_cast<i::HeapProfiler*>(this)->FindSnapshot(uid));
-}
-
-
 SnapshotObjectId HeapProfiler::GetObjectId(Handle<Value> value) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*value);
   return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotObjectId(obj);
