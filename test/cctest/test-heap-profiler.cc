@@ -1621,10 +1621,10 @@ bool HasWeakGlobalHandle() {
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(v8_str("weaks"));
   const v8::HeapGraphNode* gc_roots = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kObject, "(GC roots)");
+      snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "(GC roots)");
   CHECK_NE(NULL, gc_roots);
   const v8::HeapGraphNode* global_handles = GetNode(
-      gc_roots, v8::HeapGraphNode::kObject, "(Global handles)");
+      gc_roots, v8::HeapGraphNode::kSynthetic, "(Global handles)");
   CHECK_NE(NULL, global_handles);
   return HasWeakEdge(global_handles);
 }
@@ -1658,10 +1658,10 @@ TEST(WeakNativeContextRefs) {
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(v8_str("weaks"));
   const v8::HeapGraphNode* gc_roots = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kObject, "(GC roots)");
+      snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "(GC roots)");
   CHECK_NE(NULL, gc_roots);
   const v8::HeapGraphNode* global_handles = GetNode(
-      gc_roots, v8::HeapGraphNode::kObject, "(Global handles)");
+      gc_roots, v8::HeapGraphNode::kSynthetic, "(Global handles)");
   CHECK_NE(NULL, global_handles);
   const v8::HeapGraphNode* native_context = GetNode(
       global_handles, v8::HeapGraphNode::kHidden, "system / NativeContext");
@@ -1726,10 +1726,10 @@ TEST(AllStrongGcRootsHaveNames) {
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
   const v8::HeapGraphNode* gc_roots = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kObject, "(GC roots)");
+      snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "(GC roots)");
   CHECK_NE(NULL, gc_roots);
   const v8::HeapGraphNode* strong_roots = GetNode(
-      gc_roots, v8::HeapGraphNode::kObject, "(Strong roots)");
+      gc_roots, v8::HeapGraphNode::kSynthetic, "(Strong roots)");
   CHECK_NE(NULL, strong_roots);
   for (int i = 0; i < strong_roots->GetChildrenCount(); ++i) {
     const v8::HeapGraphEdge* edge = strong_roots->GetChild(i);

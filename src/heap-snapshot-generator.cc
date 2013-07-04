@@ -238,7 +238,7 @@ void HeapSnapshot::RememberLastJSObjectId() {
 HeapEntry* HeapSnapshot::AddRootEntry() {
   ASSERT(root_index_ == HeapEntry::kNoEntry);
   ASSERT(entries_.is_empty());  // Root entry must be the first one.
-  HeapEntry* entry = AddEntry(HeapEntry::kObject,
+  HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
                               "",
                               HeapObjectsMap::kInternalRootObjectId,
                               0);
@@ -250,7 +250,7 @@ HeapEntry* HeapSnapshot::AddRootEntry() {
 
 HeapEntry* HeapSnapshot::AddGcRootsEntry() {
   ASSERT(gc_roots_index_ == HeapEntry::kNoEntry);
-  HeapEntry* entry = AddEntry(HeapEntry::kObject,
+  HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
                               "(GC roots)",
                               HeapObjectsMap::kGcRootsObjectId,
                               0);
@@ -263,7 +263,7 @@ HeapEntry* HeapSnapshot::AddGcSubrootEntry(int tag) {
   ASSERT(gc_subroot_indexes_[tag] == HeapEntry::kNoEntry);
   ASSERT(0 <= tag && tag < VisitorSynchronization::kNumberOfSyncTags);
   HeapEntry* entry = AddEntry(
-      HeapEntry::kObject,
+      HeapEntry::kSynthetic,
       VisitorSynchronization::kTagNames[tag],
       HeapObjectsMap::GetNthGcSubrootId(tag),
       0);
