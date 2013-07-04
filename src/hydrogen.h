@@ -46,6 +46,7 @@ class FunctionState;
 class HEnvironment;
 class HGraph;
 class HLoopInformation;
+class HOsrBuilder;
 class HTracer;
 class LAllocator;
 class LChunk;
@@ -358,24 +359,16 @@ class HGraph: public ZoneObject {
   void Verify(bool do_full_verify) const;
 #endif
 
-  bool has_osr_loop_entry() {
-    return osr_loop_entry_.is_set();
+  bool has_osr() {
+    return osr_ != NULL;
   }
 
-  HBasicBlock* osr_loop_entry() {
-    return osr_loop_entry_.get();
+  void set_osr(HOsrBuilder* osr) {
+    osr_ = osr;
   }
 
-  void set_osr_loop_entry(HBasicBlock* entry) {
-    osr_loop_entry_.set(entry);
-  }
-
-  ZoneList<HUnknownOSRValue*>* osr_values() {
-    return osr_values_.get();
-  }
-
-  void set_osr_values(ZoneList<HUnknownOSRValue*>* values) {
-    osr_values_.set(values);
+  HOsrBuilder* osr() {
+    return osr_;
   }
 
   int update_type_change_checksum(int delta) {
@@ -495,8 +488,7 @@ class HGraph: public ZoneObject {
   SetOncePointer<HConstant> constant_invalid_context_;
   SetOncePointer<HArgumentsObject> arguments_object_;
 
-  SetOncePointer<HBasicBlock> osr_loop_entry_;
-  SetOncePointer<ZoneList<HUnknownOSRValue*> > osr_values_;
+  HOsrBuilder* osr_;
 
   CompilationInfo* info_;
   Zone* zone_;
@@ -1438,7 +1430,6 @@ class HGraphBuilder {
   int no_side_effects_scope_count_;
 };
 
-
 class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
  public:
   // A class encapsulating (lazily-allocated) break and continue blocks for
@@ -1596,8 +1587,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   void VisitArithmeticExpression(BinaryOperation* expr);
 
   bool PreProcessOsrEntry(IterationStatement* statement);
-  // True iff. we are compiling for OSR and the statement is the entry.
-  bool HasOsrEntryAt(IterationStatement* statement);
   void VisitLoopBody(IterationStatement* stmt,
                      HBasicBlock* loop_entry,
                      BreakAndContinueInfo* break_info);
@@ -1959,9 +1948,12 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
   bool inline_bailout_;
 
+  HOsrBuilder* osr_;
+
   friend class FunctionState;  // Pushes and pops the state stack.
   friend class AstContext;  // Pushes and pops the AST context stack.
   friend class KeyedLoadFastElementStub;
+  friend class HOsrBuilder;
 
   DISALLOW_COPY_AND_ASSIGN(HOptimizedGraphBuilder);
 };

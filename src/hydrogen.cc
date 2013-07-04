@@ -37,6 +37,7 @@
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
 #include "hydrogen-gvn.h"
+#include "hydrogen-osr.h"
 #include "hydrogen-uint32-analysis.h"
 #include "lithium-allocator.h"
 #include "parser.h"
@@ -1915,7 +1916,8 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
       break_scope_(NULL),
       inlined_count_(0),
       globals_(10, info->zone()),
-      inline_bailout_(false) {
+      inline_bailout_(false),
+      osr_(new(info->zone()) HOsrBuilder(this)) {
   // This is not initialized in the initializer list because the
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
@@ -1983,6 +1985,7 @@ HGraph::HGraph(CompilationInfo* info)
       values_(16, info->zone()),
       phi_list_(NULL),
       uint32_instructions_(NULL),
+      osr_(NULL),
       info_(info),
       zone_(info->zone()),
       is_recursive_(false),
@@ -3532,6 +3535,9 @@ bool HOptimizedGraphBuilder::BuildGraph() {
       !type_info->matches_inlined_type_change_checksum(composite_checksum));
   type_info->set_inlined_type_change_checksum(composite_checksum);
 
+  // Perform any necessary OSR-specific cleanups or changes to the graph.
+  osr_->FinishGraph();
+
   return true;
 }
 
@@ -3575,13 +3581,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   }
   CollectPhis();
 
-  if (has_osr_loop_entry()) {
-    const ZoneList<HPhi*>* phis = osr_loop_entry()->phis();
-    for (int j = 0; j < phis->length(); j++) {
-      HPhi* phi = phis->at(j);
-      osr_values()->at(phi->merged_index())->set_incoming_value(phi);
-    }
-  }
+  if (has_osr()) osr()->FinishOsrValues();
 
   Run<HInferRepresentationPhase>();
 
@@ -4689,59 +4689,6 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 }
 
 
-bool HOptimizedGraphBuilder::HasOsrEntryAt(IterationStatement* statement) {
-  return statement->OsrEntryId() == current_info()->osr_ast_id();
-}
-
-
-bool HOptimizedGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
-  if (!HasOsrEntryAt(statement)) return false;
-
-  HBasicBlock* non_osr_entry = graph()->CreateBasicBlock();
-  HBasicBlock* osr_entry = graph()->CreateBasicBlock();
-  HValue* true_value = graph()->GetConstantTrue();
-  HBranch* test = new(zone()) HBranch(true_value, non_osr_entry, osr_entry);
-  current_block()->Finish(test);
-
-  HBasicBlock* loop_predecessor = graph()->CreateBasicBlock();
-  non_osr_entry->Goto(loop_predecessor);
-
-  set_current_block(osr_entry);
-  osr_entry->set_osr_entry();
-  BailoutId osr_entry_id = statement->OsrEntryId();
-  int first_expression_index = environment()->first_expression_index();
-  int length = environment()->length();
-  ZoneList<HUnknownOSRValue*>* osr_values =
-      new(zone()) ZoneList<HUnknownOSRValue*>(length, zone());
-
-  for (int i = 0; i < first_expression_index; ++i) {
-    HUnknownOSRValue* osr_value = Add<HUnknownOSRValue>();
-    environment()->Bind(i, osr_value);
-    osr_values->Add(osr_value, zone());
-  }
-
-  if (first_expression_index != length) {
-    environment()->Drop(length - first_expression_index);
-    for (int i = first_expression_index; i < length; ++i) {
-      HUnknownOSRValue* osr_value = Add<HUnknownOSRValue>();
-      environment()->Push(osr_value);
-      osr_values->Add(osr_value, zone());
-    }
-  }
-
-  graph()->set_osr_values(osr_values);
-
-  AddSimulate(osr_entry_id);
-  Add<HOsrEntry>(osr_entry_id);
-  HContext* context = Add<HContext>();
-  environment()->BindContext(context);
-  current_block()->Goto(loop_predecessor);
-  loop_predecessor->SetJoinId(statement->EntryId());
-  set_current_block(loop_predecessor);
-  return true;
-}
-
-
 void HOptimizedGraphBuilder::VisitLoopBody(IterationStatement* stmt,
                                            HBasicBlock* loop_entry,
                                            BreakAndContinueInfo* break_info) {
@@ -4761,11 +4708,7 @@ void HOptimizedGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   ASSERT(current_block() != NULL);
-  bool osr_entry = PreProcessOsrEntry(stmt);
-  HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry);
-  set_current_block(loop_entry);
-  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
+  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
 
   BreakAndContinueInfo break_info(stmt);
   CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
@@ -4804,12 +4747,7 @@ void HOptimizedGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   ASSERT(current_block() != NULL);
-  bool osr_entry = PreProcessOsrEntry(stmt);
-  HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry);
-  set_current_block(loop_entry);
-  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
-
+  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
 
   // If the condition is constant true, do not generate a branch.
   HBasicBlock* loop_successor = NULL;
@@ -4851,11 +4789,7 @@ void HOptimizedGraphBuilder::VisitForStatement(ForStatement* stmt) {
     CHECK_ALIVE(Visit(stmt->init()));
   }
   ASSERT(current_block() != NULL);
-  bool osr_entry = PreProcessOsrEntry(stmt);
-  HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry);
-  set_current_block(loop_entry);
-  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
+  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
 
   HBasicBlock* loop_successor = NULL;
   if (stmt->cond() != NULL) {
@@ -4939,11 +4873,7 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HForInCacheArray::cast(array)->set_index_cache(
       HForInCacheArray::cast(index_cache));
 
-  bool osr_entry = PreProcessOsrEntry(stmt);
-  HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry);
-  set_current_block(loop_entry);
-  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
+  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
 
   HValue* index = environment()->ExpressionStackAt(0);
   HValue* limit = environment()->ExpressionStackAt(1);

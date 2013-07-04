@@ -349,6 +349,8 @@
         '../../src/hydrogen-infer-representation.h',
         '../../src/hydrogen-uint32-analysis.cc',
         '../../src/hydrogen-uint32-analysis.h',
+        '../../src/hydrogen-osr.cc',
+        '../../src/hydrogen-osr.h',
         '../../src/ic-inl.h',
         '../../src/ic.cc',
         '../../src/ic.h',
