@@ -3715,7 +3715,7 @@ TEST(OutOfMemory) {
   static const int K = 1024;
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
-  constraints.set_max_old_space_size(4 * K * K);
+  constraints.set_max_old_space_size(5 * K * K);
   v8::SetResourceConstraints(&constraints);
 
   // Execute a script that causes out of memory.
@@ -3756,7 +3756,7 @@ TEST(OutOfMemoryNested) {
   static const int K = 1024;
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
-  constraints.set_max_old_space_size(4 * K * K);
+  constraints.set_max_old_space_size(5 * K * K);
   v8::SetResourceConstraints(&constraints);
 
   v8::HandleScope scope(v8::Isolate::GetCurrent());
