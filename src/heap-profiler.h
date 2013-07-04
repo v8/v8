@@ -28,6 +28,7 @@
 #ifndef V8_HEAP_PROFILER_H_
 #define V8_HEAP_PROFILER_H_
 
+#include "heap-snapshot-generator-inl.h"
 #include "isolate.h"
 
 namespace v8 {

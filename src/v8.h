@@ -65,7 +65,6 @@
 #include "mark-compact-inl.h"
 #include "log-inl.h"
 #include "handles-inl.h"
-#include "heap-snapshot-generator-inl.h"
 #include "zone-inl.h"
 
 namespace v8 {
