@@ -78,6 +78,12 @@ test-serialize/DeserializeFromSecondSerialization: SKIP
 # BUG(2657): Test sometimes times out on MIPS simulator.
 test-thread-termination/TerminateMultipleV8ThreadsDefaultIsolate: PASS || TIMEOUT
 
+# BUG(1075): Unresolved crashes on MIPS also.
+test-serialize/Deserialize: SKIP
+test-serialize/DeserializeFromSecondSerializationAndRunScript2: SKIP
+test-serialize/DeserializeAndRunScript2: SKIP
+test-serialize/DeserializeFromSecondSerialization: SKIP
+
 ##############################################################################
 [ $arch == android_arm || $arch == android_ia32 ]
 
