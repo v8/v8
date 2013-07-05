@@ -1877,6 +1877,10 @@ void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    debugger()->UnloadDebugger();
+#endif
+
     if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
 
     if (FLAG_sweeper_threads > 0) {
