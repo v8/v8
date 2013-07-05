@@ -509,6 +509,7 @@ void Isolate::Iterate(ObjectVisitor* v) {
   Iterate(v, current_t);
 }
 
+
 void Isolate::IterateDeferredHandles(ObjectVisitor* visitor) {
   for (DeferredHandles* deferred = deferred_handles_head_;
        deferred != NULL;

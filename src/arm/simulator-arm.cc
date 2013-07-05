@@ -1026,6 +1026,7 @@ void Simulator::TrashCallerSaveRegisters() {
   registers_[12] = 0x50Bad4U;
 }
 
+
 // Some Operating Systems allow unaligned access on ARMv7 targets. We
 // assume that unaligned accesses are not allowed unless the v8 build system
 // defines the CAN_USE_UNALIGNED_ACCESSES macro to be non-zero.
@@ -1525,6 +1526,7 @@ void Simulator::ProcessPUW(Instruction* instr,
   }
 }
 
+
 // Addressing Mode 4 - Load and Store Multiple
 void Simulator::HandleRList(Instruction* instr, bool load) {
   int rlist = instr->RlistValue();
@@ -1953,6 +1955,7 @@ double Simulator::canonicalizeNaN(double value) {
   return (FPSCR_default_NaN_mode_ && std::isnan(value)) ?
     FixedDoubleArray::canonical_not_the_hole_nan_as_double() : value;
 }
+
 
 // Stop helper functions.
 bool Simulator::isStopInstruction(Instruction* instr) {

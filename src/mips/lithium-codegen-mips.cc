@@ -3360,6 +3360,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ bind(&receiver_ok);
 }
 
+
 void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
@@ -3885,6 +3886,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // Subtract to get the result.
   __ sub_d(f0, f12, f14);
 }
+
 
 void LCodeGen::DoDeferredRandom(LRandom* instr) {
   __ PrepareCallCFunction(1, scratch0());

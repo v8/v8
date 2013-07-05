@@ -6452,6 +6452,7 @@ struct AheadOfTimeWriteBarrierStubList {
   RememberedSetAction action;
 };
 
+
 #define REG(Name) { kRegister_ ## Name ## _Code }
 
 static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {

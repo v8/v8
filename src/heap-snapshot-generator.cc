@@ -459,6 +459,7 @@ void HeapObjectsMap::StopHeapObjectsTracking() {
   time_intervals_.Clear();
 }
 
+
 void HeapObjectsMap::UpdateHeapObjectsMap() {
   HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::UpdateHeapObjectsMap");
@@ -1963,6 +1964,7 @@ void NativeObjectsExplorer::FillRetainedObjects() {
   embedder_queried_ = true;
 }
 
+
 void NativeObjectsExplorer::FillImplicitReferences() {
   Isolate* isolate = Isolate::Current();
   List<ImplicitRefGroup*>* groups =
@@ -2587,6 +2589,7 @@ static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
   w->AddCharacter(hex_chars[(u >> 4) & 0xf]);
   w->AddCharacter(hex_chars[u & 0xf]);
 }
+
 
 void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
   writer_->AddCharacter('\n');

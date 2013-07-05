@@ -43,6 +43,7 @@ TEST(StateConstructors) {
   CHECK_EQ(state.ToIntegral(), state2.ToIntegral());
 }
 
+
 TEST(ExternalICStateParsing) {
   State state;
   state.Add(CompareNilICStub::UNDEFINED);
@@ -51,6 +52,7 @@ TEST(ExternalICStateParsing) {
   CHECK_EQ(stub.GetNilValue(), stub2.GetNilValue());
   CHECK_EQ(stub.GetState().ToIntegral(), stub2.GetState().ToIntegral());
 }
+
 
 TEST(SettingState) {
   State state;
@@ -66,12 +68,14 @@ TEST(SettingState) {
   CHECK(!state.Contains(CompareNilICStub::UNDETECTABLE));
 }
 
+
 TEST(ClearState) {
   State state;
   state.Add(CompareNilICStub::NULL_TYPE);
   state.RemoveAll();
   CHECK(state.IsEmpty());
 }
+
 
 TEST(Generic) {
   State state;

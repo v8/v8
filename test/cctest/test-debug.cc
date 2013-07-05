@@ -820,6 +820,8 @@ struct EvaluateCheck {
   const char* expr;  // An expression to evaluate when a break point is hit.
   v8::Handle<v8::Value> expected;  // The expected result.
 };
+
+
 // Array of checks to do.
 struct EvaluateCheck* checks = NULL;
 // Source for The JavaScript function which can do the evaluation when a break
@@ -1392,6 +1394,7 @@ static void CallWithBreakPoints(v8::Local<v8::Object> recv,
     CHECK_EQ((i + 1) * break_point_count, break_point_hit_count);
   }
 }
+
 
 // Test GC during break point processing.
 TEST(GCDuringBreakPointProcessing) {
@@ -2526,6 +2529,7 @@ static void CheckDebugEvent(const v8::Debug::EventDetails& eventDetails) {
   if (eventDetails.GetEvent() == v8::Break) ++debugEventCount;
 }
 
+
 // Test that the conditional breakpoints work event if code generation from
 // strings is prohibited in the debugee context.
 TEST(ConditionalBreakpointWithCodeGenerationDisallowed) {
@@ -2570,6 +2574,7 @@ static void CheckDebugEval(const v8::Debug::EventDetails& eventDetails) {
         eventDetails.GetEventContext()->Global(), 1, args)->IsTrue());
   }
 }
+
 
 // Test that the evaluation of expressions when a break point is hit generates
 // the correct results in case code generation from strings is disallowed in the
@@ -2624,6 +2629,7 @@ int AsciiToUtf16(const char* input_buffer, uint16_t* output_buffer) {
   output_buffer[i] = 0;
   return i;
 }
+
 
 // Copies a 16-bit string to a C string by dropping the high byte of
 // each character.  Does not check for buffer overflow.
@@ -2711,6 +2717,7 @@ static void DebugProcessDebugMessagesHandler(
     process_debug_messages_data.next();
   }
 }
+
 
 // Test that the evaluation of expressions works even from ProcessDebugMessages
 // i.e. with empty stack.
@@ -4265,6 +4272,7 @@ TEST(NoBreakWhenBootstrapping) {
   CheckDebuggerUnloaded();
 }
 
+
 static void NamedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Handle<v8::Array> result = v8::Array::New(3);
   result->Set(v8::Integer::New(0), v8::String::New("a"));
@@ -4709,6 +4717,7 @@ ThreadBarrier::ThreadBarrier(int num_threads)
   invalid_ = false;  // A barrier may only be used once.  Then it is invalid.
 }
 
+
 // Do not call, due to race condition with Wait().
 // Could be resolved with Pthread condition variables.
 ThreadBarrier::~ThreadBarrier() {
@@ -4716,6 +4725,7 @@ ThreadBarrier::~ThreadBarrier() {
   delete lock_;
   delete sem_;
 }
+
 
 void ThreadBarrier::Wait() {
   lock_->Lock();
@@ -4735,6 +4745,7 @@ void ThreadBarrier::Wait() {
     sem_->Wait();  // these two lines are not atomic.
   }
 }
+
 
 // A set containing enough barriers and semaphores for any of the tests.
 class Barriers {
@@ -4845,6 +4856,7 @@ int GetSourceLineFromBreakEventMessage(char *message) {
   return res;
 }
 
+
 /* Test MessageQueues */
 /* Tests the message queues that hold debugger commands and
  * response messages to the debugger.  Fills queues and makes
@@ -4875,6 +4887,7 @@ static void MessageHandler(const uint16_t* message, int length,
   // messages while blocked.
   message_queue_barriers.semaphore_1->Wait();
 }
+
 
 void MessageQueueDebuggerThread::Run() {
   const int kBufferSize = 1000;
@@ -5175,6 +5188,7 @@ void V8Thread::Run() {
   CompileRun(source);
 }
 
+
 void DebuggerThread::Run() {
   const int kBufSize = 1000;
   uint16_t buffer[kBufSize];
@@ -5208,6 +5222,7 @@ TEST(ThreadedDebugging) {
   v8_thread.Join();
   debugger_thread.Join();
 }
+
 
 /* Test RecursiveBreakpoints */
 /* In this test, the debugger evaluates a function with a breakpoint, after
@@ -5400,6 +5415,7 @@ void BreakpointsDebuggerThread::Run() {
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_8, buffer));
 }
 
+
 void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
   i::FLAG_debugger_auto_break = true;
 
@@ -5418,9 +5434,11 @@ void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
   breakpoints_debugger_thread.Join();
 }
 
+
 TEST(RecursiveBreakpoints) {
   TestRecursiveBreakpointsGeneric(false);
 }
+
 
 TEST(RecursiveBreakpointsGlobal) {
   TestRecursiveBreakpointsGeneric(true);
@@ -6873,6 +6891,7 @@ static void CountingMessageHandler(const v8::Debug::Message& message) {
   counting_message_handler_counter++;
 }
 
+
 // Test that debug messages get processed when ProcessDebugMessages is called.
 TEST(ProcessDebugMessages) {
   DebugLocalContext env;
@@ -7111,6 +7130,7 @@ static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
   CHECK(details.GetEventContext() == expected_context);
   CHECK_EQ(expected_callback_data, details.GetCallbackData());
 }
+
 
 // Check that event details contain context where debug event occured.
 TEST(DebugEventContext) {

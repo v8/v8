@@ -128,6 +128,7 @@ static void TrimToMaxSignificantDigits(Vector<const char> buffer,
       exponent + (buffer.length() - kMaxSignificantDecimalDigits);
 }
 
+
 // Reads digits from the buffer and converts them to a uint64.
 // Reads in as many digits as fit into a uint64.
 // When the string starts with "1844674407370955161" no further digit is read.

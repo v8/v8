@@ -760,6 +760,7 @@ static const char* const weekdays[] = {
   "???", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
 };
 
+
 void JSDate::JSDatePrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSDate");
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));

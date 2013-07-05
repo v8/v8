@@ -184,6 +184,7 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
   }
 }
 
+
 void CodeStub::PrintBaseName(StringStream* stream) {
   stream->Add("%s", MajorName(MajorKey(), false));
 }
@@ -563,11 +564,13 @@ void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   #endif
 }
 
+
 void CompareNilICStub::PrintBaseName(StringStream* stream) {
   CodeStub::PrintBaseName(stream);
   stream->Add((nil_value_ == kNullValue) ? "(NullValue)":
                                            "(UndefinedValue)");
 }
+
 
 void CompareNilICStub::PrintState(StringStream* stream) {
   state_.Print(stream);

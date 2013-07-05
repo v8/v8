@@ -57,6 +57,7 @@ TEST(StartStop) {
   processor.Join();
 }
 
+
 static inline i::Address ToAddress(int n) {
   return reinterpret_cast<i::Address>(n);
 }
@@ -188,6 +189,7 @@ template<typename T>
 static int CompareProfileNodes(const T* p1, const T* p2) {
   return strcmp((*p1)->entry()->name(), (*p2)->entry()->name());
 }
+
 
 TEST(TickEvents) {
   TestSetup test_setup;

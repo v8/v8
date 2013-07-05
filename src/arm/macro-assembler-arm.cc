@@ -1033,6 +1033,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   }
 }
 
+
 void MacroAssembler::GetCFunctionDoubleResult(const DwVfpRegister dst) {
   if (use_eabi_hardfloat()) {
     Move(dst, d0);

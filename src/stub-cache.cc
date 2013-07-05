@@ -2045,6 +2045,7 @@ CallOptimization::CallOptimization(LookupResult* lookup) {
   }
 }
 
+
 CallOptimization::CallOptimization(Handle<JSFunction> function) {
   Initialize(function);
 }

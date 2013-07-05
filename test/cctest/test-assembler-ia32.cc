@@ -525,6 +525,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(v8::Integer::New(res));
 }
 
+
 TEST(StackAlignmentForSSE2) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(SSE2)) return;

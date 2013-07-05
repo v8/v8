@@ -5086,6 +5086,7 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   __ bind(&hash_not_zero);
 }
 
+
 void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 

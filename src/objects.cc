@@ -9961,21 +9961,25 @@ void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
   CHECK_EQ(target, old_target);  // VisitPointer doesn't change Code* *target.
 }
 
+
 void ObjectVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
   ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   VisitPointer(rinfo->target_object_address());
 }
+
 
 void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
   Address* p = rinfo->target_reference_address();
   VisitExternalReferences(p, p + 1);
 }
 
+
 byte Code::compare_nil_state() {
   ASSERT(is_compare_nil_ic_stub());
   return CompareNilICStub::ExtractTypesFromExtraICState(
       extended_extra_ic_state());
 }
+
 
 byte Code::compare_nil_value() {
   ASSERT(is_compare_nil_ic_stub());
@@ -13301,6 +13305,7 @@ class RegExpKey : public HashTableKey {
   Smi* flags_;
 };
 
+
 // Utf8StringKey carries a vector of chars as key.
 class Utf8StringKey : public HashTableKey {
  public:
@@ -13667,6 +13672,7 @@ uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
   return entry;
 }
 
+
 // Force instantiation of template instances class.
 // Please note this list is compiler dependent.
 
@@ -14028,6 +14034,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
   result_double->set_value(static_cast<double>(result));
   return result_double;
 }
+
 
 ExternalArrayType JSTypedArray::type() {
   switch (elements()->map()->instance_type()) {
@@ -14404,6 +14411,7 @@ MaybeObject* StringTable::LookupTwoByteString(Vector<const uc16> str,
   TwoByteStringKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
+
 
 MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
   int entry = FindEntry(key);

@@ -423,6 +423,7 @@ void CpuProfiler::ResetProfiles() {
   profiles_ = new CpuProfilesCollection();
 }
 
+
 void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
   if (profiles_->StartProfiling(title, next_profile_uid_++, record_samples)) {
     StartProcessorIfNotStarted();

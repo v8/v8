@@ -318,6 +318,7 @@ bool Type::InUnion(Handle<Unioned> unioned, int current_size) {
   return false;
 }
 
+
 // Get non-bitsets from this which are not subsumed by union, store at unioned,
 // starting at index. Returns updated index.
 int Type::ExtendUnion(Handle<Unioned> result, int current_size) {

@@ -1586,6 +1586,7 @@ void Genesis::InstallNativeFunctions() {
                  to_complete_property_descriptor);
 }
 
+
 void Genesis::InstallExperimentalNativeFunctions() {
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
@@ -2239,9 +2240,11 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
 #endif
 }
 
+
 static uint32_t Hash(RegisteredExtension* extension) {
   return v8::internal::ComputePointerHash(extension);
 }
+
 
 static bool MatchRegisteredExtensions(void* key1, void* key2) {
   return key1 == key2;

@@ -397,6 +397,7 @@ class FilteredCloneCallback {
   int security_token_id_;
 };
 
+
 void ProfileTree::FilteredClone(ProfileTree* src, int security_token_id) {
   ms_to_ticks_scale_ = src->ms_to_ticks_scale_;
   FilteredCloneCallback cb(root_, security_token_id);
@@ -612,9 +613,11 @@ static void DeleteCodeEntry(CodeEntry** entry_ptr) {
   delete *entry_ptr;
 }
 
+
 static void DeleteCpuProfile(CpuProfile** profile_ptr) {
   delete *profile_ptr;
 }
+
 
 static void DeleteProfilesList(List<CpuProfile*>** list_ptr) {
   if (*list_ptr != NULL) {
@@ -622,6 +625,7 @@ static void DeleteProfilesList(List<CpuProfile*>** list_ptr) {
     delete *list_ptr;
   }
 }
+
 
 CpuProfilesCollection::~CpuProfilesCollection() {
   delete current_profiles_semaphore_;

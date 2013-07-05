@@ -491,6 +491,7 @@ void Logger::IssueAddCodeLinePosInfoEvent(
   code_event_handler_(&event);
 }
 
+
 void* Logger::IssueStartCodePosInfoEvent() {
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
@@ -499,6 +500,7 @@ void* Logger::IssueStartCodePosInfoEvent() {
   code_event_handler_(&event);
   return event.user_data;
 }
+
 
 void Logger::IssueEndCodePosInfoEvent(Code* code, void* jit_handler_data) {
   JitCodeEvent event;
@@ -827,6 +829,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   ApiEvent("api,%s,\"%s\",%u\n", tag, *class_name, index);
 }
+
 
 void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
@@ -1206,6 +1209,7 @@ void Logger::CodeLinePosInfoAddStatementPositionEvent(void* jit_handler_data,
   }
 }
 
+
 void Logger::CodeStartLinePosInfoRecordEvent(PositionsRecorder* pos_recorder) {
   if (code_event_handler_ != NULL) {
       pos_recorder->AttachJITHandlerData(IssueStartCodePosInfoEvent());
@@ -1218,6 +1222,7 @@ void Logger::CodeEndLinePosInfoRecordEvent(Code* code,
     IssueEndCodePosInfoEvent(code, jit_handler_data);
   }
 }
+
 
 void Logger::SnapshotPositionEvent(Address addr, int pos) {
   if (!log_->IsEnabled()) return;

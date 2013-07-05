@@ -76,11 +76,14 @@ void BreakableStatementChecker::VisitExportDeclaration(
 void BreakableStatementChecker::VisitModuleLiteral(ModuleLiteral* module) {
 }
 
+
 void BreakableStatementChecker::VisitModuleVariable(ModuleVariable* module) {
 }
 
+
 void BreakableStatementChecker::VisitModulePath(ModulePath* module) {
 }
+
 
 void BreakableStatementChecker::VisitModuleUrl(ModuleUrl* module) {
 }

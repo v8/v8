@@ -102,11 +102,13 @@ static void ExpectString(const char* code, const char* expected) {
   CHECK_EQ(expected, *utf8);
 }
 
+
 static void ExpectInt32(const char* code, int expected) {
   Local<Value> result = CompileRun(code);
   CHECK(result->IsInt32());
   CHECK_EQ(expected, result->Int32Value());
 }
+
 
 static void ExpectBoolean(const char* code, bool expected) {
   Local<Value> result = CompileRun(code);
@@ -860,9 +862,11 @@ static void handle_callback_impl(const v8::FunctionCallbackInfo<Value>& info,
   info.GetReturnValue().Set(v8_num(102));
 }
 
+
 static void handle_callback(const v8::FunctionCallbackInfo<Value>& info) {
   return handle_callback_impl(info, FUNCTION_ADDR(handle_callback));
 }
+
 
 static void handle_callback_2(const v8::FunctionCallbackInfo<Value>& info) {
   return handle_callback_impl(info, FUNCTION_ADDR(handle_callback_2));
@@ -1076,6 +1080,7 @@ Handle<Value> TestFastReturnValues() {
   (*env)->Global()->Set(v8_str("callback_object"), object);
   return scope.Close(CompileRun("callback_object.callback()"));
 }
+
 
 THREADED_PROFILED_TEST(FastReturnValues) {
   LocalContext env;
@@ -1693,6 +1698,7 @@ static void EchoNamedProperty(Local<String> name,
   info.GetReturnValue().Set(name);
 }
 
+
 // Helper functions for Interceptor/Accessor interaction tests
 
 void SimpleAccessorGetter(Local<String> name,
@@ -1755,6 +1761,7 @@ void AddInterceptor(Handle<FunctionTemplate> templ,
   templ->InstanceTemplate()->SetNamedPropertyHandler(getter, setter);
 }
 
+
 THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Handle<FunctionTemplate> parent = FunctionTemplate::New();
@@ -1771,6 +1778,7 @@ THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
   ExpectInt32("child.age", 10);
   ExpectInt32("child.accessor_age", 10);
 }
+
 
 THREADED_TEST(EmptyInterceptorDoesNotShadowJSAccessors) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -1792,6 +1800,7 @@ THREADED_TEST(EmptyInterceptorDoesNotShadowJSAccessors) {
   ExpectInt32("child.accessor_age", 10);
 }
 
+
 THREADED_TEST(EmptyInterceptorDoesNotAffectJSProperties) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Handle<FunctionTemplate> parent = FunctionTemplate::New();
@@ -1811,6 +1820,7 @@ THREADED_TEST(EmptyInterceptorDoesNotAffectJSProperties) {
   ExpectString("parent.name", "Alice");
 }
 
+
 THREADED_TEST(SwitchFromInterceptorToAccessor) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Handle<FunctionTemplate> templ = FunctionTemplate::New();
@@ -1828,6 +1838,7 @@ THREADED_TEST(SwitchFromInterceptorToAccessor) {
   ExpectInt32("obj.accessor_age", 10000);
 }
 
+
 THREADED_TEST(SwitchFromAccessorToInterceptor) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Handle<FunctionTemplate> templ = FunctionTemplate::New();
@@ -1844,6 +1855,7 @@ THREADED_TEST(SwitchFromAccessorToInterceptor) {
   // The last i goes to the interceptor.
   ExpectInt32("obj.interceptor_age", 9999);
 }
+
 
 THREADED_TEST(SwitchFromInterceptorToAccessorWithInheritance) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -1864,6 +1876,7 @@ THREADED_TEST(SwitchFromInterceptorToAccessorWithInheritance) {
   ExpectInt32("child.accessor_age", 10000);
 }
 
+
 THREADED_TEST(SwitchFromAccessorToInterceptorWithInheritance) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Handle<FunctionTemplate> parent = FunctionTemplate::New();
@@ -1882,6 +1895,7 @@ THREADED_TEST(SwitchFromAccessorToInterceptorWithInheritance) {
   // The last i goes to the interceptor.
   ExpectInt32("child.interceptor_age", 9999);
 }
+
 
 THREADED_TEST(SwitchFromInterceptorToJSAccessor) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -1907,6 +1921,7 @@ THREADED_TEST(SwitchFromInterceptorToJSAccessor) {
   ExpectUndefined("Object.getOwnPropertyDescriptor(obj, 'age').value");
 }
 
+
 THREADED_TEST(SwitchFromJSAccessorToInterceptor) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Handle<FunctionTemplate> templ = FunctionTemplate::New();
@@ -1931,6 +1946,7 @@ THREADED_TEST(SwitchFromJSAccessorToInterceptor) {
   ExpectUndefined("Object.getOwnPropertyDescriptor(obj, 'age').value");
 }
 
+
 THREADED_TEST(SwitchFromInterceptorToProperty) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Handle<FunctionTemplate> parent = FunctionTemplate::New();
@@ -1948,6 +1964,7 @@ THREADED_TEST(SwitchFromInterceptorToProperty) {
   ExpectInt32("child.age", 10000);
 }
 
+
 THREADED_TEST(SwitchFromPropertyToInterceptor) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Handle<FunctionTemplate> parent = FunctionTemplate::New();
@@ -1964,6 +1981,7 @@ THREADED_TEST(SwitchFromPropertyToInterceptor) {
   // The last i goes to the interceptor.
   ExpectInt32("child.interceptor_age", 9999);
 }
+
 
 THREADED_TEST(NamedPropertyHandlerGetter) {
   echo_named_call_count = 0;
@@ -2404,6 +2422,7 @@ static void CheckEmbedderData(LocalContext* env,
   CHECK((*env)->GetEmbedderData(index)->StrictEquals(data));
 }
 
+
 THREADED_TEST(EmbedderData) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2753,6 +2772,7 @@ THREADED_TEST(ArrayBuffer_NeuteringApi) {
   CheckIsNeutered(f64a);
   CheckDataViewIsNeutered(dv);
 }
+
 
 THREADED_TEST(ArrayBuffer_NeuteringScript) {
   LocalContext env;
@@ -4386,6 +4406,7 @@ TEST(ExceptionOrder) {
   fun->Call(fun, argc, a5);
 }
 
+
 void ThrowValue(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
   CHECK_EQ(1, args.Length());
@@ -4608,6 +4629,7 @@ THREADED_TEST(SimplePropertyRead) {
   }
 }
 
+
 THREADED_TEST(DefinePropertyOnAPIAccessor) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -4654,6 +4676,7 @@ THREADED_TEST(DefinePropertyOnAPIAccessor) {
   String::Utf8Value exception_value(try_catch.Exception());
   CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
 }
+
 
 THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -6318,6 +6341,7 @@ void WhammyPropertyGetter(Local<String> name,
   info.GetReturnValue().Set(whammy->getScript()->Run());
 }
 
+
 THREADED_TEST(WeakReference) {
   v8::HandleScope handle_scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::ObjectTemplate> templ= v8::ObjectTemplate::New();
@@ -7452,6 +7476,7 @@ static void ExceptionInNativeScriptTestListener(v8::Handle<v8::Message> message,
   v8::String::Utf8Value source_line(message->GetSourceLine());
   CHECK_EQ("  new o.foo();", *source_line);
 }
+
 
 TEST(ExceptionInNativeScript) {
   LocalContext env;
@@ -10713,6 +10738,7 @@ static void FastApiCallback_SimpleSignature(
   args.GetReturnValue().Set(args[0]->Int32Value() + 1);
 }
 
+
 // Helper to maximize the odds of object moving.
 static void GenerateSomeGarbage() {
   CompileRun(
@@ -10814,6 +10840,7 @@ static void LoadICFastApi_DirectCall_GCMoveStub(Accessor accessor) {
   CHECK_EQ(31, p_getter_count);
 }
 
+
 THREADED_PROFILED_TEST(LoadICFastApi_DirectCall_GCMoveStub) {
   LoadICFastApi_DirectCall_GCMoveStub(DirectGetterCallback);
 }
@@ -10869,6 +10896,7 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_TrivialSignature) {
   CHECK_EQ(100, interceptor_call_count);
 }
 
+
 THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature) {
   int interceptor_call_count = 0;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -10899,6 +10927,7 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature) {
   CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
   CHECK_EQ(100, interceptor_call_count);
 }
+
 
 THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
   int interceptor_call_count = 0;
@@ -10937,6 +10966,7 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
   CHECK_GE(interceptor_call_count, 50);
 }
 
+
 THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
   int interceptor_call_count = 0;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -10973,6 +11003,7 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
   CHECK_GE(interceptor_call_count, 50);
 }
+
 
 THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
   int interceptor_call_count = 0;
@@ -11014,6 +11045,7 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
   CHECK_GE(interceptor_call_count, 50);
 }
 
+
 THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
   int interceptor_call_count = 0;
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -11054,6 +11086,7 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
   CHECK_GE(interceptor_call_count, 50);
 }
 
+
 THREADED_PROFILED_TEST(CallICFastApi_TrivialSignature) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
@@ -11077,6 +11110,7 @@ THREADED_PROFILED_TEST(CallICFastApi_TrivialSignature) {
 
   CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
 }
+
 
 THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -11105,6 +11139,7 @@ THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature) {
 
   CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
 }
+
 
 THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss1) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -11138,6 +11173,7 @@ THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss1) {
   CHECK_EQ(40, context->Global()->Get(v8_str("result"))->Int32Value());
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
+
 
 THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss2) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -11174,6 +11210,7 @@ THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss2) {
            try_catch.Exception()->ToString());
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
+
 
 THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_TypeError) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -11325,6 +11362,7 @@ THREADED_TEST(InterceptorKeyedCallICFromGlobal) {
   CHECK_EQ(239, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
 
+
 // Test the map transition before the interceptor.
 THREADED_TEST(InterceptorKeyedCallICMapChangeBefore) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -11427,6 +11465,7 @@ static void InterceptorICExceptionGetter(
   }
 }
 
+
 // Test interceptor load/call IC where the interceptor throws an
 // exception once in a while.
 THREADED_TEST(InterceptorICGetterExceptions) {
@@ -11469,6 +11508,7 @@ static void InterceptorICExceptionSetter(
     v8::ThrowException(v8_num(42));
   }
 }
+
 
 // Test interceptor store IC where the interceptor throws an exception
 // once in a while.
@@ -11632,6 +11672,7 @@ static void WebKitLike(Handle<Message> message, Handle<Value> data) {
   message->GetStackTrace();
   message->GetScriptResourceName();
 }
+
 
 THREADED_TEST(ExceptionsDoNotPropagatePastTryCatch) {
   LocalContext context;
@@ -11951,11 +11992,13 @@ TEST(Threading1) {
   ApiTestFuzzer::TearDown();
 }
 
+
 TEST(Threading2) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::SECOND_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
+
 
 TEST(Threading3) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::THIRD_PART);
@@ -11963,11 +12006,13 @@ TEST(Threading3) {
   ApiTestFuzzer::TearDown();
 }
 
+
 TEST(Threading4) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FOURTH_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
+
 
 void ApiTestFuzzer::CallTest() {
   if (kLogThreading)
@@ -12583,6 +12628,7 @@ void SetFunctionEntryHookTest::RunLoopInNewEnv(v8::Isolate* isolate) {
   env->Exit();
 }
 
+
 void SetFunctionEntryHookTest::RunTest() {
   // Work in a new isolate throughout.
   v8::Isolate* isolate = v8::Isolate::New();
@@ -13125,6 +13171,7 @@ THREADED_TEST(PropertyEnumeration) {
   const char* elmv4[] = {"w", "z"};
   CheckOwnProperties(elms->Get(v8::Integer::New(3)), elmc4, elmv4);
 }
+
 
 THREADED_TEST(PropertyEnumeration2) {
   LocalContext context;
@@ -14234,6 +14281,7 @@ static void ForceSetInterceptSetter(
   info.GetReturnValue().SetUndefined();
 }
 
+
 TEST(ForceSet) {
   force_set_get_count = 0;
   force_set_set_count = 0;
@@ -14274,6 +14322,7 @@ TEST(ForceSet) {
   CHECK_EQ(1, force_set_set_count);
   CHECK_EQ(2, force_set_get_count);
 }
+
 
 TEST(ForceSetWithInterceptor) {
   force_set_get_count = 0;
@@ -16019,6 +16068,7 @@ static void StackTraceForUncaughtExceptionListener(
                   stack_trace->GetFrame(1));
 }
 
+
 TEST(CaptureStackTraceForUncaughtException) {
   report_count = 0;
   LocalContext env;
@@ -16326,6 +16376,7 @@ TEST(DynamicWithSourceURLInStackTrace) {
   CHECK(CompileRunWithOrigin(code.start(), "url", 0, 0)->IsUndefined());
 }
 
+
 static void CreateGarbageInOldSpace() {
   i::Factory* factory = i::Isolate::Current()->factory();
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -16334,6 +16385,7 @@ static void CreateGarbageInOldSpace() {
     factory->NewFixedArray(1000, i::TENURED);
   }
 }
+
 
 // Test that idle notification can be handled and eventually returns true.
 TEST(IdleNotification) {
@@ -16552,6 +16604,7 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
   bool found_resource_[4];
 };
 
+
 TEST(VisitExternalStrings) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -16610,6 +16663,7 @@ static double DoubleToDateTime(double input) {
   }
   return (input < 0) ? -(floor(-input)) : floor(input);
 }
+
 
 // We don't have a consistent way to write 64-bit constants syntactically, so we
 // split them into two 32-bit constants and combine them programmatically.
@@ -16850,6 +16904,7 @@ THREADED_TEST(ScriptOrigin) {
   CHECK_EQ(0, script_origin_g.ResourceLineOffset()->Int32Value());
 }
 
+
 THREADED_TEST(FunctionGetInferredName) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -16861,6 +16916,7 @@ THREADED_TEST(FunctionGetInferredName) {
       env->Global()->Get(v8::String::New("f")));
   CHECK_EQ("foo.bar.baz", *v8::String::Utf8Value(f->GetInferredName()));
 }
+
 
 THREADED_TEST(ScriptLineNumber) {
   LocalContext env;
@@ -17092,17 +17148,21 @@ void PrologueCallback(v8::GCType, v8::GCCallbackFlags) {
   ++prologue_call_count;
 }
 
+
 void EpilogueCallback(v8::GCType, v8::GCCallbackFlags) {
   ++epilogue_call_count;
 }
+
 
 void PrologueCallbackSecond(v8::GCType, v8::GCCallbackFlags) {
   ++prologue_call_count_second;
 }
 
+
 void EpilogueCallbackSecond(v8::GCType, v8::GCCallbackFlags) {
   ++epilogue_call_count_second;
 }
+
 
 TEST(GCCallbacks) {
   LocalContext context;
@@ -17494,12 +17554,14 @@ TEST(GCInFailedAccessCheckCallback) {
   v8::V8::SetFailedAccessCheckCallbackFunction(NULL);
 }
 
+
 TEST(DefaultIsolateGetCurrent) {
   CHECK(v8::Isolate::GetCurrent() != NULL);
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK(reinterpret_cast<i::Isolate*>(isolate)->IsDefaultIsolate());
   printf("*** %s\n", "DefaultIsolateGetCurrent success");
 }
+
 
 TEST(IsolateNewDispose) {
   v8::Isolate* current_isolate = v8::Isolate::GetCurrent();
@@ -17515,6 +17577,7 @@ TEST(IsolateNewDispose) {
   CHECK_EQ(last_location, NULL);
   CHECK_EQ(last_message, NULL);
 }
+
 
 TEST(IsolateEnterExitDefault) {
   v8::Isolate* current_isolate = v8::Isolate::GetCurrent();
@@ -17534,6 +17597,7 @@ TEST(IsolateEnterExitDefault) {
   ExpectString("'still working 3'", "still working 3");
 }
 
+
 TEST(DisposeDefaultIsolate) {
   v8::V8::SetFatalErrorHandler(StoringErrorCallback);
 
@@ -17550,6 +17614,7 @@ TEST(DisposeDefaultIsolate) {
   CHECK_NE(last_location, NULL);
   CHECK_NE(last_message, NULL);
 }
+
 
 TEST(RunDefaultAndAnotherIsolate) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -17593,6 +17658,7 @@ TEST(RunDefaultAndAnotherIsolate) {
   ExpectTrue("function f() { return bar == 371; }; f()");
 }
 
+
 TEST(DisposeIsolateWhenInUse) {
   v8::Isolate* isolate = v8::Isolate::New();
   CHECK(isolate);
@@ -17608,6 +17674,7 @@ TEST(DisposeIsolateWhenInUse) {
   CHECK_NE(last_location, NULL);
   CHECK_NE(last_message, NULL);
 }
+
 
 TEST(RunTwoIsolatesOnSingleThread) {
   // Run isolate 1.
@@ -17733,6 +17800,7 @@ TEST(RunTwoIsolatesOnSingleThread) {
   }
 }
 
+
 static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
@@ -17768,6 +17836,7 @@ class IsolateThread : public v8::internal::Thread {
   int result_;
 };
 
+
 TEST(MultipleIsolatesOnIndividualThreads) {
   v8::Isolate* isolate1 = v8::Isolate::New();
   v8::Isolate* isolate2 = v8::Isolate::New();
@@ -17795,6 +17864,7 @@ TEST(MultipleIsolatesOnIndividualThreads) {
   isolate1->Dispose();
   isolate2->Dispose();
 }
+
 
 TEST(IsolateDifferentContexts) {
   v8::Isolate* isolate = v8::Isolate::New();
@@ -17884,25 +17954,31 @@ static void InitializeTestHelper(InitDefaultIsolateThread::TestCase testCase) {
   CHECK_EQ(thread.result(), true);
 }
 
+
 TEST(InitializeDefaultIsolateOnSecondaryThread1) {
   InitializeTestHelper(InitDefaultIsolateThread::IgnoreOOM);
 }
+
 
 TEST(InitializeDefaultIsolateOnSecondaryThread2) {
   InitializeTestHelper(InitDefaultIsolateThread::SetResourceConstraints);
 }
 
+
 TEST(InitializeDefaultIsolateOnSecondaryThread3) {
   InitializeTestHelper(InitDefaultIsolateThread::SetFatalHandler);
 }
+
 
 TEST(InitializeDefaultIsolateOnSecondaryThread4) {
   InitializeTestHelper(InitDefaultIsolateThread::SetCounterFunction);
 }
 
+
 TEST(InitializeDefaultIsolateOnSecondaryThread5) {
   InitializeTestHelper(InitDefaultIsolateThread::SetCreateHistogramFunction);
 }
+
 
 TEST(InitializeDefaultIsolateOnSecondaryThread6) {
   InitializeTestHelper(InitDefaultIsolateThread::SetAddHistogramSampleFunction);

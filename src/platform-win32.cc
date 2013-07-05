@@ -152,6 +152,7 @@ static void MemMoveWrapper(void* dest, const void* src, size_t size) {
   memmove(dest, src, size);
 }
 
+
 // Initialize to library version so we can call this at any time during startup.
 static OS::MemMoveFunction memmove_function = &MemMoveWrapper;
 
@@ -177,6 +178,7 @@ ModuloFunction CreateModuloFunction();
 void init_modulo_function() {
   modulo_function = CreateModuloFunction();
 }
+
 
 double modulo(double x, double y) {
   // Note: here we rely on dependent reads being ordered. This is true
@@ -320,6 +322,7 @@ class Time {
 
   TimeStamp time_;
 };
+
 
 // Static variables.
 bool Time::tz_initialized_ = false;
@@ -615,6 +618,7 @@ double OS::TimeCurrentMillis() {
   t.SetToCurrentTime();
   return t.ToJSTime();
 }
+
 
 // Returns the tickcounter based on timeGetTime.
 int64_t OS::Ticks() {
@@ -1448,6 +1452,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
   // Return the number of frames filled in.
   return frames_count;
 }
+
 
 // Restore warnings to previous settings.
 #pragma warning(pop)

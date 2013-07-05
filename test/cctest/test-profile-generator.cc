@@ -517,6 +517,7 @@ static inline i::Address ToAddress(int n) {
   return reinterpret_cast<i::Address>(n);
 }
 
+
 TEST(CodeMapAddCode) {
   CodeMap code_map;
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
@@ -699,6 +700,7 @@ static void CheckNodeIds(ProfileNode* node, int* expectedId) {
     CheckNodeIds(node->children()->at(i), expectedId);
   }
 }
+
 
 TEST(SampleIds) {
   TestSetup test_setup;

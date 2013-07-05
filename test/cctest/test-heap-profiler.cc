@@ -340,6 +340,7 @@ TEST(HeapSnapshotHeapNumbers) {
   CHECK_EQ(v8::HeapGraphNode::kHeapNumber, b->GetType());
 }
 
+
 TEST(HeapSnapshotSlicedString) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -363,6 +364,7 @@ TEST(HeapSnapshotSlicedString) {
       GetProperty(child_string, v8::HeapGraphEdge::kInternal, "parent");
   CHECK_EQ(parent_string, parent);
 }
+
 
 TEST(HeapSnapshotInternalReferences) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -480,6 +482,7 @@ TEST(HeapEntryIdsAndArrayShift) {
   CHECK_EQ_SNAPSHOT_OBJECT_ID(a1->GetId(), a2->GetId());
   CHECK_EQ_SNAPSHOT_OBJECT_ID(k1->GetId(), k2->GetId());
 }
+
 
 TEST(HeapEntryIdsAndGC) {
   LocalContext env;
@@ -1017,6 +1020,7 @@ class TestActivityControl : public v8::ActivityControl {
 };
 }
 
+
 TEST(TakeHeapSnapshotAborting) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1340,6 +1344,7 @@ class NameResolver : public v8::HeapProfiler::ObjectNameResolver {
   }
 };
 
+
 TEST(GlobalObjectName) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1605,6 +1610,7 @@ TEST(HiddenPropertiesFastCase) {
       "hidden_properties");
   CHECK_NE(NULL, hidden_props);
 }
+
 
 bool HasWeakEdge(const v8::HeapGraphNode* node) {
   for (int i = 0; i < node->GetChildrenCount(); ++i) {

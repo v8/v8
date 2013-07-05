@@ -73,6 +73,7 @@ void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(v8_num(sp_addr));
 }
 
+
 TEST(StackAlignment) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope handle_scope(isolate);

@@ -1701,6 +1701,7 @@ const char* HCheckInstanceType::GetCheckName() {
   return "";
 }
 
+
 void HCheckInstanceType::PrintDataTo(StringStream* stream) {
   stream->Add("%s ", GetCheckName());
   HUnaryOperation::PrintDataTo(stream);

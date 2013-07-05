@@ -6815,6 +6815,7 @@ void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
   GenerateMiss(masm);
 }
 
+
 void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   {
     // Call the runtime system in a fresh internal frame.
@@ -7144,6 +7145,7 @@ struct AheadOfTimeWriteBarrierStubList {
   Register object, value, address;
   RememberedSetAction action;
 };
+
 
 #define REG(Name) { kRegister_ ## Name ## _Code }
 

@@ -61,6 +61,7 @@ void SetElementNonStrict(Handle<JSObject> object,
   USE(no_failure);
 }
 
+
 // A simple implementation of dynamic programming algorithm. It solves
 // the problem of finding the difference of 2 arrays. It uses a table of results
 // of subproblems. Each cell contains a number together with 2-bit flag
@@ -1456,6 +1457,7 @@ class RelocInfoBuffer {
   static const int kMaximalBufferSize = 512*MB;
 };
 
+
 // Patch positions in code (changes relocation info section) and possibly
 // returns new instance of code.
 static Handle<Code> PatchPositionsInCode(
@@ -1829,6 +1831,7 @@ class MultipleFunctionTarget {
   Handle<JSArray> m_result;
 };
 
+
 // Drops all call frame matched by target and all frames above them.
 template<typename TARGET>
 static const char* DropActivationsInActiveThreadImpl(
@@ -1924,6 +1927,7 @@ static const char* DropActivationsInActiveThreadImpl(
                                restarter_frame_function_pointer);
   return NULL;
 }
+
 
 // Fills result array with statuses of functions. Modifies the stack
 // removing all listed function if possible and if do_drop is true.

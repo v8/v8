@@ -123,6 +123,7 @@ void TraceGVN(const char* msg, ...) {
   va_end(arguments);
 }
 
+
 // Wrap TraceGVN in macros to avoid the expense of evaluating its arguments when
 // --trace-gvn is off.
 #define TRACE_GVN_1(msg, a1)                    \
@@ -338,6 +339,7 @@ HSideEffectMap& HSideEffectMap::operator= (const HSideEffectMap& other) {
   }
   return *this;
 }
+
 
 void HSideEffectMap::Kill(GVNFlagSet flags) {
   for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
@@ -747,6 +749,7 @@ class GvnBasicBlockState: public ZoneObject {
   int dominated_index_;
   int length_;
 };
+
 
 // This is a recursive traversal of the dominator tree but it has been turned
 // into a loop to avoid stack overflows.

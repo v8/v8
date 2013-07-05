@@ -2111,6 +2111,7 @@ void HGraph::Canonicalize() {
   }
 }
 
+
 // Block ordering was implemented with two mutually recursive methods,
 // HGraph::Postorder and HGraph::PostorderLoopBlocks.
 // The recursion could lead to stack overflow so the algorithm has been
@@ -8642,6 +8643,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
   return new(zone()) HStringCharCodeAt(context, string, checked_index);
 }
 
+
 // Checks if the given shift amounts have form: (sa) and (32 - sa).
 static bool ShiftAmountsAllowReplaceByRotate(HValue* sa,
                                              HValue* const32_minus_sa) {
@@ -9534,6 +9536,7 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
     }
   }
 }
+
 
 void HOptimizedGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   ASSERT(!HasStackOverflow());

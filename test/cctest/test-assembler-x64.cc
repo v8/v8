@@ -111,6 +111,7 @@ TEST(AssemblerX64ReturnOperation) {
   CHECK_EQ(2, result);
 }
 
+
 TEST(AssemblerX64StackOperations) {
   OS::SetUp();
   // Allocate an executable page of memory.
@@ -143,6 +144,7 @@ TEST(AssemblerX64StackOperations) {
   CHECK_EQ(2, result);
 }
 
+
 TEST(AssemblerX64ArithmeticOperations) {
   OS::SetUp();
   // Allocate an executable page of memory.
@@ -164,6 +166,7 @@ TEST(AssemblerX64ArithmeticOperations) {
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(5, result);
 }
+
 
 TEST(AssemblerX64ImulOperation) {
   OS::SetUp();
@@ -192,6 +195,7 @@ TEST(AssemblerX64ImulOperation) {
   result =  FUNCTION_CAST<F2>(buffer)(-0x100000000l, 0x100000000l);
   CHECK_EQ(-1, result);
 }
+
 
 TEST(AssemblerX64MemoryOperands) {
   OS::SetUp();
@@ -227,6 +231,7 @@ TEST(AssemblerX64MemoryOperands) {
   CHECK_EQ(3, result);
 }
 
+
 TEST(AssemblerX64ControlFlow) {
   OS::SetUp();
   // Allocate an executable page of memory.
@@ -255,6 +260,7 @@ TEST(AssemblerX64ControlFlow) {
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(3, result);
 }
+
 
 TEST(AssemblerX64LoopImmediates) {
   OS::SetUp();
@@ -481,6 +487,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int res = f();
   args.GetReturnValue().Set(v8::Integer::New(res));
 }
+
 
 TEST(StackAlignmentForSSE2) {
   CHECK_EQ(0, OS::ActivationFrameAlignment() % 16);

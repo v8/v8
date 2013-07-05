@@ -310,6 +310,7 @@ static void WeakPointerCallback(v8::Isolate* isolate,
   handle->Dispose(isolate);
 }
 
+
 TEST(ObjectGroups) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();

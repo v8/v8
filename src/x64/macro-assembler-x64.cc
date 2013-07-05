@@ -972,6 +972,7 @@ void MacroAssembler::Set(Register dst, int64_t x) {
   }
 }
 
+
 void MacroAssembler::Set(const Operand& dst, int64_t x) {
   if (is_int32(x)) {
     movq(dst, Immediate(static_cast<int32_t>(x)));
@@ -1028,6 +1029,7 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
   LoadSmiConstant(kScratchRegister, source);
   return kScratchRegister;
 }
+
 
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
   if (emit_debug_code()) {
