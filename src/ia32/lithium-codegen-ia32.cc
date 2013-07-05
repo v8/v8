@@ -2036,6 +2036,16 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
 }
 
 
+void LCodeGen::DoNegateNoSSE2D(LNegateNoSSE2D* instr) {
+  __ push(Immediate(-1));
+  __ fild_s(Operand(esp, 0));
+  __ add(esp, Immediate(kPointerSize));
+  __ fmulp();
+  CurrentInstructionReturnsX87Result();
+}
+
+
+
 void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
   ASSERT(ToRegister(instr->left()).is(edx));
@@ -2058,12 +2068,12 @@ int LCodeGen::GetNextEmittedBlock() const {
 
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
-  int right_block = instr->FalseDestination(chunk_);
   int left_block = instr->TrueDestination(chunk_);
+  int right_block = instr->FalseDestination(chunk_);
 
   int next_block = GetNextEmittedBlock();
 
-  if (right_block == left_block) {
+  if (right_block == left_block || cc == no_condition) {
     EmitGoto(left_block);
   } else if (left_block == next_block) {
     __ j(NegateCondition(cc), chunk_->GetAssemblyLabel(right_block));
@@ -2072,6 +2082,25 @@ void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
   } else {
     __ j(cc, chunk_->GetAssemblyLabel(left_block));
     __ jmp(chunk_->GetAssemblyLabel(right_block));
+  }
+}
+
+
+void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
+  Representation r = instr->hydrogen()->value()->representation();
+  if (r.IsSmiOrInteger32() || r.IsDouble()) {
+    EmitBranch(instr, no_condition);
+  } else {
+    ASSERT(r.IsTagged());
+    Register reg = ToRegister(instr->value());
+    HType type = instr->hydrogen()->value()->type();
+    if (type.IsTaggedNumber()) {
+      EmitBranch(instr, no_condition);
+    }
+    __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
+    __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
+           factory()->heap_number_map());
+    EmitBranch(instr, equal);
   }
 }
 

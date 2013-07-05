@@ -57,7 +57,6 @@ namespace internal {
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
-  ICU(UnaryOp_Patch)                                  \
   ICU(BinaryOp_Patch)                                 \
   ICU(CompareIC_Miss)                                 \
   ICU(CompareNilIC_Miss)                              \
@@ -681,28 +680,9 @@ class KeyedStoreIC: public StoreIC {
 
 class UnaryOpIC: public IC {
  public:
-  // sorted: increasingly more unspecific (ignoring UNINITIALIZED)
-  // TODO(svenpanne) Using enums+switch is an antipattern, use a class instead.
-  enum TypeInfo {
-    UNINITIALIZED,
-    SMI,
-    NUMBER,
-    GENERIC
-  };
+  explicit UnaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
 
-  static Handle<Type> TypeInfoToType(TypeInfo info, Isolate* isolate);
-
-  explicit UnaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
-
-  void patch(Code* code);
-
-  static const char* GetName(TypeInfo type_info);
-
-  static State ToState(TypeInfo type_info);
-
-  static TypeInfo GetTypeInfo(Handle<Object> operand);
-
-  static TypeInfo ComputeNewType(TypeInfo type, TypeInfo previous);
+  MUST_USE_RESULT MaybeObject* Transition(Handle<Object> object);
 };
 
 
@@ -838,6 +818,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
 
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, UnaryOpIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, CompareNilIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, ToBooleanIC_Miss);
 

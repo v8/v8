@@ -1129,6 +1129,10 @@ class HGraphBuilder {
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
+  HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HContext* context);
+
+  void AddSoftDeoptimize();
+
   class IfBuilder {
    public:
     explicit IfBuilder(HGraphBuilder* builder,
@@ -1409,6 +1413,9 @@ class HGraphBuilder {
                                  ElementsKind kind,
                                  int length);
 
+  HInstruction* BuildUnaryMathOp(
+      HValue* value, Handle<Type> type, Token::Value token);
+
   void BuildCompareNil(
       HValue* value,
       Handle<Type> type,
@@ -1494,8 +1501,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   void set_break_scope(BreakAndContinueScope* head) { break_scope_ = head; }
 
   bool inline_bailout() { return inline_bailout_; }
-
-  void AddSoftDeoptimize();
 
   void Bailout(const char* reason);
 
@@ -1675,9 +1680,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   // Remove the arguments from the bailout environment and emit instructions
   // to push them as outgoing parameters.
   template <class Instruction> HInstruction* PreProcessCall(Instruction* call);
-
-  static Representation ToRepresentation(TypeInfo info);
-  static Representation ToRepresentation(Handle<Type> type);
 
   void SetUpScope(Scope* scope);
   virtual void VisitStatements(ZoneList<Statement*>* statements);

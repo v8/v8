@@ -1005,6 +1005,17 @@ HReturn* HGraphBuilder::AddReturn(HValue* value) {
 }
 
 
+void HGraphBuilder::AddSoftDeoptimize() {
+  isolate()->counters()->soft_deopts_requested()->Increment();
+  if (FLAG_always_opt) return;
+  if (current_block()->IsDeoptimizing()) return;
+  Add<HSoftDeoptimize>();
+  isolate()->counters()->soft_deopts_inserted()->Increment();
+  current_block()->MarkAsDeoptimizing();
+  graph()->set_has_soft_deoptimize(true);
+}
+
+
 HBasicBlock* HGraphBuilder::CreateBasicBlock(HEnvironment* env) {
   HBasicBlock* b = graph()->CreateBasicBlock();
   b->SetInitialEnvironment(env);
@@ -1654,6 +1665,39 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
 }
 
 
+HInstruction* HGraphBuilder::BuildUnaryMathOp(
+    HValue* input, Handle<Type> type, Token::Value operation) {
+  // We only handle the numeric cases here
+  type = handle(
+      Type::Intersect(type, handle(Type::Number(), isolate())), isolate());
+
+  switch (operation) {
+    default:
+      UNREACHABLE();
+    case Token::SUB: {
+        HInstruction* instr =
+            HMul::New(zone(), environment()->LookupContext(),
+                      input, graph()->GetConstantMinus1());
+        Representation rep = Representation::FromType(type);
+        if (type->Is(Type::None())) {
+          AddSoftDeoptimize();
+        }
+        if (instr->IsBinaryOperation()) {
+          HBinaryOperation* binop = HBinaryOperation::cast(instr);
+          binop->set_observed_input_representation(1, rep);
+          binop->set_observed_input_representation(2, rep);
+        }
+        return instr;
+      }
+    case Token::BIT_NOT:
+      if (type->Is(Type::None())) {
+        AddSoftDeoptimize();
+      }
+      return new(zone()) HBitNot(input);
+  }
+}
+
+
 void HGraphBuilder::BuildCompareNil(
     HValue* value,
     Handle<Type> type,
@@ -1906,6 +1950,18 @@ HStoreNamedField* HGraphBuilder::AddStoreMapConstant(HValue *object,
                                                      Handle<Map> map) {
   return Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
                                Add<HConstant>(map));
+}
+
+
+HValue* HGraphBuilder::AddLoadJSBuiltin(Builtins::JavaScript builtin,
+                                        HContext* context) {
+  HGlobalObject* global_object = Add<HGlobalObject>(context);
+  HObjectAccess access = HObjectAccess::ForJSObjectOffset(
+      GlobalObject::kBuiltinsOffset);
+  HValue* builtins = AddLoad(global_object, access);
+  HObjectAccess function_access = HObjectAccess::ForJSObjectOffset(
+      JSBuiltinsObject::OffsetOfFunctionWithId(builtin));
+  return AddLoad(builtins, function_access);
 }
 
 
@@ -4064,17 +4120,6 @@ void HGraph::RestoreActualValues() {
 void HOptimizedGraphBuilder::PushAndAdd(HInstruction* instr) {
   Push(instr);
   AddInstruction(instr);
-}
-
-
-void HOptimizedGraphBuilder::AddSoftDeoptimize() {
-  isolate()->counters()->soft_deopts_requested()->Increment();
-  if (FLAG_always_opt) return;
-  if (current_block()->IsDeoptimizing()) return;
-  Add<HSoftDeoptimize>();
-  isolate()->counters()->soft_deopts_inserted()->Increment();
-  current_block()->MarkAsDeoptimizing();
-  graph()->set_has_soft_deoptimize(true);
 }
 
 
@@ -8292,18 +8337,8 @@ void HOptimizedGraphBuilder::VisitTypeof(UnaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
-  HValue* context = environment()->LookupContext();
-  HInstruction* instr =
-      HMul::New(zone(), context, value, graph()->GetConstantMinus1());
   Handle<Type> operand_type = expr->expression()->lower_type();
-  Representation rep = ToRepresentation(operand_type);
-  if (operand_type->Is(Type::None())) {
-    AddSoftDeoptimize();
-  }
-  if (instr->IsBinaryOperation()) {
-    HBinaryOperation::cast(instr)->set_observed_input_representation(1, rep);
-    HBinaryOperation::cast(instr)->set_observed_input_representation(2, rep);
-  }
+  HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::SUB);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -8312,10 +8347,7 @@ void HOptimizedGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
   Handle<Type> operand_type = expr->expression()->lower_type();
-  if (operand_type->Is(Type::None())) {
-    AddSoftDeoptimize();
-  }
-  HInstruction* instr = new(zone()) HBitNot(value);
+  HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::BIT_NOT);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -8369,7 +8401,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     CountOperation* expr) {
   // The input to the count operation is on top of the expression stack.
   TypeInfo info = expr->type();
-  Representation rep = ToRepresentation(info);
+  Representation rep = Representation::FromType(info);
   if (rep.IsNone() || rep.IsTagged()) {
     rep = Representation::Smi();
   }
@@ -8677,9 +8709,10 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   Handle<Type> right_type = expr->right()->lower_type();
   Handle<Type> result_type = expr->lower_type();
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
-  Representation left_rep = ToRepresentation(left_type);
-  Representation right_rep = ToRepresentation(right_type);
-  Representation result_rep = ToRepresentation(result_type);
+  Representation left_rep = Representation::FromType(left_type);
+  Representation right_rep = Representation::FromType(right_type);
+  Representation result_rep = Representation::FromType(result_type);
+
   if (left_type->Is(Type::None())) {
     AddSoftDeoptimize();
     // TODO(rossberg): we should be able to get rid of non-continuous defaults.
@@ -8907,26 +8940,6 @@ void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
 }
 
 
-// TODO(rossberg): this should die eventually.
-Representation HOptimizedGraphBuilder::ToRepresentation(TypeInfo info) {
-  if (info.IsUninitialized()) return Representation::None();
-  // TODO(verwaest): Return Smi rather than Integer32.
-  if (info.IsSmi()) return Representation::Integer32();
-  if (info.IsInteger32()) return Representation::Integer32();
-  if (info.IsDouble()) return Representation::Double();
-  if (info.IsNumber()) return Representation::Double();
-  return Representation::Tagged();
-}
-
-
-Representation HOptimizedGraphBuilder::ToRepresentation(Handle<Type> type) {
-  if (type->Is(Type::None())) return Representation::None();
-  if (type->Is(Type::Signed32())) return Representation::Integer32();
-  if (type->Is(Type::Number())) return Representation::Double();
-  return Representation::Tagged();
-}
-
-
 void HOptimizedGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* expr,
                                                         HTypeof* typeof_expr,
                                                         Handle<String> check) {
@@ -9019,9 +9032,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   Handle<Type> left_type = expr->left()->lower_type();
   Handle<Type> right_type = expr->right()->lower_type();
   Handle<Type> combined_type = expr->combined_type();
-  Representation combined_rep = ToRepresentation(combined_type);
-  Representation left_rep = ToRepresentation(left_type);
-  Representation right_rep = ToRepresentation(right_type);
+  Representation combined_rep = Representation::FromType(combined_type);
+  Representation left_rep = Representation::FromType(left_type);
+  Representation right_rep = Representation::FromType(right_type);
 
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
@@ -9150,8 +9163,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       result->set_position(expr->position());
       return ast_context()->ReturnInstruction(result, expr->id());
     } else {
-      // TODO(verwaest): Remove once ToRepresentation properly returns Smi when
-      // the IC measures Smi.
+      // TODO(verwaest): Remove once Representation::FromType properly
+      // returns Smi when the IC measures Smi.
       if (left_type->Is(Type::Smi())) left_rep = Representation::Smi();
       if (right_type->Is(Type::Smi())) right_rep = Representation::Smi();
       HCompareIDAndBranch* result =
