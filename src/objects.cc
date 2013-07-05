@@ -14243,39 +14243,36 @@ PropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
 }
 
 
-Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
-    Handle<GlobalObject> global,
-    Handle<Name> name) {
-  Isolate* isolate = global->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     global->EnsurePropertyCell(*name),
-                     PropertyCell);
+// TODO(mstarzinger): Temporary wrapper until handlified.
+static Handle<NameDictionary> NameDictionaryAdd(Handle<NameDictionary> dict,
+                                                Handle<Name> name,
+                                                Handle<Object> value,
+                                                PropertyDetails details) {
+  CALL_HEAP_FUNCTION(dict->GetIsolate(),
+                     dict->Add(*name, *value, details),
+                     NameDictionary);
 }
 
 
-MaybeObject* GlobalObject::EnsurePropertyCell(Name* name) {
-  ASSERT(!HasFastProperties());
-  int entry = property_dictionary()->FindEntry(name);
+Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
+    Handle<GlobalObject> global,
+    Handle<Name> name) {
+  ASSERT(!global->HasFastProperties());
+  int entry = global->property_dictionary()->FindEntry(*name);
   if (entry == NameDictionary::kNotFound) {
-    Heap* heap = GetHeap();
-    Object* cell;
-    { MaybeObject* maybe_cell =
-          heap->AllocatePropertyCell(heap->the_hole_value());
-      if (!maybe_cell->ToObject(&cell)) return maybe_cell;
-    }
+    Isolate* isolate = global->GetIsolate();
+    Handle<PropertyCell> cell = isolate->factory()->NewPropertyCell(
+        isolate->factory()->the_hole_value());
     PropertyDetails details(NONE, NORMAL, 0);
     details = details.AsDeleted();
-    Object* dictionary;
-    { MaybeObject* maybe_dictionary =
-          property_dictionary()->Add(name, cell, details);
-      if (!maybe_dictionary->ToObject(&dictionary)) return maybe_dictionary;
-    }
-    set_properties(NameDictionary::cast(dictionary));
+    Handle<NameDictionary> dictionary = NameDictionaryAdd(
+        handle(global->property_dictionary()), name, cell, details);
+    global->set_properties(*dictionary);
     return cell;
   } else {
-    Object* value = property_dictionary()->ValueAt(entry);
+    Object* value = global->property_dictionary()->ValueAt(entry);
     ASSERT(value->IsPropertyCell());
-    return value;
+    return handle(PropertyCell::cast(value));
   }
 }
 

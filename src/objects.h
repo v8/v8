@@ -6820,12 +6820,8 @@ class GlobalObject: public JSObject {
   }
 
   // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsurePropertyCell(
-      Handle<GlobalObject> global,
-      Handle<Name> name);
-  // TODO(kmillikin): This function can be eliminated once the stub cache is
-  // fully handlified (and the static helper can be written directly).
-  MUST_USE_RESULT MaybeObject* EnsurePropertyCell(Name* name);
+  static Handle<PropertyCell> EnsurePropertyCell(Handle<GlobalObject> global,
+                                                 Handle<Name> name);
 
   // Casting.
   static inline GlobalObject* cast(Object* obj);
