@@ -38,6 +38,7 @@
 #include "compiler.h"
 #include "conversions-inl.h"
 #include "counters.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "execution.h"
@@ -394,6 +395,9 @@ enum CompressedStartupDataItems {
   kSnapshotContext,
   kLibraries,
   kExperimentalLibraries,
+#if defined(ENABLE_I18N_SUPPORT)
+  kI18NExtension,
+#endif
   kCompressedStartupDataCount
 };
 
@@ -433,6 +437,17 @@ void V8::GetCompressedStartupData(StartupData* compressed_data) {
       exp_libraries_source.length();
   compressed_data[kExperimentalLibraries].raw_size =
       i::ExperimentalNatives::GetRawScriptsSize();
+
+#if defined(ENABLE_I18N_SUPPORT)
+  i::Vector<const ii:byte> i18n_extension_source =
+      i::I18NNatives::GetScriptsSource();
+  compressed_data[kI18NExtension].data =
+      reinterpret_cast<const char*>(i18n_extension_source.start());
+  compressed_data[kI18NExtension].compressed_size =
+      i18n_extension_source.length();
+  compressed_data[kI18NExtension].raw_size =
+      i::I18NNatives::GetRawScriptsSize();
+#endif
 #endif
 }
 
@@ -462,6 +477,15 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
       decompressed_data[kExperimentalLibraries].data,
       decompressed_data[kExperimentalLibraries].raw_size);
   i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
+
+#if defined(ENABLE_I18N_SUPPORT)
+  ASSERT_EQ(i::I18NNatives::GetRawScriptsSize(),
+            decompressed_data[kI18NExtension].raw_size);
+  i::Vector<const char> i18n_extension_source(
+      decompressed_data[kI18NExtension].data,
+      decompressed_data[kI18NExtension].raw_size);
+  i::I18NNatives::SetRawScriptsSource(i18n_extension_source);
+#endif
 #endif
 }
 
@@ -3495,7 +3519,7 @@ bool v8::Object::SetPrototype(Handle<Value> value) {
   // to propagate outside.
   TryCatch try_catch;
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::SetPrototype(self, value_obj);
+  i::Handle<i::Object> result = i::JSObject::SetPrototype(self, value_obj);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
@@ -7718,12 +7742,6 @@ int HeapProfiler::GetSnapshotCount() {
 const HeapSnapshot* HeapProfiler::GetHeapSnapshot(int index) {
   return reinterpret_cast<const HeapSnapshot*>(
       reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshot(index));
-}
-
-
-const HeapSnapshot* HeapProfiler::FindHeapSnapshot(unsigned uid) {
-  return reinterpret_cast<const HeapSnapshot*>(
-      reinterpret_cast<i::HeapProfiler*>(this)->FindSnapshot(uid));
 }
 
 

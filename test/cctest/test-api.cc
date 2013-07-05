@@ -38,16 +38,17 @@
 
 #include "api.h"
 #include "arguments.h"
-#include "isolate.h"
-#include "compilation-cache.h"
-#include "execution.h"
-#include "objects.h"
-#include "snapshot.h"
-#include "platform.h"
-#include "utils.h"
 #include "cctest.h"
+#include "compilation-cache.h"
+#include "cpu-profiler.h"
+#include "execution.h"
+#include "isolate.h"
+#include "objects.h"
 #include "parser.h"
+#include "platform.h"
+#include "snapshot.h"
 #include "unicode-inl.h"
+#include "utils.h"
 
 static const bool kLogThreading = false;
 
@@ -3714,7 +3715,7 @@ TEST(OutOfMemory) {
   static const int K = 1024;
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
-  constraints.set_max_old_space_size(4 * K * K);
+  constraints.set_max_old_space_size(5 * K * K);
   v8::SetResourceConstraints(&constraints);
 
   // Execute a script that causes out of memory.
@@ -3755,7 +3756,7 @@ TEST(OutOfMemoryNested) {
   static const int K = 1024;
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
-  constraints.set_max_old_space_size(4 * K * K);
+  constraints.set_max_old_space_size(5 * K * K);
   v8::SetResourceConstraints(&constraints);
 
   v8::HandleScope scope(v8::Isolate::GetCurrent());
@@ -3784,7 +3785,7 @@ TEST(HugeConsStringOutOfMemory) {
   static const int K = 1024;
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
-  constraints.set_max_old_space_size(3 * K * K);
+  constraints.set_max_old_space_size(4 * K * K);
   v8::SetResourceConstraints(&constraints);
 
   // Execute a script that causes out of memory.

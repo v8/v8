@@ -37,6 +37,8 @@
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
 #include "hydrogen-gvn.h"
+#include "hydrogen-osr.h"
+#include "hydrogen-range-analysis.h"
 #include "hydrogen-uint32-analysis.h"
 #include "lithium-allocator.h"
 #include "parser.h"
@@ -1132,7 +1134,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   length_checker.IfCompare(length, key, Token::EQ);
   length_checker.Then();
 
-  HValue* current_capacity = Add<HFixedArrayBaseLength>(elements);
+  HValue* current_capacity = AddLoadFixedArrayLength(elements);
 
   IfBuilder capacity_checker(this);
 
@@ -1188,7 +1190,7 @@ HValue* HGraphBuilder::BuildCopyElementsOnWrite(HValue* object,
                            Handle<Map>(heap->fixed_cow_array_map()));
   cow_checker.Then();
 
-  HValue* capacity = Add<HFixedArrayBaseLength>(elements);
+  HValue* capacity = AddLoadFixedArrayLength(elements);
 
   HValue* new_elements = BuildGrowElementsCapacity(object, elements,
                                                    kind, length, capacity);
@@ -1243,10 +1245,10 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   if (is_js_array) {
     length = AddLoad(object, HObjectAccess::ForArrayLength(), mapcheck,
         Representation::Smi());
-    length->set_type(HType::Smi());
   } else {
-    length = Add<HFixedArrayBaseLength>(elements);
+    length = AddLoadFixedArrayLength(elements);
   }
+  length->set_type(HType::Smi());
   HValue* checked_key = NULL;
   if (IsExternalArrayElementsKind(elements_kind)) {
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
@@ -1413,6 +1415,14 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
 HLoadNamedField* HGraphBuilder::AddLoadElements(HValue* object,
                                                 HValue* typecheck) {
   return AddLoad(object, HObjectAccess::ForElementsPointer(), typecheck);
+}
+
+
+HLoadNamedField* HGraphBuilder::AddLoadFixedArrayLength(HValue* object) {
+  HLoadNamedField* instr = AddLoad(object, HObjectAccess::ForFixedArrayLength(),
+                                   NULL, Representation::Smi());
+  instr->set_type(HType::Smi());
+  return instr;
 }
 
 
@@ -1907,7 +1917,8 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
       break_scope_(NULL),
       inlined_count_(0),
       globals_(10, info->zone()),
-      inline_bailout_(false) {
+      inline_bailout_(false),
+      osr_(new(info->zone()) HOsrBuilder(this)) {
   // This is not initialized in the initializer list because the
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
@@ -1975,6 +1986,7 @@ HGraph::HGraph(CompilationInfo* info)
       values_(16, info->zone()),
       phi_list_(NULL),
       uint32_instructions_(NULL),
+      osr_(NULL),
       info_(info),
       zone_(info->zone()),
       is_recursive_(false),
@@ -2565,169 +2577,6 @@ void HGraph::InferTypes(ZoneList<HValue*>* worklist) {
       }
     }
   }
-}
-
-
-class HRangeAnalysis BASE_EMBEDDED {
- public:
-  explicit HRangeAnalysis(HGraph* graph) :
-      graph_(graph), zone_(graph->zone()), changed_ranges_(16, zone_) { }
-
-  void Analyze();
-
- private:
-  void TraceRange(const char* msg, ...);
-  void Analyze(HBasicBlock* block);
-  void InferControlFlowRange(HCompareIDAndBranch* test, HBasicBlock* dest);
-  void UpdateControlFlowRange(Token::Value op, HValue* value, HValue* other);
-  void InferRange(HValue* value);
-  void RollBackTo(int index);
-  void AddRange(HValue* value, Range* range);
-
-  HGraph* graph_;
-  Zone* zone_;
-  ZoneList<HValue*> changed_ranges_;
-};
-
-
-void HRangeAnalysis::TraceRange(const char* msg, ...) {
-  if (FLAG_trace_range) {
-    va_list arguments;
-    va_start(arguments, msg);
-    OS::VPrint(msg, arguments);
-    va_end(arguments);
-  }
-}
-
-
-void HRangeAnalysis::Analyze() {
-  HPhase phase("H_Range analysis", graph_);
-  Analyze(graph_->entry_block());
-}
-
-
-void HRangeAnalysis::Analyze(HBasicBlock* block) {
-  TraceRange("Analyzing block B%d\n", block->block_id());
-
-  int last_changed_range = changed_ranges_.length() - 1;
-
-  // Infer range based on control flow.
-  if (block->predecessors()->length() == 1) {
-    HBasicBlock* pred = block->predecessors()->first();
-    if (pred->end()->IsCompareIDAndBranch()) {
-      InferControlFlowRange(HCompareIDAndBranch::cast(pred->end()), block);
-    }
-  }
-
-  // Process phi instructions.
-  for (int i = 0; i < block->phis()->length(); ++i) {
-    HPhi* phi = block->phis()->at(i);
-    InferRange(phi);
-  }
-
-  // Go through all instructions of the current block.
-  for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-    InferRange(it.Current());
-  }
-
-  // Continue analysis in all dominated blocks.
-  for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
-    Analyze(block->dominated_blocks()->at(i));
-  }
-
-  RollBackTo(last_changed_range);
-}
-
-
-void HRangeAnalysis::InferControlFlowRange(HCompareIDAndBranch* test,
-                                           HBasicBlock* dest) {
-  ASSERT((test->FirstSuccessor() == dest) == (test->SecondSuccessor() != dest));
-  if (test->representation().IsSmiOrInteger32()) {
-    Token::Value op = test->token();
-    if (test->SecondSuccessor() == dest) {
-      op = Token::NegateCompareOp(op);
-    }
-    Token::Value inverted_op = Token::ReverseCompareOp(op);
-    UpdateControlFlowRange(op, test->left(), test->right());
-    UpdateControlFlowRange(inverted_op, test->right(), test->left());
-  }
-}
-
-
-// We know that value [op] other. Use this information to update the range on
-// value.
-void HRangeAnalysis::UpdateControlFlowRange(Token::Value op,
-                                            HValue* value,
-                                            HValue* other) {
-  Range temp_range;
-  Range* range = other->range() != NULL ? other->range() : &temp_range;
-  Range* new_range = NULL;
-
-  TraceRange("Control flow range infer %d %s %d\n",
-             value->id(),
-             Token::Name(op),
-             other->id());
-
-  if (op == Token::EQ || op == Token::EQ_STRICT) {
-    // The same range has to apply for value.
-    new_range = range->Copy(zone_);
-  } else if (op == Token::LT || op == Token::LTE) {
-    new_range = range->CopyClearLower(zone_);
-    if (op == Token::LT) {
-      new_range->AddConstant(-1);
-    }
-  } else if (op == Token::GT || op == Token::GTE) {
-    new_range = range->CopyClearUpper(zone_);
-    if (op == Token::GT) {
-      new_range->AddConstant(1);
-    }
-  }
-
-  if (new_range != NULL && !new_range->IsMostGeneric()) {
-    AddRange(value, new_range);
-  }
-}
-
-
-void HRangeAnalysis::InferRange(HValue* value) {
-  ASSERT(!value->HasRange());
-  if (!value->representation().IsNone()) {
-    value->ComputeInitialRange(zone_);
-    Range* range = value->range();
-    TraceRange("Initial inferred range of %d (%s) set to [%d,%d]\n",
-               value->id(),
-               value->Mnemonic(),
-               range->lower(),
-               range->upper());
-  }
-}
-
-
-void HRangeAnalysis::RollBackTo(int index) {
-  for (int i = index + 1; i < changed_ranges_.length(); ++i) {
-    changed_ranges_[i]->RemoveLastAddedRange();
-  }
-  changed_ranges_.Rewind(index + 1);
-}
-
-
-void HRangeAnalysis::AddRange(HValue* value, Range* range) {
-  Range* original_range = value->range();
-  value->AddNewRange(range, zone_);
-  changed_ranges_.Add(value, zone_);
-  Range* new_range = value->range();
-  TraceRange("Updated range of %d set to [%d,%d]\n",
-             value->id(),
-             new_range->lower(),
-             new_range->upper());
-  if (original_range != NULL) {
-    TraceRange("Original range was [%d,%d]\n",
-               original_range->lower(),
-               original_range->upper());
-  }
-  TraceRange("New information was [%d,%d]\n",
-             range->lower(),
-             range->upper());
 }
 
 
@@ -3524,6 +3373,9 @@ bool HOptimizedGraphBuilder::BuildGraph() {
       !type_info->matches_inlined_type_change_checksum(composite_checksum));
   type_info->set_inlined_type_change_checksum(composite_checksum);
 
+  // Perform any necessary OSR-specific cleanups or changes to the graph.
+  osr_->FinishGraph();
+
   return true;
 }
 
@@ -3567,13 +3419,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   }
   CollectPhis();
 
-  if (has_osr_loop_entry()) {
-    const ZoneList<HPhi*>* phis = osr_loop_entry()->phis();
-    for (int j = 0; j < phis->length(); j++) {
-      HPhi* phi = phis->at(j);
-      osr_values()->at(phi->merged_index())->set_incoming_value(phi);
-    }
-  }
+  if (has_osr()) osr()->FinishOsrValues();
 
   Run<HInferRepresentationPhase>();
 
@@ -3598,10 +3444,8 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
 
   if (FLAG_use_gvn) Run<HGlobalValueNumberingPhase>();
 
-  if (FLAG_use_range) {
-    HRangeAnalysis range_analysis(this);
-    range_analysis.Analyze();
-  }
+  if (FLAG_use_range) Run<HRangeAnalysisPhase>();
+
   ComputeMinusZeroChecks();
 
   // Eliminate redundant stack checks on backwards branches.
@@ -4681,59 +4525,6 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 }
 
 
-bool HOptimizedGraphBuilder::HasOsrEntryAt(IterationStatement* statement) {
-  return statement->OsrEntryId() == current_info()->osr_ast_id();
-}
-
-
-bool HOptimizedGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
-  if (!HasOsrEntryAt(statement)) return false;
-
-  HBasicBlock* non_osr_entry = graph()->CreateBasicBlock();
-  HBasicBlock* osr_entry = graph()->CreateBasicBlock();
-  HValue* true_value = graph()->GetConstantTrue();
-  HBranch* test = new(zone()) HBranch(true_value, non_osr_entry, osr_entry);
-  current_block()->Finish(test);
-
-  HBasicBlock* loop_predecessor = graph()->CreateBasicBlock();
-  non_osr_entry->Goto(loop_predecessor);
-
-  set_current_block(osr_entry);
-  osr_entry->set_osr_entry();
-  BailoutId osr_entry_id = statement->OsrEntryId();
-  int first_expression_index = environment()->first_expression_index();
-  int length = environment()->length();
-  ZoneList<HUnknownOSRValue*>* osr_values =
-      new(zone()) ZoneList<HUnknownOSRValue*>(length, zone());
-
-  for (int i = 0; i < first_expression_index; ++i) {
-    HUnknownOSRValue* osr_value = Add<HUnknownOSRValue>();
-    environment()->Bind(i, osr_value);
-    osr_values->Add(osr_value, zone());
-  }
-
-  if (first_expression_index != length) {
-    environment()->Drop(length - first_expression_index);
-    for (int i = first_expression_index; i < length; ++i) {
-      HUnknownOSRValue* osr_value = Add<HUnknownOSRValue>();
-      environment()->Push(osr_value);
-      osr_values->Add(osr_value, zone());
-    }
-  }
-
-  graph()->set_osr_values(osr_values);
-
-  AddSimulate(osr_entry_id);
-  Add<HOsrEntry>(osr_entry_id);
-  HContext* context = Add<HContext>();
-  environment()->BindContext(context);
-  current_block()->Goto(loop_predecessor);
-  loop_predecessor->SetJoinId(statement->EntryId());
-  set_current_block(loop_predecessor);
-  return true;
-}
-
-
 void HOptimizedGraphBuilder::VisitLoopBody(IterationStatement* stmt,
                                            HBasicBlock* loop_entry,
                                            BreakAndContinueInfo* break_info) {
@@ -4753,11 +4544,7 @@ void HOptimizedGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   ASSERT(current_block() != NULL);
-  bool osr_entry = PreProcessOsrEntry(stmt);
-  HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry);
-  set_current_block(loop_entry);
-  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
+  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
 
   BreakAndContinueInfo break_info(stmt);
   CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
@@ -4796,12 +4583,7 @@ void HOptimizedGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   ASSERT(current_block() != NULL);
-  bool osr_entry = PreProcessOsrEntry(stmt);
-  HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry);
-  set_current_block(loop_entry);
-  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
-
+  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
 
   // If the condition is constant true, do not generate a branch.
   HBasicBlock* loop_successor = NULL;
@@ -4843,11 +4625,7 @@ void HOptimizedGraphBuilder::VisitForStatement(ForStatement* stmt) {
     CHECK_ALIVE(Visit(stmt->init()));
   }
   ASSERT(current_block() != NULL);
-  bool osr_entry = PreProcessOsrEntry(stmt);
-  HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry);
-  set_current_block(loop_entry);
-  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
+  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
 
   HBasicBlock* loop_successor = NULL;
   if (stmt->cond() != NULL) {
@@ -4931,11 +4709,7 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HForInCacheArray::cast(array)->set_index_cache(
       HForInCacheArray::cast(index_cache));
 
-  bool osr_entry = PreProcessOsrEntry(stmt);
-  HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry);
-  set_current_block(loop_entry);
-  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
+  HBasicBlock* loop_entry = osr_->BuildPossibleOsrLoopEntry(stmt);
 
   HValue* index = environment()->ExpressionStackAt(0);
   HValue* limit = environment()->ExpressionStackAt(1);
@@ -5544,7 +5318,9 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Handle<Object> raw_boilerplate(literals->get(expr->literal_index()),
                                  isolate());
 
+  bool uninitialized = false;
   if (raw_boilerplate->IsUndefined()) {
+    uninitialized = true;
     raw_boilerplate = Runtime::CreateArrayLiteralBoilerplate(
         isolate(), literals, expr->constant_elements());
     if (raw_boilerplate.is_null()) {
@@ -5640,10 +5416,12 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       case FAST_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-        Add<HStoreKeyed>(elements, key, value,
-                         boilerplate_elements_kind);
+      case FAST_HOLEY_DOUBLE_ELEMENTS: {
+        HStoreKeyed* instr = Add<HStoreKeyed>(elements, key, value,
+                                              boilerplate_elements_kind);
+        instr->SetUninitialized(uninitialized);
         break;
+      }
       default:
         UNREACHABLE();
         break;
@@ -6809,7 +6587,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
                   LAST_ELEMENTS_KIND);
     if (elements_kind == FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
         && todo_external_array) {
-      HInstruction* length = Add<HFixedArrayBaseLength>(elements);
+      HInstruction* length = AddLoadFixedArrayLength(elements);
       checked_key = Add<HBoundsCheck>(key, length);
       external_elements = Add<HLoadExternalArrayPointer>(elements);
     }
@@ -6869,7 +6647,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         if_jsarray->GotoNoSimulate(join);
 
         set_current_block(if_fastobject);
-        length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
+        length = AddLoadFixedArrayLength(elements);
         checked_key = Add<HBoundsCheck>(key, length);
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind_branch,
@@ -9244,12 +9022,6 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   Representation combined_rep = ToRepresentation(combined_type);
   Representation left_rep = ToRepresentation(left_type);
   Representation right_rep = ToRepresentation(right_type);
-  // Check if this expression was ever executed according to type feedback.
-  // Note that for the special typeof/null/undefined cases we get unknown here.
-  if (combined_type->Is(Type::None())) {
-    AddSoftDeoptimize();
-    combined_type = left_type = right_type = handle(Type::Any(), isolate());
-  }
 
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
@@ -9316,11 +9088,23 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       result->set_position(expr->position());
       return ast_context()->ReturnInstruction(result, expr->id());
     }
+
+    // Code below assumes that we don't fall through.
+    UNREACHABLE();
   } else if (op == Token::IN) {
     HIn* result = new(zone()) HIn(context, left, right);
     result->set_position(expr->position());
     return ast_context()->ReturnInstruction(result, expr->id());
-  } else if (combined_type->Is(Type::Receiver())) {
+  }
+
+  // Cases handled below depend on collected type feedback. They should
+  // soft deoptimize when there is no type feedback.
+  if (combined_type->Is(Type::None())) {
+    AddSoftDeoptimize();
+    combined_type = left_type = right_type = handle(Type::Any(), isolate());
+  }
+
+  if (combined_type->Is(Type::Receiver())) {
     switch (op) {
       case Token::EQ:
       case Token::EQ_STRICT: {

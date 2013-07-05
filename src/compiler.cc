@@ -32,6 +32,7 @@
 #include "bootstrapper.h"
 #include "codegen.h"
 #include "compilation-cache.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "full-codegen.h"
@@ -1058,7 +1059,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   } else if (status != OptimizingCompiler::SUCCEEDED) {
     info->set_bailout_reason("failed/bailed out last time");
     status = optimizing_compiler->AbortOptimization();
-  } else if (isolate->debugger()->IsDebuggerActive()) {
+  } else if (isolate->DebuggerHasBreakPoints()) {
     info->set_bailout_reason("debugger is active");
     status = optimizing_compiler->AbortOptimization();
   } else {

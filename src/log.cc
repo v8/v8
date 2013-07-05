@@ -31,6 +31,7 @@
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "cpu-profiler.h"
 #include "deoptimizer.h"
 #include "global-handles.h"
 #include "log.h"
@@ -637,6 +638,16 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 }
 
 
+void Logger::CodeDeoptEvent(Code* code) {
+  if (!log_->IsEnabled()) return;
+  ASSERT(FLAG_log_internal_timer_events);
+  LogMessageBuilder msg(this);
+  int since_epoch = static_cast<int>(OS::Ticks() - epoch_);
+  msg.Append("code-deopt,%ld,%d\n", since_epoch, code->CodeSize());
+  msg.WriteToLogFile();
+}
+
+
 void Logger::TimerEvent(StartEnd se, const char* name) {
   if (!log_->IsEnabled()) return;
   ASSERT(FLAG_log_internal_timer_events);
@@ -1041,7 +1052,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  if (code == Isolate::Current()->builtins()->builtin(
+  if (code == isolate_->builtins()->builtin(
       Builtins::kLazyCompile))
     return;
 
@@ -1353,8 +1364,6 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   LogMessageBuilder msg(this);
   msg.Append("%s,", kLogEventsNames[TICK_EVENT]);
   msg.AppendAddress(sample->pc);
-  msg.Append(',');
-  msg.AppendAddress(sample->sp);
   msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
   if (sample->has_external_callback) {
     msg.Append(",1,");
@@ -1698,7 +1707,7 @@ void Logger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
-    if (*code_objects[i] == Isolate::Current()->builtins()->builtin(
+    if (*code_objects[i] == isolate_->builtins()->builtin(
         Builtins::kLazyCompile))
       continue;
     LogExistingFunction(sfis[i], code_objects[i]);
@@ -1778,7 +1787,7 @@ void Logger::SetCodeEventHandler(uint32_t options,
   code_event_handler_ = event_handler;
 
   if (code_event_handler_ != NULL && (options & kJitCodeEventEnumExisting)) {
-    HandleScope scope(Isolate::Current());
+    HandleScope scope(isolate_);
     LogCodeObjects();
     LogCompiledFunctions();
   }

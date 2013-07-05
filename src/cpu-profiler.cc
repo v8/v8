@@ -62,10 +62,9 @@ void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
 }
 
 
-void ProfilerEventsProcessor::AddCurrentStack() {
+void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
   TickSampleEventRecord record(enqueue_order_);
   TickSample* sample = &record.sample;
-  Isolate* isolate = Isolate::Current();
   sample->state = isolate->current_vm_state();
   sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
   for (StackTraceFrameIterator it(isolate);
@@ -428,7 +427,7 @@ void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
   if (profiles_->StartProfiling(title, next_profile_uid_++, record_samples)) {
     StartProcessorIfNotStarted();
   }
-  processor_->AddCurrentStack();
+  processor_->AddCurrentStack(isolate_);
 }
 
 

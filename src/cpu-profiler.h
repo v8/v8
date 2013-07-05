@@ -161,7 +161,7 @@ class ProfilerEventsProcessor : public Thread {
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into tick sample events buffer.
-  void AddCurrentStack();
+  void AddCurrentStack(Isolate* isolate);
 
   // Tick sample events are filled directly in the buffer of the circular
   // queue (because the structure is of fixed width, but usually not all

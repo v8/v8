@@ -356,9 +356,12 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
                                      Handle<Type>* left_type,
                                      Handle<Type>* right_type,
                                      Handle<Type>* combined_type) {
-  *left_type = *right_type = *combined_type = handle(Type::Any(), isolate_);
   Handle<Object> info = GetInfo(id);
-  if (!info->IsCode()) return;
+  if (!info->IsCode()) {
+    // For some comparisons we don't have ICs, e.g. LiteralCompareTypeof.
+    *left_type = *right_type = *combined_type = handle(Type::None(), isolate_);
+    return;
+  }
   Handle<Code> code = Handle<Code>::cast(info);
 
   Handle<Map> map;
@@ -387,7 +390,9 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
 
 Handle<Type> TypeFeedbackOracle::UnaryType(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
-  if (!object->IsCode()) return handle(Type::Any(), isolate());
+  if (!object->IsCode()) {
+    return handle(Type::None(), isolate());
+  }
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT(code->is_unary_op_stub());
   return UnaryOpIC::TypeInfoToType(
@@ -401,10 +406,13 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
                                     Handle<Type>* result,
                                     Maybe<int>* fixed_right_arg) {
   Handle<Object> object = GetInfo(id);
-  *left = *right = *result = handle(Type::Any(), isolate_);
-  if (!object->IsCode()) return;
+  if (!object->IsCode()) {
+    // For some binary ops we don't have ICs, e.g. Token::COMMA.
+    *left = *right = *result = handle(Type::None(), isolate_);
+    return;
+  }
   Handle<Code> code = Handle<Code>::cast(object);
-  if (!code->is_binary_op_stub()) return;
+  ASSERT(code->is_binary_op_stub());
 
   int minor_key = code->stub_info();
   BinaryOpIC::StubInfoToType(minor_key, left, right, result, isolate());

@@ -294,13 +294,6 @@ Handle<Object> GetProperty(Isolate* isolate,
 }
 
 
-Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value) {
-  const bool skip_hidden_prototypes = false;
-  CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->SetPrototype(*value, skip_hidden_prototypes), Object);
-}
-
-
 Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index) {
   CALL_HEAP_FUNCTION(

@@ -78,31 +78,82 @@ Zone::Zone(Isolate* isolate)
 
 
 Zone::~Zone() {
+  DeleteAll();
+  DeleteKeptSegment();
+
+  ASSERT(segment_bytes_allocated_ == 0);
+}
+
+
+void Zone::DeleteAll() {
 #ifdef DEBUG
   // Constant byte value used for zapping dead memory in debug mode.
   static const unsigned char kZapDeadByte = 0xcd;
 #endif
 
-  // Traverse the chained list of segments, zapping
-  // (in debug mode) and freeing every segment
-  Segment* current = segment_head_;
-  while (current != NULL) {
+  // Find a segment with a suitable size to keep around.
+  Segment* keep = segment_head_;
+  while (keep != NULL && keep->size() > kMaximumKeptSegmentSize) {
+    keep = keep->next();
+  }
+
+  // Traverse the chained list of segments, zapping (in debug mode)
+  // and freeing every segment except the one we wish to keep.
+  for (Segment* current = segment_head_; current != NULL; ) {
     Segment* next = current->next();
-    int size = current->size();
+    if (current == keep) {
+      // Unlink the segment we wish to keep from the list.
+      current->clear_next();
+    } else {
+      int size = current->size();
 #ifdef DEBUG
-    // Zap the entire current segment (including the header).
-    memset(current, kZapDeadByte, size);
+      // Zap the entire current segment (including the header).
+      memset(current, kZapDeadByte, size);
 #endif
-    DeleteSegment(current, size);
+      DeleteSegment(current, size);
+    }
     current = next;
   }
 
-  // We must clear the position and limit to force
-  // a new segment to be allocated on demand.
-  position_ = limit_ = 0;
+  // If we have found a segment we want to keep, we must recompute the
+  // variables 'position' and 'limit' to prepare for future allocate
+  // attempts. Otherwise, we must clear the position and limit to
+  // force a new segment to be allocated on demand.
+  if (keep != NULL) {
+    Address start = keep->start();
+    position_ = RoundUp(start, kAlignment);
+    limit_ = keep->end();
+#ifdef DEBUG
+    // Zap the contents of the kept segment (but not the header).
+    memset(start, kZapDeadByte, keep->capacity());
+#endif
+  } else {
+    position_ = limit_ = 0;
+  }
 
-  // Update the head segment.
-  segment_head_ = NULL;
+  // Update the head segment to be the kept segment (if any).
+  segment_head_ = keep;
+}
+
+
+void Zone::DeleteKeptSegment() {
+#ifdef DEBUG
+  // Constant byte value used for zapping dead memory in debug mode.
+  static const unsigned char kZapDeadByte = 0xcd;
+#endif
+
+  ASSERT(segment_head_ == NULL || segment_head_->next() == NULL);
+  if (segment_head_ != NULL) {
+    int size = segment_head_->size();
+#ifdef DEBUG
+    // Zap the entire kept segment (including the header).
+    memset(segment_head_, kZapDeadByte, size);
+#endif
+    DeleteSegment(segment_head_, size);
+    segment_head_ = NULL;
+  }
+
+  ASSERT(segment_bytes_allocated_ == 0);
 }
 
 

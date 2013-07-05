@@ -31,6 +31,7 @@
 #include "arguments.h"
 #include "ast.h"
 #include "code-stubs.h"
+#include "cpu-profiler.h"
 #include "gdb-jit.h"
 #include "ic-inl.h"
 #include "stub-cache.h"

@@ -80,9 +80,12 @@ endif
 ifeq ($(extrachecks), off)
   GYPFLAGS += -Dv8_enable_extra_checks=0
 endif
-# gdbjit=on
+# gdbjit=on/off
 ifeq ($(gdbjit), on)
   GYPFLAGS += -Dv8_enable_gdbjit=1
+endif
+ifeq ($(gdbjit), off)
+  GYPFLAGS += -Dv8_enable_gdbjit=0
 endif
 # vtunejit=on
 ifeq ($(vtunejit), on)
@@ -115,6 +118,10 @@ endif
 # regexp=interpreted
 ifeq ($(regexp), interpreted)
   GYPFLAGS += -Dv8_interpreted_regexp=1
+endif
+# i18nsupport=on
+ifeq ($(i18nsupport), on)
+  GYPFLAGS += -Dv8_enable_i18n_support=1
 endif
 # arm specific flags.
 # armv7=false/true

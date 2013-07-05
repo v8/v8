@@ -29,6 +29,7 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "cpu-profiler.h"
 #include "unicode.h"
 #include "log.h"
 #include "code-stubs.h"
