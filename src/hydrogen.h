@@ -333,6 +333,8 @@ class HGraph: public ZoneObject {
   HConstant* GetConstantNull();
   HConstant* GetInvalidContext();
 
+  bool IsStandardConstant(HConstant* constant);
+
   HBasicBlock* CreateBasicBlock();
   HArgumentsObject* GetArgumentsObject() const {
     return arguments_object_.get();
@@ -1131,7 +1133,12 @@ class HGraphBuilder {
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HContext* context);
 
-  void AddSoftDeoptimize();
+  enum SoftDeoptimizeMode {
+    MUST_EMIT_SOFT_DEOPT,
+    CAN_OMIT_SOFT_DEOPT
+  };
+
+  void AddSoftDeoptimize(SoftDeoptimizeMode mode = CAN_OMIT_SOFT_DEOPT);
 
   class IfBuilder {
    public:

@@ -1668,7 +1668,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   ASSERT(!lookup->IsHandler());
 
   Handle<Code> code = ComputeStoreMonomorphic(
-      lookup, strict_mode, receiver, name);
+      lookup, strict_mode, receiver, name, value);
   if (code.is_null()) {
     Handle<Code> stub = strict_mode == kStrictMode
         ? generic_stub_strict() : generic_stub();
@@ -1684,7 +1684,8 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
                                               StrictModeFlag strict_mode,
                                               Handle<JSObject> receiver,
-                                              Handle<String> name) {
+                                              Handle<String> name,
+                                              Handle<Object> value) {
   Handle<JSObject> holder(lookup->holder());
   switch (lookup->type()) {
     case FIELD:
@@ -1699,7 +1700,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
         return isolate()->stub_cache()->ComputeStoreGlobal(
-            name, global, cell, strict_mode);
+            name, global, cell, value, strict_mode);
       }
       ASSERT(holder.is_identical_to(receiver));
       return isolate()->stub_cache()->ComputeStoreNormal(strict_mode);
@@ -2093,7 +2094,8 @@ MaybeObject* KeyedStoreIC::Store(State state,
 Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
                                                    StrictModeFlag strict_mode,
                                                    Handle<JSObject> receiver,
-                                                   Handle<String> name) {
+                                                   Handle<String> name,
+                                                   Handle<Object> value) {
   // If the property has a non-field type allowing map transitions
   // where there is extra room in the object, we leave the IC in its
   // current state.
@@ -2235,6 +2237,20 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
+  return ic.Store(state,
+                  Code::GetStrictMode(extra_ic_state),
+                  args.at<Object>(0),
+                  args.at<String>(1),
+                  args.at<Object>(2));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  StoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   return ic.Store(state,

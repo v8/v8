@@ -90,6 +90,7 @@ namespace internal {
   V(ArrayConstructor)                    \
   V(InternalArrayConstructor)            \
   V(ProfileEntryHook)                    \
+  V(StoreGlobal)                         \
   /* IC Handler stubs */                 \
   V(LoadField)                           \
   V(KeyedLoadField)
@@ -138,6 +139,8 @@ class CodeStub BASE_EMBEDDED {
   // Retrieve the code for the stub. Generate the code if needed.
   Handle<Code> GetCode(Isolate* isolate);
 
+  // Retrieve the code for the stub, make and return a copy of the code.
+  Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate);
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));
   }
@@ -521,6 +524,50 @@ class FastNewBlockContextStub : public PlatformCodeStub {
 
   Major MajorKey() { return FastNewBlockContext; }
   int MinorKey() { return slots_; }
+};
+
+class StoreGlobalStub : public HydrogenCodeStub {
+ public:
+  StoreGlobalStub(StrictModeFlag strict_mode, bool is_constant) {
+    bit_field_ = StrictModeBits::encode(strict_mode) |
+        IsConstantBits::encode(is_constant);
+  }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+  virtual Code::Kind GetCodeKind() const { return Code::STORE_IC; }
+  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
+  virtual Code::ExtraICState GetExtraICState() { return bit_field_; }
+
+  bool is_constant() {
+    return IsConstantBits::decode(bit_field_);
+  }
+  void set_is_constant(bool value) {
+    bit_field_ = IsConstantBits::update(bit_field_, value);
+  }
+
+  Representation representation() {
+    return Representation::FromKind(RepresentationBits::decode(bit_field_));
+  }
+  void set_representation(Representation r) {
+    bit_field_ = RepresentationBits::update(bit_field_, r.kind());
+  }
+
+ private:
+  virtual int NotMissMinorKey() { return GetExtraICState(); }
+  Major MajorKey() { return StoreGlobal; }
+
+  class StrictModeBits: public BitField<StrictModeFlag, 0, 1> {};
+  class IsConstantBits: public BitField<bool, 1, 1> {};
+  class RepresentationBits: public BitField<Representation::Kind, 2, 8> {};
+
+  int bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(StoreGlobalStub);
 };
 
 

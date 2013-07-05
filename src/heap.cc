@@ -2855,9 +2855,9 @@ MaybeObject* Heap::AllocateCell(Object* value) {
 
 MaybeObject* Heap::AllocatePropertyCell(Object* value) {
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawPropertyCell();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = AllocateRawPropertyCell();
+  if (!maybe_result->ToObject(&result)) return maybe_result;
+
   HeapObject::cast(result)->set_map_no_write_barrier(
       global_property_cell_map());
   PropertyCell* cell = PropertyCell::cast(result);
@@ -2865,6 +2865,8 @@ MaybeObject* Heap::AllocatePropertyCell(Object* value) {
                            SKIP_WRITE_BARRIER);
   cell->set_value(value);
   cell->set_type(Type::None());
+  maybe_result = cell->SetValueInferType(value);
+  if (maybe_result->IsFailure()) return maybe_result;
   return result;
 }
 

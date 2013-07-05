@@ -2121,7 +2121,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
   } else if (lookup.IsNormal()) {
     if (global->GetNormalizedProperty(&lookup)->IsTheHole() ||
         !lookup.IsReadOnly()) {
-      global->SetNormalizedProperty(&lookup, *value);
+      HandleScope scope(isolate);
+      JSObject::SetNormalizedProperty(Handle<JSObject>(global), &lookup, value);
     }
   } else {
     // Ignore re-initialization of constants that have already been
@@ -2210,7 +2211,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
       }
     } else if (lookup.IsNormal()) {
       if (object->GetNormalizedProperty(&lookup)->IsTheHole()) {
-        object->SetNormalizedProperty(&lookup, *value);
+        JSObject::SetNormalizedProperty(object, &lookup, value);
       }
     } else {
       // We should not reach here. Any real, named property should be

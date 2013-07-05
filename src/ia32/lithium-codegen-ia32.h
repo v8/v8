@@ -115,6 +115,7 @@ class LCodeGen BASE_EMBEDDED {
   Immediate ToSmiImmediate(LOperand* op) const {
     return Immediate(Smi::FromInt(ToInteger32(LConstantOperand::cast(op))));
   }
+  double ToDouble(LConstantOperand* op) const;
 
   // Support for non-sse2 (x87) floating point stack handling.
   // These functions maintain the depth of the stack (either 0 or 1)
@@ -293,7 +294,6 @@ class LCodeGen BASE_EMBEDDED {
   XMMRegister ToDoubleRegister(int index) const;
   int ToInteger32(LConstantOperand* op) const;
 
-  double ToDouble(LConstantOperand* op) const;
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,
                                 Representation key_representation,

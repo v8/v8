@@ -630,12 +630,23 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
 }
 
 
-Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
+Handle<Object> JSObject::SetNormalizedProperty(Handle<JSObject> object,
+                                               LookupResult* result,
+                                               Handle<Object> value) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->SetNormalizedProperty(result, *value),
+                     Object);
+}
+
+
+MaybeObject* JSObject::SetNormalizedProperty(LookupResult* result,
+                                             Object* value) {
   ASSERT(!HasFastProperties());
   if (IsGlobalObject()) {
     PropertyCell* cell = PropertyCell::cast(
         property_dictionary()->ValueAt(result->GetDictionaryEntry()));
-    cell->set_value(value);
+    MaybeObject* maybe_type = cell->SetValueInferType(value);
+    if (maybe_type->IsFailure()) return maybe_type;
   } else {
     property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
   }
@@ -691,7 +702,8 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
   if (IsGlobalObject()) {
     PropertyCell* cell =
         PropertyCell::cast(property_dictionary()->ValueAt(entry));
-    cell->set_value(value);
+    MaybeObject* maybe_type = cell->SetValueInferType(value);
+    if (maybe_type->IsFailure()) return maybe_type;
     // Please note we have to update the property details.
     property_dictionary()->DetailsAtPut(entry, details);
   } else {
@@ -723,7 +735,9 @@ MaybeObject* JSObject::DeleteNormalizedProperty(Name* name, DeleteMode mode) {
         set_map(new_map);
       }
       PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
-      cell->set_value(cell->GetHeap()->the_hole_value());
+      MaybeObject* maybe_type =
+          cell->SetValueInferType(cell->GetHeap()->the_hole_value());
+      if (maybe_type->IsFailure()) return maybe_type;
       dictionary->DetailsAtPut(entry, details.AsDeleted());
     } else {
       Object* deleted = dictionary->DeleteProperty(entry, mode);
@@ -1930,7 +1944,9 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
     int entry = dict->FindEntry(name);
     if (entry != NameDictionary::kNotFound) {
       store_value = dict->ValueAt(entry);
-      PropertyCell::cast(store_value)->set_value(value);
+      MaybeObject* maybe_type =
+          PropertyCell::cast(store_value)->SetValueInferType(value);
+      if (maybe_type->IsFailure()) return maybe_type;
       // Assign an enumeration index to the property and update
       // SetNextEnumerationIndex.
       int index = dict->NextEnumerationIndex();
@@ -1944,7 +1960,9 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
           heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
-    PropertyCell::cast(store_value)->set_value(value);
+    MaybeObject* maybe_type =
+        PropertyCell::cast(store_value)->SetValueInferType(value);
+    if (maybe_type->IsFailure()) return maybe_type;
   }
   PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
   Object* result;
@@ -15810,6 +15828,46 @@ Type* PropertyCell::type() {
 
 void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
   set_type_raw(type, ignored);
+}
+
+
+Type* PropertyCell::UpdateType(Handle<PropertyCell> cell,
+                               Handle<Object> value) {
+  Isolate* isolate = cell->GetIsolate();
+  Handle<Type> old_type(cell->type(), isolate);
+  Handle<Type> new_type((value->IsSmi() || value->IsUndefined())
+                        ? Type::Constant(value, isolate)
+                        : Type::Any(), isolate);
+
+  if (new_type->Is(old_type)) {
+    return *old_type;
+  }
+
+  cell->dependent_code()->DeoptimizeDependentCodeGroup(
+      isolate, DependentCode::kPropertyCellChangedGroup);
+
+  if (old_type->Is(Type::None()) || old_type->Is(Type::Undefined())) {
+    return *new_type;
+  }
+
+  return Type::Any();
+}
+
+
+MaybeObject* PropertyCell::SetValueInferType(Object* value,
+                                             WriteBarrierMode ignored) {
+  set_value(value, ignored);
+  if (!Type::Any()->Is(type())) {
+    IdempotentPointerToHandleCodeTrampoline trampoline(GetIsolate());
+    MaybeObject* maybe_type = trampoline.CallWithReturnValue(
+        &PropertyCell::UpdateType,
+        Handle<PropertyCell>(this),
+        Handle<Object>(value, GetIsolate()));
+    if (maybe_type->IsFailure()) return maybe_type;
+    Type* new_type = static_cast<Type*>(maybe_type);
+    set_type(new_type);
+  }
+  return value;
 }
 
 

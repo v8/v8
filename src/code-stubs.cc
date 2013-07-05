@@ -85,6 +85,14 @@ Code::Kind CodeStub::GetCodeKind() const {
 }
 
 
+Handle<Code> CodeStub::GetCodeCopyFromTemplate(Isolate* isolate) {
+  Handle<Code> ic = GetCode(isolate);
+  ic = isolate->factory()->CopyCode(ic);
+  RecordCodeGeneration(*ic, isolate);
+  return ic;
+}
+
+
 Handle<Code> PlatformCodeStub::GenerateCode() {
   Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
