@@ -238,6 +238,17 @@ void UnaryOpStub::InitializeInterfaceDescriptor(
 }
 
 
+void StoreGlobalStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a1, a2, a0 };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(StoreIC_MissFromStubFailure);
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 
