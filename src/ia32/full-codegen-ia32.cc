@@ -107,6 +107,7 @@ class JumpPatchSite BASE_EMBEDDED {
 // formal parameter count expected by the function.
 //
 // The live registers are:
+//   o ecx: CallKind
 //   o edi: the JS function object being called (i.e. ourselves)
 //   o esi: our context
 //   o ebp: our caller's frame pointer
