@@ -432,13 +432,13 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
   CHECK_ALIVE(Visit(expr->right()));
 
   // Collect type feedback.
-  Handle<Type> left_type, right_type, result_type;
+  Handle<Type> type, left_type, right_type;
   Maybe<int> fixed_right_arg;
   oracle()->BinaryType(expr->BinaryOperationFeedbackId(),
-      &left_type, &right_type, &result_type, &fixed_right_arg);
+      &left_type, &right_type, &type, &fixed_right_arg);
+  MergeLowerType(expr, type);
   MergeLowerType(expr->left(), left_type);
   MergeLowerType(expr->right(), right_type);
-  expr->set_result_type(result_type);
   expr->set_fixed_right_arg(fixed_right_arg);
   if (expr->op() == Token::OR || expr->op() == Token::AND) {
     expr->left()->RecordToBooleanTypeFeedback(oracle());
