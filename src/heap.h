@@ -1812,6 +1812,8 @@ class Heap {
   void QueueMemoryChunkForFree(MemoryChunk* chunk);
   void FreeQueuedChunks();
 
+  int gc_count() const { return gc_count_; }
+
   // Completely clear the Instanceof cache (to stop it keeping objects alive
   // around a GC).
   inline void CompletelyClearInstanceofCache();
