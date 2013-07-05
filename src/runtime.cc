@@ -467,7 +467,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteral) {
                                                  constant_properties,
                                                  should_have_fast_elements,
                                                  has_function_literal);
-    if (boilerplate.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
@@ -493,7 +493,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteralShallow) {
                                                  constant_properties,
                                                  should_have_fast_elements,
                                                  has_function_literal);
-    if (boilerplate.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
@@ -514,7 +514,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
     ASSERT(*elements != isolate->heap()->empty_fixed_array());
     boilerplate =
         Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
-    if (boilerplate.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
@@ -535,7 +535,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
     ASSERT(*elements != isolate->heap()->empty_fixed_array());
     boilerplate =
         Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
-    if (boilerplate.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
@@ -1460,7 +1460,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
         GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
 
     Handle<Object> result = JSObject::SetPrototype(obj, prototype, true);
-    if (result.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
 
     Handle<Object> new_value(
         GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
@@ -1472,7 +1472,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
     return *result;
   }
   Handle<Object> result = JSObject::SetPrototype(obj, prototype, true);
-  if (result.is_null()) return Failure::Exception();
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
 }
 
@@ -1635,7 +1635,7 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
     elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
     // GetProperty does access check.
     Handle<Object> value = GetProperty(isolate, obj, name);
-    if (value.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, value);
     elms->set(VALUE_INDEX, *value);
   } else {
     // Access checks are performed for both accessors separately.
@@ -1700,7 +1700,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpCompile) {
   CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);
   Handle<Object> result =
       RegExpImpl::Compile(re, pattern, flags);
-  if (result.is_null()) return Failure::Exception();
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
 }
 
@@ -2250,7 +2250,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
                                            subject,
                                            index,
                                            last_match_info);
-  if (result.is_null()) return Failure::Exception();
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
 }
 
@@ -9377,7 +9377,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
       ? ONLY_SINGLE_FUNCTION_LITERAL : NO_PARSE_RESTRICTION;
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source, context, true, CLASSIC_MODE, restriction, RelocInfo::kNoPosition);
-  if (shared.is_null()) return Failure::Exception();
+  RETURN_IF_EMPTY_HANDLE(isolate, shared);
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
                                                             context,
@@ -9414,7 +9414,8 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
       language_mode,
       NO_PARSE_RESTRICTION,
       scope_position);
-  if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, shared,
+                               MakePair(Failure::Exception(), NULL));
   Handle<JSFunction> compiled =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared, context, NOT_TENURED);
@@ -12414,7 +12415,7 @@ static MaybeObject* DebugEvaluate(Isolate* isolate,
       CLASSIC_MODE,
       NO_PARSE_RESTRICTION,
       RelocInfo::kNoPosition);
-  if (shared.is_null()) return Failure::Exception();
+  RETURN_IF_EMPTY_HANDLE(isolate, shared);
 
   Handle<JSFunction> eval_fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
