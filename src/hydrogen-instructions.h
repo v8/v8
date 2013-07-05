@@ -96,7 +96,7 @@ class LChunkBuilder;
   V(CheckPrototypeMaps)                        \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
-  V(CompareIDAndBranch)                        \
+  V(CompareNumericAndBranch)                   \
   V(CompareGeneric)                            \
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
@@ -1606,20 +1606,10 @@ class HUnaryControlInstruction: public HTemplateControlInstruction<2, 1> {
 class HBranch: public HUnaryControlInstruction {
  public:
   HBranch(HValue* value,
-          HBasicBlock* true_target,
-          HBasicBlock* false_target,
-          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types())
+          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types(),
+          HBasicBlock* true_target = NULL,
+          HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        expected_input_types_(expected_input_types) {
-    ASSERT(true_target != NULL && false_target != NULL);
-    SetFlag(kAllowUndefinedAsNaN);
-  }
-  explicit HBranch(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) {
-    SetFlag(kAllowUndefinedAsNaN);
-  }
-  HBranch(HValue* value, ToBooleanStub::Types expected_input_types)
-      : HUnaryControlInstruction(value, NULL, NULL),
         expected_input_types_(expected_input_types) {
     SetFlag(kAllowUndefinedAsNaN);
   }
@@ -1644,12 +1634,10 @@ class HCompareMap: public HUnaryControlInstruction {
  public:
   HCompareMap(HValue* value,
               Handle<Map> map,
-              HBasicBlock* true_target,
-              HBasicBlock* false_target)
+              HBasicBlock* true_target = NULL,
+              HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        map_(map) {
-    ASSERT(true_target != NULL);
-    ASSERT(false_target != NULL);
+      map_(map) {
     ASSERT(!map.is_null());
   }
 
@@ -3960,9 +3948,9 @@ class HCompareGeneric: public HBinaryOperation {
 };
 
 
-class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
+class HCompareNumericAndBranch: public HTemplateControlInstruction<2, 2> {
  public:
-  HCompareIDAndBranch(HValue* left, HValue* right, Token::Value token)
+  HCompareNumericAndBranch(HValue* left, HValue* right, Token::Value token)
       : token_(token) {
     SetFlag(kFlexibleRepresentation);
     ASSERT(Token::IsCompareOp(token));
@@ -3992,7 +3980,7 @@ class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
 
   virtual void AddInformativeDefinitions();
 
-  DECLARE_CONCRETE_INSTRUCTION(CompareIDAndBranch)
+  DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch)
 
  private:
   Representation observed_input_representation_[2];

@@ -1151,13 +1151,6 @@ class HGraphBuilder {
       if (!finished_) End();
     }
 
-    HInstruction* IfCompare(
-        HValue* left,
-        HValue* right,
-        Token::Value token);
-
-    HInstruction* IfCompareMap(HValue* left, Handle<Map> map);
-
     template<class Condition>
     HInstruction* If(HValue *p) {
       HControlInstruction* compare = new(zone()) Condition(p);
@@ -1168,6 +1161,13 @@ class HGraphBuilder {
     template<class Condition, class P2>
     HInstruction* If(HValue* p1, P2 p2) {
       HControlInstruction* compare = new(zone()) Condition(p1, p2);
+      AddCompare(compare);
+      return compare;
+    }
+
+    template<class Condition, class P2, class P3>
+    HInstruction* If(HValue* p1, P2 p2, P3 p3) {
+      HControlInstruction* compare = new(zone()) Condition(p1, p2, p3);
       AddCompare(compare);
       return compare;
     }
@@ -1183,17 +1183,15 @@ class HGraphBuilder {
       return compare;
     }
 
-    HInstruction* OrIfCompare(
-        HValue* p1,
-        HValue* p2,
-        Token::Value token) {
-      Or();
-      return IfCompare(p1, p2, token);
-    }
-
-    HInstruction* OrIfCompareMap(HValue* left, Handle<Map> map) {
-      Or();
-      return IfCompareMap(left, map);
+    template<class Condition, class P2, class P3>
+    HInstruction* IfNot(HValue* p1, P2 p2, P3 p3) {
+      HControlInstruction* compare = new(zone()) Condition(p1, p2, p3);
+      AddCompare(compare);
+      HBasicBlock* block0 = compare->SuccessorAt(0);
+      HBasicBlock* block1 = compare->SuccessorAt(1);
+      compare->SetSuccessorAt(0, block1);
+      compare->SetSuccessorAt(1, block0);
+      return compare;
     }
 
     template<class Condition>
@@ -1208,17 +1206,10 @@ class HGraphBuilder {
       return If<Condition>(p1, p2);
     }
 
-    HInstruction* AndIfCompare(
-        HValue* p1,
-        HValue* p2,
-        Token::Value token) {
-      And();
-      return IfCompare(p1, p2, token);
-    }
-
-    HInstruction* AndIfCompareMap(HValue* left, Handle<Map> map) {
-      And();
-      return IfCompareMap(left, map);
+    template<class Condition, class P2, class P3>
+    HInstruction* OrIf(HValue* p1, P2 p2, P3 p3) {
+      Or();
+      return If<Condition>(p1, p2, p3);
     }
 
     template<class Condition>
@@ -1231,6 +1222,12 @@ class HGraphBuilder {
     HInstruction* AndIf(HValue* p1, P2 p2) {
       And();
       return If<Condition>(p1, p2);
+    }
+
+    template<class Condition, class P2, class P3>
+    HInstruction* AndIf(HValue* p1, P2 p2, P3 p3) {
+      And();
+      return If<Condition>(p1, p2, p3);
     }
 
     void Or();

@@ -329,7 +329,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
     HValue* elements = AddLoadElements(boilerplate);
 
     IfBuilder if_fixed_cow(this);
-    if_fixed_cow.IfCompareMap(elements, factory->fixed_cow_array_map());
+    if_fixed_cow.If<HCompareMap>(elements, factory->fixed_cow_array_map());
     if_fixed_cow.Then();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
@@ -339,7 +339,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
     if_fixed_cow.Else();
 
     IfBuilder if_fixed(this);
-    if_fixed.IfCompareMap(elements, factory->fixed_array_map());
+    if_fixed.If<HCompareMap>(elements, factory->fixed_array_map());
     if_fixed.Then();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
@@ -392,7 +392,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
       AddInstruction(new(zone) HInstanceSize(boilerplate));
   HValue* size_in_words =
       AddInstruction(new(zone) HConstant(size >> kPointerSizeLog2));
-  checker.IfCompare(boilerplate_size, size_in_words, Token::EQ);
+  checker.If<HCompareNumericAndBranch>(boilerplate_size,
+                                       size_in_words, Token::EQ);
   checker.Then();
 
   HValue* size_in_bytes = AddInstruction(new(zone) HConstant(size));
@@ -501,7 +502,9 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 
   IfBuilder if_builder(this);
 
-  if_builder.IfCompare(array_length, graph()->GetConstant0(), Token::EQ);
+  if_builder.If<HCompareNumericAndBranch>(array_length,
+                                          graph()->GetConstant0(),
+                                          Token::EQ);
   if_builder.Then();
 
   // Nothing to do, just change the map.
@@ -606,7 +609,8 @@ HValue* CodeStubGraphBuilderBase::BuildArraySingleArgumentConstructor(
 
   HBoundsCheck* checked_arg = Add<HBoundsCheck>(argument, max_alloc_length);
   IfBuilder if_builder(this);
-  if_builder.IfCompare(checked_arg, constant_zero, Token::EQ);
+  if_builder.If<HCompareNumericAndBranch>(checked_arg, constant_zero,
+                                          Token::EQ);
   if_builder.Then();
   Push(initial_capacity_node);  // capacity
   Push(constant_zero);  // length
@@ -838,10 +842,11 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     set_current_block(NULL);
   } else {
     HValue* cell = Add<HConstant>(placeholder_cell, Representation::Tagged());
-    // Check that the map of the global has not changed.
-    AddInstruction(HCheckMaps::New(receiver,
-                                   Handle<Map>(isolate()->heap()->meta_map()),
-                                   zone()));
+
+    // Check that the map of the global has not changed: use a placeholder map
+    // that will be replaced later with the global object's map.
+    Handle<Map> placeholder_map = isolate()->factory()->meta_map();
+    AddInstruction(HCheckMaps::New(receiver, placeholder_map, zone()));
 
     // Load the payload of the global parameter cell. A hole indicates that the
     // property has been deleted and that the store must be handled by the

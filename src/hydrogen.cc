@@ -725,26 +725,6 @@ HGraphBuilder::IfBuilder::IfBuilder(
 }
 
 
-HInstruction* HGraphBuilder::IfBuilder::IfCompare(
-    HValue* left,
-    HValue* right,
-    Token::Value token) {
-  HCompareIDAndBranch* compare =
-      new(zone()) HCompareIDAndBranch(left, right, token);
-  AddCompare(compare);
-  return compare;
-}
-
-
-HInstruction* HGraphBuilder::IfBuilder::IfCompareMap(HValue* left,
-                                                     Handle<Map> map) {
-  HCompareMap* compare =
-      new(zone()) HCompareMap(left, map, first_true_block_, first_false_block_);
-  AddCompare(compare);
-  return compare;
-}
-
-
 void HGraphBuilder::IfBuilder::AddCompare(HControlInstruction* compare) {
   if (split_edge_merge_block_ != NULL) {
     HEnvironment* env = first_false_block_->last_environment();
@@ -825,8 +805,8 @@ void HGraphBuilder::IfBuilder::Then() {
     ToBooleanStub::Types boolean_type = ToBooleanStub::Types();
     boolean_type.Add(ToBooleanStub::BOOLEAN);
     HBranch* branch =
-        new(zone()) HBranch(constant_false, first_true_block_,
-                            first_false_block_, boolean_type);
+        new(zone()) HBranch(constant_false, boolean_type, first_true_block_,
+                            first_false_block_);
     builder_->current_block()->Finish(branch);
   }
   builder_->set_current_block(first_true_block_);
@@ -930,8 +910,8 @@ HValue* HGraphBuilder::LoopBuilder::BeginBody(
   body_env->Pop();
 
   builder_->set_current_block(header_block_);
-  HCompareIDAndBranch* compare =
-      new(zone()) HCompareIDAndBranch(phi_, terminating, token);
+  HCompareNumericAndBranch* compare =
+      new(zone()) HCompareNumericAndBranch(phi_, terminating, token);
   compare->SetSuccessorAt(0, body_block_);
   compare->SetSuccessorAt(1, exit_block_);
   builder_->current_block()->Finish(compare);
@@ -1156,14 +1136,15 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   Zone* zone = this->zone();
   IfBuilder length_checker(this);
 
-  length_checker.IfCompare(length, key, Token::EQ);
+  length_checker.If<HCompareNumericAndBranch>(length, key, Token::EQ);
   length_checker.Then();
 
   HValue* current_capacity = AddLoadFixedArrayLength(elements);
 
   IfBuilder capacity_checker(this);
 
-  capacity_checker.IfCompare(length, current_capacity, Token::EQ);
+  capacity_checker.If<HCompareNumericAndBranch>(length, current_capacity,
+                                                Token::EQ);
   capacity_checker.Then();
 
   HValue* context = environment()->LookupContext();
@@ -1207,12 +1188,11 @@ HValue* HGraphBuilder::BuildCopyElementsOnWrite(HValue* object,
                                                 HValue* elements,
                                                 ElementsKind kind,
                                                 HValue* length) {
-  Heap* heap = isolate()->heap();
+  Factory* factory = isolate()->factory();
 
   IfBuilder cow_checker(this);
 
-  cow_checker.IfCompareMap(elements,
-                           Handle<Map>(heap->fixed_cow_array_map()));
+  cow_checker.If<HCompareMap>(elements, factory->fixed_cow_array_map());
   cow_checker.Then();
 
   HValue* capacity = AddLoadFixedArrayLength(elements);
@@ -1281,10 +1261,10 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       HLoadExternalArrayPointer* external_elements =
           Add<HLoadExternalArrayPointer>(elements);
       IfBuilder length_checker(this);
-      length_checker.IfCompare(key, length, Token::LT);
+      length_checker.If<HCompareNumericAndBranch>(key, length, Token::LT);
       length_checker.Then();
       IfBuilder negative_checker(this);
-      HValue* bounds_check = negative_checker.IfCompare(
+      HValue* bounds_check = negative_checker.If<HCompareNumericAndBranch>(
           key, graph()->GetConstant0(), Token::GTE);
       negative_checker.Then();
       HInstruction* result = BuildExternalArrayElementAccess(
@@ -2980,12 +2960,11 @@ void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
 
 void HGraph::MarkDeoptimizeOnUndefined() {
   HPhase phase("H_MarkDeoptimizeOnUndefined", this);
-  // Compute DeoptimizeOnUndefined flag for phis.
-  // Any phi that can reach a use with DeoptimizeOnUndefined set must
-  // have DeoptimizeOnUndefined set.  Currently only HCompareIDAndBranch, with
-  // double input representation, has this flag set.
-  // The flag is used by HChange tagged->double, which must deoptimize
-  // if one of its uses has this flag set.
+  // Compute DeoptimizeOnUndefined flag for phis.  Any phi that can reach a use
+  // with DeoptimizeOnUndefined set must have DeoptimizeOnUndefined set.
+  // Currently only HCompareNumericAndBranch, with double input representation,
+  // has this flag set.  The flag is used by HChange tagged->double, which must
+  // deoptimize if one of its uses has this flag set.
   for (int i = 0; i < phi_list()->length(); i++) {
     HPhi* phi = phi_list()->at(i);
     for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
@@ -3286,7 +3265,7 @@ void TestContext::BuildBranch(HValue* value) {
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
   ToBooleanStub::Types expected(condition()->to_boolean_types());
-  HBranch* test = new(zone()) HBranch(value, empty_true, empty_false, expected);
+  HBranch* test = new(zone()) HBranch(value, expected, empty_true, empty_false);
   builder->current_block()->Finish(test);
 
   empty_true->Goto(if_true(), builder->function_state());
@@ -4488,10 +4467,10 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
         AddSoftDeoptimize();
       }
 
-      HCompareIDAndBranch* compare_ =
-          new(zone()) HCompareIDAndBranch(tag_value,
-                                          label_value,
-                                          Token::EQ_STRICT);
+      HCompareNumericAndBranch* compare_ =
+          new(zone()) HCompareNumericAndBranch(tag_value,
+                                               label_value,
+                                               Token::EQ_STRICT);
       compare_->set_observed_input_representation(
           Representation::Smi(), Representation::Smi());
       compare = compare_;
@@ -4775,8 +4754,8 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HValue* limit = environment()->ExpressionStackAt(1);
 
   // Check that we still have more keys.
-  HCompareIDAndBranch* compare_index =
-      new(zone()) HCompareIDAndBranch(index, limit, Token::LT);
+  HCompareNumericAndBranch* compare_index =
+      new(zone()) HCompareNumericAndBranch(index, limit, Token::LT);
   compare_index->set_observed_input_representation(
       Representation::Smi(), Representation::Smi());
 
@@ -5835,7 +5814,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
       HBasicBlock* if_true = graph()->CreateBasicBlock();
       HBasicBlock* if_false = graph()->CreateBasicBlock();
       HCompareMap* compare =
-          new(zone()) HCompareMap(object, map, if_true, if_false);
+          new(zone()) HCompareMap(object, map,  if_true, if_false);
       current_block()->Finish(compare);
 
       set_current_block(if_true);
@@ -5940,7 +5919,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
       IfBuilder builder(this);
       HValue* constant = Add<HConstant>(cell->type()->AsConstant());
       if (cell->type()->AsConstant()->IsNumber()) {
-        builder.IfCompare(value, constant, Token::EQ);
+        builder.If<HCompareNumericAndBranch>(value, constant, Token::EQ);
       } else {
         builder.If<HCompareObjectEqAndBranch>(value, constant);
       }
@@ -8913,8 +8892,8 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     HBasicBlock* eval_right = graph()->CreateBasicBlock();
     ToBooleanStub::Types expected(expr->left()->to_boolean_types());
     HBranch* test = is_logical_and
-      ? new(zone()) HBranch(left_value, eval_right, empty_block, expected)
-      : new(zone()) HBranch(left_value, empty_block, eval_right, expected);
+        ? new(zone()) HBranch(left_value, expected, eval_right, empty_block)
+        : new(zone()) HBranch(left_value, expected, empty_block, eval_right);
     current_block()->Finish(test);
 
     set_current_block(eval_right);
@@ -9207,8 +9186,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       // returns Smi when the IC measures Smi.
       if (left_type->Is(Type::Smi())) left_rep = Representation::Smi();
       if (right_type->Is(Type::Smi())) right_rep = Representation::Smi();
-      HCompareIDAndBranch* result =
-          new(zone()) HCompareIDAndBranch(left, right, op);
+      HCompareNumericAndBranch* result =
+          new(zone()) HCompareNumericAndBranch(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);
       result->set_position(expr->position());
       return ast_context()->ReturnControl(result, expr->id());

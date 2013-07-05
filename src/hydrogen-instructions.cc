@@ -2558,7 +2558,7 @@ void HStringCompareAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareIDAndBranch::AddInformativeDefinitions() {
+void HCompareNumericAndBranch::AddInformativeDefinitions() {
   NumericRelation r = NumericRelation::FromToken(token());
   if (r.IsNone()) return;
 
@@ -2568,7 +2568,7 @@ void HCompareIDAndBranch::AddInformativeDefinitions() {
 }
 
 
-void HCompareIDAndBranch::PrintDataTo(StringStream* stream) {
+void HCompareNumericAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add(Token::Name(token()));
   stream->Add(" ");
   left()->PrintNameTo(stream);
@@ -2591,7 +2591,7 @@ void HGoto::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareIDAndBranch::InferRepresentation(
+void HCompareNumericAndBranch::InferRepresentation(
     HInferRepresentationPhase* h_infer) {
   Representation left_rep = left()->representation();
   Representation right_rep = right()->representation();
@@ -2613,9 +2613,9 @@ void HCompareIDAndBranch::InferRepresentation(
     // and !=) have special handling of undefined, e.g. undefined == undefined
     // is 'true'. Relational comparisons have a different semantic, first
     // calling ToPrimitive() on their arguments.  The standard Crankshaft
-    // tagged-to-double conversion to ensure the HCompareIDAndBranch's inputs
-    // are doubles caused 'undefined' to be converted to NaN. That's compatible
-    // out-of-the box with ordered relational comparisons (<, >, <=,
+    // tagged-to-double conversion to ensure the HCompareNumericAndBranch's
+    // inputs are doubles caused 'undefined' to be converted to NaN. That's
+    // compatible out-of-the box with ordered relational comparisons (<, >, <=,
     // >=). However, for equality comparisons (and for 'in' and 'instanceof'),
     // it is not consistent with the spec. For example, it would cause undefined
     // == undefined (should be true) to be evaluated as NaN == NaN

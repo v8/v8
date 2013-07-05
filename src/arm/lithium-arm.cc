@@ -182,7 +182,7 @@ void LBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCmpIDAndBranch::PrintDataTo(StringStream* stream) {
+void LCompareNumericAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if ");
   left()->PrintTo(stream);
   stream->Add(" %s ", Token::String(op()));
@@ -1685,8 +1685,8 @@ LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompareIDAndBranch(
-    HCompareIDAndBranch* instr) {
+LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
+    HCompareNumericAndBranch* instr) {
   Representation r = instr->representation();
   if (r.IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().IsSmiOrInteger32());
@@ -1694,14 +1694,14 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
         instr->right()->representation()));
     LOperand* left = UseRegisterOrConstantAtStart(instr->left());
     LOperand* right = UseRegisterOrConstantAtStart(instr->right());
-    return new(zone()) LCmpIDAndBranch(left, right);
+    return new(zone()) LCompareNumericAndBranch(left, right);
   } else {
     ASSERT(r.IsDouble());
     ASSERT(instr->left()->representation().IsDouble());
     ASSERT(instr->right()->representation().IsDouble());
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseRegisterAtStart(instr->right());
-    return new(zone()) LCmpIDAndBranch(left, right);
+    return new(zone()) LCompareNumericAndBranch(left, right);
   }
 }
 

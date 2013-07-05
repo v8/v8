@@ -15827,6 +15827,7 @@ Type* PropertyCell::type() {
 
 
 void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
+  ASSERT(IsPropertyCell());
   set_type_raw(type, ignored);
 }
 
