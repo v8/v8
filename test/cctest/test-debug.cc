@@ -6288,8 +6288,6 @@ TEST(ContextData) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
 
-  v8::Debug::SetMessageHandler2(ContextCheckMessageHandler);
-
   // Create two contexts.
   v8::Handle<v8::Context> context_1;
   v8::Handle<v8::Context> context_2;
@@ -6298,6 +6296,8 @@ TEST(ContextData) {
   v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>();
   context_1 = v8::Context::New(isolate, NULL, global_template, global_object);
   context_2 = v8::Context::New(isolate, NULL, global_template, global_object);
+
+  v8::Debug::SetMessageHandler2(ContextCheckMessageHandler);
 
   // Default data value is undefined.
   CHECK(context_1->GetEmbedderData(0)->IsUndefined());
@@ -6456,13 +6456,16 @@ TEST(RegExpDebugBreak) {
 
 
 // Common part of EvalContextData and NestedBreakEventContextData tests.
-static void ExecuteScriptForContextCheck() {
+static void ExecuteScriptForContextCheck(
+    v8::Debug::MessageHandler2 message_handler) {
   // Create a context.
   v8::Handle<v8::Context> context_1;
   v8::Handle<v8::ObjectTemplate> global_template =
       v8::Handle<v8::ObjectTemplate>();
   context_1 =
       v8::Context::New(v8::Isolate::GetCurrent(), NULL, global_template);
+
+  v8::Debug::SetMessageHandler2(message_handler);
 
   // Default data value is undefined.
   CHECK(context_1->GetEmbedderData(0)->IsUndefined());
@@ -6483,6 +6486,8 @@ static void ExecuteScriptForContextCheck() {
     v8::Local<v8::Function> f = CompileFunction(source, "f");
     f->Call(context_1->Global(), 0, NULL);
   }
+
+  v8::Debug::SetMessageHandler2(NULL);
 }
 
 
@@ -6492,13 +6497,11 @@ static void ExecuteScriptForContextCheck() {
 // Message.GetEventContext.
 TEST(EvalContextData) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
-  v8::Debug::SetMessageHandler2(ContextCheckMessageHandler);
 
-  ExecuteScriptForContextCheck();
+  ExecuteScriptForContextCheck(ContextCheckMessageHandler);
 
   // One time compile event and one time break event.
   CHECK_GT(message_handler_hit_count, 2);
-  v8::Debug::SetMessageHandler2(NULL);
   CheckDebuggerUnloaded();
 }
 
@@ -6557,16 +6560,14 @@ TEST(NestedBreakEventContextData) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   break_count = 0;
   message_handler_hit_count = 0;
-  v8::Debug::SetMessageHandler2(DebugEvalContextCheckMessageHandler);
 
-  ExecuteScriptForContextCheck();
+  ExecuteScriptForContextCheck(DebugEvalContextCheckMessageHandler);
 
   // One time compile event and two times break event.
   CHECK_GT(message_handler_hit_count, 3);
 
   // One break from the source and another from the evaluate request.
   CHECK_EQ(break_count, 2);
-  v8::Debug::SetMessageHandler2(NULL);
   CheckDebuggerUnloaded();
 }
 
@@ -7137,9 +7138,9 @@ TEST(DebugEventContext) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
   expected_callback_data = v8::Int32::New(2010);
+  expected_context = v8::Context::New(isolate);
   v8::Debug::SetDebugEventListener2(DebugEventContextChecker,
                                     expected_callback_data);
-  expected_context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(expected_context);
   v8::Script::Compile(v8::String::New("(function(){debugger;})();"))->Run();
   expected_context.Clear();
