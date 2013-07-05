@@ -8918,6 +8918,9 @@ class JSTypedArray: public JSArrayBufferView {
   static const int kLengthOffset = kViewSize + kPointerSize;
   static const int kSize = kLengthOffset + kPointerSize;
 
+  static const int kSizeWithInternalFields =
+      kSize + v8::ArrayBufferView::kInternalFieldCount * kPointerSize;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);
 };
@@ -8936,6 +8939,9 @@ class JSDataView: public JSArrayBufferView {
   DECLARE_VERIFIER(JSDataView)
 
   static const int kSize = kViewSize;
+
+  static const int kSizeWithInternalFields =
+      kSize + v8::ArrayBufferView::kInternalFieldCount * kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataView);

@@ -2572,6 +2572,14 @@ class ScopedArrayBufferContents {
   const v8::ArrayBuffer::Contents contents_;
 };
 
+template <typename T>
+static void CheckInternalFieldsAreZero(v8::Handle<T> value) {
+  CHECK_EQ(T::kInternalFieldCount, value->InternalFieldCount());
+  for (int i = 0; i < value->InternalFieldCount(); i++) {
+    CHECK_EQ(0, value->GetInternalField(i)->Int32Value());
+  }
+}
+
 
 THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   i::FLAG_harmony_array_buffer = true;
@@ -2582,6 +2590,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(1024);
+  CheckInternalFieldsAreZero(ab);
   CHECK_EQ(1024, static_cast<int>(ab->ByteLength()));
   CHECK(!ab->IsExternal());
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -2626,6 +2635,7 @@ THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
                  "u8_a[0] = 0xAA;"
                  "u8_a[1] = 0xFF; u8_a.buffer");
   Local<v8::ArrayBuffer> ab1 = Local<v8::ArrayBuffer>::Cast(result);
+  CheckInternalFieldsAreZero(ab1);
   CHECK_EQ(2, static_cast<int>(ab1->ByteLength()));
   CHECK(!ab1->IsExternal());
   ScopedArrayBufferContents ab1_contents(ab1->Externalize());
@@ -2666,6 +2676,7 @@ THREADED_TEST(ArrayBuffer_External) {
   i::ScopedVector<uint8_t> my_data(100);
   memset(my_data.start(), 0, 100);
   Local<v8::ArrayBuffer> ab3 = v8::ArrayBuffer::New(my_data.start(), 100);
+  CheckInternalFieldsAreZero(ab3);
   CHECK_EQ(100, static_cast<int>(ab3->ByteLength()));
   CHECK(ab3->IsExternal());
 
@@ -2718,6 +2729,7 @@ static Handle<TypedArray> CreateAndCheck(Handle<v8::ArrayBuffer> ab,
                                          int byteOffset,
                                          int length) {
   v8::Handle<TypedArray> ta = TypedArray::New(ab, byteOffset, length);
+  CheckInternalFieldsAreZero<v8::ArrayBufferView>(ta);
   CHECK_EQ(byteOffset, static_cast<int>(ta->ByteOffset()));
   CHECK_EQ(length, static_cast<int>(ta->Length()));
   CHECK_EQ(length * kElementSize, static_cast<int>(ta->ByteLength()));
@@ -2755,6 +2767,7 @@ THREADED_TEST(ArrayBuffer_NeuteringApi) {
     CreateAndCheck<v8::Float64Array, 8>(buffer, 8, 127);
 
   v8::Handle<v8::DataView> dv = v8::DataView::New(buffer, 1, 1023);
+  CheckInternalFieldsAreZero<v8::ArrayBufferView>(dv);
   CHECK_EQ(1, static_cast<int>(dv->ByteOffset()));
   CHECK_EQ(1023, static_cast<int>(dv->ByteLength()));
 
@@ -15783,6 +15796,7 @@ void TypedArrayTestHelper(v8::ExternalArrayType array_type,
       backing_store.start(), (kElementCount+2)*sizeof(ElementType));
   Local<TypedArray> ta =
       TypedArray::New(ab, 2*sizeof(ElementType), kElementCount);
+  CheckInternalFieldsAreZero<v8::ArrayBufferView>(ta);
   CHECK_EQ(kElementCount, static_cast<int>(ta->Length()));
   CHECK_EQ(2*sizeof(ElementType), static_cast<int>(ta->ByteOffset()));
   CHECK_EQ(kElementCount*sizeof(ElementType),
@@ -15868,6 +15882,7 @@ THREADED_TEST(DataView) {
       backing_store.start(), 2 + kSize);
   Local<v8::DataView> dv =
       v8::DataView::New(ab, 2, kSize);
+  CheckInternalFieldsAreZero<v8::ArrayBufferView>(dv);
   CHECK_EQ(2, static_cast<int>(dv->ByteOffset()));
   CHECK_EQ(kSize, static_cast<int>(dv->ByteLength()));
   CHECK_EQ(ab, dv->Buffer());
@@ -15887,6 +15902,7 @@ THREADED_TEST(DataView) {
         "new " #View "(ab)");                                                 \
     CHECK(result->IsArrayBufferView());                                       \
     CHECK(result->Is##View());                                                \
+    CheckInternalFieldsAreZero<v8::ArrayBufferView>(result.As<v8::View>());   \
   }
 
 IS_ARRAY_BUFFER_VIEW_TEST(Uint8Array)

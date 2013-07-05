@@ -1289,7 +1289,7 @@ Handle<JSFunction> Genesis::InstallTypedArray(
       Builtins::kIllegal, false, true);
 
   Handle<Map> initial_map = isolate()->factory()->NewMap(
-      JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize, elementsKind);
+      JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithInternalFields, elementsKind);
   result->set_initial_map(*initial_map);
   initial_map->set_constructor(*result);
   return result;
@@ -1373,7 +1373,7 @@ void Genesis::InitializeExperimentalGlobal() {
     Handle<JSFunction> data_view_fun =
         InstallFunction(
             global, "DataView", JS_DATA_VIEW_TYPE,
-            JSDataView::kSize,
+            JSDataView::kSizeWithInternalFields,
             isolate()->initial_object_prototype(),
             Builtins::kIllegal, true, true);
     native_context()->set_data_view_fun(*data_view_fun);

@@ -796,6 +796,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   CONVERT_ARG_HANDLE_CHECKED(Object, byte_offset_object, 3);
   CONVERT_ARG_HANDLE_CHECKED(Object, byte_length_object, 4);
 
+  ASSERT(holder->GetInternalFieldCount() ==
+      v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    holder->SetInternalField(i, Smi::FromInt(0));
+  }
+
   ExternalArrayType arrayType;
   size_t elementSize;
   switch (arrayId) {
@@ -1011,6 +1017,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DataViewInitialize) {
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, byte_offset, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, byte_length, 3);
+
+  ASSERT(holder->GetInternalFieldCount() ==
+      v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    holder->SetInternalField(i, Smi::FromInt(0));
+  }
 
   holder->set_buffer(*buffer);
   ASSERT(byte_offset->IsNumber());
