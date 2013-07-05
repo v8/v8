@@ -17,3 +17,7 @@
 [ Linux Debug ] fast/text/international/danda-space.html [ Pass Failure Slow ]
 [ Linux Debug ] fast/text/international/thai-baht-space.html [ Pass Failure Slow ]
 [ Linux Debug ] fast/text/international/thai-line-breaks.html [ Pass Failure Slow ]
+
+# Will fail until blink integrates the new baseline:
+crbug.com/257613 fast/js/array-prototype-properties.html [ Pass Failure ]
+crbug.com/257613 fast/js/object-prototype-properties.html [ Pass Failure ]
