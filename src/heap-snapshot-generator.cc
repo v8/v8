@@ -573,7 +573,6 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 
 HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
-      token_enumerator_(new TokenEnumerator()),
       ids_(heap) {
 }
 
@@ -584,7 +583,6 @@ static void DeleteHeapSnapshot(HeapSnapshot** snapshot_ptr) {
 
 
 HeapSnapshotsCollection::~HeapSnapshotsCollection() {
-  delete token_enumerator_;
   snapshots_.Iterate(DeleteHeapSnapshot);
 }
 

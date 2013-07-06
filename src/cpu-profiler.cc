@@ -152,19 +152,12 @@ void ProfilerEventsProcessor::Run() {
 
 int CpuProfiler::GetProfilesCount() {
   // The count of profiles doesn't depend on a security token.
-  return profiles_->Profiles(TokenEnumerator::kNoSecurityToken)->length();
+  return profiles_->profiles()->length();
 }
 
 
-CpuProfile* CpuProfiler::GetProfile(Object* security_token, int index) {
-  const int token = token_enumerator_->GetTokenId(security_token);
-  return profiles_->Profiles(token)->at(index);
-}
-
-
-CpuProfile* CpuProfiler::FindProfile(Object* security_token, unsigned uid) {
-  const int token = token_enumerator_->GetTokenId(security_token);
-  return profiles_->GetProfile(token, uid);
+CpuProfile* CpuProfiler::GetProfile(int index) {
+  return profiles_->profiles()->at(index);
 }
 
 
@@ -186,11 +179,6 @@ void CpuProfiler::DeleteProfile(CpuProfile* profile) {
 }
 
 
-bool CpuProfiler::HasDetachedProfiles() {
-  return profiles_->HasDetachedProfiles();
-}
-
-
 static bool FilterOutCodeCreateEvent(Logger::LogEventsAndTags tag) {
   return FLAG_prof_browser_mode
       && (tag != Logger::CALLBACK_TAG
@@ -208,8 +196,7 @@ void CpuProfiler::CallbackEvent(Name* name, Address entry_point) {
   rec->start = entry_point;
   rec->entry = profiles_->NewCodeEntry(
       Logger::CALLBACK_TAG,
-      profiles_->GetName(name),
-      TokenEnumerator::kInheritsSecurityToken);
+      profiles_->GetName(name));
   rec->size = 1;
   rec->shared = NULL;
   processor_->Enqueue(evt_rec);
@@ -280,7 +267,6 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->entry = profiles_->NewCodeEntry(
       tag,
       profiles_->GetFunctionName(shared->DebugName()),
-      TokenEnumerator::kNoSecurityToken,
       CodeEntry::kEmptyNamePrefix,
       profiles_->GetName(source),
       line);
@@ -306,7 +292,6 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->entry = profiles_->NewCodeEntry(
       tag,
       profiles_->GetName(args_count),
-      TokenEnumerator::kInheritsSecurityToken,
       "args_count: ");
   rec->size = code->ExecutableSize();
   rec->shared = NULL;
@@ -345,7 +330,6 @@ void CpuProfiler::GetterCallbackEvent(Name* name, Address entry_point) {
   rec->entry = profiles_->NewCodeEntry(
       Logger::CALLBACK_TAG,
       profiles_->GetName(name),
-      TokenEnumerator::kInheritsSecurityToken,
       "get ");
   rec->size = 1;
   rec->shared = NULL;
@@ -361,7 +345,6 @@ void CpuProfiler::RegExpCodeCreateEvent(Code* code, String* source) {
   rec->entry = profiles_->NewCodeEntry(
       Logger::REG_EXP_TAG,
       profiles_->GetName(source),
-      TokenEnumerator::kInheritsSecurityToken,
       "RegExp: ");
   rec->size = code->ExecutableSize();
   processor_->Enqueue(evt_rec);
@@ -376,7 +359,6 @@ void CpuProfiler::SetterCallbackEvent(Name* name, Address entry_point) {
   rec->entry = profiles_->NewCodeEntry(
       Logger::CALLBACK_TAG,
       profiles_->GetName(name),
-      TokenEnumerator::kInheritsSecurityToken,
       "set ");
   rec->size = 1;
   rec->shared = NULL;
@@ -388,7 +370,6 @@ CpuProfiler::CpuProfiler(Isolate* isolate)
     : isolate_(isolate),
       profiles_(new CpuProfilesCollection()),
       next_profile_uid_(1),
-      token_enumerator_(new TokenEnumerator()),
       generator_(NULL),
       processor_(NULL),
       need_to_stop_sampler_(false),
@@ -403,7 +384,6 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
     : isolate_(isolate),
       profiles_(test_profiles),
       next_profile_uid_(1),
-      token_enumerator_(new TokenEnumerator()),
       generator_(test_generator),
       processor_(test_processor),
       need_to_stop_sampler_(false),
@@ -413,7 +393,6 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
 
 CpuProfiler::~CpuProfiler() {
   ASSERT(!is_profiling_);
-  delete token_enumerator_;
   delete profiles_;
 }
 
@@ -470,10 +449,7 @@ CpuProfile* CpuProfiler::StopProfiling(const char* title) {
   if (!is_profiling_) return NULL;
   const double actual_sampling_rate = generator_->actual_sampling_rate();
   StopProcessorIfLastProfile(title);
-  CpuProfile* result =
-      profiles_->StopProfiling(TokenEnumerator::kNoSecurityToken,
-                               title,
-                               actual_sampling_rate);
+  CpuProfile* result = profiles_->StopProfiling(title, actual_sampling_rate);
   if (result != NULL) {
     result->Print();
   }
@@ -481,13 +457,12 @@ CpuProfile* CpuProfiler::StopProfiling(const char* title) {
 }
 
 
-CpuProfile* CpuProfiler::StopProfiling(Object* security_token, String* title) {
+CpuProfile* CpuProfiler::StopProfiling(String* title) {
   if (!is_profiling_) return NULL;
   const double actual_sampling_rate = generator_->actual_sampling_rate();
   const char* profile_title = profiles_->GetName(title);
   StopProcessorIfLastProfile(profile_title);
-  int token = token_enumerator_->GetTokenId(security_token);
-  return profiles_->StopProfiling(token, profile_title, actual_sampling_rate);
+  return profiles_->StopProfiling(profile_title, actual_sampling_rate);
 }
 
 

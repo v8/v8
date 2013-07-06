@@ -44,7 +44,6 @@ class CompilationInfo;
 class CpuProfile;
 class CpuProfilesCollection;
 class ProfileGenerator;
-class TokenEnumerator;
 
 #define CODE_EVENTS_TYPE_LIST(V)                                   \
   V(CODE_CREATION,    CodeCreateEventRecord)                       \
@@ -208,13 +207,11 @@ class CpuProfiler {
   void StartProfiling(const char* title, bool record_samples = false);
   void StartProfiling(String* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
-  CpuProfile* StopProfiling(Object* security_token, String* title);
+  CpuProfile* StopProfiling(String* title);
   int GetProfilesCount();
-  CpuProfile* GetProfile(Object* security_token, int index);
-  CpuProfile* FindProfile(Object* security_token, unsigned uid);
+  CpuProfile* GetProfile(int index);
   void DeleteAllProfiles();
   void DeleteProfile(CpuProfile* profile);
-  bool HasDetachedProfiles();
 
   // Invoked from stack sampler (thread or signal handler.)
   TickSample* TickSampleEvent();
@@ -261,7 +258,6 @@ class CpuProfiler {
   Isolate* isolate_;
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;
-  TokenEnumerator* token_enumerator_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;
