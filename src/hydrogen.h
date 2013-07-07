@@ -306,7 +306,6 @@ class HGraph: public ZoneObject {
   void EliminateRedundantBoundsChecks();
   void DehoistSimpleArrayIndexComputations();
   void RestoreActualValues();
-  void DeadCodeElimination(const char *phase_name);
   void PropagateDeoptimizingMark();
   void AnalyzeAndPruneEnvironmentLiveness();
 
@@ -451,9 +450,6 @@ class HGraph: public ZoneObject {
     phase.Run();
   }
 
-  void MarkLive(HValue* ref, HValue* instr, ZoneList<HValue*>* worklist);
-  void MarkLiveInstructions();
-  void RemoveDeadInstructions();
   void MarkAsDeoptimizingRecursively(HBasicBlock* block);
   void NullifyUnreachableInstructions();
   void InsertTypeConversions(HInstruction* instr);

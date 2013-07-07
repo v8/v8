@@ -33,6 +33,7 @@
 #include "codegen.h"
 #include "full-codegen.h"
 #include "hashmap.h"
+#include "hydrogen-dce.h"
 #include "hydrogen-environment-liveness.h"
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
@@ -3464,9 +3465,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   }
 
   // Remove dead code and phis
-  if (FLAG_dead_code_elimination) {
-    DeadCodeElimination("H_Eliminate early dead code");
-  }
+  if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
   CollectPhis();
 
   if (has_osr()) osr()->FinishOsrValues();
@@ -3507,9 +3506,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
     EliminateRedundantBoundsChecks();
   }
   if (FLAG_array_index_dehoisting) DehoistSimpleArrayIndexComputations();
-  if (FLAG_dead_code_elimination) {
-    DeadCodeElimination("H_Eliminate late dead code");
-  }
+  if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
 
   RestoreActualValues();
 
@@ -3986,99 +3983,6 @@ void HGraph::DehoistSimpleArrayIndexComputations() {
       }
       DehoistArrayIndex(array_instruction);
     }
-  }
-}
-
-
-void HGraph::DeadCodeElimination(const char* phase_name) {
-  HPhase phase(phase_name, this);
-  MarkLiveInstructions();
-  RemoveDeadInstructions();
-}
-
-
-void HGraph::MarkLiveInstructions() {
-  ZoneList<HValue*> worklist(blocks_.length(), zone());
-
-  // Mark initial root instructions for dead code elimination.
-  for (int i = 0; i < blocks()->length(); ++i) {
-    HBasicBlock* block = blocks()->at(i);
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      if (instr->CannotBeEliminated()) MarkLive(NULL, instr, &worklist);
-    }
-    for (int j = 0; j < block->phis()->length(); j++) {
-      HPhi* phi = block->phis()->at(j);
-      if (phi->CannotBeEliminated()) MarkLive(NULL, phi, &worklist);
-    }
-  }
-
-  // Transitively mark all inputs of live instructions live.
-  while (!worklist.is_empty()) {
-    HValue* instr = worklist.RemoveLast();
-    for (int i = 0; i < instr->OperandCount(); ++i) {
-      MarkLive(instr, instr->OperandAt(i), &worklist);
-    }
-  }
-}
-
-
-void HGraph::MarkLive(HValue* ref, HValue* instr, ZoneList<HValue*>* worklist) {
-  if (!instr->CheckFlag(HValue::kIsLive)) {
-    instr->SetFlag(HValue::kIsLive);
-    worklist->Add(instr, zone());
-
-    if (FLAG_trace_dead_code_elimination) {
-      HeapStringAllocator allocator;
-      StringStream stream(&allocator);
-      if (ref != NULL) {
-        ref->PrintTo(&stream);
-      } else {
-        stream.Add("root ");
-      }
-      stream.Add(" -> ");
-      instr->PrintTo(&stream);
-      PrintF("[MarkLive %s]\n", *stream.ToCString());
-    }
-  }
-}
-
-
-void HGraph::RemoveDeadInstructions() {
-  ZoneList<HPhi*> dead_phis(blocks_.length(), zone());
-
-  // Remove any instruction not marked kIsLive.
-  for (int i = 0; i < blocks()->length(); ++i) {
-    HBasicBlock* block = blocks()->at(i);
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      if (!instr->CheckFlag(HValue::kIsLive)) {
-        // Instruction has not been marked live; assume it is dead and remove.
-        // TODO(titzer): we don't remove constants because some special ones
-        // might be used by later phases and are assumed to be in the graph
-        if (!instr->IsConstant()) instr->DeleteAndReplaceWith(NULL);
-      } else {
-        // Clear the liveness flag to leave the graph clean for the next DCE.
-        instr->ClearFlag(HValue::kIsLive);
-      }
-    }
-    // Collect phis that are dead and remove them in the next pass.
-    for (int j = 0; j < block->phis()->length(); j++) {
-      HPhi* phi = block->phis()->at(j);
-      if (!phi->CheckFlag(HValue::kIsLive)) {
-        dead_phis.Add(phi, zone());
-      } else {
-        phi->ClearFlag(HValue::kIsLive);
-      }
-    }
-  }
-
-  // Process phis separately to avoid simultaneously mutating the phi list.
-  while (!dead_phis.is_empty()) {
-    HPhi* phi = dead_phis.RemoveLast();
-    HBasicBlock* block = phi->block();
-    phi->DeleteAndReplaceWith(NULL);
-    block->RecordDeletedPhi(phi->merged_index());
   }
 }
 

@@ -335,6 +335,8 @@
         '../../src/heap-snapshot-generator.h',
         '../../src/heap.cc',
         '../../src/heap.h',
+        '../../src/hydrogen-dce.cc',
+        '../../src/hydrogen-dce.h',
         '../../src/hydrogen-environment-liveness.cc',
         '../../src/hydrogen-environment-liveness.h',
         '../../src/hydrogen-escape-analysis.cc',
