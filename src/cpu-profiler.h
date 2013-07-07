@@ -155,7 +155,7 @@ class ProfilerEventsProcessor : public Thread {
 
   // Thread control.
   virtual void Run();
-  inline void Stop() { running_ = false; }
+  void StopSynchronously();
   INLINE(bool running()) { return running_; }
   void Enqueue(const CodeEventsContainer& event);
 
@@ -170,15 +170,16 @@ class ProfilerEventsProcessor : public Thread {
 
  private:
   // Called from events processing thread (Run() method.)
-  bool ProcessCodeEvent(unsigned* dequeue_order);
-  bool ProcessTicks(unsigned dequeue_order);
+  bool ProcessCodeEvent();
+  bool ProcessTicks();
 
   ProfileGenerator* generator_;
   bool running_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
   SamplingCircularQueue ticks_buffer_;
   UnboundQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
-  unsigned enqueue_order_;
+  unsigned last_code_event_id_;
+  unsigned last_processed_code_event_id_;
 };
 
 
@@ -247,6 +248,9 @@ class CpuProfiler {
   bool* is_profiling_address() {
     return &is_profiling_;
   }
+
+  ProfileGenerator* generator() const { return generator_; }
+  ProfilerEventsProcessor* processor() const { return processor_; }
 
  private:
   void StartProcessorIfNotStarted();

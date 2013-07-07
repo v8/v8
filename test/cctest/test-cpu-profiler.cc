@@ -52,7 +52,7 @@ TEST(StartStop) {
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(&generator);
   processor.Start();
-  processor.Stop();
+  processor.StopSynchronously();
   processor.Join();
 }
 
@@ -160,7 +160,7 @@ TEST(CodeEvents) {
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(&processor, aaa_code->address());
 
-  processor.Stop();
+  processor.StopSynchronously();
   processor.Join();
 
   // Check the state of profile generator.
@@ -222,7 +222,7 @@ TEST(TickEvents) {
       frame2_code->instruction_end() - 1,
       frame1_code->instruction_end() - 1);
 
-  processor.Stop();
+  processor.StopSynchronously();
   processor.Join();
   CpuProfile* profile = profiles->StopProfiling("", 1);
   CHECK_NE(NULL, profile);
@@ -286,7 +286,7 @@ TEST(Issue1398) {
     sample->stack[i] = code->address();
   }
 
-  processor.Stop();
+  processor.StopSynchronously();
   processor.Join();
   CpuProfile* profile = profiles->StopProfiling("", 1);
   CHECK_NE(NULL, profile);

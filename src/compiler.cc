@@ -1200,9 +1200,9 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     Handle<Code> code = info->code();
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
+    int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    USE(line_num);
     if (script->name()->IsString()) {
-      int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
-      USE(line_num);
       PROFILE(info->isolate(),
               CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
@@ -1216,7 +1216,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *code,
                               *shared,
                               info,
-                              shared->DebugName()));
+                              info->isolate()->heap()->empty_string(),
+                              line_num));
     }
   }
 

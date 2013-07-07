@@ -826,3 +826,59 @@ TEST(ProfileNodeScriptId) {
 }
 
 
+
+
+static const char* line_number_test_source_existing_functions =
+"function foo_at_the_first_line() {\n"
+"}\n"
+"foo_at_the_first_line();\n"
+"function lazy_func_at_forth_line() {}\n";
+
+
+static const char* line_number_test_source_profile_time_functions =
+"// Empty first line\n"
+"function bar_at_the_second_line() {\n"
+"  foo_at_the_first_line();\n"
+"}\n"
+"bar_at_the_second_line();\n"
+"function lazy_func_at_6th_line() {}";
+
+int GetFunctionLineNumber(LocalContext* env, const char* name) {
+  CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
+  CodeMap* code_map = profiler->generator()->code_map();
+  i::Handle<i::JSFunction> func = v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(
+          (*(*env))->Global()->Get(v8_str(name))));
+  CodeEntry* func_entry = code_map->FindEntry(func->code()->address());
+  if (!func_entry)
+    FATAL(name);
+  return func_entry->line_number();
+}
+
+
+TEST(LineNumber) {
+  i::FLAG_use_inlining = false;
+
+  CcTest::InitializeVM();
+  LocalContext env;
+  i::Isolate* isolate = i::Isolate::Current();
+  TestSetup test_setup;
+
+  i::HandleScope scope(isolate);
+
+  CompileRun(line_number_test_source_existing_functions);
+
+  CpuProfiler* profiler = isolate->cpu_profiler();
+  profiler->StartProfiling("LineNumber");
+
+  CompileRun(line_number_test_source_profile_time_functions);
+
+  profiler->processor()->StopSynchronously();
+
+  CHECK_EQ(1, GetFunctionLineNumber(&env, "foo_at_the_first_line"));
+  CHECK_EQ(0, GetFunctionLineNumber(&env, "lazy_func_at_forth_line"));
+  CHECK_EQ(2, GetFunctionLineNumber(&env, "bar_at_the_second_line"));
+  CHECK_EQ(0, GetFunctionLineNumber(&env, "lazy_func_at_6th_line"));
+
+  profiler->StopProfiling("LineNumber");
+}

@@ -12730,13 +12730,18 @@ static bool FunctionNameIs(const char* expected,
   const char* tail = event->name.str + kPreambleLen;
   size_t tail_len = event->name.len - kPreambleLen;
   size_t expected_len = strlen(expected);
-  if (tail_len == expected_len + 1) {
-    if (*tail == '*' || *tail == '~') {
-      --tail_len;
-      ++tail;
-    } else {
-      return false;
-    }
+  if (tail_len > 1 && (*tail == '*' || *tail == '~')) {
+    --tail_len;
+    ++tail;
+  }
+
+  // Check for tails like 'bar :1'.
+  if (tail_len > expected_len + 2 &&
+      tail[expected_len] == ' ' &&
+      tail[expected_len + 1] == ':' &&
+      tail[expected_len + 2] &&
+      !strncmp(tail, expected, expected_len)) {
+    return true;
   }
 
   if (tail_len != expected_len)

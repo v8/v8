@@ -52,18 +52,18 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
       ticks_buffer_(sizeof(TickSampleEventRecord),
                     kTickSamplesBufferChunkSize,
                     kTickSamplesBufferChunksCount),
-      enqueue_order_(0) {
+      last_code_event_id_(0), last_processed_code_event_id_(0) {
 }
 
 
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
-  event.generic.order = ++enqueue_order_;
+  event.generic.order = ++last_code_event_id_;
   events_buffer_.Enqueue(event);
 }
 
 
 void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
-  TickSampleEventRecord record(enqueue_order_);
+  TickSampleEventRecord record(last_code_event_id_);
   TickSample* sample = &record.sample;
   sample->state = isolate->current_vm_state();
   sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
@@ -76,7 +76,14 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
 }
 
 
-bool ProfilerEventsProcessor::ProcessCodeEvent(unsigned* dequeue_order) {
+void ProfilerEventsProcessor::StopSynchronously() {
+  if (!running_) return;
+  running_ = false;
+  Join();
+}
+
+
+bool ProfilerEventsProcessor::ProcessCodeEvent() {
   CodeEventsContainer record;
   if (events_buffer_.Dequeue(&record)) {
     switch (record.generic.type) {
@@ -90,17 +97,18 @@ bool ProfilerEventsProcessor::ProcessCodeEvent(unsigned* dequeue_order) {
 #undef PROFILER_TYPE_CASE
       default: return true;  // Skip record.
     }
-    *dequeue_order = record.generic.order;
+    last_processed_code_event_id_ = record.generic.order;
     return true;
   }
   return false;
 }
 
 
-bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
+bool ProfilerEventsProcessor::ProcessTicks() {
   while (true) {
     if (!ticks_from_vm_buffer_.IsEmpty()
-        && ticks_from_vm_buffer_.Peek()->order == dequeue_order) {
+        && ticks_from_vm_buffer_.Peek()->order ==
+           last_processed_code_event_id_) {
       TickSampleEventRecord record;
       ticks_from_vm_buffer_.Dequeue(&record);
       generator_->RecordTickSample(record.sample);
@@ -115,38 +123,35 @@ bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
     // will get far behind, a record may be modified right under its
     // feet.
     TickSampleEventRecord record = *rec;
-    if (record.order == dequeue_order) {
-      // A paranoid check to make sure that we don't get a memory overrun
-      // in case of frames_count having a wild value.
-      if (record.sample.frames_count < 0
-          || record.sample.frames_count > TickSample::kMaxFramesCount)
-        record.sample.frames_count = 0;
-      generator_->RecordTickSample(record.sample);
-      ticks_buffer_.FinishDequeue();
-    } else {
-      return true;
-    }
+    if (record.order != last_processed_code_event_id_) return true;
+
+    // A paranoid check to make sure that we don't get a memory overrun
+    // in case of frames_count having a wild value.
+    if (record.sample.frames_count < 0
+        || record.sample.frames_count > TickSample::kMaxFramesCount)
+      record.sample.frames_count = 0;
+    generator_->RecordTickSample(record.sample);
+    ticks_buffer_.FinishDequeue();
   }
 }
 
 
 void ProfilerEventsProcessor::Run() {
-  unsigned dequeue_order = 0;
-
   while (running_) {
     // Process ticks until we have any.
-    if (ProcessTicks(dequeue_order)) {
-      // All ticks of the current dequeue_order are processed,
+    if (ProcessTicks()) {
+      // All ticks of the current last_processed_code_event_id_ are processed,
       // proceed to the next code event.
-      ProcessCodeEvent(&dequeue_order);
+      ProcessCodeEvent();
     }
     YieldCPU();
   }
 
   // Process remaining tick events.
   ticks_buffer_.FlushResidualRecords();
-  // Perform processing until we have tick events, skip remaining code events.
-  while (ProcessTicks(dequeue_order) && ProcessCodeEvent(&dequeue_order)) { }
+  do {
+    ProcessTicks();
+  } while (ProcessCodeEvent());
 }
 
 
@@ -480,8 +485,7 @@ void CpuProfiler::StopProcessor() {
     need_to_stop_sampler_ = false;
   }
   is_profiling_ = false;
-  processor_->Stop();
-  processor_->Join();
+  processor_->StopSynchronously();
   delete processor_;
   delete generator_;
   processor_ = NULL;
