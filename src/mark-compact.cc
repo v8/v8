@@ -781,10 +781,12 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   }
 
   if (FLAG_trace_fragmentation && mode == REDUCE_MEMORY_FOOTPRINT) {
-    PrintF("Estimated over reserved memory: %.1f / %.1f MB (threshold %d)\n",
+    PrintF("Estimated over reserved memory: %.1f / %.1f MB (threshold %d), "
+           "evacuation candidate limit: %d\n",
            static_cast<double>(over_reserved) / MB,
            static_cast<double>(reserved) / MB,
-           static_cast<int>(kFreenessThreshold));
+           static_cast<int>(kFreenessThreshold),
+           max_evacuation_candidates);
   }
 
   intptr_t estimated_release = 0;
@@ -811,7 +813,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       if ((counter & 1) == (page_number & 1)) fragmentation = 1;
     } else if (mode == REDUCE_MEMORY_FOOTPRINT) {
       // Don't try to release too many pages.
-      if (estimated_release >= ((over_reserved * 3) / 4)) {
+      if (estimated_release >= over_reserved) {
         continue;
       }
 
@@ -828,7 +830,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       int free_pct = static_cast<int>(free_bytes * 100) / p->area_size();
 
       if (free_pct >= kFreenessThreshold) {
-        estimated_release += 2 * p->area_size() - free_bytes;
+        estimated_release += free_bytes;
         fragmentation = free_pct;
       } else {
         fragmentation = 0;
