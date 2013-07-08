@@ -40,6 +40,7 @@
 #include "hydrogen-gvn.h"
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
+#include "hydrogen-sce.h"
 #include "hydrogen-uint32-analysis.h"
 #include "lithium-allocator.h"
 #include "parser.h"
@@ -2632,47 +2633,6 @@ void HGraph::InferTypes(ZoneList<HValue*>* worklist) {
 }
 
 
-class HStackCheckEliminator BASE_EMBEDDED {
- public:
-  explicit HStackCheckEliminator(HGraph* graph) : graph_(graph) { }
-
-  void Process();
-
- private:
-  HGraph* graph_;
-};
-
-
-void HStackCheckEliminator::Process() {
-  HPhase phase("H_Stack check elimination", graph_);
-  // For each loop block walk the dominator tree from the backwards branch to
-  // the loop header. If a call instruction is encountered the backwards branch
-  // is dominated by a call and the stack check in the backwards branch can be
-  // removed.
-  for (int i = 0; i < graph_->blocks()->length(); i++) {
-    HBasicBlock* block = graph_->blocks()->at(i);
-    if (block->IsLoopHeader()) {
-      HBasicBlock* back_edge = block->loop_information()->GetLastBackEdge();
-      HBasicBlock* dominator = back_edge;
-      while (true) {
-        for (HInstructionIterator it(dominator); !it.Done(); it.Advance()) {
-          if (it.Current()->IsCall()) {
-            block->loop_information()->stack_check()->Eliminate();
-            break;
-          }
-        }
-
-        // Done when the loop header is processed.
-        if (dominator == block) break;
-
-        // Move up the dominator tree.
-        dominator = dominator->dominator();
-      }
-    }
-  }
-}
-
-
 void HGraph::MergeRemovableSimulates() {
   HPhase phase("H_Merge removable simulates", this);
   ZoneList<HSimulate*> mergelist(2, zone());
@@ -3498,8 +3458,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   ComputeMinusZeroChecks();
 
   // Eliminate redundant stack checks on backwards branches.
-  HStackCheckEliminator sce(this);
-  sce.Process();
+  Run<HStackCheckEliminationPhase>();
 
   if (FLAG_idefs) SetupInformativeDefinitions();
   if (FLAG_array_bounds_checks_elimination && !FLAG_idefs) {
