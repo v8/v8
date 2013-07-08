@@ -133,9 +133,7 @@ if (support_smi_only_arrays) {
   obj = fastliteralcase(get_standard_literal(), 1.5);
   assertKind(elements_kind.fast_double, obj);
   obj = fastliteralcase(get_standard_literal(), 2);
-  // TODO(hpayer): bring the following assert back as soon as allocation
-  // sites work again for fast literals
-  //assertKind(elements_kind.fast_double, obj);
+  assertKind(elements_kind.fast_double, obj);
 
   // The test below is in a loop because arrays that live
   // at global scope without the chance of being recreated
@@ -175,9 +173,7 @@ if (support_smi_only_arrays) {
   obj = fastliteralcase_smifast("carter");
   assertKind(elements_kind.fast, obj);
   obj = fastliteralcase_smifast(2);
-  // TODO(hpayer): bring the following assert back as soon as allocation
-  // sites work again for fast literals
-  //assertKind(elements_kind.fast, obj);
+  assertKind(elements_kind.fast, obj);
 
   function newarraycase_smidouble(value) {
     var a = new Array();
