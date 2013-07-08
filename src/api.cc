@@ -7979,7 +7979,7 @@ DeferredHandles::~DeferredHandles() {
   isolate_->UnlinkDeferredHandles(this);
 
   for (int i = 0; i < blocks_.length(); i++) {
-#ifdef ENABLE_EXTRA_CHECKS
+#ifdef ENABLE_HANDLE_ZAPPING
     HandleScope::ZapRange(blocks_[i], &blocks_[i][kHandleBlockSize]);
 #endif
     isolate_->handle_scope_implementer()->ReturnBlock(blocks_[i]);
