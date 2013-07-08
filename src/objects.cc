@@ -9175,7 +9175,6 @@ void JSFunction::MarkForParallelRecompilation() {
 void JSFunction::MarkForInstallingRecompiledCode() {
   // The debugger could have switched the builtin to lazy compile.
   // In that case, simply carry on.  It will be dealt with later.
-  ASSERT(IsInRecompileQueue() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(FLAG_parallel_recompilation);
