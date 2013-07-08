@@ -7491,14 +7491,10 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
   __ Branch(&no_info, eq, a3, Operand(at));
 
-  // We should have an allocation site object
-  if (FLAG_debug_code) {
-    __ push(a3);
-    __ sw(a3, FieldMemOperand(a3, 0));
-    __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
-    __ Assert(eq, "Expected AllocationSite object in register a3",
-        a3, Operand(at));
-  }
+  // The type cell has either an AllocationSite or a JSFunction.
+  __ lw(t0, FieldMemOperand(a3, 0));
+  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+  __ Branch(&no_info, ne, t0, Operand(at));
 
   __ lw(a3, FieldMemOperand(a3, AllocationSite::kPayloadOffset));
   __ SmiUntag(a3);
