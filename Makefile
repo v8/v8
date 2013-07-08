@@ -80,13 +80,6 @@ endif
 ifeq ($(extrachecks), off)
   GYPFLAGS += -Dv8_enable_extra_checks=0
 endif
-# handlezapping=on/off
-ifeq ($(handlezapping), on)
-  GYPFLAGS += -Dv8_enable_handle_zapping=1
-endif
-ifeq ($(handlezapping), off)
-  GYPFLAGS += -Dv8_enable_handle_zapping=0
-endif
 # gdbjit=on/off
 ifeq ($(gdbjit), on)
   GYPFLAGS += -Dv8_enable_gdbjit=1

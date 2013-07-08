@@ -177,7 +177,7 @@ class HandleScope {
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend(Isolate* isolate);
 
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_EXTRA_CHECKS
   // Zaps the handles in the half-open interval [start, end).
   static void ZapRange(Object** start, Object** end);
 #endif

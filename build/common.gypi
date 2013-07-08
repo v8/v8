@@ -490,7 +490,6 @@
       'Debug': {
         'variables': {
           'v8_enable_extra_checks%': 1,
-          'v8_enable_handle_zapping%': 1,
         },
         'defines': [
           'DEBUG',
@@ -518,9 +517,6 @@
         'conditions': [
           ['v8_enable_extra_checks==1', {
             'defines': ['ENABLE_EXTRA_CHECKS',],
-          }],
-          ['v8_enable_handle_zapping==1', {
-            'defines': ['ENABLE_HANDLE_ZAPPING',],
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
@@ -554,14 +550,10 @@
       'Release': {
         'variables': {
           'v8_enable_extra_checks%': 0,
-          'v8_enable_handle_zapping%': 1,
         },
         'conditions': [
           ['v8_enable_extra_checks==1', {
             'defines': ['ENABLE_EXTRA_CHECKS',],
-          }],
-          ['v8_enable_handle_zapping==1', {
-            'defines': ['ENABLE_HANDLE_ZAPPING',],
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags!': [

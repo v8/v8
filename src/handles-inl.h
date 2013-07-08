@@ -134,7 +134,7 @@ void HandleScope::CloseScope(Isolate* isolate,
     DeleteExtensions(isolate);
   }
 
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_EXTRA_CHECKS
   ZapRange(prev_next, prev_limit);
 #endif
 }
