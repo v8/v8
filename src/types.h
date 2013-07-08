@@ -184,6 +184,13 @@ class Type : public Object {
     return Iterator<v8::internal::Object>(this->handle());
   }
 
+  static Type* cast(v8::internal::Object* object) {
+    Type* t = static_cast<Type*>(object);
+    ASSERT(t->is_bitset() || t->is_class() ||
+           t->is_constant() || t->is_union());
+    return t;
+  }
+
  private:
   // A union is a fixed array containing types. Invariants:
   // - its length is at least 2
