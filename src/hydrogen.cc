@@ -37,6 +37,7 @@
 #include "hydrogen-environment-liveness.h"
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
+#include "hydrogen-infer-types.h"
 #include "hydrogen-gvn.h"
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
@@ -2564,29 +2565,6 @@ void HGraph::CollectPhis() {
 }
 
 
-void HGraph::InferTypes(ZoneList<HValue*>* worklist) {
-  BitVector in_worklist(GetMaximumValueID(), zone());
-  for (int i = 0; i < worklist->length(); ++i) {
-    ASSERT(!in_worklist.Contains(worklist->at(i)->id()));
-    in_worklist.Add(worklist->at(i)->id());
-  }
-
-  while (!worklist->is_empty()) {
-    HValue* current = worklist->RemoveLast();
-    in_worklist.Remove(current->id());
-    if (current->UpdateInferredType()) {
-      for (HUseIterator it(current->uses()); !it.Done(); it.Advance()) {
-        HValue* use = it.value();
-        if (!in_worklist.Contains(use->id())) {
-          in_worklist.Add(use->id());
-          worklist->Add(use, zone());
-        }
-      }
-    }
-  }
-}
-
-
 void HGraph::MergeRemovableSimulates() {
   HPhase phase("H_Merge removable simulates", this);
   ZoneList<HSimulate*> mergelist(2, zone());
@@ -2645,43 +2623,6 @@ void HGraph::MergeRemovableSimulates() {
       // Merge the accumulated simulates at the end of the block.
       HSimulate* last = mergelist.RemoveLast();
       last->MergeWith(&mergelist);
-    }
-  }
-}
-
-
-void HGraph::InitializeInferredTypes() {
-  HPhase phase("H_Inferring types", this);
-  InitializeInferredTypes(0, this->blocks_.length() - 1);
-}
-
-
-void HGraph::InitializeInferredTypes(int from_inclusive, int to_inclusive) {
-  for (int i = from_inclusive; i <= to_inclusive; ++i) {
-    HBasicBlock* block = blocks_[i];
-
-    const ZoneList<HPhi*>* phis = block->phis();
-    for (int j = 0; j < phis->length(); j++) {
-      phis->at(j)->UpdateInferredType();
-    }
-
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      it.Current()->UpdateInferredType();
-    }
-
-    if (block->IsLoopHeader()) {
-      HBasicBlock* last_back_edge =
-          block->loop_information()->GetLastBackEdge();
-      InitializeInferredTypes(i + 1, last_back_edge->block_id());
-      // Skip all blocks already processed by the recursive call.
-      i = last_back_edge->block_id();
-      // Update phis of the loop header now after the whole loop body is
-      // guaranteed to be processed.
-      ZoneList<HValue*> worklist(block->phis()->length(), zone());
-      for (int j = 0; j < block->phis()->length(); ++j) {
-        worklist.Add(block->phis()->at(j), zone());
-      }
-      InferTypes(&worklist);
     }
   }
 }
@@ -3394,7 +3335,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   MarkDeoptimizeOnUndefined();
   InsertRepresentationChanges();
 
-  InitializeInferredTypes();
+  Run<HInferTypesPhase>();
 
   // Must be performed before canonicalization to ensure that Canonicalize
   // will not remove semantically meaningful ToInt32 operations e.g. BIT_OR with

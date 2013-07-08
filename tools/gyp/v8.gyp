@@ -349,6 +349,8 @@
         '../../src/hydrogen-gvn.h',
         '../../src/hydrogen-infer-representation.cc',
         '../../src/hydrogen-infer-representation.h',
+        '../../src/hydrogen-infer-types.cc',
+        '../../src/hydrogen-infer-types.h',
         '../../src/hydrogen-range-analysis.cc',
         '../../src/hydrogen-range-analysis.h',
         '../../src/hydrogen-redundant-phi.cc',

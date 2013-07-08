@@ -291,7 +291,6 @@ class HGraph: public ZoneObject {
   HEnvironment* start_environment() const { return start_environment_; }
 
   void FinalizeUniqueValueIds();
-  void InitializeInferredTypes();
   void InsertTypeConversions();
   void MergeRemovableSimulates();
   void InsertRepresentationChanges();
@@ -459,8 +458,6 @@ class HGraph: public ZoneObject {
                                         int use_index,
                                         Representation to);
   void InsertRepresentationChangesForValue(HValue* value);
-  void InferTypes(ZoneList<HValue*>* worklist);
-  void InitializeInferredTypes(int from_inclusive, int to_inclusive);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
   void SetupInformativeDefinitionsRecursively(HBasicBlock* block);
