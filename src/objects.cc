@@ -15850,8 +15850,8 @@ MaybeObject* PropertyCell::SetValueInferType(Object* value,
         &PropertyCell::UpdateType,
         Handle<PropertyCell>(this),
         Handle<Object>(value, GetIsolate()));
-    Type* new_type;
-    if (maybe_type->To(&new_type)) return maybe_type;
+    Type* new_type = NULL;
+    if (!maybe_type->To(&new_type)) return maybe_type;
     set_type(new_type);
   }
   return value;
