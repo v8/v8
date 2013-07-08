@@ -7076,13 +7076,10 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ CompareRoot(r3, Heap::kUndefinedValueRootIndex);
   __ b(eq, &no_info);
 
-  // We should have an allocation site object
-  if (FLAG_debug_code) {
-    __ push(r3);
-    __ ldr(r3, FieldMemOperand(r3, 0));
-    __ CompareRoot(r3, Heap::kAllocationSiteMapRootIndex);
-    __ Assert(eq, "Expected AllocationSite object in register edx");
-  }
+  // The type cell has either an AllocationSite or a JSFunction
+  __ ldr(r4, FieldMemOperand(r3, 0));
+  __ CompareRoot(r4, Heap::kAllocationSiteMapRootIndex);
+  __ b(ne, &no_info);
 
   __ ldr(r3, FieldMemOperand(r3, AllocationSite::kPayloadOffset));
   __ SmiUntag(r3);

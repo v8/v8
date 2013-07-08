@@ -6673,12 +6673,10 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ Cmp(rdx, undefined_sentinel);
   __ j(equal, &no_info);
 
-  // We should have an allocation site object
-  if (FLAG_debug_code) {
-    __ Cmp(FieldOperand(rdx, 0),
-           Handle<Map>(masm->isolate()->heap()->allocation_site_map()));
-    __ Assert(equal, "Expected AllocationSite object in register rdx");
-  }
+  // The type cell has either an AllocationSite or a JSFunction
+  __ Cmp(FieldOperand(rdx, 0),
+         Handle<Map>(masm->isolate()->heap()->allocation_site_map()));
+  __ j(not_equal, &no_info);
 
   __ movq(rdx, FieldOperand(rdx, AllocationSite::kPayloadOffset));
   __ SmiToInteger32(rdx, rdx);

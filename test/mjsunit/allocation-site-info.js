@@ -297,9 +297,26 @@ if (support_smi_only_arrays) {
     assertTrue(new type(1,2,3) instanceof type);
   }
 
+  function instanceof_check2(type) {
+    assertTrue(new type() instanceof type);
+    assertTrue(new type(5) instanceof type);
+    assertTrue(new type(1,2,3) instanceof type);
+  }
+
   var realmBArray = Realm.eval(realmB, "Array");
   instanceof_check(Array);
   instanceof_check(realmBArray);
+
+  // instanceof_check2 is here because the call site goes through a state.
+  // Since instanceof_check(Array) was first called with the current context
+  // Array function, it went from (uninit->Array) then (Array->megamorphic).
+  // We'll get a different state traversal if we start with realmBArray.
+  // It'll go (uninit->realmBArray) then (realmBArray->megamorphic). Recognize
+  // that state "Array" implies an AllocationSite is present, and code is
+  // configured to use it.
+  instanceof_check2(realmBArray);
+  instanceof_check2(Array);
+
   %OptimizeFunctionOnNextCall(instanceof_check);
 
   // No de-opt will occur because HCallNewArray wasn't selected, on account of
