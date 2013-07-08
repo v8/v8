@@ -673,8 +673,8 @@ static void KeyedStoreGenerateGenericHelper(
                                          rbx,
                                          rdi,
                                          slow);
-  AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS,
-                                                        FAST_DOUBLE_ELEMENTS);
+  AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
+                                                    FAST_DOUBLE_ELEMENTS);
   ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, slow);
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
@@ -686,7 +686,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          rbx,
                                          rdi,
                                          slow);
-  mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
+  mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm, mode,
                                                                    slow);
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -702,7 +702,7 @@ static void KeyedStoreGenerateGenericHelper(
                                          rbx,
                                          rdi,
                                          slow);
-  mode = AllocationSiteInfo::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
+  mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, slow);
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
@@ -1618,8 +1618,8 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // Must return the modified receiver in eax.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_SMI_ELEMENTS,
-                                                          FAST_DOUBLE_ELEMENTS);
+    AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
+                                                      FAST_DOUBLE_ELEMENTS);
     ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
     __ movq(rax, rdx);
     __ Ret();
@@ -1643,8 +1643,8 @@ void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
   // Must return the modified receiver in eax.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    AllocationSiteMode mode = AllocationSiteInfo::GetMode(FAST_DOUBLE_ELEMENTS,
-                                                          FAST_ELEMENTS);
+    AllocationSiteMode mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS,
+                                                      FAST_ELEMENTS);
     ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
     __ movq(rax, rdx);
     __ Ret();

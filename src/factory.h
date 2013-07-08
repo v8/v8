@@ -243,6 +243,8 @@ class Factory {
 
   Handle<PropertyCell> NewPropertyCell(Handle<Object> value);
 
+  Handle<AllocationSite> NewAllocationSite();
+
   Handle<Map> NewMap(
       InstanceType type,
       int instance_size,

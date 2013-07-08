@@ -501,6 +501,30 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteralShallow) {
 }
 
 
+static Handle<AllocationSite> GetLiteralAllocationSite(
+    Isolate* isolate,
+    Handle<FixedArray> literals,
+    int literals_index,
+    Handle<FixedArray> elements) {
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> literal_site(literals->get(literals_index), isolate);
+  Handle<AllocationSite> site;
+  if (*literal_site == isolate->heap()->undefined_value()) {
+    ASSERT(*elements != isolate->heap()->empty_fixed_array());
+    Handle<Object> boilerplate =
+        Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
+    if (boilerplate.is_null()) return site;
+    site = isolate->factory()->NewAllocationSite();
+    site->set_payload(*boilerplate);
+    literals->set(literals_index, *site);
+  } else {
+    site = Handle<AllocationSite>::cast(literal_site);
+  }
+
+  return site;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
@@ -508,17 +532,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
 
-  // Check if boilerplate exists. If not, create it first.
-  Handle<Object> boilerplate(literals->get(literals_index), isolate);
-  if (*boilerplate == isolate->heap()->undefined_value()) {
-    ASSERT(*elements != isolate->heap()->empty_fixed_array());
-    boilerplate =
-        Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
-    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
-    // Update the functions literal and return the boilerplate.
-    literals->set(literals_index, *boilerplate);
-  }
-  return JSObject::cast(*boilerplate)->DeepCopy(isolate);
+  Handle<AllocationSite> site = GetLiteralAllocationSite(isolate, literals,
+      literals_index, elements);
+  RETURN_IF_EMPTY_HANDLE(isolate, site);
+
+  JSObject* boilerplate = JSObject::cast(site->payload());
+  return boilerplate->DeepCopy(isolate);
 }
 
 
@@ -529,29 +548,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
 
-  // Check if boilerplate exists. If not, create it first.
-  Handle<Object> boilerplate(literals->get(literals_index), isolate);
-  if (*boilerplate == isolate->heap()->undefined_value()) {
-    ASSERT(*elements != isolate->heap()->empty_fixed_array());
-    boilerplate =
-        Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
-    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
-    // Update the functions literal and return the boilerplate.
-    literals->set(literals_index, *boilerplate);
-  }
-  if (JSObject::cast(*boilerplate)->elements()->map() ==
+  Handle<AllocationSite> site = GetLiteralAllocationSite(isolate, literals,
+      literals_index, elements);
+  RETURN_IF_EMPTY_HANDLE(isolate, site);
+
+  JSObject* boilerplate = JSObject::cast(site->payload());
+  if (boilerplate->elements()->map() ==
       isolate->heap()->fixed_cow_array_map()) {
     isolate->counters()->cow_arrays_created_runtime()->Increment();
   }
 
-  JSObject* boilerplate_object = JSObject::cast(*boilerplate);
-  AllocationSiteMode mode = AllocationSiteInfo::GetMode(
-      boilerplate_object->GetElementsKind());
+  AllocationSiteMode mode = AllocationSite::GetMode(
+      boilerplate->GetElementsKind());
   if (mode == TRACK_ALLOCATION_SITE) {
-    return isolate->heap()->CopyJSObjectWithAllocationSite(boilerplate_object);
+    return isolate->heap()->CopyJSObjectWithAllocationSite(
+        boilerplate, *site);
   }
 
-  return isolate->heap()->CopyJSObject(boilerplate_object);
+  return isolate->heap()->CopyJSObject(boilerplate);
 }
 
 
@@ -5203,8 +5217,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 3);
   CONVERT_SMI_ARG_CHECKED(literal_index, 4);
 
-  Object* raw_boilerplate_object = literals->get(literal_index);
-  Handle<JSArray> boilerplate_object(JSArray::cast(raw_boilerplate_object));
+  Object* raw_literal_cell = literals->get(literal_index);
+  JSArray* boilerplate = NULL;
+  if (raw_literal_cell->IsAllocationSite()) {
+    AllocationSite* site = AllocationSite::cast(raw_literal_cell);
+    boilerplate = JSArray::cast(site->payload());
+  } else {
+    boilerplate = JSArray::cast(raw_literal_cell);
+  }
+  Handle<JSArray> boilerplate_object(boilerplate);
   ElementsKind elements_kind = object->GetElementsKind();
   ASSERT(IsFastElementsKind(elements_kind));
   // Smis should never trigger transitions.
@@ -13818,19 +13839,21 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
   MaybeObject* maybe_array;
   if (!type_info.is_null() &&
       *type_info != isolate->heap()->undefined_value() &&
-      Cell::cast(*type_info)->value()->IsSmi() &&
+      Cell::cast(*type_info)->value()->IsAllocationSite() &&
       can_use_type_feedback) {
-    Cell* cell = Cell::cast(*type_info);
-    Smi* smi = Smi::cast(cell->value());
-    ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
+    Handle<Cell> cell = Handle<Cell>::cast(type_info);
+    Handle<AllocationSite> site = Handle<AllocationSite>(
+        AllocationSite::cast(cell->value()), isolate);
+    ASSERT(!site->IsLiteralSite());
+    ElementsKind to_kind = site->GetElementsKindPayload();
     if (holey && !IsFastHoleyElementsKind(to_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
       // Update the allocation site info to reflect the advice alteration.
-      cell->set_value(Smi::FromInt(to_kind));
+      site->SetElementsKindPayload(to_kind);
     }
 
     maybe_array = isolate->heap()->AllocateJSObjectWithAllocationSite(
-        *constructor, type_info);
+        *constructor, site);
     if (!maybe_array->To(&array)) return maybe_array;
   } else {
     maybe_array = isolate->heap()->AllocateJSObject(*constructor);

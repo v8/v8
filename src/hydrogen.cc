@@ -1597,6 +1597,7 @@ void HGraphBuilder::BuildCopyElements(HValue* context,
 
 HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
                                               HValue* boilerplate,
+                                              HValue* allocation_site,
                                               AllocationSiteMode mode,
                                               ElementsKind kind,
                                               int length) {
@@ -1633,7 +1634,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
 
   // Create an allocation site info if requested.
   if (mode == TRACK_ALLOCATION_SITE) {
-    BuildCreateAllocationSiteInfo(object, JSArray::kSize, boilerplate);
+    BuildCreateAllocationSiteInfo(object, JSArray::kSize, allocation_site);
   }
 
   if (length > 0) {
@@ -1740,14 +1741,16 @@ void HGraphBuilder::BuildCompareNil(
 
 HValue* HGraphBuilder::BuildCreateAllocationSiteInfo(HValue* previous_object,
                                                      int previous_object_size,
-                                                     HValue* payload) {
-  HInnerAllocatedObject* alloc_site = Add<HInnerAllocatedObject>(
+                                                     HValue* alloc_site) {
+  ASSERT(alloc_site != NULL);
+  HInnerAllocatedObject* alloc_site_info = Add<HInnerAllocatedObject>(
       previous_object, previous_object_size);
-  Handle<Map> alloc_site_map(isolate()->heap()->allocation_site_info_map());
-  AddStoreMapConstant(alloc_site, alloc_site_map);
-  HObjectAccess access = HObjectAccess::ForAllocationSitePayload();
-  AddStore(alloc_site, access, payload);
-  return alloc_site;
+  Handle<Map> alloc_site_info_map(
+      isolate()->heap()->allocation_site_info_map());
+  AddStoreMapConstant(alloc_site_info, alloc_site_info_map);
+  HObjectAccess access = HObjectAccess::ForAllocationSiteInfoSite();
+  AddStore(alloc_site_info, access, alloc_site);
+  return alloc_site_info;
 }
 
 
@@ -1780,7 +1783,7 @@ HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
         constructor_function_(constructor_function) {
   mode_ = override_mode == DISABLE_ALLOCATION_SITES
       ? DONT_TRACK_ALLOCATION_SITE
-      : AllocationSiteInfo::GetMode(kind);
+      : AllocationSite::GetMode(kind);
 }
 
 
@@ -4524,6 +4527,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     literal = BuildFastLiteral(context,
                                boilerplate_object,
                                original_boilerplate_object,
+                               Handle<Object>::null(),
                                data_size,
                                pointer_size,
                                DONT_TRACK_ALLOCATION_SITE);
@@ -4631,24 +4635,36 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   HValue* context = environment()->LookupContext();
   HInstruction* literal;
 
+  Handle<AllocationSite> site;
   Handle<FixedArray> literals(environment()->closure()->literals(), isolate());
-  Handle<Object> raw_boilerplate(literals->get(expr->literal_index()),
-                                 isolate());
-
   bool uninitialized = false;
-  if (raw_boilerplate->IsUndefined()) {
+  Handle<Object> literals_cell(literals->get(expr->literal_index()),
+                               isolate());
+  Handle<Object> raw_boilerplate;
+  if (literals_cell->IsUndefined()) {
     uninitialized = true;
     raw_boilerplate = Runtime::CreateArrayLiteralBoilerplate(
         isolate(), literals, expr->constant_elements());
     if (raw_boilerplate.is_null()) {
       return Bailout("array boilerplate creation failed");
     }
-    literals->set(expr->literal_index(), *raw_boilerplate);
+
+    site = isolate()->factory()->NewAllocationSite();
+    site->set_payload(*raw_boilerplate);
+    literals->set(expr->literal_index(), *site);
+
     if (JSObject::cast(*raw_boilerplate)->elements()->map() ==
         isolate()->heap()->fixed_cow_array_map()) {
       isolate()->counters()->cow_arrays_created_runtime()->Increment();
     }
+  } else {
+    ASSERT(literals_cell->IsAllocationSite());
+    site = Handle<AllocationSite>::cast(literals_cell);
+    raw_boilerplate = Handle<Object>(site->payload(), isolate());
   }
+
+  ASSERT(!raw_boilerplate.is_null());
+  ASSERT(site->IsLiteralSite());
 
   Handle<JSObject> original_boilerplate_object =
       Handle<JSObject>::cast(raw_boilerplate);
@@ -4658,7 +4674,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // TODO(mvstanton): This heuristic is only a temporary solution.  In the
   // end, we want to quit creating allocation site info after a certain number
   // of GCs for a call site.
-  AllocationSiteMode mode = AllocationSiteInfo::GetMode(
+  AllocationSiteMode mode = AllocationSite::GetMode(
       boilerplate_elements_kind);
 
   // Check whether to use fast or slow deep-copying for boilerplate.
@@ -4678,6 +4694,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     literal = BuildFastLiteral(context,
                                boilerplate_object,
                                original_boilerplate_object,
+                               site,
                                data_size,
                                pointer_size,
                                mode);
@@ -8504,6 +8521,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     HValue* context,
     Handle<JSObject> boilerplate_object,
     Handle<JSObject> original_boilerplate_object,
+    Handle<Object> allocation_site,
     int data_size,
     int pointer_size,
     AllocationSiteMode mode) {
@@ -8541,8 +8559,9 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
 
   int offset = 0;
   int data_offset = 0;
-  BuildEmitDeepCopy(boilerplate_object, original_boilerplate_object, target,
-                    &offset, data_target, &data_offset, mode);
+  BuildEmitDeepCopy(boilerplate_object, original_boilerplate_object,
+                    allocation_site, target, &offset, data_target,
+                    &data_offset, mode);
   return target;
 }
 
@@ -8550,11 +8569,30 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
 void HOptimizedGraphBuilder::BuildEmitDeepCopy(
     Handle<JSObject> boilerplate_object,
     Handle<JSObject> original_boilerplate_object,
+    Handle<Object> allocation_site_object,
     HInstruction* target,
     int* offset,
     HInstruction* data_target,
     int* data_offset,
     AllocationSiteMode mode) {
+  Zone* zone = this->zone();
+
+  bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE &&
+      boilerplate_object->map()->CanTrackAllocationSite();
+
+  // If using allocation sites, then the payload on the site should already
+  // be filled in as a valid (boilerplate) array.
+  ASSERT(!create_allocation_site_info ||
+         AllocationSite::cast(*allocation_site_object)->IsLiteralSite());
+
+  HInstruction* allocation_site = NULL;
+
+  if (create_allocation_site_info) {
+    allocation_site = AddInstruction(new(zone) HConstant(
+        allocation_site_object, Representation::Tagged()));
+  }
+
+  // Only elements backing stores for non-COW arrays need to be copied.
   Handle<FixedArrayBase> elements(boilerplate_object->elements());
   Handle<FixedArrayBase> original_elements(
       original_boilerplate_object->elements());
@@ -8600,9 +8638,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
       boilerplate_object->map()->CanTrackAllocationSite()) {
     elements_offset += AllocationSiteInfo::kSize;
     *offset += AllocationSiteInfo::kSize;
-    HInstruction* original_boilerplate =
-        Add<HConstant>(original_boilerplate_object);
-    BuildCreateAllocationSiteInfo(target, JSArray::kSize, original_boilerplate);
+    BuildCreateAllocationSiteInfo(target, JSArray::kSize, allocation_site);
   }
 }
 
@@ -8700,9 +8736,10 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
                                                                    *offset);
 
       AddStore(object_properties, access, value_instruction);
-
-      BuildEmitDeepCopy(value_object, original_value_object, target,
-          offset, data_target, data_offset, DONT_TRACK_ALLOCATION_SITE);
+      BuildEmitDeepCopy(value_object, original_value_object,
+                        Handle<Object>::null(), target,
+                        offset, data_target, data_offset,
+                        DONT_TRACK_ALLOCATION_SITE);
     } else {
       Representation representation = details.representation();
       HInstruction* value_instruction = Add<HConstant>(value);
@@ -8809,8 +8846,10 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
       HInstruction* value_instruction = Add<HInnerAllocatedObject>(target,
                                                                    *offset);
       Add<HStoreKeyed>(object_elements, key_constant, value_instruction, kind);
-      BuildEmitDeepCopy(value_object, original_value_object, target,
-          offset, data_target, data_offset, DONT_TRACK_ALLOCATION_SITE);
+      BuildEmitDeepCopy(value_object, original_value_object,
+                        Handle<Object>::null(), target,
+                        offset, data_target, data_offset,
+                        DONT_TRACK_ALLOCATION_SITE);
     } else {
       HInstruction* value_instruction =
           Add<HLoadKeyed>(boilerplate_elements, key_constant,

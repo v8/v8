@@ -387,6 +387,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(SIGNATURE_INFO_TYPE)                                                       \
   V(TYPE_SWITCH_INFO_TYPE)                                                     \
   V(ALLOCATION_SITE_INFO_TYPE)                                                 \
+  V(ALLOCATION_SITE_TYPE)                                                      \
   V(SCRIPT_TYPE)                                                               \
   V(CODE_CACHE_TYPE)                                                           \
   V(POLYMORPHIC_CODE_CACHE_TYPE)                                               \
@@ -550,6 +551,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(SIGNATURE_INFO, SignatureInfo, signature_info)                             \
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
   V(SCRIPT, Script, script)                                                    \
+  V(ALLOCATION_SITE, AllocationSite, allocation_site)                          \
   V(ALLOCATION_SITE_INFO, AllocationSiteInfo, allocation_site_info)            \
   V(CODE_CACHE, CodeCache, code_cache)                                         \
   V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)      \
@@ -709,6 +711,7 @@ enum InstanceType {
   OBJECT_TEMPLATE_INFO_TYPE,
   SIGNATURE_INFO_TYPE,
   TYPE_SWITCH_INFO_TYPE,
+  ALLOCATION_SITE_TYPE,
   ALLOCATION_SITE_INFO_TYPE,
   SCRIPT_TYPE,
   CODE_CACHE_TYPE,
@@ -2210,8 +2213,7 @@ class JSObject: public JSReceiver {
                                                ElementsKind to_kind);
 
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
-  MUST_USE_RESULT MaybeObject* UpdateAllocationSiteInfo(
-      ElementsKind to_kind);
+  MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
   // Replaces an existing transition with a transition to a map with a FIELD.
   MUST_USE_RESULT MaybeObject* ConvertTransitionToMapTransition(
@@ -7461,26 +7463,68 @@ enum AllocationSiteMode {
 };
 
 
-class AllocationSiteInfo: public Struct {
+class AllocationSite: public Struct {
  public:
+  static const int kPayloadOffset = HeapObject::kHeaderSize;
+  static const int kSize = kPayloadOffset + kPointerSize;
+  static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
+
+  // TODO(mvstanton): rename payload to transition_info.
   DECL_ACCESSORS(payload, Object)
 
-  static inline AllocationSiteInfo* cast(Object* obj);
+  void Initialize() {
+    SetElementsKindPayload(GetInitialFastElementsKind());
+  }
+
+  ElementsKind GetElementsKindPayload() {
+    ASSERT(!IsLiteralSite());
+    return static_cast<ElementsKind>(Smi::cast(payload())->value());
+  }
+
+  void SetElementsKindPayload(ElementsKind kind) {
+    set_payload(Smi::FromInt(static_cast<int>(kind)));
+  }
+
+  bool IsLiteralSite() {
+    // If the payload is a smi, then it represents an ElementsKind
+    // for a constructed array. Otherwise, it must be a boilerplate
+    // for an array literal
+    return payload()->IsJSArray();
+  }
+
+  DECLARE_PRINTER(AllocationSite)
+  DECLARE_VERIFIER(AllocationSite)
+
+  static inline AllocationSite* cast(Object* obj);
+  static inline AllocationSiteMode GetMode(
+      ElementsKind boilerplate_elements_kind);
+  static inline AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);
+};
+
+
+class AllocationSiteInfo: public Struct {
+ public:
+  static const int kAllocationSiteOffset = HeapObject::kHeaderSize;
+  static const int kSize = kAllocationSiteOffset + kPointerSize;
+
+  DECL_ACCESSORS(allocation_site, Object)
+
+  bool IsValid() { return allocation_site()->IsAllocationSite(); }
+  AllocationSite* GetAllocationSite() {
+    ASSERT(IsValid());
+    return AllocationSite::cast(allocation_site());
+  }
 
   DECLARE_PRINTER(AllocationSiteInfo)
   DECLARE_VERIFIER(AllocationSiteInfo)
 
   // Returns NULL if no AllocationSiteInfo is available for object.
   static AllocationSiteInfo* FindForJSObject(JSObject* object);
-  static inline AllocationSiteMode GetMode(
-      ElementsKind boilerplate_elements_kind);
-  static inline AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
+  static inline AllocationSiteInfo* cast(Object* obj);
 
-  static const int kPayloadOffset = HeapObject::kHeaderSize;
-  static const int kSize = kPayloadOffset + kPointerSize;
-  static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
-
-  bool GetElementsKindPayload(ElementsKind* kind);
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSiteInfo);
 };

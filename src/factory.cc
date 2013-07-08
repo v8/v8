@@ -519,6 +519,14 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Object> value) {
 }
 
 
+Handle<AllocationSite> Factory::NewAllocationSite() {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateAllocationSite(),
+      AllocationSite);
+}
+
+
 Handle<Map> Factory::NewMap(InstanceType type,
                             int instance_size,
                             ElementsKind elements_kind) {

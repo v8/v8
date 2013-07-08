@@ -914,10 +914,15 @@ void TypeSwitchInfo::TypeSwitchInfoVerify() {
 }
 
 
+void AllocationSite::AllocationSiteVerify() {
+  CHECK(IsAllocationSite());
+}
+
+
 void AllocationSiteInfo::AllocationSiteInfoVerify() {
   CHECK(IsAllocationSiteInfo());
-  VerifyHeapPointer(payload());
-  CHECK(payload()->IsObject());
+  VerifyHeapPointer(allocation_site());
+  CHECK(!IsValid() || GetAllocationSite()->IsAllocationSite());
 }
 
 

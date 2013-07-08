@@ -8865,21 +8865,6 @@ AllocationSiteInfo* AllocationSiteInfo::FindForJSObject(JSObject* object) {
 }
 
 
-bool AllocationSiteInfo::GetElementsKindPayload(ElementsKind* kind) {
-  ASSERT(kind != NULL);
-  if (payload()->IsCell()) {
-    Cell* cell = Cell::cast(payload());
-    Object* cell_contents = cell->value();
-    if (cell_contents->IsSmi()) {
-      *kind = static_cast<ElementsKind>(
-          Smi::cast(cell_contents)->value());
-      return true;
-    }
-  }
-  return false;
-}
-
-
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
@@ -10269,7 +10254,11 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
         TypeFeedbackInfo::cast(raw_info)->type_feedback_cells();
     for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
       Cell* cell = type_feedback_cells->GetCell(i);
-      cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
+      // Don't clear AllocationSites
+      Object* value = cell->value();
+      if (value == NULL || !value->IsAllocationSite()) {
+        cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
+      }
     }
   }
 }
@@ -11734,7 +11723,7 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
         ? FAST_HOLEY_DOUBLE_ELEMENTS
         : FAST_DOUBLE_ELEMENTS;
 
-    MaybeObject* maybe_failure = UpdateAllocationSiteInfo(to_kind);
+    MaybeObject* maybe_failure = UpdateAllocationSite(to_kind);
     if (maybe_failure->IsFailure()) return maybe_failure;
 
     MaybeObject* maybe =
@@ -11751,7 +11740,7 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
         ? FAST_HOLEY_ELEMENTS
         : FAST_ELEMENTS;
 
-    MaybeObject* maybe_failure = UpdateAllocationSiteInfo(kind);
+    MaybeObject* maybe_failure = UpdateAllocationSite(kind);
     if (maybe_failure->IsFailure()) return maybe_failure;
 
     MaybeObject* maybe_new_map = GetElementsTransitionMap(GetIsolate(),
@@ -12314,28 +12303,30 @@ Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::UpdateAllocationSiteInfo(ElementsKind to_kind) {
+MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
   if (!FLAG_track_allocation_sites || !IsJSArray()) {
     return this;
   }
 
   AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(this);
-  if (info == NULL) {
+  if (info == NULL || !info->IsValid()) {
     return this;
   }
 
-  if (info->payload()->IsJSArray()) {
-    JSArray* payload = JSArray::cast(info->payload());
+  // Walk through to the Allocation Site
+  AllocationSite* site = info->GetAllocationSite();
+  if (site->IsLiteralSite()) {
+    JSArray* payload = JSArray::cast(site->payload());
     ElementsKind kind = payload->GetElementsKind();
-    if (AllocationSiteInfo::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    if (AllocationSite::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
       // If the array is huge, it's not likely to be defined in a local
       // function, so we shouldn't make new instances of it very often.
       uint32_t length = 0;
       CHECK(payload->length()->ToArrayIndex(&length));
-      if (length <= AllocationSiteInfo::kMaximumArrayBytesToPretransition) {
+      if (length <= AllocationSite::kMaximumArrayBytesToPretransition) {
         if (FLAG_trace_track_allocation_sites) {
           PrintF(
-              "AllocationSiteInfo: JSArray %p boilerplate updated %s->%s\n",
+              "AllocationSite: JSArray %p boilerplate updated %s->%s\n",
               reinterpret_cast<void*>(this),
               ElementsKindToString(kind),
               ElementsKindToString(to_kind));
@@ -12343,21 +12334,16 @@ MaybeObject* JSObject::UpdateAllocationSiteInfo(ElementsKind to_kind) {
         return payload->TransitionElementsKind(to_kind);
       }
     }
-  } else if (info->payload()->IsCell()) {
-    Cell* cell = Cell::cast(info->payload());
-    Object* cell_contents = cell->value();
-    if (cell_contents->IsSmi()) {
-      ElementsKind kind = static_cast<ElementsKind>(
-          Smi::cast(cell_contents)->value());
-      if (AllocationSiteInfo::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
-        if (FLAG_trace_track_allocation_sites) {
-          PrintF("AllocationSiteInfo: JSArray %p info updated %s->%s\n",
-                 reinterpret_cast<void*>(this),
-                 ElementsKindToString(kind),
-                 ElementsKindToString(to_kind));
-        }
-        cell->set_value(Smi::FromInt(to_kind));
+  } else {
+    ElementsKind kind = site->GetElementsKindPayload();
+    if (AllocationSite::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
+      if (FLAG_trace_track_allocation_sites) {
+        PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
+               reinterpret_cast<void*>(this),
+               ElementsKindToString(kind),
+               ElementsKindToString(to_kind));
       }
+      site->set_payload(Smi::FromInt(to_kind));
     }
   }
   return this;
@@ -12374,7 +12360,7 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
 
   if (from_kind == to_kind) return this;
 
-  MaybeObject* maybe_failure = UpdateAllocationSiteInfo(to_kind);
+  MaybeObject* maybe_failure = UpdateAllocationSite(to_kind);
   if (maybe_failure->IsFailure()) return maybe_failure;
 
   Isolate* isolate = GetIsolate();

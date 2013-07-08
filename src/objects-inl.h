@@ -1311,7 +1311,7 @@ bool JSObject::ShouldTrackAllocationInfo() {
       return true;
     }
 
-    return AllocationSiteInfo::GetMode(GetElementsKind()) ==
+    return AllocationSite::GetMode(GetElementsKind()) ==
         TRACK_ALLOCATION_SITE;
   }
   return false;
@@ -1320,7 +1320,7 @@ bool JSObject::ShouldTrackAllocationInfo() {
 
 // Heuristic: We only need to create allocation site info if the boilerplate
 // elements kind is the initial elements kind.
-AllocationSiteMode AllocationSiteInfo::GetMode(
+AllocationSiteMode AllocationSite::GetMode(
     ElementsKind boilerplate_elements_kind) {
   if (FLAG_track_allocation_sites &&
       IsFastSmiElementsKind(boilerplate_elements_kind)) {
@@ -1331,8 +1331,8 @@ AllocationSiteMode AllocationSiteInfo::GetMode(
 }
 
 
-AllocationSiteMode AllocationSiteInfo::GetMode(ElementsKind from,
-                                               ElementsKind to) {
+AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
+                                           ElementsKind to) {
   if (FLAG_track_allocation_sites &&
       IsFastSmiElementsKind(from) &&
       (IsFastObjectElementsKind(to) || IsFastDoubleElementsKind(to))) {
@@ -4448,7 +4448,8 @@ ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
 
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
-ACCESSORS(AllocationSiteInfo, payload, Object, kPayloadOffset)
+ACCESSORS(AllocationSite, payload, Object, kPayloadOffset)
+ACCESSORS(AllocationSiteInfo, allocation_site, Object, kAllocationSiteOffset)
 
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)

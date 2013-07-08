@@ -663,6 +663,12 @@ void KeyedLoadDictionaryElementStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
+  CreateAllocationSiteStub stub;
+  stub.GetCode(isolate)->set_is_pregenerated(true);
+}
+
+
 void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
     case FAST_ELEMENTS:
@@ -807,7 +813,7 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 
 void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
   Label fail;
-  AllocationSiteMode mode = AllocationSiteInfo::GetMode(from_, to_);
+  AllocationSiteMode mode = AllocationSite::GetMode(from_, to_);
   ASSERT(!IsFastHoleyElementsKind(from_) || IsFastHoleyElementsKind(to_));
   if (!FLAG_trace_elements_transitions) {
     if (IsFastSmiOrObjectElementsKind(to_)) {

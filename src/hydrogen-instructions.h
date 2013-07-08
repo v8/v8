@@ -5347,6 +5347,10 @@ class HObjectAccess {
     return HObjectAccess(kArrayLengths, JSArray::kLengthOffset);
   }
 
+  static HObjectAccess ForAllocationSitePayload() {
+    return HObjectAccess(kInobject, AllocationSite::kPayloadOffset);
+  }
+
   static HObjectAccess ForFixedArrayLength() {
     return HObjectAccess(kArrayLengths, FixedArray::kLengthOffset);
   }
@@ -5363,8 +5367,16 @@ class HObjectAccess {
     return HObjectAccess(kMaps, JSObject::kMapOffset);
   }
 
-  static HObjectAccess ForAllocationSitePayload() {
-    return HObjectAccess(kInobject, AllocationSiteInfo::kPayloadOffset);
+  static HObjectAccess ForPropertyCellValue() {
+    return HObjectAccess(kInobject, PropertyCell::kValueOffset);
+  }
+
+  static HObjectAccess ForCellValue() {
+    return HObjectAccess(kInobject, Cell::kValueOffset);
+  }
+
+  static HObjectAccess ForAllocationSiteInfoSite() {
+    return HObjectAccess(kInobject, AllocationSiteInfo::kAllocationSiteOffset);
   }
 
   // Create an access to an offset in a fixed array header.
@@ -5792,7 +5804,8 @@ class HStoreNamedField: public HTemplateInstruction<2> {
         field_representation_(field_representation),
         transition_(),
         transition_unique_id_(),
-        new_space_dominator_(NULL) {
+        new_space_dominator_(NULL),
+        write_barrier_mode_(UPDATE_WRITE_BARRIER) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     access.SetGVNFlags(this, true);
@@ -5817,6 +5830,11 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   }
   virtual void PrintDataTo(StringStream* stream);
 
+  void SkipWriteBarrier() { write_barrier_mode_ = SKIP_WRITE_BARRIER; }
+  bool IsSkipWriteBarrier() const {
+    return write_barrier_mode_ == SKIP_WRITE_BARRIER;
+  }
+
   HValue* object() { return OperandAt(0); }
   HValue* value() { return OperandAt(1); }
 
@@ -5835,6 +5853,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   bool NeedsWriteBarrier() {
     ASSERT(!(FLAG_track_double_fields && field_representation_.IsDouble()) ||
            transition_.is_null());
+    if (IsSkipWriteBarrier()) return false;
     return (!FLAG_track_fields || !field_representation_.IsSmi()) &&
         // If there is a transition, a new storage object needs to be allocated.
         !(FLAG_track_double_fields && field_representation_.IsDouble()) &&
@@ -5843,6 +5862,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   }
 
   bool NeedsWriteBarrierForMap() {
+    if (IsSkipWriteBarrier()) return false;
     return ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
@@ -5860,6 +5880,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   Handle<Map> transition_;
   UniqueValueId transition_unique_id_;
   HValue* new_space_dominator_;
+  WriteBarrierMode write_barrier_mode_;
 };
 
 

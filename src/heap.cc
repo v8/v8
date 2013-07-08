@@ -2880,6 +2880,16 @@ MaybeObject* Heap::AllocateBox(Object* value, PretenureFlag pretenure) {
 }
 
 
+MaybeObject* Heap::AllocateAllocationSite() {
+  Object* result;
+  MaybeObject* maybe_result = Allocate(allocation_site_map(),
+                                       OLD_POINTER_SPACE);
+  if (!maybe_result->ToObject(&result)) return maybe_result;
+  AllocationSite::cast(result)->Initialize();
+  return result;
+}
+
+
 MaybeObject* Heap::CreateOddball(const char* to_string,
                                  Object* to_number,
                                  byte kind) {
@@ -4186,7 +4196,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 
 
 MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
-    Handle<Object> allocation_site_info_payload) {
+    Handle<AllocationSite> allocation_site) {
   ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(map->instance_type() != MAP_TYPE);
   // If allocation failures are disallowed, we may allocate in a different
@@ -4202,7 +4212,7 @@ MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
   AllocationSiteInfo* alloc_info = reinterpret_cast<AllocationSiteInfo*>(
       reinterpret_cast<Address>(result) + map->instance_size());
   alloc_info->set_map_no_write_barrier(allocation_site_info_map());
-  alloc_info->set_payload(*allocation_site_info_payload, SKIP_WRITE_BARRIER);
+  alloc_info->set_allocation_site(*allocation_site, SKIP_WRITE_BARRIER);
   return result;
 }
 
@@ -4461,7 +4471,7 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
 
 
 MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(Map* map,
-    Handle<Object> allocation_site_info_payload) {
+    Handle<AllocationSite> allocation_site) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
@@ -4486,8 +4496,8 @@ MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(Map* map,
   AllocationSpace space = NEW_SPACE;
   if (map->instance_size() > Page::kMaxNonCodeHeapObjectSize) space = LO_SPACE;
   Object* obj;
-  MaybeObject* maybe_obj = AllocateWithAllocationSite(map, space,
-      allocation_site_info_payload);
+  MaybeObject* maybe_obj =
+      AllocateWithAllocationSite(map, space, allocation_site);
   if (!maybe_obj->To(&obj)) return maybe_obj;
 
   // Initialize the JSObject.
@@ -4523,7 +4533,7 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 
 
 MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
-    Handle<Object> allocation_site_info_payload) {
+    Handle<AllocationSite> allocation_site) {
   // Allocate the initial map if absent.
   if (!constructor->has_initial_map()) {
     Object* initial_map;
@@ -4537,8 +4547,7 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
   // advice
   Map* initial_map = constructor->initial_map();
 
-  Cell* cell = Cell::cast(*allocation_site_info_payload);
-  Smi* smi = Smi::cast(cell->value());
+  Smi* smi = Smi::cast(allocation_site->payload());
   ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
   AllocationSiteMode mode = TRACK_ALLOCATION_SITE;
   if (to_kind != initial_map->elements_kind()) {
@@ -4546,13 +4555,13 @@ MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
     if (!maybe_new_map->To(&initial_map)) return maybe_new_map;
     // Possibly alter the mode, since we found an updated elements kind
     // in the type info cell.
-    mode = AllocationSiteInfo::GetMode(to_kind);
+    mode = AllocationSite::GetMode(to_kind);
   }
 
   MaybeObject* result;
   if (mode == TRACK_ALLOCATION_SITE) {
     result = AllocateJSObjectFromMapWithAllocationSite(initial_map,
-        allocation_site_info_payload);
+        allocation_site);
   } else {
     result = AllocateJSObjectFromMap(initial_map, NOT_TENURED);
   }
@@ -4647,10 +4656,10 @@ MaybeObject* Heap::AllocateJSArrayAndStorageWithAllocationSite(
     ElementsKind elements_kind,
     int length,
     int capacity,
-    Handle<Object> allocation_site_payload,
+    Handle<AllocationSite> allocation_site,
     ArrayStorageAllocationMode mode) {
   MaybeObject* maybe_array = AllocateJSArrayWithAllocationSite(elements_kind,
-      allocation_site_payload);
+      allocation_site);
   JSArray* array;
   if (!maybe_array->To(&array)) return maybe_array;
   return AllocateJSArrayStorage(array, length, capacity, mode);
@@ -4899,7 +4908,9 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
 }
 
 
-MaybeObject* Heap::CopyJSObjectWithAllocationSite(JSObject* source) {
+MaybeObject* Heap::CopyJSObjectWithAllocationSite(
+    JSObject* source,
+    AllocationSite* site) {
   // Never used to copy functions.  If functions need to be copied we
   // have to be careful to clear the literals array.
   SLOW_ASSERT(!source->IsJSFunction());
@@ -4949,7 +4960,7 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(JSObject* source) {
       AllocationSiteInfo* alloc_info;
       if (maybe_alloc_info->To(&alloc_info)) {
         alloc_info->set_map_no_write_barrier(allocation_site_info_map());
-        alloc_info->set_payload(source, SKIP_WRITE_BARRIER);
+        alloc_info->set_allocation_site(site, SKIP_WRITE_BARRIER);
       }
     }
   } else {
@@ -4971,7 +4982,7 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(JSObject* source) {
     AllocationSiteInfo* alloc_info = reinterpret_cast<AllocationSiteInfo*>(
         reinterpret_cast<Address>(clone) + object_size);
     alloc_info->set_map_no_write_barrier(allocation_site_info_map());
-    alloc_info->set_payload(source, SKIP_WRITE_BARRIER);
+    alloc_info->set_allocation_site(site, SKIP_WRITE_BARRIER);
   }
 
   SLOW_ASSERT(
@@ -5388,7 +5399,7 @@ MaybeObject* Heap::AllocateJSArray(
 
 MaybeObject* Heap::AllocateJSArrayWithAllocationSite(
     ElementsKind elements_kind,
-    Handle<Object> allocation_site_info_payload) {
+    Handle<AllocationSite> allocation_site) {
   Context* native_context = isolate()->context()->native_context();
   JSFunction* array_function = native_context->array_function();
   Map* map = array_function->initial_map();
@@ -5400,8 +5411,7 @@ MaybeObject* Heap::AllocateJSArrayWithAllocationSite(
       map = Map::cast(maybe_transitioned_map);
     }
   }
-  return AllocateJSObjectFromMapWithAllocationSite(map,
-      allocation_site_info_payload);
+  return AllocateJSObjectFromMapWithAllocationSite(map, allocation_site);
 }
 
 

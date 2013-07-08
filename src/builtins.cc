@@ -212,8 +212,9 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     if (maybe_array->IsFailure()) return maybe_array;
 
     AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(array);
-    ElementsKind to_kind = array->GetElementsKind();
-    if (info != NULL && info->GetElementsKindPayload(&to_kind)) {
+    if (info != NULL && info->IsValid()) {
+      AllocationSite* site = info->GetAllocationSite();
+      ElementsKind to_kind = site->GetElementsKindPayload();
       if (IsMoreGeneralElementsKindTransition(array->GetElementsKind(),
                                               to_kind)) {
         // We have advice that we should change the elements kind

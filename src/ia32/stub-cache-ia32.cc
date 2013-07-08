@@ -1724,11 +1724,11 @@ Handle<Code> CallStubCompiler::CompileArrayCodeCall(
     GenerateLoadFunctionFromCell(cell, function, &miss);
   }
 
-  Handle<Smi> kind(Smi::FromInt(GetInitialFastElementsKind()), isolate());
-  Handle<Cell> kind_feedback_cell =
-      isolate()->factory()->NewCell(kind);
+  Handle<AllocationSite> site = isolate()->factory()->NewAllocationSite();
+  site->set_payload(Smi::FromInt(GetInitialFastElementsKind()));
+  Handle<Cell> site_feedback_cell = isolate()->factory()->NewCell(site);
   __ mov(eax, Immediate(argc));
-  __ mov(ebx, kind_feedback_cell);
+  __ mov(ebx, site_feedback_cell);
   __ mov(edi, function);
 
   ArrayConstructorStub stub(isolate());

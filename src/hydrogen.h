@@ -1397,6 +1397,7 @@ class HGraphBuilder {
 
   HValue* BuildCloneShallowArray(HContext* context,
                                  HValue* boilerplate,
+                                 HValue* allocation_site,
                                  AllocationSiteMode mode,
                                  ElementsKind kind,
                                  int length);
@@ -1858,12 +1859,14 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   HInstruction* BuildFastLiteral(HValue* context,
                                  Handle<JSObject> boilerplate_object,
                                  Handle<JSObject> original_boilerplate_object,
+                                 Handle<Object> allocation_site,
                                  int data_size,
                                  int pointer_size,
                                  AllocationSiteMode mode);
 
   void BuildEmitDeepCopy(Handle<JSObject> boilerplat_object,
                          Handle<JSObject> object,
+                         Handle<Object> allocation_site,
                          HInstruction* target,
                          int* offset,
                          HInstruction* data_target,

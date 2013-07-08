@@ -676,8 +676,9 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     target_ = oracle->GetCallNewTarget(this);
     Object* value = allocation_info_cell_->value();
     ASSERT(!value->IsTheHole());
-    if (value->IsSmi()) {
-      elements_kind_ = static_cast<ElementsKind>(Smi::cast(value)->value());
+    if (value->IsAllocationSite()) {
+      AllocationSite* site = AllocationSite::cast(value);
+      elements_kind_ = site->GetElementsKindPayload();
     }
   }
 }

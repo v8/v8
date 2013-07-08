@@ -186,13 +186,14 @@ bool TypeFeedbackOracle::StoreIsPolymorphic(TypeFeedbackId ast_id) {
 
 bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
   Handle<Object> value = GetInfo(expr->CallFeedbackId());
-  return value->IsMap() || value->IsSmi() || value->IsJSFunction();
+  return value->IsMap() || value->IsAllocationSite() || value->IsJSFunction() ||
+      value->IsSmi();
 }
 
 
 bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
   Handle<Object> info = GetInfo(expr->CallNewFeedbackId());
-  return info->IsSmi() || info->IsJSFunction();
+  return info->IsAllocationSite() || info->IsJSFunction();
 }
 
 
@@ -302,9 +303,7 @@ CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
 
 Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
   Handle<Object> info = GetInfo(expr->CallFeedbackId());
-  if (info->IsSmi()) {
-    ASSERT(static_cast<ElementsKind>(Smi::cast(*info)->value()) <=
-           LAST_FAST_ELEMENTS_KIND);
+  if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate_->global_context()->array_function());
   } else {
     return Handle<JSFunction>::cast(info);
@@ -314,9 +313,7 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
 
 Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
   Handle<Object> info = GetInfo(expr->CallNewFeedbackId());
-  if (info->IsSmi()) {
-    ASSERT(static_cast<ElementsKind>(Smi::cast(*info)->value()) <=
-           LAST_FAST_ELEMENTS_KIND);
+  if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate_->global_context()->array_function());
   } else {
     return Handle<JSFunction>::cast(info);
@@ -675,6 +672,7 @@ void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
     Cell* cell = cache->GetCell(i);
     Object* value = cell->value();
     if (value->IsSmi() ||
+        value->IsAllocationSite() ||
         (value->IsJSFunction() &&
          !CanRetainOtherContext(JSFunction::cast(value),
                                 *native_context_))) {
