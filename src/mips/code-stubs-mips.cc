@@ -61,6 +61,16 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
 }
 
 
+void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a2 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -3079,6 +3089,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub::GenerateAheadOfTime(isolate);
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
+  CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -4778,20 +4789,17 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
   __ Branch(&done, eq, a3, Operand(a1));
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  __ Branch(&done, eq, a3, Operand(at));
 
-  // Special handling of the Array() function, which caches not only the
-  // monomorphic Array function but the initial ElementsKind with special
-  // sentinels
-  __ JumpIfNotSmi(a3, &miss);
-  if (FLAG_debug_code) {
-    Handle<Object> terminal_kind_sentinel =
-    TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
-                                                LAST_FAST_ELEMENTS_KIND);
-    __ Assert(le, "Array function sentinel is not an ElementsKind",
-              a3, Operand(terminal_kind_sentinel));
-  }
+  // If we came here, we need to see if we are the array function.
+  // If we didn't have a matching function, and we didn't find the megamorph
+  // sentinel, then we have in the cell either some other function or an
+  // AllocationSite. Do a map check on the object in a3.
+  Handle<Map> allocation_site_map(
+      masm->isolate()->heap()->allocation_site_map(),
+      masm->isolate());
+  __ lw(t1, FieldMemOperand(a3, 0));
+  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+  __ Branch(&miss, ne, t1, Operand(at));
 
   // Make sure the function is the Array() function
   __ LoadArrayFunction(a3);
@@ -4818,14 +4826,22 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ LoadArrayFunction(a3);
   __ Branch(&not_array_function, ne, a1, Operand(a3));
 
-  // The target function is the Array constructor, install a sentinel value in
-  // the constructor's type info cell that will track the initial ElementsKind
-  // that should be used for the array when its constructed.
-  Handle<Object> initial_kind_sentinel =
-      TypeFeedbackCells::MonomorphicArraySentinel(masm->isolate(),
-          GetInitialFastElementsKind());
-  __ li(a3, Operand(initial_kind_sentinel));
-  __ sw(a3, FieldMemOperand(a2, Cell::kValueOffset));
+  // The target function is the Array constructor.
+  // Create an AllocationSite if we don't already have it, store it in the cell.
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    const RegList kSavedRegs =
+        1 << 4  |  // a0
+        1 << 5  |  // a1
+        1 << 6;    // a2
+
+    __ MultiPush(kSavedRegs);
+
+    CreateAllocationSiteStub create_stub;
+    __ CallStub(&create_stub);
+
+    __ MultiPop(kSavedRegs);
+  }
   __ Branch(&done);
 
   __ bind(&not_array_function);
@@ -7349,10 +7365,6 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   ASSERT(FAST_DOUBLE_ELEMENTS == 4);
   ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
 
-  Handle<Object> undefined_sentinel(
-      masm->isolate()->heap()->undefined_value(),
-      masm->isolate());
-
   // is the low bit set? If so, we are holey and that is good.
   Label normal_sequence;
   __ And(at, a3, Operand(1));
@@ -7363,17 +7375,19 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   __ Branch(&normal_sequence, eq, t1, Operand(zero_reg));
 
   // We are going to create a holey array, but our kind is non-holey.
-  // Fix kind and retry
+  // Fix kind and retry (only if we have an allocation site in the cell).
   __ Addu(a3, a3, Operand(1));
-  __ Branch(&normal_sequence, eq, a2, Operand(undefined_sentinel));
-
-  // The type cell may have gone megamorphic, don't overwrite if so.
-  __ lw(t1, FieldMemOperand(a2, kPointerSize));
-  __ JumpIfNotSmi(t1, &normal_sequence);
+  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ Branch(&normal_sequence, eq, a2, Operand(at));
+  __ lw(t1, FieldMemOperand(a2, Cell::kValueOffset));
+  __ lw(t1, FieldMemOperand(t1, 0));
+  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+  __ Branch(&normal_sequence, ne, t1, Operand(at));
 
   // Save the resulting elements kind in type info
   __ SmiTag(a3);
-  __ sw(a3, FieldMemOperand(a2, kPointerSize));
+  __ lw(t1, FieldMemOperand(a2, Cell::kValueOffset));
+  __ sw(a3, FieldMemOperand(t1, AllocationSite::kPayloadOffset));
   __ SmiUntag(a3);
 
   __ bind(&normal_sequence);
@@ -7401,7 +7415,7 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(kind);
     stub.GetCode(isolate)->set_is_pregenerated(true);
-    if (AllocationSiteInfo::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
+    if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
       T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
       stub1.GetCode(isolate)->set_is_pregenerated(true);
     }
@@ -7442,10 +7456,6 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   //  -- sp[0] : return address
   //  -- sp[4] : last argument
   // -----------------------------------
-  Handle<Object> undefined_sentinel(
-      masm->isolate()->heap()->undefined_value(),
-      masm->isolate());
-
   if (FLAG_debug_code) {
     // The array construct code is only set for the global and natives
     // builtin Array functions which always have maps.
@@ -7460,10 +7470,11 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Assert(eq, "Unexpected initial map for Array function",
         t0, Operand(MAP_TYPE));
 
-    // We should either have undefined in a2 or a valid cell
+    // We should either have undefined in a2 or a valid cell.
     Label okay_here;
     Handle<Map> cell_map = masm->isolate()->factory()->cell_map();
-    __ Branch(&okay_here, eq, a2, Operand(undefined_sentinel));
+    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    __ Branch(&okay_here, eq, a2, Operand(at));
     __ lw(a3, FieldMemOperand(a2, 0));
     __ Assert(eq, "Expected property cell in register a2",
         a3, Operand(cell_map));
@@ -7472,9 +7483,24 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   Label no_info, switch_ready;
   // Get the elements kind and case on that.
-  __ Branch(&no_info, eq, a2, Operand(undefined_sentinel));
+  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ Branch(&no_info, eq, a2, Operand(at));
   __ lw(a3, FieldMemOperand(a2, Cell::kValueOffset));
-  __ JumpIfNotSmi(a3, &no_info);
+
+  // The type cell may have undefined in its value.
+  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ Branch(&no_info, eq, a3, Operand(at));
+
+  // We should have an allocation site object
+  if (FLAG_debug_code) {
+    __ push(a3);
+    __ sw(a3, FieldMemOperand(a3, 0));
+    __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+    __ Assert(eq, "Expected AllocationSite object in register a3",
+        a3, Operand(at));
+  }
+
+  __ lw(a3, FieldMemOperand(a3, AllocationSite::kPayloadOffset));
   __ SmiUntag(a3);
   __ jmp(&switch_ready);
   __ bind(&no_info);
