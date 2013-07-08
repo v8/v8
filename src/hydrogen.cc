@@ -43,6 +43,7 @@
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
 #include "hydrogen-redundant-phi.h"
+#include "hydrogen-representation-changes.h"
 #include "hydrogen-sce.h"
 #include "hydrogen-uint32-analysis.h"
 #include "lithium-allocator.h"
@@ -2668,141 +2669,6 @@ void HGraph::PropagateMinusZeroChecks(HValue* value, BitVector* visited) {
 }
 
 
-void HGraph::InsertRepresentationChangeForUse(HValue* value,
-                                              HValue* use_value,
-                                              int use_index,
-                                              Representation to) {
-  // Insert the representation change right before its use. For phi-uses we
-  // insert at the end of the corresponding predecessor.
-  HInstruction* next = NULL;
-  if (use_value->IsPhi()) {
-    next = use_value->block()->predecessors()->at(use_index)->end();
-  } else {
-    next = HInstruction::cast(use_value);
-  }
-  // For constants we try to make the representation change at compile
-  // time. When a representation change is not possible without loss of
-  // information we treat constants like normal instructions and insert the
-  // change instructions for them.
-  HInstruction* new_value = NULL;
-  bool is_truncating = use_value->CheckFlag(HValue::kTruncatingToInt32);
-  bool allow_undefined_as_nan =
-      use_value->CheckFlag(HValue::kAllowUndefinedAsNaN);
-  if (value->IsConstant()) {
-    HConstant* constant = HConstant::cast(value);
-    // Try to create a new copy of the constant with the new representation.
-    new_value = (is_truncating && to.IsInteger32())
-        ? constant->CopyToTruncatedInt32(zone())
-        : constant->CopyToRepresentation(to, zone());
-  }
-
-  if (new_value == NULL) {
-    new_value = new(zone()) HChange(value, to,
-                                    is_truncating, allow_undefined_as_nan);
-  }
-
-  new_value->InsertBefore(next);
-  use_value->SetOperandAt(use_index, new_value);
-}
-
-
-void HGraph::InsertRepresentationChangesForValue(HValue* value) {
-  Representation r = value->representation();
-  if (r.IsNone()) return;
-  if (value->HasNoUses()) return;
-
-  for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
-    HValue* use_value = it.value();
-    int use_index = it.index();
-    Representation req = use_value->RequiredInputRepresentation(use_index);
-    if (req.IsNone() || req.Equals(r)) continue;
-    InsertRepresentationChangeForUse(value, use_value, use_index, req);
-  }
-  if (value->HasNoUses()) {
-    ASSERT(value->IsConstant());
-    value->DeleteAndReplaceWith(NULL);
-  }
-
-  // The only purpose of a HForceRepresentation is to represent the value
-  // after the (possible) HChange instruction.  We make it disappear.
-  if (value->IsForceRepresentation()) {
-    value->DeleteAndReplaceWith(HForceRepresentation::cast(value)->value());
-  }
-}
-
-
-void HGraph::InsertRepresentationChanges() {
-  HPhase phase("H_Representation changes", this);
-
-  // Compute truncation flag for phis: Initially assume that all
-  // int32-phis allow truncation and iteratively remove the ones that
-  // are used in an operation that does not allow a truncating
-  // conversion.
-  ZoneList<HPhi*> worklist(8, zone());
-
-  for (int i = 0; i < phi_list()->length(); i++) {
-    HPhi* phi = phi_list()->at(i);
-    if (phi->representation().IsInteger32()) {
-      phi->SetFlag(HValue::kTruncatingToInt32);
-    }
-  }
-
-  for (int i = 0; i < phi_list()->length(); i++) {
-    HPhi* phi = phi_list()->at(i);
-    for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-      // If a Phi is used as a non-truncating int32 or as a double,
-      // clear its "truncating" flag.
-      HValue* use = it.value();
-      Representation input_representation =
-          use->RequiredInputRepresentation(it.index());
-      if (!input_representation.IsInteger32() ||
-          !use->CheckFlag(HValue::kTruncatingToInt32)) {
-        if (FLAG_trace_representation) {
-          PrintF("#%d Phi is not truncating because of #%d %s\n",
-                 phi->id(), it.value()->id(), it.value()->Mnemonic());
-        }
-        phi->ClearFlag(HValue::kTruncatingToInt32);
-        worklist.Add(phi, zone());
-        break;
-      }
-    }
-  }
-
-  while (!worklist.is_empty()) {
-    HPhi* current = worklist.RemoveLast();
-    for (int i = 0; i < current->OperandCount(); ++i) {
-      HValue* input = current->OperandAt(i);
-      if (input->IsPhi() &&
-          input->representation().IsInteger32() &&
-          input->CheckFlag(HValue::kTruncatingToInt32)) {
-        if (FLAG_trace_representation) {
-          PrintF("#%d Phi is not truncating because of #%d %s\n",
-                 input->id(), current->id(), current->Mnemonic());
-        }
-        input->ClearFlag(HValue::kTruncatingToInt32);
-        worklist.Add(HPhi::cast(input), zone());
-      }
-    }
-  }
-
-  for (int i = 0; i < blocks_.length(); ++i) {
-    // Process phi instructions first.
-    const ZoneList<HPhi*>* phis = blocks_[i]->phis();
-    for (int j = 0; j < phis->length(); j++) {
-      InsertRepresentationChangesForValue(phis->at(j));
-    }
-
-    // Process normal instructions.
-    HInstruction* current = blocks_[i]->first();
-    while (current != NULL) {
-      HInstruction* next = current->next();
-      InsertRepresentationChangesForValue(current);
-      current = next;
-    }
-  }
-}
-
-
 void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
   if (!phi->CheckFlag(HValue::kAllowUndefinedAsNaN)) return;
   phi->ClearFlag(HValue::kAllowUndefinedAsNaN);
@@ -3334,7 +3200,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   MergeRemovableSimulates();
 
   MarkDeoptimizeOnUndefined();
-  InsertRepresentationChanges();
+  Run<HRepresentationChangesPhase>();
 
   Run<HInferTypesPhase>();
 

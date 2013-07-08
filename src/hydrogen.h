@@ -293,7 +293,6 @@ class HGraph: public ZoneObject {
   void FinalizeUniqueValueIds();
   void InsertTypeConversions();
   void MergeRemovableSimulates();
-  void InsertRepresentationChanges();
   void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
   bool ProcessArgumentsObject();
@@ -452,11 +451,6 @@ class HGraph: public ZoneObject {
   void InsertTypeConversions(HInstruction* instr);
   void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
   void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
-  void InsertRepresentationChangeForUse(HValue* value,
-                                        HValue* use_value,
-                                        int use_index,
-                                        Representation to);
-  void InsertRepresentationChangesForValue(HValue* value);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
   void SetupInformativeDefinitionsRecursively(HBasicBlock* block);

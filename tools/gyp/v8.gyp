@@ -357,6 +357,8 @@
         '../../src/hydrogen-range-analysis.h',
         '../../src/hydrogen-redundant-phi.cc',
         '../../src/hydrogen-redundant-phi.h',
+        '../../src/hydrogen-representation-changes.cc',
+        '../../src/hydrogen-representation-changes.h',
         '../../src/hydrogen-sce.cc',
         '../../src/hydrogen-sce.h',
         '../../src/hydrogen-uint32-analysis.cc',
