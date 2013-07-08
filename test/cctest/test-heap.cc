@@ -1327,6 +1327,11 @@ TEST(TestInternalWeakLists) {
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i] = v8::Context::New(v8::Isolate::GetCurrent());
 
+    // Collect garbage that might have been created by one of the
+    // installed extensions.
+    isolate->compilation_cache()->Clear();
+    heap->CollectAllGarbage(Heap::kNoGCFlags);
+
     bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
 
     CHECK_EQ(i + 1, CountNativeContexts());
@@ -1388,6 +1393,7 @@ TEST(TestInternalWeakLists) {
   }
 
   // Force compilation cache cleanup.
+  HEAP->NotifyContextDisposed();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   // Dispose the native contexts one by one.
@@ -3010,6 +3016,10 @@ TEST(Regress169209) {
   // is visited before shared function info.
   i::FLAG_harmony_typed_arrays = false;
   i::FLAG_harmony_array_buffer = false;
+
+  // Disable loading the i18n extension which breaks the assumptions of this
+  // test about the heap layout.
+  i::FLAG_enable_i18n = false;
 
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();
