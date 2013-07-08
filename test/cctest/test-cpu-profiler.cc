@@ -40,6 +40,7 @@ using i::CodeEntry;
 using i::CpuProfile;
 using i::CpuProfiler;
 using i::CpuProfilesCollection;
+using i::Heap;
 using i::ProfileGenerator;
 using i::ProfileNode;
 using i::ProfilerEventsProcessor;
@@ -994,6 +995,9 @@ static const char* call_function_test_source = "function bar(iterations) {\n"
 TEST(FunctionCallSample) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
+
+  // Collect garbage that might have be generated while installing extensions.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   v8::Script::Compile(v8::String::New(call_function_test_source))->Run();
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
