@@ -301,7 +301,6 @@ class HGraph: public ZoneObject {
   void OrderBlocks();
   void AssignDominators();
   void SetupInformativeDefinitions();
-  void EliminateRedundantBoundsChecks();
   void DehoistSimpleArrayIndexComputations();
   void RestoreActualValues();
   void PropagateDeoptimizingMark();
@@ -461,7 +460,6 @@ class HGraph: public ZoneObject {
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
   void SetupInformativeDefinitionsRecursively(HBasicBlock* block);
-  void EliminateRedundantBoundsChecks(HBasicBlock* bb, BoundsCheckTable* table);
 
   Isolate* isolate_;
   int next_block_id_;
