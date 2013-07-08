@@ -7465,31 +7465,30 @@ enum AllocationSiteMode {
 
 class AllocationSite: public Struct {
  public:
-  static const int kPayloadOffset = HeapObject::kHeaderSize;
-  static const int kSize = kPayloadOffset + kPointerSize;
+  static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
+  static const int kSize = kTransitionInfoOffset + kPointerSize;
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
-  // TODO(mvstanton): rename payload to transition_info.
-  DECL_ACCESSORS(payload, Object)
+  DECL_ACCESSORS(transition_info, Object)
 
   void Initialize() {
-    SetElementsKindPayload(GetInitialFastElementsKind());
+    SetElementsKind(GetInitialFastElementsKind());
   }
 
-  ElementsKind GetElementsKindPayload() {
+  ElementsKind GetElementsKind() {
     ASSERT(!IsLiteralSite());
-    return static_cast<ElementsKind>(Smi::cast(payload())->value());
+    return static_cast<ElementsKind>(Smi::cast(transition_info())->value());
   }
 
-  void SetElementsKindPayload(ElementsKind kind) {
-    set_payload(Smi::FromInt(static_cast<int>(kind)));
+  void SetElementsKind(ElementsKind kind) {
+    set_transition_info(Smi::FromInt(static_cast<int>(kind)));
   }
 
   bool IsLiteralSite() {
-    // If the payload is a smi, then it represents an ElementsKind
+    // If transition_info is a smi, then it represents an ElementsKind
     // for a constructed array. Otherwise, it must be a boilerplate
     // for an array literal
-    return payload()->IsJSArray();
+    return transition_info()->IsJSArray();
   }
 
   DECLARE_PRINTER(AllocationSite)

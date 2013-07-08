@@ -6566,7 +6566,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
 
   // Save the resulting elements kind in type info
   __ Integer32ToSmi(rdx, rdx);
-  __ movq(FieldOperand(rcx, AllocationSite::kPayloadOffset), rdx);
+  __ movq(FieldOperand(rcx, AllocationSite::kTransitionInfoOffset), rdx);
   __ SmiToInteger32(rdx, rdx);
 
   __ bind(&normal_sequence);
@@ -6678,7 +6678,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
          Handle<Map>(masm->isolate()->heap()->allocation_site_map()));
   __ j(not_equal, &no_info);
 
-  __ movq(rdx, FieldOperand(rdx, AllocationSite::kPayloadOffset));
+  __ movq(rdx, FieldOperand(rdx, AllocationSite::kTransitionInfoOffset));
   __ SmiToInteger32(rdx, rdx);
   __ jmp(&switch_ready);
   __ bind(&no_info);

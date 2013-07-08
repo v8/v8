@@ -5347,8 +5347,8 @@ class HObjectAccess {
     return HObjectAccess(kArrayLengths, JSArray::kLengthOffset);
   }
 
-  static HObjectAccess ForAllocationSitePayload() {
-    return HObjectAccess(kInobject, AllocationSite::kPayloadOffset);
+  static HObjectAccess ForAllocationSiteTransitionInfo() {
+    return HObjectAccess(kInobject, AllocationSite::kTransitionInfoOffset);
   }
 
   static HObjectAccess ForFixedArrayLength() {

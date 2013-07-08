@@ -1642,7 +1642,7 @@ Handle<Code> CallStubCompiler::CompileArrayCodeCall(
   }
 
   Handle<AllocationSite> site = isolate()->factory()->NewAllocationSite();
-  site->set_payload(Smi::FromInt(GetInitialFastElementsKind()));
+  site->set_transition_info(Smi::FromInt(GetInitialFastElementsKind()));
   Handle<Cell> site_feedback_cell = isolate()->factory()->NewCell(site);
   __ movq(rax, Immediate(argc));
   __ Move(rbx, site_feedback_cell);

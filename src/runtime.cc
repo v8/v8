@@ -515,7 +515,7 @@ static Handle<AllocationSite> GetLiteralAllocationSite(
         Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
     if (boilerplate.is_null()) return site;
     site = isolate->factory()->NewAllocationSite();
-    site->set_payload(*boilerplate);
+    site->set_transition_info(*boilerplate);
     literals->set(literals_index, *site);
   } else {
     site = Handle<AllocationSite>::cast(literal_site);
@@ -536,7 +536,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
       literals_index, elements);
   RETURN_IF_EMPTY_HANDLE(isolate, site);
 
-  JSObject* boilerplate = JSObject::cast(site->payload());
+  JSObject* boilerplate = JSObject::cast(site->transition_info());
   return boilerplate->DeepCopy(isolate);
 }
 
@@ -552,7 +552,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
       literals_index, elements);
   RETURN_IF_EMPTY_HANDLE(isolate, site);
 
-  JSObject* boilerplate = JSObject::cast(site->payload());
+  JSObject* boilerplate = JSObject::cast(site->transition_info());
   if (boilerplate->elements()->map() ==
       isolate->heap()->fixed_cow_array_map()) {
     isolate->counters()->cow_arrays_created_runtime()->Increment();
@@ -5221,7 +5221,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
   JSArray* boilerplate = NULL;
   if (raw_literal_cell->IsAllocationSite()) {
     AllocationSite* site = AllocationSite::cast(raw_literal_cell);
-    boilerplate = JSArray::cast(site->payload());
+    boilerplate = JSArray::cast(site->transition_info());
   } else {
     boilerplate = JSArray::cast(raw_literal_cell);
   }
@@ -13845,11 +13845,11 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
     Handle<AllocationSite> site = Handle<AllocationSite>(
         AllocationSite::cast(cell->value()), isolate);
     ASSERT(!site->IsLiteralSite());
-    ElementsKind to_kind = site->GetElementsKindPayload();
+    ElementsKind to_kind = site->GetElementsKind();
     if (holey && !IsFastHoleyElementsKind(to_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
       // Update the allocation site info to reflect the advice alteration.
-      site->SetElementsKindPayload(to_kind);
+      site->SetElementsKind(to_kind);
     }
 
     maybe_array = isolate->heap()->AllocateJSObjectWithAllocationSite(

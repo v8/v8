@@ -4650,7 +4650,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     }
 
     site = isolate()->factory()->NewAllocationSite();
-    site->set_payload(*raw_boilerplate);
+    site->set_transition_info(*raw_boilerplate);
     literals->set(expr->literal_index(), *site);
 
     if (JSObject::cast(*raw_boilerplate)->elements()->map() ==
@@ -4660,7 +4660,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   } else {
     ASSERT(literals_cell->IsAllocationSite());
     site = Handle<AllocationSite>::cast(literals_cell);
-    raw_boilerplate = Handle<Object>(site->payload(), isolate());
+    raw_boilerplate = Handle<Object>(site->transition_info(), isolate());
   }
 
   ASSERT(!raw_boilerplate.is_null());

@@ -678,7 +678,7 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     ASSERT(!value->IsTheHole());
     if (value->IsAllocationSite()) {
       AllocationSite* site = AllocationSite::cast(value);
-      elements_kind_ = site->GetElementsKindPayload();
+      elements_kind_ = site->GetElementsKind();
     }
   }
 }

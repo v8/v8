@@ -6973,7 +6973,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   // Save the resulting elements kind in type info
   __ SmiTag(r3);
   __ ldr(r5, FieldMemOperand(r2, Cell::kValueOffset));
-  __ str(r3, FieldMemOperand(r5, AllocationSite::kPayloadOffset));
+  __ str(r3, FieldMemOperand(r5, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(r3);
 
   __ bind(&normal_sequence);
@@ -7081,7 +7081,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ CompareRoot(r4, Heap::kAllocationSiteMapRootIndex);
   __ b(ne, &no_info);
 
-  __ ldr(r3, FieldMemOperand(r3, AllocationSite::kPayloadOffset));
+  __ ldr(r3, FieldMemOperand(r3, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(r3);
   __ jmp(&switch_ready);
   __ bind(&no_info);
