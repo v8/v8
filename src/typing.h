@@ -68,6 +68,12 @@ class AstTyper: public AstVisitor {
   void MergeUpperType(Expression* e, Handle<Type> t) {
     e->set_upper_type(handle(Type::Intersect(e->upper_type(), t), isolate_));
   }
+  void MergeLowerType(Expression* e, Type* t) {
+    MergeLowerType(e, handle(t, isolate_));
+  }
+  void MergeUpperType(Expression* e, Type* t) {
+    MergeUpperType(e, handle(t, isolate_));
+  }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void VisitStatements(ZoneList<Statement*>* statements);
