@@ -182,6 +182,7 @@ static inline bool CalledAsConstructor(Isolate* isolate) {
   return result;
 }
 
+
 // ----------------------------------------------------------------------------
 
 BUILTIN(Illegal) {
@@ -1153,6 +1154,7 @@ BUILTIN(StrictModePoisonPill) {
       "strict_poison_pill", HandleVector<Object>(NULL, 0)));
 }
 
+
 // -----------------------------------------------------------------------------
 //
 
@@ -1432,13 +1434,16 @@ static void Generate_KeyedLoadIC_PreMonomorphic(MacroAssembler* masm) {
   KeyedLoadIC::GeneratePreMonomorphic(masm);
 }
 
+
 static void Generate_KeyedLoadIC_IndexedInterceptor(MacroAssembler* masm) {
   KeyedLoadIC::GenerateIndexedInterceptor(masm);
 }
 
+
 static void Generate_KeyedLoadIC_NonStrictArguments(MacroAssembler* masm) {
   KeyedLoadIC::GenerateNonStrictArguments(masm);
 }
+
 
 static void Generate_StoreIC_Slow(MacroAssembler* masm) {
   StoreIC::GenerateSlow(masm);
@@ -1539,13 +1544,16 @@ static void Generate_KeyedStoreIC_Initialize_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateInitialize(masm);
 }
 
+
 static void Generate_KeyedStoreIC_NonStrictArguments(MacroAssembler* masm) {
   KeyedStoreIC::GenerateNonStrictArguments(masm);
 }
 
+
 static void Generate_TransitionElementsSmiToDouble(MacroAssembler* masm) {
   KeyedStoreIC::GenerateTransitionElementsSmiToDouble(masm);
 }
+
 
 static void Generate_TransitionElementsDoubleToObject(MacroAssembler* masm) {
   KeyedStoreIC::GenerateTransitionElementsDoubleToObject(masm);
@@ -1715,6 +1723,7 @@ void Builtins::InitBuiltinFunctionTable() {
 #undef DEF_FUNCTION_PTR_C
 #undef DEF_FUNCTION_PTR_A
 }
+
 
 void Builtins::SetUp(bool create_heap_objects) {
   ASSERT(!initialized_);

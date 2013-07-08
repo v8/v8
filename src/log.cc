@@ -491,6 +491,7 @@ void Logger::IssueAddCodeLinePosInfoEvent(
   code_event_handler_(&event);
 }
 
+
 void* Logger::IssueStartCodePosInfoEvent() {
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
@@ -499,6 +500,7 @@ void* Logger::IssueStartCodePosInfoEvent() {
   code_event_handler_(&event);
   return event.user_data;
 }
+
 
 void Logger::IssueEndCodePosInfoEvent(Code* code, void* jit_handler_data) {
   JitCodeEvent event;
@@ -827,6 +829,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   ApiEvent("api,%s,\"%s\",%u\n", tag, *class_name, index);
 }
+
 
 void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
@@ -1206,6 +1209,7 @@ void Logger::CodeLinePosInfoAddStatementPositionEvent(void* jit_handler_data,
   }
 }
 
+
 void Logger::CodeStartLinePosInfoRecordEvent(PositionsRecorder* pos_recorder) {
   if (code_event_handler_ != NULL) {
       pos_recorder->AttachJITHandlerData(IssueStartCodePosInfoEvent());
@@ -1218,6 +1222,7 @@ void Logger::CodeEndLinePosInfoRecordEvent(Code* code,
     IssueEndCodePosInfoEvent(code, jit_handler_data);
   }
 }
+
 
 void Logger::SnapshotPositionEvent(Address addr, int pos) {
   if (!log_->IsEnabled()) return;
@@ -1654,15 +1659,15 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
   Handle<String> func_name(shared->DebugName());
   if (shared->script()->IsScript()) {
     Handle<Script> script(Script::cast(shared->script()));
+    int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
     if (script->name()->IsString()) {
       Handle<String> script_name(String::cast(script->name()));
-      int line_num = GetScriptLineNumber(script, shared->start_position());
       if (line_num > 0) {
         PROFILE(isolate_,
                 CodeCreateEvent(
                     Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
                     *code, *shared, NULL,
-                    *script_name, line_num + 1));
+                    *script_name, line_num));
       } else {
         // Can't distinguish eval and script here, so always use Script.
         PROFILE(isolate_,
@@ -1674,7 +1679,8 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       PROFILE(isolate_,
               CodeCreateEvent(
                   Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
-                  *code, *shared, NULL, *func_name));
+                  *code, *shared, NULL,
+                  isolate_->heap()->empty_string(), line_num));
     }
   } else if (shared->IsApiFunction()) {
     // API function.

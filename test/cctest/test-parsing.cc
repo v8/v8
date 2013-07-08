@@ -633,6 +633,7 @@ void TestStreamScanner(i::Utf16CharacterStream* stream,
   } while (expected_tokens[i] != i::Token::ILLEGAL);
 }
 
+
 TEST(StreamScanner) {
   v8::V8::Initialize();
 

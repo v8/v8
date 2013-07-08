@@ -201,7 +201,7 @@ void LBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCmpIDAndBranch::PrintDataTo(StringStream* stream) {
+void LCompareNumericAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if ");
   left()->PrintTo(stream);
   stream->Add(" %s ", Token::String(op()));
@@ -1578,7 +1578,17 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     }
     return DefineSameAsFirst(mul);
   } else if (instr->representation().IsDouble()) {
-    return DoArithmeticD(Token::MUL, instr);
+    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+      return DoArithmeticD(Token::MUL, instr);
+    }
+    ASSERT(instr->right()->IsConstant() &&
+           static_cast<HConstant*>(instr->right())->DoubleValue() == -1);
+    // TODO(olivf) This is currently just a hack to support the UnaryOp Minus
+    // Stub. This will go away once we can use more than one X87 register,
+    // thus fully support binary instructions without SSE2.
+    LOperand* left = UseX87TopOfStack(instr->left());
+    LNegateNoSSE2D* result = new(zone()) LNegateNoSSE2D(left);
+    return DefineX87TOS(result);
   } else {
     ASSERT(instr->representation().IsSmiOrTagged());
     return DoArithmeticT(Token::MUL, instr);
@@ -1695,8 +1705,8 @@ LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompareIDAndBranch(
-    HCompareIDAndBranch* instr) {
+LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
+    HCompareNumericAndBranch* instr) {
   Representation r = instr->representation();
   if (r.IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().IsSmiOrInteger32());
@@ -1704,7 +1714,7 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
         instr->right()->representation()));
     LOperand* left = UseRegisterOrConstantAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
-    return new(zone()) LCmpIDAndBranch(left, right);
+    return new(zone()) LCompareNumericAndBranch(left, right);
   } else {
     ASSERT(r.IsDouble());
     ASSERT(instr->left()->representation().IsDouble());
@@ -1718,7 +1728,7 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
       left = UseRegisterAtStart(instr->left());
       right = UseRegisterAtStart(instr->right());
     }
-    return new(zone()) LCmpIDAndBranch(left, right);
+    return new(zone()) LCompareNumericAndBranch(left, right);
   }
 }
 
@@ -2035,6 +2045,18 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
   LOperand* value = UseAtStart(instr->value());
   return AssignEnvironment(new(zone()) LCheckNonSmi(value));
+}
+
+
+LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new(zone()) LCheckSmi(value));
+}
+
+
+LInstruction* LChunkBuilder::DoIsNumberAndBranch(HIsNumberAndBranch* instr) {
+  return new(zone())
+    LIsNumberAndBranch(UseRegisterOrConstantAtStart(instr->value()));
 }
 
 

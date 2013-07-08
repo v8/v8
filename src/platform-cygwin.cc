@@ -67,6 +67,7 @@ void OS::PostSetUp() {
   POSIXPostSetUp();
 }
 
+
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
   return 0;  // Nothing special about Cygwin.
 }

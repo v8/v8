@@ -1668,7 +1668,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   ASSERT(!lookup->IsHandler());
 
   Handle<Code> code = ComputeStoreMonomorphic(
-      lookup, strict_mode, receiver, name);
+      lookup, strict_mode, receiver, name, value);
   if (code.is_null()) {
     Handle<Code> stub = strict_mode == kStrictMode
         ? generic_stub_strict() : generic_stub();
@@ -1684,7 +1684,8 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
                                               StrictModeFlag strict_mode,
                                               Handle<JSObject> receiver,
-                                              Handle<String> name) {
+                                              Handle<String> name,
+                                              Handle<Object> value) {
   Handle<JSObject> holder(lookup->holder());
   switch (lookup->type()) {
     case FIELD:
@@ -1699,7 +1700,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
         return isolate()->stub_cache()->ComputeStoreGlobal(
-            name, global, cell, strict_mode);
+            name, global, cell, value, strict_mode);
       }
       ASSERT(holder.is_identical_to(receiver));
       return isolate()->stub_cache()->ComputeStoreNormal(strict_mode);
@@ -2093,7 +2094,8 @@ MaybeObject* KeyedStoreIC::Store(State state,
 Handle<Code> KeyedStoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
                                                    StrictModeFlag strict_mode,
                                                    Handle<JSObject> receiver,
-                                                   Handle<String> name) {
+                                                   Handle<String> name,
+                                                   Handle<Object> value) {
   // If the property has a non-field type allowing map transitions
   // where there is extra room in the object, we leave the IC in its
   // current state.
@@ -2235,6 +2237,20 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
+  return ic.Store(state,
+                  Code::GetStrictMode(extra_ic_state),
+                  args.at<Object>(0),
+                  args.at<String>(1),
+                  args.at<Object>(2));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  StoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   return ic.Store(state,
@@ -2401,86 +2417,6 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
 }
 
 
-void UnaryOpIC::patch(Code* code) {
-  set_target(code);
-}
-
-
-const char* UnaryOpIC::GetName(TypeInfo type_info) {
-  switch (type_info) {
-    case UNINITIALIZED: return "Uninitialized";
-    case SMI: return "Smi";
-    case NUMBER: return "Number";
-    case GENERIC: return "Generic";
-    default: return "Invalid";
-  }
-}
-
-
-UnaryOpIC::State UnaryOpIC::ToState(TypeInfo type_info) {
-  switch (type_info) {
-    case UNINITIALIZED:
-      return v8::internal::UNINITIALIZED;
-    case SMI:
-    case NUMBER:
-      return MONOMORPHIC;
-    case GENERIC:
-      return v8::internal::GENERIC;
-  }
-  UNREACHABLE();
-  return v8::internal::UNINITIALIZED;
-}
-
-
-Handle<Type> UnaryOpIC::TypeInfoToType(TypeInfo type_info, Isolate* isolate) {
-  switch (type_info) {
-    case UNINITIALIZED:
-      return handle(Type::None(), isolate);
-    case SMI:
-      return handle(Type::Smi(), isolate);
-    case NUMBER:
-      return handle(Type::Number(), isolate);
-    case GENERIC:
-      return handle(Type::Any(), isolate);
-  }
-  UNREACHABLE();
-  return handle(Type::Any(), isolate);
-}
-
-
-UnaryOpIC::TypeInfo UnaryOpIC::GetTypeInfo(Handle<Object> operand) {
-  v8::internal::TypeInfo operand_type =
-      v8::internal::TypeInfo::FromValue(operand);
-  if (operand_type.IsSmi()) {
-    return SMI;
-  } else if (operand_type.IsNumber()) {
-    return NUMBER;
-  } else {
-    return GENERIC;
-  }
-}
-
-
-UnaryOpIC::TypeInfo UnaryOpIC::ComputeNewType(
-    TypeInfo current_type,
-    TypeInfo previous_type) {
-  switch (previous_type) {
-    case UNINITIALIZED:
-      return current_type;
-    case SMI:
-      return (current_type == GENERIC) ? GENERIC : NUMBER;
-    case NUMBER:
-      return GENERIC;
-    case GENERIC:
-      // We should never do patching if we are in GENERIC state.
-      UNREACHABLE();
-      return GENERIC;
-  }
-  UNREACHABLE();
-  return GENERIC;
-}
-
-
 void BinaryOpIC::patch(Code* code) {
   set_target(code);
 }
@@ -2558,57 +2494,24 @@ void BinaryOpIC::StubInfoToType(int minor_key,
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
-  ASSERT(args.length() == 4);
+MaybeObject* UnaryOpIC::Transition(Handle<Object> object) {
+  Code::ExtraICState extra_ic_state = target()->extended_extra_ic_state();
+  UnaryOpStub stub(extra_ic_state);
 
+  stub.UpdateStatus(object);
+
+  Handle<Code> code = stub.GetCode(isolate());
+  set_target(*code);
+
+  return stub.Result(object, isolate());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, UnaryOpIC_Miss) {
   HandleScope scope(isolate);
-  Handle<Object> operand = args.at<Object>(0);
-  Token::Value op = static_cast<Token::Value>(args.smi_at(1));
-  UnaryOverwriteMode mode = static_cast<UnaryOverwriteMode>(args.smi_at(2));
-  UnaryOpIC::TypeInfo previous_type =
-      static_cast<UnaryOpIC::TypeInfo>(args.smi_at(3));
-
-  UnaryOpIC::TypeInfo type = UnaryOpIC::GetTypeInfo(operand);
-  type = UnaryOpIC::ComputeNewType(type, previous_type);
-
-  UnaryOpStub stub(op, mode, type);
-  Handle<Code> code = stub.GetCode(isolate);
-  if (!code.is_null()) {
-    if (FLAG_trace_ic) {
-      PrintF("[UnaryOpIC in ");
-      JavaScriptFrame::PrintTop(isolate, stdout, false, true);
-      PrintF(" %s => %s #%s @ %p]\n",
-             UnaryOpIC::GetName(previous_type),
-             UnaryOpIC::GetName(type),
-             Token::Name(op),
-             static_cast<void*>(*code));
-    }
-    UnaryOpIC ic(isolate);
-    ic.patch(*code);
-  }
-
-  Handle<JSBuiltinsObject> builtins(isolate->js_builtins_object());
-  Object* builtin = NULL;  // Initialization calms down the compiler.
-  switch (op) {
-    case Token::SUB:
-      builtin = builtins->javascript_builtin(Builtins::UNARY_MINUS);
-      break;
-    case Token::BIT_NOT:
-      builtin = builtins->javascript_builtin(Builtins::BIT_NOT);
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  Handle<JSFunction> builtin_function(JSFunction::cast(builtin), isolate);
-
-  bool caught_exception;
-  Handle<Object> result = Execution::Call(builtin_function, operand, 0, NULL,
-                                          &caught_exception);
-  if (caught_exception) {
-    return Failure::Exception();
-  }
-  return *result;
+  Handle<Object> object = args.at<Object>(0);
+  UnaryOpIC ic(isolate);
+  return ic.Transition(object);
 }
 
 
@@ -3069,9 +2972,7 @@ MaybeObject* CompareNilIC::CompareNil(Handle<Object> object) {
   // types must be supported as a result of the miss.
   bool already_monomorphic = stub.IsMonomorphic();
 
-  CompareNilICStub::State old_state = stub.GetState();
-  stub.Record(object);
-  old_state.TraceTransition(stub.GetState());
+  stub.UpdateStatus(object);
 
   NilValue nil = stub.GetNilValue();
 
@@ -3108,7 +3009,7 @@ RUNTIME_FUNCTION(MaybeObject*, Unreachable) {
 MaybeObject* ToBooleanIC::ToBoolean(Handle<Object> object,
                                     Code::ExtraICState extra_ic_state) {
   ToBooleanStub stub(extra_ic_state);
-  bool to_boolean_value = stub.Record(object);
+  bool to_boolean_value = stub.UpdateStatus(object);
   Handle<Code> code = stub.GetCode(isolate());
   set_target(*code);
   return Smi::FromInt(to_boolean_value ? 1 : 0);

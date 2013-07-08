@@ -1884,9 +1884,6 @@ class BinaryOperation: public Expression {
   BailoutId RightId() const { return right_id_; }
 
   TypeFeedbackId BinaryOperationFeedbackId() const { return reuse(id()); }
-  // TODO(rossberg): result_type should be subsumed by lower_type.
-  Handle<Type> result_type() const { return result_type_; }
-  void set_result_type(Handle<Type> type) { result_type_ = type; }
   Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
   void set_fixed_right_arg(Maybe<int> arg) { fixed_right_arg_ = arg; }
 
@@ -1913,7 +1910,6 @@ class BinaryOperation: public Expression {
   Expression* right_;
   int pos_;
 
-  Handle<Type> result_type_;
   // TODO(rossberg): the fixed arg should probably be represented as a Constant
   // type for the RHS.
   Maybe<int> fixed_right_arg_;

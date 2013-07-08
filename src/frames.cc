@@ -202,6 +202,7 @@ void StackTraceFrameIterator::Advance() {
   }
 }
 
+
 bool StackTraceFrameIterator::IsValidFrame() {
     if (!frame()->function()->IsJSFunction()) return false;
     Object* script = JSFunction::cast(frame()->function())->shared()->script();
@@ -1568,6 +1569,7 @@ void SetUpJSCallerSavedCodeData() {
   ASSERT(i == kNumJSCallerSaved);
 }
 
+
 int JSCallerSavedCode(int n) {
   ASSERT(0 <= n && n < kNumJSCallerSaved);
   return caller_saved_code_data.reg_code[n];
@@ -1599,6 +1601,7 @@ static StackFrame* AllocateFrameCopy(StackFrame* frame, Zone* zone) {
 #undef FRAME_TYPE_CASE
   return NULL;
 }
+
 
 Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone) {
   ZoneList<StackFrame*> list(10, zone);

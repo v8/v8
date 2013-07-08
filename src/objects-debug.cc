@@ -755,6 +755,7 @@ void JSFunctionProxy::JSFunctionProxyVerify() {
   VerifyPointer(construct_trap());
 }
 
+
 void JSArrayBuffer::JSArrayBufferVerify() {
   CHECK(IsJSArrayBuffer());
   JSObjectVerify();
@@ -874,6 +875,7 @@ void TemplateInfo::TemplateInfoVerify() {
   VerifyPointer(tag());
   VerifyPointer(property_list());
 }
+
 
 void FunctionTemplateInfo::FunctionTemplateInfoVerify() {
   CHECK(IsFunctionTemplateInfo());
@@ -1069,6 +1071,7 @@ void JSObject::SpillInformation::Clear() {
   number_of_slow_used_elements_ = 0;
   number_of_slow_unused_elements_ = 0;
 }
+
 
 void JSObject::SpillInformation::Print() {
   PrintF("\n  JSObject Spill Statistics (#%d):\n", number_of_objects_);

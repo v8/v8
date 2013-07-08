@@ -720,6 +720,7 @@ bool OpenBSDSemaphore::Wait(int timeout) {
   }
 }
 
+
 Semaphore* OS::CreateSemaphore(int count) {
   return new OpenBSDSemaphore(count);
 }

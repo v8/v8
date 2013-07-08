@@ -261,6 +261,7 @@ namespace internal {
   V(map_field_string, "%map")                                            \
   V(elements_field_string, "%elements")                                  \
   V(length_field_string, "%length")                                      \
+  V(cell_value_string, "%cell_value")                                    \
   V(function_class_string, "Function")                                   \
   V(properties_field_symbol, "%properties")                              \
   V(payload_field_symbol, "%payload")                                    \
@@ -1811,6 +1812,8 @@ class Heap {
 
   void QueueMemoryChunkForFree(MemoryChunk* chunk);
   void FreeQueuedChunks();
+
+  int gc_count() const { return gc_count_; }
 
   // Completely clear the Instanceof cache (to stop it keeping objects alive
   // around a GC).

@@ -668,6 +668,7 @@ Sampler::~Sampler() {
   delete data_;
 }
 
+
 void Sampler::Start() {
   ASSERT(!IsActive());
   SetActive(true);
@@ -680,6 +681,7 @@ void Sampler::Stop() {
   SamplerThread::RemoveActiveSampler(this);
   SetActive(false);
 }
+
 
 void Sampler::SampleStack(const RegisterState& state) {
   TickSample* sample = isolate_->cpu_profiler()->TickSampleEvent();

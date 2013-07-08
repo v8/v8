@@ -73,7 +73,7 @@ var kMessages = {
   invalid_in_operator_use:       ["Cannot use 'in' operator to search for '", "%0", "' in ", "%1"],
   instanceof_function_expected:  ["Expecting a function in instanceof check, but got ", "%0"],
   instanceof_nonobject_proto:    ["Function has non-object prototype '", "%0", "' in instanceof check"],
-  null_to_object:                ["Cannot convert null to object"],
+  undefined_or_null_to_object:   ["Cannot convert undefined or null to object"],
   reduce_no_initial:             ["Reduce of empty array with no initial value"],
   getter_must_be_callable:       ["Getter must be a function: ", "%0"],
   setter_must_be_callable:       ["Setter must be a function: ", "%0"],

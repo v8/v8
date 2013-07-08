@@ -120,6 +120,7 @@ UnaryMathFunction CreateSqrtFunction() {
   return &sqrt;
 }
 
+
 // -------------------------------------------------------------------------
 // Platform-specific RuntimeCallHelper functions.
 
@@ -135,6 +136,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
   ASSERT(masm->has_frame());
   masm->set_has_frame(false);
 }
+
 
 // -------------------------------------------------------------------------
 // Code generators

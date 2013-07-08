@@ -90,6 +90,7 @@ namespace internal {
   V(ArrayConstructor)                    \
   V(InternalArrayConstructor)            \
   V(ProfileEntryHook)                    \
+  V(StoreGlobal)                         \
   /* IC Handler stubs */                 \
   V(LoadField)                           \
   V(KeyedLoadField)
@@ -123,8 +124,6 @@ namespace internal {
 
 // Mode to overwrite BinaryExpression values.
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
-enum UnaryOverwriteMode { UNARY_OVERWRITE, UNARY_NO_OVERWRITE };
-
 
 // Stub is base classes of all stubs.
 class CodeStub BASE_EMBEDDED {
@@ -140,6 +139,8 @@ class CodeStub BASE_EMBEDDED {
   // Retrieve the code for the stub. Generate the code if needed.
   Handle<Code> GetCode(Isolate* isolate);
 
+  // Retrieve the code for the stub, make and return a copy of the code.
+  Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate);
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));
   }
@@ -197,6 +198,8 @@ class CodeStub BASE_EMBEDDED {
     return -1;
   }
 
+  virtual void PrintName(StringStream* stream);
+
  protected:
   static bool CanUseFPRegisters();
 
@@ -207,6 +210,11 @@ class CodeStub BASE_EMBEDDED {
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.
   virtual bool NeedsImmovableCode() { return false; }
+
+  // Returns a name for logging/debugging purposes.
+  SmartArrayPointer<const char> GetName();
+  virtual void PrintBaseName(StringStream* stream);
+  virtual void PrintState(StringStream* stream) { }
 
  private:
   // Perform bookkeeping required after code generation when stub code is
@@ -235,10 +243,6 @@ class CodeStub BASE_EMBEDDED {
 
   // If a stub uses a special cache override this.
   virtual bool UseSpecialCache() { return false; }
-
-  // Returns a name for logging/debugging purposes.
-  SmartArrayPointer<const char> GetName();
-  virtual void PrintName(StringStream* stream);
 
   // Computes the key based on major and minor.
   uint32_t GetKey() {
@@ -353,6 +357,9 @@ class HydrogenCodeStub : public CodeStub {
   virtual int NotMissMinorKey() = 0;
 
   Handle<Code> GenerateLightweightMissCode(Isolate* isolate);
+
+  template<class StateType>
+  void TraceTransition(StateType from, StateType to);
 
  private:
   class MinorKeyBits: public BitField<int, 0, kStubMinorKeyBits - 1> {};
@@ -517,6 +524,117 @@ class FastNewBlockContextStub : public PlatformCodeStub {
 
   Major MajorKey() { return FastNewBlockContext; }
   int MinorKey() { return slots_; }
+};
+
+class StoreGlobalStub : public HydrogenCodeStub {
+ public:
+  StoreGlobalStub(StrictModeFlag strict_mode, bool is_constant) {
+    bit_field_ = StrictModeBits::encode(strict_mode) |
+        IsConstantBits::encode(is_constant);
+  }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+  virtual Code::Kind GetCodeKind() const { return Code::STORE_IC; }
+  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
+  virtual Code::ExtraICState GetExtraICState() { return bit_field_; }
+
+  bool is_constant() {
+    return IsConstantBits::decode(bit_field_);
+  }
+  void set_is_constant(bool value) {
+    bit_field_ = IsConstantBits::update(bit_field_, value);
+  }
+
+  Representation representation() {
+    return Representation::FromKind(RepresentationBits::decode(bit_field_));
+  }
+  void set_representation(Representation r) {
+    bit_field_ = RepresentationBits::update(bit_field_, r.kind());
+  }
+
+ private:
+  virtual int NotMissMinorKey() { return GetExtraICState(); }
+  Major MajorKey() { return StoreGlobal; }
+
+  class StrictModeBits: public BitField<StrictModeFlag, 0, 1> {};
+  class IsConstantBits: public BitField<bool, 1, 1> {};
+  class RepresentationBits: public BitField<Representation::Kind, 2, 8> {};
+
+  int bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(StoreGlobalStub);
+};
+
+
+class UnaryOpStub : public HydrogenCodeStub {
+ public:
+  // Stub without type info available -> construct uninitialized
+  explicit UnaryOpStub(Token::Value operation)
+      : HydrogenCodeStub(UNINITIALIZED), operation_(operation) { }
+  explicit UnaryOpStub(Code::ExtraICState ic_state) :
+      state_(StateBits::decode(ic_state)),
+      operation_(OperatorBits::decode(ic_state)) { }
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+  virtual Code::Kind GetCodeKind() const { return Code::UNARY_OP_IC; }
+  virtual InlineCacheState GetICState() {
+    if (state_.Contains(GENERIC)) {
+      return MEGAMORPHIC;
+    } else if (state_.IsEmpty()) {
+      return PREMONOMORPHIC;
+    } else {
+      return MONOMORPHIC;
+    }
+  }
+  virtual Code::ExtraICState GetExtraICState() {
+    return OperatorBits::encode(operation_) |
+           StateBits::encode(state_.ToIntegral());
+  }
+
+  Token::Value operation() { return operation_; }
+  Handle<JSFunction> ToJSFunction(Isolate* isolate);
+  Builtins::JavaScript ToJSBuiltin();
+
+  void UpdateStatus(Handle<Object> object);
+  MaybeObject* Result(Handle<Object> object, Isolate* isolate);
+  Handle<Code> GenerateCode();
+  Handle<Type> GetType(Isolate* isolate);
+
+ protected:
+  void PrintState(StringStream* stream);
+  void PrintBaseName(StringStream* stream);
+
+ private:
+  enum UnaryOpType {
+    SMI,
+    HEAP_NUMBER,
+    GENERIC,
+    NUMBER_OF_TYPES
+  };
+
+  class State : public EnumSet<UnaryOpType, byte> {
+   public:
+    State() : EnumSet<UnaryOpType, byte>() { }
+    explicit State(byte bits) : EnumSet<UnaryOpType, byte>(bits) { }
+    void Print(StringStream* stream) const;
+  };
+
+  class StateBits : public BitField<int, 0, NUMBER_OF_TYPES> { };
+  class OperatorBits : public BitField<Token::Value, NUMBER_OF_TYPES, 8> { };
+
+  State state_;
+  Token::Value operation_;
+
+  virtual CodeStub::Major MajorKey() { return UnaryOp; }
+  virtual int NotMissMinorKey() { return GetExtraICState(); }
 };
 
 
@@ -1143,7 +1261,6 @@ class CompareNilICStub : public HydrogenCodeStub  {
     }
 
     void Print(StringStream* stream) const;
-    void TraceTransition(State to) const;
   };
 
   static Handle<Type> StateToType(
@@ -1206,14 +1323,15 @@ class CompareNilICStub : public HydrogenCodeStub  {
     return NilValueField::decode(state);
   }
 
-  void Record(Handle<Object> object);
+  void UpdateStatus(Handle<Object> object);
 
   bool IsMonomorphic() const { return state_.Contains(MONOMORPHIC_MAP); }
   NilValue GetNilValue() const { return nil_value_; }
   State GetState() const { return state_; }
   void ClearState() { state_.RemoveAll(); }
 
-  virtual void PrintName(StringStream* stream);
+  virtual void PrintState(StringStream* stream);
+  virtual void PrintBaseName(StringStream* stream);
 
  private:
   friend class CompareNilIC;
@@ -2009,8 +2127,7 @@ class ToBooleanStub: public HydrogenCodeStub {
 
     byte ToByte() const { return ToIntegral(); }
     void Print(StringStream* stream) const;
-    void TraceTransition(Types to) const;
-    bool Record(Handle<Object> object);
+    bool UpdateStatus(Handle<Object> object);
     bool NeedsMap() const;
     bool CanBeUndetectable() const;
     bool IsGeneric() const { return ToIntegral() == Generic().ToIntegral(); }
@@ -2023,7 +2140,7 @@ class ToBooleanStub: public HydrogenCodeStub {
   explicit ToBooleanStub(Code::ExtraICState state)
       : types_(static_cast<byte>(state)) { }
 
-  bool Record(Handle<Object> object);
+  bool UpdateStatus(Handle<Object> object);
   Types GetTypes() { return types_; }
 
   virtual Handle<Code> GenerateCode();
@@ -2032,7 +2149,7 @@ class ToBooleanStub: public HydrogenCodeStub {
       CodeStubInterfaceDescriptor* descriptor);
 
   virtual Code::Kind GetCodeKind() const { return Code::TO_BOOLEAN_IC; }
-  virtual void PrintName(StringStream* stream);
+  virtual void PrintState(StringStream* stream);
 
   virtual bool SometimesSetsUpAFrame() { return false; }
 

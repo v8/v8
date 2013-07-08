@@ -1,3 +1,8 @@
+2013-07-08: Version 3.20.3
+
+        Performance and stability improvements on all platforms.
+
+
 2013-07-05: Version 3.20.2
 
         Remove deprecated heap profiler methods from V8 public API

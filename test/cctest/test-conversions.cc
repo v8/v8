@@ -130,6 +130,7 @@ TEST(NonStrDecimalLiteral) {
   CHECK_EQ(0.0, StringToDouble(&uc, " ", NO_FLAGS));
 }
 
+
 TEST(IntegerStrLiteral) {
   UnicodeCache uc;
   CHECK_EQ(0.0, StringToDouble(&uc, "0.0", NO_FLAGS));
@@ -150,6 +151,7 @@ TEST(IntegerStrLiteral) {
   CHECK_EQ(0.0, StringToDouble(&uc, "0e+100000", ALLOW_HEX | ALLOW_OCTALS));
   CHECK_EQ(0.0, StringToDouble(&uc, "0.", ALLOW_HEX | ALLOW_OCTALS));
 }
+
 
 TEST(LongNumberStr) {
   UnicodeCache uc;
@@ -203,6 +205,7 @@ TEST(MaximumSignificantDigits) {
 
   CHECK_EQ(4.4501477170144022721148e-308, StringToDouble(&uc, num, NO_FLAGS));
 }
+
 
 TEST(MinimumExponent) {
   UnicodeCache uc;

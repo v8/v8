@@ -2855,9 +2855,9 @@ MaybeObject* Heap::AllocateCell(Object* value) {
 
 MaybeObject* Heap::AllocatePropertyCell(Object* value) {
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawPropertyCell();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = AllocateRawPropertyCell();
+  if (!maybe_result->ToObject(&result)) return maybe_result;
+
   HeapObject::cast(result)->set_map_no_write_barrier(
       global_property_cell_map());
   PropertyCell* cell = PropertyCell::cast(result);
@@ -2865,6 +2865,8 @@ MaybeObject* Heap::AllocatePropertyCell(Object* value) {
                            SKIP_WRITE_BARRIER);
   cell->set_value(value);
   cell->set_type(Type::None());
+  maybe_result = cell->SetValueInferType(value);
+  if (maybe_result->IsFailure()) return maybe_result;
   return result;
 }
 
@@ -3500,6 +3502,7 @@ Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
       return kUndefinedValueRootIndex;
   }
 }
+
 
 ExternalArray* Heap::EmptyExternalArrayForMap(Map* map) {
   return ExternalArray::cast(
@@ -5231,6 +5234,7 @@ static inline void WriteOneByteData(String* s, uint8_t* chars, int len) {
   String::WriteToFlat(s, chars, 0, len);
 }
 
+
 static inline void WriteTwoByteData(String* s, uint16_t* chars, int len) {
   ASSERT(s->length() == len);
   String::WriteToFlat(s, chars, 0, len);
@@ -5414,6 +5418,7 @@ MaybeObject* Heap::AllocateEmptyFixedArray() {
   reinterpret_cast<FixedArray*>(result)->set_length(0);
   return result;
 }
+
 
 MaybeObject* Heap::AllocateEmptyExternalArray(ExternalArrayType array_type) {
   return AllocateExternalArray(0, array_type, NULL, TENURED);
@@ -6751,6 +6756,7 @@ static void InitializeGCOnce() {
   MarkCompactCollector::Initialize();
 }
 
+
 bool Heap::SetUp() {
 #ifdef DEBUG
   allocation_timeout_ = FLAG_gc_interval;
@@ -6860,6 +6866,7 @@ bool Heap::SetUp() {
 
   return true;
 }
+
 
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
@@ -7025,6 +7032,7 @@ class PrintHandleVisitor: public ObjectVisitor {
              reinterpret_cast<void*>(*p));
   }
 };
+
 
 void Heap::PrintHandles() {
   PrintF("Handles:\n");

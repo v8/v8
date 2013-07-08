@@ -596,6 +596,7 @@ static void InitializeTlsBaseOffset() {
   Release_Store(&tls_base_offset_initialized, 1);
 }
 
+
 static void CheckFastTls(Thread::LocalStorageKey key) {
   void* expected = reinterpret_cast<void*>(0x1234CAFE);
   Thread::SetThreadLocal(key, expected);

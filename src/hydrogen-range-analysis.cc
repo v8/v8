@@ -49,8 +49,9 @@ void HRangeAnalysisPhase::Analyze(HBasicBlock* block) {
   // Infer range based on control flow.
   if (block->predecessors()->length() == 1) {
     HBasicBlock* pred = block->predecessors()->first();
-    if (pred->end()->IsCompareIDAndBranch()) {
-      InferControlFlowRange(HCompareIDAndBranch::cast(pred->end()), block);
+    if (pred->end()->IsCompareNumericAndBranch()) {
+      InferControlFlowRange(HCompareNumericAndBranch::cast(pred->end()),
+                            block);
     }
   }
 
@@ -74,7 +75,7 @@ void HRangeAnalysisPhase::Analyze(HBasicBlock* block) {
 }
 
 
-void HRangeAnalysisPhase::InferControlFlowRange(HCompareIDAndBranch* test,
+void HRangeAnalysisPhase::InferControlFlowRange(HCompareNumericAndBranch* test,
                                                 HBasicBlock* dest) {
   ASSERT((test->FirstSuccessor() == dest) == (test->SecondSuccessor() != dest));
   if (test->representation().IsSmiOrInteger32()) {

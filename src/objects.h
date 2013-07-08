@@ -1886,9 +1886,16 @@ class JSObject: public JSReceiver {
   // Handles the special representation of JS global objects.
   Object* GetNormalizedProperty(LookupResult* result);
 
+  // Sets the property value in a normalized object given (key, value).
+  // Handles the special representation of JS global objects.
+  static Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
+                                              LookupResult* result,
+                                              Handle<Object> value);
+
   // Sets the property value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
-  Object* SetNormalizedProperty(LookupResult* result, Object* value);
+  MUST_USE_RESULT MaybeObject* SetNormalizedProperty(LookupResult* result,
+                                                     Object* value);
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
@@ -4567,7 +4574,8 @@ class Code: public HeapObject {
     // TODO(danno): This is a bit of a hack right now since there are still
     // clients of this API that pass "extra" values in for argc. These clients
     // should be retrofitted to used ExtendedExtraICState.
-    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC;
+    return kind == COMPARE_NIL_IC || kind == TO_BOOLEAN_IC ||
+           kind == UNARY_OP_IC;
   }
 
   inline StubType type();  // Only valid for monomorphic IC stubs.
@@ -6819,12 +6827,8 @@ class GlobalObject: public JSObject {
   }
 
   // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsurePropertyCell(
-      Handle<GlobalObject> global,
-      Handle<Name> name);
-  // TODO(kmillikin): This function can be eliminated once the stub cache is
-  // fully handlified (and the static helper can be written directly).
-  MUST_USE_RESULT MaybeObject* EnsurePropertyCell(Name* name);
+  static Handle<PropertyCell> EnsurePropertyCell(Handle<GlobalObject> global,
+                                                 Handle<Name> name);
 
   // Casting.
   static inline GlobalObject* cast(Object* obj);
@@ -8586,6 +8590,14 @@ class PropertyCell: public Cell {
   // property.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
+  // Sets the value of the cell and updates the type field to be the union
+  // of the cell's current type and the value's type. If the change causes
+  // a change of the type of the cell's contents, code dependent on the cell
+  // will be deoptimized.
+  MUST_USE_RESULT MaybeObject* SetValueInferType(
+      Object* value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Casting.
   static inline PropertyCell* cast(Object* obj);
 
@@ -8612,6 +8624,9 @@ class PropertyCell: public Cell {
   void AddDependentCompilationInfo(CompilationInfo* info);
 
   void AddDependentCode(Handle<Code> code);
+
+  static Type* UpdateType(Handle<PropertyCell> cell,
+                          Handle<Object> value);
 
  private:
   DECL_ACCESSORS(type_raw, Object)
@@ -8921,6 +8936,9 @@ class JSTypedArray: public JSArrayBufferView {
   static const int kLengthOffset = kViewSize + kPointerSize;
   static const int kSize = kLengthOffset + kPointerSize;
 
+  static const int kSizeWithInternalFields =
+      kSize + v8::ArrayBufferView::kInternalFieldCount * kPointerSize;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);
 };
@@ -8939,6 +8957,9 @@ class JSDataView: public JSArrayBufferView {
   DECLARE_VERIFIER(JSDataView)
 
   static const int kSize = kViewSize;
+
+  static const int kSizeWithInternalFields =
+      kSize + v8::ArrayBufferView::kInternalFieldCount * kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataView);

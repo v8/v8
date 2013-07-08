@@ -726,6 +726,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ Abort("no cases left");
 }
 
+
 void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
   Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
 }

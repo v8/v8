@@ -630,12 +630,23 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
 }
 
 
-Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
+Handle<Object> JSObject::SetNormalizedProperty(Handle<JSObject> object,
+                                               LookupResult* result,
+                                               Handle<Object> value) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->SetNormalizedProperty(result, *value),
+                     Object);
+}
+
+
+MaybeObject* JSObject::SetNormalizedProperty(LookupResult* result,
+                                             Object* value) {
   ASSERT(!HasFastProperties());
   if (IsGlobalObject()) {
     PropertyCell* cell = PropertyCell::cast(
         property_dictionary()->ValueAt(result->GetDictionaryEntry()));
-    cell->set_value(value);
+    MaybeObject* maybe_type = cell->SetValueInferType(value);
+    if (maybe_type->IsFailure()) return maybe_type;
   } else {
     property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
   }
@@ -691,7 +702,8 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
   if (IsGlobalObject()) {
     PropertyCell* cell =
         PropertyCell::cast(property_dictionary()->ValueAt(entry));
-    cell->set_value(value);
+    MaybeObject* maybe_type = cell->SetValueInferType(value);
+    if (maybe_type->IsFailure()) return maybe_type;
     // Please note we have to update the property details.
     property_dictionary()->DetailsAtPut(entry, details);
   } else {
@@ -723,7 +735,9 @@ MaybeObject* JSObject::DeleteNormalizedProperty(Name* name, DeleteMode mode) {
         set_map(new_map);
       }
       PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
-      cell->set_value(cell->GetHeap()->the_hole_value());
+      MaybeObject* maybe_type =
+          cell->SetValueInferType(cell->GetHeap()->the_hole_value());
+      if (maybe_type->IsFailure()) return maybe_type;
       dictionary->DetailsAtPut(entry, details.AsDeleted());
     } else {
       Object* deleted = dictionary->DeleteProperty(entry, mode);
@@ -1930,7 +1944,9 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
     int entry = dict->FindEntry(name);
     if (entry != NameDictionary::kNotFound) {
       store_value = dict->ValueAt(entry);
-      PropertyCell::cast(store_value)->set_value(value);
+      MaybeObject* maybe_type =
+          PropertyCell::cast(store_value)->SetValueInferType(value);
+      if (maybe_type->IsFailure()) return maybe_type;
       // Assign an enumeration index to the property and update
       // SetNextEnumerationIndex.
       int index = dict->NextEnumerationIndex();
@@ -1944,7 +1960,9 @@ MaybeObject* JSObject::AddSlowProperty(Name* name,
           heap->AllocatePropertyCell(value);
       if (!maybe_store_value->ToObject(&store_value)) return maybe_store_value;
     }
-    PropertyCell::cast(store_value)->set_value(value);
+    MaybeObject* maybe_type =
+        PropertyCell::cast(store_value)->SetValueInferType(value);
+    if (maybe_type->IsFailure()) return maybe_type;
   }
   PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
   Object* result;
@@ -9961,21 +9979,25 @@ void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
   CHECK_EQ(target, old_target);  // VisitPointer doesn't change Code* *target.
 }
 
+
 void ObjectVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
   ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   VisitPointer(rinfo->target_object_address());
 }
+
 
 void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
   Address* p = rinfo->target_reference_address();
   VisitExternalReferences(p, p + 1);
 }
 
+
 byte Code::compare_nil_state() {
   ASSERT(is_compare_nil_ic_stub());
   return CompareNilICStub::ExtractTypesFromExtraICState(
       extended_extra_ic_state());
 }
+
 
 byte Code::compare_nil_value() {
   ASSERT(is_compare_nil_ic_stub());
@@ -10610,6 +10632,7 @@ const char* Code::StubType2String(StubType type) {
 
 
 void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
+  PrintF(out, "extra_ic_state = ");
   const char* name = NULL;
   switch (kind) {
     case CALL_IC:
@@ -10627,9 +10650,9 @@ void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
       break;
   }
   if (name != NULL) {
-    PrintF(out, "extra_ic_state = %s\n", name);
+    PrintF(out, "%s\n", name);
   } else {
-    PrintF(out, "extra_ic_state = %d\n", extra);
+    PrintF(out, "%d\n", extra);
   }
 }
 
@@ -10638,7 +10661,8 @@ void Code::Disassemble(const char* name, FILE* out) {
   PrintF(out, "kind = %s\n", Kind2String(kind()));
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
-    PrintExtraICState(out, kind(), extra_ic_state());
+    PrintExtraICState(out, kind(), needs_extended_extra_ic_state(kind()) ?
+        extended_extra_ic_state() : extra_ic_state());
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", StubType2String(type()));
     }
@@ -13299,6 +13323,7 @@ class RegExpKey : public HashTableKey {
   Smi* flags_;
 };
 
+
 // Utf8StringKey carries a vector of chars as key.
 class Utf8StringKey : public HashTableKey {
  public:
@@ -13665,6 +13690,7 @@ uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
   return entry;
 }
 
+
 // Force instantiation of template instances class.
 // Please note this list is compiler dependent.
 
@@ -14027,6 +14053,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
   return result_double;
 }
 
+
 ExternalArrayType JSTypedArray::type() {
   switch (elements()->map()->instance_type()) {
     case EXTERNAL_BYTE_ARRAY_TYPE:
@@ -14241,39 +14268,36 @@ PropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
 }
 
 
-Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
-    Handle<GlobalObject> global,
-    Handle<Name> name) {
-  Isolate* isolate = global->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     global->EnsurePropertyCell(*name),
-                     PropertyCell);
+// TODO(mstarzinger): Temporary wrapper until handlified.
+static Handle<NameDictionary> NameDictionaryAdd(Handle<NameDictionary> dict,
+                                                Handle<Name> name,
+                                                Handle<Object> value,
+                                                PropertyDetails details) {
+  CALL_HEAP_FUNCTION(dict->GetIsolate(),
+                     dict->Add(*name, *value, details),
+                     NameDictionary);
 }
 
 
-MaybeObject* GlobalObject::EnsurePropertyCell(Name* name) {
-  ASSERT(!HasFastProperties());
-  int entry = property_dictionary()->FindEntry(name);
+Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
+    Handle<GlobalObject> global,
+    Handle<Name> name) {
+  ASSERT(!global->HasFastProperties());
+  int entry = global->property_dictionary()->FindEntry(*name);
   if (entry == NameDictionary::kNotFound) {
-    Heap* heap = GetHeap();
-    Object* cell;
-    { MaybeObject* maybe_cell =
-          heap->AllocatePropertyCell(heap->the_hole_value());
-      if (!maybe_cell->ToObject(&cell)) return maybe_cell;
-    }
+    Isolate* isolate = global->GetIsolate();
+    Handle<PropertyCell> cell = isolate->factory()->NewPropertyCell(
+        isolate->factory()->the_hole_value());
     PropertyDetails details(NONE, NORMAL, 0);
     details = details.AsDeleted();
-    Object* dictionary;
-    { MaybeObject* maybe_dictionary =
-          property_dictionary()->Add(name, cell, details);
-      if (!maybe_dictionary->ToObject(&dictionary)) return maybe_dictionary;
-    }
-    set_properties(NameDictionary::cast(dictionary));
+    Handle<NameDictionary> dictionary = NameDictionaryAdd(
+        handle(global->property_dictionary()), name, cell, details);
+    global->set_properties(*dictionary);
     return cell;
   } else {
-    Object* value = property_dictionary()->ValueAt(entry);
+    Object* value = global->property_dictionary()->ValueAt(entry);
     ASSERT(value->IsPropertyCell());
-    return value;
+    return handle(PropertyCell::cast(value));
   }
 }
 
@@ -14405,6 +14429,7 @@ MaybeObject* StringTable::LookupTwoByteString(Vector<const uc16> str,
   TwoByteStringKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
+
 
 MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
   int entry = FindEntry(key);
@@ -15802,7 +15827,48 @@ Type* PropertyCell::type() {
 
 
 void PropertyCell::set_type(Type* type, WriteBarrierMode ignored) {
+  ASSERT(IsPropertyCell());
   set_type_raw(type, ignored);
+}
+
+
+Type* PropertyCell::UpdateType(Handle<PropertyCell> cell,
+                               Handle<Object> value) {
+  Isolate* isolate = cell->GetIsolate();
+  Handle<Type> old_type(cell->type(), isolate);
+  Handle<Type> new_type((value->IsSmi() || value->IsUndefined())
+                        ? Type::Constant(value, isolate)
+                        : Type::Any(), isolate);
+
+  if (new_type->Is(old_type)) {
+    return *old_type;
+  }
+
+  cell->dependent_code()->DeoptimizeDependentCodeGroup(
+      isolate, DependentCode::kPropertyCellChangedGroup);
+
+  if (old_type->Is(Type::None()) || old_type->Is(Type::Undefined())) {
+    return *new_type;
+  }
+
+  return Type::Any();
+}
+
+
+MaybeObject* PropertyCell::SetValueInferType(Object* value,
+                                             WriteBarrierMode ignored) {
+  set_value(value, ignored);
+  if (!Type::Any()->Is(type())) {
+    IdempotentPointerToHandleCodeTrampoline trampoline(GetIsolate());
+    MaybeObject* maybe_type = trampoline.CallWithReturnValue(
+        &PropertyCell::UpdateType,
+        Handle<PropertyCell>(this),
+        Handle<Object>(value, GetIsolate()));
+    if (maybe_type->IsFailure()) return maybe_type;
+    Type* new_type = static_cast<Type*>(maybe_type);
+    set_type(new_type);
+  }
+  return value;
 }
 
 

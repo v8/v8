@@ -972,6 +972,7 @@ void MacroAssembler::Set(Register dst, int64_t x) {
   }
 }
 
+
 void MacroAssembler::Set(const Operand& dst, int64_t x) {
   if (is_int32(x)) {
     movq(dst, Immediate(static_cast<int32_t>(x)));
@@ -1028,6 +1029,7 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
   LoadSmiConstant(kScratchRegister, source);
   return kScratchRegister;
 }
+
 
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
   if (emit_debug_code()) {
@@ -3897,52 +3899,8 @@ void MacroAssembler::Allocate(int header_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   ASSERT((flags & SIZE_IN_WORDS) == 0);
-  if (!FLAG_inline_new) {
-    if (emit_debug_code()) {
-      // Trash the registers to simulate an allocation failure.
-      movl(result, Immediate(0x7091));
-      movl(result_end, Immediate(0x7191));
-      if (scratch.is_valid()) {
-        movl(scratch, Immediate(0x7291));
-      }
-      // Register element_count is not modified by the function.
-    }
-    jmp(gc_required);
-    return;
-  }
-  ASSERT(!result.is(result_end));
-
-  // Load address of new object into result.
-  LoadAllocationTopHelper(result, scratch, flags);
-
-  // Align the next allocation. Storing the filler map without checking top is
-  // always safe because the limit of the heap is always aligned.
-  if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
-    testq(result, Immediate(kDoubleAlignmentMask));
-    Check(zero, "Allocation is not double aligned");
-  }
-
-  // Calculate new top and bail out if new space is exhausted.
-  ExternalReference allocation_limit =
-      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
-
-  // We assume that element_count*element_size + header_size does not
-  // overflow.
   lea(result_end, Operand(element_count, element_size, header_size));
-  addq(result_end, result);
-  j(carry, gc_required);
-  Operand limit_operand = ExternalOperand(allocation_limit);
-  cmpq(result_end, limit_operand);
-  j(above, gc_required);
-
-  // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch, flags);
-
-  // Tag the result if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    ASSERT(kHeapObjectTag == 1);
-    incq(result);
-  }
+  Allocate(result_end, result, result_end, scratch, gc_required, flags);
 }
 
 
@@ -3952,7 +3910,7 @@ void MacroAssembler::Allocate(Register object_size,
                               Register scratch,
                               Label* gc_required,
                               AllocationFlags flags) {
-  ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
+  ASSERT((flags & SIZE_IN_WORDS) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -3971,6 +3929,13 @@ void MacroAssembler::Allocate(Register object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
+  // Align the next allocation. Storing the filler map without checking top is
+  // always safe because the limit of the heap is always aligned.
+  if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
+    testq(result, Immediate(kDoubleAlignmentMask));
+    Check(zero, "Allocation is not double aligned");
+  }
+
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference allocation_limit =
       AllocationUtils::GetAllocationLimitReference(isolate(), flags);
@@ -3985,13 +3950,6 @@ void MacroAssembler::Allocate(Register object_size,
 
   // Update allocation top.
   UpdateAllocationTopHelper(result_end, scratch, flags);
-
-  // Align the next allocation. Storing the filler map without checking top is
-  // always safe because the limit of the heap is always aligned.
-  if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
-    testq(result, Immediate(kDoubleAlignmentMask));
-    Check(zero, "Allocation is not double aligned");
-  }
 
   // Tag the result if requested.
   if ((flags & TAG_OBJECT) != 0) {

@@ -499,6 +499,7 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   return right + script->line_offset()->value();
 }
 
+
 // Convert code position into column number.
 int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
   int line_number = GetScriptLineNumber(script, code_pos);
@@ -512,6 +513,7 @@ int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
       Smi::cast(line_ends_array->get(line_number - 1))->value();
   return code_pos - (prev_line_end_pos + 1);
 }
+
 
 int GetScriptLineNumberSafe(Handle<Script> script, int code_pos) {
   DisallowHeapAllocation no_allocation;

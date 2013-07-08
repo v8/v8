@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -33,12 +33,16 @@
 #include "codegen.h"
 #include "full-codegen.h"
 #include "hashmap.h"
+#include "hydrogen-dce.h"
 #include "hydrogen-environment-liveness.h"
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
+#include "hydrogen-infer-types.h"
 #include "hydrogen-gvn.h"
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
+#include "hydrogen-redundant-phi.h"
+#include "hydrogen-sce.h"
 #include "hydrogen-uint32-analysis.h"
 #include "lithium-allocator.h"
 #include "parser.h"
@@ -649,6 +653,7 @@ HConstant* HGraph::GetConstant##Name() {                                       \
         htype,                                                                 \
         false,                                                                 \
         true,                                                                  \
+        false,                                                                 \
         boolean_value);                                                        \
     constant->InsertAfter(GetConstantUndefined());                             \
     constant_##name##_.set(constant);                                          \
@@ -668,6 +673,19 @@ DEFINE_GET_CONSTANT(Null, null, HType::Tagged(), false)
 
 HConstant* HGraph::GetInvalidContext() {
   return GetConstant(&constant_invalid_context_, 0xFFFFC0C7);
+}
+
+
+bool HGraph::IsStandardConstant(HConstant* constant) {
+  if (constant == GetConstantUndefined()) return true;
+  if (constant == GetConstant0()) return true;
+  if (constant == GetConstant1()) return true;
+  if (constant == GetConstantMinus1()) return true;
+  if (constant == GetConstantTrue()) return true;
+  if (constant == GetConstantFalse()) return true;
+  if (constant == GetConstantHole()) return true;
+  if (constant == GetConstantNull()) return true;
+  return false;
 }
 
 
@@ -708,26 +726,6 @@ HGraphBuilder::IfBuilder::IfBuilder(
   continuation->Continue(&first_true_block_,
                          &first_false_block_,
                          &position_);
-}
-
-
-HInstruction* HGraphBuilder::IfBuilder::IfCompare(
-    HValue* left,
-    HValue* right,
-    Token::Value token) {
-  HCompareIDAndBranch* compare =
-      new(zone()) HCompareIDAndBranch(left, right, token);
-  AddCompare(compare);
-  return compare;
-}
-
-
-HInstruction* HGraphBuilder::IfBuilder::IfCompareMap(HValue* left,
-                                                     Handle<Map> map) {
-  HCompareMap* compare =
-      new(zone()) HCompareMap(left, map, first_true_block_, first_false_block_);
-  AddCompare(compare);
-  return compare;
 }
 
 
@@ -811,8 +809,8 @@ void HGraphBuilder::IfBuilder::Then() {
     ToBooleanStub::Types boolean_type = ToBooleanStub::Types();
     boolean_type.Add(ToBooleanStub::BOOLEAN);
     HBranch* branch =
-        new(zone()) HBranch(constant_false, first_true_block_,
-                            first_false_block_, boolean_type);
+        new(zone()) HBranch(constant_false, boolean_type, first_true_block_,
+                            first_false_block_);
     builder_->current_block()->Finish(branch);
   }
   builder_->set_current_block(first_true_block_);
@@ -916,8 +914,8 @@ HValue* HGraphBuilder::LoopBuilder::BeginBody(
   body_env->Pop();
 
   builder_->set_current_block(header_block_);
-  HCompareIDAndBranch* compare =
-      new(zone()) HCompareIDAndBranch(phi_, terminating, token);
+  HCompareNumericAndBranch* compare =
+      new(zone()) HCompareNumericAndBranch(phi_, terminating, token);
   compare->SetSuccessorAt(0, body_block_);
   compare->SetSuccessorAt(1, exit_block_);
   builder_->current_block()->Finish(compare);
@@ -1002,6 +1000,17 @@ HReturn* HGraphBuilder::AddReturn(HValue* value) {
       HReturn(value, context, params);
   current_block()->FinishExit(return_instruction);
   return return_instruction;
+}
+
+
+void HGraphBuilder::AddSoftDeoptimize(SoftDeoptimizeMode mode) {
+  isolate()->counters()->soft_deopts_requested()->Increment();
+  if (FLAG_always_opt && mode == CAN_OMIT_SOFT_DEOPT) return;
+  if (current_block()->IsDeoptimizing()) return;
+  Add<HSoftDeoptimize>();
+  isolate()->counters()->soft_deopts_inserted()->Increment();
+  current_block()->MarkAsDeoptimizing();
+  graph()->set_has_soft_deoptimize(true);
 }
 
 
@@ -1131,14 +1140,15 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   Zone* zone = this->zone();
   IfBuilder length_checker(this);
 
-  length_checker.IfCompare(length, key, Token::EQ);
+  length_checker.If<HCompareNumericAndBranch>(length, key, Token::EQ);
   length_checker.Then();
 
   HValue* current_capacity = AddLoadFixedArrayLength(elements);
 
   IfBuilder capacity_checker(this);
 
-  capacity_checker.IfCompare(length, current_capacity, Token::EQ);
+  capacity_checker.If<HCompareNumericAndBranch>(length, current_capacity,
+                                                Token::EQ);
   capacity_checker.Then();
 
   HValue* context = environment()->LookupContext();
@@ -1182,12 +1192,11 @@ HValue* HGraphBuilder::BuildCopyElementsOnWrite(HValue* object,
                                                 HValue* elements,
                                                 ElementsKind kind,
                                                 HValue* length) {
-  Heap* heap = isolate()->heap();
+  Factory* factory = isolate()->factory();
 
   IfBuilder cow_checker(this);
 
-  cow_checker.IfCompareMap(elements,
-                           Handle<Map>(heap->fixed_cow_array_map()));
+  cow_checker.If<HCompareMap>(elements, factory->fixed_cow_array_map());
   cow_checker.Then();
 
   HValue* capacity = AddLoadFixedArrayLength(elements);
@@ -1256,10 +1265,10 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       HLoadExternalArrayPointer* external_elements =
           Add<HLoadExternalArrayPointer>(elements);
       IfBuilder length_checker(this);
-      length_checker.IfCompare(key, length, Token::LT);
+      length_checker.If<HCompareNumericAndBranch>(key, length, Token::LT);
       length_checker.Then();
       IfBuilder negative_checker(this);
-      HValue* bounds_check = negative_checker.IfCompare(
+      HValue* bounds_check = negative_checker.If<HCompareNumericAndBranch>(
           key, graph()->GetConstant0(), Token::GTE);
       negative_checker.Then();
       HInstruction* result = BuildExternalArrayElementAccess(
@@ -1654,6 +1663,39 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
 }
 
 
+HInstruction* HGraphBuilder::BuildUnaryMathOp(
+    HValue* input, Handle<Type> type, Token::Value operation) {
+  // We only handle the numeric cases here
+  type = handle(
+      Type::Intersect(type, handle(Type::Number(), isolate())), isolate());
+
+  switch (operation) {
+    default:
+      UNREACHABLE();
+    case Token::SUB: {
+        HInstruction* instr =
+            HMul::New(zone(), environment()->LookupContext(),
+                      input, graph()->GetConstantMinus1());
+        Representation rep = Representation::FromType(type);
+        if (type->Is(Type::None())) {
+          AddSoftDeoptimize();
+        }
+        if (instr->IsBinaryOperation()) {
+          HBinaryOperation* binop = HBinaryOperation::cast(instr);
+          binop->set_observed_input_representation(1, rep);
+          binop->set_observed_input_representation(2, rep);
+        }
+        return instr;
+      }
+    case Token::BIT_NOT:
+      if (type->Is(Type::None())) {
+        AddSoftDeoptimize();
+      }
+      return new(zone()) HBitNot(input);
+  }
+}
+
+
 void HGraphBuilder::BuildCompareNil(
     HValue* value,
     Handle<Type> type,
@@ -1909,6 +1951,18 @@ HStoreNamedField* HGraphBuilder::AddStoreMapConstant(HValue *object,
 }
 
 
+HValue* HGraphBuilder::AddLoadJSBuiltin(Builtins::JavaScript builtin,
+                                        HContext* context) {
+  HGlobalObject* global_object = Add<HGlobalObject>(context);
+  HObjectAccess access = HObjectAccess::ForJSObjectOffset(
+      GlobalObject::kBuiltinsOffset);
+  HValue* builtins = AddLoad(global_object, access);
+  HObjectAccess function_access = HObjectAccess::ForJSObjectOffset(
+      JSBuiltinsObject::OffsetOfFunctionWithId(builtin));
+  return AddLoad(builtins, function_access);
+}
+
+
 HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
     : HGraphBuilder(info),
       function_state_(NULL),
@@ -2054,6 +2108,7 @@ void HGraph::Canonicalize() {
     }
   }
 }
+
 
 // Block ordering was implemented with two mutually recursive methods,
 // HGraph::Postorder and HGraph::PostorderLoopBlocks.
@@ -2470,53 +2525,6 @@ void HGraph::NullifyUnreachableInstructions() {
 }
 
 
-// Replace all phis consisting of a single non-loop operand plus any number of
-// loop operands by that single non-loop operand.
-void HGraph::EliminateRedundantPhis() {
-  HPhase phase("H_Redundant phi elimination", this);
-
-  // We do a simple fixed point iteration without any work list, because
-  // machine-generated JavaScript can lead to a very dense Hydrogen graph with
-  // an enormous work list and will consequently result in OOM. Experiments
-  // showed that this simple algorithm is good enough, and even e.g. tracking
-  // the set or range of blocks to consider is not a real improvement.
-  bool need_another_iteration;
-  ZoneList<HPhi*> redundant_phis(blocks_.length(), zone());
-  do {
-    need_another_iteration = false;
-    for (int i = 0; i < blocks_.length(); ++i) {
-      HBasicBlock* block = blocks_[i];
-      for (int j = 0; j < block->phis()->length(); j++) {
-        HPhi* phi = block->phis()->at(j);
-        HValue* replacement = phi->GetRedundantReplacement();
-        if (replacement != NULL) {
-          // Remember phi to avoid concurrent modification of the block's phis.
-          redundant_phis.Add(phi, zone());
-          for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-            HValue* value = it.value();
-            value->SetOperandAt(it.index(), replacement);
-            need_another_iteration |= value->IsPhi();
-          }
-        }
-      }
-      for (int i = 0; i < redundant_phis.length(); i++) {
-        block->RemovePhi(redundant_phis[i]);
-      }
-      redundant_phis.Clear();
-    }
-  } while (need_another_iteration);
-
-#if DEBUG
-  // Make sure that we *really* removed all redundant phis.
-  for (int i = 0; i < blocks_.length(); ++i) {
-    for (int j = 0; j < blocks_[i]->phis()->length(); j++) {
-      ASSERT(blocks_[i]->phis()->at(j)->GetRedundantReplacement() == NULL);
-    }
-  }
-#endif
-}
-
-
 bool HGraph::CheckArgumentsPhiUses() {
   int block_count = blocks_.length();
   for (int i = 0; i < block_count; ++i) {
@@ -2552,70 +2560,6 @@ void HGraph::CollectPhis() {
     for (int j = 0; j < blocks_[i]->phis()->length(); ++j) {
       HPhi* phi = blocks_[i]->phis()->at(j);
       phi_list_->Add(phi, zone());
-    }
-  }
-}
-
-
-void HGraph::InferTypes(ZoneList<HValue*>* worklist) {
-  BitVector in_worklist(GetMaximumValueID(), zone());
-  for (int i = 0; i < worklist->length(); ++i) {
-    ASSERT(!in_worklist.Contains(worklist->at(i)->id()));
-    in_worklist.Add(worklist->at(i)->id());
-  }
-
-  while (!worklist->is_empty()) {
-    HValue* current = worklist->RemoveLast();
-    in_worklist.Remove(current->id());
-    if (current->UpdateInferredType()) {
-      for (HUseIterator it(current->uses()); !it.Done(); it.Advance()) {
-        HValue* use = it.value();
-        if (!in_worklist.Contains(use->id())) {
-          in_worklist.Add(use->id());
-          worklist->Add(use, zone());
-        }
-      }
-    }
-  }
-}
-
-
-class HStackCheckEliminator BASE_EMBEDDED {
- public:
-  explicit HStackCheckEliminator(HGraph* graph) : graph_(graph) { }
-
-  void Process();
-
- private:
-  HGraph* graph_;
-};
-
-
-void HStackCheckEliminator::Process() {
-  HPhase phase("H_Stack check elimination", graph_);
-  // For each loop block walk the dominator tree from the backwards branch to
-  // the loop header. If a call instruction is encountered the backwards branch
-  // is dominated by a call and the stack check in the backwards branch can be
-  // removed.
-  for (int i = 0; i < graph_->blocks()->length(); i++) {
-    HBasicBlock* block = graph_->blocks()->at(i);
-    if (block->IsLoopHeader()) {
-      HBasicBlock* back_edge = block->loop_information()->GetLastBackEdge();
-      HBasicBlock* dominator = back_edge;
-      while (true) {
-        for (HInstructionIterator it(dominator); !it.Done(); it.Advance()) {
-          if (it.Current()->IsCall()) {
-            block->loop_information()->stack_check()->Eliminate();
-            break;
-          }
-        }
-
-        // Done when the loop header is processed.
-        if (dominator == block) break;
-
-        // Move up the dominator tree.
-        dominator = dominator->dominator();
-      }
     }
   }
 }
@@ -2679,43 +2623,6 @@ void HGraph::MergeRemovableSimulates() {
       // Merge the accumulated simulates at the end of the block.
       HSimulate* last = mergelist.RemoveLast();
       last->MergeWith(&mergelist);
-    }
-  }
-}
-
-
-void HGraph::InitializeInferredTypes() {
-  HPhase phase("H_Inferring types", this);
-  InitializeInferredTypes(0, this->blocks_.length() - 1);
-}
-
-
-void HGraph::InitializeInferredTypes(int from_inclusive, int to_inclusive) {
-  for (int i = from_inclusive; i <= to_inclusive; ++i) {
-    HBasicBlock* block = blocks_[i];
-
-    const ZoneList<HPhi*>* phis = block->phis();
-    for (int j = 0; j < phis->length(); j++) {
-      phis->at(j)->UpdateInferredType();
-    }
-
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      it.Current()->UpdateInferredType();
-    }
-
-    if (block->IsLoopHeader()) {
-      HBasicBlock* last_back_edge =
-          block->loop_information()->GetLastBackEdge();
-      InitializeInferredTypes(i + 1, last_back_edge->block_id());
-      // Skip all blocks already processed by the recursive call.
-      i = last_back_edge->block_id();
-      // Update phis of the loop header now after the whole loop body is
-      // guaranteed to be processed.
-      ZoneList<HValue*> worklist(block->phis()->length(), zone());
-      for (int j = 0; j < block->phis()->length(); ++j) {
-        worklist.Add(block->phis()->at(j), zone());
-      }
-      InferTypes(&worklist);
     }
   }
 }
@@ -2909,12 +2816,11 @@ void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
 
 void HGraph::MarkDeoptimizeOnUndefined() {
   HPhase phase("H_MarkDeoptimizeOnUndefined", this);
-  // Compute DeoptimizeOnUndefined flag for phis.
-  // Any phi that can reach a use with DeoptimizeOnUndefined set must
-  // have DeoptimizeOnUndefined set.  Currently only HCompareIDAndBranch, with
-  // double input representation, has this flag set.
-  // The flag is used by HChange tagged->double, which must deoptimize
-  // if one of its uses has this flag set.
+  // Compute DeoptimizeOnUndefined flag for phis.  Any phi that can reach a use
+  // with DeoptimizeOnUndefined set must have DeoptimizeOnUndefined set.
+  // Currently only HCompareNumericAndBranch, with double input representation,
+  // has this flag set.  The flag is used by HChange tagged->double, which must
+  // deoptimize if one of its uses has this flag set.
   for (int i = 0; i < phi_list()->length(); i++) {
     HPhi* phi = phi_list()->at(i);
     for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
@@ -3215,7 +3121,7 @@ void TestContext::BuildBranch(HValue* value) {
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
   ToBooleanStub::Types expected(condition()->to_boolean_types());
-  HBranch* test = new(zone()) HBranch(value, empty_true, empty_false, expected);
+  HBranch* test = new(zone()) HBranch(value, expected, empty_true, empty_false);
   builder->current_block()->Finish(test);
 
   empty_true->Goto(if_true(), builder->function_state());
@@ -3406,7 +3312,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
         "Unsupported phi use of const variable"));
     return false;
   }
-  EliminateRedundantPhis();
+  Run<HRedundantPhiEliminationPhase>();
   if (!CheckArgumentsPhiUses()) {
     *bailout_reason = SmartArrayPointer<char>(StrDup(
         "Unsupported phi use of arguments"));
@@ -3414,9 +3320,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   }
 
   // Remove dead code and phis
-  if (FLAG_dead_code_elimination) {
-    DeadCodeElimination("H_Eliminate early dead code");
-  }
+  if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
   CollectPhis();
 
   if (has_osr()) osr()->FinishOsrValues();
@@ -3431,7 +3335,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   MarkDeoptimizeOnUndefined();
   InsertRepresentationChanges();
 
-  InitializeInferredTypes();
+  Run<HInferTypesPhase>();
 
   // Must be performed before canonicalization to ensure that Canonicalize
   // will not remove semantically meaningful ToInt32 operations e.g. BIT_OR with
@@ -3449,17 +3353,14 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   ComputeMinusZeroChecks();
 
   // Eliminate redundant stack checks on backwards branches.
-  HStackCheckEliminator sce(this);
-  sce.Process();
+  Run<HStackCheckEliminationPhase>();
 
   if (FLAG_idefs) SetupInformativeDefinitions();
   if (FLAG_array_bounds_checks_elimination && !FLAG_idefs) {
     EliminateRedundantBoundsChecks();
   }
   if (FLAG_array_index_dehoisting) DehoistSimpleArrayIndexComputations();
-  if (FLAG_dead_code_elimination) {
-    DeadCodeElimination("H_Eliminate late dead code");
-  }
+  if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
 
   RestoreActualValues();
 
@@ -3940,99 +3841,6 @@ void HGraph::DehoistSimpleArrayIndexComputations() {
 }
 
 
-void HGraph::DeadCodeElimination(const char* phase_name) {
-  HPhase phase(phase_name, this);
-  MarkLiveInstructions();
-  RemoveDeadInstructions();
-}
-
-
-void HGraph::MarkLiveInstructions() {
-  ZoneList<HValue*> worklist(blocks_.length(), zone());
-
-  // Mark initial root instructions for dead code elimination.
-  for (int i = 0; i < blocks()->length(); ++i) {
-    HBasicBlock* block = blocks()->at(i);
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      if (instr->CannotBeEliminated()) MarkLive(NULL, instr, &worklist);
-    }
-    for (int j = 0; j < block->phis()->length(); j++) {
-      HPhi* phi = block->phis()->at(j);
-      if (phi->CannotBeEliminated()) MarkLive(NULL, phi, &worklist);
-    }
-  }
-
-  // Transitively mark all inputs of live instructions live.
-  while (!worklist.is_empty()) {
-    HValue* instr = worklist.RemoveLast();
-    for (int i = 0; i < instr->OperandCount(); ++i) {
-      MarkLive(instr, instr->OperandAt(i), &worklist);
-    }
-  }
-}
-
-
-void HGraph::MarkLive(HValue* ref, HValue* instr, ZoneList<HValue*>* worklist) {
-  if (!instr->CheckFlag(HValue::kIsLive)) {
-    instr->SetFlag(HValue::kIsLive);
-    worklist->Add(instr, zone());
-
-    if (FLAG_trace_dead_code_elimination) {
-      HeapStringAllocator allocator;
-      StringStream stream(&allocator);
-      if (ref != NULL) {
-        ref->PrintTo(&stream);
-      } else {
-        stream.Add("root ");
-      }
-      stream.Add(" -> ");
-      instr->PrintTo(&stream);
-      PrintF("[MarkLive %s]\n", *stream.ToCString());
-    }
-  }
-}
-
-
-void HGraph::RemoveDeadInstructions() {
-  ZoneList<HPhi*> dead_phis(blocks_.length(), zone());
-
-  // Remove any instruction not marked kIsLive.
-  for (int i = 0; i < blocks()->length(); ++i) {
-    HBasicBlock* block = blocks()->at(i);
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      if (!instr->CheckFlag(HValue::kIsLive)) {
-        // Instruction has not been marked live; assume it is dead and remove.
-        // TODO(titzer): we don't remove constants because some special ones
-        // might be used by later phases and are assumed to be in the graph
-        if (!instr->IsConstant()) instr->DeleteAndReplaceWith(NULL);
-      } else {
-        // Clear the liveness flag to leave the graph clean for the next DCE.
-        instr->ClearFlag(HValue::kIsLive);
-      }
-    }
-    // Collect phis that are dead and remove them in the next pass.
-    for (int j = 0; j < block->phis()->length(); j++) {
-      HPhi* phi = block->phis()->at(j);
-      if (!phi->CheckFlag(HValue::kIsLive)) {
-        dead_phis.Add(phi, zone());
-      } else {
-        phi->ClearFlag(HValue::kIsLive);
-      }
-    }
-  }
-
-  // Process phis separately to avoid simultaneously mutating the phi list.
-  while (!dead_phis.is_empty()) {
-    HPhi* phi = dead_phis.RemoveLast();
-    HBasicBlock* block = phi->block();
-    phi->DeleteAndReplaceWith(NULL);
-    block->RecordDeletedPhi(phi->merged_index());
-  }
-}
-
-
 void HGraph::RestoreActualValues() {
   HPhase phase("H_Restore actual values", this);
 
@@ -4064,17 +3872,6 @@ void HGraph::RestoreActualValues() {
 void HOptimizedGraphBuilder::PushAndAdd(HInstruction* instr) {
   Push(instr);
   AddInstruction(instr);
-}
-
-
-void HOptimizedGraphBuilder::AddSoftDeoptimize() {
-  isolate()->counters()->soft_deopts_requested()->Increment();
-  if (FLAG_always_opt) return;
-  if (current_block()->IsDeoptimizing()) return;
-  Add<HSoftDeoptimize>();
-  isolate()->counters()->soft_deopts_inserted()->Increment();
-  current_block()->MarkAsDeoptimizing();
-  graph()->set_has_soft_deoptimize(true);
 }
 
 
@@ -4428,10 +4225,10 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
         AddSoftDeoptimize();
       }
 
-      HCompareIDAndBranch* compare_ =
-          new(zone()) HCompareIDAndBranch(tag_value,
-                                          label_value,
-                                          Token::EQ_STRICT);
+      HCompareNumericAndBranch* compare_ =
+          new(zone()) HCompareNumericAndBranch(tag_value,
+                                               label_value,
+                                               Token::EQ_STRICT);
       compare_->set_observed_input_representation(
           Representation::Smi(), Representation::Smi());
       compare = compare_;
@@ -4715,8 +4512,8 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HValue* limit = environment()->ExpressionStackAt(1);
 
   // Check that we still have more keys.
-  HCompareIDAndBranch* compare_index =
-      new(zone()) HCompareIDAndBranch(index, limit, Token::LT);
+  HCompareNumericAndBranch* compare_index =
+      new(zone()) HCompareNumericAndBranch(index, limit, Token::LT);
   compare_index->set_observed_input_representation(
       Representation::Smi(), Representation::Smi());
 
@@ -4952,9 +4749,20 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       if (type == kUseCell) {
         Handle<GlobalObject> global(current_info()->global_object());
         Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
-        HLoadGlobalCell* instr =
-            new(zone()) HLoadGlobalCell(cell, lookup.GetPropertyDetails());
-        return ast_context()->ReturnInstruction(instr, expr->id());
+        if (cell->type()->IsConstant()) {
+          cell->AddDependentCompilationInfo(top_info());
+          Handle<Object> constant_object = cell->type()->AsConstant();
+          if (constant_object->IsConsString()) {
+            constant_object =
+                FlattenGetString(Handle<String>::cast(constant_object));
+          }
+          HConstant* constant = new(zone()) HConstant(constant_object);
+          return ast_context()->ReturnInstruction(constant, expr->id());
+        } else {
+          HLoadGlobalCell* instr =
+              new(zone()) HLoadGlobalCell(cell, lookup.GetPropertyDetails());
+          return ast_context()->ReturnInstruction(instr, expr->id());
+        }
       } else {
         HValue* context = environment()->LookupContext();
         HGlobalObject* global_object = new(zone()) HGlobalObject(context);
@@ -5764,7 +5572,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
       HBasicBlock* if_true = graph()->CreateBasicBlock();
       HBasicBlock* if_false = graph()->CreateBasicBlock();
       HCompareMap* compare =
-          new(zone()) HCompareMap(object, map, if_true, if_false);
+          new(zone()) HCompareMap(object, map,  if_true, if_false);
       current_block()->Finish(compare);
 
       set_current_block(if_true);
@@ -5865,8 +5673,21 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
   if (type == kUseCell) {
     Handle<GlobalObject> global(current_info()->global_object());
     Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
-    HInstruction* instr = Add<HStoreGlobalCell>(value, cell,
-                                                lookup.GetPropertyDetails());
+    if (cell->type()->IsConstant()) {
+      IfBuilder builder(this);
+      HValue* constant = Add<HConstant>(cell->type()->AsConstant());
+      if (cell->type()->AsConstant()->IsNumber()) {
+        builder.If<HCompareNumericAndBranch>(value, constant, Token::EQ);
+      } else {
+        builder.If<HCompareObjectEqAndBranch>(value, constant);
+      }
+      builder.Then();
+      builder.Else();
+      AddSoftDeoptimize(MUST_EMIT_SOFT_DEOPT);
+      builder.End();
+    }
+    HInstruction* instr =
+        Add<HStoreGlobalCell>(value, cell, lookup.GetPropertyDetails());
     instr->set_position(position);
     if (instr->HasObservableSideEffects()) {
       AddSimulate(ast_id, REMOVABLE_SIMULATE);
@@ -8292,18 +8113,8 @@ void HOptimizedGraphBuilder::VisitTypeof(UnaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
-  HValue* context = environment()->LookupContext();
-  HInstruction* instr =
-      HMul::New(zone(), context, value, graph()->GetConstantMinus1());
   Handle<Type> operand_type = expr->expression()->lower_type();
-  Representation rep = ToRepresentation(operand_type);
-  if (operand_type->Is(Type::None())) {
-    AddSoftDeoptimize();
-  }
-  if (instr->IsBinaryOperation()) {
-    HBinaryOperation::cast(instr)->set_observed_input_representation(1, rep);
-    HBinaryOperation::cast(instr)->set_observed_input_representation(2, rep);
-  }
+  HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::SUB);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -8312,10 +8123,7 @@ void HOptimizedGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
   Handle<Type> operand_type = expr->expression()->lower_type();
-  if (operand_type->Is(Type::None())) {
-    AddSoftDeoptimize();
-  }
-  HInstruction* instr = new(zone()) HBitNot(value);
+  HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::BIT_NOT);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -8369,7 +8177,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     CountOperation* expr) {
   // The input to the count operation is on top of the expression stack.
   TypeInfo info = expr->type();
-  Representation rep = ToRepresentation(info);
+  Representation rep = Representation::FromType(info);
   if (rep.IsNone() || rep.IsTagged()) {
     rep = Representation::Smi();
   }
@@ -8610,6 +8418,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
   return new(zone()) HStringCharCodeAt(context, string, checked_index);
 }
 
+
 // Checks if the given shift amounts have form: (sa) and (32 - sa).
 static bool ShiftAmountsAllowReplaceByRotate(HValue* sa,
                                              HValue* const32_minus_sa) {
@@ -8675,11 +8484,12 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   HValue* context = environment()->LookupContext();
   Handle<Type> left_type = expr->left()->lower_type();
   Handle<Type> right_type = expr->right()->lower_type();
-  Handle<Type> result_type = expr->result_type();
+  Handle<Type> result_type = expr->lower_type();
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
-  Representation left_rep = ToRepresentation(left_type);
-  Representation right_rep = ToRepresentation(right_type);
-  Representation result_rep = ToRepresentation(result_type);
+  Representation left_rep = Representation::FromType(left_type);
+  Representation right_rep = Representation::FromType(right_type);
+  Representation result_rep = Representation::FromType(result_type);
+
   if (left_type->Is(Type::None())) {
     AddSoftDeoptimize();
     // TODO(rossberg): we should be able to get rid of non-continuous defaults.
@@ -8840,8 +8650,8 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     HBasicBlock* eval_right = graph()->CreateBasicBlock();
     ToBooleanStub::Types expected(expr->left()->to_boolean_types());
     HBranch* test = is_logical_and
-      ? new(zone()) HBranch(left_value, eval_right, empty_block, expected)
-      : new(zone()) HBranch(left_value, empty_block, eval_right, expected);
+        ? new(zone()) HBranch(left_value, expected, eval_right, empty_block)
+        : new(zone()) HBranch(left_value, expected, empty_block, eval_right);
     current_block()->Finish(test);
 
     set_current_block(eval_right);
@@ -8904,26 +8714,6 @@ void HOptimizedGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
   HInstruction* instr = BuildBinaryOperation(expr, left, right);
   instr->set_position(expr->position());
   return ast_context()->ReturnInstruction(instr, expr->id());
-}
-
-
-// TODO(rossberg): this should die eventually.
-Representation HOptimizedGraphBuilder::ToRepresentation(TypeInfo info) {
-  if (info.IsUninitialized()) return Representation::None();
-  // TODO(verwaest): Return Smi rather than Integer32.
-  if (info.IsSmi()) return Representation::Integer32();
-  if (info.IsInteger32()) return Representation::Integer32();
-  if (info.IsDouble()) return Representation::Double();
-  if (info.IsNumber()) return Representation::Double();
-  return Representation::Tagged();
-}
-
-
-Representation HOptimizedGraphBuilder::ToRepresentation(Handle<Type> type) {
-  if (type->Is(Type::None())) return Representation::None();
-  if (type->Is(Type::Signed32())) return Representation::Integer32();
-  if (type->Is(Type::Number())) return Representation::Double();
-  return Representation::Tagged();
 }
 
 
@@ -9019,9 +8809,9 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   Handle<Type> left_type = expr->left()->lower_type();
   Handle<Type> right_type = expr->right()->lower_type();
   Handle<Type> combined_type = expr->combined_type();
-  Representation combined_rep = ToRepresentation(combined_type);
-  Representation left_rep = ToRepresentation(left_type);
-  Representation right_rep = ToRepresentation(right_type);
+  Representation combined_rep = Representation::FromType(combined_type);
+  Representation left_rep = Representation::FromType(left_type);
+  Representation right_rep = Representation::FromType(right_type);
 
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
@@ -9150,12 +8940,12 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       result->set_position(expr->position());
       return ast_context()->ReturnInstruction(result, expr->id());
     } else {
-      // TODO(verwaest): Remove once ToRepresentation properly returns Smi when
-      // the IC measures Smi.
+      // TODO(verwaest): Remove once Representation::FromType properly
+      // returns Smi when the IC measures Smi.
       if (left_type->Is(Type::Smi())) left_rep = Representation::Smi();
       if (right_type->Is(Type::Smi())) right_rep = Representation::Smi();
-      HCompareIDAndBranch* result =
-          new(zone()) HCompareIDAndBranch(left, right, op);
+      HCompareNumericAndBranch* result =
+          new(zone()) HCompareNumericAndBranch(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);
       result->set_position(expr->position());
       return ast_context()->ReturnControl(result, expr->id());
@@ -9521,6 +9311,7 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
     }
   }
 }
+
 
 void HOptimizedGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   ASSERT(!HasStackOverflow());

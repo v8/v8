@@ -56,6 +56,7 @@ ExternalReference ExternalReference::cpu_features() {
   return ExternalReference(&CpuFeatures::supported_);
 }
 
+
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols CAN_USE_ARMV7_INSTRUCTIONS and CAN_USE_VFP3_INSTRUCTIONS
 // can be defined to enable ARMv7 and VFPv3 instructions when building the
@@ -355,6 +356,7 @@ MemOperand::MemOperand(Register rn, int32_t offset, AddrMode am) {
   offset_ = offset;
   am_ = am;
 }
+
 
 MemOperand::MemOperand(Register rn, Register rm, AddrMode am) {
   rn_ = rn;
@@ -676,6 +678,7 @@ int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
   ASSERT(IsCmpImmediate(instr));
   return instr & kOff12Mask;
 }
+
 
 // Labels refer to positions in the (to be) generated code.
 // There are bound, linked, and unused labels.
@@ -1640,6 +1643,7 @@ void Assembler::strd(Register src1, Register src2,
   addrmod3(cond | B7 | B6 | B5 | B4, src1, dst);
 }
 
+
 // Load/Store multiple instructions.
 void Assembler::ldm(BlockAddrMode am,
                     Register base,
@@ -2074,6 +2078,7 @@ void  Assembler::vstm(BlockAddrMode am,
        0xA*B8 | count);
 }
 
+
 static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i;
   OS::MemCopy(&i, &d, 8);
@@ -2081,6 +2086,7 @@ static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   *lo = i & 0xffffffff;
   *hi = i >> 32;
 }
+
 
 // Only works for little endian floating point formats.
 // We don't support VFP on the mixed endian floating point platform.
@@ -2774,6 +2780,7 @@ void Assembler::RecordConstPool(int size) {
 #endif
 }
 
+
 void Assembler::GrowBuffer() {
   if (!own_buffer_) FATAL("external code buffer is too small");
 
@@ -2893,6 +2900,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
     }
   }
 }
+
 
 void Assembler::RecordRelocInfo(double data) {
   // We do not try to reuse pool constants.

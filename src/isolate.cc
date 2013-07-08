@@ -509,6 +509,7 @@ void Isolate::Iterate(ObjectVisitor* v) {
   Iterate(v, current_t);
 }
 
+
 void Isolate::IterateDeferredHandles(ObjectVisitor* visitor) {
   for (DeferredHandles* deferred = deferred_handles_head_;
        deferred != NULL;
@@ -1875,6 +1876,10 @@ void Isolate::GlobalTearDown() {
 void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    debugger()->UnloadDebugger();
+#endif
 
     if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
 

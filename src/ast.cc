@@ -675,6 +675,7 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   if (is_monomorphic_) {
     target_ = oracle->GetCallNewTarget(this);
     Object* value = allocation_info_cell_->value();
+    ASSERT(!value->IsTheHole());
     if (value->IsSmi()) {
       elements_kind_ = static_cast<ElementsKind>(Smi::cast(value)->value());
     }

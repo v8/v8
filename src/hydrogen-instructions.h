@@ -92,10 +92,11 @@ class LChunkBuilder;
   V(CheckHeapObject)                           \
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
+  V(CheckSmi)                                  \
   V(CheckPrototypeMaps)                        \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
-  V(CompareIDAndBranch)                        \
+  V(CompareNumericAndBranch)                   \
   V(CompareGeneric)                            \
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
@@ -128,6 +129,7 @@ class LChunkBuilder;
   V(InvokeFunction)                            \
   V(IsConstructCallAndBranch)                  \
   V(IsObjectAndBranch)                         \
+  V(IsNumberAndBranch)                         \
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
@@ -1604,20 +1606,10 @@ class HUnaryControlInstruction: public HTemplateControlInstruction<2, 1> {
 class HBranch: public HUnaryControlInstruction {
  public:
   HBranch(HValue* value,
-          HBasicBlock* true_target,
-          HBasicBlock* false_target,
-          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types())
+          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types(),
+          HBasicBlock* true_target = NULL,
+          HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        expected_input_types_(expected_input_types) {
-    ASSERT(true_target != NULL && false_target != NULL);
-    SetFlag(kAllowUndefinedAsNaN);
-  }
-  explicit HBranch(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) {
-    SetFlag(kAllowUndefinedAsNaN);
-  }
-  HBranch(HValue* value, ToBooleanStub::Types expected_input_types)
-      : HUnaryControlInstruction(value, NULL, NULL),
         expected_input_types_(expected_input_types) {
     SetFlag(kAllowUndefinedAsNaN);
   }
@@ -1642,12 +1634,10 @@ class HCompareMap: public HUnaryControlInstruction {
  public:
   HCompareMap(HValue* value,
               Handle<Map> map,
-              HBasicBlock* true_target,
-              HBasicBlock* false_target)
+              HBasicBlock* true_target = NULL,
+              HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        map_(map) {
-    ASSERT(true_target != NULL);
-    ASSERT(false_target != NULL);
+      map_(map) {
     ASSERT(!map.is_null());
   }
 
@@ -2934,6 +2924,49 @@ class HCheckInstanceType: public HUnaryOperation {
 };
 
 
+class HCheckSmi: public HUnaryOperation {
+ public:
+  explicit HCheckSmi(HValue* value) : HUnaryOperation(value) {
+    set_representation(Representation::Smi());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  virtual HType CalculateInferredType();
+
+  virtual HValue* Canonicalize() {
+    HType value_type = value()->type();
+    if (value_type.IsSmi()) {
+      return NULL;
+    }
+    return this;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckSmi)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HIsNumberAndBranch: public HUnaryControlInstruction {
+ public:
+  explicit HIsNumberAndBranch(HValue* value)
+    : HUnaryControlInstruction(value, NULL, NULL) {
+    SetFlag(kFlexibleRepresentation);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsNumberAndBranch)
+};
+
+
 class HCheckHeapObject: public HUnaryOperation {
  public:
   explicit HCheckHeapObject(HValue* value) : HUnaryOperation(value) {
@@ -3246,6 +3279,7 @@ class HConstant: public HTemplateInstruction<0> {
             HType type,
             bool is_internalized_string,
             bool is_not_in_new_space,
+            bool is_cell,
             bool boolean_value);
 
   Handle<Object> handle() {
@@ -3294,6 +3328,10 @@ class HConstant: public HTemplateInstruction<0> {
            unique_id_ == UniqueValueId(heap->empty_string());
   }
 
+  bool IsCell() const {
+    return is_cell_;
+  }
+
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
@@ -3305,7 +3343,7 @@ class HConstant: public HTemplateInstruction<0> {
     return Representation::Tagged();
   }
 
-  virtual bool EmitAtUses() { return !representation().IsDouble(); }
+  virtual bool EmitAtUses();
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
@@ -3420,6 +3458,7 @@ class HConstant: public HTemplateInstruction<0> {
   bool has_double_value_ : 1;
   bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
   bool is_not_in_new_space_ : 1;
+  bool is_cell_ : 1;
   bool boolean_value_ : 1;
   int32_t int32_value_;
   double double_value_;
@@ -3909,9 +3948,9 @@ class HCompareGeneric: public HBinaryOperation {
 };
 
 
-class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
+class HCompareNumericAndBranch: public HTemplateControlInstruction<2, 2> {
  public:
-  HCompareIDAndBranch(HValue* left, HValue* right, Token::Value token)
+  HCompareNumericAndBranch(HValue* left, HValue* right, Token::Value token)
       : token_(token) {
     SetFlag(kFlexibleRepresentation);
     ASSERT(Token::IsCompareOp(token));
@@ -3941,7 +3980,7 @@ class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
 
   virtual void AddInformativeDefinitions();
 
-  DECLARE_CONCRETE_INSTRUCTION(CompareIDAndBranch)
+  DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch)
 
  private:
   Representation observed_input_representation_[2];
@@ -4718,6 +4757,7 @@ class HOsrEntry: public HTemplateInstruction<0> {
  public:
   explicit HOsrEntry(BailoutId ast_id) : ast_id_(ast_id) {
     SetGVNFlag(kChangesOsrEntries);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   BailoutId ast_id() const { return ast_id_; }
@@ -5072,6 +5112,9 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
         HInnerAllocatedObject::cast(object)->base_object(),
         new_space_dominator);
   }
+  if (object->IsConstant() && HConstant::cast(object)->IsCell()) {
+    return false;
+  }
   if (object != new_space_dominator) return true;
   if (object->IsAllocateObject()) return false;
   if (object->IsAllocate()) {
@@ -5332,6 +5375,9 @@ class HObjectAccess {
   // Create an access to a resolved field (in-object or backing store).
   static HObjectAccess ForField(Handle<Map> map,
       LookupResult *lookup, Handle<String> name = Handle<String>::null());
+
+  // Create an access for the payload of a Cell or JSGlobalPropertyCell.
+  static HObjectAccess ForCellPayload(Isolate* isolate);
 
   void PrintTo(StringStream* stream);
 

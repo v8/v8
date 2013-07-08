@@ -1971,11 +1971,11 @@ int LCodeGen::GetNextEmittedBlock() const {
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr,
                           Condition cc, Register src1, const Operand& src2) {
-  int right_block = instr->FalseDestination(chunk_);
   int left_block = instr->TrueDestination(chunk_);
+  int right_block = instr->FalseDestination(chunk_);
 
   int next_block = GetNextEmittedBlock();
-  if (right_block == left_block) {
+  if (right_block == left_block || cc == al) {
     EmitGoto(left_block);
   } else if (left_block == next_block) {
     __ Branch(chunk_->GetAssemblyLabel(right_block),
@@ -2012,6 +2012,25 @@ void LCodeGen::EmitBranchF(InstrType instr,
 
 void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
   __ stop("LDebugBreak");
+}
+
+
+void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
+  Representation r = instr->hydrogen()->value()->representation();
+  if (r.IsSmiOrInteger32() || r.IsDouble()) {
+    EmitBranch(instr, al, zero_reg, Operand(zero_reg));
+  } else {
+    ASSERT(r.IsTagged());
+    Register reg = ToRegister(instr->value());
+    HType type = instr->hydrogen()->value()->type();
+    if (type.IsTaggedNumber()) {
+      EmitBranch(instr, al, zero_reg, Operand(zero_reg));
+    }
+    __ JumpIfSmi(reg, instr->TrueLabel(chunk_));
+    __ lw(scratch0(), FieldMemOperand(reg, HeapObject::kMapOffset));
+    __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
+    EmitBranch(instr, eq, scratch0(), Operand(at));
+  }
 }
 
 
@@ -2183,7 +2202,7 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 }
 
 
-void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
+void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
   Condition cond = TokenToCondition(instr->op(), false);
@@ -3360,6 +3379,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ bind(&receiver_ok);
 }
 
+
 void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
@@ -3885,6 +3905,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // Subtract to get the result.
   __ sub_d(f0, f12, f14);
 }
+
 
 void LCodeGen::DoDeferredRandom(LRandom* instr) {
   __ PrepareCallCFunction(1, scratch0());

@@ -467,7 +467,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteral) {
                                                  constant_properties,
                                                  should_have_fast_elements,
                                                  has_function_literal);
-    if (boilerplate.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
@@ -493,7 +493,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteralShallow) {
                                                  constant_properties,
                                                  should_have_fast_elements,
                                                  has_function_literal);
-    if (boilerplate.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
@@ -514,7 +514,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
     ASSERT(*elements != isolate->heap()->empty_fixed_array());
     boilerplate =
         Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
-    if (boilerplate.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
@@ -535,7 +535,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
     ASSERT(*elements != isolate->heap()->empty_fixed_array());
     boilerplate =
         Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
-    if (boilerplate.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, boilerplate);
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
@@ -796,6 +796,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   CONVERT_ARG_HANDLE_CHECKED(Object, byte_offset_object, 3);
   CONVERT_ARG_HANDLE_CHECKED(Object, byte_length_object, 4);
 
+  ASSERT(holder->GetInternalFieldCount() ==
+      v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    holder->SetInternalField(i, Smi::FromInt(0));
+  }
+
   ExternalArrayType arrayType;
   size_t elementSize;
   switch (arrayId) {
@@ -1011,6 +1017,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DataViewInitialize) {
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, byte_offset, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, byte_length, 3);
+
+  ASSERT(holder->GetInternalFieldCount() ==
+      v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    holder->SetInternalField(i, Smi::FromInt(0));
+  }
 
   holder->set_buffer(*buffer);
   ASSERT(byte_offset->IsNumber());
@@ -1460,7 +1472,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
         GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
 
     Handle<Object> result = JSObject::SetPrototype(obj, prototype, true);
-    if (result.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
 
     Handle<Object> new_value(
         GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
@@ -1472,7 +1484,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
     return *result;
   }
   Handle<Object> result = JSObject::SetPrototype(obj, prototype, true);
-  if (result.is_null()) return Failure::Exception();
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
 }
 
@@ -1635,7 +1647,7 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
     elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
     // GetProperty does access check.
     Handle<Object> value = GetProperty(isolate, obj, name);
-    if (value.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate, value);
     elms->set(VALUE_INDEX, *value);
   } else {
     // Access checks are performed for both accessors separately.
@@ -1700,7 +1712,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpCompile) {
   CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);
   Handle<Object> result =
       RegExpImpl::Compile(re, pattern, flags);
-  if (result.is_null()) return Failure::Exception();
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
 }
 
@@ -2109,7 +2121,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
   } else if (lookup.IsNormal()) {
     if (global->GetNormalizedProperty(&lookup)->IsTheHole() ||
         !lookup.IsReadOnly()) {
-      global->SetNormalizedProperty(&lookup, *value);
+      HandleScope scope(isolate);
+      JSObject::SetNormalizedProperty(Handle<JSObject>(global), &lookup, value);
     }
   } else {
     // Ignore re-initialization of constants that have already been
@@ -2198,7 +2211,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
       }
     } else if (lookup.IsNormal()) {
       if (object->GetNormalizedProperty(&lookup)->IsTheHole()) {
-        object->SetNormalizedProperty(&lookup, *value);
+        JSObject::SetNormalizedProperty(object, &lookup, value);
       }
     } else {
       // We should not reach here. Any real, named property should be
@@ -2250,7 +2263,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
                                            subject,
                                            index,
                                            last_match_info);
-  if (result.is_null()) return Failure::Exception();
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
 }
 
@@ -4068,6 +4081,7 @@ static int StringMatchBackwards(Vector<const schar> subject,
   return -1;
 }
 
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLastIndexOf) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
@@ -4788,6 +4802,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
   if (fast) JSObject::TransformToFastProperties(obj, 0);
   return isolate->heap()->undefined_value();
 }
+
 
 // Implements part of 8.12.9 DefineOwnProperty.
 // There are 3 cases that lead here:
@@ -7463,6 +7478,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log) {
   return isolate->transcendental_cache()->Get(TranscendentalCache::LOG, x);
 }
 
+
 // Slow version of Math.pow.  We check for fast paths for special cases.
 // Used if SSE2/VFP3 is not available.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
@@ -7484,6 +7500,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   if (std::isnan(result)) return isolate->heap()->nan_value();
   return isolate->heap()->AllocateHeapNumber(result);
 }
+
 
 // Fast version of Math.pow if we know that y is not an integer and y is not
 // -0.5 or 0.5.  Used as slow case from full codegen.
@@ -8852,6 +8869,7 @@ struct ObjectPair {
   MaybeObject* y;
 };
 
+
 static inline ObjectPair MakePair(MaybeObject* x, MaybeObject* y) {
   ObjectPair result = {x, y};
   // Pointers x and y returned in rax and rdx, in AMD-x64-abi.
@@ -9377,7 +9395,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
       ? ONLY_SINGLE_FUNCTION_LITERAL : NO_PARSE_RESTRICTION;
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source, context, true, CLASSIC_MODE, restriction, RelocInfo::kNoPosition);
-  if (shared.is_null()) return Failure::Exception();
+  RETURN_IF_EMPTY_HANDLE(isolate, shared);
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
                                                             context,
@@ -9414,7 +9432,8 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
       language_mode,
       NO_PARSE_RESTRICTION,
       scope_position);
-  if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, shared,
+                               MakePair(Failure::Exception(), NULL));
   Handle<JSFunction> compiled =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared, context, NOT_TENURED);
@@ -10232,6 +10251,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GlobalPrint) {
   }
   return string;
 }
+
 
 // Moves all own elements of an object, that are below a limit, to positions
 // starting at zero. All undefined values are placed after non-undefined values,
@@ -11850,6 +11870,7 @@ static MaybeObject* MaterializeScopeDetails(Isolate* isolate,
   return *isolate->factory()->NewJSArrayWithElements(details);
 }
 
+
 // Return an array with scope details
 // args[0]: number: break id
 // args[1]: number: frame index
@@ -12414,7 +12435,7 @@ static MaybeObject* DebugEvaluate(Isolate* isolate,
       CLASSIC_MODE,
       NO_PARSE_RESTRICTION,
       RelocInfo::kNoPosition);
-  if (shared.is_null()) return Failure::Exception();
+  RETURN_IF_EMPTY_HANDLE(isolate, shared);
 
   Handle<JSFunction> eval_fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -12956,6 +12977,7 @@ static int FindSharedFunctionInfosForScript(HeapIterator* iterator,
   return counter;
 }
 
+
 // For a script finds all SharedFunctionInfo's in the heap that points
 // to this script. Returns JSArray of SharedFunctionInfo wrapped
 // in OpaqueReferences.
@@ -13001,6 +13023,7 @@ RUNTIME_FUNCTION(MaybeObject*,
   return *result;
 }
 
+
 // For a script calculates compilation information about all its functions.
 // The script source is explicitly specified by the second argument.
 // The source of the actual script is not used, however it is important that
@@ -13026,6 +13049,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditGatherCompileInfo) {
 
   return result;
 }
+
 
 // Changes the source of the script to a new_source.
 // If old_script_name is provided (i.e. is a String), also creates a copy of
@@ -13073,6 +13097,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceFunctionCode) {
 
   return LiveEdit::ReplaceFunctionCode(new_compile_info, shared_info);
 }
+
 
 // Connects SharedFunctionInfo to another script.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditFunctionSetScript) {
@@ -13147,6 +13172,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditCheckAndDropActivations) {
 
   return *LiveEdit::CheckAndDropActivations(shared_array, do_drop);
 }
+
 
 // Compares 2 strings line-by-line, then token-wise and returns diff in form
 // of JSArray of triplets (pos1, pos1_end, pos2_end) describing list

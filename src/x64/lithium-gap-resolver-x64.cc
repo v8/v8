@@ -202,6 +202,20 @@ void LGapResolver::EmitMove(int index) {
       } else {
         __ LoadObject(dst, cgen_->ToHandle(constant_source));
       }
+    } else if (destination->IsDoubleRegister()) {
+      double v = cgen_->ToDouble(constant_source);
+      uint64_t int_val = BitCast<uint64_t, double>(v);
+      int32_t lower = static_cast<int32_t>(int_val);
+      int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
+      XMMRegister dst = cgen_->ToDoubleRegister(destination);
+      if (int_val == 0) {
+        __ xorps(dst, dst);
+      } else {
+        __ push(Immediate(upper));
+        __ push(Immediate(lower));
+        __ movsd(dst, Operand(rsp, 0));
+        __ addq(rsp, Immediate(kDoubleSize));
+      }
     } else {
       ASSERT(destination->IsStackSlot());
       Operand dst = cgen_->ToOperand(destination);

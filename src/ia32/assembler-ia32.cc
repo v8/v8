@@ -1055,6 +1055,7 @@ void Assembler::rcr(Register dst, uint8_t imm8) {
   }
 }
 
+
 void Assembler::ror(Register dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   ASSERT(is_uint5(imm8));  // illegal shift count
@@ -1067,6 +1068,7 @@ void Assembler::ror(Register dst, uint8_t imm8) {
     EMIT(imm8);
   }
 }
+
 
 void Assembler::ror_cl(Register dst) {
   EnsureSpace ensure_space(this);
@@ -2136,6 +2138,7 @@ void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   // Mask precision exeption.
   EMIT(static_cast<byte>(mode) | 0x8);
 }
+
 
 void Assembler::movmskpd(Register dst, XMMRegister src) {
   ASSERT(IsEnabled(SSE2));

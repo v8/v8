@@ -230,6 +230,28 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
 }
 
 
+void UnaryOpStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { eax };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(UnaryOpIC_Miss);
+}
+
+
+void StoreGlobalStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { edx, ecx, eax };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(StoreIC_MissFromStubFailure);
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 
@@ -756,325 +778,6 @@ static void ConvertHeapNumberToInt32(MacroAssembler* masm,
   __ movdbl(xmm0, FieldOperand(source, HeapNumber::kValueOffset));
   FloatingPointHelper::CheckSSE2OperandIsInt32(
       masm, conversion_failure, xmm0, ecx, ebx, xmm1);
-}
-
-
-void UnaryOpStub::PrintName(StringStream* stream) {
-  const char* op_name = Token::Name(op_);
-  const char* overwrite_name = NULL;  // Make g++ happy.
-  switch (mode_) {
-    case UNARY_NO_OVERWRITE: overwrite_name = "Alloc"; break;
-    case UNARY_OVERWRITE: overwrite_name = "Overwrite"; break;
-  }
-  stream->Add("UnaryOpStub_%s_%s_%s",
-              op_name,
-              overwrite_name,
-              UnaryOpIC::GetName(operand_type_));
-}
-
-
-// TODO(svenpanne): Use virtual functions instead of switch.
-void UnaryOpStub::Generate(MacroAssembler* masm) {
-  switch (operand_type_) {
-    case UnaryOpIC::UNINITIALIZED:
-      GenerateTypeTransition(masm);
-      break;
-    case UnaryOpIC::SMI:
-      GenerateSmiStub(masm);
-      break;
-    case UnaryOpIC::NUMBER:
-      GenerateNumberStub(masm);
-      break;
-    case UnaryOpIC::GENERIC:
-      GenerateGenericStub(masm);
-      break;
-  }
-}
-
-
-void UnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
-  __ pop(ecx);  // Save return address.
-
-  __ push(eax);  // the operand
-  __ push(Immediate(Smi::FromInt(op_)));
-  __ push(Immediate(Smi::FromInt(mode_)));
-  __ push(Immediate(Smi::FromInt(operand_type_)));
-
-  __ push(ecx);  // Push return address.
-
-  // Patch the caller to an appropriate specialized stub and return the
-  // operation result to the caller of the stub.
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kUnaryOp_Patch), masm->isolate()), 4, 1);
-}
-
-
-// TODO(svenpanne): Use virtual functions instead of switch.
-void UnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
-  switch (op_) {
-    case Token::SUB:
-      GenerateSmiStubSub(masm);
-      break;
-    case Token::BIT_NOT:
-      GenerateSmiStubBitNot(masm);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-void UnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
-  Label non_smi, undo, slow;
-  GenerateSmiCodeSub(masm, &non_smi, &undo, &slow,
-                     Label::kNear, Label::kNear, Label::kNear);
-  __ bind(&undo);
-  GenerateSmiCodeUndo(masm);
-  __ bind(&non_smi);
-  __ bind(&slow);
-  GenerateTypeTransition(masm);
-}
-
-
-void UnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
-  Label non_smi;
-  GenerateSmiCodeBitNot(masm, &non_smi);
-  __ bind(&non_smi);
-  GenerateTypeTransition(masm);
-}
-
-
-void UnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
-                                     Label* non_smi,
-                                     Label* undo,
-                                     Label* slow,
-                                     Label::Distance non_smi_near,
-                                     Label::Distance undo_near,
-                                     Label::Distance slow_near) {
-  // Check whether the value is a smi.
-  __ JumpIfNotSmi(eax, non_smi, non_smi_near);
-
-  // We can't handle -0 with smis, so use a type transition for that case.
-  __ test(eax, eax);
-  __ j(zero, slow, slow_near);
-
-  // Try optimistic subtraction '0 - value', saving operand in eax for undo.
-  __ mov(edx, eax);
-  __ Set(eax, Immediate(0));
-  __ sub(eax, edx);
-  __ j(overflow, undo, undo_near);
-  __ ret(0);
-}
-
-
-void UnaryOpStub::GenerateSmiCodeBitNot(
-    MacroAssembler* masm,
-    Label* non_smi,
-    Label::Distance non_smi_near) {
-  // Check whether the value is a smi.
-  __ JumpIfNotSmi(eax, non_smi, non_smi_near);
-
-  // Flip bits and revert inverted smi-tag.
-  __ not_(eax);
-  __ and_(eax, ~kSmiTagMask);
-  __ ret(0);
-}
-
-
-void UnaryOpStub::GenerateSmiCodeUndo(MacroAssembler* masm) {
-  __ mov(eax, edx);
-}
-
-
-// TODO(svenpanne): Use virtual functions instead of switch.
-void UnaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
-  switch (op_) {
-    case Token::SUB:
-      GenerateNumberStubSub(masm);
-      break;
-    case Token::BIT_NOT:
-      GenerateNumberStubBitNot(masm);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-void UnaryOpStub::GenerateNumberStubSub(MacroAssembler* masm) {
-  Label non_smi, undo, slow, call_builtin;
-  GenerateSmiCodeSub(masm, &non_smi, &undo, &call_builtin, Label::kNear);
-  __ bind(&non_smi);
-  GenerateHeapNumberCodeSub(masm, &slow);
-  __ bind(&undo);
-  GenerateSmiCodeUndo(masm);
-  __ bind(&slow);
-  GenerateTypeTransition(masm);
-  __ bind(&call_builtin);
-  GenerateGenericCodeFallback(masm);
-}
-
-
-void UnaryOpStub::GenerateNumberStubBitNot(
-    MacroAssembler* masm) {
-  Label non_smi, slow;
-  GenerateSmiCodeBitNot(masm, &non_smi, Label::kNear);
-  __ bind(&non_smi);
-  GenerateHeapNumberCodeBitNot(masm, &slow);
-  __ bind(&slow);
-  GenerateTypeTransition(masm);
-}
-
-
-void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
-                                            Label* slow) {
-  __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ cmp(edx, masm->isolate()->factory()->heap_number_map());
-  __ j(not_equal, slow);
-
-  if (mode_ == UNARY_OVERWRITE) {
-    __ xor_(FieldOperand(eax, HeapNumber::kExponentOffset),
-            Immediate(HeapNumber::kSignMask));  // Flip sign.
-  } else {
-    __ mov(edx, eax);
-    // edx: operand
-
-    Label slow_allocate_heapnumber, heapnumber_allocated;
-    __ AllocateHeapNumber(eax, ebx, ecx, &slow_allocate_heapnumber);
-    __ jmp(&heapnumber_allocated, Label::kNear);
-
-    __ bind(&slow_allocate_heapnumber);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ push(edx);
-      __ CallRuntime(Runtime::kNumberAlloc, 0);
-      __ pop(edx);
-    }
-
-    __ bind(&heapnumber_allocated);
-    // eax: allocated 'empty' number
-    __ mov(ecx, FieldOperand(edx, HeapNumber::kExponentOffset));
-    __ xor_(ecx, HeapNumber::kSignMask);  // Flip sign.
-    __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), ecx);
-    __ mov(ecx, FieldOperand(edx, HeapNumber::kMantissaOffset));
-    __ mov(FieldOperand(eax, HeapNumber::kMantissaOffset), ecx);
-  }
-  __ ret(0);
-}
-
-
-void UnaryOpStub::GenerateHeapNumberCodeBitNot(MacroAssembler* masm,
-                                               Label* slow) {
-  __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ cmp(edx, masm->isolate()->factory()->heap_number_map());
-  __ j(not_equal, slow);
-
-  // Convert the heap number in eax to an untagged integer in ecx.
-  IntegerConvert(masm, eax, CpuFeatures::IsSupported(SSE3), slow);
-
-  // Do the bitwise operation and check if the result fits in a smi.
-  Label try_float;
-  __ not_(ecx);
-  __ cmp(ecx, 0xc0000000);
-  __ j(sign, &try_float, Label::kNear);
-
-  // Tag the result as a smi and we're done.
-  STATIC_ASSERT(kSmiTagSize == 1);
-  __ lea(eax, Operand(ecx, times_2, kSmiTag));
-  __ ret(0);
-
-  // Try to store the result in a heap number.
-  __ bind(&try_float);
-  if (mode_ == UNARY_NO_OVERWRITE) {
-    Label slow_allocate_heapnumber, heapnumber_allocated;
-    __ mov(ebx, eax);
-    __ AllocateHeapNumber(eax, edx, edi, &slow_allocate_heapnumber);
-    __ jmp(&heapnumber_allocated);
-
-    __ bind(&slow_allocate_heapnumber);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      // Push the original HeapNumber on the stack. The integer value can't
-      // be stored since it's untagged and not in the smi range (so we can't
-      // smi-tag it). We'll recalculate the value after the GC instead.
-      __ push(ebx);
-      __ CallRuntime(Runtime::kNumberAlloc, 0);
-      // New HeapNumber is in eax.
-      __ pop(edx);
-    }
-    // IntegerConvert uses ebx and edi as scratch registers.
-    // This conversion won't go slow-case.
-    IntegerConvert(masm, edx, CpuFeatures::IsSupported(SSE3), slow);
-    __ not_(ecx);
-
-    __ bind(&heapnumber_allocated);
-  }
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope use_sse2(masm, SSE2);
-    __ cvtsi2sd(xmm0, ecx);
-    __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
-  } else {
-    __ push(ecx);
-    __ fild_s(Operand(esp, 0));
-    __ pop(ecx);
-    __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-  }
-  __ ret(0);
-}
-
-
-// TODO(svenpanne): Use virtual functions instead of switch.
-void UnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
-  switch (op_) {
-    case Token::SUB:
-      GenerateGenericStubSub(masm);
-      break;
-    case Token::BIT_NOT:
-      GenerateGenericStubBitNot(masm);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-void UnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm)  {
-  Label non_smi, undo, slow;
-  GenerateSmiCodeSub(masm, &non_smi, &undo, &slow, Label::kNear);
-  __ bind(&non_smi);
-  GenerateHeapNumberCodeSub(masm, &slow);
-  __ bind(&undo);
-  GenerateSmiCodeUndo(masm);
-  __ bind(&slow);
-  GenerateGenericCodeFallback(masm);
-}
-
-
-void UnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
-  Label non_smi, slow;
-  GenerateSmiCodeBitNot(masm, &non_smi, Label::kNear);
-  __ bind(&non_smi);
-  GenerateHeapNumberCodeBitNot(masm, &slow);
-  __ bind(&slow);
-  GenerateGenericCodeFallback(masm);
-}
-
-
-void UnaryOpStub::GenerateGenericCodeFallback(MacroAssembler* masm) {
-  // Handle the slow case by jumping to the corresponding JavaScript builtin.
-  __ pop(ecx);  // pop return address.
-  __ push(eax);
-  __ push(ecx);  // push return address
-  switch (op_) {
-    case Token::SUB:
-      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
-      break;
-    case Token::BIT_NOT:
-      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_FUNCTION);
-      break;
-    default:
-      UNREACHABLE();
-  }
 }
 
 

@@ -44,7 +44,6 @@ using i::ProfileGenerator;
 using i::ProfileNode;
 using i::ProfilerEventsProcessor;
 using i::ScopedVector;
-using i::TokenEnumerator;
 using i::Vector;
 
 
@@ -53,9 +52,10 @@ TEST(StartStop) {
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(&generator);
   processor.Start();
-  processor.Stop();
+  processor.StopSynchronously();
   processor.Join();
 }
+
 
 static inline i::Address ToAddress(int n) {
   return reinterpret_cast<i::Address>(n);
@@ -160,7 +160,7 @@ TEST(CodeEvents) {
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(&processor, aaa_code->address());
 
-  processor.Stop();
+  processor.StopSynchronously();
   processor.Join();
 
   // Check the state of profile generator.
@@ -188,6 +188,7 @@ template<typename T>
 static int CompareProfileNodes(const T* p1, const T* p2) {
   return strcmp((*p1)->entry()->name(), (*p2)->entry()->name());
 }
+
 
 TEST(TickEvents) {
   TestSetup test_setup;
@@ -221,10 +222,9 @@ TEST(TickEvents) {
       frame2_code->instruction_end() - 1,
       frame1_code->instruction_end() - 1);
 
-  processor.Stop();
+  processor.StopSynchronously();
   processor.Join();
-  CpuProfile* profile =
-      profiles->StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
+  CpuProfile* profile = profiles->StopProfiling("", 1);
   CHECK_NE(NULL, profile);
 
   // Check call trees.
@@ -286,10 +286,9 @@ TEST(Issue1398) {
     sample->stack[i] = code->address();
   }
 
-  processor.Stop();
+  processor.StopSynchronously();
   processor.Join();
-  CpuProfile* profile =
-      profiles->StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
+  CpuProfile* profile = profiles->StopProfiling("", 1);
   CHECK_NE(NULL, profile);
 
   int actual_depth = 0;
@@ -390,63 +389,6 @@ TEST(DeleteCpuProfile) {
   CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid3));
   CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid2));
   CHECK_EQ(NULL, FindCpuProfile(cpu_profiler, uid1));
-}
-
-
-TEST(DeleteCpuProfileDifferentTokens) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-
-  CHECK_EQ(0, cpu_profiler->GetProfileCount());
-  v8::Local<v8::String> name1 = v8::String::New("1");
-  cpu_profiler->StartCpuProfiling(name1);
-  const v8::CpuProfile* p1 = cpu_profiler->StopCpuProfiling(name1);
-  CHECK_NE(NULL, p1);
-  CHECK_EQ(1, cpu_profiler->GetProfileCount());
-  unsigned uid1 = p1->GetUid();
-  CHECK_EQ(p1, cpu_profiler->FindCpuProfile(uid1));
-  v8::Local<v8::String> token1 = v8::String::New("token1");
-  const v8::CpuProfile* p1_t1 = cpu_profiler->FindCpuProfile(uid1, token1);
-  CHECK_NE(NULL, p1_t1);
-  CHECK_NE(p1, p1_t1);
-  CHECK_EQ(1, cpu_profiler->GetProfileCount());
-  const_cast<v8::CpuProfile*>(p1)->Delete();
-  CHECK_EQ(0, cpu_profiler->GetProfileCount());
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid1));
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid1, token1));
-  const_cast<v8::CpuProfile*>(p1_t1)->Delete();
-  CHECK_EQ(0, cpu_profiler->GetProfileCount());
-
-  v8::Local<v8::String> name2 = v8::String::New("2");
-  cpu_profiler->StartCpuProfiling(name2);
-  v8::Local<v8::String> token2 = v8::String::New("token2");
-  const v8::CpuProfile* p2_t2 = cpu_profiler->StopCpuProfiling(name2, token2);
-  CHECK_NE(NULL, p2_t2);
-  CHECK_EQ(1, cpu_profiler->GetProfileCount());
-  unsigned uid2 = p2_t2->GetUid();
-  CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid2));
-  const v8::CpuProfile* p2 = cpu_profiler->FindCpuProfile(uid2);
-  CHECK_NE(p2_t2, p2);
-  v8::Local<v8::String> name3 = v8::String::New("3");
-  cpu_profiler->StartCpuProfiling(name3);
-  const v8::CpuProfile* p3 = cpu_profiler->StopCpuProfiling(name3);
-  CHECK_NE(NULL, p3);
-  CHECK_EQ(2, cpu_profiler->GetProfileCount());
-  unsigned uid3 = p3->GetUid();
-  CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid3));
-  CHECK_EQ(p3, cpu_profiler->FindCpuProfile(uid3));
-  const_cast<v8::CpuProfile*>(p2_t2)->Delete();
-  CHECK_EQ(1, cpu_profiler->GetProfileCount());
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid2));
-  CHECK_EQ(p3, cpu_profiler->FindCpuProfile(uid3));
-  const_cast<v8::CpuProfile*>(p2)->Delete();
-  CHECK_EQ(1, cpu_profiler->GetProfileCount());
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid2));
-  CHECK_EQ(p3, cpu_profiler->FindCpuProfile(uid3));
-  const_cast<v8::CpuProfile*>(p3)->Delete();
-  CHECK_EQ(0, cpu_profiler->GetProfileCount());
-  CHECK_EQ(NULL, cpu_profiler->FindCpuProfile(uid3));
 }
 
 
