@@ -1832,3 +1832,53 @@ TEST(ManyLocalsInSharedContext) {
     CHECK_NE(NULL, f_object);
   }
 }
+
+
+TEST(AllocationSitesAreVisible) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun(
+      "fun = function () { var a = [3, 2, 1]; return a; }\n"
+      "fun();");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("snapshot"));
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  const v8::HeapGraphNode* fun_code =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "fun");
+  CHECK_NE(NULL, fun_code);
+  const v8::HeapGraphNode* literals =
+      GetProperty(fun_code, v8::HeapGraphEdge::kInternal, "literals");
+  CHECK_NE(NULL, literals);
+  CHECK_EQ(v8::HeapGraphNode::kArray, literals->GetType());
+  CHECK_EQ(2, literals->GetChildrenCount());
+
+  // The second value in the literals array should be the boilerplate,
+  // after an AllocationSite.
+  const v8::HeapGraphEdge* prop = literals->GetChild(1);
+  const v8::HeapGraphNode* allocation_site = prop->GetToNode();
+  v8::String::Utf8Value name(allocation_site->GetName());
+  CHECK_EQ("system / AllocationSite", *name);
+  const v8::HeapGraphNode* transition_info =
+      GetProperty(allocation_site, v8::HeapGraphEdge::kInternal,
+                  "transition_info");
+  CHECK_NE(NULL, transition_info);
+
+  const v8::HeapGraphNode* elements =
+      GetProperty(transition_info, v8::HeapGraphEdge::kInternal,
+                  "elements");
+  CHECK_NE(NULL, elements);
+  CHECK_EQ(v8::HeapGraphNode::kArray, elements->GetType());
+  CHECK_EQ(v8::internal::FixedArray::SizeFor(3), elements->GetSelfSize());
+
+  CHECK(transition_info->GetHeapValue()->IsArray());
+  v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(
+      transition_info->GetHeapValue());
+  // Verify the array is "a" in the code above.
+  CHECK_EQ(3, array->Length());
+  CHECK_EQ(v8::Integer::New(3), array->Get(v8::Integer::New(0)));
+  CHECK_EQ(v8::Integer::New(2), array->Get(v8::Integer::New(1)));
+  CHECK_EQ(v8::Integer::New(1), array->Get(v8::Integer::New(2)));
+}
