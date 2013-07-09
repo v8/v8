@@ -4978,12 +4978,45 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
     representation = representation.generalize(new_representation);
   }
 
-  if (count != types->length()) return NULL;
+  if (count == types->length()) {
+    // Everything matched; can use monomorphic load.
+    BuildCheckHeapObject(object);
+    AddInstruction(HCheckMaps::New(object, types, zone()));
+    return BuildLoadNamedField(object, access, representation);
+  }
 
-  // Everything matched; can use monomorphic load.
+  if (count != 0) return NULL;
+
+  // Second chance: the property is on the prototype and all maps have the
+  // same prototype.
+  Handle<Map> map(types->at(0));
+  if (map->has_named_interceptor()) return NULL;
+  if (map->is_dictionary_map()) return NULL;
+
+  Handle<Object> prototype(map->prototype(), isolate());
+  for (count = 1; count < types->length(); ++count) {
+    Handle<Map> test_map(types->at(count));
+    // Ensure the property is on the prototype, not the object itself.
+    if (map->has_named_interceptor()) return NULL;
+    if (test_map->is_dictionary_map()) return NULL;
+    test_map->LookupDescriptor(NULL, *name, &lookup);
+    if (lookup.IsFound()) return NULL;
+    if (test_map->prototype() != *prototype) return NULL;
+  }
+
+  LookupInPrototypes(map, name, &lookup);
+  if (!lookup.IsField()) return NULL;
+
   BuildCheckHeapObject(object);
   AddInstruction(HCheckMaps::New(object, types, zone()));
-  return BuildLoadNamedField(object, access, representation);
+  Handle<JSObject> holder(lookup.holder());
+  Handle<Map> holder_map(holder->map());
+  AddInstruction(new(zone()) HCheckPrototypeMaps(
+      Handle<JSObject>::cast(prototype), holder, zone(), top_info()));
+  HValue* holder_value = AddInstruction(new(zone()) HConstant(holder));
+  return BuildLoadNamedField(holder_value,
+      HObjectAccess::ForField(holder_map, &lookup, name),
+      ComputeLoadStoreRepresentation(map, &lookup));
 }
 
 
