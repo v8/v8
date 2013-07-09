@@ -1931,7 +1931,8 @@ static void DiscoverGreyObjectsWithIterator(Heap* heap,
 static inline int MarkWordToObjectStarts(uint32_t mark_bits, int* starts);
 
 
-static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque, Page* p) {
+static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque,
+                                      MemoryChunk* p) {
   ASSERT(!marking_deque->IsFull());
   ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);
   ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
@@ -2001,6 +2002,18 @@ static void DiscoverGreyObjectsInSpace(Heap* heap,
       DiscoverGreyObjectsOnPage(marking_deque, p);
       if (marking_deque->IsFull()) return;
     }
+  }
+}
+
+
+static void DiscoverGreyObjectsInNewSpace(Heap* heap,
+                                          MarkingDeque* marking_deque) {
+  NewSpace* space = heap->new_space();
+  NewSpacePageIterator it(space->bottom(), space->top());
+  while (it.has_next()) {
+    NewSpacePage* page = it.next();
+    DiscoverGreyObjectsOnPage(marking_deque, page);
+    if (marking_deque->IsFull()) return;
   }
 }
 
@@ -2111,8 +2124,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 void MarkCompactCollector::RefillMarkingDeque() {
   ASSERT(marking_deque_.overflowed());
 
-  SemiSpaceIterator new_it(heap()->new_space());
-  DiscoverGreyObjectsWithIterator(heap(), &marking_deque_, &new_it);
+  DiscoverGreyObjectsInNewSpace(heap(), &marking_deque_);
   if (marking_deque_.IsFull()) return;
 
   DiscoverGreyObjectsInSpace(heap(),
