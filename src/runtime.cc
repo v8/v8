@@ -11061,7 +11061,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   Handle<Object> receiver(it.frame()->receiver(), isolate);
   if (!receiver->IsJSObject() &&
       shared->is_classic_mode() &&
-      !shared->native()) {
+      !function->IsBuiltin()) {
     // If the receiver is not a JSObject and the function is not a
     // builtin or strict-mode we have hit an optimization where a
     // value object is not converted into a wrapped JS objects. To
@@ -11071,6 +11071,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     it.Advance();
     Handle<Context> calling_frames_native_context(
         Context::cast(Context::cast(it.frame()->context())->native_context()));
+    ASSERT(!receiver->IsUndefined() && !receiver->IsNull());
     receiver =
         isolate->factory()->ToObject(receiver, calling_frames_native_context);
   }
