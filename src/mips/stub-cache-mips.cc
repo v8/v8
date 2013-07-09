@@ -560,9 +560,6 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     }
 
     if (!FLAG_track_fields || !representation.IsSmi()) {
-      // Skip updating write barrier if storing a smi.
-      __ JumpIfSmi(value_reg, &exit);
-
       // Update the write barrier for the array address.
       if (!FLAG_track_double_fields || !representation.IsDouble()) {
         __ mov(storage_reg, value_reg);
@@ -589,9 +586,6 @@ void BaseStoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     }
 
     if (!FLAG_track_fields || !representation.IsSmi()) {
-      // Skip updating write barrier if storing a smi.
-      __ JumpIfSmi(value_reg, &exit);
-
       // Update the write barrier for the array address.
       if (!FLAG_track_double_fields || !representation.IsDouble()) {
         __ mov(storage_reg, value_reg);
