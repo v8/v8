@@ -128,6 +128,9 @@
             },
           }],
           ['OS == "win"', {
+            'defines!': [
+              'DEBUG',
+            ],
             'msvs_settings': {
               'VCCLCompilerTool': {
                 'WarnAsError': 'false',
@@ -218,6 +221,14 @@
             #   1 == /SUBSYSTEM:CONSOLE
             #   2 == /SUBSYSTEM:WINDOWS
             'SubSystem': '1',
+
+            'conditions': [
+              ['v8_enable_i18n_support==1', {
+                'AdditionalDependencies': [
+                  'advapi32.lib',
+                ],
+              }],
+            ],
           },
         },
       },
