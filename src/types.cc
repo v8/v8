@@ -506,7 +506,7 @@ void Type::TypePrint(FILE* out) {
     bool first_entry = true;
     PrintF(out, "{");
     for (unsigned i = 0; i < sizeof(val)*8; ++i) {
-      int mask = (1<<i);
+      int mask = (1 << i);
       if ((val & mask) != 0) {
         if (!first_entry) PrintF(out, ",");
         first_entry = false;
