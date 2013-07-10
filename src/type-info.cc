@@ -394,7 +394,7 @@ Handle<Type> TypeFeedbackOracle::UnaryType(TypeFeedbackId id) {
   }
   Handle<Code> code = Handle<Code>::cast(object);
   ASSERT(code->is_unary_op_stub());
-  return UnaryOpStub(code->extra_ic_state()).GetType(isolate());
+  return UnaryOpStub(code->extended_extra_ic_state()).GetType(isolate());
 }
 
 

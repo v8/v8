@@ -3745,7 +3745,8 @@ InlineCacheState Code::ic_state() {
 
 
 Code::ExtraICState Code::extra_ic_state() {
-  ASSERT(is_inline_cache_stub() || ic_state() == DEBUG_STUB);
+  ASSERT((is_inline_cache_stub() && !needs_extended_extra_ic_state(kind()))
+         || ic_state() == DEBUG_STUB);
   return ExtractExtraICStateFromFlags(flags());
 }
 
