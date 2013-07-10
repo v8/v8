@@ -1759,6 +1759,10 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                   HValue* receiver,
                                   SmallMapList* types,
                                   Handle<String> name);
+  bool TryCallPolymorphicAsMonomorphic(Call* expr,
+                                       HValue* receiver,
+                                       SmallMapList* types,
+                                       Handle<String> name);
   void HandleLiteralCompareTypeof(CompareOperation* expr,
                                   HTypeof* typeof_expr,
                                   Handle<String> check);

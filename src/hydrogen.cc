@@ -4943,6 +4943,17 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
 }
 
 
+static bool CanLoadPropertyFromPrototype(Handle<Map> map,
+                                         Handle<Name> name,
+                                         LookupResult* lookup) {
+  if (map->has_named_interceptor()) return false;
+  if (map->is_dictionary_map()) return false;
+  map->LookupDescriptor(NULL, *name, lookup);
+  if (lookup->IsFound()) return false;
+  return true;
+}
+
+
 HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
     Property* expr,
     HValue* object,
@@ -4992,17 +5003,12 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
   // Second chance: the property is on the prototype and all maps have the
   // same prototype.
   Handle<Map> map(types->at(0));
-  if (map->has_named_interceptor()) return NULL;
-  if (map->is_dictionary_map()) return NULL;
+  if (!CanLoadPropertyFromPrototype(map, name, &lookup)) return NULL;
 
   Handle<Object> prototype(map->prototype(), isolate());
   for (count = 1; count < types->length(); ++count) {
     Handle<Map> test_map(types->at(count));
-    // Ensure the property is on the prototype, not the object itself.
-    if (map->has_named_interceptor()) return NULL;
-    if (test_map->is_dictionary_map()) return NULL;
-    test_map->LookupDescriptor(NULL, *name, &lookup);
-    if (lookup.IsFound()) return NULL;
+    if (!CanLoadPropertyFromPrototype(test_map, name, &lookup)) return NULL;
     if (test_map->prototype() != *prototype) return NULL;
   }
 
@@ -6361,14 +6367,60 @@ inline bool operator<(const FunctionSorter& lhs, const FunctionSorter& rhs) {
 }
 
 
+bool HOptimizedGraphBuilder::TryCallPolymorphicAsMonomorphic(
+    Call* expr,
+    HValue* receiver,
+    SmallMapList* types,
+    Handle<String> name) {
+  if (types->length() > kMaxCallPolymorphism) return false;
+
+  Handle<Map> map(types->at(0));
+  LookupResult lookup(isolate());
+  if (!CanLoadPropertyFromPrototype(map, name, &lookup)) return false;
+
+  Handle<Object> prototype(map->prototype(), isolate());
+  for (int count = 1; count < types->length(); ++count) {
+    Handle<Map> test_map(types->at(count));
+    if (!CanLoadPropertyFromPrototype(test_map, name, &lookup)) return false;
+    if (test_map->prototype() != *prototype) return false;
+  }
+
+  if (!expr->ComputeTarget(map, name)) return false;
+
+  BuildCheckHeapObject(receiver);
+  AddInstruction(HCheckMaps::New(receiver, types, zone()));
+  AddCheckPrototypeMaps(expr->holder(), map);
+  if (FLAG_trace_inlining) {
+    Handle<JSFunction> caller = current_info()->closure();
+    SmartArrayPointer<char> caller_name =
+        caller->shared()->DebugName()->ToCString();
+    PrintF("Trying to inline the polymorphic call to %s from %s\n",
+           *name->ToCString(), *caller_name);
+  }
+
+  if (!TryInlineCall(expr)) {
+    int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
+    HCallConstantFunction* call =
+        new(zone()) HCallConstantFunction(expr->target(), argument_count);
+    call->set_position(expr->position());
+    PreProcessCall(call);
+    AddInstruction(call);
+    if (!ast_context()->IsEffect()) Push(call);
+    AddSimulate(expr->id(), REMOVABLE_SIMULATE);
+    if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
+  }
+
+  return true;
+}
+
+
 void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     Call* expr,
     HValue* receiver,
     SmallMapList* types,
     Handle<String> name) {
-  // TODO(ager): We should recognize when the prototype chains for different
-  // maps are identical. In that case we can avoid repeatedly generating the
-  // same prototype map checks.
+  if (TryCallPolymorphicAsMonomorphic(expr, receiver, types, name)) return;
+
   int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
   HBasicBlock* join = NULL;
   FunctionSorter order[kMaxCallPolymorphism];
