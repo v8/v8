@@ -4774,6 +4774,7 @@ static bool ComputeLoadStoreField(Handle<Map> type,
                                   Handle<String> name,
                                   LookupResult* lookup,
                                   bool is_store) {
+  ASSERT(!is_store || !type->is_observed());
   if (type->has_named_interceptor()) {
     lookup->InterceptorResult(NULL);
     return false;
@@ -5044,7 +5045,8 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
     int position,
     BailoutId assignment_id,
     HValue* object,
-    HValue* value,
+    HValue* store_value,
+    HValue* result_value,
     SmallMapList* types,
     Handle<String> name) {
   // Use monomorphic store if property lookup results in the same field index
@@ -5061,6 +5063,7 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
     Handle<Map> map = types->at(count);
     // Pass false to ignore transitions.
     if (!ComputeLoadStoreField(map, name, &lookup, false)) break;
+    ASSERT(!map->is_observed());
 
     HObjectAccess new_access = HObjectAccess::ForField(map, &lookup, name);
     Representation new_representation =
@@ -5090,12 +5093,14 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
   HInstruction* store;
   CHECK_ALIVE_OR_RETURN(
       store = BuildStoreNamedField(
-          object, name, value, types->at(count - 1), &lookup),
+          object, name, store_value, types->at(count - 1), &lookup),
       true);
-  Push(value);
+  if (result_value != NULL) Push(result_value);
+  Push(store_value);
   store->set_position(position);
   AddInstruction(store);
   AddSimulate(assignment_id);
+  if (result_value != NULL) Drop(1);
   ast_context()->ReturnValue(Pop());
   return true;
 }
@@ -5106,11 +5111,13 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
     int position,
     BailoutId assignment_id,
     HValue* object,
-    HValue* value,
+    HValue* store_value,
+    HValue* result_value,
     SmallMapList* types,
     Handle<String> name) {
   if (TryStorePolymorphicAsMonomorphic(
-          position, assignment_id, object, value, types, name)) {
+          position, assignment_id, object,
+          store_value, result_value, types, name)) {
     return;
   }
 
@@ -5136,12 +5143,15 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
 
       set_current_block(if_true);
       HInstruction* instr;
-      CHECK_ALIVE(
-          instr = BuildStoreNamedField(object, name, value, map, &lookup));
+      CHECK_ALIVE(instr = BuildStoreNamedField(
+          object, name, store_value, map, &lookup));
       instr->set_position(position);
       // Goto will add the HSimulate for the store.
       AddInstruction(instr);
-      if (!ast_context()->IsEffect()) Push(value);
+      if (!ast_context()->IsEffect()) {
+        if (result_value != NULL) Push(result_value);
+        Push(store_value);
+      }
       current_block()->Goto(join);
 
       set_current_block(if_false);
@@ -5154,12 +5164,15 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
     current_block()->FinishExitWithDeoptimization(HDeoptimize::kNoUses);
   } else {
-    HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
+    HInstruction* instr = BuildStoreNamedGeneric(object, name, store_value);
     instr->set_position(position);
     AddInstruction(instr);
 
     if (join != NULL) {
-      if (!ast_context()->IsEffect()) Push(value);
+      if (!ast_context()->IsEffect()) {
+        if (result_value != NULL) Push(result_value);
+        Push(store_value);
+      }
       current_block()->Goto(join);
     } else {
       // The HSimulate for the store should not see the stored value in
@@ -5169,19 +5182,24 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
         if (ast_context()->IsEffect()) {
           AddSimulate(id, REMOVABLE_SIMULATE);
         } else {
-          Push(value);
+          if (result_value != NULL) Push(result_value);
+          Push(store_value);
           AddSimulate(id, REMOVABLE_SIMULATE);
-          Drop(1);
+          Drop(result_value != NULL ? 2 : 1);
         }
       }
-      return ast_context()->ReturnValue(value);
+      return ast_context()->ReturnValue(
+          result_value != NULL ? result_value : store_value);
     }
   }
 
   ASSERT(join != NULL);
   join->SetJoinId(id);
   set_current_block(join);
-  if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
+  if (!ast_context()->IsEffect()) {
+    if (result_value != NULL) Drop(1);
+    ast_context()->ReturnValue(Pop());
+  }
 }
 
 
@@ -5270,7 +5288,8 @@ void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
                                              BailoutId assignment_id,
                                              Property* prop,
                                              HValue* object,
-                                             HValue* value) {
+                                             HValue* store_value,
+                                             HValue* result_value) {
   Literal* key = prop->key()->AsLiteral();
   Handle<String> name = Handle<String>::cast(key->value());
   ASSERT(!name.is_null());
@@ -5288,37 +5307,42 @@ void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
     Handle<JSObject> holder;
     if (LookupSetter(map, name, &setter, &holder)) {
       AddCheckConstantFunction(holder, object, map);
-      if (FLAG_inline_accessors &&
-          TryInlineSetter(setter, id, assignment_id, value)) {
+      // Don't try to inline if the result_value is different from the
+      // store_value. That case isn't handled yet by the inlining.
+      if (result_value == NULL &&
+          FLAG_inline_accessors &&
+          TryInlineSetter(setter, id, assignment_id, store_value)) {
         return;
       }
       Drop(2);
       Add<HPushArgument>(object);
-      Add<HPushArgument>(value);
+      Add<HPushArgument>(store_value);
       instr = new(zone()) HCallConstantFunction(setter, 2);
     } else {
       Drop(2);
       CHECK_ALIVE(instr = BuildStoreNamedMonomorphic(object,
                                                      name,
-                                                     value,
+                                                     store_value,
                                                      map));
     }
-
   } else if (types != NULL && types->length() > 1) {
     Drop(2);
     return HandlePolymorphicStoreNamedField(
-        id, position, assignment_id, object, value, types, name);
+        id, position, assignment_id, object,
+        store_value, result_value, types, name);
   } else {
     Drop(2);
-    instr = BuildStoreNamedGeneric(object, name, value);
+    instr = BuildStoreNamedGeneric(object, name, store_value);
   }
 
-  Push(value);
+  if (result_value != NULL) Push(result_value);
+  Push(store_value);
   instr->set_position(position);
   AddInstruction(instr);
   if (instr->HasObservableSideEffects()) {
     AddSimulate(assignment_id, REMOVABLE_SIMULATE);
   }
+  if (result_value != NULL) Drop(1);
   return ast_context()->ReturnValue(Pop());
 }
 
@@ -7889,35 +7913,11 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
       }
 
       after = BuildIncrement(returns_original_input, expr);
-      input = Pop();
 
-      HInstruction* store;
-      if (!monomorphic || map->is_observed()) {
-        // If we don't know the monomorphic type, do a generic store.
-        CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, after));
-      } else {
-        Handle<JSFunction> setter;
-        Handle<JSObject> holder;
-        if (LookupSetter(map, name, &setter, &holder)) {
-          store = BuildCallSetter(object, after, map, setter, holder);
-        } else {
-          CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
-                                                         name,
-                                                         after,
-                                                         map));
-        }
-      }
-      AddInstruction(store);
+      HValue* result = returns_original_input ? Pop() : NULL;
 
-      // Overwrite the receiver in the bailout environment with the result
-      // of the operation, and the placeholder with the original value if
-      // necessary.
-      environment()->SetExpressionStackAt(0, after);
-      if (returns_original_input) environment()->SetExpressionStackAt(1, input);
-      if (store->HasObservableSideEffects()) {
-        AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
-      }
-
+      return BuildStoreNamed(prop, expr->id(), expr->position(),
+                             expr->AssignmentId(), prop, object, after, result);
     } else {
       // Keyed property.
       if (returns_original_input) Push(graph()->GetConstantUndefined());
