@@ -1378,6 +1378,7 @@ class HGraphBuilder {
   HValue* BuildGrowElementsCapacity(HValue* object,
                                     HValue* elements,
                                     ElementsKind kind,
+                                    ElementsKind new_kind,
                                     HValue* length,
                                     HValue* new_capacity);
 

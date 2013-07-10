@@ -1159,7 +1159,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
       BuildNewElementsCapacity(context, current_capacity);
 
   HValue* new_elements = BuildGrowElementsCapacity(object, elements,
-                                                   kind, length,
+                                                   kind, kind, length,
                                                    new_capacity);
 
   environment()->Push(new_elements);
@@ -1203,7 +1203,7 @@ HValue* HGraphBuilder::BuildCopyElementsOnWrite(HValue* object,
 
   HValue* capacity = AddLoadFixedArrayLength(elements);
 
-  HValue* new_elements = BuildGrowElementsCapacity(object, elements,
+  HValue* new_elements = BuildGrowElementsCapacity(object, elements, kind,
                                                    kind, length, capacity);
 
   environment()->Push(new_elements);
@@ -1475,17 +1475,18 @@ void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
 HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
                                                  HValue* elements,
                                                  ElementsKind kind,
+                                                 ElementsKind new_kind,
                                                  HValue* length,
                                                  HValue* new_capacity) {
   HValue* context = environment()->LookupContext();
 
-  BuildNewSpaceArrayCheck(new_capacity, kind);
+  BuildNewSpaceArrayCheck(new_capacity, new_kind);
 
   HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
-      context, kind, new_capacity);
+      context, new_kind, new_capacity);
 
   BuildCopyElements(context, elements, kind,
-                    new_elements, kind,
+                    new_elements, new_kind,
                     length, new_capacity);
 
   AddStore(object, HObjectAccess::ForElementsPointer(), new_elements);
