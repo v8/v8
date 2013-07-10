@@ -146,6 +146,9 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
     case VFP3:
       search_string = "vfpv3";
       break;
+    case NEON:
+      search_string = "neon";
+      break;
     case ARMv7:
       search_string = "ARMv7";
       break;
@@ -194,6 +197,36 @@ CpuImplementer OS::GetCpuImplementer() {
     cached_value = QUALCOMM_IMPLEMENTER;
   } else {
     cached_value = UNKNOWN_IMPLEMENTER;
+  }
+  use_cached_value = true;
+  return cached_value;
+}
+
+
+CpuPart OS::GetCpuPart(CpuImplementer implementer) {
+  static bool use_cached_value = false;
+  static CpuPart cached_value = CPU_UNKNOWN;
+  if (use_cached_value) {
+    return cached_value;
+  }
+  if (implementer == ARM_IMPLEMENTER) {
+    if (CPUInfoContainsString("CPU part\t: 0xc0f")) {
+      cached_value = CORTEX_A15;
+    } else if (CPUInfoContainsString("CPU part\t: 0xc0c")) {
+      cached_value = CORTEX_A12;
+    } else if (CPUInfoContainsString("CPU part\t: 0xc09")) {
+      cached_value = CORTEX_A9;
+    } else if (CPUInfoContainsString("CPU part\t: 0xc08")) {
+      cached_value = CORTEX_A8;
+    } else if (CPUInfoContainsString("CPU part\t: 0xc07")) {
+      cached_value = CORTEX_A7;
+    } else if (CPUInfoContainsString("CPU part\t: 0xc05")) {
+      cached_value = CORTEX_A5;
+    } else {
+      cached_value = CPU_UNKNOWN;
+    }
+  } else {
+    cached_value = CPU_UNKNOWN;
   }
   use_cached_value = true;
   return cached_value;
