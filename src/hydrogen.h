@@ -1115,7 +1115,7 @@ class HGraphBuilder {
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
-  HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HContext* context);
+  HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HValue* context);
 
   enum SoftDeoptimizeMode {
     MUST_EMIT_SOFT_DEOPT,

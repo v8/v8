@@ -87,7 +87,6 @@ class LCodeGen;
   V(Context)                                    \
   V(DebugBreak)                                 \
   V(DeclareGlobals)                             \
-  V(DeleteProperty)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
@@ -101,7 +100,6 @@ class LCodeGen;
   V(Goto)                                       \
   V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceTypeAndBranch)                   \
-  V(In)                                         \
   V(InstanceOf)                                 \
   V(InstanceOfKnownGlobal)                      \
   V(InstanceSize)                               \
@@ -2691,22 +2689,6 @@ class LTypeofIsAndBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LDeleteProperty: public LTemplateInstruction<1, 3, 0> {
- public:
-  LDeleteProperty(LOperand* context, LOperand* obj, LOperand* key) {
-    inputs_[0] = context;
-    inputs_[1] = obj;
-    inputs_[2] = key;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* object() { return inputs_[1]; }
-  LOperand* key() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(DeleteProperty, "delete-property")
-};
-
-
 class LOsrEntry: public LTemplateInstruction<0, 0, 0> {
  public:
   LOsrEntry() {}
@@ -2731,22 +2713,6 @@ class LStackCheck: public LTemplateInstruction<0, 1, 0> {
 
  private:
   Label done_label_;
-};
-
-
-class LIn: public LTemplateInstruction<1, 3, 0> {
- public:
-  LIn(LOperand* context, LOperand* key, LOperand* object) {
-    inputs_[0] = context;
-    inputs_[1] = key;
-    inputs_[2] = object;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-  LOperand* object() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(In, "in")
 };
 
 

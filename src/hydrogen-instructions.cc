@@ -3130,11 +3130,6 @@ HType HInstanceOf::CalculateInferredType() {
 }
 
 
-HType HDeleteProperty::CalculateInferredType() {
-  return HType::Boolean();
-}
-
-
 HType HInstanceOfKnownGlobal::CalculateInferredType() {
   return HType::Boolean();
 }
@@ -3649,13 +3644,6 @@ HInstruction* HShr::New(
 
 #undef H_CONSTANT_INT32
 #undef H_CONSTANT_DOUBLE
-
-
-void HIn::PrintDataTo(StringStream* stream) {
-  key()->PrintNameTo(stream);
-  stream->Add(" ");
-  object()->PrintNameTo(stream);
-}
 
 
 void HBitwise::PrintDataTo(StringStream* stream) {

@@ -105,7 +105,6 @@ class LChunkBuilder;
   V(Context)                                   \
   V(DebugBreak)                                \
   V(DeclareGlobals)                            \
-  V(DeleteProperty)                            \
   V(Deoptimize)                                \
   V(Div)                                       \
   V(DummyUse)                                  \
@@ -121,7 +120,6 @@ class LChunkBuilder;
   V(HasCachedArrayIndexAndBranch)              \
   V(HasInstanceTypeAndBranch)                  \
   V(InductionVariableAnnotation)               \
-  V(In)                                        \
   V(InnerAllocatedObject)                      \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
@@ -6529,55 +6527,6 @@ class HSeqStringSetChar: public HTemplateInstruction<3> {
 
  private:
   String::Encoding encoding_;
-};
-
-
-class HDeleteProperty: public HBinaryOperation {
- public:
-  HDeleteProperty(HValue* context, HValue* obj, HValue* key)
-      : HBinaryOperation(context, obj, key) {
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(DeleteProperty)
-
-  HValue* object() { return left(); }
-  HValue* key() { return right(); }
-};
-
-
-class HIn: public HTemplateInstruction<3> {
- public:
-  HIn(HValue* context, HValue* key, HValue* object) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, key);
-    SetOperandAt(2, object);
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-
-  HValue* context() { return OperandAt(0); }
-  HValue* key() { return OperandAt(1); }
-  HValue* object() { return OperandAt(2); }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType() {
-    return HType::Boolean();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  DECLARE_CONCRETE_INSTRUCTION(In)
 };
 
 

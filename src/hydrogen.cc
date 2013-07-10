@@ -1957,7 +1957,7 @@ HStoreNamedField* HGraphBuilder::AddStoreMapConstant(HValue *object,
 
 
 HValue* HGraphBuilder::AddLoadJSBuiltin(Builtins::JavaScript builtin,
-                                        HContext* context) {
+                                        HValue* context) {
   HGlobalObject* global_object = Add<HGlobalObject>(context);
   HObjectAccess access = HObjectAccess::ForJSObjectOffset(
       GlobalObject::kBuiltinsOffset);
@@ -7628,7 +7628,13 @@ void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
     HValue* key = Pop();
     HValue* obj = Pop();
     HValue* context = environment()->LookupContext();
-    HDeleteProperty* instr = new(zone()) HDeleteProperty(context, obj, key);
+    HValue* function = AddLoadJSBuiltin(Builtins::DELETE, context);
+    Add<HPushArgument>(obj);
+    Add<HPushArgument>(key);
+    Add<HPushArgument>(Add<HConstant>(function_strict_mode_flag()));
+    // TODO(olivf) InvokeFunction produces a check for the parameter count,
+    // even though we are certain to pass the correct number of arguments here.
+    HInstruction* instr = new(zone()) HInvokeFunction(context, function, 3);
     return ast_context()->ReturnInstruction(instr, expr->id());
   } else if (proxy != NULL) {
     Variable* var = proxy->var();
@@ -8441,7 +8447,12 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     // Code below assumes that we don't fall through.
     UNREACHABLE();
   } else if (op == Token::IN) {
-    HIn* result = new(zone()) HIn(context, left, right);
+    HValue* function = AddLoadJSBuiltin(Builtins::IN, context);
+    Add<HPushArgument>(left);
+    Add<HPushArgument>(right);
+    // TODO(olivf) InvokeFunction produces a check for the parameter count,
+    // even though we are certain to pass the correct number of arguments here.
+    HInstruction* result = new(zone()) HInvokeFunction(context, function, 2);
     result->set_position(expr->position());
     return ast_context()->ReturnInstruction(result, expr->id());
   }
