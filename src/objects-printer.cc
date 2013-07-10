@@ -1117,11 +1117,11 @@ void TypeSwitchInfo::TypeSwitchInfoPrint(FILE* out) {
 }
 
 
-void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
-  HeapObject::PrintHeader(out, "AllocationSiteInfo");
-  PrintF(out, " - payload: ");
-  if (payload()->IsCell()) {
-    Cell* cell = Cell::cast(payload());
+void AllocationSite::AllocationSitePrint(FILE* out) {
+  HeapObject::PrintHeader(out, "AllocationSite");
+  PrintF(out, " - transition_info: ");
+  if (transition_info()->IsCell()) {
+    Cell* cell = Cell::cast(transition_info());
     Object* cell_contents = cell->value();
     if (cell_contents->IsSmi()) {
       ElementsKind kind = static_cast<ElementsKind>(
@@ -1131,16 +1131,27 @@ void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
       PrintF(out, "\n");
       return;
     }
-  } else if (payload()->IsJSArray()) {
+  } else if (transition_info()->IsJSArray()) {
     PrintF(out, "Array literal ");
-    payload()->ShortPrint(out);
+    transition_info()->ShortPrint(out);
     PrintF(out, "\n");
     return;
   }
 
-  PrintF(out, "unknown payload ");
-  payload()->ShortPrint(out);
+  PrintF(out, "unknown transition_info");
+  transition_info()->ShortPrint(out);
   PrintF(out, "\n");
+}
+
+
+void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "AllocationSiteInfo");
+  PrintF(out, " - allocation site: ");
+  if (IsValid()) {
+    GetAllocationSite()->Print();
+  } else {
+    PrintF(out, "<invalid>\n");
+  }
 }
 
 

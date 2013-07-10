@@ -658,7 +658,8 @@ Sampler::Sampler(Isolate* isolate, int interval)
       interval_(interval),
       profiling_(false),
       active_(false),
-      samples_taken_(0) {
+      is_counting_samples_(false),
+      js_and_external_sample_count_(0) {
   data_ = new PlatformData;
 }
 
@@ -688,7 +689,11 @@ void Sampler::SampleStack(const RegisterState& state) {
   TickSample sample_obj;
   if (sample == NULL) sample = &sample_obj;
   sample->Init(isolate_, state);
-  if (++samples_taken_ < 0) samples_taken_ = 0;
+  if (is_counting_samples_) {
+    if (sample->state == JS || sample->state == EXTERNAL) {
+      ++js_and_external_sample_count_;
+    }
+  }
   Tick(sample);
 }
 

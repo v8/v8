@@ -217,9 +217,11 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
   int index = map->IndexInCodeCache(name, target);
   if (index >= 0) {
     map->RemoveFromCodeCache(String::cast(name), target, index);
-    // For loads, handlers are stored in addition to the ICs on the map. Remove
-    // those, too.
-    if (target->is_load_stub() || target->is_keyed_load_stub()) {
+    // For loads and stores, handlers are stored in addition to the ICs on the
+    // map. Remove those, too.
+    if ((target->is_load_stub() || target->is_keyed_load_stub() ||
+         target->is_store_stub() || target->is_keyed_store_stub()) &&
+        target->type() != Code::NORMAL) {
       Code* handler = target->FindFirstCode();
       index = map->IndexInCodeCache(name, handler);
       if (index >= 0) {
@@ -972,10 +974,10 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
 
 
 bool IC::UpdatePolymorphicIC(State state,
-                             StrictModeFlag strict_mode,
                              Handle<JSObject> receiver,
                              Handle<String> name,
-                             Handle<Code> code) {
+                             Handle<Code> code,
+                             StrictModeFlag strict_mode) {
   if (code->type() == Code::NORMAL) return false;
   if (target()->ic_state() == MONOMORPHIC &&
       target()->type() == Code::NORMAL) {
@@ -1026,18 +1028,39 @@ bool IC::UpdatePolymorphicIC(State state,
     handlers.Add(code);
   }
 
-  Handle<Code> ic = isolate()->stub_cache()->ComputePolymorphicIC(
-      &receiver_maps, &handlers, number_of_valid_maps, name);
+  Handle<Code> ic = ComputePolymorphicIC(
+      &receiver_maps, &handlers, number_of_valid_maps, name, strict_mode);
   set_target(*ic);
   return true;
 }
 
 
+Handle<Code> LoadIC::ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                          CodeHandleList* handlers,
+                                          int number_of_valid_maps,
+                                          Handle<Name> name,
+                                          StrictModeFlag strict_mode) {
+  return isolate()->stub_cache()->ComputePolymorphicLoadIC(
+      receiver_maps, handlers, number_of_valid_maps, name);
+}
+
+
+Handle<Code> StoreIC::ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                           CodeHandleList* handlers,
+                                           int number_of_valid_maps,
+                                           Handle<Name> name,
+                                           StrictModeFlag strict_mode) {
+  return isolate()->stub_cache()->ComputePolymorphicStoreIC(
+      receiver_maps, handlers, number_of_valid_maps, name, strict_mode);
+}
+
+
 void LoadIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
                                  Handle<Code> handler,
-                                 Handle<String> name) {
+                                 Handle<String> name,
+                                 StrictModeFlag strict_mode) {
   if (handler->type() == Code::NORMAL) return set_target(*handler);
-  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicIC(
+  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicLoadIC(
       receiver, handler, name);
   set_target(*ic);
 }
@@ -1045,10 +1068,33 @@ void LoadIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
 
 void KeyedLoadIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
                                       Handle<Code> handler,
-                                      Handle<String> name) {
+                                      Handle<String> name,
+                                      StrictModeFlag strict_mode) {
   if (handler->type() == Code::NORMAL) return set_target(*handler);
-  Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedMonomorphicIC(
+  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicKeyedLoadIC(
       receiver, handler, name);
+  set_target(*ic);
+}
+
+
+void StoreIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                  Handle<Code> handler,
+                                  Handle<String> name,
+                                  StrictModeFlag strict_mode) {
+  if (handler->type() == Code::NORMAL) return set_target(*handler);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicStoreIC(
+      receiver, handler, name, strict_mode);
+  set_target(*ic);
+}
+
+
+void KeyedStoreIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                       Handle<Code> handler,
+                                       Handle<String> name,
+                                       StrictModeFlag strict_mode) {
+  if (handler->type() == Code::NORMAL) return set_target(*handler);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicKeyedStoreIC(
+      receiver, handler, name, strict_mode);
   set_target(*ic);
 }
 
@@ -1094,12 +1140,12 @@ void IC::PatchCache(State state,
     case UNINITIALIZED:
     case PREMONOMORPHIC:
     case MONOMORPHIC_PROTOTYPE_FAILURE:
-      UpdateMonomorphicIC(receiver, code, name);
+      UpdateMonomorphicIC(receiver, code, name, strict_mode);
       break;
     case MONOMORPHIC:
       // Only move to megamorphic if the target changes.
       if (target() != *code) {
-        if (target()->is_load_stub()) {
+        if (target()->is_load_stub() || target()->is_store_stub()) {
           bool is_same_handler = false;
           {
             DisallowHeapAllocation no_allocation;
@@ -1108,10 +1154,10 @@ void IC::PatchCache(State state,
           }
           if (is_same_handler
               && IsTransitionedMapOfMonomorphicTarget(receiver->map())) {
-            UpdateMonomorphicIC(receiver, code, name);
+            UpdateMonomorphicIC(receiver, code, name, strict_mode);
             break;
           }
-          if (UpdatePolymorphicIC(state, strict_mode, receiver, name, code)) {
+          if (UpdatePolymorphicIC(state, receiver, name, code, strict_mode)) {
             break;
           }
 
@@ -1131,13 +1177,15 @@ void IC::PatchCache(State state,
       UpdateMegamorphicCache(receiver->map(), *name, *code);
       break;
     case POLYMORPHIC:
-      if (target()->is_load_stub()) {
-        if (UpdatePolymorphicIC(state, strict_mode, receiver, name, code)) {
+      if (target()->is_load_stub() || target()->is_store_stub()) {
+        if (UpdatePolymorphicIC(state, receiver, name, code, strict_mode)) {
           break;
         }
         CopyICToMegamorphicCache(name);
         UpdateMegamorphicCache(receiver->map(), *name, *code);
-        set_target(*megamorphic_stub());
+        set_target((strict_mode == kStrictMode)
+                   ? *megamorphic_stub_strict()
+                   : *megamorphic_stub());
       } else {
         // When trying to patch a polymorphic keyed load/store element stub
         // with anything other than another polymorphic stub, go generic.

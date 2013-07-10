@@ -503,7 +503,7 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     // Record receiver type for monomorphic keyed stores.
     receiver_types_.Add(oracle->StoreMonomorphicReceiverType(id), zone);
     store_mode_ = oracle->GetStoreMode(id);
-  } else if (oracle->StoreIsPolymorphic(id)) {
+  } else if (oracle->StoreIsKeyedPolymorphic(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
     store_mode_ = oracle->GetStoreMode(id);
@@ -520,9 +520,11 @@ void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     // Record receiver type for monomorphic keyed stores.
     receiver_types_.Add(
         oracle->StoreMonomorphicReceiverType(id), zone);
-  } else if (oracle->StoreIsPolymorphic(id)) {
+  } else if (oracle->StoreIsKeyedPolymorphic(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
+  } else {
+    oracle->CollectPolymorphicStoreReceiverTypes(id, &receiver_types_);
   }
   store_mode_ = oracle->GetStoreMode(id);
   type_ = oracle->IncrementType(this);
@@ -676,8 +678,9 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     target_ = oracle->GetCallNewTarget(this);
     Object* value = allocation_info_cell_->value();
     ASSERT(!value->IsTheHole());
-    if (value->IsSmi()) {
-      elements_kind_ = static_cast<ElementsKind>(Smi::cast(value)->value());
+    if (value->IsAllocationSite()) {
+      AllocationSite* site = AllocationSite::cast(value);
+      elements_kind_ = site->GetElementsKind();
     }
   }
 }

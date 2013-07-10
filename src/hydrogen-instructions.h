@@ -105,7 +105,6 @@ class LChunkBuilder;
   V(Context)                                   \
   V(DebugBreak)                                \
   V(DeclareGlobals)                            \
-  V(DeleteProperty)                            \
   V(Deoptimize)                                \
   V(Div)                                       \
   V(DummyUse)                                  \
@@ -121,7 +120,6 @@ class LChunkBuilder;
   V(HasCachedArrayIndexAndBranch)              \
   V(HasInstanceTypeAndBranch)                  \
   V(InductionVariableAnnotation)               \
-  V(In)                                        \
   V(InnerAllocatedObject)                      \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
@@ -5340,6 +5338,10 @@ class HObjectAccess {
     return HObjectAccess(kArrayLengths, JSArray::kLengthOffset);
   }
 
+  static HObjectAccess ForAllocationSiteTransitionInfo() {
+    return HObjectAccess(kInobject, AllocationSite::kTransitionInfoOffset);
+  }
+
   static HObjectAccess ForFixedArrayLength() {
     return HObjectAccess(kArrayLengths, FixedArray::kLengthOffset);
   }
@@ -5356,8 +5358,16 @@ class HObjectAccess {
     return HObjectAccess(kMaps, JSObject::kMapOffset);
   }
 
-  static HObjectAccess ForAllocationSitePayload() {
-    return HObjectAccess(kInobject, AllocationSiteInfo::kPayloadOffset);
+  static HObjectAccess ForPropertyCellValue() {
+    return HObjectAccess(kInobject, PropertyCell::kValueOffset);
+  }
+
+  static HObjectAccess ForCellValue() {
+    return HObjectAccess(kInobject, Cell::kValueOffset);
+  }
+
+  static HObjectAccess ForAllocationSiteInfoSite() {
+    return HObjectAccess(kInobject, AllocationSiteInfo::kAllocationSiteOffset);
   }
 
   // Create an access to an offset in a fixed array header.
@@ -5785,7 +5795,8 @@ class HStoreNamedField: public HTemplateInstruction<2> {
         field_representation_(field_representation),
         transition_(),
         transition_unique_id_(),
-        new_space_dominator_(NULL) {
+        new_space_dominator_(NULL),
+        write_barrier_mode_(UPDATE_WRITE_BARRIER) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     access.SetGVNFlags(this, true);
@@ -5810,6 +5821,11 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   }
   virtual void PrintDataTo(StringStream* stream);
 
+  void SkipWriteBarrier() { write_barrier_mode_ = SKIP_WRITE_BARRIER; }
+  bool IsSkipWriteBarrier() const {
+    return write_barrier_mode_ == SKIP_WRITE_BARRIER;
+  }
+
   HValue* object() { return OperandAt(0); }
   HValue* value() { return OperandAt(1); }
 
@@ -5828,6 +5844,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   bool NeedsWriteBarrier() {
     ASSERT(!(FLAG_track_double_fields && field_representation_.IsDouble()) ||
            transition_.is_null());
+    if (IsSkipWriteBarrier()) return false;
     return (!FLAG_track_fields || !field_representation_.IsSmi()) &&
         // If there is a transition, a new storage object needs to be allocated.
         !(FLAG_track_double_fields && field_representation_.IsDouble()) &&
@@ -5836,6 +5853,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   }
 
   bool NeedsWriteBarrierForMap() {
+    if (IsSkipWriteBarrier()) return false;
     return ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
@@ -5853,6 +5871,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   Handle<Map> transition_;
   UniqueValueId transition_unique_id_;
   HValue* new_space_dominator_;
+  WriteBarrierMode write_barrier_mode_;
 };
 
 
@@ -6501,55 +6520,6 @@ class HSeqStringSetChar: public HTemplateInstruction<3> {
 
  private:
   String::Encoding encoding_;
-};
-
-
-class HDeleteProperty: public HBinaryOperation {
- public:
-  HDeleteProperty(HValue* context, HValue* obj, HValue* key)
-      : HBinaryOperation(context, obj, key) {
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(DeleteProperty)
-
-  HValue* object() { return left(); }
-  HValue* key() { return right(); }
-};
-
-
-class HIn: public HTemplateInstruction<3> {
- public:
-  HIn(HValue* context, HValue* key, HValue* object) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, key);
-    SetOperandAt(2, object);
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-
-  HValue* context() { return OperandAt(0); }
-  HValue* key() { return OperandAt(1); }
-  HValue* object() { return OperandAt(2); }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType() {
-    return HType::Boolean();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  DECLARE_CONCRETE_INSTRUCTION(In)
 };
 
 

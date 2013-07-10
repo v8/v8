@@ -29,7 +29,7 @@
   'variables': {
     'v8_code': 1,
   },
-  'includes': ['../../build/common.gypi'],
+  'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
   'targets': [
     {
       'target_name': 'v8',
@@ -335,6 +335,8 @@
         '../../src/heap-snapshot-generator.h',
         '../../src/heap.cc',
         '../../src/heap.h',
+        '../../src/hydrogen-bce.cc',
+        '../../src/hydrogen-bce.h',
         '../../src/hydrogen-dce.cc',
         '../../src/hydrogen-dce.h',
         '../../src/hydrogen-environment-liveness.cc',
@@ -351,10 +353,14 @@
         '../../src/hydrogen-infer-representation.h',
         '../../src/hydrogen-infer-types.cc',
         '../../src/hydrogen-infer-types.h',
+        '../../src/hydrogen-minus-zero.cc',
+        '../../src/hydrogen-minus-zero.h',
         '../../src/hydrogen-range-analysis.cc',
         '../../src/hydrogen-range-analysis.h',
         '../../src/hydrogen-redundant-phi.cc',
         '../../src/hydrogen-redundant-phi.h',
+        '../../src/hydrogen-representation-changes.cc',
+        '../../src/hydrogen-representation-changes.h',
         '../../src/hydrogen-sce.cc',
         '../../src/hydrogen-sce.h',
         '../../src/hydrogen-uint32-analysis.cc',

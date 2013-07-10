@@ -40,6 +40,7 @@ using i::CodeEntry;
 using i::CpuProfile;
 using i::CpuProfiler;
 using i::CpuProfilesCollection;
+using i::Heap;
 using i::ProfileGenerator;
 using i::ProfileNode;
 using i::ProfilerEventsProcessor;
@@ -412,6 +413,33 @@ TEST(GetProfilerWhenIsolateIsNotInitialized) {
 }
 
 
+static const v8::CpuProfile* RunProfiler(
+    LocalContext& env, v8::Handle<v8::Function> function,
+    v8::Handle<v8::Value> argv[], int argc,
+    unsigned min_js_samples) {
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
+
+  cpu_profiler->StartCpuProfiling(profile_name);
+
+  i::Sampler* sampler =
+      reinterpret_cast<i::Isolate*>(env->GetIsolate())->logger()->sampler();
+  sampler->StartCountingSamples();
+  do {
+    function->Call(env->Global(), argc, argv);
+  } while (sampler->js_and_external_sample_count() < min_js_samples);
+
+  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
+
+  CHECK_NE(NULL, profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(
+      const_cast<v8::CpuProfile*>(profile))->Print();
+
+  return profile;
+}
+
+
 static bool ContainsString(v8::Handle<v8::String> string,
                            const Vector<v8::Handle<v8::String> >& vector) {
   for (int i = 0; i < vector.length(); i++) {
@@ -525,24 +553,11 @@ TEST(CollectCpuProfile) {
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::New("start")));
 
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-
-  cpu_profiler->StartCpuProfiling(profile_name);
   int32_t profiling_interval_ms = 200;
-#if defined(_WIN32) || defined(_WIN64)
-  // 200ms is not enough on Windows. See
-  // https://code.google.com/p/v8/issues/detail?id=2628
-  profiling_interval_ms = 500;
-#endif
   v8::Handle<v8::Value> args[] = { v8::Integer::New(profiling_interval_ms) };
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 200);
   function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
-
-  CHECK_NE(NULL, profile);
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
 
@@ -565,6 +580,7 @@ TEST(CollectCpuProfile) {
   const char* delayBranch[] = { "delay", "loop" };
   CheckSimpleBranch(fooNode, delayBranch, ARRAY_SIZE(delayBranch));
 
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }
 
@@ -598,23 +614,14 @@ TEST(SampleWhenFrameIsNotSetup) {
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::New("start")));
 
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-
-  cpu_profiler->StartCpuProfiling(profile_name);
   int32_t repeat_count = 100;
 #if defined(USE_SIMULATOR)
   // Simulators are much slower.
   repeat_count = 1;
 #endif
   v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
-
-  CHECK_NE(NULL, profile);
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
 
@@ -636,6 +643,7 @@ TEST(SampleWhenFrameIsNotSetup) {
     }
   }
 
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }
 
@@ -728,25 +736,17 @@ TEST(NativeAccessorUninitializedIC) {
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::New("start")));
 
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-
-  cpu_profiler->StartCpuProfiling(profile_name);
   int32_t repeat_count = 1;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
-
-  CHECK_NE(NULL, profile);
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 180);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode = GetChild(root, "start");
   GetChild(startNode, "get foo");
   GetChild(startNode, "set foo");
 
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }
 
@@ -786,25 +786,17 @@ TEST(NativeAccessorMonomorphicIC) {
     accessors.set_warming_up(false);
   }
 
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-
-  cpu_profiler->StartCpuProfiling(profile_name);
   int32_t repeat_count = 100;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
-
-  CHECK_NE(NULL, profile);
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 200);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode = GetChild(root, "start");
   GetChild(startNode, "get foo");
   GetChild(startNode, "set foo");
 
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }
 
@@ -839,24 +831,16 @@ TEST(NativeMethodUninitializedIC) {
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::New("start")));
 
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-
-  cpu_profiler->StartCpuProfiling(profile_name);
   int32_t repeat_count = 1;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
-
-  CHECK_NE(NULL, profile);
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* startNode = GetChild(root, "start");
   GetChild(startNode, "fooMethod");
 
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }
 
@@ -893,25 +877,17 @@ TEST(NativeMethodMonomorphicIC) {
     callbacks.set_warming_up(false);
   }
 
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-
-  cpu_profiler->StartCpuProfiling(profile_name);
   int32_t repeat_count = 100;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(repeat_count) };
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
-
-  CHECK_NE(NULL, profile);
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   GetChild(root, "start");
   const v8::CpuProfileNode* startNode = GetChild(root, "start");
   GetChild(startNode, "fooMethod");
 
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }
 
@@ -938,19 +914,10 @@ TEST(BoundFunctionCall) {
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::New("start")));
 
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-
-  cpu_profiler->StartCpuProfiling(profile_name);
   int32_t duration_ms = 100;
   v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
-
-  CHECK_NE(NULL, profile);
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   ScopedVector<v8::Handle<v8::String> > names(3);
@@ -963,6 +930,7 @@ TEST(BoundFunctionCall) {
   const v8::CpuProfileNode* startNode = GetChild(root, "start");
   GetChild(startNode, "foo");
 
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }
 
@@ -995,28 +963,17 @@ TEST(FunctionCallSample) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
+  // Collect garbage that might have be generated while installing extensions.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
   v8::Script::Compile(v8::String::New(call_function_test_source))->Run();
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::New("start")));
 
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-
-  cpu_profiler->StartCpuProfiling(profile_name);
   int32_t duration_ms = 100;
-#if defined(_WIN32) || defined(_WIN64)
-  // 100ms is not enough on Windows. See
-  // https://code.google.com/p/v8/issues/detail?id=2628
-  duration_ms = 400;
-#endif
   v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
-
-  CHECK_NE(NULL, profile);
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   {
@@ -1050,6 +1007,7 @@ TEST(FunctionCallSample) {
     CheckChildrenNames(unresolvedNode, names);
   }
 
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }
 
@@ -1087,24 +1045,11 @@ TEST(FunctionApplySample) {
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::New("start")));
 
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-  v8::Local<v8::String> profile_name = v8::String::New("my_profile");
-
-  cpu_profiler->StartCpuProfiling(profile_name);
   int32_t duration_ms = 100;
-#if defined(_WIN32) || defined(_WIN64)
-  // 100ms is not enough on Windows. See
-  // https://code.google.com/p/v8/issues/detail?id=2628
-  duration_ms = 400;
-#endif
   v8::Handle<v8::Value> args[] = { v8::Integer::New(duration_ms) };
-  function->Call(env->Global(), ARRAY_SIZE(args), args);
-  const v8::CpuProfile* profile = cpu_profiler->StopCpuProfiling(profile_name);
 
-  CHECK_NE(NULL, profile);
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(
-      const_cast<v8::CpuProfile*>(profile))->Print();
+  const v8::CpuProfile* profile =
+      RunProfiler(env, function, args, ARRAY_SIZE(args), 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   {
@@ -1142,5 +1087,6 @@ TEST(FunctionApplySample) {
     }
   }
 
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   cpu_profiler->DeleteAllCpuProfiles();
 }

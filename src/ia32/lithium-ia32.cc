@@ -350,7 +350,6 @@ void LCallNewArray::PrintDataTo(StringStream* stream) {
   stream->Add(" ");
   constructor()->PrintTo(stream);
   stream->Add(" #%d / ", arity());
-  ASSERT(hydrogen()->property_cell()->value()->IsSmi());
   ElementsKind kind = hydrogen()->elements_kind();
   stream->Add(" (%s) ", ElementsKindToString(kind));
 }
@@ -2581,15 +2580,6 @@ LInstruction* LChunkBuilder::DoFunctionLiteral(HFunctionLiteral* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
-  LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* object = UseAtStart(instr->object());
-  LOperand* key = UseOrConstantAtStart(instr->key());
-  LDeleteProperty* result = new(zone()) LDeleteProperty(context, object, key);
-  return MarkAsCall(DefineFixed(result, eax), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
   ASSERT(argument_count_ == 0);
   allocator_->MarkAsOsrEntry();
@@ -2767,15 +2757,6 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
       DiscardInlined(false);
   current_block_->UpdateEnvironment(outer);
   return pop;
-}
-
-
-LInstruction* LChunkBuilder::DoIn(HIn* instr) {
-  LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* key = UseOrConstantAtStart(instr->key());
-  LOperand* object = UseOrConstantAtStart(instr->object());
-  LIn* result = new(zone()) LIn(context, key, object);
-  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 

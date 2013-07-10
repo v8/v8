@@ -293,15 +293,12 @@ class HGraph: public ZoneObject {
   void FinalizeUniqueValueIds();
   void InsertTypeConversions();
   void MergeRemovableSimulates();
-  void InsertRepresentationChanges();
   void MarkDeoptimizeOnUndefined();
-  void ComputeMinusZeroChecks();
   bool ProcessArgumentsObject();
   void Canonicalize();
   void OrderBlocks();
   void AssignDominators();
   void SetupInformativeDefinitions();
-  void EliminateRedundantBoundsChecks();
   void DehoistSimpleArrayIndexComputations();
   void RestoreActualValues();
   void PropagateDeoptimizingMark();
@@ -451,17 +448,10 @@ class HGraph: public ZoneObject {
   void MarkAsDeoptimizingRecursively(HBasicBlock* block);
   void NullifyUnreachableInstructions();
   void InsertTypeConversions(HInstruction* instr);
-  void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
   void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
-  void InsertRepresentationChangeForUse(HValue* value,
-                                        HValue* use_value,
-                                        int use_index,
-                                        Representation to);
-  void InsertRepresentationChangesForValue(HValue* value);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
   void SetupInformativeDefinitionsRecursively(HBasicBlock* block);
-  void EliminateRedundantBoundsChecks(HBasicBlock* bb, BoundsCheckTable* table);
 
   Isolate* isolate_;
   int next_block_id_;
@@ -1123,7 +1113,7 @@ class HGraphBuilder {
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
-  HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HContext* context);
+  HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HValue* context);
 
   enum SoftDeoptimizeMode {
     MUST_EMIT_SOFT_DEOPT,
@@ -1386,6 +1376,7 @@ class HGraphBuilder {
   HValue* BuildGrowElementsCapacity(HValue* object,
                                     HValue* elements,
                                     ElementsKind kind,
+                                    ElementsKind new_kind,
                                     HValue* length,
                                     HValue* new_capacity);
 
@@ -1405,6 +1396,7 @@ class HGraphBuilder {
 
   HValue* BuildCloneShallowArray(HContext* context,
                                  HValue* boilerplate,
+                                 HValue* allocation_site,
                                  AllocationSiteMode mode,
                                  ElementsKind kind,
                                  int length);
@@ -1751,18 +1743,24 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                         BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
+                                        HValue* result,
                                         SmallMapList* types,
                                         Handle<String> name);
   bool TryStorePolymorphicAsMonomorphic(int position,
                                         BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
+                                        HValue* result,
                                         SmallMapList* types,
                                         Handle<String> name);
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,
                                   SmallMapList* types,
                                   Handle<String> name);
+  bool TryCallPolymorphicAsMonomorphic(Call* expr,
+                                       HValue* receiver,
+                                       SmallMapList* types,
+                                       Handle<String> name);
   void HandleLiteralCompareTypeof(CompareOperation* expr,
                                   HTypeof* typeof_expr,
                                   Handle<String> check);
@@ -1836,7 +1834,8 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                        BailoutId assignment_id,
                        Property* prop,
                        HValue* object,
-                       HValue* value);
+                       HValue* store_value,
+                       HValue* result_value = NULL);
 
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
@@ -1866,12 +1865,14 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   HInstruction* BuildFastLiteral(HValue* context,
                                  Handle<JSObject> boilerplate_object,
                                  Handle<JSObject> original_boilerplate_object,
+                                 Handle<Object> allocation_site,
                                  int data_size,
                                  int pointer_size,
                                  AllocationSiteMode mode);
 
   void BuildEmitDeepCopy(Handle<JSObject> boilerplat_object,
                          Handle<JSObject> object,
+                         Handle<Object> allocation_site,
                          HInstruction* target,
                          int* offset,
                          HInstruction* data_target,

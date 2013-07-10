@@ -66,6 +66,7 @@ namespace internal {
   V(FastNewBlockContext)                 \
   V(FastCloneShallowArray)               \
   V(FastCloneShallowObject)              \
+  V(CreateAllocationSite)                \
   V(ToBoolean)                           \
   V(ToNumber)                            \
   V(ArgumentsAccess)                     \
@@ -735,6 +736,28 @@ class FastCloneShallowObjectStub : public HydrogenCodeStub {
   int NotMissMinorKey() { return length_; }
 
   DISALLOW_COPY_AND_ASSIGN(FastCloneShallowObjectStub);
+};
+
+
+class CreateAllocationSiteStub : public HydrogenCodeStub {
+ public:
+  explicit CreateAllocationSiteStub() { }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual bool IsPregenerated() { return true; }
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  Major MajorKey() { return CreateAllocationSite; }
+  int NotMissMinorKey() { return 0; }
+
+  DISALLOW_COPY_AND_ASSIGN(CreateAllocationSiteStub);
 };
 
 
@@ -1873,7 +1896,7 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
     // if there is a difference between the global allocation site policy
     // for an ElementsKind and the desired usage of the stub.
     ASSERT(override_mode != DISABLE_ALLOCATION_SITES ||
-           AllocationSiteInfo::GetMode(kind) == TRACK_ALLOCATION_SITE);
+           AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE);
     bit_field_ = ElementsKindBits::encode(kind) |
         AllocationSiteOverrideModeBits::encode(override_mode) |
         ContextCheckModeBits::encode(context_mode);

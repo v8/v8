@@ -17,3 +17,6 @@
 [ Linux Debug ] fast/text/international/danda-space.html [ Pass Failure Slow ]
 [ Linux Debug ] fast/text/international/thai-baht-space.html [ Pass Failure Slow ]
 [ Linux Debug ] fast/text/international/thai-line-breaks.html [ Pass Failure Slow ]
+crbug.com/108833 [ Win Debug ] plugins/geturlnotify-during-document-teardown.html [ Failure Timeout ]
+webkit.org/b/48655 [ Win Debug ] plugins/js-from-destroy.html [ Timeout ]
+crbug.com/178745 [ Win Debug ] plugins/open-and-close-window-with-plugin.html [ Failure Timeout ]

@@ -1737,9 +1737,10 @@ Range* HValue::InferRange(Zone* zone) {
     result = new(zone) Range(Smi::kMinValue, Smi::kMaxValue);
     result->set_can_be_minus_zero(false);
   } else {
-    // Untagged integer32 cannot be -0, all other representations can.
     result = new(zone) Range();
-    result->set_can_be_minus_zero(!representation().IsInteger32());
+    result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32));
+    // TODO(jkummerow): The range cannot be minus zero when the upper type
+    // bound is Integer32.
   }
   return result;
 }
@@ -1757,7 +1758,8 @@ Range* HChange::InferRange(Zone* zone) {
   Range* result = (input_range != NULL)
       ? input_range->Copy(zone)
       : HValue::InferRange(zone);
-  if (to().IsInteger32()) result->set_can_be_minus_zero(false);
+  result->set_can_be_minus_zero(!to().IsSmiOrInteger32() ||
+                                !CheckFlag(kAllUsesTruncatingToInt32));
   return result;
 }
 
@@ -1802,9 +1804,8 @@ Range* HAdd::InferRange(Zone* zone) {
         CheckFlag(kAllUsesTruncatingToInt32)) {
       ClearFlag(kCanOverflow);
     }
-    if (!CheckFlag(kAllUsesTruncatingToInt32)) {
-      res->set_can_be_minus_zero(a->CanBeMinusZero() && b->CanBeMinusZero());
-    }
+    res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
+                               a->CanBeMinusZero() && b->CanBeMinusZero());
     return res;
   } else {
     return HValue::InferRange(zone);
@@ -1821,9 +1822,8 @@ Range* HSub::InferRange(Zone* zone) {
         CheckFlag(kAllUsesTruncatingToInt32)) {
       ClearFlag(kCanOverflow);
     }
-    if (!CheckFlag(kAllUsesTruncatingToInt32)) {
-      res->set_can_be_minus_zero(a->CanBeMinusZero() && b->CanBeZero());
-    }
+    res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
+                               a->CanBeMinusZero() && b->CanBeZero());
     return res;
   } else {
     return HValue::InferRange(zone);
@@ -1842,11 +1842,9 @@ Range* HMul::InferRange(Zone* zone) {
       // precise and therefore not the same as converting to Double and back.
       ClearFlag(kCanOverflow);
     }
-    if (!CheckFlag(kAllUsesTruncatingToInt32)) {
-      bool m0 = (a->CanBeZero() && b->CanBeNegative()) ||
-          (a->CanBeNegative() && b->CanBeZero());
-      res->set_can_be_minus_zero(m0);
-    }
+    res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
+                               ((a->CanBeZero() && b->CanBeNegative()) ||
+                                (a->CanBeNegative() && b->CanBeZero())));
     return res;
   } else {
     return HValue::InferRange(zone);
@@ -1859,16 +1857,9 @@ Range* HDiv::InferRange(Zone* zone) {
     Range* a = left()->range();
     Range* b = right()->range();
     Range* result = new(zone) Range();
-    if (!CheckFlag(kAllUsesTruncatingToInt32)) {
-      if (a->CanBeMinusZero()) {
-        result->set_can_be_minus_zero(true);
-      }
-
-      if (a->CanBeZero() && b->CanBeNegative()) {
-        result->set_can_be_minus_zero(true);
-      }
-    }
-
+    result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
+                                  (a->CanBeMinusZero() ||
+                                   (a->CanBeZero() && b->CanBeNegative())));
     if (!a->Includes(kMinInt) || !b->Includes(-1)) {
       ClearFlag(HValue::kCanOverflow);
     }
@@ -1898,9 +1889,8 @@ Range* HMod::InferRange(Zone* zone) {
     Range* result = new(zone) Range(left_can_be_negative ? -positive_bound : 0,
                                     a->CanBePositive() ? positive_bound : 0);
 
-    if (left_can_be_negative && !CheckFlag(kAllUsesTruncatingToInt32)) {
-      result->set_can_be_minus_zero(true);
-    }
+    result->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
+                                  left_can_be_negative);
 
     if (!a->Includes(kMinInt) || !b->Includes(-1)) {
       ClearFlag(HValue::kCanOverflow);
@@ -2450,7 +2440,9 @@ Range* HBitwise::InferRange(Zone* zone) {
                     ? static_cast<int32_t>(-limit) : 0;
       return new(zone) Range(min, static_cast<int32_t>(limit - 1));
     }
-    return HValue::InferRange(zone);
+    Range* result = HValue::InferRange(zone);
+    result->set_can_be_minus_zero(false);
+    return result;
   }
   const int32_t kDefaultMask = static_cast<int32_t>(0xffffffff);
   int32_t left_mask = (left()->range() != NULL)
@@ -2462,9 +2454,11 @@ Range* HBitwise::InferRange(Zone* zone) {
   int32_t result_mask = (op() == Token::BIT_AND)
       ? left_mask & right_mask
       : left_mask | right_mask;
-  return (result_mask >= 0)
-      ? new(zone) Range(0, result_mask)
-      : HValue::InferRange(zone);
+  if (result_mask >= 0) return new(zone) Range(0, result_mask);
+
+  Range* result = HValue::InferRange(zone);
+  result->set_can_be_minus_zero(false);
+  return result;
 }
 
 
@@ -2476,7 +2470,6 @@ Range* HSar::InferRange(Zone* zone) {
           ? left()->range()->Copy(zone)
           : new(zone) Range();
       result->Sar(c->Integer32Value());
-      result->set_can_be_minus_zero(false);
       return result;
     }
   }
@@ -2501,7 +2494,6 @@ Range* HShr::InferRange(Zone* zone) {
             ? left()->range()->Copy(zone)
             : new(zone) Range();
         result->Sar(c->Integer32Value());
-        result->set_can_be_minus_zero(false);
         return result;
       }
     }
@@ -2518,7 +2510,6 @@ Range* HShl::InferRange(Zone* zone) {
           ? left()->range()->Copy(zone)
           : new(zone) Range();
       result->Shl(c->Integer32Value());
-      result->set_can_be_minus_zero(false);
       return result;
     }
   }
@@ -3131,11 +3122,6 @@ HType HInstanceOf::CalculateInferredType() {
 }
 
 
-HType HDeleteProperty::CalculateInferredType() {
-  return HType::Boolean();
-}
-
-
 HType HInstanceOfKnownGlobal::CalculateInferredType() {
   return HType::Boolean();
 }
@@ -3650,13 +3636,6 @@ HInstruction* HShr::New(
 
 #undef H_CONSTANT_INT32
 #undef H_CONSTANT_DOUBLE
-
-
-void HIn::PrintDataTo(StringStream* stream) {
-  key()->PrintNameTo(stream);
-  stream->Add(" ");
-  object()->PrintNameTo(stream);
-}
 
 
 void HBitwise::PrintDataTo(StringStream* stream) {

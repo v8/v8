@@ -315,16 +315,17 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   FastCloneShallowArrayStub::Mode mode = casted_stub()->mode();
   int length = casted_stub()->length();
 
-  HInstruction* boilerplate =
+  HInstruction* allocation_site =
       AddInstruction(new(zone) HLoadKeyed(GetParameter(0),
                                           GetParameter(1),
                                           NULL,
                                           FAST_ELEMENTS));
-
   IfBuilder checker(this);
-  checker.IfNot<HCompareObjectEqAndBranch, HValue*>(boilerplate, undefined);
+  checker.IfNot<HCompareObjectEqAndBranch, HValue*>(allocation_site, undefined);
   checker.Then();
 
+  HObjectAccess access = HObjectAccess::ForAllocationSiteInfoSite();
+  HInstruction* boilerplate = AddLoad(allocation_site, access);
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
     HValue* elements = AddLoadElements(boilerplate);
 
@@ -333,6 +334,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
     if_fixed_cow.Then();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
+                                               allocation_site,
                                                alloc_site_mode,
                                                FAST_ELEMENTS,
                                                0/*copy-on-write*/));
@@ -343,12 +345,14 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
     if_fixed.Then();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
+                                               allocation_site,
                                                alloc_site_mode,
                                                FAST_ELEMENTS,
                                                length));
     if_fixed.Else();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
+                                               allocation_site,
                                                alloc_site_mode,
                                                FAST_DOUBLE_ELEMENTS,
                                                length));
@@ -356,6 +360,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
     ElementsKind elements_kind = casted_stub()->ComputeElementsKind();
     environment()->Push(BuildCloneShallowArray(context(),
                                                boilerplate,
+                                               allocation_site,
                                                alloc_site_mode,
                                                elements_kind,
                                                length));
@@ -417,6 +422,45 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
 
 
 Handle<Code> FastCloneShallowObjectStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
+  Zone* zone = this->zone();
+
+  HValue* size = AddInstruction(new(zone) HConstant(AllocationSite::kSize));
+  HAllocate::Flags flags = HAllocate::DefaultFlags();
+  flags = static_cast<HAllocate::Flags>(
+      flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
+  HInstruction* object = AddInstruction(new(zone)
+      HAllocate(context(), size, HType::JSObject(), flags));
+
+  // Store the map
+  Handle<Map> allocation_site_map(isolate()->heap()->allocation_site_map(),
+                                  isolate());
+  AddStoreMapConstant(object, allocation_site_map);
+
+  // Store the payload (smi elements kind)
+  HValue* initial_elements_kind = AddInstruction(new(zone) HConstant(
+      GetInitialFastElementsKind()));
+  AddInstruction(new(zone) HStoreNamedField(object,
+      HObjectAccess::ForAllocationSiteTransitionInfo(), initial_elements_kind));
+
+  // We use a hammer (SkipWriteBarrier()) to indicate that we know the input
+  // cell is really a Cell, and so no write barrier is needed.
+  // TODO(mvstanton): Add a debug_code check to verify the input cell is really
+  // a cell. (perhaps with a new instruction, HAssert).
+  HInstruction* cell = GetParameter(0);
+  HObjectAccess access = HObjectAccess::ForCellValue();
+  HStoreNamedField* store = AddStore(cell, access, object);
+  store->SkipWriteBarrier();
+  return cell;
+}
+
+
+Handle<Code> CreateAllocationSiteStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
@@ -484,45 +528,36 @@ Handle<Code> KeyedStoreFastElementStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
-  Zone* zone = this->zone();
+  TransitionElementsKindStub* stub = casted_stub();
+  ElementsKind from_kind = stub->from_kind();
+  ElementsKind to_kind = stub->to_kind();
 
   HValue* js_array = GetParameter(0);
   HValue* map = GetParameter(1);
 
   info()->MarkAsSavesCallerDoubles();
 
-  AddInstruction(new(zone) HTrapAllocationMemento(js_array));
+  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    Add<HTrapAllocationMemento>(js_array);
+  }
 
   HInstruction* array_length =
       AddLoad(js_array, HObjectAccess::ForArrayLength());
   array_length->set_type(HType::Smi());
 
-  ElementsKind to_kind = casted_stub()->to_kind();
-  BuildNewSpaceArrayCheck(array_length, to_kind);
-
   IfBuilder if_builder(this);
 
-  if_builder.If<HCompareNumericAndBranch>(array_length,
-                                          graph()->GetConstant0(),
-                                          Token::EQ);
+  if_builder.IfNot<HCompareNumericAndBranch>(array_length,
+                                             graph()->GetConstant0(),
+                                             Token::EQ);
   if_builder.Then();
-
-  // Nothing to do, just change the map.
-
-  if_builder.Else();
 
   HInstruction* elements = AddLoadElements(js_array);
 
   HInstruction* elements_length = AddLoadFixedArrayLength(elements);
 
-  HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
-      context(), to_kind, elements_length);
-
-  BuildCopyElements(context(), elements,
-                    casted_stub()->from_kind(), new_elements,
-                    to_kind, array_length, elements_length);
-
-  AddStore(js_array, HObjectAccess::ForElementsPointer(), new_elements);
+  BuildGrowElementsCapacity(js_array, elements, from_kind, to_kind,
+                            array_length, elements_length);
 
   if_builder.End();
 
@@ -548,7 +583,10 @@ HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
   }
 
   HValue* property_cell = GetParameter(ArrayConstructorStubBase::kPropertyCell);
-  JSArrayBuilder array_builder(this, kind, property_cell, constructor,
+  // Walk through the property cell to the AllocationSite
+  HValue* alloc_site = AddInstruction(new(zone()) HLoadNamedField(property_cell,
+      HObjectAccess::ForCellValue()));
+  JSArrayBuilder array_builder(this, kind, alloc_site, constructor,
                                override_mode);
   HValue* result = NULL;
   switch (argument_class) {

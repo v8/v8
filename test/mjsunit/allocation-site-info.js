@@ -133,9 +133,7 @@ if (support_smi_only_arrays) {
   obj = fastliteralcase(get_standard_literal(), 1.5);
   assertKind(elements_kind.fast_double, obj);
   obj = fastliteralcase(get_standard_literal(), 2);
-  // TODO(hpayer): bring the following assert back as soon as allocation
-  // sites work again for fast literals
-  //assertKind(elements_kind.fast_double, obj);
+  assertKind(elements_kind.fast_double, obj);
 
   // The test below is in a loop because arrays that live
   // at global scope without the chance of being recreated
@@ -175,9 +173,7 @@ if (support_smi_only_arrays) {
   obj = fastliteralcase_smifast("carter");
   assertKind(elements_kind.fast, obj);
   obj = fastliteralcase_smifast(2);
-  // TODO(hpayer): bring the following assert back as soon as allocation
-  // sites work again for fast literals
-  //assertKind(elements_kind.fast, obj);
+  assertKind(elements_kind.fast, obj);
 
   function newarraycase_smidouble(value) {
     var a = new Array();
@@ -301,9 +297,26 @@ if (support_smi_only_arrays) {
     assertTrue(new type(1,2,3) instanceof type);
   }
 
+  function instanceof_check2(type) {
+    assertTrue(new type() instanceof type);
+    assertTrue(new type(5) instanceof type);
+    assertTrue(new type(1,2,3) instanceof type);
+  }
+
   var realmBArray = Realm.eval(realmB, "Array");
   instanceof_check(Array);
   instanceof_check(realmBArray);
+
+  // instanceof_check2 is here because the call site goes through a state.
+  // Since instanceof_check(Array) was first called with the current context
+  // Array function, it went from (uninit->Array) then (Array->megamorphic).
+  // We'll get a different state traversal if we start with realmBArray.
+  // It'll go (uninit->realmBArray) then (realmBArray->megamorphic). Recognize
+  // that state "Array" implies an AllocationSite is present, and code is
+  // configured to use it.
+  instanceof_check2(realmBArray);
+  instanceof_check2(Array);
+
   %OptimizeFunctionOnNextCall(instanceof_check);
 
   // No de-opt will occur because HCallNewArray wasn't selected, on account of

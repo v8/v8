@@ -1,3 +1,11 @@
+2013-07-10: Version 3.20.4
+
+        Fixed garbage-collection issue that causes a crash on ARM
+        (Chromium issue 254570)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-07-08: Version 3.20.3
 
         Performance and stability improvements on all platforms.
