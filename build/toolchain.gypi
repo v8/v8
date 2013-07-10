@@ -59,6 +59,10 @@
     'mips_arch_variant%': 'mips32r2',
 
     'v8_enable_backtrace%': 0,
+
+    # Turns on compiler optimizations in Debug builds (#defines are unaffected).
+    'v8_optimized_debug%': 0,
+
     # Enable profiling support. Only required on Windows.
     'v8_enable_prof%': 0,
 
@@ -436,13 +440,21 @@
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'Optimization': '0',
-
             'conditions': [
-              ['OS=="win" and component=="shared_library"', {
+              ['component=="shared_library"', {
                 'RuntimeLibrary': '3',  # /MDd
               }, {
                 'RuntimeLibrary': '1',  # /MTd
+              }],
+              ['v8_optimized_debug==1', {
+                'Optimization': '1',
+                'InlineFunctionExpansion': '2',
+                'EnableIntrinsicFunctions': 'true',
+                'FavorSizeOrSpeed': '0',
+                'StringPooling': 'true',
+                'BasicRuntimeChecks': '0',
+              }, {
+                'Optimization': '0',
               }],
             ],
           },
@@ -454,6 +466,26 @@
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
+            'conditions': [
+              ['v8_optimized_debug==1', {
+                'cflags!': [
+                  '-O0',
+                  '-O2',
+                  '-Os',
+                ],
+                'cflags': [
+                  '-fdata-sections',
+                  '-ffunction-sections',
+                  '-O1',
+                ],
+              }],
+              ['v8_optimized_debug==1 and gcc_version==44 and clang==0', {
+                'cflags': [
+                  # Avoid crashes with gcc 4.4 in the v8 test suite.
+                  '-fno-tree-vrp',
+                ],
+              }],
+            ],
           }],
           ['OS=="linux" and v8_enable_backtrace==1', {
             # Support for backtrace_symbols.
@@ -475,7 +507,14 @@
           }],
           ['OS=="mac"', {
             'xcode_settings': {
-              'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
+              'conditions': [
+                 ['v8_optimized_debug==1', {
+                   'GCC_OPTIMIZATION_LEVEL': '1',  # -O1
+                   'GCC_STRICT_ALIASING': 'YES',
+                 }, {
+                   'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
+                 }],
+               ],
             },
           }],
         ],
@@ -540,7 +579,7 @@
                 'FavorSizeOrSpeed': '0',
                 'StringPooling': 'true',
                 'conditions': [
-                  ['OS=="win" and component=="shared_library"', {
+                  ['component=="shared_library"', {
                     'RuntimeLibrary': '2',  #/MD
                   }, {
                     'RuntimeLibrary': '0',  #/MT
