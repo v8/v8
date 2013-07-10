@@ -1744,14 +1744,12 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                         BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
-                                        HValue* result,
                                         SmallMapList* types,
                                         Handle<String> name);
   bool TryStorePolymorphicAsMonomorphic(int position,
                                         BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
-                                        HValue* result,
                                         SmallMapList* types,
                                         Handle<String> name);
   void HandlePolymorphicCallNamed(Call* expr,
@@ -1831,8 +1829,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                        BailoutId assignment_id,
                        Property* prop,
                        HValue* object,
-                       HValue* store_value,
-                       HValue* result_value = NULL);
+                       HValue* value);
 
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
