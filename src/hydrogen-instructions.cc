@@ -1690,14 +1690,6 @@ void HCheckFunction::PrintDataTo(StringStream* stream) {
 }
 
 
-HValue* HCheckFunction::Canonicalize() {
-  return (value()->IsConstant() &&
-          HConstant::cast(value())->UniqueValueIdsMatch(target_unique_id_))
-      ? NULL
-      : this;
-}
-
-
 const char* HCheckInstanceType::GetCheckName() {
   switch (check_) {
     case IS_SPEC_OBJECT: return "object";
