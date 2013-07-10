@@ -294,7 +294,6 @@ class HGraph: public ZoneObject {
   void InsertTypeConversions();
   void MergeRemovableSimulates();
   void MarkDeoptimizeOnUndefined();
-  void ComputeMinusZeroChecks();
   bool ProcessArgumentsObject();
   void Canonicalize();
   void OrderBlocks();
@@ -449,7 +448,6 @@ class HGraph: public ZoneObject {
   void MarkAsDeoptimizingRecursively(HBasicBlock* block);
   void NullifyUnreachableInstructions();
   void InsertTypeConversions(HInstruction* instr);
-  void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
   void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);

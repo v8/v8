@@ -40,6 +40,7 @@
 #include "hydrogen-infer-representation.h"
 #include "hydrogen-infer-types.h"
 #include "hydrogen-gvn.h"
+#include "hydrogen-minus-zero.h"
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
 #include "hydrogen-redundant-phi.h"
@@ -2634,45 +2635,6 @@ void HGraph::MergeRemovableSimulates() {
 }
 
 
-void HGraph::PropagateMinusZeroChecks(HValue* value, BitVector* visited) {
-  HValue* current = value;
-  while (current != NULL) {
-    if (visited->Contains(current->id())) return;
-
-    // For phis, we must propagate the check to all of its inputs.
-    if (current->IsPhi()) {
-      visited->Add(current->id());
-      HPhi* phi = HPhi::cast(current);
-      for (int i = 0; i < phi->OperandCount(); ++i) {
-        PropagateMinusZeroChecks(phi->OperandAt(i), visited);
-      }
-      break;
-    }
-
-    // For multiplication, division, and Math.min/max(), we must propagate
-    // to the left and the right side.
-    if (current->IsMul()) {
-      HMul* mul = HMul::cast(current);
-      mul->EnsureAndPropagateNotMinusZero(visited);
-      PropagateMinusZeroChecks(mul->left(), visited);
-      PropagateMinusZeroChecks(mul->right(), visited);
-    } else if (current->IsDiv()) {
-      HDiv* div = HDiv::cast(current);
-      div->EnsureAndPropagateNotMinusZero(visited);
-      PropagateMinusZeroChecks(div->left(), visited);
-      PropagateMinusZeroChecks(div->right(), visited);
-    } else if (current->IsMathMinMax()) {
-      HMathMinMax* minmax = HMathMinMax::cast(current);
-      visited->Add(minmax->id());
-      PropagateMinusZeroChecks(minmax->left(), visited);
-      PropagateMinusZeroChecks(minmax->right(), visited);
-    }
-
-    current = current->EnsureAndPropagateNotMinusZero(visited);
-  }
-}
-
-
 void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
   if (!phi->CheckFlag(HValue::kAllowUndefinedAsNaN)) return;
   phi->ClearFlag(HValue::kAllowUndefinedAsNaN);
@@ -2699,32 +2661,6 @@ void HGraph::MarkDeoptimizeOnUndefined() {
       if (!use_value->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
         RecursivelyMarkPhiDeoptimizeOnUndefined(phi);
         break;
-      }
-    }
-  }
-}
-
-
-void HGraph::ComputeMinusZeroChecks() {
-  HPhase phase("H_Compute minus zero checks", this);
-  BitVector visited(GetMaximumValueID(), zone());
-  for (int i = 0; i < blocks_.length(); ++i) {
-    for (HInstructionIterator it(blocks_[i]); !it.Done(); it.Advance()) {
-      HInstruction* current = it.Current();
-      if (current->IsChange()) {
-        HChange* change = HChange::cast(current);
-        // Propagate flags for negative zero checks upwards from conversions
-        // int32-to-tagged and int32-to-double.
-        Representation from = change->value()->representation();
-        ASSERT(from.Equals(change->from()));
-        if (from.IsInteger32()) {
-          ASSERT(change->to().IsTagged() ||
-                 change->to().IsDouble() ||
-                 change->to().IsSmi());
-          ASSERT(visited.IsEmpty());
-          PropagateMinusZeroChecks(change->value(), &visited);
-          visited.Clear();
-        }
       }
     }
   }
@@ -3221,7 +3157,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
 
   if (FLAG_use_range) Run<HRangeAnalysisPhase>();
 
-  ComputeMinusZeroChecks();
+  Run<HComputeMinusZeroChecksPhase>();
 
   // Eliminate redundant stack checks on backwards branches.
   Run<HStackCheckEliminationPhase>();
