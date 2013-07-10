@@ -77,6 +77,9 @@
     'werror%': '-Werror',
     # For a shared library build, results in "libv8-<(soname_version).so".
     'soname_version%': '',
+
+    # Allow to suppress the array bounds warning (default is no suppression).
+    'wno_array_bounds%': '',
   },
   'target_defaults': {
     'conditions': [
@@ -465,7 +468,8 @@
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
-                        '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
+                        '-Wnon-virtual-dtor', '-Woverloaded-virtual',
+                        '<(wno_array_bounds)' ],
             'conditions': [
               ['v8_optimized_debug==1', {
                 'cflags!': [
@@ -530,6 +534,7 @@
               '-fdata-sections',
               '-ffunction-sections',
               '-O3',
+              '<(wno_array_bounds)',
             ],
             'conditions': [
               [ 'gcc_version==44 and clang==0', {
