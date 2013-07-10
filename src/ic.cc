@@ -191,6 +191,17 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
     if (Name::cast(name) != stub_name) return false;
   }
 
+  if (receiver->IsGlobalObject()) {
+    if (!name->IsName()) return false;
+    Isolate* isolate = target->GetIsolate();
+    LookupResult lookup(isolate);
+    GlobalObject* global = GlobalObject::cast(receiver);
+    global->LocalLookupRealNamedProperty(Name::cast(name), &lookup);
+    if (!lookup.IsFound()) return false;
+    PropertyCell* cell = global->GetPropertyCell(&lookup);
+    return cell->type()->IsConstant();
+  }
+
   InlineCacheHolderFlag cache_holder =
       Code::ExtractCacheHolderFromFlags(target->flags());
 
