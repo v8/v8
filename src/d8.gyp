@@ -33,7 +33,7 @@
     'v8_enable_vtunejit%': 0,
     'v8_enable_i18n_support%': 0,
   },
-  'includes': ['../build/common.gypi'],
+  'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
   'targets': [
     {
       'target_name': 'd8',

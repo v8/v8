@@ -28,6 +28,9 @@
 # Definitions to be used when building stand-alone V8 binaries.
 
 {
+  # We need to include toolchain.gypi here for third-party sources that don't
+  # directly include it themselves.
+  'includes': ['toolchain.gypi'],
   'variables': {
     'component%': 'static_library',
     'clang%': 0,
