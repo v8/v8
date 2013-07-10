@@ -528,12 +528,18 @@ Handle<Code> KeyedStoreFastElementStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
+  TransitionElementsKindStub* stub = casted_stub();
+  ElementsKind from_kind = stub->from_kind();
+  ElementsKind to_kind = stub->to_kind();
+
   HValue* js_array = GetParameter(0);
   HValue* map = GetParameter(1);
 
   info()->MarkAsSavesCallerDoubles();
 
-  Add<HTrapAllocationMemento>(js_array);
+  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    Add<HTrapAllocationMemento>(js_array);
+  }
 
   HInstruction* array_length =
       AddLoad(js_array, HObjectAccess::ForArrayLength());
@@ -550,9 +556,7 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 
   HInstruction* elements_length = AddLoadFixedArrayLength(elements);
 
-  BuildGrowElementsCapacity(js_array, elements,
-                            casted_stub()->from_kind(),
-                            casted_stub()->to_kind(),
+  BuildGrowElementsCapacity(js_array, elements, from_kind, to_kind,
                             array_length, elements_length);
 
   if_builder.End();
