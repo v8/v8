@@ -292,7 +292,6 @@ class HGraph: public ZoneObject {
 
   void FinalizeUniqueValueIds();
   void InsertTypeConversions();
-  void MergeRemovableSimulates();
   void MarkDeoptimizeOnUndefined();
   bool ProcessArgumentsObject();
   void Canonicalize();

@@ -359,6 +359,8 @@
         '../../src/hydrogen-range-analysis.h',
         '../../src/hydrogen-redundant-phi.cc',
         '../../src/hydrogen-redundant-phi.h',
+        '../../src/hydrogen-removable-simulates.cc',
+        '../../src/hydrogen-removable-simulates.h',
         '../../src/hydrogen-representation-changes.cc',
         '../../src/hydrogen-representation-changes.h',
         '../../src/hydrogen-sce.cc',
