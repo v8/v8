@@ -978,12 +978,6 @@ bool IC::UpdatePolymorphicIC(State state,
                              Handle<String> name,
                              Handle<Code> code,
                              StrictModeFlag strict_mode) {
-  if (code->type() == Code::NORMAL) return false;
-  if (target()->ic_state() == MONOMORPHIC &&
-      target()->type() == Code::NORMAL) {
-    return false;
-  }
-
   MapHandleList receiver_maps;
   CodeHandleList handlers;
 
@@ -992,7 +986,12 @@ bool IC::UpdatePolymorphicIC(State state,
   Handle<Map> new_receiver_map(receiver->map());
   {
     DisallowHeapAllocation no_gc;
-    target()->FindAllMaps(&receiver_maps);
+    if (target()->ic_state() == POLYMORPHIC ||
+        (target()->ic_state() == MONOMORPHIC &&
+         target()->type() != Code::NORMAL)) {
+      target()->FindAllMaps(&receiver_maps);
+    }
+
     int number_of_maps = receiver_maps.length();
     number_of_valid_maps = number_of_maps;
 
@@ -1012,12 +1011,9 @@ bool IC::UpdatePolymorphicIC(State state,
 
     if (number_of_valid_maps >= 4) return false;
 
-    // Only allow 0 maps in case target() was reset to UNINITIALIZED by the GC.
-    // In that case, allow the IC to go back monomorphic.
-    if (number_of_maps == 0 && target()->ic_state() != UNINITIALIZED) {
-      return false;
+    if (number_of_maps > 0) {
+      target()->FindAllCode(&handlers, receiver_maps.length());
     }
-    target()->FindAllCode(&handlers, receiver_maps.length());
   }
 
   number_of_valid_maps++;
