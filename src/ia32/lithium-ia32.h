@@ -141,7 +141,6 @@ class LCodeGen;
   V(MathTan)                                    \
   V(ModI)                                       \
   V(MulI)                                       \
-  V(NegateNoSSE2D)                              \
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberTagU)                                 \
@@ -265,7 +264,11 @@ class LInstruction: public ZoneObject {
   bool ClobbersTemps() const { return is_call_; }
   bool ClobbersRegisters() const { return is_call_; }
   virtual bool ClobbersDoubleRegisters() const {
-    return is_call_ || !CpuFeatures::IsSupported(SSE2);
+    return is_call_ ||
+      (!CpuFeatures::IsSupported(SSE2) &&
+       // We only have rudimentary X87Stack tracking, thus in general
+       // cannot handle deoptimization nor phi-nodes.
+       (HasEnvironment() || IsControl()));
   }
 
   virtual bool HasResult() const = 0;
@@ -273,6 +276,7 @@ class LInstruction: public ZoneObject {
 
   bool HasDoubleRegisterResult();
   bool HasDoubleRegisterInput();
+  bool IsDoubleInput(X87Register reg, LCodeGen* cgen);
 
   LOperand* FirstInput() { return InputAt(0); }
   LOperand* Output() { return HasResult() ? result() : NULL; }
@@ -377,7 +381,6 @@ class LGap: public LTemplateInstruction<0, 0, 0> {
 class LInstructionGap: public LGap {
  public:
   explicit LInstructionGap(HBasicBlock* block) : LGap(block) { }
-  virtual bool ClobbersDoubleRegisters() const { return false; }
 
   virtual bool HasInterestingComment(LCodeGen* gen) const {
     return !IsRedundant();
@@ -656,18 +659,6 @@ class LMathFloorOfDiv: public LTemplateInstruction<1, 2, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv, "math-floor-of-div")
   DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
-};
-
-
-class LNegateNoSSE2D: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LNegateNoSSE2D(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(NegateNoSSE2D, "negate-no-sse2-d")
 };
 
 
@@ -1220,10 +1211,6 @@ class LConstantD: public LTemplateInstruction<1, 0, 1> {
  public:
   explicit LConstantD(LOperand* temp) {
     temps_[0] = temp;
-  }
-
-  virtual bool ClobbersDoubleRegisters() const {
-    return false;
   }
 
   LOperand* temp() { return temps_[0]; }
@@ -2206,9 +2193,7 @@ class LNumberUntagD: public LTemplateInstruction<1, 1, 1> {
   LOperand* value() { return inputs_[0]; }
   LOperand* temp() { return temps_[0]; }
 
-  virtual bool ClobbersDoubleRegisters() const {
-    return false;
-  }
+  virtual bool ClobbersDoubleRegisters() const { return false; }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberUntagD, "double-untag")
   DECLARE_HYDROGEN_ACCESSOR(Change);
@@ -2852,14 +2837,13 @@ class LChunkBuilder BASE_EMBEDDED {
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);
   LUnallocated* ToUnallocated(XMMRegister reg);
-  LUnallocated* ToUnallocated(X87TopOfStackRegister reg);
+  LUnallocated* ToUnallocated(X87Register reg);
 
   // Methods for setting up define-use relationships.
   MUST_USE_RESULT LOperand* Use(HValue* value, LUnallocated* operand);
   MUST_USE_RESULT LOperand* UseFixed(HValue* value, Register fixed_register);
   MUST_USE_RESULT LOperand* UseFixedDouble(HValue* value,
                                            XMMRegister fixed_register);
-  MUST_USE_RESULT LOperand* UseX87TopOfStack(HValue* value);
 
   // A value that is guaranteed to be allocated to a register.
   // Operand created by UseRegister is guaranteed to be live until the end of

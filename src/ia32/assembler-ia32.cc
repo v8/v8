@@ -65,7 +65,7 @@ int IntelDoubleRegister::NumAllocatableRegisters() {
   if (CpuFeatures::IsSupported(SSE2)) {
     return XMMRegister::kNumAllocatableRegisters;
   } else {
-    return X87TopOfStackRegister::kNumAllocatableRegisters;
+    return X87Register::kNumAllocatableRegisters;
   }
 }
 
@@ -74,7 +74,7 @@ int IntelDoubleRegister::NumRegisters() {
   if (CpuFeatures::IsSupported(SSE2)) {
     return XMMRegister::kNumRegisters;
   } else {
-    return X87TopOfStackRegister::kNumRegisters;
+    return X87Register::kNumRegisters;
   }
 }
 
@@ -83,7 +83,7 @@ const char* IntelDoubleRegister::AllocationIndexToString(int index) {
   if (CpuFeatures::IsSupported(SSE2)) {
     return XMMRegister::AllocationIndexToString(index);
   } else {
-    return X87TopOfStackRegister::AllocationIndexToString(index);
+    return X87Register::AllocationIndexToString(index);
   }
 }
 
@@ -1781,6 +1781,12 @@ void Assembler::fisub_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   EMIT(0xDA);
   emit_operand(esp, adr);
+}
+
+
+void Assembler::fmul_i(int i) {
+  EnsureSpace ensure_space(this);
+  emit_farith(0xD8, 0xC8, i);
 }
 
 
