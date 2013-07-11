@@ -5996,8 +5996,14 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
         expr->GetStoreMode(), has_side_effects);
   } else {
     if (is_store) {
+      if (expr->IsAssignment() && expr->AsAssignment()->IsUninitialized()) {
+        AddSoftDeoptimize();
+      }
       instr = BuildStoreKeyedGeneric(obj, key, val);
     } else {
+      if (expr->AsProperty()->IsUninitialized()) {
+        AddSoftDeoptimize();
+      }
       instr = BuildLoadKeyedGeneric(obj, key);
     }
     AddInstruction(instr);
