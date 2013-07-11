@@ -45,6 +45,7 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "heap-snapshot-generator-inl.h"
+#include "icu_util.h"
 #include "messages.h"
 #ifdef COMPRESS_STARTUP_DATA_BZ2
 #include "natives.h"
@@ -5423,6 +5424,11 @@ int v8::V8::ContextDisposedNotification() {
   i::Isolate* isolate = i::Isolate::Current();
   if (!isolate->IsInitialized()) return 0;
   return isolate->heap()->NotifyContextDisposed();
+}
+
+
+bool v8::V8::InitializeICU() {
+  return i::InitializeICU();
 }
 
 

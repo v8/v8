@@ -28,6 +28,7 @@
 {
   'variables': {
     'v8_code': 1,
+    'v8_enable_i18n_support%': 0,
   },
   'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
   'target_defaults': {
@@ -37,6 +38,13 @@
     ],
     'include_dirs': [
       '../include',
+    ],
+    'conditions': [
+      ['v8_enable_i18n_support==1', {
+        'dependencies': [
+          '<(DEPTH)/third_party/icu/icu.gyp:*',
+        ],
+      }],
     ],
   },
   'targets': [

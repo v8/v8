@@ -4699,6 +4699,12 @@ class V8EXPORT V8 {
    */
   static int ContextDisposedNotification();
 
+  /**
+   * Initialize the ICU library bundled with V8. The embedder should only
+   * invoke this method when using the bundled ICU. Returns true on success.
+   */
+  static bool InitializeICU();
+
  private:
   V8();
 

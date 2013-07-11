@@ -31,10 +31,12 @@
 
 namespace v8 {
 
+namespace internal {
+
 // Call this function to load ICU's data tables for the current process.  This
 // function should be called before ICU is used.
 bool InitializeICU();
 
-}  // namespace v8
+} }  // namespace v8::internal
 
 #endif  // V8_ICU_UTIL_H_

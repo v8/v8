@@ -80,10 +80,6 @@
           ],
         }],
         ['v8_enable_i18n_support==1', {
-          'sources': [
-            'icu_util.cc',
-            'icu_util.h',
-          ],
           'dependencies': [
             '<(DEPTH)/third_party/icu/icu.gyp:*',
           ],
