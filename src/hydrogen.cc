@@ -1146,21 +1146,22 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   Zone* zone = this->zone();
   IfBuilder length_checker(this);
 
-  length_checker.If<HCompareNumericAndBranch>(length, key, Token::EQ);
+  Token::Value token = IsHoleyElementsKind(kind) ? Token::GTE : Token::EQ;
+  length_checker.If<HCompareNumericAndBranch>(key, length, token);
+
   length_checker.Then();
 
   HValue* current_capacity = AddLoadFixedArrayLength(elements);
 
   IfBuilder capacity_checker(this);
 
-  capacity_checker.If<HCompareNumericAndBranch>(length, current_capacity,
-                                                Token::EQ);
+  capacity_checker.If<HCompareNumericAndBranch>(key, current_capacity,
+                                                Token::GTE);
   capacity_checker.Then();
 
   HValue* context = environment()->LookupContext();
 
-  HValue* new_capacity =
-      BuildNewElementsCapacity(context, current_capacity);
+  HValue* new_capacity = BuildNewElementsCapacity(context, key);
 
   HValue* new_elements = BuildGrowElementsCapacity(object, elements,
                                                    kind, kind, length,
@@ -1174,7 +1175,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
 
   if (is_js_array) {
     HValue* new_length = AddInstruction(
-        HAdd::New(zone, context, length, graph_->GetConstant1()));
+        HAdd::New(zone, context, key, graph_->GetConstant1()));
     new_length->ClearFlag(HValue::kCanOverflow);
 
     Representation representation = IsFastElementsKind(kind)
@@ -1184,10 +1185,9 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   }
 
   length_checker.Else();
-
   Add<HBoundsCheck>(key, length);
-  environment()->Push(elements);
 
+  environment()->Push(elements);
   length_checker.End();
 
   return environment()->Pop();
