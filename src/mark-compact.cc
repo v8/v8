@@ -1989,6 +1989,81 @@ static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque,
 }
 
 
+int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
+    NewSpace* new_space,
+    NewSpacePage* p) {
+  ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
+  ASSERT(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
+
+  MarkBit::CellType* cells = p->markbits()->cells();
+  int survivors_size = 0;
+
+  int last_cell_index =
+      Bitmap::IndexToCell(
+          Bitmap::CellAlignIndex(
+              p->AddressToMarkbitIndex(p->area_end())));
+
+  Address cell_base = p->area_start();
+  int cell_index = Bitmap::IndexToCell(
+          Bitmap::CellAlignIndex(
+              p->AddressToMarkbitIndex(cell_base)));
+
+  for (;
+       cell_index < last_cell_index;
+       cell_index++, cell_base += 32 * kPointerSize) {
+    ASSERT(static_cast<unsigned>(cell_index) ==
+           Bitmap::IndexToCell(
+               Bitmap::CellAlignIndex(
+                   p->AddressToMarkbitIndex(cell_base))));
+
+    MarkBit::CellType current_cell = cells[cell_index];
+    if (current_cell == 0) continue;
+
+    int offset = 0;
+    while (current_cell != 0) {
+      int trailing_zeros = CompilerIntrinsics::CountTrailingZeros(current_cell);
+      current_cell >>= trailing_zeros;
+      offset += trailing_zeros;
+      Address address = cell_base + offset * kPointerSize;
+      HeapObject* object = HeapObject::FromAddress(address);
+
+      int size = object->Size();
+      survivors_size += size;
+
+      offset++;
+      current_cell >>= 1;
+      // Aggressively promote young survivors to the old space.
+      if (TryPromoteObject(object, size)) {
+        continue;
+      }
+
+      // Promotion failed. Just migrate object to another semispace.
+      MaybeObject* allocation = new_space->AllocateRaw(size);
+      if (allocation->IsFailure()) {
+        if (!new_space->AddFreshPage()) {
+          // Shouldn't happen. We are sweeping linearly, and to-space
+          // has the same number of pages as from-space, so there is
+          // always room.
+          UNREACHABLE();
+        }
+        allocation = new_space->AllocateRaw(size);
+        ASSERT(!allocation->IsFailure());
+      }
+      Object* target = allocation->ToObjectUnchecked();
+
+      MigrateObject(HeapObject::cast(target)->address(),
+                    object->address(),
+                    size,
+                    NEW_SPACE);
+    }
+    cells[cell_index] = 0;
+  }
+  return survivors_size;
+}
+
+
 static void DiscoverGreyObjectsInSpace(Heap* heap,
                                        MarkingDeque* marking_deque,
                                        PagedSpace* space) {
@@ -2895,42 +2970,10 @@ void MarkCompactCollector::EvacuateNewSpace() {
   // migrate live objects and write forwarding addresses.  This stage puts
   // new entries in the store buffer and may cause some pages to be marked
   // scan-on-scavenge.
-  SemiSpaceIterator from_it(from_bottom, from_top);
-  for (HeapObject* object = from_it.Next();
-       object != NULL;
-       object = from_it.Next()) {
-    MarkBit mark_bit = Marking::MarkBitFrom(object);
-    if (mark_bit.Get()) {
-      mark_bit.Clear();
-      // Don't bother decrementing live bytes count. We'll discard the
-      // entire page at the end.
-      int size = object->Size();
-      survivors_size += size;
-
-      // Aggressively promote young survivors to the old space.
-      if (TryPromoteObject(object, size)) {
-        continue;
-      }
-
-      // Promotion failed. Just migrate object to another semispace.
-      MaybeObject* allocation = new_space->AllocateRaw(size);
-      if (allocation->IsFailure()) {
-        if (!new_space->AddFreshPage()) {
-          // Shouldn't happen. We are sweeping linearly, and to-space
-          // has the same number of pages as from-space, so there is
-          // always room.
-          UNREACHABLE();
-        }
-        allocation = new_space->AllocateRaw(size);
-        ASSERT(!allocation->IsFailure());
-      }
-      Object* target = allocation->ToObjectUnchecked();
-
-      MigrateObject(HeapObject::cast(target)->address(),
-                    object->address(),
-                    size,
-                    NEW_SPACE);
-    }
+  NewSpacePageIterator it(from_bottom, from_top);
+  while (it.has_next()) {
+    NewSpacePage* p = it.next();
+    survivors_size += DiscoverAndPromoteBlackObjectsOnPage(new_space, p);
   }
 
   heap_->IncrementYoungSurvivorsCounter(survivors_size);
