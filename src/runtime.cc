@@ -2797,7 +2797,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSGeneratorObject) {
 
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  JSFunction* function = JSFunction::cast(frame->function());
+  JSFunction* function = frame->function();
   RUNTIME_ASSERT(function->shared()->is_generator());
 
   JSGeneratorObject* generator;
@@ -2826,8 +2826,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SuspendJSGeneratorObject) {
 
   JavaScriptFrameIterator stack_iterator(isolate);
   JavaScriptFrame* frame = stack_iterator.frame();
-  RUNTIME_ASSERT(JSFunction::cast(frame->function())->shared()->is_generator());
-  ASSERT_EQ(JSFunction::cast(frame->function()), generator_object->function());
+  RUNTIME_ASSERT(frame->function()->shared()->is_generator());
+  ASSERT_EQ(frame->function(), generator_object->function());
 
   // The caller should have saved the context and continuation already.
   ASSERT_EQ(generator_object->context(), Context::cast(frame->context()));
@@ -5732,9 +5732,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   // Handle special arguments properties.
   if (key->Equals(isolate->heap()->length_string())) return Smi::FromInt(n);
   if (key->Equals(isolate->heap()->callee_string())) {
-    Object* function = frame->function();
-    if (function->IsJSFunction() &&
-        !JSFunction::cast(function)->shared()->is_classic_mode()) {
+    JSFunction* function = frame->function();
+    if (!function->shared()->is_classic_mode()) {
       return isolate->Throw(*isolate->factory()->NewTypeError(
           "strict_arguments_callee", HandleVector<Object>(NULL, 0)));
     }
@@ -8221,7 +8220,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
 
   JavaScriptFrame* frame = it.frame();
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
-  Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
+  Handle<JSFunction> function(frame->function(), isolate);
   Handle<Code> optimized_code(function->code());
   RUNTIME_ASSERT((type != Deoptimizer::EAGER &&
                   type != Deoptimizer::SOFT) || function->IsOptimized());
@@ -8237,7 +8236,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   bool has_other_activations = false;
   while (!it.done()) {
     JavaScriptFrame* frame = it.frame();
-    JSFunction* other_function = JSFunction::cast(frame->function());
+    JSFunction* other_function = frame->function();
     if (frame->is_optimized() && other_function->code() == function->code()) {
       has_other_activations = true;
       break;
@@ -8353,8 +8352,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NeverOptimize) {
     // Disable optimization for the calling function.
     JavaScriptFrameIterator it(isolate);
     if (!it.done()) {
-      JSFunction *function = JSFunction::cast(it.frame()->function());
-      function->shared()->set_optimization_disabled(true);
+      it.frame()->function()->shared()->set_optimization_disabled(true);
     }
     return isolate->heap()->undefined_value();
   }
@@ -11235,7 +11233,7 @@ static bool SetLocalVariableValue(Isolate* isolate,
     return false;
   }
 
-  Handle<JSFunction> function(JSFunction::cast(frame->function()));
+  Handle<JSFunction> function(frame->function());
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
 
@@ -11482,7 +11480,7 @@ class ScopeIterator {
     : isolate_(isolate),
       frame_(frame),
       inlined_jsframe_index_(inlined_jsframe_index),
-      function_(JSFunction::cast(frame->function())),
+      function_(frame->function()),
       context_(Context::cast(frame->context())),
       nested_scope_chain_(4),
       failed_(false) {
@@ -11863,7 +11861,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
   JavaScriptFrame* frame = frame_it.frame();
 
   Handle<SharedFunctionInfo> shared =
-      Handle<SharedFunctionInfo>(JSFunction::cast(frame->function())->shared());
+      Handle<SharedFunctionInfo>(frame->function()->shared());
   Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared);
 
   int len = 0;

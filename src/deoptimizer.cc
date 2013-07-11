@@ -186,7 +186,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   ASSERT(isolate->deoptimizer_data()->deoptimized_frame_info_ == NULL);
 
   // Get the function and code from the frame.
-  JSFunction* function = JSFunction::cast(frame->function());
+  JSFunction* function = frame->function();
   Code* code = frame->LookupCode();
 
   // Locate the deoptimization point in the code. As we are at a call the
@@ -1609,7 +1609,7 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
     if (frame_index != 0) it->Advance();
     JavaScriptFrame* frame = it->frame();
-    Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate_);
+    Handle<JSFunction> function(frame->function(), isolate_);
     Handle<JSObject> arguments;
     for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
       if (frame->GetExpression(i) == isolate_->heap()->arguments_marker()) {
