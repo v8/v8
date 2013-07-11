@@ -2930,9 +2930,6 @@ void MarkCompactCollector::EvacuateNewSpace() {
                     object->address(),
                     size,
                     NEW_SPACE);
-    } else {
-      // Mark dead objects in the new space with null in their map field.
-      Memory::Address_at(object->address()) = NULL;
     }
   }
 
@@ -3354,7 +3351,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     StoreBufferRebuildScope scope(heap_,
                                   heap_->store_buffer(),
                                   &Heap::ScavengeStoreBufferCallback);
-    heap_->store_buffer()->IteratePointersToNewSpace(&UpdatePointer);
+    heap_->store_buffer()->IteratePointersToNewSpaceAndClearMaps(
+        &UpdatePointer);
   }
 
   { GCTracer::Scope gc_scope(tracer_,
