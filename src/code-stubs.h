@@ -1260,50 +1260,17 @@ class ICCompareStub: public PlatformCodeStub {
 
 class CompareNilICStub : public HydrogenCodeStub  {
  public:
-  enum CompareNilType {
-    UNDEFINED,
-    NULL_TYPE,
-    MONOMORPHIC_MAP,
-    UNDETECTABLE,
-    GENERIC,
-    NUMBER_OF_TYPES
-  };
+  Handle<Type> GetType(Isolate* isolate, Handle<Map> map = Handle<Map>());
+  Handle<Type> GetInputType(Isolate* isolate, Handle<Map> map);
 
-  class State : public EnumSet<CompareNilType, byte> {
-   public:
-    State() : EnumSet<CompareNilType, byte>(0) { }
-    explicit State(byte bits) : EnumSet<CompareNilType, byte>(bits) { }
-
-    static State Generic() {
-      State set;
-      set.Add(UNDEFINED);
-      set.Add(NULL_TYPE);
-      set.Add(UNDETECTABLE);
-      set.Add(GENERIC);
-      return set;
-    }
-
-    void Print(StringStream* stream) const;
-  };
-
-  static Handle<Type> StateToType(
-      Isolate* isolate, State state, Handle<Map> map = Handle<Map>());
-
-  // At most 6 different types can be distinguished, because the Code object
-  // only has room for a single byte to hold a set and there are two more
-  // boolean flags we need to store. :-P
-  STATIC_ASSERT(NUMBER_OF_TYPES <= 6);
-
-  CompareNilICStub(NilValue nil, State state = State())
-      : nil_value_(nil), state_(state) {
-  }
+  explicit CompareNilICStub(NilValue nil) : nil_value_(nil) { }
 
   CompareNilICStub(Code::ExtraICState ic_state,
                    InitializationState init_state = INITIALIZED)
-      : HydrogenCodeStub(init_state) {
-    nil_value_ = NilValueField::decode(ic_state);
-    state_ = State(ExtractTypesFromExtraICState(ic_state));
-  }
+      : HydrogenCodeStub(init_state),
+        nil_value_(NilValueField::decode(ic_state)),
+        state_(State(TypesField::decode(ic_state))) {
+      }
 
   static Handle<Code> GetUninitialized(Isolate* isolate,
                                        NilValue nil) {
@@ -1322,7 +1289,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
   }
 
   virtual InlineCacheState GetICState() {
-    if (state_ == State::Generic()) {
+    if (state_.Contains(GENERIC)) {
       return MEGAMORPHIC;
     } else if (state_.Contains(MONOMORPHIC_MAP)) {
       return MONOMORPHIC;
@@ -1335,22 +1302,15 @@ class CompareNilICStub : public HydrogenCodeStub  {
 
   Handle<Code> GenerateCode();
 
-  // extra ic state = nil_value | type_n-1 | ... | type_0
   virtual Code::ExtraICState GetExtraICState() {
-    return NilValueField::encode(nil_value_) | state_.ToIntegral();
-  }
-  static byte ExtractTypesFromExtraICState(Code::ExtraICState state) {
-    return state & ((1 << NUMBER_OF_TYPES) - 1);
-  }
-  static NilValue ExtractNilValueFromExtraICState(Code::ExtraICState state) {
-    return NilValueField::decode(state);
+    return NilValueField::encode(nil_value_) |
+           TypesField::encode(state_.ToIntegral());
   }
 
   void UpdateStatus(Handle<Object> object);
 
   bool IsMonomorphic() const { return state_.Contains(MONOMORPHIC_MAP); }
   NilValue GetNilValue() const { return nil_value_; }
-  State GetState() const { return state_; }
   void ClearState() { state_.RemoveAll(); }
 
   virtual void PrintState(StringStream* stream);
@@ -1359,12 +1319,32 @@ class CompareNilICStub : public HydrogenCodeStub  {
  private:
   friend class CompareNilIC;
 
-  CompareNilICStub(NilValue nil, InitializationState init_state)
-      : HydrogenCodeStub(init_state) {
-    nil_value_ = nil;
-  }
+  enum CompareNilType {
+    UNDEFINED,
+    NULL_TYPE,
+    MONOMORPHIC_MAP,
+    GENERIC,
+    NUMBER_OF_TYPES
+  };
 
-  class NilValueField : public BitField<NilValue, NUMBER_OF_TYPES, 1> {};
+  // At most 6 different types can be distinguished, because the Code object
+  // only has room for a single byte to hold a set and there are two more
+  // boolean flags we need to store. :-P
+  STATIC_ASSERT(NUMBER_OF_TYPES <= 6);
+
+  class State : public EnumSet<CompareNilType, byte> {
+   public:
+    State() : EnumSet<CompareNilType, byte>(0) { }
+    explicit State(byte bits) : EnumSet<CompareNilType, byte>(bits) { }
+
+    void Print(StringStream* stream) const;
+  };
+
+  CompareNilICStub(NilValue nil, InitializationState init_state)
+      : HydrogenCodeStub(init_state), nil_value_(nil) { }
+
+  class NilValueField : public BitField<NilValue, 0, 1> {};
+  class TypesField    : public BitField<byte,     1, NUMBER_OF_TYPES> {};
 
   virtual CodeStub::Major MajorKey() { return CompareNilIC; }
   virtual int NotMissMinorKey() { return GetExtraICState(); }

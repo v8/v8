@@ -9975,20 +9975,6 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
 }
 
 
-byte Code::compare_nil_state() {
-  ASSERT(is_compare_nil_ic_stub());
-  return CompareNilICStub::ExtractTypesFromExtraICState(
-      extended_extra_ic_state());
-}
-
-
-byte Code::compare_nil_value() {
-  ASSERT(is_compare_nil_ic_stub());
-  return CompareNilICStub::ExtractNilValueFromExtraICState(
-      extended_extra_ic_state());
-}
-
-
 void Code::InvalidateRelocation() {
   set_relocation_info(GetHeap()->empty_byte_array());
 }
