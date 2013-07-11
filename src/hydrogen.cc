@@ -34,6 +34,7 @@
 #include "full-codegen.h"
 #include "hashmap.h"
 #include "hydrogen-bce.h"
+#include "hydrogen-canonicalize.h"
 #include "hydrogen-dce.h"
 #include "hydrogen-environment-liveness.h"
 #include "hydrogen-escape-analysis.h"
@@ -2091,33 +2092,6 @@ void HGraph::FinalizeUniqueValueIds() {
 }
 
 
-void HGraph::Canonicalize() {
-  HPhase phase("H_Canonicalize", this);
-  // Before removing no-op instructions, save their semantic value.
-  // We must be careful not to set the flag unnecessarily, because GVN
-  // cannot identify two instructions when their flag value differs.
-  for (int i = 0; i < blocks()->length(); ++i) {
-    for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      if (instr->IsArithmeticBinaryOperation() &&
-          instr->representation().IsInteger32() &&
-          instr->HasAtLeastOneUseWithFlagAndNoneWithout(
-              HInstruction::kTruncatingToInt32)) {
-        instr->SetFlag(HInstruction::kAllUsesTruncatingToInt32);
-      }
-    }
-  }
-  // Perform actual Canonicalization pass.
-  for (int i = 0; i < blocks()->length(); ++i) {
-    for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      HValue* value = instr->Canonicalize();
-      if (value != instr) instr->DeleteAndReplaceWith(value);
-    }
-  }
-}
-
-
 // Block ordering was implemented with two mutually recursive methods,
 // HGraph::Postorder and HGraph::PostorderLoopBlocks.
 // The recursion could lead to stack overflow so the algorithm has been
@@ -3087,7 +3061,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   // zero.
   if (FLAG_opt_safe_uint32_operations) Run<HUint32AnalysisPhase>();
 
-  if (FLAG_use_canonicalizing) Canonicalize();
+  if (FLAG_use_canonicalizing) Run<HCanonicalizePhase>();
 
   if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
 

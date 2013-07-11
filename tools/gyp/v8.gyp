@@ -337,6 +337,8 @@
         '../../src/heap.h',
         '../../src/hydrogen-bce.cc',
         '../../src/hydrogen-bce.h',
+        '../../src/hydrogen-canonicalize.cc',
+        '../../src/hydrogen-canonicalize.h',
         '../../src/hydrogen-dce.cc',
         '../../src/hydrogen-dce.h',
         '../../src/hydrogen-environment-liveness.cc',

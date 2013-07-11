@@ -294,7 +294,6 @@ class HGraph: public ZoneObject {
   void InsertTypeConversions();
   void MarkDeoptimizeOnUndefined();
   bool ProcessArgumentsObject();
-  void Canonicalize();
   void OrderBlocks();
   void AssignDominators();
   void SetupInformativeDefinitions();
