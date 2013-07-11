@@ -1335,7 +1335,7 @@ AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
                                            ElementsKind to) {
   if (FLAG_track_allocation_sites &&
       IsFastSmiElementsKind(from) &&
-      (IsFastObjectElementsKind(to) || IsFastDoubleElementsKind(to))) {
+      IsMoreGeneralElementsKindTransition(from, to)) {
     return TRACK_ALLOCATION_SITE;
   }
 

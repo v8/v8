@@ -175,6 +175,20 @@ if (support_smi_only_arrays) {
   obj = fastliteralcase_smifast(2);
   assertKind(elements_kind.fast, obj);
 
+  // Case: make sure transitions from packed to holey are tracked
+  function fastliteralcase_smiholey(index, value) {
+    var literal = [1, 2, 3, 4];
+    literal[index] = value;
+    return literal;
+  }
+
+  obj = fastliteralcase_smiholey(5, 1);
+  assertKind(elements_kind.fast_smi_only, obj);
+  assertHoley(obj);
+  obj = fastliteralcase_smiholey(0, 1);
+  assertKind(elements_kind.fast_smi_only, obj);
+  assertHoley(obj);
+
   function newarraycase_smidouble(value) {
     var a = new Array();
     a[0] = value;
