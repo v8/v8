@@ -12317,6 +12317,10 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
   if (site->IsLiteralSite()) {
     JSArray* transition_info = JSArray::cast(site->transition_info());
     ElementsKind kind = transition_info->GetElementsKind();
+    // if kind is holey ensure that to_kind is as well.
+    if (IsHoleyElementsKind(kind)) {
+      to_kind = GetHoleyElementsKind(to_kind);
+    }
     if (AllocationSite::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
       // If the array is huge, it's not likely to be defined in a local
       // function, so we shouldn't make new instances of it very often.
@@ -12335,6 +12339,10 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
     }
   } else {
     ElementsKind kind = site->GetElementsKind();
+    // if kind is holey ensure that to_kind is as well.
+    if (IsHoleyElementsKind(kind)) {
+      to_kind = GetHoleyElementsKind(to_kind);
+    }
     if (AllocationSite::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
       if (FLAG_trace_track_allocation_sites) {
         PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
