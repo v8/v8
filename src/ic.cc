@@ -1871,7 +1871,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   KeyedAccessStoreMode old_store_mode =
       Code::GetKeyedAccessStoreMode(target()->extra_ic_state());
   Handle<Map> previous_receiver_map = target_receiver_maps.at(0);
-  if (ic_state == MONOMORPHIC && old_store_mode == STANDARD_STORE) {
+  if (ic_state == MONOMORPHIC) {
       // If the "old" and "new" maps are in the same elements map family, stay
       // MONOMORPHIC and use the map for the most generic ElementsKind.
     Handle<Map> transitioned_receiver_map = receiver_map;
@@ -1884,16 +1884,16 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       store_mode = GetNonTransitioningStoreMode(store_mode);
       return isolate()->stub_cache()->ComputeKeyedStoreElement(
           transitioned_receiver_map, strict_mode, store_mode);
-    } else if (*previous_receiver_map == receiver->map()) {
-      if (IsGrowStoreMode(store_mode) ||
-          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
-          store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
-        // A "normal" IC that handles stores can switch to a version that can
-        // grow at the end of the array, handle OOB accesses or copy COW arrays
-        // and still stay MONOMORPHIC.
-        return isolate()->stub_cache()->ComputeKeyedStoreElement(
-            receiver_map, strict_mode, store_mode);
-      }
+    } else if (*previous_receiver_map == receiver->map() &&
+               old_store_mode == STANDARD_STORE &&
+               (IsGrowStoreMode(store_mode) ||
+                store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
+                store_mode == STORE_NO_TRANSITION_HANDLE_COW)) {
+      // A "normal" IC that handles stores can switch to a version that can
+      // grow at the end of the array, handle OOB accesses or copy COW arrays
+      // and still stay MONOMORPHIC.
+      return isolate()->stub_cache()->ComputeKeyedStoreElement(
+          receiver_map, strict_mode, store_mode);
     }
   }
 
