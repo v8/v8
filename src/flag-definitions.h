@@ -215,7 +215,7 @@ DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
 DEFINE_bool(use_escape_analysis, false, "use hydrogen escape analysis")
-DEFINE_bool(use_allocation_folding, false, "use allocation folding")
+DEFINE_bool(use_allocation_folding, true, "use allocation folding")
 DEFINE_int(max_inlined_source_size, 600,
            "maximum source size in bytes considered for a single inlining")
 DEFINE_int(max_inlined_nodes, 196,
