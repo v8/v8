@@ -3216,6 +3216,38 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   new_dominator_size->InsertBefore(dominator_allocate_instr);
   dominator_allocate_instr->UpdateSize(new_dominator_size);
 
+#ifdef VERIFY_HEAP
+  HInstruction* free_space_instr =
+      new(zone) HInnerAllocatedObject(dominator_allocate_instr,
+                                      dominator_size_constant,
+                                      type());
+  free_space_instr->InsertAfter(dominator_allocate_instr);
+  HConstant* filler_map = new(zone) HConstant(
+      isolate()->factory()->free_space_map(),
+      UniqueValueId(isolate()->heap()->free_space_map()),
+      Representation::Tagged(),
+      HType::Tagged(),
+      false,
+      true,
+      false,
+      false);
+  filler_map->InsertAfter(free_space_instr);
+
+  HInstruction* store_map = new(zone) HStoreNamedField(
+      free_space_instr, HObjectAccess::ForMap(), filler_map);
+  store_map->SetFlag(HValue::kHasNoObservableSideEffects);
+  store_map->InsertAfter(filler_map);
+
+  HInstruction* free_space_size = new(zone) HConstant(current_size_constant);
+  free_space_size->InsertAfter(store_map);
+  HObjectAccess access =
+      HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset);
+  HInstruction* store_size = new(zone) HStoreNamedField(
+      free_space_instr, access, free_space_size);
+  store_size->SetFlag(HValue::kHasNoObservableSideEffects);
+  store_size->InsertAfter(free_space_size);
+#endif
+
   // After that replace the dominated allocate instruction.
   HInstruction* dominated_allocate_instr =
       new(zone) HInnerAllocatedObject(dominator_allocate_instr,
