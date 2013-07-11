@@ -7280,12 +7280,11 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
   } else {
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
-    bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
-
     if (proxy != NULL && proxy->var()->is_possibly_eval(isolate())) {
       return Bailout("possible direct call to eval");
     }
 
+    bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
     if (global_call) {
       Variable* var = proxy->var();
       bool known_global_function = false;
@@ -7609,7 +7608,7 @@ void HOptimizedGraphBuilder::VisitTypeof(UnaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
-  Handle<Type> operand_type = expr->expression()->lower_type();
+  Handle<Type> operand_type = expr->expression()->bounds().lower;
   HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::SUB);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
@@ -7618,7 +7617,7 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
-  Handle<Type> operand_type = expr->expression()->lower_type();
+  Handle<Type> operand_type = expr->expression()->bounds().lower;
   HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::BIT_NOT);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
@@ -7954,9 +7953,9 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
     HValue* left,
     HValue* right) {
   HValue* context = environment()->LookupContext();
-  Handle<Type> left_type = expr->left()->lower_type();
-  Handle<Type> right_type = expr->right()->lower_type();
-  Handle<Type> result_type = expr->lower_type();
+  Handle<Type> left_type = expr->left()->bounds().lower;
+  Handle<Type> right_type = expr->right()->bounds().lower;
+  Handle<Type> result_type = expr->bounds().lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
@@ -8278,8 +8277,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  Handle<Type> left_type = expr->left()->lower_type();
-  Handle<Type> right_type = expr->right()->lower_type();
+  Handle<Type> left_type = expr->left()->bounds().lower;
+  Handle<Type> right_type = expr->right()->bounds().lower;
   Handle<Type> combined_type = expr->combined_type();
   Representation combined_rep = Representation::FromType(combined_type);
   Representation left_rep = Representation::FromType(left_type);
