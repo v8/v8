@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,25 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --expose-gc
 
-var do_set = false;
+// This tests that we can correctly handle a GC immediately after a function
+// has been deoptimized, even when we have an activation of this function on
+// the stack.
 
-function set_proto_elements() {
+// Ensure that there is code objects before the code for the opt_me function.
+(function() { var a = 10; a++; })();
+
+function opt_me() {
+  deopt();
+}
+
+function deopt() {
+  // Make sure we don't inline this function
   %NeverOptimize();
-  if (do_set) Array.prototype[1] = 1.5;
+  %DeoptimizeFunction(opt_me);
+  gc();
 }
 
-function f(a, i) {
-  set_proto_elements();
-  return a[i] + 0.5;
-}
 
-var arr = [0.0,,2.5];
-assertEquals(0.5, f(arr, 0));
-assertEquals(0.5, f(arr, 0));
-%OptimizeFunctionOnNextCall(f);
-assertEquals(0.5, f(arr, 0));
-do_set = true;
-assertEquals(2, f(arr, 1));
-
+opt_me();

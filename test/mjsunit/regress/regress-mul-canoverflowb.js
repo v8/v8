@@ -27,23 +27,19 @@
 
 // Flags: --allow-natives-syntax
 
-var do_set = false;
-
-function set_proto_elements() {
+function boom(a) {
+  return ((a | 0) * (a | 0)) | 0;
+}
+function boom_unoptimized(a) {
   %NeverOptimize();
-  if (do_set) Array.prototype[1] = 1.5;
+  return ((a | 0) * (a | 0)) | 0;
 }
 
-function f(a, i) {
-  set_proto_elements();
-  return a[i] + 0.5;
-}
+boom(1, 1);
+boom(2, 2);
 
-var arr = [0.0,,2.5];
-assertEquals(0.5, f(arr, 0));
-assertEquals(0.5, f(arr, 0));
-%OptimizeFunctionOnNextCall(f);
-assertEquals(0.5, f(arr, 0));
-do_set = true;
-assertEquals(2, f(arr, 1));
-
+%OptimizeFunctionOnNextCall(boom);
+var big_int = 0x5F00000F;
+var expected = boom_unoptimized(big_int);
+var actual = boom(big_int)
+assertEquals(expected, actual);

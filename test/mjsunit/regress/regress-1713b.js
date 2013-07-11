@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,25 +25,103 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --always-compact --expose-gc
 
-var do_set = false;
+var O = { get f() { return 0; } };
 
-function set_proto_elements() {
+var CODE = [];
+
+var R = [];
+
+function Allocate4Kb(N) {
+  var arr = [];
+  do {arr.push(new Array(1024));} while (--N > 0);
+  return arr;
+}
+
+function AllocateXMb(X) {
+  return Allocate4Kb((1024 * X) / 4);
+}
+
+function Node(v, next) { this.v = v; this.next = next; }
+
+Node.prototype.execute = function (O) {
+  var n = this;
+  while (n.next !== null) n = n.next;
+  n.v(O);
+};
+
+function LongList(N, x) {
+  if (N == 0) return new Node(x, null);
+  return new Node(new Array(1024), LongList(N - 1, x));
+}
+
+var L = LongList(1024, function (O) {
+  for (var i = 0; i < 5; i++) O.f;
+});
+
+
+
+function Incremental(O, x) {
+  if (!x) {
+    return;
+  }
+  function CreateCode(i) {
+    var f = new Function("return O.f_" + i);
+    CODE.push(f);
+    f(); // compile
+    f(); // compile
+    f(); // compile
+  }
+
+  for (var i = 0; i < 1e4; i++) CreateCode(i);
+  gc();
+  gc();
+  gc();
+
+  print(">>> 1 <<<");
+
+  L.execute(O);
+
   %NeverOptimize();
-  if (do_set) Array.prototype[1] = 1.5;
+
+  L = null;
+  print(">>> 2 <<<");
+  AllocateXMb(8);
+ //rint("1");
+ //llocateXMb(8);
+ //rint("1");
+ //llocateXMb(8);
+
 }
 
-function f(a, i) {
-  set_proto_elements();
-  return a[i] + 0.5;
+function foo(O, x) {
+  Incremental(O, x);
+
+  print('f');
+
+  for (var i = 0; i < 5; i++) O.f;
+
+
+  print('g');
+
+  bar(x);
 }
 
-var arr = [0.0,,2.5];
-assertEquals(0.5, f(arr, 0));
-assertEquals(0.5, f(arr, 0));
-%OptimizeFunctionOnNextCall(f);
-assertEquals(0.5, f(arr, 0));
-do_set = true;
-assertEquals(2, f(arr, 1));
+function bar(x) {
+  if (!x) return;
+  %DeoptimizeFunction(foo);
+  AllocateXMb(8);
+  AllocateXMb(8);
+}
 
+var O1 = {};
+var O2 = {};
+var O3 = {};
+var O4 = {f:0};
+
+foo(O1, false);
+foo(O2, false);
+foo(O3, false);
+%OptimizeFunctionOnNextCall(foo);
+foo(O4, true);

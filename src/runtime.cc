@@ -8346,6 +8346,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NeverOptimize) {
+  HandleScope scope(isolate);
+
+  if (args.length() == 0) {
+    // Disable optimization for the calling function.
+    JavaScriptFrameIterator it(isolate);
+    if (!it.done()) {
+      JSFunction *function = JSFunction::cast(it.frame()->function());
+      function->shared()->set_optimization_disabled(true);
+    }
+    return isolate->heap()->undefined_value();
+  }
+
+  // Disable optimization for the functions passed.
+  for (int i = 0; i < args.length(); i++) {
+    CONVERT_ARG_CHECKED(JSFunction, function, i);
+    function->shared()->set_optimization_disabled(true);
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CompleteOptimization) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);

@@ -27,23 +27,42 @@
 
 // Flags: --allow-natives-syntax
 
-var do_set = false;
-
-function set_proto_elements() {
-  %NeverOptimize();
-  if (do_set) Array.prototype[1] = 1.5;
+function o1() {
 }
 
-function f(a, i) {
-  set_proto_elements();
-  return a[i] + 0.5;
+if (%GetOptimizationStatus(o1) != 4) {
+  // 4 == optimization disabled.
+  o1(); o1();
+  %OptimizeFunctionOnNextCall(o1);
+  o1();
+
+  // check that the given function was optimized.
+  var o1_status = %GetOptimizationStatus(o1);
+  assertTrue(o1_status == 1    // optimized
+          || o1_status == 3    // optimized (always opt)
+          || o1_status == 5);  // lazy recompile requested
+
+  // Test the %NeverOptimize runtime call.
+  function u1() {
+    %NeverOptimize();
+  }
+
+  function u2() {
+  }
+
+  %NeverOptimize(u2);
+
+  u1(); u1();
+  u2(); u2();
+
+  %OptimizeFunctionOnNextCall(u1);
+  %OptimizeFunctionOnNextCall(u2);
+
+  u1(); u1();
+  u2(); u2();
+
+  // 2 => not optimized.
+  assertEquals(2, %GetOptimizationStatus(u1));
+  assertEquals(2, %GetOptimizationStatus(u2));
+
 }
-
-var arr = [0.0,,2.5];
-assertEquals(0.5, f(arr, 0));
-assertEquals(0.5, f(arr, 0));
-%OptimizeFunctionOnNextCall(f);
-assertEquals(0.5, f(arr, 0));
-do_set = true;
-assertEquals(2, f(arr, 1));
-

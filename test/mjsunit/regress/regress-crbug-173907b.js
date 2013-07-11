@@ -27,23 +27,62 @@
 
 // Flags: --allow-natives-syntax
 
-var do_set = false;
+var X = 1.1;
+var K = 0.5;
 
-function set_proto_elements() {
+var O = 0;
+var result = new Float64Array(2);
+
+function spill() {
   %NeverOptimize();
-  if (do_set) Array.prototype[1] = 1.5;
 }
 
-function f(a, i) {
-  set_proto_elements();
-  return a[i] + 0.5;
+function buggy() {
+  var v = X;
+  var phi1 = v + K;
+  var phi2 = v - K;
+
+  spill();  // At this point initial values for phi1 and phi2 are spilled.
+
+  var xmm1 = v;
+  var xmm2 = v*v*v;
+  var xmm3 = v*v*v*v;
+  var xmm4 = v*v*v*v*v;
+  var xmm5 = v*v*v*v*v*v;
+  var xmm6 = v*v*v*v*v*v*v;
+  var xmm7 = v*v*v*v*v*v*v*v;
+  var xmm8 = v*v*v*v*v*v*v*v*v;
+
+  // All registers are blocked and phis for phi1 and phi2 are spilled because
+  // their left (incoming) value is spilled, there are no free registers,
+  // and phis themselves have only ANY-policy uses.
+
+  for (var x = 0; x < 2; x++) {
+    xmm1 += xmm1 * xmm6;
+    xmm2 += xmm1 * xmm5;
+    xmm3 += xmm1 * xmm4;
+    xmm4 += xmm1 * xmm3;
+    xmm5 += xmm1 * xmm2;
+
+    // Now swap values of phi1 and phi2 to create cycle between phis.
+    var t = phi1;
+    phi1 = phi2;
+    phi2 = t;
+  }
+
+  // Now we want to get values of phi1 and phi2. However we would like to
+  // do it in a way that does not produce any uses of phi1&phi2 that have
+  // a register beneficial policy. How? We just hide these uses behind phis.
+  result[0] = (O === 0) ? phi1 : phi2;
+  result[1] = (O !== 0) ? phi1 : phi2;
 }
 
-var arr = [0.0,,2.5];
-assertEquals(0.5, f(arr, 0));
-assertEquals(0.5, f(arr, 0));
-%OptimizeFunctionOnNextCall(f);
-assertEquals(0.5, f(arr, 0));
-do_set = true;
-assertEquals(2, f(arr, 1));
+function test() {
+  buggy();
+  assertArrayEquals([X + K, X - K], result);
+}
 
+test();
+test();
+%OptimizeFunctionOnNextCall(buggy);
+test();
