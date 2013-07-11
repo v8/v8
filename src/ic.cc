@@ -2479,7 +2479,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
 RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
   SealHandleScope scope(isolate);
   ASSERT(args.length() == 4);
-  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+  KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   Handle<Object> value = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(2);
