@@ -1997,7 +1997,6 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
           elements_kind,
           transitioned_map->elements_kind(),
           is_js_array,
-          strict_mode(),
           store_mode_).GetCode(isolate());
     } else {
       if (FLAG_compiled_keyed_stores &&

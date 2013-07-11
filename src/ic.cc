@@ -2476,6 +2476,24 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
+  SealHandleScope scope(isolate);
+  ASSERT(args.length() == 4);
+  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
+  Handle<Object> value = args.at<Object>(0);
+  Handle<Object> key = args.at<Object>(2);
+  Handle<Object> object = args.at<Object>(3);
+  StrictModeFlag strict_mode = Code::GetStrictMode(extra_ic_state);
+  return Runtime::SetObjectProperty(isolate,
+                                    object,
+                                    key,
+                                    value,
+                                    NONE,
+                                    strict_mode);
+}
+
+
 void BinaryOpIC::patch(Code* code) {
   set_target(code);
 }
