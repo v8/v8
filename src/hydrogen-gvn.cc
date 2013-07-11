@@ -776,9 +776,28 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
     }
 
     // Go through all instructions of the current block.
-    HInstruction* instr = block->first();
-    while (instr != NULL) {
-      HInstruction* next = instr->next();
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* instr = it.Current();
+      if (instr->CheckFlag(HValue::kTrackSideEffectDominators)) {
+        for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
+          HValue* other = dominators->at(i);
+          GVNFlag changes_flag = HValue::ChangesFlagFromInt(i);
+          GVNFlag depends_on_flag = HValue::DependsOnFlagFromInt(i);
+          if (instr->DependsOnFlags().Contains(depends_on_flag) &&
+              (other != NULL)) {
+            TRACE_GVN_5("Side-effect #%d in %d (%s) is dominated by %d (%s)\n",
+                        i,
+                        instr->id(),
+                        instr->Mnemonic(),
+                        other->id(),
+                        other->Mnemonic());
+            instr->HandleSideEffectDominator(changes_flag, other);
+          }
+        }
+      }
+      // Instruction was unlinked during graph traversal.
+      if (!instr->IsLinked()) continue;
+
       GVNFlagSet flags = instr->ChangesFlags();
       if (!flags.IsEmpty()) {
         // Clear all instructions in the map that are affected by side effects.
@@ -804,25 +823,6 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
           map->Add(instr, zone());
         }
       }
-      if (instr->IsLinked() &&
-          instr->CheckFlag(HValue::kTrackSideEffectDominators)) {
-        for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
-          HValue* other = dominators->at(i);
-          GVNFlag changes_flag = HValue::ChangesFlagFromInt(i);
-          GVNFlag depends_on_flag = HValue::DependsOnFlagFromInt(i);
-          if (instr->DependsOnFlags().Contains(depends_on_flag) &&
-              (other != NULL)) {
-            TRACE_GVN_5("Side-effect #%d in %d (%s) is dominated by %d (%s)\n",
-                        i,
-                        instr->id(),
-                        instr->Mnemonic(),
-                        other->id(),
-                        other->Mnemonic());
-            instr->SetSideEffectDominator(changes_flag, other);
-          }
-        }
-      }
-      instr = next;
     }
 
     HBasicBlock* dominator_block;

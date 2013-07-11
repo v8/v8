@@ -233,14 +233,21 @@ class HPredecessorIterator BASE_EMBEDDED {
 
 class HInstructionIterator BASE_EMBEDDED {
  public:
-  explicit HInstructionIterator(HBasicBlock* block) : instr_(block->first()) { }
+  explicit HInstructionIterator(HBasicBlock* block)
+      : instr_(block->first()) {
+    next_ = Done() ? NULL : instr_->next();
+  }
 
-  bool Done() { return instr_ == NULL; }
-  HInstruction* Current() { return instr_; }
-  void Advance() { instr_ = instr_->next(); }
+  inline bool Done() const { return instr_ == NULL; }
+  inline HInstruction* Current() { return instr_; }
+  inline void Advance() {
+    instr_ = next_;
+    next_ = Done() ? NULL : instr_->next();
+  }
 
  private:
   HInstruction* instr_;
+  HInstruction* next_;
 };
 
 

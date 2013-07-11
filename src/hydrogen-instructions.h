@@ -790,7 +790,7 @@ class HValue: public ZoneObject {
     // occurrences of the instruction are indeed the same.
     kUseGVN,
     // Track instructions that are dominating side effects. If an instruction
-    // sets this flag, it must implement SetSideEffectDominator() and should
+    // sets this flag, it must implement HandleSideEffectDominator() and should
     // indicate which side effects to track by setting GVN flags.
     kTrackSideEffectDominators,
     kCanOverflow,
@@ -1109,7 +1109,8 @@ class HValue: public ZoneObject {
   // This function must be overridden for instructions which have the
   // kTrackSideEffectDominators flag set, to track instructions that are
   // dominating side effects.
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator) {
     UNREACHABLE();
   }
 
@@ -2774,7 +2775,8 @@ class HCheckMaps: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator);
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator);
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
 
@@ -4975,10 +4977,12 @@ class HAllocateObject: public HTemplateInstruction<1> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+
   virtual Handle<Map> GetMonomorphicJSObjectMap() {
     ASSERT(!constructor_initial_map_.is_null());
     return constructor_initial_map_;
   }
+
   virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(AllocateObject)
@@ -5007,7 +5011,9 @@ class HAllocate: public HTemplateInstruction<2> {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
+    SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kChangesNewSpacePromotion);
+    SetGVNFlag(kDependsOnNewSpacePromotion);
   }
 
   static Flags DefaultFlags() {
@@ -5025,6 +5031,7 @@ class HAllocate: public HTemplateInstruction<2> {
 
   HValue* context() { return OperandAt(0); }
   HValue* size() { return OperandAt(1); }
+  HType type() { return type_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     if (index == 0) {
@@ -5061,6 +5068,13 @@ class HAllocate: public HTemplateInstruction<2> {
     return (flags_ & ALLOCATE_DOUBLE_ALIGNED) != 0;
   }
 
+  void UpdateSize(HValue* size) {
+    SetOperandAt(1, size);
+  }
+
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator);
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate)
@@ -5073,8 +5087,9 @@ class HAllocate: public HTemplateInstruction<2> {
 
 class HInnerAllocatedObject: public HTemplateInstruction<1> {
  public:
-  HInnerAllocatedObject(HValue* value, int offset)
-      : offset_(offset) {
+  HInnerAllocatedObject(HValue* value, int offset, HType type = HType::Tagged())
+      : offset_(offset),
+        type_(type) {
     ASSERT(value->IsAllocate());
     SetOperandAt(0, value);
     set_representation(Representation::Tagged());
@@ -5087,12 +5102,15 @@ class HInnerAllocatedObject: public HTemplateInstruction<1> {
     return Representation::Tagged();
   }
 
+  virtual HType CalculateInferredType() { return type_; }
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject)
 
  private:
   int offset_;
+  HType type_;
 };
 
 
@@ -5815,7 +5833,8 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     }
     return Representation::Tagged();
   }
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator) {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
   }
@@ -6017,7 +6036,8 @@ class HStoreKeyed
     return value()->IsConstant() && HConstant::cast(value())->IsTheHole();
   }
 
-  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+  virtual void HandleSideEffectDominator(GVNFlag side_effect,
+                                         HValue* dominator) {
     ASSERT(side_effect == kChangesNewSpacePromotion);
     new_space_dominator_ = dominator;
   }

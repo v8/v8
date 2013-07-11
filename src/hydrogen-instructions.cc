@@ -1654,8 +1654,8 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 }
 
 
-void HCheckMaps::SetSideEffectDominator(GVNFlag side_effect,
-                                        HValue* dominator) {
+void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
+                                           HValue* dominator) {
   ASSERT(side_effect == kChangesMaps);
   // TODO(mstarzinger): For now we specialize on HStoreNamedField, but once
   // type information is rich enough we should generalize this to any HType
@@ -3180,6 +3180,84 @@ HType HAllocateObject::CalculateInferredType() {
 
 HType HAllocate::CalculateInferredType() {
   return type_;
+}
+
+
+void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
+                                          HValue* dominator) {
+  ASSERT(side_effect == kChangesNewSpacePromotion);
+  // Try to fold allocations together with their dominating allocations.
+  if (!FLAG_use_allocation_folding || !dominator->IsAllocate()) {
+    return;
+  }
+  HAllocate* dominator_allocate_instr = HAllocate::cast(dominator);
+  HValue* dominator_size = dominator_allocate_instr->size();
+  HValue* current_size = size();
+  // We can just fold allocations that are guaranteed in new space.
+  // TODO(hpayer): Support double aligned allocations.
+  // TODO(hpayer): Add support for non-constant allocation in dominator.
+  if (!GuaranteedInNewSpace() || MustAllocateDoubleAligned() ||
+      !current_size->IsInteger32Constant() ||
+      !dominator_allocate_instr->GuaranteedInNewSpace() ||
+      dominator_allocate_instr->MustAllocateDoubleAligned() ||
+      !dominator_size->IsInteger32Constant()) {
+    return;
+  }
+
+  // First update the size of the dominator allocate instruction.
+  int32_t dominator_size_constant =
+      HConstant::cast(dominator_size)->GetInteger32Constant();
+  int32_t current_size_constant =
+      HConstant::cast(current_size)->GetInteger32Constant();
+  HBasicBlock* block = dominator->block();
+  Zone* zone = block->zone();
+  HInstruction* new_dominator_size = new(zone) HConstant(
+      dominator_size_constant + current_size_constant);
+  new_dominator_size->InsertBefore(dominator_allocate_instr);
+  dominator_allocate_instr->UpdateSize(new_dominator_size);
+
+  // TODO(hpayer): Remove filler map but make sure new space is valid.
+  HInstruction* free_space_instr =
+      new(zone) HInnerAllocatedObject(dominator_allocate_instr,
+                                      dominator_size_constant,
+                                      type());
+  free_space_instr->InsertAfter(dominator_allocate_instr);
+  HConstant* filler_map = new(zone) HConstant(
+      isolate()->factory()->free_space_map(),
+      UniqueValueId(isolate()->heap()->free_space_map()),
+      Representation::Tagged(),
+      HType::Tagged(),
+      false,
+      true,
+      false,
+      false);
+  filler_map->InsertAfter(free_space_instr);
+
+  HInstruction* store_map = new(zone) HStoreNamedField(
+      free_space_instr, HObjectAccess::ForMap(), filler_map);
+  store_map->SetFlag(HValue::kHasNoObservableSideEffects);
+  store_map->InsertAfter(filler_map);
+
+  HInstruction* free_space_size = new(zone) HConstant(current_size_constant);
+  free_space_size->InsertAfter(store_map);
+  HObjectAccess access =
+      HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset);
+  HInstruction* store_size = new(zone) HStoreNamedField(
+      free_space_instr, access, free_space_size);
+  store_size->SetFlag(HValue::kHasNoObservableSideEffects);
+  store_size->InsertAfter(free_space_size);
+
+  // After that replace the dominated allocate instruction.
+  HInstruction* dominated_allocate_instr =
+      new(zone) HInnerAllocatedObject(dominator_allocate_instr,
+                                      dominator_size_constant,
+                                      type());
+  dominated_allocate_instr->InsertBefore(this);
+  DeleteAndReplaceWith(dominated_allocate_instr);
+  if (FLAG_trace_allocation_folding) {
+    PrintF("#%d (%s) folded into #%d (%s)\n",
+        id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+  }
 }
 
 
