@@ -36,6 +36,7 @@
 #include "hydrogen-bce.h"
 #include "hydrogen-canonicalize.h"
 #include "hydrogen-dce.h"
+#include "hydrogen-dehoist.h"
 #include "hydrogen-environment-liveness.h"
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
@@ -3078,7 +3079,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   if (FLAG_array_bounds_checks_elimination && !FLAG_idefs) {
     Run<HBoundsCheckEliminationPhase>();
   }
-  if (FLAG_array_index_dehoisting) DehoistSimpleArrayIndexComputations();
+  if (FLAG_array_index_dehoisting) Run<HDehoistIndexComputationsPhase>();
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
 
   RestoreActualValues();
@@ -3128,77 +3129,6 @@ void HGraph::SetupInformativeDefinitionsRecursively(HBasicBlock* block) {
 void HGraph::SetupInformativeDefinitions() {
   HPhase phase("H_Setup informative definitions", this);
   SetupInformativeDefinitionsRecursively(entry_block());
-}
-
-
-static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
-  HValue* index = array_operation->GetKey()->ActualValue();
-  if (!index->representation().IsSmiOrInteger32()) return;
-
-  HConstant* constant;
-  HValue* subexpression;
-  int32_t sign;
-  if (index->IsAdd()) {
-    sign = 1;
-    HAdd* add = HAdd::cast(index);
-    if (add->left()->IsConstant()) {
-      subexpression = add->right();
-      constant = HConstant::cast(add->left());
-    } else if (add->right()->IsConstant()) {
-      subexpression = add->left();
-      constant = HConstant::cast(add->right());
-    } else {
-      return;
-    }
-  } else if (index->IsSub()) {
-    sign = -1;
-    HSub* sub = HSub::cast(index);
-    if (sub->left()->IsConstant()) {
-      subexpression = sub->right();
-      constant = HConstant::cast(sub->left());
-    } else if (sub->right()->IsConstant()) {
-      subexpression = sub->left();
-      constant = HConstant::cast(sub->right());
-    } else {
-      return;
-    }
-  } else {
-    return;
-  }
-
-  if (!constant->HasInteger32Value()) return;
-  int32_t value = constant->Integer32Value() * sign;
-  // We limit offset values to 30 bits because we want to avoid the risk of
-  // overflows when the offset is added to the object header size.
-  if (value >= 1 << 30 || value < 0) return;
-  array_operation->SetKey(subexpression);
-  if (index->HasNoUses()) {
-    index->DeleteAndReplaceWith(NULL);
-  }
-  ASSERT(value >= 0);
-  array_operation->SetIndexOffset(static_cast<uint32_t>(value));
-  array_operation->SetDehoisted(true);
-}
-
-
-void HGraph::DehoistSimpleArrayIndexComputations() {
-  HPhase phase("H_Dehoist index computations", this);
-  for (int i = 0; i < blocks()->length(); ++i) {
-    for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      ArrayInstructionInterface* array_instruction = NULL;
-      if (instr->IsLoadKeyed()) {
-        HLoadKeyed* op = HLoadKeyed::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsStoreKeyed()) {
-        HStoreKeyed* op = HStoreKeyed::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else {
-        continue;
-      }
-      DehoistArrayIndex(array_instruction);
-    }
-  }
 }
 
 

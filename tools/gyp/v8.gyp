@@ -341,6 +341,8 @@
         '../../src/hydrogen-canonicalize.h',
         '../../src/hydrogen-dce.cc',
         '../../src/hydrogen-dce.h',
+        '../../src/hydrogen-dehoist.cc',
+        '../../src/hydrogen-dehoist.h',
         '../../src/hydrogen-environment-liveness.cc',
         '../../src/hydrogen-environment-liveness.h',
         '../../src/hydrogen-escape-analysis.cc',
