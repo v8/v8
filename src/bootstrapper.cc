@@ -2072,6 +2072,11 @@ bool Genesis::InstallExperimentalNatives() {
                "native generator.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
+    if (FLAG_harmony_iteration &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native array-iterator.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
   }
 
   InstallExperimentalNativeFunctions();
