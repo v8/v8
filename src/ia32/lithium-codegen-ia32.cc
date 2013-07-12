@@ -5070,6 +5070,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
       __ ucomisd(input_reg, input_reg);
     } else {
       __ fld(0);
+      __ fld(0);
       __ FCmp();
     }
 
@@ -5116,16 +5117,12 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     __ jmp(deferred->entry());
   }
   __ bind(deferred->exit());
-  if (CpuFeatures::IsSupported(SSE2)) {
+  if (use_sse2) {
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ movdbl(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
   } else {
-    __ fst_d(FieldOperand(reg, HeapNumber::kValueOffset));
-  }
-  if (!use_sse2) {
-    // clean up the stack
-    __ fstp(0);
+    __ fstp_d(FieldOperand(reg, HeapNumber::kValueOffset));
   }
   __ bind(&done);
 }
