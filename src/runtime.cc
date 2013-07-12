@@ -1456,6 +1456,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
                                  isolate->heap()->proto_string(),
                                  v8::ACCESS_GET)) {
       isolate->ReportFailedAccessCheck(JSObject::cast(obj), v8::ACCESS_GET);
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return isolate->heap()->undefined_value();
     }
     obj = obj->GetPrototype(isolate);
@@ -1560,28 +1561,20 @@ enum AccessCheckResult {
 };
 
 
-static AccessCheckResult CheckElementAccess(
-    JSObject* obj,
-    uint32_t index,
-    v8::AccessType access_type) {
-  // TODO(1095): we should traverse hidden prototype hierachy as well.
-  if (CheckGenericAccess(
-          obj, obj, index, access_type, &Isolate::MayIndexedAccess)) {
-    return ACCESS_ALLOWED;
-  }
-
-  obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
-  return ACCESS_FORBIDDEN;
-}
-
-
 static AccessCheckResult CheckPropertyAccess(
     JSObject* obj,
     Name* name,
     v8::AccessType access_type) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    return CheckElementAccess(obj, index, access_type);
+    // TODO(1095): we should traverse hidden prototype hierachy as well.
+    if (CheckGenericAccess(
+            obj, obj, index, access_type, &Isolate::MayIndexedAccess)) {
+      return ACCESS_ALLOWED;
+    }
+
+    obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
+    return ACCESS_FORBIDDEN;
   }
 
   LookupResult lookup(obj->GetIsolate());
@@ -1641,14 +1634,21 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
   Heap* heap = isolate->heap();
   // Due to some WebKit tests, we want to make sure that we do not log
   // more than one access failure here.
-  switch (CheckPropertyAccess(*obj, *name, v8::ACCESS_HAS)) {
+  AccessCheckResult access_check_result =
+      CheckPropertyAccess(*obj, *name, v8::ACCESS_HAS);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  switch (access_check_result) {
     case ACCESS_FORBIDDEN: return heap->false_value();
     case ACCESS_ALLOWED: break;
     case ACCESS_ABSENT: return heap->undefined_value();
   }
 
   PropertyAttributes attrs = obj->GetLocalPropertyAttribute(*name);
-  if (attrs == ABSENT) return heap->undefined_value();
+  if (attrs == ABSENT) {
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    return heap->undefined_value();
+  }
+  ASSERT(!isolate->has_scheduled_exception());
   AccessorPair* raw_accessors = obj->GetLocalPropertyAccessorPair(*name);
   Handle<AccessorPair> accessors(raw_accessors, isolate);
 
@@ -1669,10 +1669,16 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
     Object* getter = accessors->GetComponent(ACCESSOR_GETTER);
     Object* setter = accessors->GetComponent(ACCESSOR_SETTER);
     if (!getter->IsMap() && CheckPropertyAccess(*obj, *name, v8::ACCESS_GET)) {
+      ASSERT(!isolate->has_scheduled_exception());
       elms->set(GETTER_INDEX, getter);
+    } else {
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     }
     if (!setter->IsMap() && CheckPropertyAccess(*obj, *name, v8::ACCESS_SET)) {
+      ASSERT(!isolate->has_scheduled_exception());
       elms->set(SETTER_INDEX, setter);
+    } else {
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     }
   }
 
@@ -4813,6 +4819,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
 
   bool fast = obj->HasFastProperties();
   JSObject::DefineAccessor(obj, name, getter, setter, attr);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (fast) JSObject::TransformToFastProperties(obj, 0);
   return isolate->heap()->undefined_value();
 }
@@ -5339,9 +5346,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteProperty) {
 }
 
 
-static Object* HasLocalPropertyImplementation(Isolate* isolate,
-                                              Handle<JSObject> object,
-                                              Handle<Name> key) {
+static MaybeObject* HasLocalPropertyImplementation(Isolate* isolate,
+                                                   Handle<JSObject> object,
+                                                   Handle<Name> key) {
   if (object->HasLocalProperty(*key)) return isolate->heap()->true_value();
   // Handle hidden prototypes.  If there's a hidden prototype above this thing
   // then we have to check it for properties, because they are supposed to
@@ -5353,6 +5360,7 @@ static Object* HasLocalPropertyImplementation(Isolate* isolate,
                                           Handle<JSObject>::cast(proto),
                                           key);
   }
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return isolate->heap()->false_value();
 }
 
@@ -5372,8 +5380,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
     // Fast case: either the key is a real named property or it is not
     // an array index and there are no interceptors or hidden
     // prototypes.
-    if (object->HasRealNamedProperty(isolate, key))
+    if (object->HasRealNamedProperty(isolate, key)) {
+      ASSERT(!isolate->has_scheduled_exception());
       return isolate->heap()->true_value();
+    } else {
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    }
     Map* map = object->map();
     if (!key_is_array_index &&
         !map->has_named_interceptor() &&
@@ -5403,6 +5415,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasProperty) {
   CONVERT_ARG_CHECKED(Name, key, 1);
 
   bool result = receiver->HasProperty(key);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (isolate->has_pending_exception()) return Failure::Exception();
   return isolate->heap()->ToBoolean(result);
 }
@@ -5415,6 +5428,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasElement) {
   CONVERT_SMI_ARG_CHECKED(index, 1);
 
   bool result = receiver->HasElement(index);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (isolate->has_pending_exception()) return Failure::Exception();
   return isolate->heap()->ToBoolean(result);
 }
@@ -5428,7 +5442,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsPropertyEnumerable) {
   CONVERT_ARG_CHECKED(Name, key, 1);
 
   PropertyAttributes att = object->GetLocalPropertyAttribute(key);
-  return isolate->heap()->ToBoolean(att != ABSENT && (att & DONT_ENUM) == 0);
+  if (att == ABSENT || (att & DONT_ENUM) != 0) {
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    return isolate->heap()->false_value();
+  }
+  ASSERT(!isolate->has_scheduled_exception());
+  return isolate->heap()->true_value();
 }
 
 
@@ -5506,6 +5525,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
                                  isolate->heap()->undefined_value(),
                                  v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(*obj, v8::ACCESS_KEYS);
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
     obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
@@ -5525,6 +5545,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
                                  isolate->heap()->undefined_value(),
                                  v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(*jsproto, v8::ACCESS_KEYS);
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
     int n;
@@ -5651,6 +5672,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
         !isolate->MayNamedAccess(*object, isolate->heap()->undefined_value(),
                              v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
 

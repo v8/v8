@@ -1944,7 +1944,7 @@ class JSObject: public JSReceiver {
                              Handle<Object> setter,
                              PropertyAttributes attributes);
 
-  Object* LookupAccessor(Name* name, AccessorComponent component);
+  MaybeObject* LookupAccessor(Name* name, AccessorComponent component);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
 

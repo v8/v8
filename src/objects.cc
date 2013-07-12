@@ -551,7 +551,9 @@ MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
   // No accessible property found.
   *attributes = ABSENT;
   Heap* heap = name->GetHeap();
-  heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_GET);
+  Isolate* isolate = heap->isolate();
+  isolate->ReportFailedAccessCheck(this, v8::ACCESS_GET);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return heap->undefined_value();
 }
 
@@ -925,6 +927,7 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
       Isolate* isolate = heap->isolate();
       if (!isolate->MayIndexedAccess(js_object, index, v8::ACCESS_GET)) {
         isolate->ReportFailedAccessCheck(js_object, v8::ACCESS_GET);
+        RETURN_IF_SCHEDULED_EXCEPTION(isolate);
         return heap->undefined_value();
       }
     }
@@ -3364,6 +3367,7 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
   HandleScope scope(isolate);
   Handle<Object> value_handle(value, isolate);
   isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return *value_handle;
 }
 
@@ -5059,6 +5063,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   if (IsAccessCheckNeeded() &&
       !isolate->MayIndexedAccess(this, index, v8::ACCESS_DELETE)) {
     isolate->ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->false_value();
   }
 
@@ -5136,6 +5141,7 @@ MaybeObject* JSObject::DeleteProperty(Name* name, DeleteMode mode) {
   if (IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(this, name, v8::ACCESS_DELETE)) {
     isolate->ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->false_value();
   }
 
@@ -5366,6 +5372,7 @@ MaybeObject* JSObject::PreventExtensions() {
                                isolate->heap()->undefined_value(),
                                v8::ACCESS_KEYS)) {
     isolate->ReportFailedAccessCheck(this, v8::ACCESS_KEYS);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->false_value();
   }
 
@@ -5444,6 +5451,7 @@ MUST_USE_RESULT MaybeObject* JSObject::Freeze(Isolate* isolate) {
                                heap->undefined_value(),
                                v8::ACCESS_KEYS)) {
     isolate->ReportFailedAccessCheck(this, v8::ACCESS_KEYS);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return heap->false_value();
   }
 
@@ -6257,6 +6265,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
   if (IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(this, name, v8::ACCESS_SET)) {
     isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->undefined_value();
   }
 
@@ -6332,7 +6341,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
 }
 
 
-Object* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
+MaybeObject* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
   Heap* heap = GetHeap();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -6343,6 +6352,7 @@ Object* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
   if (IsAccessCheckNeeded() &&
       !heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_HAS)) {
     heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+    RETURN_IF_SCHEDULED_EXCEPTION(heap->isolate());
     return heap->undefined_value();
   }
 
@@ -12065,6 +12075,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   if (IsAccessCheckNeeded()) {
     if (!isolate->MayIndexedAccess(this, index, v8::ACCESS_SET)) {
       isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
+      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return value_raw;
     }
   }
