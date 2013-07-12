@@ -451,32 +451,9 @@ void OS::DebugBreak() {
 
 
 void OS::DumpBacktrace() {
+  // backtrace is a glibc extension.
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
-  void* trace[100];
-  int size = backtrace(trace, ARRAY_SIZE(trace));
-  char** symbols = backtrace_symbols(trace, size);
-  fprintf(stderr, "\n==== C stack trace ===============================\n\n");
-  if (size == 0) {
-    fprintf(stderr, "(empty)\n");
-  } else if (symbols == NULL) {
-    fprintf(stderr, "(no symbols)\n");
-  } else {
-    for (int i = 1; i < size; ++i) {
-      fprintf(stderr, "%2d: ", i);
-      char mangled[201];
-      if (sscanf(symbols[i], "%*[^(]%*[(]%200[^)+]", mangled) == 1) {  // NOLINT
-        int status;
-        size_t length;
-        char* demangled = abi::__cxa_demangle(mangled, NULL, &length, &status);
-        fprintf(stderr, "%s\n", demangled ? demangled : mangled);
-        free(demangled);
-      } else {
-        fprintf(stderr, "??\n");
-      }
-    }
-  }
-  fflush(stderr);
-  free(symbols);
+  POSIXBacktraceHelper<backtrace, backtrace_symbols>::DumpBacktrace();
 #endif
 }
 
@@ -630,33 +607,10 @@ void OS::SignalCodeMovingGC() {
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
   // backtrace is a glibc extension.
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
-  int frames_size = frames.length();
-  ScopedVector<void*> addresses(frames_size);
-
-  int frames_count = backtrace(addresses.start(), frames_size);
-
-  char** symbols = backtrace_symbols(addresses.start(), frames_count);
-  if (symbols == NULL) {
-    return kStackWalkError;
-  }
-
-  for (int i = 0; i < frames_count; i++) {
-    frames[i].address = addresses[i];
-    // Format a text representation of the frame based on the information
-    // available.
-    SNPrintF(MutableCStrVector(frames[i].text, kStackWalkMaxTextLen),
-             "%s",
-             symbols[i]);
-    // Make sure line termination is in place.
-    frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
-  }
-
-  free(symbols);
-
-  return frames_count;
-#else  // defined(__GLIBC__) && !defined(__UCLIBC__)
+  return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
+#else
   return 0;
-#endif  // defined(__GLIBC__) && !defined(__UCLIBC__)
+#endif
 }
 
 

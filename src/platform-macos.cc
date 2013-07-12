@@ -53,6 +53,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <cxxabi.h>
 
 #undef MAP_TYPE
 
@@ -189,7 +190,10 @@ void OS::DebugBreak() {
 
 
 void OS::DumpBacktrace() {
-  // Currently unsupported.
+  // If weak link to execinfo lib has failed, ie because we are on 10.4, abort.
+  if (backtrace == NULL) return;
+
+  POSIXBacktraceHelper<backtrace, backtrace_symbols>::DumpBacktrace();
 }
 
 
@@ -315,34 +319,9 @@ double OS::LocalTimeOffset() {
 
 int OS::StackWalk(Vector<StackFrame> frames) {
   // If weak link to execinfo lib has failed, ie because we are on 10.4, abort.
-  if (backtrace == NULL)
-    return 0;
+  if (backtrace == NULL) return 0;
 
-  int frames_size = frames.length();
-  ScopedVector<void*> addresses(frames_size);
-
-  int frames_count = backtrace(addresses.start(), frames_size);
-
-  char** symbols = backtrace_symbols(addresses.start(), frames_count);
-  if (symbols == NULL) {
-    return kStackWalkError;
-  }
-
-  for (int i = 0; i < frames_count; i++) {
-    frames[i].address = addresses[i];
-    // Format a text representation of the frame based on the information
-    // available.
-    SNPrintF(MutableCStrVector(frames[i].text,
-                               kStackWalkMaxTextLen),
-             "%s",
-             symbols[i]);
-    // Make sure line termination is in place.
-    frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
-  }
-
-  free(symbols);
-
-  return frames_count;
+  return POSIXBacktraceHelper<backtrace, backtrace_symbols>::StackWalk(frames);
 }
 
 
