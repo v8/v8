@@ -542,6 +542,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   if (function->IsSmi()) {
     function = NULL;
   }
+  ASSERT(from != NULL);
   if (function != NULL && function->IsOptimized()) {
     function->shared()->increment_deopt_count();
     if (bailout_type_ == Deoptimizer::SOFT) {
@@ -573,8 +574,6 @@ Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
   switch (bailout_type_) {
     case Deoptimizer::SOFT:
     case Deoptimizer::EAGER:
-      ASSERT(from_ == NULL);
-      return function->code();
     case Deoptimizer::LAZY: {
       Code* compiled_code =
           isolate_->deoptimizer_data()->FindDeoptimizingCode(from_);
