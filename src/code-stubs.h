@@ -72,6 +72,7 @@ namespace internal {
   V(ArgumentsAccess)                     \
   V(RegExpConstructResult)               \
   V(NumberToString)                      \
+  V(DoubleToI)                           \
   V(CEntry)                              \
   V(JSEntry)                             \
   V(KeyedLoadElement)                    \
@@ -1743,6 +1744,60 @@ class KeyedLoadDictionaryElementStub : public PlatformCodeStub {
   int MinorKey() { return DICTIONARY_ELEMENTS; }
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementStub);
+};
+
+
+class DoubleToIStub : public PlatformCodeStub {
+ public:
+  DoubleToIStub(Register source,
+                Register destination,
+                int offset,
+                bool is_truncating) : bit_field_(0) {
+    bit_field_ = SourceRegisterBits::encode(source.code_) |
+      DestinationRegisterBits::encode(destination.code_) |
+      OffsetBits::encode(offset) |
+      IsTruncatingBits::encode(is_truncating);
+  }
+
+  Register source() {
+    Register result = { SourceRegisterBits::decode(bit_field_) };
+    return result;
+  }
+
+  Register destination() {
+    Register result = { DestinationRegisterBits::decode(bit_field_) };
+    return result;
+  }
+
+  bool is_truncating() {
+    return IsTruncatingBits::decode(bit_field_);
+  }
+
+  int offset() {
+    return OffsetBits::decode(bit_field_);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  static const int kBitsPerRegisterNumber = 6;
+  STATIC_ASSERT((1L << kBitsPerRegisterNumber) >= Register::kNumRegisters);
+  class SourceRegisterBits:
+      public BitField<int, 0, kBitsPerRegisterNumber> {};  // NOLINT
+  class DestinationRegisterBits:
+      public BitField<int, kBitsPerRegisterNumber,
+        kBitsPerRegisterNumber> {};  // NOLINT
+  class IsTruncatingBits:
+      public BitField<bool, 2 * kBitsPerRegisterNumber, 1> {};  // NOLINT
+  class OffsetBits:
+      public BitField<int, 2 * kBitsPerRegisterNumber + 1, 3> {};  // NOLINT
+
+  Major MajorKey() { return DoubleToI; }
+  int MinorKey() { return bit_field_; }
+
+  int bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(DoubleToIStub);
 };
 
 

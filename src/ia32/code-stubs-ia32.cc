@@ -662,131 +662,143 @@ class FloatingPointHelper : public AllStatic {
 };
 
 
-// Get the integer part of a heap number.  Surprisingly, all this bit twiddling
-// is faster than using the built-in instructions on floating point registers.
-// Trashes edi and ebx.  Dest is ecx.  Source cannot be ecx or one of the
-// trashed registers.
-static void IntegerConvert(MacroAssembler* masm,
-                           Register source,
-                           bool use_sse3,
-                           Label* conversion_failure) {
-  ASSERT(!source.is(ecx) && !source.is(edi) && !source.is(ebx));
-  Label done, right_exponent, normal_exponent;
-  Register scratch = ebx;
-  Register scratch2 = edi;
-  // Get exponent word.
-  __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
-  // Get exponent alone in scratch2.
-  __ mov(scratch2, scratch);
-  __ and_(scratch2, HeapNumber::kExponentMask);
-  __ shr(scratch2, HeapNumber::kExponentShift);
-  __ sub(scratch2, Immediate(HeapNumber::kExponentBias));
-  // Load ecx with zero.  We use this either for the final shift or
-  // for the answer.
-  __ xor_(ecx, ecx);
-  // If the exponent is above 83, the number contains no significant
-  // bits in the range 0..2^31, so the result is zero.
-  static const uint32_t kResultIsZeroExponent = 83;
-  __ cmp(scratch2, Immediate(kResultIsZeroExponent));
-  __ j(above, &done);
-  if (use_sse3) {
+void DoubleToIStub::Generate(MacroAssembler* masm) {
+  Register input_reg = this->source();
+  Register final_result_reg = this->destination();
+  ASSERT(is_truncating());
+
+  Label check_negative, process_64_bits, done, done_no_stash;
+
+  int double_offset = offset();
+
+  // Account for return address and saved regs if input is esp.
+  if (input_reg.is(esp)) double_offset += 3 * kPointerSize;
+
+  MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
+  MemOperand exponent_operand(MemOperand(input_reg,
+                                         double_offset + kPointerSize));
+
+  Register scratch1;
+  {
+    Register scratch_candidates[3] = { ebx, edx, edi };
+    for (int i = 0; i < 3; i++) {
+      scratch1 = scratch_candidates[i];
+      if (!final_result_reg.is(scratch1) && !input_reg.is(scratch1)) break;
+    }
+  }
+  // Since we must use ecx for shifts below, use some other register (eax)
+  // to calculate the result if ecx is the requested return register.
+  Register result_reg = final_result_reg.is(ecx) ? eax : final_result_reg;
+  // Save ecx if it isn't the return register and therefore volatile, or if it
+  // is the return register, then save the temp register we use in its stead for
+  // the result.
+  Register save_reg = final_result_reg.is(ecx) ? eax : ecx;
+  __ push(scratch1);
+  __ push(save_reg);
+
+  bool stash_exponent_copy = !input_reg.is(esp);
+  __ mov(scratch1, mantissa_operand);
+  if (CpuFeatures::IsSupported(SSE3)) {
     CpuFeatureScope scope(masm, SSE3);
-    // Check whether the exponent is too big for a 64 bit signed integer.
-    static const uint32_t kTooBigExponent = 63;
-    __ cmp(scratch2, Immediate(kTooBigExponent));
-    __ j(greater_equal, conversion_failure);
     // Load x87 register with heap number.
-    __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));
-    // Reserve space for 64 bit answer.
-    __ sub(esp, Immediate(sizeof(uint64_t)));  // Nolint.
+    __ fld_d(mantissa_operand);
+  }
+  __ mov(ecx, exponent_operand);
+  if (stash_exponent_copy) __ push(ecx);
+
+  __ and_(ecx, HeapNumber::kExponentMask);
+  __ shr(ecx, HeapNumber::kExponentShift);
+  __ lea(result_reg, MemOperand(ecx, -HeapNumber::kExponentBias));
+  __ cmp(result_reg, Immediate(HeapNumber::kMantissaBits));
+  __ j(below, &process_64_bits);
+
+  // Result is entirely in lower 32-bits of mantissa
+  int delta = HeapNumber::kExponentBias + Double::kPhysicalSignificandSize;
+  if (CpuFeatures::IsSupported(SSE3)) {
+    __ fstp(0);
+  }
+  __ sub(ecx, Immediate(delta));
+  __ xor_(result_reg, result_reg);
+  __ cmp(ecx, Immediate(31));
+  __ j(above, &done);
+  __ shl_cl(scratch1);
+  __ jmp(&check_negative);
+
+  __ bind(&process_64_bits);
+  if (CpuFeatures::IsSupported(SSE3)) {
+    CpuFeatureScope scope(masm, SSE3);
+    if (stash_exponent_copy) {
+      // Already a copy of the exponent on the stack, overwrite it.
+      STATIC_ASSERT(kDoubleSize == 2 * kPointerSize);
+      __ sub(esp, Immediate(kDoubleSize / 2));
+    } else {
+      // Reserve space for 64 bit answer.
+      __ sub(esp, Immediate(kDoubleSize));  // Nolint.
+    }
     // Do conversion, which cannot fail because we checked the exponent.
     __ fisttp_d(Operand(esp, 0));
-    __ mov(ecx, Operand(esp, 0));  // Load low word of answer into ecx.
-    __ add(esp, Immediate(sizeof(uint64_t)));  // Nolint.
+    __ mov(result_reg, Operand(esp, 0));  // Load low word of answer as result
+    __ add(esp, Immediate(kDoubleSize));
+    __ jmp(&done_no_stash);
   } else {
-    // Check whether the exponent matches a 32 bit signed int that cannot be
-    // represented by a Smi.  A non-smi 32 bit integer is 1.xxx * 2^30 so the
-    // exponent is 30 (biased).  This is the exponent that we are fastest at and
-    // also the highest exponent we can handle here.
-    const uint32_t non_smi_exponent = 30;
-    __ cmp(scratch2, Immediate(non_smi_exponent));
-    // If we have a match of the int32-but-not-Smi exponent then skip some
-    // logic.
-    __ j(equal, &right_exponent, Label::kNear);
-    // If the exponent is higher than that then go to slow case.  This catches
-    // numbers that don't fit in a signed int32, infinities and NaNs.
-    __ j(less, &normal_exponent, Label::kNear);
-
-    {
-      // Handle a big exponent.  The only reason we have this code is that the
-      // >>> operator has a tendency to generate numbers with an exponent of 31.
-      const uint32_t big_non_smi_exponent = 31;
-      __ cmp(scratch2, Immediate(big_non_smi_exponent));
-      __ j(not_equal, conversion_failure);
-      // We have the big exponent, typically from >>>.  This means the number is
-      // in the range 2^31 to 2^32 - 1.  Get the top bits of the mantissa.
-      __ mov(scratch2, scratch);
-      __ and_(scratch2, HeapNumber::kMantissaMask);
-      // Put back the implicit 1.
-      __ or_(scratch2, 1 << HeapNumber::kExponentShift);
-      // Shift up the mantissa bits to take up the space the exponent used to
-      // take. We just orred in the implicit bit so that took care of one and
-      // we want to use the full unsigned range so we subtract 1 bit from the
-      // shift distance.
-      const int big_shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 1;
-      __ shl(scratch2, big_shift_distance);
-      // Get the second half of the double.
-      __ mov(ecx, FieldOperand(source, HeapNumber::kMantissaOffset));
-      // Shift down 21 bits to get the most significant 11 bits or the low
-      // mantissa word.
-      __ shr(ecx, 32 - big_shift_distance);
-      __ or_(ecx, scratch2);
-      // We have the answer in ecx, but we may need to negate it.
-      __ test(scratch, scratch);
-      __ j(positive, &done, Label::kNear);
-      __ neg(ecx);
-      __ jmp(&done, Label::kNear);
+    // Result must be extracted from shifted 32-bit mantissa
+    __ sub(ecx, Immediate(delta));
+    __ neg(ecx);
+    if (stash_exponent_copy) {
+      __ mov(result_reg, MemOperand(esp, 0));
+    } else {
+      __ mov(result_reg, exponent_operand);
     }
-
-    __ bind(&normal_exponent);
-    // Exponent word in scratch, exponent in scratch2. Zero in ecx.
-    // We know that 0 <= exponent < 30.
-    __ mov(ecx, Immediate(30));
-    __ sub(ecx, scratch2);
-
-    __ bind(&right_exponent);
-    // Here ecx is the shift, scratch is the exponent word.
-    // Get the top bits of the mantissa.
-    __ and_(scratch, HeapNumber::kMantissaMask);
-    // Put back the implicit 1.
-    __ or_(scratch, 1 << HeapNumber::kExponentShift);
-    // Shift up the mantissa bits to take up the space the exponent used to
-    // take. We have kExponentShift + 1 significant bits int he low end of the
-    // word.  Shift them to the top bits.
-    const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
-    __ shl(scratch, shift_distance);
-    // Get the second half of the double. For some exponents we don't
-    // actually need this because the bits get shifted out again, but
-    // it's probably slower to test than just to do it.
-    __ mov(scratch2, FieldOperand(source, HeapNumber::kMantissaOffset));
-    // Shift down 22 bits to get the most significant 10 bits or the low
-    // mantissa word.
-    __ shr(scratch2, 32 - shift_distance);
-    __ or_(scratch2, scratch);
-    // Move down according to the exponent.
-    __ shr_cl(scratch2);
-    // Now the unsigned answer is in scratch2.  We need to move it to ecx and
-    // we may need to fix the sign.
-    Label negative;
-    __ xor_(ecx, ecx);
-    __ cmp(ecx, FieldOperand(source, HeapNumber::kExponentOffset));
-    __ j(greater, &negative, Label::kNear);
-    __ mov(ecx, scratch2);
-    __ jmp(&done, Label::kNear);
-    __ bind(&negative);
-    __ sub(ecx, scratch2);
+    __ and_(result_reg,
+            Immediate(static_cast<uint32_t>(Double::kSignificandMask >> 32)));
+    __ add(result_reg,
+           Immediate(static_cast<uint32_t>(Double::kHiddenBit >> 32)));
+    __ shrd(result_reg, scratch1);
+    __ shr_cl(result_reg);
+    __ test(ecx, Immediate(32));
+    if (CpuFeatures::IsSupported(CMOV)) {
+      CpuFeatureScope use_cmov(masm, CMOV);
+      __ cmov(not_equal, scratch1, result_reg);
+    } else {
+      Label skip_mov;
+      __ j(equal, &skip_mov, Label::kNear);
+      __ mov(scratch1, result_reg);
+      __ bind(&skip_mov);
+    }
   }
+
+  // If the double was negative, negate the integer result.
+  __ bind(&check_negative);
+  __ mov(result_reg, scratch1);
+  __ neg(result_reg);
+  if (stash_exponent_copy) {
+    __ cmp(MemOperand(esp, 0), Immediate(0));
+  } else {
+    __ cmp(exponent_operand, Immediate(0));
+  }
+  if (CpuFeatures::IsSupported(CMOV)) {
+    CpuFeatureScope use_cmov(masm, CMOV);
+    __ cmov(greater, result_reg, scratch1);
+  } else {
+    Label skip_mov;
+    __ j(less_equal, &skip_mov, Label::kNear);
+    __ mov(result_reg, scratch1);
+    __ bind(&skip_mov);
+  }
+
+  // Restore registers
   __ bind(&done);
+  if (stash_exponent_copy) {
+    __ add(esp, Immediate(kDoubleSize / 2));
+  }
+  __ bind(&done_no_stash);
+  if (!final_result_reg.is(result_reg)) {
+    ASSERT(final_result_reg.is(ecx));
+    __ mov(final_result_reg, result_reg);
+  }
+  __ pop(save_reg);
+  __ pop(scratch1);
+  __ ret(0);
 }
 
 
@@ -2407,7 +2419,9 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(
     CpuFeatureScope use_sse2(masm, SSE2);
     ConvertHeapNumberToInt32(masm, edx, conversion_failure);
   } else {
-    IntegerConvert(masm, edx, use_sse3, conversion_failure);
+    DoubleToIStub stub(edx, ecx, HeapNumber::kValueOffset - kHeapObjectTag,
+                       true);
+    __ call(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
   }
   __ mov(edx, ecx);
 
@@ -2442,7 +2456,9 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(
     CpuFeatureScope use_sse2(masm, SSE2);
     ConvertHeapNumberToInt32(masm, eax, conversion_failure);
   } else {
-    IntegerConvert(masm, eax, use_sse3, conversion_failure);
+    DoubleToIStub stub(eax, ecx, HeapNumber::kValueOffset - kHeapObjectTag,
+                       true);
+    __ call(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
   }
 
   __ bind(&done);

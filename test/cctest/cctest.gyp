@@ -110,6 +110,7 @@
         ['v8_target_arch=="ia32"', {
           'sources': [
             'test-assembler-ia32.cc',
+            'test-code-stubs-ia32.cc',
             'test-disasm-ia32.cc',
             'test-log-stack-tracer.cc'
           ],

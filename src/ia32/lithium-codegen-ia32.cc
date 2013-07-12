@@ -5645,93 +5645,22 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   XMMRegister input_reg = ToDoubleRegister(input);
   Register result_reg = ToRegister(result);
 
+  __ cvttsd2si(result_reg, Operand(input_reg));
+
   if (instr->truncating()) {
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
-    __ cvttsd2si(result_reg, Operand(input_reg));
+    Label fast_case_succeeded;
     __ cmp(result_reg, 0x80000000u);
-    if (CpuFeatures::IsSupported(SSE3)) {
-      // This will deoptimize if the exponent of the input in out of range.
-      CpuFeatureScope scope(masm(), SSE3);
-      Label convert, done;
-      __ j(not_equal, &done, Label::kNear);
-      __ sub(Operand(esp), Immediate(kDoubleSize));
-      __ movdbl(Operand(esp, 0), input_reg);
-      // Get exponent alone and check for too-big exponent.
-      __ mov(result_reg, Operand(esp, sizeof(int32_t)));
-      __ and_(result_reg, HeapNumber::kExponentMask);
-      const uint32_t kTooBigExponent =
-          (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-      __ cmp(Operand(result_reg), Immediate(kTooBigExponent));
-      __ j(less, &convert, Label::kNear);
-      __ add(Operand(esp), Immediate(kDoubleSize));
-      DeoptimizeIf(no_condition, instr->environment());
-      __ bind(&convert);
-      // Do conversion, which cannot fail because we checked the exponent.
-      __ fld_d(Operand(esp, 0));
-      __ fisttp_d(Operand(esp, 0));
-      __ mov(result_reg, Operand(esp, 0));  // Low word of answer is the result.
-      __ add(Operand(esp), Immediate(kDoubleSize));
-      __ bind(&done);
-    } else {
-      Label done;
-      Register temp_reg = ToRegister(instr->temp());
-      XMMRegister xmm_scratch = xmm0;
-
-      // If cvttsd2si succeeded, we're done. Otherwise, we attempt
-      // manual conversion.
-      __ j(not_equal, &done, Label::kNear);
-
-      // Get high 32 bits of the input in result_reg and temp_reg.
-      __ pshufd(xmm_scratch, input_reg, 1);
-      __ movd(Operand(temp_reg), xmm_scratch);
-      __ mov(result_reg, temp_reg);
-
-      // Prepare negation mask in temp_reg.
-      __ sar(temp_reg, kBitsPerInt - 1);
-
-      // Extract the exponent from result_reg and subtract adjusted
-      // bias from it. The adjustment is selected in a way such that
-      // when the difference is zero, the answer is in the low 32 bits
-      // of the input, otherwise a shift has to be performed.
-      __ shr(result_reg, HeapNumber::kExponentShift);
-      __ and_(result_reg,
-              HeapNumber::kExponentMask >> HeapNumber::kExponentShift);
-      __ sub(Operand(result_reg),
-             Immediate(HeapNumber::kExponentBias +
-                       HeapNumber::kExponentBits +
-                       HeapNumber::kMantissaBits));
-      // Don't handle big (> kMantissaBits + kExponentBits == 63) or
-      // special exponents.
-      DeoptimizeIf(greater, instr->environment());
-
-      // Zero out the sign and the exponent in the input (by shifting
-      // it to the left) and restore the implicit mantissa bit,
-      // i.e. convert the input to unsigned int64 shifted left by
-      // kExponentBits.
-      ExternalReference minus_zero = ExternalReference::address_of_minus_zero();
-      // Minus zero has the most significant bit set and the other
-      // bits cleared.
-      __ movdbl(xmm_scratch, Operand::StaticVariable(minus_zero));
-      __ psllq(input_reg, HeapNumber::kExponentBits);
-      __ por(input_reg, xmm_scratch);
-
-      // Get the amount to shift the input right in xmm_scratch.
-      __ neg(result_reg);
-      __ movd(xmm_scratch, Operand(result_reg));
-
-      // Shift the input right and extract low 32 bits.
-      __ psrlq(input_reg, xmm_scratch);
-      __ movd(Operand(result_reg), input_reg);
-
-      // Use the prepared mask in temp_reg to negate the result if necessary.
-      __ xor_(result_reg, Operand(temp_reg));
-      __ sub(result_reg, Operand(temp_reg));
-      __ bind(&done);
-    }
+    __ j(not_equal, &fast_case_succeeded);
+    __ sub(esp, Immediate(kDoubleSize));
+    __ movdbl(MemOperand(esp, 0), input_reg);
+    DoubleToIStub stub(esp, result_reg, 0, true);
+    __ call(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+    __ add(esp, Immediate(kDoubleSize));
+    __ bind(&fast_case_succeeded);
   } else {
     Label done;
-    __ cvttsd2si(result_reg, Operand(input_reg));
     __ cvtsi2sd(xmm0, Operand(result_reg));
     __ ucomisd(xmm0, input_reg);
     DeoptimizeIf(not_equal, instr->environment());
