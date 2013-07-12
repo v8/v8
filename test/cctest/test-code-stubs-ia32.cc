@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#include <limits>
+
 #include "v8.h"
 
 #include "cctest.h"
@@ -44,7 +46,8 @@
 using namespace v8::internal;
 
 
-typedef int32_t STDCALL (*ConvertDToIFunc)(double input);
+typedef int32_t STDCALL ConvertDToIFuncType(double input);
+typedef ConvertDToIFuncType* ConvertDToIFunc;
 
 
 int STDCALL ConvertDToICVersion(double d) {
@@ -79,7 +82,8 @@ int STDCALL ConvertDToICVersion(double d) {
 
 void RunOneTruncationTestWithTest(ConvertDToIFunc func,
                                   double from,
-                                  int64_t to) {
+                                  double raw) {
+  uint64_t to = static_cast<int64_t>(raw);
   int result = (*func)(from);
   CHECK_EQ(static_cast<int>(to), result);
 }
@@ -87,8 +91,8 @@ void RunOneTruncationTestWithTest(ConvertDToIFunc func,
 
 // #define NaN and Infinity so that it's possible to cut-and-paste these tests
 // directly to a .js file and run them.
-#define NaN NAN
-#define Infinity INFINITY
+#define NaN (OS::nan_value())
+#define Infinity (std::numeric_limits<double>::infinity())
 #define RunOneTruncationTest(p1, p2) RunOneTruncationTestWithTest(func, p1, p2)
 
 void RunAllTruncationTests(ConvertDToIFunc func) {
