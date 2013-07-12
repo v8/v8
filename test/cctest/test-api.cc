@@ -19786,4 +19786,39 @@ TEST(JSONStringifyAccessCheck) {
   }
 }
 
+
+TEST(Bug2778) {
+  // Check that Object.observe includes access check.
+  i::FLAG_harmony_observation = true;
+  v8::V8::Initialize();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(isolate);
+  // Create an ObjectTemplate for global objects and install access
+  // check callbacks that will block access.
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetAccessCheckCallbacks(NamedAccessAlwaysBlocked,
+                                           IndexAccessAlwaysBlocked);
+
+  // Create a context and set an x property on it's global object.
+  LocalContext outer_context(NULL, global_template);
+  v8::Handle<v8::Object> outer_global = outer_context->Global();
+  outer_global->Set(v8_str("x"), v8_num(42));
+
+  // Enter a new context.
+  v8::Handle<v8::Context> inner_context = v8::Context::New(isolate);
+  { v8::Context::Scope inner(inner_context);
+    v8::Handle<v8::Object> inner_global = inner_context->Global();
+    inner_global->Set(v8_str("other"), outer_global);
+    v8::Handle<v8::FunctionTemplate> unreachable =
+        v8::FunctionTemplate::New(UnreachableCallback);
+    inner_global->Set(v8_str("unreachable"), unreachable->GetFunction());
+    ExpectUndefined("other.x");  // Verify that access checks are in place.
+    CompileRun("Object.observe(other, unreachable);");  // Install observer.
+  }
+
+  ExpectInt32("x", 42);
+  // This must not be observable by the observer set up in the inner context.
+  CompileRun("var a = 123;");
+}
+
 #endif  // WIN32
