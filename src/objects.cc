@@ -4018,7 +4018,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   Handle<Object> old_value(isolate->heap()->the_hole_value(), isolate);
   PropertyAttributes old_attributes = ABSENT;
   bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
-  if (is_observed) {
+  if (is_observed && lookup.IsProperty()) {
     if (lookup.IsDataProperty()) old_value = Object::GetProperty(self, name);
     old_attributes = lookup.GetAttributes();
   }
@@ -5557,6 +5557,40 @@ MUST_USE_RESULT MaybeObject* JSObject::Freeze(Isolate* isolate) {
 }
 
 
+MUST_USE_RESULT MaybeObject* JSObject::SetObserved(Isolate* isolate) {
+  if (map()->is_observed())
+    return isolate->heap()->undefined_value();
+
+  Heap* heap = isolate->heap();
+
+  if (!HasExternalArrayElements()) {
+    // Go to dictionary mode, so that we don't skip map checks.
+    MaybeObject* maybe = NormalizeElements();
+    if (maybe->IsFailure()) return maybe;
+    ASSERT(!HasFastElements());
+  }
+
+  LookupResult result(isolate);
+  map()->LookupTransition(this, heap->observed_symbol(), &result);
+
+  Map* new_map;
+  if (result.IsTransition()) {
+    new_map = result.GetTransitionTarget();
+    ASSERT(new_map->is_observed());
+  } else if (map()->CanHaveMoreTransitions()) {
+    MaybeObject* maybe_new_map = map()->CopyForObserved();
+    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+  } else {
+    MaybeObject* maybe_copy = map()->Copy();
+    if (!maybe_copy->To(&new_map)) return maybe_copy;
+    new_map->set_is_observed(true);
+  }
+  set_map(new_map);
+
+  return heap->undefined_value();
+}
+
+
 MUST_USE_RESULT MaybeObject* JSObject::DeepCopy(Isolate* isolate) {
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return isolate->StackOverflow();
@@ -6676,6 +6710,39 @@ MaybeObject* Map::CopyAsElementsKind(ElementsKind kind, TransitionFlag flag) {
     new_map->SetBackPointer(this);
   }
 
+  return new_map;
+}
+
+
+MaybeObject* Map::CopyForObserved() {
+  ASSERT(!is_observed());
+
+  // In case the map owned its own descriptors, share the descriptors and
+  // transfer ownership to the new map.
+  Map* new_map;
+  MaybeObject* maybe_new_map;
+  if (owns_descriptors()) {
+    maybe_new_map = CopyDropDescriptors();
+  } else {
+    maybe_new_map = Copy();
+  }
+  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+
+  TransitionArray* transitions;
+  MaybeObject* maybe_transitions = AddTransition(GetHeap()->observed_symbol(),
+                                                 new_map,
+                                                 FULL_TRANSITION);
+  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  set_transitions(transitions);
+
+  new_map->set_is_observed(true);
+
+  if (owns_descriptors()) {
+    new_map->InitializeDescriptors(instance_descriptors());
+    set_owns_descriptors(false);
+  }
+
+  new_map->SetBackPointer(this);
   return new_map;
 }
 

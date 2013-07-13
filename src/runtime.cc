@@ -13786,9 +13786,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsObserved) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(is_observed, 1);
   if (obj->IsJSGlobalProxy()) {
     Object* proto = obj->GetPrototype();
     if (proto->IsNull()) return isolate->heap()->undefined_value();
@@ -13797,21 +13796,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
   }
   ASSERT(!(obj->map()->is_observed() && obj->IsJSObject() &&
            JSObject::cast(obj)->HasFastElements()));
-  if (obj->map()->is_observed() != is_observed) {
-    if (is_observed && obj->IsJSObject() &&
-        !JSObject::cast(obj)->HasExternalArrayElements()) {
-      // Go to dictionary mode, so that we don't skip map checks.
-      MaybeObject* maybe = JSObject::cast(obj)->NormalizeElements();
-      if (maybe->IsFailure()) return maybe;
-      ASSERT(!JSObject::cast(obj)->HasFastElements());
-    }
-    MaybeObject* maybe = obj->map()->Copy();
-    Map* map;
-    if (!maybe->To(&map)) return maybe;
-    map->set_is_observed(is_observed);
-    obj->set_map(map);
-  }
-  return isolate->heap()->undefined_value();
+  ASSERT(obj->IsJSObject());
+  return JSObject::cast(obj)->SetObserved(isolate);
 }
 
 

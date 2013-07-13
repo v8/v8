@@ -3172,6 +3172,11 @@ bool Heap::CreateInitialObjects() {
   SeededNumberDictionary::cast(obj)->set_requires_slow_elements();
   set_empty_slow_element_dictionary(SeededNumberDictionary::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateSymbol();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_observed_symbol(Symbol::cast(obj));
+
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
 

@@ -216,8 +216,10 @@ function ObjectObserve(object, callback, accept) {
   }
 
   var objectInfo = objectInfoMap.get(object);
-  if (IS_UNDEFINED(objectInfo)) objectInfo = CreateObjectInfo(object);
-  %SetIsObserved(object, true);
+  if (IS_UNDEFINED(objectInfo)) {
+    objectInfo = CreateObjectInfo(object);
+    %SetIsObserved(object);
+  }
 
   EnsureObserverRemoved(objectInfo, callback);
 
@@ -241,12 +243,6 @@ function ObjectUnobserve(object, callback) {
     return object;
 
   EnsureObserverRemoved(objectInfo, callback);
-
-  if (objectInfo.changeObservers.length === 0 &&
-      objectInfo.inactiveObservers.length === 0) {
-    %SetIsObserved(object, false);
-  }
-
   return object;
 }
 

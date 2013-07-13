@@ -2333,6 +2333,10 @@ class JSObject: public JSReceiver {
   // ES5 Object.freeze
   MUST_USE_RESULT MaybeObject* Freeze(Isolate* isolate);
 
+
+  // Called the first time an object is observed with ES7 Object.observe.
+  MUST_USE_RESULT MaybeObject* SetObserved(Isolate* isolate);
+
   // Copy object
   MUST_USE_RESULT MaybeObject* DeepCopy(Isolate* isolate);
 
@@ -5477,8 +5481,10 @@ class Map: public HeapObject {
       int index,
       TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* AsElementsKind(ElementsKind kind);
+
   MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,
                                                   TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyForObserved();
 
   MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
                                               NormalizedMapSharingMode sharing);
