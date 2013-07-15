@@ -154,7 +154,7 @@ function TypedArraySet(obj, offset) {
 
   var l = obj.length;
   if (IS_UNDEFINED(l)) {
-    throw MakeTypeError("invalid_argument");
+    return;
   }
   if (intOffset + l > this.length) {
     throw MakeRangeError("typed_array_set_source_too_large");
