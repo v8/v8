@@ -73,7 +73,7 @@ Heap::Heap()
 #define LUMP_OF_MEMORY MB
       code_range_size_(0),
 #endif
-#if defined(ANDROID)
+#if defined(ANDROID) || V8_TARGET_ARCH_MIPS
       reserved_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       max_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       initial_semispace_size_(Page::kPageSize),
