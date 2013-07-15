@@ -304,7 +304,6 @@ class HGraph: public ZoneObject {
   void AssignDominators();
   void SetupInformativeDefinitions();
   void RestoreActualValues();
-  void PropagateDeoptimizingMark();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
@@ -447,8 +446,6 @@ class HGraph: public ZoneObject {
     phase.Run();
   }
 
-  void MarkAsDeoptimizingRecursively(HBasicBlock* block);
-  void NullifyUnreachableInstructions();
   void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);

@@ -343,6 +343,8 @@
         '../../src/hydrogen-dce.h',
         '../../src/hydrogen-dehoist.cc',
         '../../src/hydrogen-dehoist.h',
+        '../../src/hydrogen-deoptimizing-mark.cc',
+        '../../src/hydrogen-deoptimizing-mark.h',
         '../../src/hydrogen-environment-liveness.cc',
         '../../src/hydrogen-environment-liveness.h',
         '../../src/hydrogen-escape-analysis.cc',

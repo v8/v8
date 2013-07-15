@@ -37,6 +37,7 @@
 #include "hydrogen-canonicalize.h"
 #include "hydrogen-dce.h"
 #include "hydrogen-dehoist.h"
+#include "hydrogen-deoptimizing-mark.h"
 #include "hydrogen-environment-liveness.h"
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
@@ -2427,87 +2428,6 @@ void HGraph::AssignDominators() {
 }
 
 
-// Mark all blocks that are dominated by an unconditional soft deoptimize to
-// prevent code motion across those blocks.
-void HGraph::PropagateDeoptimizingMark() {
-  HPhase phase("H_Propagate deoptimizing mark", this);
-  // Skip this phase if there is nothing to be done anyway.
-  if (!has_soft_deoptimize()) return;
-  MarkAsDeoptimizingRecursively(entry_block());
-  NullifyUnreachableInstructions();
-}
-
-
-void HGraph::MarkAsDeoptimizingRecursively(HBasicBlock* block) {
-  for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
-    HBasicBlock* dominated = block->dominated_blocks()->at(i);
-    if (block->IsDeoptimizing()) dominated->MarkAsDeoptimizing();
-    MarkAsDeoptimizingRecursively(dominated);
-  }
-}
-
-
-void HGraph::NullifyUnreachableInstructions() {
-  if (!FLAG_unreachable_code_elimination) return;
-  int block_count = blocks_.length();
-  for (int i = 0; i < block_count; ++i) {
-    HBasicBlock* block = blocks_.at(i);
-    bool nullify = false;
-    const ZoneList<HBasicBlock*>* predecessors = block->predecessors();
-    int predecessors_length = predecessors->length();
-    bool all_predecessors_deoptimizing = (predecessors_length > 0);
-    for (int j = 0; j < predecessors_length; ++j) {
-      if (!predecessors->at(j)->IsDeoptimizing()) {
-        all_predecessors_deoptimizing = false;
-        break;
-      }
-    }
-    if (all_predecessors_deoptimizing) nullify = true;
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      // Leave the basic structure of the graph intact.
-      if (instr->IsBlockEntry()) continue;
-      if (instr->IsControlInstruction()) continue;
-      if (instr->IsSimulate()) continue;
-      if (instr->IsEnterInlined()) continue;
-      if (instr->IsLeaveInlined()) continue;
-      if (nullify) {
-        HInstruction* last_dummy = NULL;
-        for (int j = 0; j < instr->OperandCount(); ++j) {
-          HValue* operand = instr->OperandAt(j);
-          // Insert an HDummyUse for each operand, unless the operand
-          // is an HDummyUse itself. If it's even from the same block,
-          // remember it as a potential replacement for the instruction.
-          if (operand->IsDummyUse()) {
-            if (operand->block() == instr->block() &&
-                last_dummy == NULL) {
-              last_dummy = HInstruction::cast(operand);
-            }
-            continue;
-          }
-          if (operand->IsControlInstruction()) {
-            // Inserting a dummy use for a value that's not defined anywhere
-            // will fail. Some instructions define fake inputs on such
-            // values as control flow dependencies.
-            continue;
-          }
-          HDummyUse* dummy = new(zone()) HDummyUse(operand);
-          dummy->InsertBefore(instr);
-          last_dummy = dummy;
-        }
-        if (last_dummy == NULL) last_dummy = GetConstant1();
-        instr->DeleteAndReplaceWith(last_dummy);
-        continue;
-      }
-      if (instr->IsSoftDeoptimize()) {
-        ASSERT(block->IsDeoptimizing());
-        nullify = true;
-      }
-    }
-  }
-}
-
-
 bool HGraph::CheckArgumentsPhiUses() {
   int block_count = blocks_.length();
   for (int i = 0; i < block_count; ++i) {
@@ -3026,7 +2946,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
     Run<HEnvironmentLivenessAnalysisPhase>();
   }
 
-  PropagateDeoptimizingMark();
+  Run<HPropagateDeoptimizingMarkPhase>();
   if (!CheckConstPhiUses()) {
     *bailout_reason = SmartArrayPointer<char>(StrDup(
         "Unsupported phi use of const variable"));
