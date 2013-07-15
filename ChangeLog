@@ -1,3 +1,10 @@
+2013-07-15: Version 3.20.5
+
+        Ensured that the length of frozen arrays is immutable  (issue 2711,259548)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-07-10: Version 3.20.4
 
         Fixed garbage-collection issue that causes a crash on ARM
