@@ -1216,6 +1216,59 @@ DATA_VIEW_GETTER(Float64, double, NumberFromDouble)
 
 #undef DATA_VIEW_GETTER
 
+
+template <typename T>
+static T DataViewConvertValue(double value);
+
+
+template <>
+int8_t DataViewConvertValue<int8_t>(double value) {
+  return static_cast<int8_t>(DoubleToInt32(value));
+}
+
+
+template <>
+int16_t DataViewConvertValue<int16_t>(double value) {
+  return static_cast<int16_t>(DoubleToInt32(value));
+}
+
+
+template <>
+int32_t DataViewConvertValue<int32_t>(double value) {
+  return DoubleToInt32(value);
+}
+
+
+template <>
+uint8_t DataViewConvertValue<uint8_t>(double value) {
+  return static_cast<uint8_t>(DoubleToUint32(value));
+}
+
+
+template <>
+uint16_t DataViewConvertValue<uint16_t>(double value) {
+  return static_cast<uint16_t>(DoubleToUint32(value));
+}
+
+
+template <>
+uint32_t DataViewConvertValue<uint32_t>(double value) {
+  return DoubleToUint32(value);
+}
+
+
+template <>
+float DataViewConvertValue<float>(double value) {
+  return static_cast<float>(value);
+}
+
+
+template <>
+double DataViewConvertValue<double>(double value) {
+  return value;
+}
+
+
 #define DATA_VIEW_SETTER(TypeName, Type)                                      \
   RUNTIME_FUNCTION(MaybeObject*, Runtime_DataViewSet##TypeName) {             \
     HandleScope scope(isolate);                                               \
@@ -1224,7 +1277,7 @@ DATA_VIEW_GETTER(Float64, double, NumberFromDouble)
     CONVERT_ARG_HANDLE_CHECKED(Object, offset, 1);                            \
     CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);                             \
     CONVERT_BOOLEAN_ARG_CHECKED(is_little_endian, 3);                         \
-    Type v = static_cast<Type>(value->Number());                              \
+    Type v = DataViewConvertValue<Type>(value->Number());                     \
     if (DataViewSetValue(                                                     \
           isolate, holder, offset, is_little_endian, v)) {                    \
       return isolate->heap()->undefined_value();                              \
