@@ -27,7 +27,6 @@
 
 #include <v8.h>
 
-#include <cstring>
 #include <string>
 #include <map>
 
@@ -628,6 +627,7 @@ void PrintMap(map<string, string>* m) {
 
 
 int main(int argc, char* argv[]) {
+  v8::V8::InitializeICU();
   map<string, string> options;
   string file;
   ParseOptions(argc, argv, options, &file);
@@ -635,8 +635,6 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "No script was specified.\n");
     return 1;
   }
-  V8::SetFlagsFromString("--noenable_i18n",
-                         static_cast<int>(strlen("--noenable_i18n")));
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   Handle<String> source = ReadFile(file);

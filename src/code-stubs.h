@@ -72,6 +72,7 @@ namespace internal {
   V(ArgumentsAccess)                     \
   V(RegExpConstructResult)               \
   V(NumberToString)                      \
+  V(DoubleToI)                           \
   V(CEntry)                              \
   V(JSEntry)                             \
   V(KeyedLoadElement)                    \
@@ -1260,50 +1261,17 @@ class ICCompareStub: public PlatformCodeStub {
 
 class CompareNilICStub : public HydrogenCodeStub  {
  public:
-  enum CompareNilType {
-    UNDEFINED,
-    NULL_TYPE,
-    MONOMORPHIC_MAP,
-    UNDETECTABLE,
-    GENERIC,
-    NUMBER_OF_TYPES
-  };
+  Handle<Type> GetType(Isolate* isolate, Handle<Map> map = Handle<Map>());
+  Handle<Type> GetInputType(Isolate* isolate, Handle<Map> map);
 
-  class State : public EnumSet<CompareNilType, byte> {
-   public:
-    State() : EnumSet<CompareNilType, byte>(0) { }
-    explicit State(byte bits) : EnumSet<CompareNilType, byte>(bits) { }
-
-    static State Generic() {
-      State set;
-      set.Add(UNDEFINED);
-      set.Add(NULL_TYPE);
-      set.Add(UNDETECTABLE);
-      set.Add(GENERIC);
-      return set;
-    }
-
-    void Print(StringStream* stream) const;
-  };
-
-  static Handle<Type> StateToType(
-      Isolate* isolate, State state, Handle<Map> map = Handle<Map>());
-
-  // At most 6 different types can be distinguished, because the Code object
-  // only has room for a single byte to hold a set and there are two more
-  // boolean flags we need to store. :-P
-  STATIC_ASSERT(NUMBER_OF_TYPES <= 6);
-
-  CompareNilICStub(NilValue nil, State state = State())
-      : nil_value_(nil), state_(state) {
-  }
+  explicit CompareNilICStub(NilValue nil) : nil_value_(nil) { }
 
   CompareNilICStub(Code::ExtraICState ic_state,
                    InitializationState init_state = INITIALIZED)
-      : HydrogenCodeStub(init_state) {
-    nil_value_ = NilValueField::decode(ic_state);
-    state_ = State(ExtractTypesFromExtraICState(ic_state));
-  }
+      : HydrogenCodeStub(init_state),
+        nil_value_(NilValueField::decode(ic_state)),
+        state_(State(TypesField::decode(ic_state))) {
+      }
 
   static Handle<Code> GetUninitialized(Isolate* isolate,
                                        NilValue nil) {
@@ -1322,7 +1290,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
   }
 
   virtual InlineCacheState GetICState() {
-    if (state_ == State::Generic()) {
+    if (state_.Contains(GENERIC)) {
       return MEGAMORPHIC;
     } else if (state_.Contains(MONOMORPHIC_MAP)) {
       return MONOMORPHIC;
@@ -1335,22 +1303,15 @@ class CompareNilICStub : public HydrogenCodeStub  {
 
   Handle<Code> GenerateCode();
 
-  // extra ic state = nil_value | type_n-1 | ... | type_0
   virtual Code::ExtraICState GetExtraICState() {
-    return NilValueField::encode(nil_value_) | state_.ToIntegral();
-  }
-  static byte ExtractTypesFromExtraICState(Code::ExtraICState state) {
-    return state & ((1 << NUMBER_OF_TYPES) - 1);
-  }
-  static NilValue ExtractNilValueFromExtraICState(Code::ExtraICState state) {
-    return NilValueField::decode(state);
+    return NilValueField::encode(nil_value_) |
+           TypesField::encode(state_.ToIntegral());
   }
 
   void UpdateStatus(Handle<Object> object);
 
   bool IsMonomorphic() const { return state_.Contains(MONOMORPHIC_MAP); }
   NilValue GetNilValue() const { return nil_value_; }
-  State GetState() const { return state_; }
   void ClearState() { state_.RemoveAll(); }
 
   virtual void PrintState(StringStream* stream);
@@ -1359,12 +1320,32 @@ class CompareNilICStub : public HydrogenCodeStub  {
  private:
   friend class CompareNilIC;
 
-  CompareNilICStub(NilValue nil, InitializationState init_state)
-      : HydrogenCodeStub(init_state) {
-    nil_value_ = nil;
-  }
+  enum CompareNilType {
+    UNDEFINED,
+    NULL_TYPE,
+    MONOMORPHIC_MAP,
+    GENERIC,
+    NUMBER_OF_TYPES
+  };
 
-  class NilValueField : public BitField<NilValue, NUMBER_OF_TYPES, 1> {};
+  // At most 6 different types can be distinguished, because the Code object
+  // only has room for a single byte to hold a set and there are two more
+  // boolean flags we need to store. :-P
+  STATIC_ASSERT(NUMBER_OF_TYPES <= 6);
+
+  class State : public EnumSet<CompareNilType, byte> {
+   public:
+    State() : EnumSet<CompareNilType, byte>(0) { }
+    explicit State(byte bits) : EnumSet<CompareNilType, byte>(bits) { }
+
+    void Print(StringStream* stream) const;
+  };
+
+  CompareNilICStub(NilValue nil, InitializationState init_state)
+      : HydrogenCodeStub(init_state), nil_value_(nil) { }
+
+  class NilValueField : public BitField<NilValue, 0, 1> {};
+  class TypesField    : public BitField<byte,     1, NUMBER_OF_TYPES> {};
 
   virtual CodeStub::Major MajorKey() { return CompareNilIC; }
   virtual int NotMissMinorKey() { return GetExtraICState(); }
@@ -1763,6 +1744,60 @@ class KeyedLoadDictionaryElementStub : public PlatformCodeStub {
   int MinorKey() { return DICTIONARY_ELEMENTS; }
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementStub);
+};
+
+
+class DoubleToIStub : public PlatformCodeStub {
+ public:
+  DoubleToIStub(Register source,
+                Register destination,
+                int offset,
+                bool is_truncating) : bit_field_(0) {
+    bit_field_ = SourceRegisterBits::encode(source.code_) |
+      DestinationRegisterBits::encode(destination.code_) |
+      OffsetBits::encode(offset) |
+      IsTruncatingBits::encode(is_truncating);
+  }
+
+  Register source() {
+    Register result = { SourceRegisterBits::decode(bit_field_) };
+    return result;
+  }
+
+  Register destination() {
+    Register result = { DestinationRegisterBits::decode(bit_field_) };
+    return result;
+  }
+
+  bool is_truncating() {
+    return IsTruncatingBits::decode(bit_field_);
+  }
+
+  int offset() {
+    return OffsetBits::decode(bit_field_);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  static const int kBitsPerRegisterNumber = 6;
+  STATIC_ASSERT((1L << kBitsPerRegisterNumber) >= Register::kNumRegisters);
+  class SourceRegisterBits:
+      public BitField<int, 0, kBitsPerRegisterNumber> {};  // NOLINT
+  class DestinationRegisterBits:
+      public BitField<int, kBitsPerRegisterNumber,
+        kBitsPerRegisterNumber> {};  // NOLINT
+  class IsTruncatingBits:
+      public BitField<bool, 2 * kBitsPerRegisterNumber, 1> {};  // NOLINT
+  class OffsetBits:
+      public BitField<int, 2 * kBitsPerRegisterNumber + 1, 3> {};  // NOLINT
+
+  Major MajorKey() { return DoubleToI; }
+  int MinorKey() { return bit_field_; }
+
+  int bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(DoubleToIStub);
 };
 
 
@@ -2210,41 +2245,47 @@ class ToBooleanStub: public HydrogenCodeStub {
 };
 
 
-class ElementsTransitionAndStoreStub : public PlatformCodeStub {
+class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
  public:
   ElementsTransitionAndStoreStub(ElementsKind from,
                                  ElementsKind to,
                                  bool is_jsarray,
-                                 StrictModeFlag strict_mode,
                                  KeyedAccessStoreMode store_mode)
       : from_(from),
         to_(to),
         is_jsarray_(is_jsarray),
-        strict_mode_(strict_mode),
-        store_mode_(store_mode) {}
-
- private:
-  class FromBits:       public BitField<ElementsKind,        0, 8> {};
-  class ToBits:         public BitField<ElementsKind,        8, 8> {};
-  class IsJSArrayBits:  public BitField<bool,                16, 1> {};
-  class StrictModeBits: public BitField<StrictModeFlag,      17, 1> {};
-  class StoreModeBits: public BitField<KeyedAccessStoreMode, 18, 4> {};
-
-  Major MajorKey() { return ElementsTransitionAndStore; }
-  int MinorKey() {
-    return FromBits::encode(from_) |
-        ToBits::encode(to_) |
-        IsJSArrayBits::encode(is_jsarray_) |
-        StrictModeBits::encode(strict_mode_) |
-        StoreModeBits::encode(store_mode_);
+        store_mode_(store_mode) {
+    ASSERT(!IsFastHoleyElementsKind(from) || IsFastHoleyElementsKind(to));
   }
 
-  void Generate(MacroAssembler* masm);
+  ElementsKind from() const { return from_; }
+  ElementsKind to() const { return to_; }
+  bool is_jsarray() const { return is_jsarray_; }
+  KeyedAccessStoreMode store_mode() const { return store_mode_; }
+
+  Handle<Code> GenerateCode();
+
+  void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  class FromBits:      public BitField<ElementsKind,          0, 8> {};
+  class ToBits:        public BitField<ElementsKind,          8, 8> {};
+  class IsJSArrayBits: public BitField<bool,                 16, 1> {};
+  class StoreModeBits: public BitField<KeyedAccessStoreMode, 17, 4> {};
+
+  Major MajorKey() { return ElementsTransitionAndStore; }
+  int NotMissMinorKey() {
+    return FromBits::encode(from()) |
+        ToBits::encode(to()) |
+        IsJSArrayBits::encode(is_jsarray()) |
+        StoreModeBits::encode(store_mode());
+  }
 
   ElementsKind from_;
   ElementsKind to_;
   bool is_jsarray_;
-  StrictModeFlag strict_mode_;
   KeyedAccessStoreMode store_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(ElementsTransitionAndStoreStub);

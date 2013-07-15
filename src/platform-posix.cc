@@ -31,6 +31,8 @@
 
 #include "platform-posix.h"
 
+#include <pthread.h>
+#include <sched.h>  // for sched_yield
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
@@ -341,7 +343,26 @@ void OS::MemMove(void* dest, const void* src, size_t size) {
   (*memmove_function)(dest, src, size);
 }
 
-#endif  // V8_TARGET_ARCH_IA32
+#elif defined(V8_HOST_ARCH_ARM)
+void OS::MemCopyUint16Uint8Wrapper(uint16_t* dest,
+                               const uint8_t* src,
+                               size_t chars) {
+  uint16_t *limit = dest + chars;
+  while (dest < limit) {
+    *dest++ = static_cast<uint16_t>(*src++);
+  }
+}
+
+
+OS::MemCopyUint8Function OS::memcopy_uint8_function = &OS::MemCopyUint8Wrapper;
+OS::MemCopyUint16Uint8Function OS::memcopy_uint16_uint8_function =
+    &OS::MemCopyUint16Uint8Wrapper;
+// Defined in codegen-arm.cc.
+OS::MemCopyUint8Function CreateMemCopyUint8Function(
+    OS::MemCopyUint8Function stub);
+OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
+    OS::MemCopyUint16Uint8Function stub);
+#endif
 
 
 void POSIXPostSetUp() {
@@ -350,6 +371,11 @@ void POSIXPostSetUp() {
   if (generated_memmove != NULL) {
     memmove_function = generated_memmove;
   }
+#elif defined(V8_HOST_ARCH_ARM)
+  OS::memcopy_uint8_function =
+      CreateMemCopyUint8Function(&OS::MemCopyUint8Wrapper);
+  OS::memcopy_uint16_uint8_function =
+      CreateMemCopyUint16Uint8Function(&OS::MemCopyUint16Uint8Wrapper);
 #endif
   init_fast_sin_function();
   init_fast_cos_function();
@@ -371,6 +397,57 @@ char* OS::StrChr(char* str, int c) {
 
 void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
   strncpy(dest.start(), src, n);
+}
+
+
+// ----------------------------------------------------------------------------
+// POSIX thread support.
+//
+
+void Thread::YieldCPU() {
+  sched_yield();
+}
+
+
+class POSIXMutex : public Mutex {
+ public:
+  POSIXMutex() {
+    pthread_mutexattr_t attr;
+    memset(&attr, 0, sizeof(attr));
+    int result = pthread_mutexattr_init(&attr);
+    ASSERT(result == 0);
+    result = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    ASSERT(result == 0);
+    result = pthread_mutex_init(&mutex_, &attr);
+    ASSERT(result == 0);
+    result = pthread_mutexattr_destroy(&attr);
+    ASSERT(result == 0);
+    USE(result);
+  }
+
+  virtual ~POSIXMutex() { pthread_mutex_destroy(&mutex_); }
+
+  virtual int Lock() { return pthread_mutex_lock(&mutex_); }
+
+  virtual int Unlock() { return pthread_mutex_unlock(&mutex_); }
+
+  virtual bool TryLock() {
+    int result = pthread_mutex_trylock(&mutex_);
+    // Return false if the lock is busy and locking failed.
+    if (result == EBUSY) {
+      return false;
+    }
+    ASSERT(result == 0);  // Verify no other errors.
+    return true;
+  }
+
+ private:
+  pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
+};
+
+
+Mutex* OS::CreateMutex() {
+  return new POSIXMutex();
 }
 
 

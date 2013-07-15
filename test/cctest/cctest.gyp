@@ -54,7 +54,6 @@
         'test-bignum.cc',
         'test-bignum-dtoa.cc',
         'test-circular-queue.cc',
-        'test-compare-nil-ic-stub.cc',
         'test-compiler.cc',
         'test-conversions.cc',
         'test-cpu-profiler.cc',
@@ -111,6 +110,7 @@
         ['v8_target_arch=="ia32"', {
           'sources': [
             'test-assembler-ia32.cc',
+            'test-code-stubs-ia32.cc',
             'test-disasm-ia32.cc',
             'test-log-stack-tracer.cc'
           ],

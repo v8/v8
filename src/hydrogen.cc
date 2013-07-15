@@ -34,7 +34,9 @@
 #include "full-codegen.h"
 #include "hashmap.h"
 #include "hydrogen-bce.h"
+#include "hydrogen-canonicalize.h"
 #include "hydrogen-dce.h"
+#include "hydrogen-dehoist.h"
 #include "hydrogen-environment-liveness.h"
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
@@ -44,6 +46,7 @@
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
 #include "hydrogen-redundant-phi.h"
+#include "hydrogen-removable-simulates.h"
 #include "hydrogen-representation-changes.h"
 #include "hydrogen-sce.h"
 #include "hydrogen-uint32-analysis.h"
@@ -1143,21 +1146,22 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   Zone* zone = this->zone();
   IfBuilder length_checker(this);
 
-  length_checker.If<HCompareNumericAndBranch>(length, key, Token::EQ);
+  Token::Value token = IsHoleyElementsKind(kind) ? Token::GTE : Token::EQ;
+  length_checker.If<HCompareNumericAndBranch>(key, length, token);
+
   length_checker.Then();
 
   HValue* current_capacity = AddLoadFixedArrayLength(elements);
 
   IfBuilder capacity_checker(this);
 
-  capacity_checker.If<HCompareNumericAndBranch>(length, current_capacity,
-                                                Token::EQ);
+  capacity_checker.If<HCompareNumericAndBranch>(key, current_capacity,
+                                                Token::GTE);
   capacity_checker.Then();
 
   HValue* context = environment()->LookupContext();
 
-  HValue* new_capacity =
-      BuildNewElementsCapacity(context, current_capacity);
+  HValue* new_capacity = BuildNewElementsCapacity(context, key);
 
   HValue* new_elements = BuildGrowElementsCapacity(object, elements,
                                                    kind, kind, length,
@@ -1171,7 +1175,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
 
   if (is_js_array) {
     HValue* new_length = AddInstruction(
-        HAdd::New(zone, context, length, graph_->GetConstant1()));
+        HAdd::New(zone, context, key, graph_->GetConstant1()));
     new_length->ClearFlag(HValue::kCanOverflow);
 
     Representation representation = IsFastElementsKind(kind)
@@ -1181,10 +1185,9 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   }
 
   length_checker.Else();
-
   Add<HBoundsCheck>(key, length);
-  environment()->Push(elements);
 
+  environment()->Push(elements);
   length_checker.End();
 
   return environment()->Pop();
@@ -2090,33 +2093,6 @@ void HGraph::FinalizeUniqueValueIds() {
 }
 
 
-void HGraph::Canonicalize() {
-  HPhase phase("H_Canonicalize", this);
-  // Before removing no-op instructions, save their semantic value.
-  // We must be careful not to set the flag unnecessarily, because GVN
-  // cannot identify two instructions when their flag value differs.
-  for (int i = 0; i < blocks()->length(); ++i) {
-    for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      if (instr->IsArithmeticBinaryOperation() &&
-          instr->representation().IsInteger32() &&
-          instr->HasAtLeastOneUseWithFlagAndNoneWithout(
-              HInstruction::kTruncatingToInt32)) {
-        instr->SetFlag(HInstruction::kAllUsesTruncatingToInt32);
-      }
-    }
-  }
-  // Perform actual Canonicalization pass.
-  for (int i = 0; i < blocks()->length(); ++i) {
-    for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      HValue* value = instr->Canonicalize();
-      if (value != instr) instr->DeleteAndReplaceWith(value);
-    }
-  }
-}
-
-
 // Block ordering was implemented with two mutually recursive methods,
 // HGraph::Postorder and HGraph::PostorderLoopBlocks.
 // The recursion could lead to stack overflow so the algorithm has been
@@ -2567,69 +2543,6 @@ void HGraph::CollectPhis() {
     for (int j = 0; j < blocks_[i]->phis()->length(); ++j) {
       HPhi* phi = blocks_[i]->phis()->at(j);
       phi_list_->Add(phi, zone());
-    }
-  }
-}
-
-
-void HGraph::MergeRemovableSimulates() {
-  HPhase phase("H_Merge removable simulates", this);
-  ZoneList<HSimulate*> mergelist(2, zone());
-  for (int i = 0; i < blocks()->length(); ++i) {
-    HBasicBlock* block = blocks()->at(i);
-    // Make sure the merge list is empty at the start of a block.
-    ASSERT(mergelist.is_empty());
-    // Nasty heuristic: Never remove the first simulate in a block. This
-    // just so happens to have a beneficial effect on register allocation.
-    bool first = true;
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      HInstruction* current = it.Current();
-      if (current->IsLeaveInlined()) {
-        // Never fold simulates from inlined environments into simulates
-        // in the outer environment.
-        // (Before each HEnterInlined, there is a non-foldable HSimulate
-        // anyway, so we get the barrier in the other direction for free.)
-        // Simply remove all accumulated simulates without merging.  This
-        // is safe because simulates after instructions with side effects
-        // are never added to the merge list.
-        while (!mergelist.is_empty()) {
-          mergelist.RemoveLast()->DeleteAndReplaceWith(NULL);
-        }
-        continue;
-      }
-      if (current->IsReturn()) {
-        // Drop mergeable simulates in the list. This is safe because
-        // simulates after instructions with side effects are never added
-        // to the merge list.
-        while (!mergelist.is_empty()) {
-          mergelist.RemoveLast()->DeleteAndReplaceWith(NULL);
-        }
-        continue;
-      }
-      // Skip the non-simulates and the first simulate.
-      if (!current->IsSimulate()) continue;
-      if (first) {
-        first = false;
-        continue;
-      }
-      HSimulate* current_simulate = HSimulate::cast(current);
-      if ((current_simulate->previous()->HasObservableSideEffects() &&
-           !current_simulate->next()->IsSimulate()) ||
-          !current_simulate->is_candidate_for_removal()) {
-        // This simulate is not suitable for folding.
-        // Fold the ones accumulated so far.
-        current_simulate->MergeWith(&mergelist);
-        continue;
-      } else {
-        // Accumulate this simulate for folding later on.
-        mergelist.Add(current_simulate, zone());
-      }
-    }
-
-    if (!mergelist.is_empty()) {
-      // Merge the accumulated simulates at the end of the block.
-      HSimulate* last = mergelist.RemoveLast();
-      last->MergeWith(&mergelist);
     }
   }
 }
@@ -3137,7 +3050,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   // Remove HSimulate instructions that have turned out not to be needed
   // after all by folding them into the following HSimulate.
   // This must happen after inferring representations.
-  MergeRemovableSimulates();
+  Run<HMergeRemovableSimulatesPhase>();
 
   MarkDeoptimizeOnUndefined();
   Run<HRepresentationChangesPhase>();
@@ -3149,7 +3062,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   // zero.
   if (FLAG_opt_safe_uint32_operations) Run<HUint32AnalysisPhase>();
 
-  if (FLAG_use_canonicalizing) Canonicalize();
+  if (FLAG_use_canonicalizing) Run<HCanonicalizePhase>();
 
   if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
 
@@ -3166,7 +3079,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   if (FLAG_array_bounds_checks_elimination && !FLAG_idefs) {
     Run<HBoundsCheckEliminationPhase>();
   }
-  if (FLAG_array_index_dehoisting) DehoistSimpleArrayIndexComputations();
+  if (FLAG_array_index_dehoisting) Run<HDehoistIndexComputationsPhase>();
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
 
   RestoreActualValues();
@@ -3216,77 +3129,6 @@ void HGraph::SetupInformativeDefinitionsRecursively(HBasicBlock* block) {
 void HGraph::SetupInformativeDefinitions() {
   HPhase phase("H_Setup informative definitions", this);
   SetupInformativeDefinitionsRecursively(entry_block());
-}
-
-
-static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
-  HValue* index = array_operation->GetKey()->ActualValue();
-  if (!index->representation().IsSmiOrInteger32()) return;
-
-  HConstant* constant;
-  HValue* subexpression;
-  int32_t sign;
-  if (index->IsAdd()) {
-    sign = 1;
-    HAdd* add = HAdd::cast(index);
-    if (add->left()->IsConstant()) {
-      subexpression = add->right();
-      constant = HConstant::cast(add->left());
-    } else if (add->right()->IsConstant()) {
-      subexpression = add->left();
-      constant = HConstant::cast(add->right());
-    } else {
-      return;
-    }
-  } else if (index->IsSub()) {
-    sign = -1;
-    HSub* sub = HSub::cast(index);
-    if (sub->left()->IsConstant()) {
-      subexpression = sub->right();
-      constant = HConstant::cast(sub->left());
-    } else if (sub->right()->IsConstant()) {
-      subexpression = sub->left();
-      constant = HConstant::cast(sub->right());
-    } else {
-      return;
-    }
-  } else {
-    return;
-  }
-
-  if (!constant->HasInteger32Value()) return;
-  int32_t value = constant->Integer32Value() * sign;
-  // We limit offset values to 30 bits because we want to avoid the risk of
-  // overflows when the offset is added to the object header size.
-  if (value >= 1 << 30 || value < 0) return;
-  array_operation->SetKey(subexpression);
-  if (index->HasNoUses()) {
-    index->DeleteAndReplaceWith(NULL);
-  }
-  ASSERT(value >= 0);
-  array_operation->SetIndexOffset(static_cast<uint32_t>(value));
-  array_operation->SetDehoisted(true);
-}
-
-
-void HGraph::DehoistSimpleArrayIndexComputations() {
-  HPhase phase("H_Dehoist index computations", this);
-  for (int i = 0; i < blocks()->length(); ++i) {
-    for (HInstructionIterator it(blocks()->at(i)); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      ArrayInstructionInterface* array_instruction = NULL;
-      if (instr->IsLoadKeyed()) {
-        HLoadKeyed* op = HLoadKeyed::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsStoreKeyed()) {
-        HStoreKeyed* op = HStoreKeyed::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else {
-        continue;
-      }
-      DehoistArrayIndex(array_instruction);
-    }
-  }
 }
 
 
@@ -6058,8 +5900,14 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
         expr->GetStoreMode(), has_side_effects);
   } else {
     if (is_store) {
+      if (expr->IsAssignment() && expr->AsAssignment()->IsUninitialized()) {
+        AddSoftDeoptimize();
+      }
       instr = BuildStoreKeyedGeneric(obj, key, val);
     } else {
+      if (expr->AsProperty()->IsUninitialized()) {
+        AddSoftDeoptimize();
+      }
       instr = BuildLoadKeyedGeneric(obj, key);
     }
     AddInstruction(instr);
@@ -7362,12 +7210,11 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
   } else {
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
-    bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
-
     if (proxy != NULL && proxy->var()->is_possibly_eval(isolate())) {
       return Bailout("possible direct call to eval");
     }
 
+    bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
     if (global_call) {
       Variable* var = proxy->var();
       bool known_global_function = false;
@@ -7588,6 +7435,14 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
 
   const Runtime::Function* function = expr->function();
   ASSERT(function != NULL);
+
+  if (static_cast<int>(function->function_id)
+      == static_cast<int>(Runtime::kNeverOptimize)
+      && expr->arguments()->length() == 0) {
+    // %NeverOptimize() without arguments marks the caller as never optimize.
+    return Bailout("function marked itself as never optimize");
+  }
+
   if (function->intrinsic_type == Runtime::INLINE) {
     ASSERT(expr->name()->length() > 0);
     ASSERT(expr->name()->Get(0) == '_');
@@ -7691,7 +7546,7 @@ void HOptimizedGraphBuilder::VisitTypeof(UnaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
-  Handle<Type> operand_type = expr->expression()->lower_type();
+  Handle<Type> operand_type = expr->expression()->bounds().lower;
   HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::SUB);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
@@ -7700,7 +7555,7 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
 void HOptimizedGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
-  Handle<Type> operand_type = expr->expression()->lower_type();
+  Handle<Type> operand_type = expr->expression()->bounds().lower;
   HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::BIT_NOT);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
@@ -8036,9 +7891,9 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
     HValue* left,
     HValue* right) {
   HValue* context = environment()->LookupContext();
-  Handle<Type> left_type = expr->left()->lower_type();
-  Handle<Type> right_type = expr->right()->lower_type();
-  Handle<Type> result_type = expr->lower_type();
+  Handle<Type> left_type = expr->left()->bounds().lower;
+  Handle<Type> right_type = expr->right()->bounds().lower;
+  Handle<Type> result_type = expr->bounds().lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
@@ -8360,8 +8215,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  Handle<Type> left_type = expr->left()->lower_type();
-  Handle<Type> right_type = expr->right()->lower_type();
+  Handle<Type> left_type = expr->left()->bounds().lower;
+  Handle<Type> right_type = expr->right()->bounds().lower;
   Handle<Type> combined_type = expr->combined_type();
   Representation combined_rep = Representation::FromType(combined_type);
   Representation left_rep = Representation::FromType(left_type);

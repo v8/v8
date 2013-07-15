@@ -159,7 +159,7 @@ Address IC::OriginalCodeAddress() const {
   JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
   // Find the function on the stack and both the active code for the
   // function and the original code.
-  JSFunction* function = JSFunction::cast(frame->function());
+  JSFunction* function = frame->function();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate());
   Code* code = shared->code();
   ASSERT(Debug::HasDebugInfo(shared));
@@ -189,6 +189,17 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
     if (!name->IsName()) return false;
     Name* stub_name = target->FindFirstName();
     if (Name::cast(name) != stub_name) return false;
+  }
+
+  if (receiver->IsGlobalObject()) {
+    if (!name->IsName()) return false;
+    Isolate* isolate = target->GetIsolate();
+    LookupResult lookup(isolate);
+    GlobalObject* global = GlobalObject::cast(receiver);
+    global->LocalLookupRealNamedProperty(Name::cast(name), &lookup);
+    if (!lookup.IsFound()) return false;
+    PropertyCell* cell = global->GetPropertyCell(&lookup);
+    return cell->type()->IsConstant();
   }
 
   InlineCacheHolderFlag cache_holder =
@@ -1862,7 +1873,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   KeyedAccessStoreMode old_store_mode =
       Code::GetKeyedAccessStoreMode(target()->extra_ic_state());
   Handle<Map> previous_receiver_map = target_receiver_maps.at(0);
-  if (ic_state == MONOMORPHIC && old_store_mode == STANDARD_STORE) {
+  if (ic_state == MONOMORPHIC) {
       // If the "old" and "new" maps are in the same elements map family, stay
       // MONOMORPHIC and use the map for the most generic ElementsKind.
     Handle<Map> transitioned_receiver_map = receiver_map;
@@ -1875,16 +1886,16 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       store_mode = GetNonTransitioningStoreMode(store_mode);
       return isolate()->stub_cache()->ComputeKeyedStoreElement(
           transitioned_receiver_map, strict_mode, store_mode);
-    } else if (*previous_receiver_map == receiver->map()) {
-      if (IsGrowStoreMode(store_mode) ||
-          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
-          store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
-        // A "normal" IC that handles stores can switch to a version that can
-        // grow at the end of the array, handle OOB accesses or copy COW arrays
-        // and still stay MONOMORPHIC.
-        return isolate()->stub_cache()->ComputeKeyedStoreElement(
-            receiver_map, strict_mode, store_mode);
-      }
+    } else if (*previous_receiver_map == receiver->map() &&
+               old_store_mode == STANDARD_STORE &&
+               (IsGrowStoreMode(store_mode) ||
+                store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
+                store_mode == STORE_NO_TRANSITION_HANDLE_COW)) {
+      // A "normal" IC that handles stores can switch to a version that can
+      // grow at the end of the array, handle OOB accesses or copy COW arrays
+      // and still stay MONOMORPHIC.
+      return isolate()->stub_cache()->ComputeKeyedStoreElement(
+          receiver_map, strict_mode, store_mode);
     }
   }
 
@@ -2464,6 +2475,24 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
                   args.at<Object>(1),
                   args.at<Object>(2),
                   MISS_FORCE_GENERIC);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
+  SealHandleScope scope(isolate);
+  ASSERT(args.length() == 4);
+  KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
+  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
+  Handle<Object> value = args.at<Object>(0);
+  Handle<Object> key = args.at<Object>(2);
+  Handle<Object> object = args.at<Object>(3);
+  StrictModeFlag strict_mode = Code::GetStrictMode(extra_ic_state);
+  return Runtime::SetObjectProperty(isolate,
+                                    object,
+                                    key,
+                                    value,
+                                    NONE,
+                                    strict_mode);
 }
 
 

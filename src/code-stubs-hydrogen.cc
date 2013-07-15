@@ -784,8 +784,7 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
   CompareNilICStub* stub = casted_stub();
   HIfContinuation continuation;
   Handle<Map> sentinel_map(isolate->heap()->meta_map());
-  Handle<Type> type =
-      CompareNilICStub::StateToType(isolate, stub->GetState(), sentinel_map);
+  Handle<Type> type = stub->GetType(isolate, sentinel_map);
   BuildCompareNil(GetParameter(0), type, RelocInfo::kNoPosition, &continuation);
   IfBuilder if_nil(this, &continuation);
   if_nil.Then();
@@ -905,6 +904,77 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
 
 
 Handle<Code> StoreGlobalStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template<>
+HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
+  ElementsTransitionAndStoreStub* stub = casted_stub();
+  ElementsKind from_kind = stub->from();
+  ElementsKind to_kind = stub->to();
+
+  HValue* value = GetParameter(0);
+  HValue* target_map = GetParameter(1);
+  HValue* key = GetParameter(2);
+  HValue* object = GetParameter(3);
+
+  if (FLAG_trace_elements_transitions) {
+    // Tracing elements transitions is the job of the runtime.
+    current_block()->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
+    set_current_block(NULL);
+    return value;
+  }
+
+  info()->MarkAsSavesCallerDoubles();
+
+  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    Add<HTrapAllocationMemento>(object);
+  }
+
+  // Check if we need to transition the array elements first
+  // (either SMI -> Double or Double -> Object).
+  if (DoesTransitionChangeElementsBufferFormat(from_kind, to_kind)) {
+    HInstruction* array_length = NULL;
+    if (stub->is_jsarray()) {
+      array_length = AddLoad(object, HObjectAccess::ForArrayLength());
+    } else {
+      array_length = AddLoadFixedArrayLength(AddLoadElements(object));
+    }
+    array_length->set_type(HType::Smi());
+
+    IfBuilder if_builder(this);
+
+    // Check if we have any elements.
+    if_builder.IfNot<HCompareNumericAndBranch>(array_length,
+                                               graph()->GetConstant0(),
+                                               Token::EQ);
+    if_builder.Then();
+
+    HInstruction* elements = AddLoadElements(object);
+
+    HInstruction* elements_length = AddLoadFixedArrayLength(elements);
+
+    BuildGrowElementsCapacity(object, elements, from_kind, to_kind,
+                              array_length, elements_length);
+
+    if_builder.End();
+  }
+
+  // Set transitioned map.
+  AddStore(object, HObjectAccess::ForMap(), target_map);
+
+  // Generate the actual store.
+  BuildUncheckedMonomorphicElementAccess(object, key, value, NULL,
+                                          stub->is_jsarray(), to_kind,
+                                          true, ALLOW_RETURN_HOLE,
+                                          stub->store_mode());
+
+  return value;
+}
+
+
+Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 

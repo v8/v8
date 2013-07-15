@@ -565,8 +565,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     if (info->is_eval()) {
       StackTraceFrameIterator it(isolate);
       if (!it.done()) {
-        script->set_eval_from_shared(
-            JSFunction::cast(it.frame()->function())->shared());
+        script->set_eval_from_shared(it.frame()->function()->shared());
         Code* code = it.frame()->LookupCode();
         int offset = static_cast<int>(
             it.frame()->pc() - code->instruction_start());

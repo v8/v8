@@ -1944,7 +1944,7 @@ class JSObject: public JSReceiver {
                              Handle<Object> setter,
                              PropertyAttributes attributes);
 
-  Object* LookupAccessor(Name* name, AccessorComponent component);
+  MaybeObject* LookupAccessor(Name* name, AccessorComponent component);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
 
@@ -2332,6 +2332,10 @@ class JSObject: public JSReceiver {
 
   // ES5 Object.freeze
   MUST_USE_RESULT MaybeObject* Freeze(Isolate* isolate);
+
+
+  // Called the first time an object is observed with ES7 Object.observe.
+  MUST_USE_RESULT MaybeObject* SetObserved(Isolate* isolate);
 
   // Copy object
   MUST_USE_RESULT MaybeObject* DeepCopy(Isolate* isolate);
@@ -4673,10 +4677,6 @@ class Code: public HeapObject {
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline byte to_boolean_state();
 
-  // [compare_nil]: For kind COMPARE_NIL_IC tells what state the stub is in.
-  byte compare_nil_state();
-  byte compare_nil_value();
-
   // [has_function_cache]: For kind STUB tells whether there is a function
   // cache is passed to the stub.
   inline bool has_function_cache();
@@ -5481,8 +5481,10 @@ class Map: public HeapObject {
       int index,
       TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* AsElementsKind(ElementsKind kind);
+
   MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,
                                                   TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyForObserved();
 
   MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
                                               NormalizedMapSharingMode sharing);

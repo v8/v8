@@ -229,6 +229,15 @@ inline bool CanTransitionToMoreGeneralFastElementsKind(
 }
 
 
+inline bool DoesTransitionChangeElementsBufferFormat(ElementsKind from_kind,
+                                                     ElementsKind to_kind) {
+  return (IsFastSmiElementsKind(from_kind) &&
+          IsFastDoubleElementsKind(to_kind)) ||
+      (IsFastDoubleElementsKind(from_kind) &&
+       IsFastObjectElementsKind(to_kind));
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_ELEMENTS_KIND_H_

@@ -650,6 +650,10 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
                                  isolate->heap()->undefined_value(),
                                  v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
+      if (isolate->has_scheduled_exception()) {
+        isolate->PromoteScheduledException();
+        *threw = true;
+      }
       break;
     }
 

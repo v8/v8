@@ -515,9 +515,9 @@ void Type::TypePrint(FILE* out) {
     }
     PrintF(out, "}");
   } else if (is_constant()) {
-    PrintF(out, "Constant(%p)", reinterpret_cast<void*>(*as_constant()));
+    PrintF(out, "Constant(%p)", static_cast<void*>(*as_constant()));
   } else if (is_class()) {
-    PrintF(out, "Class(%p)", reinterpret_cast<void*>(*as_class()));
+    PrintF(out, "Class(%p)", static_cast<void*>(*as_class()));
   } else if (is_union()) {
     PrintF(out, "{");
     Handle<Unioned> unioned = as_union();

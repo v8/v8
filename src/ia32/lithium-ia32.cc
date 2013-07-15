@@ -82,6 +82,17 @@ bool LInstruction::HasDoubleRegisterInput() {
 }
 
 
+bool LInstruction::IsDoubleInput(X87Register reg, LCodeGen* cgen) {
+  for (int i = 0; i < InputCount(); i++) {
+    LOperand* op = InputAt(i);
+    if (op != NULL && op->IsDoubleRegister()) {
+      if (cgen->ToX87Register(op).is(reg)) return true;
+    }
+  }
+  return false;
+}
+
+
 void LInstruction::PrintTo(StringStream* stream) {
   stream->Add("%s ", this->Mnemonic());
 
@@ -494,12 +505,6 @@ LUnallocated* LChunkBuilder::ToUnallocated(XMMRegister reg) {
 }
 
 
-LUnallocated* LChunkBuilder::ToUnallocated(X87TopOfStackRegister reg) {
-  return new(zone()) LUnallocated(LUnallocated::FIXED_DOUBLE_REGISTER,
-      X87TopOfStackRegister::ToAllocationIndex(reg));
-}
-
-
 LOperand* LChunkBuilder::UseFixed(HValue* value, Register fixed_register) {
   return Use(value, ToUnallocated(fixed_register));
 }
@@ -507,11 +512,6 @@ LOperand* LChunkBuilder::UseFixed(HValue* value, Register fixed_register) {
 
 LOperand* LChunkBuilder::UseFixedDouble(HValue* value, XMMRegister reg) {
   return Use(value, ToUnallocated(reg));
-}
-
-
-LOperand* LChunkBuilder::UseX87TopOfStack(HValue* value) {
-  return Use(value, ToUnallocated(x87tos));
 }
 
 
@@ -639,13 +639,6 @@ LInstruction* LChunkBuilder::DefineFixedDouble(
     LTemplateInstruction<1, I, T>* instr,
     XMMRegister reg) {
   return Define(instr, ToUnallocated(reg));
-}
-
-
-template<int I, int T>
-LInstruction* LChunkBuilder::DefineX87TOS(
-    LTemplateInstruction<1, I, T>* instr) {
-  return Define(instr, ToUnallocated(x87tos));
 }
 
 
@@ -1577,17 +1570,7 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     }
     return DefineSameAsFirst(mul);
   } else if (instr->representation().IsDouble()) {
-    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
-      return DoArithmeticD(Token::MUL, instr);
-    }
-    ASSERT(instr->right()->IsConstant() &&
-           static_cast<HConstant*>(instr->right())->DoubleValue() == -1);
-    // TODO(olivf) This is currently just a hack to support the UnaryOp Minus
-    // Stub. This will go away once we can use more than one X87 register,
-    // thus fully support binary instructions without SSE2.
-    LOperand* left = UseX87TopOfStack(instr->left());
-    LNegateNoSSE2D* result = new(zone()) LNegateNoSSE2D(left);
-    return DefineX87TOS(result);
+    return DoArithmeticD(Token::MUL, instr);
   } else {
     ASSERT(instr->representation().IsSmiOrTagged());
     return DoArithmeticT(Token::MUL, instr);
@@ -1937,11 +1920,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
                        ? TempRegister()
                        : NULL;
       LNumberUntagD* res = new(zone()) LNumberUntagD(value, temp);
-      if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
-        return AssignEnvironment(DefineAsRegister(res));
-      } else {
-        return AssignEnvironment(DefineX87TOS(res));
-      }
+      return AssignEnvironment(DefineAsRegister(res));
     } else if (to.IsSmi()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
@@ -1976,9 +1955,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   } else if (from.IsDouble()) {
     if (to.IsTagged()) {
       info()->MarkAsDeferredCalling();
-      LOperand* value = CpuFeatures::IsSupported(SSE2)
-          ? UseRegisterAtStart(instr->value())
-          : UseAtStart(instr->value());
+      LOperand* value = UseRegisterAtStart(instr->value());
       LOperand* temp = FLAG_inline_new ? TempRegister() : NULL;
 
       // Make sure that temp and result_temp are different registers.
@@ -2140,12 +2117,8 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   } else if (r.IsDouble()) {
     double value = instr->DoubleValue();
     bool value_is_zero = BitCast<uint64_t, double>(value) == 0;
-    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
-      LOperand* temp = value_is_zero ? NULL : TempRegister();
-      return DefineAsRegister(new(zone()) LConstantD(temp));
-    } else {
-      return DefineX87TOS(new(zone()) LConstantD(NULL));
-    }
+    LOperand* temp = value_is_zero ? NULL : TempRegister();
+    return DefineAsRegister(new(zone()) LConstantD(temp));
   } else if (r.IsTagged()) {
     return DefineAsRegister(new(zone()) LConstantT);
   } else {
@@ -2337,11 +2310,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     if (instr->value()->representation().IsDouble()) {
       LOperand* object = UseRegisterAtStart(instr->elements());
       LOperand* val = NULL;
-      if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
-        val = UseRegisterAtStart(instr->value());
-      } else if (!instr->IsConstantHoleStore()) {
-        val = UseX87TopOfStack(instr->value());
-      }
+      val = UseRegisterAtStart(instr->value());
       LOperand* key = UseRegisterOrConstantAtStart(instr->key());
       return new(zone()) LStoreKeyed(object, key, val);
     } else {
@@ -2471,11 +2440,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     val = UseTempRegister(instr->value());
   } else if (FLAG_track_double_fields &&
              instr->field_representation().IsDouble()) {
-    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
-      val = UseRegisterAtStart(instr->value());
-    } else {
-      val = UseX87TopOfStack(instr->value());
-    }
+    val = UseRegisterAtStart(instr->value());
   } else {
     val = UseRegister(instr->value());
   }

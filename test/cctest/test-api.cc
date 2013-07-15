@@ -2340,6 +2340,16 @@ THREADED_TEST(GlobalObjectInternalFields) {
 }
 
 
+THREADED_TEST(GlobalObjectHasRealIndexedProperty) {
+  LocalContext env;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+
+  v8::Local<v8::Object> global = env->Global();
+  global->Set(0, v8::String::New("value"));
+  CHECK(global->HasRealIndexedProperty(0));
+}
+
+
 static void CheckAlignedPointerInInternalField(Handle<v8::Object> obj,
                                                void* value) {
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
@@ -19703,6 +19713,182 @@ class ThreadInterruptTest {
 
 THREADED_TEST(SemaphoreInterruption) {
   ThreadInterruptTest().RunTest();
+}
+
+
+static bool NamedAccessAlwaysBlocked(Local<v8::Object> global,
+                                     Local<Value> name,
+                                     v8::AccessType type,
+                                     Local<Value> data) {
+  i::PrintF("Named access blocked.\n");
+  return false;
+}
+
+
+static bool IndexAccessAlwaysBlocked(Local<v8::Object> global,
+                                     uint32_t key,
+                                     v8::AccessType type,
+                                     Local<Value> data) {
+  i::PrintF("Indexed access blocked.\n");
+  return false;
+}
+
+
+void UnreachableCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(false);
+}
+
+
+TEST(JSONStringifyAccessCheck) {
+  v8::V8::Initialize();
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+
+  // Create an ObjectTemplate for global objects and install access
+  // check callbacks that will block access.
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetAccessCheckCallbacks(NamedAccessAlwaysBlocked,
+                                           IndexAccessAlwaysBlocked);
+
+  // Create a context and set an x property on it's global object.
+  LocalContext context0(NULL, global_template);
+  v8::Handle<v8::Object> global0 = context0->Global();
+  global0->Set(v8_str("x"), v8_num(42));
+  ExpectString("JSON.stringify(this)", "{\"x\":42}");
+
+  for (int i = 0; i < 2; i++) {
+    if (i == 1) {
+      // Install a toJSON function on the second run.
+      v8::Handle<v8::FunctionTemplate> toJSON =
+          v8::FunctionTemplate::New(UnreachableCallback);
+
+      global0->Set(v8_str("toJSON"), toJSON->GetFunction());
+    }
+    // Create a context with a different security token so that the
+    // failed access check callback will be called on each access.
+    LocalContext context1(NULL, global_template);
+    context1->Global()->Set(v8_str("other"), global0);
+
+    ExpectString("JSON.stringify(other)", "{}");
+    ExpectString("JSON.stringify({ 'a' : other, 'b' : ['c'] })",
+                 "{\"a\":{},\"b\":[\"c\"]}");
+    ExpectString("JSON.stringify([other, 'b', 'c'])",
+                 "[{},\"b\",\"c\"]");
+
+    v8::Handle<v8::Array> array = v8::Array::New(2);
+    array->Set(0, v8_str("a"));
+    array->Set(1, v8_str("b"));
+    context1->Global()->Set(v8_str("array"), array);
+    ExpectString("JSON.stringify(array)", "[\"a\",\"b\"]");
+    array->TurnOnAccessCheck();
+    ExpectString("JSON.stringify(array)", "[]");
+    ExpectString("JSON.stringify([array])", "[[]]");
+    ExpectString("JSON.stringify({'a' : array})", "{\"a\":[]}");
+  }
+}
+
+
+bool access_check_fail_thrown = false;
+bool catch_callback_called = false;
+
+
+// Failed access check callback that performs a GC on each invocation.
+void FailedAccessCheckThrows(Local<v8::Object> target,
+                             v8::AccessType type,
+                             Local<v8::Value> data) {
+  access_check_fail_thrown = true;
+  i::PrintF("Access check failed. Error thrown.\n");
+  v8::ThrowException(v8::Exception::Error(v8_str("cross context")));
+}
+
+
+void CatcherCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  for (int i = 0; i < args.Length(); i++) {
+    i::PrintF("%s\n", *String::Utf8Value(args[i]));
+  }
+  catch_callback_called = true;
+}
+
+
+void HasOwnPropertyCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args[0]->ToObject()->HasOwnProperty(args[1]->ToString());
+}
+
+
+void CheckCorrectThrow(const char* script) {
+  // Test that the script, when wrapped into a try-catch, triggers the catch
+  // clause due to failed access check throwing an exception.
+  // The subsequent try-catch should run without any exception.
+  access_check_fail_thrown = false;
+  catch_callback_called = false;
+  i::ScopedVector<char> source(1024);
+  i::OS::SNPrintF(source, "try { %s; } catch (e) { catcher(e); }", script);
+  CompileRun(source.start());
+  CHECK(access_check_fail_thrown);
+  CHECK(catch_callback_called);
+
+  access_check_fail_thrown = false;
+  catch_callback_called = false;
+  CompileRun("try { [1, 2, 3].sort(); } catch (e) { catcher(e) };");
+  CHECK(!access_check_fail_thrown);
+  CHECK(!catch_callback_called);
+}
+
+
+TEST(AccessCheckThrows) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::V8::Initialize();
+  v8::V8::SetFailedAccessCheckCallbackFunction(&FailedAccessCheckThrows);
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+
+  // Create an ObjectTemplate for global objects and install access
+  // check callbacks that will block access.
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetAccessCheckCallbacks(NamedAccessAlwaysBlocked,
+                                           IndexAccessAlwaysBlocked);
+
+  // Create a context and set an x property on it's global object.
+  LocalContext context0(NULL, global_template);
+  context0->Global()->Set(v8_str("x"), v8_num(42));
+  v8::Handle<v8::Object> global0 = context0->Global();
+
+  // Create a context with a different security token so that the
+  // failed access check callback will be called on each access.
+  LocalContext context1(NULL, global_template);
+  context1->Global()->Set(v8_str("other"), global0);
+
+  v8::Handle<v8::FunctionTemplate> catcher_fun =
+      v8::FunctionTemplate::New(CatcherCallback);
+  context1->Global()->Set(v8_str("catcher"), catcher_fun->GetFunction());
+
+  v8::Handle<v8::FunctionTemplate> has_own_property_fun =
+      v8::FunctionTemplate::New(HasOwnPropertyCallback);
+  context1->Global()->Set(v8_str("has_own_property"),
+                          has_own_property_fun->GetFunction());
+
+  { v8::TryCatch try_catch;
+    access_check_fail_thrown = false;
+    CompileRun("other.x;");
+    CHECK(access_check_fail_thrown);
+    CHECK(try_catch.HasCaught());
+  }
+
+  CheckCorrectThrow("other.x");
+  CheckCorrectThrow("other[1]");
+  CheckCorrectThrow("JSON.stringify(other)");
+  CheckCorrectThrow("has_own_property(other, 'x')");
+  CheckCorrectThrow("%GetProperty(other, 'x')");
+  CheckCorrectThrow("%SetProperty(other, 'x', 'foo', 1, 0)");
+  CheckCorrectThrow("%IgnoreAttributesAndSetProperty(other, 'x', 'foo')");
+  CheckCorrectThrow("%DeleteProperty(other, 'x', 0)");
+  CheckCorrectThrow("%DeleteProperty(other, '1', 0)");
+  CheckCorrectThrow("%HasLocalProperty(other, 'x')");
+  CheckCorrectThrow("%HasProperty(other, 'x')");
+  CheckCorrectThrow("%HasElement(other, 1)");
+  CheckCorrectThrow("%IsPropertyEnumerable(other, 'x')");
+  CheckCorrectThrow("%GetPropertyNames(other)");
+  CheckCorrectThrow("%GetLocalPropertyNames(other, true)");
+  CheckCorrectThrow("%DefineOrRedefineAccessorProperty("
+                        "other, 'x', null, null, 1)");
 }
 
 #endif  // WIN32

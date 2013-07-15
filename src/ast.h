@@ -357,10 +357,8 @@ class Expression: public AstNode {
   bool IsUndefinedLiteral();
 
   // Expression type bounds
-  Handle<Type> upper_type() { return upper_type_; }
-  Handle<Type> lower_type() { return lower_type_; }
-  void set_upper_type(Handle<Type> type) { upper_type_ = type; }
-  void set_lower_type(Handle<Type> type) { lower_type_ = type; }
+  Bounds bounds() { return bounds_; }
+  void set_bounds(Bounds bounds) { bounds_ = bounds; }
 
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
@@ -391,15 +389,13 @@ class Expression: public AstNode {
 
  protected:
   explicit Expression(Isolate* isolate)
-      : upper_type_(Type::Any(), isolate),
-        lower_type_(Type::None(), isolate),
+      : bounds_(Type::None(), Type::Any(), isolate),
         id_(GetNextId(isolate)),
         test_id_(GetNextId(isolate)) {}
   void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
 
  private:
-  Handle<Type> upper_type_;
-  Handle<Type> lower_type_;
+  Bounds bounds_;
   byte to_boolean_types_;
 
   const BailoutId id_;

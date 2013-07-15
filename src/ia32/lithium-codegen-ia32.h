@@ -105,7 +105,7 @@ class LCodeGen BASE_EMBEDDED {
   Operand ToOperand(LOperand* op) const;
   Register ToRegister(LOperand* op) const;
   XMMRegister ToDoubleRegister(LOperand* op) const;
-  bool IsX87TopOfStack(LOperand* op) const;
+  X87Register ToX87Register(LOperand* op) const;
 
   bool IsInteger32(LConstantOperand* op) const;
   bool IsSmi(LConstantOperand* op) const;
@@ -118,14 +118,20 @@ class LCodeGen BASE_EMBEDDED {
   double ToDouble(LConstantOperand* op) const;
 
   // Support for non-sse2 (x87) floating point stack handling.
-  // These functions maintain the depth of the stack (either 0 or 1)
-  void PushX87DoubleOperand(Operand src);
-  void PushX87FloatOperand(Operand src);
-  void ReadX87Operand(Operand dst);
-  bool X87StackNonEmpty() const { return x87_stack_depth_ > 0; }
-  void PopX87();
-  void CurrentInstructionReturnsX87Result();
-  void FlushX87StackIfNecessary(LInstruction* instr);
+  // These functions maintain the mapping of physical stack registers to our
+  // virtual registers between instructions.
+  enum X87OperandType { kX87DoubleOperand, kX87FloatOperand, kX87IntOperand };
+
+  void X87Mov(X87Register reg, Operand src,
+      X87OperandType operand = kX87DoubleOperand);
+  void X87Mov(Operand src, X87Register reg);
+
+  void X87PrepareBinaryOp(
+      X87Register left, X87Register right, X87Register result);
+
+  void X87LoadForUsage(X87Register reg);
+  void X87PrepareToWrite(X87Register reg);
+  void X87CommitWrite(X87Register reg);
 
   Handle<Object> ToHandle(LConstantOperand* op) const;
 
@@ -292,6 +298,7 @@ class LCodeGen BASE_EMBEDDED {
 
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
+  X87Register ToX87Register(int index) const;
   int ToInteger32(LConstantOperand* op) const;
 
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
@@ -331,6 +338,7 @@ class LCodeGen BASE_EMBEDDED {
   void EmitNumberUntagDNoSSE2(
       Register input,
       Register temp,
+      X87Register res_reg,
       bool allow_undefined_as_nan,
       bool deoptimize_on_minus_zero,
       LEnvironment* env,
@@ -392,6 +400,16 @@ class LCodeGen BASE_EMBEDDED {
   // register, or a stack slot operand.
   void EmitPushTaggedOperand(LOperand* operand);
 
+  void X87Fxch(X87Register reg, int other_slot = 0);
+  void X87Fld(Operand src, X87OperandType opts);
+  void X87Free(X87Register reg);
+
+  void FlushX87StackIfNecessary(LInstruction* instr);
+  void EmitFlushX87ForDeopt();
+  bool X87StackContains(X87Register reg);
+  int X87ArrayIndex(X87Register reg);
+  int x87_st2idx(int pos);
+
   Zone* zone_;
   LPlatformChunk* const chunk_;
   MacroAssembler* const masm_;
@@ -413,6 +431,7 @@ class LCodeGen BASE_EMBEDDED {
   int osr_pc_offset_;
   int last_lazy_deopt_pc_;
   bool frame_is_built_;
+  X87Register x87_stack_[X87Register::kNumAllocatableRegisters];
   int x87_stack_depth_;
 
   // Builder that keeps track of safepoints in the code. The table

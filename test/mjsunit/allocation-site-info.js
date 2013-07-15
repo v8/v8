@@ -175,6 +175,20 @@ if (support_smi_only_arrays) {
   obj = fastliteralcase_smifast(2);
   assertKind(elements_kind.fast, obj);
 
+  // Case: make sure transitions from packed to holey are tracked
+  function fastliteralcase_smiholey(index, value) {
+    var literal = [1, 2, 3, 4];
+    literal[index] = value;
+    return literal;
+  }
+
+  obj = fastliteralcase_smiholey(5, 1);
+  assertKind(elements_kind.fast_smi_only, obj);
+  assertHoley(obj);
+  obj = fastliteralcase_smiholey(0, 1);
+  assertKind(elements_kind.fast_smi_only, obj);
+  assertHoley(obj);
+
   function newarraycase_smidouble(value) {
     var a = new Array();
     a[0] = value;
@@ -267,6 +281,32 @@ if (support_smi_only_arrays) {
   assertKind(elements_kind.fast, obj);
   obj = newarraycase_list_smiobj(2);
   assertKind(elements_kind.fast, obj);
+
+  // Case: array constructor calls with out of date feedback.
+  // The boilerplate should incorporate all feedback, but the input array
+  // should be minimally transitioned based on immediate need.
+  (function() {
+    function foo(i) {
+      // We have two cases, one for literals one for constructed arrays.
+      var a = (i == 0)
+        ? [1, 2, 3]
+        : new Array(1, 2, 3);
+      return a;
+    }
+
+    for (i = 0; i < 2; i++) {
+      a = foo(i);
+      b = foo(i);
+      b[5] = 1;  // boilerplate goes holey
+      assertHoley(foo(i));
+      a[0] = 3.5;  // boilerplate goes holey double
+      assertKind(elements_kind.fast_double, a);
+      assertNotHoley(a);
+      c = foo(i);
+      assertKind(elements_kind.fast_double, c);
+      assertHoley(c);
+    }
+  })();
 
   function newarraycase_onearg(len, value) {
     var a = new Array(len);

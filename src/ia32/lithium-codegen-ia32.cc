@@ -353,7 +353,6 @@ bool LCodeGen::GenerateBody() {
     instr->CompileToNative(this);
 
     if (!CpuFeatures::IsSupported(SSE2)) {
-      ASSERT(!instr->HasDoubleRegisterResult() || x87_stack_depth_ == 1);
       if (FLAG_debug_code && FLAG_enable_slow_asserts) {
         __ VerifyX87StackDepth(x87_stack_depth_);
       }
@@ -365,8 +364,7 @@ bool LCodeGen::GenerateBody() {
 
 
 bool LCodeGen::GenerateJumpTable() {
-  Label needs_frame_not_call;
-  Label needs_frame_is_call;
+  Label needs_frame;
   if (jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
   }
@@ -382,56 +380,32 @@ bool LCodeGen::GenerateJumpTable() {
     }
     if (jump_table_[i].needs_frame) {
       __ push(Immediate(ExternalReference::ForDeoptEntry(entry)));
-      if (type == Deoptimizer::LAZY) {
-        if (needs_frame_is_call.is_bound()) {
-          __ jmp(&needs_frame_is_call);
-        } else {
-          __ bind(&needs_frame_is_call);
-          __ push(MemOperand(ebp, StandardFrameConstants::kContextOffset));
-          // This variant of deopt can only be used with stubs. Since we don't
-          // have a function pointer to install in the stack frame that we're
-          // building, install a special marker there instead.
-          ASSERT(info()->IsStub());
-          __ push(Immediate(Smi::FromInt(StackFrame::STUB)));
-          // Push a PC inside the function so that the deopt code can find where
-          // the deopt comes from. It doesn't have to be the precise return
-          // address of a "calling" LAZY deopt, it only has to be somewhere
-          // inside the code body.
-          Label push_approx_pc;
-          __ call(&push_approx_pc);
-          __ bind(&push_approx_pc);
-          // Push the continuation which was stashed were the ebp should
-          // be. Replace it with the saved ebp.
-          __ push(MemOperand(esp, 3 * kPointerSize));
-          __ mov(MemOperand(esp, 4 * kPointerSize), ebp);
-          __ lea(ebp, MemOperand(esp, 4 * kPointerSize));
-          __ ret(0);  // Call the continuation without clobbering registers.
-        }
+      if (needs_frame.is_bound()) {
+        __ jmp(&needs_frame);
       } else {
-        if (needs_frame_not_call.is_bound()) {
-          __ jmp(&needs_frame_not_call);
-        } else {
-          __ bind(&needs_frame_not_call);
-          __ push(MemOperand(ebp, StandardFrameConstants::kContextOffset));
-          // This variant of deopt can only be used with stubs. Since we don't
-          // have a function pointer to install in the stack frame that we're
-          // building, install a special marker there instead.
-          ASSERT(info()->IsStub());
-          __ push(Immediate(Smi::FromInt(StackFrame::STUB)));
-          // Push the continuation which was stashed were the ebp should
-          // be. Replace it with the saved ebp.
-          __ push(MemOperand(esp, 2 * kPointerSize));
-          __ mov(MemOperand(esp, 3 * kPointerSize), ebp);
-          __ lea(ebp, MemOperand(esp, 3 * kPointerSize));
-          __ ret(0);  // Call the continuation without clobbering registers.
-        }
+        __ bind(&needs_frame);
+        __ push(MemOperand(ebp, StandardFrameConstants::kContextOffset));
+        // This variant of deopt can only be used with stubs. Since we don't
+        // have a function pointer to install in the stack frame that we're
+        // building, install a special marker there instead.
+        ASSERT(info()->IsStub());
+        __ push(Immediate(Smi::FromInt(StackFrame::STUB)));
+        // Push a PC inside the function so that the deopt code can find where
+        // the deopt comes from. It doesn't have to be the precise return
+        // address of a "calling" LAZY deopt, it only has to be somewhere
+        // inside the code body.
+        Label push_approx_pc;
+        __ call(&push_approx_pc);
+        __ bind(&push_approx_pc);
+        // Push the continuation which was stashed were the ebp should
+        // be. Replace it with the saved ebp.
+        __ push(MemOperand(esp, 3 * kPointerSize));
+        __ mov(MemOperand(esp, 4 * kPointerSize), ebp);
+        __ lea(ebp, MemOperand(esp, 4 * kPointerSize));
+        __ ret(0);  // Call the continuation without clobbering registers.
       }
     } else {
-      if (type == Deoptimizer::LAZY) {
-        __ call(entry, RelocInfo::RUNTIME_ENTRY);
-      } else {
-        __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
-      }
+      __ call(entry, RelocInfo::RUNTIME_ENTRY);
     }
   }
   return !is_aborted();
@@ -501,65 +475,178 @@ Register LCodeGen::ToRegister(int index) const {
 }
 
 
+X87Register LCodeGen::ToX87Register(int index) const {
+  return X87Register::FromAllocationIndex(index);
+}
+
+
 XMMRegister LCodeGen::ToDoubleRegister(int index) const {
   return XMMRegister::FromAllocationIndex(index);
 }
 
 
-bool LCodeGen::IsX87TopOfStack(LOperand* op) const {
-  return op->IsDoubleRegister();
+void LCodeGen::X87LoadForUsage(X87Register reg) {
+  ASSERT(X87StackContains(reg));
+  X87Fxch(reg);
+  x87_stack_depth_--;
 }
 
 
-void LCodeGen::ReadX87Operand(Operand dst) {
-  ASSERT(x87_stack_depth_ == 1);
+void LCodeGen::X87Fxch(X87Register reg, int other_slot) {
+  ASSERT(X87StackContains(reg) && x87_stack_depth_ > other_slot);
+  int i  = X87ArrayIndex(reg);
+  int st = x87_st2idx(i);
+  if (st != other_slot) {
+    int other_i = x87_st2idx(other_slot);
+    X87Register other   = x87_stack_[other_i];
+    x87_stack_[other_i] = reg;
+    x87_stack_[i]       = other;
+    if (st == 0) {
+      __ fxch(other_slot);
+    } else if (other_slot == 0) {
+      __ fxch(st);
+    } else {
+      __ fxch(st);
+      __ fxch(other_slot);
+      __ fxch(st);
+    }
+  }
+}
+
+
+int LCodeGen::x87_st2idx(int pos) {
+  return x87_stack_depth_ - pos - 1;
+}
+
+
+int LCodeGen::X87ArrayIndex(X87Register reg) {
+  for (int i = 0; i < x87_stack_depth_; i++) {
+    if (x87_stack_[i].is(reg)) return i;
+  }
+  UNREACHABLE();
+  return -1;
+}
+
+
+bool LCodeGen::X87StackContains(X87Register reg) {
+  for (int i = 0; i < x87_stack_depth_; i++) {
+    if (x87_stack_[i].is(reg)) return true;
+  }
+  return false;
+}
+
+
+void LCodeGen::X87Free(X87Register reg) {
+  ASSERT(X87StackContains(reg));
+  int i  = X87ArrayIndex(reg);
+  int st = x87_st2idx(i);
+  if (st > 0) {
+    // keep track of how fstp(i) changes the order of elements
+    int tos_i = x87_st2idx(0);
+    x87_stack_[i] = x87_stack_[tos_i];
+  }
+  x87_stack_depth_--;
+  __ fstp(st);
+}
+
+
+void LCodeGen::X87Mov(X87Register dst, Operand src, X87OperandType opts) {
+  if (X87StackContains(dst)) {
+    X87Fxch(dst);
+    __ fstp(0);
+  } else {
+    ASSERT(x87_stack_depth_ < X87Register::kNumAllocatableRegisters);
+    x87_stack_[x87_stack_depth_] = dst;
+    x87_stack_depth_++;
+  }
+  X87Fld(src, opts);
+}
+
+
+void LCodeGen::X87Fld(Operand src, X87OperandType opts) {
+  if (opts == kX87DoubleOperand) {
+    __ fld_d(src);
+  } else if (opts == kX87FloatOperand) {
+    __ fld_s(src);
+  } else if (opts == kX87IntOperand) {
+    __ fild_s(src);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
+void LCodeGen::X87Mov(Operand dst, X87Register src) {
+  X87Fxch(src);
   __ fst_d(dst);
 }
 
 
-void LCodeGen::PushX87DoubleOperand(Operand src) {
-  ASSERT(x87_stack_depth_ == 0);
-  x87_stack_depth_++;
-  __ fld_d(src);
-}
-
-
-void LCodeGen::PushX87FloatOperand(Operand src) {
-  ASSERT(x87_stack_depth_ == 0);
-  x87_stack_depth_++;
-  __ fld_s(src);
-}
-
-
-void LCodeGen::PopX87() {
-  ASSERT(x87_stack_depth_ == 1);
-  x87_stack_depth_--;
-  __ fstp(0);
-}
-
-
-void LCodeGen::CurrentInstructionReturnsX87Result() {
-  ASSERT(x87_stack_depth_ <= 1);
-  if (x87_stack_depth_ == 0) {
-    x87_stack_depth_ = 1;
+void LCodeGen::X87PrepareToWrite(X87Register reg) {
+  if (X87StackContains(reg)) {
+    X87Free(reg);
   }
+  // Mark this register as the next register to write to
+  x87_stack_[x87_stack_depth_] = reg;
+}
+
+
+void LCodeGen::X87CommitWrite(X87Register reg) {
+  // Assert the reg is prepared to write, but not on the virtual stack yet
+  ASSERT(!X87StackContains(reg) && x87_stack_[x87_stack_depth_].is(reg) &&
+      x87_stack_depth_ < X87Register::kNumAllocatableRegisters);
+  x87_stack_depth_++;
+}
+
+
+void LCodeGen::X87PrepareBinaryOp(
+    X87Register left, X87Register right, X87Register result) {
+  // You need to use DefineSameAsFirst for x87 instructions
+  ASSERT(result.is(left));
+  X87Fxch(right, 1);
+  X87Fxch(left);
 }
 
 
 void LCodeGen::FlushX87StackIfNecessary(LInstruction* instr) {
-  if (x87_stack_depth_ > 0) {
-    if ((instr->ClobbersDoubleRegisters() ||
-         instr->HasDoubleRegisterResult()) &&
-        !instr->HasDoubleRegisterInput()) {
-      PopX87();
+  if (x87_stack_depth_ > 0 && instr->ClobbersDoubleRegisters()) {
+    bool double_inputs = instr->HasDoubleRegisterInput();
+
+    // Flush stack from tos down, since FreeX87() will mess with tos
+    for (int i = x87_stack_depth_-1; i >= 0; i--) {
+      X87Register reg = x87_stack_[i];
+      // Skip registers which contain the inputs for the next instruction
+      // when flushing the stack
+      if (double_inputs && instr->IsDoubleInput(reg, this)) {
+        continue;
+      }
+      X87Free(reg);
+      if (i < x87_stack_depth_-1) i++;
     }
   }
+  if (instr->IsReturn()) {
+    while (x87_stack_depth_ > 0) {
+      __ fstp(0);
+      x87_stack_depth_--;
+    }
+  }
+}
+
+
+void LCodeGen::EmitFlushX87ForDeopt() {
+  for (int i = 0; i < x87_stack_depth_; i++) __ fstp(0);
 }
 
 
 Register LCodeGen::ToRegister(LOperand* op) const {
   ASSERT(op->IsRegister());
   return ToRegister(op->index());
+}
+
+
+X87Register LCodeGen::ToX87Register(LOperand* op) const {
+  ASSERT(op->IsDoubleRegister());
+  return ToX87Register(op->index());
 }
 
 
@@ -835,8 +922,6 @@ void LCodeGen::DeoptimizeIf(Condition cc,
                             Deoptimizer::BailoutType bailout_type) {
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   ASSERT(environment->HasBeenRegistered());
-  // It's an error to deoptimize with the x87 fp stack in use.
-  ASSERT(x87_stack_depth_ == 0);
   int id = environment->deoptimization_index();
   ASSERT(info()->IsOptimizing() || info()->IsStub());
   Address entry =
@@ -874,22 +959,27 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     __ popfd();
   }
 
+  // Before Instructions which can deopt, we normally flush the x87 stack. But
+  // we can have inputs or outputs of the current instruction on the stack,
+  // thus we need to flush them here from the physical stack to leave it in a
+  // consistent state.
+  if (x87_stack_depth_ > 0) {
+    Label done;
+    if (cc != no_condition) __ j(NegateCondition(cc), &done, Label::kNear);
+    EmitFlushX87ForDeopt();
+    __ bind(&done);
+  }
+
   if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
     Label done;
-    if (cc != no_condition) {
-      __ j(NegateCondition(cc), &done, Label::kNear);
-    }
+    if (cc != no_condition) __ j(NegateCondition(cc), &done, Label::kNear);
     __ int3();
     __ bind(&done);
   }
 
   ASSERT(info()->IsStub() || frame_is_built_);
   if (cc == no_condition && frame_is_built_) {
-    if (bailout_type == Deoptimizer::LAZY) {
-      __ call(entry, RelocInfo::RUNTIME_ENTRY);
-    } else {
-      __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
-    }
+    __ call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
@@ -1721,11 +1811,10 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
 
   if (!CpuFeatures::IsSafeForSnapshot(SSE2)) {
-    __ push(Immediate(lower));
     __ push(Immediate(upper));
-    PushX87DoubleOperand(Operand(esp, 0));
+    __ push(Immediate(lower));
+    X87Mov(ToX87Register(instr->result()), Operand(esp, 0));
     __ add(Operand(esp), Immediate(kDoubleSize));
-    CurrentInstructionReturnsX87Result();
   } else {
     CpuFeatureScope scope1(masm(), SSE2);
     ASSERT(instr->result()->IsDoubleRegister());
@@ -1990,60 +2079,65 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  CpuFeatureScope scope(masm(), SSE2);
-  XMMRegister left = ToDoubleRegister(instr->left());
-  XMMRegister right = ToDoubleRegister(instr->right());
-  XMMRegister result = ToDoubleRegister(instr->result());
-  // Modulo uses a fixed result register.
-  ASSERT(instr->op() == Token::MOD || left.is(result));
-  switch (instr->op()) {
-    case Token::ADD:
-      __ addsd(left, right);
-      break;
-    case Token::SUB:
-      __ subsd(left, right);
-      break;
-    case Token::MUL:
-      __ mulsd(left, right);
-      break;
-    case Token::DIV:
-      __ divsd(left, right);
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a mulsd depending on the result
-      __ movaps(left, left);
-      break;
-    case Token::MOD: {
-      // Pass two doubles as arguments on the stack.
-      __ PrepareCallCFunction(4, eax);
-      __ movdbl(Operand(esp, 0 * kDoubleSize), left);
-      __ movdbl(Operand(esp, 1 * kDoubleSize), right);
-      __ CallCFunction(
-          ExternalReference::double_fp_operation(Token::MOD, isolate()),
-          4);
+  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+    CpuFeatureScope scope(masm(), SSE2);
+    XMMRegister left = ToDoubleRegister(instr->left());
+    XMMRegister right = ToDoubleRegister(instr->right());
+    XMMRegister result = ToDoubleRegister(instr->result());
+    // Modulo uses a fixed result register.
+    ASSERT(instr->op() == Token::MOD || left.is(result));
+    switch (instr->op()) {
+      case Token::ADD:
+        __ addsd(left, right);
+        break;
+      case Token::SUB:
+        __ subsd(left, right);
+        break;
+      case Token::MUL:
+        __ mulsd(left, right);
+        break;
+      case Token::DIV:
+        __ divsd(left, right);
+        // Don't delete this mov. It may improve performance on some CPUs,
+        // when there is a mulsd depending on the result
+        __ movaps(left, left);
+        break;
+      case Token::MOD: {
+        // Pass two doubles as arguments on the stack.
+        __ PrepareCallCFunction(4, eax);
+        __ movdbl(Operand(esp, 0 * kDoubleSize), left);
+        __ movdbl(Operand(esp, 1 * kDoubleSize), right);
+        __ CallCFunction(
+            ExternalReference::double_fp_operation(Token::MOD, isolate()),
+            4);
 
-      // Return value is in st(0) on ia32.
-      // Store it into the (fixed) result register.
-      __ sub(Operand(esp), Immediate(kDoubleSize));
-      __ fstp_d(Operand(esp, 0));
-      __ movdbl(result, Operand(esp, 0));
-      __ add(Operand(esp), Immediate(kDoubleSize));
-      break;
+        // Return value is in st(0) on ia32.
+        // Store it into the (fixed) result register.
+        __ sub(Operand(esp), Immediate(kDoubleSize));
+        __ fstp_d(Operand(esp, 0));
+        __ movdbl(result, Operand(esp, 0));
+        __ add(Operand(esp), Immediate(kDoubleSize));
+        break;
+      }
+      default:
+        UNREACHABLE();
+        break;
     }
-    default:
-      UNREACHABLE();
-      break;
+  } else {
+    X87Register left = ToX87Register(instr->left());
+    X87Register right = ToX87Register(instr->right());
+    X87Register result = ToX87Register(instr->result());
+    X87PrepareBinaryOp(left, right, result);
+    switch (instr->op()) {
+      case Token::MUL:
+        __ fmul_i(1);
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
   }
 }
-
-
-void LCodeGen::DoNegateNoSSE2D(LNegateNoSSE2D* instr) {
-  __ push(Immediate(-1));
-  __ fild_s(Operand(esp, 0));
-  __ add(esp, Immediate(kPointerSize));
-  __ fmulp();
-  CurrentInstructionReturnsX87Result();
-}
-
 
 
 void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
@@ -2963,8 +3057,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
       XMMRegister result = ToDoubleRegister(instr->result());
       __ movdbl(result, FieldOperand(object, offset));
     } else {
-      PushX87DoubleOperand(FieldOperand(object, offset));
-      CurrentInstructionReturnsX87Result();
+      X87Mov(ToX87Register(instr->result()), FieldOperand(object, offset));
     }
     return;
   }
@@ -3209,16 +3302,14 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       __ movss(result, operand);
       __ cvtss2sd(result, result);
     } else {
-      PushX87FloatOperand(operand);
-      CurrentInstructionReturnsX87Result();
+      X87Mov(ToX87Register(instr->result()), operand, kX87FloatOperand);
     }
   } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       __ movdbl(ToDoubleRegister(instr->result()), operand);
     } else {
-      PushX87DoubleOperand(operand);
-      CurrentInstructionReturnsX87Result();
+      X87Mov(ToX87Register(instr->result()), operand);
     }
   } else {
     Register result(ToRegister(instr->result()));
@@ -3289,8 +3380,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
     XMMRegister result = ToDoubleRegister(instr->result());
     __ movdbl(result, double_load_operand);
   } else {
-    PushX87DoubleOperand(double_load_operand);
-    CurrentInstructionReturnsX87Result();
+    X87Mov(ToX87Register(instr->result()), double_load_operand);
   }
 }
 
@@ -4284,7 +4374,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       XMMRegister value = ToDoubleRegister(instr->value());
       __ movdbl(FieldOperand(object, offset), value);
     } else {
-      __ fstp_d(FieldOperand(object, offset));
+      X87Register value = ToX87Register(instr->value());
+      X87Mov(FieldOperand(object, offset), value);
     }
     return;
   }
@@ -4410,7 +4501,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       CpuFeatureScope scope(masm(), SSE2);
       __ movdbl(operand, ToDoubleRegister(instr->value()));
     } else {
-      __ fst_d(operand);
+      X87Mov(operand, ToX87Register(instr->value()));
     }
   } else {
     Register value = ToRegister(instr->value());
@@ -4492,7 +4583,8 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       __ mov(double_store_operand2, Immediate(upper));
     } else {
       Label no_special_nan_handling;
-      ASSERT(x87_stack_depth_ > 0);
+      X87Register value = ToX87Register(instr->value());
+      X87Fxch(value);
 
       if (instr->NeedsCanonicalization()) {
         __ fld(0);
@@ -4962,10 +5054,16 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     convert_hole = load->UsesMustHandleHole();
   }
 
+  bool use_sse2 = CpuFeatures::IsSupported(SSE2);
+  if (!use_sse2) {
+    // Put the value to the top of stack
+    X87Register src = ToX87Register(instr->value());
+    X87LoadForUsage(src);
+  }
+
   Label no_special_nan_handling;
   Label done;
   if (convert_hole) {
-    bool use_sse2 = CpuFeatures::IsSupported(SSE2);
     if (use_sse2) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister input_reg = ToDoubleRegister(instr->value());
@@ -5019,12 +5117,12 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     __ jmp(deferred->entry());
   }
   __ bind(deferred->exit());
-  if (CpuFeatures::IsSupported(SSE2)) {
+  if (use_sse2) {
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ movdbl(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
   } else {
-    __ fst_d(FieldOperand(reg, HeapNumber::kValueOffset));
+    __ fstp_d(FieldOperand(reg, HeapNumber::kValueOffset));
   }
   __ bind(&done);
 }
@@ -5075,12 +5173,14 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
                                       Register temp_reg,
+                                      X87Register res_reg,
                                       bool allow_undefined_as_nan,
                                       bool deoptimize_on_minus_zero,
                                       LEnvironment* env,
                                       NumberUntagDMode mode) {
   Label load_smi, done;
 
+  X87PrepareToWrite(res_reg);
   STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
                 NUMBER_CANDIDATE_IS_ANY_TAGGED);
   if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
@@ -5141,6 +5241,7 @@ void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
   __ pop(input_reg);
   __ SmiTag(input_reg);  // Retag smi.
   __ bind(&done);
+  X87CommitWrite(res_reg);
 }
 
 
@@ -5522,11 +5623,11 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   } else {
     EmitNumberUntagDNoSSE2(input_reg,
                            temp_reg,
+                           ToX87Register(instr->result()),
                            instr->hydrogen()->allow_undefined_as_nan(),
                            deoptimize_on_minus_zero,
                            instr->environment(),
                            mode);
-    CurrentInstructionReturnsX87Result();
   }
 }
 
@@ -5541,93 +5642,22 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   XMMRegister input_reg = ToDoubleRegister(input);
   Register result_reg = ToRegister(result);
 
+  __ cvttsd2si(result_reg, Operand(input_reg));
+
   if (instr->truncating()) {
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
-    __ cvttsd2si(result_reg, Operand(input_reg));
+    Label fast_case_succeeded;
     __ cmp(result_reg, 0x80000000u);
-    if (CpuFeatures::IsSupported(SSE3)) {
-      // This will deoptimize if the exponent of the input in out of range.
-      CpuFeatureScope scope(masm(), SSE3);
-      Label convert, done;
-      __ j(not_equal, &done, Label::kNear);
-      __ sub(Operand(esp), Immediate(kDoubleSize));
-      __ movdbl(Operand(esp, 0), input_reg);
-      // Get exponent alone and check for too-big exponent.
-      __ mov(result_reg, Operand(esp, sizeof(int32_t)));
-      __ and_(result_reg, HeapNumber::kExponentMask);
-      const uint32_t kTooBigExponent =
-          (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-      __ cmp(Operand(result_reg), Immediate(kTooBigExponent));
-      __ j(less, &convert, Label::kNear);
-      __ add(Operand(esp), Immediate(kDoubleSize));
-      DeoptimizeIf(no_condition, instr->environment());
-      __ bind(&convert);
-      // Do conversion, which cannot fail because we checked the exponent.
-      __ fld_d(Operand(esp, 0));
-      __ fisttp_d(Operand(esp, 0));
-      __ mov(result_reg, Operand(esp, 0));  // Low word of answer is the result.
-      __ add(Operand(esp), Immediate(kDoubleSize));
-      __ bind(&done);
-    } else {
-      Label done;
-      Register temp_reg = ToRegister(instr->temp());
-      XMMRegister xmm_scratch = xmm0;
-
-      // If cvttsd2si succeeded, we're done. Otherwise, we attempt
-      // manual conversion.
-      __ j(not_equal, &done, Label::kNear);
-
-      // Get high 32 bits of the input in result_reg and temp_reg.
-      __ pshufd(xmm_scratch, input_reg, 1);
-      __ movd(Operand(temp_reg), xmm_scratch);
-      __ mov(result_reg, temp_reg);
-
-      // Prepare negation mask in temp_reg.
-      __ sar(temp_reg, kBitsPerInt - 1);
-
-      // Extract the exponent from result_reg and subtract adjusted
-      // bias from it. The adjustment is selected in a way such that
-      // when the difference is zero, the answer is in the low 32 bits
-      // of the input, otherwise a shift has to be performed.
-      __ shr(result_reg, HeapNumber::kExponentShift);
-      __ and_(result_reg,
-              HeapNumber::kExponentMask >> HeapNumber::kExponentShift);
-      __ sub(Operand(result_reg),
-             Immediate(HeapNumber::kExponentBias +
-                       HeapNumber::kExponentBits +
-                       HeapNumber::kMantissaBits));
-      // Don't handle big (> kMantissaBits + kExponentBits == 63) or
-      // special exponents.
-      DeoptimizeIf(greater, instr->environment());
-
-      // Zero out the sign and the exponent in the input (by shifting
-      // it to the left) and restore the implicit mantissa bit,
-      // i.e. convert the input to unsigned int64 shifted left by
-      // kExponentBits.
-      ExternalReference minus_zero = ExternalReference::address_of_minus_zero();
-      // Minus zero has the most significant bit set and the other
-      // bits cleared.
-      __ movdbl(xmm_scratch, Operand::StaticVariable(minus_zero));
-      __ psllq(input_reg, HeapNumber::kExponentBits);
-      __ por(input_reg, xmm_scratch);
-
-      // Get the amount to shift the input right in xmm_scratch.
-      __ neg(result_reg);
-      __ movd(xmm_scratch, Operand(result_reg));
-
-      // Shift the input right and extract low 32 bits.
-      __ psrlq(input_reg, xmm_scratch);
-      __ movd(Operand(result_reg), input_reg);
-
-      // Use the prepared mask in temp_reg to negate the result if necessary.
-      __ xor_(result_reg, Operand(temp_reg));
-      __ sub(result_reg, Operand(temp_reg));
-      __ bind(&done);
-    }
+    __ j(not_equal, &fast_case_succeeded);
+    __ sub(esp, Immediate(kDoubleSize));
+    __ movdbl(MemOperand(esp, 0), input_reg);
+    DoubleToIStub stub(esp, result_reg, 0, true);
+    __ call(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+    __ add(esp, Immediate(kDoubleSize));
+    __ bind(&fast_case_succeeded);
   } else {
     Label done;
-    __ cvttsd2si(result_reg, Operand(input_reg));
     __ cvtsi2sd(xmm0, Operand(result_reg));
     __ ucomisd(xmm0, input_reg);
     DeoptimizeIf(not_equal, instr->environment());

@@ -622,10 +622,8 @@ static bool IsVisibleInStackTrace(StackFrame* raw_frame,
   // Only display JS frames.
   if (!raw_frame->is_java_script()) return false;
   JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
-  Object* raw_fun = frame->function();
-  // Not sure when this can happen but skip it just in case.
-  if (!raw_fun->IsJSFunction()) return false;
-  if ((raw_fun == caller) && !(*seen_caller)) {
+  JSFunction* fun = frame->function();
+  if ((fun == caller) && !(*seen_caller)) {
     *seen_caller = true;
     return false;
   }
@@ -637,7 +635,6 @@ static bool IsVisibleInStackTrace(StackFrame* raw_frame,
   // The --builtins-in-stack-traces command line flag allows including
   // internal call sites in the stack trace for debugging purposes.
   if (!FLAG_builtins_in_stack_traces) {
-    JSFunction* fun = JSFunction::cast(raw_fun);
     if (frame->receiver()->IsJSBuiltinsObject() ||
         (fun->IsBuiltin() && !fun->shared()->native())) {
       return false;
@@ -1201,7 +1198,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
     int pos = frame->LookupCode()->SourcePosition(frame->pc());
     Handle<Object> pos_obj(Smi::FromInt(pos), this);
     // Fetch function and receiver.
-    Handle<JSFunction> fun(JSFunction::cast(frame->function()));
+    Handle<JSFunction> fun(frame->function());
     Handle<Object> recv(frame->receiver(), this);
     // Advance to the next JavaScript frame and determine if the
     // current frame is the top-level frame.
@@ -1225,7 +1222,7 @@ void Isolate::ComputeLocation(MessageLocation* target) {
   StackTraceFrameIterator it(this);
   if (!it.done()) {
     JavaScriptFrame* frame = it.frame();
-    JSFunction* fun = JSFunction::cast(frame->function());
+    JSFunction* fun = frame->function();
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined())) {
