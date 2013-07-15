@@ -298,16 +298,13 @@ class HGraph: public ZoneObject {
   HEnvironment* start_environment() const { return start_environment_; }
 
   void FinalizeUniqueValueIds();
-  void InsertTypeConversions();
   void MarkDeoptimizeOnUndefined();
   bool ProcessArgumentsObject();
   void OrderBlocks();
   void AssignDominators();
   void SetupInformativeDefinitions();
-  void DehoistSimpleArrayIndexComputations();
   void RestoreActualValues();
   void PropagateDeoptimizingMark();
-  void AnalyzeAndPruneEnvironmentLiveness();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
@@ -452,7 +449,6 @@ class HGraph: public ZoneObject {
 
   void MarkAsDeoptimizingRecursively(HBasicBlock* block);
   void NullifyUnreachableInstructions();
-  void InsertTypeConversions(HInstruction* instr);
   void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
