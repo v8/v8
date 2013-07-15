@@ -151,6 +151,7 @@ class CompilationInfo;
 // original tags when writing to the log.
 
 
+class LowLevelLogger;
 class Sampler;
 
 
@@ -430,29 +431,7 @@ class Logger {
   // Appends symbol for the name.
   void AppendSymbolName(LogMessageBuilder*, Symbol*);
 
-  // Emits general information about generated code.
-  void LogCodeInfo();
-
   void RegisterSnapshotCodeName(Code* code, const char* name, int name_size);
-
-  // Low-level logging support.
-
-  void LowLevelCodeCreateEvent(Code* code, const char* name, int name_size);
-
-  void LowLevelCodeMoveEvent(Address from, Address to);
-
-  void LowLevelCodeDeleteEvent(Address from);
-
-  void LowLevelSnapshotPositionEvent(Address addr, int pos);
-
-  void LowLevelLogWriteBytes(const char* bytes, int size);
-
-  template <typename T>
-  void LowLevelLogWriteStruct(const T& s) {
-    char tag = T::kTag;
-    LowLevelLogWriteBytes(reinterpret_cast<const char*>(&tag), sizeof(tag));
-    LowLevelLogWriteBytes(reinterpret_cast<const char*>(&s), sizeof(s));
-  }
 
   // Emits a profiler tick event. Used by the profiler thread.
   void TickEvent(TickSample* sample, bool overflow);
@@ -495,6 +474,7 @@ class Logger {
   int cpu_profiler_nesting_;
 
   Log* log_;
+  LowLevelLogger* ll_logger_;
 
   NameBuffer* name_buffer_;
 

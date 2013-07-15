@@ -39,7 +39,7 @@ class Logger;
 class Log {
  public:
   // Performs process-wide initialization.
-  void Initialize();
+  void Initialize(const char* log_file_name);
 
   // Disables logging, but preserves acquired resources.
   void stop() { is_stopped_ = true; }
@@ -66,6 +66,7 @@ class Log {
   // This mode is only used in tests, as temporary files are automatically
   // deleted on close and thus can't be accessed afterwards.
   static const char* const kLogToTemporaryFile;
+  static const char* const kLogToConsole;
 
  private:
   explicit Log(Logger* logger);
@@ -95,9 +96,6 @@ class Log {
   // When logging is active output_handle_ is used to store a pointer to log
   // destination.  mutex_ should be acquired before using output_handle_.
   FILE* output_handle_;
-
-  // Used when low-level profiling is active.
-  FILE* ll_output_handle_;
 
   // mutex_ is a Mutex used for enforcing exclusive
   // access to the formatting buffer and the log file or log memory buffer.
