@@ -949,7 +949,8 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     __ pop(ebx);
     __ pop(eax);
     __ popfd();
-    __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
+    ASSERT(frame_is_built_);
+    __ call(entry, RelocInfo::RUNTIME_ENTRY);
 
     __ bind(&no_deopt);
     __ mov(FieldOperand(ebx, SharedFunctionInfo::kStressDeoptCounterOffset),

@@ -744,7 +744,8 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   if (FLAG_deopt_every_n_times == 1 &&
       !info()->IsStub() &&
       info()->opt_count() == id) {
-    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+    ASSERT(frame_is_built_);
+    __ Call(entry, RelocInfo::RUNTIME_ENTRY);
     return;
   }
 
