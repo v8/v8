@@ -5505,6 +5505,13 @@ class Map: public HeapObject {
   int NumberOfDescribedProperties(DescriptorFlag which = OWN_DESCRIPTORS,
                                   PropertyAttributes filter = NONE);
 
+  // Returns the number of slots allocated for the initial properties
+  // backing storage for instances of this map.
+  int InitialPropertiesLength() {
+    return pre_allocated_property_fields() + unused_property_fields() -
+        inobject_properties();
+  }
+
   // Casting.
   static inline Map* cast(Object* obj);
 

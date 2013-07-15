@@ -3173,11 +3173,6 @@ HType HStringCharFromCode::CalculateInferredType() {
 }
 
 
-HType HAllocateObject::CalculateInferredType() {
-  return HType::JSObject();
-}
-
-
 HType HAllocate::CalculateInferredType() {
   return type_;
 }
