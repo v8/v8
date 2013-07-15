@@ -2245,47 +2245,41 @@ class ToBooleanStub: public HydrogenCodeStub {
 };
 
 
-class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
+class ElementsTransitionAndStoreStub : public PlatformCodeStub {
  public:
   ElementsTransitionAndStoreStub(ElementsKind from,
                                  ElementsKind to,
                                  bool is_jsarray,
+                                 StrictModeFlag strict_mode,
                                  KeyedAccessStoreMode store_mode)
       : from_(from),
         to_(to),
         is_jsarray_(is_jsarray),
-        store_mode_(store_mode) {
-    ASSERT(!IsFastHoleyElementsKind(from) || IsFastHoleyElementsKind(to));
-  }
-
-  ElementsKind from() const { return from_; }
-  ElementsKind to() const { return to_; }
-  bool is_jsarray() const { return is_jsarray_; }
-  KeyedAccessStoreMode store_mode() const { return store_mode_; }
-
-  Handle<Code> GenerateCode();
-
-  void InitializeInterfaceDescriptor(
-      Isolate* isolate,
-      CodeStubInterfaceDescriptor* descriptor);
+        strict_mode_(strict_mode),
+        store_mode_(store_mode) {}
 
  private:
-  class FromBits:      public BitField<ElementsKind,          0, 8> {};
-  class ToBits:        public BitField<ElementsKind,          8, 8> {};
-  class IsJSArrayBits: public BitField<bool,                 16, 1> {};
-  class StoreModeBits: public BitField<KeyedAccessStoreMode, 17, 4> {};
+  class FromBits:       public BitField<ElementsKind,        0, 8> {};
+  class ToBits:         public BitField<ElementsKind,        8, 8> {};
+  class IsJSArrayBits:  public BitField<bool,                16, 1> {};
+  class StrictModeBits: public BitField<StrictModeFlag,      17, 1> {};
+  class StoreModeBits: public BitField<KeyedAccessStoreMode, 18, 4> {};
 
   Major MajorKey() { return ElementsTransitionAndStore; }
-  int NotMissMinorKey() {
-    return FromBits::encode(from()) |
-        ToBits::encode(to()) |
-        IsJSArrayBits::encode(is_jsarray()) |
-        StoreModeBits::encode(store_mode());
+  int MinorKey() {
+    return FromBits::encode(from_) |
+        ToBits::encode(to_) |
+        IsJSArrayBits::encode(is_jsarray_) |
+        StrictModeBits::encode(strict_mode_) |
+        StoreModeBits::encode(store_mode_);
   }
+
+  void Generate(MacroAssembler* masm);
 
   ElementsKind from_;
   ElementsKind to_;
   bool is_jsarray_;
+  StrictModeFlag strict_mode_;
   KeyedAccessStoreMode store_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(ElementsTransitionAndStoreStub);
