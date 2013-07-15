@@ -258,17 +258,6 @@ void StoreGlobalStub::InitializeInterfaceDescriptor(
 }
 
 
-void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { r0, r3, r1, r2 };
-  descriptor->register_param_count_ = 4;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss);
-}
-
-
 #define __ ACCESS_MASM(masm)
 
 
