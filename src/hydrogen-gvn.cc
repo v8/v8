@@ -619,7 +619,7 @@ HGlobalValueNumberingPhase::CollectSideEffectsOnPathsToDominatedBlock(
   GVNFlagSet side_effects;
   for (int i = 0; i < dominated->predecessors()->length(); ++i) {
     HBasicBlock* block = dominated->predecessors()->at(i);
-    if (dominator->block_id() <= block->block_id() &&
+    if (dominator->block_id() < block->block_id() &&
         block->block_id() < dominated->block_id() &&
         visited_on_paths_.Add(block->block_id())) {
       side_effects.Add(block_side_effects_[block->block_id()]);
@@ -773,6 +773,7 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
     // If this is a loop header kill everything killed by the loop.
     if (block->IsLoopHeader()) {
       map->Kill(loop_side_effects_[block->block_id()]);
+      dominators->Kill(loop_side_effects_[block->block_id()]);
     }
 
     // Go through all instructions of the current block.
