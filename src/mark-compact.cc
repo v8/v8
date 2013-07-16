@@ -1939,40 +1939,28 @@ static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque,
   ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
   ASSERT(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
 
-  MarkBit::CellType* cells = p->markbits()->cells();
+  for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
+    Address cell_base = it.CurrentCellBase();
+    MarkBit::CellType* cell = it.CurrentCell();
 
-  int last_cell_index =
-      Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->area_end())));
-
-  Address cell_base = p->area_start();
-  int cell_index = Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(cell_base)));
-
-
-  for (;
-       cell_index < last_cell_index;
-       cell_index++, cell_base += 32 * kPointerSize) {
-    ASSERT(static_cast<unsigned>(cell_index) ==
-           Bitmap::IndexToCell(
-               Bitmap::CellAlignIndex(
-                   p->AddressToMarkbitIndex(cell_base))));
-
-    const MarkBit::CellType current_cell = cells[cell_index];
+    const MarkBit::CellType current_cell = *cell;
     if (current_cell == 0) continue;
 
-    const MarkBit::CellType next_cell = cells[cell_index + 1];
-    MarkBit::CellType grey_objects = current_cell &
-        ((current_cell >> 1) | (next_cell << (Bitmap::kBitsPerCell - 1)));
+    MarkBit::CellType grey_objects;
+    if (it.HasNext()) {
+      const MarkBit::CellType next_cell = *(cell+1);
+      grey_objects = current_cell &
+          ((current_cell >> 1) | (next_cell << (Bitmap::kBitsPerCell - 1)));
+    } else {
+      grey_objects = current_cell & (current_cell >> 1);
+    }
 
     int offset = 0;
     while (grey_objects != 0) {
       int trailing_zeros = CompilerIntrinsics::CountTrailingZeros(grey_objects);
       grey_objects >>= trailing_zeros;
       offset += trailing_zeros;
-      MarkBit markbit(&cells[cell_index], 1 << offset, false);
+      MarkBit markbit(cell, 1 << offset, false);
       ASSERT(Marking::IsGrey(markbit));
       Marking::GreyToBlack(markbit);
       Address addr = cell_base + offset * kPointerSize;
@@ -2000,25 +1988,11 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
   MarkBit::CellType* cells = p->markbits()->cells();
   int survivors_size = 0;
 
-  int last_cell_index =
-      Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->area_end())));
+  for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
+    Address cell_base = it.CurrentCellBase();
+    MarkBit::CellType* cell = it.CurrentCell();
 
-  Address cell_base = p->area_start();
-  int cell_index = Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(cell_base)));
-
-  for (;
-       cell_index < last_cell_index;
-       cell_index++, cell_base += 32 * kPointerSize) {
-    ASSERT(static_cast<unsigned>(cell_index) ==
-           Bitmap::IndexToCell(
-               Bitmap::CellAlignIndex(
-                   p->AddressToMarkbitIndex(cell_base))));
-
-    MarkBit::CellType current_cell = cells[cell_index];
+    MarkBit::CellType current_cell = *cell;
     if (current_cell == 0) continue;
 
     int offset = 0;
@@ -2058,7 +2032,7 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
                     size,
                     NEW_SPACE);
     }
-    cells[cell_index] = 0;
+    *cells = 0;
   }
   return survivors_size;
 }
@@ -2985,31 +2959,17 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
   AlwaysAllocateScope always_allocate;
   PagedSpace* space = static_cast<PagedSpace*>(p->owner());
   ASSERT(p->IsEvacuationCandidate() && !p->WasSwept());
-  MarkBit::CellType* cells = p->markbits()->cells();
   p->MarkSweptPrecisely();
-
-  int last_cell_index =
-      Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->area_end())));
-
-  Address cell_base = p->area_start();
-  int cell_index = Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(cell_base)));
 
   int offsets[16];
 
-  for (;
-       cell_index < last_cell_index;
-       cell_index++, cell_base += 32 * kPointerSize) {
-    ASSERT(static_cast<unsigned>(cell_index) ==
-           Bitmap::IndexToCell(
-               Bitmap::CellAlignIndex(
-                   p->AddressToMarkbitIndex(cell_base))));
-    if (cells[cell_index] == 0) continue;
+  for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
+    Address cell_base = it.CurrentCellBase();
+    MarkBit::CellType* cell = it.CurrentCell();
 
-    int live_objects = MarkWordToObjectStarts(cells[cell_index], offsets);
+    if (*cell == 0) continue;
+
+    int live_objects = MarkWordToObjectStarts(*cell, offsets);
     for (int i = 0; i < live_objects; i++) {
       Address object_addr = cell_base + offsets[i] * kPointerSize;
       HeapObject* object = HeapObject::FromAddress(object_addr);
@@ -3034,7 +2994,7 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
     }
 
     // Clear marking bits for current cell.
-    cells[cell_index] = 0;
+    *cell = 0;
   }
   p->ResetLiveBytes();
 }
@@ -3155,22 +3115,10 @@ static void SweepPrecisely(PagedSpace* space,
     start_time = OS::TimeCurrentMillis();
   }
 
-  MarkBit::CellType* cells = p->markbits()->cells();
   p->MarkSweptPrecisely();
 
-  int last_cell_index =
-      Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->area_end())));
-
   Address free_start = p->area_start();
-  int cell_index =
-      Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(free_start)));
-
   ASSERT(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
-  Address object_address = free_start;
   int offsets[16];
 
   SkipList* skip_list = p->skip_list();
@@ -3179,17 +3127,13 @@ static void SweepPrecisely(PagedSpace* space,
     skip_list->Clear();
   }
 
-  for (;
-       cell_index < last_cell_index;
-       cell_index++, object_address += 32 * kPointerSize) {
-    ASSERT(static_cast<unsigned>(cell_index) ==
-           Bitmap::IndexToCell(
-               Bitmap::CellAlignIndex(
-                   p->AddressToMarkbitIndex(object_address))));
-    int live_objects = MarkWordToObjectStarts(cells[cell_index], offsets);
+  for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
+    Address cell_base = it.CurrentCellBase();
+    MarkBit::CellType* cell = it.CurrentCell();
+    int live_objects = MarkWordToObjectStarts(*cell, offsets);
     int live_index = 0;
     for ( ; live_objects != 0; live_objects--) {
-      Address free_end = object_address + offsets[live_index++] * kPointerSize;
+      Address free_end = cell_base + offsets[live_index++] * kPointerSize;
       if (free_end != free_start) {
         space->Free(free_start, static_cast<int>(free_end - free_start));
 #ifdef ENABLE_GDB_JIT_INTERFACE
@@ -3219,7 +3163,7 @@ static void SweepPrecisely(PagedSpace* space,
       free_start = free_end + size;
     }
     // Clear marking bits for current cell.
-    cells[cell_index] = 0;
+    *cell = 0;
   }
   if (free_start != p->area_end()) {
     space->Free(free_start, static_cast<int>(p->area_end() - free_start));
@@ -3886,40 +3830,32 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
          (mode == MarkCompactCollector::SWEEP_SEQUENTIALLY &&
          free_list == NULL));
 
-  MarkBit::CellType* cells = p->markbits()->cells();
   p->MarkSweptConservatively();
 
-  int last_cell_index =
-      Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->area_end())));
-
-  int cell_index =
-      Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->area_start())));
-
   intptr_t freed_bytes = 0;
-
-  // This is the start of the 32 word block that we are currently looking at.
-  Address block_address = p->area_start();
+  size_t size = 0;
 
   // Skip over all the dead objects at the start of the page and mark them free.
-  for (;
-       cell_index < last_cell_index;
-       cell_index++, block_address += 32 * kPointerSize) {
-    if (cells[cell_index] != 0) break;
+  Address cell_base = 0;
+  MarkBit::CellType* cell = NULL;
+  MarkBitCellIterator it(p);
+  for (; !it.Done(); it.Advance()) {
+    cell_base = it.CurrentCellBase();
+    cell = it.CurrentCell();
+    if (*cell != 0) break;
   }
-  size_t size = block_address - p->area_start();
-  if (cell_index == last_cell_index) {
+
+  if (it.Done()) {
+    size = p->area_end() - p->area_start();
     freed_bytes += Free<mode>(space, free_list, p->area_start(),
                               static_cast<int>(size));
     ASSERT_EQ(0, p->LiveBytes());
     return freed_bytes;
   }
+
   // Grow the size of the start-of-page free space a little to get up to the
   // first live object.
-  Address free_end = StartOfLiveObject(block_address, cells[cell_index]);
+  Address free_end = StartOfLiveObject(cell_base, *cell);
   // Free the first free space.
   size = free_end - p->area_start();
   freed_bytes += Free<mode>(space, free_list, p->area_start(),
@@ -3931,45 +3867,40 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
   // started.  Unless we find a large free space in the bitmap we will not
   // digest this pair into a real address.  We start the iteration here at the
   // first word in the marking bit map that indicates a live object.
-  Address free_start = block_address;
-  uint32_t free_start_cell = cells[cell_index];
+  Address free_start = cell_base;
+  MarkBit::CellType free_start_cell = *cell;
 
-  for ( ;
-       cell_index < last_cell_index;
-       cell_index++, block_address += 32 * kPointerSize) {
-    ASSERT((unsigned)cell_index ==
-        Bitmap::IndexToCell(
-            Bitmap::CellAlignIndex(
-                p->AddressToMarkbitIndex(block_address))));
-    uint32_t cell = cells[cell_index];
-    if (cell != 0) {
+  for (; !it.Done(); it.Advance()) {
+    cell_base = it.CurrentCellBase();
+    cell = it.CurrentCell();
+    if (*cell != 0) {
       // We have a live object.  Check approximately whether it is more than 32
       // words since the last live object.
-      if (block_address - free_start > 32 * kPointerSize) {
+      if (cell_base - free_start > 32 * kPointerSize) {
         free_start = DigestFreeStart(free_start, free_start_cell);
-        if (block_address - free_start > 32 * kPointerSize) {
+        if (cell_base - free_start > 32 * kPointerSize) {
           // Now that we know the exact start of the free space it still looks
           // like we have a large enough free space to be worth bothering with.
           // so now we need to find the start of the first live object at the
           // end of the free space.
-          free_end = StartOfLiveObject(block_address, cell);
+          free_end = StartOfLiveObject(cell_base, *cell);
           freed_bytes += Free<mode>(space, free_list, free_start,
                                     static_cast<int>(free_end - free_start));
         }
       }
       // Update our undigested record of where the current free area started.
-      free_start = block_address;
-      free_start_cell = cell;
+      free_start = cell_base;
+      free_start_cell = *cell;
       // Clear marking bits for current cell.
-      cells[cell_index] = 0;
+      *cell = 0;
     }
   }
 
   // Handle the free space at the end of the page.
-  if (block_address - free_start > 32 * kPointerSize) {
+  if (cell_base - free_start > 32 * kPointerSize) {
     free_start = DigestFreeStart(free_start, free_start_cell);
     freed_bytes += Free<mode>(space, free_list, free_start,
-                              static_cast<int>(block_address - free_start));
+                              static_cast<int>(p->area_end() - free_start));
   }
 
   p->ResetLiveBytes();
