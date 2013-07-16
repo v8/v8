@@ -712,22 +712,18 @@ class GvnBasicBlockState: public ZoneObject {
                  zone);
       return this;
     } else if (dominated_index_ < length_) {
-      return push(zone,
-                  block_->dominated_blocks()->at(dominated_index_),
-                  dominators());
+      return push(zone, block_->dominated_blocks()->at(dominated_index_));
     } else {
       return NULL;
     }
   }
 
-  GvnBasicBlockState* push(Zone* zone,
-                           HBasicBlock* block,
-                           HSideEffectMap* dominators) {
+  GvnBasicBlockState* push(Zone* zone, HBasicBlock* block) {
     if (next_ == NULL) {
       next_ =
-          new(zone) GvnBasicBlockState(this, block, map(), dominators, zone);
+          new(zone) GvnBasicBlockState(this, block, map(), dominators(), zone);
     } else {
-      next_->Initialize(block, map(), dominators, true, zone);
+      next_->Initialize(block, map(), dominators(), true, zone);
     }
     return next_;
   }
