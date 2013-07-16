@@ -3181,10 +3181,17 @@ HType HAllocate::CalculateInferredType() {
 void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
   ASSERT(side_effect == kChangesNewSpacePromotion);
+  if (!FLAG_use_allocation_folding) return;
+
   // Try to fold allocations together with their dominating allocations.
-  if (!FLAG_use_allocation_folding || !dominator->IsAllocate()) {
+  if (!dominator->IsAllocate()) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s)\n",
+          id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+    }
     return;
   }
+
   HAllocate* dominator_allocate_instr = HAllocate::cast(dominator);
   HValue* dominator_size = dominator_allocate_instr->size();
   HValue* current_size = size();
@@ -3196,6 +3203,10 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       !dominator_allocate_instr->GuaranteedInNewSpace() ||
       dominator_allocate_instr->MustAllocateDoubleAligned() ||
       !dominator_size->IsInteger32Constant()) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s)\n",
+          id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+    }
     return;
   }
 
