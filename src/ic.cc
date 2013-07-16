@@ -191,17 +191,6 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
     if (Name::cast(name) != stub_name) return false;
   }
 
-  if (receiver->IsGlobalObject()) {
-    if (!name->IsName()) return false;
-    Isolate* isolate = target->GetIsolate();
-    LookupResult lookup(isolate);
-    GlobalObject* global = GlobalObject::cast(receiver);
-    global->LocalLookupRealNamedProperty(Name::cast(name), &lookup);
-    if (!lookup.IsFound()) return false;
-    PropertyCell* cell = global->GetPropertyCell(&lookup);
-    return cell->type()->IsConstant();
-  }
-
   InlineCacheHolderFlag cache_holder =
       Code::ExtractCacheHolderFromFlags(target->flags());
 
@@ -242,18 +231,32 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
     return true;
   }
 
+  // The stub is not in the cache. We've ruled out all other kinds of failure
+  // except for proptotype chain changes, a deprecated map, a map that's
+  // different from the one that the stub expects, or a constant global property
+  // that will become mutable. Threat all those situations as prototype failures
+  // (stay monomorphic if possible).
+
   // If the IC is shared between multiple receivers (slow dictionary mode), then
   // the map cannot be deprecated and the stub invalidated.
-  if (cache_holder != OWN_MAP) return false;
+  if (cache_holder == OWN_MAP) {
+    Map* old_map = target->FindFirstMap();
+    if (old_map == map) return true;
+    if (old_map != NULL && old_map->is_deprecated()) return true;
+  }
 
-  // The stub is not in the cache. We've ruled out all other kinds of failure
-  // except for proptotype chain changes, a deprecated map, or a map that's
-  // different from the one that the stub expects. If the map hasn't changed,
-  // assume it's a prototype failure. Treat deprecated maps in the same way as
-  // prototype failures (stay monomorphic if possible).
-  Map* old_map = target->FindFirstMap();
-  if (old_map == NULL) return false;
-  return old_map == map || old_map->is_deprecated();
+  if (receiver->IsGlobalObject()) {
+    if (!name->IsName()) return false;
+    Isolate* isolate = target->GetIsolate();
+    LookupResult lookup(isolate);
+    GlobalObject* global = GlobalObject::cast(receiver);
+    global->LocalLookupRealNamedProperty(Name::cast(name), &lookup);
+    if (!lookup.IsFound()) return false;
+    PropertyCell* cell = global->GetPropertyCell(&lookup);
+    return cell->type()->IsConstant();
+  }
+
+  return false;
 }
 
 
