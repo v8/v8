@@ -160,7 +160,7 @@ static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth) {
         ++unretained_entries_count;
     }
   }
-  return unretained_entries_count > 1 ? false : true;
+  return unretained_entries_count == 0;
 }
 
 

@@ -930,7 +930,6 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
   if (heap_entry == NULL) return;  // No interest in this object.
   int entry = heap_entry->index();
 
-  bool extract_indexed_refs = true;
   if (obj->IsJSGlobalProxy()) {
     ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
   } else if (obj->IsJSObject()) {
@@ -953,18 +952,17 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractCodeReferences(entry, Code::cast(obj));
   } else if (obj->IsCell()) {
     ExtractCellReferences(entry, Cell::cast(obj));
-    extract_indexed_refs = false;
   } else if (obj->IsPropertyCell()) {
     ExtractPropertyCellReferences(entry, PropertyCell::cast(obj));
-    extract_indexed_refs = false;
   } else if (obj->IsAllocationSite()) {
     ExtractAllocationSiteReferences(entry, AllocationSite::cast(obj));
   }
-  if (extract_indexed_refs) {
-    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
-    IndexedReferencesExtractor refs_extractor(this, obj, entry);
-    obj->Iterate(&refs_extractor);
-  }
+  SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
+
+  // Extract unvisited fields as hidden references and restore tags
+  // of visited fields.
+  IndexedReferencesExtractor refs_extractor(this, obj, entry);
+  obj->Iterate(&refs_extractor);
 }
 
 
@@ -1250,14 +1248,17 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
 
 
 void V8HeapExplorer::ExtractCellReferences(int entry, Cell* cell) {
-  SetInternalReference(cell, entry, "value", cell->value());
+  SetInternalReference(cell, entry, "value", cell->value(), Cell::kValueOffset);
 }
 
 
 void V8HeapExplorer::ExtractPropertyCellReferences(int entry,
                                                    PropertyCell* cell) {
-  SetInternalReference(cell, entry, "value", cell->value());
-  SetInternalReference(cell, entry, "type", cell->type());
+  ExtractCellReferences(entry, cell);
+  SetInternalReference(cell, entry, "type", cell->type(),
+                       PropertyCell::kTypeOffset);
+  SetInternalReference(cell, entry, "dependent_code", cell->dependent_code(),
+                       PropertyCell::kDependentCodeOffset);
 }
 
 
