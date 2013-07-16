@@ -458,12 +458,13 @@ function TestTypedArraySet() {
     a[i] = i;
     expected.push(i);
   }
-  a.set(0);
-  assertArrayPrefix(expected, a);
   a.set({});
   assertArrayPrefix(expected, a);
   assertThrows(function() { a.set.call({}) }, TypeError);
   assertThrows(function() { a.set.call([]) }, TypeError);
+
+  assertThrows(function() { a.set(0); }, TypeError);
+  assertThrows(function() { a.set(0, 1); }, TypeError);
 }
 
 TestTypedArraySet();
