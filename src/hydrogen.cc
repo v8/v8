@@ -4611,19 +4611,6 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedGeneric(
 }
 
 
-HInstruction* HOptimizedGraphBuilder::BuildCallSetter(
-    HValue* object,
-    HValue* value,
-    Handle<Map> map,
-    Handle<JSFunction> setter,
-    Handle<JSObject> holder) {
-  AddCheckConstantFunction(holder, object, map);
-  Add<HPushArgument>(object);
-  Add<HPushArgument>(value);
-  return new(zone()) HCallConstantFunction(setter, 2);
-}
-
-
 HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
     HValue* object,
     Handle<String> name,

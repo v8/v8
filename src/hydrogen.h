@@ -1842,11 +1842,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   HInstruction* BuildStoreNamedGeneric(HValue* object,
                                        Handle<String> name,
                                        HValue* value);
-  HInstruction* BuildCallSetter(HValue* object,
-                                HValue* value,
-                                Handle<Map> map,
-                                Handle<JSFunction> setter,
-                                Handle<JSObject> holder);
   HInstruction* BuildStoreNamedMonomorphic(HValue* object,
                                            Handle<String> name,
                                            HValue* value,
