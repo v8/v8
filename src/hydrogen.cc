@@ -37,6 +37,7 @@
 #include "hydrogen-canonicalize.h"
 #include "hydrogen-dce.h"
 #include "hydrogen-dehoist.h"
+#include "hydrogen-deoptimizing-mark.h"
 #include "hydrogen-environment-liveness.h"
 #include "hydrogen-escape-analysis.h"
 #include "hydrogen-infer-representation.h"
@@ -2427,87 +2428,6 @@ void HGraph::AssignDominators() {
 }
 
 
-// Mark all blocks that are dominated by an unconditional soft deoptimize to
-// prevent code motion across those blocks.
-void HGraph::PropagateDeoptimizingMark() {
-  HPhase phase("H_Propagate deoptimizing mark", this);
-  // Skip this phase if there is nothing to be done anyway.
-  if (!has_soft_deoptimize()) return;
-  MarkAsDeoptimizingRecursively(entry_block());
-  NullifyUnreachableInstructions();
-}
-
-
-void HGraph::MarkAsDeoptimizingRecursively(HBasicBlock* block) {
-  for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
-    HBasicBlock* dominated = block->dominated_blocks()->at(i);
-    if (block->IsDeoptimizing()) dominated->MarkAsDeoptimizing();
-    MarkAsDeoptimizingRecursively(dominated);
-  }
-}
-
-
-void HGraph::NullifyUnreachableInstructions() {
-  if (!FLAG_unreachable_code_elimination) return;
-  int block_count = blocks_.length();
-  for (int i = 0; i < block_count; ++i) {
-    HBasicBlock* block = blocks_.at(i);
-    bool nullify = false;
-    const ZoneList<HBasicBlock*>* predecessors = block->predecessors();
-    int predecessors_length = predecessors->length();
-    bool all_predecessors_deoptimizing = (predecessors_length > 0);
-    for (int j = 0; j < predecessors_length; ++j) {
-      if (!predecessors->at(j)->IsDeoptimizing()) {
-        all_predecessors_deoptimizing = false;
-        break;
-      }
-    }
-    if (all_predecessors_deoptimizing) nullify = true;
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      // Leave the basic structure of the graph intact.
-      if (instr->IsBlockEntry()) continue;
-      if (instr->IsControlInstruction()) continue;
-      if (instr->IsSimulate()) continue;
-      if (instr->IsEnterInlined()) continue;
-      if (instr->IsLeaveInlined()) continue;
-      if (nullify) {
-        HInstruction* last_dummy = NULL;
-        for (int j = 0; j < instr->OperandCount(); ++j) {
-          HValue* operand = instr->OperandAt(j);
-          // Insert an HDummyUse for each operand, unless the operand
-          // is an HDummyUse itself. If it's even from the same block,
-          // remember it as a potential replacement for the instruction.
-          if (operand->IsDummyUse()) {
-            if (operand->block() == instr->block() &&
-                last_dummy == NULL) {
-              last_dummy = HInstruction::cast(operand);
-            }
-            continue;
-          }
-          if (operand->IsControlInstruction()) {
-            // Inserting a dummy use for a value that's not defined anywhere
-            // will fail. Some instructions define fake inputs on such
-            // values as control flow dependencies.
-            continue;
-          }
-          HDummyUse* dummy = new(zone()) HDummyUse(operand);
-          dummy->InsertBefore(instr);
-          last_dummy = dummy;
-        }
-        if (last_dummy == NULL) last_dummy = GetConstant1();
-        instr->DeleteAndReplaceWith(last_dummy);
-        continue;
-      }
-      if (instr->IsSoftDeoptimize()) {
-        ASSERT(block->IsDeoptimizing());
-        nullify = true;
-      }
-    }
-  }
-}
-
-
 bool HGraph::CheckArgumentsPhiUses() {
   int block_count = blocks_.length();
   for (int i = 0; i < block_count; ++i) {
@@ -3026,7 +2946,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
     Run<HEnvironmentLivenessAnalysisPhase>();
   }
 
-  PropagateDeoptimizingMark();
+  Run<HPropagateDeoptimizingMarkPhase>();
   if (!CheckConstPhiUses()) {
     *bailout_reason = SmartArrayPointer<char>(StrDup(
         "Unsupported phi use of const variable"));
@@ -4688,19 +4608,6 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedGeneric(
                          name,
                          value,
                          function_strict_mode_flag());
-}
-
-
-HInstruction* HOptimizedGraphBuilder::BuildCallSetter(
-    HValue* object,
-    HValue* value,
-    Handle<Map> map,
-    Handle<JSFunction> setter,
-    Handle<JSObject> holder) {
-  AddCheckConstantFunction(holder, object, map);
-  Add<HPushArgument>(object);
-  Add<HPushArgument>(value);
-  return new(zone()) HCallConstantFunction(setter, 2);
 }
 
 
@@ -7337,7 +7244,8 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
   return constructor->has_initial_map() &&
       constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
-      constructor->initial_map()->instance_size() < HAllocateObject::kMaxSize;
+      constructor->initial_map()->instance_size() < HAllocate::kMaxInlineSize &&
+      constructor->initial_map()->InitialPropertiesLength() == 0;
 }
 
 
@@ -7347,6 +7255,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   ASSERT(current_block()->HasPredecessor());
   int argument_count = expr->arguments()->length() + 1;  // Plus constructor.
   HValue* context = environment()->LookupContext();
+  Factory* factory = isolate()->factory();
 
   if (FLAG_inline_construct &&
       expr->IsMonomorphic() &&
@@ -7365,19 +7274,73 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
       constructor->shared()->CompleteInobjectSlackTracking();
     }
 
-    // Replace the constructor function with a newly allocated receiver.
-    HInstruction* receiver = Add<HAllocateObject>(context, constructor);
-    // Index of the receiver from the top of the expression stack.
+    // Calculate instance size from initial map of constructor.
+    ASSERT(constructor->has_initial_map());
+    Handle<Map> initial_map(constructor->initial_map());
+    int instance_size = initial_map->instance_size();
+    ASSERT(initial_map->InitialPropertiesLength() == 0);
+
+    // Allocate an instance of the implicit receiver object.
+    HValue* size_in_bytes = Add<HConstant>(instance_size);
+    HAllocate::Flags flags = HAllocate::DefaultFlags();
+    if (FLAG_pretenuring_call_new &&
+        isolate()->heap()->ShouldGloballyPretenure()) {
+      flags = static_cast<HAllocate::Flags>(
+          flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
+    }
+    HAllocate* receiver =
+        Add<HAllocate>(context, size_in_bytes, HType::JSObject(), flags);
+    receiver->set_known_initial_map(initial_map);
+
+    // Load the initial map from the constructor.
+    HValue* constructor_value = Add<HConstant>(constructor);
+    HValue* initial_map_value =
+        AddLoad(constructor_value, HObjectAccess::ForJSObjectOffset(
+            JSFunction::kPrototypeOrInitialMapOffset));
+
+    // Initialize map and fields of the newly allocated object.
+    { NoObservableSideEffectsScope no_effects(this);
+      ASSERT(initial_map->instance_type() == JS_OBJECT_TYPE);
+      AddStore(receiver,
+               HObjectAccess::ForJSObjectOffset(JSObject::kMapOffset),
+               initial_map_value);
+      HValue* empty_fixed_array = Add<HConstant>(factory->empty_fixed_array());
+      AddStore(receiver,
+               HObjectAccess::ForJSObjectOffset(JSObject::kPropertiesOffset),
+               empty_fixed_array);
+      AddStore(receiver,
+               HObjectAccess::ForJSObjectOffset(JSObject::kElementsOffset),
+               empty_fixed_array);
+      if (initial_map->inobject_properties() != 0) {
+        HConstant* undefined = graph()->GetConstantUndefined();
+        for (int i = 0; i < initial_map->inobject_properties(); i++) {
+          int property_offset = JSObject::kHeaderSize + i * kPointerSize;
+          AddStore(receiver,
+                   HObjectAccess::ForJSObjectOffset(property_offset),
+                   undefined);
+        }
+      }
+    }
+
+    // Replace the constructor function with a newly allocated receiver using
+    // the index of the receiver from the top of the expression stack.
     const int receiver_index = argument_count - 1;
     ASSERT(environment()->ExpressionStackAt(receiver_index) == function);
     environment()->SetExpressionStackAt(receiver_index, receiver);
 
     if (TryInlineConstruct(expr, receiver)) return;
 
-    // TODO(mstarzinger): For now we remove the previous HAllocateObject and
-    // add HPushArgument for the arguments in case inlining failed.  What we
-    // actually should do is emit HInvokeFunction on the constructor instead
-    // of using HCallNew as a fallback.
+    // TODO(mstarzinger): For now we remove the previous HAllocate and all
+    // corresponding instructions and instead add HPushArgument for the
+    // arguments in case inlining failed.  What we actually should do is for
+    // inlining to try to build a subgraph without mutating the parent graph.
+    HInstruction* instr = current_block()->last();
+    while (instr != initial_map_value) {
+      HInstruction* prev_instr = instr->previous();
+      instr->DeleteAndReplaceWith(NULL);
+      instr = prev_instr;
+    }
+    initial_map_value->DeleteAndReplaceWith(NULL);
     receiver->DeleteAndReplaceWith(NULL);
     check->DeleteAndReplaceWith(NULL);
     environment()->SetExpressionStackAt(receiver_index, function);

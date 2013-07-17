@@ -91,6 +91,10 @@ endif
 ifeq ($(vtunejit), on)
   GYPFLAGS += -Dv8_enable_vtunejit=1
 endif
+# optdebug=on
+ifeq ($(optdebug), on)
+  GYPFLAGS += -Dv8_optimized_debug=1
+endif
 # debuggersupport=off
 ifeq ($(debuggersupport), off)
   GYPFLAGS += -Dv8_enable_debugger_support=0
@@ -352,6 +356,7 @@ clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.cl
 # GYP file generation targets.
 OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
 $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
@@ -359,6 +364,7 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	              -S.$(subst .,,$(suffix $@)) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)

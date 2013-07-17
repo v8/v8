@@ -1563,24 +1563,18 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
     // For global const variables we bind the proxy to a variable.
     ASSERT(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
-    var = new(zone()) Variable(declaration_scope,
-                               name,
-                               mode,
-                               true,
-                               kind,
-                               kNeedsInitialization);
+    var = new(zone()) Variable(
+        declaration_scope, name, mode, true, kind,
+        kNeedsInitialization, proxy->interface());
   } else if (declaration_scope->is_eval_scope() &&
              declaration_scope->is_classic_mode()) {
     // For variable declarations in a non-strict eval scope the proxy is bound
     // to a lookup variable to force a dynamic declaration using the
     // DeclareContextSlot runtime function.
     Variable::Kind kind = Variable::NORMAL;
-    var = new(zone()) Variable(declaration_scope,
-                               name,
-                               mode,
-                               true,
-                               kind,
-                               declaration->initialization());
+    var = new(zone()) Variable(
+        declaration_scope, name, mode, true, kind,
+        declaration->initialization(), proxy->interface());
     var->AllocateTo(Variable::LOOKUP, -1);
     resolve = true;
   }

@@ -67,7 +67,6 @@ class HBasicBlock: public ZoneObject {
   HInstruction* first() const { return first_; }
   HInstruction* last() const { return last_; }
   void set_last(HInstruction* instr) { last_ = instr; }
-  HInstruction* GetLastInstruction();
   HControlInstruction* end() const { return end_; }
   HLoopInformation* loop_information() const { return loop_information_; }
   const ZoneList<HBasicBlock*>* predecessors() const { return &predecessors_; }
@@ -304,7 +303,6 @@ class HGraph: public ZoneObject {
   void AssignDominators();
   void SetupInformativeDefinitions();
   void RestoreActualValues();
-  void PropagateDeoptimizingMark();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
@@ -447,8 +445,6 @@ class HGraph: public ZoneObject {
     phase.Run();
   }
 
-  void MarkAsDeoptimizingRecursively(HBasicBlock* block);
-  void NullifyUnreachableInstructions();
   void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
@@ -1846,11 +1842,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   HInstruction* BuildStoreNamedGeneric(HValue* object,
                                        Handle<String> name,
                                        HValue* value);
-  HInstruction* BuildCallSetter(HValue* object,
-                                HValue* value,
-                                Handle<Map> map,
-                                Handle<JSFunction> setter,
-                                Handle<JSObject> holder);
   HInstruction* BuildStoreNamedMonomorphic(HValue* object,
                                            Handle<String> name,
                                            HValue* value,

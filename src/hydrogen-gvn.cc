@@ -368,7 +368,7 @@ HGlobalValueNumberingPhase::HGlobalValueNumberingPhase(HGraph* graph)
         removed_side_effects_(false),
         block_side_effects_(graph->blocks()->length(), zone()),
         loop_side_effects_(graph->blocks()->length(), zone()),
-        visited_on_paths_(zone(), graph->blocks()->length()) {
+        visited_on_paths_(graph->blocks()->length(), zone()) {
     ASSERT(!AllowHandleAllocation::IsAllowed());
     block_side_effects_.AddBlock(GVNFlagSet(), graph->blocks()->length(),
                                  zone());
@@ -619,9 +619,10 @@ HGlobalValueNumberingPhase::CollectSideEffectsOnPathsToDominatedBlock(
   GVNFlagSet side_effects;
   for (int i = 0; i < dominated->predecessors()->length(); ++i) {
     HBasicBlock* block = dominated->predecessors()->at(i);
-    if (dominator->block_id() <= block->block_id() &&
+    if (dominator->block_id() < block->block_id() &&
         block->block_id() < dominated->block_id() &&
-        visited_on_paths_.Add(block->block_id())) {
+        !visited_on_paths_.Contains(block->block_id())) {
+      visited_on_paths_.Add(block->block_id());
       side_effects.Add(block_side_effects_[block->block_id()]);
       if (block->IsLoopHeader()) {
         side_effects.Add(loop_side_effects_[block->block_id()]);
@@ -711,22 +712,18 @@ class GvnBasicBlockState: public ZoneObject {
                  zone);
       return this;
     } else if (dominated_index_ < length_) {
-      return push(zone,
-                  block_->dominated_blocks()->at(dominated_index_),
-                  dominators());
+      return push(zone, block_->dominated_blocks()->at(dominated_index_));
     } else {
       return NULL;
     }
   }
 
-  GvnBasicBlockState* push(Zone* zone,
-                           HBasicBlock* block,
-                           HSideEffectMap* dominators) {
+  GvnBasicBlockState* push(Zone* zone, HBasicBlock* block) {
     if (next_ == NULL) {
       next_ =
-          new(zone) GvnBasicBlockState(this, block, map(), dominators, zone);
+          new(zone) GvnBasicBlockState(this, block, map(), dominators(), zone);
     } else {
-      next_->Initialize(block, map(), dominators, true, zone);
+      next_->Initialize(block, map(), dominators(), true, zone);
     }
     return next_;
   }
@@ -773,6 +770,7 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
     // If this is a loop header kill everything killed by the loop.
     if (block->IsLoopHeader()) {
       map->Kill(loop_side_effects_[block->block_id()]);
+      dominators->Kill(loop_side_effects_[block->block_id()]);
     }
 
     // Go through all instructions of the current block.

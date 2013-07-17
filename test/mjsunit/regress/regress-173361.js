@@ -25,42 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "hydrogen-escape-analysis.h"
+// Flags: --harmony
 
-namespace v8 {
-namespace internal {
+const x = 7;
 
-
-void HEscapeAnalysisPhase::CollectIfNoEscapingUses(HInstruction* instr) {
-  for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
-    HValue* use = it.value();
-    if (use->HasEscapingOperandAt(it.index())) {
-      if (FLAG_trace_escape_analysis) {
-        PrintF("#%d (%s) escapes through #%d (%s) @%d\n", instr->id(),
-               instr->Mnemonic(), use->id(), use->Mnemonic(), it.index());
-      }
-      return;
-    }
-  }
-  if (FLAG_trace_escape_analysis) {
-    PrintF("#%d (%s) is being captured\n", instr->id(), instr->Mnemonic());
-  }
-  captured_.Add(instr, zone());
-}
-
-
-void HEscapeAnalysisPhase::CollectCapturedValues() {
-  int block_count = graph()->blocks()->length();
-  for (int i = 0; i < block_count; ++i) {
-    HBasicBlock* block = graph()->blocks()->at(i);
-    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-      HInstruction* instr = it.Current();
-      if (instr->IsAllocate()) {
-        CollectIfNoEscapingUses(instr);
-      }
-    }
-  }
-}
-
-
-} }  // namespace v8::internal
+function f() { const y = 8; }
+f();

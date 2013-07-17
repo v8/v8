@@ -294,11 +294,92 @@ function TestSetters() {
   runFloatTestCases(false, 7);
 
   runNegativeIndexTests(false);
-
 }
 
 TestGetters();
 TestSetters();
+
+function CheckOutOfRangeInt8(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setInt8(0, value));
+  assertSame(expected, view.getInt8(0));
+  assertSame(undefined, view.setInt8(0, value, true));
+  assertSame(expected, view.getInt8(0, true));
+}
+
+function CheckOutOfRangeUint8(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setUint8(0, value));
+  assertSame(expected, view.getUint8(0));
+  assertSame(undefined, view.setUint8(0, value, true));
+  assertSame(expected, view.getUint8(0, true));
+}
+
+function CheckOutOfRangeInt16(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setInt16(0, value));
+  assertSame(expected, view.getInt16(0));
+  assertSame(undefined, view.setInt16(0, value, true));
+  assertSame(expected, view.getInt16(0, true));
+}
+
+function CheckOutOfRangeUint16(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setUint16(0, value));
+  assertSame(expected, view.getUint16(0));
+  assertSame(undefined, view.setUint16(0, value, true));
+  assertSame(expected, view.getUint16(0, true));
+}
+
+function CheckOutOfRangeInt32(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setInt32(0, value));
+  assertSame(expected, view.getInt32(0));
+  assertSame(undefined, view.setInt32(0, value, true));
+  assertSame(expected, view.getInt32(0, true));
+}
+
+function CheckOutOfRangeUint32(value, expected) {
+  var view = new DataView(new ArrayBuffer(100));
+  assertSame(undefined, view.setUint32(0, value));
+  assertSame(expected, view.getUint32(0));
+  assertSame(undefined, view.setUint32(0, value, true));
+  assertSame(expected, view.getUint32(0, true));
+}
+
+function TestOutOfRange() {
+  CheckOutOfRangeInt8(0x80,   -0x80);
+  CheckOutOfRangeInt8(0x1000, 0);
+  CheckOutOfRangeInt8(-0x81,  0x7F);
+
+  CheckOutOfRangeUint8(0x100,  0);
+  CheckOutOfRangeUint8(0x1000, 0);
+  CheckOutOfRangeUint8(-0x80,  0x80);
+  CheckOutOfRangeUint8(-1,     0xFF);
+  CheckOutOfRangeUint8(-0xFF,  1);
+
+  CheckOutOfRangeInt16(0x8000,  -0x8000);
+  CheckOutOfRangeInt16(0x10000, 0);
+  CheckOutOfRangeInt16(-0x8001, 0x7FFF);
+
+  CheckOutOfRangeUint16(0x10000,  0);
+  CheckOutOfRangeUint16(0x100000, 0);
+  CheckOutOfRangeUint16(-0x8000,  0x8000);
+  CheckOutOfRangeUint16(-1,       0xFFFF);
+  CheckOutOfRangeUint16(-0xFFFF,  1);
+
+  CheckOutOfRangeInt32(0x80000000,  -0x80000000);
+  CheckOutOfRangeInt32(0x100000000, 0);
+  CheckOutOfRangeInt32(-0x80000001, 0x7FFFFFFF);
+
+  CheckOutOfRangeUint32(0x100000000,  0);
+  CheckOutOfRangeUint32(0x1000000000, 0);
+  CheckOutOfRangeUint32(-0x80000000,  0x80000000);
+  CheckOutOfRangeUint32(-1,           0xFFFFFFFF);
+  CheckOutOfRangeUint32(-0xFFFFFFFF,  1);
+}
+
+TestOutOfRange();
 
 function TestGeneralAccessors() {
   var a = new DataView(new ArrayBuffer(256));

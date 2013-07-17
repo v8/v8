@@ -1216,6 +1216,59 @@ DATA_VIEW_GETTER(Float64, double, NumberFromDouble)
 
 #undef DATA_VIEW_GETTER
 
+
+template <typename T>
+static T DataViewConvertValue(double value);
+
+
+template <>
+int8_t DataViewConvertValue<int8_t>(double value) {
+  return static_cast<int8_t>(DoubleToInt32(value));
+}
+
+
+template <>
+int16_t DataViewConvertValue<int16_t>(double value) {
+  return static_cast<int16_t>(DoubleToInt32(value));
+}
+
+
+template <>
+int32_t DataViewConvertValue<int32_t>(double value) {
+  return DoubleToInt32(value);
+}
+
+
+template <>
+uint8_t DataViewConvertValue<uint8_t>(double value) {
+  return static_cast<uint8_t>(DoubleToUint32(value));
+}
+
+
+template <>
+uint16_t DataViewConvertValue<uint16_t>(double value) {
+  return static_cast<uint16_t>(DoubleToUint32(value));
+}
+
+
+template <>
+uint32_t DataViewConvertValue<uint32_t>(double value) {
+  return DoubleToUint32(value);
+}
+
+
+template <>
+float DataViewConvertValue<float>(double value) {
+  return static_cast<float>(value);
+}
+
+
+template <>
+double DataViewConvertValue<double>(double value) {
+  return value;
+}
+
+
 #define DATA_VIEW_SETTER(TypeName, Type)                                      \
   RUNTIME_FUNCTION(MaybeObject*, Runtime_DataViewSet##TypeName) {             \
     HandleScope scope(isolate);                                               \
@@ -1224,7 +1277,7 @@ DATA_VIEW_GETTER(Float64, double, NumberFromDouble)
     CONVERT_ARG_HANDLE_CHECKED(Object, offset, 1);                            \
     CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);                             \
     CONVERT_BOOLEAN_ARG_CHECKED(is_little_endian, 3);                         \
-    Type v = static_cast<Type>(value->Number());                              \
+    Type v = DataViewConvertValue<Type>(value->Number());                     \
     if (DataViewSetValue(                                                     \
           isolate, holder, offset, is_little_endian, v)) {                    \
       return isolate->heap()->undefined_value();                              \
@@ -8411,15 +8464,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompleteOptimization) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  // The least significant bit (after untagging) indicates whether the
-  // function is currently optimized, regardless of reason.
   if (!V8::UseCrankshaft()) {
     return Smi::FromInt(4);  // 4 == "never".
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (FLAG_parallel_recompilation) {
     if (function->IsMarkedForLazyRecompilation()) {
-      return Smi::FromInt(5);
+      return Smi::FromInt(5);  // 5 == "parallel recompilation".
     }
   }
   if (FLAG_always_opt) {
@@ -8427,6 +8478,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
     // promise, so we still say "no" if it is not optimized.
     return function->IsOptimized() ? Smi::FromInt(3)   // 3 == "always".
                                    : Smi::FromInt(2);  // 2 == "no".
+  }
+  if (FLAG_deopt_every_n_times) {
+    return Smi::FromInt(6);  // 6 == "maybe deopted".
   }
   return function->IsOptimized() ? Smi::FromInt(1)   // 1 == "yes".
                                  : Smi::FromInt(2);  // 2 == "no".

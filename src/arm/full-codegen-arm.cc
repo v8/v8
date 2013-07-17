@@ -169,9 +169,7 @@ void FullCodeGenerator::Generate() {
     // The following three instructions must remain together and unmodified
     // for code aging to work properly.
     __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
-    // Load undefined value here, so the value is ready for the loop
-    // below.
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ nop(ip.code());
     // Adjust FP to point to saved FP.
     __ add(fp, sp, Operand(2 * kPointerSize));
   }
@@ -181,8 +179,11 @@ void FullCodeGenerator::Generate() {
     int locals_count = info->scope()->num_stack_slots();
     // Generators allocate locals, if any, in context slots.
     ASSERT(!info->function()->is_generator() || locals_count == 0);
-    for (int i = 0; i < locals_count; i++) {
-      __ push(ip);
+    if (locals_count > 0) {
+      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+      for (int i = 0; i < locals_count; i++) {
+        __ push(ip);
+      }
     }
   }
 

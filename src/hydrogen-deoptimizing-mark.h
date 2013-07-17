@@ -25,65 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_GVN_H_
-#define V8_HYDROGEN_GVN_H_
+#ifndef V8_HYDROGEN_DEOPTIMIZING_MARK_H_
+#define V8_HYDROGEN_DEOPTIMIZING_MARK_H_
 
 #include "hydrogen.h"
-#include "hydrogen-instructions.h"
-#include "compiler.h"
-#include "zone.h"
 
 namespace v8 {
 namespace internal {
 
-// Perform common subexpression elimination and loop-invariant code motion.
-class HGlobalValueNumberingPhase : public HPhase {
- public:
-  explicit HGlobalValueNumberingPhase(HGraph* graph);
 
-  void Run() {
-    Analyze();
-    // Trigger a second analysis pass to further eliminate duplicate values
-    // that could only be discovered by removing side-effect-generating
-    // instructions during the first pass.
-    if (FLAG_smi_only_arrays && removed_side_effects_) {
-      Analyze();
-      ASSERT(!removed_side_effects_);
-    }
-  }
+// Mark all blocks that are dominated by an unconditional soft deoptimize to
+// prevent code motion across those blocks.
+class HPropagateDeoptimizingMarkPhase : public HPhase {
+ public:
+  explicit HPropagateDeoptimizingMarkPhase(HGraph* graph)
+      : HPhase("H_Propagate deoptimizing mark", graph) { }
+
+  void Run();
 
  private:
-  void Analyze();
-  GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
-      HBasicBlock* dominator,
-      HBasicBlock* dominated);
-  void AnalyzeGraph();
-  void ComputeBlockSideEffects();
-  void LoopInvariantCodeMotion();
-  void ProcessLoopBlock(HBasicBlock* block,
-                        HBasicBlock* before_loop,
-                        GVNFlagSet loop_kills,
-                        GVNFlagSet* accumulated_first_time_depends,
-                        GVNFlagSet* accumulated_first_time_changes);
-  bool AllowCodeMotion();
-  bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
+  void MarkAsDeoptimizing();
+  void NullifyUnreachableInstructions();
 
-  bool removed_side_effects_;
-
-  // A map of block IDs to their side effects.
-  ZoneList<GVNFlagSet> block_side_effects_;
-
-  // A map of loop header block IDs to their loop's side effects.
-  ZoneList<GVNFlagSet> loop_side_effects_;
-
-  // Used when collecting side effects on paths from dominator to
-  // dominated.
-  BitVector visited_on_paths_;
-
-  DISALLOW_COPY_AND_ASSIGN(HGlobalValueNumberingPhase);
+  DISALLOW_COPY_AND_ASSIGN(HPropagateDeoptimizingMarkPhase);
 };
 
 
 } }  // namespace v8::internal
 
-#endif  // V8_HYDROGEN_GVN_H_
+#endif  // V8_HYDROGEN_DEOPTIMIZING_MARK_H_
