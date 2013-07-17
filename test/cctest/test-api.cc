@@ -19459,4 +19459,75 @@ THREADED_TEST(SemaphoreInterruption) {
   ThreadInterruptTest().RunTest();
 }
 
+
+static bool NamedAccessAlwaysBlocked(Local<v8::Object> global,
+                                     Local<Value> name,
+                                     v8::AccessType type,
+                                     Local<Value> data) {
+  i::PrintF("Named access blocked.\n");
+  return false;
+}
+
+
+static bool IndexAccessAlwaysBlocked(Local<v8::Object> global,
+                                     uint32_t key,
+                                     v8::AccessType type,
+                                     Local<Value> data) {
+  i::PrintF("Indexed access blocked.\n");
+  return false;
+}
+
+
+void UnreachableCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(false);
+}
+
+
+TEST(JSONStringifyAccessCheck) {
+  v8::V8::Initialize();
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+
+  // Create an ObjectTemplate for global objects and install access
+  // check callbacks that will block access.
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetAccessCheckCallbacks(NamedAccessAlwaysBlocked,
+                                           IndexAccessAlwaysBlocked);
+
+  // Create a context and set an x property on it's global object.
+  LocalContext context0(NULL, global_template);
+  v8::Handle<v8::Object> global0 = context0->Global();
+  global0->Set(v8_str("x"), v8_num(42));
+  ExpectString("JSON.stringify(this)", "{\"x\":42}");
+
+  for (int i = 0; i < 2; i++) {
+    if (i == 1) {
+      // Install a toJSON function on the second run.
+      v8::Handle<v8::FunctionTemplate> toJSON =
+          v8::FunctionTemplate::New(UnreachableCallback);
+
+      global0->Set(v8_str("toJSON"), toJSON->GetFunction());
+    }
+    // Create a context with a different security token so that the
+    // failed access check callback will be called on each access.
+    LocalContext context1(NULL, global_template);
+    context1->Global()->Set(v8_str("other"), global0);
+
+    ExpectString("JSON.stringify(other)", "{}");
+    ExpectString("JSON.stringify({ 'a' : other, 'b' : ['c'] })",
+                 "{\"a\":{},\"b\":[\"c\"]}");
+    ExpectString("JSON.stringify([other, 'b', 'c'])",
+                 "[{},\"b\",\"c\"]");
+
+    v8::Handle<v8::Array> array = v8::Array::New(2);
+    array->Set(0, v8_str("a"));
+    array->Set(1, v8_str("b"));
+    context1->Global()->Set(v8_str("array"), array);
+    ExpectString("JSON.stringify(array)", "[\"a\",\"b\"]");
+    array->TurnOnAccessCheck();
+    ExpectString("JSON.stringify(array)", "[]");
+    ExpectString("JSON.stringify([array])", "[[]]");
+    ExpectString("JSON.stringify({'a' : array})", "{\"a\":[]}");
+  }
+}
+
 #endif  // WIN32
