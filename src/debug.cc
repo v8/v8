@@ -1906,7 +1906,7 @@ static void CollectActiveFunctionsFromThread(
   for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->is_optimized()) {
-      List<JSFunction*> functions(Compiler::kMaxInliningLevels + 1);
+      List<JSFunction*> functions(FLAG_max_inlining_levels + 1);
       frame->GetFunctions(&functions);
       for (int i = 0; i < functions.length(); i++) {
         JSFunction* function = functions[i];

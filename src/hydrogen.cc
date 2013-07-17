@@ -6340,11 +6340,11 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
 #endif
 
 
-  // Don't inline deeper than kMaxInliningLevels calls.
+  // Don't inline deeper than the maximum number of inlining levels.
   HEnvironment* env = environment();
   int current_level = 1;
   while (env->outer() != NULL) {
-    if (current_level == Compiler::kMaxInliningLevels) {
+    if (current_level == FLAG_max_inlining_levels) {
       TraceInline(target, caller, "inline depth limit reached");
       return false;
     }
