@@ -5159,7 +5159,9 @@ MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
       return isolate->heap()->true_value();
     }
 
-    return receiver->DeleteElement(index, mode);
+    Handle<Object> result = JSReceiver::DeleteElement(receiver, index, mode);
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    return *result;
   }
 
   Handle<Name> name;
@@ -5174,7 +5176,9 @@ MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
   }
 
   if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-  return receiver->DeleteProperty(*name, mode);
+  Handle<Object> result = JSReceiver::DeleteProperty(receiver, name, mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -5387,15 +5391,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IgnoreAttributesAndSetProperty) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteProperty) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-
-  CONVERT_ARG_CHECKED(JSReceiver, object, 0);
-  CONVERT_ARG_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
   CONVERT_STRICT_MODE_ARG_CHECKED(strict_mode, 2);
-  return object->DeleteProperty(key, (strict_mode == kStrictMode)
-                                      ? JSReceiver::STRICT_DELETION
-                                      : JSReceiver::NORMAL_DELETION);
+  JSReceiver::DeleteMode delete_mode = (strict_mode == kStrictMode)
+      ? JSReceiver::STRICT_DELETION : JSReceiver::NORMAL_DELETION;
+  Handle<Object> result = JSReceiver::DeleteProperty(object, key, delete_mode);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 
@@ -8968,7 +8973,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteContextSlot) {
   // the global object, or the subject of a with.  Try to delete it
   // (respecting DONT_DELETE).
   Handle<JSObject> object = Handle<JSObject>::cast(holder);
-  return object->DeleteProperty(*name, JSReceiver::NORMAL_DELETION);
+  Handle<Object> result = JSReceiver::DeleteProperty(object, name);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  return *result;
 }
 
 

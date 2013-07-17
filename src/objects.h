@@ -1666,8 +1666,12 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSReceiver* setter,
                                                             Object* value);
 
-  MUST_USE_RESULT MaybeObject* DeleteProperty(Name* name, DeleteMode mode);
-  MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
+  static Handle<Object> DeleteProperty(Handle<JSReceiver> object,
+                                       Handle<Name> name,
+                                       DeleteMode mode = NORMAL_DELETION);
+  static Handle<Object> DeleteElement(Handle<JSReceiver> object,
+                                      uint32_t index,
+                                      DeleteMode mode);
 
   // Set the index'th array element.
   // Can cause GC, or return failure if GC is required.
@@ -1911,10 +1915,6 @@ class JSObject: public JSReceiver {
                                                      Object* value,
                                                      PropertyDetails details);
 
-  // Deletes the named property in a normalized object.
-  MUST_USE_RESULT MaybeObject* DeleteNormalizedProperty(Name* name,
-                                                        DeleteMode mode);
-
   static void OptimizeAsPrototype(Handle<JSObject> object);
   MUST_USE_RESULT MaybeObject* OptimizeAsPrototype();
 
@@ -2005,12 +2005,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
   MUST_USE_RESULT MaybeObject* SetIdentityHash(Smi* hash, CreationFlag flag);
 
-  static Handle<Object> DeleteProperty(Handle<JSObject> obj,
-                                       Handle<Name> name);
-  // Can cause GC.
-  MUST_USE_RESULT MaybeObject* DeleteProperty(Name* name, DeleteMode mode);
-
-  static Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
+  static Handle<Object> DeleteElement(Handle<JSObject> obj,
+                                      uint32_t index,
+                                      DeleteMode mode = NORMAL_DELETION);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
 
   inline void ValidateElements();
@@ -2443,6 +2440,7 @@ class JSObject: public JSReceiver {
 
  private:
   friend class DictionaryElementsAccessor;
+  friend class JSReceiver;
 
   MUST_USE_RESULT MaybeObject* GetElementWithCallback(Object* receiver,
                                                       Object* structure,
@@ -2488,9 +2486,19 @@ class JSObject: public JSReceiver {
       StrictModeFlag strict_mode,
       bool* done);
 
-  MUST_USE_RESULT MaybeObject* DeletePropertyPostInterceptor(Name* name,
-                                                             DeleteMode mode);
-  MUST_USE_RESULT MaybeObject* DeletePropertyWithInterceptor(Name* name);
+  static Handle<Object> DeleteProperty(Handle<JSObject> object,
+                                       Handle<Name> name,
+                                       DeleteMode mode);
+  static Handle<Object> DeletePropertyPostInterceptor(Handle<JSObject> object,
+                                                      Handle<Name> name,
+                                                      DeleteMode mode);
+  static Handle<Object> DeletePropertyWithInterceptor(Handle<JSObject> object,
+                                                      Handle<Name> name);
+
+  // Deletes the named property in a normalized object.
+  static Handle<Object> DeleteNormalizedProperty(Handle<JSObject> object,
+                                                 Handle<Name> name,
+                                                 DeleteMode mode);
 
   MUST_USE_RESULT MaybeObject* DeleteElementWithInterceptor(uint32_t index);
 
@@ -5460,6 +5468,7 @@ class Map: public HeapObject {
 
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
+  static Handle<Map> CopyDropDescriptors(Handle<Map> map);
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
       DescriptorArray* descriptors,
@@ -8739,13 +8748,6 @@ class JSProxy: public JSReceiver {
       StrictModeFlag strict_mode,
       bool* done);
 
-  MUST_USE_RESULT MaybeObject* DeletePropertyWithHandler(
-      Name* name,
-      DeleteMode mode);
-  MUST_USE_RESULT MaybeObject* DeleteElementWithHandler(
-      uint32_t index,
-      DeleteMode mode);
-
   MUST_USE_RESULT PropertyAttributes GetPropertyAttributeWithHandler(
       JSReceiver* receiver,
       Name* name);
@@ -8789,6 +8791,15 @@ class JSProxy: public JSReceiver {
                               kSize> BodyDescriptor;
 
  private:
+  friend class JSReceiver;
+
+  static Handle<Object> DeletePropertyWithHandler(Handle<JSProxy> object,
+                                                  Handle<Name> name,
+                                                  DeleteMode mode);
+  static Handle<Object> DeleteElementWithHandler(Handle<JSProxy> object,
+                                                 uint32_t index,
+                                                 DeleteMode mode);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 

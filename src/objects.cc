@@ -715,46 +715,54 @@ MaybeObject* JSObject::SetNormalizedProperty(Name* name,
 }
 
 
-MaybeObject* JSObject::DeleteNormalizedProperty(Name* name, DeleteMode mode) {
-  ASSERT(!HasFastProperties());
-  NameDictionary* dictionary = property_dictionary();
-  int entry = dictionary->FindEntry(name);
+// TODO(mstarzinger): Temporary wrapper until target is handlified.
+Handle<NameDictionary> NameDictionaryShrink(Handle<NameDictionary> dict,
+                                            Handle<Name> name) {
+  CALL_HEAP_FUNCTION(dict->GetIsolate(), dict->Shrink(*name), NameDictionary);
+}
+
+
+static void CellSetValueInferType(Handle<PropertyCell> cell,
+                                  Handle<Object> value) {
+  CALL_HEAP_FUNCTION_VOID(cell->GetIsolate(), cell->SetValueInferType(*value));
+}
+
+
+Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
+                                                  Handle<Name> name,
+                                                  DeleteMode mode) {
+  ASSERT(!object->HasFastProperties());
+  Isolate* isolate = object->GetIsolate();
+  Handle<NameDictionary> dictionary(object->property_dictionary());
+  int entry = dictionary->FindEntry(*name);
   if (entry != NameDictionary::kNotFound) {
     // If we have a global object set the cell to the hole.
-    if (IsGlobalObject()) {
+    if (object->IsGlobalObject()) {
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.IsDontDelete()) {
-        if (mode != FORCE_DELETION) return GetHeap()->false_value();
+        if (mode != FORCE_DELETION) return isolate->factory()->false_value();
         // When forced to delete global properties, we have to make a
         // map change to invalidate any ICs that think they can load
         // from the DontDelete cell without checking if it contains
         // the hole value.
-        Map* new_map;
-        MaybeObject* maybe_new_map = map()->CopyDropDescriptors();
-        if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
+        Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
         ASSERT(new_map->is_dictionary_map());
-        set_map(new_map);
+        object->set_map(*new_map);
       }
-      PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
-      MaybeObject* maybe_type =
-          cell->SetValueInferType(cell->GetHeap()->the_hole_value());
-      if (maybe_type->IsFailure()) return maybe_type;
+      Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
+      CellSetValueInferType(cell, isolate->factory()->the_hole_value());
       dictionary->DetailsAtPut(entry, details.AsDeleted());
     } else {
-      Object* deleted = dictionary->DeleteProperty(entry, mode);
-      if (deleted == GetHeap()->true_value()) {
-        FixedArray* new_properties = NULL;
-        MaybeObject* maybe_properties = dictionary->Shrink(name);
-        if (!maybe_properties->To(&new_properties)) {
-          return maybe_properties;
-        }
-        set_properties(new_properties);
+      Handle<Object> deleted(dictionary->DeleteProperty(entry, mode), isolate);
+      if (*deleted == isolate->heap()->true_value()) {
+        Handle<NameDictionary> new_properties =
+            NameDictionaryShrink(dictionary, name);
+        object->set_properties(*new_properties);
       }
       return deleted;
     }
   }
-  return GetHeap()->true_value();
+  return isolate->factory()->true_value();
 }
 
 
@@ -3535,43 +3543,38 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
 }
 
 
-MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
-    Name* name_raw, DeleteMode mode) {
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  Handle<JSProxy> receiver(this);
-  Handle<Object> name(name_raw, isolate);
+Handle<Object> JSProxy::DeletePropertyWithHandler(
+    Handle<JSProxy> object, Handle<Name> name, DeleteMode mode) {
+  Isolate* isolate = object->GetIsolate();
 
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-  if (name->IsSymbol()) return isolate->heap()->false_value();
+  if (name->IsSymbol()) return isolate->factory()->false_value();
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = CallTrap(
-    "delete", Handle<Object>(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return Failure::Exception();
+  Handle<Object> result = object->CallTrap(
+      "delete", Handle<Object>(), ARRAY_SIZE(args), args);
+  if (isolate->has_pending_exception()) return Handle<Object>();
 
   bool result_bool = result->BooleanValue();
   if (mode == STRICT_DELETION && !result_bool) {
-    Handle<Object> handler(receiver->handler(), isolate);
+    Handle<Object> handler(object->handler(), isolate);
     Handle<String> trap_name = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("delete"));
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "handler_failed", HandleVector(args, ARRAY_SIZE(args)));
     isolate->Throw(*error);
-    return Failure::Exception();
+    return Handle<Object>();
   }
-  return isolate->heap()->ToBoolean(result_bool);
+  return isolate->factory()->ToBoolean(result_bool);
 }
 
 
-MUST_USE_RESULT MaybeObject* JSProxy::DeleteElementWithHandler(
-    uint32_t index,
-    DeleteMode mode) {
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
+Handle<Object> JSProxy::DeleteElementWithHandler(
+    Handle<JSProxy> object, uint32_t index, DeleteMode mode) {
+  Isolate* isolate = object->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return JSProxy::DeletePropertyWithHandler(*name, mode);
+  return JSProxy::DeletePropertyWithHandler(object, name, mode);
 }
 
 
@@ -4972,52 +4975,52 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
 }
 
 
-MaybeObject* JSObject::DeletePropertyPostInterceptor(Name* name,
-                                                     DeleteMode mode) {
+Handle<Object> JSObject::DeletePropertyPostInterceptor(Handle<JSObject> object,
+                                                       Handle<Name> name,
+                                                       DeleteMode mode) {
   // Check local property, ignore interceptor.
-  LookupResult result(GetIsolate());
-  LocalLookupRealNamedProperty(name, &result);
-  if (!result.IsFound()) return GetHeap()->true_value();
+  Isolate* isolate = object->GetIsolate();
+  LookupResult result(isolate);
+  object->LocalLookupRealNamedProperty(*name, &result);
+  if (!result.IsFound()) return isolate->factory()->true_value();
 
   // Normalize object if needed.
-  Object* obj;
-  { MaybeObject* maybe_obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
 
-  return DeleteNormalizedProperty(name, mode);
+  return DeleteNormalizedProperty(object, name, mode);
 }
 
 
-MaybeObject* JSObject::DeletePropertyWithInterceptor(Name* name) {
-  // TODO(rossberg): Support symbols in the API.
-  if (name->IsSymbol()) return GetHeap()->false_value();
+Handle<Object> JSObject::DeletePropertyWithInterceptor(Handle<JSObject> object,
+                                                       Handle<Name> name) {
+  Isolate* isolate = object->GetIsolate();
 
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
-  Handle<String> name_handle(String::cast(name));
-  Handle<JSObject> this_handle(this);
+  // TODO(rossberg): Support symbols in the API.
+  if (name->IsSymbol()) return isolate->factory()->false_value();
+
+  Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
   if (!interceptor->deleter()->IsUndefined()) {
     v8::NamedPropertyDeleter deleter =
         v8::ToCData<v8::NamedPropertyDeleter>(interceptor->deleter());
     LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-delete", *this_handle, name));
-    PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
+        ApiNamedPropertyAccess("interceptor-named-delete", *object, *name));
+    PropertyCallbackArguments args(
+        isolate, interceptor->data(), *object, *object);
     v8::Handle<v8::Boolean> result =
-        args.Call(deleter, v8::Utils::ToLocal(name_handle));
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+        args.Call(deleter, v8::Utils::ToLocal(Handle<String>::cast(name)));
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) {
       ASSERT(result->IsBoolean());
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
       result_internal->VerifyApiCallResultType();
-      return *result_internal;
+      // Rebox CustomArguments::kReturnValueOffset before returning.
+      return handle(*result_internal, isolate);
     }
   }
-  MaybeObject* raw_result =
-      this_handle->DeletePropertyPostInterceptor(*name_handle, NORMAL_DELETION);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-  return raw_result;
+  Handle<Object> result =
+      DeletePropertyPostInterceptor(object, name, NORMAL_DELETION);
+  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  return result;
 }
 
 
@@ -5054,9 +5057,10 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
 
 
 Handle<Object> JSObject::DeleteElement(Handle<JSObject> obj,
-                                       uint32_t index) {
+                                       uint32_t index,
+                                       DeleteMode mode) {
   CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->DeleteElement(index, JSObject::NORMAL_DELETION),
+                     obj->DeleteElement(index, mode),
                      Object);
 }
 
@@ -5128,108 +5132,99 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
 }
 
 
-Handle<Object> JSObject::DeleteProperty(Handle<JSObject> obj,
-                                        Handle<Name> prop) {
-  CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->DeleteProperty(*prop, JSObject::NORMAL_DELETION),
-                     Object);
-}
-
-
-MaybeObject* JSObject::DeleteProperty(Name* name, DeleteMode mode) {
-  Isolate* isolate = GetIsolate();
+Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
+                                        Handle<Name> name,
+                                        DeleteMode mode) {
+  Isolate* isolate = object->GetIsolate();
   // ECMA-262, 3rd, 8.6.2.5
   ASSERT(name->IsName());
 
   // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(this, name, v8::ACCESS_DELETE)) {
-    isolate->ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    return isolate->heap()->false_value();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_DELETE)) {
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_DELETE);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return isolate->factory()->false_value();
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return isolate->heap()->false_value();
+  if (object->IsJSGlobalProxy()) {
+    Object* proto = object->GetPrototype();
+    if (proto->IsNull()) return isolate->factory()->false_value();
     ASSERT(proto->IsJSGlobalObject());
-    return JSGlobalObject::cast(proto)->DeleteProperty(name, mode);
+    return JSGlobalObject::DeleteProperty(
+        handle(JSGlobalObject::cast(proto)), name, mode);
   }
 
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    return DeleteElement(index, mode);
+    return DeleteElement(object, index, mode);
   }
 
   LookupResult lookup(isolate);
-  LocalLookup(name, &lookup, true);
-  if (!lookup.IsFound()) return isolate->heap()->true_value();
+  object->LocalLookup(*name, &lookup, true);
+  if (!lookup.IsFound()) return isolate->factory()->true_value();
   // Ignore attributes if forcing a deletion.
   if (lookup.IsDontDelete() && mode != FORCE_DELETION) {
     if (mode == STRICT_DELETION) {
       // Deleting a non-configurable property in strict mode.
-      HandleScope scope(isolate);
-      Handle<Object> args[2] = { Handle<Object>(name, isolate),
-                                 Handle<Object>(this, isolate) };
-      return isolate->Throw(*isolate->factory()->NewTypeError(
-          "strict_delete_property", HandleVector(args, 2)));
+      Handle<Object> args[2] = { name, object };
+      Handle<Object> error = isolate->factory()->NewTypeError(
+          "strict_delete_property", HandleVector(args, ARRAY_SIZE(args)));
+      isolate->Throw(*error);
+      return Handle<Object>();
     }
-    return isolate->heap()->false_value();
+    return isolate->factory()->false_value();
   }
-
-  // From this point on everything needs to be handlified.
-  HandleScope scope(isolate);
-  Handle<JSObject> self(this);
-  Handle<Name> hname(name);
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
-  bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
+  bool is_observed = FLAG_harmony_observation && object->map()->is_observed();
   if (is_observed && lookup.IsDataProperty()) {
-    old_value = Object::GetProperty(self, hname);
+    old_value = Object::GetProperty(object, name);
   }
-  MaybeObject* result;
+  Handle<Object> result;
 
   // Check for interceptor.
   if (lookup.IsInterceptor()) {
     // Skip interceptor if forcing a deletion.
     if (mode == FORCE_DELETION) {
-      result = self->DeletePropertyPostInterceptor(*hname, mode);
+      result = DeletePropertyPostInterceptor(object, name, mode);
     } else {
-      result = self->DeletePropertyWithInterceptor(*hname);
+      result = DeletePropertyWithInterceptor(object, name);
     }
   } else {
     // Normalize object if needed.
-    Object* obj;
-    result = self->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
-    if (!result->To(&obj)) return result;
+    NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
     // Make sure the properties are normalized before removing the entry.
-    result = self->DeleteNormalizedProperty(*hname, mode);
+    result = DeleteNormalizedProperty(object, name, mode);
   }
 
-  Handle<Object> hresult;
-  if (!result->ToHandle(&hresult, isolate)) return result;
-
-  if (is_observed && !self->HasLocalProperty(*hname)) {
-    EnqueueChangeRecord(self, "deleted", hname, old_value);
+  if (is_observed && !object->HasLocalProperty(*name)) {
+    EnqueueChangeRecord(object, "deleted", name, old_value);
   }
 
-  return *hresult;
+  return result;
 }
 
 
-MaybeObject* JSReceiver::DeleteElement(uint32_t index, DeleteMode mode) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->DeleteElementWithHandler(index, mode);
+Handle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
+                                         uint32_t index,
+                                         DeleteMode mode) {
+  if (object->IsJSProxy()) {
+    return JSProxy::DeleteElementWithHandler(
+        Handle<JSProxy>::cast(object), index, mode);
   }
-  return JSObject::cast(this)->DeleteElement(index, mode);
+  return JSObject::DeleteElement(Handle<JSObject>::cast(object), index, mode);
 }
 
 
-MaybeObject* JSReceiver::DeleteProperty(Name* name, DeleteMode mode) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->DeletePropertyWithHandler(name, mode);
+Handle<Object> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
+                                          Handle<Name> name,
+                                          DeleteMode mode) {
+  if (object->IsJSProxy()) {
+    return JSProxy::DeletePropertyWithHandler(
+        Handle<JSProxy>::cast(object), name, mode);
   }
-  return JSObject::cast(this)->DeleteProperty(name, mode);
+  return JSObject::DeleteProperty(Handle<JSObject>::cast(object), name, mode);
 }
 
 
@@ -6508,6 +6503,11 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
 #endif
 
   return result;
+}
+
+
+Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
+  CALL_HEAP_FUNCTION(map->GetIsolate(), map->CopyDropDescriptors(), Map);
 }
 
 

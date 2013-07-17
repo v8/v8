@@ -124,6 +124,15 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
     }                                                     \
   } while (false)
 
+#define RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, T)  \
+  do {                                                    \
+    Isolate* __isolate__ = (isolate);                     \
+    if (__isolate__->has_scheduled_exception()) {         \
+      __isolate__->PromoteScheduledException();           \
+      return Handle<T>::null();                           \
+    }                                                     \
+  } while (false)
+
 #define RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, value) \
   do {                                                     \
     if ((call).is_null()) {                                \
