@@ -603,7 +603,7 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
   if (!initialized) {
     CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
     patcher.masm()->Push(ra, fp, cp, a1);
-    patcher.masm()->LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    patcher.masm()->nop(Assembler::CODE_AGE_SEQUENCE_NOP);
     patcher.masm()->Addu(fp, sp, Operand(2 * kPointerSize));
     initialized = true;
   }

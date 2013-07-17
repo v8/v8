@@ -174,9 +174,7 @@ void FullCodeGenerator::Generate() {
   // The following three instructions must remain together and unmodified for
   // code aging to work properly.
   __ Push(ra, fp, cp, a1);
-  // Load undefined value here, so the value is ready for the loop
-  // below.
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  __ nop(Assembler::CODE_AGE_SEQUENCE_NOP);
   // Adjust fp to point to caller's fp.
   __ Addu(fp, sp, Operand(2 * kPointerSize));
   info->AddNoFrameRange(0, masm_->pc_offset());
@@ -185,8 +183,11 @@ void FullCodeGenerator::Generate() {
     int locals_count = info->scope()->num_stack_slots();
     // Generators allocate locals, if any, in context slots.
     ASSERT(!info->function()->is_generator() || locals_count == 0);
-    for (int i = 0; i < locals_count; i++) {
-      __ push(at);
+    if (locals_count > 0) {
+      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+      for (int i = 0; i < locals_count; i++) {
+        __ push(at);
+      }
     }
   }
 

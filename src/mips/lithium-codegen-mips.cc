@@ -159,9 +159,9 @@ bool LCodeGen::GeneratePrologue() {
       // The following three instructions must remain together and unmodified
       // for code aging to work properly.
       __ Push(ra, fp, cp, a1);
-      // Add unused load of ip to ensure prologue sequence is identical for
+      // Add unused nop to ensure prologue sequence is identical for
       // full-codegen and lithium-codegen.
-      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+      __ nop(Assembler::CODE_AGE_SEQUENCE_NOP);
       // Adj. FP to point to saved FP.
       __ Addu(fp, sp, Operand(2 * kPointerSize));
     }
