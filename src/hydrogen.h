@@ -1076,6 +1076,12 @@ class HGraphBuilder {
                                    ElementsKind kind,
                                    HValue* length);
 
+  void BuildTransitionElementsKind(HValue* object,
+                                   HValue* map,
+                                   ElementsKind from_kind,
+                                   ElementsKind to_kind,
+                                   bool is_jsarray);
+
   HInstruction* BuildUncheckedMonomorphicElementAccess(
       HValue* object,
       HValue* key,

@@ -528,44 +528,15 @@ Handle<Code> KeyedStoreFastElementStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
-  TransitionElementsKindStub* stub = casted_stub();
-  ElementsKind from_kind = stub->from_kind();
-  ElementsKind to_kind = stub->to_kind();
-
-  HValue* js_array = GetParameter(0);
-  HValue* map = GetParameter(1);
-
   info()->MarkAsSavesCallerDoubles();
 
-  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
-    Add<HTrapAllocationMemento>(js_array);
-  }
+  BuildTransitionElementsKind(GetParameter(0),
+                              GetParameter(1),
+                              casted_stub()->from_kind(),
+                              casted_stub()->to_kind(),
+                              true);
 
-  HInstruction* elements = AddLoadElements(js_array);
-
-  HInstruction* empty_fixed_array = Add<HConstant>(
-      isolate()->factory()->empty_fixed_array(), Representation::Tagged());
-
-  IfBuilder if_builder(this);
-
-  if_builder.IfNot<HCompareObjectEqAndBranch>(elements, empty_fixed_array);
-
-  if_builder.Then();
-
-  HInstruction* elements_length = AddLoadFixedArrayLength(elements);
-
-  HInstruction* array_length = AddLoad(
-      js_array, HObjectAccess::ForArrayLength(), NULL, Representation::Smi());
-  array_length->set_type(HType::Smi());
-
-  BuildGrowElementsCapacity(js_array, elements, from_kind, to_kind,
-                            array_length, elements_length);
-
-  if_builder.End();
-
-  AddStore(js_array, HObjectAccess::ForMap(), map);
-
-  return js_array;
+  return GetParameter(0);
 }
 
 
@@ -906,6 +877,41 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
 
 
 Handle<Code> StoreGlobalStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template<>
+HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
+  HValue* value = GetParameter(0);
+  HValue* map = GetParameter(1);
+  HValue* key = GetParameter(2);
+  HValue* object = GetParameter(3);
+
+  if (FLAG_trace_elements_transitions) {
+    // Tracing elements transitions is the job of the runtime.
+    current_block()->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
+    set_current_block(NULL);
+  } else {
+    info()->MarkAsSavesCallerDoubles();
+
+    BuildTransitionElementsKind(object, map,
+                                casted_stub()->from_kind(),
+                                casted_stub()->to_kind(),
+                                casted_stub()->is_jsarray());
+
+    BuildUncheckedMonomorphicElementAccess(object, key, value, NULL,
+                                          casted_stub()->is_jsarray(),
+                                          casted_stub()->to_kind(),
+                                          true, ALLOW_RETURN_HOLE,
+                                          casted_stub()->store_mode());
+  }
+
+  return value;
+}
+
+
+Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 

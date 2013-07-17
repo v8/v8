@@ -1223,6 +1223,48 @@ HValue* HGraphBuilder::BuildCopyElementsOnWrite(HValue* object,
 }
 
 
+void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
+                                                HValue* map,
+                                                ElementsKind from_kind,
+                                                ElementsKind to_kind,
+                                                bool is_jsarray) {
+  ASSERT(!IsFastHoleyElementsKind(from_kind) ||
+         IsFastHoleyElementsKind(to_kind));
+
+  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    Add<HTrapAllocationMemento>(object);
+  }
+
+  if (!IsSimpleMapChangeTransition(from_kind, to_kind)) {
+    HInstruction* elements = AddLoadElements(object);
+
+    HInstruction* empty_fixed_array = Add<HConstant>(
+        isolate()->factory()->empty_fixed_array(), Representation::Tagged());
+
+    IfBuilder if_builder(this);
+
+    if_builder.IfNot<HCompareObjectEqAndBranch>(elements, empty_fixed_array);
+
+    if_builder.Then();
+
+    HInstruction* elements_length = AddLoadFixedArrayLength(elements);
+
+    HInstruction* array_length = is_jsarray
+        ? AddLoad(object, HObjectAccess::ForArrayLength(),
+                  NULL, Representation::Smi())
+        : elements_length;
+    array_length->set_type(HType::Smi());
+
+    BuildGrowElementsCapacity(object, elements, from_kind, to_kind,
+                              array_length, elements_length);
+
+    if_builder.End();
+  }
+
+  AddStore(object, HObjectAccess::ForMap(), map);
+}
+
+
 HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     HValue* object,
     HValue* key,

@@ -818,7 +818,7 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 }
 
 
-void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
+void ElementsTransitionAndStorePlatformStub::Generate(MacroAssembler* masm) {
   Label fail;
   AllocationSiteMode mode = AllocationSite::GetMode(from_, to_);
   ASSERT(!IsFastHoleyElementsKind(from_) || IsFastHoleyElementsKind(to_));
