@@ -180,6 +180,8 @@ function SetupTypedArray(arrayId, name, constructor, elementSize) {
   %SetCode(constructor, fun);
   %FunctionSetPrototype(constructor, new $Object());
 
+  %SetProperty(constructor, "BYTES_PER_ELEMENT", elementSize,
+               READ_ONLY | DONT_ENUM | DONT_DELETE);
   %SetProperty(constructor.prototype,
                "constructor", constructor, DONT_ENUM);
   %SetProperty(constructor.prototype,
