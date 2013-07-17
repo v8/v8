@@ -604,9 +604,6 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     }
 
     if (!FLAG_track_fields || !representation.IsSmi()) {
-      // Skip updating write barrier if storing a smi.
-      __ JumpIfSmi(value_reg, &exit);
-
       // Update the write barrier for the array address.
       // Pass the now unused name_reg as a scratch register.
       if (!FLAG_track_double_fields || !representation.IsDouble()) {
@@ -636,9 +633,6 @@ void StubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     }
 
     if (!FLAG_track_fields || !representation.IsSmi()) {
-      // Skip updating write barrier if storing a smi.
-      __ JumpIfSmi(value_reg, &exit);
-
       // Update the write barrier for the array address.
       // Ok to clobber receiver_reg and name_reg, since we return.
       if (!FLAG_track_double_fields || !representation.IsDouble()) {
