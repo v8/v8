@@ -182,6 +182,7 @@ Heap::Heap()
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   native_contexts_list_ = NULL;
   array_buffers_list_ = Smi::FromInt(0);
+  allocation_sites_list_ = Smi::FromInt(0);
   mark_compact_collector_.heap_ = this;
   external_string_table_.heap_ = this;
   // Put a dummy entry in the remembered pages so we can find the list the
@@ -1664,6 +1665,7 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
       mark_compact_collector()->is_compacting();
   ProcessArrayBuffers(retainer, record_slots);
   ProcessNativeContexts(retainer, record_slots);
+  ProcessAllocationSites(retainer, record_slots);
 }
 
 void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer,
@@ -1754,6 +1756,39 @@ void Heap::TearDownArrayBuffers() {
     o = buffer->weak_next();
   }
   array_buffers_list_ = undefined;
+}
+
+
+template<>
+struct WeakListVisitor<AllocationSite> {
+  static void SetWeakNext(AllocationSite* obj, Object* next) {
+    obj->set_weak_next(next);
+  }
+
+  static Object* WeakNext(AllocationSite* obj) {
+    return obj->weak_next();
+  }
+
+  static void VisitLiveObject(Heap* heap,
+                              AllocationSite* array_buffer,
+                              WeakObjectRetainer* retainer,
+                              bool record_slots) {}
+
+  static void VisitPhantomObject(Heap* heap, AllocationSite* phantom) {}
+
+  static int WeakNextOffset() {
+    return AllocationSite::kWeakNextOffset;
+  }
+};
+
+
+void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
+                                  bool record_slots) {
+  Object* allocation_site_obj =
+      VisitWeakList<AllocationSite>(this,
+                                    allocation_sites_list(),
+                                    retainer, record_slots);
+  set_allocation_sites_list(allocation_site_obj);
 }
 
 
@@ -2887,7 +2922,12 @@ MaybeObject* Heap::AllocateAllocationSite() {
   MaybeObject* maybe_result = Allocate(allocation_site_map(),
                                        OLD_POINTER_SPACE);
   if (!maybe_result->ToObject(&result)) return maybe_result;
-  AllocationSite::cast(result)->Initialize();
+  AllocationSite* site = AllocationSite::cast(result);
+  site->Initialize();
+
+  // Link the site
+  site->set_weak_next(allocation_sites_list());
+  set_allocation_sites_list(site);
   return result;
 }
 
@@ -6889,6 +6929,7 @@ bool Heap::CreateHeapObjects() {
 
   native_contexts_list_ = undefined_value();
   array_buffers_list_ = undefined_value();
+  allocation_sites_list_ = undefined_value();
   return true;
 }
 

@@ -185,6 +185,11 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitNativeContext, &VisitNativeContext);
 
+  table_.Register(kVisitAllocationSite,
+                  &FixedBodyVisitor<StaticVisitor,
+                  AllocationSite::BodyDescriptor,
+                  void>::Visit);
+
   table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
 
   table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);

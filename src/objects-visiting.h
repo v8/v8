@@ -55,6 +55,7 @@ class StaticVisitorBase : public AllStatic {
   V(FixedArray)               \
   V(FixedDoubleArray)         \
   V(NativeContext)            \
+  V(AllocationSite)           \
   V(DataObject2)              \
   V(DataObject3)              \
   V(DataObject4)              \

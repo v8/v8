@@ -182,6 +182,10 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
         case NAME##_TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
+          if (instance_type == ALLOCATION_SITE_TYPE) {
+            return kVisitAllocationSite;
+          }
+
           return GetVisitorIdForSize(kVisitStruct,
                                      kVisitStructGeneric,
                                      instance_size);

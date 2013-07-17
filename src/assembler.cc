@@ -1125,6 +1125,12 @@ ExternalReference ExternalReference::roots_array_start(Isolate* isolate) {
 }
 
 
+ExternalReference ExternalReference::allocation_sites_list_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->heap()->allocation_sites_list_address());
+}
+
+
 ExternalReference ExternalReference::address_of_stack_limit(Isolate* isolate) {
   return ExternalReference(isolate->stack_guard()->address_of_jslimit());
 }

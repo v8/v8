@@ -1376,6 +1376,11 @@ class Heap {
   }
   Object* array_buffers_list() { return array_buffers_list_; }
 
+  void set_allocation_sites_list(Object* object) {
+    allocation_sites_list_ = object;
+  }
+  Object* allocation_sites_list() { return allocation_sites_list_; }
+  Object** allocation_sites_list_address() { return &allocation_sites_list_; }
 
   // Number of mark-sweeps.
   unsigned int ms_count() { return ms_count_; }
@@ -2045,9 +2050,10 @@ class Heap {
   // last GC.
   bool old_gen_exhausted_;
 
+  // Weak list heads, threaded through the objects.
   Object* native_contexts_list_;
-
   Object* array_buffers_list_;
+  Object* allocation_sites_list_;
 
   StoreBufferRebuilder store_buffer_rebuilder_;
 
@@ -2197,6 +2203,7 @@ class Heap {
 
   void ProcessNativeContexts(WeakObjectRetainer* retainer, bool record_slots);
   void ProcessArrayBuffers(WeakObjectRetainer* retainer, bool record_slots);
+  void ProcessAllocationSites(WeakObjectRetainer* retainer, bool record_slots);
 
   // Called on heap tear-down.
   void TearDownArrayBuffers();

@@ -115,6 +115,7 @@ class LCodeGen;
   V(IsUndetectableAndBranch)                    \
   V(Label)                                      \
   V(LazyBailout)                                \
+  V(LinkObjectInList)                           \
   V(LoadContextSlot)                            \
   V(LoadExternalArrayPointer)                   \
   V(LoadFunctionPrototype)                      \
@@ -1703,6 +1704,25 @@ class LStoreGlobalGeneric: public LTemplateInstruction<0, 3, 0> {
 
   Handle<Object> name() const { return hydrogen()->name(); }
   StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
+};
+
+
+class LLinkObjectInList: public LTemplateInstruction<0, 1, 1> {
+ public:
+  explicit LLinkObjectInList(LOperand* object, LOperand* temp) {
+    inputs_[0] = object;
+    temps_[0] = temp;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  ExternalReference GetReference(Isolate* isolate);
+
+  DECLARE_CONCRETE_INSTRUCTION(LinkObjectInList, "link-object-in-list")
+  DECLARE_HYDROGEN_ACCESSOR(LinkObjectInList)
+
+  virtual void PrintDataTo(StringStream* stream);
 };
 
 

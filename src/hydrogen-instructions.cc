@@ -3059,6 +3059,12 @@ void HStoreGlobalGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
+void HLinkObjectInList::PrintDataTo(StringStream* stream) {
+  value()->PrintNameTo(stream);
+  stream->Add(" offset %d", store_field_.offset());
+}
+
+
 void HLoadContextSlot::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add("[%d]", slot_index());

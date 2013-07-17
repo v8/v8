@@ -2928,6 +2928,19 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
 }
 
 
+void LCodeGen::DoLinkObjectInList(LLinkObjectInList* instr) {
+  Register object = ToRegister(instr->object());
+  ExternalReference sites_list_address = instr->GetReference(isolate());
+
+  __ mov(ip, Operand(sites_list_address));
+  __ ldr(ip, MemOperand(ip));
+  __ str(ip, FieldMemOperand(object,
+                             instr->hydrogen()->store_field().offset()));
+  __ mov(ip, Operand(sites_list_address));
+  __ str(object, MemOperand(ip));
+}
+
+
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());

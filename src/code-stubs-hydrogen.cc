@@ -445,8 +445,12 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   // Store the payload (smi elements kind)
   HValue* initial_elements_kind = AddInstruction(new(zone) HConstant(
       GetInitialFastElementsKind()));
-  AddInstruction(new(zone) HStoreNamedField(object,
-      HObjectAccess::ForAllocationSiteTransitionInfo(), initial_elements_kind));
+  Add<HStoreNamedField>(object,
+                        HObjectAccess::ForAllocationSiteTransitionInfo(),
+                        initial_elements_kind);
+
+  Add<HLinkObjectInList>(object, HObjectAccess::ForAllocationSiteWeakNext(),
+                         HLinkObjectInList::ALLOCATION_SITE_LIST);
 
   // We use a hammer (SkipWriteBarrier()) to indicate that we know the input
   // cell is really a Cell, and so no write barrier is needed.

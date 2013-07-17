@@ -7474,11 +7474,10 @@ enum AllocationSiteMode {
 
 class AllocationSite: public Struct {
  public:
-  static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
-  static const int kSize = kTransitionInfoOffset + kPointerSize;
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
   DECL_ACCESSORS(transition_info, Object)
+  DECL_ACCESSORS(weak_next, Object)
 
   void Initialize() {
     SetElementsKind(GetInitialFastElementsKind());
@@ -7507,6 +7506,14 @@ class AllocationSite: public Struct {
   static inline AllocationSiteMode GetMode(
       ElementsKind boilerplate_elements_kind);
   static inline AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
+
+  static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
+  static const int kWeakNextOffset = kTransitionInfoOffset + kPointerSize;
+  static const int kSize = kWeakNextOffset + kPointerSize;
+
+  typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
+                              kTransitionInfoOffset + kPointerSize,
+                              kSize> BodyDescriptor;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);

@@ -1706,7 +1706,11 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
         case NAME##_TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
-      StructBodyDescriptor::IterateBody(this, object_size, v);
+      if (type == ALLOCATION_SITE_TYPE) {
+        AllocationSite::BodyDescriptor::IterateBody(this, v);
+      } else {
+        StructBodyDescriptor::IterateBody(this, object_size, v);
+      }
       break;
     default:
       PrintF("Unknown type: %d\n", type);
