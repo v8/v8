@@ -2198,7 +2198,7 @@ void Assembler::set_target_address_at(Address pc, Address target) {
   bool in_range = (ipc ^ static_cast<uint32_t>(itarget) >>
                   (kImm26Bits + kImmFieldShift)) == 0;
   uint32_t target_field =
-      static_cast<uint32_t>(itarget & kJumpAddrMask) >>kImmFieldShift;
+      static_cast<uint32_t>(itarget & kJumpAddrMask) >> kImmFieldShift;
   bool patched_jump = false;
 
 #ifndef ALLOW_JAL_IN_BOUNDARY_REGION
