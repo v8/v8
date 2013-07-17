@@ -997,6 +997,9 @@ void V8HeapExplorer::ExtractJSObjectReferences(
         SetPropertyReference(
             obj, entry,
             heap_->prototype_string(), js_fun->prototype());
+        SetInternalReference(
+            obj, entry, "initial_map", proto_or_map,
+            JSFunction::kPrototypeOrInitialMapOffset);
       }
     }
     SharedFunctionInfo* shared_info = js_fun->shared();
