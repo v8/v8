@@ -8164,7 +8164,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
     return HandleLiteralCompareTypeof(expr, sub_expr, check);
   }
-  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
+  if (expr->IsLiteralCompareUndefined(&sub_expr, isolate())) {
     return HandleLiteralCompareNil(expr, sub_expr, kUndefinedValue);
   }
   if (expr->IsLiteralCompareNull(&sub_expr)) {
