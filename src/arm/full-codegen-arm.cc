@@ -4598,7 +4598,7 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
                          &if_true, &if_false, &fall_through);
 
   { AccumulatorValueContext context(this);
-    VisitForTypeofValue(sub_expr);
+    VisitForTypeofValue(sub_expr->AsUnaryOperation()->expression());
   }
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
 

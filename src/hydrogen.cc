@@ -8135,7 +8135,8 @@ void HOptimizedGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* expr,
                                                         Expression* sub_expr,
                                                         Handle<String> check) {
   CHECK_ALIVE(VisitForValue(sub_expr));
-  HValue* value = Pop();
+  HTypeof* htypeof = HTypeof::cast(Pop());
+  HValue* value = htypeof->value();
   HTypeofIsAndBranch* instr = new(zone()) HTypeofIsAndBranch(value, check);
   instr->set_position(expr->position());
   return ast_context()->ReturnControl(instr, expr->id());
