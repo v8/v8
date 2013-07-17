@@ -187,7 +187,7 @@ DEFINE_implication(harmony_observation, harmony_collections)
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
 DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
-DEFINE_bool(compiled_transitions, false, "use optimizing compiler to "
+DEFINE_bool(compiled_transitions, true, "use optimizing compiler to "
             "generate array elements transition stubs")
 DEFINE_bool(compiled_keyed_stores, true, "use optimizing compiler to "
             "generate keyed store stubs")
