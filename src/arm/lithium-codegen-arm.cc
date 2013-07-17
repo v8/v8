@@ -161,9 +161,7 @@ bool LCodeGen::GeneratePrologue() {
       // The following three instructions must remain together and unmodified
       // for code aging to work properly.
       __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
-      // Load undefined value here, so the value is ready for the loop
-      // below.
-      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+      __ nop(ip.code());
       // Adjust FP to point to saved FP.
       __ add(fp, sp, Operand(2 * kPointerSize));
     }
