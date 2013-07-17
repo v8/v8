@@ -1948,7 +1948,7 @@ TEST(PrototypeTransitionClearing) {
 
   // Verify that only dead prototype transitions are cleared.
   CHECK_EQ(10, baseObject->map()->NumberOfProtoTransitions());
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   const int transitions = 10 - 3;
   CHECK_EQ(transitions, baseObject->map()->NumberOfProtoTransitions());
 
