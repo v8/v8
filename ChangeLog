@@ -1,6 +1,24 @@
+2013-07-17: Version 3.20.6
+
+        Try to remove invalidated stubs before falling back to checking the
+        constant state (Chromium issue 260585).
+
+        Fixed gyp_v8 to work with use_system_icu=1 (issue 2475).
+
+        Fixed sloppy-mode 'const' under Harmony flag (Chromium issue 173361).
+
+        Use internal array as API function cache  (Chromium issue 260106).
+
+        Fixed possible stack overflow in range analysis
+        (Chromium issue 259452).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-07-15: Version 3.20.5
 
-        Ensured that the length of frozen arrays is immutable  (issue 2711,259548)
+        Ensured that the length of frozen arrays is immutable
+        (issue 2711, Chromium issue 259548).
 
         Performance and stability improvements on all platforms.
 
