@@ -11180,18 +11180,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 
 // Create a plain JSObject which materializes the local scope for the specified
 // frame.
-static Handle<JSObject> MaterializeLocalScopeWithFrameInspector(
+static Handle<JSObject> MaterializeStackLocalsWithFrameInspector(
     Isolate* isolate,
-    JavaScriptFrame* frame,
+    Handle<JSObject> target,
+    Handle<JSFunction> function,
     FrameInspector* frame_inspector) {
-  Handle<JSFunction> function(JSFunction::cast(frame_inspector->GetFunction()));
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
-
-  // Allocate and initialize a JSObject with all the arguments, stack locals
-  // heap locals and extension properties of the debugged function.
-  Handle<JSObject> local_scope =
-      isolate->factory()->NewJSObject(isolate->object_function());
 
   // First fill all parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
@@ -11203,7 +11198,7 @@ static Handle<JSObject> MaterializeLocalScopeWithFrameInspector(
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
         SetProperty(isolate,
-                    local_scope,
+                    target,
                     Handle<String>(scope_info->ParameterName(i)),
                     value,
                     NONE,
@@ -11216,7 +11211,7 @@ static Handle<JSObject> MaterializeLocalScopeWithFrameInspector(
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
         SetProperty(isolate,
-                    local_scope,
+                    target,
                     Handle<String>(scope_info->StackLocalName(i)),
                     Handle<Object>(frame_inspector->GetExpression(i), isolate),
                     NONE,
@@ -11224,45 +11219,90 @@ static Handle<JSObject> MaterializeLocalScopeWithFrameInspector(
         Handle<JSObject>());
   }
 
-  if (scope_info->HasContext()) {
-    // Third fill all context locals.
-    Handle<Context> frame_context(Context::cast(frame->context()));
-    Handle<Context> function_context(frame_context->declaration_context());
-    if (!scope_info->CopyContextLocalsToScopeObject(
-            isolate, function_context, local_scope)) {
-      return Handle<JSObject>();
-    }
+  return target;
+}
 
-    // Finally copy any properties from the function context extension.
-    // These will be variables introduced by eval.
-    if (function_context->closure() == *function) {
-      if (function_context->has_extension() &&
-          !function_context->IsNativeContext()) {
-        Handle<JSObject> ext(JSObject::cast(function_context->extension()));
-        bool threw = false;
-        Handle<FixedArray> keys =
-            GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS, &threw);
-        if (threw) return Handle<JSObject>();
 
-        for (int i = 0; i < keys->length(); i++) {
-          // Names of variables introduced by eval are strings.
-          ASSERT(keys->get(i)->IsString());
-          Handle<String> key(String::cast(keys->get(i)));
-          RETURN_IF_EMPTY_HANDLE_VALUE(
-              isolate,
-              SetProperty(isolate,
-                          local_scope,
-                          key,
-                          GetProperty(isolate, ext, key),
-                          NONE,
-                          kNonStrictMode),
-              Handle<JSObject>());
-        }
+static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
+                                                    Handle<JSObject> target,
+                                                    Handle<JSFunction> function,
+                                                    JavaScriptFrame* frame,
+                                                    int inlined_jsframe_index) {
+  if (inlined_jsframe_index != 0 || frame->is_optimized()) {
+    // Optimized frames are not supported.
+    // TODO(yangguo): make sure all code deoptimized when debugger is active
+    //                and assert that this cannot happen.
+    return;
+  }
+
+  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<ScopeInfo> scope_info(shared->scope_info());
+
+  // Parameters.
+  for (int i = 0; i < scope_info->ParameterCount(); ++i) {
+    HandleScope scope(isolate);
+    Handle<Object> value = GetProperty(
+        isolate, target, Handle<String>(scope_info->ParameterName(i)));
+    frame->SetParameterValue(i, *value);
+  }
+
+  // Stack locals.
+  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    HandleScope scope(isolate);
+    Handle<Object> value = GetProperty(
+        isolate, target, Handle<String>(scope_info->StackLocalName(i)));
+    frame->SetExpression(i, *value);
+  }
+}
+
+
+static Handle<JSObject> MaterializeLocalContext(Isolate* isolate,
+                                                Handle<JSObject> target,
+                                                Handle<JSFunction> function,
+                                                JavaScriptFrame* frame) {
+  HandleScope scope(isolate);
+  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<ScopeInfo> scope_info(shared->scope_info());
+
+  if (!scope_info->HasContext()) return target;
+
+  // Third fill all context locals.
+  Handle<Context> frame_context(Context::cast(frame->context()));
+  Handle<Context> function_context(frame_context->declaration_context());
+  if (!scope_info->CopyContextLocalsToScopeObject(
+          isolate, function_context, target)) {
+    return Handle<JSObject>();
+  }
+
+  // Finally copy any properties from the function context extension.
+  // These will be variables introduced by eval.
+  if (function_context->closure() == *function) {
+    if (function_context->has_extension() &&
+        !function_context->IsNativeContext()) {
+      Handle<JSObject> ext(JSObject::cast(function_context->extension()));
+      bool threw = false;
+      Handle<FixedArray> keys =
+          GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS, &threw);
+      if (threw) return Handle<JSObject>();
+
+      for (int i = 0; i < keys->length(); i++) {
+        // Names of variables introduced by eval are strings.
+        ASSERT(keys->get(i)->IsString());
+        Handle<String> key(String::cast(keys->get(i)));
+        RETURN_IF_EMPTY_HANDLE_VALUE(
+            isolate,
+            SetProperty(isolate,
+                        target,
+                        key,
+                        GetProperty(isolate, ext, key),
+                        NONE,
+                        kNonStrictMode),
+            Handle<JSObject>());
       }
     }
   }
 
-  return local_scope;
+  return target;
 }
 
 
@@ -11271,9 +11311,15 @@ static Handle<JSObject> MaterializeLocalScope(
     JavaScriptFrame* frame,
     int inlined_jsframe_index) {
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
-  return MaterializeLocalScopeWithFrameInspector(isolate,
-                                                 frame,
-                                                 &frame_inspector);
+  Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
+
+  Handle<JSObject> local_scope =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  local_scope = MaterializeStackLocalsWithFrameInspector(
+                    isolate, local_scope, function, &frame_inspector);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, local_scope, Handle<JSObject>());
+
+  return MaterializeLocalContext(isolate, local_scope, function, frame);
 }
 
 
@@ -12426,111 +12472,31 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearStepping) {
 }
 
 
-static bool IsBlockOrCatchOrWithScope(ScopeIterator::ScopeType type) {
-  return type == ScopeIterator::ScopeTypeBlock ||
-         type == ScopeIterator::ScopeTypeCatch ||
-         type == ScopeIterator::ScopeTypeWith;
-}
-
-
-// Creates a copy of the with context chain. The copy of the context chain is
-// is linked to the function context supplied.
-static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
-                                                   Handle<JSFunction> function,
-                                                   Handle<Context> base,
-                                                   JavaScriptFrame* frame,
-                                                   int inlined_jsframe_index) {
-  HandleScope scope(isolate);
-  List<Handle<ScopeInfo> > scope_chain;
-  List<Handle<Context> > context_chain;
-
-  ScopeIterator it(isolate, frame, inlined_jsframe_index);
-  if (it.Failed()) return Handle<Context>::null();
-
-  for ( ; IsBlockOrCatchOrWithScope(it.Type()); it.Next()) {
-    ASSERT(!it.Done());
-    scope_chain.Add(it.CurrentScopeInfo());
-    context_chain.Add(it.CurrentContext());
-  }
-
-  // At the end of the chain. Return the base context to link to.
-  Handle<Context> context = base;
-
-  // Iteratively copy and or materialize the nested contexts.
-  while (!scope_chain.is_empty()) {
-    Handle<ScopeInfo> scope_info = scope_chain.RemoveLast();
-    Handle<Context> current = context_chain.RemoveLast();
-    ASSERT(!(scope_info->HasContext() & current.is_null()));
-
-    if (scope_info->scope_type() == CATCH_SCOPE) {
-      ASSERT(current->IsCatchContext());
-      Handle<String> name(String::cast(current->extension()));
-      Handle<Object> thrown_object(current->get(Context::THROWN_OBJECT_INDEX),
-                                   isolate);
-      context =
-          isolate->factory()->NewCatchContext(function,
-                                              context,
-                                              name,
-                                              thrown_object);
-    } else if (scope_info->scope_type() == BLOCK_SCOPE) {
-      // Materialize the contents of the block scope into a JSObject.
-      ASSERT(current->IsBlockContext());
-      Handle<JSObject> block_scope_object =
-          MaterializeBlockScope(isolate, current);
-      CHECK(!block_scope_object.is_null());
-      // Allocate a new function context for the debug evaluation and set the
-      // extension object.
-      Handle<Context> new_context =
-          isolate->factory()->NewFunctionContext(Context::MIN_CONTEXT_SLOTS,
-                                                 function);
-      new_context->set_extension(*block_scope_object);
-      new_context->set_previous(*context);
-      context = new_context;
-    } else {
-      ASSERT(scope_info->scope_type() == WITH_SCOPE);
-      ASSERT(current->IsWithContext());
-      Handle<JSObject> extension(JSObject::cast(current->extension()));
-      context =
-          isolate->factory()->NewWithContext(function, context, extension);
-    }
-  }
-
-  return scope.CloseAndEscape(context);
-}
-
-
 // Helper function to find or create the arguments object for
 // Runtime_DebugEvaluate.
-static Handle<Object> GetArgumentsObject(Isolate* isolate,
-                                         JavaScriptFrame* frame,
-                                         FrameInspector* frame_inspector,
-                                         Handle<ScopeInfo> scope_info,
-                                         Handle<Context> function_context) {
-  // Try to find the value of 'arguments' to pass as parameter. If it is not
-  // found (that is the debugged function does not reference 'arguments' and
-  // does not support eval) then create an 'arguments' object.
-  int index;
-  if (scope_info->StackLocalCount() > 0) {
-    index = scope_info->StackSlotIndex(isolate->heap()->arguments_string());
-    if (index != -1) {
-      return Handle<Object>(frame->GetExpression(index), isolate);
-    }
-  }
-
-  if (scope_info->HasHeapAllocatedLocals()) {
-    VariableMode mode;
-    InitializationFlag init_flag;
-    index = scope_info->ContextSlotIndex(
-        isolate->heap()->arguments_string(), &mode, &init_flag);
-    if (index != -1) {
-      return Handle<Object>(function_context->get(index), isolate);
-    }
+static Handle<JSObject> MaterializeArgumentsObject(
+    Isolate* isolate,
+    Handle<JSObject> target,
+    Handle<JSFunction> function,
+    FrameInspector* frame_inspector) {
+  // Do not materialize the arguments object for eval or top-level code.
+  // Skip if "arguments" is already taken.
+  if (!function->shared()->is_function() ||
+      target->HasLocalProperty(isolate->heap()->arguments_string())) {
+    return target;
   }
 
   // FunctionGetArguments can't return a non-Object.
-  return Handle<JSObject>(JSObject::cast(
+  Handle<JSObject> arguments(JSObject::cast(
       Accessors::FunctionGetArguments(frame_inspector->GetFunction(),
                                       NULL)->ToObjectUnchecked()), isolate);
+  SetProperty(isolate,
+              target,
+              isolate->factory()->arguments_string(),
+              arguments,
+              ::NONE,
+              kNonStrictMode);
+  return target;
 }
 
 
@@ -12577,24 +12543,10 @@ static MaybeObject* DebugEvaluate(Isolate* isolate,
 
 
 // Evaluate a piece of JavaScript in the context of a stack frame for
-// debugging.  This is done by creating a new context which in its extension
-// part has all the parameters and locals of the function on the stack frame
-// as well as a materialized arguments object.  As this context replaces
-// the context of the function on the stack frame a new (empty) function
-// is created as well to be used as the closure for the context.
-// This closure as replacements for the one on the stack frame presenting
-// the same view of the values of parameters and local variables as if the
-// piece of JavaScript was evaluated at the point where the function on the
-// stack frame is currently stopped when we compile and run the (direct) eval.
-// Returns array of
-// #0: evaluate result
-// #1: local variables materizalized again as object after evaluation, contain
-//     original variable values as they remained on stack
-// #2: local variables materizalized as object before evaluation (and possibly
-//     modified by expression having been executed)
-// Since user expression only reaches (and modifies) copies of local variables,
-// those copies are returned to the caller to allow tracking the changes and
-// manually updating the actual variables.
+// debugging.  Things that need special attention are:
+// - Parameters and stack-allocated locals need to be materialized.  Altered
+//   values need to be written back to the stack afterwards.
+// - The arguments object needs to materialized.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   HandleScope scope(isolate);
 
@@ -12629,69 +12581,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   SaveContext savex(isolate);
   isolate->set_context(*(save->context()));
 
-  // Create the (empty) function replacing the function on the stack frame for
-  // the purpose of evaluating in the context created below. It is important
-  // that this function does not describe any parameters and local variables
-  // in the context. If it does then this will cause problems with the lookup
-  // in Context::Lookup, where context slots for parameters and local variables
-  // are looked at before the extension object.
-  Handle<JSFunction> go_between =
-      isolate->factory()->NewFunction(isolate->factory()->empty_string(),
-                                      isolate->factory()->undefined_value());
-  go_between->set_context(function->context());
-#ifdef DEBUG
-  Handle<ScopeInfo> go_between_scope_info(go_between->shared()->scope_info());
-  ASSERT(go_between_scope_info->ParameterCount() == 0);
-  ASSERT(go_between_scope_info->ContextLocalCount() == 0);
-#endif
+  // Evaluate on the context of the frame.
+  Handle<Context> context(Context::cast(frame->context()));
+  ASSERT(!context.is_null());
 
-  // Materialize the content of the local scope including the arguments object.
-  Handle<JSObject> local_scope = MaterializeLocalScopeWithFrameInspector(
-      isolate, frame, &frame_inspector);
-  RETURN_IF_EMPTY_HANDLE(isolate, local_scope);
+  // Materialize stack locals and the arguments object.
+  Handle<JSObject> materialized =
+      isolate->factory()->NewJSObject(isolate->object_function());
 
-  // Do not materialize the arguments object for eval or top-level code.
-  if (function->shared()->is_function()) {
-    Handle<Context> frame_context(Context::cast(frame->context()));
-    Handle<Context> function_context;
-    Handle<ScopeInfo> scope_info(function->shared()->scope_info());
-    if (scope_info->HasContext()) {
-      function_context = Handle<Context>(frame_context->declaration_context());
-    }
-    Handle<Object> arguments = GetArgumentsObject(isolate,
-                                                  frame,
-                                                  &frame_inspector,
-                                                  scope_info,
-                                                  function_context);
-    SetProperty(isolate,
-                local_scope,
-                isolate->factory()->arguments_string(),
-                arguments,
-                ::NONE,
-                kNonStrictMode);
-  }
+  materialized = MaterializeStackLocalsWithFrameInspector(
+      isolate, materialized, function, &frame_inspector);
+  RETURN_IF_EMPTY_HANDLE(isolate, materialized);
 
-  // Allocate a new context for the debug evaluation and set the extension
-  // object build.
-  Handle<Context> context = isolate->factory()->NewFunctionContext(
-      Context::MIN_CONTEXT_SLOTS, go_between);
+  materialized = MaterializeArgumentsObject(
+      isolate, materialized, function, &frame_inspector);
+  RETURN_IF_EMPTY_HANDLE(isolate, materialized);
 
-  // Use the materialized local scope in a with context.
-  context =
-      isolate->factory()->NewWithContext(go_between, context, local_scope);
-
-  // Copy any with contexts present and chain them in front of this context.
-  context = CopyNestedScopeContextChain(isolate,
-                                        go_between,
-                                        context,
-                                        frame,
-                                        inlined_jsframe_index);
-  if (context.is_null()) {
-    ASSERT(isolate->has_pending_exception());
-    MaybeObject* exception = isolate->pending_exception();
-    isolate->clear_pending_exception();
-    return exception;
-  }
+  // Add the materialized object in a with-scope to shadow the stack locals.
+  context = isolate->factory()->NewWithContext(function, context, materialized);
 
   Handle<Object> receiver(frame->receiver(), isolate);
   Object* evaluate_result_object;
@@ -12699,18 +12606,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
     DebugEvaluate(isolate, context, context_extension, receiver, source);
     if (!maybe_result->ToObject(&evaluate_result_object)) return maybe_result;
   }
-  Handle<Object> evaluate_result(evaluate_result_object, isolate);
 
-  Handle<JSObject> local_scope_control_copy =
-      MaterializeLocalScopeWithFrameInspector(isolate, frame,
-                                              &frame_inspector);
+  // Write back potential changes to materialized stack locals to the stack.
+  UpdateStackLocalsFromMaterializedObject(
+      isolate, materialized, function, frame, inlined_jsframe_index);
 
-  Handle<FixedArray> resultArray = isolate->factory()->NewFixedArray(3);
-  resultArray->set(0, *evaluate_result);
-  resultArray->set(1, *local_scope_control_copy);
-  resultArray->set(2, *local_scope);
-
-  return *(isolate->factory()->NewJSArrayWithElements(resultArray));
+  return evaluate_result_object;
 }
 
 
