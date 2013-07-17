@@ -810,7 +810,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Start the in-process debugger if requested.
   if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
-    v8::Debug::SetDebugEventListener(HandleDebugEvent);
+    v8::Debug::SetDebugEventListener2(HandleDebugEvent);
   }
 #endif  // ENABLE_DEBUGGER_SUPPORT
 }
