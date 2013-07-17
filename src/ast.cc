@@ -363,7 +363,7 @@ static bool MatchLiteralCompareTypeof(Expression* left,
                                       Expression** expr,
                                       Handle<String>* check) {
   if (IsTypeof(left) && right->IsStringLiteral() && Token::IsEqualityOp(op)) {
-    *expr = left;
+    *expr = left->AsUnaryOperation()->expression();
     *check = Handle<String>::cast(right->AsLiteral()->value());
     return true;
   }
