@@ -2837,6 +2837,8 @@ class HCheckFunction: public HUnaryOperation {
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
 
+  virtual HValue* Canonicalize();
+
 #ifdef DEBUG
   virtual void Verify();
 #endif
@@ -3408,6 +3410,10 @@ class HConstant: public HTemplateInstruction<0> {
       ASSERT(!handle_.is_null());
       unique_id_ = UniqueValueId(handle_);
     }
+  }
+
+  bool UniqueValueIdsMatch(UniqueValueId other) {
+    return !has_double_value_ && unique_id_ == other;
   }
 
 #ifdef DEBUG

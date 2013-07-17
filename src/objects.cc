@@ -15899,7 +15899,8 @@ Type* PropertyCell::UpdateType(Handle<PropertyCell> cell,
                                Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
   Handle<Type> old_type(cell->type(), isolate);
-  Handle<Type> new_type((value->IsSmi() || value->IsUndefined())
+  Handle<Type> new_type((value->IsSmi() || value->IsJSFunction() ||
+                         value->IsUndefined())
                         ? Type::Constant(value, isolate)
                         : Type::Any(), isolate);
 
