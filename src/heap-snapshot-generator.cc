@@ -1681,13 +1681,14 @@ void V8HeapExplorer::SetWeakReference(HeapObject* parent_obj,
                                       int field_offset) {
   ASSERT(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL) {
+  if (child_entry == NULL) return;
+  if (IsEssentialObject(child_obj)) {
     filler_->SetIndexedReference(HeapGraphEdge::kWeak,
                                  parent_entry,
                                  index,
                                  child_entry);
-    IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
   }
+  IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
 }
 
 

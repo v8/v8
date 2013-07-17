@@ -1728,27 +1728,6 @@ TEST(WeakGlobalHandle) {
 }
 
 
-TEST(WeakNativeContextRefs) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-
-  const v8::HeapSnapshot* snapshot =
-      heap_profiler->TakeHeapSnapshot(v8_str("weaks"));
-  CHECK(ValidateSnapshot(snapshot));
-  const v8::HeapGraphNode* gc_roots = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "(GC roots)");
-  CHECK_NE(NULL, gc_roots);
-  const v8::HeapGraphNode* global_handles = GetNode(
-      gc_roots, v8::HeapGraphNode::kSynthetic, "(Global handles)");
-  CHECK_NE(NULL, global_handles);
-  const v8::HeapGraphNode* native_context = GetNode(
-      global_handles, v8::HeapGraphNode::kHidden, "system / NativeContext");
-  CHECK_NE(NULL, native_context);
-  CHECK(HasWeakEdge(native_context));
-}
-
-
 TEST(SfiAndJsFunctionWeakRefs) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1763,10 +1742,10 @@ TEST(SfiAndJsFunctionWeakRefs) {
   CHECK_NE(NULL, global);
   const v8::HeapGraphNode* fun =
       GetProperty(global, v8::HeapGraphEdge::kProperty, "fun");
-  CHECK(HasWeakEdge(fun));
+  CHECK(!HasWeakEdge(fun));
   const v8::HeapGraphNode* shared =
       GetProperty(fun, v8::HeapGraphEdge::kInternal, "shared");
-  CHECK(HasWeakEdge(shared));
+  CHECK(!HasWeakEdge(shared));
 }
 
 
