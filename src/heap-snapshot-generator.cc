@@ -894,6 +894,11 @@ class IndexedReferencesExtractor : public ObjectVisitor {
         parent_(parent),
         next_index_(1) {
   }
+  void VisitCodeEntry(Address entry_address) {
+     Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
+     generator_->SetInternalReference(parent_obj_, parent_, "code", code);
+     generator_->TagObject(code, "(code)");
+  }
   void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; p++) {
       if (CheckVisitedAndUnmark(p)) continue;
