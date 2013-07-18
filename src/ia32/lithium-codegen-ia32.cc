@@ -932,30 +932,22 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   }
 
   if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
-    Handle<SharedFunctionInfo> shared(info()->shared_info());
+    ExternalReference count = ExternalReference::stress_deopt_count(isolate());
     Label no_deopt;
     __ pushfd();
     __ push(eax);
-    __ push(ebx);
-    __ mov(ebx, shared);
-    __ mov(eax,
-           FieldOperand(ebx, SharedFunctionInfo::kStressDeoptCounterOffset));
-    __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
+    __ mov(eax, Operand::StaticVariable(count));
+    __ sub(eax, Immediate(1));
     __ j(not_zero, &no_deopt, Label::kNear);
     if (FLAG_trap_on_deopt) __ int3();
-    __ mov(eax, Immediate(Smi::FromInt(FLAG_deopt_every_n_times)));
-    __ mov(FieldOperand(ebx, SharedFunctionInfo::kStressDeoptCounterOffset),
-           eax);
-    __ pop(ebx);
+    __ mov(eax, Immediate(FLAG_deopt_every_n_times));
+    __ mov(Operand::StaticVariable(count), eax);
     __ pop(eax);
     __ popfd();
     ASSERT(frame_is_built_);
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
-
     __ bind(&no_deopt);
-    __ mov(FieldOperand(ebx, SharedFunctionInfo::kStressDeoptCounterOffset),
-           eax);
-    __ pop(ebx);
+    __ mov(Operand::StaticVariable(count), eax);
     __ pop(eax);
     __ popfd();
   }

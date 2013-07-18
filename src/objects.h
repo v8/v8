@@ -6157,11 +6157,6 @@ class SharedFunctionInfo: public HeapObject {
   inline int ast_node_count();
   inline void set_ast_node_count(int count);
 
-  // A counter used to determine when to stress the deoptimizer with a
-  // deopt.
-  inline int stress_deopt_counter();
-  inline void set_stress_deopt_counter(int counter);
-
   inline int profiler_ticks();
 
   // Inline cache age is used to infer whether the function survived a context
@@ -6353,10 +6348,9 @@ class SharedFunctionInfo: public HeapObject {
       kFunctionTokenPositionOffset + kPointerSize;
   static const int kOptCountOffset = kCompilerHintsOffset + kPointerSize;
   static const int kCountersOffset = kOptCountOffset + kPointerSize;
-  static const int kStressDeoptCounterOffset = kCountersOffset + kPointerSize;
 
   // Total size.
-  static const int kSize = kStressDeoptCounterOffset + kPointerSize;
+  static const int kSize = kCountersOffset + kPointerSize;
 #else
   // The only reason to use smi fields instead of int fields
   // is to allow iteration without maps decoding during
@@ -6390,10 +6384,9 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOptCountOffset = kCompilerHintsOffset + kIntSize;
 
   static const int kCountersOffset = kOptCountOffset + kIntSize;
-  static const int kStressDeoptCounterOffset = kCountersOffset + kIntSize;
 
   // Total size.
-  static const int kSize = kStressDeoptCounterOffset + kIntSize;
+  static const int kSize = kCountersOffset + kIntSize;
 
 #endif
 

@@ -4542,9 +4542,7 @@ SMI_ACCESSORS(SharedFunctionInfo, compiler_hints,
               kCompilerHintsOffset)
 SMI_ACCESSORS(SharedFunctionInfo, opt_count, kOptCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
-SMI_ACCESSORS(SharedFunctionInfo,
-              stress_deopt_counter,
-              kStressDeoptCounterOffset)
+
 #else
 
 #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
@@ -4594,9 +4592,7 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, opt_count, kOptCountOffset)
 
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, counters, kCountersOffset)
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
-                        stress_deopt_counter,
-                        kStressDeoptCounterOffset)
+
 #endif
 
 

@@ -1073,6 +1073,11 @@ ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
 }
 
 
+ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
+  return ExternalReference(isolate->stress_deopt_count_address());
+}
+
+
 ExternalReference ExternalReference::transcendental_cache_array_address(
     Isolate* isolate) {
   return ExternalReference(

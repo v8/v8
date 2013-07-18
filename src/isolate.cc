@@ -1786,7 +1786,8 @@ Isolate::Isolate()
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
       sweeper_thread_(NULL),
-      callback_table_(NULL) {
+      callback_table_(NULL),
+      stress_deopt_count_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
@@ -1897,6 +1898,10 @@ void Isolate::Deinit() {
     }
 
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
+
+    if (FLAG_print_deopt_stress) {
+      PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
+    }
 
     // We must stop the logger before we tear down other components.
     Sampler* sampler = logger_->sampler();
@@ -2131,6 +2136,8 @@ bool Isolate::Init(Deserializer* des) {
   ASSERT(state_ != INITIALIZED);
   ASSERT(Isolate::Current() == this);
   TRACE_ISOLATE(init);
+
+  stress_deopt_count_ = FLAG_deopt_every_n_times;
 
   if (function_entry_hook() != NULL) {
     // When function entry hooking is in effect, we have to create the code

@@ -866,6 +866,8 @@ class ExternalReference BASE_EMBEDDED {
         reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
   }
 
+  static ExternalReference stress_deopt_count(Isolate* isolate);
+
  private:
   explicit ExternalReference(void* address)
       : address_(address) {}

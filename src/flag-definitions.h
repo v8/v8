@@ -254,6 +254,7 @@ DEFINE_int(deopt_every_n_times,
 DEFINE_int(deopt_every_n_garbage_collections,
            0,
            "deoptimize every n garbage collections")
+DEFINE_bool(print_deopt_stress, false, "print number of possible deopt points")
 DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
