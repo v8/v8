@@ -12614,11 +12614,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
     if (!maybe_result->ToObject(&evaluate_result_object)) return maybe_result;
   }
 
+  Handle<Object> result(evaluate_result_object, isolate);
+
   // Write back potential changes to materialized stack locals to the stack.
   UpdateStackLocalsFromMaterializedObject(
       isolate, materialized, function, frame, inlined_jsframe_index);
 
-  return evaluate_result_object;
+  return *result;
 }
 
 
