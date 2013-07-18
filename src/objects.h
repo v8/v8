@@ -6695,8 +6695,10 @@ class JSFunction: public JSObject {
   inline bool has_instance_prototype();
   inline Object* prototype();
   inline Object* instance_prototype();
-  MUST_USE_RESULT MaybeObject* SetInstancePrototype(Object* value);
-  MUST_USE_RESULT MaybeObject* SetPrototype(Object* value);
+  static void SetPrototype(Handle<JSFunction> function,
+                           Handle<Object> value);
+  static void SetInstancePrototype(Handle<JSFunction> function,
+                                   Handle<Object> value);
 
   // After prototype is removed, it will not be created when accessed, and
   // [[Construct]] from this function will not be allowed.

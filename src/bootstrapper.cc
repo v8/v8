@@ -200,7 +200,7 @@ class Genesis BASE_EMBEDDED {
   // detached from the other objects in the snapshot.
   void HookUpInnerGlobal(Handle<GlobalObject> inner_global);
   // New context initialization.  Used for creating a context from scratch.
-  bool InitializeGlobal(Handle<GlobalObject> inner_global,
+  void InitializeGlobal(Handle<GlobalObject> inner_global,
                         Handle<JSFunction> empty_function);
   void InitializeExperimentalGlobal();
   // Installs the contents of the native .js files on the global objects.
@@ -829,7 +829,7 @@ void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
 
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpInnerGlobal.
-bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
+void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                                Handle<JSFunction> empty_function) {
   // --- G l o b a l   C o n t e x t ---
   // Use the empty function as closure (no scope info).
@@ -1053,10 +1053,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<String> name = factory->NewStringFromAscii(CStrVector("JSON"));
     Handle<JSFunction> cons = factory->NewFunction(name,
                                                    factory->the_hole_value());
-    { MaybeObject* result = cons->SetInstancePrototype(
-        native_context()->initial_object_prototype());
-      if (result->IsFailure()) return false;
-    }
+    JSFunction::SetInstancePrototype(cons,
+        Handle<Object>(native_context()->initial_object_prototype(), isolate));
     cons->SetInstanceClassName(*name);
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     ASSERT(json_object->IsJSObject());
@@ -1277,7 +1275,6 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_random_seed(*zeroed_byte_array);
     memset(zeroed_byte_array->GetDataStartAddress(), 0, kRandomStateSize);
   }
-  return true;
 }
 
 
@@ -2632,7 +2629,7 @@ Genesis::Genesis(Isolate* isolate,
     Handle<JSGlobalProxy> global_proxy =
         CreateNewGlobals(global_template, global_object, &inner_global);
     HookUpGlobalProxy(inner_global, global_proxy);
-    if (!InitializeGlobal(inner_global, empty_function)) return;
+    InitializeGlobal(inner_global, empty_function);
     InstallJSFunctionResultCaches();
     InitializeNormalizedMapCaches();
     if (!InstallNatives()) return;

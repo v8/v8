@@ -9532,57 +9532,53 @@ Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
 }
 
 
-MaybeObject* JSFunction::SetInstancePrototype(Object* value) {
+void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
+                                      Handle<Object> value) {
   ASSERT(value->IsJSReceiver());
-  Heap* heap = GetHeap();
 
   // First some logic for the map of the prototype to make sure it is in fast
   // mode.
   if (value->IsJSObject()) {
-    MaybeObject* ok = JSObject::cast(value)->OptimizeAsPrototype();
-    if (ok->IsFailure()) return ok;
+    JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
   }
 
   // Now some logic for the maps of the objects that are created by using this
   // function as a constructor.
-  if (has_initial_map()) {
+  if (function->has_initial_map()) {
     // If the function has allocated the initial map replace it with a
     // copy containing the new prototype.  Also complete any in-object
     // slack tracking that is in progress at this point because it is
     // still tracking the old copy.
-    if (shared()->IsInobjectSlackTrackingInProgress()) {
-      shared()->CompleteInobjectSlackTracking();
+    if (function->shared()->IsInobjectSlackTrackingInProgress()) {
+      function->shared()->CompleteInobjectSlackTracking();
     }
-    Map* new_map;
-    MaybeObject* maybe_object = initial_map()->Copy();
-    if (!maybe_object->To(&new_map)) return maybe_object;
-    new_map->set_prototype(value);
+    Handle<Map> new_map = Map::Copy(handle(function->initial_map()));
+    new_map->set_prototype(*value);
 
     // If the function is used as the global Array function, cache the
     // initial map (and transitioned versions) in the native context.
-    Context* native_context = context()->native_context();
+    Context* native_context = function->context()->native_context();
     Object* array_function = native_context->get(Context::ARRAY_FUNCTION_INDEX);
     if (array_function->IsJSFunction() &&
-        this == JSFunction::cast(array_function)) {
-      MaybeObject* ok = CacheInitialJSArrayMaps(native_context, new_map);
-      if (ok->IsFailure()) return ok;
+        *function == JSFunction::cast(array_function)) {
+      CacheInitialJSArrayMaps(handle(native_context), new_map);
     }
 
-    set_initial_map(new_map);
+    function->set_initial_map(*new_map);
   } else {
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the
     // prototype is put into the initial map where it belongs.
-    set_prototype_or_initial_map(value);
+    function->set_prototype_or_initial_map(*value);
   }
-  heap->ClearInstanceofCache();
-  return value;
+  function->GetHeap()->ClearInstanceofCache();
 }
 
 
-MaybeObject* JSFunction::SetPrototype(Object* value) {
-  ASSERT(should_have_prototype());
-  Object* construct_prototype = value;
+void JSFunction::SetPrototype(Handle<JSFunction> function,
+                              Handle<Object> value) {
+  ASSERT(function->should_have_prototype());
+  Handle<Object> construct_prototype = value;
 
   // If the value is not a JSReceiver, store the value in the map's
   // constructor field so it can be accessed.  Also, set the prototype
@@ -9592,22 +9588,20 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
     // Copy the map so this does not affect unrelated functions.
     // Remove map transitions because they point to maps with a
     // different prototype.
-    Map* new_map;
-    MaybeObject* maybe_new_map = map()->Copy();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    Handle<Map> new_map = Map::Copy(handle(function->map()));
 
-    Heap* heap = new_map->GetHeap();
-    set_map(new_map);
-    new_map->set_constructor(value);
+    function->set_map(*new_map);
+    new_map->set_constructor(*value);
     new_map->set_non_instance_prototype(true);
-    construct_prototype =
-        heap->isolate()->context()->native_context()->
-            initial_object_prototype();
+    Isolate* isolate = new_map->GetIsolate();
+    construct_prototype = handle(
+        isolate->context()->native_context()->initial_object_prototype(),
+        isolate);
   } else {
-    map()->set_non_instance_prototype(false);
+    function->map()->set_non_instance_prototype(false);
   }
 
-  return SetInstancePrototype(construct_prototype);
+  return SetInstancePrototype(function, construct_prototype);
 }
 
 
