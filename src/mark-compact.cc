@@ -1634,11 +1634,18 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
                               TRANSITION_ARRAY_SUB_TYPE,
                               fixed_array_size);
     }
-    if (map_obj->code_cache() != heap->empty_fixed_array()) {
+    if (map_obj->has_code_cache()) {
+      CodeCache* cache = CodeCache::cast(map_obj->code_cache());
       heap->RecordObjectStats(
           FIXED_ARRAY_TYPE,
           MAP_CODE_CACHE_SUB_TYPE,
-          FixedArray::cast(map_obj->code_cache())->Size());
+          cache->default_cache()->Size());
+      if (!cache->normal_type_cache()->IsUndefined()) {
+        heap->RecordObjectStats(
+            FIXED_ARRAY_TYPE,
+            MAP_CODE_CACHE_SUB_TYPE,
+            FixedArray::cast(cache->normal_type_cache())->Size());
+      }
     }
     ObjectStatsVisitBase(kVisitMap, map, obj);
   }

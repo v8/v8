@@ -3617,6 +3617,11 @@ bool Map::is_frozen() {
 }
 
 
+bool Map::has_code_cache() {
+  return code_cache() != GetIsolate()->heap()->empty_fixed_array();
+}
+
+
 bool Map::CanBeDeprecated() {
   int descriptor = LastAdded();
   for (int i = 0; i <= descriptor; i++) {
