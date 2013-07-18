@@ -8376,16 +8376,16 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HInstruction* target = NULL;
   HInstruction* data_target = NULL;
 
-  HAllocate::Flags flags = HAllocate::DefaultFlags();
+  ElementsKind kind = boilerplate_object->map()->elements_kind();
 
   if (isolate()->heap()->ShouldGloballyPretenure()) {
     if (data_size != 0) {
       HAllocate::Flags data_flags =
-          static_cast<HAllocate::Flags>(HAllocate::DefaultFlags() |
+          static_cast<HAllocate::Flags>(HAllocate::DefaultFlags(kind) |
               HAllocate::CAN_ALLOCATE_IN_OLD_DATA_SPACE);
       HValue* size_in_bytes = Add<HConstant>(data_size);
-      data_target = Add<HAllocate>(context, size_in_bytes,
-                                   HType::JSObject(), data_flags);
+      data_target = Add<HAllocate>(context, size_in_bytes, HType::JSObject(),
+          data_flags);
       Handle<Map> free_space_map = isolate()->factory()->free_space_map();
       AddStoreMapConstant(data_target, free_space_map);
       HObjectAccess access =
@@ -8393,12 +8393,15 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
       AddStore(data_target, access, size_in_bytes);
     }
     if (pointer_size != 0) {
-      flags = static_cast<HAllocate::Flags>(
-          flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
+      HAllocate::Flags pointer_flags =
+          static_cast<HAllocate::Flags>(HAllocate::DefaultFlags() |
+              HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
       HValue* size_in_bytes = Add<HConstant>(pointer_size);
-      target = Add<HAllocate>(context, size_in_bytes, HType::JSObject(), flags);
+      target = Add<HAllocate>(context, size_in_bytes, HType::JSObject(),
+          pointer_flags);
     }
   } else {
+    HAllocate::Flags flags = HAllocate::DefaultFlags(kind);
     HValue* size_in_bytes = Add<HConstant>(data_size + pointer_size);
     target = Add<HAllocate>(context, size_in_bytes, HType::JSObject(), flags);
   }
