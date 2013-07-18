@@ -74,7 +74,7 @@ SamplingCircularQueue::SamplingCircularQueue(size_t record_size_in_bytes,
   // The distance ensures that producer and consumer never step on
   // each other's chunks and helps eviction of produced data from
   // the CPU cache (having that chunk size is bigger than the cache.)
-  const int producer_consumer_distance = (2 * chunk_size_);
+  const size_t producer_consumer_distance = (2 * chunk_size_);
   consumer_pos_->dequeue_chunk_poll_pos = buffer_ + producer_consumer_distance;
   consumer_pos_->dequeue_pos = NULL;
 }
