@@ -84,7 +84,13 @@ intptr_t OS::CommitPageSize() {
 #ifndef __CYGWIN__
 // Get rid of writable permission on code allocations.
 void OS::ProtectCode(void* address, const size_t size) {
+#if defined(__native_client__)
+  // The Native Client port of V8 uses an interpreter, so
+  // code pages don't need PROT_EXEC.
+  mprotect(address, size, PROT_READ);
+#else
   mprotect(address, size, PROT_READ | PROT_EXEC);
+#endif
 }
 
 
