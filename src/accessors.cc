@@ -576,6 +576,13 @@ const AccessorDescriptor Accessors::FunctionName = {
 //
 
 
+Handle<Object> Accessors::FunctionGetArguments(Handle<Object> object) {
+  Isolate* isolate = Isolate::Current();
+  CALL_HEAP_FUNCTION(
+      isolate, Accessors::FunctionGetArguments(*object, 0), Object);
+}
+
+
 static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
     JavaScriptFrame* frame,
     Handle<JSFunction> inlined_function,

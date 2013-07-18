@@ -1624,11 +1624,9 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
         if (arguments.is_null()) {
           if (frame->has_adapted_arguments()) {
             // Use the arguments adapter frame we just built to materialize the
-            // arguments object. FunctionGetArguments can't throw an exception,
-            // so cast away the doubt with an assert.
-            arguments = Handle<JSObject>(JSObject::cast(
-                Accessors::FunctionGetArguments(*function,
-                                                NULL)->ToObjectUnchecked()));
+            // arguments object. FunctionGetArguments can't throw an exception.
+            arguments = Handle<JSObject>::cast(
+                Accessors::FunctionGetArguments(function));
             values.RewindBy(length);
           } else {
             // Construct an arguments object and copy the parameters to a newly

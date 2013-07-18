@@ -12484,8 +12484,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearStepping) {
 static Handle<JSObject> MaterializeArgumentsObject(
     Isolate* isolate,
     Handle<JSObject> target,
-    Handle<JSFunction> function,
-    FrameInspector* frame_inspector) {
+    Handle<JSFunction> function) {
   // Do not materialize the arguments object for eval or top-level code.
   // Skip if "arguments" is already taken.
   if (!function->shared()->is_function() ||
@@ -12493,10 +12492,9 @@ static Handle<JSObject> MaterializeArgumentsObject(
     return target;
   }
 
-  // FunctionGetArguments can't return a non-Object.
-  Handle<JSObject> arguments(JSObject::cast(
-      Accessors::FunctionGetArguments(frame_inspector->GetFunction(),
-                                      NULL)->ToObjectUnchecked()), isolate);
+  // FunctionGetArguments can't throw an exception.
+  Handle<JSObject> arguments = Handle<JSObject>::cast(
+      Accessors::FunctionGetArguments(function));
   SetProperty(isolate,
               target,
               isolate->factory()->arguments_string(),
@@ -12600,8 +12598,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
       isolate, materialized, function, &frame_inspector);
   RETURN_IF_EMPTY_HANDLE(isolate, materialized);
 
-  materialized = MaterializeArgumentsObject(
-      isolate, materialized, function, &frame_inspector);
+  materialized = MaterializeArgumentsObject(isolate, materialized, function);
   RETURN_IF_EMPTY_HANDLE(isolate, materialized);
 
   // Add the materialized object in a with-scope to shadow the stack locals.
