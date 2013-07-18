@@ -47,7 +47,7 @@ class SamplingCircularQueue {
   // Executed on the application thread.
   SamplingCircularQueue(size_t record_size_in_bytes,
                         size_t desired_chunk_size_in_bytes,
-                        int buffer_size_in_chunks);
+                        unsigned buffer_size_in_chunks);
   ~SamplingCircularQueue();
 
   // Enqueue returns a pointer to a memory location for storing the next
@@ -88,10 +88,10 @@ class SamplingCircularQueue {
 
   INLINE(void WrapPositionIfNeeded(Cell** pos));
 
-  const int record_size_;
+  const size_t record_size_;
   const size_t chunk_size_in_bytes_;
-  const int chunk_size_;
-  const int buffer_size_;
+  const size_t chunk_size_;
+  const size_t buffer_size_;
   Cell* buffer_;
   byte* positions_;
   ProducerPosition* producer_pos_;

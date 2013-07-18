@@ -35,7 +35,7 @@ namespace internal {
 
 SamplingCircularQueue::SamplingCircularQueue(size_t record_size_in_bytes,
                                              size_t desired_chunk_size_in_bytes,
-                                             int buffer_size_in_chunks)
+                                             unsigned buffer_size_in_chunks)
     : record_size_(record_size_in_bytes / sizeof(Cell)),
       chunk_size_in_bytes_(desired_chunk_size_in_bytes / record_size_in_bytes *
                         record_size_in_bytes + sizeof(Cell)),
@@ -46,7 +46,7 @@ SamplingCircularQueue::SamplingCircularQueue(size_t record_size_in_bytes,
   ASSERT(chunk_size_ * sizeof(Cell) == chunk_size_in_bytes_);
   ASSERT(buffer_size_in_chunks > 2);
   // Mark all chunks as clear.
-  for (int i = 0; i < buffer_size_; i += chunk_size_) {
+  for (size_t i = 0; i < buffer_size_; i += chunk_size_) {
     buffer_[i] = kClear;
   }
 
