@@ -31,7 +31,6 @@
 #include "allocation.h"
 #include "objects.h"
 #include "platform.h"
-#include "log-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -71,15 +70,15 @@ namespace internal {
 // tick profiler requires code events, so --prof implies --log-code.
 
 // Forward declarations.
-class LogMessageBuilder;
+class CompilationInfo;
+class CpuProfiler;
+class Isolate;
+class Log;
+class PositionsRecorder;
 class Profiler;
 class Semaphore;
-struct TickSample;
 class Ticker;
-class Isolate;
-class PositionsRecorder;
-class CpuProfiler;
-class CompilationInfo;
+struct TickSample;
 
 #undef LOG
 #define LOG(isolate, Call)                          \
@@ -409,12 +408,6 @@ class Logger {
   // Helper method. It dumps name into name_buffer_.
   void AppendName(Name* name);
 
-  // Appends standard code header.
-  void AppendCodeCreateHeader(LogMessageBuilder*, LogEventsAndTags, Code*);
-
-  // Appends symbol for the name.
-  void AppendSymbolName(LogMessageBuilder*, Symbol*);
-
   void RegisterSnapshotCodeName(Code* code, const char* name, int name_size);
 
   // Emits a profiler tick event. Used by the profiler thread.
@@ -446,7 +439,6 @@ class Logger {
   // private members.
   friend class EventLog;
   friend class Isolate;
-  friend class LogMessageBuilder;
   friend class TimeLog;
   friend class Profiler;
   template <StateTag Tag> friend class VMState;

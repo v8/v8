@@ -35,6 +35,7 @@
 #include "deoptimizer.h"
 #include "global-handles.h"
 #include "log.h"
+#include "log-utils.h"
 #include "macro-assembler.h"
 #include "platform.h"
 #include "runtime-profiler.h"
@@ -589,7 +590,7 @@ static const char* const kLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
 
 void Logger::ProfilerBeginEvent() {
   if (!log_->IsEnabled()) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("profiler,\"begin\",%d\n", kSamplingIntervalMs);
   msg.WriteToLogFile();
 }
@@ -602,7 +603,7 @@ void Logger::StringEvent(const char* name, const char* value) {
 
 void Logger::UncheckedStringEvent(const char* name, const char* value) {
   if (!log_->IsEnabled()) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("%s,\"%s\"\n", name, value);
   msg.WriteToLogFile();
 }
@@ -620,7 +621,7 @@ void Logger::IntPtrTEvent(const char* name, intptr_t value) {
 
 void Logger::UncheckedIntEvent(const char* name, int value) {
   if (!log_->IsEnabled()) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("%s,%d\n", name, value);
   msg.WriteToLogFile();
 }
@@ -628,7 +629,7 @@ void Logger::UncheckedIntEvent(const char* name, int value) {
 
 void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
   if (!log_->IsEnabled()) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("%s,%" V8_PTR_PREFIX "d\n", name, value);
   msg.WriteToLogFile();
 }
@@ -636,7 +637,7 @@ void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
 
 void Logger::HandleEvent(const char* name, Object** location) {
   if (!log_->IsEnabled() || !FLAG_log_handles) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("%s,0x%" V8PRIxPTR "\n", name, location);
   msg.WriteToLogFile();
 }
@@ -647,7 +648,7 @@ void Logger::HandleEvent(const char* name, Object** location) {
 // FLAG_log_api is true.
 void Logger::ApiEvent(const char* format, ...) {
   ASSERT(log_->IsEnabled() && FLAG_log_api);
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   va_list ap;
   va_start(ap, format);
   msg.AppendVA(format, ap);
@@ -686,7 +687,7 @@ void Logger::SharedLibraryEvent(const char* library_path,
                                 uintptr_t start,
                                 uintptr_t end) {
   if (!log_->IsEnabled() || !FLAG_prof) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("shared-library,\"%s\",0x%08" V8PRIxPTR ",0x%08" V8PRIxPTR "\n",
              library_path,
              start,
@@ -699,7 +700,7 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
                                 uintptr_t start,
                                 uintptr_t end) {
   if (!log_->IsEnabled() || !FLAG_prof) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("shared-library,\"%ls\",0x%08" V8PRIxPTR ",0x%08" V8PRIxPTR "\n",
              library_path,
              start,
@@ -711,7 +712,7 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 void Logger::CodeDeoptEvent(Code* code) {
   if (!log_->IsEnabled()) return;
   ASSERT(FLAG_log_internal_timer_events);
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   int since_epoch = static_cast<int>(OS::Ticks() - epoch_);
   msg.Append("code-deopt,%ld,%d\n", since_epoch, code->CodeSize());
   msg.WriteToLogFile();
@@ -721,7 +722,7 @@ void Logger::CodeDeoptEvent(Code* code) {
 void Logger::TimerEvent(StartEnd se, const char* name) {
   if (!log_->IsEnabled()) return;
   ASSERT(FLAG_log_internal_timer_events);
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   int since_epoch = static_cast<int>(OS::Ticks() - epoch_);
   const char* format = (se == START) ? "timer-event-start,\"%s\",%ld\n"
                                      : "timer-event-end,\"%s\",%ld\n";
@@ -762,7 +763,7 @@ const char* Logger::TimerEventScope::v8_external = "V8.External";
 void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
   // Prints "/" + re.source + "/" +
   //      (re.global?"g":"") + (re.ignorecase?"i":"") + (re.multiline?"m":"")
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
 
   Handle<Object> source = GetProperty(regexp, "source");
   if (!source->IsString()) {
@@ -803,7 +804,7 @@ void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
 
 void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
   if (!log_->IsEnabled() || !FLAG_log_regexp) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("regexp-compile,");
   LogRegExpSource(regexp);
   msg.Append(in_cache ? ",hit\n" : ",miss\n");
@@ -815,7 +816,7 @@ void Logger::LogRuntime(Vector<const char> format,
                         JSArray* args) {
   if (!log_->IsEnabled() || !FLAG_log_runtime) return;
   HandleScope scope(isolate_);
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   for (int i = 0; i < format.length(); i++) {
     char c = format[i];
     if (c == '%' && i <= format.length() - 2) {
@@ -916,7 +917,7 @@ void Logger::ApiEntryCall(const char* name) {
 
 void Logger::NewEvent(const char* name, void* object, size_t size) {
   if (!log_->IsEnabled() || !FLAG_log) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("new,%s,0x%" V8PRIxPTR ",%u\n", name, object,
              static_cast<unsigned int>(size));
   msg.WriteToLogFile();
@@ -925,7 +926,7 @@ void Logger::NewEvent(const char* name, void* object, size_t size) {
 
 void Logger::DeleteEvent(const char* name, void* object) {
   if (!log_->IsEnabled() || !FLAG_log) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("delete,%s,0x%" V8PRIxPTR "\n", name, object);
   msg.WriteToLogFile();
 }
@@ -940,10 +941,11 @@ void Logger::DeleteEventStatic(const char* name, void* object) {
   Isolate::Current()->logger()->DeleteEvent(name, object);
 }
 
+
 void Logger::CallbackEventInternal(const char* prefix, Name* name,
                                    Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("%s,%s,-2,",
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[CALLBACK_TAG]);
@@ -1023,29 +1025,16 @@ void Logger::LogRecordedBuffer(Code* code, SharedFunctionInfo* shared) {
 }
 
 
-void Logger::AppendCodeCreateHeader(LogMessageBuilder* msg,
-                                    LogEventsAndTags tag,
-                                    Code* code) {
+static void AppendCodeCreateHeader(Log::MessageBuilder* msg,
+                                   Logger::LogEventsAndTags tag,
+                                   Code* code) {
   ASSERT(msg);
   msg->Append("%s,%s,%d,",
-              kLogEventsNames[CODE_CREATION_EVENT],
+              kLogEventsNames[Logger::CODE_CREATION_EVENT],
               kLogEventsNames[tag],
               code->kind());
   msg->AppendAddress(code->address());
   msg->Append(",%d,", code->ExecutableSize());
-}
-
-
-void Logger::AppendSymbolName(LogMessageBuilder* msg,
-                              Symbol* symbol) {
-    ASSERT(symbol);
-    msg->Append("symbol(");
-    if (!symbol->name()->IsUndefined()) {
-      msg->Append("\"");
-      msg->AppendDetailed(String::cast(symbol->name()), false);
-      msg->Append("\" ");
-    }
-    msg->Append("hash %x)", symbol->Hash());
 }
 
 
@@ -1060,7 +1049,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, tag, code);
   msg.AppendDoubleQuotedString(comment);
   msg.Append('\n');
@@ -1079,14 +1068,14 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, tag, code);
   if (name->IsString()) {
     msg.Append('"');
     msg.AppendDetailed(String::cast(name), false);
     msg.Append('"');
   } else {
-    AppendSymbolName(&msg, Symbol::cast(name));
+    msg.AppendSymbolName(Symbol::cast(name));
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1121,14 +1110,14 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
       Builtins::kLazyCompile))
     return;
 
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, tag, code);
   if (name->IsString()) {
     SmartArrayPointer<char> str =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("\"%s\"", *str);
   } else {
-    AppendSymbolName(&msg, Symbol::cast(name));
+    msg.AppendSymbolName(Symbol::cast(name));
   }
   msg.Append(',');
   msg.AppendAddress(shared->address());
@@ -1165,7 +1154,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, tag, code);
   SmartArrayPointer<char> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -1175,7 +1164,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
        String::cast(source)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("%s", *sourcestr);
   } else {
-    AppendSymbolName(&msg, Symbol::cast(source));
+    msg.AppendSymbolName(Symbol::cast(source));
   }
   msg.Append(":%d\",", line);
   msg.AppendAddress(shared->address());
@@ -1194,7 +1183,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
   }
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, tag, code);
   msg.Append("\"args_count: %d\"", args_count);
   msg.Append('\n');
@@ -1218,7 +1207,7 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
   }
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, REG_EXP_TAG, code);
   msg.Append('"');
   msg.AppendDetailed(source, false);
@@ -1286,14 +1275,14 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
   if (Serializer::enabled() && address_to_name_map_ != NULL) {
     const char* code_name = address_to_name_map_->Lookup(addr);
     if (code_name == NULL) return;  // Not a code object.
-    LogMessageBuilder msg(this);
+    Log::MessageBuilder msg(log_);
     msg.Append("%s,%d,", kLogEventsNames[SNAPSHOT_CODE_NAME_EVENT], pos);
     msg.AppendDoubleQuotedString(code_name);
     msg.Append("\n");
     msg.WriteToLogFile();
   }
   if (!FLAG_log_snapshot_positions) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[SNAPSHOT_POSITION_EVENT]);
   msg.AppendAddress(addr);
   msg.Append(",%d", pos);
@@ -1311,7 +1300,7 @@ void Logger::MoveEventInternal(LogEventsAndTags event,
                                Address from,
                                Address to) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[event]);
   msg.AppendAddress(from);
   msg.Append(',');
@@ -1323,7 +1312,7 @@ void Logger::MoveEventInternal(LogEventsAndTags event,
 
 void Logger::DeleteEventInternal(LogEventsAndTags event, Address from) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[event]);
   msg.AppendAddress(from);
   msg.Append('\n');
@@ -1333,7 +1322,7 @@ void Logger::DeleteEventInternal(LogEventsAndTags event, Address from) {
 
 void Logger::ResourceEvent(const char* name, const char* tag) {
   if (!log_->IsEnabled() || !FLAG_log) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("%s,%s,", name, tag);
 
   uint32_t sec, usec;
@@ -1349,7 +1338,7 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
 
 void Logger::SuspectReadEvent(Name* name, Object* obj) {
   if (!log_->IsEnabled() || !FLAG_log_suspect) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   String* class_name = obj->IsJSObject()
                        ? JSObject::cast(obj)->class_name()
                        : isolate_->heap()->empty_string();
@@ -1361,7 +1350,7 @@ void Logger::SuspectReadEvent(Name* name, Object* obj) {
     msg.Append(String::cast(name));
     msg.Append('"');
   } else {
-    AppendSymbolName(&msg, Symbol::cast(name));
+    msg.AppendSymbolName(Symbol::cast(name));
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1370,7 +1359,7 @@ void Logger::SuspectReadEvent(Name* name, Object* obj) {
 
 void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
   if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   // Using non-relative system time in order to be able to synchronize with
   // external memory profiling events (e.g. DOM memory size).
   msg.Append("heap-sample-begin,\"%s\",\"%s\",%.0f\n",
@@ -1381,7 +1370,7 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 
 void Logger::HeapSampleEndEvent(const char* space, const char* kind) {
   if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("heap-sample-end,\"%s\",\"%s\"\n", space, kind);
   msg.WriteToLogFile();
 }
@@ -1389,7 +1378,7 @@ void Logger::HeapSampleEndEvent(const char* space, const char* kind) {
 
 void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
   if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("heap-sample-item,%s,%d,%d\n", type, number, bytes);
   msg.WriteToLogFile();
 }
@@ -1397,7 +1386,7 @@ void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
 
 void Logger::DebugTag(const char* call_site_tag) {
   if (!log_->IsEnabled() || !FLAG_log) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("debug-tag,%s\n", call_site_tag);
   msg.WriteToLogFile();
 }
@@ -1410,7 +1399,7 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
     s.AddCharacter(static_cast<char>(parameter[i]));
   }
   char* parameter_string = s.Finalize();
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("debug-queue-event,%s,%15.3f,%s\n",
              event_type,
              OS::TimeCurrentMillis(),
@@ -1422,7 +1411,7 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!log_->IsEnabled() || !FLAG_prof) return;
-  LogMessageBuilder msg(this);
+  Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[TICK_EVENT]);
   msg.AppendAddress(sample->pc);
   msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
