@@ -40,6 +40,11 @@ namespace internal {
 static const char* TypeToString(InstanceType type);
 
 
+void MaybeObject::Print() {
+  Print(stdout);
+}
+
+
 void MaybeObject::Print(FILE* out) {
   Object* this_as_object;
   if (ToObject(&this_as_object)) {
@@ -52,6 +57,11 @@ void MaybeObject::Print(FILE* out) {
     Failure::cast(this)->FailurePrint(out);
   }
   Flush(out);
+}
+
+
+void MaybeObject::PrintLn() {
+  PrintLn(stdout);
 }
 
 

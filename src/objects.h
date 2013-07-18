@@ -922,13 +922,9 @@ class MaybeObject BASE_EMBEDDED {
 
 #ifdef OBJECT_PRINT
   // Prints this object with details.
-  inline void Print() {
-    Print(stdout);
-  }
-  inline void PrintLn() {
-    PrintLn(stdout);
-  }
+  void Print();
   void Print(FILE* out);
+  void PrintLn();
   void PrintLn(FILE* out);
 #endif
 #ifdef VERIFY_HEAP
