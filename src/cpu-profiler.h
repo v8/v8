@@ -110,18 +110,8 @@ class TickSampleEventRecord {
   // The parameterless constructor is used when we dequeue data from
   // the ticks buffer.
   TickSampleEventRecord() { }
-  explicit TickSampleEventRecord(unsigned order)
-      : filler(1),
-        order(order) {
-    ASSERT(filler != SamplingCircularQueue::kClear);
-  }
+  explicit TickSampleEventRecord(unsigned order) : order(order) { }
 
-  // The first machine word of a TickSampleEventRecord must not ever
-  // become equal to SamplingCircularQueue::kClear.  As both order and
-  // TickSample's first field are not reliable in this sense (order
-  // can overflow, TickSample can have all fields reset), we are
-  // forced to use an artificial filler field.
-  int filler;
   unsigned order;
   TickSample sample;
 
