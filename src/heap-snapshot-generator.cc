@@ -892,7 +892,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
       : generator_(generator),
         parent_obj_(parent_obj),
         parent_(parent),
-        next_index_(1) {
+        next_index_(0) {
   }
   void VisitCodeEntry(Address entry_address) {
      Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
@@ -1147,6 +1147,10 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
   SetInternalReference(map, entry,
                        "constructor", map->constructor(),
                        Map::kConstructorOffset);
+  TagObject(map->dependent_code(), "(dependent code)");
+  SetInternalReference(map, entry,
+                       "dependent_code", map->dependent_code(),
+                       Map::kDependentCodeOffset);
 }
 
 
