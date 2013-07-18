@@ -29,7 +29,6 @@
 
 #include <stdlib.h>
 
-#define V8_DISABLE_DEPRECATIONS 1
 #include "v8.h"
 
 #include "api.h"
@@ -40,7 +39,6 @@
 #include "platform.h"
 #include "stub-cache.h"
 #include "utils.h"
-#undef V8_DISABLE_DEPRECATIONS
 
 
 using ::v8::internal::EmbeddedVector;
