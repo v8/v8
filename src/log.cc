@@ -445,10 +445,10 @@ Logger::Logger(Isolate* isolate)
     cpu_profiler_nesting_(0),
     log_(new Log(this)),
     ll_logger_(NULL),
+    jit_logger_(NULL),
     name_buffer_(new NameBuffer),
     address_to_name_map_(NULL),
     is_initialized_(false),
-    code_event_handler_(NULL),
     last_address_(NULL),
     prev_sp_(NULL),
     prev_function_(NULL),
@@ -465,10 +465,38 @@ Logger::~Logger() {
 }
 
 
-void Logger::IssueCodeAddedEvent(Code* code,
-                                 Script* script,
-                                 const char* name,
-                                 size_t name_len) {
+class JitLogger {
+ public:
+  explicit JitLogger(JitCodeEventHandler code_event_handler);
+
+  void CodeCreateEvent(Code* code, Script* script,
+                       const char* name, size_t name_len);
+  void CodeMovedEvent(Address from, Address to);
+  void CodeRemovedEvent(Address from);
+  void  AddCodeLinePosInfoEvent(
+      void* jit_handler_data,
+      int pc_offset,
+      int position,
+      JitCodeEvent::PositionType position_type);
+  void* StartCodePosInfoEvent();
+  void EndCodePosInfoEvent(Code* code, void* jit_handler_data);
+
+ private:
+  JitCodeEventHandler code_event_handler_;
+};
+
+#define JIT_LOG(Call) if (jit_logger_) jit_logger_->Call;
+
+
+JitLogger::JitLogger(JitCodeEventHandler code_event_handler)
+    : code_event_handler_(code_event_handler) {
+}
+
+
+void JitLogger::CodeCreateEvent(Code* code,
+                                Script* script,
+                                const char* name,
+                                size_t name_len) {
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
   event.type = JitCodeEvent::CODE_ADDED;
@@ -484,7 +512,7 @@ void Logger::IssueCodeAddedEvent(Code* code,
 }
 
 
-void Logger::IssueCodeMovedEvent(Address from, Address to) {
+void JitLogger::CodeMovedEvent(Address from, Address to) {
   Code* from_code = Code::cast(HeapObject::FromAddress(from));
 
   JitCodeEvent event;
@@ -504,7 +532,7 @@ void Logger::IssueCodeMovedEvent(Address from, Address to) {
 }
 
 
-void Logger::IssueCodeRemovedEvent(Address from) {
+void JitLogger::CodeRemovedEvent(Address from) {
   Code* from_code = Code::cast(HeapObject::FromAddress(from));
 
   JitCodeEvent event;
@@ -515,7 +543,7 @@ void Logger::IssueCodeRemovedEvent(Address from) {
   code_event_handler_(&event);
 }
 
-void Logger::IssueAddCodeLinePosInfoEvent(
+void JitLogger::AddCodeLinePosInfoEvent(
     void* jit_handler_data,
     int pc_offset,
     int position,
@@ -532,7 +560,7 @@ void Logger::IssueAddCodeLinePosInfoEvent(
 }
 
 
-void* Logger::IssueStartCodePosInfoEvent() {
+void* JitLogger::StartCodePosInfoEvent() {
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
   event.type = JitCodeEvent::CODE_START_LINE_INFO_RECORDING;
@@ -542,7 +570,7 @@ void* Logger::IssueStartCodePosInfoEvent() {
 }
 
 
-void Logger::IssueEndCodePosInfoEvent(Code* code, void* jit_handler_data) {
+void JitLogger::EndCodePosInfoEvent(Code* code, void* jit_handler_data) {
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
   event.type = JitCodeEvent::CODE_END_LINE_INFO_RECORDING;
@@ -983,14 +1011,10 @@ void Logger::InitNameBuffer(LogEventsAndTags tag) {
 
 
 void Logger::LogRecordedBuffer(Code* code, SharedFunctionInfo* shared) {
-  if (code_event_handler_ != NULL) {
-    Script* script = shared && shared->script()->IsScript() ?
-        Script::cast(shared->script()) : NULL;
-    IssueCodeAddedEvent(code,
-                        script,
-                        name_buffer_->get(),
-                        name_buffer_->size());
-  }
+  Script* script = shared && shared->script()->IsScript() ?
+      Script::cast(shared->script()) : NULL;
+  JIT_LOG(CodeCreateEvent(code, script, name_buffer_->get(),
+                          name_buffer_->size()));
   if (!log_->IsEnabled()) return;
   LL_LOG(CodeCreateEvent(code, name_buffer_->get(), name_buffer_->size()));
   if (Serializer::enabled()) {
@@ -1029,7 +1053,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              const char* comment) {
   if (!is_logging_code_events()) return;
-  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
+  if (FLAG_ll_prof || Serializer::enabled() || jit_logger_ != NULL) {
     InitNameBuffer(tag);
     name_buffer_->AppendBytes(comment);
     LogRecordedBuffer(code, NULL);
@@ -1048,7 +1072,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              Name* name) {
   if (!is_logging_code_events()) return;
-  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
+  if (FLAG_ll_prof || Serializer::enabled() || jit_logger_ != NULL) {
     InitNameBuffer(tag);
     AppendName(name);
     LogRecordedBuffer(code, NULL);
@@ -1085,7 +1109,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              CompilationInfo* info,
                              Name* name) {
   if (!is_logging_code_events()) return;
-  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
+  if (FLAG_ll_prof || Serializer::enabled() || jit_logger_ != NULL) {
     InitNameBuffer(tag);
     name_buffer_->AppendBytes(ComputeMarker(code));
     AppendName(name);
@@ -1123,7 +1147,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              CompilationInfo* info,
                              Name* source, int line) {
   if (!is_logging_code_events()) return;
-  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
+  if (FLAG_ll_prof || Serializer::enabled() || jit_logger_ != NULL) {
     InitNameBuffer(tag);
     name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(shared->DebugName());
@@ -1163,7 +1187,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 
 void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
   if (!is_logging_code_events()) return;
-  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
+  if (FLAG_ll_prof || Serializer::enabled() || jit_logger_ != NULL) {
     InitNameBuffer(tag);
     name_buffer_->AppendInt(args_count);
     LogRecordedBuffer(code, NULL);
@@ -1187,7 +1211,7 @@ void Logger::CodeMovingGCEvent() {
 
 void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
   if (!is_logging_code_events()) return;
-  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
+  if (FLAG_ll_prof || Serializer::enabled() || jit_logger_ != NULL) {
     InitNameBuffer(REG_EXP_TAG);
     name_buffer_->AppendString(source);
     LogRecordedBuffer(code, NULL);
@@ -1205,7 +1229,7 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 
 
 void Logger::CodeMoveEvent(Address from, Address to) {
-  if (code_event_handler_ != NULL) IssueCodeMovedEvent(from, to);
+  JIT_LOG(CodeMovedEvent(from, to));
   if (!log_->IsEnabled()) return;
   LL_LOG(CodeMoveEvent(from, to));
   if (Serializer::enabled() && address_to_name_map_ != NULL) {
@@ -1216,7 +1240,7 @@ void Logger::CodeMoveEvent(Address from, Address to) {
 
 
 void Logger::CodeDeleteEvent(Address from) {
-  if (code_event_handler_ != NULL) IssueCodeRemovedEvent(from);
+  JIT_LOG(CodeRemovedEvent(from));
   if (!log_->IsEnabled()) return;
   LL_LOG(CodeDeleteEvent(from));
   if (Serializer::enabled() && address_to_name_map_ != NULL) {
@@ -1228,37 +1252,31 @@ void Logger::CodeDeleteEvent(Address from) {
 void Logger::CodeLinePosInfoAddPositionEvent(void* jit_handler_data,
                                      int pc_offset,
                                      int position) {
-  if (code_event_handler_ != NULL) {
-    IssueAddCodeLinePosInfoEvent(jit_handler_data,
-                                 pc_offset,
-                                 position,
-                                 JitCodeEvent::POSITION);
-  }
+  JIT_LOG(AddCodeLinePosInfoEvent(jit_handler_data,
+                                  pc_offset,
+                                  position,
+                                  JitCodeEvent::POSITION));
 }
 
 void Logger::CodeLinePosInfoAddStatementPositionEvent(void* jit_handler_data,
                                                       int pc_offset,
                                                       int position) {
-  if (code_event_handler_ != NULL) {
-    IssueAddCodeLinePosInfoEvent(jit_handler_data,
-                                 pc_offset,
-                                 position,
-                                 JitCodeEvent::STATEMENT_POSITION);
-  }
+  JIT_LOG(AddCodeLinePosInfoEvent(jit_handler_data,
+                                  pc_offset,
+                                  position,
+                                  JitCodeEvent::STATEMENT_POSITION));
 }
 
 
 void Logger::CodeStartLinePosInfoRecordEvent(PositionsRecorder* pos_recorder) {
-  if (code_event_handler_ != NULL) {
-      pos_recorder->AttachJITHandlerData(IssueStartCodePosInfoEvent());
+  if (jit_logger_ != NULL) {
+      pos_recorder->AttachJITHandlerData(jit_logger_->StartCodePosInfoEvent());
   }
 }
 
 void Logger::CodeEndLinePosInfoRecordEvent(Code* code,
                                            void* jit_handler_data) {
-  if (code_event_handler_ != NULL) {
-    IssueEndCodePosInfoEvent(code, jit_handler_data);
-  }
+  JIT_LOG(EndCodePosInfoEvent(code, jit_handler_data));
 }
 
 
@@ -1910,9 +1928,16 @@ bool Logger::SetUp(Isolate* isolate) {
 
 void Logger::SetCodeEventHandler(uint32_t options,
                                  JitCodeEventHandler event_handler) {
-  code_event_handler_ = event_handler;
+  if (jit_logger_) {
+      delete jit_logger_;
+      jit_logger_ = NULL;
+  }
 
-  if (code_event_handler_ != NULL && (options & kJitCodeEventEnumExisting)) {
+  if (event_handler) {
+    jit_logger_ = new JitLogger(event_handler);
+  }
+
+  if (jit_logger_ != NULL && (options & kJitCodeEventEnumExisting)) {
     HandleScope scope(isolate_);
     LogCodeObjects();
     LogCompiledFunctions();
@@ -1942,6 +1967,11 @@ FILE* Logger::TearDown() {
   if (ll_logger_) {
     delete ll_logger_;
     ll_logger_ = NULL;
+  }
+
+  if (jit_logger_) {
+    delete jit_logger_;
+    jit_logger_ = NULL;
   }
 
   return log_->Close();

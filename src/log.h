@@ -151,6 +151,7 @@ class CompilationInfo;
 // original tags when writing to the log.
 
 
+class JitLogger;
 class LowLevelLogger;
 class Sampler;
 
@@ -337,12 +338,8 @@ class Logger {
     return logging_nesting_ > 0;
   }
 
-  bool is_code_event_handler_enabled() {
-    return code_event_handler_ != NULL;
-  }
-
   bool is_logging_code_events() {
-    return is_logging() || code_event_handler_ != NULL;
+    return is_logging() || jit_logger_ != NULL;
   }
 
   // Pause/Resume collection of profiling data.
@@ -383,19 +380,6 @@ class Logger {
   explicit Logger(Isolate* isolate);
   ~Logger();
 
-  // Issue code notifications.
-  void IssueCodeAddedEvent(Code* code,
-                           Script* script,
-                           const char* name,
-                           size_t name_len);
-  void IssueCodeMovedEvent(Address from, Address to);
-  void IssueCodeRemovedEvent(Address from);
-  void IssueAddCodeLinePosInfoEvent(void* jit_handler_data,
-                                    int pc_offset,
-                                    int position,
-                                    JitCodeEvent::PositionType position_Type);
-  void* IssueStartCodePosInfoEvent();
-  void IssueEndCodePosInfoEvent(Code* code, void* jit_handler_data);
   // Emits the profiler's first message.
   void ProfilerBeginEvent();
 
@@ -475,6 +459,7 @@ class Logger {
 
   Log* log_;
   LowLevelLogger* ll_logger_;
+  JitLogger* jit_logger_;
 
   NameBuffer* name_buffer_;
 
@@ -483,9 +468,6 @@ class Logger {
   // Guards against multiple calls to TearDown() that can happen in some tests.
   // 'true' between SetUp() and TearDown().
   bool is_initialized_;
-
-  // The code event handler - if any.
-  JitCodeEventHandler code_event_handler_;
 
   // Support for 'incremental addresses' in compressed logs:
   //  LogMessageBuilder::AppendAddress(Address addr)
