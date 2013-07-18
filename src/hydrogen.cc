@@ -5619,7 +5619,6 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   *has_side_effects = false;
   BuildCheckHeapObject(object);
   SmallMapList* maps = prop->GetReceiverTypes();
-  bool todo_external_array = false;
 
   if (!is_store) {
     HInstruction* consolidated_load =
@@ -5631,12 +5630,6 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       }
       return consolidated_load;
     }
-  }
-
-  static const int kNumElementTypes = kElementsKindCount;
-  bool type_todo[kNumElementTypes];
-  for (int i = 0; i < kNumElementTypes; ++i) {
-    type_todo[i] = false;
   }
 
   // Elements_kind transition support.
@@ -5659,8 +5652,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     transition_target.Add(transitioned_map);
   }
 
-  int num_untransitionable_maps = 0;
-  Handle<Map> untransitionable_map;
+  MapHandleList untransitionable_maps(maps->length());
   HTransitionElementsKind* transition = NULL;
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
@@ -5673,19 +5665,15 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       transition = Add<HTransitionElementsKind>(context, object, map,
                                                 transition_target.at(i));
     } else {
-      type_todo[map->elements_kind()] = true;
-      if (IsExternalArrayElementsKind(map->elements_kind())) {
-        todo_external_array = true;
-      }
-      num_untransitionable_maps++;
-      untransitionable_map = map;
+      untransitionable_maps.Add(map);
     }
   }
 
   // If only one map is left after transitioning, handle this case
   // monomorphically.
-  ASSERT(num_untransitionable_maps >= 1);
-  if (num_untransitionable_maps == 1) {
+  ASSERT(untransitionable_maps.length() >= 1);
+  if (untransitionable_maps.length() == 1) {
+    Handle<Map> untransitionable_map = untransitionable_maps[0];
     HInstruction* instr = NULL;
     if (untransitionable_map->has_slow_elements_kind()) {
       instr = AddInstruction(is_store ? BuildStoreKeyedGeneric(object, key, val)
@@ -5704,113 +5692,63 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       AddInstruction(HCheckInstanceType::NewIsSpecObject(object, zone()));
   HBasicBlock* join = graph()->CreateBasicBlock();
 
-  HInstruction* elements_kind_instr = Add<HElementsKind>(object);
   HInstruction* elements = AddLoadElements(object, checkspec);
-  HLoadExternalArrayPointer* external_elements = NULL;
-  HInstruction* checked_key = NULL;
 
-  // Generated code assumes that FAST_* and DICTIONARY_ELEMENTS ElementsKinds
-  // are handled before external arrays.
-  STATIC_ASSERT(FAST_SMI_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
-  STATIC_ASSERT(FAST_DOUBLE_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
-  STATIC_ASSERT(DICTIONARY_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+  for (int i = 0; i < untransitionable_maps.length(); ++i) {
+    Handle<Map> map = untransitionable_maps[i];
+    ElementsKind elements_kind = map->elements_kind();
+    HBasicBlock* this_map = graph()->CreateBasicBlock();
+    HBasicBlock* other_map = graph()->CreateBasicBlock();
+    HCompareMap* mapcompare =
+        new(zone()) HCompareMap(object, map, this_map, other_map);
+    current_block()->Finish(mapcompare);
 
-  for (ElementsKind elements_kind = FIRST_ELEMENTS_KIND;
-       elements_kind <= LAST_ELEMENTS_KIND;
-       elements_kind = ElementsKind(elements_kind + 1)) {
-    // After having handled FAST_* and DICTIONARY_ELEMENTS, we need to add some
-    // code that's executed for all external array cases.
-    STATIC_ASSERT(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND ==
-                  LAST_ELEMENTS_KIND);
-    if (elements_kind == FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
-        && todo_external_array) {
+    set_current_block(this_map);
+    HInstruction* checked_key = NULL;
+    HInstruction* access = NULL;
+    if (IsFastElementsKind(elements_kind)) {
+      if (is_store && !IsFastDoubleElementsKind(elements_kind)) {
+        AddInstruction(HCheckMaps::New(
+            elements, isolate()->factory()->fixed_array_map(),
+            zone(), mapcompare));
+      }
+      if (map->IsJSArray()) {
+        HInstruction* length = AddLoad(object, HObjectAccess::ForArrayLength(),
+                                       mapcompare, Representation::Smi());
+        length->set_type(HType::Smi());
+        checked_key = Add<HBoundsCheck>(key, length);
+      } else {
+        HInstruction* length = AddLoadFixedArrayLength(elements);
+        checked_key = Add<HBoundsCheck>(key, length);
+      }
+      access = AddInstruction(BuildFastElementAccess(
+          elements, checked_key, val, mapcompare,
+          elements_kind, is_store, NEVER_RETURN_HOLE, STANDARD_STORE));
+    } else if (IsDictionaryElementsKind(elements_kind)) {
+      if (is_store) {
+        access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));
+      } else {
+        access = AddInstruction(BuildLoadKeyedGeneric(object, key));
+      }
+    } else {
+      ASSERT(IsExternalArrayElementsKind(elements_kind));
       HInstruction* length = AddLoadFixedArrayLength(elements);
       checked_key = Add<HBoundsCheck>(key, length);
-      external_elements = Add<HLoadExternalArrayPointer>(elements);
+      HLoadExternalArrayPointer* external_elements =
+          Add<HLoadExternalArrayPointer>(elements);
+      access = AddInstruction(BuildExternalArrayElementAccess(
+          external_elements, checked_key, val,
+          mapcompare, elements_kind, is_store));
     }
-    if (type_todo[elements_kind]) {
-      HBasicBlock* if_true = graph()->CreateBasicBlock();
-      HBasicBlock* if_false = graph()->CreateBasicBlock();
-      HCompareConstantEqAndBranch* elements_kind_branch =
-          new(zone()) HCompareConstantEqAndBranch(
-              elements_kind_instr, elements_kind, Token::EQ_STRICT);
-      elements_kind_branch->SetSuccessorAt(0, if_true);
-      elements_kind_branch->SetSuccessorAt(1, if_false);
-      current_block()->Finish(elements_kind_branch);
-
-      set_current_block(if_true);
-      HInstruction* access;
-      if (IsFastElementsKind(elements_kind)) {
-        if (is_store && !IsFastDoubleElementsKind(elements_kind)) {
-          AddInstruction(HCheckMaps::New(
-              elements, isolate()->factory()->fixed_array_map(),
-              zone(), elements_kind_branch));
-        }
-        // TODO(jkummerow): The need for these two blocks could be avoided
-        // in one of two ways:
-        // (1) Introduce ElementsKinds for JSArrays that are distinct from
-        //     those for fast objects.
-        // (2) Put the common instructions into a third "join" block. This
-        //     requires additional AST IDs that we can deopt to from inside
-        //     that join block. They must be added to the Property class (when
-        //     it's a keyed property) and registered in the full codegen.
-        HBasicBlock* if_jsarray = graph()->CreateBasicBlock();
-        HBasicBlock* if_fastobject = graph()->CreateBasicBlock();
-        HHasInstanceTypeAndBranch* typecheck =
-            new(zone()) HHasInstanceTypeAndBranch(object, JS_ARRAY_TYPE);
-        typecheck->SetSuccessorAt(0, if_jsarray);
-        typecheck->SetSuccessorAt(1, if_fastobject);
-        current_block()->Finish(typecheck);
-
-        set_current_block(if_jsarray);
-        HInstruction* length = AddLoad(object, HObjectAccess::ForArrayLength(),
-            typecheck, Representation::Smi());
-        length->set_type(HType::Smi());
-
-        checked_key = Add<HBoundsCheck>(key, length);
-        access = AddInstruction(BuildFastElementAccess(
-            elements, checked_key, val, elements_kind_branch,
-            elements_kind, is_store, NEVER_RETURN_HOLE, STANDARD_STORE));
-        if (!is_store) {
-          Push(access);
-        }
-
-        *has_side_effects |= access->HasObservableSideEffects();
-        // The caller will use has_side_effects and add correct Simulate.
-        access->SetFlag(HValue::kHasNoObservableSideEffects);
-        if (position != -1) {
-          access->set_position(position);
-        }
-        if_jsarray->GotoNoSimulate(join);
-
-        set_current_block(if_fastobject);
-        length = AddLoadFixedArrayLength(elements);
-        checked_key = Add<HBoundsCheck>(key, length);
-        access = AddInstruction(BuildFastElementAccess(
-            elements, checked_key, val, elements_kind_branch,
-            elements_kind, is_store, NEVER_RETURN_HOLE, STANDARD_STORE));
-      } else if (elements_kind == DICTIONARY_ELEMENTS) {
-        if (is_store) {
-          access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));
-        } else {
-          access = AddInstruction(BuildLoadKeyedGeneric(object, key));
-        }
-      } else {  // External array elements.
-        access = AddInstruction(BuildExternalArrayElementAccess(
-            external_elements, checked_key, val,
-            elements_kind_branch, elements_kind, is_store));
-      }
-      *has_side_effects |= access->HasObservableSideEffects();
-      // The caller will use has_side_effects and add correct Simulate.
-      access->SetFlag(HValue::kHasNoObservableSideEffects);
-      if (position != RelocInfo::kNoPosition) access->set_position(position);
-      if (!is_store) {
-        Push(access);
-      }
-      current_block()->GotoNoSimulate(join);
-      set_current_block(if_false);
+    *has_side_effects |= access->HasObservableSideEffects();
+    // The caller will use has_side_effects and add a correct Simulate.
+    access->SetFlag(HValue::kHasNoObservableSideEffects);
+    if (position != RelocInfo::kNoPosition) access->set_position(position);
+    if (!is_store) {
+      Push(access);
     }
+    current_block()->GotoNoSimulate(join);
+    set_current_block(other_map);
   }
 
   // Deopt if none of the cases matched.
