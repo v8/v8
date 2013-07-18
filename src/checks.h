@@ -232,9 +232,7 @@ inline void CheckNonEqualsHelper(const char* file,
 
 // Use C++11 static_assert if possible, which gives error
 // messages that are easier to understand on first sight.
-#if __cplusplus >= 201103L || \
-    (defined(__has_feature) && __has_feature(cxx_static_assert)) || \
-    (defined(__has_extension) && __has_extension(cxx_static_assert))
+#if __cplusplus >= 201103L
 #define STATIC_CHECK(test) static_assert(test, #test)
 #else
 // This is inspired by the static assertion facility in boost.  This
