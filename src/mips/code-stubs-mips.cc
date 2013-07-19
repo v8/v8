@@ -1310,7 +1310,6 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register scratch1,
                                                          Register scratch2,
                                                          Register scratch3,
-                                                         bool object_is_smi,
                                                          Label* not_found) {
   // Use of registers. Register result is used as a temporary.
   Register number_string_cache = result;
@@ -1333,37 +1332,35 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Isolate* isolate = masm->isolate();
   Label is_smi;
   Label load_result_from_cache;
-  if (!object_is_smi) {
-    __ JumpIfSmi(object, &is_smi);
-    __ CheckMap(object,
-                scratch1,
-                Heap::kHeapNumberMapRootIndex,
-                not_found,
-                DONT_DO_SMI_CHECK);
+  __ JumpIfSmi(object, &is_smi);
+  __ CheckMap(object,
+              scratch1,
+              Heap::kHeapNumberMapRootIndex,
+              not_found,
+              DONT_DO_SMI_CHECK);
 
-    STATIC_ASSERT(8 == kDoubleSize);
-    __ Addu(scratch1,
-            object,
-            Operand(HeapNumber::kValueOffset - kHeapObjectTag));
-    __ lw(scratch2, MemOperand(scratch1, kPointerSize));
-    __ lw(scratch1, MemOperand(scratch1, 0));
-    __ Xor(scratch1, scratch1, Operand(scratch2));
-    __ And(scratch1, scratch1, Operand(mask));
+  STATIC_ASSERT(8 == kDoubleSize);
+  __ Addu(scratch1,
+          object,
+          Operand(HeapNumber::kValueOffset - kHeapObjectTag));
+  __ lw(scratch2, MemOperand(scratch1, kPointerSize));
+  __ lw(scratch1, MemOperand(scratch1, 0));
+  __ Xor(scratch1, scratch1, Operand(scratch2));
+  __ And(scratch1, scratch1, Operand(mask));
 
-    // Calculate address of entry in string cache: each entry consists
-    // of two pointer sized fields.
-    __ sll(scratch1, scratch1, kPointerSizeLog2 + 1);
-    __ Addu(scratch1, number_string_cache, scratch1);
+  // Calculate address of entry in string cache: each entry consists
+  // of two pointer sized fields.
+  __ sll(scratch1, scratch1, kPointerSizeLog2 + 1);
+  __ Addu(scratch1, number_string_cache, scratch1);
 
-    Register probe = mask;
-    __ lw(probe,
-           FieldMemOperand(scratch1, FixedArray::kHeaderSize));
-    __ JumpIfSmi(probe, not_found);
-    __ ldc1(f12, FieldMemOperand(object, HeapNumber::kValueOffset));
-    __ ldc1(f14, FieldMemOperand(probe, HeapNumber::kValueOffset));
-    __ BranchF(&load_result_from_cache, NULL, eq, f12, f14);
-    __ Branch(not_found);
-  }
+  Register probe = mask;
+  __ lw(probe,
+          FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+  __ JumpIfSmi(probe, not_found);
+  __ ldc1(f12, FieldMemOperand(object, HeapNumber::kValueOffset));
+  __ ldc1(f14, FieldMemOperand(probe, HeapNumber::kValueOffset));
+  __ BranchF(&load_result_from_cache, NULL, eq, f12, f14);
+  __ Branch(not_found);
 
   __ bind(&is_smi);
   Register scratch = scratch1;
@@ -1376,7 +1373,6 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   __ Addu(scratch, number_string_cache, scratch);
 
   // Check if the entry is the smi we are looking for.
-  Register probe = mask;
   __ lw(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
   __ Branch(not_found, ne, object, Operand(probe));
 
@@ -1398,7 +1394,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ lw(a1, MemOperand(sp, 0));
 
   // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, a1, v0, a2, a3, t0, false, &runtime);
+  GenerateLookupNumberStringCache(masm, a1, v0, a2, a3, t0, &runtime);
   __ DropAndRet(1);
 
   __ bind(&runtime);
@@ -6232,7 +6228,6 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
                                                       scratch2,
                                                       scratch3,
                                                       scratch4,
-                                                      false,
                                                       &not_cached);
   __ mov(arg, scratch1);
   __ sw(arg, MemOperand(sp, stack_offset));

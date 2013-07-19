@@ -3119,7 +3119,6 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register result,
                                                          Register scratch1,
                                                          Register scratch2,
-                                                         bool object_is_smi,
                                                          Label* not_found) {
   // Use of registers. Register result is used as a temporary.
   Register number_string_cache = result;
@@ -3143,39 +3142,36 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Label is_smi;
   Label load_result_from_cache;
   Factory* factory = masm->isolate()->factory();
-  if (!object_is_smi) {
-    __ JumpIfSmi(object, &is_smi);
-    __ CheckMap(object,
-                factory->heap_number_map(),
-                not_found,
-                DONT_DO_SMI_CHECK);
+  __ JumpIfSmi(object, &is_smi);
+  __ CheckMap(object,
+              factory->heap_number_map(),
+              not_found,
+              DONT_DO_SMI_CHECK);
 
-    STATIC_ASSERT(8 == kDoubleSize);
-    __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
-    __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset));
-    GenerateConvertHashCodeToIndex(masm, scratch, mask);
+  STATIC_ASSERT(8 == kDoubleSize);
+  __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
+  __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset));
+  GenerateConvertHashCodeToIndex(masm, scratch, mask);
 
-    Register index = scratch;
-    Register probe = mask;
-    __ movq(probe,
-            FieldOperand(number_string_cache,
-                         index,
-                         times_1,
-                         FixedArray::kHeaderSize));
-    __ JumpIfSmi(probe, not_found);
-    __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
-    __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
-    __ ucomisd(xmm0, xmm1);
-    __ j(parity_even, not_found);  // Bail out if NaN is involved.
-    __ j(not_equal, not_found);  // The cache did not contain this value.
-    __ jmp(&load_result_from_cache);
-  }
+  Register index = scratch;
+  Register probe = mask;
+  __ movq(probe,
+          FieldOperand(number_string_cache,
+                        index,
+                        times_1,
+                        FixedArray::kHeaderSize));
+  __ JumpIfSmi(probe, not_found);
+  __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
+  __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
+  __ ucomisd(xmm0, xmm1);
+  __ j(parity_even, not_found);  // Bail out if NaN is involved.
+  __ j(not_equal, not_found);  // The cache did not contain this value.
+  __ jmp(&load_result_from_cache);
 
   __ bind(&is_smi);
   __ SmiToInteger32(scratch, object);
   GenerateConvertHashCodeToIndex(masm, scratch, mask);
 
-  Register index = scratch;
   // Check if the entry is the smi we are looking for.
   __ cmpq(object,
           FieldOperand(number_string_cache,
@@ -3214,7 +3210,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ movq(rbx, Operand(rsp, kPointerSize));
 
   // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, rbx, rax, r8, r9, false, &runtime);
+  GenerateLookupNumberStringCache(masm, rbx, rax, r8, r9, &runtime);
   __ ret(1 * kPointerSize);
 
   __ bind(&runtime);
@@ -4866,7 +4862,6 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
                                                       scratch1,
                                                       scratch2,
                                                       scratch3,
-                                                      false,
                                                       &not_cached);
   __ movq(arg, scratch1);
   __ movq(Operand(rsp, stack_offset), arg);

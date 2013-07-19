@@ -298,7 +298,6 @@ class NumberToStringStub: public PlatformCodeStub {
                                               Register scratch1,
                                               Register scratch2,
                                               Register scratch3,
-                                              bool object_is_smi,
                                               Label* not_found);
 
  private:
