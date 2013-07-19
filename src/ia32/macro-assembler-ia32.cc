@@ -2812,11 +2812,14 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
 void MacroAssembler::JumpIfNotUniqueName(Operand operand,
                                          Label* not_unique_name,
                                          Label::Distance distance) {
-  STATIC_ASSERT(((SYMBOL_TYPE - 1) & kIsInternalizedMask) == kInternalizedTag);
-  cmp(operand, Immediate(kInternalizedTag));
-  j(less, not_unique_name, distance);
-  cmp(operand, Immediate(SYMBOL_TYPE));
-  j(greater, not_unique_name, distance);
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  Label succeed;
+  test(operand, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+  j(zero, &succeed);
+  cmpb(operand, static_cast<uint8_t>(SYMBOL_TYPE));
+  j(not_equal, not_unique_name, distance);
+
+  bind(&succeed);
 }
 
 

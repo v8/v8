@@ -579,9 +579,9 @@ const uint32_t kNotStringTag = 0x80;
 
 // Bit 6 indicates that the object is an internalized string (if set) or not.
 // Bit 7 has to be clear as well.
-const uint32_t kIsInternalizedMask = 0x40;
-const uint32_t kNotInternalizedTag = 0x0;
-const uint32_t kInternalizedTag = 0x40;
+const uint32_t kIsNotInternalizedMask = 0x40;
+const uint32_t kNotInternalizedTag = 0x40;
+const uint32_t kInternalizedTag = 0x0;
 
 // If bit 7 is clear then bit 2 indicates whether the string consists of
 // two-byte characters or one-byte characters.
@@ -630,45 +630,62 @@ const uint32_t kShortExternalStringTag = 0x10;
 // See heap.cc and mark-compact.cc.
 const uint32_t kShortcutTypeMask =
     kIsNotStringMask |
-    kIsInternalizedMask |
+    kIsNotInternalizedMask |
     kStringRepresentationMask;
-const uint32_t kShortcutTypeTag = kConsStringTag;
+const uint32_t kShortcutTypeTag = kConsStringTag | kNotInternalizedTag;
 
 
 enum InstanceType {
   // String types.
-  STRING_TYPE = kTwoByteStringTag | kSeqStringTag,
-  ASCII_STRING_TYPE = kOneByteStringTag | kSeqStringTag,
-  CONS_STRING_TYPE = kTwoByteStringTag | kConsStringTag,
-  CONS_ASCII_STRING_TYPE = kOneByteStringTag | kConsStringTag,
-  SLICED_STRING_TYPE = kTwoByteStringTag | kSlicedStringTag,
-  SLICED_ASCII_STRING_TYPE = kOneByteStringTag | kSlicedStringTag,
-  EXTERNAL_STRING_TYPE = kTwoByteStringTag | kExternalStringTag,
-  EXTERNAL_ASCII_STRING_TYPE = kOneByteStringTag | kExternalStringTag,
-  EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
-      EXTERNAL_STRING_TYPE | kOneByteDataHintTag,
-  SHORT_EXTERNAL_STRING_TYPE = EXTERNAL_STRING_TYPE | kShortExternalStringTag,
-  SHORT_EXTERNAL_ASCII_STRING_TYPE =
-      EXTERNAL_ASCII_STRING_TYPE | kShortExternalStringTag,
-  SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
-      EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE | kShortExternalStringTag,
-
-  INTERNALIZED_STRING_TYPE = STRING_TYPE | kInternalizedTag,
-  ASCII_INTERNALIZED_STRING_TYPE = ASCII_STRING_TYPE | kInternalizedTag,
-  CONS_INTERNALIZED_STRING_TYPE = CONS_STRING_TYPE | kInternalizedTag,
-  CONS_ASCII_INTERNALIZED_STRING_TYPE =
-      CONS_ASCII_STRING_TYPE | kInternalizedTag,
-  EXTERNAL_INTERNALIZED_STRING_TYPE = EXTERNAL_STRING_TYPE | kInternalizedTag,
-  EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE =
-      EXTERNAL_ASCII_STRING_TYPE | kInternalizedTag,
+  INTERNALIZED_STRING_TYPE = kTwoByteStringTag | kSeqStringTag
+      | kInternalizedTag,
+  ASCII_INTERNALIZED_STRING_TYPE = kOneByteStringTag | kSeqStringTag
+      | kInternalizedTag,
+  CONS_INTERNALIZED_STRING_TYPE = kTwoByteStringTag | kConsStringTag
+      | kInternalizedTag,
+  CONS_ASCII_INTERNALIZED_STRING_TYPE = kOneByteStringTag | kConsStringTag
+      | kInternalizedTag,
+  EXTERNAL_INTERNALIZED_STRING_TYPE = kTwoByteStringTag | kExternalStringTag
+      | kInternalizedTag,
+  EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE = kOneByteStringTag
+      | kExternalStringTag | kInternalizedTag,
   EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE =
-      EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE | kInternalizedTag,
+      EXTERNAL_INTERNALIZED_STRING_TYPE | kOneByteDataHintTag
+      | kInternalizedTag,
   SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE =
-      SHORT_EXTERNAL_STRING_TYPE | kInternalizedTag,
+      EXTERNAL_INTERNALIZED_STRING_TYPE | kShortExternalStringTag
+      | kInternalizedTag,
   SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE =
-      SHORT_EXTERNAL_ASCII_STRING_TYPE | kInternalizedTag,
+      EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE | kShortExternalStringTag
+      | kInternalizedTag,
   SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE =
-      SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE | kInternalizedTag,
+      EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE
+      | kShortExternalStringTag | kInternalizedTag,
+
+  STRING_TYPE = INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  ASCII_STRING_TYPE = ASCII_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  CONS_STRING_TYPE = CONS_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  CONS_ASCII_STRING_TYPE =
+      CONS_ASCII_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+
+  SLICED_STRING_TYPE =
+      kTwoByteStringTag | kSlicedStringTag | kNotInternalizedTag,
+  SLICED_ASCII_STRING_TYPE =
+      kOneByteStringTag | kSlicedStringTag | kNotInternalizedTag,
+  EXTERNAL_STRING_TYPE =
+  EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  EXTERNAL_ASCII_STRING_TYPE =
+  EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
+      EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE
+      | kNotInternalizedTag,
+  SHORT_EXTERNAL_STRING_TYPE =
+      SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  SHORT_EXTERNAL_ASCII_STRING_TYPE =
+      SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
+      SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE
+      | kNotInternalizedTag,
 
   // Non-string names
   SYMBOL_TYPE = kNotStringTag,  // LAST_NAME_TYPE, FIRST_NONSTRING_TYPE

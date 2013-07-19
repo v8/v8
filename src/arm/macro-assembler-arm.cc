@@ -3093,11 +3093,14 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
 
 void MacroAssembler::JumpIfNotUniqueName(Register reg,
                                          Label* not_unique_name) {
-  STATIC_ASSERT(((SYMBOL_TYPE - 1) & kIsInternalizedMask) == kInternalizedTag);
-  cmp(reg, Operand(kInternalizedTag));
-  b(lt, not_unique_name);
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  Label succeed;
+  tst(reg, Operand(kIsNotStringMask | kIsNotInternalizedMask));
+  b(eq, &succeed);
   cmp(reg, Operand(SYMBOL_TYPE));
-  b(gt, not_unique_name);
+  b(ne, not_unique_name);
+
+  bind(&succeed);
 }
 
 

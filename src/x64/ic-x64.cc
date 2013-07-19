@@ -339,10 +339,10 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
 
   // Is the string internalized? We already know it's a string so a single
   // bit test is enough.
-  STATIC_ASSERT(kInternalizedTag != 0);
+  STATIC_ASSERT(kNotInternalizedTag != 0);
   __ testb(FieldOperand(map, Map::kInstanceTypeOffset),
-           Immediate(kIsInternalizedMask));
-  __ j(zero, not_unique);
+           Immediate(kIsNotInternalizedMask));
+  __ j(not_zero, not_unique);
 
   __ bind(&unique);
 }

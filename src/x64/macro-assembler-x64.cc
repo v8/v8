@@ -2316,11 +2316,15 @@ static void JumpIfNotUniqueNameHelper(MacroAssembler* masm,
                                       T operand_or_register,
                                       Label* not_unique_name,
                                       Label::Distance distance) {
-  STATIC_ASSERT(((SYMBOL_TYPE - 1) & kIsInternalizedMask) == kInternalizedTag);
-  masm->cmpb(operand_or_register, Immediate(kInternalizedTag));
-  masm->j(less, not_unique_name, distance);
-  masm->cmpb(operand_or_register, Immediate(SYMBOL_TYPE));
-  masm->j(greater, not_unique_name, distance);
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  Label succeed;
+  masm->testb(operand_or_register,
+              Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+  masm->j(zero, &succeed, Label::kNear);
+  masm->cmpb(operand_or_register, Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
+  masm->j(not_equal, not_unique_name, distance);
+
+  masm->bind(&succeed);
 }
 
 

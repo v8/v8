@@ -1645,7 +1645,7 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
       *tag = kStringTag;
       return;
     case IS_INTERNALIZED_STRING:
-      *mask = kIsInternalizedMask;
+      *mask = kIsNotInternalizedMask;
       *tag = kInternalizedTag;
       return;
     default:

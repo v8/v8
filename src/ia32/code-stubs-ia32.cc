@@ -4112,9 +4112,9 @@ static void BranchIfNotInternalizedString(MacroAssembler* masm,
   __ JumpIfSmi(object, label);
   __ mov(scratch, FieldOperand(object, HeapObject::kMapOffset));
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ and_(scratch, kIsInternalizedMask | kIsNotStringMask);
-  __ cmp(scratch, kInternalizedTag | kStringTag);
-  __ j(not_equal, label);
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  __ test(scratch, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+  __ j(not_zero, label);
 }
 
 
@@ -6609,14 +6609,10 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   __ mov(tmp2, FieldOperand(right, HeapObject::kMapOffset));
   __ movzx_b(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
   __ movzx_b(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kInternalizedTag != 0);
-  __ and_(tmp1, Immediate(kIsNotStringMask | kIsInternalizedMask));
-  __ cmpb(tmp1, kInternalizedTag | kStringTag);
-  __ j(not_equal, &miss, Label::kNear);
-
-  __ and_(tmp2, Immediate(kIsNotStringMask | kIsInternalizedMask));
-  __ cmpb(tmp2, kInternalizedTag | kStringTag);
-  __ j(not_equal, &miss, Label::kNear);
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  __ or_(tmp1, tmp2);
+  __ test(tmp1, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+  __ j(not_zero, &miss, Label::kNear);
 
   // Internalized strings are compared by identity.
   Label done;
@@ -6655,7 +6651,6 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 
   // Check that both operands are unique names. This leaves the instance
   // types loaded in tmp1 and tmp2.
-  STATIC_ASSERT(kInternalizedTag != 0);
   __ mov(tmp1, FieldOperand(left, HeapObject::kMapOffset));
   __ mov(tmp2, FieldOperand(right, HeapObject::kMapOffset));
   __ movzx_b(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
@@ -6731,10 +6726,10 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // also know they are both strings.
   if (equality) {
     Label do_compare;
-    STATIC_ASSERT(kInternalizedTag != 0);
-    __ and_(tmp1, tmp2);
-    __ test(tmp1, Immediate(kIsInternalizedMask));
-    __ j(zero, &do_compare, Label::kNear);
+    STATIC_ASSERT(kInternalizedTag == 0);
+    __ or_(tmp1, tmp2);
+    __ test(tmp1, Immediate(kIsNotInternalizedMask));
+    __ j(not_zero, &do_compare, Label::kNear);
     // Make sure eax is non-zero. At this point input operands are
     // guaranteed to be non-zero.
     ASSERT(right.is(eax));

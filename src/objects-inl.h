@@ -221,9 +221,9 @@ bool Object::IsSpecFunction() {
 bool Object::IsInternalizedString() {
   if (!this->IsHeapObject()) return false;
   uint32_t type = HeapObject::cast(this)->map()->instance_type();
-  STATIC_ASSERT(kInternalizedTag != 0);
-  return (type & (kIsNotStringMask | kIsInternalizedMask)) ==
-      (kInternalizedTag | kStringTag);
+  STATIC_ASSERT(kNotInternalizedTag != 0);
+  return (type & (kIsNotStringMask | kIsNotInternalizedMask)) ==
+      (kStringTag | kInternalizedTag);
 }
 
 
@@ -319,9 +319,9 @@ StringShape::StringShape(InstanceType t)
 
 bool StringShape::IsInternalized() {
   ASSERT(valid());
-  STATIC_ASSERT(kInternalizedTag != 0);
-  return (type_ & (kIsNotStringMask | kIsInternalizedMask)) ==
-      (kInternalizedTag | kStringTag);
+  STATIC_ASSERT(kNotInternalizedTag != 0);
+  return (type_ & (kIsNotStringMask | kIsNotInternalizedMask)) ==
+      (kStringTag | kInternalizedTag);
 }
 
 
