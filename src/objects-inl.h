@@ -4456,7 +4456,7 @@ ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)
-ACCESSORS(AllocationSiteInfo, allocation_site, Object, kAllocationSiteOffset)
+ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)

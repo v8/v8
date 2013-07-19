@@ -8920,24 +8920,24 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
 }
 
 
-AllocationSiteInfo* AllocationSiteInfo::FindForJSObject(JSObject* object) {
-  // Currently, AllocationSiteInfo objects are only allocated immediately
+AllocationMemento* AllocationMemento::FindForJSObject(JSObject* object) {
+  // Currently, AllocationMemento objects are only allocated immediately
   // after JSArrays in NewSpace, and detecting whether a JSArray has one
   // involves carefully checking the object immediately after the JSArray
-  // (if there is one) to see if it's an AllocationSiteInfo.
+  // (if there is one) to see if it's an AllocationMemento.
   if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
     Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
         object->Size();
-    if ((ptr_end + AllocationSiteInfo::kSize) <=
+    if ((ptr_end + AllocationMemento::kSize) <=
         object->GetHeap()->NewSpaceTop()) {
       // There is room in newspace for allocation info. Do we have some?
-      Map** possible_allocation_site_info_map =
+      Map** possible_allocation_memento_map =
           reinterpret_cast<Map**>(ptr_end);
-      if (*possible_allocation_site_info_map ==
-          object->GetHeap()->allocation_site_info_map()) {
-        AllocationSiteInfo* info = AllocationSiteInfo::cast(
+      if (*possible_allocation_memento_map ==
+          object->GetHeap()->allocation_memento_map()) {
+        AllocationMemento* memento = AllocationMemento::cast(
             reinterpret_cast<Object*>(ptr_end + 1));
-        return info;
+        return memento;
       }
     }
   }
@@ -12377,13 +12377,13 @@ MaybeObject* JSObject::UpdateAllocationSite(ElementsKind to_kind) {
     return this;
   }
 
-  AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(this);
-  if (info == NULL || !info->IsValid()) {
+  AllocationMemento* memento = AllocationMemento::FindForJSObject(this);
+  if (memento == NULL || !memento->IsValid()) {
     return this;
   }
 
   // Walk through to the Allocation Site
-  AllocationSite* site = info->GetAllocationSite();
+  AllocationSite* site = memento->GetAllocationSite();
   if (site->IsLiteralSite()) {
     JSArray* transition_info = JSArray::cast(site->transition_info());
     ElementsKind kind = transition_info->GetElementsKind();

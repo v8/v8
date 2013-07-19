@@ -386,7 +386,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(OBJECT_TEMPLATE_INFO_TYPE)                                                 \
   V(SIGNATURE_INFO_TYPE)                                                       \
   V(TYPE_SWITCH_INFO_TYPE)                                                     \
-  V(ALLOCATION_SITE_INFO_TYPE)                                                 \
+  V(ALLOCATION_MEMENTO_TYPE)                                                   \
   V(ALLOCATION_SITE_TYPE)                                                      \
   V(SCRIPT_TYPE)                                                               \
   V(CODE_CACHE_TYPE)                                                           \
@@ -552,7 +552,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
   V(SCRIPT, Script, script)                                                    \
   V(ALLOCATION_SITE, AllocationSite, allocation_site)                          \
-  V(ALLOCATION_SITE_INFO, AllocationSiteInfo, allocation_site_info)            \
+  V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)                 \
   V(CODE_CACHE, CodeCache, code_cache)                                         \
   V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)      \
   V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)                  \
@@ -729,7 +729,7 @@ enum InstanceType {
   SIGNATURE_INFO_TYPE,
   TYPE_SWITCH_INFO_TYPE,
   ALLOCATION_SITE_TYPE,
-  ALLOCATION_SITE_INFO_TYPE,
+  ALLOCATION_MEMENTO_TYPE,
   SCRIPT_TYPE,
   CODE_CACHE_TYPE,
   POLYMORPHIC_CODE_CACHE_TYPE,
@@ -7540,7 +7540,7 @@ class AllocationSite: public Struct {
 };
 
 
-class AllocationSiteInfo: public Struct {
+class AllocationMemento: public Struct {
  public:
   static const int kAllocationSiteOffset = HeapObject::kHeaderSize;
   static const int kSize = kAllocationSiteOffset + kPointerSize;
@@ -7553,15 +7553,15 @@ class AllocationSiteInfo: public Struct {
     return AllocationSite::cast(allocation_site());
   }
 
-  DECLARE_PRINTER(AllocationSiteInfo)
-  DECLARE_VERIFIER(AllocationSiteInfo)
+  DECLARE_PRINTER(AllocationMemento)
+  DECLARE_VERIFIER(AllocationMemento)
 
-  // Returns NULL if no AllocationSiteInfo is available for object.
-  static AllocationSiteInfo* FindForJSObject(JSObject* object);
-  static inline AllocationSiteInfo* cast(Object* obj);
+  // Returns NULL if no AllocationMemento is available for object.
+  static AllocationMemento* FindForJSObject(JSObject* object);
+  static inline AllocationMemento* cast(Object* obj);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSiteInfo);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationMemento);
 };
 
 

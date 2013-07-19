@@ -5361,8 +5361,8 @@ class HObjectAccess {
     return HObjectAccess(kInobject, Cell::kValueOffset);
   }
 
-  static HObjectAccess ForAllocationSiteInfoSite() {
-    return HObjectAccess(kInobject, AllocationSiteInfo::kAllocationSiteOffset);
+  static HObjectAccess ForAllocationMementoSite() {
+    return HObjectAccess(kInobject, AllocationMemento::kAllocationSiteOffset);
   }
 
   // Create an access to an offset in a fixed array header.

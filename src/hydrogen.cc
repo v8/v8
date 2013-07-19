@@ -1453,14 +1453,14 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
   AddStore(array, HObjectAccess::ForArrayLength(), length_field);
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    BuildCreateAllocationSiteInfo(array,
-                                  JSArray::kSize,
-                                  allocation_site_payload);
+    BuildCreateAllocationMemento(array,
+                                 JSArray::kSize,
+                                 allocation_site_payload);
   }
 
   int elements_location = JSArray::kSize;
   if (mode == TRACK_ALLOCATION_SITE) {
-    elements_location += AllocationSiteInfo::kSize;
+    elements_location += AllocationMemento::kSize;
   }
 
   HInnerAllocatedObject* elements =
@@ -1654,7 +1654,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
   // All sizes here are multiples of kPointerSize.
   int size = JSArray::kSize;
   if (mode == TRACK_ALLOCATION_SITE) {
-    size += AllocationSiteInfo::kSize;
+    size += AllocationMemento::kSize;
   }
   int elems_offset = size;
   if (length > 0) {
@@ -1682,7 +1682,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
 
   // Create an allocation site info if requested.
   if (mode == TRACK_ALLOCATION_SITE) {
-    BuildCreateAllocationSiteInfo(object, JSArray::kSize, allocation_site);
+    BuildCreateAllocationMemento(object, JSArray::kSize, allocation_site);
   }
 
   if (length > 0) {
@@ -1787,18 +1787,18 @@ void HGraphBuilder::BuildCompareNil(
 }
 
 
-HValue* HGraphBuilder::BuildCreateAllocationSiteInfo(HValue* previous_object,
-                                                     int previous_object_size,
-                                                     HValue* alloc_site) {
+HValue* HGraphBuilder::BuildCreateAllocationMemento(HValue* previous_object,
+                                                    int previous_object_size,
+                                                    HValue* alloc_site) {
   ASSERT(alloc_site != NULL);
-  HInnerAllocatedObject* alloc_site_info = Add<HInnerAllocatedObject>(
+  HInnerAllocatedObject* alloc_memento = Add<HInnerAllocatedObject>(
       previous_object, previous_object_size);
-  Handle<Map> alloc_site_info_map(
-      isolate()->heap()->allocation_site_info_map());
-  AddStoreMapConstant(alloc_site_info, alloc_site_info_map);
-  HObjectAccess access = HObjectAccess::ForAllocationSiteInfoSite();
-  AddStore(alloc_site_info, access, alloc_site);
-  return alloc_site_info;
+  Handle<Map> alloc_memento_map(
+      isolate()->heap()->allocation_memento_map());
+  AddStoreMapConstant(alloc_memento, alloc_memento_map);
+  HObjectAccess access = HObjectAccess::ForAllocationMementoSite();
+  AddStore(alloc_memento, access, alloc_site);
+  return alloc_memento;
 }
 
 
@@ -1889,7 +1889,7 @@ HValue* HGraphBuilder::JSArrayBuilder::EstablishAllocationSize(
 
   int base_size = JSArray::kSize;
   if (mode_ == TRACK_ALLOCATION_SITE) {
-    base_size += AllocationSiteInfo::kSize;
+    base_size += AllocationMemento::kSize;
   }
 
   if (IsFastDoubleElementsKind(kind_)) {
@@ -1916,7 +1916,7 @@ HValue* HGraphBuilder::JSArrayBuilder::EstablishAllocationSize(
 HValue* HGraphBuilder::JSArrayBuilder::EstablishEmptyArrayAllocationSize() {
   int base_size = JSArray::kSize;
   if (mode_ == TRACK_ALLOCATION_SITE) {
-    base_size += AllocationSiteInfo::kSize;
+    base_size += AllocationMemento::kSize;
   }
 
   base_size += IsFastDoubleElementsKind(kind_)
@@ -4428,7 +4428,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                     &data_size,
                     &pointer_size)) {
     if (mode == TRACK_ALLOCATION_SITE) {
-      pointer_size += AllocationSiteInfo::kSize;
+      pointer_size += AllocationMemento::kSize;
     }
 
     Handle<JSObject> boilerplate_object = DeepCopy(original_boilerplate_object);
@@ -8402,9 +8402,9 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
   // Create allocation site info.
   if (mode == TRACK_ALLOCATION_SITE &&
       boilerplate_object->map()->CanTrackAllocationSite()) {
-    elements_offset += AllocationSiteInfo::kSize;
-    *offset += AllocationSiteInfo::kSize;
-    BuildCreateAllocationSiteInfo(target, JSArray::kSize, allocation_site);
+    elements_offset += AllocationMemento::kSize;
+    *offset += AllocationMemento::kSize;
+    BuildCreateAllocationMemento(target, JSArray::kSize, allocation_site);
   }
 }
 

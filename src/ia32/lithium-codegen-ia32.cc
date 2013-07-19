@@ -4685,7 +4685,7 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp = ToRegister(instr->temp());
-  __ TestJSArrayForAllocationSiteInfo(object, temp);
+  __ TestJSArrayForAllocationMemento(object, temp);
   DeoptimizeIf(equal, instr->environment());
 }
 

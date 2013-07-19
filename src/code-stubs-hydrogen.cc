@@ -324,7 +324,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   checker.IfNot<HCompareObjectEqAndBranch, HValue*>(allocation_site, undefined);
   checker.Then();
 
-  HObjectAccess access = HObjectAccess::ForAllocationSiteInfoSite();
+  HObjectAccess access = HObjectAccess::ForAllocationSiteTransitionInfo();
   HInstruction* boilerplate = AddLoad(allocation_site, access);
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
     HValue* elements = AddLoadElements(boilerplate);

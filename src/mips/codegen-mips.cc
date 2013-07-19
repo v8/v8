@@ -145,7 +145,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
     MacroAssembler* masm, AllocationSiteMode mode,
-    Label* allocation_site_info_found) {
+    Label* allocation_memento_found) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -155,9 +155,9 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   //  -- t0    : scratch (elements)
   // -----------------------------------
   if (mode == TRACK_ALLOCATION_SITE) {
-    ASSERT(allocation_site_info_found != NULL);
-    masm->TestJSArrayForAllocationSiteInfo(a2, t0, eq,
-                                           allocation_site_info_found);
+    ASSERT(allocation_memento_found != NULL);
+    masm->TestJSArrayForAllocationMemento(a2, t0, eq,
+                                          allocation_memento_found);
   }
 
   // Set transitioned map.
@@ -188,7 +188,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Register scratch = t6;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    masm->TestJSArrayForAllocationSiteInfo(a2, t0, eq, fail);
+    masm->TestJSArrayForAllocationMemento(a2, t0, eq, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -316,7 +316,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Label entry, loop, convert_hole, gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    masm->TestJSArrayForAllocationSiteInfo(a2, t0, eq, fail);
+    masm->TestJSArrayForAllocationMemento(a2, t0, eq, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes

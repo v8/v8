@@ -3750,26 +3750,26 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
 }
 
 
-void MacroAssembler::TestJSArrayForAllocationSiteInfo(
+void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
     Register scratch_reg) {
-  Label no_info_available;
+  Label no_memento_available;
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
   add(scratch_reg, receiver_reg,
-      Operand(JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjectTag));
+      Operand(JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
   cmp(scratch_reg, Operand(new_space_start));
-  b(lt, &no_info_available);
+  b(lt, &no_memento_available);
   mov(ip, Operand(new_space_allocation_top));
   ldr(ip, MemOperand(ip));
   cmp(scratch_reg, ip);
-  b(gt, &no_info_available);
-  ldr(scratch_reg, MemOperand(scratch_reg, -AllocationSiteInfo::kSize));
+  b(gt, &no_memento_available);
+  ldr(scratch_reg, MemOperand(scratch_reg, -AllocationMemento::kSize));
   cmp(scratch_reg,
-      Operand(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
-  bind(&no_info_available);
+      Operand(Handle<Map>(isolate()->heap()->allocation_memento_map())));
+  bind(&no_memento_available);
 }
 
 

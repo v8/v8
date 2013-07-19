@@ -4243,16 +4243,16 @@ MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
   // space when new space is full and the object is not a large object.
   AllocationSpace retry_space =
       (space != NEW_SPACE) ? space : TargetSpaceId(map->instance_type());
-  int size = map->instance_size() + AllocationSiteInfo::kSize;
+  int size = map->instance_size() + AllocationMemento::kSize;
   Object* result;
   MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
   if (!maybe_result->ToObject(&result)) return maybe_result;
   // No need for write barrier since object is white and map is in old space.
   HeapObject::cast(result)->set_map_no_write_barrier(map);
-  AllocationSiteInfo* alloc_info = reinterpret_cast<AllocationSiteInfo*>(
+  AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
       reinterpret_cast<Address>(result) + map->instance_size());
-  alloc_info->set_map_no_write_barrier(allocation_site_info_map());
-  alloc_info->set_allocation_site(*allocation_site, SKIP_WRITE_BARRIER);
+  alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+  alloc_memento->set_allocation_site(*allocation_site, SKIP_WRITE_BARRIER);
   return result;
 }
 
@@ -4964,8 +4964,8 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
   if (always_allocate()) {
     // We'll only track origin if we are certain to allocate in new space
     const int kMinFreeNewSpaceAfterGC = InitialSemiSpaceSize() * 3/4;
-    if ((object_size + AllocationSiteInfo::kSize) < kMinFreeNewSpaceAfterGC) {
-      adjusted_object_size += AllocationSiteInfo::kSize;
+    if ((object_size + AllocationMemento::kSize) < kMinFreeNewSpaceAfterGC) {
+      adjusted_object_size += AllocationMemento::kSize;
     }
 
     { MaybeObject* maybe_clone =
@@ -4978,7 +4978,7 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
               object_size);
     // Update write barrier for all fields that lie beyond the header.
     int write_barrier_offset = adjusted_object_size > object_size
-        ? JSArray::kSize + AllocationSiteInfo::kSize
+        ? JSArray::kSize + AllocationMemento::kSize
         : JSObject::kHeaderSize;
     if (((object_size - write_barrier_offset) / kPointerSize) > 0) {
       RecordWrites(clone_address,
@@ -4989,17 +4989,17 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
     // Track allocation site information, if we failed to allocate it inline.
     if (InNewSpace(clone) &&
         adjusted_object_size == object_size) {
-      MaybeObject* maybe_alloc_info =
-          AllocateStruct(ALLOCATION_SITE_INFO_TYPE);
-      AllocationSiteInfo* alloc_info;
-      if (maybe_alloc_info->To(&alloc_info)) {
-        alloc_info->set_map_no_write_barrier(allocation_site_info_map());
-        alloc_info->set_allocation_site(site, SKIP_WRITE_BARRIER);
+      MaybeObject* maybe_alloc_memento =
+          AllocateStruct(ALLOCATION_MEMENTO_TYPE);
+      AllocationMemento* alloc_memento;
+      if (maybe_alloc_memento->To(&alloc_memento)) {
+        alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+        alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
       }
     }
   } else {
     wb_mode = SKIP_WRITE_BARRIER;
-    adjusted_object_size += AllocationSiteInfo::kSize;
+    adjusted_object_size += AllocationMemento::kSize;
 
     { MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
@@ -5013,10 +5013,10 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
   }
 
   if (adjusted_object_size > object_size) {
-    AllocationSiteInfo* alloc_info = reinterpret_cast<AllocationSiteInfo*>(
+    AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
         reinterpret_cast<Address>(clone) + object_size);
-    alloc_info->set_map_no_write_barrier(allocation_site_info_map());
-    alloc_info->set_allocation_site(site, SKIP_WRITE_BARRIER);
+    alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+    alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
   }
 
   SLOW_ASSERT(

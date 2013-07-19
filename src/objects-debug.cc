@@ -919,8 +919,8 @@ void AllocationSite::AllocationSiteVerify() {
 }
 
 
-void AllocationSiteInfo::AllocationSiteInfoVerify() {
-  CHECK(IsAllocationSiteInfo());
+void AllocationMemento::AllocationMementoVerify() {
+  CHECK(IsAllocationMemento());
   VerifyHeapPointer(allocation_site());
   CHECK(!IsValid() || GetAllocationSite()->IsAllocationSite());
 }

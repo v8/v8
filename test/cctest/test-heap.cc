@@ -3170,7 +3170,7 @@ TEST(Regress169928) {
   array_data->set(1, Smi::FromInt(2));
 
   AllocateAllButNBytes(HEAP->new_space(),
-                       JSArray::kSize + AllocationSiteInfo::kSize +
+                       JSArray::kSize + AllocationMemento::kSize +
                        kPointerSize);
 
   Handle<JSArray> array = factory->NewJSArrayWithElements(array_data,
@@ -3180,16 +3180,16 @@ TEST(Regress169928) {
   CHECK_EQ(Smi::FromInt(2), array->length());
   CHECK(array->HasFastSmiOrObjectElements());
 
-  // We need filler the size of AllocationSiteInfo object, plus an extra
+  // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
   MaybeObject* maybe_object = HEAP->AllocateRaw(
-      AllocationSiteInfo::kSize + kPointerSize, NEW_SPACE, OLD_POINTER_SPACE);
+      AllocationMemento::kSize + kPointerSize, NEW_SPACE, OLD_POINTER_SPACE);
   Object* obj = NULL;
   CHECK(maybe_object->ToObject(&obj));
   Address addr_obj = reinterpret_cast<Address>(
       reinterpret_cast<byte*>(obj - kHeapObjectTag));
   HEAP->CreateFillerObjectAt(addr_obj,
-                             AllocationSiteInfo::kSize + kPointerSize);
+                             AllocationMemento::kSize + kPointerSize);
 
   // Give the array a name, making sure not to allocate strings.
   v8::Handle<v8::Object> array_obj = v8::Utils::ToLocal(array);

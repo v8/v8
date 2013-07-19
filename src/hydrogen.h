@@ -1367,7 +1367,7 @@ class HGraphBuilder {
                                                            HValue* capacity);
 
   // array must have been allocated with enough room for
-  // 1) the JSArray, 2) a AllocationSiteInfo if mode requires it,
+  // 1) the JSArray, 2) a AllocationMemento if mode requires it,
   // 3) a FixedArray or FixedDoubleArray.
   // A pointer to the Fixed(Double)Array is returned.
   HInnerAllocatedObject* BuildJSArrayHeader(HValue* array,
@@ -1413,9 +1413,9 @@ class HGraphBuilder {
       int position,
       HIfContinuation* continuation);
 
-  HValue* BuildCreateAllocationSiteInfo(HValue* previous_object,
-                                        int previous_object_size,
-                                        HValue* payload);
+  HValue* BuildCreateAllocationMemento(HValue* previous_object,
+                                       int previous_object_size,
+                                       HValue* payload);
 
   HInstruction* BuildGetNativeContext(HValue* context);
   HInstruction* BuildGetArrayFunction(HValue* context);

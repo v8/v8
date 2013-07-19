@@ -1158,8 +1158,8 @@ void AllocationSite::AllocationSitePrint(FILE* out) {
 }
 
 
-void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
-  HeapObject::PrintHeader(out, "AllocationSiteInfo");
+void AllocationMemento::AllocationMementoPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "AllocationMemento");
   PrintF(out, " - allocation site: ");
   if (IsValid()) {
     GetAllocationSite()->Print();

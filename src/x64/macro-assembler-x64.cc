@@ -4672,25 +4672,25 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   j(not_equal, &next);
 }
 
-void MacroAssembler::TestJSArrayForAllocationSiteInfo(
+void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
     Register scratch_reg) {
-  Label no_info_available;
+  Label no_memento_available;
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
 
   lea(scratch_reg, Operand(receiver_reg,
-      JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjectTag));
+      JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
   movq(kScratchRegister, new_space_start);
   cmpq(scratch_reg, kScratchRegister);
-  j(less, &no_info_available);
+  j(less, &no_memento_available);
   cmpq(scratch_reg, ExternalOperand(new_space_allocation_top));
-  j(greater, &no_info_available);
-  CompareRoot(MemOperand(scratch_reg, -AllocationSiteInfo::kSize),
-              Heap::kAllocationSiteInfoMapRootIndex);
-  bind(&no_info_available);
+  j(greater, &no_memento_available);
+  CompareRoot(MemOperand(scratch_reg, -AllocationMemento::kSize),
+              Heap::kAllocationMementoMapRootIndex);
+  bind(&no_memento_available);
 }
 
 
