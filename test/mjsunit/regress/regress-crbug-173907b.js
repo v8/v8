@@ -33,8 +33,8 @@ var K = 0.5;
 var O = 0;
 var result = new Float64Array(2);
 
+%NeverOptimizeFunction(spill);
 function spill() {
-  %NeverOptimize();
 }
 
 function buggy() {

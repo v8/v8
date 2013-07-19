@@ -8425,23 +8425,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NeverOptimize) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
-
-  if (args.length() == 0) {
-    // Disable optimization for the calling function.
-    JavaScriptFrameIterator it(isolate);
-    if (!it.done()) {
-      it.frame()->function()->shared()->set_optimization_disabled(true);
-    }
-    return isolate->heap()->undefined_value();
-  }
-
-  // Disable optimization for the functions passed.
-  for (int i = 0; i < args.length(); i++) {
-    CONVERT_ARG_CHECKED(JSFunction, function, i);
-    function->shared()->set_optimization_disabled(true);
-  }
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  ASSERT(!function->IsOptimized());
+  function->shared()->set_optimization_disabled(true);
   return isolate->heap()->undefined_value();
 }
 

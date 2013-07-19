@@ -7378,14 +7378,6 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
 
   const Runtime::Function* function = expr->function();
   ASSERT(function != NULL);
-
-  if (static_cast<int>(function->function_id)
-      == static_cast<int>(Runtime::kNeverOptimize)
-      && expr->arguments()->length() == 0) {
-    // %NeverOptimize() without arguments marks the caller as never optimize.
-    return Bailout("function marked itself as never optimize");
-  }
-
   if (function->intrinsic_type == Runtime::INLINE) {
     ASSERT(expr->name()->length() > 0);
     ASSERT(expr->name()->Get(0) == '_');
