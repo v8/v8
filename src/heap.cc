@@ -1111,12 +1111,6 @@ void Heap::MarkCompactPrologue() {
 }
 
 
-Object* Heap::FindCodeObject(Address a) {
-  return isolate()->inner_pointer_to_code_cache()->
-      GcSafeFindCodeForInnerPointer(a);
-}
-
-
 // Helper class for copying HeapObjects
 class ScavengeVisitor: public ObjectVisitor {
  public:

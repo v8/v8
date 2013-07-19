@@ -2510,6 +2510,11 @@ CodeStubInterfaceDescriptor*
 }
 
 
+Object* Isolate::FindCodeObject(Address a) {
+  return inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(a);
+}
+
+
 #ifdef DEBUG
 #define ISOLATE_FIELD_OFFSET(type, name, ignored)                       \
 const intptr_t Isolate::name##_debug_offset_ = OFFSET_OF(Isolate, name##_);

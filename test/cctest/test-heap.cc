@@ -127,7 +127,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
   Address obj_addr = obj->address();
 
   for (int i = 0; i < obj->Size(); i += kPointerSize) {
-    Object* found = heap->FindCodeObject(obj_addr + i);
+    Object* found = isolate->FindCodeObject(obj_addr + i);
     CHECK_EQ(code, found);
   }
 
@@ -137,8 +137,8 @@ static void CheckFindCodeObject(Isolate* isolate) {
       Handle<Code>())->ToObjectChecked();
   CHECK(copy->IsCode());
   HeapObject* obj_copy = HeapObject::cast(copy);
-  Object* not_right = heap->FindCodeObject(obj_copy->address() +
-                                           obj_copy->Size() / 2);
+  Object* not_right = isolate->FindCodeObject(obj_copy->address() +
+                                              obj_copy->Size() / 2);
   CHECK(not_right != code);
 }
 

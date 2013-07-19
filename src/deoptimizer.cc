@@ -584,7 +584,7 @@ Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
       Code* compiled_code =
           isolate_->deoptimizer_data()->FindDeoptimizingCode(from_);
       return (compiled_code == NULL)
-          ? static_cast<Code*>(isolate_->heap()->FindCodeObject(from_))
+          ? static_cast<Code*>(isolate_->FindCodeObject(from_))
           : compiled_code;
     }
     case Deoptimizer::OSR: {
@@ -3068,7 +3068,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
   expression_stack_ = new Object*[expression_count_];
   // Get the source position using the unoptimized code.
   Address pc = reinterpret_cast<Address>(output_frame->GetPc());
-  Code* code = Code::cast(deoptimizer->isolate()->heap()->FindCodeObject(pc));
+  Code* code = Code::cast(deoptimizer->isolate()->FindCodeObject(pc));
   source_position_ = code->SourcePosition(pc);
 
   for (int i = 0; i < expression_count_; i++) {

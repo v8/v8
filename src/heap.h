@@ -1520,9 +1520,6 @@ class Heap {
   // Write barrier support for address[start : start + len[ = o.
   INLINE(void RecordWrites(Address address, int start, int len));
 
-  // Given an address occupied by a live code object, return that object.
-  Object* FindCodeObject(Address a);
-
   enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
   inline HeapState gc_state() { return gc_state_; }
 

@@ -1132,6 +1132,9 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
+  // Given an address occupied by a live code object, return that object.
+  Object* FindCodeObject(Address a);
+
  private:
   Isolate();
 
