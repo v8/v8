@@ -4829,11 +4829,12 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
       store = BuildStoreNamedField(
           object, name, store_value, types->at(count - 1), &lookup),
       true);
-  Push(result_value);
+  if (!ast_context()->IsEffect()) Push(result_value);
   store->set_position(position);
   AddInstruction(store);
   AddSimulate(assignment_id);
-  ast_context()->ReturnValue(Pop());
+  if (!ast_context()->IsEffect()) Drop(1);
+  ast_context()->ReturnValue(result_value);
   return true;
 }
 
@@ -5059,13 +5060,14 @@ void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
     instr = BuildStoreNamedGeneric(object, name, store_value);
   }
 
-  Push(result_value);
+  if (!ast_context()->IsEffect()) Push(result_value);
   instr->set_position(position);
   AddInstruction(instr);
   if (instr->HasObservableSideEffects()) {
     AddSimulate(id, REMOVABLE_SIMULATE);
   }
-  return ast_context()->ReturnValue(Pop());
+  if (!ast_context()->IsEffect()) Drop(1);
+  return ast_context()->ReturnValue(result_value);
 }
 
 
