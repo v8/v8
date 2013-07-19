@@ -54,6 +54,16 @@ static const char* const kLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
 #undef DECLARE_EVENT
 
 
+// ComputeMarker must only be used when SharedFunctionInfo is known.
+static const char* ComputeMarker(Code* code) {
+  switch (code->kind()) {
+    case Code::FUNCTION: return code->optimizable() ? "~" : "";
+    case Code::OPTIMIZED_FUNCTION: return "*";
+    default: return "";
+  }
+}
+
+
 class CodeEventLogger {
  public:
   virtual ~CodeEventLogger() { }
@@ -185,6 +195,74 @@ class CodeEventLogger {
 };
 
 
+void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
+                                      Code* code,
+                                      const char* comment) {
+  name_buffer_.Init(tag);
+  name_buffer_.AppendBytes(comment);
+  LogRecordedBuffer(code, NULL, &name_buffer_);
+}
+
+
+void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
+                                      Code* code,
+                                      Name* name) {
+  name_buffer_.Init(tag);
+  name_buffer_.AppendName(name);
+  LogRecordedBuffer(code, NULL, &name_buffer_);
+}
+
+
+void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
+                             Code* code,
+                             SharedFunctionInfo* shared,
+                             CompilationInfo* info,
+                             Name* name) {
+  name_buffer_.Init(tag);
+  name_buffer_.AppendBytes(ComputeMarker(code));
+  name_buffer_.AppendName(name);
+  LogRecordedBuffer(code, shared, &name_buffer_);
+}
+
+
+void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
+                             Code* code,
+                             SharedFunctionInfo* shared,
+                             CompilationInfo* info,
+                             Name* source, int line) {
+  name_buffer_.Init(tag);
+  name_buffer_.AppendBytes(ComputeMarker(code));
+  name_buffer_.AppendString(shared->DebugName());
+  name_buffer_.AppendByte(' ');
+  if (source->IsString()) {
+    name_buffer_.AppendString(String::cast(source));
+  } else {
+    name_buffer_.AppendBytes("symbol(hash ");
+    name_buffer_.AppendHex(Name::cast(source)->Hash());
+    name_buffer_.AppendByte(')');
+  }
+  name_buffer_.AppendByte(':');
+  name_buffer_.AppendInt(line);
+  LogRecordedBuffer(code, shared, &name_buffer_);
+}
+
+
+void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
+                                      Code* code,
+                                      int args_count) {
+  name_buffer_.Init(tag);
+  name_buffer_.AppendInt(args_count);
+  LogRecordedBuffer(code, NULL, &name_buffer_);
+}
+
+
+void CodeEventLogger::RegExpCodeCreateEvent(Code* code, String* source) {
+  name_buffer_.Init(Logger::REG_EXP_TAG);
+  name_buffer_.AppendString(source);
+  LogRecordedBuffer(code, NULL, &name_buffer_);
+}
+
+
 // Low-level logging support.
 class LowLevelLogger : public CodeEventLogger {
  public:
@@ -258,6 +336,95 @@ class LowLevelLogger : public CodeEventLogger {
 };
 
 const char LowLevelLogger::kLogExt[] = ".ll";
+
+LowLevelLogger::LowLevelLogger(const char* name)
+    : ll_output_handle_(NULL) {
+  // Open the low-level log file.
+  size_t len = strlen(name);
+  ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
+  OS::MemCopy(ll_name.start(), name, len);
+  OS::MemCopy(ll_name.start() + len, kLogExt, sizeof(kLogExt));
+  ll_output_handle_ = OS::FOpen(ll_name.start(), OS::LogFileOpenMode);
+  setvbuf(ll_output_handle_, NULL, _IOFBF, kLogBufferSize);
+
+  LogCodeInfo();
+}
+
+
+LowLevelLogger::~LowLevelLogger() {
+  fclose(ll_output_handle_);
+  ll_output_handle_ = NULL;
+}
+
+
+void LowLevelLogger::LogCodeInfo() {
+#if V8_TARGET_ARCH_IA32
+  const char arch[] = "ia32";
+#elif V8_TARGET_ARCH_X64
+  const char arch[] = "x64";
+#elif V8_TARGET_ARCH_ARM
+  const char arch[] = "arm";
+#elif V8_TARGET_ARCH_MIPS
+  const char arch[] = "mips";
+#else
+  const char arch[] = "unknown";
+#endif
+  LogWriteBytes(arch, sizeof(arch));
+}
+
+
+void LowLevelLogger::LogRecordedBuffer(Code* code,
+                                       SharedFunctionInfo*,
+                                       NameBuffer* name_buffer) {
+  CodeCreateStruct event;
+  event.name_size = name_buffer->size();
+  event.code_address = code->instruction_start();
+  ASSERT(event.code_address == code->address() + Code::kHeaderSize);
+  event.code_size = code->instruction_size();
+  LogWriteStruct(event);
+  LogWriteBytes(name_buffer->get(), name_buffer->size());
+  LogWriteBytes(
+      reinterpret_cast<const char*>(code->instruction_start()),
+      code->instruction_size());
+}
+
+
+void LowLevelLogger::CodeMoveEvent(Address from, Address to) {
+  CodeMoveStruct event;
+  event.from_address = from + Code::kHeaderSize;
+  event.to_address = to + Code::kHeaderSize;
+  LogWriteStruct(event);
+}
+
+
+void LowLevelLogger::CodeDeleteEvent(Address from) {
+  CodeDeleteStruct event;
+  event.address = from + Code::kHeaderSize;
+  LogWriteStruct(event);
+}
+
+
+void LowLevelLogger::SnapshotPositionEvent(Address addr, int pos) {
+  SnapshotPositionStruct event;
+  event.address = addr + Code::kHeaderSize;
+  event.position = pos;
+  LogWriteStruct(event);
+}
+
+
+void LowLevelLogger::LogWriteBytes(const char* bytes, int size) {
+  size_t rv = fwrite(bytes, 1, size, ll_output_handle_);
+  ASSERT(static_cast<size_t>(size) == rv);
+  USE(rv);
+}
+
+
+void LowLevelLogger::CodeMovingGCEvent() {
+  const char tag = kCodeMovingGCTag;
+
+  LogWriteBytes(&tag, sizeof(tag));
+}
+
 
 #define LL_LOG(Call) if (ll_logger_) ll_logger_->Call;
 
@@ -370,6 +537,124 @@ class CodeAddressMap: public CodeEventLogger {
 
 #define CODE_ADDRESS_MAP_LOG(Call)\
   if (Serializer::enabled()) code_address_map_->Call;
+
+
+class JitLogger : public CodeEventLogger {
+ public:
+  explicit JitLogger(JitCodeEventHandler code_event_handler);
+
+  void CodeMovedEvent(Address from, Address to);
+  void CodeDeleteEvent(Address from);
+  void AddCodeLinePosInfoEvent(
+      void* jit_handler_data,
+      int pc_offset,
+      int position,
+      JitCodeEvent::PositionType position_type);
+  void* StartCodePosInfoEvent();
+  void EndCodePosInfoEvent(Code* code, void* jit_handler_data);
+
+ private:
+  virtual void LogRecordedBuffer(Code* code,
+                                 SharedFunctionInfo* shared,
+                                 CodeEventLogger::NameBuffer* name_buffer);
+
+  JitCodeEventHandler code_event_handler_;
+};
+
+#define JIT_LOG(Call) if (jit_logger_) jit_logger_->Call;
+
+
+JitLogger::JitLogger(JitCodeEventHandler code_event_handler)
+    : code_event_handler_(code_event_handler) {
+}
+
+
+void JitLogger::LogRecordedBuffer(Code* code,
+                                  SharedFunctionInfo* shared,
+                                  CodeEventLogger::NameBuffer* name_buffer) {
+  JitCodeEvent event;
+  memset(&event, 0, sizeof(event));
+  event.type = JitCodeEvent::CODE_ADDED;
+  event.code_start = code->instruction_start();
+  event.code_len = code->instruction_size();
+  Handle<Script> script_handle;
+  if (shared && shared->script()->IsScript()) {
+    script_handle = Handle<Script>(Script::cast(shared->script()));
+  }
+  event.script = ToApiHandle<v8::Script>(script_handle);
+  event.name.str = name_buffer->get();
+  event.name.len = name_buffer->size();
+  code_event_handler_(&event);
+}
+
+
+void JitLogger::CodeMovedEvent(Address from, Address to) {
+  Code* from_code = Code::cast(HeapObject::FromAddress(from));
+
+  JitCodeEvent event;
+  event.type = JitCodeEvent::CODE_MOVED;
+  event.code_start = from_code->instruction_start();
+  event.code_len = from_code->instruction_size();
+
+  // Calculate the header size.
+  const size_t header_size =
+      from_code->instruction_start() - reinterpret_cast<byte*>(from_code);
+
+  // Calculate the new start address of the instructions.
+  event.new_code_start =
+      reinterpret_cast<byte*>(HeapObject::FromAddress(to)) + header_size;
+
+  code_event_handler_(&event);
+}
+
+
+void JitLogger::CodeDeleteEvent(Address from) {
+  Code* from_code = Code::cast(HeapObject::FromAddress(from));
+
+  JitCodeEvent event;
+  event.type = JitCodeEvent::CODE_REMOVED;
+  event.code_start = from_code->instruction_start();
+  event.code_len = from_code->instruction_size();
+
+  code_event_handler_(&event);
+}
+
+void JitLogger::AddCodeLinePosInfoEvent(
+    void* jit_handler_data,
+    int pc_offset,
+    int position,
+    JitCodeEvent::PositionType position_type) {
+  JitCodeEvent event;
+  memset(&event, 0, sizeof(event));
+  event.type = JitCodeEvent::CODE_ADD_LINE_POS_INFO;
+  event.user_data = jit_handler_data;
+  event.line_info.offset = pc_offset;
+  event.line_info.pos = position;
+  event.line_info.position_type = position_type;
+
+  code_event_handler_(&event);
+}
+
+
+void* JitLogger::StartCodePosInfoEvent() {
+  JitCodeEvent event;
+  memset(&event, 0, sizeof(event));
+  event.type = JitCodeEvent::CODE_START_LINE_INFO_RECORDING;
+
+  code_event_handler_(&event);
+  return event.user_data;
+}
+
+
+void JitLogger::EndCodePosInfoEvent(Code* code, void* jit_handler_data) {
+  JitCodeEvent event;
+  memset(&event, 0, sizeof(event));
+  event.type = JitCodeEvent::CODE_END_LINE_INFO_RECORDING;
+  event.code_start = code->instruction_start();
+  event.user_data = jit_handler_data;
+
+  code_event_handler_(&event);
+}
 
 
 // The Profiler samples pc and sp values for the main thread.
@@ -565,124 +850,6 @@ Logger::Logger(Isolate* isolate)
 Logger::~Logger() {
   delete code_address_map_;
   delete log_;
-}
-
-
-class JitLogger : public CodeEventLogger {
- public:
-  explicit JitLogger(JitCodeEventHandler code_event_handler);
-
-  void CodeMovedEvent(Address from, Address to);
-  void CodeDeleteEvent(Address from);
-  void AddCodeLinePosInfoEvent(
-      void* jit_handler_data,
-      int pc_offset,
-      int position,
-      JitCodeEvent::PositionType position_type);
-  void* StartCodePosInfoEvent();
-  void EndCodePosInfoEvent(Code* code, void* jit_handler_data);
-
- private:
-  virtual void LogRecordedBuffer(Code* code,
-                                 SharedFunctionInfo* shared,
-                                 CodeEventLogger::NameBuffer* name_buffer);
-
-  JitCodeEventHandler code_event_handler_;
-};
-
-#define JIT_LOG(Call) if (jit_logger_) jit_logger_->Call;
-
-
-JitLogger::JitLogger(JitCodeEventHandler code_event_handler)
-    : code_event_handler_(code_event_handler) {
-}
-
-
-void JitLogger::LogRecordedBuffer(Code* code,
-                                  SharedFunctionInfo* shared,
-                                  CodeEventLogger::NameBuffer* name_buffer) {
-  JitCodeEvent event;
-  memset(&event, 0, sizeof(event));
-  event.type = JitCodeEvent::CODE_ADDED;
-  event.code_start = code->instruction_start();
-  event.code_len = code->instruction_size();
-  Handle<Script> script_handle;
-  if (shared && shared->script()->IsScript()) {
-    script_handle = Handle<Script>(Script::cast(shared->script()));
-  }
-  event.script = ToApiHandle<v8::Script>(script_handle);
-  event.name.str = name_buffer->get();
-  event.name.len = name_buffer->size();
-  code_event_handler_(&event);
-}
-
-
-void JitLogger::CodeMovedEvent(Address from, Address to) {
-  Code* from_code = Code::cast(HeapObject::FromAddress(from));
-
-  JitCodeEvent event;
-  event.type = JitCodeEvent::CODE_MOVED;
-  event.code_start = from_code->instruction_start();
-  event.code_len = from_code->instruction_size();
-
-  // Calculate the header size.
-  const size_t header_size =
-      from_code->instruction_start() - reinterpret_cast<byte*>(from_code);
-
-  // Calculate the new start address of the instructions.
-  event.new_code_start =
-      reinterpret_cast<byte*>(HeapObject::FromAddress(to)) + header_size;
-
-  code_event_handler_(&event);
-}
-
-
-void JitLogger::CodeDeleteEvent(Address from) {
-  Code* from_code = Code::cast(HeapObject::FromAddress(from));
-
-  JitCodeEvent event;
-  event.type = JitCodeEvent::CODE_REMOVED;
-  event.code_start = from_code->instruction_start();
-  event.code_len = from_code->instruction_size();
-
-  code_event_handler_(&event);
-}
-
-void JitLogger::AddCodeLinePosInfoEvent(
-    void* jit_handler_data,
-    int pc_offset,
-    int position,
-    JitCodeEvent::PositionType position_type) {
-  JitCodeEvent event;
-  memset(&event, 0, sizeof(event));
-  event.type = JitCodeEvent::CODE_ADD_LINE_POS_INFO;
-  event.user_data = jit_handler_data;
-  event.line_info.offset = pc_offset;
-  event.line_info.pos = position;
-  event.line_info.position_type = position_type;
-
-  code_event_handler_(&event);
-}
-
-
-void* JitLogger::StartCodePosInfoEvent() {
-  JitCodeEvent event;
-  memset(&event, 0, sizeof(event));
-  event.type = JitCodeEvent::CODE_START_LINE_INFO_RECORDING;
-
-  code_event_handler_(&event);
-  return event.user_data;
-}
-
-
-void JitLogger::EndCodePosInfoEvent(Code* code, void* jit_handler_data) {
-  JitCodeEvent event;
-  memset(&event, 0, sizeof(event));
-  event.type = JitCodeEvent::CODE_END_LINE_INFO_RECORDING;
-  event.code_start = code->instruction_start();
-  event.user_data = jit_handler_data;
-
-  code_event_handler_(&event);
 }
 
 
@@ -1098,15 +1265,6 @@ static void AppendCodeCreateHeader(Log::MessageBuilder* msg,
 }
 
 
-void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                                      Code* code,
-                                      const char* comment) {
-  name_buffer_.Init(tag);
-  name_buffer_.AppendBytes(comment);
-  LogRecordedBuffer(code, NULL, &name_buffer_);
-}
-
-
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              const char* comment) {
@@ -1122,15 +1280,6 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   msg.AppendDoubleQuotedString(comment);
   msg.Append('\n');
   msg.WriteToLogFile();
-}
-
-
-void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                                      Code* code,
-                                      Name* name) {
-  name_buffer_.Init(tag);
-  name_buffer_.AppendName(name);
-  LogRecordedBuffer(code, NULL, &name_buffer_);
 }
 
 
@@ -1155,28 +1304,6 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
   msg.Append('\n');
   msg.WriteToLogFile();
-}
-
-
-// ComputeMarker must only be used when SharedFunctionInfo is known.
-static const char* ComputeMarker(Code* code) {
-  switch (code->kind()) {
-    case Code::FUNCTION: return code->optimizable() ? "~" : "";
-    case Code::OPTIMIZED_FUNCTION: return "*";
-    default: return "";
-  }
-}
-
-
-void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                             Code* code,
-                             SharedFunctionInfo* shared,
-                             CompilationInfo* info,
-                             Name* name) {
-  name_buffer_.Init(tag);
-  name_buffer_.AppendBytes(ComputeMarker(code));
-  name_buffer_.AppendName(name);
-  LogRecordedBuffer(code, shared, &name_buffer_);
 }
 
 
@@ -1216,28 +1343,6 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 // Although, it is possible to extract source and line from
 // the SharedFunctionInfo object, we left it to caller
 // to leave logging functions free from heap allocations.
-void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                             Code* code,
-                             SharedFunctionInfo* shared,
-                             CompilationInfo* info,
-                             Name* source, int line) {
-  name_buffer_.Init(tag);
-  name_buffer_.AppendBytes(ComputeMarker(code));
-  name_buffer_.AppendString(shared->DebugName());
-  name_buffer_.AppendByte(' ');
-  if (source->IsString()) {
-    name_buffer_.AppendString(String::cast(source));
-  } else {
-    name_buffer_.AppendBytes("symbol(hash ");
-    name_buffer_.AppendHex(Name::cast(source)->Hash());
-    name_buffer_.AppendByte(')');
-  }
-  name_buffer_.AppendByte(':');
-  name_buffer_.AppendInt(line);
-  LogRecordedBuffer(code, shared, &name_buffer_);
-}
-
-
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              SharedFunctionInfo* shared,
@@ -1270,15 +1375,6 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 }
 
 
-void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                                      Code* code,
-                                      int args_count) {
-  name_buffer_.Init(tag);
-  name_buffer_.AppendInt(args_count);
-  LogRecordedBuffer(code, NULL, &name_buffer_);
-}
-
-
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              int args_count) {
@@ -1301,13 +1397,6 @@ void Logger::CodeMovingGCEvent() {
   if (!log_->IsEnabled() || !FLAG_ll_prof) return;
   LL_LOG(CodeMovingGCEvent());
   OS::SignalCodeMovingGC();
-}
-
-
-void CodeEventLogger::RegExpCodeCreateEvent(Code* code, String* source) {
-  name_buffer_.Init(Logger::REG_EXP_TAG);
-  name_buffer_.AppendString(source);
-  LogRecordedBuffer(code, NULL, &name_buffer_);
 }
 
 
@@ -1343,7 +1432,13 @@ void Logger::CodeDeleteEvent(Address from) {
   if (!log_->IsEnabled()) return;
   LL_LOG(CodeDeleteEvent(from));
   CODE_ADDRESS_MAP_LOG(CodeDeleteEvent(from));
-  DeleteEventInternal(CODE_DELETE_EVENT, from);
+
+  if (!log_->IsEnabled() || !FLAG_log_code) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("%s,", kLogEventsNames[CODE_DELETE_EVENT]);
+  msg.AppendAddress(from);
+  msg.Append('\n');
+  msg.WriteToLogFile();
 }
 
 
@@ -1416,16 +1511,6 @@ void Logger::MoveEventInternal(LogEventsAndTags event,
   msg.AppendAddress(from);
   msg.Append(',');
   msg.AppendAddress(to);
-  msg.Append('\n');
-  msg.WriteToLogFile();
-}
-
-
-void Logger::DeleteEventInternal(LogEventsAndTags event, Address from) {
-  if (!log_->IsEnabled() || !FLAG_log_code) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("%s,", kLogEventsNames[event]);
-  msg.AppendAddress(from);
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -1717,95 +1802,6 @@ void Logger::LogCodeObject(Object* object) {
       break;
   }
   PROFILE(isolate_, CodeCreateEvent(tag, code_object, description));
-}
-
-
-LowLevelLogger::LowLevelLogger(const char* name)
-    : ll_output_handle_(NULL) {
-  // Open the low-level log file.
-  size_t len = strlen(name);
-  ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
-  OS::MemCopy(ll_name.start(), name, len);
-  OS::MemCopy(ll_name.start() + len, kLogExt, sizeof(kLogExt));
-  ll_output_handle_ = OS::FOpen(ll_name.start(), OS::LogFileOpenMode);
-  setvbuf(ll_output_handle_, NULL, _IOFBF, kLogBufferSize);
-
-  LogCodeInfo();
-}
-
-
-LowLevelLogger::~LowLevelLogger() {
-  fclose(ll_output_handle_);
-  ll_output_handle_ = NULL;
-}
-
-
-void LowLevelLogger::LogCodeInfo() {
-#if V8_TARGET_ARCH_IA32
-  const char arch[] = "ia32";
-#elif V8_TARGET_ARCH_X64
-  const char arch[] = "x64";
-#elif V8_TARGET_ARCH_ARM
-  const char arch[] = "arm";
-#elif V8_TARGET_ARCH_MIPS
-  const char arch[] = "mips";
-#else
-  const char arch[] = "unknown";
-#endif
-  LogWriteBytes(arch, sizeof(arch));
-}
-
-
-void LowLevelLogger::LogRecordedBuffer(Code* code,
-                                       SharedFunctionInfo*,
-                                       NameBuffer* name_buffer) {
-  CodeCreateStruct event;
-  event.name_size = name_buffer->size();
-  event.code_address = code->instruction_start();
-  ASSERT(event.code_address == code->address() + Code::kHeaderSize);
-  event.code_size = code->instruction_size();
-  LogWriteStruct(event);
-  LogWriteBytes(name_buffer->get(), name_buffer->size());
-  LogWriteBytes(
-      reinterpret_cast<const char*>(code->instruction_start()),
-      code->instruction_size());
-}
-
-
-void LowLevelLogger::CodeMoveEvent(Address from, Address to) {
-  CodeMoveStruct event;
-  event.from_address = from + Code::kHeaderSize;
-  event.to_address = to + Code::kHeaderSize;
-  LogWriteStruct(event);
-}
-
-
-void LowLevelLogger::CodeDeleteEvent(Address from) {
-  CodeDeleteStruct event;
-  event.address = from + Code::kHeaderSize;
-  LogWriteStruct(event);
-}
-
-
-void LowLevelLogger::SnapshotPositionEvent(Address addr, int pos) {
-  SnapshotPositionStruct event;
-  event.address = addr + Code::kHeaderSize;
-  event.position = pos;
-  LogWriteStruct(event);
-}
-
-
-void LowLevelLogger::LogWriteBytes(const char* bytes, int size) {
-  size_t rv = fwrite(bytes, 1, size, ll_output_handle_);
-  ASSERT(static_cast<size_t>(size) == rv);
-  USE(rv);
-}
-
-
-void LowLevelLogger::CodeMovingGCEvent() {
-  const char tag = kCodeMovingGCTag;
-
-  LogWriteBytes(&tag, sizeof(tag));
 }
 
 

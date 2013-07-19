@@ -388,9 +388,6 @@ class Logger {
   // Internal configurable move event.
   void MoveEventInternal(LogEventsAndTags event, Address from, Address to);
 
-  // Internal configurable move event.
-  void DeleteEventInternal(LogEventsAndTags event, Address from);
-
   // Emits the source code of a regexp. Used by regexp events.
   void LogRegExpSource(Handle<JSRegExp> regexp);
 
