@@ -70,6 +70,7 @@ namespace internal {
 // tick profiler requires code events, so --prof implies --log-code.
 
 // Forward declarations.
+class CodeAddressMap;
 class CompilationInfo;
 class CpuProfiler;
 class Isolate;
@@ -373,9 +374,6 @@ class Logger {
   void LogFailure();
 
  private:
-  class NameBuffer;
-  class NameMap;
-
   explicit Logger(Isolate* isolate);
   ~Logger();
 
@@ -401,14 +399,6 @@ class Logger {
 
   // Helper method. It resets name_buffer_ and add tag name into it.
   void InitNameBuffer(LogEventsAndTags tag);
-
-  // Helper method. It push recorded buffer into different handlers.
-  void LogRecordedBuffer(Code*, SharedFunctionInfo*);
-
-  // Helper method. It dumps name into name_buffer_.
-  void AppendName(Name* name);
-
-  void RegisterSnapshotCodeName(Code* code, const char* name, int name_size);
 
   // Emits a profiler tick event. Used by the profiler thread.
   void TickEvent(TickSample* sample, bool overflow);
@@ -452,10 +442,7 @@ class Logger {
   Log* log_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
-
-  NameBuffer* name_buffer_;
-
-  NameMap* address_to_name_map_;
+  CodeAddressMap* code_address_map_;
 
   // Guards against multiple calls to TearDown() that can happen in some tests.
   // 'true' between SetUp() and TearDown().
