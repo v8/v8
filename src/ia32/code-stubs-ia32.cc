@@ -676,7 +676,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
   MemOperand exponent_operand(MemOperand(input_reg,
-                                         double_offset + kPointerSize));
+                                         double_offset + kDoubleSize / 2));
 
   Register scratch1;
   {
