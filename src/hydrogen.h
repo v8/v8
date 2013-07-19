@@ -1741,8 +1741,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                                 HValue* object,
                                                 SmallMapList* types,
                                                 Handle<String> name);
-  void HandlePolymorphicStoreNamedField(BailoutId id,
-                                        int position,
+  void HandlePolymorphicStoreNamedField(int position,
                                         BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
@@ -1838,7 +1837,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                        Property* prop,
                        HValue* object,
                        HValue* store_value,
-                       HValue* result_value = NULL);
+                       HValue* result_value);
 
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
