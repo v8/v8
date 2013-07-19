@@ -1225,17 +1225,10 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
 
     // Now that we have the types we might as well check for
     // internalized-internalized.
-    Label not_internalized;
-    STATIC_ASSERT(kInternalizedTag != 0);
-    __ And(t2, a2, Operand(kIsNotStringMask | kIsInternalizedMask));
-    __ Branch(&not_internalized, ne, t2,
-        Operand(kInternalizedTag | kStringTag));
-
-    __ And(a3, a3, Operand(kIsNotStringMask | kIsInternalizedMask));
-    __ Branch(&return_not_equal, eq, a3,
-        Operand(kInternalizedTag | kStringTag));
-
-    __ bind(&not_internalized);
+    STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+    __ Or(a2, a2, Operand(a3));
+    __ And(at, a2, Operand(kIsNotStringMask | kIsNotInternalizedMask));
+    __ Branch(&return_not_equal, eq, at, Operand(zero_reg));
 }
 
 
@@ -1271,15 +1264,15 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
 
   // a2 is object type of rhs.
   Label object_test;
-  STATIC_ASSERT(kInternalizedTag != 0);
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
   __ And(at, a2, Operand(kIsNotStringMask));
   __ Branch(&object_test, ne, at, Operand(zero_reg));
-  __ And(at, a2, Operand(kIsInternalizedMask));
-  __ Branch(possible_strings, eq, at, Operand(zero_reg));
+  __ And(at, a2, Operand(kIsNotInternalizedMask));
+  __ Branch(possible_strings, ne, at, Operand(zero_reg));
   __ GetObjectType(rhs, a3, a3);
   __ Branch(not_both_strings, ge, a3, Operand(FIRST_NONSTRING_TYPE));
-  __ And(at, a3, Operand(kIsInternalizedMask));
-  __ Branch(possible_strings, eq, at, Operand(zero_reg));
+  __ And(at, a3, Operand(kIsNotInternalizedMask));
+  __ Branch(possible_strings, ne, at, Operand(zero_reg));
 
   // Both are internalized strings. We already checked they weren't the same
   // pointer so they are not equal.
@@ -6383,13 +6376,10 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   __ lw(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
   __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
   __ lbu(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kInternalizedTag != 0);
-
-  __ And(tmp1, tmp1, Operand(kIsNotStringMask | kIsInternalizedMask));
-  __ Branch(&miss, ne, tmp1, Operand(kInternalizedTag | kStringTag));
-
-  __ And(tmp2, tmp2, Operand(kIsNotStringMask | kIsInternalizedMask));
-  __ Branch(&miss, ne, tmp2, Operand(kInternalizedTag | kStringTag));
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  __ Or(tmp1, tmp1, Operand(tmp2));
+  __ And(at, tmp1, Operand(kIsNotStringMask | kIsNotInternalizedMask));
+  __ Branch(&miss, ne, at, Operand(zero_reg));
 
   // Make sure a0 is non-zero. At this point input operands are
   // guaranteed to be non-zero.
@@ -6424,7 +6414,6 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 
   // Check that both operands are unique names. This leaves the instance
   // types loaded in tmp1 and tmp2.
-  STATIC_ASSERT(kInternalizedTag != 0);
   __ lw(tmp1, FieldMemOperand(left, HeapObject::kMapOffset));
   __ lw(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
   __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
@@ -6498,11 +6487,11 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // strings.
   if (equality) {
     ASSERT(GetCondition() == eq);
-    STATIC_ASSERT(kInternalizedTag != 0);
-    __ And(tmp3, tmp1, Operand(tmp2));
-    __ And(tmp5, tmp3, Operand(kIsInternalizedMask));
+    STATIC_ASSERT(kInternalizedTag == 0);
+    __ Or(tmp3, tmp1, Operand(tmp2));
+    __ And(tmp5, tmp3, Operand(kIsNotInternalizedMask));
     Label is_symbol;
-    __ Branch(&is_symbol, eq, tmp5, Operand(zero_reg));
+    __ Branch(&is_symbol, ne, tmp5, Operand(zero_reg));
     // Make sure a0 is non-zero. At this point input operands are
     // guaranteed to be non-zero.
     ASSERT(right.is(a0));
