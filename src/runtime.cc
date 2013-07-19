@@ -8539,13 +8539,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     Address table_cursor = start + unoptimized->back_edge_table_offset();
     uint32_t table_length = Memory::uint32_at(table_cursor);
     table_cursor += kIntSize;
-    uint8_t loop_depth = 0;
+    uint32_t loop_depth = 0;
     for (unsigned i = 0; i < table_length; ++i) {
       // Table entries are (AST id, pc offset) pairs.
       uint32_t pc_offset = Memory::uint32_at(table_cursor + kIntSize);
       if (pc_offset == target_pc_offset) {
         ast_id = BailoutId(static_cast<int>(Memory::uint32_at(table_cursor)));
-        loop_depth = Memory::uint8_at(table_cursor + 2 * kIntSize);
+        loop_depth = Memory::uint32_at(table_cursor + 2 * kIntSize);
         break;
       }
       table_cursor += FullCodeGenerator::kBackEdgeEntrySize;

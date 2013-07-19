@@ -10799,7 +10799,8 @@ void Code::Disassemble(const char* name, FILE* out) {
       for (uint32_t i = 0; i < table_length; ++i) {
         uint32_t ast_id = Memory::uint32_at(back_edge_cursor);
         uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
-        uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
+        uint32_t loop_depth = Memory::uint32_at(back_edge_cursor +
+                                                2 * kIntSize);
         PrintF(out, "%6u  %9u  %10u\n", ast_id, pc_offset, loop_depth);
         back_edge_cursor += FullCodeGenerator::kBackEdgeEntrySize;
       }

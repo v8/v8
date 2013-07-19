@@ -2371,8 +2371,8 @@ void Deoptimizer::PatchInterruptCode(Code* unoptimized_code,
   uint32_t table_length = Memory::uint32_at(back_edge_cursor);
   back_edge_cursor += kIntSize;
   for (uint32_t i = 0; i < table_length; ++i) {
-    uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
-    if (loop_depth == loop_nesting_level) {
+    uint32_t loop_depth = Memory::uint32_at(back_edge_cursor + 2 * kIntSize);
+    if (static_cast<int>(loop_depth) == loop_nesting_level) {
       // Loop back edge has the loop depth that we want to patch.
       uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
       Address pc_after = unoptimized_code->instruction_start() + pc_offset;
@@ -2403,8 +2403,8 @@ void Deoptimizer::RevertInterruptCode(Code* unoptimized_code,
   uint32_t table_length = Memory::uint32_at(back_edge_cursor);
   back_edge_cursor += kIntSize;
   for (uint32_t i = 0; i < table_length; ++i) {
-    uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
-    if (loop_depth <= loop_nesting_level) {
+    uint32_t loop_depth = Memory::uint32_at(back_edge_cursor + 2 * kIntSize);
+    if (static_cast<int>(loop_depth) <= loop_nesting_level) {
       uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
       Address pc_after = unoptimized_code->instruction_start() + pc_offset;
       RevertInterruptCodeAt(unoptimized_code,
@@ -2435,13 +2435,13 @@ void Deoptimizer::VerifyInterruptCode(Code* unoptimized_code,
   uint32_t table_length = Memory::uint32_at(back_edge_cursor);
   back_edge_cursor += kIntSize;
   for (uint32_t i = 0; i < table_length; ++i) {
-    uint8_t loop_depth = Memory::uint8_at(back_edge_cursor + 2 * kIntSize);
-    CHECK_LE(loop_depth, Code::kMaxLoopNestingMarker);
+    uint32_t loop_depth = Memory::uint32_at(back_edge_cursor + 2 * kIntSize);
+    CHECK_LE(static_cast<int>(loop_depth), Code::kMaxLoopNestingMarker);
     // Assert that all back edges for shallower loops (and only those)
     // have already been patched.
     uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
     Address pc_after = unoptimized_code->instruction_start() + pc_offset;
-    CHECK_EQ((loop_depth <= loop_nesting_level),
+    CHECK_EQ((static_cast<int>(loop_depth) <= loop_nesting_level),
              InterruptCodeIsPatched(unoptimized_code,
                                     pc_after,
                                     interrupt_code,
