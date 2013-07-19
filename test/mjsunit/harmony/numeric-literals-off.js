@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,47 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CHAR_PREDICATES_H_
-#define V8_CHAR_PREDICATES_H_
-
-#include "unicode.h"
-
-namespace v8 {
-namespace internal {
-
-// Unicode character predicates as defined by ECMA-262, 3rd,
-// used for lexical analysis.
-
-inline bool IsCarriageReturn(uc32 c);
-inline bool IsLineFeed(uc32 c);
-inline bool IsDecimalDigit(uc32 c);
-inline bool IsHexDigit(uc32 c);
-inline bool IsOctalDigit(uc32 c);
-inline bool IsBinaryDigit(uc32 c);
-inline bool IsRegExpWord(uc32 c);
-inline bool IsRegExpNewline(uc32 c);
-
-struct IdentifierStart {
-  static inline bool Is(uc32 c) {
-    switch (c) {
-      case '$': case '_': case '\\': return true;
-      default: return unibrow::Letter::Is(c);
-    }
-  }
-};
+// This is to ensure that we do not support 0b and 0o in Number when
+// the --harmony-numeric-literals flag is not set.
 
 
-struct IdentifierPart {
-  static inline bool Is(uc32 c) {
-    return IdentifierStart::Is(c)
-        || unibrow::Number::Is(c)
-        || c == 0x200C  // U+200C is Zero-Width Non-Joiner.
-        || c == 0x200D  // U+200D is Zero-Width Joiner.
-        || unibrow::CombiningMark::Is(c)
-        || unibrow::ConnectorPunctuation::Is(c);
-  }
-};
+function TestOctalLiteralUsingNumberFunction() {
+  assertEquals(NaN, Number('0o0'));
+}
+TestOctalLiteralUsingNumberFunction();
 
-} }  // namespace v8::internal
 
-#endif  // V8_CHAR_PREDICATES_H_
+function TestBinaryLiteralUsingNumberFunction() {
+  assertEquals(NaN, Number('0b0'));
+}
+TestBinaryLiteralUsingNumberFunction();

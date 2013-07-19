@@ -171,6 +171,8 @@ DEFINE_bool(harmony_array_buffer, false,
 DEFINE_implication(harmony_typed_arrays, harmony_array_buffer)
 DEFINE_bool(harmony_generators, false, "enable harmony generators")
 DEFINE_bool(harmony_iteration, false, "enable harmony iteration (for-of)")
+DEFINE_bool(harmony_numeric_literals, false,
+            "enable harmony numeric literals (0o77, 0b11)")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_modules)
@@ -180,6 +182,7 @@ DEFINE_implication(harmony, harmony_collections)
 DEFINE_implication(harmony, harmony_observation)
 DEFINE_implication(harmony, harmony_generators)
 DEFINE_implication(harmony, harmony_iteration)
+DEFINE_implication(harmony, harmony_numeric_literals)
 DEFINE_implication(harmony_modules, harmony_scoping)
 DEFINE_implication(harmony_observation, harmony_collections)
 // TODO[dslomov] add harmony => harmony_typed_arrays
