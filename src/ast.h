@@ -389,7 +389,7 @@ class Expression: public AstNode {
 
  protected:
   explicit Expression(Isolate* isolate)
-      : bounds_(Type::None(), Type::Any(), isolate),
+      : bounds_(Bounds::Unbounded(isolate)),
         id_(GetNextId(isolate)),
         test_id_(GetNextId(isolate)) {}
   void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
