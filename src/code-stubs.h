@@ -393,6 +393,22 @@ class RuntimeCallHelper {
   DISALLOW_COPY_AND_ASSIGN(RuntimeCallHelper);
 };
 
+
+// TODO(bmeurer): Move to the StringAddStub declaration once we're
+// done with the translation to a hydrogen code stub.
+enum StringAddFlags {
+  // Omit both parameter checks.
+  STRING_ADD_CHECK_NONE = 0,
+  // Check left parameter.
+  STRING_ADD_CHECK_LEFT = 1 << 0,
+  // Check right parameter.
+  STRING_ADD_CHECK_RIGHT = 1 << 1,
+  // Check both parameters.
+  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT,
+  // Stub needs a frame before calling the runtime
+  STRING_ADD_ERECT_FRAME = 1 << 2
+};
+
 } }  // namespace v8::internal
 
 #if V8_TARGET_ARCH_IA32

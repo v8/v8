@@ -9083,7 +9083,7 @@ void HOptimizedGraphBuilder::GenerateStringAdd(CallRuntime* call) {
   HValue* left = Pop();
   HValue* context = environment()->LookupContext();
   HInstruction* result = HStringAdd::New(
-      zone(), context, left, right, NO_STRING_ADD_FLAGS);
+      zone(), context, left, right, STRING_ADD_CHECK_BOTH);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

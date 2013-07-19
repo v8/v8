@@ -6182,7 +6182,7 @@ class HStringAdd: public HBinaryOperation {
                            HValue* context,
                            HValue* left,
                            HValue* right,
-                           StringAddFlags flags = NO_STRING_CHECK_IN_STUB);
+                           StringAddFlags flags = STRING_ADD_CHECK_NONE);
 
   StringAddFlags flags() const { return flags_; }
 
