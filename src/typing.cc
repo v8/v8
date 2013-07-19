@@ -80,6 +80,7 @@ void AstTyper::VisitStatements(ZoneList<Statement*>* stmts) {
   for (int i = 0; i < stmts->length(); ++i) {
     Statement* stmt = stmts->at(i);
     RECURSE(Visit(stmt));
+    if (stmt->IsJump()) break;
   }
 }
 
@@ -151,8 +152,13 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
 
   ZoneList<CaseClause*>* clauses = stmt->cases();
   SwitchStatement::SwitchType switch_type = stmt->switch_type();
+  Effects local_effects(zone());
+  bool complex_effects = false;  // True for label effects or fall-through.
+
   for (int i = 0; i < clauses->length(); ++i) {
     CaseClause* clause = clauses->at(i);
+    Effects clause_effects = EnterEffects();
+
     if (!clause->is_default()) {
       Expression* label = clause->label();
       SwitchStatement::SwitchType label_switch_type =
@@ -165,12 +171,24 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
         switch_type = SwitchStatement::GENERIC_SWITCH;
 
       RECURSE(Visit(label));
+      if (!clause_effects.IsEmpty()) complex_effects = true;
     }
-    RECURSE(VisitStatements(clause->statements()));
+
+    ZoneList<Statement*>* stmts = clause->statements();
+    RECURSE(VisitStatements(stmts));
+    ExitEffects();
+    if (stmts->is_empty() || stmts->last()->IsJump()) {
+      local_effects.Alt(clause_effects);
+    } else {
+      complex_effects = true;
+    }
   }
 
-  // TODO(rossberg): handle switch effects
-  store_.Forget();
+  if (complex_effects) {
+    store_.Forget();  // Reached this in unknown state.
+  } else {
+    store_.Seq(local_effects);
+  }
 
   if (switch_type == SwitchStatement::UNKNOWN_SWITCH)
     switch_type = SwitchStatement::GENERIC_SWITCH;
@@ -380,7 +398,7 @@ void AstTyper::VisitAssignment(Assignment* expr) {
     NarrowType(expr, expr->binary_operation()->bounds());
   } else {
     // Collect type feedback.
-    if (expr->target()->AsProperty()) {
+    if (expr->target()->IsProperty()) {
       expr->RecordTypeFeedback(oracle(), zone());
     }
 
@@ -390,11 +408,9 @@ void AstTyper::VisitAssignment(Assignment* expr) {
     NarrowType(expr, expr->value()->bounds());
   }
 
-  if (expr->target()->AsVariableProxy()) {
-    Variable* var = expr->target()->AsVariableProxy()->var();
-    if (var->IsStackAllocated()) {
-      store_.Seq(variable_index(var), Effect(expr->bounds()));
-    }
+  VariableProxy* proxy = expr->target()->AsVariableProxy();
+  if (proxy != NULL && proxy->var()->IsStackAllocated()) {
+    store_.Seq(variable_index(proxy->var()), Effect(expr->bounds()));
   }
 }
 
@@ -529,11 +545,9 @@ void AstTyper::VisitCountOperation(CountOperation* expr) {
 
   NarrowType(expr, Bounds(Type::Smi(), Type::Number(), isolate_));
 
-  if (expr->expression()->AsVariableProxy()) {
-    Variable* var = expr->expression()->AsVariableProxy()->var();
-    if (var->IsStackAllocated()) {
-      store_.Seq(variable_index(var), Effect(expr->bounds()));
-    }
+  VariableProxy* proxy = expr->expression()->AsVariableProxy();
+  if (proxy != NULL && proxy->var()->IsStackAllocated()) {
+    store_.Seq(variable_index(proxy->var()), Effect(expr->bounds()));
   }
 }
 
