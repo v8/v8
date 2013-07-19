@@ -1053,7 +1053,7 @@ class Heap {
   // Allocate a 'with' context.
   MUST_USE_RESULT MaybeObject* AllocateWithContext(JSFunction* function,
                                                    Context* previous,
-                                                   JSObject* extension);
+                                                   JSReceiver* extension);
 
   // Allocate a block context.
   MUST_USE_RESULT MaybeObject* AllocateBlockContext(JSFunction* function,

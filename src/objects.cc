@@ -3607,17 +3607,24 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
 
   // Convert result to PropertyAttributes.
   Handle<String> enum_n = isolate->factory()->InternalizeOneByteString(
-      STATIC_ASCII_VECTOR("enumerable"));
+      STATIC_ASCII_VECTOR("enumerable_"));
   Handle<Object> enumerable(v8::internal::GetProperty(isolate, desc, enum_n));
   if (isolate->has_pending_exception()) return NONE;
   Handle<String> conf_n = isolate->factory()->InternalizeOneByteString(
-      STATIC_ASCII_VECTOR("configurable"));
+      STATIC_ASCII_VECTOR("configurable_"));
   Handle<Object> configurable(v8::internal::GetProperty(isolate, desc, conf_n));
   if (isolate->has_pending_exception()) return NONE;
   Handle<String> writ_n = isolate->factory()->InternalizeOneByteString(
-      STATIC_ASCII_VECTOR("writable"));
+      STATIC_ASCII_VECTOR("writable_"));
   Handle<Object> writable(v8::internal::GetProperty(isolate, desc, writ_n));
   if (isolate->has_pending_exception()) return NONE;
+  if (!writable->BooleanValue()) {
+    Handle<String> set_n = isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("set_"));
+    Handle<Object> setter(v8::internal::GetProperty(isolate, desc, set_n));
+    if (isolate->has_pending_exception()) return NONE;
+    writable = isolate->factory()->ToBoolean(!setter->IsUndefined());
+  }
 
   if (configurable->IsFalse()) {
     Handle<String> trap = isolate->factory()->InternalizeOneByteString(

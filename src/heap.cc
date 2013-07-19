@@ -5840,7 +5840,7 @@ MaybeObject* Heap::AllocateCatchContext(JSFunction* function,
 
 MaybeObject* Heap::AllocateWithContext(JSFunction* function,
                                        Context* previous,
-                                       JSObject* extension) {
+                                       JSReceiver* extension) {
   Object* result;
   { MaybeObject* maybe_result = AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
     if (!maybe_result->ToObject(&result)) return maybe_result;

@@ -8750,9 +8750,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewFunctionContext) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
-  JSObject* extension_object;
-  if (args[0]->IsJSObject()) {
-    extension_object = JSObject::cast(args[0]);
+  JSReceiver* extension_object;
+  if (args[0]->IsJSReceiver()) {
+    extension_object = JSReceiver::cast(args[0]);
   } else {
     // Convert the object to a proper JavaScript object.
     MaybeObject* maybe_js_object = args[0]->ToObject();
@@ -9055,6 +9055,9 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
                                           &index,
                                           &attributes,
                                           &binding_flags);
+  if (isolate->has_pending_exception()) {
+    return MakePair(Failure::Exception(), NULL);
+  }
 
   // If the index is non-negative, the slot has been found in a context.
   if (index >= 0) {
@@ -9095,13 +9098,14 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
   // object, subject of a with, or a global object.  We read the named
   // property from it.
   if (!holder.is_null()) {
-    Handle<JSObject> object = Handle<JSObject>::cast(holder);
-    ASSERT(object->HasProperty(*name));
+    Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
+    ASSERT(object->IsJSProxy() || object->HasProperty(*name));
     // GetProperty below can cause GC.
     Handle<Object> receiver_handle(
         object->IsGlobalObject()
             ? GlobalObject::cast(*object)->global_receiver()
-            : ComputeReceiverForNonGlobal(isolate, *object),
+            : object->IsJSProxy() ? static_cast<Object*>(*object)
+                : ComputeReceiverForNonGlobal(isolate, JSObject::cast(*object)),
         isolate);
 
     // No need to unhole the value here.  This is taken care of by the
@@ -9154,6 +9158,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
                                           &index,
                                           &attributes,
                                           &binding_flags);
+  if (isolate->has_pending_exception()) return Failure::Exception();
 
   if (index >= 0) {
     // The property was found in a context slot.
@@ -9182,11 +9187,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
   // Slow case: The property is not in a context slot.  It is either in a
   // context extension object, a property of the subject of a with, or a
   // property of the global object.
-  Handle<JSObject> object;
+  Handle<JSReceiver> object;
 
   if (!holder.is_null()) {
     // The property exists on the holder.
-    object = Handle<JSObject>::cast(holder);
+    object = Handle<JSReceiver>::cast(holder);
   } else {
     // The property was not found.
     ASSERT(attributes == ABSENT);
@@ -9200,7 +9205,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
     }
     // In non-strict mode, the property is added to the global object.
     attributes = NONE;
-    object = Handle<JSObject>(isolate->context()->global_object());
+    object = Handle<JSReceiver>(isolate->context()->global_object());
   }
 
   // Set the property if it's not read only or doesn't yet exist.
