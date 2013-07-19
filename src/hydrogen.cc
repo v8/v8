@@ -9077,10 +9077,13 @@ void HOptimizedGraphBuilder::GenerateRandomHeapNumber(CallRuntime* call) {
 // Fast support for StringAdd.
 void HOptimizedGraphBuilder::GenerateStringAdd(CallRuntime* call) {
   ASSERT_EQ(2, call->arguments()->length());
-  CHECK_ALIVE(VisitArgumentList(call->arguments()));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
+  HValue* right = Pop();
+  HValue* left = Pop();
   HValue* context = environment()->LookupContext();
-  HCallStub* result = new(zone()) HCallStub(context, CodeStub::StringAdd, 2);
-  Drop(2);
+  HInstruction* result = HStringAdd::New(
+      zone(), context, left, right, NO_STRING_ADD_FLAGS);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

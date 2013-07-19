@@ -6181,7 +6181,10 @@ class HStringAdd: public HBinaryOperation {
   static HInstruction* New(Zone* zone,
                            HValue* context,
                            HValue* left,
-                           HValue* right);
+                           HValue* right,
+                           StringAddFlags flags = NO_STRING_CHECK_IN_STUB);
+
+  StringAddFlags flags() const { return flags_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -6196,10 +6199,9 @@ class HStringAdd: public HBinaryOperation {
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
 
-
  private:
-  HStringAdd(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right) {
+  HStringAdd(HValue* context, HValue* left, HValue* right, StringAddFlags flags)
+      : HBinaryOperation(context, left, right), flags_(flags) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
@@ -6208,6 +6210,8 @@ class HStringAdd: public HBinaryOperation {
 
   // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
   //  virtual bool IsDeletable() const { return true; }
+
+  const StringAddFlags flags_;
 };
 
 

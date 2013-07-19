@@ -3451,8 +3451,11 @@ DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HSub, -)
 #undef DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR
 
 
-HInstruction* HStringAdd::New(
-    Zone* zone, HValue* context, HValue* left, HValue* right) {
+HInstruction* HStringAdd::New(Zone* zone,
+                              HValue* context,
+                              HValue* left,
+                              HValue* right,
+                              StringAddFlags flags) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_right = HConstant::cast(right);
     HConstant* c_left = HConstant::cast(left);
@@ -3462,7 +3465,7 @@ HInstruction* HStringAdd::New(
       return new(zone) HConstant(concat, Representation::Tagged());
     }
   }
-  return new(zone) HStringAdd(context, left, right);
+  return new(zone) HStringAdd(context, left, right, flags);
 }
 
 
