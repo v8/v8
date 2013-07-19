@@ -177,7 +177,6 @@ struct ZoneAllocationPolicy {
   explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) { }
   INLINE(void* New(size_t size));
   INLINE(static void Delete(void *pointer)) { }
-  Zone* zone() { return zone_; }
 
  private:
   Zone* zone_;
@@ -247,8 +246,6 @@ class ZoneSplayTree: public SplayTree<Config, ZoneAllocationPolicy> {
   explicit ZoneSplayTree(Zone* zone)
       : SplayTree<Config, ZoneAllocationPolicy>(ZoneAllocationPolicy(zone)) {}
   ~ZoneSplayTree();
-
-  INLINE(void* operator new(size_t size, Zone* zone));
 };
 
 

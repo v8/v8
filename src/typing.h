@@ -35,7 +35,6 @@
 #include "compiler.h"
 #include "type-info.h"
 #include "types.h"
-#include "effects.h"
 #include "zone.h"
 #include "scopes.h"
 
@@ -58,13 +57,8 @@ class AstTyper: public AstVisitor {
  private:
   explicit AstTyper(CompilationInfo* info);
 
-  static const int kNoVar = INT_MIN;
-  typedef v8::internal::Effects<int, kNoVar> Effects;
-  typedef v8::internal::NestedEffects<int, kNoVar> Store;
-
   CompilationInfo* info_;
   TypeFeedbackOracle oracle_;
-  Store store_;
 
   TypeFeedbackOracle* oracle() { return &oracle_; }
   Zone* zone() const { return info_->zone(); }
@@ -74,17 +68,6 @@ class AstTyper: public AstVisitor {
   }
   void NarrowLowerType(Expression* e, Handle<Type> t) {
     e->set_bounds(Bounds::NarrowLower(e->bounds(), t, isolate_));
-  }
-
-  Effects EnterEffects() {
-    store_ = store_.Push();
-    return store_.Top();
-  }
-  void ExitEffects() { store_ = store_.Pop(); }
-
-  int variable_index(Variable* var) {
-    return var->IsStackLocal() ? var->index() :
-           var->IsParameter() ? -var->index() : kNoVar;
   }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);

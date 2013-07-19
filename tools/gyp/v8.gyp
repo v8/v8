@@ -290,7 +290,6 @@
         '../../src/double.h',
         '../../src/dtoa.cc',
         '../../src/dtoa.h',
-        '../../src/effects.h',
         '../../src/elements-kind.cc',
         '../../src/elements-kind.h',
         '../../src/elements.cc',
