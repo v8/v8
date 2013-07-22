@@ -339,8 +339,8 @@ class Expression: public AstNode {
   // True iff the expression is the null literal.
   bool IsNullLiteral();
 
-  // True iff the expression is the undefined literal.
-  bool IsUndefinedLiteral();
+  // True if we can prove that the expression is the undefined literal.
+  bool IsUndefinedLiteral(Isolate* isolate);
 
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
@@ -1841,7 +1841,7 @@ class CompareOperation: public Expression {
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
-  bool IsLiteralCompareUndefined(Expression** expr);
+  bool IsLiteralCompareUndefined(Expression** expr, Isolate* isolate);
   bool IsLiteralCompareNull(Expression** expr);
 
  protected:
