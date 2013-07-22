@@ -1158,6 +1158,7 @@ void MacroAssembler::SmiToInteger64(Register dst, const Operand& src) {
 
 
 void MacroAssembler::SmiTest(Register src) {
+  AssertSmi(src);
   testq(src, src);
 }
 
