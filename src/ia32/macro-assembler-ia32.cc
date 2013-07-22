@@ -2798,7 +2798,8 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
   // Check that both are flat ASCII strings.
   const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
   // Interleave bits from both instance types and compare them in one check.
   ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
   and_(scratch1, kFlatAsciiStringMask);
