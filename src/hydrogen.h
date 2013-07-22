@@ -1721,10 +1721,10 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                   SmallMapList* types,
                                   Handle<String> name);
   void HandleLiteralCompareTypeof(CompareOperation* expr,
-                                  HTypeof* typeof_expr,
+                                  Expression* sub_expr,
                                   Handle<String> check);
   void HandleLiteralCompareNil(CompareOperation* expr,
-                               HValue* value,
+                               Expression* sub_expr,
                                NilValue nil);
 
   HInstruction* BuildStringCharCodeAt(HValue* context,

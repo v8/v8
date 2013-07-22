@@ -9746,65 +9746,13 @@ Representation HOptimizedGraphBuilder::ToRepresentation(Handle<Type> type) {
 
 
 void HOptimizedGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* expr,
-                                                        HTypeof* typeof_expr,
+                                                        Expression* sub_expr,
                                                         Handle<String> check) {
-  // Note: The HTypeof itself is removed during canonicalization, if possible.
-  HValue* value = typeof_expr->value();
+  CHECK_ALIVE(VisitForTypeOf(sub_expr));
+  HValue* value = Pop();
   HTypeofIsAndBranch* instr = new(zone()) HTypeofIsAndBranch(value, check);
   instr->set_position(expr->position());
   return ast_context()->ReturnControl(instr, expr->id());
-}
-
-
-static bool MatchLiteralCompareNil(HValue* left,
-                                   Token::Value op,
-                                   HValue* right,
-                                   Handle<Object> nil,
-                                   HValue** expr) {
-  if (left->IsConstant() &&
-      HConstant::cast(left)->handle().is_identical_to(nil) &&
-      Token::IsEqualityOp(op)) {
-    *expr = right;
-    return true;
-  }
-  return false;
-}
-
-
-static bool MatchLiteralCompareTypeof(HValue* left,
-                                      Token::Value op,
-                                      HValue* right,
-                                      HTypeof** typeof_expr,
-                                      Handle<String>* check) {
-  if (left->IsTypeof() &&
-      Token::IsEqualityOp(op) &&
-      right->IsConstant() &&
-      HConstant::cast(right)->handle()->IsString()) {
-    *typeof_expr = HTypeof::cast(left);
-    *check = Handle<String>::cast(HConstant::cast(right)->handle());
-    return true;
-  }
-  return false;
-}
-
-
-static bool IsLiteralCompareTypeof(HValue* left,
-                                   Token::Value op,
-                                   HValue* right,
-                                   HTypeof** typeof_expr,
-                                   Handle<String>* check) {
-  return MatchLiteralCompareTypeof(left, op, right, typeof_expr, check) ||
-      MatchLiteralCompareTypeof(right, op, left, typeof_expr, check);
-}
-
-
-static bool IsLiteralCompareNil(HValue* left,
-                                Token::Value op,
-                                HValue* right,
-                                Handle<Object> nil,
-                                HValue** expr) {
-  return MatchLiteralCompareNil(left, op, right, nil, expr) ||
-      MatchLiteralCompareNil(right, op, left, nil, expr);
 }
 
 
@@ -9821,6 +9769,22 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+
+  // Check for a few fast cases. The AST visiting behavior must be in sync
+  // with the full codegen: We don't push both left and right values onto
+  // the expression stack when one side is a special-case literal.
+  Expression* sub_expr = NULL;
+  Handle<String> check;
+  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
+    return HandleLiteralCompareTypeof(expr, sub_expr, check);
+  }
+  if (expr->IsLiteralCompareUndefined(&sub_expr, isolate())) {
+    return HandleLiteralCompareNil(expr, sub_expr, kUndefinedValue);
+  }
+  if (expr->IsLiteralCompareNull(&sub_expr)) {
+    return HandleLiteralCompareNil(expr, sub_expr, kNullValue);
+  }
+
   if (IsClassOfTest(expr)) {
     CallRuntime* call = expr->left()->AsCallRuntime();
     ASSERT(call->arguments()->length() == 1);
@@ -9855,19 +9819,6 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   HValue* left = Pop();
   Token::Value op = expr->op();
 
-  HTypeof* typeof_expr = NULL;
-  Handle<String> check;
-  if (IsLiteralCompareTypeof(left, op, right, &typeof_expr, &check)) {
-    return HandleLiteralCompareTypeof(expr, typeof_expr, check);
-  }
-  HValue* sub_expr = NULL;
-  Factory* f = isolate()->factory();
-  if (IsLiteralCompareNil(left, op, right, f->undefined_value(), &sub_expr)) {
-    return HandleLiteralCompareNil(expr, sub_expr, kUndefinedValue);
-  }
-  if (IsLiteralCompareNil(left, op, right, f->null_value(), &sub_expr)) {
-    return HandleLiteralCompareNil(expr, sub_expr, kNullValue);
-  }
   if (IsLiteralCompareBool(left, op, right)) {
     HCompareObjectEqAndBranch* result =
         new(zone()) HCompareObjectEqAndBranch(left, right);
@@ -9977,12 +9928,14 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
 
 
 void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
-                                                     HValue* value,
+                                                     Expression* sub_expr,
                                                      NilValue nil) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   ASSERT(expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT);
+  CHECK_ALIVE(VisitForValue(sub_expr));
+  HValue* value = Pop();
   HIfContinuation continuation;
   if (expr->op() == Token::EQ_STRICT) {
     IfBuilder if_nil(this);

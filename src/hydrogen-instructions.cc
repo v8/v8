@@ -1155,8 +1155,12 @@ void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
   HValue* actual_length = length()->ActualValue();
   Representation index_rep = actual_index->representation();
   Representation length_rep = actual_length->representation();
-  if (index_rep.IsTagged()) index_rep = Representation::Smi();
-  if (length_rep.IsTagged()) length_rep = Representation::Smi();
+  if (index_rep.IsTagged() && actual_index->type().IsSmi()) {
+    index_rep = Representation::Smi();
+  }
+  if (length_rep.IsTagged() && actual_length->type().IsSmi()) {
+    length_rep = Representation::Smi();
+  }
   Representation r = index_rep.generalize(length_rep);
   if (r.is_more_general_than(Representation::Integer32())) {
     r = Representation::Integer32();

@@ -3242,7 +3242,6 @@ void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return result->NotFound();
     ASSERT(proto->IsJSGlobalObject());
-    // A GlobalProxy's prototype should always be a proper JSObject.
     return JSObject::cast(proto)->LocalLookupRealNamedProperty(name, result);
   }
 
@@ -12837,6 +12836,13 @@ bool JSObject::HasRealElementProperty(Isolate* isolate, uint32_t index) {
       isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
       return false;
     }
+  }
+
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return false;
+    ASSERT(proto->IsJSGlobalObject());
+    return JSObject::cast(proto)->HasRealElementProperty(isolate, index);
   }
 
   return GetElementAttributeWithoutInterceptor(this, index, false) != ABSENT;

@@ -2435,6 +2435,16 @@ THREADED_TEST(GlobalObjectInternalFields) {
 }
 
 
+THREADED_TEST(GlobalObjectHasRealIndexedProperty) {
+  LocalContext env;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+
+  v8::Local<v8::Object> global = env->Global();
+  global->Set(0, v8::String::New("value"));
+  CHECK(global->HasRealIndexedProperty(0));
+}
+
+
 static void CheckAlignedPointerInInternalField(Handle<v8::Object> obj,
                                                void* value) {
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
