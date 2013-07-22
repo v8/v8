@@ -3229,12 +3229,21 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       HConstant::cast(dominator_size)->GetInteger32Constant();
   int32_t current_size_constant =
       HConstant::cast(current_size)->GetInteger32Constant();
+  int32_t new_dominator_size = dominator_size_constant + current_size_constant;
+  if (new_dominator_size > Page::kMaxNonCodeHeapObjectSize) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s) due to size: %d\n",
+          id(), Mnemonic(), dominator->id(), dominator->Mnemonic(),
+          new_dominator_size);
+    }
+    return;
+  }
   HBasicBlock* block = dominator->block();
   Zone* zone = block->zone();
-  HInstruction* new_dominator_size = new(zone) HConstant(
-      dominator_size_constant + current_size_constant);
-  new_dominator_size->InsertBefore(dominator_allocate_instr);
-  dominator_allocate_instr->UpdateSize(new_dominator_size);
+  HInstruction* new_dominator_size_constant = new(zone) HConstant(
+      new_dominator_size);
+  new_dominator_size_constant->InsertBefore(dominator_allocate_instr);
+  dominator_allocate_instr->UpdateSize(new_dominator_size_constant);
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
