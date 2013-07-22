@@ -1104,40 +1104,6 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
 }
 
 
-HInstruction* HGraphBuilder::BuildFastElementAccess(
-    HValue* elements,
-    HValue* checked_key,
-    HValue* val,
-    HValue* load_dependency,
-    ElementsKind elements_kind,
-    bool is_store,
-    LoadKeyedHoleMode load_mode,
-    KeyedAccessStoreMode store_mode) {
-  Zone* zone = this->zone();
-  if (is_store) {
-    ASSERT(val != NULL);
-    switch (elements_kind) {
-      case FAST_SMI_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-        return new(zone) HStoreKeyed(elements, checked_key, val, elements_kind);
-      default:
-        UNREACHABLE();
-        return NULL;
-    }
-  }
-  // It's an element load (!is_store).
-  return new(zone) HLoadKeyed(elements,
-                              checked_key,
-                              load_dependency,
-                              elements_kind,
-                              load_mode);
-}
-
-
 HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
                                                  HValue* elements,
                                                  ElementsKind kind,
@@ -1371,9 +1337,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       }
     }
   }
-  return AddInstruction(
-      BuildFastElementAccess(elements, checked_key, val, mapcheck,
-                             elements_kind, is_store, load_mode, store_mode));
+  return AddFastElementAccess(elements, checked_key, val, mapcheck,
+                              elements_kind, is_store, load_mode, store_mode);
 }
 
 
@@ -1467,6 +1432,36 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
       Add<HInnerAllocatedObject>(array, elements_location);
   AddStore(array, HObjectAccess::ForElementsPointer(), elements);
   return elements;
+}
+
+
+HInstruction* HGraphBuilder::AddFastElementAccess(
+    HValue* elements,
+    HValue* checked_key,
+    HValue* val,
+    HValue* load_dependency,
+    ElementsKind elements_kind,
+    bool is_store,
+    LoadKeyedHoleMode load_mode,
+    KeyedAccessStoreMode store_mode) {
+  if (is_store) {
+    ASSERT(val != NULL);
+    switch (elements_kind) {
+      case FAST_SMI_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
+      case FAST_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+        return Add<HStoreKeyed>(elements, checked_key, val, elements_kind);
+      default:
+        UNREACHABLE();
+        return NULL;
+    }
+  }
+  // It's an element load (!is_store).
+  return Add<HLoadKeyed>(
+      elements, checked_key, load_dependency, elements_kind, load_mode);
 }
 
 
@@ -5711,9 +5706,9 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         HInstruction* length = AddLoadFixedArrayLength(elements);
         checked_key = Add<HBoundsCheck>(key, length);
       }
-      access = AddInstruction(BuildFastElementAccess(
+      access = AddFastElementAccess(
           elements, checked_key, val, mapcompare,
-          elements_kind, is_store, NEVER_RETURN_HOLE, STANDARD_STORE));
+          elements_kind, is_store, NEVER_RETURN_HOLE, STANDARD_STORE);
     } else if (IsDictionaryElementsKind(elements_kind)) {
       if (is_store) {
         access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));

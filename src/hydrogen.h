@@ -1054,16 +1054,6 @@ class HGraphBuilder {
       ElementsKind elements_kind,
       bool is_store);
 
-  HInstruction* BuildFastElementAccess(
-      HValue* elements,
-      HValue* checked_key,
-      HValue* val,
-      HValue* dependency,
-      ElementsKind elements_kind,
-      bool is_store,
-      LoadKeyedHoleMode load_mode,
-      KeyedAccessStoreMode store_mode);
-
   HValue* BuildCheckForCapacityGrow(HValue* object,
                                     HValue* elements,
                                     ElementsKind kind,
@@ -1103,6 +1093,16 @@ class HGraphBuilder {
       HValue* object,
       HObjectAccess access,
       Representation representation);
+
+  HInstruction* AddFastElementAccess(
+      HValue* elements,
+      HValue* checked_key,
+      HValue* val,
+      HValue* dependency,
+      ElementsKind elements_kind,
+      bool is_store,
+      LoadKeyedHoleMode load_mode,
+      KeyedAccessStoreMode store_mode);
 
   HStoreNamedField* AddStore(
       HValue *object,
