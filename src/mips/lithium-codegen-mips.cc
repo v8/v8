@@ -5323,6 +5323,25 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   }
 
   __ bind(deferred->exit());
+
+  if (instr->hydrogen()->MustPrefillWithFiller()) {
+    if (instr->size()->IsConstantOperand()) {
+      int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+      __ li(scratch, Operand(size));
+    } else {
+      scratch = ToRegister(instr->size());
+    }
+    __ Subu(scratch, scratch, Operand(kPointerSize));
+    __ Subu(result, result, Operand(kHeapObjectTag));
+    Label loop;
+    __ bind(&loop);
+    __ li(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
+    __ Addu(at, result, Operand(scratch));
+    __ sw(scratch2, MemOperand(at));
+    __ Subu(scratch, scratch, Operand(kPointerSize));
+    __ Branch(&loop, ge, scratch, Operand(zero_reg));
+    __ Addu(result, result, Operand(kHeapObjectTag));
+  }
 }
 
 
