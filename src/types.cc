@@ -206,6 +206,7 @@ int Type::LubBitset() {
       case DECLARED_ACCESSOR_INFO_TYPE:
       case EXECUTABLE_ACCESSOR_INFO_TYPE:
       case ACCESSOR_PAIR_TYPE:
+      case FIXED_ARRAY_TYPE:
         return kInternal;
       default:
         UNREACHABLE();
