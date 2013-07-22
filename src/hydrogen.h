@@ -1046,14 +1046,6 @@ class HGraphBuilder {
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
 
   // Building common constructs
-  HInstruction* BuildExternalArrayElementAccess(
-      HValue* external_elements,
-      HValue* checked_key,
-      HValue* val,
-      HValue* dependency,
-      ElementsKind elements_kind,
-      bool is_store);
-
   HValue* BuildCheckForCapacityGrow(HValue* object,
                                     HValue* elements,
                                     ElementsKind kind,
@@ -1093,6 +1085,14 @@ class HGraphBuilder {
       HValue* object,
       HObjectAccess access,
       Representation representation);
+
+  HInstruction* AddExternalArrayElementAccess(
+      HValue* external_elements,
+      HValue* checked_key,
+      HValue* val,
+      HValue* dependency,
+      ElementsKind elements_kind,
+      bool is_store);
 
   HInstruction* AddFastElementAccess(
       HValue* elements,

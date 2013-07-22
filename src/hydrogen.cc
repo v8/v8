@@ -1051,59 +1051,6 @@ HValue* HGraphBuilder::BuildCheckMap(HValue* obj,
 }
 
 
-HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
-    HValue* external_elements,
-    HValue* checked_key,
-    HValue* val,
-    HValue* dependency,
-    ElementsKind elements_kind,
-    bool is_store) {
-  Zone* zone = this->zone();
-  if (is_store) {
-    ASSERT(val != NULL);
-    switch (elements_kind) {
-      case EXTERNAL_PIXEL_ELEMENTS: {
-        val = Add<HClampToUint8>(val);
-        break;
-      }
-      case EXTERNAL_BYTE_ELEMENTS:
-      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      case EXTERNAL_SHORT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      case EXTERNAL_INT_ELEMENTS:
-      case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-        break;
-      }
-      case EXTERNAL_FLOAT_ELEMENTS:
-      case EXTERNAL_DOUBLE_ELEMENTS:
-        break;
-      case FAST_SMI_ELEMENTS:
-      case FAST_ELEMENTS:
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-      case DICTIONARY_ELEMENTS:
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
-        UNREACHABLE();
-        break;
-    }
-    return new(zone) HStoreKeyed(external_elements, checked_key,
-                                 val, elements_kind);
-  } else {
-    ASSERT(val == NULL);
-    HLoadKeyed* load =
-       new(zone) HLoadKeyed(
-           external_elements, checked_key, dependency, elements_kind);
-    if (FLAG_opt_safe_uint32_operations &&
-        elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
-      graph()->RecordUint32Instruction(load);
-    }
-    return load;
-  }
-}
-
-
 HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
                                                  HValue* elements,
                                                  ElementsKind kind,
@@ -1286,10 +1233,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       HValue* bounds_check = negative_checker.If<HCompareNumericAndBranch>(
           key, graph()->GetConstant0(), Token::GTE);
       negative_checker.Then();
-      HInstruction* result = BuildExternalArrayElementAccess(
-          external_elements, key, val, bounds_check,
-          elements_kind, is_store);
-      AddInstruction(result);
+      HInstruction* result = AddExternalArrayElementAccess(
+          external_elements, key, val, bounds_check, elements_kind, is_store);
       negative_checker.ElseDeopt();
       length_checker.End();
       return result;
@@ -1298,9 +1243,9 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       checked_key = Add<HBoundsCheck>(key, length);
       HLoadExternalArrayPointer* external_elements =
           Add<HLoadExternalArrayPointer>(elements);
-      return AddInstruction(BuildExternalArrayElementAccess(
-          external_elements, checked_key, val, mapcheck,
-          elements_kind, is_store));
+      return AddExternalArrayElementAccess(
+          external_elements, checked_key, val,
+          mapcheck, elements_kind, is_store);
     }
   }
   ASSERT(fast_smi_only_elements ||
@@ -1432,6 +1377,56 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
       Add<HInnerAllocatedObject>(array, elements_location);
   AddStore(array, HObjectAccess::ForElementsPointer(), elements);
   return elements;
+}
+
+
+HInstruction* HGraphBuilder::AddExternalArrayElementAccess(
+    HValue* external_elements,
+    HValue* checked_key,
+    HValue* val,
+    HValue* dependency,
+    ElementsKind elements_kind,
+    bool is_store) {
+  if (is_store) {
+    ASSERT(val != NULL);
+    switch (elements_kind) {
+      case EXTERNAL_PIXEL_ELEMENTS: {
+        val = Add<HClampToUint8>(val);
+        break;
+      }
+      case EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
+        break;
+      }
+      case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
+        break;
+      case FAST_SMI_ELEMENTS:
+      case FAST_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+      case DICTIONARY_ELEMENTS:
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
+        UNREACHABLE();
+        break;
+    }
+    return Add<HStoreKeyed>(external_elements, checked_key, val, elements_kind);
+  } else {
+    ASSERT(val == NULL);
+    HLoadKeyed* load = Add<HLoadKeyed>(external_elements, checked_key,
+                                       dependency, elements_kind);
+    if (FLAG_opt_safe_uint32_operations &&
+        elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+      graph()->RecordUint32Instruction(load);
+    }
+    return load;
+  }
 }
 
 
@@ -5721,9 +5716,9 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       checked_key = Add<HBoundsCheck>(key, length);
       HLoadExternalArrayPointer* external_elements =
           Add<HLoadExternalArrayPointer>(elements);
-      access = AddInstruction(BuildExternalArrayElementAccess(
+      access = AddExternalArrayElementAccess(
           external_elements, checked_key, val,
-          mapcompare, elements_kind, is_store));
+          mapcompare, elements_kind, is_store);
     }
     *has_side_effects |= access->HasObservableSideEffects();
     // The caller will use has_side_effects and add a correct Simulate.
