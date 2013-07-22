@@ -5075,6 +5075,23 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   }
 
   __ bind(deferred->exit());
+
+  if (instr->hydrogen()->MustPrefillWithFiller()) {
+    if (instr->size()->IsConstantOperand()) {
+      int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+      __ movl(temp, Immediate((size / kPointerSize) - 1));
+    } else {
+      temp = ToRegister(instr->size());
+      __ sar(temp, Immediate(kPointerSizeLog2));
+      __ decl(temp);
+    }
+    Label loop;
+    __ bind(&loop);
+    __ Move(FieldOperand(result, temp, times_pointer_size, 0),
+        isolate()->factory()->one_pointer_filler_map());
+    __ decl(temp);
+    __ j(not_zero, &loop);
+  }
 }
 
 

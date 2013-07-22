@@ -4964,7 +4964,8 @@ class HAllocate: public HTemplateInstruction<2> {
     CAN_ALLOCATE_IN_NEW_SPACE = 1 << 0,
     CAN_ALLOCATE_IN_OLD_DATA_SPACE = 1 << 1,
     CAN_ALLOCATE_IN_OLD_POINTER_SPACE = 1 << 2,
-    ALLOCATE_DOUBLE_ALIGNED = 1 << 3
+    ALLOCATE_DOUBLE_ALIGNED = 1 << 3,
+    PREFILL_WITH_FILLER = 1 << 4
   };
 
   HAllocate(HValue* context, HValue* size, HType type, Flags flags)
@@ -5039,6 +5040,14 @@ class HAllocate: public HTemplateInstruction<2> {
 
   bool MustAllocateDoubleAligned() const {
     return (flags_ & ALLOCATE_DOUBLE_ALIGNED) != 0;
+  }
+
+  bool MustPrefillWithFiller() const {
+    return (flags_ & PREFILL_WITH_FILLER) != 0;
+  }
+
+  void SetFlags(Flags flags) {
+    flags_ = static_cast<HAllocate::Flags>(flags_ | flags);
   }
 
   void UpdateSize(HValue* size) {
