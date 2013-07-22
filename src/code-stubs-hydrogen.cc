@@ -850,23 +850,25 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   HParameter* receiver = GetParameter(0);
   HParameter* value = GetParameter(2);
 
+  // Check that the map of the global has not changed: use a placeholder map
+  // that will be replaced later with the global object's map.
+  Handle<Map> placeholder_map = isolate()->factory()->meta_map();
+  AddInstruction(HCheckMaps::New(receiver, placeholder_map, zone()));
+
+  HValue* cell = Add<HConstant>(placeholder_cell, Representation::Tagged());
+  HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
+  HValue* cell_contents = Add<HLoadNamedField>(cell, access);
+
   if (stub->is_constant()) {
-    // Assume every store to a constant value changes it.
-    current_block()->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
-    set_current_block(NULL);
+    IfBuilder builder(this);
+    builder.If<HCompareObjectEqAndBranch>(cell_contents, value);
+    builder.Then();
+    builder.ElseDeopt();
+    builder.End();
   } else {
-    HValue* cell = Add<HConstant>(placeholder_cell, Representation::Tagged());
-
-    // Check that the map of the global has not changed: use a placeholder map
-    // that will be replaced later with the global object's map.
-    Handle<Map> placeholder_map = isolate()->factory()->meta_map();
-    AddInstruction(HCheckMaps::New(receiver, placeholder_map, zone()));
-
     // Load the payload of the global parameter cell. A hole indicates that the
     // property has been deleted and that the store must be handled by the
     // runtime.
-    HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
-    HValue* cell_contents = Add<HLoadNamedField>(cell, access);
     IfBuilder builder(this);
     HValue* hole_value = Add<HConstant>(hole, Representation::Tagged());
     builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
@@ -876,6 +878,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     Add<HStoreNamedField>(cell, access, value);
     builder.End();
   }
+
   return value;
 }
 

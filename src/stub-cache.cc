@@ -563,16 +563,15 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<Name> name,
       Code::STORE_IC, Code::NORMAL, stub.GetExtraICState());
   if (!code.is_null()) return code;
 
-  if (is_constant) return stub.GetCode(isolate_);
-
   // Replace the placeholder cell and global object map with the actual global
   // cell and receiver map.
-  Handle<Map> cell_map(isolate_->heap()->global_property_cell_map());
   Handle<Map> meta_map(isolate_->heap()->meta_map());
   Handle<Object> receiver_map(receiver->map(), isolate_);
   code = stub.GetCodeCopyFromTemplate(isolate_);
   code->ReplaceNthObject(1, *meta_map, *receiver_map);
+  Handle<Map> cell_map(isolate_->heap()->global_property_cell_map());
   code->ReplaceNthObject(1, *cell_map, *cell);
+
   JSObject::UpdateMapCodeCache(receiver, name, code);
 
   return code;
