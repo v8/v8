@@ -181,6 +181,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapVerify();
       break;
+    case JS_WEAK_SET_TYPE:
+      JSWeakSet::cast(this)->JSWeakSetVerify();
+      break;
     case JS_REGEXP_TYPE:
       JSRegExp::cast(this)->JSRegExpVerify();
       break;
@@ -699,6 +702,14 @@ void JSWeakMap::JSWeakMapVerify() {
 }
 
 
+void JSWeakSet::JSWeakSetVerify() {
+  CHECK(IsJSWeakSet());
+  JSObjectVerify();
+  VerifyHeapPointer(table());
+  CHECK(table()->IsHashTable() || table()->IsUndefined());
+}
+
+
 void JSRegExp::JSRegExpVerify() {
   JSObjectVerify();
   CHECK(data()->IsUndefined() || data()->IsFixedArray());
@@ -919,8 +930,8 @@ void AllocationSite::AllocationSiteVerify() {
 }
 
 
-void AllocationSiteInfo::AllocationSiteInfoVerify() {
-  CHECK(IsAllocationSiteInfo());
+void AllocationMemento::AllocationMementoVerify() {
+  CHECK(IsAllocationMemento());
   VerifyHeapPointer(allocation_site());
   CHECK(!IsValid() || GetAllocationSite()->IsAllocationSite());
 }

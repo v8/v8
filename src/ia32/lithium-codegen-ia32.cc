@@ -932,30 +932,22 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   }
 
   if (FLAG_deopt_every_n_times != 0 && !info()->IsStub()) {
-    Handle<SharedFunctionInfo> shared(info()->shared_info());
+    ExternalReference count = ExternalReference::stress_deopt_count(isolate());
     Label no_deopt;
     __ pushfd();
     __ push(eax);
-    __ push(ebx);
-    __ mov(ebx, shared);
-    __ mov(eax,
-           FieldOperand(ebx, SharedFunctionInfo::kStressDeoptCounterOffset));
-    __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
+    __ mov(eax, Operand::StaticVariable(count));
+    __ sub(eax, Immediate(1));
     __ j(not_zero, &no_deopt, Label::kNear);
     if (FLAG_trap_on_deopt) __ int3();
-    __ mov(eax, Immediate(Smi::FromInt(FLAG_deopt_every_n_times)));
-    __ mov(FieldOperand(ebx, SharedFunctionInfo::kStressDeoptCounterOffset),
-           eax);
-    __ pop(ebx);
+    __ mov(eax, Immediate(FLAG_deopt_every_n_times));
+    __ mov(Operand::StaticVariable(count), eax);
     __ pop(eax);
     __ popfd();
     ASSERT(frame_is_built_);
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
-
     __ bind(&no_deopt);
-    __ mov(FieldOperand(ebx, SharedFunctionInfo::kStressDeoptCounterOffset),
-           eax);
-    __ pop(ebx);
+    __ mov(Operand::StaticVariable(count), eax);
     __ pop(eax);
     __ popfd();
   }
@@ -1227,11 +1219,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
-    case CodeStub::StringAdd: {
-      StringAddStub stub(NO_STRING_ADD_FLAGS);
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
@@ -2992,6 +2979,20 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
 }
 
 
+void LCodeGen::DoLinkObjectInList(LLinkObjectInList* instr) {
+  Register object = ToRegister(instr->object());
+  Register temp = ToRegister(instr->temp());
+  ExternalReference sites_list_address = instr->GetReference(isolate());
+
+  __ mov(temp, Immediate(sites_list_address));
+  __ mov(temp, Operand(temp, 0));
+  __ mov(FieldOperand(object, instr->hydrogen()->store_field().offset()),
+         temp);
+  __ mov(temp, Immediate(sites_list_address));
+  __ mov(Operand(temp, 0), object);
+}
+
+
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
@@ -4684,7 +4685,7 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp = ToRegister(instr->temp());
-  __ TestJSArrayForAllocationSiteInfo(object, temp);
+  __ TestJSArrayForAllocationMemento(object, temp);
   DeoptimizeIf(equal, instr->environment());
 }
 
@@ -4867,7 +4868,7 @@ void LCodeGen::DoStringLength(LStringLength* instr) {
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   EmitPushTaggedOperand(instr->left());
   EmitPushTaggedOperand(instr->right());
-  StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+  StringAddStub stub(instr->hydrogen()->flags());
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 

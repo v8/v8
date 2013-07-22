@@ -62,6 +62,7 @@ var L = LongList(1024, function (O) {
 
 
 
+%NeverOptimizeFunction(Incremental);
 function Incremental(O, x) {
   if (!x) {
     return;
@@ -82,8 +83,6 @@ function Incremental(O, x) {
   print(">>> 1 <<<");
 
   L.execute(O);
-
-  %NeverOptimize();
 
   L = null;
   print(">>> 2 <<<");

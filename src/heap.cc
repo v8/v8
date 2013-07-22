@@ -182,6 +182,7 @@ Heap::Heap()
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   native_contexts_list_ = NULL;
   array_buffers_list_ = Smi::FromInt(0);
+  allocation_sites_list_ = Smi::FromInt(0);
   mark_compact_collector_.heap_ = this;
   external_string_table_.heap_ = this;
   // Put a dummy entry in the remembered pages so we can find the list the
@@ -1110,12 +1111,6 @@ void Heap::MarkCompactPrologue() {
 }
 
 
-Object* Heap::FindCodeObject(Address a) {
-  return isolate()->inner_pointer_to_code_cache()->
-      GcSafeFindCodeForInnerPointer(a);
-}
-
-
 // Helper class for copying HeapObjects
 class ScavengeVisitor: public ObjectVisitor {
  public:
@@ -1664,6 +1659,7 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
       mark_compact_collector()->is_compacting();
   ProcessArrayBuffers(retainer, record_slots);
   ProcessNativeContexts(retainer, record_slots);
+  ProcessAllocationSites(retainer, record_slots);
 }
 
 void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer,
@@ -1754,6 +1750,39 @@ void Heap::TearDownArrayBuffers() {
     o = buffer->weak_next();
   }
   array_buffers_list_ = undefined;
+}
+
+
+template<>
+struct WeakListVisitor<AllocationSite> {
+  static void SetWeakNext(AllocationSite* obj, Object* next) {
+    obj->set_weak_next(next);
+  }
+
+  static Object* WeakNext(AllocationSite* obj) {
+    return obj->weak_next();
+  }
+
+  static void VisitLiveObject(Heap* heap,
+                              AllocationSite* array_buffer,
+                              WeakObjectRetainer* retainer,
+                              bool record_slots) {}
+
+  static void VisitPhantomObject(Heap* heap, AllocationSite* phantom) {}
+
+  static int WeakNextOffset() {
+    return AllocationSite::kWeakNextOffset;
+  }
+};
+
+
+void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
+                                  bool record_slots) {
+  Object* allocation_site_obj =
+      VisitWeakList<AllocationSite>(this,
+                                    allocation_sites_list(),
+                                    retainer, record_slots);
+  set_allocation_sites_list(allocation_site_obj);
 }
 
 
@@ -1929,6 +1958,10 @@ class ScavengingVisitor : public StaticVisitorBase {
                         template VisitSpecialized<SharedFunctionInfo::kSize>);
 
     table_.Register(kVisitJSWeakMap,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                    Visit);
+
+    table_.Register(kVisitJSWeakSet,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                     Visit);
 
@@ -2887,7 +2920,12 @@ MaybeObject* Heap::AllocateAllocationSite() {
   MaybeObject* maybe_result = Allocate(allocation_site_map(),
                                        OLD_POINTER_SPACE);
   if (!maybe_result->ToObject(&result)) return maybe_result;
-  AllocationSite::cast(result)->Initialize();
+  AllocationSite* site = AllocationSite::cast(result);
+  site->Initialize();
+
+  // Link the site
+  site->set_weak_next(allocation_sites_list());
+  set_allocation_sites_list(site);
   return result;
 }
 
@@ -3583,7 +3621,6 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_inferred_name(empty_string(), SKIP_WRITE_BARRIER);
   share->set_initial_map(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_ast_node_count(0);
-  share->set_stress_deopt_counter(FLAG_deopt_every_n_times);
   share->set_counters(0);
 
   // Set integer fields (smi or int, depending on the architecture).
@@ -4210,16 +4247,16 @@ MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
   // space when new space is full and the object is not a large object.
   AllocationSpace retry_space =
       (space != NEW_SPACE) ? space : TargetSpaceId(map->instance_type());
-  int size = map->instance_size() + AllocationSiteInfo::kSize;
+  int size = map->instance_size() + AllocationMemento::kSize;
   Object* result;
   MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
   if (!maybe_result->ToObject(&result)) return maybe_result;
   // No need for write barrier since object is white and map is in old space.
   HeapObject::cast(result)->set_map_no_write_barrier(map);
-  AllocationSiteInfo* alloc_info = reinterpret_cast<AllocationSiteInfo*>(
+  AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
       reinterpret_cast<Address>(result) + map->instance_size());
-  alloc_info->set_map_no_write_barrier(allocation_site_info_map());
-  alloc_info->set_allocation_site(*allocation_site, SKIP_WRITE_BARRIER);
+  alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+  alloc_memento->set_allocation_site(*allocation_site, SKIP_WRITE_BARRIER);
   return result;
 }
 
@@ -4931,8 +4968,8 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
   if (always_allocate()) {
     // We'll only track origin if we are certain to allocate in new space
     const int kMinFreeNewSpaceAfterGC = InitialSemiSpaceSize() * 3/4;
-    if ((object_size + AllocationSiteInfo::kSize) < kMinFreeNewSpaceAfterGC) {
-      adjusted_object_size += AllocationSiteInfo::kSize;
+    if ((object_size + AllocationMemento::kSize) < kMinFreeNewSpaceAfterGC) {
+      adjusted_object_size += AllocationMemento::kSize;
     }
 
     { MaybeObject* maybe_clone =
@@ -4945,7 +4982,7 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
               object_size);
     // Update write barrier for all fields that lie beyond the header.
     int write_barrier_offset = adjusted_object_size > object_size
-        ? JSArray::kSize + AllocationSiteInfo::kSize
+        ? JSArray::kSize + AllocationMemento::kSize
         : JSObject::kHeaderSize;
     if (((object_size - write_barrier_offset) / kPointerSize) > 0) {
       RecordWrites(clone_address,
@@ -4956,17 +4993,17 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
     // Track allocation site information, if we failed to allocate it inline.
     if (InNewSpace(clone) &&
         adjusted_object_size == object_size) {
-      MaybeObject* maybe_alloc_info =
-          AllocateStruct(ALLOCATION_SITE_INFO_TYPE);
-      AllocationSiteInfo* alloc_info;
-      if (maybe_alloc_info->To(&alloc_info)) {
-        alloc_info->set_map_no_write_barrier(allocation_site_info_map());
-        alloc_info->set_allocation_site(site, SKIP_WRITE_BARRIER);
+      MaybeObject* maybe_alloc_memento =
+          AllocateStruct(ALLOCATION_MEMENTO_TYPE);
+      AllocationMemento* alloc_memento;
+      if (maybe_alloc_memento->To(&alloc_memento)) {
+        alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+        alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
       }
     }
   } else {
     wb_mode = SKIP_WRITE_BARRIER;
-    adjusted_object_size += AllocationSiteInfo::kSize;
+    adjusted_object_size += AllocationMemento::kSize;
 
     { MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
@@ -4980,10 +5017,10 @@ MaybeObject* Heap::CopyJSObjectWithAllocationSite(
   }
 
   if (adjusted_object_size > object_size) {
-    AllocationSiteInfo* alloc_info = reinterpret_cast<AllocationSiteInfo*>(
+    AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
         reinterpret_cast<Address>(clone) + object_size);
-    alloc_info->set_map_no_write_barrier(allocation_site_info_map());
-    alloc_info->set_allocation_site(site, SKIP_WRITE_BARRIER);
+    alloc_memento->set_map_no_write_barrier(allocation_memento_map());
+    alloc_memento->set_allocation_site(site, SKIP_WRITE_BARRIER);
   }
 
   SLOW_ASSERT(
@@ -5807,7 +5844,7 @@ MaybeObject* Heap::AllocateCatchContext(JSFunction* function,
 
 MaybeObject* Heap::AllocateWithContext(JSFunction* function,
                                        Context* previous,
-                                       JSObject* extension) {
+                                       JSReceiver* extension) {
   Object* result;
   { MaybeObject* maybe_result = AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -6889,6 +6926,7 @@ bool Heap::CreateHeapObjects() {
 
   native_contexts_list_ = undefined_value();
   array_buffers_list_ = undefined_value();
+  allocation_sites_list_ = undefined_value();
   return true;
 }
 
@@ -7350,7 +7388,7 @@ void HeapIterator::reset() {
 
 #ifdef DEBUG
 
-Object* const PathTracer::kAnyGlobalObject = reinterpret_cast<Object*>(NULL);
+Object* const PathTracer::kAnyGlobalObject = NULL;
 
 class PathTracer::MarkVisitor: public ObjectVisitor {
  public:
@@ -7702,8 +7740,10 @@ GCTracer::~GCTracer() {
     PrintF("intracompaction_ptrs=%.1f ",
         scopes_[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]);
     PrintF("misc_compaction=%.1f ", scopes_[Scope::MC_UPDATE_MISC_POINTERS]);
-    PrintF("weakmap_process=%.1f ", scopes_[Scope::MC_WEAKMAP_PROCESS]);
-    PrintF("weakmap_clear=%.1f ", scopes_[Scope::MC_WEAKMAP_CLEAR]);
+    PrintF("weakcollection_process=%.1f ",
+        scopes_[Scope::MC_WEAKCOLLECTION_PROCESS]);
+    PrintF("weakcollection_clear=%.1f ",
+        scopes_[Scope::MC_WEAKCOLLECTION_CLEAR]);
 
     PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_object_size_);
     PrintF("total_size_after=%" V8_PTR_PREFIX "d ", heap_->SizeOfObjects());

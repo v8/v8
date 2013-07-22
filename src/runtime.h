@@ -97,9 +97,8 @@ namespace internal {
   F(RunningInSimulator, 0, 1) \
   F(IsParallelRecompilationSupported, 0, 1) \
   F(OptimizeFunctionOnNextCall, -1, 1) \
-  F(NeverOptimize, -1, 1) \
-  F(CompleteOptimization, 1, 1) \
-  F(GetOptimizationStatus, 1, 1) \
+  F(NeverOptimizeFunction, 1, 1) \
+  F(GetOptimizationStatus, -1, 1) \
   F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
@@ -343,12 +342,12 @@ namespace internal {
   F(MapSet, 3, 1) \
   F(MapGetSize, 1, 1) \
   \
-  /* Harmony weakmaps */ \
-  F(WeakMapInitialize, 1, 1) \
-  F(WeakMapGet, 2, 1) \
-  F(WeakMapHas, 2, 1) \
-  F(WeakMapDelete, 2, 1) \
-  F(WeakMapSet, 3, 1) \
+  /* Harmony weak maps and sets */ \
+  F(WeakCollectionInitialize, 1, 1) \
+  F(WeakCollectionGet, 2, 1) \
+  F(WeakCollectionHas, 2, 1) \
+  F(WeakCollectionDelete, 2, 1) \
+  F(WeakCollectionSet, 3, 1) \
   \
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \

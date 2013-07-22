@@ -68,6 +68,49 @@ class Log {
   static const char* const kLogToTemporaryFile;
   static const char* const kLogToConsole;
 
+  // Utility class for formatting log messages. It fills the message into the
+  // static buffer in Log.
+  class MessageBuilder BASE_EMBEDDED {
+   public:
+    // Create a message builder starting from position 0.
+    // This acquires the mutex in the log as well.
+    explicit MessageBuilder(Log* log);
+    ~MessageBuilder() { }
+
+    // Append string data to the log message.
+    void Append(const char* format, ...);
+
+    // Append string data to the log message.
+    void AppendVA(const char* format, va_list args);
+
+    // Append a character to the log message.
+    void Append(const char c);
+
+    // Append double quoted string to the log message.
+    void AppendDoubleQuotedString(const char* string);
+
+    // Append a heap string.
+    void Append(String* str);
+
+    // Appends an address.
+    void AppendAddress(Address addr);
+
+    void AppendSymbolName(Symbol* symbol);
+
+    void AppendDetailed(String* str, bool show_impl_info);
+
+    // Append a portion of a string.
+    void AppendStringPart(const char* str, int len);
+
+    // Write the log message to the log file currently opened.
+    void WriteToLogFile();
+
+   private:
+    Log* log_;
+    ScopedLock sl;
+    int pos_;
+  };
+
  private:
   explicit Log(Logger* logger);
 
@@ -108,50 +151,8 @@ class Log {
   Logger* logger_;
 
   friend class Logger;
-  friend class LogMessageBuilder;
 };
 
-
-// Utility class for formatting log messages. It fills the message into the
-// static buffer in Log.
-class LogMessageBuilder BASE_EMBEDDED {
- public:
-  // Create a message builder starting from position 0. This acquires the mutex
-  // in the log as well.
-  explicit LogMessageBuilder(Logger* logger);
-  ~LogMessageBuilder() { }
-
-  // Append string data to the log message.
-  void Append(const char* format, ...);
-
-  // Append string data to the log message.
-  void AppendVA(const char* format, va_list args);
-
-  // Append a character to the log message.
-  void Append(const char c);
-
-  // Append double quoted string to the log message.
-  void AppendDoubleQuotedString(const char* string);
-
-  // Append a heap string.
-  void Append(String* str);
-
-  // Appends an address.
-  void AppendAddress(Address addr);
-
-  void AppendDetailed(String* str, bool show_impl_info);
-
-  // Append a portion of a string.
-  void AppendStringPart(const char* str, int len);
-
-  // Write the log message to the log file currently opened.
-  void WriteToLogFile();
-
- private:
-  Log* log_;
-  ScopedLock sl;
-  int pos_;
-};
 
 } }  // namespace v8::internal
 

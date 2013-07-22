@@ -695,9 +695,11 @@ class MarkCompactCollector {
 
   bool TryPromoteObject(HeapObject* object, int object_size);
 
-  inline Object* encountered_weak_maps() { return encountered_weak_maps_; }
-  inline void set_encountered_weak_maps(Object* weak_map) {
-    encountered_weak_maps_ = weak_map;
+  inline Object* encountered_weak_collections() {
+    return encountered_weak_collections_;
+  }
+  inline void set_encountered_weak_collections(Object* weak_collection) {
+    encountered_weak_collections_ = weak_collection;
   }
 
   void InvalidateCode(Code* code);
@@ -893,15 +895,15 @@ class MarkCompactCollector {
   // ClearNonLiveTransitions pass or by calling this function.
   void ReattachInitialMaps();
 
-  // Mark all values associated with reachable keys in weak maps encountered
-  // so far.  This might push new object or even new weak maps onto the
-  // marking stack.
-  void ProcessWeakMaps();
+  // Mark all values associated with reachable keys in weak collections
+  // encountered so far.  This might push new object or even new weak maps onto
+  // the marking stack.
+  void ProcessWeakCollections();
 
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
   // The linked list of all encountered weak maps is destroyed.
-  void ClearWeakMaps();
+  void ClearWeakCollections();
 
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for
@@ -943,7 +945,7 @@ class MarkCompactCollector {
   Heap* heap_;
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
-  Object* encountered_weak_maps_;
+  Object* encountered_weak_collections_;
 
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;
@@ -958,12 +960,12 @@ class MarkBitCellIterator BASE_EMBEDDED {
       : chunk_(chunk) {
     last_cell_index_ = Bitmap::IndexToCell(
         Bitmap::CellAlignIndex(
-            chunk->AddressToMarkbitIndex(chunk->area_end())));
-    cell_base_ = chunk->area_start();
+            chunk_->AddressToMarkbitIndex(chunk_->area_end())));
+    cell_base_ = chunk_->area_start();
     cell_index_ = Bitmap::IndexToCell(
         Bitmap::CellAlignIndex(
-            chunk->AddressToMarkbitIndex(cell_base_)));
-    cells_ = chunk->markbits()->cells();
+            chunk_->AddressToMarkbitIndex(cell_base_)));
+    cells_ = chunk_->markbits()->cells();
   }
 
   inline bool Done() { return cell_index_ == last_cell_index_; }

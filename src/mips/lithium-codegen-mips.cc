@@ -159,9 +159,9 @@ bool LCodeGen::GeneratePrologue() {
       // The following three instructions must remain together and unmodified
       // for code aging to work properly.
       __ Push(ra, fp, cp, a1);
-      // Add unused load of ip to ensure prologue sequence is identical for
+      // Add unused nop to ensure prologue sequence is identical for
       // full-codegen and lithium-codegen.
-      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+      __ nop(Assembler::CODE_AGE_SEQUENCE_NOP);
       // Adj. FP to point to saved FP.
       __ Addu(fp, sp, Operand(2 * kPointerSize));
     }
@@ -1021,11 +1021,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
-      CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
-    case CodeStub::StringAdd: {
-      StringAddStub stub(NO_STRING_ADD_FLAGS);
       CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
       break;
     }
@@ -2794,6 +2789,19 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
 }
 
 
+void LCodeGen::DoLinkObjectInList(LLinkObjectInList* instr) {
+  Register object = ToRegister(instr->object());
+  ExternalReference sites_list_address = instr->GetReference(isolate());
+
+  __ li(at, Operand(sites_list_address));
+  __ lw(at, MemOperand(at));
+  __ sw(at, FieldMemOperand(object,
+                            instr->hydrogen()->store_field().offset()));
+  __ li(at, Operand(sites_list_address));
+  __ sw(object, MemOperand(at));
+}
+
+
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
@@ -4456,7 +4464,7 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp = ToRegister(instr->temp());
   Label fail;
-  __ TestJSArrayForAllocationSiteInfo(object, temp, ne, &fail);
+  __ TestJSArrayForAllocationMemento(object, temp, ne, &fail);
   DeoptimizeIf(al, instr->environment());
   __ bind(&fail);
 }
@@ -4465,7 +4473,7 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   __ push(ToRegister(instr->left()));
   __ push(ToRegister(instr->right()));
-  StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+  StringAddStub stub(instr->hydrogen()->flags());
   CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
 }
 

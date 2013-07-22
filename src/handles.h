@@ -313,9 +313,6 @@ Handle<String> SubString(Handle<String> str,
 // Sets the expected number of properties for the function's instances.
 void SetExpectedNofProperties(Handle<JSFunction> func, int nof);
 
-// Sets the prototype property for a function instance.
-void SetPrototypeProperty(Handle<JSFunction> func, Handle<JSObject> value);
-
 // Sets the expected number of properties based on estimate from compiler.
 void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
                                           int estimate);

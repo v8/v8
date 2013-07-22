@@ -1195,7 +1195,6 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
       rbx,  // Result.
       rcx,  // Scratch 1.
       rdx,  // Scratch 2.
-      false,  // Input is known to be smi?
       &not_cached);
   __ IncrementCounter(counters->string_ctor_cached_number(), 1);
   __ bind(&argument_is_string);

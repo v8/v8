@@ -393,6 +393,22 @@ class RuntimeCallHelper {
   DISALLOW_COPY_AND_ASSIGN(RuntimeCallHelper);
 };
 
+
+// TODO(bmeurer): Move to the StringAddStub declaration once we're
+// done with the translation to a hydrogen code stub.
+enum StringAddFlags {
+  // Omit both parameter checks.
+  STRING_ADD_CHECK_NONE = 0,
+  // Check left parameter.
+  STRING_ADD_CHECK_LEFT = 1 << 0,
+  // Check right parameter.
+  STRING_ADD_CHECK_RIGHT = 1 << 1,
+  // Check both parameters.
+  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT,
+  // Stub needs a frame before calling the runtime
+  STRING_ADD_ERECT_FRAME = 1 << 2
+};
+
 } }  // namespace v8::internal
 
 #if V8_TARGET_ARCH_IA32
@@ -2245,13 +2261,59 @@ class ToBooleanStub: public HydrogenCodeStub {
 };
 
 
-class ElementsTransitionAndStoreStub : public PlatformCodeStub {
+class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
  public:
-  ElementsTransitionAndStoreStub(ElementsKind from,
-                                 ElementsKind to,
+  ElementsTransitionAndStoreStub(ElementsKind from_kind,
+                                 ElementsKind to_kind,
                                  bool is_jsarray,
-                                 StrictModeFlag strict_mode,
                                  KeyedAccessStoreMode store_mode)
+      : from_kind_(from_kind),
+        to_kind_(to_kind),
+        is_jsarray_(is_jsarray),
+        store_mode_(store_mode) {}
+
+  ElementsKind from_kind() const { return from_kind_; }
+  ElementsKind to_kind() const { return to_kind_; }
+  bool is_jsarray() const { return is_jsarray_; }
+  KeyedAccessStoreMode store_mode() const { return store_mode_; }
+
+  Handle<Code> GenerateCode();
+
+  void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  class FromBits:      public BitField<ElementsKind,          0, 8> {};
+  class ToBits:        public BitField<ElementsKind,          8, 8> {};
+  class IsJSArrayBits: public BitField<bool,                 16, 1> {};
+  class StoreModeBits: public BitField<KeyedAccessStoreMode, 17, 4> {};
+
+  Major MajorKey() { return ElementsTransitionAndStore; }
+  int NotMissMinorKey() {
+    return FromBits::encode(from_kind_) |
+        ToBits::encode(to_kind_) |
+        IsJSArrayBits::encode(is_jsarray_) |
+        StoreModeBits::encode(store_mode_);
+  }
+
+  ElementsKind from_kind_;
+  ElementsKind to_kind_;
+  bool is_jsarray_;
+  KeyedAccessStoreMode store_mode_;
+
+  DISALLOW_COPY_AND_ASSIGN(ElementsTransitionAndStoreStub);
+};
+
+
+// TODO(bmeurer) Remove this when compiled transitions is enabled
+class ElementsTransitionAndStorePlatformStub : public PlatformCodeStub {
+ public:
+  ElementsTransitionAndStorePlatformStub(ElementsKind from,
+                                         ElementsKind to,
+                                         bool is_jsarray,
+                                         StrictModeFlag strict_mode,
+                                         KeyedAccessStoreMode store_mode)
       : from_(from),
         to_(to),
         is_jsarray_(is_jsarray),
@@ -2282,7 +2344,7 @@ class ElementsTransitionAndStoreStub : public PlatformCodeStub {
   StrictModeFlag strict_mode_;
   KeyedAccessStoreMode store_mode_;
 
-  DISALLOW_COPY_AND_ASSIGN(ElementsTransitionAndStoreStub);
+  DISALLOW_COPY_AND_ASSIGN(ElementsTransitionAndStorePlatformStub);
 };
 
 

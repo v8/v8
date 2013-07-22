@@ -594,7 +594,13 @@ void OS::SignalCodeMovingGC() {
   }
   void* addr = mmap(OS::GetRandomMmapAddr(),
                     size,
+#if defined(__native_client__)
+                    // The Native Client port of V8 uses an interpreter,
+                    // so code pages don't need PROT_EXEC.
+                    PROT_READ,
+#else
                     PROT_READ | PROT_EXEC,
+#endif
                     MAP_PRIVATE,
                     fileno(f),
                     0);
@@ -717,7 +723,13 @@ void* VirtualMemory::ReserveRegion(size_t size) {
 
 
 bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
+#if defined(__native_client__)
+  // The Native Client port of V8 uses an interpreter,
+  // so code pages don't need PROT_EXEC.
+  int prot = PROT_READ | PROT_WRITE;
+#else
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+#endif
   if (MAP_FAILED == mmap(base,
                          size,
                          prot,

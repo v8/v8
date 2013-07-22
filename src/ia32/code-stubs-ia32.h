@@ -144,20 +144,6 @@ class StringHelper : public AllStatic {
 };
 
 
-enum StringAddFlags {
-  NO_STRING_ADD_FLAGS = 1 << 0,
-  // Omit left string check in stub (left is definitely a string).
-  NO_STRING_CHECK_LEFT_IN_STUB = 1 << 1,
-  // Omit right string check in stub (right is definitely a string).
-  NO_STRING_CHECK_RIGHT_IN_STUB = 1 << 2,
-  // Stub needs a frame before calling the runtime
-  ERECT_FRAME = 1 << 3,
-  // Omit both string checks in stub.
-  NO_STRING_CHECK_IN_STUB =
-      NO_STRING_CHECK_LEFT_IN_STUB | NO_STRING_CHECK_RIGHT_IN_STUB
-};
-
-
 class StringAddStub: public PlatformCodeStub {
  public:
   explicit StringAddStub(StringAddFlags flags) : flags_(flags) {}
@@ -245,7 +231,6 @@ class NumberToStringStub: public PlatformCodeStub {
                                               Register result,
                                               Register scratch1,
                                               Register scratch2,
-                                              bool object_is_smi,
                                               Label* not_found);
 
  private:

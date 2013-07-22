@@ -1158,6 +1158,7 @@ void MacroAssembler::SmiToInteger64(Register dst, const Operand& src) {
 
 
 void MacroAssembler::SmiTest(Register src) {
+  AssertSmi(src);
   testq(src, src);
 }
 
@@ -2316,11 +2317,15 @@ static void JumpIfNotUniqueNameHelper(MacroAssembler* masm,
                                       T operand_or_register,
                                       Label* not_unique_name,
                                       Label::Distance distance) {
-  STATIC_ASSERT(((SYMBOL_TYPE - 1) & kIsInternalizedMask) == kInternalizedTag);
-  masm->cmpb(operand_or_register, Immediate(kInternalizedTag));
-  masm->j(less, not_unique_name, distance);
-  masm->cmpb(operand_or_register, Immediate(SYMBOL_TYPE));
-  masm->j(greater, not_unique_name, distance);
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  Label succeed;
+  masm->testb(operand_or_register,
+              Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+  masm->j(zero, &succeed, Label::kNear);
+  masm->cmpb(operand_or_register, Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
+  masm->j(not_equal, not_unique_name, distance);
+
+  masm->bind(&succeed);
 }
 
 
@@ -4668,25 +4673,25 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   j(not_equal, &next);
 }
 
-void MacroAssembler::TestJSArrayForAllocationSiteInfo(
+void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
     Register scratch_reg) {
-  Label no_info_available;
+  Label no_memento_available;
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
 
   lea(scratch_reg, Operand(receiver_reg,
-      JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjectTag));
+      JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
   movq(kScratchRegister, new_space_start);
   cmpq(scratch_reg, kScratchRegister);
-  j(less, &no_info_available);
+  j(less, &no_memento_available);
   cmpq(scratch_reg, ExternalOperand(new_space_allocation_top));
-  j(greater, &no_info_available);
-  CompareRoot(MemOperand(scratch_reg, -AllocationSiteInfo::kSize),
-              Heap::kAllocationSiteInfoMapRootIndex);
-  bind(&no_info_available);
+  j(greater, &no_memento_available);
+  CompareRoot(MemOperand(scratch_reg, -AllocationMemento::kSize),
+              Heap::kAllocationMementoMapRootIndex);
+  bind(&no_memento_available);
 }
 
 

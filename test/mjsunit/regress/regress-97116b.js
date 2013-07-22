@@ -30,8 +30,8 @@
 // Check that we are not flushing code for inlined functions that
 // have a pending lazy deoptimization on the stack.
 
+%NeverOptimizeFunction(deopt);
 function deopt() {
-  %NeverOptimize();
   %DeoptimizeFunction(outer);
   for (var i = 0; i < 10; i++) gc();  // Force code flushing.
 }

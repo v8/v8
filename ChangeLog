@@ -1,3 +1,23 @@
+2013-07-22: Version 3.20.7
+
+        Deprecated some debugger methods.
+
+        Fixed wrong bailout id in polymorphic stores (Chromium issue 259787).
+
+        Fixed data race in SamplingCircularQueue (Chromium issue 251218).
+
+        Fixed type feedback in presence of negative lookups
+        (Chromium issue 252797).
+
+        Do not materialize context-allocated values for debug-evaluate
+        (Chromium issue 259300).
+
+        Synchronized Compare-Literal behavior in FullCodegen and Hydrogen
+        (Chromium issue 260345).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-07-17: Version 3.20.6
 
         Try to remove invalidated stubs before falling back to checking the

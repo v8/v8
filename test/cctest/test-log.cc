@@ -36,6 +36,7 @@
 
 #include "v8.h"
 #include "log.h"
+#include "log-utils.h"
 #include "cpu-profiler.h"
 #include "natives.h"
 #include "v8threads.h"
