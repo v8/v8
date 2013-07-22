@@ -38,7 +38,7 @@ function f() {
 }
 
 f();
-assertTrue(%GetOptimizationStatus(f) != 2);
+assertOptimized(f);
 
 
 function g() {
@@ -70,5 +70,4 @@ function g() {
 }
 
 g();
-assertTrue(%GetOptimizationStatus(g) != 2);
-
+assertOptimized(g);

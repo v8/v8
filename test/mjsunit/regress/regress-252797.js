@@ -54,4 +54,4 @@ callConstantFunctionOnPrototype(receiver);
 callConstantFunctionOnPrototype(receiver);
 
 // Make sure that the function is still optimized.
-assertTrue(2 != %GetOptimizationStatus(callConstantFunctionOnPrototype));
+assertOptimized(callConstantFunctionOnPrototype);

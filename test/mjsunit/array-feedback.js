@@ -192,7 +192,7 @@ if (support_smi_only_arrays) {
       b[0] = 3.5;
       c = create0();
       assertKind(elements_kind.fast_double, c);
-      assertTrue(2 != %GetOptimizationStatus(create0));
+      assertOptimized(create0);
     }
   })();
 

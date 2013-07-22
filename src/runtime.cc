@@ -8445,36 +8445,26 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NeverOptimizeFunction) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CompleteOptimization) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
+  RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
+  if (!V8::UseCrankshaft()) {
+    return Smi::FromInt(4);  // 4 == "never".
+  }
+  bool sync_with_compiler_thread = true;
+  if (args.length() == 2) {
+    CONVERT_ARG_HANDLE_CHECKED(String, sync, 1);
+    if (sync->IsOneByteEqualTo(STATIC_ASCII_VECTOR("no sync"))) {
+      sync_with_compiler_thread = false;
+    }
+  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (FLAG_parallel_recompilation && V8::UseCrankshaft()) {
-    // While function is in optimization pipeline, it is marked accordingly.
-    // Note that if the debugger is activated during parallel recompilation,
-    // the function will be marked with the lazy-recompile builtin, which is
-    // not related to parallel recompilation.
+  if (FLAG_parallel_recompilation && sync_with_compiler_thread) {
     while (function->IsMarkedForParallelRecompilation() ||
            function->IsInRecompileQueue() ||
            function->IsMarkedForInstallingRecompiledCode()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
       OS::Sleep(50);
-    }
-  }
-  return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  if (!V8::UseCrankshaft()) {
-    return Smi::FromInt(4);  // 4 == "never".
-  }
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (FLAG_parallel_recompilation) {
-    if (function->IsMarkedForLazyRecompilation()) {
-      return Smi::FromInt(5);  // 5 == "parallel recompilation".
     }
   }
   if (FLAG_always_opt) {

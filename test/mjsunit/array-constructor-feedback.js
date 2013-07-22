@@ -120,10 +120,10 @@ if (support_smi_only_arrays) {
     %OptimizeFunctionOnNextCall(bar0);
     b = bar0(Array);
     assertKind(elements_kind.fast_double, b);
-    assertTrue(2 != %GetOptimizationStatus(bar0));
+    assertOptimized(bar0);
     // bar0 should deopt
     b = bar0(Object);
-    assertTrue(1 != %GetOptimizationStatus(bar0));
+    assertUnoptimized(bar0)
     // When it's re-optimized, we should call through the full stub
     bar0(Array);
     %OptimizeFunctionOnNextCall(bar0);
@@ -131,7 +131,7 @@ if (support_smi_only_arrays) {
     // We also lost our ability to record kind feedback, as the site
     // is megamorphic now.
     assertKind(elements_kind.fast_smi_only, b);
-    assertTrue(2 != %GetOptimizationStatus(bar0));
+    assertOptimized(bar0);
     b[0] = 3.5;
     c = bar0(Array);
     assertKind(elements_kind.fast_smi_only, c);
@@ -151,15 +151,15 @@ if (support_smi_only_arrays) {
     %OptimizeFunctionOnNextCall(bar);
     a = bar(10);
     assertKind(elements_kind.fast, a);
-    assertTrue(2 != %GetOptimizationStatus(bar));
+    assertOptimized(bar);
     // The stub bails out, but the method call should be fine.
     a = bar(100000);
-    assertTrue(2 != %GetOptimizationStatus(bar));
+    assertOptimized(bar);
     assertKind(elements_kind.dictionary, a);
 
     // If the argument isn't a smi, it bails out as well
     a = bar("oops");
-    assertTrue(2 != %GetOptimizationStatus(bar));
+    assertOptimized(bar);
     assertKind(elements_kind.fast, a);
 
     function barn(one, two, three) {
@@ -170,11 +170,11 @@ if (support_smi_only_arrays) {
     barn(1, 2, 3);
     %OptimizeFunctionOnNextCall(barn);
     barn(1, 2, 3);
-    assertTrue(2 != %GetOptimizationStatus(barn));
+    assertOptimized(barn);
     a = barn(1, "oops", 3);
     // The stub should bail out but the method should remain optimized.
     assertKind(elements_kind.fast, a);
-    assertTrue(2 != %GetOptimizationStatus(barn));
+    assertOptimized(barn);
   })();
 
 
@@ -191,12 +191,12 @@ if (support_smi_only_arrays) {
     b = bar();
     // This only makes sense to test if we allow crankshafting
     if (4 != %GetOptimizationStatus(bar)) {
-      assertTrue(2 != %GetOptimizationStatus(bar));
+      assertOptimized(bar);
       %DebugPrint(3);
       b[0] = 3.5;
       c = bar();
       assertKind(elements_kind.fast_smi_only, c);
-      assertTrue(2 != %GetOptimizationStatus(bar));
+      assertOptimized(bar);
     }
   })();
 

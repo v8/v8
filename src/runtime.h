@@ -98,8 +98,7 @@ namespace internal {
   F(IsParallelRecompilationSupported, 0, 1) \
   F(OptimizeFunctionOnNextCall, -1, 1) \
   F(NeverOptimizeFunction, 1, 1) \
-  F(CompleteOptimization, 1, 1) \
-  F(GetOptimizationStatus, 1, 1) \
+  F(GetOptimizationStatus, -1, 1) \
   F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \

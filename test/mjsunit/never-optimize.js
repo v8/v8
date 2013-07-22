@@ -37,10 +37,7 @@ if (%GetOptimizationStatus(o1) != 4) {
   o1();
 
   // Check that the given function was optimized.
-  var o1_status = %GetOptimizationStatus(o1);
-  assertTrue(o1_status == 1    // optimized
-          || o1_status == 3    // optimized (always opt)
-          || o1_status == 5);  // lazy recompile requested
+  assertOptimized(o1);
 
   // Test the %NeverOptimizeFunction runtime call.
   %NeverOptimizeFunction(u1);
@@ -61,6 +58,6 @@ if (%GetOptimizationStatus(o1) != 4) {
   u2(); u2();
 
   // 2 => not optimized.
-  assertTrue(%GetOptimizationStatus(u1) == 2);
-  assertFalse(%GetOptimizationStatus(u2) == 2);
+  assertUnoptimized(u1);
+  assertOptimized(u2);
 }
