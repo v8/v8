@@ -94,6 +94,7 @@ class StaticVisitorBase : public AllStatic {
   V(SharedFunctionInfo)       \
   V(JSFunction)               \
   V(JSWeakMap)                \
+  V(JSWeakSet)                \
   V(JSArrayBuffer)            \
   V(JSTypedArray)             \
   V(JSDataView)               \

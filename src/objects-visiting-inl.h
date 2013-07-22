@@ -89,6 +89,8 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitJSWeakMap, &JSObjectVisitor::Visit);
 
+  table_.Register(kVisitJSWeakSet, &JSObjectVisitor::Visit);
+
   table_.Register(kVisitJSRegExp, &JSObjectVisitor::Visit);
 
   table_.template RegisterSpecializations<DataObjectVisitor,
@@ -198,7 +200,9 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitSeqTwoByteString, &DataObjectVisitor::Visit);
 
-  table_.Register(kVisitJSWeakMap, &StaticVisitor::VisitJSWeakMap);
+  table_.Register(kVisitJSWeakMap, &StaticVisitor::VisitWeakCollection);
+
+  table_.Register(kVisitJSWeakSet, &StaticVisitor::VisitWeakCollection);
 
   table_.Register(kVisitOddball,
                   &FixedBodyVisitor<StaticVisitor,

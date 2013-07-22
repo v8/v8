@@ -60,11 +60,13 @@
 //           - JSArray
 //           - JSArrayBuffer
 //           - JSArrayBufferView
-//              - JSTypedArray
-//              - JSDataView
+//             - JSTypedArray
+//             - JSDataView
 //           - JSSet
 //           - JSMap
-//           - JSWeakMap
+//           - JSWeakCollection
+//             - JSWeakMap
+//             - JSWeakSet
 //           - JSRegExp
 //           - JSFunction
 //           - JSGeneratorObject
@@ -415,6 +417,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(JS_DATA_VIEW_TYPE)                                                         \
   V(JS_PROXY_TYPE)                                                             \
   V(JS_WEAK_MAP_TYPE)                                                          \
+  V(JS_WEAK_SET_TYPE)                                                          \
   V(JS_REGEXP_TYPE)                                                            \
                                                                                \
   V(JS_FUNCTION_TYPE)                                                          \
@@ -771,6 +774,7 @@ enum InstanceType {
   JS_SET_TYPE,
   JS_MAP_TYPE,
   JS_WEAK_MAP_TYPE,
+  JS_WEAK_SET_TYPE,
 
   JS_REGEXP_TYPE,
 
@@ -1020,7 +1024,9 @@ class MaybeObject BASE_EMBEDDED {
   V(JSFunctionProxy)                           \
   V(JSSet)                                     \
   V(JSMap)                                     \
+  V(JSWeakCollection)                          \
   V(JSWeakMap)                                 \
+  V(JSWeakSet)                                 \
   V(JSRegExp)                                  \
   V(HashTable)                                 \
   V(Dictionary)                                \
@@ -8890,8 +8896,8 @@ class JSMap: public JSObject {
 };
 
 
-// The JSWeakMap describes EcmaScript Harmony weak maps
-class JSWeakMap: public JSObject {
+// Base class for both JSWeakMap and JSWeakSet
+class JSWeakCollection: public JSObject {
  public:
   // [table]: the backing hash table mapping keys to values.
   DECL_ACCESSORS(table, Object)
@@ -8899,6 +8905,18 @@ class JSWeakMap: public JSObject {
   // [next]: linked list of encountered weak maps during GC.
   DECL_ACCESSORS(next, Object)
 
+  static const int kTableOffset = JSObject::kHeaderSize;
+  static const int kNextOffset = kTableOffset + kPointerSize;
+  static const int kSize = kNextOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCollection);
+};
+
+
+// The JSWeakMap describes EcmaScript Harmony weak maps
+class JSWeakMap: public JSWeakCollection {
+ public:
   // Casting.
   static inline JSWeakMap* cast(Object* obj);
 
@@ -8906,12 +8924,23 @@ class JSWeakMap: public JSObject {
   DECLARE_PRINTER(JSWeakMap)
   DECLARE_VERIFIER(JSWeakMap)
 
-  static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kNextOffset = kTableOffset + kPointerSize;
-  static const int kSize = kNextOffset + kPointerSize;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakMap);
+};
+
+
+// The JSWeakSet describes EcmaScript Harmony weak sets
+class JSWeakSet: public JSWeakCollection {
+ public:
+  // Casting.
+  static inline JSWeakSet* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSWeakSet)
+  DECLARE_VERIFIER(JSWeakSet)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakSet);
 };
 
 

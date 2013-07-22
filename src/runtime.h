@@ -343,12 +343,12 @@ namespace internal {
   F(MapSet, 3, 1) \
   F(MapGetSize, 1, 1) \
   \
-  /* Harmony weakmaps */ \
-  F(WeakMapInitialize, 1, 1) \
-  F(WeakMapGet, 2, 1) \
-  F(WeakMapHas, 2, 1) \
-  F(WeakMapDelete, 2, 1) \
-  F(WeakMapSet, 3, 1) \
+  /* Harmony weak maps and sets */ \
+  F(WeakCollectionInitialize, 1, 1) \
+  F(WeakCollectionGet, 2, 1) \
+  F(WeakCollectionHas, 2, 1) \
+  F(WeakCollectionDelete, 2, 1) \
+  F(WeakCollectionSet, 3, 1) \
   \
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \

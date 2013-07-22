@@ -47,6 +47,7 @@ test-log/EquivalenceOfLoggingAndTraversal: PASS || FAIL
 
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL
+test-weaksets/WeakSet_Shrinking: FAIL
 
 # Deferred stack trace formatting is temporarily disabled.
 test-heap/ReleaseStackTraceData: PASS || FAIL

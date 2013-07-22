@@ -107,6 +107,7 @@ macro IS_REGEXP(arg)            = (%_IsRegExp(arg));
 macro IS_SET(arg)               = (%_ClassOf(arg) === 'Set');
 macro IS_MAP(arg)               = (%_ClassOf(arg) === 'Map');
 macro IS_WEAKMAP(arg)           = (%_ClassOf(arg) === 'WeakMap');
+macro IS_WEAKSET(arg)           = (%_ClassOf(arg) === 'WeakSet');
 macro IS_DATE(arg)              = (%_ClassOf(arg) === 'Date');
 macro IS_NUMBER_WRAPPER(arg)    = (%_ClassOf(arg) === 'Number');
 macro IS_STRING_WRAPPER(arg)    = (%_ClassOf(arg) === 'String');

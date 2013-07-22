@@ -110,6 +110,9 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_WEAK_MAP_TYPE:
       return kVisitJSWeakMap;
 
+    case JS_WEAK_SET_TYPE:
+      return kVisitJSWeakSet;
+
     case JS_REGEXP_TYPE:
       return kVisitJSRegExp;
 

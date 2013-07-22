@@ -73,7 +73,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       migration_slots_buffer_(NULL),
       heap_(NULL),
       code_flusher_(NULL),
-      encountered_weak_maps_(NULL) { }
+      encountered_weak_collections_(NULL) { }
 
 
 #ifdef VERIFY_HEAP
@@ -396,14 +396,14 @@ void MarkCompactCollector::CollectGarbage() {
   // Make sure that Prepare() has been called. The individual steps below will
   // update the state as they proceed.
   ASSERT(state_ == PREPARE_GC);
-  ASSERT(encountered_weak_maps_ == Smi::FromInt(0));
+  ASSERT(encountered_weak_collections_ == Smi::FromInt(0));
 
   MarkLiveObjects();
   ASSERT(heap_->incremental_marking()->IsStopped());
 
   if (FLAG_collect_maps) ClearNonLiveReferences();
 
-  ClearWeakMaps();
+  ClearWeakCollections();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -1449,35 +1449,36 @@ class MarkCompactMarkingVisitor
     shared->BeforeVisitingPointers();
   }
 
-  static void VisitJSWeakMap(Map* map, HeapObject* object) {
+  static void VisitWeakCollection(Map* map, HeapObject* object) {
     MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
-    JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(object);
+    JSWeakCollection* weak_collection =
+        reinterpret_cast<JSWeakCollection*>(object);
 
     // Enqueue weak map in linked list of encountered weak maps.
-    if (weak_map->next() == Smi::FromInt(0)) {
-      weak_map->set_next(collector->encountered_weak_maps());
-      collector->set_encountered_weak_maps(weak_map);
+    if (weak_collection->next() == Smi::FromInt(0)) {
+      weak_collection->set_next(collector->encountered_weak_collections());
+      collector->set_encountered_weak_collections(weak_collection);
     }
 
     // Skip visiting the backing hash table containing the mappings.
-    int object_size = JSWeakMap::BodyDescriptor::SizeOf(map, object);
+    int object_size = JSWeakCollection::BodyDescriptor::SizeOf(map, object);
     BodyVisitorBase<MarkCompactMarkingVisitor>::IteratePointers(
         map->GetHeap(),
         object,
-        JSWeakMap::BodyDescriptor::kStartOffset,
-        JSWeakMap::kTableOffset);
+        JSWeakCollection::BodyDescriptor::kStartOffset,
+        JSWeakCollection::kTableOffset);
     BodyVisitorBase<MarkCompactMarkingVisitor>::IteratePointers(
         map->GetHeap(),
         object,
-        JSWeakMap::kTableOffset + kPointerSize,
+        JSWeakCollection::kTableOffset + kPointerSize,
         object_size);
 
     // Mark the backing hash table without pushing it on the marking stack.
-    Object* table_object = weak_map->table();
+    Object* table_object = weak_collection->table();
     if (!table_object->IsHashTable()) return;
     ObjectHashTable* table = ObjectHashTable::cast(table_object);
     Object** table_slot =
-        HeapObject::RawField(weak_map, JSWeakMap::kTableOffset);
+        HeapObject::RawField(weak_collection, JSWeakCollection::kTableOffset);
     MarkBit table_mark = Marking::MarkBitFrom(table);
     collector->RecordSlot(table_slot, table_slot, table);
     if (!table_mark.Get()) collector->SetMark(table, table_mark);
@@ -2245,7 +2246,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(ObjectVisitor* visitor) {
     isolate()->global_handles()->IterateObjectGroups(
         visitor, &IsUnmarkedHeapObjectWithHeap);
     MarkImplicitRefGroups();
-    ProcessWeakMaps();
+    ProcessWeakCollections();
     work_to_do = !marking_deque_.IsEmpty();
     ProcessMarkingDeque();
   }
@@ -2654,13 +2655,15 @@ void MarkCompactCollector::ClearNonLiveDependentCode(DependentCode* entries) {
 }
 
 
-void MarkCompactCollector::ProcessWeakMaps() {
-  GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_WEAKMAP_PROCESS);
-  Object* weak_map_obj = encountered_weak_maps();
-  while (weak_map_obj != Smi::FromInt(0)) {
-    ASSERT(MarkCompactCollector::IsMarked(HeapObject::cast(weak_map_obj)));
-    JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(weak_map_obj);
-    ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
+void MarkCompactCollector::ProcessWeakCollections() {
+  GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_WEAKCOLLECTION_PROCESS);
+  Object* weak_collection_obj = encountered_weak_collections();
+  while (weak_collection_obj != Smi::FromInt(0)) {
+    ASSERT(MarkCompactCollector::IsMarked(
+        HeapObject::cast(weak_collection_obj)));
+    JSWeakCollection* weak_collection =
+        reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
+    ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
     Object** anchor = reinterpret_cast<Object**>(table->address());
     for (int i = 0; i < table->Capacity(); i++) {
       if (MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
@@ -2675,27 +2678,29 @@ void MarkCompactCollector::ProcessWeakMaps() {
             this, anchor, value_slot);
       }
     }
-    weak_map_obj = weak_map->next();
+    weak_collection_obj = weak_collection->next();
   }
 }
 
 
-void MarkCompactCollector::ClearWeakMaps() {
-  GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_WEAKMAP_CLEAR);
-  Object* weak_map_obj = encountered_weak_maps();
-  while (weak_map_obj != Smi::FromInt(0)) {
-    ASSERT(MarkCompactCollector::IsMarked(HeapObject::cast(weak_map_obj)));
-    JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(weak_map_obj);
-    ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
+void MarkCompactCollector::ClearWeakCollections() {
+  GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_WEAKCOLLECTION_CLEAR);
+  Object* weak_collection_obj = encountered_weak_collections();
+  while (weak_collection_obj != Smi::FromInt(0)) {
+    ASSERT(MarkCompactCollector::IsMarked(
+        HeapObject::cast(weak_collection_obj)));
+    JSWeakCollection* weak_collection =
+        reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
+    ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
     for (int i = 0; i < table->Capacity(); i++) {
       if (!MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
         table->RemoveEntry(i);
       }
     }
-    weak_map_obj = weak_map->next();
-    weak_map->set_next(Smi::FromInt(0));
+    weak_collection_obj = weak_collection->next();
+    weak_collection->set_next(Smi::FromInt(0));
   }
-  set_encountered_weak_maps(Smi::FromInt(0));
+  set_encountered_weak_collections(Smi::FromInt(0));
 }
 
 

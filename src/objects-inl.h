@@ -567,10 +567,16 @@ TYPE_CHECKER(JSFunctionProxy, JS_FUNCTION_PROXY_TYPE)
 TYPE_CHECKER(JSSet, JS_SET_TYPE)
 TYPE_CHECKER(JSMap, JS_MAP_TYPE)
 TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
+TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
 TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
 TYPE_CHECKER(Map, MAP_TYPE)
 TYPE_CHECKER(FixedArray, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
+
+
+bool Object::IsJSWeakCollection() {
+  return IsJSWeakMap() || IsJSWeakSet();
+}
 
 
 bool Object::IsDescriptorArray() {
@@ -1688,6 +1694,8 @@ int JSObject::GetHeaderSize() {
       return JSMap::kSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kSize;
+    case JS_WEAK_SET_TYPE:
+      return JSWeakSet::kSize;
     case JS_REGEXP_TYPE:
       return JSRegExp::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -2569,6 +2577,7 @@ CAST_ACCESSOR(JSFunctionProxy)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSMap)
 CAST_ACCESSOR(JSWeakMap)
+CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(FreeSpace)
@@ -5092,8 +5101,8 @@ void JSProxy::InitializeBody(int object_size, Object* value) {
 
 ACCESSORS(JSSet, table, Object, kTableOffset)
 ACCESSORS(JSMap, table, Object, kTableOffset)
-ACCESSORS(JSWeakMap, table, Object, kTableOffset)
-ACCESSORS(JSWeakMap, next, Object, kNextOffset)
+ACCESSORS(JSWeakCollection, table, Object, kTableOffset)
+ACCESSORS(JSWeakCollection, next, Object, kNextOffset)
 
 
 Address Foreign::foreign_address() {

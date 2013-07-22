@@ -1421,69 +1421,73 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapGetSize) {
 }
 
 
-static JSWeakMap* WeakMapInitialize(Isolate* isolate,
-                                    Handle<JSWeakMap> weakmap) {
-  ASSERT(weakmap->map()->inobject_properties() == 0);
+static JSWeakCollection* WeakCollectionInitialize(Isolate* isolate,
+    Handle<JSWeakCollection> weak_collection) {
+  ASSERT(weak_collection->map()->inobject_properties() == 0);
   Handle<ObjectHashTable> table = isolate->factory()->NewObjectHashTable(0);
-  weakmap->set_table(*table);
-  weakmap->set_next(Smi::FromInt(0));
-  return *weakmap;
+  weak_collection->set_table(*table);
+  weak_collection->set_next(Smi::FromInt(0));
+  return *weak_collection;
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapInitialize) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakMap, weakmap, 0);
-  return WeakMapInitialize(isolate, weakmap);
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
+  return WeakCollectionInitialize(isolate, weak_collection);
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapGet) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionGet) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakMap, weakmap, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(weakmap->table()));
+  Handle<ObjectHashTable> table(
+      ObjectHashTable::cast(weak_collection->table()));
   Handle<Object> lookup(table->Lookup(*key), isolate);
   return lookup->IsTheHole() ? isolate->heap()->undefined_value() : *lookup;
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapHas) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionHas) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakMap, weakmap, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(weakmap->table()));
+  Handle<ObjectHashTable> table(
+      ObjectHashTable::cast(weak_collection->table()));
   Handle<Object> lookup(table->Lookup(*key), isolate);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapDelete) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionDelete) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakMap, weakmap, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(weakmap->table()));
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(
+      weak_collection->table()));
   Handle<Object> lookup(table->Lookup(*key), isolate);
   Handle<ObjectHashTable> new_table =
       PutIntoObjectHashTable(table, key, isolate->factory()->the_hole_value());
-  weakmap->set_table(*new_table);
+  weak_collection->set_table(*new_table);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapSet) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionSet) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakMap, weakmap, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<Object> value(args[2], isolate);
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(weakmap->table()));
+  Handle<ObjectHashTable> table(
+      ObjectHashTable::cast(weak_collection->table()));
   Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
-  weakmap->set_table(*new_table);
+  weak_collection->set_table(*new_table);
   return isolate->heap()->undefined_value();
 }
 
@@ -13787,7 +13791,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ObservationWeakMapCreate) {
       isolate->factory()->NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
   Handle<JSWeakMap> weakmap =
       Handle<JSWeakMap>::cast(isolate->factory()->NewJSObjectFromMap(map));
-  return WeakMapInitialize(isolate, weakmap);
+  return WeakCollectionInitialize(isolate, weakmap);
 }
 
 

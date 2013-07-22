@@ -180,6 +180,7 @@ int Type::LubBitset() {
       case JS_SET_TYPE:
       case JS_MAP_TYPE:
       case JS_WEAK_MAP_TYPE:
+      case JS_WEAK_SET_TYPE:
         if (map->is_undetectable()) return kUndetectable;
         return kOtherObject;
       case JS_ARRAY_TYPE:

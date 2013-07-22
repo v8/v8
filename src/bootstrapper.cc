@@ -1324,6 +1324,11 @@ void Genesis::InitializeExperimentalGlobal() {
                       isolate()->initial_object_prototype(),
                       Builtins::kIllegal, true, true);
     }
+    {  // -- W e a k S e t
+      InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
+                      isolate()->initial_object_prototype(),
+                      Builtins::kIllegal, true, true);
+    }
   }
 
   if (FLAG_harmony_array_buffer) {
