@@ -4470,7 +4470,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;
-  __ JumpIfSmi(v0, &no_conversion);
+  if (ShouldInlineSmiCase(expr->op())) {
+    __ JumpIfSmi(v0, &no_conversion);
+  }
   __ mov(a0, v0);
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
