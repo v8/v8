@@ -5626,6 +5626,7 @@ class Map: public HeapObject {
   inline void NotifyLeafMapLayoutChange();
 
   inline bool CanOmitPrototypeChecks();
+  inline bool CanOmitMapChecks();
 
   void AddDependentCompilationInfo(DependentCode::DependencyGroup group,
                                    CompilationInfo* info);

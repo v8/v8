@@ -1045,7 +1045,7 @@ HValue* HGraphBuilder::BuildCheckHeapObject(HValue* obj) {
 
 HValue* HGraphBuilder::BuildCheckMap(HValue* obj,
                                               Handle<Map> map) {
-  HCheckMaps* check = HCheckMaps::New(obj, map, zone());
+  HCheckMaps* check = HCheckMaps::New(obj, map, zone(), top_info());
   AddInstruction(check);
   return check;
 }
@@ -1208,7 +1208,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   if (is_store && (fast_elements || fast_smi_only_elements) &&
       store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
     HCheckMaps* check_cow_map = HCheckMaps::New(
-        elements, isolate()->factory()->fixed_array_map(), zone);
+        elements, isolate()->factory()->fixed_array_map(), zone, top_info());
     check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
     AddInstruction(check_cow_map);
   }
@@ -1276,7 +1276,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
                                             length);
       } else {
         HCheckMaps* check_cow_map = HCheckMaps::New(
-            elements, isolate()->factory()->fixed_array_map(), zone);
+            elements, isolate()->factory()->fixed_array_map(),
+            zone, top_info());
         check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
         AddInstruction(check_cow_map);
       }
@@ -4450,7 +4451,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     // De-opt if elements kind changed from boilerplate_elements_kind.
     Handle<Map> map = Handle<Map>(original_boilerplate_object->map(),
                                   isolate());
-    AddInstruction(HCheckMaps::New(literal, map, zone()));
+    AddInstruction(HCheckMaps::New(literal, map, zone(), top_info()));
   }
 
   // The array is expected in the bailout environment during computation
@@ -4541,7 +4542,7 @@ static Representation ComputeLoadStoreRepresentation(Handle<Map> type,
 
 void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
   BuildCheckHeapObject(object);
-  AddInstruction(HCheckMaps::New(object, map, zone()));
+  AddInstruction(HCheckMaps::New(object, map, zone(), top_info()));
 }
 
 
@@ -5506,7 +5507,8 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     Handle<Map> map,
     bool is_store,
     KeyedAccessStoreMode store_mode) {
-  HCheckMaps* mapcheck = HCheckMaps::New(object, map, zone(), dependency);
+  HCheckMaps* mapcheck = HCheckMaps::New(
+      object, map, zone(), top_info(), dependency);
   AddInstruction(mapcheck);
   if (dependency) {
     mapcheck->ClearGVNFlag(kDependsOnElementsKind);
@@ -5690,7 +5692,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       if (is_store && !IsFastDoubleElementsKind(elements_kind)) {
         AddInstruction(HCheckMaps::New(
             elements, isolate()->factory()->fixed_array_map(),
-            zone(), mapcompare));
+            zone(), top_info(), mapcompare));
       }
       if (map->IsJSArray()) {
         HInstruction* length = AddLoad(object, HObjectAccess::ForArrayLength(),

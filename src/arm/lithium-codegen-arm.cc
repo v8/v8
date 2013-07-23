@@ -5232,6 +5232,7 @@ void LCodeGen::DoCheckMapCommon(Register map_reg,
 
 
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
+  if (instr->hydrogen()->CanOmitMapChecks()) return;
   Register map_reg = scratch0();
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
@@ -5304,6 +5305,8 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
+  if (instr->hydrogen()->CanOmitPrototypeChecks()) return;
+
   Register prototype_reg = ToRegister(instr->temp());
   Register map_reg = ToRegister(instr->temp2());
 
@@ -5312,12 +5315,10 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
   ASSERT(prototypes->length() == maps->length());
 
-  if (!instr->hydrogen()->CanOmitPrototypeChecks()) {
-    for (int i = 0; i < prototypes->length(); i++) {
-      __ LoadHeapObject(prototype_reg, prototypes->at(i));
-      __ ldr(map_reg, FieldMemOperand(prototype_reg, HeapObject::kMapOffset));
-      DoCheckMapCommon(map_reg, maps->at(i), instr->environment());
-    }
+  for (int i = 0; i < prototypes->length(); i++) {
+    __ LoadHeapObject(prototype_reg, prototypes->at(i));
+    __ ldr(map_reg, FieldMemOperand(prototype_reg, HeapObject::kMapOffset));
+    DoCheckMapCommon(map_reg, maps->at(i), instr->environment());
   }
 }
 

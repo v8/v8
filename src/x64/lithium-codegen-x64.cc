@@ -4954,6 +4954,7 @@ void LCodeGen::DoCheckMapCommon(Register reg,
 
 
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
+  if (instr->hydrogen()->CanOmitMapChecks()) return;
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
@@ -5021,6 +5022,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
+  if (instr->hydrogen()->CanOmitPrototypeChecks()) return;
   Register reg = ToRegister(instr->temp());
 
   ZoneList<Handle<JSObject> >* prototypes = instr->prototypes();
@@ -5028,11 +5030,9 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
   ASSERT(prototypes->length() == maps->length());
 
-  if (!instr->hydrogen()->CanOmitPrototypeChecks()) {
-    for (int i = 0; i < prototypes->length(); i++) {
-      __ LoadHeapObject(reg, prototypes->at(i));
-      DoCheckMapCommon(reg, maps->at(i), instr);
-    }
+  for (int i = 0; i < prototypes->length(); i++) {
+    __ LoadHeapObject(reg, prototypes->at(i));
+    DoCheckMapCommon(reg, maps->at(i), instr);
   }
 }
 

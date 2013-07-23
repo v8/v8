@@ -2738,12 +2738,7 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 class HCheckMaps: public HTemplateInstruction<2> {
  public:
   static HCheckMaps* New(HValue* value, Handle<Map> map, Zone* zone,
-                         HValue *typecheck = NULL) {
-    HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
-    check_map->map_set_.Add(map, zone);
-    return check_map;
-  }
-
+                         CompilationInfo* info, HValue *typecheck = NULL);
   static HCheckMaps* New(HValue* value, SmallMapList* maps, Zone* zone,
                          HValue *typecheck = NULL) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
@@ -2776,6 +2771,8 @@ class HCheckMaps: public HTemplateInstruction<2> {
     check_map->map_set_.Sort();
     return check_map;
   }
+
+  bool CanOmitMapChecks() { return omit_; }
 
   virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2812,7 +2809,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
  private:
   // Clients should use one of the static New* methods above.
   HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
-      : map_unique_ids_(0, zone) {
+      : omit_(false), map_unique_ids_(0, zone) {
     SetOperandAt(0, value);
     // Use the object value for the dependency if NULL is passed.
     // TODO(titzer): do GVN flags already express this dependency?
@@ -2824,6 +2821,16 @@ class HCheckMaps: public HTemplateInstruction<2> {
     SetGVNFlag(kDependsOnElementsKind);
   }
 
+  void omit(CompilationInfo* info) {
+    omit_ = true;
+    for (int i = 0; i < map_set_.length(); i++) {
+      Handle<Map> map = map_set_.at(i);
+      map->AddDependentCompilationInfo(DependentCode::kPrototypeCheckGroup,
+                                       info);
+    }
+  }
+
+  bool omit_;
   SmallMapList map_set_;
   ZoneList<UniqueValueId> map_unique_ids_;
 };
@@ -3300,6 +3307,11 @@ class HConstant: public HTemplateInstruction<0> {
     AllowDeferredHandleDereference smi_check;
     ASSERT(has_int32_value_ || !handle_->IsSmi());
     return handle_;
+  }
+
+  bool InstanceOf(Handle<Map> map) {
+    return handle_->IsJSObject() &&
+        Handle<JSObject>::cast(handle_)->map() == *map;
   }
 
   bool IsSpecialDouble() const {

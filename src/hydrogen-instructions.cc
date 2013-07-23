@@ -1680,7 +1680,7 @@ void HCheckMaps::PrintDataTo(StringStream* stream) {
   for (int i = 1; i < map_set()->length(); ++i) {
     stream->Add(",%p", *map_set()->at(i));
   }
-  stream->Add("]");
+  stream->Add("]%s", CanOmitMapChecks() ? "(omitted)" : "");
 }
 
 
@@ -2772,6 +2772,22 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
     SetAllSideEffects();
     need_generic_ = true;
   }
+}
+
+
+HCheckMaps* HCheckMaps::New(HValue* value,
+                            Handle<Map> map,
+                            Zone* zone,
+                            CompilationInfo* info,
+                            HValue* typecheck) {
+  HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
+  check_map->map_set_.Add(map, zone);
+  if (map->CanOmitMapChecks() &&
+      value->IsConstant() &&
+      HConstant::cast(value)->InstanceOf(map)) {
+    check_map->omit(info);
+  }
+  return check_map;
 }
 
 

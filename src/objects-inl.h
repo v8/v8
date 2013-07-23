@@ -3669,6 +3669,12 @@ bool Map::CanOmitPrototypeChecks() {
 }
 
 
+bool Map::CanOmitMapChecks() {
+  return !HasTransitionArray() && !is_dictionary_map() &&
+         FLAG_omit_map_checks_for_leaf_maps;
+}
+
+
 int DependentCode::number_of_entries(DependencyGroup group) {
   if (length() == 0) return 0;
   return Smi::cast(get(group))->value();

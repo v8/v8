@@ -884,7 +884,8 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   // Check that the map of the global has not changed: use a placeholder map
   // that will be replaced later with the global object's map.
   Handle<Map> placeholder_map = isolate()->factory()->meta_map();
-  AddInstruction(HCheckMaps::New(receiver, placeholder_map, zone()));
+  AddInstruction(HCheckMaps::New(
+      receiver, placeholder_map, zone(), top_info()));
 
   HValue* cell = Add<HConstant>(placeholder_cell, Representation::Tagged());
   HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
