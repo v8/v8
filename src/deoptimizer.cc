@@ -1265,8 +1265,8 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   // MacroAssembler::EnterFrame). For a setter stub frame we need one additional
   // entry for the implicit return value, see
   // StoreStubCompiler::CompileStoreViaSetter.
-  unsigned fixed_frame_entries = (kPCOnStackSize/kPointerSize) +
-                                 (kFPOnStackSize/kPointerSize) + 3 +
+  unsigned fixed_frame_entries = (kPCOnStackSize / kPointerSize) +
+                                 (kFPOnStackSize / kPointerSize) + 3 +
                                  (is_setter_stub_frame ? 1 : 0);
   unsigned fixed_frame_size = fixed_frame_entries * kPointerSize;
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;

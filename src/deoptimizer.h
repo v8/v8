@@ -473,7 +473,6 @@ class FrameDescription {
  public:
   FrameDescription(uint32_t frame_size,
                    JSFunction* function);
-  virtual ~FrameDescription() { }
 
   void* operator new(size_t size, uint32_t frame_size) {
     // Subtracts kPointerSize, as the member frame_content_ already supplies
@@ -511,9 +510,9 @@ class FrameDescription {
     *GetFrameSlotPointer(offset) = value;
   }
 
-  virtual void SetCallerPc(unsigned offset, intptr_t value);
+  void SetCallerPc(unsigned offset, intptr_t value);
 
-  virtual void SetCallerFp(unsigned offset, intptr_t value);
+  void SetCallerFp(unsigned offset, intptr_t value);
 
   intptr_t GetRegister(unsigned n) const {
     ASSERT(n < ARRAY_SIZE(registers_));
