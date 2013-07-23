@@ -357,7 +357,6 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(ODDBALL_TYPE)                                                              \
   V(CELL_TYPE)                                                                 \
   V(PROPERTY_CELL_TYPE)                                                        \
-  V(BOX_TYPE)                                                                  \
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
   V(FOREIGN_TYPE)                                                              \
@@ -395,6 +394,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(POLYMORPHIC_CODE_CACHE_TYPE)                                               \
   V(TYPE_FEEDBACK_INFO_TYPE)                                                   \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                                              \
+  V(BOX_TYPE)                                                                  \
                                                                                \
   V(FIXED_ARRAY_TYPE)                                                          \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                                   \
@@ -699,7 +699,6 @@ enum InstanceType {
   ODDBALL_TYPE,
   CELL_TYPE,
   PROPERTY_CELL_TYPE,
-  BOX_TYPE,
 
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
@@ -738,6 +737,7 @@ enum InstanceType {
   POLYMORPHIC_CODE_CACHE_TYPE,
   TYPE_FEEDBACK_INFO_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
+  BOX_TYPE,
   // The following two instance types are only used when ENABLE_DEBUGGER_SUPPORT
   // is defined. However as include/v8.h contain some of the instance type
   // constants always having them avoids them getting different numbers
