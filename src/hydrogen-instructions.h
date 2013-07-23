@@ -91,8 +91,9 @@ class LChunkBuilder;
   V(CheckHeapObject)                           \
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
-  V(CheckSmi)                                  \
+  V(CheckMapValue)                             \
   V(CheckPrototypeMaps)                        \
+  V(CheckSmi)                                  \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareNumericAndBranch)                   \
@@ -102,6 +103,7 @@ class LChunkBuilder;
   V(CompareConstantEqAndBranch)                \
   V(Constant)                                  \
   V(Context)                                   \
+  V(DateField)                                 \
   V(DebugBreak)                                \
   V(DeclareGlobals)                            \
   V(Deoptimize)                                \
@@ -111,6 +113,8 @@ class LChunkBuilder;
   V(EnterInlined)                              \
   V(EnvironmentMarker)                         \
   V(ForceRepresentation)                       \
+  V(ForInCacheArray)                           \
+  V(ForInPrepareMap)                           \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
   V(GlobalObject)                              \
@@ -134,6 +138,7 @@ class LChunkBuilder;
   V(LinkObjectInList)                          \
   V(LoadContextSlot)                           \
   V(LoadExternalArrayPointer)                  \
+  V(LoadFieldByIndex)                          \
   V(LoadFunctionPrototype)                     \
   V(LoadGlobalCell)                            \
   V(LoadGlobalGeneric)                         \
@@ -188,11 +193,6 @@ class LChunkBuilder;
   V(UnknownOSRValue)                           \
   V(UseConst)                                  \
   V(ValueOf)                                   \
-  V(ForInPrepareMap)                           \
-  V(ForInCacheArray)                           \
-  V(CheckMapValue)                             \
-  V(LoadFieldByIndex)                          \
-  V(DateField)                                 \
   V(WrapReceiver)
 
 #define GVN_TRACKED_FLAG_LIST(V)               \
@@ -200,19 +200,20 @@ class LChunkBuilder;
   V(NewSpacePromotion)
 
 #define GVN_UNTRACKED_FLAG_LIST(V)             \
-  V(Calls)                                     \
-  V(InobjectFields)                            \
+  V(ArrayElements)                             \
+  V(ArrayLengths)                              \
   V(BackingStoreFields)                        \
+  V(Calls)                                     \
+  V(ContextSlots)                              \
+  V(DoubleArrayElements)                       \
   V(DoubleFields)                              \
   V(ElementsKind)                              \
   V(ElementsPointer)                           \
-  V(ArrayElements)                             \
-  V(DoubleArrayElements)                       \
-  V(SpecializedArrayElements)                  \
   V(GlobalVars)                                \
-  V(ArrayLengths)                              \
-  V(ContextSlots)                              \
-  V(OsrEntries)
+  V(InobjectFields)                            \
+  V(OsrEntries)                                \
+  V(SpecializedArrayElements)
+
 
 #define DECLARE_ABSTRACT_INSTRUCTION(type)          \
   virtual bool Is##type() const { return true; }    \
