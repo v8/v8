@@ -457,16 +457,6 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
-void Shell::EnableProfiler(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  V8::ResumeProfiler();
-}
-
-
-void Shell::DisableProfiler(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  V8::PauseProfiler();
-}
-
-
 void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value file(args[0]);
   if (*file == NULL) {
@@ -857,10 +847,6 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(String::New("load"), FunctionTemplate::New(Load));
   global_template->Set(String::New("quit"), FunctionTemplate::New(Quit));
   global_template->Set(String::New("version"), FunctionTemplate::New(Version));
-  global_template->Set(String::New("enableProfiler"),
-                       FunctionTemplate::New(EnableProfiler));
-  global_template->Set(String::New("disableProfiler"),
-                       FunctionTemplate::New(DisableProfiler));
 
   // Bind the Realm object.
   Handle<ObjectTemplate> realm_template = ObjectTemplate::New();

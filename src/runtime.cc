@@ -13345,20 +13345,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHeapUsage) {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerResume) {
-  SealHandleScope shs(isolate);
-  v8::V8::ResumeProfiler();
-  return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerPause) {
-  SealHandleScope shs(isolate);
-  v8::V8::PauseProfiler();
-  return isolate->heap()->undefined_value();
-}
-
-
 // Finds the script object from the script data. NOTE: This operation uses
 // heap traversal to find the function generated for the source position
 // for the requested break point. For lazily compiled functions several heap

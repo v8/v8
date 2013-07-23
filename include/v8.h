@@ -4545,18 +4545,18 @@ class V8EXPORT V8 {
    * See also the --prof and --prof_auto command line switches to
    * enable V8 profiling.
    */
-  static void PauseProfiler();
+  V8_DEPRECATED(static void PauseProfiler());
 
   /**
    * Resumes recording of tick samples in the profiler.
    * See also PauseProfiler().
    */
-  static void ResumeProfiler();
+  V8_DEPRECATED(static void ResumeProfiler());
 
   /**
    * Return whether profiler is currently paused.
    */
-  static bool IsProfilerPaused();
+  V8_DEPRECATED(static bool IsProfilerPaused());
 
   /**
    * Retrieve the V8 thread id of the calling thread.
