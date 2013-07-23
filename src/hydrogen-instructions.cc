@@ -3267,12 +3267,9 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   HValue* dominator_size = dominator_allocate_instr->size();
   HValue* current_size = size();
   // We can just fold allocations that are guaranteed in new space.
-  // TODO(hpayer): Support double aligned allocations.
   // TODO(hpayer): Add support for non-constant allocation in dominator.
-  if (!GuaranteedInNewSpace() || MustAllocateDoubleAligned() ||
-      !current_size->IsInteger32Constant() ||
+  if (!GuaranteedInNewSpace() || !current_size->IsInteger32Constant() ||
       !dominator_allocate_instr->GuaranteedInNewSpace() ||
-      dominator_allocate_instr->MustAllocateDoubleAligned() ||
       !dominator_size->IsInteger32Constant()) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s)\n",
@@ -3287,6 +3284,17 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   int32_t current_size_constant =
       HConstant::cast(current_size)->GetInteger32Constant();
   int32_t new_dominator_size = dominator_size_constant + current_size_constant;
+
+  if (MustAllocateDoubleAligned()) {
+    if (!dominator_allocate_instr->MustAllocateDoubleAligned()) {
+      dominator_allocate_instr->SetFlags(HAllocate::ALLOCATE_DOUBLE_ALIGNED);
+    }
+    if ((dominator_size_constant & kDoubleAlignmentMask) != 0) {
+      dominator_size_constant += kDoubleSize / 2;
+      new_dominator_size += kDoubleSize / 2;
+    }
+  }
+
   if (new_dominator_size > Page::kMaxNonCodeHeapObjectSize) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s) due to size: %d\n",
