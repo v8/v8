@@ -2310,20 +2310,38 @@ HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
 }
 
 
-HConstant* HConstant::CopyToTruncatedInt32(Zone* zone) const {
+Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
+  HConstant* res = NULL;
   if (has_int32_value_) {
-    return new(zone) HConstant(int32_value_,
-                               Representation::Integer32(),
-                               is_not_in_new_space_,
-                               handle_);
+    res = new(zone) HConstant(int32_value_,
+                              Representation::Integer32(),
+                              is_not_in_new_space_,
+                              handle_);
+  } else if (has_double_value_) {
+    res = new(zone) HConstant(DoubleToInt32(double_value_),
+                              Representation::Integer32(),
+                              is_not_in_new_space_,
+                              handle_);
+  } else {
+    ASSERT(!HasNumberValue());
+    Maybe<HConstant*> number = CopyToTruncatedNumber(zone);
+    if (number.has_value) return number.value->CopyToTruncatedInt32(zone);
   }
-  if (has_double_value_) {
-    return new(zone) HConstant(DoubleToInt32(double_value_),
-                               Representation::Integer32(),
-                               is_not_in_new_space_,
-                               handle_);
+  return Maybe<HConstant*>(res != NULL, res);
+}
+
+
+Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Zone* zone) {
+  HConstant* res = NULL;
+  if (handle()->IsBoolean()) {
+    res = handle()->BooleanValue() ?
+      new(zone) HConstant(1) : new(zone) HConstant(0);
+  } else if (handle()->IsUndefined()) {
+    res = new(zone) HConstant(OS::nan_value());
+  } else if (handle()->IsNull()) {
+    res = new(zone) HConstant(0);
   }
-  return NULL;
+  return Maybe<HConstant*>(res != NULL, res);
 }
 
 

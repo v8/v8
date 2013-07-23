@@ -3112,7 +3112,7 @@ void HGraph::RestoreActualValues() {
 }
 
 
-void HOptimizedGraphBuilder::PushAndAdd(HInstruction* instr) {
+void HGraphBuilder::PushAndAdd(HInstruction* instr) {
   Push(instr);
   AddInstruction(instr);
 }
@@ -7460,8 +7460,8 @@ void HOptimizedGraphBuilder::VisitTypeof(UnaryOperation* expr) {
 
 void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
-  HValue* value = Pop();
   Handle<Type> operand_type = expr->expression()->bounds().lower;
+  HValue* value = TruncateToNumber(Pop(), &operand_type);
   HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::SUB);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
@@ -7469,8 +7469,8 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
 
 void HOptimizedGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
-  HValue* value = Pop();
   Handle<Type> operand_type = expr->expression()->bounds().lower;
+  HValue* value = TruncateToNumber(Pop(), &operand_type);
   HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::BIT_NOT);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
@@ -7800,6 +7800,40 @@ bool CanBeZero(HValue* right) {
 }
 
 
+HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
+  if (value->IsConstant()) {
+    HConstant* constant = HConstant::cast(value);
+    Maybe<HConstant*> number = constant->CopyToTruncatedNumber(zone());
+    if (number.has_value) {
+      *expected = handle(Type::Number(), isolate());
+      return AddInstruction(number.value);
+    }
+    return value;
+  }
+
+  Handle<Type> expected_type = *expected;
+  Representation rep = Representation::FromType(expected_type);
+  if (!rep.IsTagged()) return value;
+
+  // If our type feedback suggests that we can non-observably truncate to number
+  // we introduce the appropriate check here. This avoids 'value' having a
+  // tagged representation later on.
+  if (expected_type->Is(Type::Oddball())) {
+    // TODO(olivf) The BinaryOpStub only records undefined. It might pay off to
+    // also record booleans and convert them to 0/1 here.
+    IfBuilder if_nan(this);
+    if_nan.If<HCompareObjectEqAndBranch>(value,
+        graph()->GetConstantUndefined());
+    if_nan.Then();
+    if_nan.ElseDeopt();
+    if_nan.End();
+    return Add<HConstant>(OS::nan_value(), Representation::Double());
+  }
+
+  return value;
+}
+
+
 HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
     BinaryOperation* expr,
     HValue* left,
@@ -7812,6 +7846,14 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   Representation left_rep = Representation::FromType(left_type);
   Representation right_rep = Representation::FromType(right_type);
   Representation result_rep = Representation::FromType(result_type);
+
+  if (expr->op() != Token::ADD ||
+      (left->type().IsNonString() && right->type().IsNonString())) {
+    // For addition we can only truncate the arguments to number if we can
+    // prove that we will not end up in string concatenation mode.
+    left = TruncateToNumber(left, &left_type);
+    right = TruncateToNumber(right, &right_type);
+  }
 
   if (left_type->Is(Type::None())) {
     AddSoftDeoptimize();

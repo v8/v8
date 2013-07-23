@@ -1118,6 +1118,10 @@ class HGraphBuilder {
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HValue* context);
 
+  HValue* TruncateToNumber(HValue* value, Handle<Type>* expected);
+
+  void PushAndAdd(HInstruction* instr);
+
   enum SoftDeoptimizeMode {
     MUST_EMIT_SOFT_DEOPT,
     CAN_OMIT_SOFT_DEOPT
@@ -1665,8 +1669,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
   // Visit a list of expressions from left to right, each in a value context.
   void VisitExpressions(ZoneList<Expression*>* exprs);
-
-  void PushAndAdd(HInstruction* instr);
 
   // Remove the arguments from the bailout environment and emit instructions
   // to push them as outgoing parameters.

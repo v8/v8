@@ -408,6 +408,11 @@ class HType {
     return ((type_ & kString) == kString);
   }
 
+  bool IsNonString() const {
+    return IsTaggedPrimitive() || IsSmi() || IsHeapNumber() ||
+        IsBoolean() || IsJSArray();
+  }
+
   bool IsBoolean() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kBoolean) == kBoolean);
@@ -3351,7 +3356,8 @@ class HConstant: public HTemplateInstruction<0> {
   virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
   HConstant* CopyToRepresentation(Representation r, Zone* zone) const;
-  HConstant* CopyToTruncatedInt32(Zone* zone) const;
+  Maybe<HConstant*> CopyToTruncatedInt32(Zone* zone);
+  Maybe<HConstant*> CopyToTruncatedNumber(Zone* zone);
   bool HasInteger32Value() const { return has_int32_value_; }
   int32_t Integer32Value() const {
     ASSERT(HasInteger32Value());
