@@ -1678,8 +1678,6 @@ class Heap {
   // we try to promote this object.
   inline bool ShouldBePromoted(Address old_address, int object_size);
 
-  int MaxObjectSizeInNewSpace() { return kMaxObjectSizeInNewSpace; }
-
   void ClearJSFunctionResultCaches();
 
   void ClearNormalizedMapCaches();
@@ -1923,12 +1921,6 @@ class Heap {
   bool flush_monomorphic_ics_;
 
   int scan_on_scavenge_pages_;
-
-#if V8_TARGET_ARCH_X64
-  static const int kMaxObjectSizeInNewSpace = 1024*KB;
-#else
-  static const int kMaxObjectSizeInNewSpace = 512*KB;
-#endif
 
   NewSpace new_space_;
   OldSpace* old_pointer_space_;

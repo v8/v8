@@ -5359,25 +5359,16 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
   if (length < 0 || length > SeqOneByteString::kMaxLength) {
     return Failure::OutOfMemoryException(0xb);
   }
-
   int size = SeqOneByteString::SizeFor(length);
   ASSERT(size <= SeqOneByteString::kMaxSize);
-
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   AllocationSpace retry_space = OLD_DATA_SPACE;
 
-  if (space == NEW_SPACE) {
-    if (size > kMaxObjectSizeInNewSpace) {
-      // Allocate in large object space, retry space will be ignored.
-      space = LO_SPACE;
-    } else if (size > Page::kMaxNonCodeHeapObjectSize) {
-      // Allocate in new space, retry in large object space.
-      retry_space = LO_SPACE;
-    }
-  } else if (space == OLD_DATA_SPACE &&
-             size > Page::kMaxNonCodeHeapObjectSize) {
+  if (size > Page::kMaxNonCodeHeapObjectSize) {
+    // Allocate in large object space, retry space will be ignored.
     space = LO_SPACE;
   }
+
   Object* result;
   { MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -5403,18 +5394,11 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   AllocationSpace retry_space = OLD_DATA_SPACE;
 
-  if (space == NEW_SPACE) {
-    if (size > kMaxObjectSizeInNewSpace) {
-      // Allocate in large object space, retry space will be ignored.
-      space = LO_SPACE;
-    } else if (size > Page::kMaxNonCodeHeapObjectSize) {
-      // Allocate in new space, retry in large object space.
-      retry_space = LO_SPACE;
-    }
-  } else if (space == OLD_DATA_SPACE &&
-             size > Page::kMaxNonCodeHeapObjectSize) {
+  if (size > Page::kMaxNonCodeHeapObjectSize) {
+    // Allocate in large object space, retry space will be ignored.
     space = LO_SPACE;
   }
+
   Object* result;
   { MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -5488,7 +5472,7 @@ MaybeObject* Heap::AllocateRawFixedArray(int length) {
   if (always_allocate()) return AllocateFixedArray(length, TENURED);
   // Allocate the raw data for a fixed array.
   int size = FixedArray::SizeFor(length);
-  return size <= kMaxObjectSizeInNewSpace
+  return size <= Page::kMaxNonCodeHeapObjectSize
       ? new_space_.AllocateRaw(size)
       : lo_space_->AllocateRaw(size, NOT_EXECUTABLE);
 }
@@ -5559,21 +5543,15 @@ MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > FixedArray::kMaxLength) {
     return Failure::OutOfMemoryException(0xe);
   }
-
+  int size = FixedArray::SizeFor(length);
   AllocationSpace space =
       (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-  int size = FixedArray::SizeFor(length);
-  if (space == NEW_SPACE && size > kMaxObjectSizeInNewSpace) {
-    // Too big for new space.
-    space = LO_SPACE;
-  } else if (space == OLD_POINTER_SPACE &&
-             size > Page::kMaxNonCodeHeapObjectSize) {
-    // Too big for old pointer space.
+  AllocationSpace retry_space = OLD_POINTER_SPACE;
+
+  if (size > Page::kMaxNonCodeHeapObjectSize) {
+    // Allocate in large object space, retry space will be ignored.
     space = LO_SPACE;
   }
-
-  AllocationSpace retry_space =
-      (size <= Page::kMaxNonCodeHeapObjectSize) ? OLD_POINTER_SPACE : LO_SPACE;
 
   return AllocateRaw(size, space, retry_space);
 }
@@ -5692,26 +5670,18 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
     return Failure::OutOfMemoryException(0xf);
   }
-
-  AllocationSpace space =
-      (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   int size = FixedDoubleArray::SizeFor(length);
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  AllocationSpace retry_space = OLD_DATA_SPACE;
 
 #ifndef V8_HOST_ARCH_64_BIT
   size += kPointerSize;
 #endif
 
-  if (space == NEW_SPACE && size > kMaxObjectSizeInNewSpace) {
-    // Too big for new space.
-    space = LO_SPACE;
-  } else if (space == OLD_DATA_SPACE &&
-             size > Page::kMaxNonCodeHeapObjectSize) {
-    // Too big for old data space.
+  if (size > Page::kMaxNonCodeHeapObjectSize) {
+    // Allocate in large object space, retry space will be ignored.
     space = LO_SPACE;
   }
-
-  AllocationSpace retry_space =
-      (size <= Page::kMaxNonCodeHeapObjectSize) ? OLD_DATA_SPACE : LO_SPACE;
 
   HeapObject* object;
   { MaybeObject* maybe_object = AllocateRaw(size, space, retry_space);
