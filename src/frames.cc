@@ -540,7 +540,7 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->sp = sp;
   state->fp = fp;
   state->pc_address = ResolveReturnAddressLocation(
-      reinterpret_cast<Address*>(sp - 1 * kPCOnStackSize));
+      reinterpret_cast<Address*>(sp - 1 * kPointerSize));
 }
 
 

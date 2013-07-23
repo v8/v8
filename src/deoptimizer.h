@@ -510,10 +510,6 @@ class FrameDescription {
     *GetFrameSlotPointer(offset) = value;
   }
 
-  void SetCallerPc(unsigned offset, intptr_t value);
-
-  void SetCallerFp(unsigned offset, intptr_t value);
-
   intptr_t GetRegister(unsigned n) const {
     ASSERT(n < ARRAY_SIZE(registers_));
     return registers_[n];

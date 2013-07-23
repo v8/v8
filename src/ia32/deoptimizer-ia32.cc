@@ -741,17 +741,6 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   __ bind(&done);
 }
 
-
-void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
-  SetFrameSlot(offset, value);
-}
-
-
-void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
-  SetFrameSlot(offset, value);
-}
-
-
 #undef __
 
 
