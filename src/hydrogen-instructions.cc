@@ -2791,6 +2791,39 @@ HCheckMaps* HCheckMaps::New(HValue* value,
 }
 
 
+HCheckMaps* HCheckMaps::NewWithTransitions(HValue* value,
+                                           Handle<Map> map,
+                                           Zone* zone,
+                                           CompilationInfo* info) {
+  HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, value);
+  check_map->map_set_.Add(map, zone);
+
+  // Since transitioned elements maps of the initial map don't fail the map
+  // check, the CheckMaps instruction doesn't need to depend on ElementsKinds.
+  check_map->ClearGVNFlag(kDependsOnElementsKind);
+
+  ElementsKind kind = map->elements_kind();
+  bool packed = IsFastPackedElementsKind(kind);
+  while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
+    kind = GetNextMoreGeneralFastElementsKind(kind, packed);
+    Map* transitioned_map =
+        map->LookupElementsTransitionMap(kind);
+    if (transitioned_map) {
+      check_map->map_set_.Add(Handle<Map>(transitioned_map), zone);
+    }
+  };
+
+  if (map->CanOmitMapChecks() &&
+      value->IsConstant() &&
+      HConstant::cast(value)->InstanceOf(map)) {
+    check_map->omit(info);
+  }
+
+  check_map->map_set_.Sort();
+  return check_map;
+}
+
+
 void HCheckMaps::FinalizeUniqueValueId() {
   if (!map_unique_ids_.is_empty()) return;
   Zone* zone = block()->zone();

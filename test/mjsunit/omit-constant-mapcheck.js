@@ -53,3 +53,18 @@ assertEquals(2, load2());
 g2.b = 10;
 g2.a = 5;
 assertEquals(5, load2());
+
+var g3 = { a:2, b:9, c:1 }
+
+function store(v) {
+  g3.a = v;
+  return g3.a;
+}
+
+assertEquals(5, store(5));
+assertEquals(8, store(8));
+%OptimizeFunctionOnNextCall(store);
+assertEquals(10, store(10));
+delete g3.c;
+store(7);
+assertEquals({a:7, b:9}, g3);

@@ -4549,7 +4549,8 @@ void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
 void HOptimizedGraphBuilder::AddCheckMapsWithTransitions(HValue* object,
                                                          Handle<Map> map) {
   BuildCheckHeapObject(object);
-  AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
+  AddInstruction(HCheckMaps::NewWithTransitions(
+      object, map, zone(), top_info()));
 }
 
 
