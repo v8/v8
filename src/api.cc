@@ -770,7 +770,6 @@ void Context::Exit() {
   i::Context* last_context =
       isolate->handle_scope_implementer()->RestoreContext();
   isolate->set_context(last_context);
-  isolate->set_context_exit_happened(true);
 }
 
 

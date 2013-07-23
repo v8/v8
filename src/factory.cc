@@ -673,7 +673,11 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
       function_info->allows_lazy_compilation() &&
       !function_info->optimization_disabled() &&
       !isolate()->DebuggerHasBreakPoints()) {
-    result->MarkForLazyRecompilation();
+    if (FLAG_parallel_recompilation) {
+      result->MarkForParallelRecompilation();
+    } else {
+      result->MarkForLazyRecompilation();
+    }
   }
   return result;
 }

@@ -9234,10 +9234,7 @@ void JSFunction::MarkForParallelRecompilation() {
   ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  if (!FLAG_parallel_recompilation) {
-    JSFunction::MarkForLazyRecompilation();
-    return;
-  }
+  ASSERT(FLAG_parallel_recompilation);
   if (FLAG_trace_parallel_recompilation) {
     PrintF("  ** Marking ");
     PrintName();
