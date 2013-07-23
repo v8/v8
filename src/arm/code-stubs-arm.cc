@@ -38,6 +38,16 @@ namespace v8 {
 namespace internal {
 
 
+void ToNumberStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r0 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ = NULL;
+}
+
+
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -286,17 +296,6 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
                                            Register rhs);
 
 
-// Check if the operand is a heap number.
-static void EmitCheckForHeapNumber(MacroAssembler* masm, Register operand,
-                                   Register scratch1, Register scratch2,
-                                   Label* not_a_heap_number) {
-  __ ldr(scratch1, FieldMemOperand(operand, HeapObject::kMapOffset));
-  __ LoadRoot(scratch2, Heap::kHeapNumberMapRootIndex);
-  __ cmp(scratch1, scratch2);
-  __ b(ne, not_a_heap_number);
-}
-
-
 void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
   Isolate* isolate = masm->isolate();
@@ -318,22 +317,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ Ret();
-}
-
-
-void ToNumberStub::Generate(MacroAssembler* masm) {
-  // The ToNumber stub takes one argument in eax.
-  Label check_heap_number, call_builtin;
-  __ JumpIfNotSmi(r0, &check_heap_number);
-  __ Ret();
-
-  __ bind(&check_heap_number);
-  EmitCheckForHeapNumber(masm, r0, r1, ip, &call_builtin);
-  __ Ret();
-
-  __ bind(&call_builtin);
-  __ push(r0);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
 }
 
 
