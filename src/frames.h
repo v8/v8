@@ -47,6 +47,7 @@ int JSCallerSavedCode(int n);
 
 
 // Forward declarations.
+class ExternalCallbackScope;
 class StackFrameIteratorBase;
 class ThreadLocalTop;
 class Isolate;
@@ -884,7 +885,7 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
                          Address fp, Address sp,
                          Address js_entry_sp);
 
-  inline JavaScriptFrame* frame() const;
+  inline StackFrame* frame() const;
   void Advance();
 
   StackFrame::Type top_frame_type() const { return top_frame_type_; }
@@ -903,6 +904,7 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
   const Address low_bound_;
   const Address high_bound_;
   StackFrame::Type top_frame_type_;
+  ExternalCallbackScope* external_callback_scope_;
 };
 
 
