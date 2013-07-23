@@ -648,6 +648,17 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       count() * table_entry_size_);
 }
 
+
+void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
+  SetFrameSlot(offset, value);
+}
+
+
+void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
+  SetFrameSlot(offset, value);
+}
+
+
 #undef __
 
 
