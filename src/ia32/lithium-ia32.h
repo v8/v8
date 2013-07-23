@@ -2048,13 +2048,15 @@ class LNumberTagI: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LNumberTagU: public LTemplateInstruction<1, 1, 0> {
+class LNumberTagU: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LNumberTagU(LOperand* value) {
+  LNumberTagU(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagU, "number-tag-u")
 };

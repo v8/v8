@@ -4911,7 +4911,8 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   } else {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatureScope feature_scope(masm(), SSE2);
-      __ LoadUint32(xmm0, reg, xmm1);
+      __ LoadUint32(xmm0, reg,
+                    ToDoubleRegister(LNumberTagU::cast(instr)->temp()));
     } else {
       // There's no fild variant for unsigned values, so zero-extend to a 64-bit
       // int manually.

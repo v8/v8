@@ -2024,7 +2024,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       if (val->HasRange() && val->range()->IsInSmiRange()) {
         return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else if (val->CheckFlag(HInstruction::kUint32)) {
-        LNumberTagU* result = new(zone()) LNumberTagU(value);
+        LOperand* temp = CpuFeatures::IsSupported(SSE2) ? FixedTemp(xmm1)
+                                                        : NULL;
+        LNumberTagU* result = new(zone()) LNumberTagU(value, temp);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
       } else {
         LNumberTagI* result = new(zone()) LNumberTagI(value);
