@@ -81,10 +81,20 @@ intptr_t OS::CommitPageSize() {
 }
 
 
-#ifndef __CYGWIN__
+void OS::Free(void* address, const size_t size) {
+  // TODO(1240712): munmap has a return value which is ignored here.
+  int result = munmap(address, size);
+  USE(result);
+  ASSERT(result == 0);
+}
+
+
 // Get rid of writable permission on code allocations.
 void OS::ProtectCode(void* address, const size_t size) {
-#if defined(__native_client__)
+#if defined(__CYGWIN__)
+  DWORD old_protect;
+  VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect);
+#elif defined(__native_client__)
   // The Native Client port of V8 uses an interpreter, so
   // code pages don't need PROT_EXEC.
   mprotect(address, size, PROT_READ);
@@ -96,9 +106,13 @@ void OS::ProtectCode(void* address, const size_t size) {
 
 // Create guard pages.
 void OS::Guard(void* address, const size_t size) {
+#if defined(__CYGWIN__)
+  DWORD oldprotect;
+  VirtualProtect(address, size, PAGE_READONLY | PAGE_GUARD, &oldprotect);
+#else
   mprotect(address, size, PROT_NONE);
+#endif
 }
-#endif  // __CYGWIN__
 
 
 void* OS::GetRandomMmapAddr() {
@@ -132,6 +146,50 @@ void* OS::GetRandomMmapAddr() {
     return reinterpret_cast<void*>(raw_addr);
   }
   return NULL;
+}
+
+
+size_t OS::AllocateAlignment() {
+  return getpagesize();
+}
+
+
+void OS::Sleep(int milliseconds) {
+  useconds_t ms = static_cast<useconds_t>(milliseconds);
+  usleep(1000 * ms);
+}
+
+
+int OS::NumberOfCores() {
+  return sysconf(_SC_NPROCESSORS_ONLN);
+}
+
+
+void OS::Abort() {
+  // Redirect to std abort to signal abnormal program termination.
+  if (FLAG_break_on_abort) {
+    DebugBreak();
+  }
+  abort();
+}
+
+
+void OS::DebugBreak() {
+#if V8_HOST_ARCH_ARM
+  asm("bkpt 0");
+#elif V8_HOST_ARCH_MIPS
+  asm("break");
+#elif V8_HOST_ARCH_IA32
+#if defined(__native_client__)
+  asm("hlt");
+#else
+  asm("int $3");
+#endif  // __native_client__
+#elif V8_HOST_ARCH_X64
+  asm("int $3");
+#else
+#error Unsupported host architecture.
+#endif
 }
 
 
@@ -371,7 +429,7 @@ OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
 #endif
 
 
-void POSIXPostSetUp() {
+void OS::PostSetUp() {
 #if V8_TARGET_ARCH_IA32
   OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
   if (generated_memmove != NULL) {

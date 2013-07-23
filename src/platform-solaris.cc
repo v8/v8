@@ -94,11 +94,6 @@ double ceiling(double x) {
 static Mutex* limit_mutex = NULL;
 
 
-void OS::PostSetUp() {
-  POSIXPostSetUp();
-}
-
-
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
   return 0;  // Solaris runs on a lot of things.
 }
@@ -150,11 +145,6 @@ bool OS::IsOutsideAllocatedSpace(void* address) {
 }
 
 
-size_t OS::AllocateAlignment() {
-  return static_cast<size_t>(getpagesize());
-}
-
-
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool is_executable) {
@@ -169,36 +159,6 @@ void* OS::Allocate(const size_t requested,
   *allocated = msize;
   UpdateAllocatedSpaceLimits(mbase, msize);
   return mbase;
-}
-
-
-void OS::Free(void* address, const size_t size) {
-  // TODO(1240712): munmap has a return value which is ignored here.
-  int result = munmap(address, size);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
-void OS::Sleep(int milliseconds) {
-  useconds_t ms = static_cast<useconds_t>(milliseconds);
-  usleep(1000 * ms);
-}
-
-
-int OS::NumberOfCores() {
-  return sysconf(_SC_NPROCESSORS_ONLN);
-}
-
-
-void OS::Abort() {
-  // Redirect to std abort to signal abnormal program termination.
-  abort();
-}
-
-
-void OS::DebugBreak() {
-  asm("int $3");
 }
 
 

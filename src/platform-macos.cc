@@ -96,11 +96,6 @@ double ceiling(double x) {
 static Mutex* limit_mutex = NULL;
 
 
-void OS::PostSetUp() {
-  POSIXPostSetUp();
-}
-
-
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
 // and verification).  The estimate is conservative, i.e., not all addresses in
@@ -123,11 +118,6 @@ static void UpdateAllocatedSpaceLimits(void* address, int size) {
 
 bool OS::IsOutsideAllocatedSpace(void* address) {
   return address < lowest_ever_allocated || address >= highest_ever_allocated;
-}
-
-
-size_t OS::AllocateAlignment() {
-  return getpagesize();
 }
 
 
@@ -157,35 +147,6 @@ void* OS::Allocate(const size_t requested,
   *allocated = msize;
   UpdateAllocatedSpaceLimits(mbase, msize);
   return mbase;
-}
-
-
-void OS::Free(void* address, const size_t size) {
-  // TODO(1240712): munmap has a return value which is ignored here.
-  int result = munmap(address, size);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
-void OS::Sleep(int milliseconds) {
-  usleep(1000 * milliseconds);
-}
-
-
-int OS::NumberOfCores() {
-  return sysconf(_SC_NPROCESSORS_ONLN);
-}
-
-
-void OS::Abort() {
-  // Redirect to std abort to signal abnormal program termination
-  abort();
-}
-
-
-void OS::DebugBreak() {
-  asm("int $3");
 }
 
 
