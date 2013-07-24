@@ -2232,13 +2232,6 @@ void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
 }
 
 
-void LCodeGen::DoCmpConstantEqAndBranch(LCmpConstantEqAndBranch* instr) {
-  Register left = ToRegister(instr->left());
-
-  EmitBranch(instr, eq, left, Operand(instr->hydrogen()->right()));
-}
-
-
 Condition LCodeGen::EmitIsObject(Register input,
                                  Register temp1,
                                  Register temp2,

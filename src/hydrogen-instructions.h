@@ -101,7 +101,6 @@ class LChunkBuilder;
   V(CompareGeneric)                            \
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
-  V(CompareConstantEqAndBranch)                \
   V(Constant)                                  \
   V(Context)                                   \
   V(DateField)                                 \
@@ -3965,29 +3964,6 @@ class HCompareObjectEqAndBranch: public HTemplateControlInstruction<2, 2> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CompareObjectEqAndBranch)
-};
-
-
-class HCompareConstantEqAndBranch: public HUnaryControlInstruction {
- public:
-  HCompareConstantEqAndBranch(HValue* left, int right, Token::Value op)
-      : HUnaryControlInstruction(left, NULL, NULL), op_(op), right_(right) {
-    ASSERT(op == Token::EQ_STRICT);
-  }
-
-  Token::Value op() const { return op_; }
-  HValue* left() { return value(); }
-  int right() const { return right_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Integer32();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CompareConstantEqAndBranch);
-
- private:
-  const Token::Value op_;
-  const int right_;
 };
 
 

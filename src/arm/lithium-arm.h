@@ -74,7 +74,6 @@ class LCodeGen;
   V(ClampIToUint8)                              \
   V(ClampTToUint8)                              \
   V(ClassOfTestAndBranch)                       \
-  V(CmpConstantEqAndBranch)                     \
   V(CompareNumericAndBranch)                    \
   V(CmpObjectEqAndBranch)                       \
   V(CmpMapAndBranch)                            \
@@ -886,20 +885,6 @@ class LCmpObjectEqAndBranch: public LControlInstruction<2, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CmpObjectEqAndBranch,
                                "cmp-object-eq-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareObjectEqAndBranch)
-};
-
-
-class LCmpConstantEqAndBranch: public LControlInstruction<1, 0> {
- public:
-  explicit LCmpConstantEqAndBranch(LOperand* left) {
-    inputs_[0] = left;
-  }
-
-  LOperand* left() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CmpConstantEqAndBranch,
-                               "cmp-constant-eq-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(CompareConstantEqAndBranch)
 };
 
 
