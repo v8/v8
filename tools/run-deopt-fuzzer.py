@@ -28,10 +28,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import json
+import math
 import multiprocessing
 import optparse
 import os
 from os.path import join
+import random
 import shlex
 import subprocess
 import sys
@@ -42,26 +45,22 @@ from testrunner.local import progress
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.local import verbose
-from testrunner.network import network_execution
 from testrunner.objects import context
 
 
 ARCH_GUESS = utils.DefaultArch()
-DEFAULT_TESTS = ["mjsunit", "cctest", "message", "preparser"]
+DEFAULT_TESTS = ["mjsunit"]
 TIMEOUT_DEFAULT = 60
 TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }
 
-# Use this to run several variants of the tests.
-VARIANT_FLAGS = [[],
-                 ["--stress-opt", "--always-opt"],
-                 ["--nocrankshaft"]]
 MODE_FLAGS = {
     "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--enable-slow-asserts",
-                 "--debug-code", "--verify-heap"],
+                 "--debug-code", "--verify-heap",
+                 "--noparallel-recompilation"],
     "release" : ["--nobreak-on-abort", "--nodead-code-elimination",
-                 "--nofold-constants"]}
+                 "--nofold-constants", "--noparallel-recompilation"]}
 
 SUPPORTED_ARCHS = ["android_arm",
                    "android_ia32",
@@ -78,6 +77,72 @@ SLOW_ARCHS = ["android_arm",
               "mipsel",
               "nacl_ia32",
               "nacl_x64"]
+MAX_DEOPT = 1000000000
+DISTRIBUTION_MODES = ["smooth", "random"]
+
+
+class RandomDistribution:
+  def __init__(self, seed=None):
+    seed = seed or random.randint(1, sys.maxint)
+    print "Using random distribution with seed %d" % seed
+    self._random = random.Random(seed)
+
+  def Distribute(self, n, m):
+    if n > m:
+      n = m
+    return self._random.sample(xrange(1, m + 1), n)
+
+
+class SmoothDistribution:
+  """Distribute n numbers into the interval [1:m].
+  F1: Factor of the first derivation of the distribution function.
+  F2: Factor of the second derivation of the distribution function.
+  With F1 and F2 set to 0, the distribution will be equal.
+  """
+  def __init__(self, factor1=2.0, factor2=0.2):
+    self._factor1 = factor1
+    self._factor2 = factor2
+
+  def Distribute(self, n, m):
+    if n > m:
+      n = m
+    if n <= 1:
+      return [ 1 ]
+
+    result = []
+    x = 0.0
+    dx = 1.0
+    ddx = self._factor1
+    dddx = self._factor2
+    for i in range(0, n):
+      result += [ x ]
+      x += dx
+      dx += ddx
+      ddx += dddx
+
+    # Project the distribution into the interval [0:M].
+    result = [ x * m / result[-1] for x in result ]
+
+    # Equalize by n. The closer n is to m, the more equal will be the
+    # distribution.
+    for (i, x) in enumerate(result):
+      # The value of x if it was equally distributed.
+      equal_x = i / float(n - 1) * float(m - 1) + 1
+
+      # Difference factor between actual and equal distribution.
+      diff = 1 - (x / equal_x)
+
+      # Equalize x dependent on the number of values to distribute.
+      result[i] = int(x + (i + 1) * diff)
+    return result
+
+
+def Distribution(options):
+  if options.distribution_mode == "random":
+    return RandomDistribution(options.seed)
+  if options.distribution_mode == "smooth":
+    return SmoothDistribution(options.distribution_factor1,
+                              options.distribution_factor2)
 
 
 def BuildOptions():
@@ -92,13 +157,28 @@ def BuildOptions():
   result.add_option("--buildbot",
                     help="Adapt to path structure used on buildbots",
                     default=False, action="store_true")
-  result.add_option("--cat", help="Print the source of the tests",
-                    default=False, action="store_true")
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
                     default="")
+  result.add_option("--coverage", help=("Exponential test coverage "
+                    "(range 0.0, 1.0) -- 0.0: one test, 1.0 all tests (slow)"),
+                    default=0.4, type="float")
+  result.add_option("--coverage-lift", help=("Lifts test coverage for tests "
+                    "with a small number of deopt points (range 0, inf)"),
+                    default=20, type="int")
   result.add_option("--download-data", help="Download missing test suite data",
                     default=False, action="store_true")
+  result.add_option("--distribution-factor1", help=("Factor of the first "
+                    "derivation of the distribution function"), default=2.0,
+                    type="float")
+  result.add_option("--distribution-factor2", help=("Factor of the second "
+                    "derivation of the distribution function"), default=0.7,
+                    type="float")
+  result.add_option("--distribution-mode", help=("How to select deopt points "
+                    "for a given test (smooth|random)"),
+                    default="smooth")
+  result.add_option("--dump-results-file", help=("Dump maximum number of "
+                    "deopt points per test to a file"))
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
@@ -109,50 +189,27 @@ def BuildOptions():
   result.add_option("-m", "--mode",
                     help="The test modes in which to run (comma-separated)",
                     default="release,debug")
-  result.add_option("--no-network", "--nonetwork",
-                    help="Don't distribute tests on the network",
-                    default=(utils.GuessOS() != "linux"),
-                    dest="no_network", action="store_true")
-  result.add_option("--no-presubmit", "--nopresubmit",
-                    help='Skip presubmit checks',
-                    default=False, dest="no_presubmit", action="store_true")
-  result.add_option("--no-stress", "--nostress",
-                    help="Don't run crankshaft --always-opt --stress-op test",
-                    default=False, dest="no_stress", action="store_true")
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
   result.add_option("-p", "--progress",
                     help=("The style of progress indicator"
                           " (verbose, dots, color, mono)"),
-                    choices=progress.PROGRESS_INDICATORS.keys(), default="mono")
-  result.add_option("--report", help="Print a summary of the tests to be run",
-                    default=False, action="store_true")
+                    choices=progress.PROGRESS_INDICATORS.keys(),
+                    default="mono")
   result.add_option("--shard-count",
                     help="Split testsuites into this number of shards",
                     default=1, type="int")
   result.add_option("--shard-run",
                     help="Run this shard from the split up tests.",
                     default=1, type="int")
-  result.add_option("--shell", help="DEPRECATED! use --shell-dir", default="")
   result.add_option("--shell-dir", help="Directory containing executables",
                     default="")
-  result.add_option("--stress-only",
-                    help="Only run tests with --always-opt --stress-opt",
-                    default=False, action="store_true")
-  result.add_option("--time", help="Print timing information after running",
-                    default=False, action="store_true")
+  result.add_option("--seed", help="The seed for the random distribution",
+                    type="int")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
                     default= -1, type="int")
   result.add_option("-v", "--verbose", help="Verbose output",
                     default=False, action="store_true")
-  result.add_option("--valgrind", help="Run tests through valgrind",
-                    default=False, action="store_true")
-  result.add_option("--warn-unused", help="Report unused rules",
-                    default=False, action="store_true")
-  result.add_option("--junitout", help="File name of the JUnit output")
-  result.add_option("--junittestsuite",
-                    help="The testsuite name in the JUnit output file",
-                    default="v8tests")
   return result
 
 
@@ -178,32 +235,29 @@ def ProcessOptions(options):
       return False
 
   # Special processing of other options, sorted alphabetically.
-
-  if options.buildbot:
-    # Buildbots run presubmit tests as a separate step.
-    options.no_presubmit = True
-    options.no_network = True
-  if options.command_prefix:
-    print("Specifying --command-prefix disables network distribution, "
-          "running tests locally.")
-    options.no_network = True
   options.command_prefix = shlex.split(options.command_prefix)
   options.extra_flags = shlex.split(options.extra_flags)
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
-  if options.no_stress:
-    VARIANT_FLAGS = [[], ["--nocrankshaft"]]
-  if not options.shell_dir:
-    if options.shell:
-      print "Warning: --shell is deprecated, use --shell-dir instead."
-      options.shell_dir = os.path.dirname(options.shell)
-  if options.stress_only:
-    VARIANT_FLAGS = [["--stress-opt", "--always-opt"]]
-  if options.valgrind:
-    run_valgrind = os.path.join("tools", "run-valgrind.py")
-    # This is OK for distributed running, so we don't need to set no_network.
-    options.command_prefix = (["python", "-u", run_valgrind] +
-                              options.command_prefix)
+  if not options.distribution_mode in DISTRIBUTION_MODES:
+    print "Unknown distribution mode %s" % options.distribution_mode
+    return False
+  if options.distribution_factor1 < 0.0:
+    print ("Distribution factor1 %s is out of range. Defaulting to 0.0"
+        % options.distribution_factor1)
+    options.distribution_factor1 = 0.0
+  if options.distribution_factor2 < 0.0:
+    print ("Distribution factor2 %s is out of range. Defaulting to 0.0"
+        % options.distribution_factor2)
+    options.distribution_factor2 = 0.0
+  if options.coverage < 0.0 or options.coverage > 1.0:
+    print ("Coverage %s is out of range. Defaulting to 0.4"
+        % options.coverage)
+    options.coverage = 0.4
+  if options.coverage_lift < 0:
+    print ("Coverage lift %s is out of range. Defaulting to 0"
+        % options.coverage_lift)
+    options.coverage_lift = 0
   return True
 
 
@@ -232,11 +286,6 @@ def Main():
 
   exit_code = 0
   workspace = os.path.abspath(join(os.path.dirname(sys.argv[0]), ".."))
-  if not options.no_presubmit:
-    print ">>> running presubmit tests"
-    code = subprocess.call(
-        [sys.executable, join(workspace, "tools", "presubmit.py")])
-    exit_code = code
 
   suite_paths = utils.GetSuitePaths(join(workspace, "test"))
 
@@ -268,8 +317,21 @@ def Main():
   return exit_code
 
 
+def CalculateNTests(m, options):
+  """Calculates the number of tests from m deopt points with exponential
+  coverage.
+  The coverage is expected to be between 0.0 and 1.0.
+  The 'coverage lift' lifts the coverage for tests with smaller m values.
+  """
+  c = float(options.coverage)
+  l = float(options.coverage_lift)
+  return int(math.pow(m, (m * c + l) / (m + l)))
+
+
 def Execute(arch, mode, args, options, suites, workspace):
   print(">>> Running tests for %s.%s" % (arch, mode))
+
+  dist = Distribution(options)
 
   shell_dir = options.shell_dir
   if not shell_dir:
@@ -304,81 +366,100 @@ def Execute(arch, mode, args, options, suites, workspace):
     "arch": arch,
     "system": utils.GuessOS(),
     "isolates": options.isolates,
-    "deopt_fuzzer": False,
+    "deopt_fuzzer": True,
   }
   all_tests = []
   num_tests = 0
   test_id = 0
+
+  # Remember test case prototypes for the fuzzing phase.
+  test_backup = dict((s, []) for s in suites)
+
   for s in suites:
     s.ReadStatusFile(variables)
     s.ReadTestCases(ctx)
     if len(args) > 0:
       s.FilterTestCasesByArgs(args)
     all_tests += s.tests
-    s.FilterTestCasesByStatus(options.warn_unused)
-    if options.cat:
-      verbose.PrintTestSource(s.tests)
-      continue
-    variant_flags = s.VariantFlags() or VARIANT_FLAGS
-    s.tests = [ t.CopyAddingFlags(v) for t in s.tests for v in variant_flags ]
-    s.tests = ShardTests(s.tests, options.shard_count, options.shard_run)
+    s.FilterTestCasesByStatus(False)
+    test_backup[s] = s.tests
+    analysis_flags = ["--deopt-every-n-times", "%d" % MAX_DEOPT,
+                      "--print-deopt-stress"]
+    s.tests = [ t.CopyAddingFlags(analysis_flags) for t in s.tests ]
     num_tests += len(s.tests)
     for t in s.tests:
       t.id = test_id
       test_id += 1
 
-  if options.cat:
-    return 0  # We're done here.
+  if num_tests == 0:
+    print "No tests to run."
+    return 0
 
-  if options.report:
-    verbose.PrintReport(all_tests)
+  try:
+    print(">>> Collection phase")
+    progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
+    runner = execution.Runner(suites, progress_indicator, ctx)
+
+    exit_code = runner.Run(options.j)
+    if runner.terminate:
+      return exit_code
+
+  except KeyboardInterrupt:
+    return 1
+
+  print(">>> Analysis phase")
+  num_tests = 0
+  test_id = 0
+  for s in suites:
+    test_results = {}
+    for t in s.tests:
+      for line in t.output.stdout.splitlines():
+        if line.startswith("=== Stress deopt counter: "):
+          test_results[t.path] = MAX_DEOPT - int(line.split(" ")[-1])
+    for t in s.tests:
+      if t.path not in test_results:
+        print "Missing results for %s" % t.path
+    if options.dump_results_file:
+      results_dict = dict((t.path, n) for (t, n) in test_results.iteritems())
+      with file("%s.%d.txt" % (dump_results_file, time.time()), "w") as f:
+        f.write(json.dumps(results_dict))
+
+    # Reset tests and redistribute the prototypes from the collection phase.
+    s.tests = []
+    if options.verbose:
+      print "Test distributions:"
+    for t in test_backup[s]:
+      max_deopt = test_results.get(t.path, 0)
+      if max_deopt == 0:
+        continue
+      n_deopt = CalculateNTests(max_deopt, options)
+      distribution = dist.Distribute(n_deopt, max_deopt)
+      if options.verbose:
+        print "%s %s" % (t.path, distribution)
+      for i in distribution:
+        fuzzing_flags = ["--deopt-every-n-times", "%d" % i]
+        s.tests.append(t.CopyAddingFlags(fuzzing_flags))
+    num_tests += len(s.tests)
+    for t in s.tests:
+      t.id = test_id
+      test_id += 1
 
   if num_tests == 0:
     print "No tests to run."
     return 0
 
-  # Run the tests, either locally or distributed on the network.
   try:
-    start_time = time.time()
+    print(">>> Deopt fuzzing phase (%d test cases)" % num_tests)
     progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
-    if options.junitout:
-      progress_indicator = progress.JUnitTestProgressIndicator(
-          progress_indicator, options.junitout, options.junittestsuite)
-
-    run_networked = not options.no_network
-    if not run_networked:
-      print("Network distribution disabled, running tests locally.")
-    elif utils.GuessOS() != "linux":
-      print("Network distribution is only supported on Linux, sorry!")
-      run_networked = False
-    peers = []
-    if run_networked:
-      peers = network_execution.GetPeers()
-      if not peers:
-        print("No connection to distribution server; running tests locally.")
-        run_networked = False
-      elif len(peers) == 1:
-        print("No other peers on the network; running tests locally.")
-        run_networked = False
-      elif num_tests <= 100:
-        print("Less than 100 tests, running them locally.")
-        run_networked = False
-
-    if run_networked:
-      runner = network_execution.NetworkedRunner(suites, progress_indicator,
-                                                 ctx, peers, workspace)
-    else:
-      runner = execution.Runner(suites, progress_indicator, ctx)
+    runner = execution.Runner(suites, progress_indicator, ctx)
 
     exit_code = runner.Run(options.j)
     if runner.terminate:
       return exit_code
-    overall_duration = time.time() - start_time
+
   except KeyboardInterrupt:
     return 1
 
-  if options.time:
-    verbose.PrintTestDurations(suites, overall_duration)
   return exit_code
 
 
