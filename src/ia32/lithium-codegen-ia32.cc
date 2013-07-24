@@ -3782,8 +3782,7 @@ void LCodeGen::EmitIntegerMathAbs(LMathAbs* instr) {
   __ test(input_reg, Operand(input_reg));
   Label is_positive;
   __ j(not_sign, &is_positive);
-  __ neg(input_reg);
-  __ test(input_reg, Operand(input_reg));
+  __ neg(input_reg);  // Sets flags.
   DeoptimizeIf(negative, instr->environment());
   __ bind(&is_positive);
 }
