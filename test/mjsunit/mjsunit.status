@@ -43,9 +43,6 @@ regress/regress-524: SKIP
 # This test non-deterministically runs out of memory on Windows ia32.
 regress/regress-crbug-160010: SKIP
 
-# Deferred stack trace formatting is temporarily disabled.
-stack-traces-gc: PASS || FAIL
-
 ##############################################################################
 # Too slow in debug mode with --stress-opt mode.
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
