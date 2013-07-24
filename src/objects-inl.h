@@ -2352,8 +2352,8 @@ int DescriptorArray::GetFieldIndex(int descriptor_number) {
 }
 
 
-JSFunction* DescriptorArray::GetConstantFunction(int descriptor_number) {
-  return JSFunction::cast(GetValue(descriptor_number));
+Object* DescriptorArray::GetConstant(int descriptor_number) {
+  return GetValue(descriptor_number);
 }
 
 
@@ -3648,7 +3648,7 @@ bool Map::CanBeDeprecated() {
         details.representation().IsHeapObject()) {
       return true;
     }
-    if (FLAG_track_fields && details.type() == CONSTANT_FUNCTION) {
+    if (FLAG_track_fields && details.type() == CONSTANT) {
       return true;
     }
   }

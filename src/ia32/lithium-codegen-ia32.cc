@@ -1836,11 +1836,7 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
   Register reg = ToRegister(instr->result());
   Handle<Object> handle = instr->value();
   AllowDeferredHandleDereference smi_check;
-  if (handle->IsHeapObject()) {
-    __ LoadHeapObject(reg, Handle<HeapObject>::cast(handle));
-  } else {
-    __ Set(reg, Immediate(handle));
-  }
+  __ LoadObject(reg, handle);
 }
 
 
@@ -3060,11 +3056,11 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 }
 
 
-void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
-                                               Register object,
-                                               Handle<Map> type,
-                                               Handle<String> name,
-                                               LEnvironment* env) {
+void LCodeGen::EmitLoadFieldOrConstant(Register result,
+                                       Register object,
+                                       Handle<Map> type,
+                                       Handle<String> name,
+                                       LEnvironment* env) {
   LookupResult lookup(isolate());
   type->LookupDescriptor(NULL, *name, &lookup);
   ASSERT(lookup.IsFound() || lookup.IsCacheable());
@@ -3080,9 +3076,9 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
       __ mov(result, FieldOperand(object, JSObject::kPropertiesOffset));
       __ mov(result, FieldOperand(result, offset + FixedArray::kHeaderSize));
     }
-  } else if (lookup.IsConstantFunction()) {
-    Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*type));
-    __ LoadHeapObject(result, function);
+  } else if (lookup.IsConstant()) {
+    Handle<Object> constant(lookup.GetConstantFromMap(*type), isolate());
+    __ LoadObject(result, constant);
   } else {
     // Negative lookup.
     // Check prototypes.
@@ -3131,7 +3127,7 @@ static bool CompactEmit(SmallMapList* list,
   if (map->HasElementsTransition()) return false;
   LookupResult lookup(isolate);
   map->LookupDescriptor(NULL, *name, &lookup);
-  return lookup.IsField() || lookup.IsConstantFunction();
+  return lookup.IsField() || lookup.IsConstant();
 }
 
 
@@ -3163,16 +3159,14 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
     if (last && !need_generic) {
       DeoptimizeIf(not_equal, instr->environment());
       __ bind(&check_passed);
-      EmitLoadFieldOrConstantFunction(
-          result, object, map, name, instr->environment());
+      EmitLoadFieldOrConstant(result, object, map, name, instr->environment());
     } else {
       Label next;
       bool compact = all_are_compact ? true :
           CompactEmit(instr->hydrogen()->types(), name, i, isolate());
       __ j(not_equal, &next, compact ? Label::kNear : Label::kFar);
       __ bind(&check_passed);
-      EmitLoadFieldOrConstantFunction(
-          result, object, map, name, instr->environment());
+      EmitLoadFieldOrConstant(result, object, map, name, instr->environment());
       __ jmp(&done, all_are_compact ? Label::kNear : Label::kFar);
       __ bind(&next);
     }

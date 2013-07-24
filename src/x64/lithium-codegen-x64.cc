@@ -1504,12 +1504,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Handle<Object> value = instr->value();
   AllowDeferredHandleDereference smi_check;
-  if (value->IsSmi()) {
-    __ Move(ToRegister(instr->result()), value);
-  } else {
-    __ LoadHeapObject(ToRegister(instr->result()),
-                      Handle<HeapObject>::cast(value));
-  }
+  __ LoadObject(ToRegister(instr->result()), value);
 }
 
 
@@ -2689,9 +2684,9 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
       __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
       __ movq(result, FieldOperand(result, offset + FixedArray::kHeaderSize));
     }
-  } else if (lookup.IsConstantFunction()) {
-    Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*type));
-    __ LoadHeapObject(result, function);
+  } else if (lookup.IsConstant()) {
+    Handle<Object> constant(lookup.GetConstantFromMap(*type), isolate());
+    __ LoadObject(result, constant);
   } else {
     // Negative lookup.
     // Check prototypes.
@@ -2722,7 +2717,7 @@ static bool CompactEmit(SmallMapList* list,
   if (map->HasElementsTransition()) return false;
   LookupResult lookup(isolate);
   map->LookupDescriptor(NULL, *name, &lookup);
-  return lookup.IsField() || lookup.IsConstantFunction();
+  return lookup.IsField() || lookup.IsConstant();
 }
 
 

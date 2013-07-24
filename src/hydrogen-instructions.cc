@@ -2723,7 +2723,7 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
           types_.Add(types->at(i), zone);
           break;
         }
-        case CONSTANT_FUNCTION:
+        case CONSTANT:
           types_.Add(types->at(i), zone);
           break;
         case CALLBACKS:

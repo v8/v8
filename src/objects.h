@@ -1644,6 +1644,12 @@ class JSReceiver: public HeapObject {
     CERTAINLY_NOT_STORE_FROM_KEYED
   };
 
+  // Indicates whether a value can be loaded as a constant.
+  enum StoreMode {
+    ALLOW_AS_CONSTANT,
+    FORCE_FIELD
+  };
+
   // Internal properties (e.g. the hidden properties dictionary) might
   // be added even though the receiver is non-extensible.
   enum ExtensibilityCheck {
@@ -1871,14 +1877,16 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
-      ExtensibilityCheck extensibility_check);
+      ExtensibilityCheck extensibility_check,
+      StoreMode mode = ALLOW_AS_CONSTANT);
 
   static Handle<Object> SetLocalPropertyIgnoreAttributes(
       Handle<JSObject> object,
       Handle<Name> key,
       Handle<Object> value,
       PropertyAttributes attributes,
-      ValueType value_type = OPTIMAL_REPRESENTATION);
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      StoreMode mode = ALLOW_AS_CONSTANT);
 
   static inline Handle<String> ExpectedTransitionKey(Handle<Map> map);
   static inline Handle<Map> ExpectedTransitionTarget(Handle<Map> map);
@@ -1906,7 +1914,8 @@ class JSObject: public JSReceiver {
       Name* key,
       Object* value,
       PropertyAttributes attributes,
-      ValueType value_type = OPTIMAL_REPRESENTATION);
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      StoreMode mode = ALLOW_AS_CONSTANT);
 
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
@@ -2205,9 +2214,9 @@ class JSObject: public JSReceiver {
   // normal property is added instead, with a map transition.
   // This avoids the creation of many maps with the same constant
   // function, all orphaned.
-  MUST_USE_RESULT MaybeObject* AddConstantFunctionProperty(
+  MUST_USE_RESULT MaybeObject* AddConstantProperty(
       Name* name,
-      JSFunction* function,
+      Object* constant,
       PropertyAttributes attributes);
 
   MUST_USE_RESULT MaybeObject* ReplaceSlowProperty(
@@ -2272,7 +2281,8 @@ class JSObject: public JSReceiver {
       StrictModeFlag strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
       ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
-      ValueType value_type = OPTIMAL_REPRESENTATION);
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      StoreMode mode = ALLOW_AS_CONSTANT);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
@@ -2863,7 +2873,7 @@ class DescriptorArray: public FixedArray {
   inline PropertyDetails GetDetails(int descriptor_number);
   inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
-  inline JSFunction* GetConstantFunction(int descriptor_number);
+  inline Object* GetConstant(int descriptor_number);
   inline Object* GetCallbacksObject(int descriptor_number);
   inline AccessorDescriptor* GetCallbacks(int descriptor_number);
 
@@ -4518,7 +4528,7 @@ class Code: public HeapObject {
   enum StubType {
     NORMAL,
     FIELD,
-    CONSTANT_FUNCTION,
+    CONSTANT,
     CALLBACKS,
     INTERCEPTOR,
     MAP_TRANSITION,

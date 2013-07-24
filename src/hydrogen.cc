@@ -5459,10 +5459,10 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
   }
 
   // Handle a load of a constant known function.
-  if (lookup.IsConstantFunction()) {
+  if (lookup.IsConstant()) {
     AddCheckMap(object, map);
-    Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
-    return new(zone()) HConstant(function);
+    Handle<Object> constant(lookup.GetConstantFromMap(*map), isolate());
+    return new(zone()) HConstant(constant);
   }
 
   // Handle a load from a known field somewhere in the prototype chain.
@@ -5480,14 +5480,14 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
   }
 
   // Handle a load of a constant function somewhere in the prototype chain.
-  if (lookup.IsConstantFunction()) {
+  if (lookup.IsConstant()) {
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
     AddCheckMap(object, map);
     Add<HCheckPrototypeMaps>(prototype, holder, zone(), top_info());
-    Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*holder_map));
-    return new(zone()) HConstant(function);
+    Handle<Object> constant(lookup.GetConstantFromMap(*holder_map), isolate());
+    return new(zone()) HConstant(constant);
   }
 
   // No luck, do a generic load.

@@ -370,11 +370,11 @@ class LCodeGen BASE_EMBEDDED {
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp);
 
-  void EmitLoadFieldOrConstantFunction(Register result,
-                                       Register object,
-                                       Handle<Map> type,
-                                       Handle<String> name,
-                                       LEnvironment* env);
+  void EmitLoadFieldOrConstant(Register result,
+                               Register object,
+                               Handle<Map> type,
+                               Handle<String> name,
+                               LEnvironment* env);
 
   // Emits optimized code to deep-copy the contents of statically known
   // object graphs (e.g. object literal boilerplate).

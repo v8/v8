@@ -265,6 +265,9 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
     }
     Handle<Object> result;
     uint32_t element_index = 0;
+    JSReceiver::StoreMode mode = value->IsJSObject()
+        ? JSReceiver::FORCE_FIELD
+        : JSReceiver::ALLOW_AS_CONSTANT;
     if (key->IsInternalizedString()) {
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
@@ -274,7 +277,8 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
         result = JSObject::SetLocalPropertyIgnoreAttributes(
-            boilerplate, name, value, NONE);
+            boilerplate, name, value, NONE,
+            Object::OPTIMAL_REPRESENTATION, mode);
       }
     } else if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
@@ -290,7 +294,8 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
       Handle<String> name =
           isolate->factory()->NewStringFromAscii(CStrVector(str));
       result = JSObject::SetLocalPropertyIgnoreAttributes(
-          boilerplate, name, value, NONE);
+          boilerplate, name, value, NONE,
+          Object::OPTIMAL_REPRESENTATION, mode);
     }
     // If setting the property on the boilerplate throws an
     // exception, the exception is converted to an empty handle in
@@ -2203,8 +2208,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
     }
   } else {
     // Ignore re-initialization of constants that have already been
-    // assigned a function value.
-    ASSERT(lookup.IsReadOnly() && lookup.IsConstantFunction());
+    // assigned a constant value.
+    ASSERT(lookup.IsReadOnly() && lookup.IsConstant());
   }
 
   // Use the set value as the result of the operation.
@@ -4969,8 +4974,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
       return lookup.holder()->FastPropertyAt(
           lookup.representation(),
           lookup.GetFieldIndex().field_index());
-    case CONSTANT_FUNCTION:
-      return lookup.GetConstantFunction();
+    case CONSTANT:
+      return lookup.GetConstant();
     case CALLBACKS:
     case HANDLER:
     case INTERCEPTOR:
@@ -10554,8 +10559,8 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
       }
       return value;
     }
-    case CONSTANT_FUNCTION:
-      return result->GetConstantFunction();
+    case CONSTANT:
+      return result->GetConstant();
     case CALLBACKS: {
       Object* structure = result->GetCallbackObject();
       if (structure->IsForeign() || structure->IsAccessorInfo()) {
