@@ -11348,14 +11348,6 @@ bool DependentCode::Contains(DependencyGroup group, Code* code) {
 }
 
 
-class DeoptimizeDependentCodeFilter : public OptimizedFunctionFilter {
- public:
-  virtual bool TakeFunction(JSFunction* function) {
-    return function->code()->marked_for_deoptimization();
-  }
-};
-
-
 void DependentCode::DeoptimizeDependentCodeGroup(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
@@ -11365,10 +11357,14 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   int end = starts.at(group + 1);
   int code_entries = starts.number_of_entries();
   if (start == end) return;
+
+  // Collect all the code to deoptimize.
+  Zone zone(isolate);
+  ZoneList<Code*> codes(end - start, &zone);
   for (int i = start; i < end; i++) {
     if (is_code_at(i)) {
       Code* code = code_at(i);
-      code->set_marked_for_deoptimization(true);
+      if (!code->marked_for_deoptimization()) codes.Add(code, &zone);
     } else {
       CompilationInfo* info = compilation_info_at(i);
       info->AbortDueToDependencyChange();
@@ -11384,8 +11380,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
     clear_at(i);
   }
   set_number_of_entries(group, 0);
-  DeoptimizeDependentCodeFilter filter;
-  Deoptimizer::DeoptimizeAllFunctionsWith(isolate, &filter);
+  Deoptimizer::DeoptimizeCodeList(isolate, &codes);
 }
 
 

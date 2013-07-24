@@ -4561,7 +4561,7 @@ class Code: public HeapObject {
 
   // [type_feedback_info]: Struct containing type feedback information for
   // unoptimized code. Optimized code can temporarily store the head of
-  // the list of the dependent optimized functions during deoptimization.
+  // the list of code to be deoptimized during mark-compact GC.
   // STUBs can use this slot to store arbitrary information as a Smi.
   // Will contain either a TypeFeedbackInfo object, or JSFunction object,
   // or undefined, or a Smi.
@@ -4569,8 +4569,11 @@ class Code: public HeapObject {
   inline void InitializeTypeFeedbackInfoNoWriteBarrier(Object* value);
   inline int stub_info();
   inline void set_stub_info(int info);
-  inline Object* deoptimizing_functions();
-  inline void set_deoptimizing_functions(Object* value);
+
+  // Used during GC to code a list of code objects to deoptimize.
+  inline Object* code_to_deoptimize_link();
+  inline void set_code_to_deoptimize_link(Object* value);
+  inline Object** code_to_deoptimize_link_slot();
 
   // [gc_metadata]: Field used to hold GC related metadata. The contents of this
   // field does not have to be traced during garbage collection since
@@ -6761,18 +6764,6 @@ class JSFunction: public JSObject {
 
   // Retrieve the native context from a function's literal array.
   static Context* NativeContextFromLiterals(FixedArray* literals);
-
-#ifdef DEBUG
-  bool FunctionsInFunctionListShareSameCode() {
-    Object* current = this;
-    while (!current->IsUndefined()) {
-      JSFunction* function = JSFunction::cast(current);
-      current = function->next_function_link();
-      if (function->code() != this->code()) return false;
-    }
-    return true;
-  }
-#endif
 
   bool PassesHydrogenFilter();
 
