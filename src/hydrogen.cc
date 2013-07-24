@@ -1040,11 +1040,16 @@ void HGraphBuilder::PadEnvironmentForContinuation(
 }
 
 
-HValue* HGraphBuilder::BuildCheckMap(HValue* obj,
-                                     Handle<Map> map) {
+HValue* HGraphBuilder::BuildCheckMap(HValue* obj, Handle<Map> map) {
   HCheckMaps* check = HCheckMaps::New(obj, map, zone(), top_info());
   AddInstruction(check);
   return check;
+}
+
+
+HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
+  if (object->type().IsJSObject()) return object;
+  return Add<HWrapReceiver>(object, function);
 }
 
 
@@ -6886,7 +6891,7 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   if (function_state()->outer() == NULL) {
     HInstruction* elements = Add<HArgumentsElements>(false);
     HInstruction* length = Add<HArgumentsLength>(elements);
-    HValue* wrapped_receiver = Add<HWrapReceiver>(receiver, function);
+    HValue* wrapped_receiver = BuildWrapReceiver(receiver, function);
     HInstruction* result =
         new(zone()) HApplyArguments(function,
                                     wrapped_receiver,
@@ -6903,7 +6908,7 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
     HArgumentsObject* args = function_state()->entry()->arguments_object();
     const ZoneList<HValue*>* arguments_values = args->arguments_values();
     int arguments_count = arguments_values->length();
-    PushAndAdd(new(zone()) HWrapReceiver(receiver, function));
+    Push(BuildWrapReceiver(receiver, function));
     for (int i = 1; i < arguments_count; i++) {
       Push(arguments_values->at(i));
     }

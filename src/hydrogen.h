@@ -1038,6 +1038,7 @@ class HGraphBuilder {
 
   HValue* BuildCheckHeapObject(HValue* object);
   HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
+  HValue* BuildWrapReceiver(HValue* object, HValue* function);
 
   // Building common constructs
   HValue* BuildCheckForCapacityGrow(HValue* object,

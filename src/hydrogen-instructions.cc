@@ -3244,11 +3244,6 @@ HType HStringCharFromCode::CalculateInferredType() {
 }
 
 
-HType HAllocate::CalculateInferredType() {
-  return type_;
-}
-
-
 void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
   ASSERT(side_effect == kChangesNewSpacePromotion);

@@ -4919,10 +4919,10 @@ class HAllocate: public HTemplateInstruction<2> {
   };
 
   HAllocate(HValue* context, HValue* size, HType type, Flags flags)
-      : type_(type),
-        flags_(flags) {
+      : flags_(flags) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
+    set_type(type);
     set_representation(Representation::Tagged());
     SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kChangesNewSpacePromotion);
@@ -4947,7 +4947,6 @@ class HAllocate: public HTemplateInstruction<2> {
 
   HValue* context() { return OperandAt(0); }
   HValue* size() { return OperandAt(1); }
-  HType type() { return type_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     if (index == 0) {
@@ -4964,8 +4963,6 @@ class HAllocate: public HTemplateInstruction<2> {
   void set_known_initial_map(Handle<Map> known_initial_map) {
     known_initial_map_ = known_initial_map;
   }
-
-  virtual HType CalculateInferredType();
 
   bool CanAllocateInNewSpace() const {
     return (flags_ & CAN_ALLOCATE_IN_NEW_SPACE) != 0;
@@ -5012,7 +5009,6 @@ class HAllocate: public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(Allocate)
 
  private:
-  HType type_;
   Flags flags_;
   Handle<Map> known_initial_map_;
 };
@@ -5021,10 +5017,10 @@ class HAllocate: public HTemplateInstruction<2> {
 class HInnerAllocatedObject: public HTemplateInstruction<1> {
  public:
   HInnerAllocatedObject(HValue* value, int offset, HType type = HType::Tagged())
-      : offset_(offset),
-        type_(type) {
+      : offset_(offset) {
     ASSERT(value->IsAllocate());
     SetOperandAt(0, value);
+    set_type(type);
     set_representation(Representation::Tagged());
   }
 
@@ -5035,15 +5031,12 @@ class HInnerAllocatedObject: public HTemplateInstruction<1> {
     return Representation::Tagged();
   }
 
-  virtual HType CalculateInferredType() { return type_; }
-
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject)
 
  private:
   int offset_;
-  HType type_;
 };
 
 
