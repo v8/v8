@@ -411,11 +411,7 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
       Abort("EmitLoadRegister: Unsupported double immediate.");
     } else {
       ASSERT(r.IsTagged());
-      if (literal->IsSmi()) {
-        __ li(scratch, Operand(literal));
-      } else {
-       __ LoadHeapObject(scratch, Handle<HeapObject>::cast(literal));
-      }
+      __ LoadObject(scratch, literal);
     }
     return scratch;
   } else if (op->IsStackSlot() || op->IsArgument()) {
@@ -1628,12 +1624,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Handle<Object> value = instr->value();
   AllowDeferredHandleDereference smi_check;
-  if (value->IsSmi()) {
-    __ li(ToRegister(instr->result()), Operand(value));
-  } else {
-    __ LoadHeapObject(ToRegister(instr->result()),
-                      Handle<HeapObject>::cast(value));
-  }
+  __ LoadObject(ToRegister(instr->result()), value);
 }
 
 
@@ -2886,9 +2877,9 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
       __ lw(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
       __ lw(result, FieldMemOperand(result, offset + FixedArray::kHeaderSize));
     }
-  } else if (lookup.IsConstantFunction()) {
-    Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*type));
-    __ LoadHeapObject(result, function);
+  } else if (lookup.IsConstant()) {
+    Handle<Object> constant(lookup.GetConstantFromMap(*type), isolate());
+    __ LoadObject(result, constant);
   } else {
     // Negative lookup.
     // Check prototypes.
