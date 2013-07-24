@@ -900,15 +900,15 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   // input frame.  For all subsequent output frames, it can be read from the
   // previous one.  This frame's pc can be computed from the non-optimized
   // function code and AST id of the bailout.
-  output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
+  output_offset -= kPCOnStackSize;
+  input_offset -= kPCOnStackSize;
   intptr_t value;
   if (is_bottommost) {
     value = input_->GetFrameSlot(input_offset);
   } else {
     value = output_[frame_index - 1]->GetPc();
   }
-  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetCallerPc(output_offset, value);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
            V8PRIxPTR  " ; caller's pc\n",
@@ -919,14 +919,14 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   // as in the input frame.  For all subsequent output frames, it can be
   // read from the previous one.  Also compute and set this frame's frame
   // pointer.
-  output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
+  output_offset -= kFPOnStackSize;
+  input_offset -= kFPOnStackSize;
   if (is_bottommost) {
     value = input_->GetFrameSlot(input_offset);
   } else {
     value = output_[frame_index - 1]->GetFp();
   }
-  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   ASSERT(!is_bottommost || (input_->GetRegister(fp_reg.code()) +
       has_alignment_padding_ * kPointerSize) == fp_value);
@@ -1049,9 +1049,9 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
   }
 
   // Read caller's PC from the previous frame.
-  output_offset -= kPointerSize;
+  output_offset -= kPCOnStackSize;
   intptr_t callers_pc = output_[frame_index - 1]->GetPc();
-  output_frame->SetFrameSlot(output_offset, callers_pc);
+  output_frame->SetCallerPc(output_offset, callers_pc);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
            V8PRIxPTR " ; caller's pc\n",
@@ -1059,9 +1059,9 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
   }
 
   // Read caller's FP from the previous frame, and set this frame's FP.
-  output_offset -= kPointerSize;
+  output_offset -= kFPOnStackSize;
   intptr_t value = output_[frame_index - 1]->GetFp();
-  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
   if (trace_) {
@@ -1152,9 +1152,9 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   }
 
   // Read caller's PC from the previous frame.
-  output_offset -= kPointerSize;
+  output_offset -= kPCOnStackSize;
   intptr_t callers_pc = output_[frame_index - 1]->GetPc();
-  output_frame->SetFrameSlot(output_offset, callers_pc);
+  output_frame->SetCallerPc(output_offset, callers_pc);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
            V8PRIxPTR " ; caller's pc\n",
@@ -1162,9 +1162,9 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   }
 
   // Read caller's FP from the previous frame, and set this frame's FP.
-  output_offset -= kPointerSize;
+  output_offset -= kFPOnStackSize;
   intptr_t value = output_[frame_index - 1]->GetFp();
-  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
   if (trace_) {
@@ -1265,7 +1265,9 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   // MacroAssembler::EnterFrame). For a setter stub frame we need one additional
   // entry for the implicit return value, see
   // StoreStubCompiler::CompileStoreViaSetter.
-  unsigned fixed_frame_entries = 1 + 4 + (is_setter_stub_frame ? 1 : 0);
+  unsigned fixed_frame_entries = (kPCOnStackSize / kPointerSize) +
+                                 (kFPOnStackSize / kPointerSize) + 3 +
+                                 (is_setter_stub_frame ? 1 : 0);
   unsigned fixed_frame_size = fixed_frame_entries * kPointerSize;
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
@@ -1287,9 +1289,9 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   unsigned output_offset = output_frame_size;
 
   // Read caller's PC from the previous frame.
-  output_offset -= kPointerSize;
+  output_offset -= kPCOnStackSize;
   intptr_t callers_pc = output_[frame_index - 1]->GetPc();
-  output_frame->SetFrameSlot(output_offset, callers_pc);
+  output_frame->SetCallerPc(output_offset, callers_pc);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
            " ; caller's pc\n",
@@ -1297,9 +1299,9 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   }
 
   // Read caller's FP from the previous frame, and set this frame's FP.
-  output_offset -= kPointerSize;
+  output_offset -= kFPOnStackSize;
   intptr_t value = output_[frame_index - 1]->GetFp();
-  output_frame->SetFrameSlot(output_offset, value);
+  output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
   if (trace_) {
@@ -1435,10 +1437,10 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   output_frame->SetTop(top_address);
 
   // Read caller's PC (JSFunction continuation) from the input frame.
-  unsigned input_frame_offset = input_frame_size - kPointerSize;
-  unsigned output_frame_offset = output_frame_size - kPointerSize;
+  unsigned input_frame_offset = input_frame_size - kPCOnStackSize;
+  unsigned output_frame_offset = output_frame_size - kFPOnStackSize;
   intptr_t value = input_->GetFrameSlot(input_frame_offset);
-  output_frame->SetFrameSlot(output_frame_offset, value);
+  output_frame->SetCallerPc(output_frame_offset, value);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
            V8PRIxPTR " ; caller's pc\n",
@@ -1446,10 +1448,10 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   // Read caller's FP from the input frame, and set this frame's FP.
-  input_frame_offset -= kPointerSize;
+  input_frame_offset -= kFPOnStackSize;
   value = input_->GetFrameSlot(input_frame_offset);
-  output_frame_offset -= kPointerSize;
-  output_frame->SetFrameSlot(output_frame_offset, value);
+  output_frame_offset -= kFPOnStackSize;
+  output_frame->SetCallerFp(output_frame_offset, value);
   intptr_t frame_ptr = input_->GetRegister(fp_reg.code());
   output_frame->SetRegister(fp_reg.code(), frame_ptr);
   output_frame->SetFp(frame_ptr);

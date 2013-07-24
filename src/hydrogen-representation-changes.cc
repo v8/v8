@@ -51,9 +51,12 @@ void HRepresentationChangesPhase::InsertRepresentationChangeForUse(
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
-    new_value = (is_truncating && to.IsInteger32())
-        ? constant->CopyToTruncatedInt32(graph()->zone())
-        : constant->CopyToRepresentation(to, graph()->zone());
+    if (is_truncating && to.IsInteger32()) {
+      Maybe<HConstant*> res = constant->CopyToTruncatedInt32(graph()->zone());
+      if (res.has_value) new_value = res.value;
+    } else {
+      new_value = constant->CopyToRepresentation(to, graph()->zone());
+    }
   }
 
   if (new_value == NULL) {

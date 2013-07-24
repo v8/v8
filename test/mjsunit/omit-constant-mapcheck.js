@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,46 +25,46 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VM_STATE_H_
-#define V8_VM_STATE_H_
+// Flags: --allow-natives-syntax
 
-#include "allocation.h"
-#include "isolate.h"
+var g1 = { a:1 }
 
-namespace v8 {
-namespace internal {
+function load() {
+  return g1.a;
+}
 
-template <StateTag Tag>
-class VMState BASE_EMBEDDED {
- public:
-  explicit inline VMState(Isolate* isolate);
-  inline ~VMState();
+assertEquals(1, load());
+assertEquals(1, load());
+%OptimizeFunctionOnNextCall(load);
+assertEquals(1, load());
+delete g1.a;
+assertEquals(undefined, load());
 
- private:
-  Isolate* isolate_;
-  StateTag previous_tag_;
-};
+var g2 = { a:2 }
 
+function load2() {
+  return g2.a;
+}
 
-class ExternalCallbackScope BASE_EMBEDDED {
- public:
-  inline ExternalCallbackScope(Isolate* isolate, Address callback);
-  inline ~ExternalCallbackScope();
-  Address callback() { return callback_; }
-  Address* callback_address() { return &callback_; }
-  ExternalCallbackScope* previous() { return previous_scope_; }
-  inline Address scope_address();
+assertEquals(2, load2());
+assertEquals(2, load2());
+%OptimizeFunctionOnNextCall(load2);
+assertEquals(2, load2());
+g2.b = 10;
+g2.a = 5;
+assertEquals(5, load2());
 
- private:
-  Isolate* isolate_;
-  Address callback_;
-  ExternalCallbackScope* previous_scope_;
-#ifdef USE_SIMULATOR
-  Address scope_address_;
-#endif
-};
+var g3 = { a:2, b:9, c:1 }
 
-} }  // namespace v8::internal
+function store(v) {
+  g3.a = v;
+  return g3.a;
+}
 
-
-#endif  // V8_VM_STATE_H_
+assertEquals(5, store(5));
+assertEquals(8, store(8));
+%OptimizeFunctionOnNextCall(store);
+assertEquals(10, store(10));
+delete g3.c;
+store(7);
+assertEquals({a:7, b:9}, g3);

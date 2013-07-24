@@ -95,7 +95,7 @@ void ThreadLocalTop::InitializeInternal() {
   simulator_ = NULL;
 #endif
   js_entry_sp_ = NULL;
-  external_callback_ = NULL;
+  external_callback_scope_ = NULL;
   current_vm_state_ = EXTERNAL;
   try_catch_handler_address_ = NULL;
   context_ = NULL;

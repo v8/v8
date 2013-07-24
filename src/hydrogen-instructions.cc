@@ -1680,7 +1680,7 @@ void HCheckMaps::PrintDataTo(StringStream* stream) {
   for (int i = 1; i < map_set()->length(); ++i) {
     stream->Add(",%p", *map_set()->at(i));
   }
-  stream->Add("]");
+  stream->Add("]%s", CanOmitMapChecks() ? "(omitted)" : "");
 }
 
 
@@ -2136,16 +2136,6 @@ void HSimulate::PrintDataTo(StringStream* stream) {
 }
 
 
-void HDeoptimize::PrintDataTo(StringStream* stream) {
-  if (OperandCount() == 0) return;
-  OperandAt(0)->PrintNameTo(stream);
-  for (int i = 1; i < OperandCount(); ++i) {
-    stream->Add(" ");
-    OperandAt(i)->PrintNameTo(stream);
-  }
-}
-
-
 void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
                                          Zone* zone) {
   ASSERT(return_target->IsInlineReturnTarget());
@@ -2310,20 +2300,38 @@ HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
 }
 
 
-HConstant* HConstant::CopyToTruncatedInt32(Zone* zone) const {
+Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
+  HConstant* res = NULL;
   if (has_int32_value_) {
-    return new(zone) HConstant(int32_value_,
-                               Representation::Integer32(),
-                               is_not_in_new_space_,
-                               handle_);
+    res = new(zone) HConstant(int32_value_,
+                              Representation::Integer32(),
+                              is_not_in_new_space_,
+                              handle_);
+  } else if (has_double_value_) {
+    res = new(zone) HConstant(DoubleToInt32(double_value_),
+                              Representation::Integer32(),
+                              is_not_in_new_space_,
+                              handle_);
+  } else {
+    ASSERT(!HasNumberValue());
+    Maybe<HConstant*> number = CopyToTruncatedNumber(zone);
+    if (number.has_value) return number.value->CopyToTruncatedInt32(zone);
   }
-  if (has_double_value_) {
-    return new(zone) HConstant(DoubleToInt32(double_value_),
-                               Representation::Integer32(),
-                               is_not_in_new_space_,
-                               handle_);
+  return Maybe<HConstant*>(res != NULL, res);
+}
+
+
+Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Zone* zone) {
+  HConstant* res = NULL;
+  if (handle()->IsBoolean()) {
+    res = handle()->BooleanValue() ?
+      new(zone) HConstant(1) : new(zone) HConstant(0);
+  } else if (handle()->IsUndefined()) {
+    res = new(zone) HConstant(OS::nan_value());
+  } else if (handle()->IsNull()) {
+    res = new(zone) HConstant(0);
   }
-  return NULL;
+  return Maybe<HConstant*>(res != NULL, res);
 }
 
 
@@ -2757,6 +2765,55 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
 }
 
 
+HCheckMaps* HCheckMaps::New(HValue* value,
+                            Handle<Map> map,
+                            Zone* zone,
+                            CompilationInfo* info,
+                            HValue* typecheck) {
+  HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
+  check_map->map_set_.Add(map, zone);
+  if (map->CanOmitMapChecks() &&
+      value->IsConstant() &&
+      HConstant::cast(value)->InstanceOf(map)) {
+    check_map->omit(info);
+  }
+  return check_map;
+}
+
+
+HCheckMaps* HCheckMaps::NewWithTransitions(HValue* value,
+                                           Handle<Map> map,
+                                           Zone* zone,
+                                           CompilationInfo* info) {
+  HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, value);
+  check_map->map_set_.Add(map, zone);
+
+  // Since transitioned elements maps of the initial map don't fail the map
+  // check, the CheckMaps instruction doesn't need to depend on ElementsKinds.
+  check_map->ClearGVNFlag(kDependsOnElementsKind);
+
+  ElementsKind kind = map->elements_kind();
+  bool packed = IsFastPackedElementsKind(kind);
+  while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
+    kind = GetNextMoreGeneralFastElementsKind(kind, packed);
+    Map* transitioned_map =
+        map->LookupElementsTransitionMap(kind);
+    if (transitioned_map) {
+      check_map->map_set_.Add(Handle<Map>(transitioned_map), zone);
+    }
+  };
+
+  if (map->CanOmitMapChecks() &&
+      value->IsConstant() &&
+      HConstant::cast(value)->InstanceOf(map)) {
+    check_map->omit(info);
+  }
+
+  check_map->map_set_.Sort();
+  return check_map;
+}
+
+
 void HCheckMaps::FinalizeUniqueValueId() {
   if (!map_unique_ids_.is_empty()) return;
   Zone* zone = block()->zone();
@@ -3187,11 +3244,6 @@ HType HStringCharFromCode::CalculateInferredType() {
 }
 
 
-HType HAllocate::CalculateInferredType() {
-  return type_;
-}
-
-
 void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
   ASSERT(side_effect == kChangesNewSpacePromotion);
@@ -3210,12 +3262,9 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   HValue* dominator_size = dominator_allocate_instr->size();
   HValue* current_size = size();
   // We can just fold allocations that are guaranteed in new space.
-  // TODO(hpayer): Support double aligned allocations.
   // TODO(hpayer): Add support for non-constant allocation in dominator.
-  if (!GuaranteedInNewSpace() || MustAllocateDoubleAligned() ||
-      !current_size->IsInteger32Constant() ||
+  if (!GuaranteedInNewSpace() || !current_size->IsInteger32Constant() ||
       !dominator_allocate_instr->GuaranteedInNewSpace() ||
-      dominator_allocate_instr->MustAllocateDoubleAligned() ||
       !dominator_size->IsInteger32Constant()) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s)\n",
@@ -3229,43 +3278,37 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       HConstant::cast(dominator_size)->GetInteger32Constant();
   int32_t current_size_constant =
       HConstant::cast(current_size)->GetInteger32Constant();
+  int32_t new_dominator_size = dominator_size_constant + current_size_constant;
+
+  if (MustAllocateDoubleAligned()) {
+    if (!dominator_allocate_instr->MustAllocateDoubleAligned()) {
+      dominator_allocate_instr->SetFlags(HAllocate::ALLOCATE_DOUBLE_ALIGNED);
+    }
+    if ((dominator_size_constant & kDoubleAlignmentMask) != 0) {
+      dominator_size_constant += kDoubleSize / 2;
+      new_dominator_size += kDoubleSize / 2;
+    }
+  }
+
+  if (new_dominator_size > Page::kMaxNonCodeHeapObjectSize) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s) due to size: %d\n",
+          id(), Mnemonic(), dominator->id(), dominator->Mnemonic(),
+          new_dominator_size);
+    }
+    return;
+  }
   HBasicBlock* block = dominator->block();
   Zone* zone = block->zone();
-  HInstruction* new_dominator_size = new(zone) HConstant(
-      dominator_size_constant + current_size_constant);
-  new_dominator_size->InsertBefore(dominator_allocate_instr);
-  dominator_allocate_instr->UpdateSize(new_dominator_size);
+  HInstruction* new_dominator_size_constant = new(zone) HConstant(
+      new_dominator_size);
+  new_dominator_size_constant->InsertBefore(dominator_allocate_instr);
+  dominator_allocate_instr->UpdateSize(new_dominator_size_constant);
 
 #ifdef VERIFY_HEAP
-  HInstruction* free_space_instr =
-      new(zone) HInnerAllocatedObject(dominator_allocate_instr,
-                                      dominator_size_constant,
-                                      type());
-  free_space_instr->InsertAfter(dominator_allocate_instr);
-  HConstant* filler_map = new(zone) HConstant(
-      isolate()->factory()->free_space_map(),
-      UniqueValueId(isolate()->heap()->free_space_map()),
-      Representation::Tagged(),
-      HType::Tagged(),
-      false,
-      true,
-      false,
-      false);
-  filler_map->InsertAfter(free_space_instr);
-
-  HInstruction* store_map = new(zone) HStoreNamedField(
-      free_space_instr, HObjectAccess::ForMap(), filler_map);
-  store_map->SetFlag(HValue::kHasNoObservableSideEffects);
-  store_map->InsertAfter(filler_map);
-
-  HInstruction* free_space_size = new(zone) HConstant(current_size_constant);
-  free_space_size->InsertAfter(store_map);
-  HObjectAccess access =
-      HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset);
-  HInstruction* store_size = new(zone) HStoreNamedField(
-      free_space_instr, access, free_space_size);
-  store_size->SetFlag(HValue::kHasNoObservableSideEffects);
-  store_size->InsertAfter(free_space_size);
+  if (FLAG_verify_heap) {
+    dominator_allocate_instr->SetFlags(HAllocate::PREFILL_WITH_FILLER);
+  }
 #endif
 
   // After that replace the dominated allocate instruction.

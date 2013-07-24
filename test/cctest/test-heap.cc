@@ -984,7 +984,7 @@ TEST(Regression39128) {
   // just enough room to allocate JSObject and thus fill the newspace.
 
   int allocation_amount = Min(FixedArray::kMaxSize,
-                              HEAP->MaxObjectSizeInNewSpace());
+                              Page::kMaxNonCodeHeapObjectSize);
   int allocation_len = LenFromSize(allocation_amount);
   NewSpace* new_space = HEAP->new_space();
   Address* top_addr = new_space->allocation_top_address();

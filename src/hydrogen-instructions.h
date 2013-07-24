@@ -33,6 +33,7 @@
 #include "allocation.h"
 #include "code-stubs.h"
 #include "data-flow.h"
+#include "deoptimizer.h"
 #include "small-pointer-list.h"
 #include "string-stream.h"
 #include "v8conversions.h"
@@ -91,8 +92,9 @@ class LChunkBuilder;
   V(CheckHeapObject)                           \
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
-  V(CheckSmi)                                  \
+  V(CheckMapValue)                             \
   V(CheckPrototypeMaps)                        \
+  V(CheckSmi)                                  \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareNumericAndBranch)                   \
@@ -102,6 +104,7 @@ class LChunkBuilder;
   V(CompareConstantEqAndBranch)                \
   V(Constant)                                  \
   V(Context)                                   \
+  V(DateField)                                 \
   V(DebugBreak)                                \
   V(DeclareGlobals)                            \
   V(Deoptimize)                                \
@@ -111,6 +114,8 @@ class LChunkBuilder;
   V(EnterInlined)                              \
   V(EnvironmentMarker)                         \
   V(ForceRepresentation)                       \
+  V(ForInCacheArray)                           \
+  V(ForInPrepareMap)                           \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
   V(GlobalObject)                              \
@@ -134,6 +139,7 @@ class LChunkBuilder;
   V(LinkObjectInList)                          \
   V(LoadContextSlot)                           \
   V(LoadExternalArrayPointer)                  \
+  V(LoadFieldByIndex)                          \
   V(LoadFunctionPrototype)                     \
   V(LoadGlobalCell)                            \
   V(LoadGlobalGeneric)                         \
@@ -162,7 +168,6 @@ class LChunkBuilder;
   V(Shl)                                       \
   V(Shr)                                       \
   V(Simulate)                                  \
-  V(SoftDeoptimize)                            \
   V(StackCheck)                                \
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
@@ -188,11 +193,6 @@ class LChunkBuilder;
   V(UnknownOSRValue)                           \
   V(UseConst)                                  \
   V(ValueOf)                                   \
-  V(ForInPrepareMap)                           \
-  V(ForInCacheArray)                           \
-  V(CheckMapValue)                             \
-  V(LoadFieldByIndex)                          \
-  V(DateField)                                 \
   V(WrapReceiver)
 
 #define GVN_TRACKED_FLAG_LIST(V)               \
@@ -200,19 +200,20 @@ class LChunkBuilder;
   V(NewSpacePromotion)
 
 #define GVN_UNTRACKED_FLAG_LIST(V)             \
-  V(Calls)                                     \
-  V(InobjectFields)                            \
+  V(ArrayElements)                             \
+  V(ArrayLengths)                              \
   V(BackingStoreFields)                        \
+  V(Calls)                                     \
+  V(ContextSlots)                              \
+  V(DoubleArrayElements)                       \
   V(DoubleFields)                              \
   V(ElementsKind)                              \
   V(ElementsPointer)                           \
-  V(ArrayElements)                             \
-  V(DoubleArrayElements)                       \
-  V(SpecializedArrayElements)                  \
   V(GlobalVars)                                \
-  V(ArrayLengths)                              \
-  V(ContextSlots)                              \
-  V(OsrEntries)
+  V(InobjectFields)                            \
+  V(OsrEntries)                                \
+  V(SpecializedArrayElements)
+
 
 #define DECLARE_ABSTRACT_INSTRUCTION(type)          \
   virtual bool Is##type() const { return true; }    \
@@ -405,6 +406,11 @@ class HType {
   bool IsString() const {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kString) == kString);
+  }
+
+  bool IsNonString() const {
+    return IsTaggedPrimitive() || IsSmi() || IsHeapNumber() ||
+        IsBoolean() || IsJSArray();
   }
 
   bool IsBoolean() const {
@@ -1493,16 +1499,20 @@ class HNumericConstraint : public HTemplateInstruction<2> {
 };
 
 
-// We insert soft-deoptimize when we hit code with unknown typefeedback,
-// so that we get a chance of re-optimizing with useful typefeedback.
-// HSoftDeoptimize does not end a basic block as opposed to HDeoptimize.
-class HSoftDeoptimize: public HTemplateInstruction<0> {
+class HDeoptimize: public HTemplateInstruction<0> {
  public:
+  explicit HDeoptimize(Deoptimizer::BailoutType type) : type_(type) {}
+
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(SoftDeoptimize)
+  Deoptimizer::BailoutType type() { return type_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
+
+ private:
+  Deoptimizer::BailoutType type_;
 };
 
 
@@ -1514,59 +1524,6 @@ class HDebugBreak: public HTemplateInstruction<0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(DebugBreak)
-};
-
-
-class HDeoptimize: public HControlInstruction {
- public:
-  HDeoptimize(int environment_length,
-              int first_local_index,
-              int first_expression_index,
-              Zone* zone)
-      : values_(environment_length, zone),
-        first_local_index_(first_local_index),
-        first_expression_index_(first_expression_index) { }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::None();
-  }
-
-  virtual int OperandCount() { return values_.length(); }
-  virtual HValue* OperandAt(int index) const { return values_[index]; }
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual int SuccessorCount() { return 0; }
-  virtual HBasicBlock* SuccessorAt(int i) {
-    UNREACHABLE();
-    return NULL;
-  }
-  virtual void SetSuccessorAt(int i, HBasicBlock* block) {
-    UNREACHABLE();
-  }
-
-  void AddEnvironmentValue(HValue* value, Zone* zone) {
-    values_.Add(NULL, zone);
-    SetOperandAt(values_.length() - 1, value);
-  }
-  int first_local_index() { return first_local_index_; }
-  int first_expression_index() { return first_expression_index_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
-
-  enum UseEnvironment {
-    kNoUses,
-    kUseAll
-  };
-
- protected:
-  virtual void InternalSetOperandAt(int index, HValue* value) {
-    values_[index] = value;
-  }
-
- private:
-  ZoneList<HValue*> values_;
-  int first_local_index_;
-  int first_expression_index_;
 };
 
 
@@ -2732,12 +2689,7 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 class HCheckMaps: public HTemplateInstruction<2> {
  public:
   static HCheckMaps* New(HValue* value, Handle<Map> map, Zone* zone,
-                         HValue *typecheck = NULL) {
-    HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
-    check_map->map_set_.Add(map, zone);
-    return check_map;
-  }
-
+                         CompilationInfo* info, HValue *typecheck = NULL);
   static HCheckMaps* New(HValue* value, SmallMapList* maps, Zone* zone,
                          HValue *typecheck = NULL) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
@@ -2749,27 +2701,9 @@ class HCheckMaps: public HTemplateInstruction<2> {
   }
 
   static HCheckMaps* NewWithTransitions(HValue* value, Handle<Map> map,
-                                        Zone* zone) {
-    HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, value);
-    check_map->map_set_.Add(map, zone);
+                                        Zone* zone, CompilationInfo* info);
 
-    // Since transitioned elements maps of the initial map don't fail the map
-    // check, the CheckMaps instruction doesn't need to depend on ElementsKinds.
-    check_map->ClearGVNFlag(kDependsOnElementsKind);
-
-    ElementsKind kind = map->elements_kind();
-    bool packed = IsFastPackedElementsKind(kind);
-    while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
-      kind = GetNextMoreGeneralFastElementsKind(kind, packed);
-      Map* transitioned_map =
-          map->LookupElementsTransitionMap(kind);
-      if (transitioned_map) {
-        check_map->map_set_.Add(Handle<Map>(transitioned_map), zone);
-      }
-    };
-    check_map->map_set_.Sort();
-    return check_map;
-  }
+  bool CanOmitMapChecks() { return omit_; }
 
   virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2806,7 +2740,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
  private:
   // Clients should use one of the static New* methods above.
   HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
-      : map_unique_ids_(0, zone) {
+      : omit_(false), map_unique_ids_(0, zone) {
     SetOperandAt(0, value);
     // Use the object value for the dependency if NULL is passed.
     // TODO(titzer): do GVN flags already express this dependency?
@@ -2818,6 +2752,16 @@ class HCheckMaps: public HTemplateInstruction<2> {
     SetGVNFlag(kDependsOnElementsKind);
   }
 
+  void omit(CompilationInfo* info) {
+    omit_ = true;
+    for (int i = 0; i < map_set_.length(); i++) {
+      Handle<Map> map = map_set_.at(i);
+      map->AddDependentCompilationInfo(DependentCode::kPrototypeCheckGroup,
+                                       info);
+    }
+  }
+
+  bool omit_;
   SmallMapList map_set_;
   ZoneList<UniqueValueId> map_unique_ids_;
 };
@@ -3296,6 +3240,11 @@ class HConstant: public HTemplateInstruction<0> {
     return handle_;
   }
 
+  bool InstanceOf(Handle<Map> map) {
+    return handle_->IsJSObject() &&
+        Handle<JSObject>::cast(handle_)->map() == *map;
+  }
+
   bool IsSpecialDouble() const {
     return has_double_value_ &&
         (BitCast<int64_t>(double_value_) == BitCast<int64_t>(-0.0) ||
@@ -3350,7 +3299,8 @@ class HConstant: public HTemplateInstruction<0> {
   virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
   HConstant* CopyToRepresentation(Representation r, Zone* zone) const;
-  HConstant* CopyToTruncatedInt32(Zone* zone) const;
+  Maybe<HConstant*> CopyToTruncatedInt32(Zone* zone);
+  Maybe<HConstant*> CopyToTruncatedNumber(Zone* zone);
   bool HasInteger32Value() const { return has_int32_value_; }
   int32_t Integer32Value() const {
     ASSERT(HasInteger32Value());
@@ -4964,14 +4914,15 @@ class HAllocate: public HTemplateInstruction<2> {
     CAN_ALLOCATE_IN_NEW_SPACE = 1 << 0,
     CAN_ALLOCATE_IN_OLD_DATA_SPACE = 1 << 1,
     CAN_ALLOCATE_IN_OLD_POINTER_SPACE = 1 << 2,
-    ALLOCATE_DOUBLE_ALIGNED = 1 << 3
+    ALLOCATE_DOUBLE_ALIGNED = 1 << 3,
+    PREFILL_WITH_FILLER = 1 << 4
   };
 
   HAllocate(HValue* context, HValue* size, HType type, Flags flags)
-      : type_(type),
-        flags_(flags) {
+      : flags_(flags) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
+    set_type(type);
     set_representation(Representation::Tagged());
     SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kChangesNewSpacePromotion);
@@ -4996,7 +4947,6 @@ class HAllocate: public HTemplateInstruction<2> {
 
   HValue* context() { return OperandAt(0); }
   HValue* size() { return OperandAt(1); }
-  HType type() { return type_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     if (index == 0) {
@@ -5013,8 +4963,6 @@ class HAllocate: public HTemplateInstruction<2> {
   void set_known_initial_map(Handle<Map> known_initial_map) {
     known_initial_map_ = known_initial_map;
   }
-
-  virtual HType CalculateInferredType();
 
   bool CanAllocateInNewSpace() const {
     return (flags_ & CAN_ALLOCATE_IN_NEW_SPACE) != 0;
@@ -5041,6 +4989,14 @@ class HAllocate: public HTemplateInstruction<2> {
     return (flags_ & ALLOCATE_DOUBLE_ALIGNED) != 0;
   }
 
+  bool MustPrefillWithFiller() const {
+    return (flags_ & PREFILL_WITH_FILLER) != 0;
+  }
+
+  void SetFlags(Flags flags) {
+    flags_ = static_cast<HAllocate::Flags>(flags_ | flags);
+  }
+
   void UpdateSize(HValue* size) {
     SetOperandAt(1, size);
   }
@@ -5053,7 +5009,6 @@ class HAllocate: public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(Allocate)
 
  private:
-  HType type_;
   Flags flags_;
   Handle<Map> known_initial_map_;
 };
@@ -5062,10 +5017,10 @@ class HAllocate: public HTemplateInstruction<2> {
 class HInnerAllocatedObject: public HTemplateInstruction<1> {
  public:
   HInnerAllocatedObject(HValue* value, int offset, HType type = HType::Tagged())
-      : offset_(offset),
-        type_(type) {
+      : offset_(offset) {
     ASSERT(value->IsAllocate());
     SetOperandAt(0, value);
+    set_type(type);
     set_representation(Representation::Tagged());
   }
 
@@ -5076,15 +5031,12 @@ class HInnerAllocatedObject: public HTemplateInstruction<1> {
     return Representation::Tagged();
   }
 
-  virtual HType CalculateInferredType() { return type_; }
-
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject)
 
  private:
   int offset_;
-  HType type_;
 };
 
 
