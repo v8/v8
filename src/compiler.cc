@@ -1247,10 +1247,13 @@ CompilationPhase::~CompilationPhase() {
 
 
 bool CompilationPhase::ShouldProduceTraceOutput() const {
-  // Produce trace output if flag is set so that the first letter of the
-  // phase name matches the command line parameter FLAG_trace_phase.
-  return (FLAG_trace_hydrogen &&
-          OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
+  // Trace if the appropriate trace flag is set and the phase name's first
+  // character is in the FLAG_trace_phase command line parameter.
+  bool tracing_on = info()->IsStub() ?
+      FLAG_trace_hydrogen_stubs :
+      FLAG_trace_hydrogen;
+  return (tracing_on &&
+      OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
 }
 
 } }  // namespace v8::internal

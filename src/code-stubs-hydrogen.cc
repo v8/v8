@@ -129,7 +129,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   // Update the static counter each time a new code stub is generated.
   isolate()->counters()->code_stubs()->Increment();
 
-  if (FLAG_trace_hydrogen) {
+  if (FLAG_trace_hydrogen_stubs) {
     const char* name = CodeStub::MajorName(stub()->MajorKey(), false);
     PrintF("-----------------------------------------------------------\n");
     PrintF("Compiling stub %s using hydrogen\n", name);
