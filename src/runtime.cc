@@ -8460,7 +8460,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (FLAG_parallel_recompilation && sync_with_compiler_thread) {
-    while (function->IsInRecompileQueue() ||
+    while (function->IsMarkedForParallelRecompilation() ||
+           function->IsInRecompileQueue() ||
            function->IsMarkedForInstallingRecompiledCode()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
       OS::Sleep(50);
