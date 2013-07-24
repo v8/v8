@@ -6190,6 +6190,10 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (ordered_functions == types->length() && FLAG_deoptimize_uncommon_cases) {
+    // Because the deopt may be the only path in the polymorphic call, make sure
+    // that the environment stack matches the depth on deopt that it otherwise
+    // would have had after a successful call.
+    Drop(argument_count - (ast_context()->IsEffect() ? 0 : 1));
     FinishExitWithHardDeoptimization(join);
   } else {
     HValue* context = environment()->LookupContext();
