@@ -2722,7 +2722,23 @@ void MarkCompactCollector::MigrateObject(Address dst,
                                          int size,
                                          AllocationSpace dest) {
   HEAP_PROFILE(heap(), ObjectMoveEvent(src, dst));
-  if (dest == OLD_POINTER_SPACE || dest == LO_SPACE) {
+  // TODO(hpayer): Replace that check with an assert.
+  CHECK(dest != LO_SPACE && size <= Page::kMaxNonCodeHeapObjectSize);
+  // Objects in old pointer space and old data space can just be moved by
+  // compaction to a different page in the same space.
+  // TODO(hpayer): Replace that following checks with asserts.
+  CHECK(!heap_->old_pointer_space()->Contains(src) ||
+        (heap_->old_pointer_space()->Contains(dst) &&
+        heap_->TargetSpace(HeapObject::FromAddress(src)) ==
+        heap_->old_pointer_space()));
+  CHECK(!heap_->old_data_space()->Contains(src) ||
+        (heap_->old_data_space()->Contains(dst) &&
+        heap_->TargetSpace(HeapObject::FromAddress(src)) ==
+        heap_->old_data_space()));
+  if (dest == OLD_POINTER_SPACE) {
+    // TODO(hpayer): Replace this check with an assert.
+    CHECK(heap_->TargetSpace(HeapObject::FromAddress(src)) ==
+          heap_->old_pointer_space());
     Address src_slot = src;
     Address dst_slot = dst;
     ASSERT(IsAligned(size, kPointerSize));
@@ -2894,37 +2910,24 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
 
 bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
                                             int object_size) {
+  // TODO(hpayer): Replace that check with an assert.
+  CHECK(object_size <= Page::kMaxNonCodeHeapObjectSize);
+
+  OldSpace* target_space = heap()->TargetSpace(object);
+
+  ASSERT(target_space == heap()->old_pointer_space() ||
+         target_space == heap()->old_data_space());
   Object* result;
-
-  if (object_size > Page::kMaxNonCodeHeapObjectSize) {
-    MaybeObject* maybe_result =
-        heap()->lo_space()->AllocateRaw(object_size, NOT_EXECUTABLE);
-    if (maybe_result->ToObject(&result)) {
-      HeapObject* target = HeapObject::cast(result);
-      MigrateObject(target->address(),
-                    object->address(),
-                    object_size,
-                    LO_SPACE);
-      heap()->mark_compact_collector()->tracer()->
-          increment_promoted_objects_size(object_size);
-      return true;
-    }
-  } else {
-    OldSpace* target_space = heap()->TargetSpace(object);
-
-    ASSERT(target_space == heap()->old_pointer_space() ||
-           target_space == heap()->old_data_space());
-    MaybeObject* maybe_result = target_space->AllocateRaw(object_size);
-    if (maybe_result->ToObject(&result)) {
-      HeapObject* target = HeapObject::cast(result);
-      MigrateObject(target->address(),
-                    object->address(),
-                    object_size,
-                    target_space->identity());
-      heap()->mark_compact_collector()->tracer()->
-          increment_promoted_objects_size(object_size);
-      return true;
-    }
+  MaybeObject* maybe_result = target_space->AllocateRaw(object_size);
+  if (maybe_result->ToObject(&result)) {
+    HeapObject* target = HeapObject::cast(result);
+    MigrateObject(target->address(),
+                  object->address(),
+                  object_size,
+                  target_space->identity());
+    heap()->mark_compact_collector()->tracer()->
+        increment_promoted_objects_size(object_size);
+    return true;
   }
 
   return false;
