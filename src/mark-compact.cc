@@ -2740,17 +2740,6 @@ void MarkCompactCollector::MigrateObject(Address dst,
   HEAP_PROFILE(heap(), ObjectMoveEvent(src, dst));
   // TODO(hpayer): Replace that check with an assert.
   CHECK(dest != LO_SPACE && size <= Page::kMaxNonCodeHeapObjectSize);
-  // Objects in old pointer space and old data space can just be moved by
-  // compaction to a different page in the same space.
-  // TODO(hpayer): Replace that following checks with asserts.
-  CHECK(!heap_->old_pointer_space()->Contains(src) ||
-        (heap_->old_pointer_space()->Contains(dst) &&
-        heap_->TargetSpace(HeapObject::FromAddress(src)) ==
-        heap_->old_pointer_space()));
-  CHECK(!heap_->old_data_space()->Contains(src) ||
-        (heap_->old_data_space()->Contains(dst) &&
-        heap_->TargetSpace(HeapObject::FromAddress(src)) ==
-        heap_->old_data_space()));
   if (dest == OLD_POINTER_SPACE) {
     // TODO(hpayer): Replace this check with an assert.
     CHECK(heap_->TargetSpace(HeapObject::FromAddress(src)) ==
@@ -2800,6 +2789,13 @@ void MarkCompactCollector::MigrateObject(Address dst,
     Code::cast(HeapObject::FromAddress(dst))->Relocate(dst - src);
   } else {
     ASSERT(dest == OLD_DATA_SPACE || dest == NEW_SPACE);
+    // Objects in old data space can just be moved by compaction to a different
+    // page in old data space.
+    // TODO(hpayer): Replace the following check with an assert.
+    CHECK(!heap_->old_data_space()->Contains(src) ||
+          (heap_->old_data_space()->Contains(dst) &&
+          heap_->TargetSpace(HeapObject::FromAddress(src)) ==
+          heap_->old_data_space()));
     heap()->MoveBlock(dst, src, size);
   }
   Memory::Address_at(src) = dst;
