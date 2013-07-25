@@ -284,6 +284,7 @@ class LCodeGen BASE_EMBEDDED {
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
+  void ApplyCheckIf(Condition cc, LBoundsCheck* check);
 
   void AddToTranslation(Translation* translation,
                         LOperand* op,

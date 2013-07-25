@@ -266,6 +266,8 @@ DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(idefs, false, "use informative definitions")
 DEFINE_bool(array_bounds_checks_elimination, true,
             "perform array bounds checks elimination")
+DEFINE_bool(array_bounds_checks_hoisting, false,
+            "perform array bounds checks hoisting")
 DEFINE_bool(array_index_dehoisting, true,
             "perform array index dehoisting")
 DEFINE_bool(analyze_environment_liveness, true,

@@ -4166,6 +4166,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->hydrogen()->skip_check()) return;
 
+  Condition condition = instr->hydrogen()->allow_equality() ? hi : hs;
   if (instr->index()->IsConstantOperand()) {
     int constant_index =
         ToInteger32(LConstantOperand::cast(instr->index()));
@@ -4174,12 +4175,12 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     } else {
       __ li(at, Operand(constant_index));
     }
-    DeoptimizeIf(hs,
+    DeoptimizeIf(condition,
                  instr->environment(),
                  at,
                  Operand(ToRegister(instr->length())));
   } else {
-    DeoptimizeIf(hs,
+    DeoptimizeIf(condition,
                  instr->environment(),
                  ToRegister(instr->index()),
                  Operand(ToRegister(instr->length())));

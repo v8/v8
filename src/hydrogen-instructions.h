@@ -3017,12 +3017,234 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
 };
 
 
+class InductionVariableData;
+
+
+struct InductionVariableLimitUpdate {
+  InductionVariableData* updated_variable;
+  HValue* limit;
+  bool limit_is_upper;
+  bool limit_is_included;
+
+  InductionVariableLimitUpdate()
+      : updated_variable(NULL), limit(NULL),
+        limit_is_upper(false), limit_is_included(false) {}
+};
+
+
+class HBoundsCheck;
+class HPhi;
+class HConstant;
+class HBitwise;
+
+
+class InductionVariableData : public ZoneObject {
+ public:
+  class InductionVariableCheck : public ZoneObject {
+   public:
+    HBoundsCheck* check() { return check_; }
+    InductionVariableCheck* next() { return next_; }
+    bool HasUpperLimit() { return upper_limit_ >= 0; }
+    int32_t upper_limit() {
+      ASSERT(HasUpperLimit());
+      return upper_limit_;
+    }
+    void set_upper_limit(int32_t upper_limit) {
+      upper_limit_ = upper_limit;
+    }
+
+    bool processed() { return processed_; }
+    void set_processed() { processed_ = true; }
+
+    InductionVariableCheck(HBoundsCheck* check,
+                           InductionVariableCheck* next,
+                           int32_t upper_limit = kNoLimit)
+        : check_(check), next_(next), upper_limit_(upper_limit),
+          processed_(false) {}
+
+   private:
+    HBoundsCheck* check_;
+    InductionVariableCheck* next_;
+    int32_t upper_limit_;
+    bool processed_;
+  };
+
+  class ChecksRelatedToLength : public ZoneObject {
+   public:
+    HValue* length() { return length_; }
+    ChecksRelatedToLength* next() { return next_; }
+    InductionVariableCheck* checks() { return checks_; }
+
+    void AddCheck(HBoundsCheck* check, int32_t upper_limit = kNoLimit);
+    void CloseCurrentBlock();
+
+    ChecksRelatedToLength(HValue* length, ChecksRelatedToLength* next)
+      : length_(length), next_(next), checks_(NULL),
+        first_check_in_block_(NULL),
+        added_index_(NULL),
+        added_constant_(NULL),
+        current_and_mask_in_block_(0),
+        current_or_mask_in_block_(0) {}
+
+   private:
+    void UseNewIndexInCurrentBlock(Token::Value token,
+                                   int32_t mask,
+                                   HValue* index_base,
+                                   HValue* context);
+
+    HBoundsCheck* first_check_in_block() { return first_check_in_block_; }
+    HBitwise* added_index() { return added_index_; }
+    void set_added_index(HBitwise* index) { added_index_ = index; }
+    HConstant* added_constant() { return added_constant_; }
+    void set_added_constant(HConstant* constant) { added_constant_ = constant; }
+    int32_t current_and_mask_in_block() { return current_and_mask_in_block_; }
+    int32_t current_or_mask_in_block() { return current_or_mask_in_block_; }
+    int32_t current_upper_limit() { return current_upper_limit_; }
+
+    HValue* length_;
+    ChecksRelatedToLength* next_;
+    InductionVariableCheck* checks_;
+
+    HBoundsCheck* first_check_in_block_;
+    HBitwise* added_index_;
+    HConstant* added_constant_;
+    int32_t current_and_mask_in_block_;
+    int32_t current_or_mask_in_block_;
+    int32_t current_upper_limit_;
+  };
+
+  struct LimitFromPredecessorBlock {
+    InductionVariableData* variable;
+    Token::Value token;
+    HValue* limit;
+    HBasicBlock* other_target;
+
+    bool LimitIsValid() { return token != Token::ILLEGAL; }
+
+    bool LimitIsIncluded() {
+      return Token::IsEqualityOp(token) ||
+          token == Token::GTE || token == Token::LTE;
+    }
+    bool LimitIsUpper() {
+      return token == Token::LTE || token == Token::LT || token == Token::NE;
+    }
+
+    LimitFromPredecessorBlock()
+        : variable(NULL),
+          token(Token::ILLEGAL),
+          limit(NULL),
+          other_target(NULL) {}
+  };
+
+  static const int32_t kNoLimit = -1;
+
+  static InductionVariableData* ExaminePhi(HPhi* phi);
+  static void ComputeLimitFromPredecessorBlock(
+      HBasicBlock* block,
+      LimitFromPredecessorBlock* result);
+  static bool ComputeInductionVariableLimit(
+      HBasicBlock* block,
+      InductionVariableLimitUpdate* additional_limit);
+
+  struct BitwiseDecompositionResult {
+    HValue* base;
+    int32_t and_mask;
+    int32_t or_mask;
+    HValue* context;
+
+    BitwiseDecompositionResult()
+        : base(NULL), and_mask(0), or_mask(0), context(NULL) {}
+  };
+  static void DecomposeBitwise(HValue* value,
+                               BitwiseDecompositionResult* result);
+
+  void AddCheck(HBoundsCheck* check, int32_t upper_limit = kNoLimit);
+
+  bool CheckIfBranchIsLoopGuard(Token::Value token,
+                                HBasicBlock* current_branch,
+                                HBasicBlock* other_branch);
+
+  void UpdateAdditionalLimit(InductionVariableLimitUpdate* update);
+
+  HPhi* phi() { return phi_; }
+  HValue* base() { return base_; }
+  int32_t increment() { return increment_; }
+  HValue* limit() { return limit_; }
+  bool limit_included() { return limit_included_; }
+  HBasicBlock* limit_validity() { return limit_validity_; }
+  HBasicBlock* induction_exit_block() { return induction_exit_block_; }
+  HBasicBlock* induction_exit_target() { return induction_exit_target_; }
+  ChecksRelatedToLength* checks() { return checks_; }
+  HValue* additional_upper_limit() { return additional_upper_limit_; }
+  bool additional_upper_limit_is_included() {
+    return additional_upper_limit_is_included_;
+  }
+  HValue* additional_lower_limit() { return additional_lower_limit_; }
+  bool additional_lower_limit_is_included() {
+    return additional_lower_limit_is_included_;
+  }
+
+  bool LowerLimitIsNonNegativeConstant() {
+    if (base()->IsInteger32Constant() && base()->GetInteger32Constant() >= 0) {
+      return true;
+    }
+    if (additional_lower_limit() != NULL &&
+        additional_lower_limit()->IsInteger32Constant() &&
+        additional_lower_limit()->GetInteger32Constant() >= 0) {
+      // Ignoring the corner case of !additional_lower_limit_is_included()
+      // is safe, handling it adds unneeded complexity.
+      return true;
+    }
+    return false;
+  }
+
+  int32_t ComputeUpperLimit(int32_t and_mask, int32_t or_mask);
+
+ private:
+  template <class T> void swap(T* a, T* b) {
+    T c(*a);
+    *a = *b;
+    *b = c;
+  }
+
+  InductionVariableData(HPhi* phi, HValue* base, int32_t increment)
+      : phi_(phi), base_(IgnoreOsrValue(base)), increment_(increment),
+        limit_(NULL), limit_included_(false), limit_validity_(NULL),
+        induction_exit_block_(NULL), induction_exit_target_(NULL),
+        checks_(NULL),
+        additional_upper_limit_(NULL),
+        additional_upper_limit_is_included_(false),
+        additional_lower_limit_(NULL),
+        additional_lower_limit_is_included_(false) {}
+
+  static int32_t ComputeIncrement(HPhi* phi, HValue* phi_operand);
+
+  static HValue* IgnoreOsrValue(HValue* v);
+  static InductionVariableData* GetInductionVariableData(HValue* v);
+
+  HPhi* phi_;
+  HValue* base_;
+  int32_t increment_;
+  HValue* limit_;
+  bool limit_included_;
+  HBasicBlock* limit_validity_;
+  HBasicBlock* induction_exit_block_;
+  HBasicBlock* induction_exit_target_;
+  ChecksRelatedToLength* checks_;
+  HValue* additional_upper_limit_;
+  bool additional_upper_limit_is_included_;
+  HValue* additional_lower_limit_;
+  bool additional_lower_limit_is_included_;
+};
+
+
 class HPhi: public HValue {
  public:
   HPhi(int merged_index, Zone* zone)
       : inputs_(2, zone),
         merged_index_(merged_index),
-        phi_id_(-1) {
+        phi_id_(-1),
+        induction_variable_data_(NULL) {
     for (int i = 0; i < Representation::kNumRepresentations; i++) {
       non_phi_uses_[i] = 0;
       indirect_uses_[i] = 0;
@@ -3052,6 +3274,21 @@ class HPhi: public HValue {
   bool IsReceiver() const { return merged_index_ == 0; }
 
   int merged_index() const { return merged_index_; }
+
+  InductionVariableData* induction_variable_data() {
+    return induction_variable_data_;
+  }
+  bool IsInductionVariable() {
+    return induction_variable_data_ != NULL;
+  }
+  bool IsLimitedInductionVariable() {
+    return IsInductionVariable() &&
+        induction_variable_data_->limit() != NULL;
+  }
+  void DetectInductionVariable() {
+    ASSERT(induction_variable_data_ == NULL);
+    induction_variable_data_ = InductionVariableData::ExaminePhi(this);
+  }
 
   virtual void AddInformativeDefinitions();
 
@@ -3120,6 +3357,7 @@ class HPhi: public HValue {
   int non_phi_uses_[Representation::kNumRepresentations];
   int indirect_uses_[Representation::kNumRepresentations];
   int phi_id_;
+  InductionVariableData* induction_variable_data_;
 };
 
 
@@ -3644,15 +3882,16 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   HBoundsCheck(HValue* index, HValue* length)
     : skip_check_(false),
       base_(NULL), offset_(0), scale_(0),
-      responsibility_direction_(DIRECTION_NONE) {
+      responsibility_direction_(DIRECTION_NONE),
+      allow_equality_(false) {
     SetOperandAt(0, index);
     SetOperandAt(1, length);
     SetFlag(kFlexibleRepresentation);
     SetFlag(kUseGVN);
   }
 
-  bool skip_check() { return skip_check_; }
-  void set_skip_check(bool skip_check) { skip_check_ = skip_check; }
+  bool skip_check() const { return skip_check_; }
+  void set_skip_check() { skip_check_ = true; }
   HValue* base() { return base_; }
   int offset() { return offset_; }
   int scale() { return scale_; }
@@ -3684,6 +3923,9 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int arg_index) {
     return representation();
   }
+  virtual bool IsDeletable() const {
+    return skip_check() && !FLAG_debug_code;
+  }
 
   virtual bool IsRelationTrueInternal(NumericRelation relation,
                                       HValue* related_value,
@@ -3695,6 +3937,8 @@ class HBoundsCheck: public HTemplateInstruction<2> {
 
   HValue* index() { return OperandAt(0); }
   HValue* length() { return OperandAt(1); }
+  bool allow_equality() { return allow_equality_; }
+  void set_allow_equality(bool v) { allow_equality_ = v; }
 
   virtual int RedefinedOperandIndex() { return 0; }
   virtual bool IsPurelyInformativeDefinition() { return skip_check(); }
@@ -3717,6 +3961,7 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   int offset_;
   int scale_;
   RangeGuaranteeDirection responsibility_direction_;
+  bool allow_equality_;
 };
 
 

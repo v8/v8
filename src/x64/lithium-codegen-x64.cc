@@ -3995,6 +3995,18 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
+void LCodeGen::ApplyCheckIf(Condition cc, LBoundsCheck* check) {
+  if (FLAG_debug_code && check->hydrogen()->skip_check()) {
+    Label done;
+    __ j(NegateCondition(cc), &done, Label::kNear);
+    __ int3();
+    __ bind(&done);
+  } else {
+    DeoptimizeIf(cc, check->environment());
+  }
+}
+
+
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->hydrogen()->skip_check()) return;
 
@@ -4032,7 +4044,9 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
       __ cmpq(length, ToRegister(instr->index()));
     }
   }
-  DeoptimizeIf(below_equal, instr->environment());
+  Condition condition =
+      instr->hydrogen()->allow_equality() ? below : below_equal;
+  ApplyCheckIf(condition, instr);
 }
 
 

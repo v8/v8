@@ -34,6 +34,7 @@
 #include "full-codegen.h"
 #include "hashmap.h"
 #include "hydrogen-bce.h"
+#include "hydrogen-bch.h"
 #include "hydrogen-canonicalize.h"
 #include "hydrogen-dce.h"
 #include "hydrogen-dehoist.h"
@@ -3033,6 +3034,9 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   if (FLAG_idefs) SetupInformativeDefinitions();
   if (FLAG_array_bounds_checks_elimination && !FLAG_idefs) {
     Run<HBoundsCheckEliminationPhase>();
+  }
+  if (FLAG_array_bounds_checks_hoisting && !FLAG_idefs) {
+    Run<HBoundsCheckHoistingPhase>();
   }
   if (FLAG_array_index_dehoisting) Run<HDehoistIndexComputationsPhase>();
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
