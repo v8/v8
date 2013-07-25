@@ -2085,10 +2085,14 @@ class HTracer: public Malloced {
  public:
   explicit HTracer(int isolate_id)
       : trace_(&string_allocator_), indent_(0) {
-    OS::SNPrintF(filename_,
-                 "hydrogen-%d-%d.cfg",
-                 OS::GetCurrentProcessId(),
-                 isolate_id);
+    if (FLAG_trace_hydrogen_file == NULL) {
+      OS::SNPrintF(filename_,
+                   "hydrogen-%d-%d.cfg",
+                   OS::GetCurrentProcessId(),
+                   isolate_id);
+    } else {
+      OS::StrNCpy(filename_, FLAG_trace_hydrogen_file, filename_.length());
+    }
     WriteChars(filename_.start(), "", 0, false);
   }
 
