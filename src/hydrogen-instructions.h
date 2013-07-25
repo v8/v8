@@ -5885,8 +5885,8 @@ class ArrayInstructionInterface {
   virtual ~ArrayInstructionInterface() { };
 
   static Representation KeyedAccessIndexRequirement(Representation r) {
-    return r.IsInteger32() ? Representation::Integer32()
-                           : Representation::Smi();
+    return r.IsInteger32() || kSmiValueSize != 31
+        ? Representation::Integer32() : Representation::Smi();
   }
 };
 
