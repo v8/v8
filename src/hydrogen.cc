@@ -5697,7 +5697,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
             elements, isolate()->factory()->fixed_array_map(),
             zone(), top_info(), mapcompare));
       }
-      if (map->IsJSArray()) {
+      if (map->instance_type() == JS_ARRAY_TYPE) {
         HInstruction* length = AddLoad(object, HObjectAccess::ForArrayLength(),
                                        mapcompare, Representation::Smi());
         length->set_type(HType::Smi());

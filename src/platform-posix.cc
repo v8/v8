@@ -502,12 +502,11 @@ Thread::~Thread() {
 
 
 static void SetThreadName(const char* name) {
-  int result = 0;
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
-  result = pthread_set_name_np(pthread_self(), name);
+  pthread_set_name_np(pthread_self(), name);
 #elif defined(__NetBSD__)
   STATIC_ASSERT(Thread::kMaxThreadNameLength <= PTHREAD_MAX_NAMELEN_NP);
-  result = pthread_setname_np(pthread_self(), "%s", name);
+  pthread_setname_np(pthread_self(), "%s", name);
 #elif defined(__APPLE__)
   // pthread_setname_np is only available in 10.6 or later, so test
   // for it at runtime.
@@ -520,14 +519,12 @@ static void SetThreadName(const char* name) {
   // Mac OS X does not expose the length limit of the name, so hardcode it.
   static const int kMaxNameLength = 63;
   STATIC_ASSERT(Thread::kMaxThreadNameLength <= kMaxNameLength);
-  result = dynamic_pthread_setname_np(name);
+  dynamic_pthread_setname_np(name);
 #elif defined(PR_SET_NAME)
-  result = prctl(PR_SET_NAME,
-                 reinterpret_cast<unsigned long>(name),  // NOLINT
-                 0, 0, 0);
+  prctl(PR_SET_NAME,
+        reinterpret_cast<unsigned long>(name),  // NOLINT
+        0, 0, 0);
 #endif
-  ASSERT_EQ(0, result);
-  USE(result);
 }
 
 
