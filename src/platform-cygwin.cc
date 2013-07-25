@@ -52,11 +52,6 @@ namespace v8 {
 namespace internal {
 
 
-double ceiling(double x) {
-  return ceil(x);
-}
-
-
 static Mutex* limit_mutex = NULL;
 
 

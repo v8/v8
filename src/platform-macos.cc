@@ -79,16 +79,6 @@ namespace v8 {
 namespace internal {
 
 
-double ceiling(double x) {
-  // Correct Mac OS X Leopard 'ceil' behavior.
-  if (-1.0 < x && x < 0.0) {
-    return -0.0;
-  } else {
-    return ceil(x);
-  }
-}
-
-
 static Mutex* limit_mutex = NULL;
 
 
