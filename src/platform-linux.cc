@@ -79,11 +79,6 @@ namespace internal {
 static Mutex* limit_mutex = NULL;
 
 
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // Linux runs on anything.
-}
-
-
 #ifdef __arm__
 static bool CPUInfoContainsString(const char * search_string) {
   const char* file_name = "/proc/cpuinfo";

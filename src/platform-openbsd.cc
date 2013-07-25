@@ -91,11 +91,6 @@ static void* GetRandomMmapAddr() {
 }
 
 
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;
-}
-
-
 int OS::ActivationFrameAlignment() {
   // With gcc 4.4 the tree vectorization optimizer can generate code
   // that requires 16 byte alignment such as movdqa on x86.

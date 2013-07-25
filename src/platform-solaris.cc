@@ -84,11 +84,6 @@ namespace internal {
 static Mutex* limit_mutex = NULL;
 
 
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // Solaris runs on a lot of things.
-}
-
-
 int OS::ActivationFrameAlignment() {
   // GCC generates code that requires 16 byte alignment such as movdqa.
   return Max(STACK_ALIGN, 16);

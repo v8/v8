@@ -66,11 +66,6 @@ namespace internal {
 static Mutex* limit_mutex = NULL;
 
 
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // FreeBSD runs on anything.
-}
-
-
 int OS::ActivationFrameAlignment() {
   // 16 byte alignment on FreeBSD
   return 16;

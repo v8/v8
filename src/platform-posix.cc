@@ -78,6 +78,18 @@ namespace internal {
 static const pthread_t kNoThread = (pthread_t) 0;
 
 
+uint64_t OS::CpuFeaturesImpliedByPlatform() {
+#if defined(__APPLE__)
+  // Mac OS X requires all these to install so we can assume they are present.
+  // These constants are defined by the CPUid instructions.
+  const uint64_t one = 1;
+  return (one << SSE2) | (one << CMOV) | (one << RDTSC) | (one << CPUID);
+#else
+  return 0;  // Nothing special about the other systems.
+#endif
+}
+
+
 // Maximum size of the virtual memory.  0 means there is no artificial
 // limit.
 
