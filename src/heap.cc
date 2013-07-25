@@ -3223,6 +3223,9 @@ bool Heap::CreateInitialObjects() {
   }
   set_observed_symbol(Symbol::cast(obj));
 
+  set_i18n_template_one(the_hole_value());
+  set_i18n_template_two(the_hole_value());
+
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
 
