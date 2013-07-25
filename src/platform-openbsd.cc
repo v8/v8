@@ -64,33 +64,6 @@ namespace internal {
 static Mutex* limit_mutex = NULL;
 
 
-static void* GetRandomMmapAddr() {
-  Isolate* isolate = Isolate::UncheckedCurrent();
-  // Note that the current isolate isn't set up in a call path via
-  // CpuFeatures::Probe. We don't care about randomization in this case because
-  // the code page is immediately freed.
-  if (isolate != NULL) {
-#if V8_TARGET_ARCH_X64
-    uint64_t rnd1 = V8::RandomPrivate(isolate);
-    uint64_t rnd2 = V8::RandomPrivate(isolate);
-    uint64_t raw_addr = (rnd1 << 32) ^ rnd2;
-    // Currently available CPUs have 48 bits of virtual addressing.  Truncate
-    // the hint address to 46 bits to give the kernel a fighting chance of
-    // fulfilling our placement request.
-    raw_addr &= V8_UINT64_C(0x3ffffffff000);
-#else
-    uint32_t raw_addr = V8::RandomPrivate(isolate);
-    // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
-    // variety of ASLR modes (PAE kernel, NX compat mode, etc).
-    raw_addr &= 0x3ffff000;
-    raw_addr += 0x20000000;
-#endif
-    return reinterpret_cast<void*>(raw_addr);
-  }
-  return NULL;
-}
-
-
 int OS::ActivationFrameAlignment() {
   // With gcc 4.4 the tree vectorization optimizer can generate code
   // that requires 16 byte alignment such as movdqa on x86.
@@ -146,7 +119,7 @@ void* OS::Allocate(const size_t requested,
                    bool is_executable) {
   const size_t msize = RoundUp(requested, AllocateAlignment());
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* addr = GetRandomMmapAddr();
+  void* addr = OS::GetRandomMmapAddr();
   void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
   if (mbase == MAP_FAILED) {
     LOG(i::Isolate::Current(),
@@ -341,7 +314,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation = mmap(GetRandomMmapAddr(),
+  void* reservation = mmap(OS::GetRandomMmapAddr(),
                            request_size,
                            PROT_NONE,
                            MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
@@ -413,7 +386,7 @@ bool VirtualMemory::Guard(void* address) {
 
 
 void* VirtualMemory::ReserveRegion(size_t size) {
-  void* result = mmap(GetRandomMmapAddr(),
+  void* result = mmap(OS::GetRandomMmapAddr(),
                       size,
                       PROT_NONE,
                       MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
