@@ -279,6 +279,7 @@ bool LCodeGen::GenerateBody() {
     instr->CompileToNative(this);
   }
   EnsureSpaceForLazyDeopt();
+  last_lazy_deopt_pc_ = masm()->pc_offset();
   return !is_aborted();
 }
 
@@ -727,6 +728,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                LInstruction* instr,
                                SafepointMode safepoint_mode,
                                TargetAddressStorageMode storage_mode) {
+  EnsureSpaceForLazyDeopt();
   ASSERT(instr != NULL);
   // Block literal pool emission to ensure nop indicating no inlined smi code
   // is in the correct position.
@@ -5661,12 +5663,12 @@ void LCodeGen::EnsureSpaceForLazyDeopt() {
       padding_size -= Assembler::kInstrSize;
     }
   }
-  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
   EnsureSpaceForLazyDeopt();
+  last_lazy_deopt_pc_ = masm()->pc_offset();
   ASSERT(instr->HasEnvironment());
   LEnvironment* env = instr->environment();
   RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -5751,6 +5753,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     PredictableCodeSizeScope predictable(masm_, 2 * Assembler::kInstrSize);
     CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
     EnsureSpaceForLazyDeopt();
+    last_lazy_deopt_pc_ = masm()->pc_offset();
     __ bind(&done);
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
     safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
@@ -5763,6 +5766,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ cmp(sp, Operand(ip));
     __ b(lo, deferred_stack_check->entry());
     EnsureSpaceForLazyDeopt();
+    last_lazy_deopt_pc_ = masm()->pc_offset();
     __ bind(instr->done_label());
     deferred_stack_check->SetExit(instr->done_label());
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
