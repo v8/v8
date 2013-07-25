@@ -4358,7 +4358,8 @@ HObjectAccess HObjectAccess::ForFixedArrayHeader(int offset) {
 }
 
 
-HObjectAccess HObjectAccess::ForJSObjectOffset(int offset) {
+HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
+    Representation representation) {
   ASSERT(offset >= 0);
   Portion portion = kInobject;
 
@@ -4367,7 +4368,7 @@ HObjectAccess HObjectAccess::ForJSObjectOffset(int offset) {
   } else if (offset == JSObject::kMapOffset) {
     portion = kMaps;
   }
-  return HObjectAccess(portion, offset, Handle<String>::null());
+  return HObjectAccess(portion, offset, representation);
 }
 
 
@@ -4382,13 +4383,14 @@ HObjectAccess HObjectAccess::ForJSArrayOffset(int offset) {
   } else if (offset == JSObject::kMapOffset) {
     portion = kMaps;
   }
-  return HObjectAccess(portion, offset, Handle<String>::null());
+  return HObjectAccess(portion, offset);
 }
 
 
-HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset) {
+HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
+    Representation representation) {
   ASSERT(offset >= 0);
-  return HObjectAccess(kBackingStore, offset, Handle<String>::null());
+  return HObjectAccess(kBackingStore, offset, representation);
 }
 
 
@@ -4396,30 +4398,35 @@ HObjectAccess HObjectAccess::ForField(Handle<Map> map,
     LookupResult *lookup, Handle<String> name) {
   ASSERT(lookup->IsField() || lookup->IsTransitionToField(*map));
   int index;
+  Representation representation;
   if (lookup->IsField()) {
     index = lookup->GetLocalFieldIndexFromMap(*map);
+    representation = lookup->representation();
   } else {
     Map* transition = lookup->GetTransitionMapFromMap(*map);
     int descriptor = transition->LastAdded();
     index = transition->instance_descriptors()->GetFieldIndex(descriptor) -
         map->inobject_properties();
+    PropertyDetails details =
+        transition->instance_descriptors()->GetDetails(descriptor);
+    representation = details.representation();
   }
   if (index < 0) {
     // Negative property indices are in-object properties, indexed
     // from the end of the fixed part of the object.
     int offset = (index * kPointerSize) + map->instance_size();
-    return HObjectAccess(kInobject, offset);
+    return HObjectAccess(kInobject, offset, representation);
   } else {
     // Non-negative property indices are in the properties array.
     int offset = (index * kPointerSize) + FixedArray::kHeaderSize;
-    return HObjectAccess(kBackingStore, offset, name);
+    return HObjectAccess(kBackingStore, offset, representation, name);
   }
 }
 
 
 HObjectAccess HObjectAccess::ForCellPayload(Isolate* isolate) {
   return HObjectAccess(
-      kInobject, Cell::kValueOffset,
+      kInobject, Cell::kValueOffset, Representation::Tagged(),
       Handle<String>(isolate->heap()->cell_value_string()));
 }
 

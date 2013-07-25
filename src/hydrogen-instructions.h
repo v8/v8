@@ -5486,20 +5486,32 @@ class HObjectAccess {
     return OffsetField::decode(value_);
   }
 
+  inline Representation representation() const {
+    return Representation::FromKind(RepresentationField::decode(value_));
+  }
+
   inline Handle<String> name() const {
     return name_;
   }
 
+  inline HObjectAccess WithRepresentation(Representation representation) {
+    return HObjectAccess(portion(), offset(), representation, name());
+  }
+
   static HObjectAccess ForHeapNumberValue() {
-    return HObjectAccess(kDouble, HeapNumber::kValueOffset);
+    return HObjectAccess(
+        kDouble, HeapNumber::kValueOffset, Representation::Double());
   }
 
   static HObjectAccess ForElementsPointer() {
     return HObjectAccess(kElementsPointer, JSObject::kElementsOffset);
   }
 
-  static HObjectAccess ForArrayLength() {
-    return HObjectAccess(kArrayLengths, JSArray::kLengthOffset);
+  static HObjectAccess ForArrayLength(ElementsKind elements_kind) {
+    return HObjectAccess(
+        kArrayLengths, JSArray::kLengthOffset,
+        IsFastElementsKind(elements_kind) && FLAG_track_fields ?
+        Representation::Smi() : Representation::Tagged());
   }
 
   static HObjectAccess ForAllocationSiteTransitionInfo() {
@@ -5511,7 +5523,10 @@ class HObjectAccess {
   }
 
   static HObjectAccess ForFixedArrayLength() {
-    return HObjectAccess(kArrayLengths, FixedArray::kLengthOffset);
+    return HObjectAccess(
+        kArrayLengths, FixedArray::kLengthOffset,
+        FLAG_track_fields ?
+        Representation::Smi() : Representation::Tagged());
   }
 
   static HObjectAccess ForPropertiesPointer() {
@@ -5542,13 +5557,15 @@ class HObjectAccess {
   static HObjectAccess ForFixedArrayHeader(int offset);
 
   // Create an access to an in-object property in a JSObject.
-  static HObjectAccess ForJSObjectOffset(int offset);
+  static HObjectAccess ForJSObjectOffset(int offset,
+      Representation representation = Representation::Tagged());
 
   // Create an access to an in-object property in a JSArray.
   static HObjectAccess ForJSArrayOffset(int offset);
 
   // Create an access to the backing store of an object.
-  static HObjectAccess ForBackingStoreOffset(int offset);
+  static HObjectAccess ForBackingStoreOffset(int offset,
+      Representation representation = Representation::Tagged());
 
   // Create an access to a resolved field (in-object or backing store).
   static HObjectAccess ForField(Handle<Map> map,
@@ -5578,17 +5595,23 @@ class HObjectAccess {
   };
 
   HObjectAccess(Portion portion, int offset,
-      Handle<String> name = Handle<String>::null())
-    : value_(PortionField::encode(portion) | OffsetField::encode(offset)),
+                Representation representation = Representation::Tagged(),
+                Handle<String> name = Handle<String>::null())
+    : value_(PortionField::encode(portion) |
+             RepresentationField::encode(representation.kind()) |
+             OffsetField::encode(offset)),
       name_(name) {
-    ASSERT(this->offset() == offset);    // offset should decode correctly
-    ASSERT(this->portion() == portion);  // portion should decode correctly
+    // assert that the fields decode correctly
+    ASSERT(this->offset() == offset);
+    ASSERT(this->portion() == portion);
+    ASSERT(RepresentationField::decode(value_) == representation.kind());
   }
 
   class PortionField : public BitField<Portion, 0, 3> {};
-  class OffsetField : public BitField<int, 3, 29> {};
+  class RepresentationField : public BitField<Representation::Kind, 3, 3> {};
+  class OffsetField : public BitField<int, 6, 26> {};
 
-  uint32_t value_;  // encodes both portion and offset
+  uint32_t value_;  // encodes portion, representation, and offset
   Handle<String> name_;
 
   friend class HLoadNamedField;
@@ -5636,22 +5659,20 @@ class HLoadNamedField: public HTemplateInstruction<2> {
  public:
   HLoadNamedField(HValue* object,
                   HObjectAccess access,
-                  HValue* typecheck = NULL,
-                  Representation field_representation
-                      = Representation::Tagged())
-      : access_(access),
-        field_representation_(field_representation) {
+                  HValue* typecheck = NULL)
+      : access_(access) {
     ASSERT(object != NULL);
     SetOperandAt(0, object);
     SetOperandAt(1, typecheck != NULL ? typecheck : object);
 
-    if (FLAG_track_fields && field_representation.IsSmi()) {
+    Representation representation = access.representation();
+    if (representation.IsSmi()) {
       set_type(HType::Smi());
-      set_representation(field_representation);
-    } else if (FLAG_track_double_fields && field_representation.IsDouble()) {
-      set_representation(field_representation);
+      set_representation(representation);
+    } else if (representation.IsDouble()) {
+      set_representation(representation);
     } else if (FLAG_track_heap_object_fields &&
-               field_representation.IsHeapObject()) {
+               representation.IsHeapObject()) {
       set_type(HType::NonPrimitive());
       set_representation(Representation::Tagged());
     } else {
@@ -5668,7 +5689,9 @@ class HLoadNamedField: public HTemplateInstruction<2> {
 
   bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
   HObjectAccess access() const { return access_; }
-  Representation field_representation() const { return representation_; }
+  Representation field_representation() const {
+      return access_.representation();
+  }
 
   virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
@@ -5688,7 +5711,6 @@ class HLoadNamedField: public HTemplateInstruction<2> {
   virtual bool IsDeletable() const { return true; }
 
   HObjectAccess access_;
-  Representation field_representation_;
 };
 
 
@@ -5988,11 +6010,8 @@ class HStoreNamedField: public HTemplateInstruction<2> {
  public:
   HStoreNamedField(HValue* obj,
                    HObjectAccess access,
-                   HValue* val,
-                   Representation field_representation
-                       = Representation::Tagged())
+                   HValue* val)
       : access_(access),
-        field_representation_(field_representation),
         transition_(),
         transition_unique_id_(),
         new_space_dominator_(NULL),
@@ -6006,12 +6025,10 @@ class HStoreNamedField: public HTemplateInstruction<2> {
 
   virtual bool HasEscapingOperandAt(int index) { return index == 1; }
   virtual Representation RequiredInputRepresentation(int index) {
-    if (FLAG_track_double_fields &&
-        index == 1 && field_representation_.IsDouble()) {
-      return field_representation_;
-    } else if (FLAG_track_fields &&
-               index == 1 && field_representation_.IsSmi()) {
-      return field_representation_;
+    if (index == 1 && field_representation().IsDouble()) {
+      return field_representation();
+    } else if (index == 1 && field_representation().IsSmi()) {
+      return field_representation();
     }
     return Representation::Tagged();
   }
@@ -6043,13 +6060,12 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {
-    ASSERT(!(FLAG_track_double_fields && field_representation_.IsDouble()) ||
+    ASSERT(!(FLAG_track_double_fields && field_representation().IsDouble()) ||
            transition_.is_null());
     if (IsSkipWriteBarrier()) return false;
-    return (!FLAG_track_fields || !field_representation_.IsSmi()) &&
-        // If there is a transition, a new storage object needs to be allocated.
-        !(FLAG_track_double_fields && field_representation_.IsDouble()) &&
-        StoringValueNeedsWriteBarrier(value()) &&
+    if (field_representation().IsDouble()) return false;
+    if (field_representation().IsSmi()) return false;
+    return StoringValueNeedsWriteBarrier(value()) &&
         ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
@@ -6063,12 +6079,11 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   }
 
   Representation field_representation() const {
-    return field_representation_;
+    return access_.representation();
   }
 
  private:
   HObjectAccess access_;
-  Representation field_representation_;
   Handle<Map> transition_;
   UniqueValueId transition_unique_id_;
   HValue* new_space_dominator_;

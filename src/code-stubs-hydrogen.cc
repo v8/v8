@@ -521,11 +521,11 @@ Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
+  Representation rep = casted_stub()->representation();
   HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForJSObjectOffset(casted_stub()->offset()) :
-      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset());
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access,
-      casted_stub()->representation()));
+      HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
+      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
 }
 
 
@@ -536,11 +536,11 @@ Handle<Code> LoadFieldStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
+  Representation rep = casted_stub()->representation();
   HObjectAccess access = casted_stub()->is_inobject() ?
-      HObjectAccess::ForJSObjectOffset(casted_stub()->offset()) :
-      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset());
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access,
-      casted_stub()->representation()));
+      HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
+      HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
 }
 
 

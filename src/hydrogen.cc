@@ -1095,10 +1095,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
         HAdd::New(zone, context, key, graph_->GetConstant1()));
     new_length->ClearFlag(HValue::kCanOverflow);
 
-    Representation representation = IsFastElementsKind(kind)
-        ? Representation::Smi() : Representation::Tagged();
-    AddStore(object, HObjectAccess::ForArrayLength(), new_length,
-        representation);
+    AddStore(object, HObjectAccess::ForArrayLength(kind), new_length);
   }
 
   length_checker.Else();
@@ -1166,10 +1163,8 @@ void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
     HInstruction* elements_length = AddLoadFixedArrayLength(elements);
 
     HInstruction* array_length = is_jsarray
-        ? AddLoad(object, HObjectAccess::ForArrayLength(),
-                  NULL, Representation::Smi())
+        ? AddLoad(object, HObjectAccess::ForArrayLength(from_kind), NULL)
         : elements_length;
-    array_length->set_type(HType::Smi());
 
     BuildGrowElementsCapacity(object, elements, from_kind, to_kind,
                               array_length, elements_length);
@@ -1217,8 +1212,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   HInstruction* length = NULL;
   if (is_js_array) {
-    length = AddLoad(object, HObjectAccess::ForArrayLength(), mapcheck,
-        Representation::Smi());
+    length = AddLoad(object, HObjectAccess::ForArrayLength(elements_kind),
+        mapcheck);
   } else {
     length = AddLoadFixedArrayLength(elements);
   }
@@ -1334,10 +1329,7 @@ void HGraphBuilder::BuildInitializeElementsHeader(HValue* elements,
       : factory->fixed_array_map();
 
   AddStoreMapConstant(elements, map);
-  Representation representation = IsFastElementsKind(kind)
-      ? Representation::Smi() : Representation::Tagged();
-  AddStore(elements, HObjectAccess::ForFixedArrayLength(), capacity,
-      representation);
+  AddStore(elements, HObjectAccess::ForFixedArrayLength(), capacity);
 }
 
 
@@ -1354,6 +1346,7 @@ HValue* HGraphBuilder::BuildAllocateElementsAndInitializeElementsHeader(
 HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
     HValue* array_map,
     AllocationSiteMode mode,
+    ElementsKind elements_kind,
     HValue* allocation_site_payload,
     HValue* length_field) {
 
@@ -1364,7 +1357,7 @@ HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
 
   HObjectAccess access = HObjectAccess::ForPropertiesPointer();
   AddStore(array, access, empty_fixed_array);
-  AddStore(array, HObjectAccess::ForArrayLength(), length_field);
+  AddStore(array, HObjectAccess::ForArrayLength(elements_kind), length_field);
 
   if (mode == TRACK_ALLOCATION_SITE) {
     BuildCreateAllocationMemento(array,
@@ -1471,10 +1464,7 @@ HLoadNamedField* HGraphBuilder::AddLoadElements(HValue* object,
 
 
 HLoadNamedField* HGraphBuilder::AddLoadFixedArrayLength(HValue* object) {
-  HLoadNamedField* instr = AddLoad(object, HObjectAccess::ForFixedArrayLength(),
-                                   NULL, Representation::Smi());
-  instr->set_type(HType::Smi());
-  return instr;
+  return AddLoad(object, HObjectAccess::ForFixedArrayLength());
 }
 
 
@@ -1845,11 +1835,8 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode(HValue* context) {
     // No need for a context lookup if the kind_ matches the initial
     // map, because we can just load the map in that case.
     HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
-    HInstruction* load =
-        builder()->BuildLoadNamedField(constructor_function_,
-                                       access,
-                                       Representation::Tagged());
-    return builder()->AddInstruction(load);
+    return builder()->AddInstruction(
+        builder()->BuildLoadNamedField(constructor_function_, access));
   }
 
   HInstruction* native_context = builder()->BuildGetNativeContext(context);
@@ -1870,9 +1857,7 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitInternalMapCode() {
   // Find the map near the constructor function
   HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
   return builder()->AddInstruction(
-      builder()->BuildLoadNamedField(constructor_function_,
-                                     access,
-                                     Representation::Tagged()));
+      builder()->BuildLoadNamedField(constructor_function_, access));
 }
 
 
@@ -1960,6 +1945,7 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
   elements_location_ = builder()->BuildJSArrayHeader(new_object,
                                                      map,
                                                      mode_,
+                                                     kind_,
                                                      allocation_site_payload_,
                                                      length_field);
 
@@ -1977,17 +1963,15 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
 
 HStoreNamedField* HGraphBuilder::AddStore(HValue *object,
                                           HObjectAccess access,
-                                          HValue *val,
-                                          Representation representation) {
-  return Add<HStoreNamedField>(object, access, val, representation);
+                                          HValue *val) {
+  return Add<HStoreNamedField>(object, access, val);
 }
 
 
 HLoadNamedField* HGraphBuilder::AddLoad(HValue *object,
                                         HObjectAccess access,
-                                        HValue *typecheck,
-                                        Representation representation) {
-  return Add<HLoadNamedField>(object, access, typecheck, representation);
+                                        HValue *typecheck) {
+  return Add<HLoadNamedField>(object, access, typecheck);
 }
 
 
@@ -4532,20 +4516,6 @@ static bool ComputeLoadStoreField(Handle<Map> type,
 }
 
 
-static Representation ComputeLoadStoreRepresentation(Handle<Map> type,
-                                                     LookupResult* lookup) {
-  if (lookup->IsField()) {
-    return lookup->representation();
-  } else {
-    Map* transition = lookup->GetTransitionMapFromMap(*type);
-    int descriptor = transition->LastAdded();
-    PropertyDetails details =
-        transition->instance_descriptors()->GetDetails(descriptor);
-    return details.representation();
-  }
-}
-
-
 void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
   BuildCheckHeapObject(object);
   AddInstruction(HCheckMaps::New(object, map, zone(), top_info()));
@@ -4597,33 +4567,33 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   }
 
   HObjectAccess field_access = HObjectAccess::ForField(map, lookup, name);
-  Representation representation = ComputeLoadStoreRepresentation(map, lookup);
   bool transition_to_field = lookup->IsTransitionToField(*map);
 
   HStoreNamedField *instr;
-  if (FLAG_track_double_fields && representation.IsDouble()) {
+  if (FLAG_track_double_fields && field_access.representation().IsDouble()) {
+    HObjectAccess heap_number_access =
+        field_access.WithRepresentation(Representation::Tagged());
     if (transition_to_field) {
       // The store requires a mutable HeapNumber to be allocated.
       NoObservableSideEffectsScope no_side_effects(this);
       HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
-      HInstruction* double_box = Add<HAllocate>(
+      HInstruction* heap_number = Add<HAllocate>(
           environment()->LookupContext(), heap_number_size,
           HType::HeapNumber(), HAllocate::CAN_ALLOCATE_IN_NEW_SPACE);
-      AddStoreMapConstant(double_box, isolate()->factory()->heap_number_map());
-      AddStore(double_box, HObjectAccess::ForHeapNumberValue(),
-          value, Representation::Double());
-      instr = new(zone()) HStoreNamedField(object, field_access, double_box);
+      AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
+      AddStore(heap_number, HObjectAccess::ForHeapNumberValue(), value);
+      instr = new(zone()) HStoreNamedField(
+          object, heap_number_access, heap_number);
     } else {
       // Already holds a HeapNumber; load the box and write its value field.
-      HInstruction* double_box = AddLoad(object, field_access);
-      double_box->set_type(HType::HeapNumber());
-      instr = new(zone()) HStoreNamedField(double_box,
-          HObjectAccess::ForHeapNumberValue(), value, Representation::Double());
+      HInstruction* heap_number = AddLoad(object, heap_number_access);
+      heap_number->set_type(HType::HeapNumber());
+      instr = new(zone()) HStoreNamedField(heap_number,
+          HObjectAccess::ForHeapNumberValue(), value);
     }
   } else {
-    // This is a non-double store.
-    instr = new(zone()) HStoreNamedField(
-        object, field_access, value, representation);
+    // This is a normal store.
+    instr = new(zone()) HStoreNamedField(object, field_access, value);
   }
 
   if (transition_to_field) {
@@ -4690,20 +4660,18 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
 
   LookupResult lookup(isolate());
   int count;
-  Representation representation = Representation::None();
   HObjectAccess access = HObjectAccess::ForMap();  // initial value unused.
   for (count = 0; count < types->length(); ++count) {
     Handle<Map> map = types->at(count);
     if (!ComputeLoadStoreField(map, name, &lookup, false)) break;
 
     HObjectAccess new_access = HObjectAccess::ForField(map, &lookup, name);
-    Representation new_representation =
-        ComputeLoadStoreRepresentation(map, &lookup);
 
     if (count == 0) {
       // First time through the loop; set access and representation.
       access = new_access;
-    } else if (!representation.IsCompatibleForLoad(new_representation)) {
+    } else if (!access.representation().IsCompatibleForLoad(
+        new_access.representation())) {
       // Representations did not match.
       break;
     } else if (access.offset() != new_access.offset()) {
@@ -4713,14 +4681,15 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
       // In-objectness did not match.
       break;
     }
-    representation = representation.generalize(new_representation);
+    access = access.WithRepresentation(
+        access.representation().generalize(new_access.representation()));
   }
 
   if (count == types->length()) {
     // Everything matched; can use monomorphic load.
     BuildCheckHeapObject(object);
     AddInstruction(HCheckMaps::New(object, types, zone()));
-    return BuildLoadNamedField(object, access, representation);
+    return BuildLoadNamedField(object, access);
   }
 
   if (count != 0) return NULL;
@@ -4742,14 +4711,14 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
 
   BuildCheckHeapObject(object);
   AddInstruction(HCheckMaps::New(object, types, zone()));
+
   Handle<JSObject> holder(lookup.holder());
   Handle<Map> holder_map(holder->map());
   AddInstruction(new(zone()) HCheckPrototypeMaps(
       Handle<JSObject>::cast(prototype), holder, zone(), top_info()));
   HValue* holder_value = AddInstruction(new(zone()) HConstant(holder));
   return BuildLoadNamedField(holder_value,
-      HObjectAccess::ForField(holder_map, &lookup, name),
-      ComputeLoadStoreRepresentation(map, &lookup));
+      HObjectAccess::ForField(holder_map, &lookup, name));
 }
 
 
@@ -4798,8 +4767,7 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
     ASSERT(!map->is_observed());
 
     HObjectAccess new_access = HObjectAccess::ForField(map, &lookup, name);
-    Representation new_representation =
-        ComputeLoadStoreRepresentation(map, &lookup);
+    Representation new_representation = new_access.representation();
 
     if (count == 0) {
       // First time through the loop; set access and representation.
@@ -5392,24 +5360,18 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
 }
 
 
-HLoadNamedField* HGraphBuilder::BuildLoadNamedField(
-    HValue* object,
-    HObjectAccess access,
-    Representation representation) {
-  bool load_double = false;
-  if (representation.IsDouble()) {
-    representation = Representation::Tagged();
-    load_double = FLAG_track_double_fields;
+HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
+    HObjectAccess access) {
+  if (FLAG_track_double_fields && access.representation().IsDouble()) {
+    // load the heap number
+    HLoadNamedField* heap_number =
+        AddLoad(object, access.WithRepresentation(Representation::Tagged()));
+    heap_number->set_type(HType::HeapNumber());
+    // load the double value from it
+    return new(zone()) HLoadNamedField(heap_number,
+        HObjectAccess::ForHeapNumberValue(), NULL);
   }
-  HLoadNamedField* field =
-      new(zone()) HLoadNamedField(object, access, NULL, representation);
-  if (load_double) {
-    AddInstruction(field);
-    field->set_type(HType::HeapNumber());
-    return new(zone()) HLoadNamedField(field,
-        HObjectAccess::ForHeapNumberValue(), NULL, Representation::Double());
-  }
-  return field;
+  return new(zone()) HLoadNamedField(object, access, NULL);
 }
 
 
@@ -5449,7 +5411,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     if (map->instance_type() == JS_ARRAY_TYPE) {
       AddCheckMapsWithTransitions(object, map);
       return new(zone()) HLoadNamedField(object,
-          HObjectAccess::ForArrayLength());
+          HObjectAccess::ForArrayLength(map->elements_kind()));
     }
   }
 
@@ -5458,8 +5420,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
   if (lookup.IsField()) {
     AddCheckMap(object, map);
     return BuildLoadNamedField(object,
-        HObjectAccess::ForField(map, &lookup, name),
-        ComputeLoadStoreRepresentation(map, &lookup));
+        HObjectAccess::ForField(map, &lookup, name));
   }
 
   // Handle a load of a constant known function.
@@ -5479,8 +5440,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Add<HCheckPrototypeMaps>(prototype, holder, zone(), top_info());
     HValue* holder_value = Add<HConstant>(holder);
     return BuildLoadNamedField(holder_value,
-        HObjectAccess::ForField(holder_map, &lookup, name),
-        ComputeLoadStoreRepresentation(map, &lookup));
+        HObjectAccess::ForField(holder_map, &lookup, name));
   }
 
   // Handle a load of a constant function somewhere in the prototype chain.
@@ -5702,9 +5662,8 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
             zone(), top_info(), mapcompare));
       }
       if (map->IsJSArray()) {
-        HInstruction* length = AddLoad(object, HObjectAccess::ForArrayLength(),
-                                       mapcompare, Representation::Smi());
-        length->set_type(HType::Smi());
+        HInstruction* length = AddLoad(
+            object, HObjectAccess::ForArrayLength(elements_kind), mapcompare);
         checked_key = Add<HBoundsCheck>(key, length);
       } else {
         HInstruction* length = AddLoadFixedArrayLength(elements);
@@ -8501,11 +8460,8 @@ HValue* HOptimizedGraphBuilder::BuildEmitObjectHeader(
     HInstruction* length = Add<HConstant>(length_field);
 
     ASSERT(boilerplate_array->length()->IsSmi());
-    Representation representation =
-        IsFastElementsKind(boilerplate_array->GetElementsKind())
-        ? Representation::Smi() : Representation::Tagged();
-    AddStore(object_header, HObjectAccess::ForArrayLength(),
-        length, representation);
+    AddStore(object_header, HObjectAccess::ForArrayLength(
+        boilerplate_array->GetElementsKind()), length);
   }
 
   return result;
@@ -8571,7 +8527,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         AddStoreMapConstant(double_box,
             isolate()->factory()->heap_number_map());
         AddStore(double_box, HObjectAccess::ForHeapNumberValue(),
-            value_instruction, Representation::Double());
+            value_instruction);
         value_instruction = double_box;
       }
 

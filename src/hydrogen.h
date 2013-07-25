@@ -1094,8 +1094,7 @@ class HGraphBuilder {
   HLoadNamedField* AddLoad(
       HValue *object,
       HObjectAccess access,
-      HValue *typecheck = NULL,
-      Representation representation = Representation::Tagged());
+      HValue *typecheck = NULL);
 
   HLoadNamedField* BuildLoadNamedField(
       HValue* object,
@@ -1120,16 +1119,10 @@ class HGraphBuilder {
       LoadKeyedHoleMode load_mode,
       KeyedAccessStoreMode store_mode);
 
-  HStoreNamedField* AddStore(
-      HValue *object,
-      HObjectAccess access,
-      HValue *val,
-      Representation representation = Representation::Tagged());
-
+  HLoadNamedField* BuildLoadNamedField(HValue* object, HObjectAccess access);
+  HStoreNamedField* AddStore(HValue *object, HObjectAccess access, HValue *val);
   HStoreNamedField* AddStoreMapConstant(HValue *object, Handle<Map>);
-
   HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck = NULL);
-
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HValue* context);
@@ -1389,6 +1382,7 @@ class HGraphBuilder {
   HInnerAllocatedObject* BuildJSArrayHeader(HValue* array,
                                             HValue* array_map,
                                             AllocationSiteMode mode,
+                                            ElementsKind elements_kind,
                                             HValue* allocation_site_payload,
                                             HValue* length_field);
 
