@@ -1813,7 +1813,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ b(gt, &call_builtin);
 
       __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
-      __ StoreNumberToDoubleElements(r4, r0, elements, r5,
+      __ StoreNumberToDoubleElements(r4, r0, elements, r5, d0,
                                      &call_builtin, argc * kDoubleSize);
 
       // Save new length.
@@ -3194,7 +3194,7 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                                 Register key,
                                 Register scratch0,
                                 DwVfpRegister double_scratch0,
-                                DwVfpRegister double_scratch1,
+                                LowDwVfpRegister double_scratch1,
                                 Label* fail) {
   Label key_ok;
   // Check for smi or a smi inside a heap number.  We convert the heap
@@ -3603,7 +3603,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   __ bind(&finish_store);
   __ StoreNumberToDoubleElements(value_reg, key_reg, elements_reg,
-                                 scratch1, &transition_elements_kind);
+                                 scratch1, d0, &transition_elements_kind);
   __ Ret();
 
   // Handle store cache miss, replacing the ic with the generic stub.
@@ -3651,7 +3651,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
     __ mov(scratch1, elements_reg);
     __ StoreNumberToDoubleElements(value_reg, key_reg, scratch1,
-                                   scratch2, &transition_elements_kind);
+                                   scratch2, d0, &transition_elements_kind);
 
     __ mov(scratch1, Operand(kHoleNanLower32));
     __ mov(scratch2, Operand(kHoleNanUpper32));

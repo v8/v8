@@ -2420,15 +2420,13 @@ class LCheckNonSmi: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LClampDToUint8: public LTemplateInstruction<1, 1, 1> {
+class LClampDToUint8: public LTemplateInstruction<1, 1, 0> {
  public:
-  LClampDToUint8(LOperand* unclamped, LOperand* temp) {
+  explicit LClampDToUint8(LOperand* unclamped) {
     inputs_[0] = unclamped;
-    temps_[0] = temp;
   }
 
   LOperand* unclamped() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ClampDToUint8, "clamp-d-to-uint8")
 };

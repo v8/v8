@@ -1190,7 +1190,7 @@ void LCodeGen::DoModI(LModI* instr) {
     DwVfpRegister dividend = ToDoubleRegister(instr->temp());
     DwVfpRegister divisor = ToDoubleRegister(instr->temp2());
     ASSERT(!divisor.is(dividend));
-    DwVfpRegister quotient = double_scratch0();
+    LowDwVfpRegister quotient = double_scratch0();
     ASSERT(!quotient.is(dividend));
     ASSERT(!quotient.is(divisor));
 
@@ -1206,11 +1206,10 @@ void LCodeGen::DoModI(LModI* instr) {
     // Load the arguments in VFP registers. The divisor value is preloaded
     // before. Be careful that 'right_reg' is only live on entry.
     // TODO(svenpanne) The last comments seems to be wrong nowadays.
-    __ vmov(dividend.low(), left_reg);
-    __ vmov(divisor.low(), right_reg);
-
-    __ vcvt_f64_s32(dividend, dividend.low());
-    __ vcvt_f64_s32(divisor, divisor.low());
+    __ vmov(double_scratch0().low(), left_reg);
+    __ vcvt_f64_s32(dividend, double_scratch0().low());
+    __ vmov(double_scratch0().low(), right_reg);
+    __ vcvt_f64_s32(divisor, double_scratch0().low());
 
     // We do not care about the sign of the divisor. Note that we still handle
     // the kMinInt % -1 case correctly, though.
@@ -1221,10 +1220,9 @@ void LCodeGen::DoModI(LModI* instr) {
     __ vcvt_f64_s32(quotient, quotient.low());
 
     // Compute the remainder in result.
-    DwVfpRegister double_scratch = dividend;
-    __ vmul(double_scratch, divisor, quotient);
-    __ vcvt_s32_f64(double_scratch.low(), double_scratch);
-    __ vmov(scratch, double_scratch.low());
+    __ vmul(double_scratch0(), divisor, quotient);
+    __ vcvt_s32_f64(double_scratch0().low(), double_scratch0());
+    __ vmov(scratch, double_scratch0().low());
     __ sub(result_reg, left_reg, scratch, SetCC);
 
     // If we care about -0, test if the dividend is <0 and the result is 0.
@@ -1424,20 +1422,20 @@ void LCodeGen::DoDivI(LDivI* instr) {
   } else {
     const DoubleRegister vleft = ToDoubleRegister(instr->temp());
     const DoubleRegister vright = double_scratch0();
-    __ vmov(vleft.low(), left);
-    __ vmov(vright.low(), right);
-    __ vcvt_f64_s32(vleft, vleft.low());
-    __ vcvt_f64_s32(vright, vright.low());
+    __ vmov(double_scratch0().low(), left);
+    __ vcvt_f64_s32(vleft, double_scratch0().low());
+    __ vmov(double_scratch0().low(), right);
+    __ vcvt_f64_s32(vright, double_scratch0().low());
     __ vdiv(vleft, vleft, vright);  // vleft now contains the result.
-    __ vcvt_s32_f64(vright.low(), vleft);
-    __ vmov(result, vright.low());
+    __ vcvt_s32_f64(double_scratch0().low(), vleft);
+    __ vmov(result, double_scratch0().low());
 
     if (!instr->hydrogen()->CheckFlag(
         HInstruction::kAllUsesTruncatingToInt32)) {
       // Deopt if exact conversion to integer was not possible.
       // Use vright as scratch register.
-      __ vcvt_f64_s32(vright, vright.low());
-      __ VFPCompareAndSetFlags(vleft, vright);
+      __ vcvt_f64_s32(double_scratch0(), double_scratch0().low());
+      __ VFPCompareAndSetFlags(vleft, double_scratch0());
       DeoptimizeIf(ne, instr->environment());
     }
   }
@@ -3210,8 +3208,8 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         : Operand(key, LSL, shift_size);
     __ add(scratch0(), external_pointer, operand);
     if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-      __ vldr(kScratchDoubleReg.low(), scratch0(), additional_offset);
-      __ vcvt_f64_f32(result, kScratchDoubleReg.low());
+      __ vldr(double_scratch0().low(), scratch0(), additional_offset);
+      __ vcvt_f64_f32(result, double_scratch0().low());
     } else  {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
       __ vldr(result, scratch0(), additional_offset);
     }
@@ -3779,7 +3777,6 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   Register input_high = scratch0();
   Label done, exact;
 
-  __ vmov(input_high, input.high());
   __ TryInt32Floor(result, input, input_high, double_scratch0(), &done, &exact);
   DeoptimizeIf(al, instr->environment());
 
@@ -3812,7 +3809,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // If the input is +0.5, the result is 1.
   __ b(hi, &convert);  // Out of [-0.5, +0.5].
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ vmov(input_high, input.high());
+    __ VmovHigh(input_high, input);
     __ cmp(input_high, Operand::Zero());
     DeoptimizeIf(mi, instr->environment());  // [-0.5, -0].
   }
@@ -3825,7 +3822,6 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
   __ bind(&convert);
   __ vadd(input_plus_dot_five, input, dot_five);
-  __ vmov(input_high, input_plus_dot_five.high());
   // Reuse dot_five (double_scratch0) as we no longer need this value.
   __ TryInt32Floor(result, input_plus_dot_five, input_high, double_scratch0(),
                    &done, &done);
@@ -4761,8 +4757,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   Label slow;
   Register src = ToRegister(value);
   Register dst = ToRegister(instr->result());
-  DwVfpRegister dbl_scratch = double_scratch0();
-  SwVfpRegister flt_scratch = dbl_scratch.low();
+  LowDwVfpRegister dbl_scratch = double_scratch0();
 
   // Preserve the value of all registers.
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
@@ -4776,11 +4771,11 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
       __ SmiUntag(src, dst);
       __ eor(src, src, Operand(0x80000000));
     }
-    __ vmov(flt_scratch, src);
-    __ vcvt_f64_s32(dbl_scratch, flt_scratch);
+    __ vmov(dbl_scratch.low(), src);
+    __ vcvt_f64_s32(dbl_scratch, dbl_scratch.low());
   } else {
-    __ vmov(flt_scratch, src);
-    __ vcvt_f64_u32(dbl_scratch, flt_scratch);
+    __ vmov(dbl_scratch.low(), src);
+    __ vcvt_f64_u32(dbl_scratch, dbl_scratch.low());
   }
 
   if (FLAG_inline_new) {
@@ -4841,7 +4836,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     DwVfpRegister input_reg = ToDoubleRegister(instr->value());
     __ VFPCompareAndSetFlags(input_reg, input_reg);
     __ b(vc, &no_special_nan_handling);
-    __ vmov(scratch, input_reg.high());
+    __ VmovHigh(scratch, input_reg);
     __ cmp(scratch, Operand(kHoleNanUpper32));
     // If not the hole NaN, force the NaN to be canonical.
     __ VFPCanonicalizeNaN(input_reg, ne);
@@ -4941,22 +4936,20 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
       DeoptimizeIf(ne, env);
 
       __ bind(&convert);
-      __ LoadRoot(ip, Heap::kNanValueRootIndex);
-      __ sub(ip, ip, Operand(kHeapObjectTag));
-      __ vldr(result_reg, ip, HeapNumber::kValueOffset);
+      __ LoadRoot(scratch, Heap::kNanValueRootIndex);
+      __ vldr(result_reg, scratch, HeapNumber::kValueOffset - kHeapObjectTag);
       __ jmp(&done);
 
       __ bind(&heap_number);
     }
     // Heap number to double register conversion.
-    __ sub(ip, input_reg, Operand(kHeapObjectTag));
-    __ vldr(result_reg, ip, HeapNumber::kValueOffset);
+    __ vldr(result_reg, input_reg, HeapNumber::kValueOffset - kHeapObjectTag);
     if (deoptimize_on_minus_zero) {
-      __ vmov(ip, result_reg.low());
-      __ cmp(ip, Operand::Zero());
+      __ VmovLow(scratch, result_reg);
+      __ cmp(scratch, Operand::Zero());
       __ b(ne, &done);
-      __ vmov(ip, result_reg.high());
-      __ cmp(ip, Operand(HeapNumber::kSignMask));
+      __ VmovHigh(scratch, result_reg);
+      __ cmp(scratch, Operand(HeapNumber::kSignMask));
       DeoptimizeIf(eq, env);
     }
     __ jmp(&done);
@@ -4978,7 +4971,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   Register input_reg = ToRegister(instr->value());
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
-  DwVfpRegister double_scratch = double_scratch0();
+  LowDwVfpRegister double_scratch = double_scratch0();
   DwVfpRegister double_scratch2 = ToDoubleRegister(instr->temp3());
 
   ASSERT(!scratch1.is(input_reg) && !scratch1.is(scratch2));
@@ -5026,14 +5019,14 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     DeoptimizeIf(ne, instr->environment());
 
     __ sub(ip, input_reg, Operand(kHeapObjectTag));
-    __ vldr(double_scratch, ip, HeapNumber::kValueOffset);
-    __ TryDoubleToInt32Exact(input_reg, double_scratch, double_scratch2);
+    __ vldr(double_scratch2, ip, HeapNumber::kValueOffset);
+    __ TryDoubleToInt32Exact(input_reg, double_scratch2, double_scratch);
     DeoptimizeIf(ne, instr->environment());
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ cmp(input_reg, Operand::Zero());
       __ b(ne, &done);
-      __ vmov(scratch1, double_scratch.high());
+      __ VmovHigh(scratch1, double_scratch2);
       __ tst(scratch1, Operand(HeapNumber::kSignMask));
       DeoptimizeIf(ne, instr->environment());
     }
@@ -5106,7 +5099,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
   DwVfpRegister double_input = ToDoubleRegister(instr->value());
-  DwVfpRegister double_scratch = double_scratch0();
+  LowDwVfpRegister double_scratch = double_scratch0();
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
@@ -5120,7 +5113,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
       Label done;
       __ cmp(result_reg, Operand::Zero());
       __ b(ne, &done);
-      __ vmov(scratch1, double_input.high());
+      __ VmovHigh(scratch1, double_input);
       __ tst(scratch1, Operand(HeapNumber::kSignMask));
       DeoptimizeIf(ne, instr->environment());
       __ bind(&done);
@@ -5134,7 +5127,7 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
   DwVfpRegister double_input = ToDoubleRegister(instr->value());
-  DwVfpRegister double_scratch = double_scratch0();
+  LowDwVfpRegister double_scratch = double_scratch0();
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
@@ -5148,7 +5141,7 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
       Label done;
       __ cmp(result_reg, Operand::Zero());
       __ b(ne, &done);
-      __ vmov(scratch1, double_input.high());
+      __ VmovHigh(scratch1, double_input);
       __ tst(scratch1, Operand(HeapNumber::kSignMask));
       DeoptimizeIf(ne, instr->environment());
       __ bind(&done);
@@ -5269,8 +5262,7 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
   DwVfpRegister value_reg = ToDoubleRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());
-  DwVfpRegister temp_reg = ToDoubleRegister(instr->temp());
-  __ ClampDoubleToUint8(result_reg, value_reg, temp_reg);
+  __ ClampDoubleToUint8(result_reg, value_reg, double_scratch0());
 }
 
 
@@ -5305,9 +5297,8 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // Heap number
   __ bind(&heap_number);
-  __ vldr(double_scratch0(), FieldMemOperand(input_reg,
-                                             HeapNumber::kValueOffset));
-  __ ClampDoubleToUint8(result_reg, double_scratch0(), temp_reg);
+  __ vldr(temp_reg, FieldMemOperand(input_reg, HeapNumber::kValueOffset));
+  __ ClampDoubleToUint8(result_reg, temp_reg, double_scratch0());
   __ jmp(&done);
 
   // smi
@@ -5480,8 +5471,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 
   __ bind(&allocated);
   // Copy the content into the newly allocated memory.
-  __ CopyFields(r0, r1, double_scratch0(), double_scratch0().low(),
-                size / kPointerSize);
+  __ CopyFields(r0, r1, double_scratch0(), size / kPointerSize);
 }
 
 
