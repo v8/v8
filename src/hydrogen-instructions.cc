@@ -84,9 +84,9 @@ void HValue::InferRepresentation(HInferRepresentationPhase* h_infer) {
   UpdateRepresentation(new_rep, h_infer, "inputs");
   new_rep = RepresentationFromUses();
   UpdateRepresentation(new_rep, h_infer, "uses");
-  new_rep = RepresentationFromUseRequirements();
-  if (new_rep.fits_into(Representation::Integer32())) {
-    UpdateRepresentation(new_rep, h_infer, "use requirements");
+  if (representation().IsSmi() && HasNonSmiUse()) {
+    UpdateRepresentation(
+        Representation::Integer32(), h_infer, "use requirements");
   }
 }
 
@@ -259,34 +259,56 @@ HValue* RangeEvaluationContext::ConvertGuarantee(HValue* guarantee) {
 }
 
 
-static int32_t ConvertAndSetOverflow(int64_t result, bool* overflow) {
-  if (result > kMaxInt) {
-    *overflow = true;
-    return kMaxInt;
-  }
-  if (result < kMinInt) {
-    *overflow = true;
-    return kMinInt;
+static int32_t ConvertAndSetOverflow(Representation r,
+                                     int64_t result,
+                                     bool* overflow) {
+  if (r.IsSmi()) {
+    if (result > Smi::kMaxValue) {
+      *overflow = true;
+      return Smi::kMaxValue;
+    }
+    if (result < Smi::kMinValue) {
+      *overflow = true;
+      return Smi::kMinValue;
+    }
+  } else {
+    if (result > kMaxInt) {
+      *overflow = true;
+      return kMaxInt;
+    }
+    if (result < kMinInt) {
+      *overflow = true;
+      return kMinInt;
+    }
   }
   return static_cast<int32_t>(result);
 }
 
 
-static int32_t AddWithoutOverflow(int32_t a, int32_t b, bool* overflow) {
+static int32_t AddWithoutOverflow(Representation r,
+                                  int32_t a,
+                                  int32_t b,
+                                  bool* overflow) {
   int64_t result = static_cast<int64_t>(a) + static_cast<int64_t>(b);
-  return ConvertAndSetOverflow(result, overflow);
+  return ConvertAndSetOverflow(r, result, overflow);
 }
 
 
-static int32_t SubWithoutOverflow(int32_t a, int32_t b, bool* overflow) {
+static int32_t SubWithoutOverflow(Representation r,
+                                  int32_t a,
+                                  int32_t b,
+                                  bool* overflow) {
   int64_t result = static_cast<int64_t>(a) - static_cast<int64_t>(b);
-  return ConvertAndSetOverflow(result, overflow);
+  return ConvertAndSetOverflow(r, result, overflow);
 }
 
 
-static int32_t MulWithoutOverflow(int32_t a, int32_t b, bool* overflow) {
+static int32_t MulWithoutOverflow(const Representation& r,
+                                  int32_t a,
+                                  int32_t b,
+                                  bool* overflow) {
   int64_t result = static_cast<int64_t>(a) * static_cast<int64_t>(b);
-  return ConvertAndSetOverflow(result, overflow);
+  return ConvertAndSetOverflow(r, result, overflow);
 }
 
 
@@ -306,8 +328,9 @@ int32_t Range::Mask() const {
 void Range::AddConstant(int32_t value) {
   if (value == 0) return;
   bool may_overflow = false;  // Overflow is ignored here.
-  lower_ = AddWithoutOverflow(lower_, value, &may_overflow);
-  upper_ = AddWithoutOverflow(upper_, value, &may_overflow);
+  Representation r = Representation::Integer32();
+  lower_ = AddWithoutOverflow(r, lower_, value, &may_overflow);
+  upper_ = AddWithoutOverflow(r, upper_, value, &may_overflow);
 #ifdef DEBUG
   Verify();
 #endif
@@ -366,10 +389,10 @@ void Range::Shl(int32_t value) {
 }
 
 
-bool Range::AddAndCheckOverflow(Range* other) {
+bool Range::AddAndCheckOverflow(const Representation& r, Range* other) {
   bool may_overflow = false;
-  lower_ = AddWithoutOverflow(lower_, other->lower(), &may_overflow);
-  upper_ = AddWithoutOverflow(upper_, other->upper(), &may_overflow);
+  lower_ = AddWithoutOverflow(r, lower_, other->lower(), &may_overflow);
+  upper_ = AddWithoutOverflow(r, upper_, other->upper(), &may_overflow);
   KeepOrder();
 #ifdef DEBUG
   Verify();
@@ -378,10 +401,10 @@ bool Range::AddAndCheckOverflow(Range* other) {
 }
 
 
-bool Range::SubAndCheckOverflow(Range* other) {
+bool Range::SubAndCheckOverflow(const Representation& r, Range* other) {
   bool may_overflow = false;
-  lower_ = SubWithoutOverflow(lower_, other->upper(), &may_overflow);
-  upper_ = SubWithoutOverflow(upper_, other->lower(), &may_overflow);
+  lower_ = SubWithoutOverflow(r, lower_, other->upper(), &may_overflow);
+  upper_ = SubWithoutOverflow(r, upper_, other->lower(), &may_overflow);
   KeepOrder();
 #ifdef DEBUG
   Verify();
@@ -406,12 +429,12 @@ void Range::Verify() const {
 #endif
 
 
-bool Range::MulAndCheckOverflow(Range* other) {
+bool Range::MulAndCheckOverflow(const Representation& r, Range* other) {
   bool may_overflow = false;
-  int v1 = MulWithoutOverflow(lower_, other->lower(), &may_overflow);
-  int v2 = MulWithoutOverflow(lower_, other->upper(), &may_overflow);
-  int v3 = MulWithoutOverflow(upper_, other->lower(), &may_overflow);
-  int v4 = MulWithoutOverflow(upper_, other->upper(), &may_overflow);
+  int v1 = MulWithoutOverflow(r, lower_, other->lower(), &may_overflow);
+  int v2 = MulWithoutOverflow(r, lower_, other->upper(), &may_overflow);
+  int v3 = MulWithoutOverflow(r, upper_, other->lower(), &may_overflow);
+  int v4 = MulWithoutOverflow(r, upper_, other->upper(), &may_overflow);
   lower_ = Min(Min(v1, v2), Min(v3, v4));
   upper_ = Max(Max(v1, v2), Max(v3, v4));
 #ifdef DEBUG
@@ -1431,7 +1454,7 @@ void HLoadFieldByIndex::PrintDataTo(StringStream* stream) {
 
 
 HValue* HBitwise::Canonicalize() {
-  if (!representation().IsInteger32()) return this;
+  if (!representation().IsSmiOrInteger32()) return this;
   // If x is an int32, then x & -1 == x, x | 0 == x and x ^ 0 == x.
   int32_t nop_constant = (op() == Token::BIT_AND) ? -1 : 0;
   if (left()->EqualsInteger32Constant(nop_constant) &&
@@ -1551,7 +1574,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
 
     // If the input is integer32 then we replace the floor instruction
     // with its input.
-    if (val->representation().IsInteger32()) return val;
+    if (val->representation().IsSmiOrInteger32()) return val;
 
     if (val->IsDiv() && (val->UseCount() == 1)) {
       HDiv* hdiv = HDiv::cast(val);
@@ -1561,8 +1584,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
       HValue* new_left = SimplifiedDividendForMathFloorOfDiv(left);
       if (new_left == NULL &&
           hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
-        new_left = new(block()->zone())
-            HChange(left, Representation::Integer32(), false, false);
+        new_left = new(block()->zone()) HChange(
+            left, Representation::Integer32(), false, false, false);
         HChange::cast(new_left)->InsertBefore(this);
       }
       HValue* new_right =
@@ -1572,8 +1595,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
           CpuFeatures::IsSupported(SUDIV) &&
 #endif
           hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
-        new_right = new(block()->zone())
-            HChange(right, Representation::Integer32(), false, false);
+        new_right = new(block()->zone()) HChange(
+            right, Representation::Integer32(), false, false, false);
         HChange::cast(new_right)->InsertBefore(this);
       }
 
@@ -1743,7 +1766,7 @@ void HInstanceOf::PrintDataTo(StringStream* stream) {
 
 Range* HValue::InferRange(Zone* zone) {
   Range* result;
-  if (type().IsSmi()) {
+  if (representation().IsSmi() || type().IsSmi()) {
     result = new(zone) Range(Smi::kMinValue, Smi::kMaxValue);
     result->set_can_be_minus_zero(false);
   } else {
@@ -1758,10 +1781,11 @@ Range* HValue::InferRange(Zone* zone) {
 
 Range* HChange::InferRange(Zone* zone) {
   Range* input_range = value()->range();
-  if (from().IsInteger32() &&
-      to().IsSmiOrTagged() &&
-      !value()->CheckFlag(HInstruction::kUint32) &&
-      input_range != NULL && input_range->IsInSmiRange()) {
+  if (from().IsInteger32() && !value()->CheckFlag(HInstruction::kUint32) &&
+      (to().IsSmi() ||
+       (to().IsTagged() &&
+        input_range != NULL &&
+        input_range->IsInSmiRange()))) {
     set_type(HType::Smi());
     ClearGVNFlag(kChangesNewSpacePromotion);
   }
@@ -1769,7 +1793,9 @@ Range* HChange::InferRange(Zone* zone) {
       ? input_range->Copy(zone)
       : HValue::InferRange(zone);
   result->set_can_be_minus_zero(!to().IsSmiOrInteger32() ||
-                                !CheckFlag(kAllUsesTruncatingToInt32));
+                                !(CheckFlag(kAllUsesTruncatingToInt32) ||
+                                  CheckFlag(kAllUsesTruncatingToSmi)));
+  if (to().IsSmi()) result->ClampToSmi();
   return result;
 }
 
@@ -1806,15 +1832,18 @@ Range* HPhi::InferRange(Zone* zone) {
 
 
 Range* HAdd::InferRange(Zone* zone) {
-  if (representation().IsInteger32()) {
+  Representation r = representation();
+  if (r.IsSmiOrInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
     Range* res = a->Copy(zone);
-    if (!res->AddAndCheckOverflow(b) ||
-        CheckFlag(kAllUsesTruncatingToInt32)) {
+    if (!res->AddAndCheckOverflow(r, b) ||
+        (r.IsInteger32() && CheckFlag(kAllUsesTruncatingToInt32)) ||
+        (r.IsSmi() && CheckFlag(kAllUsesTruncatingToSmi))) {
       ClearFlag(kCanOverflow);
     }
-    res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
+    res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToSmi) &&
+                               !CheckFlag(kAllUsesTruncatingToInt32) &&
                                a->CanBeMinusZero() && b->CanBeMinusZero());
     return res;
   } else {
@@ -1824,15 +1853,18 @@ Range* HAdd::InferRange(Zone* zone) {
 
 
 Range* HSub::InferRange(Zone* zone) {
-  if (representation().IsInteger32()) {
+  Representation r = representation();
+  if (r.IsSmiOrInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
     Range* res = a->Copy(zone);
-    if (!res->SubAndCheckOverflow(b) ||
-        CheckFlag(kAllUsesTruncatingToInt32)) {
+    if (!res->SubAndCheckOverflow(r, b) ||
+        (r.IsInteger32() && CheckFlag(kAllUsesTruncatingToInt32)) ||
+        (r.IsSmi() && CheckFlag(kAllUsesTruncatingToSmi))) {
       ClearFlag(kCanOverflow);
     }
-    res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
+    res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToSmi) &&
+                               !CheckFlag(kAllUsesTruncatingToInt32) &&
                                a->CanBeMinusZero() && b->CanBeZero());
     return res;
   } else {
@@ -1842,17 +1874,19 @@ Range* HSub::InferRange(Zone* zone) {
 
 
 Range* HMul::InferRange(Zone* zone) {
-  if (representation().IsInteger32()) {
+  Representation r = representation();
+  if (r.IsSmiOrInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
     Range* res = a->Copy(zone);
-    if (!res->MulAndCheckOverflow(b)) {
+    if (!res->MulAndCheckOverflow(r, b)) {
       // Clearing the kCanOverflow flag when kAllUsesAreTruncatingToInt32
       // would be wrong, because truncated integer multiplication is too
       // precise and therefore not the same as converting to Double and back.
       ClearFlag(kCanOverflow);
     }
-    res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToInt32) &&
+    res->set_can_be_minus_zero(!CheckFlag(kAllUsesTruncatingToSmi) &&
+                               !CheckFlag(kAllUsesTruncatingToInt32) &&
                                ((a->CanBeZero() && b->CanBeNegative()) ||
                                 (a->CanBeNegative() && b->CanBeZero())));
     return res;
@@ -2415,7 +2449,7 @@ bool InductionVariableData::ComputeInductionVariableLimit(
 
 
 Range* HMathMinMax::InferRange(Zone* zone) {
-  if (representation().IsInteger32()) {
+  if (representation().IsSmiOrInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
     Range* res = a->Copy(zone);
@@ -2500,6 +2534,7 @@ void HPhi::InitRealUses(int phi_id) {
   // Compute a conservative approximation of truncating uses before inferring
   // representations. The proper, exact computation will be done later, when
   // inserting representation changes.
+  SetFlag(kTruncatingToSmi);
   SetFlag(kTruncatingToInt32);
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* value = it.value();
@@ -2510,8 +2545,13 @@ void HPhi::InitRealUses(int phi_id) {
         PrintF("#%d Phi is used by real #%d %s as %s\n",
                id(), value->id(), value->Mnemonic(), rep.Mnemonic());
       }
-      if (!value->IsSimulate() && !value->CheckFlag(kTruncatingToInt32)) {
-        ClearFlag(kTruncatingToInt32);
+      if (!value->IsSimulate()) {
+        if (!value->CheckFlag(kTruncatingToSmi)) {
+          ClearFlag(kTruncatingToSmi);
+        }
+        if (!value->CheckFlag(kTruncatingToInt32)) {
+          ClearFlag(kTruncatingToInt32);
+        }
       }
     }
   }
@@ -2698,7 +2738,7 @@ HConstant::HConstant(double double_value,
 
 void HConstant::Initialize(Representation r) {
   if (r.IsNone()) {
-    if (has_smi_value_) {
+    if (has_smi_value_ && kSmiValueSize == 31) {
       r = Representation::Smi();
     } else if (has_int32_value_) {
       r = Representation::Integer32();
@@ -2805,25 +2845,18 @@ void HBinaryOperation::InferRepresentation(HInferRepresentationPhase* h_infer) {
   ASSERT(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
-  // When the operation has information about its own output type, don't look
-  // at uses.
-  if (!observed_output_representation_.IsNone()) return;
-  new_rep = RepresentationFromUses();
-  UpdateRepresentation(new_rep, h_infer, "uses");
-  new_rep = RepresentationFromUseRequirements();
-  if (new_rep.fits_into(Representation::Integer32())) {
-    UpdateRepresentation(new_rep, h_infer, "use requirements");
+  if (observed_output_representation_.IsNone()) {
+    new_rep = RepresentationFromUses();
+    UpdateRepresentation(new_rep, h_infer, "uses");
+  } else {
+    new_rep = RepresentationFromOutput();
+    UpdateRepresentation(new_rep, h_infer, "output");
   }
-}
 
-
-bool HBinaryOperation::IgnoreObservedOutputRepresentation(
-    Representation current_rep) {
-  return observed_output_representation_.IsDouble() &&
-         current_rep.IsInteger32() &&
-         // Mul in Integer32 mode would be too precise.
-         !this->IsMul() &&
-         CheckUsesForFlag(kTruncatingToInt32);
+  if (representation().IsSmi() && HasNonSmiUse()) {
+    UpdateRepresentation(
+        Representation::Integer32(), h_infer, "use requirements");
+  }
 }
 
 
@@ -2832,28 +2865,38 @@ Representation HBinaryOperation::RepresentationFromInputs() {
   // the currently assumed output representation.
   Representation rep = representation();
   for (int i = 1; i <= 2; ++i) {
-    Representation input_rep = observed_input_representation(i);
-    if (input_rep.is_more_general_than(rep)) rep = input_rep;
+    rep = rep.generalize(observed_input_representation(i));
   }
   // If any of the actual input representation is more general than what we
   // have so far but not Tagged, use that representation instead.
   Representation left_rep = left()->representation();
   Representation right_rep = right()->representation();
+  if (!left_rep.IsTagged()) rep = rep.generalize(left_rep);
+  if (!right_rep.IsTagged()) rep = rep.generalize(right_rep);
 
-  if (left_rep.is_more_general_than(rep) && !left_rep.IsTagged()) {
-    rep = left_rep;
-  }
-  if (right_rep.is_more_general_than(rep) && !right_rep.IsTagged()) {
-    rep = right_rep;
-  }
+  return rep;
+}
+
+
+bool HBinaryOperation::IgnoreObservedOutputRepresentation(
+    Representation current_rep) {
+  return ((current_rep.IsInteger32() && CheckUsesForFlag(kTruncatingToInt32)) ||
+          (current_rep.IsSmi() && CheckUsesForFlag(kTruncatingToSmi))) &&
+         // Mul in Integer32 mode would be too precise.
+         !this->IsMul();
+}
+
+
+Representation HBinaryOperation::RepresentationFromOutput() {
+  Representation rep = representation();
   // Consider observed output representation, but ignore it if it's Double,
   // this instruction is not a division, and all its uses are truncating
   // to Integer32.
   if (observed_output_representation_.is_more_general_than(rep) &&
       !IgnoreObservedOutputRepresentation(rep)) {
-    rep = observed_output_representation_;
+    return observed_output_representation_;
   }
-  return rep;
+  return Representation::None();
 }
 
 
@@ -3790,29 +3833,28 @@ HType HFunctionLiteral::CalculateInferredType() {
 HValue* HUnaryMathOperation::EnsureAndPropagateNotMinusZero(
     BitVector* visited) {
   visited->Add(id());
-  if (representation().IsInteger32() &&
-      !value()->representation().IsInteger32()) {
+  if (representation().IsSmiOrInteger32() &&
+      !value()->representation().Equals(representation())) {
     if (value()->range() == NULL || value()->range()->CanBeMinusZero()) {
       SetFlag(kBailoutOnMinusZero);
     }
   }
-  if (RequiredInputRepresentation(0).IsInteger32() &&
-      representation().IsInteger32()) {
+  if (RequiredInputRepresentation(0).IsSmiOrInteger32() &&
+      representation().Equals(RequiredInputRepresentation(0))) {
     return value();
   }
   return NULL;
 }
 
 
-
 HValue* HChange::EnsureAndPropagateNotMinusZero(BitVector* visited) {
   visited->Add(id());
-  if (from().IsInteger32()) return NULL;
+  if (from().IsSmiOrInteger32()) return NULL;
   if (CanTruncateToInt32()) return NULL;
   if (value()->range() == NULL || value()->range()->CanBeMinusZero()) {
     SetFlag(kBailoutOnMinusZero);
   }
-  ASSERT(!from().IsInteger32() || !to().IsInteger32());
+  ASSERT(!from().IsSmiOrInteger32() || !to().IsSmiOrInteger32());
   return NULL;
 }
 
@@ -3899,7 +3941,7 @@ bool HStoreKeyed::NeedsCanonicalization() {
   }
 
   if (value()->IsChange()) {
-    if (HChange::cast(value())->from().IsInteger32()) {
+    if (HChange::cast(value())->from().IsSmiOrInteger32()) {
       return false;
     }
     if (HChange::cast(value())->value()->type().IsSmi()) {
@@ -3910,8 +3952,8 @@ bool HStoreKeyed::NeedsCanonicalization() {
 }
 
 
-#define H_CONSTANT_INT32(val)                                                  \
-new(zone) HConstant(static_cast<int32_t>(val), Representation::Integer32())
+#define H_CONSTANT_INT(val)                                                  \
+new(zone) HConstant(static_cast<int32_t>(val))
 #define H_CONSTANT_DOUBLE(val)                                                 \
 new(zone) HConstant(static_cast<double>(val), Representation::Double())
 
@@ -3924,7 +3966,7 @@ HInstruction* HInstr::New(                                                     \
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
       double double_res = c_left->DoubleValue() op c_right->DoubleValue();     \
       if (TypeInfo::IsInt32Double(double_res)) {                               \
-        return H_CONSTANT_INT32(double_res);                                   \
+        return H_CONSTANT_INT(double_res);                                   \
       }                                                                        \
       return H_CONSTANT_DOUBLE(double_res);                                    \
     }                                                                          \
@@ -4123,7 +4165,7 @@ HInstruction* HMod::New(Zone* zone,
         if ((res == 0) && (dividend < 0)) {
           return H_CONSTANT_DOUBLE(-0.0);
         }
-        return H_CONSTANT_INT32(res);
+        return H_CONSTANT_INT(res);
       }
     }
   }
@@ -4141,7 +4183,7 @@ HInstruction* HDiv::New(
       if (c_right->DoubleValue() != 0) {
         double double_res = c_left->DoubleValue() / c_right->DoubleValue();
         if (TypeInfo::IsInt32Double(double_res)) {
-          return H_CONSTANT_INT32(double_res);
+          return H_CONSTANT_INT(double_res);
         }
         return H_CONSTANT_DOUBLE(double_res);
       } else {
@@ -4178,7 +4220,7 @@ HInstruction* HBitwise::New(
           result = 0;  // Please the compiler.
           UNREACHABLE();
       }
-      return H_CONSTANT_INT32(result);
+      return H_CONSTANT_INT(result);
     }
   }
   return new(zone) HBitwise(op, context, left, right);
@@ -4192,7 +4234,7 @@ HInstruction* HInstr::New(                                                     \
     HConstant* c_left = HConstant::cast(left);                                 \
     HConstant* c_right = HConstant::cast(right);                               \
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
-      return H_CONSTANT_INT32(result);                                         \
+      return H_CONSTANT_INT(result);                                           \
     }                                                                          \
   }                                                                            \
   return new(zone) HInstr(context, left, right);                               \
@@ -4218,14 +4260,14 @@ HInstruction* HShr::New(
       if ((right_val == 0) && (left_val < 0)) {
         return H_CONSTANT_DOUBLE(static_cast<uint32_t>(left_val));
       }
-      return H_CONSTANT_INT32(static_cast<uint32_t>(left_val) >> right_val);
+      return H_CONSTANT_INT(static_cast<uint32_t>(left_val) >> right_val);
     }
   }
   return new(zone) HShr(context, left, right);
 }
 
 
-#undef H_CONSTANT_INT32
+#undef H_CONSTANT_INT
 #undef H_CONSTANT_DOUBLE
 
 
@@ -4250,8 +4292,7 @@ void HPhi::SimplifyConstantInputs() {
       continue;
     } else if (operand->HasDoubleValue()) {
       HConstant* integer_input =
-          new(graph->zone()) HConstant(DoubleToInt32(operand->DoubleValue()),
-                                       Representation::Integer32());
+          new(graph->zone()) HConstant(DoubleToInt32(operand->DoubleValue()));
       integer_input->InsertAfter(operand);
       SetOperandAt(i, integer_input);
     } else if (operand == graph->GetConstantTrue()) {
@@ -4266,7 +4307,7 @@ void HPhi::SimplifyConstantInputs() {
     HValue* use = it.value();
     if (use->IsBinaryOperation()) {
       HBinaryOperation::cast(use)->set_observed_input_representation(
-          it.index(), Representation::Integer32());
+          it.index(), Representation::Smi());
     }
   }
 }
@@ -4312,6 +4353,17 @@ Representation HValue::RepresentationFromUseRequirements() {
     return Representation::None();
   }
   return rep;
+}
+
+
+bool HValue::HasNonSmiUse() {
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    // We check for observed_input_representation elsewhere.
+    Representation use_rep =
+        it.value()->RequiredInputRepresentation(it.index());
+    if (!use_rep.IsNone() && !use_rep.IsSmi()) return true;
+  }
+  return false;
 }
 
 

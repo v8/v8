@@ -656,9 +656,18 @@ XMMRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
 }
 
 
-int LCodeGen::ToInteger32(LConstantOperand* op) const {
+int32_t LCodeGen::ToInteger32(LConstantOperand* op) const {
+  return ToRepresentation(op, Representation::Integer32());
+}
+
+
+int32_t LCodeGen::ToRepresentation(LConstantOperand* op,
+                                   const Representation& r) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  return constant->Integer32Value();
+  int32_t value = constant->Integer32Value();
+  if (r.IsInteger32()) return value;
+  ASSERT(r.IsSmiOrTagged());
+  return reinterpret_cast<int32_t>(Smi::FromInt(value));
 }
 
 
@@ -1619,6 +1628,9 @@ void LCodeGen::DoMulI(LMulI* instr) {
       __ imul(left, left, constant);
     }
   } else {
+    if (instr->hydrogen()->representation().IsSmi()) {
+      __ SmiUntag(left);
+    }
     __ imul(left, ToOperand(right));
   }
 
@@ -1655,7 +1667,8 @@ void LCodeGen::DoBitI(LBitI* instr) {
   ASSERT(left->IsRegister());
 
   if (right->IsConstantOperand()) {
-    int right_operand = ToInteger32(LConstantOperand::cast(right));
+    int right_operand = ToRepresentation(LConstantOperand::cast(right),
+                                         instr->hydrogen()->representation());
     switch (instr->op()) {
       case Token::BIT_AND:
         __ and_(ToRegister(left), right_operand);
@@ -1766,7 +1779,8 @@ void LCodeGen::DoSubI(LSubI* instr) {
   ASSERT(left->Equals(instr->result()));
 
   if (right->IsConstantOperand()) {
-    __ sub(ToOperand(left), ToInteger32Immediate(right));
+    __ sub(ToOperand(left),
+           ToImmediate(right, instr->hydrogen()->representation()));
   } else {
     __ sub(ToRegister(left), ToOperand(right));
   }
@@ -1975,7 +1989,8 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
-      int32_t offset = ToInteger32(LConstantOperand::cast(right));
+      int32_t offset = ToRepresentation(LConstantOperand::cast(right),
+                                        instr->hydrogen()->representation());
       __ lea(ToRegister(instr->result()), MemOperand(ToRegister(left), offset));
     } else {
       Operand address(ToRegister(left), ToRegister(right), times_1, 0);
@@ -1983,7 +1998,8 @@ void LCodeGen::DoAddI(LAddI* instr) {
     }
   } else {
     if (right->IsConstantOperand()) {
-      __ add(ToOperand(left), ToInteger32Immediate(right));
+      __ add(ToOperand(left),
+             ToImmediate(right, instr->hydrogen()->representation()));
     } else {
       __ add(ToRegister(left), ToOperand(right));
     }
@@ -2000,17 +2016,18 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
   LOperand* right = instr->right();
   ASSERT(left->Equals(instr->result()));
   HMathMinMax::Operation operation = instr->hydrogen()->operation();
-  if (instr->hydrogen()->representation().IsInteger32()) {
+  if (instr->hydrogen()->representation().IsSmiOrInteger32()) {
     Label return_left;
     Condition condition = (operation == HMathMinMax::kMathMin)
         ? less_equal
         : greater_equal;
     if (right->IsConstantOperand()) {
       Operand left_op = ToOperand(left);
-      Immediate right_imm = ToInteger32Immediate(right);
-      __ cmp(left_op, right_imm);
+      Immediate immediate = ToImmediate(LConstantOperand::cast(instr->right()),
+                                        instr->hydrogen()->representation());
+      __ cmp(left_op, immediate);
       __ j(condition, &return_left, Label::kNear);
-      __ mov(left_op, right_imm);
+      __ mov(left_op, immediate);
     } else {
       Register left_reg = ToRegister(left);
       Operand right_op = ToOperand(right);
@@ -2378,19 +2395,11 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
       __ j(parity_even, instr->FalseLabel(chunk_));
     } else {
       if (right->IsConstantOperand()) {
-        int32_t const_value = ToInteger32(LConstantOperand::cast(right));
-        if (instr->hydrogen_value()->representation().IsSmi()) {
-          __ cmp(ToOperand(left), Immediate(Smi::FromInt(const_value)));
-        } else {
-          __ cmp(ToOperand(left), Immediate(const_value));
-        }
+        __ cmp(ToOperand(left),
+               ToImmediate(right, instr->hydrogen()->representation()));
       } else if (left->IsConstantOperand()) {
-        int32_t const_value = ToInteger32(LConstantOperand::cast(left));
-        if (instr->hydrogen_value()->representation().IsSmi()) {
-          __ cmp(ToOperand(right), Immediate(Smi::FromInt(const_value)));
-        } else {
-          __ cmp(ToOperand(right), Immediate(const_value));
-        }
+        __ cmp(ToOperand(right),
+               ToImmediate(left, instr->hydrogen()->representation()));
         // We transposed the operands. Reverse the condition.
         cc = ReverseCondition(cc);
       } else {
@@ -4441,14 +4450,10 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->hydrogen()->skip_check() && !FLAG_debug_code) return;
 
   if (instr->index()->IsConstantOperand()) {
-    int constant_index =
-        ToInteger32(LConstantOperand::cast(instr->index()));
-    if (instr->hydrogen()->length()->representation().IsSmi()) {
-      __ cmp(ToOperand(instr->length()),
-             Immediate(Smi::FromInt(constant_index)));
-    } else {
-      __ cmp(ToOperand(instr->length()), Immediate(constant_index));
-    }
+    Immediate immediate =
+        ToImmediate(LConstantOperand::cast(instr->index()),
+                    instr->hydrogen()->length()->representation());
+    __ cmp(ToOperand(instr->length()), immediate);
     Condition condition =
         instr->hydrogen()->allow_equality() ? below : below_equal;
     ApplyCheckIf(condition, instr);
@@ -4616,10 +4621,11 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     __ mov(operand, ToRegister(instr->value()));
   } else {
     LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
-    if (IsInteger32(operand_value)) {
-      Smi* smi_value = Smi::FromInt(ToInteger32(operand_value));
-      __ mov(operand, Immediate(smi_value));
+    if (IsSmi(operand_value)) {
+      Immediate immediate = ToImmediate(operand_value, Representation::Smi());
+      __ mov(operand, immediate);
     } else {
+      ASSERT(!IsInteger32(operand_value));
       Handle<Object> handle_value = ToHandle(operand_value);
       __ mov(operand, handle_value);
     }
@@ -4782,8 +4788,9 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
   // DoStringCharCodeAt above.
   STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
   if (instr->index()->IsConstantOperand()) {
-    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
-    __ push(Immediate(Smi::FromInt(const_index)));
+    Immediate immediate = ToImmediate(LConstantOperand::cast(instr->index()),
+                                      Representation::Smi());
+    __ push(immediate);
   } else {
     Register index = ToRegister(instr->index());
     __ SmiTag(index);

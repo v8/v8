@@ -832,8 +832,8 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
          op == Token::SUB);
   HValue* left = instr->left();
   HValue* right = instr->right();
-  ASSERT(left->representation().IsSmiOrTagged());
-  ASSERT(right->representation().IsSmiOrTagged());
+  ASSERT(left->representation().IsTagged());
+  ASSERT(right->representation().IsTagged());
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* left_operand = UseFixed(left, edx);
   LOperand* right_operand = UseFixed(right, eax);
@@ -1399,9 +1399,10 @@ LInstruction* LChunkBuilder::DoShl(HShl* instr) {
 
 
 LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
-  if (instr->representation().IsInteger32()) {
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
+  if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(instr->left()->representation().IsSmiOrInteger32());
+    ASSERT(instr->right()->representation().Equals(
+        instr->left()->representation()));
 
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
@@ -1434,7 +1435,9 @@ LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
 LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::DIV, instr);
-  } else if (instr->representation().IsInteger32()) {
+  } else if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
     if (instr->HasPowerOf2Divisor()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
       LOperand* value = UseRegisterAtStart(instr->left());
@@ -1450,7 +1453,7 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     LDivI* result = new(zone()) LDivI(dividend, divisor, temp);
     return AssignEnvironment(DefineFixed(result, eax));
   } else {
-    ASSERT(instr->representation().IsSmiOrTagged());
+    ASSERT(instr->representation().IsTagged());
     return DoArithmeticT(Token::DIV, instr);
   }
 }
@@ -1516,9 +1519,10 @@ LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   HValue* left = instr->left();
   HValue* right = instr->right();
-  if (instr->representation().IsInteger32()) {
-    ASSERT(left->representation().IsInteger32());
-    ASSERT(right->representation().IsInteger32());
+  if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(left->representation().IsSmiOrInteger32());
+    ASSERT(right->representation().Equals(left->representation()));
+
     if (instr->HasPowerOf2Divisor()) {
       ASSERT(!right->CanBeZero());
       LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
@@ -1567,9 +1571,9 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
 
 
 LInstruction* LChunkBuilder::DoMul(HMul* instr) {
-  if (instr->representation().IsInteger32()) {
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
+  if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseOrConstant(instr->BetterRightOperand());
     LOperand* temp = NULL;
@@ -1585,16 +1589,17 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MUL, instr);
   } else {
-    ASSERT(instr->representation().IsSmiOrTagged());
+    ASSERT(instr->representation().IsTagged());
     return DoArithmeticT(Token::MUL, instr);
   }
 }
 
 
 LInstruction* LChunkBuilder::DoSub(HSub* instr) {
-  if (instr->representation().IsInteger32()) {
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
+  if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(instr->left()->representation().IsSmiOrInteger32());
+    ASSERT(instr->right()->representation().Equals(
+        instr->left()->representation()));
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     LSubI* sub = new(zone()) LSubI(left, right);
@@ -1613,14 +1618,15 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
 
 
 LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
-  if (instr->representation().IsInteger32()) {
+  if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(instr->left()->representation().IsSmiOrInteger32());
+    ASSERT(instr->right()->representation().Equals(
+        instr->left()->representation()));
     // Check to see if it would be advantageous to use an lea instruction rather
     // than an add. This is the case when no overflow check is needed and there
     // are multiple uses of the add's inputs, so using a 3-register add will
     // preserve all input values for later uses.
     bool use_lea = LAddI::UseLea(instr);
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     HValue* right_candidate = instr->BetterRightOperand();
     LOperand* right = use_lea
@@ -1647,9 +1653,10 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
 LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
   LOperand* left = NULL;
   LOperand* right = NULL;
-  if (instr->representation().IsInteger32()) {
-    ASSERT(instr->left()->representation().IsInteger32());
-    ASSERT(instr->right()->representation().IsInteger32());
+  if (instr->representation().IsSmiOrInteger32()) {
+    ASSERT(instr->left()->representation().IsSmiOrInteger32());
+    ASSERT(instr->right()->representation().Equals(
+        instr->left()->representation()));
     left = UseRegisterAtStart(instr->BetterLeftOperand());
     right = UseOrConstantAtStart(instr->BetterRightOperand());
   } else {
@@ -2253,8 +2260,7 @@ LInstruction* LChunkBuilder::DoLoadExternalArrayPointer(
 
 
 LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
-  ASSERT(instr->key()->representation().IsInteger32() ||
-         instr->key()->representation().IsSmi());
+  ASSERT(instr->key()->representation().IsSmiOrInteger32());
   ElementsKind elements_kind = instr->elements_kind();
   bool clobbers_key = ExternalArrayOpRequiresTemp(
       instr->key()->representation(), elements_kind);

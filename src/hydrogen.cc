@@ -1871,11 +1871,8 @@ HValue* HGraphBuilder::JSArrayBuilder::EstablishAllocationSize(
     base_size += AllocationMemento::kSize;
   }
 
-  if (IsFastDoubleElementsKind(kind_)) {
-    base_size += FixedDoubleArray::kHeaderSize;
-  } else {
-    base_size += FixedArray::kHeaderSize;
-  }
+  STATIC_ASSERT(FixedDoubleArray::kHeaderSize == FixedArray::kHeaderSize);
+  base_size += FixedArray::kHeaderSize;
 
   HInstruction* elements_size_value =
       builder()->Add<HConstant>(elements_size());
@@ -3790,7 +3787,6 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
                                         environment()->LookupContext(),
                                         current_index,
                                         graph()->GetConstant1());
-    new_index->AssumeRepresentation(Representation::Integer32());
     PushAndAdd(new_index);
     body_exit = current_block();
   }

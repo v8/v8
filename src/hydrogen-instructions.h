@@ -294,9 +294,9 @@ class Range: public ZoneObject {
   void AddConstant(int32_t value);
   void Sar(int32_t value);
   void Shl(int32_t value);
-  bool AddAndCheckOverflow(Range* other);
-  bool SubAndCheckOverflow(Range* other);
-  bool MulAndCheckOverflow(Range* other);
+  bool AddAndCheckOverflow(const Representation& r, Range* other);
+  bool SubAndCheckOverflow(const Representation& r, Range* other);
+  bool MulAndCheckOverflow(const Representation& r, Range* other);
 
  private:
   int32_t lower_;
@@ -805,6 +805,8 @@ class HValue: public ZoneObject {
     kIsArguments,
     kTruncatingToInt32,
     kAllUsesTruncatingToInt32,
+    kTruncatingToSmi,
+    kAllUsesTruncatingToSmi,
     // Set after an instruction is killed.
     kIsDead,
     // Instructions that are allowed to produce full range unsigned integer
@@ -891,6 +893,7 @@ class HValue: public ZoneObject {
   HUseIterator uses() const { return HUseIterator(use_list_); }
 
   virtual bool EmitAtUses() { return false; }
+
   Representation representation() const { return representation_; }
   void ChangeRepresentation(Representation r) {
     ASSERT(CheckFlag(kFlexibleRepresentation));
@@ -1166,6 +1169,7 @@ class HValue: public ZoneObject {
   }
   Representation RepresentationFromUses();
   Representation RepresentationFromUseRequirements();
+  bool HasNonSmiUse();
   virtual void UpdateRepresentation(Representation new_rep,
                                     HInferRepresentationPhase* h_infer,
                                     const char* reason);
@@ -1714,7 +1718,8 @@ class HChange: public HUnaryOperation {
  public:
   HChange(HValue* value,
           Representation to,
-          bool is_truncating,
+          bool is_truncating_to_smi,
+          bool is_truncating_to_int32,
           bool allow_undefined_as_nan)
       : HUnaryOperation(value) {
     ASSERT(!value->representation().IsNone());
@@ -1723,7 +1728,8 @@ class HChange: public HUnaryOperation {
     set_representation(to);
     SetFlag(kUseGVN);
     if (allow_undefined_as_nan) SetFlag(kAllowUndefinedAsNaN);
-    if (is_truncating) SetFlag(kTruncatingToInt32);
+    if (is_truncating_to_smi) SetFlag(kTruncatingToSmi);
+    if (is_truncating_to_int32) SetFlag(kTruncatingToInt32);
     if (value->representation().IsSmi() || value->type().IsSmi()) {
       set_type(HType::Smi());
     } else {
@@ -2624,6 +2630,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     switch (op) {
       case kMathFloor:
       case kMathRound:
+        // TODO(verwaest): Set representation to flexible int starting as smi.
         set_representation(Representation::Integer32());
         break;
       case kMathAbs:
@@ -3525,7 +3532,7 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   virtual Representation KnownOptimalRepresentation() {
-    if (HasSmiValue()) return Representation::Smi();
+    if (HasSmiValue() && kSmiValueSize == 31) return Representation::Smi();
     if (HasInteger32Value()) return Representation::Integer32();
     if (HasNumberValue()) return Representation::Double();
     return Representation::Tagged();
@@ -3687,7 +3694,7 @@ class HBinaryOperation: public HTemplateInstruction<3> {
     // Otherwise, if there is only one use of the right operand, it would be
     // better off on the left for platforms that only have 2-arg arithmetic
     // ops (e.g ia32, x64) that clobber the left operand.
-    return (right()->UseCount() == 1);
+    return right()->UseCount() == 1;
   }
 
   HValue* BetterLeftOperand() {
@@ -3712,23 +3719,27 @@ class HBinaryOperation: public HTemplateInstruction<3> {
     return observed_input_representation_[index - 1];
   }
 
-  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
-  virtual Representation RepresentationFromInputs();
-  virtual void AssumeRepresentation(Representation r);
-
   virtual void UpdateRepresentation(Representation new_rep,
                                     HInferRepresentationPhase* h_infer,
                                     const char* reason) {
-    // By default, binary operations don't handle Smis.
-    if (new_rep.IsSmi()) {
-      new_rep = Representation::Integer32();
-    }
-    HValue::UpdateRepresentation(new_rep, h_infer, reason);
+    Representation rep = !FLAG_smi_binop && new_rep.IsSmi()
+        ? Representation::Integer32() : new_rep;
+    HValue::UpdateRepresentation(rep, h_infer, reason);
   }
+
+  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
+  virtual Representation RepresentationFromInputs();
+  Representation RepresentationFromOutput();
+  virtual void AssumeRepresentation(Representation r);
 
   virtual bool IsCommutative() const { return false; }
 
   virtual void PrintDataTo(StringStream* stream);
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    if (index == 0) return Representation::Tagged();
+    return representation();
+  }
 
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)
 
@@ -4015,15 +4026,9 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
     SetAllSideEffects();
   }
 
-  virtual Representation RequiredInputRepresentation(int index) {
-    return index == 0
-        ? Representation::Tagged()
-        : representation();
-  }
-
   virtual void RepresentationChanged(Representation to) {
     if (!to.IsTagged()) {
-      ASSERT(to.IsInteger32());
+      ASSERT(to.IsSmiOrInteger32());
       ClearAllSideEffects();
       SetFlag(kUseGVN);
     } else {
@@ -4036,10 +4041,14 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
                                     HInferRepresentationPhase* h_infer,
                                     const char* reason) {
     // We only generate either int32 or generic tagged bitwise operations.
-    if (new_rep.IsSmi() || new_rep.IsDouble()) {
-      new_rep = Representation::Integer32();
-    }
-    HValue::UpdateRepresentation(new_rep, h_infer, reason);
+    if (new_rep.IsDouble()) new_rep = Representation::Integer32();
+    HBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
+  }
+
+  virtual Representation observed_input_representation(int index) {
+    Representation r = HBinaryOperation::observed_input_representation(index);
+    if (r.IsDouble()) return Representation::Integer32();
+    return r;
   }
 
   virtual void initialize_output_representation(Representation observed) {
@@ -4105,11 +4114,6 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
   }
 
   virtual HType CalculateInferredType();
-  virtual Representation RequiredInputRepresentation(int index) {
-    return index == 0
-        ? Representation::Tagged()
-        : representation();
-  }
 
   DECLARE_ABSTRACT_INSTRUCTION(ArithmeticBinaryOperation)
 
@@ -4646,6 +4650,13 @@ class HMul: public HArithmeticBinaryOperation {
     return !representation().IsTagged();
   }
 
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentationPhase* h_infer,
+                                    const char* reason) {
+    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
+    HArithmeticBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(Mul)
 
  protected:
@@ -4684,6 +4695,13 @@ class HMod: public HArithmeticBinaryOperation {
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
   virtual HValue* Canonicalize();
+
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentationPhase* h_infer,
+                                    const char* reason) {
+    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
+    HArithmeticBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(Mod)
 
@@ -4727,6 +4745,13 @@ class HDiv: public HArithmeticBinaryOperation {
 
   virtual HValue* Canonicalize();
 
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentationPhase* h_infer,
+                                    const char* reason) {
+    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
+    HArithmeticBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(Div)
 
  protected:
@@ -4767,11 +4792,11 @@ class HMathMinMax: public HArithmeticBinaryOperation {
   virtual Representation RepresentationFromInputs() {
     Representation left_rep = left()->representation();
     Representation right_rep = right()->representation();
-    if ((left_rep.IsNone() || left_rep.IsInteger32()) &&
-        (right_rep.IsNone() || right_rep.IsInteger32())) {
-      return Representation::Integer32();
-    }
-    return Representation::Double();
+    Representation result = Representation::Smi();
+    result = result.generalize(left_rep);
+    result = result.generalize(right_rep);
+    if (result.IsTagged()) return Representation::Double();
+    return result;
   }
 
   virtual bool IsCommutative() const { return true; }
@@ -4826,6 +4851,27 @@ class HBitwise: public HBitwiseBinaryOperation {
   HBitwise(Token::Value op, HValue* context, HValue* left, HValue* right)
       : HBitwiseBinaryOperation(context, left, right), op_(op) {
     ASSERT(op == Token::BIT_AND || op == Token::BIT_OR || op == Token::BIT_XOR);
+    // BIT_AND with a smi-range positive value will always unset the
+    // entire sign-extension of the smi-sign.
+    if (op == Token::BIT_AND &&
+        ((left->IsConstant() &&
+          left->representation().IsSmi() &&
+          HConstant::cast(left)->Integer32Value() >= 0) ||
+         (right->IsConstant() &&
+          right->representation().IsSmi() &&
+          HConstant::cast(right)->Integer32Value() >= 0))) {
+      SetFlag(kTruncatingToSmi);
+    // BIT_OR with a smi-range negative value will always set the entire
+    // sign-extension of the smi-sign.
+    } else if (op == Token::BIT_OR &&
+        ((left->IsConstant() &&
+          left->representation().IsSmi() &&
+          HConstant::cast(left)->Integer32Value() < 0) ||
+         (right->IsConstant() &&
+          right->representation().IsSmi() &&
+          HConstant::cast(right)->Integer32Value() < 0))) {
+      SetFlag(kTruncatingToSmi);
+    }
   }
 
   Token::Value op_;
@@ -4840,6 +4886,13 @@ class HShl: public HBitwiseBinaryOperation {
                            HValue* right);
 
   virtual Range* InferRange(Zone* zone);
+
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentationPhase* h_infer,
+                                    const char* reason) {
+    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
+    HBitwiseBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(Shl)
 
@@ -4873,6 +4926,13 @@ class HShr: public HBitwiseBinaryOperation {
 
   virtual Range* InferRange(Zone* zone);
 
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentationPhase* h_infer,
+                                    const char* reason) {
+    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
+    HBitwiseBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(Shr)
 
  protected:
@@ -4905,6 +4965,13 @@ class HSar: public HBitwiseBinaryOperation {
 
   virtual Range* InferRange(Zone* zone);
 
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentationPhase* h_infer,
+                                    const char* reason) {
+    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
+    HBitwiseBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(Sar)
 
  protected:
@@ -4921,6 +4988,13 @@ class HRor: public HBitwiseBinaryOperation {
   HRor(HValue* context, HValue* left, HValue* right)
        : HBitwiseBinaryOperation(context, left, right) {
     ChangeRepresentation(Representation::Integer32());
+  }
+
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentationPhase* h_infer,
+                                    const char* reason) {
+    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
+    HBitwiseBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Ror)

@@ -109,11 +109,8 @@ class LCodeGen BASE_EMBEDDED {
 
   bool IsInteger32(LConstantOperand* op) const;
   bool IsSmi(LConstantOperand* op) const;
-  Immediate ToInteger32Immediate(LOperand* op) const {
-    return Immediate(ToInteger32(LConstantOperand::cast(op)));
-  }
-  Immediate ToSmiImmediate(LOperand* op) const {
-    return Immediate(Smi::FromInt(ToInteger32(LConstantOperand::cast(op))));
+  Immediate ToImmediate(LOperand* op, const Representation& r) const {
+    return Immediate(ToRepresentation(LConstantOperand::cast(op), r));
   }
   double ToDouble(LConstantOperand* op) const;
 
@@ -298,7 +295,8 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
   X87Register ToX87Register(int index) const;
-  int ToInteger32(LConstantOperand* op) const;
+  int ToRepresentation(LConstantOperand* op, const Representation& r) const;
+  int32_t ToInteger32(LConstantOperand* op) const;
 
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,

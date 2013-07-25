@@ -410,7 +410,7 @@ bool LCodeGen::IsTaggedConstant(LConstantOperand* op) const {
 }
 
 
-int LCodeGen::ToInteger32(LConstantOperand* op) const {
+int32_t LCodeGen::ToInteger32(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
   return constant->Integer32Value();
 }
@@ -1299,9 +1299,19 @@ void LCodeGen::DoMulI(LMulI* instr) {
       __ imull(left, left, Immediate(right_value));
     }
   } else if (right->IsStackSlot()) {
-    __ imull(left, ToOperand(right));
+    if (instr->hydrogen_value()->representation().IsSmi()) {
+      __ SmiToInteger32(left, left);
+      __ imul(left, ToOperand(right));
+    } else {
+      __ imull(left, ToOperand(right));
+    }
   } else {
-    __ imull(left, ToRegister(right));
+    if (instr->hydrogen_value()->representation().IsSmi()) {
+      __ SmiToInteger32(left, left);
+      __ imul(left, ToRegister(right));
+    } else {
+      __ imull(left, ToRegister(right));
+    }
   }
 
   if (can_overflow) {
@@ -1358,13 +1368,13 @@ void LCodeGen::DoBitI(LBitI* instr) {
   } else if (right->IsStackSlot()) {
     switch (instr->op()) {
       case Token::BIT_AND:
-        __ andl(ToRegister(left), ToOperand(right));
+        __ and_(ToRegister(left), ToOperand(right));
         break;
       case Token::BIT_OR:
-        __ orl(ToRegister(left), ToOperand(right));
+        __ or_(ToRegister(left), ToOperand(right));
         break;
       case Token::BIT_XOR:
-        __ xorl(ToRegister(left), ToOperand(right));
+        __ xor_(ToRegister(left), ToOperand(right));
         break;
       default:
         UNREACHABLE();
@@ -1374,13 +1384,13 @@ void LCodeGen::DoBitI(LBitI* instr) {
     ASSERT(right->IsRegister());
     switch (instr->op()) {
       case Token::BIT_AND:
-        __ andl(ToRegister(left), ToRegister(right));
+        __ and_(ToRegister(left), ToRegister(right));
         break;
       case Token::BIT_OR:
-        __ orl(ToRegister(left), ToRegister(right));
+        __ or_(ToRegister(left), ToRegister(right));
         break;
       case Token::BIT_XOR:
-        __ xorl(ToRegister(left), ToRegister(right));
+        __ xor_(ToRegister(left), ToRegister(right));
         break;
       default:
         UNREACHABLE();
@@ -1463,9 +1473,17 @@ void LCodeGen::DoSubI(LSubI* instr) {
     __ subl(ToRegister(left),
             Immediate(ToInteger32(LConstantOperand::cast(right))));
   } else if (right->IsRegister()) {
-    __ subl(ToRegister(left), ToRegister(right));
+    if (instr->hydrogen_value()->representation().IsSmi()) {
+      __ subq(ToRegister(left), ToRegister(right));
+    } else {
+      __ subl(ToRegister(left), ToRegister(right));
+    }
   } else {
-    __ subl(ToRegister(left), ToOperand(right));
+    if (instr->hydrogen_value()->representation().IsSmi()) {
+      __ subq(ToRegister(left), ToOperand(right));
+    } else {
+      __ subl(ToRegister(left), ToOperand(right));
+    }
   }
 
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
@@ -1646,16 +1664,28 @@ void LCodeGen::DoAddI(LAddI* instr) {
               MemOperand(ToRegister(left), offset));
     } else {
       Operand address(ToRegister(left), ToRegister(right), times_1, 0);
-      __ leal(ToRegister(instr->result()), address);
+      if (instr->hydrogen()->representation().IsSmi()) {
+        __ lea(ToRegister(instr->result()), address);
+      } else {
+        __ leal(ToRegister(instr->result()), address);
+      }
     }
   } else {
     if (right->IsConstantOperand()) {
       __ addl(ToRegister(left),
               Immediate(ToInteger32(LConstantOperand::cast(right))));
     } else if (right->IsRegister()) {
-      __ addl(ToRegister(left), ToRegister(right));
+      if (instr->hydrogen_value()->representation().IsSmi()) {
+        __ addq(ToRegister(left), ToRegister(right));
+      } else {
+        __ addl(ToRegister(left), ToRegister(right));
+      }
     } else {
-      __ addl(ToRegister(left), ToOperand(right));
+      if (instr->hydrogen_value()->representation().IsSmi()) {
+        __ addq(ToRegister(left), ToOperand(right));
+      } else {
+        __ addl(ToRegister(left), ToOperand(right));
+      }
     }
     if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
       DeoptimizeIf(overflow, instr->environment());
