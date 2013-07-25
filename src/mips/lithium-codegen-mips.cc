@@ -477,9 +477,18 @@ bool LCodeGen::IsSmi(LConstantOperand* op) const {
 }
 
 
-int LCodeGen::ToInteger32(LConstantOperand* op) const {
+int32_t LCodeGen::ToInteger32(LConstantOperand* op) const {
+  return ToRepresentation(op, Representation::Integer32());
+}
+
+
+int32_t LCodeGen::ToRepresentation(LConstantOperand* op,
+                                   const Representation& r) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  return constant->Integer32Value();
+  int32_t value = constant->Integer32Value();
+  if (r.IsInteger32()) return value;
+  ASSERT(r.IsSmiOrTagged());
+  return reinterpret_cast<int32_t>(Smi::FromInt(value));
 }
 
 
@@ -501,7 +510,10 @@ Operand LCodeGen::ToOperand(LOperand* op) {
     LConstantOperand* const_op = LConstantOperand::cast(op);
     HConstant* constant = chunk()->LookupConstant(const_op);
     Representation r = chunk_->LookupLiteralRepresentation(const_op);
-    if (r.IsInteger32()) {
+    if (r.IsSmi()) {
+      ASSERT(constant->HasSmiValue());
+      return Operand(Smi::FromInt(constant->Integer32Value()));
+    } else if (r.IsInteger32()) {
       ASSERT(constant->HasInteger32Value());
       return Operand(constant->Integer32Value());
     } else if (r.IsDouble()) {
@@ -1367,7 +1379,9 @@ void LCodeGen::DoMulI(LMulI* instr) {
 
   if (right_op->IsConstantOperand() && !can_overflow) {
     // Use optimized code for specific constants.
-    int32_t constant = ToInteger32(LConstantOperand::cast(right_op));
+    int32_t constant = ToRepresentation(
+        LConstantOperand::cast(right_op),
+        instr->hydrogen()->right()->representation());
 
     if (bailout_on_minus_zero && (constant < 0)) {
       // The case of a null constant will be handled separately.
@@ -1434,13 +1448,25 @@ void LCodeGen::DoMulI(LMulI* instr) {
 
     if (can_overflow) {
       // hi:lo = left * right.
-      __ mult(left, right);
-      __ mfhi(scratch);
-      __ mflo(result);
+      if (instr->hydrogen()->representation().IsSmi()) {
+        __ SmiUntag(result, left);
+        __ mult(result, right);
+        __ mfhi(scratch);
+        __ mflo(result);
+      } else {
+        __ mult(left, right);
+        __ mfhi(scratch);
+        __ mflo(result);
+      }
       __ sra(at, result, 31);
       DeoptimizeIf(ne, instr->environment(), scratch, Operand(at));
     } else {
-      __ Mul(result, left, right);
+      if (instr->hydrogen()->representation().IsSmi()) {
+        __ SmiUntag(result, left);
+        __ Mul(result, result, right);
+      } else {
+        __ Mul(result, left, right);
+      }
     }
 
     if (bailout_on_minus_zero) {
@@ -1803,7 +1829,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
   LOperand* right = instr->right();
   HMathMinMax::Operation operation = instr->hydrogen()->operation();
   Condition condition = (operation == HMathMinMax::kMathMin) ? le : ge;
-  if (instr->hydrogen()->representation().IsInteger32()) {
+  if (instr->hydrogen()->representation().IsSmiOrInteger32()) {
     Register left_reg = ToRegister(left);
     Operand right_op = (right->IsRegister() || right->IsConstantOperand())
         ? ToOperand(right)
