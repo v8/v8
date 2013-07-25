@@ -60,10 +60,6 @@
 namespace v8 {
 namespace internal {
 
-// 0 is never a valid thread id on Linux and OpenBSD since tids and pids share a
-// name space and pid 0 is reserved (see man 2 kill).
-static const pthread_t kNoThread = (pthread_t) 0;
-
 
 double ceiling(double x) {
   return ceil(x);
