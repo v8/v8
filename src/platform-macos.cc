@@ -231,13 +231,6 @@ void OS::SignalCodeMovingGC() {
 }
 
 
-int OS::ActivationFrameAlignment() {
-  // OS X activation frames must be 16 byte-aligned; see "Mac OS X ABI
-  // Function Call Guide".
-  return 16;
-}
-
-
 const char* OS::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));

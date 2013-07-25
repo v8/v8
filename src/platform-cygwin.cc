@@ -55,13 +55,6 @@ namespace internal {
 static Mutex* limit_mutex = NULL;
 
 
-int OS::ActivationFrameAlignment() {
-  // With gcc 4.4 the tree vectorization optimizer can generate code
-  // that requires 16 byte alignment such as movdqa on x86.
-  return 16;
-}
-
-
 const char* OS::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));

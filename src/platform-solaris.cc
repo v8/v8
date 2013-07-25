@@ -84,12 +84,6 @@ namespace internal {
 static Mutex* limit_mutex = NULL;
 
 
-int OS::ActivationFrameAlignment() {
-  // GCC generates code that requires 16 byte alignment such as movdqa.
-  return Max(STACK_ALIGN, 16);
-}
-
-
 const char* OS::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));

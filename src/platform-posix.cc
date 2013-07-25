@@ -101,6 +101,24 @@ intptr_t OS::MaxVirtualMemory() {
 }
 
 
+int OS::ActivationFrameAlignment() {
+#if V8_TARGET_ARCH_ARM
+  // On EABI ARM targets this is required for fp correctness in the
+  // runtime system.
+  return 8;
+#elif V8_TARGET_ARCH_MIPS
+  return 8;
+#else
+  // Otherwise we just assume 16 byte alignment, i.e.:
+  // - With gcc 4.4 the tree vectorization optimizer can generate code
+  //   that requires 16 byte alignment such as movdqa on x86.
+  // - Mac OS X and Solaris (64-bit) activation frames must be 16 byte-aligned;
+  //   see "Mac OS X ABI Function Call Guide"
+  return 16;
+#endif
+}
+
+
 intptr_t OS::CommitPageSize() {
   static intptr_t page_size = getpagesize();
   return page_size;
