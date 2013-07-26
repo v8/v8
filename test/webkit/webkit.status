@@ -30,3 +30,10 @@ dfg-int-overflow-in-loop: PASS, SKIP if $mode == debug
 dfg-double-vote-fuzz: PASS, SKIP if $mode == debug
 reentrant-caching: PASS, SKIP if $mode == debug
 sort-large-array: PASS, SKIP if $mode == debug
+
+##############################################################################
+[ $deopt_fuzzer == True ]
+
+# Issue 2795:
+dfg-array-dead: SKIP if $mode == debug
+dfg-arrayify-elimination: SKIP if $mode == debug
