@@ -1453,7 +1453,11 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
       case Token::SHL:
         if (shift_count != 0) {
-          __ shll(ToRegister(left), Immediate(shift_count));
+          if (instr->hydrogen_value()->representation().IsSmi()) {
+            __ shl(ToRegister(left), Immediate(shift_count));
+          } else {
+            __ shll(ToRegister(left), Immediate(shift_count));
+          }
         }
         break;
       default:

@@ -4890,7 +4890,11 @@ class HShl: public HBitwiseBinaryOperation {
   virtual void UpdateRepresentation(Representation new_rep,
                                     HInferRepresentationPhase* h_infer,
                                     const char* reason) {
-    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
+    if (new_rep.IsSmi() &&
+        !(right()->IsInteger32Constant() &&
+          right()->GetInteger32Constant() >= 0)) {
+      new_rep = Representation::Integer32();
+    }
     HBitwiseBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
 
