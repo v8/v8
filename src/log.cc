@@ -1998,10 +1998,9 @@ bool Logger::SetUp(Isolate* isolate) {
     FLAG_log_snapshot_positions = true;
   }
 
-  // --prof_lazy controls --log-code, implies --noprof_auto.
+  // --prof_lazy controls --log-code.
   if (FLAG_prof_lazy) {
     FLAG_log_code = false;
-    FLAG_prof_auto = false;
   }
 
   SmartArrayPointer<const char> log_file_name =
@@ -2020,12 +2019,10 @@ bool Logger::SetUp(Isolate* isolate) {
 
   if (FLAG_prof) {
     profiler_ = new Profiler(isolate);
-    if (!FLAG_prof_auto) {
+    if (FLAG_prof_lazy) {
       profiler_->pause();
     } else {
       logging_nesting_ = 1;
-    }
-    if (!FLAG_prof_lazy) {
       profiler_->Engage();
     }
   }
