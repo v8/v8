@@ -79,16 +79,6 @@ namespace v8 {
 namespace internal {
 
 
-double ceiling(double x) {
-  // Correct Mac OS X Leopard 'ceil' behavior.
-  if (-1.0 < x && x < 0.0) {
-    return -0.0;
-  } else {
-    return ceil(x);
-  }
-}
-
-
 static Mutex* limit_mutex = NULL;
 
 
@@ -238,21 +228,6 @@ void OS::LogSharedLibraryAddresses() {
 
 
 void OS::SignalCodeMovingGC() {
-}
-
-
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  // MacOSX requires all these to install so we can assume they are present.
-  // These constants are defined by the CPUid instructions.
-  const uint64_t one = 1;
-  return (one << SSE2) | (one << CMOV) | (one << RDTSC) | (one << CPUID);
-}
-
-
-int OS::ActivationFrameAlignment() {
-  // OS X activation frames must be 16 byte-aligned; see "Mac OS X ABI
-  // Function Call Guide".
-  return 16;
 }
 
 

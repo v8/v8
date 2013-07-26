@@ -1897,7 +1897,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   Register right = r0;
   Register scratch1 = r7;
   Register scratch2 = r9;
-  DwVfpRegister double_scratch = d0;
+  LowDwVfpRegister double_scratch = d0;
 
   Register heap_number_result = no_reg;
   Register heap_number_map = r6;
@@ -1972,7 +1972,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           Label not_zero;
           ASSERT(kSmiTag == 0);
           __ b(ne, &not_zero);
-          __ vmov(scratch2, d5.high());
+          __ VmovHigh(scratch2, d5);
           __ tst(scratch2, Operand(HeapNumber::kSignMask));
           __ b(ne, &transition);
           __ bind(&not_zero);
@@ -3817,7 +3817,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
       Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
 
   // Copy the JS object part.
-  __ CopyFields(r0, r4, d0, s0, JSObject::kHeaderSize / kPointerSize);
+  __ CopyFields(r0, r4, d0, JSObject::kHeaderSize / kPointerSize);
 
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
@@ -6804,7 +6804,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
   __ bind(&double_elements);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
-  __ StoreNumberToDoubleElements(r0, r3, r5, r6, &slow_elements);
+  __ StoreNumberToDoubleElements(r0, r3, r5, r6, d0, &slow_elements);
   __ Ret();
 }
 

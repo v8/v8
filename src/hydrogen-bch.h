@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,38 +25,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_TLS_WIN32_H_
-#define V8_PLATFORM_TLS_WIN32_H_
+#ifndef V8_HYDROGEN_BCH_H_
+#define V8_HYDROGEN_BCH_H_
 
-#include "checks.h"
-#include "globals.h"
-#include "win32-headers.h"
+#include "hydrogen.h"
 
 namespace v8 {
 namespace internal {
 
-#if defined(_WIN32) && !defined(_WIN64)
 
-#define V8_FAST_TLS_SUPPORTED 1
+class HBoundsCheckHoistingPhase : public HPhase {
+ public:
+  explicit HBoundsCheckHoistingPhase(HGraph* graph)
+      : HPhase("H_Bounds checks hoisting", graph) { }
 
-inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
-  const intptr_t kTibInlineTlsOffset = 0xE10;
-  const intptr_t kTibExtraTlsOffset = 0xF94;
-  const intptr_t kMaxInlineSlots = 64;
-  const intptr_t kMaxSlots = kMaxInlineSlots + 1024;
-  ASSERT(0 <= index && index < kMaxSlots);
-  if (index < kMaxInlineSlots) {
-    return static_cast<intptr_t>(__readfsdword(kTibInlineTlsOffset +
-                                               kPointerSize * index));
+  void Run() {
+    HoistRedundantBoundsChecks();
   }
-  intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
-  ASSERT(extra != 0);
-  return *reinterpret_cast<intptr_t*>(extra +
-                                      kPointerSize * (index - kMaxInlineSlots));
-}
 
-#endif
+ private:
+  void HoistRedundantBoundsChecks();
+
+  DISALLOW_COPY_AND_ASSIGN(HBoundsCheckHoistingPhase);
+};
+
 
 } }  // namespace v8::internal
 
-#endif  // V8_PLATFORM_TLS_WIN32_H_
+#endif  // V8_HYDROGEN_BCE_H_

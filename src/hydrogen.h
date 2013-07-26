@@ -69,6 +69,11 @@ class HBasicBlock: public ZoneObject {
   void set_last(HInstruction* instr) { last_ = instr; }
   HControlInstruction* end() const { return end_; }
   HLoopInformation* loop_information() const { return loop_information_; }
+  HLoopInformation* current_loop() const {
+    return IsLoopHeader() ? loop_information()
+                          : (parent_loop_header() != NULL
+                            ? parent_loop_header()->loop_information() : NULL);
+  }
   const ZoneList<HBasicBlock*>* predecessors() const { return &predecessors_; }
   bool HasPredecessor() const { return predecessors_.length() > 0; }
   const ZoneList<HBasicBlock*>* dominated_blocks() const {
@@ -271,6 +276,20 @@ class HLoopInformation: public ZoneObject {
     stack_check_ = stack_check;
   }
 
+  bool IsNestedInThisLoop(HLoopInformation* other) {
+    while (other != NULL) {
+      if (other == this) {
+        return true;
+      }
+      other = other->parent_loop();
+    }
+    return false;
+  }
+  HLoopInformation* parent_loop() {
+    HBasicBlock* parent_header = loop_header()->parent_loop_header();
+    return parent_header != NULL ? parent_header->loop_information() : NULL;
+  }
+
  private:
   void AddBlock(HBasicBlock* block);
 
@@ -282,6 +301,7 @@ class HLoopInformation: public ZoneObject {
 
 
 class BoundsCheckTable;
+class InductionVariableBlocksTable;
 class HGraph: public ZoneObject {
  public:
   explicit HGraph(CompilationInfo* info);
@@ -448,6 +468,7 @@ class HGraph: public ZoneObject {
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
   void SetupInformativeDefinitionsRecursively(HBasicBlock* block);
+  void EliminateRedundantBoundsChecksUsingInductionVariables();
 
   Isolate* isolate_;
   int next_block_id_;
@@ -1073,8 +1094,7 @@ class HGraphBuilder {
   HLoadNamedField* AddLoad(
       HValue *object,
       HObjectAccess access,
-      HValue *typecheck = NULL,
-      Representation representation = Representation::Tagged());
+      HValue *typecheck = NULL);
 
   HLoadNamedField* BuildLoadNamedField(
       HValue* object,
@@ -1099,16 +1119,10 @@ class HGraphBuilder {
       LoadKeyedHoleMode load_mode,
       KeyedAccessStoreMode store_mode);
 
-  HStoreNamedField* AddStore(
-      HValue *object,
-      HObjectAccess access,
-      HValue *val,
-      Representation representation = Representation::Tagged());
-
+  HLoadNamedField* BuildLoadNamedField(HValue* object, HObjectAccess access);
+  HStoreNamedField* AddStore(HValue *object, HObjectAccess access, HValue *val);
   HStoreNamedField* AddStoreMapConstant(HValue *object, Handle<Map>);
-
   HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck = NULL);
-
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin, HValue* context);
@@ -1368,6 +1382,7 @@ class HGraphBuilder {
   HInnerAllocatedObject* BuildJSArrayHeader(HValue* array,
                                             HValue* array_map,
                                             AllocationSiteMode mode,
+                                            ElementsKind elements_kind,
                                             HValue* allocation_site_payload,
                                             HValue* length_field);
 
@@ -2070,10 +2085,14 @@ class HTracer: public Malloced {
  public:
   explicit HTracer(int isolate_id)
       : trace_(&string_allocator_), indent_(0) {
-    OS::SNPrintF(filename_,
-                 "hydrogen-%d-%d.cfg",
-                 OS::GetCurrentProcessId(),
-                 isolate_id);
+    if (FLAG_trace_hydrogen_file == NULL) {
+      OS::SNPrintF(filename_,
+                   "hydrogen-%d-%d.cfg",
+                   OS::GetCurrentProcessId(),
+                   isolate_id);
+    } else {
+      OS::StrNCpy(filename_, FLAG_trace_hydrogen_file, filename_.length());
+    }
     WriteChars(filename_.start(), "", 0, false);
   }
 

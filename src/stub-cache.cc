@@ -335,10 +335,10 @@ Handle<Code> StubCache::ComputeLoadViaGetter(Handle<Name> name,
 Handle<Code> StubCache::ComputeLoadConstant(Handle<Name> name,
                                             Handle<JSObject> receiver,
                                             Handle<JSObject> holder,
-                                            Handle<JSFunction> value) {
+                                            Handle<Object> value) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
   Handle<Code> handler = FindLoadHandler(
-      name, receiver, stub_holder, Code::LOAD_IC, Code::CONSTANT_FUNCTION);
+      name, receiver, stub_holder, Code::LOAD_IC, Code::CONSTANT);
   if (!handler.is_null()) return handler;
 
   LoadStubCompiler compiler(isolate_);
@@ -417,11 +417,11 @@ Handle<Code> StubCache::ComputeKeyedLoadField(Handle<Name> name,
 Handle<Code> StubCache::ComputeKeyedLoadConstant(Handle<Name> name,
                                                  Handle<JSObject> receiver,
                                                  Handle<JSObject> holder,
-                                                 Handle<JSFunction> value) {
+                                                 Handle<Object> value) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
   Handle<Code> handler = FindLoadHandler(
       name, receiver, stub_holder, Code::KEYED_LOAD_IC,
-      Code::CONSTANT_FUNCTION);
+      Code::CONSTANT);
   if (!handler.is_null()) return handler;
 
   KeyedLoadStubCompiler compiler(isolate_);
@@ -698,7 +698,7 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   }
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind, extra_state, Code::CONSTANT_FUNCTION, argc, cache_holder);
+      kind, extra_state, Code::CONSTANT, argc, cache_holder);
   Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
                        isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -1619,14 +1619,14 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadConstant(
     Handle<JSObject> object,
     Handle<JSObject> holder,
     Handle<Name> name,
-    Handle<JSFunction> value) {
+    Handle<Object> value) {
   Label success;
   HandlerFrontend(object, receiver(), holder, name, &success);
   __ bind(&success);
   GenerateLoadConstant(value);
 
   // Return the generated code.
-  return GetCode(kind(), Code::CONSTANT_FUNCTION, name);
+  return GetCode(kind(), Code::CONSTANT, name);
 }
 
 
@@ -2130,14 +2130,14 @@ Handle<Code> CallStubCompiler::GetCode(Handle<JSFunction> function) {
   if (function->shared()->name()->IsString()) {
     function_name = Handle<String>(String::cast(function->shared()->name()));
   }
-  return GetCode(Code::CONSTANT_FUNCTION, function_name);
+  return GetCode(Code::CONSTANT, function_name);
 }
 
 
 CallOptimization::CallOptimization(LookupResult* lookup) {
   if (lookup->IsFound() &&
       lookup->IsCacheable() &&
-      lookup->type() == CONSTANT_FUNCTION) {
+      lookup->IsConstantFunction()) {
     // We only optimize constant function calls.
     Initialize(Handle<JSFunction>(lookup->GetConstantFunction()));
   } else {

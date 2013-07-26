@@ -78,6 +78,18 @@ namespace internal {
 static const pthread_t kNoThread = (pthread_t) 0;
 
 
+uint64_t OS::CpuFeaturesImpliedByPlatform() {
+#if defined(__APPLE__)
+  // Mac OS X requires all these to install so we can assume they are present.
+  // These constants are defined by the CPUid instructions.
+  const uint64_t one = 1;
+  return (one << SSE2) | (one << CMOV) | (one << RDTSC) | (one << CPUID);
+#else
+  return 0;  // Nothing special about the other systems.
+#endif
+}
+
+
 // Maximum size of the virtual memory.  0 means there is no artificial
 // limit.
 
@@ -86,6 +98,24 @@ intptr_t OS::MaxVirtualMemory() {
   int result = getrlimit(RLIMIT_DATA, &limit);
   if (result != 0) return 0;
   return limit.rlim_cur;
+}
+
+
+int OS::ActivationFrameAlignment() {
+#if V8_TARGET_ARCH_ARM
+  // On EABI ARM targets this is required for fp correctness in the
+  // runtime system.
+  return 8;
+#elif V8_TARGET_ARCH_MIPS
+  return 8;
+#else
+  // Otherwise we just assume 16 byte alignment, i.e.:
+  // - With gcc 4.4 the tree vectorization optimizer can generate code
+  //   that requires 16 byte alignment such as movdqa on x86.
+  // - Mac OS X and Solaris (64-bit) activation frames must be 16 byte-aligned;
+  //   see "Mac OS X ABI Function Call Guide"
+  return 16;
+#endif
 }
 
 
@@ -151,11 +181,26 @@ void* OS::GetRandomMmapAddr() {
     raw_addr &= V8_UINT64_C(0x3ffffffff000);
 #else
     uint32_t raw_addr = V8::RandomPrivate(isolate);
+
+    raw_addr &= 0x3ffff000;
+
+# ifdef __sun
+    // For our Solaris/illumos mmap hint, we pick a random address in the bottom
+    // half of the top half of the address space (that is, the third quarter).
+    // Because we do not MAP_FIXED, this will be treated only as a hint -- the
+    // system will not fail to mmap() because something else happens to already
+    // be mapped at our random address. We deliberately set the hint high enough
+    // to get well above the system's break (that is, the heap); Solaris and
+    // illumos will try the hint and if that fails allocate as if there were
+    // no hint at all. The high hint prevents the break from getting hemmed in
+    // at low values, ceding half of the address space to the system heap.
+    raw_addr += 0x80000000;
+# else
     // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
     // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
     // 10.6 and 10.7.
-    raw_addr &= 0x3ffff000;
     raw_addr += 0x20000000;
+# endif
 #endif
     return reinterpret_cast<void*>(raw_addr);
   }
@@ -209,6 +254,12 @@ void OS::DebugBreak() {
 
 // ----------------------------------------------------------------------------
 // Math functions
+
+double ceiling(double x) {
+  // Correct buggy 'ceil' on some systems (i.e. FreeBSD, OS X 10.5)
+  return (-1.0 < x && x < 0.0) ? -0.0 : ceil(x);
+}
+
 
 double modulo(double x, double y) {
   return fmod(x, y);

@@ -483,6 +483,7 @@ Type* Type::Optional(Handle<Type> type) {
 
 Representation Representation::FromType(Handle<Type> type) {
   if (type->Is(Type::None())) return Representation::None();
+  if (type->Is(Type::Smi())) return Representation::Smi();
   if (type->Is(Type::Signed32())) return Representation::Integer32();
   if (type->Is(Type::Number())) return Representation::Double();
   return Representation::Tagged();

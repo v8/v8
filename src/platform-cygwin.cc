@@ -52,24 +52,7 @@ namespace v8 {
 namespace internal {
 
 
-double ceiling(double x) {
-  return ceil(x);
-}
-
-
 static Mutex* limit_mutex = NULL;
-
-
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // Nothing special about Cygwin.
-}
-
-
-int OS::ActivationFrameAlignment() {
-  // With gcc 4.4 the tree vectorization optimizer can generate code
-  // that requires 16 byte alignment such as movdqa on x86.
-  return 16;
-}
 
 
 const char* OS::LocalTimezone(double time) {

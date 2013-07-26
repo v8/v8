@@ -63,28 +63,7 @@ namespace v8 {
 namespace internal {
 
 
-double ceiling(double x) {
-    // Correct as on OS X
-    if (-1.0 < x && x < 0.0) {
-        return -0.0;
-    } else {
-        return ceil(x);
-    }
-}
-
-
 static Mutex* limit_mutex = NULL;
-
-
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // FreeBSD runs on anything.
-}
-
-
-int OS::ActivationFrameAlignment() {
-  // 16 byte alignment on FreeBSD
-  return 16;
-}
 
 
 const char* OS::LocalTimezone(double time) {

@@ -76,17 +76,7 @@ namespace v8 {
 namespace internal {
 
 
-double ceiling(double x) {
-  return ceil(x);
-}
-
-
 static Mutex* limit_mutex = NULL;
-
-
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // Linux runs on anything.
-}
 
 
 #ifdef __arm__
@@ -316,20 +306,6 @@ bool OS::MipsCpuHasFeature(CpuFeature feature) {
   return false;
 }
 #endif  // def __mips__
-
-
-int OS::ActivationFrameAlignment() {
-#if V8_TARGET_ARCH_ARM
-  // On EABI ARM targets this is required for fp correctness in the
-  // runtime system.
-  return 8;
-#elif V8_TARGET_ARCH_MIPS
-  return 8;
-#endif
-  // With gcc 4.4 the tree vectorization optimizer can generate code
-  // that requires 16 byte alignment such as movdqa on x86.
-  return 16;
-}
 
 
 const char* OS::LocalTimezone(double time) {
