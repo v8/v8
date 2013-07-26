@@ -779,8 +779,8 @@ static void* DecodeSmiToAligned(i::Object* value, const char* location) {
 }
 
 
-static i::Smi* EncodeAlignedAsSmi(void* value, const char* location) {
-  i::Smi* smi = reinterpret_cast<i::Smi*>(value);
+static i::Smi* EncodeAlignedAsSmi(const void* value, const char* location) {
+  i::Smi* smi = const_cast<i::Smi*>(reinterpret_cast<const i::Smi*>(value));
   ApiCheck(smi->IsSmi(), location, "Pointer is not aligned");
   return smi;
 }
@@ -5937,6 +5937,10 @@ Local<String> v8::String::NewExternal(
   LOG_API(isolate, "String::NewExternal");
   ENTER_V8(isolate);
   CHECK(resource && resource->data());
+  // Resource pointers need to look like Smis since ExternalString objects
+  // are sometimes put into old pointer space (see i::String::MakeExternal).
+  CHECK(EncodeAlignedAsSmi(resource, "v8::String::NewExternal()"));
+  CHECK(EncodeAlignedAsSmi(resource->data(), "v8::String::NewExternal()"));
   i::Handle<i::String> result = NewExternalStringHandle(isolate, resource);
   isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
@@ -5958,6 +5962,10 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     return false;
   }
   CHECK(resource && resource->data());
+  // Resource pointers need to look like Smis since ExternalString objects
+  // are sometimes put into old pointer space (see i::String::MakeExternal).
+  CHECK(EncodeAlignedAsSmi(resource, "v8::String::MakeExternal()"));
+  CHECK(EncodeAlignedAsSmi(resource->data(), "v8::String::MakeExternal()"));
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsInternalizedString()) {
     isolate->heap()->external_string_table()->AddString(*obj);
@@ -5973,6 +5981,10 @@ Local<String> v8::String::NewExternal(
   LOG_API(isolate, "String::NewExternal");
   ENTER_V8(isolate);
   CHECK(resource && resource->data());
+  // Resource pointers need to look like Smis since ExternalString objects
+  // are sometimes put into old pointer space (see i::String::MakeExternal).
+  CHECK(EncodeAlignedAsSmi(resource, "v8::String::NewExternal()"));
+  CHECK(EncodeAlignedAsSmi(resource->data(), "v8::String::NewExternal()"));
   i::Handle<i::String> result = NewExternalAsciiStringHandle(isolate, resource);
   isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
@@ -5995,6 +6007,10 @@ bool v8::String::MakeExternal(
     return false;
   }
   CHECK(resource && resource->data());
+  // Resource pointers need to look like Smis since ExternalString objects
+  // are sometimes put into old pointer space (see i::String::MakeExternal).
+  CHECK(EncodeAlignedAsSmi(resource, "v8::String::MakeExternal()"));
+  CHECK(EncodeAlignedAsSmi(resource->data(), "v8::String::MakeExternal()"));
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsInternalizedString()) {
     isolate->heap()->external_string_table()->AddString(*obj);
