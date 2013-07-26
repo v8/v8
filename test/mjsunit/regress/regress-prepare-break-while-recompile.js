@@ -28,6 +28,11 @@
 // Flags: --expose-debug-as debug --allow-natives-syntax
 // Flags: --parallel-recompilation-delay=300
 
+if (!%IsParallelRecompilationSupported()) {
+  print("Parallel recompilation is disabled. Skipping this test.");
+  quit();
+}
+
 Debug = debug.Debug
 
 function foo() {
