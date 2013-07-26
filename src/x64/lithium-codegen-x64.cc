@@ -1699,7 +1699,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
   LOperand* right = instr->right();
   ASSERT(left->Equals(instr->result()));
   HMathMinMax::Operation operation = instr->hydrogen()->operation();
-  if (instr->hydrogen()->representation().IsInteger32()) {
+  if (instr->hydrogen()->representation().IsSmiOrInteger32()) {
     Label return_left;
     Condition condition = (operation == HMathMinMax::kMathMin)
         ? less_equal
@@ -1708,17 +1708,26 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     if (right->IsConstantOperand()) {
       Immediate right_imm =
           Immediate(ToInteger32(LConstantOperand::cast(right)));
+      ASSERT(!instr->hydrogen_value()->representation().IsSmi());
       __ cmpl(left_reg, right_imm);
       __ j(condition, &return_left, Label::kNear);
       __ movq(left_reg, right_imm);
     } else if (right->IsRegister()) {
       Register right_reg = ToRegister(right);
-      __ cmpl(left_reg, right_reg);
+      if (instr->hydrogen_value()->representation().IsSmi()) {
+        __ cmpq(left_reg, right_reg);
+      } else {
+        __ cmpl(left_reg, right_reg);
+      }
       __ j(condition, &return_left, Label::kNear);
       __ movq(left_reg, right_reg);
     } else {
       Operand right_op = ToOperand(right);
-      __ cmpl(left_reg, right_op);
+      if (instr->hydrogen_value()->representation().IsSmi()) {
+        __ cmpq(left_reg, right_op);
+      } else {
+        __ cmpl(left_reg, right_op);
+      }
       __ j(condition, &return_left, Label::kNear);
       __ movq(left_reg, right_op);
     }
