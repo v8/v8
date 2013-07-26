@@ -625,10 +625,14 @@ TEST(MakingExternalUnalignedAsciiString) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
+  CompileRun("function cons(a, b) { return a + b; }"
+             "function slice(a) { return a.substring(1); }");
   // Create a cons string that will land in old pointer space.
-  Local<String> string = Local<String>::Cast(CompileRun(
-      "function cons(a, b) { return a + b; }"
+  Local<String> cons = Local<String>::Cast(CompileRun(
       "cons('abcdefghijklm', 'nopqrstuvwxyz');"));
+  // Create a sliced string that will land in old pointer space.
+  Local<String> slice = Local<String>::Cast(CompileRun(
+      "slice('abcdefghijklmnopqrstuvwxyz');"));
 
   // Trigger GCs so that the newly allocated string moves to old gen.
   SimulateFullSpace(HEAP->old_pointer_space());
@@ -637,9 +641,13 @@ TEST(MakingExternalUnalignedAsciiString) {
 
   // Turn into external string with unaligned resource data.
   int dispose_count = 0;
-  const char* c_source = "_abcdefghijklmnopqrstuvwxyz";
-  bool success = string->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_source) + 1, &dispose_count));
+  const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";
+  bool success = cons->MakeExternal(
+      new TestAsciiResource(i::StrDup(c_cons) + 1, &dispose_count));
+  CHECK(success);
+  const char* c_slice = "_bcdefghijklmnopqrstuvwxyz";
+  success = slice->MakeExternal(
+      new TestAsciiResource(i::StrDup(c_slice) + 1, &dispose_count));
   CHECK(success);
 
   // Trigger GCs and force evacuation.
