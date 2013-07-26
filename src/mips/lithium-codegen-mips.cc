@@ -1521,6 +1521,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
   LOperand* right_op = instr->right();
   Register left = ToRegister(instr->left());
   Register result = ToRegister(instr->result());
+  Register scratch = scratch0();
 
   if (right_op->IsRegister()) {
     // No need to mask the right operand on MIPS, it is built into the variable
@@ -1577,7 +1578,14 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
       case Token::SHL:
         if (shift_count != 0) {
-          __ sll(result, left, shift_count);
+          if (instr->hydrogen_value()->representation().IsSmi() &&
+              instr->can_deopt()) {
+            __ sll(result, left, shift_count - 1);
+            __ SmiTagCheckOverflow(result, result, scratch);
+            DeoptimizeIf(lt, instr->environment(), scratch, Operand(zero_reg));
+          } else {
+            __ sll(result, left, shift_count);
+          }
         } else {
           __ Move(result, left);
         }
