@@ -621,6 +621,33 @@ TEST(MakingExternalAsciiStringConditions) {
 }
 
 
+TEST(MakingExternalUnalignedAsciiString) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // Create a cons string that will land in old pointer space.
+  Local<String> string = Local<String>::Cast(CompileRun(
+      "function cons(a, b) { return a + b; }"
+      "cons('abcdefghijklm', 'nopqrstuvwxyz');"));
+
+  // Trigger GCs so that the newly allocated string moves to old gen.
+  SimulateFullSpace(HEAP->old_pointer_space());
+  HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+  HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
+
+  // Turn into external string with unaligned resource data.
+  int dispose_count = 0;
+  const char* c_source = "_abcdefghijklmnopqrstuvwxyz";
+  bool success = string->MakeExternal(
+      new TestAsciiResource(i::StrDup(c_source) + 1, &dispose_count));
+  CHECK(success);
+
+  // Trigger GCs and force evacuation.
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(i::Heap::kReduceMemoryFootprintMask);
+}
+
+
 THREADED_TEST(UsingExternalString) {
   i::Factory* factory = i::Isolate::Current()->factory();
   {
