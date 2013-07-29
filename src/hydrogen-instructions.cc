@@ -3718,11 +3718,6 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 }
 
 
-HType HStringCharFromCode::CalculateInferredType() {
-  return HType::String();
-}
-
-
 void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
   ASSERT(side_effect == kChangesNewSpacePromotion);

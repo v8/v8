@@ -423,6 +423,24 @@ class HType {
     return IsHeapNumber() || IsString() || IsBoolean() || IsNonPrimitive();
   }
 
+  bool ToStringOrToNumberCanBeObserved(Representation representation) {
+    switch (type_) {
+      case kTaggedPrimitive:  // fallthru
+      case kTaggedNumber:     // fallthru
+      case kSmi:              // fallthru
+      case kHeapNumber:       // fallthru
+      case kString:           // fallthru
+      case kBoolean:
+        return false;
+      case kJSArray:          // fallthru
+      case kJSObject:
+        return true;
+      case kTagged:
+        break;
+    }
+    return !representation.IsSmiOrInteger32() && !representation.IsDouble();
+  }
+
   static HType TypeFromValue(Handle<Object> value);
 
   const char* ToString();
@@ -1124,6 +1142,18 @@ class HValue: public ZoneObject {
     } else {
       return false;
     }
+  }
+
+  // Returns true conservatively if the program might be able to observe a
+  // ToString() operation on this value.
+  bool ToStringCanBeObserved() const {
+    return type().ToStringOrToNumberCanBeObserved(representation());
+  }
+
+  // Returns true conservatively if the program might be able to observe a
+  // ToNumber() operation on this value.
+  bool ToNumberCanBeObserved() const {
+    return type().ToStringOrToNumberCanBeObserved(representation());
   }
 
  protected:
@@ -3320,9 +3350,6 @@ class HPhi: public HValue {
 
   void SimplifyConstantInputs();
 
-  // TODO(titzer): we can't eliminate the receiver for generating backtraces
-  virtual bool IsDeletable() const { return !IsReceiver(); }
-
  protected:
   virtual void DeleteFromGraph();
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -3342,6 +3369,9 @@ class HPhi: public HValue {
   int indirect_uses_[Representation::kNumRepresentations];
   int phi_id_;
   InductionVariableData* induction_variable_data_;
+
+  // TODO(titzer): we can't eliminate the receiver for generating backtraces
+  virtual bool IsDeletable() const { return !IsReceiver(); }
 };
 
 
@@ -3653,9 +3683,9 @@ class HBinaryOperation: public HTemplateInstruction<3> {
     observed_input_representation_[1] = Representation::None();
   }
 
-  HValue* context() { return OperandAt(0); }
-  HValue* left() { return OperandAt(1); }
-  HValue* right() { return OperandAt(2); }
+  HValue* context() const { return OperandAt(0); }
+  HValue* left() const { return OperandAt(1); }
+  HValue* right() const { return OperandAt(2); }
 
   // True if switching left and right operands likely generates better code.
   bool AreOperandsBetterSwitched() {
@@ -3909,9 +3939,6 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int arg_index) {
     return representation();
   }
-  virtual bool IsDeletable() const {
-    return skip_check() && !FLAG_debug_code;
-  }
 
   virtual bool IsRelationTrueInternal(NumericRelation relation,
                                       HValue* related_value,
@@ -3948,6 +3975,11 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   int scale_;
   RangeGuaranteeDirection responsibility_direction_;
   bool allow_equality_;
+
+ private:
+  virtual bool IsDeletable() const {
+    return skip_check() && !FLAG_debug_code;
+  }
 };
 
 
@@ -6451,8 +6483,9 @@ class HStringAdd: public HBinaryOperation {
     SetGVNFlag(kChangesNewSpacePromotion);
   }
 
-  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
-  //  virtual bool IsDeletable() const { return true; }
+  // No side-effects except possible allocation.
+  // NOTE: this instruction _does not_ call ToString() on its inputs.
+  virtual bool IsDeletable() const { return true; }
 
   const StringAddFlags flags_;
 };
@@ -6477,9 +6510,9 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
         : Representation::Tagged();
   }
 
-  HValue* context() { return OperandAt(0); }
-  HValue* string() { return OperandAt(1); }
-  HValue* index() { return OperandAt(2); }
+  HValue* context() const { return OperandAt(0); }
+  HValue* string() const { return OperandAt(1); }
+  HValue* index() const { return OperandAt(2); }
 
   DECLARE_CONCRETE_INSTRUCTION(StringCharCodeAt)
 
@@ -6490,9 +6523,9 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
     return new(zone) Range(0, String::kMaxUtf16CodeUnit);
   }
 
-  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
-  // private:
-  //  virtual bool IsDeletable() const { return true; }
+ private:
+  // No side effects: runtime function assumes string + number inputs.
+  virtual bool IsDeletable() const { return true; }
 };
 
 
@@ -6507,10 +6540,10 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
         ? Representation::Tagged()
         : Representation::Integer32();
   }
-  virtual HType CalculateInferredType();
+  virtual HType CalculateInferredType() { return HType::String(); }
 
-  HValue* context() { return OperandAt(0); }
-  HValue* value() { return OperandAt(1); }
+  HValue* context() const { return OperandAt(0); }
+  HValue* value() const { return OperandAt(1); }
 
   virtual bool DataEquals(HValue* other) { return true; }
 
@@ -6525,8 +6558,9 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
     SetGVNFlag(kChangesNewSpacePromotion);
   }
 
-  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
-  // virtual bool IsDeletable() const { return true; }
+  virtual bool IsDeletable() const {
+    return !value()->ToNumberCanBeObserved();
+  }
 };
 
 
