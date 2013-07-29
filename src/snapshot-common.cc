@@ -47,7 +47,7 @@ static void ReserveSpaceForSnapshot(Deserializer* deserializer,
   CHECK_NE(NULL, fp);
   int new_size, pointer_size, data_size, code_size, map_size, cell_size,
       property_cell_size;
-#if V8_CC_MSVC
+#ifdef _MSC_VER
   // Avoid warning about unsafe fscanf from MSVC.
   // Please note that this is only fine if %c and %s are not being used.
 #define fscanf fscanf_s
@@ -59,7 +59,7 @@ static void ReserveSpaceForSnapshot(Deserializer* deserializer,
   CHECK_EQ(1, fscanf(fp, "map %d\n", &map_size));
   CHECK_EQ(1, fscanf(fp, "cell %d\n", &cell_size));
   CHECK_EQ(1, fscanf(fp, "property cell %d\n", &property_cell_size));
-#if V8_CC_MSVC
+#ifdef _MSC_VER
 #undef fscanf
 #endif
   fclose(fp);

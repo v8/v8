@@ -44,8 +44,6 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
-#include <stdarg.h>
-
 #ifdef __sun
 # ifndef signbit
 namespace std {
@@ -53,6 +51,16 @@ int signbit(double x);
 }
 # endif
 #endif
+
+// GCC specific stuff
+#ifdef __GNUC__
+
+// Needed for va_list on at least MinGW and Android.
+#include <stdarg.h>
+
+#define __GNUC_VERSION__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
+
+#endif  // __GNUC__
 
 
 // Windows specific stuff.
@@ -124,7 +132,7 @@ class Socket;
 
 #ifndef V8_NO_FAST_TLS
 
-#if V8_CC_MSVC && V8_HOST_ARCH_IA32
+#if defined(_MSC_VER) && V8_HOST_ARCH_IA32
 
 #define V8_FAST_TLS_SUPPORTED 1
 
@@ -146,7 +154,7 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
                                       kPointerSize * (index - kMaxInlineSlots));
 }
 
-#elif V8_OS_DARWIN && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
+#elif defined(__APPLE__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 
 #define V8_FAST_TLS_SUPPORTED 1
 
@@ -377,7 +385,7 @@ class OS {
   // the platform doesn't care. Guaranteed to be a power of two.
   static int ActivationFrameAlignment();
 
-#if V8_TARGET_ARCH_IA32
+#if defined(V8_TARGET_ARCH_IA32)
   // Limit below which the extra overhead of the MemCopy function is likely
   // to outweigh the benefits of faster copying.
   static const int kMinComplexMemCopy = 64;
@@ -391,7 +399,7 @@ class OS {
   static void MemCopy(void* dest, const void* src, size_t size) {
     MemMove(dest, src, size);
   }
-#elif V8_HOST_ARCH_ARM
+#elif defined(V8_HOST_ARCH_ARM)
   typedef void (*MemCopyUint8Function)(uint8_t* dest,
                                        const uint8_t* src,
                                        size_t size);

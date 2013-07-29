@@ -42,7 +42,7 @@
 namespace v8 {
 namespace internal {
 
-#if V8_OS_DARWIN
+#ifdef __APPLE__
 #define __MACH_O
 class MachO;
 class MachOSection;

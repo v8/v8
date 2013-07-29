@@ -33,7 +33,7 @@
 
 #include <dlfcn.h>
 #include <pthread.h>
-#if V8_OS_FREEBSD || V8_OS_OPENBSD
+#if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <pthread_np.h>  // for pthread_set_name_np
 #endif
 #include <sched.h>  // for sched_yield
@@ -47,9 +47,11 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#if V8_OS_LINUX
+#if defined(__linux__)
 #include <sys/prctl.h>  // for prctl
-#elif V8_OS_BSD4
+#endif
+#if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) || \
+    defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/sysctl.h>  // for sysctl
 #endif
 
@@ -59,7 +61,7 @@
 
 #undef MAP_TYPE
 
-#if V8_OS_ANDROID && !defined(V8_ANDROID_LOG_STDOUT)
+#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
 #define LOG_TAG "v8"
 #include <android/log.h>
 #endif
@@ -77,7 +79,7 @@ static const pthread_t kNoThread = (pthread_t) 0;
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-#if V8_OS_DARWIN
+#if defined(__APPLE__)
   // Mac OS X requires all these to install so we can assume they are present.
   // These constants are defined by the CPUid instructions.
   const uint64_t one = 1;
@@ -133,10 +135,10 @@ void OS::Free(void* address, const size_t size) {
 
 // Get rid of writable permission on code allocations.
 void OS::ProtectCode(void* address, const size_t size) {
-#if V8_OS_CYGWIN
+#if defined(__CYGWIN__)
   DWORD old_protect;
   VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect);
-#elif V8_OS_NACL
+#elif defined(__native_client__)
   // The Native Client port of V8 uses an interpreter, so
   // code pages don't need PROT_EXEC.
   mprotect(address, size, PROT_READ);
@@ -148,7 +150,7 @@ void OS::ProtectCode(void* address, const size_t size) {
 
 // Create guard pages.
 void OS::Guard(void* address, const size_t size) {
-#if V8_OS_CYGWIN
+#if defined(__CYGWIN__)
   DWORD oldprotect;
   VirtualProtect(address, size, PAGE_READONLY | PAGE_GUARD, &oldprotect);
 #else
@@ -158,7 +160,7 @@ void OS::Guard(void* address, const size_t size) {
 
 
 void* OS::GetRandomMmapAddr() {
-#if V8_OS_NACL
+#if defined(__native_client__)
   // TODO(bradchen): restore randomization once Native Client gets
   // smarter about using mmap address hints.
   // See http://code.google.com/p/nativeclient/issues/3341
@@ -169,7 +171,7 @@ void* OS::GetRandomMmapAddr() {
   // CpuFeatures::Probe. We don't care about randomization in this case because
   // the code page is immediately freed.
   if (isolate != NULL) {
-#if V8_HOST_ARCH_64_BIT
+#if V8_TARGET_ARCH_X64
     uint64_t rnd1 = V8::RandomPrivate(isolate);
     uint64_t rnd2 = V8::RandomPrivate(isolate);
     uint64_t raw_addr = (rnd1 << 32) ^ rnd2;
@@ -182,7 +184,7 @@ void* OS::GetRandomMmapAddr() {
 
     raw_addr &= 0x3ffff000;
 
-#if V8_OS_SOLARIS
+# ifdef __sun
     // For our Solaris/illumos mmap hint, we pick a random address in the bottom
     // half of the top half of the address space (that is, the third quarter).
     // Because we do not MAP_FIXED, this will be treated only as a hint -- the
@@ -193,13 +195,13 @@ void* OS::GetRandomMmapAddr() {
     // no hint at all. The high hint prevents the break from getting hemmed in
     // at low values, ceding half of the address space to the system heap.
     raw_addr += 0x80000000;
-#else
+# else
     // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
     // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
     // 10.6 and 10.7.
     raw_addr += 0x20000000;
-#endif  // V8_OS_SOLARIS
-#endif  // V8_HOST_ARCH_64_BIT
+# endif
+#endif
     return reinterpret_cast<void*>(raw_addr);
   }
   return NULL;
@@ -237,11 +239,11 @@ void OS::DebugBreak() {
 #elif V8_HOST_ARCH_MIPS
   asm("break");
 #elif V8_HOST_ARCH_IA32
-#if V8_OS_NACL
+#if defined(__native_client__)
   asm("hlt");
 #else
   asm("int $3");
-#endif  // V8_OS_NACL
+#endif  // __native_client__
 #elif V8_HOST_ARCH_X64
   asm("int $3");
 #else
@@ -384,7 +386,7 @@ void OS::Print(const char* format, ...) {
 
 
 void OS::VPrint(const char* format, va_list args) {
-#if V8_OS_ANDROID && !defined(V8_ANDROID_LOG_STDOUT)
+#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
   __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
 #else
   vprintf(format, args);
@@ -401,7 +403,7 @@ void OS::FPrint(FILE* out, const char* format, ...) {
 
 
 void OS::VFPrint(FILE* out, const char* format, va_list args) {
-#if V8_OS_ANDROID && !defined(V8_ANDROID_LOG_STDOUT)
+#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
   __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
 #else
   vfprintf(out, format, args);
@@ -418,7 +420,7 @@ void OS::PrintError(const char* format, ...) {
 
 
 void OS::VPrintError(const char* format, va_list args) {
-#if V8_OS_ANDROID && !defined(V8_ANDROID_LOG_STDOUT)
+#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
   __android_log_vprint(ANDROID_LOG_ERROR, LOG_TAG, format, args);
 #else
   vfprintf(stderr, format, args);
@@ -470,7 +472,7 @@ void OS::MemMove(void* dest, const void* src, size_t size) {
   (*memmove_function)(dest, src, size);
 }
 
-#elif V8_HOST_ARCH_ARM
+#elif defined(V8_HOST_ARCH_ARM)
 void OS::MemCopyUint16Uint8Wrapper(uint16_t* dest,
                                const uint8_t* src,
                                size_t chars) {
@@ -498,7 +500,7 @@ void OS::PostSetUp() {
   if (generated_memmove != NULL) {
     memmove_function = generated_memmove;
   }
-#elif V8_HOST_ARCH_ARM
+#elif defined(V8_HOST_ARCH_ARM)
   OS::memcopy_uint8_function =
       CreateMemCopyUint8Function(&OS::MemCopyUint8Wrapper);
   OS::memcopy_uint16_uint8_function =
@@ -551,12 +553,12 @@ Thread::~Thread() {
 
 
 static void SetThreadName(const char* name) {
-#if V8_OS_FREEBSD || V8_OS_OPENBSD
+#if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
   pthread_set_name_np(pthread_self(), name);
-#elif V8_OS_NETBSD
+#elif defined(__NetBSD__)
   STATIC_ASSERT(Thread::kMaxThreadNameLength <= PTHREAD_MAX_NAMELEN_NP);
   pthread_setname_np(pthread_self(), "%s", name);
-#elif V8_OS_DARWIN
+#elif defined(__APPLE__)
   // pthread_setname_np is only available in 10.6 or later, so test
   // for it at runtime.
   int (*dynamic_pthread_setname_np)(const char*);
@@ -603,7 +605,7 @@ void Thread::Start() {
   result = pthread_attr_init(&attr);
   ASSERT_EQ(0, result);
   // Native client uses default stack size.
-#if !V8_OS_NACL
+#if !defined(__native_client__)
   if (stack_size_ > 0) {
     result = pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
     ASSERT_EQ(0, result);
@@ -631,7 +633,7 @@ void Thread::YieldCPU() {
 
 
 static Thread::LocalStorageKey PthreadKeyToLocalKey(pthread_key_t pthread_key) {
-#if V8_OS_CYGWIN
+#if defined(__CYGWIN__)
   // We need to cast pthread_key_t to Thread::LocalStorageKey in two steps
   // because pthread_key_t is a pointer type on Cygwin. This will probably not
   // work on 64-bit platforms, but Cygwin doesn't support 64-bit anyway.
@@ -645,7 +647,7 @@ static Thread::LocalStorageKey PthreadKeyToLocalKey(pthread_key_t pthread_key) {
 
 
 static pthread_key_t LocalKeyToPthreadKey(Thread::LocalStorageKey local_key) {
-#if V8_OS_CYGWIN
+#if defined(__CYGWIN__)
   STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
   intptr_t ptr_key = static_cast<intptr_t>(local_key);
   return reinterpret_cast<pthread_key_t>(ptr_key);

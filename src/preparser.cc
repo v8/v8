@@ -42,7 +42,7 @@
 #include "unicode.h"
 #include "utils.h"
 
-#if V8_CC_MSVC
+#ifdef _MSC_VER
 namespace std {
 
 // Usually defined in math.h, but not in MSVC.

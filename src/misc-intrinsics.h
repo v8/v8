@@ -39,13 +39,13 @@ namespace internal {
 // Result is undefined if input is zero.
 int IntegerLog2(uint32_t value);
 
-#if V8_CC_GNU
+#if defined(__GNUC__)
 
 inline int IntegerLog2(uint32_t value) {
   return 31 - __builtin_clz(value);
 }
 
-#elif V8_CC_MSVC
+#elif defined(_MSC_VER)
 
 #pragma intrinsic(_BitScanReverse)
 

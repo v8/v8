@@ -436,7 +436,7 @@ TEST(AssemblerMultiByteNop) {
 }
 
 
-#if V8_CC_GNU
+#ifdef __GNUC__
 #define ELEMENT_COUNT 4
 
 void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -521,7 +521,7 @@ TEST(StackAlignmentForSSE2) {
 }
 
 #undef ELEMENT_COUNT
-#endif  // V8_CC_GNU
+#endif  // __GNUC__
 
 
 #undef __

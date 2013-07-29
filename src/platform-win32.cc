@@ -48,7 +48,7 @@
 #include "simulator.h"
 #include "vm-state-inl.h"
 
-#if V8_CC_MSVC
+#ifdef _MSC_VER
 
 // Case-insensitive bounded string comparisons. Use stricmp() on Win32. Usually
 // defined in strings.h.
@@ -56,7 +56,7 @@ int strncasecmp(const char* s1, const char* s2, int n) {
   return _strnicmp(s1, s2, n);
 }
 
-#endif  // V8_CC_MSVC
+#endif  // _MSC_VER
 
 
 // Extra functions for MinGW. Most of these are the _s functions which are in
@@ -169,7 +169,7 @@ void OS::MemMove(void* dest, const void* src, size_t size) {
 
 #endif  // V8_TARGET_ARCH_IA32
 
-#if V8_OS_WIN64
+#ifdef _WIN64
 typedef double (*ModuloFunction)(double, double);
 static ModuloFunction modulo_function = NULL;
 // Defined in codegen-x64.cc.
@@ -185,7 +185,8 @@ double modulo(double x, double y) {
   // on all architectures we currently support.
   return (*modulo_function)(x, y);
 }
-#else
+#else  // Win32
+
 double modulo(double x, double y) {
   // Workaround MS fmod bugs. ECMA-262 says:
   // dividend is finite and divisor is an infinity => result equals dividend
@@ -196,7 +197,8 @@ double modulo(double x, double y) {
   }
   return x;
 }
-#endif  // V8_OS_WIN64
+
+#endif  // _WIN64
 
 
 #define UNARY_MATH_FUNCTION(name, generator)             \
@@ -226,7 +228,7 @@ void lazily_initialize_fast_exp() {
 
 
 void MathSetup() {
-#if V8_OS_WIN64
+#ifdef _WIN64
   init_modulo_function();
 #endif
   init_fast_sin_function();
@@ -1007,11 +1009,11 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
-#if V8_CC_MSVC
+#ifdef _MSC_VER
   __debugbreak();
 #else
   ::DebugBreak();
-#endif  // V8_CC_MSVC
+#endif
 }
 
 
@@ -1359,7 +1361,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
   // Initialize the stack walking
   STACKFRAME64 stack_frame;
   memset(&stack_frame, 0, sizeof(stack_frame));
-#if V8_OS_WIN64
+#ifdef  _WIN64
   stack_frame.AddrPC.Offset = context.Rip;
   stack_frame.AddrFrame.Offset = context.Rbp;
   stack_frame.AddrStack.Offset = context.Rsp;
@@ -1468,21 +1470,21 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
 
 
 double OS::nan_value() {
-#if V8_CC_MSVC
+#ifdef _MSC_VER
   // Positive Quiet NaN with no payload (aka. Indeterminate) has all bits
   // in mask set, so value equals mask.
   static const __int64 nanval = kQuietNaNMask;
   return *reinterpret_cast<const double*>(&nanval);
-#else  // V8_CC_MSVC
+#else  // _MSC_VER
   return NAN;
-#endif  // V8_CC_MSVC
+#endif  // _MSC_VER
 }
 
 
 int OS::ActivationFrameAlignment() {
-#if V8_OS__WIN64
+#ifdef _WIN64
   return 16;  // Windows 64-bit ABI requires the stack to be 16-byte aligned.
-#elif V8_CC_MINGW
+#elif defined(__MINGW32__)
   // With gcc 4.4 the tree vectorization optimizer can generate code
   // that requires 16 byte alignment such as movdqa on x86.
   return 16;

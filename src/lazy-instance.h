@@ -111,9 +111,9 @@ struct LeakyInstanceTrait {
 
 // Traits that define how an instance is allocated and accessed.
 
-// TODO(kalmard): __alignof__ is only defined for GCC >= 4.3.
-// Fix alignment issue on MIPS with other compilers.
-#if V8_GNUC_PREREQ(4, 3)
+// TODO(kalmard): __alignof__ is only defined for GCC > 4.2. Fix alignment issue
+// on MIPS with other compilers.
+#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 2))
 #define LAZY_ALIGN(x) __attribute__((aligned(__alignof__(x))))
 #else
 #define LAZY_ALIGN(x)
