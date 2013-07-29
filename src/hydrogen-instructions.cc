@@ -458,7 +458,6 @@ const char* HType::ToString() {
     case kNonPrimitive: return "non-primitive";
     case kJSArray: return "array";
     case kJSObject: return "object";
-    case kUninitialized: return "uninitialized";
   }
   UNREACHABLE();
   return "unreachable";
@@ -1632,9 +1631,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
 
 
 HValue* HCheckInstanceType::Canonicalize() {
-  if (check_ == IS_STRING &&
-      !value()->type().IsUninitialized() &&
-      value()->type().IsString()) {
+  if (check_ == IS_STRING && value()->type().IsString()) {
     return NULL;
   }
 
@@ -2651,6 +2648,8 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     is_not_in_new_space_(true),
     is_cell_(false),
     boolean_value_(handle->BooleanValue()) {
+  set_type(HType::TypeFromValue(handle));
+
   if (handle_->IsHeapObject()) {
     Heap* heap = Handle<HeapObject>::cast(handle)->GetHeap();
     is_not_in_new_space_ = !heap->InNewSpace(*handle);
@@ -2663,7 +2662,6 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     double_value_ = n;
     has_double_value_ = true;
   } else {
-    type_from_value_ = HType::TypeFromValue(handle_);
     is_internalized_string_ = handle_->IsInternalizedString();
   }
 
@@ -2689,11 +2687,10 @@ HConstant::HConstant(Handle<Object> handle,
       is_internalized_string_(is_internalize_string),
       is_not_in_new_space_(is_not_in_new_space),
       is_cell_(is_cell),
-      boolean_value_(boolean_value),
-      type_from_value_(type) {
+      boolean_value_(boolean_value) {
   ASSERT(!handle.is_null());
-  ASSERT(!type.IsUninitialized());
   ASSERT(!type.IsTaggedNumber());
+  set_type(type);
   Initialize(r);
 }
 
@@ -2704,6 +2701,7 @@ HConstant::HConstant(int32_t integer_value,
                      Handle<Object> optional_handle)
     : handle_(optional_handle),
       unique_id_(),
+      has_smi_value_(Smi::IsValid(integer_value)),
       has_int32_value_(true),
       has_double_value_(true),
       is_internalized_string_(false),
@@ -2712,7 +2710,7 @@ HConstant::HConstant(int32_t integer_value,
       boolean_value_(integer_value != 0),
       int32_value_(integer_value),
       double_value_(FastI2D(integer_value)) {
-  has_smi_value_ = Smi::IsValid(int32_value_);
+  set_type(has_smi_value_ ? HType::Smi() : HType::TaggedNumber());
   Initialize(r);
 }
 
@@ -2732,6 +2730,7 @@ HConstant::HConstant(double double_value,
       int32_value_(DoubleToInt32(double_value)),
       double_value_(double_value) {
   has_smi_value_ = has_int32_value_ && Smi::IsValid(int32_value_);
+  set_type(has_smi_value_ ? HType::Smi() : HType::TaggedNumber());
   Initialize(r);
 }
 
@@ -2778,7 +2777,7 @@ HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   return new(zone) HConstant(handle_,
                              unique_id_,
                              r,
-                             type_from_value_,
+                             type_,
                              is_internalized_string_,
                              is_not_in_new_space_,
                              is_cell_,
@@ -3653,22 +3652,13 @@ HType HCheckSmi::CalculateInferredType() {
 
 
 HType HPhi::CalculateInferredType() {
-  HType result = HType::Uninitialized();
-  for (int i = 0; i < OperandCount(); ++i) {
+  if (OperandCount() == 0) return HType::Tagged();
+  HType result = OperandAt(0)->type();
+  for (int i = 1; i < OperandCount(); ++i) {
     HType current = OperandAt(i)->type();
     result = result.Combine(current);
   }
   return result;
-}
-
-
-HType HConstant::CalculateInferredType() {
-  if (has_int32_value_) {
-    return Smi::IsValid(int32_value_) ? HType::Smi() : HType::HeapNumber();
-  }
-  if (has_double_value_) return HType::HeapNumber();
-  ASSERT(!type_from_value_.IsUninitialized());
-  return type_from_value_;
 }
 
 

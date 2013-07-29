@@ -350,8 +350,6 @@ class UniqueValueId {
 
 class HType {
  public:
-  HType() : type_(kUninitialized) { }
-
   static HType Tagged() { return HType(kTagged); }
   static HType TaggedPrimitive() { return HType(kTaggedPrimitive); }
   static HType TaggedNumber() { return HType(kTaggedNumber); }
@@ -362,7 +360,6 @@ class HType {
   static HType NonPrimitive() { return HType(kNonPrimitive); }
   static HType JSArray() { return HType(kJSArray); }
   static HType JSObject() { return HType(kJSObject); }
-  static HType Uninitialized() { return HType(kUninitialized); }
 
   // Return the weakest (least precise) common type.
   HType Combine(HType other) {
@@ -378,32 +375,26 @@ class HType {
   }
 
   bool IsTagged() const {
-    ASSERT(type_ != kUninitialized);
     return ((type_ & kTagged) == kTagged);
   }
 
   bool IsTaggedPrimitive() const {
-    ASSERT(type_ != kUninitialized);
     return ((type_ & kTaggedPrimitive) == kTaggedPrimitive);
   }
 
   bool IsTaggedNumber() const {
-    ASSERT(type_ != kUninitialized);
     return ((type_ & kTaggedNumber) == kTaggedNumber);
   }
 
   bool IsSmi() const {
-    ASSERT(type_ != kUninitialized);
     return ((type_ & kSmi) == kSmi);
   }
 
   bool IsHeapNumber() const {
-    ASSERT(type_ != kUninitialized);
     return ((type_ & kHeapNumber) == kHeapNumber);
   }
 
   bool IsString() const {
-    ASSERT(type_ != kUninitialized);
     return ((type_ & kString) == kString);
   }
 
@@ -413,31 +404,22 @@ class HType {
   }
 
   bool IsBoolean() const {
-    ASSERT(type_ != kUninitialized);
     return ((type_ & kBoolean) == kBoolean);
   }
 
   bool IsNonPrimitive() const {
-    ASSERT(type_ != kUninitialized);
     return ((type_ & kNonPrimitive) == kNonPrimitive);
   }
 
   bool IsJSArray() const {
-    ASSERT(type_ != kUninitialized);
     return ((type_ & kJSArray) == kJSArray);
   }
 
   bool IsJSObject() const {
-    ASSERT(type_ != kUninitialized);
     return ((type_ & kJSObject) == kJSObject);
   }
 
-  bool IsUninitialized() const {
-    return type_ == kUninitialized;
-  }
-
   bool IsHeapObject() const {
-    ASSERT(type_ != kUninitialized);
     return IsHeapNumber() || IsString() || IsBoolean() || IsNonPrimitive();
   }
 
@@ -456,12 +438,11 @@ class HType {
     kBoolean = 0x85,         // 0000 0000 1000 0101
     kNonPrimitive = 0x101,   // 0000 0001 0000 0001
     kJSObject = 0x301,       // 0000 0011 0000 0001
-    kJSArray = 0x701,        // 0000 0111 0000 0001
-    kUninitialized = 0x1fff  // 0001 1111 1111 1111
+    kJSArray = 0x701         // 0000 0111 0000 0001
   };
 
   // Make sure type fits in int16.
-  STATIC_ASSERT(kUninitialized < (1 << (2 * kBitsPerByte)));
+  STATIC_ASSERT(kJSArray < (1 << (2 * kBitsPerByte)));
 
   explicit HType(Type t) : type_(t) { }
 
@@ -2937,11 +2918,7 @@ class HCheckHeapObject: public HUnaryOperation {
 #endif
 
   virtual HValue* Canonicalize() {
-    HType value_type = value()->type();
-    if (!value_type.IsUninitialized() && value_type.IsHeapObject()) {
-      return NULL;
-    }
-    return this;
+    return value()->type().IsHeapObject() ? NULL : this;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckHeapObject)
@@ -3540,7 +3517,6 @@ class HConstant: public HTemplateInstruction<0> {
 
   virtual bool EmitAtUses();
   virtual void PrintDataTo(StringStream* stream);
-  virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
   HConstant* CopyToRepresentation(Representation r, Zone* zone) const;
   Maybe<HConstant*> CopyToTruncatedInt32(Zone* zone);
@@ -3577,7 +3553,7 @@ class HConstant: public HTemplateInstruction<0> {
   bool HasStringValue() const {
     if (has_double_value_ || has_int32_value_) return false;
     ASSERT(!handle_.is_null());
-    return type_from_value_.IsString();
+    return type_.IsString();
   }
   Handle<String> StringValue() const {
     ASSERT(HasStringValue());
@@ -3662,7 +3638,6 @@ class HConstant: public HTemplateInstruction<0> {
   bool boolean_value_ : 1;
   int32_t int32_value_;
   double double_value_;
-  HType type_from_value_;
 };
 
 
