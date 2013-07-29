@@ -1725,6 +1725,9 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::SAR:
         if (shift_count != 0) {
           __ mov(result, Operand(left, ASR, shift_count));
+          if (instr->hydrogen_value()->representation().IsSmi()) {
+            __ and_(result, result, Operand(~kSmiTagMask));
+          }
         } else {
           __ Move(result, left);
         }
