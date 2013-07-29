@@ -55,6 +55,8 @@ static const bool kLogThreading = false;
 
 using ::v8::AccessorInfo;
 using ::v8::Arguments;
+using ::v8::Boolean;
+using ::v8::BooleanObject;
 using ::v8::Context;
 using ::v8::Extension;
 using ::v8::Function;
@@ -1541,6 +1543,54 @@ THREADED_TEST(BooleanObject) {
   CHECK_EQ(true, as_boxed->BooleanValue());
   as_boxed = boxed_false.As<v8::BooleanObject>();
   CHECK_EQ(false, as_boxed->BooleanValue());
+}
+
+
+THREADED_TEST(PrimitiveAndWrappedBooleans) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  Local<Value> primitive_false = Boolean::New(false);
+  CHECK(primitive_false->IsBoolean());
+  CHECK(!primitive_false->IsBooleanObject());
+  CHECK(!primitive_false->BooleanValue());
+  CHECK(!primitive_false->IsTrue());
+  CHECK(primitive_false->IsFalse());
+
+  Local<Value> false_value = BooleanObject::New(false);
+  CHECK(!false_value->IsBoolean());
+  CHECK(false_value->IsBooleanObject());
+  CHECK(false_value->BooleanValue());
+  CHECK(!false_value->IsTrue());
+  CHECK(!false_value->IsFalse());
+
+  Local<BooleanObject> false_boolean_object = false_value.As<BooleanObject>();
+  CHECK(!false_boolean_object->IsBoolean());
+  CHECK(false_boolean_object->IsBooleanObject());
+  CHECK(!false_boolean_object->BooleanValue());
+  CHECK(!false_boolean_object->IsTrue());
+  CHECK(!false_boolean_object->IsFalse());
+
+  Local<Value> primitive_true = Boolean::New(true);
+  CHECK(primitive_true->IsBoolean());
+  CHECK(!primitive_true->IsBooleanObject());
+  CHECK(primitive_true->BooleanValue());
+  CHECK(primitive_true->IsTrue());
+  CHECK(!primitive_true->IsFalse());
+
+  Local<Value> true_value = BooleanObject::New(true);
+  CHECK(!true_value->IsBoolean());
+  CHECK(true_value->IsBooleanObject());
+  CHECK(true_value->BooleanValue());
+  CHECK(!true_value->IsTrue());
+  CHECK(!true_value->IsFalse());
+
+  Local<BooleanObject> true_boolean_object = true_value.As<BooleanObject>();
+  CHECK(!true_boolean_object->IsBoolean());
+  CHECK(true_boolean_object->IsBooleanObject());
+  CHECK(true_boolean_object->BooleanValue());
+  CHECK(!true_boolean_object->IsTrue());
+  CHECK(!true_boolean_object->IsFalse());
 }
 
 
