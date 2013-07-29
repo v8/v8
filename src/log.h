@@ -450,17 +450,6 @@ class Logger {
   // 'true' between SetUp() and TearDown().
   bool is_initialized_;
 
-  // Support for 'incremental addresses' in compressed logs:
-  //  LogMessageBuilder::AppendAddress(Address addr)
-  Address last_address_;
-  //  Logger::TickEvent(...)
-  Address prev_sp_;
-  Address prev_function_;
-  //  Logger::MoveEventInternal(...)
-  Address prev_to_;
-  //  Logger::FunctionCreateEvent(...)
-  Address prev_code_;
-
   int64_t epoch_;
 
   friend class CpuProfiler;
