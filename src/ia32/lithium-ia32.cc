@@ -2146,6 +2146,8 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
     bool value_is_zero = BitCast<uint64_t, double>(value) == 0;
     LOperand* temp = value_is_zero ? NULL : TempRegister();
     return DefineAsRegister(new(zone()) LConstantD(temp));
+  } else if (r.IsExternal()) {
+    return DefineAsRegister(new(zone()) LConstantE);
   } else if (r.IsTagged()) {
     return DefineAsRegister(new(zone()) LConstantT);
   } else {
@@ -2222,7 +2224,10 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
-  LOperand* obj = UseRegisterAtStart(instr->object());
+  LOperand* obj = (instr->access().IsExternalMemory() &&
+                   instr->access().offset() == 0)
+      ? UseRegisterOrConstantAtStart(instr->object())
+      : UseRegisterAtStart(instr->object());
   return DefineAsRegister(new(zone()) LLoadNamedField(obj));
 }
 
@@ -2436,6 +2441,8 @@ LInstruction* LChunkBuilder::DoTrapAllocationMemento(
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   bool is_in_object = instr->access().IsInobject();
+  bool is_external_location = instr->access().IsExternalMemory() &&
+      instr->access().offset() == 0;
   bool needs_write_barrier = instr->NeedsWriteBarrier();
   bool needs_write_barrier_for_map = !instr->transition().is_null() &&
       instr->NeedsWriteBarrierForMap();
@@ -2445,6 +2452,11 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     obj = is_in_object
         ? UseRegister(instr->object())
         : UseTempRegister(instr->object());
+  } else if (is_external_location) {
+    ASSERT(!is_in_object);
+    ASSERT(!needs_write_barrier);
+    ASSERT(!needs_write_barrier_for_map);
+    obj = UseRegisterOrConstant(instr->object());
   } else {
     obj = needs_write_barrier_for_map
         ? UseRegister(instr->object())

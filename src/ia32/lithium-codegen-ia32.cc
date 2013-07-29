@@ -685,6 +685,13 @@ double LCodeGen::ToDouble(LConstantOperand* op) const {
 }
 
 
+ExternalReference LCodeGen::ToExternalReference(LConstantOperand* op) const {
+  HConstant* constant = chunk_->LookupConstant(op);
+  ASSERT(constant->HasExternalReferenceValue());
+  return constant->ExternalReferenceValue();
+}
+
+
 bool LCodeGen::IsInteger32(LConstantOperand* op) const {
   return chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
 }
@@ -1850,6 +1857,11 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
       }
     }
   }
+}
+
+
+void LCodeGen::DoConstantE(LConstantE* instr) {
+  __ lea(ToRegister(instr->result()), Operand::StaticVariable(instr->value()));
 }
 
 
@@ -3049,6 +3061,19 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
+
+  if (access.IsExternalMemory()) {
+    Register result = ToRegister(instr->result());
+    if (instr->object()->IsConstantOperand()) {
+      ExternalReference external_reference = ToExternalReference(
+          LConstantOperand::cast(instr->object()));
+      __ mov(result, MemOperand::StaticVariable(external_reference));
+    } else {
+      __ mov(result, MemOperand(ToRegister(instr->object()), offset));
+    }
+    return;
+  }
+
   Register object = ToRegister(instr->object());
   if (FLAG_track_double_fields &&
       instr->hydrogen()->representation().IsDouble()) {
@@ -4328,10 +4353,25 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Representation representation = instr->representation();
 
-  Register object = ToRegister(instr->object());
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
 
+  if (access.IsExternalMemory()) {
+    MemOperand operand = instr->object()->IsConstantOperand()
+        ? MemOperand::StaticVariable(
+            ToExternalReference(LConstantOperand::cast(instr->object())))
+        : MemOperand(ToRegister(instr->object()), offset);
+    if (instr->value()->IsConstantOperand()) {
+      LConstantOperand* operand_value = LConstantOperand::cast(instr->value());
+      __ mov(operand, Immediate(ToInteger32(operand_value)));
+    } else {
+      Register value = ToRegister(instr->value());
+      __ mov(operand, value);
+    }
+    return;
+  }
+
+  Register object = ToRegister(instr->object());
   Handle<Map> transition = instr->transition();
 
   if (FLAG_track_fields && representation.IsSmi()) {
@@ -4396,8 +4436,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Register write_register = object;
   if (!access.IsInobject()) {
     write_register = ToRegister(instr->temp());
-    __ mov(write_register,
-           FieldOperand(object, JSObject::kPropertiesOffset));
+    __ mov(write_register, FieldOperand(object, JSObject::kPropertiesOffset));
   }
 
   if (instr->value()->IsConstantOperand()) {

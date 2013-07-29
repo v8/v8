@@ -986,6 +986,19 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 }
 
 
+void HGraphBuilder::AddIncrementCounter(StatsCounter* counter,
+                                        HValue* context) {
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    HValue* reference = Add<HConstant>(ExternalReference(counter));
+    HValue* old_value = AddLoad(reference, HObjectAccess::ForCounter(), NULL);
+    HValue* new_value = AddInstruction(
+        HAdd::New(zone(), context, old_value, graph()->GetConstant1()));
+    new_value->ClearFlag(HValue::kCanOverflow);  // Ignore counter overflow
+    AddStore(reference, HObjectAccess::ForCounter(), new_value);
+  }
+}
+
+
 HBasicBlock* HGraphBuilder::CreateBasicBlock(HEnvironment* env) {
   HBasicBlock* b = graph()->CreateBasicBlock();
   b->SetInitialEnvironment(env);

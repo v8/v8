@@ -1658,6 +1658,11 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
 }
 
 
+void LCodeGen::DoConstantE(LConstantE* instr) {
+  __ li(ToRegister(instr->result()), Operand(instr->value()));
+}
+
+
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Handle<Object> value = instr->value();
   AllowDeferredHandleDereference smi_check;
@@ -2878,6 +2883,13 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
   Register object = ToRegister(instr->object());
+
+  if (access.IsExternalMemory()) {
+    Register result = ToRegister(instr->result());
+    __ lw(result, MemOperand(object, offset));
+    return;
+  }
+
   if (instr->hydrogen()->representation().IsDouble()) {
     DoubleRegister result = ToDoubleRegister(instr->result());
     __ ldc1(result, FieldMemOperand(object, offset));
@@ -4114,6 +4126,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Register scratch = scratch0();
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
+
+  if (access.IsExternalMemory()) {
+    Register value = ToRegister(instr->value());
+    __ sw(value, MemOperand(object, offset));
+    return;
+  }
 
   Handle<Map> transition = instr->transition();
 

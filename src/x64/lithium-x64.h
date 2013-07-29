@@ -79,6 +79,7 @@ class LCodeGen;
   V(CmpMapAndBranch)                            \
   V(CmpT)                                       \
   V(ConstantD)                                  \
+  V(ConstantE)                                  \
   V(ConstantI)                                  \
   V(ConstantS)                                  \
   V(ConstantT)                                  \
@@ -1163,6 +1164,17 @@ class LConstantD: public LTemplateInstruction<1, 0, 1> {
   DECLARE_HYDROGEN_ACCESSOR(Constant)
 
   double value() const { return hydrogen()->DoubleValue(); }
+};
+
+
+class LConstantE: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(ConstantE, "constant-e")
+  DECLARE_HYDROGEN_ACCESSOR(Constant)
+
+  ExternalReference value() const {
+    return hydrogen()->ExternalReferenceValue();
+  }
 };
 
 

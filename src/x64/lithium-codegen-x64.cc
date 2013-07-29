@@ -429,6 +429,13 @@ double LCodeGen::ToDouble(LConstantOperand* op) const {
 }
 
 
+ExternalReference LCodeGen::ToExternalReference(LConstantOperand* op) const {
+  HConstant* constant = chunk_->LookupConstant(op);
+  ASSERT(constant->HasExternalReferenceValue());
+  return constant->ExternalReferenceValue();
+}
+
+
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
   ASSERT(chunk_->LookupLiteralRepresentation(op).IsSmiOrTagged());
@@ -1520,6 +1527,11 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
     __ Set(tmp, int_val);
     __ movq(res, tmp);
   }
+}
+
+
+void LCodeGen::DoConstantE(LConstantE* instr) {
+  __ LoadAddress(ToRegister(instr->result()), instr->value());
 }
 
 
@@ -2689,6 +2701,19 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
+
+  if (access.IsExternalMemory()) {
+    Register result = ToRegister(instr->result());
+    if (instr->object()->IsConstantOperand()) {
+      ASSERT(result.is(rax));
+      __ load_rax(ToExternalReference(LConstantOperand::cast(instr->object())));
+    } else {
+      Register object = ToRegister(instr->object());
+      __ movq(result, MemOperand(object, offset));
+    }
+    return;
+  }
+
   Register object = ToRegister(instr->object());
   if (FLAG_track_double_fields &&
       instr->hydrogen()->representation().IsDouble()) {
@@ -3926,11 +3951,23 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   Representation representation = instr->representation();
 
-  Register object = ToRegister(instr->object());
-
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
 
+  if (access.IsExternalMemory()) {
+    Register value = ToRegister(instr->value());
+    if (instr->object()->IsConstantOperand()) {
+      ASSERT(value.is(rax));
+      LConstantOperand* object = LConstantOperand::cast(instr->object());
+      __ store_rax(ToExternalReference(object));
+    } else {
+      Register object = ToRegister(instr->object());
+      __ movq(MemOperand(object, offset), value);
+    }
+    return;
+  }
+
+  Register object = ToRegister(instr->object());
   Handle<Map> transition = instr->transition();
 
   if (FLAG_track_fields && representation.IsSmi()) {

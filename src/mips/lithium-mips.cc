@@ -2017,6 +2017,8 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
     return DefineAsRegister(new(zone()) LConstantI);
   } else if (r.IsDouble()) {
     return DefineAsRegister(new(zone()) LConstantD);
+  } else if (r.IsExternal()) {
+    return DefineAsRegister(new(zone()) LConstantE);
   } else if (r.IsTagged()) {
     return DefineAsRegister(new(zone()) LConstantT);
   } else {

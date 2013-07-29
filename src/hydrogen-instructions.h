@@ -211,7 +211,7 @@ class LChunkBuilder;
   V(GlobalVars)                                \
   V(InobjectFields)                            \
   V(OsrEntries)                                \
-  V(SpecializedArrayElements)
+  V(ExternalMemory)
 
 
 #define DECLARE_ABSTRACT_INSTRUCTION(type)          \
@@ -350,6 +350,7 @@ class UniqueValueId {
 
 class HType {
  public:
+  static HType None() { return HType(kNone); }
   static HType Tagged() { return HType(kTagged); }
   static HType TaggedPrimitive() { return HType(kTaggedPrimitive); }
   static HType TaggedNumber() { return HType(kTaggedNumber); }
@@ -447,6 +448,7 @@ class HType {
 
  private:
   enum Type {
+    kNone = 0x0,             // 0000 0000 0000 0000
     kTagged = 0x1,           // 0000 0000 0000 0001
     kTaggedPrimitive = 0x5,  // 0000 0000 0000 0101
     kTaggedNumber = 0xd,     // 0000 0000 0000 1101
@@ -2693,6 +2695,10 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
     return Representation::Tagged();
   }
 
+  virtual HType CalculateInferredType() {
+    return HType::None();
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer)
 
  protected:
@@ -3478,6 +3484,7 @@ class HConstant: public HTemplateInstruction<0> {
             bool is_not_in_new_space,
             bool is_cell,
             bool boolean_value);
+  explicit HConstant(ExternalReference reference);
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
@@ -3542,6 +3549,7 @@ class HConstant: public HTemplateInstruction<0> {
     if (HasSmiValue() && kSmiValueSize == 31) return Representation::Smi();
     if (HasInteger32Value()) return Representation::Integer32();
     if (HasNumberValue()) return Representation::Double();
+    if (HasExternalReferenceValue()) return Representation::External();
     return Representation::Tagged();
   }
 
@@ -3593,6 +3601,13 @@ class HConstant: public HTemplateInstruction<0> {
     return HasStringValue() && is_internalized_string_;
   }
 
+  bool HasExternalReferenceValue() const {
+    return has_external_reference_value_;
+  }
+  ExternalReference ExternalReferenceValue() const {
+    return external_reference_value_;
+  }
+
   bool BooleanValue() const { return boolean_value_; }
 
   virtual intptr_t Hashcode() {
@@ -3600,6 +3615,8 @@ class HConstant: public HTemplateInstruction<0> {
       return static_cast<intptr_t>(int32_value_);
     } else if (has_double_value_) {
       return static_cast<intptr_t>(BitCast<int64_t>(double_value_));
+    } else if (has_external_reference_value_) {
+      return reinterpret_cast<intptr_t>(external_reference_value_.address());
     } else {
       ASSERT(!handle_.is_null());
       return unique_id_.Hashcode();
@@ -3607,14 +3624,15 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   virtual void FinalizeUniqueValueId() {
-    if (!has_double_value_) {
+    if (!has_double_value_ && !has_external_reference_value_) {
       ASSERT(!handle_.is_null());
       unique_id_ = UniqueValueId(handle_);
     }
   }
 
   bool UniqueValueIdsMatch(UniqueValueId other) {
-    return !has_double_value_ && unique_id_ == other;
+    return !has_double_value_ && !has_external_reference_value_ &&
+        unique_id_ == other;
   }
 
 #ifdef DEBUG
@@ -3635,6 +3653,10 @@ class HConstant: public HTemplateInstruction<0> {
       return other_constant->has_double_value_ &&
           BitCast<int64_t>(double_value_) ==
           BitCast<int64_t>(other_constant->double_value_);
+    } else if (has_external_reference_value_) {
+      return other_constant->has_external_reference_value_ &&
+          external_reference_value_ ==
+          other_constant->external_reference_value_;
     } else {
       ASSERT(!handle_.is_null());
       return !other_constant->handle_.is_null() &&
@@ -3662,12 +3684,14 @@ class HConstant: public HTemplateInstruction<0> {
   bool has_smi_value_ : 1;
   bool has_int32_value_ : 1;
   bool has_double_value_ : 1;
+  bool has_external_reference_value_ : 1;
   bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
   bool is_not_in_new_space_ : 1;
   bool is_cell_ : 1;
   bool boolean_value_ : 1;
   int32_t int32_value_;
   double double_value_;
+  ExternalReference external_reference_value_;
 };
 
 
@@ -5564,7 +5588,11 @@ class HStoreContextSlot: public HTemplateInstruction<2> {
 class HObjectAccess {
  public:
   inline bool IsInobject() const {
-    return portion() != kBackingStore;
+    return portion() != kBackingStore && portion() != kExternalMemory;
+  }
+
+  inline bool IsExternalMemory() const {
+    return portion() == kExternalMemory;
   }
 
   inline int offset() const {
@@ -5640,6 +5668,10 @@ class HObjectAccess {
     return HObjectAccess(kInobject, AllocationMemento::kAllocationSiteOffset);
   }
 
+  static HObjectAccess ForCounter() {
+    return HObjectAccess(kExternalMemory, 0, Representation::Integer32());
+  }
+
   // Create an access to an offset in a fixed array header.
   static HObjectAccess ForFixedArrayHeader(int offset);
 
@@ -5678,7 +5710,8 @@ class HObjectAccess {
     kElementsPointer,  // elements pointer
     kBackingStore,     // some field in the backing store
     kDouble,           // some double field
-    kInobject          // some other in-object field
+    kInobject,         // some other in-object field
+    kExternalMemory    // some field in external memory
   };
 
   HObjectAccess(Portion portion, int offset,
@@ -5756,7 +5789,9 @@ class HLoadNamedField: public HTemplateInstruction<2> {
     if (representation.IsSmi()) {
       set_type(HType::Smi());
       set_representation(representation);
-    } else if (representation.IsDouble()) {
+    } else if (representation.IsDouble() ||
+               representation.IsExternal() ||
+               representation.IsInteger32()) {
       set_representation(representation);
     } else if (FLAG_track_heap_object_fields &&
                representation.IsHeapObject()) {
@@ -5782,6 +5817,10 @@ class HLoadNamedField: public HTemplateInstruction<2> {
 
   virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
+    if (index == 0 && access().IsExternalMemory()) {
+      // object must be external in case of external memory access
+      return Representation::External();
+    }
     return Representation::Tagged();
   }
   virtual void PrintDataTo(StringStream* stream);
@@ -5955,7 +5994,7 @@ class HLoadKeyed
         set_representation(Representation::Integer32());
       }
 
-      SetGVNFlag(kDependsOnSpecializedArrayElements);
+      SetGVNFlag(kDependsOnExternalMemory);
       // Native code could change the specialized array.
       SetGVNFlag(kDependsOnCalls);
     }
@@ -6112,9 +6151,13 @@ class HStoreNamedField: public HTemplateInstruction<2> {
 
   virtual bool HasEscapingOperandAt(int index) { return index == 1; }
   virtual Representation RequiredInputRepresentation(int index) {
-    if (index == 1 && field_representation().IsDouble()) {
-      return field_representation();
-    } else if (index == 1 && field_representation().IsSmi()) {
+    if (index == 0 && access().IsExternalMemory()) {
+      // object must be external in case of external memory access
+      return Representation::External();
+    } else if (index == 1 &&
+        (field_representation().IsDouble() ||
+         field_representation().IsSmi() ||
+         field_representation().IsInteger32())) {
       return field_representation();
     }
     return Representation::Tagged();
@@ -6152,6 +6195,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     if (IsSkipWriteBarrier()) return false;
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
+    if (field_representation().IsInteger32()) return false;
     return StoringValueNeedsWriteBarrier(value()) &&
         ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
@@ -6232,7 +6276,7 @@ class HStoreKeyed
       SetGVNFlag(kDependsOnNewSpacePromotion);
     }
     if (is_external()) {
-      SetGVNFlag(kChangesSpecializedArrayElements);
+      SetGVNFlag(kChangesExternalMemory);
       SetFlag(kAllowUndefinedAsNaN);
     } else if (IsFastDoubleElementsKind(elements_kind)) {
       SetGVNFlag(kChangesDoubleArrayElements);
