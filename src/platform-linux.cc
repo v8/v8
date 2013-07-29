@@ -28,6 +28,8 @@
 // Platform specific code for Linux goes here. For the POSIX comaptible parts
 // the implementation is in platform-posix.cc.
 
+#include "platform.h"
+
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
@@ -57,8 +59,8 @@
 
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
-#if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
-    defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
+#if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
+    V8_HOST_ARCH_ARM && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
 #include <asm/sigcontext.h>
 #endif
 
@@ -67,7 +69,6 @@
 #include "v8.h"
 
 #include "platform-posix.h"
-#include "platform.h"
 #include "v8threads.h"
 #include "vm-state-inl.h"
 
@@ -79,7 +80,7 @@ namespace internal {
 static Mutex* limit_mutex = NULL;
 
 
-#ifdef __arm__
+#if V8_HOST_ARCH_ARM
 static bool CPUInfoContainsString(const char * search_string) {
   const char* file_name = "/proc/cpuinfo";
   // This is written as a straight shot one pass parser
@@ -222,39 +223,23 @@ bool OS::ArmUsingHardFloat() {
   // GCC versions 4.4 and below don't support hard-fp.
   // GCC versions 4.5 may support hard-fp without defining __ARM_PCS or
   // __ARM_PCS_VFP.
-
-#define GCC_VERSION (__GNUC__ * 10000                                          \
-                     + __GNUC_MINOR__ * 100                                    \
-                     + __GNUC_PATCHLEVEL__)
-#if GCC_VERSION >= 40600
 #if defined(__ARM_PCS_VFP)
   return true;
-#else
+#elif V8_CC_GNU && (V8_GNUC_PREREQ(4, 6) || !V8_GNUC_PREREQ(4, 5))
   return false;
-#endif
-
-#elif GCC_VERSION < 40500
-  return false;
-
-#else
-#if defined(__ARM_PCS_VFP)
-  return true;
 #elif defined(__ARM_PCS) || defined(__SOFTFP) || !defined(__VFP_FP__)
   return false;
 #else
 #error "Your version of GCC does not report the FP ABI compiled for."          \
        "Please report it on this issue"                                        \
        "http://code.google.com/p/v8/issues/detail?id=2140"
-
 #endif
-#endif
-#undef GCC_VERSION
 }
 
-#endif  // def __arm__
+#endif  // V8_HOST_ARCH_ARM
 
 
-#ifdef __mips__
+#if V8_HOST_ARCH_MIPS
 bool OS::MipsCpuHasFeature(CpuFeature feature) {
   const char* search_string = NULL;
   const char* file_name = "/proc/cpuinfo";
@@ -305,7 +290,7 @@ bool OS::MipsCpuHasFeature(CpuFeature feature) {
   // Did not find string in the proc file.
   return false;
 }
-#endif  // def __mips__
+#endif  // V8_HOST_ARCH_MIPS
 
 
 const char* OS::LocalTimezone(double time) {

@@ -28,12 +28,12 @@
 #ifndef V8_PLATFORM_POSIX_H_
 #define V8_PLATFORM_POSIX_H_
 
-#if !defined(ANDROID)
+#include "platform.h"
+
+#if !V8_OS_ANDROID
 #include <cxxabi.h>
 #endif
 #include <stdio.h>
-
-#include "platform.h"
 
 namespace v8 {
 namespace internal {
@@ -58,7 +58,7 @@ struct POSIXBacktraceHelper {
         char mangled[201];
         if (sscanf(symbols[i], "%*[^(]%*[(]%200[^)+]", mangled) == 1) {// NOLINT
           char* demangled = NULL;
-#if !defined(ANDROID)
+#if !V8_OS_ANDROID
           int status;
           size_t length;
           demangled = abi::__cxa_demangle(mangled, NULL, &length, &status);

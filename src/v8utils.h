@@ -37,11 +37,11 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // I/O support.
 
-#if __GNUC__ >= 4
+#if V8_GNUC_PREREQ(4, 0)
 // On gcc we can ask the compiler to check the types of %d-style format
 // specifiers and their associated arguments.  TODO(erikcorry) fix this
 // so it works on MacOSX.
-#if defined(__MACH__) && defined(__APPLE__)
+#if V8_OS_DARWIN
 #define PRINTF_CHECKING
 #define FPRINTF_CHECKING
 #else  // MacOsX.
@@ -262,7 +262,7 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #elif V8_HOST_ARCH_X64
 #define STOS "stosq"
 #endif
-#if defined(__native_client__)
+#if V8_OS_NACL
   // This STOS sequence does not validate for x86_64 Native Client.
   // Here we #undef STOS to force use of the slower C version.
   // TODO(bradchen): Profile V8 and implement a faster REP STOS
@@ -270,7 +270,7 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #undef STOS
 #endif
 
-#if defined(__GNUC__) && defined(STOS)
+#if V8_CC_GNU && defined(STOS)
   asm volatile(
       "cld;"
       "rep ; " STOS
@@ -317,7 +317,7 @@ template <typename sourcechar, typename sinkchar>
 INLINE(static void CopyCharsUnsigned(sinkchar* dest,
                                      const sourcechar* src,
                                      int chars));
-#if defined(V8_HOST_ARCH_ARM)
+#if V8_HOST_ARCH_ARM
 INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
 INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars));
 INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
@@ -380,7 +380,7 @@ void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
 }
 
 
-#if defined(V8_HOST_ARCH_ARM)
+#if V8_HOST_ARCH_ARM
 void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
   switch (static_cast<unsigned>(chars)) {
     case 0:

@@ -28,6 +28,8 @@
 #ifndef V8_COMPILER_INTRINSICS_H_
 #define V8_COMPILER_INTRINSICS_H_
 
+#include "globals.h"
+
 namespace v8 {
 namespace internal {
 
@@ -45,7 +47,8 @@ class CompilerIntrinsics {
   INLINE(static int CountSetBits(uint32_t value));
 };
 
-#ifdef __GNUC__
+#if V8_CC_GNU
+
 int CompilerIntrinsics::CountTrailingZeros(uint32_t value) {
   return __builtin_ctz(value);
 }
@@ -58,7 +61,7 @@ int CompilerIntrinsics::CountSetBits(uint32_t value) {
   return __builtin_popcount(value);
 }
 
-#elif defined(_MSC_VER)
+#elif V8_CC_MSVC
 
 #pragma intrinsic(_BitScanForward)
 #pragma intrinsic(_BitScanReverse)

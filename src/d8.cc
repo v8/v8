@@ -68,7 +68,7 @@
 #include "v8.h"
 #endif  // V8_SHARED
 
-#if !defined(_WIN32) && !defined(_WIN64)
+#if V8_OS_UNIX
 #include <unistd.h>  // NOLINT
 #endif
 
@@ -868,7 +868,7 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                               RealmSharedGet, RealmSharedSet);
   global_template->Set(String::New("Realm"), realm_template);
 
-#if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
+#if !defined(V8_SHARED) && V8_OS_UNIX
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
   AddOSMethods(os_templ);
   global_template->Set(String::New("os"), os_templ);
@@ -1020,7 +1020,7 @@ void Shell::OnExit() {
 
 
 static FILE* FOpen(const char* path, const char* mode) {
-#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
+#if V8_CC_MSVC
   FILE* result;
   if (fopen_s(&result, path, mode) == 0) {
     return result;

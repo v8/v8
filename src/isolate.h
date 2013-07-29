@@ -1413,7 +1413,7 @@ class SaveContext BASE_EMBEDDED {
 
  private:
   Handle<Context> context_;
-#if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
+#if V8_GNUC_PREREQ(4, 1) && !V8_GNUC_PREREQ(4, 3)
   Handle<Context> dummy_;
 #endif
   SaveContext* prev_;
