@@ -868,7 +868,7 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                               RealmSharedGet, RealmSharedSet);
   global_template->Set(String::New("Realm"), realm_template);
 
-#if !defined(V8_SHARED) && V8_OS_UNIX
+#if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
   AddOSMethods(os_templ);
   global_template->Set(String::New("os"), os_templ);
@@ -1020,7 +1020,7 @@ void Shell::OnExit() {
 
 
 static FILE* FOpen(const char* path, const char* mode) {
-#if V8_CC_MSVC
+#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
   FILE* result;
   if (fopen_s(&result, path, mode) == 0) {
     return result;
