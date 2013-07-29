@@ -1359,7 +1359,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
   // Initialize the stack walking
   STACKFRAME64 stack_frame;
   memset(&stack_frame, 0, sizeof(stack_frame));
-#if V8_OS _WIN64
+#if V8_OS_WIN64
   stack_frame.AddrPC.Offset = context.Rip;
   stack_frame.AddrFrame.Offset = context.Rbp;
   stack_frame.AddrStack.Offset = context.Rsp;
