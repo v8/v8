@@ -751,8 +751,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
       does_deopt = !instr->CheckFlag(HInstruction::kUint32);
     } else {
       for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
-        if (!it.value()->CheckFlag(HValue::kTruncatingToInt32) &&
-            !it.value()->CheckFlag(HValue::kTruncatingToSmi)) {
+        if (!it.value()->CheckFlag(HValue::kTruncatingToInt32)) {
           does_deopt = true;
           break;
         }
