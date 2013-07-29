@@ -105,7 +105,7 @@
 #elif defined(__GNUC__)
 # define V8_CC_GNU 1
 # define V8_GNUC_PREREQ(major, minor) \
-    ((major) > __GNUC__ || ((major) == __GNUC__ && (minor) >= __GNUC_MINOR__))
+    (__GNUC__ > (major) || (__GNUC__ == (major) && __GNUC_MINOR__ >=  (minor)))
 # if defined(__MINGW64__)
 #  define V8_CC_MINGW 1
 #  define V8_CC_MINGW64 1
