@@ -204,5 +204,6 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   assertOptimized(grow_store);
   grow_store(a,2048,1);
   assertUnoptimized(grow_store);
+  %ClearFunctionTypeFeedback(grow_store);
 })();
 
