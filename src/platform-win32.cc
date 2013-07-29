@@ -925,7 +925,7 @@ static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
   if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
     // For exectutable pages try and randomize the allocation address
     for (size_t attempts = 0; base == NULL && attempts < 3; ++attempts) {
-      base = VirtualAlloc(OS::GetRandomAddr(), size, action, protection);
+      base = VirtualAlloc(OS::GetRandomMmapAddr(), size, action, protection);
     }
   }
 
