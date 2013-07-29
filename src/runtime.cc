@@ -12887,7 +12887,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugSetScriptSource) {
   RUNTIME_ASSERT(script_wrapper->value()->IsScript());
   Handle<Script> script(Script::cast(script_wrapper->value()));
 
-  int compilation_state = Smi::cast(script->compilation_state())->value();
+  int compilation_state = script->compilation_state();
   RUNTIME_ASSERT(compilation_state == Script::COMPILATION_STATE_INITIAL);
   script->set_source(*source);
 
