@@ -5231,40 +5231,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsKind) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsSmiToDouble) {
-  SealHandleScope shs(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
-  Handle<Object> object = args.at<Object>(0);
-  if (object->IsJSObject()) {
-    Handle<JSObject> js_object(Handle<JSObject>::cast(object));
-    ASSERT(!js_object->map()->is_observed());
-    ElementsKind new_kind = js_object->HasFastHoleyElements()
-        ? FAST_HOLEY_DOUBLE_ELEMENTS
-        : FAST_DOUBLE_ELEMENTS;
-    return TransitionElements(object, new_kind, isolate);
-  } else {
-    return *object;
-  }
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsDoubleToObject) {
-  SealHandleScope shs(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
-  Handle<Object> object = args.at<Object>(0);
-  if (object->IsJSObject()) {
-    Handle<JSObject> js_object(Handle<JSObject>::cast(object));
-    ASSERT(!js_object->map()->is_observed());
-    ElementsKind new_kind = js_object->HasFastHoleyElements()
-        ? FAST_HOLEY_ELEMENTS
-        : FAST_ELEMENTS;
-    return TransitionElements(object, new_kind, isolate);
-  } else {
-    return *object;
-  }
-}
-
-
 // Set the native flag on the function.
 // This is used to decide if we should transform null and undefined
 // into the global object when doing call and apply.

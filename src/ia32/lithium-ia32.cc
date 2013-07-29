@@ -2415,21 +2415,11 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
         new(zone()) LTransitionElementsKind(object, NULL,
                                             new_map_reg, temp_reg);
     return result;
-  } else if (FLAG_compiled_transitions) {
+  } else {
     LOperand* context = UseRegister(instr->context());
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, context, NULL, NULL);
     return AssignPointerMap(result);
-  } else {
-    LOperand* object = UseFixed(instr->object(), eax);
-    LOperand* fixed_object_reg = FixedTemp(edx);
-    LOperand* new_map_reg = FixedTemp(ebx);
-    LTransitionElementsKind* result =
-        new(zone()) LTransitionElementsKind(object,
-                                            NULL,
-                                            new_map_reg,
-                                            fixed_object_reg);
-    return MarkAsCall(result, instr);
   }
 }
 

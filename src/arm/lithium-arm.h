@@ -2236,19 +2236,16 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LTransitionElementsKind: public LTemplateInstruction<0, 1, 2> {
+class LTransitionElementsKind: public LTemplateInstruction<0, 1, 1> {
  public:
   LTransitionElementsKind(LOperand* object,
-                          LOperand* new_map_temp,
-                          LOperand* fixed_object_temp) {
+                          LOperand* new_map_temp) {
     inputs_[0] = object;
     temps_[0] = new_map_temp;
-    temps_[1] = fixed_object_temp;
   }
 
   LOperand* object() { return inputs_[0]; }
   LOperand* new_map_temp() { return temps_[0]; }
-  LOperand* temp() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TransitionElementsKind,
                                "transition-elements-kind")

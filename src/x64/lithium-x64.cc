@@ -2229,19 +2229,10 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, new_map_reg, temp_reg);
     return result;
-  } else if (FLAG_compiled_transitions) {
+  } else {
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, NULL, NULL);
     return AssignPointerMap(result);
-  } else {
-    LOperand* object = UseFixed(instr->object(), rax);
-    LOperand* fixed_object_reg = FixedTemp(rdx);
-    LOperand* new_map_reg = FixedTemp(rbx);
-    LTransitionElementsKind* result =
-        new(zone()) LTransitionElementsKind(object,
-                                            new_map_reg,
-                                            fixed_object_reg);
-    return MarkAsCall(result, instr);
   }
 }
 

@@ -2322,21 +2322,12 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
   if (IsSimpleMapChangeTransition(instr->from_kind(), instr->to_kind())) {
     LOperand* new_map_reg = TempRegister();
     LTransitionElementsKind* result =
-        new(zone()) LTransitionElementsKind(object, new_map_reg, NULL);
+        new(zone()) LTransitionElementsKind(object, new_map_reg);
     return result;
-  } else if (FLAG_compiled_transitions) {
-    LTransitionElementsKind* result =
-        new(zone()) LTransitionElementsKind(object, NULL, NULL);
-    return AssignPointerMap(result);
   } else {
-    LOperand* object = UseFixed(instr->object(), r0);
-    LOperand* fixed_object_reg = FixedTemp(r2);
-    LOperand* new_map_reg = FixedTemp(r3);
     LTransitionElementsKind* result =
-        new(zone()) LTransitionElementsKind(object,
-                                            new_map_reg,
-                                            fixed_object_reg);
-    return MarkAsCall(result, instr);
+        new(zone()) LTransitionElementsKind(object, NULL);
+    return AssignPointerMap(result);
   }
 }
 
