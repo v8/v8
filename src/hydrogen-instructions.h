@@ -4792,8 +4792,7 @@ class HMathMinMax: public HArithmeticBinaryOperation {
   virtual Representation RepresentationFromInputs() {
     Representation left_rep = left()->representation();
     Representation right_rep = right()->representation();
-    // TODO(verwaest): Initialize to Smi once lithium-codegen has been fixed.
-    Representation result = Representation::Integer32();
+    Representation result = Representation::Smi();
     result = result.generalize(left_rep);
     result = result.generalize(right_rep);
     if (result.IsTagged()) return Representation::Double();
@@ -4891,7 +4890,11 @@ class HShl: public HBitwiseBinaryOperation {
   virtual void UpdateRepresentation(Representation new_rep,
                                     HInferRepresentationPhase* h_infer,
                                     const char* reason) {
-    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
+    if (new_rep.IsSmi() &&
+        !(right()->IsInteger32Constant() &&
+          right()->GetInteger32Constant() >= 0)) {
+      new_rep = Representation::Integer32();
+    }
     HBitwiseBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
 

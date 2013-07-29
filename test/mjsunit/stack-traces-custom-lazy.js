@@ -25,38 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --parallel-recompilation-delay=300
+function testPrepareStackTrace(closure) {
+  var error = undefined;
+  try {
+    closure();
+    assertUnreachable();
+  } catch (e) {
+    error = e;
+  }
 
-if (!%IsParallelRecompilationSupported()) {
-  print("Parallel recompilation is disabled. Skipping this test.");
-  quit();
+  // We expect custom formatting to be lazy. Setting the custom
+  // function right before calling error.stack should be fine.
+  Error.prepareStackTrace = function(e, frames) {
+    return "bar";
+  }
+
+  assertEquals("bar", error.stack);
+  Error.prepareStackTrace = undefined;
 }
 
-Debug = debug.Debug
-
-function foo() {
-  var x = 1;
-  return x;
-}
-
-function bar() {
-  var x = 2;
-  return x;
-}
-
-foo();
-// Mark and trigger parallel optimization.
-%OptimizeFunctionOnNextCall(foo, "parallel");
-foo();
-
-// Set break points on an unrelated function. This clears both optimized
-// and (shared) unoptimized code on foo, and sets both to lazy-compile builtin.
-// Clear the break point immediately after to deactivate the debugger.
-Debug.setBreakPoint(bar, 0, 0);
-Debug.clearAllBreakPoints();
-
-// Install optimized code when parallel optimization finishes.
-// This needs to be able to deal with shared code being a builtin.
-assertUnoptimized(foo, "sync");
+testPrepareStackTrace(function() { throw new Error("foo"); });
+testPrepareStackTrace(function f() { f(); });
 

@@ -1762,7 +1762,14 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
       case Token::SHL:
         if (shift_count != 0) {
-          __ shl(ToRegister(left), shift_count);
+          if (instr->hydrogen_value()->representation().IsSmi() &&
+              instr->can_deopt()) {
+            __ shl(ToRegister(left), shift_count - 1);
+            __ SmiTag(ToRegister(left));
+            DeoptimizeIf(overflow, instr->environment());
+          } else {
+            __ shl(ToRegister(left), shift_count);
+          }
         }
         break;
       default:

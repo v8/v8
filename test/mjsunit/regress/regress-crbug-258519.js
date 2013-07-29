@@ -25,38 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --parallel-recompilation-delay=300
+// Flags: --allow-natives-syntax
 
-if (!%IsParallelRecompilationSupported()) {
-  print("Parallel recompilation is disabled. Skipping this test.");
-  quit();
+var a = {
+  compare_null: function(x) { return null != x; },
+  kaboom: function() {}
 }
 
-Debug = debug.Debug
-
-function foo() {
-  var x = 1;
-  return x;
+function crash(x) {
+  var b = a;
+  b.compare_null(x) && b.kaboom();
+  return "ok";
 }
 
-function bar() {
-  var x = 2;
-  return x;
-}
-
-foo();
-// Mark and trigger parallel optimization.
-%OptimizeFunctionOnNextCall(foo, "parallel");
-foo();
-
-// Set break points on an unrelated function. This clears both optimized
-// and (shared) unoptimized code on foo, and sets both to lazy-compile builtin.
-// Clear the break point immediately after to deactivate the debugger.
-Debug.setBreakPoint(bar, 0, 0);
-Debug.clearAllBreakPoints();
-
-// Install optimized code when parallel optimization finishes.
-// This needs to be able to deal with shared code being a builtin.
-assertUnoptimized(foo, "sync");
-
+assertEquals("ok", crash(null));
+assertEquals("ok", crash(null));
+%OptimizeFunctionOnNextCall(crash);
+// Used to throw: "TypeError: Cannot call method 'kaboom' of undefined".
+assertEquals("ok", crash(1));
