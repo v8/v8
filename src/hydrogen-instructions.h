@@ -5562,9 +5562,11 @@ class HObjectAccess {
 
   static HObjectAccess ForArrayLength(ElementsKind elements_kind) {
     return HObjectAccess(
-        kArrayLengths, JSArray::kLengthOffset,
-        IsFastElementsKind(elements_kind) && FLAG_track_fields ?
-        Representation::Smi() : Representation::Tagged());
+        kArrayLengths,
+        JSArray::kLengthOffset,
+        IsFastElementsKind(elements_kind) &&
+            FLAG_track_fields
+                ? Representation::Smi() : Representation::Tagged());
   }
 
   static HObjectAccess ForAllocationSiteTransitionInfo() {
@@ -5577,9 +5579,9 @@ class HObjectAccess {
 
   static HObjectAccess ForFixedArrayLength() {
     return HObjectAccess(
-        kArrayLengths, FixedArray::kLengthOffset,
-        FLAG_track_fields ?
-        Representation::Smi() : Representation::Tagged());
+        kArrayLengths,
+        FixedArray::kLengthOffset,
+        FLAG_track_fields ? Representation::Smi() : Representation::Tagged());
   }
 
   static HObjectAccess ForPropertiesPointer() {

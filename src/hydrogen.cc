@@ -1078,8 +1078,16 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
 
   HValue* context = environment()->LookupContext();
 
-  HValue* new_capacity = BuildNewElementsCapacity(context, key);
+  HValue* max_gap = Add<HConstant>(static_cast<int32_t>(JSObject::kMaxGap));
+  HValue* max_capacity = AddInstruction(
+      HAdd::New(zone, context, current_capacity, max_gap));
+  IfBuilder key_checker(this);
+  key_checker.If<HCompareNumericAndBranch>(key, max_capacity, Token::LT);
+  key_checker.Then();
+  key_checker.ElseDeopt();
+  key_checker.End();
 
+  HValue* new_capacity = BuildNewElementsCapacity(context, key);
   HValue* new_elements = BuildGrowElementsCapacity(object, elements,
                                                    kind, kind, length,
                                                    new_capacity);
@@ -1337,6 +1345,9 @@ HValue* HGraphBuilder::BuildAllocateElementsAndInitializeElementsHeader(
     HValue* context,
     ElementsKind kind,
     HValue* capacity) {
+  // The HForceRepresentation is to prevent possible deopt on int-smi
+  // conversion after allocation but before the new object fields are set.
+  capacity = Add<HForceRepresentation>(capacity, Representation::Smi());
   HValue* new_elements = BuildAllocateElements(context, kind, capacity);
   BuildInitializeElementsHeader(new_elements, kind, capacity);
   return new_elements;
@@ -1474,7 +1485,6 @@ HValue* HGraphBuilder::BuildNewElementsCapacity(HValue* context,
   HValue* half_old_capacity =
       AddInstruction(HShr::New(zone, context, old_capacity,
                                graph_->GetConstant1()));
-  half_old_capacity->ClearFlag(HValue::kCanOverflow);
 
   HValue* new_capacity = AddInstruction(
       HAdd::New(zone, context, half_old_capacity, old_capacity));
@@ -1497,8 +1507,6 @@ void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
   int max_size = heap->MaxRegularSpaceAllocationSize() / element_size;
   max_size -= JSArray::kSize / element_size;
   HConstant* max_size_constant = Add<HConstant>(max_size);
-  // Since we're forcing Integer32 representation for this HBoundsCheck,
-  // there's no need to Smi-check the index.
   Add<HBoundsCheck>(length, max_size_constant);
 }
 
@@ -1926,6 +1934,14 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
                                                      HValue* length_field,
                                                      bool fill_with_hole) {
   HValue* context = builder()->environment()->LookupContext();
+
+  // These HForceRepresentations are because we store these as fields in the
+  // objects we construct, and an int32-to-smi HChange could deopt. Accept
+  // the deopt possibility now, before allocation occurs.
+  capacity = builder()->Add<HForceRepresentation>(capacity,
+                                                  Representation::Smi());
+  length_field = builder()->Add<HForceRepresentation>(length_field,
+                                                      Representation::Smi());
 
   // Allocate (dealing with failure appropriately)
   HAllocate::Flags flags = HAllocate::DefaultFlags(kind_);
