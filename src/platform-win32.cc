@@ -892,7 +892,7 @@ size_t OS::AllocateAlignment() {
 }
 
 
-static void* GetRandomAddr() {
+void* OS::GetRandomMmapAddr() {
   Isolate* isolate = Isolate::UncheckedCurrent();
   // Note that the current isolate isn't set up in a call path via
   // CpuFeatures::Probe. We don't care about randomization in this case because
