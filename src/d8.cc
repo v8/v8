@@ -68,7 +68,7 @@
 #include "v8.h"
 #endif  // V8_SHARED
 
-#if V8_OS_UNIX
+#if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #endif
 
