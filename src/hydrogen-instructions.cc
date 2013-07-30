@@ -4375,7 +4375,11 @@ bool HValue::HasNonSmiUse() {
     // We check for observed_input_representation elsewhere.
     Representation use_rep =
         it.value()->RequiredInputRepresentation(it.index());
-    if (!use_rep.IsNone() && !use_rep.IsSmi()) return true;
+    if (!use_rep.IsNone() &&
+        !use_rep.IsSmi() &&
+        !use_rep.IsTagged()) {
+      return true;
+    }
   }
   return false;
 }
