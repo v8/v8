@@ -2234,7 +2234,7 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 
   Handle<Map> map(isolate()->native_context()->generator_result_map());
 
-  __ Allocate(map->instance_size(), a0, a2, a3, &gc_required, TAG_OBJECT);
+  __ Allocate(map->instance_size(), v0, a2, a3, &gc_required, TAG_OBJECT);
   __ jmp(&allocated);
 
   __ bind(&gc_required);
@@ -2249,19 +2249,18 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   __ li(a3, Operand(isolate()->factory()->ToBoolean(done)));
   __ li(t0, Operand(isolate()->factory()->empty_fixed_array()));
   ASSERT_EQ(map->instance_size(), 5 * kPointerSize);
-  __ sw(a1, FieldMemOperand(a0, HeapObject::kMapOffset));
-  __ sw(t0, FieldMemOperand(a0, JSObject::kPropertiesOffset));
-  __ sw(t0, FieldMemOperand(a0, JSObject::kElementsOffset));
+  __ sw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
+  __ sw(t0, FieldMemOperand(v0, JSObject::kPropertiesOffset));
+  __ sw(t0, FieldMemOperand(v0, JSObject::kElementsOffset));
   __ sw(a2,
-        FieldMemOperand(a0, JSGeneratorObject::kResultValuePropertyOffset));
+        FieldMemOperand(v0, JSGeneratorObject::kResultValuePropertyOffset));
   __ sw(a3,
-        FieldMemOperand(a0, JSGeneratorObject::kResultDonePropertyOffset));
+        FieldMemOperand(v0, JSGeneratorObject::kResultDonePropertyOffset));
 
   // Only the value field needs a write barrier, as the other values are in the
   // root set.
-  __ RecordWriteField(a0, JSGeneratorObject::kResultValuePropertyOffset,
+  __ RecordWriteField(v0, JSGeneratorObject::kResultValuePropertyOffset,
                       a2, a3, kRAHasBeenSaved, kDontSaveFPRegs);
-  __ mov(result_register(), a0);
 }
 
 
