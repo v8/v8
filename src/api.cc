@@ -770,6 +770,7 @@ void Context::Exit() {
   i::Context* last_context =
       isolate->handle_scope_implementer()->RestoreContext();
   isolate->set_context(last_context);
+  isolate->set_context_exit_happened(true);
 }
 
 
@@ -6083,7 +6084,7 @@ Local<v8::Value> v8::NumberObject::New(double value) {
 }
 
 
-double v8::NumberObject::NumberValue() const {
+double v8::NumberObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::NumberObject::NumberValue()")) return 0;
   LOG_API(isolate, "NumberObject::NumberValue");
@@ -6107,7 +6108,7 @@ Local<v8::Value> v8::BooleanObject::New(bool value) {
 }
 
 
-bool v8::BooleanObject::BooleanValue() const {
+bool v8::BooleanObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::BooleanObject::BooleanValue()")) return 0;
   LOG_API(isolate, "BooleanObject::BooleanValue");
@@ -6128,7 +6129,7 @@ Local<v8::Value> v8::StringObject::New(Handle<String> value) {
 }
 
 
-Local<v8::String> v8::StringObject::StringValue() const {
+Local<v8::String> v8::StringObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::StringObject::StringValue()")) {
     return Local<v8::String>();
@@ -6152,7 +6153,7 @@ Local<v8::Value> v8::SymbolObject::New(Isolate* isolate, Handle<Symbol> value) {
 }
 
 
-Local<v8::Symbol> v8::SymbolObject::SymbolValue() const {
+Local<v8::Symbol> v8::SymbolObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::SymbolObject::SymbolValue()"))
     return Local<v8::Symbol>();
@@ -6181,7 +6182,7 @@ Local<v8::Value> v8::Date::New(double time) {
 }
 
 
-double v8::Date::NumberValue() const {
+double v8::Date::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Date::NumberValue()")) return 0;
   LOG_API(isolate, "Date::NumberValue");
