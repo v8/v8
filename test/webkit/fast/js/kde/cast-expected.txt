@@ -29,7 +29,7 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 PASS Boolean(1) === true is true
 PASS var s = String; s(1) === '1' is true
 PASS n = Number; n(true) === 1 is true
-PASS String(Array('a', 'b'	)) is 'a,b'
+PASS String(Array('a', 'b'        )) is 'a,b'
 PASS successfullyParsed is true
 
 TEST COMPLETE
