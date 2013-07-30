@@ -1771,7 +1771,9 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         if (shift_count != 0) {
           if (instr->hydrogen_value()->representation().IsSmi() &&
               instr->can_deopt()) {
-            __ shl(ToRegister(left), shift_count - 1);
+            if (shift_count != 1) {
+              __ shl(ToRegister(left), shift_count - 1);
+            }
             __ SmiTag(ToRegister(left));
             DeoptimizeIf(overflow, instr->environment());
           } else {

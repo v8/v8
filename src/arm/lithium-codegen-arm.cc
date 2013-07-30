@@ -1744,7 +1744,9 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         if (shift_count != 0) {
           if (instr->hydrogen_value()->representation().IsSmi() &&
               instr->can_deopt()) {
-            __ mov(result, Operand(left, LSL, shift_count - 1));
+            if (shift_count != 1) {
+              __ mov(result, Operand(left, LSL, shift_count - 1));
+            }
             __ SmiTag(result, result, SetCC);
             DeoptimizeIf(vs, instr->environment());
           } else {
