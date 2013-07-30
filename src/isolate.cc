@@ -816,9 +816,9 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       }
 
       if (options & StackTrace::kIsEval) {
-        Handle<Object> is_eval =
-            script->compilation_type() == Script::COMPILATION_TYPE_EVAL ?
-                factory()->true_value() : factory()->false_value();
+        int type = Smi::cast(script->compilation_type())->value();
+        Handle<Object> is_eval = (type == Script::COMPILATION_TYPE_EVAL) ?
+            factory()->true_value() : factory()->false_value();
         CHECK_NOT_EMPTY_HANDLE(this,
                                JSObject::SetLocalPropertyIgnoreAttributes(
                                    stack_frame, eval_key, is_eval, NONE));
