@@ -415,7 +415,7 @@ class SamplerThread : public Thread {
       : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
-  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
+  static void SetUp() { if (!mutex_) mutex_ = new Mutex; }
   static void TearDown() { delete mutex_; }
 
   static void AddActiveSampler(Sampler* sampler) {

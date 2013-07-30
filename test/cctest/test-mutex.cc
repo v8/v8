@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,65 +25,46 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Tests of the TokenLock class from lock.h
-
-#include <stdlib.h>
+// Tests of the Mutex class from mutex.h
 
 #include "v8.h"
 
-#include "platform.h"
+#include "mutex.h"
 #include "cctest.h"
 
 
 using namespace ::v8::internal;
 
 
-// Simple test of locking logic
 TEST(Simple) {
-  Mutex* mutex = OS::CreateMutex();
-  CHECK_EQ(0, mutex->Lock());  // acquire the lock with the right token
-  CHECK_EQ(0, mutex->Unlock());  // can unlock with the right token
-  delete mutex;
+  Mutex mutex;
+  mutex.Lock();
+  mutex.Unlock();
 }
 
 
-TEST(MultiLock) {
-  Mutex* mutex = OS::CreateMutex();
-  CHECK_EQ(0, mutex->Lock());
-  CHECK_EQ(0, mutex->Unlock());
-  delete mutex;
+TEST(Recursive) {
+  Mutex mutex;
+  mutex.Lock();
+  mutex.Lock();
+  mutex.Unlock();
+  mutex.Unlock();
 }
 
 
-TEST(ShallowLock) {
-  Mutex* mutex = OS::CreateMutex();
-  CHECK_EQ(0, mutex->Lock());
-  CHECK_EQ(0, mutex->Unlock());
-  CHECK_EQ(0, mutex->Lock());
-  CHECK_EQ(0, mutex->Unlock());
-  delete mutex;
+TEST(SimpleScopedLock) {
+  Mutex mutex;
+  {
+    ScopedLock fst(&mutex);
+  }
+  {
+    ScopedLock snd(&mutex);
+  }
 }
 
 
-TEST(SemaphoreTimeout) {
-  bool ok;
-  Semaphore* sem = OS::CreateSemaphore(0);
-
-  // Semaphore not signalled - timeout.
-  ok = sem->Wait(0);
-  CHECK(!ok);
-  ok = sem->Wait(100);
-  CHECK(!ok);
-  ok = sem->Wait(1000);
-  CHECK(!ok);
-
-  // Semaphore signalled - no timeout.
-  sem->Signal();
-  ok = sem->Wait(0);
-  sem->Signal();
-  ok = sem->Wait(100);
-  sem->Signal();
-  ok = sem->Wait(1000);
-  CHECK(ok);
-  delete sem;
+TEST(RecursiveScopedLock) {
+  Mutex mutex;
+  ScopedLock fst(&mutex);
+  ScopedLock snd(&mutex);
 }

@@ -48,7 +48,7 @@ class DebuggerAgent: public Thread {
         isolate_(Isolate::Current()),
         name_(StrDup(name)), port_(port),
         server_(OS::CreateSocket()), terminate_(false),
-        session_access_(OS::CreateMutex()), session_(NULL),
+        session_(NULL),
         terminate_now_(OS::CreateSemaphore(0)),
         listening_(OS::CreateSemaphore(0)) {
     ASSERT(isolate_->debugger_agent_instance() == NULL);
@@ -76,7 +76,7 @@ class DebuggerAgent: public Thread {
   int port_;  // Port to use for the agent.
   Socket* server_;  // Server socket for listen/accept.
   bool terminate_;  // Termination flag.
-  Mutex* session_access_;  // Mutex guarging access to session_.
+  Mutex session_access_;  // Mutex guarging access to session_.
   DebuggerAgentSession* session_;  // Current active session if any.
   Semaphore* terminate_now_;  // Semaphore to signal termination.
   Semaphore* listening_;

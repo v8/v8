@@ -4714,7 +4714,7 @@ class ThreadBarrier {
 
 ThreadBarrier::ThreadBarrier(int num_threads)
     : num_threads_(num_threads), num_blocked_(0) {
-  lock_ = OS::CreateMutex();
+  lock_ = new v8::internal::Mutex;
   sem_ = OS::CreateSemaphore(0);
   invalid_ = false;  // A barrier may only be used once.  Then it is invalid.
 }

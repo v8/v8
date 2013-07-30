@@ -157,7 +157,7 @@ CounterMap* Shell::counter_map_;
 i::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
 CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
-i::Mutex* Shell::context_mutex_(i::OS::CreateMutex());
+i::Mutex Shell::context_mutex_;
 Persistent<Context> Shell::utility_context_;
 #endif  // V8_SHARED
 
@@ -925,7 +925,7 @@ void Shell::InitializeDebugger(Isolate* isolate) {
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
 #ifndef V8_SHARED
   // This needs to be a critical section since this is not thread-safe
-  i::ScopedLock lock(context_mutex_);
+  i::ScopedLock lock(&context_mutex_);
 #endif  // V8_SHARED
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
@@ -1011,7 +1011,6 @@ void Shell::OnExit() {
            "-------------+\n");
     delete [] counters;
   }
-  delete context_mutex_;
   delete counters_file_;
   delete counter_map_;
 #endif  // V8_SHARED

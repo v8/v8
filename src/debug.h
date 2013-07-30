@@ -763,14 +763,15 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
  public:
   LockingCommandMessageQueue(Logger* logger, int size);
   ~LockingCommandMessageQueue();
-  bool IsEmpty() const;
+  bool IsEmpty();
   CommandMessage Get();
   void Put(const CommandMessage& message);
   void Clear();
+
  private:
   Logger* logger_;
   CommandMessageQueue queue_;
-  Mutex* lock_;
+  Mutex lock_;
   DISALLOW_COPY_AND_ASSIGN(LockingCommandMessageQueue);
 };
 
@@ -929,7 +930,7 @@ class Debugger {
   v8::Debug::MessageHandler2 message_handler_;
   bool debugger_unload_pending_;  // Was message handler cleared?
   v8::Debug::HostDispatchHandler host_dispatch_handler_;
-  Mutex* dispatch_handler_access_;  // Mutex guarding dispatch handler.
+  Mutex dispatch_handler_access_;  // Mutex guarding dispatch handler.
   v8::Debug::DebugMessageDispatchHandler debug_message_dispatch_handler_;
   MessageDispatchHelperThread* message_dispatch_helper_thread_;
   int host_dispatch_micros_;
@@ -1056,7 +1057,7 @@ class MessageDispatchHelperThread: public Thread {
 
   Isolate* isolate_;
   Semaphore* const sem_;
-  Mutex* const mutex_;
+  Mutex mutex_;
   bool already_signalled_;
 
   DISALLOW_COPY_AND_ASSIGN(MessageDispatchHelperThread);

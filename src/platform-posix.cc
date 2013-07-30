@@ -756,48 +756,6 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 }
 
 
-class POSIXMutex : public Mutex {
- public:
-  POSIXMutex() {
-    pthread_mutexattr_t attr;
-    memset(&attr, 0, sizeof(attr));
-    int result = pthread_mutexattr_init(&attr);
-    ASSERT(result == 0);
-    result = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    ASSERT(result == 0);
-    result = pthread_mutex_init(&mutex_, &attr);
-    ASSERT(result == 0);
-    result = pthread_mutexattr_destroy(&attr);
-    ASSERT(result == 0);
-    USE(result);
-  }
-
-  virtual ~POSIXMutex() { pthread_mutex_destroy(&mutex_); }
-
-  virtual int Lock() { return pthread_mutex_lock(&mutex_); }
-
-  virtual int Unlock() { return pthread_mutex_unlock(&mutex_); }
-
-  virtual bool TryLock() {
-    int result = pthread_mutex_trylock(&mutex_);
-    // Return false if the lock is busy and locking failed.
-    if (result == EBUSY) {
-      return false;
-    }
-    ASSERT(result == 0);  // Verify no other errors.
-    return true;
-  }
-
- private:
-  pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
-};
-
-
-Mutex* OS::CreateMutex() {
-  return new POSIXMutex();
-}
-
-
 // ----------------------------------------------------------------------------
 // POSIX socket support.
 //

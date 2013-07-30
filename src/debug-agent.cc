@@ -106,7 +106,7 @@ static const char* kCreateSessionMessage =
     "Remote debugging session already active\r\n";
 
 void DebuggerAgent::CreateSession(Socket* client) {
-  ScopedLock with(session_access_);
+  ScopedLock with(&session_access_);
 
   // If another session is already established terminate this one.
   if (session_ != NULL) {
@@ -123,7 +123,7 @@ void DebuggerAgent::CreateSession(Socket* client) {
 
 
 void DebuggerAgent::CloseSession() {
-  ScopedLock with(session_access_);
+  ScopedLock with(&session_access_);
 
   // Terminate the session.
   if (session_ != NULL) {
@@ -136,7 +136,7 @@ void DebuggerAgent::CloseSession() {
 
 
 void DebuggerAgent::DebuggerMessage(const v8::Debug::Message& message) {
-  ScopedLock with(session_access_);
+  ScopedLock with(&session_access_);
 
   // Forward the message handling to the session.
   if (session_ != NULL) {
@@ -154,7 +154,7 @@ void DebuggerAgent::OnSessionClosed(DebuggerAgentSession* session) {
   }
 
   // Terminate the session.
-  ScopedLock with(session_access_);
+  ScopedLock with(&session_access_);
   ASSERT(session == session_);
   if (session == session_) {
     session_->Shutdown();

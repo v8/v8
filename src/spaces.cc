@@ -2043,7 +2043,7 @@ intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
     // This is safe (not going to deadlock) since Concatenate operations
     // are never performed on the same free lists at the same time in
     // reverse order.
-    ScopedLock lock_target(mutex_);
+    ScopedLock lock_target(mutex());
     ScopedLock lock_source(category->mutex());
     free_bytes = category->available();
     if (end_ == NULL) {

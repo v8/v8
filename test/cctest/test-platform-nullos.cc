@@ -52,18 +52,18 @@ static void LoopIncrement(Mutex* mutex, int rem) {
     int count = 0;
     int last_count = -1;
     do {
-      CHECK_EQ(0, mutex->Lock());
+      mutex->Lock();
       count = busy_lock_counter;
-      CHECK_EQ(0, mutex->Unlock());
+      mutex->Unlock();
       yield();
     } while (count % 2 == rem && count < kLockCounterLimit);
     if (count >= kLockCounterLimit) break;
-    CHECK_EQ(0, mutex->Lock());
+    mutex->Lock();
     CHECK_EQ(count, busy_lock_counter);
     CHECK(last_count == -1 || count == last_count + 1);
     busy_lock_counter++;
     last_count = count;
-    CHECK_EQ(0, mutex->Unlock());
+    mutex->Unlock();
     yield();
   }
 }

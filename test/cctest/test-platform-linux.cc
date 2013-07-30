@@ -52,18 +52,18 @@ static void LoopIncrement(Mutex* mutex, int rem) {
     int count = 0;
     int last_count = -1;
     do {
-      CHECK_EQ(0, mutex->Lock());
+      mutex->Lock();
       count = busy_lock_counter;
-      CHECK_EQ(0, mutex->Unlock());
+      mutex->Unlock();
       yield();
     } while (count % 2 == rem && count < kLockCounterLimit);
     if (count >= kLockCounterLimit) break;
-    CHECK_EQ(0, mutex->Lock());
+    mutex->Lock();
     CHECK_EQ(count, busy_lock_counter);
     CHECK(last_count == -1 || count == last_count + 1);
     busy_lock_counter++;
     last_count = count;
-    CHECK_EQ(0, mutex->Unlock());
+    mutex->Unlock();
     yield();
   }
 }
@@ -79,15 +79,14 @@ static void* RunTestBusyLock(void* arg) {
 // increment a variable.
 TEST(BusyLock) {
   pthread_t other;
-  Mutex* mutex = OS::CreateMutex();
+  Mutex mutex;
   int thread_created = pthread_create(&other,
                                       NULL,
                                       &RunTestBusyLock,
-                                      mutex);
+                                      &mutex);
   CHECK_EQ(0, thread_created);
-  LoopIncrement(mutex, 1);
+  LoopIncrement(&mutex, 1);
   pthread_join(other, NULL);
-  delete mutex;
 }
 
 

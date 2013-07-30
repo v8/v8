@@ -6877,7 +6877,7 @@ bool Heap::SetUp() {
 
   store_buffer()->SetUp();
 
-  if (FLAG_parallel_recompilation) relocation_mutex_ = OS::CreateMutex();
+  if (FLAG_parallel_recompilation) relocation_mutex_ = new Mutex;
 #ifdef DEBUG
   relocation_mutex_locked_by_optimizer_thread_ = false;
 #endif  // DEBUG

@@ -48,7 +48,7 @@ Log::Log(Logger* logger)
 
 
 void Log::Initialize(const char* log_file_name) {
-  mutex_ = OS::CreateMutex();
+  mutex_ = new Mutex;
   message_buffer_ = NewArray<char>(kMessageBufferSize);
 
   // --log-all enables all the log flags.
