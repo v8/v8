@@ -2486,8 +2486,7 @@ void Map::DeprecateTransitionTree() {
   deprecate();
   dependent_code()->DeoptimizeDependentCodeGroup(
       GetIsolate(), DependentCode::kTransitionGroup);
-  dependent_code()->DeoptimizeDependentCodeGroup(
-      GetIsolate(), DependentCode::kPrototypeCheckGroup);
+  NotifyLeafMapLayoutChange();
 }
 
 
@@ -6495,6 +6494,7 @@ MaybeObject* Map::RawCopy(int instance_size) {
   new_bit_field3 = NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
   new_bit_field3 = EnumLengthBits::update(new_bit_field3, kInvalidEnumCache);
   new_bit_field3 = Deprecated::update(new_bit_field3, false);
+  new_bit_field3 = IsUnstable::update(new_bit_field3, false);
   result->set_bit_field3(new_bit_field3);
   return result;
 }

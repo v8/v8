@@ -3563,6 +3563,7 @@ bool Map::is_shared() {
 
 
 void Map::set_dictionary_map(bool value) {
+  if (value) mark_unstable();
   set_bit_field3(DictionaryMap::update(bit_field3(), value));
 }
 
@@ -3626,6 +3627,16 @@ bool Map::is_frozen() {
 }
 
 
+void Map::mark_unstable() {
+  set_bit_field3(IsUnstable::update(bit_field3(), true));
+}
+
+
+bool Map::is_stable() {
+  return !IsUnstable::decode(bit_field3());
+}
+
+
 bool Map::has_code_cache() {
   return code_cache() != GetIsolate()->heap()->empty_fixed_array();
 }
@@ -3657,21 +3668,22 @@ bool Map::CanBeDeprecated() {
 
 
 void Map::NotifyLeafMapLayoutChange() {
-  dependent_code()->DeoptimizeDependentCodeGroup(
-      GetIsolate(),
-      DependentCode::kPrototypeCheckGroup);
+  if (is_stable()) {
+    mark_unstable();
+    dependent_code()->DeoptimizeDependentCodeGroup(
+        GetIsolate(),
+        DependentCode::kPrototypeCheckGroup);
+  }
 }
 
 
 bool Map::CanOmitPrototypeChecks() {
-  return !HasTransitionArray() && !is_dictionary_map() &&
-         FLAG_omit_prototype_checks_for_leaf_maps;
+  return is_stable() && FLAG_omit_prototype_checks_for_leaf_maps;
 }
 
 
 bool Map::CanOmitMapChecks() {
-  return !HasTransitionArray() && !is_dictionary_map() &&
-         FLAG_omit_map_checks_for_leaf_maps;
+  return is_stable() && FLAG_omit_map_checks_for_leaf_maps;
 }
 
 

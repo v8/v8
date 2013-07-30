@@ -5188,6 +5188,7 @@ class Map: public HeapObject {
   class IsObserved:                 public BitField<bool, 26,  1> {};
   class Deprecated:                 public BitField<bool, 27,  1> {};
   class IsFrozen:                   public BitField<bool, 28,  1> {};
+  class IsUnstable:                 public BitField<bool, 29,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -5492,6 +5493,8 @@ class Map: public HeapObject {
   inline void set_is_observed(bool is_observed);
   inline void freeze();
   inline bool is_frozen();
+  inline void mark_unstable();
+  inline bool is_stable();
   inline void deprecate();
   inline bool is_deprecated();
   inline bool CanBeDeprecated();
