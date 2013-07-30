@@ -786,6 +786,7 @@ bool Debug::CompileDebuggerScript(int index) {
   function_info = Compiler::Compile(source_code,
                                     script_name,
                                     0, 0,
+                                    false,
                                     context,
                                     NULL, NULL,
                                     Handle<String>::null(),

@@ -5876,6 +5876,12 @@ class Script: public Struct {
   inline CompilationState compilation_state();
   inline void set_compilation_state(CompilationState state);
 
+  // [is_shared_cross_origin]: An opaque boolean set by the embedder via
+  // ScriptOrigin, and used by the embedder to make decisions about the
+  // script's level of privilege. V8 just passes this through. Encoded in
+  // the 'flags' field.
+  DECL_BOOLEAN_ACCESSORS(is_shared_cross_origin)
+
   static inline Script* cast(Object* obj);
 
   // If script source is an external string, check that the underlying
@@ -5907,6 +5913,7 @@ class Script: public Struct {
   // Bit positions in the flags field.
   static const int kCompilationTypeBit = 0;
   static const int kCompilationStateBit = 1;
+  static const int kIsSharedCrossOriginBit = 2;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);
 };

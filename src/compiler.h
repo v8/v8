@@ -572,6 +572,7 @@ class Compiler : public AllStatic {
                                             Handle<Object> script_name,
                                             int line_offset,
                                             int column_offset,
+                                            bool is_shared_cross_origin,
                                             Handle<Context> context,
                                             v8::Extension* extension,
                                             ScriptDataImpl* pre_data,

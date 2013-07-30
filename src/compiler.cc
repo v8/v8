@@ -667,6 +667,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              Handle<Object> script_name,
                                              int line_offset,
                                              int column_offset,
+                                             bool is_shared_cross_origin,
                                              Handle<Context> context,
                                              v8::Extension* extension,
                                              ScriptDataImpl* pre_data,
@@ -689,6 +690,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              script_name,
                                              line_offset,
                                              column_offset,
+                                             is_shared_cross_origin,
                                              context);
   }
 
@@ -712,6 +714,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
       script->set_line_offset(Smi::FromInt(line_offset));
       script->set_column_offset(Smi::FromInt(column_offset));
     }
+    script->set_is_shared_cross_origin(is_shared_cross_origin);
 
     script->set_data(script_data.is_null() ? HEAP->undefined_value()
                                            : *script_data);

@@ -1918,6 +1918,7 @@ Local<Script> Script::New(v8::Handle<String> source,
     i::Handle<i::Object> name_obj;
     int line_offset = 0;
     int column_offset = 0;
+    bool is_shared_cross_origin = false;
     if (origin != NULL) {
       if (!origin->ResourceName().IsEmpty()) {
         name_obj = Utils::OpenHandle(*origin->ResourceName());
@@ -1928,6 +1929,10 @@ Local<Script> Script::New(v8::Handle<String> source,
       if (!origin->ResourceColumnOffset().IsEmpty()) {
         column_offset =
             static_cast<int>(origin->ResourceColumnOffset()->Value());
+      }
+      if (!origin->ResourceIsSharedCrossOrigin().IsEmpty()) {
+        is_shared_cross_origin =
+            origin->ResourceIsSharedCrossOrigin() == v8::True();
       }
     }
     EXCEPTION_PREAMBLE(isolate);
@@ -1945,6 +1950,7 @@ Local<Script> Script::New(v8::Handle<String> source,
                            name_obj,
                            line_offset,
                            column_offset,
+                           is_shared_cross_origin,
                            isolate->global_context(),
                            NULL,
                            pre_data_impl,
@@ -2409,6 +2415,20 @@ int Message::GetEndColumn() const {
   int start = message->start_position();
   int end = message->end_position();
   return static_cast<int>(start_col_obj->Number()) + (end - start);
+}
+
+
+bool Message::IsSharedCrossOrigin() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Message::IsSharedCrossOrigin()")) return 0;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::JSValue> script =
+      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script(),
+                                                       isolate));
+  return i::Script::cast(script->value())->is_shared_cross_origin();
 }
 
 
