@@ -116,6 +116,9 @@
 #  define V8_CC_INTEL 1  // Intel C++ also masquerades as GCC 3.2.0
 # elif defined(__clang__)
 #  define V8_CC_CLANG 1  // Clang also masquerades as GCC 4.2.1
+#  ifndef __has_extension
+#   define __has_extension __has_feature  // Compatibility with older releases
+#  endif
 # endif
 #elif defined(__ARMCC__) || defined(__CC_ARM)
 # define V8_CC_RVCT 1
