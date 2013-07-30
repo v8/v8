@@ -44,6 +44,7 @@
 #include "hydrogen-infer-representation.h"
 #include "hydrogen-infer-types.h"
 #include "hydrogen-gvn.h"
+#include "hydrogen-mark-deoptimize.h"
 #include "hydrogen-minus-zero.h"
 #include "hydrogen-osr.h"
 #include "hydrogen-range-analysis.h"
@@ -2514,38 +2515,6 @@ void HGraph::CollectPhis() {
 }
 
 
-void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
-  if (!phi->CheckFlag(HValue::kAllowUndefinedAsNaN)) return;
-  phi->ClearFlag(HValue::kAllowUndefinedAsNaN);
-  for (int i = 0; i < phi->OperandCount(); ++i) {
-    HValue* input = phi->OperandAt(i);
-    if (input->IsPhi()) {
-      RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi::cast(input));
-    }
-  }
-}
-
-
-void HGraph::MarkDeoptimizeOnUndefined() {
-  HPhase phase("H_MarkDeoptimizeOnUndefined", this);
-  // Compute DeoptimizeOnUndefined flag for phis.  Any phi that can reach a use
-  // with DeoptimizeOnUndefined set must have DeoptimizeOnUndefined set.
-  // Currently only HCompareNumericAndBranch, with double input representation,
-  // has this flag set.  The flag is used by HChange tagged->double, which must
-  // deoptimize if one of its uses has this flag set.
-  for (int i = 0; i < phi_list()->length(); i++) {
-    HPhi* phi = phi_list()->at(i);
-    for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-      HValue* use_value = it.value();
-      if (!use_value->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
-        RecursivelyMarkPhiDeoptimizeOnUndefined(phi);
-        break;
-      }
-    }
-  }
-}
-
-
 // Implementation of utility class to encapsulate the translation state for
 // a (possibly inlined) function.
 FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
@@ -3018,7 +2987,7 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   // This must happen after inferring representations.
   Run<HMergeRemovableSimulatesPhase>();
 
-  MarkDeoptimizeOnUndefined();
+  Run<HMarkDeoptimizeOnUndefinedPhase>();
   Run<HRepresentationChangesPhase>();
 
   Run<HInferTypesPhase>();
