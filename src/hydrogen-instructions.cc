@@ -1091,12 +1091,13 @@ void HBoundsCheck::ApplyIndexChange() {
   int actual_offset = decomposition.offset() + offset();
   int actual_scale = decomposition.scale() + scale();
 
+  Zone* zone = block()->graph()->zone();
+  HValue* context = block()->graph()->GetInvalidContext();
   if (actual_offset != 0) {
-    HConstant* add_offset = new(block()->graph()->zone()) HConstant(
-        actual_offset, index()->representation());
+    HConstant* add_offset = HConstant::New(zone, context, actual_offset);
     add_offset->InsertBefore(this);
-    HInstruction* add = HAdd::New(block()->graph()->zone(),
-        block()->graph()->GetInvalidContext(), current_index, add_offset);
+    HInstruction* add = HAdd::New(zone, context,
+                                  current_index, add_offset);
     add->InsertBefore(this);
     add->AssumeRepresentation(index()->representation());
     add->ClearFlag(kCanOverflow);
@@ -1104,11 +1105,10 @@ void HBoundsCheck::ApplyIndexChange() {
   }
 
   if (actual_scale != 0) {
-    HConstant* sar_scale = new(block()->graph()->zone()) HConstant(
-        actual_scale, index()->representation());
+    HConstant* sar_scale = HConstant::New(zone, context, actual_scale);
     sar_scale->InsertBefore(this);
-    HInstruction* sar = HSar::New(block()->graph()->zone(),
-        block()->graph()->GetInvalidContext(), current_index, sar_scale);
+    HInstruction* sar = HSar::New(zone, context,
+                                  current_index, sar_scale);
     sar->InsertBefore(this);
     sar->AssumeRepresentation(index()->representation());
     current_index = sar;
@@ -1612,8 +1612,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
           !HInstruction::cast(new_right)->IsLinked()) {
         HInstruction::cast(new_right)->InsertBefore(this);
       }
-      HMathFloorOfDiv* instr = new(block()->zone())
-          HMathFloorOfDiv(context(), new_left, new_right);
+      HMathFloorOfDiv* instr =
+          HMathFloorOfDiv::New(block()->zone(), context(), new_left, new_right);
       // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
       instr->InsertBefore(this);
       ReplaceAllUsesWith(instr);
@@ -2129,8 +2129,8 @@ void InductionVariableData::ChecksRelatedToLength::UseNewIndexInCurrentBlock(
   HValue* previous_index = first_check_in_block()->index();
   ASSERT(context != NULL);
 
-  set_added_constant(new(index_base->block()->graph()->zone()) HConstant(
-      mask, index_base->representation()));
+  Zone* zone = index_base->block()->graph()->zone();
+  set_added_constant(HConstant::New(zone, context, mask));
   if (added_index() != NULL) {
     added_constant()->InsertBefore(added_index());
   } else {
@@ -2139,9 +2139,8 @@ void InductionVariableData::ChecksRelatedToLength::UseNewIndexInCurrentBlock(
 
   if (added_index() == NULL) {
     first_check_in_block()->ReplaceAllUsesWith(first_check_in_block()->index());
-    HInstruction* new_index =  HBitwise::New(
-        index_base->block()->graph()->zone(),
-        token, context, index_base, added_constant());
+    HInstruction* new_index =  HBitwise::New(zone, context, token, index_base,
+                                             added_constant());
     ASSERT(new_index->IsBitwise());
     new_index->ClearAllSideEffects();
     new_index->AssumeRepresentation(Representation::Integer32());
@@ -3281,9 +3280,10 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
 }
 
 
-HCheckMaps* HCheckMaps::New(HValue* value,
+HCheckMaps* HCheckMaps::New(Zone* zone,
+                            HValue* context,
+                            HValue* value,
                             Handle<Map> map,
-                            Zone* zone,
                             CompilationInfo* info,
                             HValue* typecheck) {
   HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
@@ -3469,8 +3469,13 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
         HForInCacheArray* index_cache =
             names_cache->index_cache();
         HCheckMapValue* map_check =
-            new(block()->zone()) HCheckMapValue(object(), names_cache->map());
-        HInstruction* index = new(block()->zone()) HLoadKeyed(
+            HCheckMapValue::New(block()->graph()->zone(),
+                                block()->graph()->GetInvalidContext(),
+                                object(),
+                                names_cache->map());
+        HInstruction* index = HLoadKeyed::New(
+            block()->graph()->zone(),
+            block()->graph()->GetInvalidContext(),
             index_cache,
             key_load->key(),
             key_load->key(),
@@ -3703,8 +3708,8 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   }
   HBasicBlock* block = dominator->block();
   Zone* zone = block->zone();
-  HInstruction* new_dominator_size_constant = new(zone) HConstant(
-      new_dominator_size);
+  HInstruction* new_dominator_size_constant =
+      HConstant::New(zone, context(), new_dominator_size);
   new_dominator_size_constant->InsertBefore(dominator_allocate_instr);
   dominator_allocate_instr->UpdateSize(new_dominator_size_constant);
 
@@ -3716,9 +3721,11 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 
   // After that replace the dominated allocate instruction.
   HInstruction* dominated_allocate_instr =
-      new(zone) HInnerAllocatedObject(dominator_allocate_instr,
-                                      dominator_size_constant,
-                                      type());
+      HInnerAllocatedObject::New(zone,
+                                 context(),
+                                 dominator_allocate_instr,
+                                 dominator_size_constant,
+                                 type());
   dominated_allocate_instr->InsertBefore(this);
   DeleteAndReplaceWith(dominated_allocate_instr);
   if (FLAG_trace_allocation_folding) {
@@ -3856,10 +3863,10 @@ bool HStoreKeyed::NeedsCanonicalization() {
 }
 
 
-#define H_CONSTANT_INT(val)                                                  \
-new(zone) HConstant(static_cast<int32_t>(val))
+#define H_CONSTANT_INT(val)                                                    \
+HConstant::New(zone, context, static_cast<int32_t>(val))
 #define H_CONSTANT_DOUBLE(val)                                                 \
-new(zone) HConstant(static_cast<double>(val), Representation::Double())
+HConstant::New(zone, context, static_cast<double>(val))
 
 #define DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HInstr, op)                       \
 HInstruction* HInstr::New(                                                     \
@@ -3870,7 +3877,7 @@ HInstruction* HInstr::New(                                                     \
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
       double double_res = c_left->DoubleValue() op c_right->DoubleValue();     \
       if (TypeInfo::IsInt32Double(double_res)) {                               \
-        return H_CONSTANT_INT(double_res);                                   \
+        return H_CONSTANT_INT(double_res);                                     \
       }                                                                        \
       return H_CONSTANT_DOUBLE(double_res);                                    \
     }                                                                          \
@@ -3897,7 +3904,7 @@ HInstruction* HStringAdd::New(Zone* zone,
     if (c_left->HasStringValue() && c_right->HasStringValue()) {
       Handle<String> concat = zone->isolate()->factory()->NewFlatConcatString(
           c_left->StringValue(), c_right->StringValue());
-      return new(zone) HConstant(concat, Representation::Tagged());
+      return HConstant::New(zone, context, concat);
     }
   }
   return new(zone) HStringAdd(context, left, right, flags);
@@ -3912,23 +3919,21 @@ HInstruction* HStringCharFromCode::New(
     if (c_code->HasNumberValue()) {
       if (std::isfinite(c_code->DoubleValue())) {
         uint32_t code = c_code->NumberValueAsInteger32() & 0xffff;
-        return new(zone) HConstant(LookupSingleCharacterStringFromCode(isolate,
-                                                                       code),
-                                   Representation::Tagged());
+        return HConstant::New(zone, context,
+            LookupSingleCharacterStringFromCode(isolate, code));
       }
-      return new(zone) HConstant(isolate->factory()->empty_string(),
-                                 Representation::Tagged());
+      return HConstant::New(zone, context, isolate->factory()->empty_string());
     }
   }
   return new(zone) HStringCharFromCode(context, char_code);
 }
 
 
-HInstruction* HStringLength::New(Zone* zone, HValue* string) {
+HInstruction* HStringLength::New(Zone* zone, HValue* context, HValue* string) {
   if (FLAG_fold_constants && string->IsConstant()) {
     HConstant* c_string = HConstant::cast(string);
     if (c_string->HasStringValue()) {
-      return new(zone) HConstant(c_string->StringValue()->length());
+      return HConstant::New(zone, context, c_string->StringValue()->length());
     }
   }
   return new(zone) HStringLength(string);
@@ -4003,7 +4008,10 @@ HInstruction* HUnaryMathOperation::New(
 }
 
 
-HInstruction* HPower::New(Zone* zone, HValue* left, HValue* right) {
+HInstruction* HPower::New(Zone* zone,
+                          HValue* context,
+                          HValue* left,
+                          HValue* right) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4102,7 +4110,7 @@ HInstruction* HDiv::New(
 
 
 HInstruction* HBitwise::New(
-    Zone* zone, Token::Value op, HValue* context, HValue* left, HValue* right) {
+    Zone* zone, HValue* context, Token::Value op, HValue* left, HValue* right) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4127,7 +4135,7 @@ HInstruction* HBitwise::New(
       return H_CONSTANT_INT(result);
     }
   }
-  return new(zone) HBitwise(op, context, left, right);
+  return new(zone) HBitwise(context, op, left, right);
 }
 
 
@@ -4196,7 +4204,8 @@ void HPhi::SimplifyConstantInputs() {
       continue;
     } else if (operand->HasDoubleValue()) {
       HConstant* integer_input =
-          new(graph->zone()) HConstant(DoubleToInt32(operand->DoubleValue()));
+          HConstant::New(graph->zone(), graph->GetInvalidContext(),
+                         DoubleToInt32(operand->DoubleValue()));
       integer_input->InsertAfter(operand);
       SetOperandAt(i, integer_input);
     } else if (operand == graph->GetConstantTrue()) {
