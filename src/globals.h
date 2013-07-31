@@ -216,13 +216,13 @@
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && \
     !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS
-# if V8_HOST_ARCH_X64
+# if defined(_M_X64) || defined(__x86_64__)
 #  define V8_TARGET_ARCH_X64 1
-# elif V8_HOST_ARCH_IA32
+# elif defined(_M_IX86) || defined(__i386__)
 #  define V8_TARGET_ARCH_IA32 1
-# elif V8_HOST_ARCH_ARM
+# elif defined(__ARMEL__)
 #  define V8_TARGET_ARCH_ARM 1
-# elif V8_HOST_ARCH_MIPS
+# elif defined(__MIPSEL__)
 #  define V8_TARGET_ARCH_MIPS 1
 # else
 #  error Target architecture was not detected as supported by v8
