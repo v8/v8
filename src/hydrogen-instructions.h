@@ -2557,6 +2557,7 @@ class HBitNot: public HUnaryOperation {
     SetFlag(kUseGVN);
     SetFlag(kTruncatingToInt32);
     SetFlag(kAllowUndefinedAsNaN);
+    set_type(HType::TaggedNumber());
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2565,7 +2566,6 @@ class HBitNot: public HUnaryOperation {
   virtual Representation observed_input_representation(int index) {
     return Representation::Integer32();
   }
-  virtual HType CalculateInferredType();
 
   virtual HValue* Canonicalize();
 
@@ -2590,8 +2590,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
   HValue* value() { return OperandAt(1); }
 
   virtual void PrintDataTo(StringStream* stream);
-
-  virtual HType CalculateInferredType();
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
@@ -2671,6 +2669,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     }
     SetFlag(kUseGVN);
     SetFlag(kAllowUndefinedAsNaN);
+    set_type(HType::TaggedNumber());
   }
 
   virtual bool IsDeletable() const { return true; }
@@ -2735,7 +2734,6 @@ class HCheckMaps: public HTemplateInstruction<2> {
   virtual void HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator);
   virtual void PrintDataTo(StringStream* stream);
-  virtual HType CalculateInferredType();
 
   HValue* value() { return OperandAt(0); }
   SmallMapList* map_set() { return &map_set_; }
@@ -2773,6 +2771,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
     SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kDependsOnMaps);
     SetGVNFlag(kDependsOnElementsKind);
+    set_type(value->type());
   }
 
   void omit(CompilationInfo* info) {
@@ -2797,13 +2796,13 @@ class HCheckFunction: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     target_in_new_space_ = Isolate::Current()->heap()->InNewSpace(*function);
+    set_type(value->type());
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
   virtual void PrintDataTo(StringStream* stream);
-  virtual HType CalculateInferredType();
 
   virtual HValue* Canonicalize();
 
@@ -2898,13 +2897,12 @@ class HCheckSmi: public HUnaryOperation {
   explicit HCheckSmi(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Smi());
     SetFlag(kUseGVN);
+    set_type(HType::Smi());
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
-
-  virtual HType CalculateInferredType();
 
   virtual HValue* Canonicalize() {
     HType value_type = value()->type();
@@ -2941,13 +2939,12 @@ class HCheckHeapObject: public HUnaryOperation {
   explicit HCheckHeapObject(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
+    set_type(HType::NonPrimitive());
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
-
-  virtual HType CalculateInferredType();
 
 #ifdef DEBUG
   virtual void Verify();
@@ -4087,8 +4084,6 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
     HBinaryOperation::initialize_output_representation(observed);
   }
 
-  virtual HType CalculateInferredType();
-
   DECLARE_ABSTRACT_INSTRUCTION(BitwiseBinaryOperation)
 
  private:
@@ -4132,6 +4127,7 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
     SetAllSideEffects();
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
+    set_type(HType::TaggedNumber());
   }
 
   virtual void RepresentationChanged(Representation to) {
@@ -4143,8 +4139,6 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
       SetFlag(kUseGVN);
     }
   }
-
-  virtual HType CalculateInferredType();
 
   DECLARE_ABSTRACT_INSTRUCTION(ArithmeticBinaryOperation)
 
@@ -4162,6 +4156,7 @@ class HCompareGeneric: public HBinaryOperation {
       : HBinaryOperation(context, left, right), token_(token) {
     ASSERT(Token::IsCompareOp(token));
     set_representation(Representation::Tagged());
+    set_type(HType::Boolean());
     SetAllSideEffects();
   }
 
@@ -4173,8 +4168,6 @@ class HCompareGeneric: public HBinaryOperation {
 
   Token::Value token() const { return token_; }
   virtual void PrintDataTo(StringStream* stream);
-
-  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(CompareGeneric)
 
@@ -4453,14 +4446,13 @@ class HInstanceOf: public HBinaryOperation {
   HInstanceOf(HValue* context, HValue* left, HValue* right)
       : HBinaryOperation(context, left, right) {
     set_representation(Representation::Tagged());
+    set_type(HType::Boolean());
     SetAllSideEffects();
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
-
-  virtual HType CalculateInferredType();
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -4476,6 +4468,7 @@ class HInstanceOfKnownGlobal: public HTemplateInstruction<2> {
       : function_(right) {
     SetOperandAt(0, context);
     SetOperandAt(1, left);
+    set_type(HType::Boolean());
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
@@ -4487,8 +4480,6 @@ class HInstanceOfKnownGlobal: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
-
-  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal)
 
@@ -4587,8 +4578,6 @@ class HAdd: public HArithmeticBinaryOperation {
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
-
-  virtual HType CalculateInferredType();
 
   virtual HValue* Canonicalize();
 
@@ -4903,6 +4892,7 @@ class HBitwise: public HBitwiseBinaryOperation {
           HConstant::cast(right)->Integer32Value() < 0))) {
       SetFlag(kTruncatingToSmi);
     }
+    set_type(HType::TaggedNumber());
   }
 
   Token::Value op_;
@@ -6508,10 +6498,6 @@ class HStringAdd: public HBinaryOperation {
     return Representation::Tagged();
   }
 
-  virtual HType CalculateInferredType() {
-    return HType::String();
-  }
-
   DECLARE_CONCRETE_INSTRUCTION(StringAdd)
 
  protected:
@@ -6524,6 +6510,7 @@ class HStringAdd: public HBinaryOperation {
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
     SetGVNFlag(kChangesNewSpacePromotion);
+    set_type(HType::String());
   }
 
   // No side-effects except possible allocation.
@@ -6583,7 +6570,6 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
         ? Representation::Tagged()
         : Representation::Integer32();
   }
-  virtual HType CalculateInferredType() { return HType::String(); }
 
   HValue* context() const { return OperandAt(0); }
   HValue* value() const { return OperandAt(1); }
@@ -6599,6 +6585,7 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kChangesNewSpacePromotion);
+    set_type(HType::String());
   }
 
   virtual bool IsDeletable() const {
@@ -6615,11 +6602,6 @@ class HStringLength: public HUnaryOperation {
     return Representation::Tagged();
   }
 
-  virtual HType CalculateInferredType() {
-    STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
-    return HType::Smi();
-  }
-
   DECLARE_CONCRETE_INSTRUCTION(StringLength)
 
  protected:
@@ -6631,9 +6613,11 @@ class HStringLength: public HUnaryOperation {
 
  private:
   explicit HStringLength(HValue* string) : HUnaryOperation(string) {
+    STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
+    set_type(HType::Smi());
   }
 
   virtual bool IsDeletable() const { return true; }
@@ -6682,6 +6666,7 @@ class HRegExpLiteral: public HMaterializedLiteral<1> {
         flags_(flags) {
     SetOperandAt(0, context);
     SetAllSideEffects();
+    set_type(HType::JSObject());
   }
 
   HValue* context() { return OperandAt(0); }
@@ -6692,7 +6677,6 @@ class HRegExpLiteral: public HMaterializedLiteral<1> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
-  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral)
 
@@ -6714,6 +6698,7 @@ class HFunctionLiteral: public HTemplateInstruction<1> {
         is_generator_(shared->is_generator()),
         language_mode_(shared->language_mode()) {
     SetOperandAt(0, context);
+    set_type(HType::JSObject());
     set_representation(Representation::Tagged());
     SetGVNFlag(kChangesNewSpacePromotion);
   }
@@ -6723,7 +6708,6 @@ class HFunctionLiteral: public HTemplateInstruction<1> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
-  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(FunctionLiteral)
 

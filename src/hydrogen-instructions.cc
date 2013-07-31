@@ -3660,26 +3660,6 @@ HType HValue::CalculateInferredType() {
 }
 
 
-HType HCheckMaps::CalculateInferredType() {
-  return value()->type();
-}
-
-
-HType HCheckFunction::CalculateInferredType() {
-  return value()->type();
-}
-
-
-HType HCheckHeapObject::CalculateInferredType() {
-  return HType::NonPrimitive();
-}
-
-
-HType HCheckSmi::CalculateInferredType() {
-  return HType::Smi();
-}
-
-
 HType HPhi::CalculateInferredType() {
   if (OperandCount() == 0) return HType::Tagged();
   HType result = OperandAt(0)->type();
@@ -3691,49 +3671,9 @@ HType HPhi::CalculateInferredType() {
 }
 
 
-HType HCompareGeneric::CalculateInferredType() {
-  return HType::Boolean();
-}
-
-
-HType HInstanceOf::CalculateInferredType() {
-  return HType::Boolean();
-}
-
-
-HType HInstanceOfKnownGlobal::CalculateInferredType() {
-  return HType::Boolean();
-}
-
-
 HType HChange::CalculateInferredType() {
   if (from().IsDouble() && to().IsTagged()) return HType::HeapNumber();
   return type();
-}
-
-
-HType HBitwiseBinaryOperation::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HArithmeticBinaryOperation::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HAdd::CalculateInferredType() {
-  return HType::Tagged();
-}
-
-
-HType HBitNot::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HUnaryMathOperation::CalculateInferredType() {
-  return HType::TaggedNumber();
 }
 
 
@@ -3831,16 +3771,6 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 void HAllocate::PrintDataTo(StringStream* stream) {
   size()->PrintNameTo(stream);
   if (!IsNewSpaceAllocation()) stream->Add(" (pretenure)");
-}
-
-
-HType HRegExpLiteral::CalculateInferredType() {
-  return HType::JSObject();
-}
-
-
-HType HFunctionLiteral::CalculateInferredType() {
-  return HType::JSObject();
 }
 
 
