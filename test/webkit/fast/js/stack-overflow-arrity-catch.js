@@ -42,8 +42,6 @@ function test1()
         try {
             var dummy = new RegExp('a|b|c');
         } catch(err) {
-            // (1) It is dendent on the stack size if we arrive here, in (2) or
-            // both.
             gotWrongCatch1 = true;
         }
 
@@ -60,8 +58,6 @@ function test2()
     try {
         var dummy = new Date();
     } catch(err) {
-        // (2) It is dendent on the stack size if we arrive here, in (1) or
-        // both.
         gotWrongCatch2 = true;
     }
 
@@ -81,3 +77,5 @@ function test2()
 test1();
 
 shouldBeTrue("gotRightCatch");
+shouldBeFalse("gotWrongCatch1");
+shouldBeFalse("gotWrongCatch2");

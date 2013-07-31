@@ -316,6 +316,7 @@ class HGraph: public ZoneObject {
   HEnvironment* start_environment() const { return start_environment_; }
 
   void FinalizeUniqueValueIds();
+  void MarkDeoptimizeOnUndefined();
   bool ProcessArgumentsObject();
   void OrderBlocks();
   void AssignDominators();
@@ -463,6 +464,7 @@ class HGraph: public ZoneObject {
     phase.Run();
   }
 
+  void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
   void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
   void SetupInformativeDefinitionsRecursively(HBasicBlock* block);
@@ -1130,9 +1132,6 @@ class HGraphBuilder {
   void PushAndAdd(HInstruction* instr);
 
   void FinishExitWithHardDeoptimization(HBasicBlock* continuation);
-
-  void AddIncrementCounter(StatsCounter* counter,
-                           HValue* context);
 
   class IfBuilder {
    public:

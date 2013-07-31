@@ -38,7 +38,8 @@ function f() {
 }
 
 f();
-assertTrue(%GetOptimizationCount(f) > 0 || %GetOptimizationStatus(f) == 4);
+assertOptimized(f);
+
 
 function g() {
   for (var i = 0; i < 1; i++) { }
@@ -69,4 +70,4 @@ function g() {
 }
 
 g();
-assertTrue(%GetOptimizationCount(g) > 0 || %GetOptimizationStatus(g) == 4);
+assertOptimized(g);

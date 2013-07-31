@@ -558,7 +558,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (info->is_eval()) {
-    script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
+    Script::CompilationType compilation_type = Script::COMPILATION_TYPE_EVAL;
+    script->set_compilation_type(Smi::FromInt(compilation_type));
     // For eval scripts add information on the function from which eval was
     // called.
     if (info->is_eval()) {
@@ -649,7 +650,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // the instances of the function.
   SetExpectedNofPropertiesFromEstimate(result, lit->expected_property_count());
 
-  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
+  script->set_compilation_state(
+      Smi::FromInt(Script::COMPILATION_STATE_COMPILED));
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger

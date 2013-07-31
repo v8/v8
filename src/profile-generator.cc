@@ -372,30 +372,19 @@ void ProfileTree::ShortPrint() {
 }
 
 
-CpuProfile::CpuProfile(const char* title, unsigned uid, bool record_samples)
-    : title_(title),
-      uid_(uid),
-      record_samples_(record_samples),
-      start_time_ms_(OS::TimeCurrentMillis()),
-      end_time_ms_(0) {
-}
-
-
 void CpuProfile::AddPath(const Vector<CodeEntry*>& path) {
   ProfileNode* top_frame_node = top_down_.AddPathFromEnd(path);
   if (record_samples_) samples_.Add(top_frame_node);
 }
 
 
-void CpuProfile::CalculateTotalTicksAndSamplingRate() {
-  end_time_ms_ = OS::TimeCurrentMillis();
+void CpuProfile::CalculateTotalTicks() {
   top_down_.CalculateTotalTicks();
+}
 
-  double duration = end_time_ms_ - start_time_ms_;
-  if (duration < 1) duration = 1;
-  unsigned ticks = top_down_.root()->total_ticks();
-  double rate = ticks / duration;
-  top_down_.SetTickRatePerMs(rate);
+
+void CpuProfile::SetActualSamplingRate(double actual_sampling_rate) {
+  top_down_.SetTickRatePerMs(actual_sampling_rate);
 }
 
 
@@ -540,7 +529,8 @@ bool CpuProfilesCollection::StartProfiling(const char* title, unsigned uid,
 }
 
 
-CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
+CpuProfile* CpuProfilesCollection::StopProfiling(const char* title,
+                                                 double actual_sampling_rate) {
   const int title_len = StrLength(title);
   CpuProfile* profile = NULL;
   current_profiles_semaphore_->Wait();
@@ -553,7 +543,8 @@ CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
   current_profiles_semaphore_->Signal();
 
   if (profile == NULL) return NULL;
-  profile->CalculateTotalTicksAndSamplingRate();
+  profile->CalculateTotalTicks();
+  profile->SetActualSamplingRate(actual_sampling_rate);
   finished_profiles_.Add(profile);
   return profile;
 }
@@ -607,6 +598,29 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(
                                         line_number);
   code_entries_.Add(code_entry);
   return code_entry;
+}
+
+
+void SampleRateCalculator::Tick() {
+  if (--wall_time_query_countdown_ == 0)
+    UpdateMeasurements(OS::TimeCurrentMillis());
+}
+
+
+void SampleRateCalculator::UpdateMeasurements(double current_time) {
+  if (measurements_count_++ != 0) {
+    const double measured_ticks_per_ms =
+        (kWallTimeQueryIntervalMs * ticks_per_ms_) /
+        (current_time - last_wall_time_);
+    // Update the average value.
+    ticks_per_ms_ +=
+        (measured_ticks_per_ms - ticks_per_ms_) / measurements_count_;
+    // Update the externally accessible result.
+    result_ = static_cast<AtomicWord>(ticks_per_ms_ * kResultScale);
+  }
+  last_wall_time_ = current_time;
+  wall_time_query_countdown_ =
+      static_cast<unsigned>(kWallTimeQueryIntervalMs * ticks_per_ms_);
 }
 
 

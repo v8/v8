@@ -205,9 +205,7 @@ if (support_smi_only_arrays) {
 
 (function literals_after_osr() {
   var color = [0];
-  // Trigger OSR, if optimization is not disabled.
-  if (%GetOptimizationStatus(literals_after_osr) != 4) {
-    while (%GetOptimizationCount(literals_after_osr) == 0) {}
-  }
+  // Trigger OSR.
+  while (%GetOptimizationStatus(literals_after_osr, "no sync") == 2) {}
   return [color[0]];
 })();

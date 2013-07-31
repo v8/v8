@@ -211,7 +211,7 @@ class LChunkBuilder;
   V(GlobalVars)                                \
   V(InobjectFields)                            \
   V(OsrEntries)                                \
-  V(ExternalMemory)
+  V(SpecializedArrayElements)
 
 
 #define DECLARE_ABSTRACT_INSTRUCTION(type)          \
@@ -350,7 +350,8 @@ class UniqueValueId {
 
 class HType {
  public:
-  static HType None() { return HType(kNone); }
+  HType() : type_(kUninitialized) { }
+
   static HType Tagged() { return HType(kTagged); }
   static HType TaggedPrimitive() { return HType(kTaggedPrimitive); }
   static HType TaggedNumber() { return HType(kTaggedNumber); }
@@ -361,6 +362,7 @@ class HType {
   static HType NonPrimitive() { return HType(kNonPrimitive); }
   static HType JSArray() { return HType(kJSArray); }
   static HType JSObject() { return HType(kJSObject); }
+  static HType Uninitialized() { return HType(kUninitialized); }
 
   // Return the weakest (least precise) common type.
   HType Combine(HType other) {
@@ -376,26 +378,32 @@ class HType {
   }
 
   bool IsTagged() const {
+    ASSERT(type_ != kUninitialized);
     return ((type_ & kTagged) == kTagged);
   }
 
   bool IsTaggedPrimitive() const {
+    ASSERT(type_ != kUninitialized);
     return ((type_ & kTaggedPrimitive) == kTaggedPrimitive);
   }
 
   bool IsTaggedNumber() const {
+    ASSERT(type_ != kUninitialized);
     return ((type_ & kTaggedNumber) == kTaggedNumber);
   }
 
   bool IsSmi() const {
+    ASSERT(type_ != kUninitialized);
     return ((type_ & kSmi) == kSmi);
   }
 
   bool IsHeapNumber() const {
+    ASSERT(type_ != kUninitialized);
     return ((type_ & kHeapNumber) == kHeapNumber);
   }
 
   bool IsString() const {
+    ASSERT(type_ != kUninitialized);
     return ((type_ & kString) == kString);
   }
 
@@ -405,41 +413,32 @@ class HType {
   }
 
   bool IsBoolean() const {
+    ASSERT(type_ != kUninitialized);
     return ((type_ & kBoolean) == kBoolean);
   }
 
   bool IsNonPrimitive() const {
+    ASSERT(type_ != kUninitialized);
     return ((type_ & kNonPrimitive) == kNonPrimitive);
   }
 
   bool IsJSArray() const {
+    ASSERT(type_ != kUninitialized);
     return ((type_ & kJSArray) == kJSArray);
   }
 
   bool IsJSObject() const {
+    ASSERT(type_ != kUninitialized);
     return ((type_ & kJSObject) == kJSObject);
   }
 
-  bool IsHeapObject() const {
-    return IsHeapNumber() || IsString() || IsBoolean() || IsNonPrimitive();
+  bool IsUninitialized() const {
+    return type_ == kUninitialized;
   }
 
-  bool ToStringOrToNumberCanBeObserved(Representation representation) {
-    switch (type_) {
-      case kTaggedPrimitive:  // fallthru
-      case kTaggedNumber:     // fallthru
-      case kSmi:              // fallthru
-      case kHeapNumber:       // fallthru
-      case kString:           // fallthru
-      case kBoolean:
-        return false;
-      case kJSArray:          // fallthru
-      case kJSObject:
-        return true;
-      case kTagged:
-        break;
-    }
-    return !representation.IsSmiOrInteger32() && !representation.IsDouble();
+  bool IsHeapObject() const {
+    ASSERT(type_ != kUninitialized);
+    return IsHeapNumber() || IsString() || IsBoolean() || IsNonPrimitive();
   }
 
   static HType TypeFromValue(Handle<Object> value);
@@ -448,7 +447,6 @@ class HType {
 
  private:
   enum Type {
-    kNone = 0x0,             // 0000 0000 0000 0000
     kTagged = 0x1,           // 0000 0000 0000 0001
     kTaggedPrimitive = 0x5,  // 0000 0000 0000 0101
     kTaggedNumber = 0xd,     // 0000 0000 0000 1101
@@ -458,11 +456,12 @@ class HType {
     kBoolean = 0x85,         // 0000 0000 1000 0101
     kNonPrimitive = 0x101,   // 0000 0001 0000 0001
     kJSObject = 0x301,       // 0000 0011 0000 0001
-    kJSArray = 0x701         // 0000 0111 0000 0001
+    kJSArray = 0x701,        // 0000 0111 0000 0001
+    kUninitialized = 0x1fff  // 0001 1111 1111 1111
   };
 
   // Make sure type fits in int16.
-  STATIC_ASSERT(kJSArray < (1 << (2 * kBitsPerByte)));
+  STATIC_ASSERT(kUninitialized < (1 << (2 * kBitsPerByte)));
 
   explicit HType(Type t) : type_(t) { }
 
@@ -1144,18 +1143,6 @@ class HValue: public ZoneObject {
     } else {
       return false;
     }
-  }
-
-  // Returns true conservatively if the program might be able to observe a
-  // ToString() operation on this value.
-  bool ToStringCanBeObserved() const {
-    return type().ToStringOrToNumberCanBeObserved(representation());
-  }
-
-  // Returns true conservatively if the program might be able to observe a
-  // ToNumber() operation on this value.
-  bool ToNumberCanBeObserved() const {
-    return type().ToStringOrToNumberCanBeObserved(representation());
   }
 
  protected:
@@ -2695,10 +2682,6 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
     return Representation::Tagged();
   }
 
-  virtual HType CalculateInferredType() {
-    return HType::None();
-  }
-
   DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer)
 
  protected:
@@ -2954,7 +2937,11 @@ class HCheckHeapObject: public HUnaryOperation {
 #endif
 
   virtual HValue* Canonicalize() {
-    return value()->type().IsHeapObject() ? NULL : this;
+    HType value_type = value()->type();
+    if (!value_type.IsUninitialized() && value_type.IsHeapObject()) {
+      return NULL;
+    }
+    return this;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckHeapObject)
@@ -3356,6 +3343,9 @@ class HPhi: public HValue {
 
   void SimplifyConstantInputs();
 
+  // TODO(titzer): we can't eliminate the receiver for generating backtraces
+  virtual bool IsDeletable() const { return !IsReceiver(); }
+
  protected:
   virtual void DeleteFromGraph();
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -3375,9 +3365,6 @@ class HPhi: public HValue {
   int indirect_uses_[Representation::kNumRepresentations];
   int phi_id_;
   InductionVariableData* induction_variable_data_;
-
-  // TODO(titzer): we can't eliminate the receiver for generating backtraces
-  virtual bool IsDeletable() const { return !IsReceiver(); }
 };
 
 
@@ -3484,7 +3471,6 @@ class HConstant: public HTemplateInstruction<0> {
             bool is_not_in_new_space,
             bool is_cell,
             bool boolean_value);
-  explicit HConstant(ExternalReference reference);
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
@@ -3549,12 +3535,12 @@ class HConstant: public HTemplateInstruction<0> {
     if (HasSmiValue() && kSmiValueSize == 31) return Representation::Smi();
     if (HasInteger32Value()) return Representation::Integer32();
     if (HasNumberValue()) return Representation::Double();
-    if (HasExternalReferenceValue()) return Representation::External();
     return Representation::Tagged();
   }
 
   virtual bool EmitAtUses();
   virtual void PrintDataTo(StringStream* stream);
+  virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
   HConstant* CopyToRepresentation(Representation r, Zone* zone) const;
   Maybe<HConstant*> CopyToTruncatedInt32(Zone* zone);
@@ -3591,7 +3577,7 @@ class HConstant: public HTemplateInstruction<0> {
   bool HasStringValue() const {
     if (has_double_value_ || has_int32_value_) return false;
     ASSERT(!handle_.is_null());
-    return type_.IsString();
+    return type_from_value_.IsString();
   }
   Handle<String> StringValue() const {
     ASSERT(HasStringValue());
@@ -3601,13 +3587,6 @@ class HConstant: public HTemplateInstruction<0> {
     return HasStringValue() && is_internalized_string_;
   }
 
-  bool HasExternalReferenceValue() const {
-    return has_external_reference_value_;
-  }
-  ExternalReference ExternalReferenceValue() const {
-    return external_reference_value_;
-  }
-
   bool BooleanValue() const { return boolean_value_; }
 
   virtual intptr_t Hashcode() {
@@ -3615,8 +3594,6 @@ class HConstant: public HTemplateInstruction<0> {
       return static_cast<intptr_t>(int32_value_);
     } else if (has_double_value_) {
       return static_cast<intptr_t>(BitCast<int64_t>(double_value_));
-    } else if (has_external_reference_value_) {
-      return reinterpret_cast<intptr_t>(external_reference_value_.address());
     } else {
       ASSERT(!handle_.is_null());
       return unique_id_.Hashcode();
@@ -3624,15 +3601,14 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   virtual void FinalizeUniqueValueId() {
-    if (!has_double_value_ && !has_external_reference_value_) {
+    if (!has_double_value_) {
       ASSERT(!handle_.is_null());
       unique_id_ = UniqueValueId(handle_);
     }
   }
 
   bool UniqueValueIdsMatch(UniqueValueId other) {
-    return !has_double_value_ && !has_external_reference_value_ &&
-        unique_id_ == other;
+    return !has_double_value_ && unique_id_ == other;
   }
 
 #ifdef DEBUG
@@ -3653,10 +3629,6 @@ class HConstant: public HTemplateInstruction<0> {
       return other_constant->has_double_value_ &&
           BitCast<int64_t>(double_value_) ==
           BitCast<int64_t>(other_constant->double_value_);
-    } else if (has_external_reference_value_) {
-      return other_constant->has_external_reference_value_ &&
-          external_reference_value_ ==
-          other_constant->external_reference_value_;
     } else {
       ASSERT(!handle_.is_null());
       return !other_constant->handle_.is_null() &&
@@ -3684,14 +3656,13 @@ class HConstant: public HTemplateInstruction<0> {
   bool has_smi_value_ : 1;
   bool has_int32_value_ : 1;
   bool has_double_value_ : 1;
-  bool has_external_reference_value_ : 1;
   bool is_internalized_string_ : 1;  // TODO(yangguo): make this part of HType.
   bool is_not_in_new_space_ : 1;
   bool is_cell_ : 1;
   bool boolean_value_ : 1;
   int32_t int32_value_;
   double double_value_;
-  ExternalReference external_reference_value_;
+  HType type_from_value_;
 };
 
 
@@ -3707,9 +3678,9 @@ class HBinaryOperation: public HTemplateInstruction<3> {
     observed_input_representation_[1] = Representation::None();
   }
 
-  HValue* context() const { return OperandAt(0); }
-  HValue* left() const { return OperandAt(1); }
-  HValue* right() const { return OperandAt(2); }
+  HValue* context() { return OperandAt(0); }
+  HValue* left() { return OperandAt(1); }
+  HValue* right() { return OperandAt(2); }
 
   // True if switching left and right operands likely generates better code.
   bool AreOperandsBetterSwitched() {
@@ -3963,6 +3934,9 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int arg_index) {
     return representation();
   }
+  virtual bool IsDeletable() const {
+    return skip_check() && !FLAG_debug_code;
+  }
 
   virtual bool IsRelationTrueInternal(NumericRelation relation,
                                       HValue* related_value,
@@ -3999,11 +3973,6 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   int scale_;
   RangeGuaranteeDirection responsibility_direction_;
   bool allow_equality_;
-
- private:
-  virtual bool IsDeletable() const {
-    return skip_check() && !FLAG_debug_code;
-  }
 };
 
 
@@ -4823,7 +4792,8 @@ class HMathMinMax: public HArithmeticBinaryOperation {
   virtual Representation RepresentationFromInputs() {
     Representation left_rep = left()->representation();
     Representation right_rep = right()->representation();
-    Representation result = Representation::Smi();
+    // TODO(verwaest): Initialize to Smi once lithium-codegen has been fixed.
+    Representation result = Representation::Integer32();
     result = result.generalize(left_rep);
     result = result.generalize(right_rep);
     if (result.IsTagged()) return Representation::Double();
@@ -4921,11 +4891,7 @@ class HShl: public HBitwiseBinaryOperation {
   virtual void UpdateRepresentation(Representation new_rep,
                                     HInferRepresentationPhase* h_infer,
                                     const char* reason) {
-    if (new_rep.IsSmi() &&
-        !(right()->IsInteger32Constant() &&
-          right()->GetInteger32Constant() >= 0)) {
-      new_rep = Representation::Integer32();
-    }
+    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
     HBitwiseBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
 
@@ -5588,11 +5554,7 @@ class HStoreContextSlot: public HTemplateInstruction<2> {
 class HObjectAccess {
  public:
   inline bool IsInobject() const {
-    return portion() != kBackingStore && portion() != kExternalMemory;
-  }
-
-  inline bool IsExternalMemory() const {
-    return portion() == kExternalMemory;
+    return portion() != kBackingStore;
   }
 
   inline int offset() const {
@@ -5622,11 +5584,9 @@ class HObjectAccess {
 
   static HObjectAccess ForArrayLength(ElementsKind elements_kind) {
     return HObjectAccess(
-        kArrayLengths,
-        JSArray::kLengthOffset,
-        IsFastElementsKind(elements_kind) &&
-            FLAG_track_fields
-                ? Representation::Smi() : Representation::Tagged());
+        kArrayLengths, JSArray::kLengthOffset,
+        IsFastElementsKind(elements_kind) && FLAG_track_fields ?
+        Representation::Smi() : Representation::Tagged());
   }
 
   static HObjectAccess ForAllocationSiteTransitionInfo() {
@@ -5639,9 +5599,9 @@ class HObjectAccess {
 
   static HObjectAccess ForFixedArrayLength() {
     return HObjectAccess(
-        kArrayLengths,
-        FixedArray::kLengthOffset,
-        FLAG_track_fields ? Representation::Smi() : Representation::Tagged());
+        kArrayLengths, FixedArray::kLengthOffset,
+        FLAG_track_fields ?
+        Representation::Smi() : Representation::Tagged());
   }
 
   static HObjectAccess ForPropertiesPointer() {
@@ -5666,10 +5626,6 @@ class HObjectAccess {
 
   static HObjectAccess ForAllocationMementoSite() {
     return HObjectAccess(kInobject, AllocationMemento::kAllocationSiteOffset);
-  }
-
-  static HObjectAccess ForCounter() {
-    return HObjectAccess(kExternalMemory, 0, Representation::Integer32());
   }
 
   // Create an access to an offset in a fixed array header.
@@ -5710,8 +5666,7 @@ class HObjectAccess {
     kElementsPointer,  // elements pointer
     kBackingStore,     // some field in the backing store
     kDouble,           // some double field
-    kInobject,         // some other in-object field
-    kExternalMemory    // some field in external memory
+    kInobject          // some other in-object field
   };
 
   HObjectAccess(Portion portion, int offset,
@@ -5789,9 +5744,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
     if (representation.IsSmi()) {
       set_type(HType::Smi());
       set_representation(representation);
-    } else if (representation.IsDouble() ||
-               representation.IsExternal() ||
-               representation.IsInteger32()) {
+    } else if (representation.IsDouble()) {
       set_representation(representation);
     } else if (FLAG_track_heap_object_fields &&
                representation.IsHeapObject()) {
@@ -5817,10 +5770,6 @@ class HLoadNamedField: public HTemplateInstruction<2> {
 
   virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
-    if (index == 0 && access().IsExternalMemory()) {
-      // object must be external in case of external memory access
-      return Representation::External();
-    }
     return Representation::Tagged();
   }
   virtual void PrintDataTo(StringStream* stream);
@@ -5994,7 +5943,7 @@ class HLoadKeyed
         set_representation(Representation::Integer32());
       }
 
-      SetGVNFlag(kDependsOnExternalMemory);
+      SetGVNFlag(kDependsOnSpecializedArrayElements);
       // Native code could change the specialized array.
       SetGVNFlag(kDependsOnCalls);
     }
@@ -6151,13 +6100,9 @@ class HStoreNamedField: public HTemplateInstruction<2> {
 
   virtual bool HasEscapingOperandAt(int index) { return index == 1; }
   virtual Representation RequiredInputRepresentation(int index) {
-    if (index == 0 && access().IsExternalMemory()) {
-      // object must be external in case of external memory access
-      return Representation::External();
-    } else if (index == 1 &&
-        (field_representation().IsDouble() ||
-         field_representation().IsSmi() ||
-         field_representation().IsInteger32())) {
+    if (index == 1 && field_representation().IsDouble()) {
+      return field_representation();
+    } else if (index == 1 && field_representation().IsSmi()) {
       return field_representation();
     }
     return Representation::Tagged();
@@ -6195,7 +6140,6 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     if (IsSkipWriteBarrier()) return false;
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
-    if (field_representation().IsInteger32()) return false;
     return StoringValueNeedsWriteBarrier(value()) &&
         ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
@@ -6276,7 +6220,7 @@ class HStoreKeyed
       SetGVNFlag(kDependsOnNewSpacePromotion);
     }
     if (is_external()) {
-      SetGVNFlag(kChangesExternalMemory);
+      SetGVNFlag(kChangesSpecializedArrayElements);
       SetFlag(kAllowUndefinedAsNaN);
     } else if (IsFastDoubleElementsKind(elements_kind)) {
       SetGVNFlag(kChangesDoubleArrayElements);
@@ -6527,9 +6471,8 @@ class HStringAdd: public HBinaryOperation {
     SetGVNFlag(kChangesNewSpacePromotion);
   }
 
-  // No side-effects except possible allocation.
-  // NOTE: this instruction _does not_ call ToString() on its inputs.
-  virtual bool IsDeletable() const { return true; }
+  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
+  //  virtual bool IsDeletable() const { return true; }
 
   const StringAddFlags flags_;
 };
@@ -6554,9 +6497,9 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
         : Representation::Tagged();
   }
 
-  HValue* context() const { return OperandAt(0); }
-  HValue* string() const { return OperandAt(1); }
-  HValue* index() const { return OperandAt(2); }
+  HValue* context() { return OperandAt(0); }
+  HValue* string() { return OperandAt(1); }
+  HValue* index() { return OperandAt(2); }
 
   DECLARE_CONCRETE_INSTRUCTION(StringCharCodeAt)
 
@@ -6567,9 +6510,9 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
     return new(zone) Range(0, String::kMaxUtf16CodeUnit);
   }
 
- private:
-  // No side effects: runtime function assumes string + number inputs.
-  virtual bool IsDeletable() const { return true; }
+  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
+  // private:
+  //  virtual bool IsDeletable() const { return true; }
 };
 
 
@@ -6584,10 +6527,10 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
         ? Representation::Tagged()
         : Representation::Integer32();
   }
-  virtual HType CalculateInferredType() { return HType::String(); }
+  virtual HType CalculateInferredType();
 
-  HValue* context() const { return OperandAt(0); }
-  HValue* value() const { return OperandAt(1); }
+  HValue* context() { return OperandAt(0); }
+  HValue* value() { return OperandAt(1); }
 
   virtual bool DataEquals(HValue* other) { return true; }
 
@@ -6602,9 +6545,8 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
     SetGVNFlag(kChangesNewSpacePromotion);
   }
 
-  virtual bool IsDeletable() const {
-    return !value()->ToNumberCanBeObserved();
-  }
+  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
+  // virtual bool IsDeletable() const { return true; }
 };
 
 
