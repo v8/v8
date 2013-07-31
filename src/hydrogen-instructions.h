@@ -2726,9 +2726,6 @@ class HCheckMaps: public HTemplateInstruction<2> {
     return check_map;
   }
 
-  static HCheckMaps* NewWithTransitions(HValue* value, Handle<Map> map,
-                                        Zone* zone, CompilationInfo* info);
-
   bool CanOmitMapChecks() { return omit_; }
 
   virtual bool HasEscapingOperandAt(int index) { return false; }

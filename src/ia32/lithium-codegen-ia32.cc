@@ -3165,9 +3165,6 @@ static bool CompactEmit(SmallMapList* list,
                         int i,
                         Isolate* isolate) {
   Handle<Map> map = list->at(i);
-  // If the map has ElementsKind transitions, we will generate map checks
-  // for each kind in __ CompareMap(..., ALLOW_ELEMENTS_TRANSITION_MAPS).
-  if (map->HasElementsTransition()) return false;
   LookupResult lookup(isolate);
   map->LookupDescriptor(NULL, *name, &lookup);
   return lookup.IsField() || lookup.IsConstant();

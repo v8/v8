@@ -1892,9 +1892,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
   void AddCheckMap(HValue* object, Handle<Map> map);
 
-  void AddCheckMapsWithTransitions(HValue* object,
-                                   Handle<Map> map);
-
   void BuildStoreNamed(Expression* expression,
                        BailoutId id,
                        int position,

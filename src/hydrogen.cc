@@ -4503,14 +4503,6 @@ void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
 }
 
 
-void HOptimizedGraphBuilder::AddCheckMapsWithTransitions(HValue* object,
-                                                         Handle<Map> map) {
-  BuildCheckHeapObject(object);
-  AddInstruction(HCheckMaps::NewWithTransitions(
-      object, map, zone(), top_info()));
-}
-
-
 HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     HValue* object,
     Handle<String> name,
@@ -4610,7 +4602,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
   // Handle a store to a known field.
   LookupResult lookup(isolate());
   if (ComputeLoadStoreField(map, name, &lookup, true)) {
-    AddCheckMapsWithTransitions(object, map);
+    AddCheckMap(object, map);
     return BuildStoreNamedField(object, name, value, map, &lookup);
   }
 
@@ -5390,7 +5382,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
   // Handle access to various length properties
   if (name->Equals(isolate()->heap()->length_string())) {
     if (map->instance_type() == JS_ARRAY_TYPE) {
-      AddCheckMapsWithTransitions(object, map);
+      AddCheckMap(object, map);
       return new(zone()) HLoadNamedField(object,
           HObjectAccess::ForArrayLength(map->elements_kind()));
     }
@@ -5932,7 +5924,7 @@ void HOptimizedGraphBuilder::AddCheckConstantFunction(
   // Constant functions have the nice property that the map will change if they
   // are overwritten.  Therefore it is enough to check the map of the holder and
   // its prototypes.
-  AddCheckMapsWithTransitions(receiver, receiver_map);
+  AddCheckMap(receiver, receiver_map);
   AddCheckPrototypeMaps(holder, receiver_map);
 }
 
@@ -6885,55 +6877,6 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
 }
 
 
-// Checks if all maps in |types| are from the same family, i.e., are elements
-// transitions of each other. Returns either NULL if they are not from the same
-// family, or a Map* indicating the map with the first elements kind of the
-// family that is in the list.
-static Map* CheckSameElementsFamily(SmallMapList* types) {
-  if (types->length() <= 1) return NULL;
-  // Check if all maps belong to the same transition family.
-  Map* kinds[kFastElementsKindCount];
-  Map* first_map = *types->first();
-  ElementsKind first_kind = first_map->elements_kind();
-  if (!IsFastElementsKind(first_kind)) return NULL;
-  int first_index = GetSequenceIndexFromFastElementsKind(first_kind);
-  int last_index = first_index;
-
-  for (int i = 0; i < kFastElementsKindCount; i++) kinds[i] = NULL;
-
-  kinds[first_index] = first_map;
-
-  for (int i = 1; i < types->length(); ++i) {
-    Map* map = *types->at(i);
-    ElementsKind elements_kind = map->elements_kind();
-    if (!IsFastElementsKind(elements_kind)) return NULL;
-    int index = GetSequenceIndexFromFastElementsKind(elements_kind);
-    if (index < first_index) {
-      first_index = index;
-    } else if (index > last_index) {
-      last_index = index;
-    } else if (kinds[index] != map) {
-      return NULL;
-    }
-    kinds[index] = map;
-  }
-
-  Map* current = kinds[first_index];
-  for (int i = first_index + 1; i <= last_index; i++) {
-    Map* next = kinds[i];
-    if (next != NULL) {
-      ElementsKind current_kind = next->elements_kind();
-      if (next != current->LookupElementsTransitionMap(current_kind)) {
-        return NULL;
-      }
-      current = next;
-    }
-  }
-
-  return kinds[first_index];
-}
-
-
 void HOptimizedGraphBuilder::VisitCall(Call* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -6979,12 +6922,6 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       receiver_map = (types == NULL || types->is_empty())
           ? Handle<Map>::null()
           : types->first();
-    } else {
-      Map* family_map = CheckSameElementsFamily(types);
-      if (family_map != NULL) {
-        receiver_map = Handle<Map>(family_map);
-        monomorphic = expr->ComputeTarget(receiver_map, name);
-      }
     }
 
     HValue* receiver =
@@ -8172,8 +8109,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         // Can we get away with map check and not instance type check?
         if (combined_type->IsClass()) {
           Handle<Map> map = combined_type->AsClass();
-          AddCheckMapsWithTransitions(left, map);
-          AddCheckMapsWithTransitions(right, map);
+          AddCheckMap(left, map);
+          AddCheckMap(right, map);
           HCompareObjectEqAndBranch* result =
               new(zone()) HCompareObjectEqAndBranch(left, right);
           result->set_position(expr->position());
