@@ -3202,6 +3202,11 @@ bool Heap::CreateInitialObjects() {
   }
   set_frozen_symbol(Symbol::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateSymbol();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_elements_transition_symbol(Symbol::cast(obj));
+
   { MaybeObject* maybe_obj = SeededNumberDictionary::Allocate(this, 0, TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
   }

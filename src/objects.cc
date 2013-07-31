@@ -7023,12 +7023,6 @@ class IntrusiveMapTransitionIterator {
       return transition_array_->GetTarget(index);
     }
 
-    if (index == number_of_transitions &&
-        transition_array_->HasElementsTransition()) {
-      Map* elements_transition = transition_array_->elements_transition();
-      *TransitionArrayHeader() = Smi::FromInt(index + 1);
-      return elements_transition;
-    }
     *TransitionArrayHeader() = transition_array_->GetHeap()->fixed_array_map();
     return NULL;
   }
@@ -9145,18 +9139,10 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     }
   }
 
-  if (t->HasElementsTransition() &&
-      ClearBackPointer(heap, t->elements_transition())) {
-    if (t->elements_transition()->instance_descriptors() == descriptors) {
-      descriptors_owner_died = true;
-    }
-    t->ClearElementsTransition();
-  } else {
-    // If there are no transitions to be cleared, return.
-    // TODO(verwaest) Should be an assert, otherwise back pointers are not
-    // properly cleared.
-    if (transition_index == t->number_of_transitions()) return;
-  }
+  // If there are no transitions to be cleared, return.
+  // TODO(verwaest) Should be an assert, otherwise back pointers are not
+  // properly cleared.
+  if (transition_index == t->number_of_transitions()) return;
 
   int number_of_own_descriptors = NumberOfOwnDescriptors();
 

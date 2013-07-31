@@ -178,7 +178,7 @@ namespace internal {
   V(Smi, last_script_id, LastScriptId)                                         \
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
-  V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
+  V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)          \
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
   V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
@@ -186,6 +186,7 @@ namespace internal {
   V(JSObject, observation_state, ObservationState)                             \
   V(Map, external_map, ExternalMap)                                            \
   V(Symbol, frozen_symbol, FrozenSymbol)                                       \
+  V(Symbol, elements_transition_symbol, ElementsTransitionSymbol)              \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
       EmptySlowElementDictionary)                                              \
   V(Symbol, observed_symbol, ObservedSymbol)                                   \

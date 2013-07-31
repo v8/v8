@@ -4269,7 +4269,8 @@ bool Map::HasTransitionArray() {
 
 
 Map* Map::elements_transition_map() {
-  return transitions()->elements_transition();
+  int index = transitions()->Search(GetHeap()->elements_transition_symbol());
+  return transitions()->GetTarget(index);
 }
 
 
@@ -4300,10 +4301,14 @@ Map* Map::GetTransition(int transition_index) {
 
 
 MaybeObject* Map::set_elements_transition_map(Map* transitioned_map) {
-  MaybeObject* allow_elements = EnsureHasTransitionArray(this);
-  if (allow_elements->IsFailure()) return allow_elements;
-  transitions()->set_elements_transition(transitioned_map);
-  return this;
+  TransitionArray* transitions;
+  MaybeObject* maybe_transitions = AddTransition(
+      GetHeap()->elements_transition_symbol(),
+      transitioned_map,
+      FULL_TRANSITION);
+  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  set_transitions(transitions);
+  return transitions;
 }
 
 
