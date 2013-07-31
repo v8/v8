@@ -3948,7 +3948,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
   Handle<Object> hresult;
   if (!result->ToHandle(&hresult, isolate)) return result;
 
-  if (FLAG_harmony_observation && map()->is_observed()) {
+  if (FLAG_harmony_observation && self->map()->is_observed()) {
     if (lookup->IsTransition()) {
       EnqueueChangeRecord(self, "new", name, old_value);
     } else {
