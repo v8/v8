@@ -477,8 +477,14 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
                         HObjectAccess::ForAllocationSiteTransitionInfo(),
                         initial_elements_kind);
 
-  Add<HLinkObjectInList>(object, HObjectAccess::ForAllocationSiteWeakNext(),
-                         HLinkObjectInList::ALLOCATION_SITE_LIST);
+  // Link the object to the allocation site list
+  HValue* site_list = Add<HConstant>(
+      ExternalReference::allocation_sites_list_address(isolate()));
+  HValue* site = AddLoad(site_list, HObjectAccess::ForAllocationSiteList());
+  HStoreNamedField* store =
+      AddStore(object, HObjectAccess::ForAllocationSiteWeakNext(), site);
+  store->SkipWriteBarrier();
+  AddStore(site_list, HObjectAccess::ForAllocationSiteList(), object);
 
   // We use a hammer (SkipWriteBarrier()) to indicate that we know the input
   // cell is really a Cell, and so no write barrier is needed.
@@ -486,7 +492,7 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   // a cell. (perhaps with a new instruction, HAssert).
   HInstruction* cell = GetParameter(0);
   HObjectAccess access = HObjectAccess::ForCellValue();
-  HStoreNamedField* store = AddStore(cell, access, object);
+  store = AddStore(cell, access, object);
   store->SkipWriteBarrier();
   return cell;
 }

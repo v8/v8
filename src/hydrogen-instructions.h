@@ -135,7 +135,6 @@ class LChunkBuilder;
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
   V(LeaveInlined)                              \
-  V(LinkObjectInList)                          \
   V(LoadContextSlot)                           \
   V(LoadExternalArrayPointer)                  \
   V(LoadFieldByIndex)                          \
@@ -5627,6 +5626,10 @@ class HObjectAccess {
     return HObjectAccess(kInobject, AllocationSite::kWeakNextOffset);
   }
 
+  static HObjectAccess ForAllocationSiteList() {
+    return HObjectAccess(kExternalMemory, 0, Representation::Tagged());
+  }
+
   static HObjectAccess ForFixedArrayLength() {
     return HObjectAccess(
         kArrayLengths,
@@ -5730,38 +5733,6 @@ class HObjectAccess {
   inline Portion portion() const {
     return PortionField::decode(value_);
   }
-};
-
-
-class HLinkObjectInList: public HUnaryOperation {
- public:
-  // There needs to be a mapping from every KnownList to an external reference
-  enum KnownList {
-    ALLOCATION_SITE_LIST
-  };
-
-  HLinkObjectInList(HValue* object, HObjectAccess store_field,
-                    KnownList known_list)
-      : HUnaryOperation(object),
-        store_field_(store_field),
-        known_list_(known_list) {
-    set_representation(Representation::Tagged());
-  }
-
-  HObjectAccess store_field() const { return store_field_; }
-  KnownList known_list() const { return known_list_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  DECLARE_CONCRETE_INSTRUCTION(LinkObjectInList)
-
- private:
-  HObjectAccess store_field_;
-  KnownList known_list_;
 };
 
 

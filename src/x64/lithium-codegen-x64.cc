@@ -2634,16 +2634,6 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
 }
 
 
-void LCodeGen::DoLinkObjectInList(LLinkObjectInList* instr) {
-  Register object = ToRegister(instr->object());
-  ExternalReference sites_list_address = instr->GetReference(isolate());
-  __ Load(kScratchRegister, sites_list_address);
-  __ movq(FieldOperand(object, instr->hydrogen()->store_field().offset()),
-          kScratchRegister);
-  __ Store(sites_list_address, object);
-}
-
-
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
