@@ -5240,16 +5240,11 @@ class HLoadGlobalGeneric: public HTemplateInstruction<2> {
 
 class HAllocate: public HTemplateInstruction<2> {
  public:
-  enum Flags {
-    CAN_ALLOCATE_IN_NEW_SPACE = 1 << 0,
-    CAN_ALLOCATE_IN_OLD_DATA_SPACE = 1 << 1,
-    CAN_ALLOCATE_IN_OLD_POINTER_SPACE = 1 << 2,
-    ALLOCATE_DOUBLE_ALIGNED = 1 << 3,
-    PREFILL_WITH_FILLER = 1 << 4
-  };
-
-  HAllocate(HValue* context, HValue* size, HType type, Flags flags)
-      : flags_(flags) {
+  HAllocate(HValue* context,
+            HValue* size,
+            HType type,
+            bool pretenure,
+            ElementsKind kind = FAST_ELEMENTS) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_type(type);
@@ -5257,23 +5252,24 @@ class HAllocate: public HTemplateInstruction<2> {
     SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kChangesNewSpacePromotion);
     SetGVNFlag(kDependsOnNewSpacePromotion);
+    if (pretenure) {
+      if (IsFastDoubleElementsKind(kind)) {
+        flags_ = static_cast<HAllocate::Flags>(ALLOCATE_IN_OLD_DATA_SPACE |
+             ALLOCATE_DOUBLE_ALIGNED);
+      } else {
+        flags_ = ALLOCATE_IN_OLD_POINTER_SPACE;
+      }
+    } else {
+      flags_ = ALLOCATE_IN_NEW_SPACE;
+      if (IsFastDoubleElementsKind(kind)) {
+        flags_ = static_cast<HAllocate::Flags>(flags_ |
+            ALLOCATE_DOUBLE_ALIGNED);
+      }
+    }
   }
 
   // Maximum instance size for which allocations will be inlined.
   static const int kMaxInlineSize = 64 * kPointerSize;
-
-  static Flags DefaultFlags() {
-    return CAN_ALLOCATE_IN_NEW_SPACE;
-  }
-
-  static Flags DefaultFlags(ElementsKind kind) {
-    Flags flags = CAN_ALLOCATE_IN_NEW_SPACE;
-    if (IsFastDoubleElementsKind(kind)) {
-      flags = static_cast<HAllocate::Flags>(
-          flags | HAllocate::ALLOCATE_DOUBLE_ALIGNED);
-    }
-    return flags;
-  }
 
   HValue* context() { return OperandAt(0); }
   HValue* size() { return OperandAt(1); }
@@ -5294,25 +5290,16 @@ class HAllocate: public HTemplateInstruction<2> {
     known_initial_map_ = known_initial_map;
   }
 
-  bool CanAllocateInNewSpace() const {
-    return (flags_ & CAN_ALLOCATE_IN_NEW_SPACE) != 0;
+  bool IsNewSpaceAllocation() const {
+    return (flags_ & ALLOCATE_IN_NEW_SPACE) != 0;
   }
 
-  bool CanAllocateInOldDataSpace() const {
-    return (flags_ & CAN_ALLOCATE_IN_OLD_DATA_SPACE) != 0;
+  bool IsOldDataSpaceAllocation() const {
+    return (flags_ & ALLOCATE_IN_OLD_DATA_SPACE) != 0;
   }
 
-  bool CanAllocateInOldPointerSpace() const {
-    return (flags_ & CAN_ALLOCATE_IN_OLD_POINTER_SPACE) != 0;
-  }
-
-  bool CanAllocateInOldSpace() const {
-    return CanAllocateInOldDataSpace() ||
-        CanAllocateInOldPointerSpace();
-  }
-
-  bool GuaranteedInNewSpace() const {
-    return CanAllocateInNewSpace() && !CanAllocateInOldSpace();
+  bool IsOldPointerSpaceAllocation() const {
+    return (flags_ & ALLOCATE_IN_OLD_POINTER_SPACE) != 0;
   }
 
   bool MustAllocateDoubleAligned() const {
@@ -5323,8 +5310,12 @@ class HAllocate: public HTemplateInstruction<2> {
     return (flags_ & PREFILL_WITH_FILLER) != 0;
   }
 
-  void SetFlags(Flags flags) {
-    flags_ = static_cast<HAllocate::Flags>(flags_ | flags);
+  void MakePrefillWithFiller() {
+    flags_ = static_cast<HAllocate::Flags>(flags_ | PREFILL_WITH_FILLER);
+  }
+
+  void MakeDoubleAligned() {
+    flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
   }
 
   void UpdateSize(HValue* size) {
@@ -5339,6 +5330,14 @@ class HAllocate: public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(Allocate)
 
  private:
+  enum Flags {
+    ALLOCATE_IN_NEW_SPACE = 1 << 0,
+    ALLOCATE_IN_OLD_DATA_SPACE = 1 << 1,
+    ALLOCATE_IN_OLD_POINTER_SPACE = 1 << 2,
+    ALLOCATE_DOUBLE_ALIGNED = 1 << 3,
+    PREFILL_WITH_FILLER = 1 << 4
+  };
+
   Flags flags_;
   Handle<Map> known_initial_map_;
 };
@@ -5389,7 +5388,7 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
   }
   if (object != new_space_dominator) return true;
   if (object->IsAllocate()) {
-    return !HAllocate::cast(object)->GuaranteedInNewSpace();
+    return !HAllocate::cast(object)->IsNewSpaceAllocation();
   }
   return true;
 }

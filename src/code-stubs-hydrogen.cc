@@ -434,14 +434,10 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   checker.Then();
 
   HValue* size_in_bytes = AddInstruction(new(zone) HConstant(size));
-  HAllocate::Flags flags = HAllocate::CAN_ALLOCATE_IN_NEW_SPACE;
-  if (isolate()->heap()->ShouldGloballyPretenure()) {
-    flags = static_cast<HAllocate::Flags>(
-       flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
-  }
 
   HInstruction* object = AddInstruction(new(zone)
-      HAllocate(context(), size_in_bytes, HType::JSObject(), flags));
+      HAllocate(context(), size_in_bytes, HType::JSObject(),
+          isolate()->heap()->ShouldGloballyPretenure()));
 
   for (int i = 0; i < size; i += kPointerSize) {
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(i);
@@ -466,11 +462,8 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   Zone* zone = this->zone();
 
   HValue* size = AddInstruction(new(zone) HConstant(AllocationSite::kSize));
-  HAllocate::Flags flags = HAllocate::DefaultFlags();
-  flags = static_cast<HAllocate::Flags>(
-      flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
   HInstruction* object = AddInstruction(new(zone)
-      HAllocate(context(), size, HType::JSObject(), flags));
+      HAllocate(context(), size, HType::JSObject(), true));
 
   // Store the map
   Handle<Map> allocation_site_map(isolate()->heap()->allocation_site_map(),

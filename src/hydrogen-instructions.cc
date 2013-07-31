@@ -3766,8 +3766,8 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   HValue* current_size = size();
   // We can just fold allocations that are guaranteed in new space.
   // TODO(hpayer): Add support for non-constant allocation in dominator.
-  if (!GuaranteedInNewSpace() || !current_size->IsInteger32Constant() ||
-      !dominator_allocate_instr->GuaranteedInNewSpace() ||
+  if (!IsNewSpaceAllocation() || !current_size->IsInteger32Constant() ||
+      !dominator_allocate_instr->IsNewSpaceAllocation() ||
       !dominator_size->IsInteger32Constant()) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s)\n",
@@ -3785,7 +3785,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 
   if (MustAllocateDoubleAligned()) {
     if (!dominator_allocate_instr->MustAllocateDoubleAligned()) {
-      dominator_allocate_instr->SetFlags(HAllocate::ALLOCATE_DOUBLE_ALIGNED);
+      dominator_allocate_instr->MakeDoubleAligned();
     }
     if ((dominator_size_constant & kDoubleAlignmentMask) != 0) {
       dominator_size_constant += kDoubleSize / 2;
@@ -3810,7 +3810,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    dominator_allocate_instr->SetFlags(HAllocate::PREFILL_WITH_FILLER);
+    dominator_allocate_instr->MakePrefillWithFiller();
   }
 #endif
 
@@ -3830,7 +3830,7 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 
 void HAllocate::PrintDataTo(StringStream* stream) {
   size()->PrintNameTo(stream);
-  if (!GuaranteedInNewSpace()) stream->Add(" (pretenure)");
+  if (!IsNewSpaceAllocation()) stream->Add(" (pretenure)");
 }
 
 

@@ -1325,20 +1325,8 @@ HValue* HGraphBuilder::BuildAllocateElements(HValue* context,
                            HAdd::New(zone, context, mul, header_size));
   total_size->ClearFlag(HValue::kCanOverflow);
 
-  HAllocate::Flags flags = HAllocate::DefaultFlags(kind);
-  if (isolate()->heap()->ShouldGloballyPretenure()) {
-    // TODO(hpayer): When pretenuring can be internalized, flags can become
-    // private to HAllocate.
-    if (IsFastDoubleElementsKind(kind)) {
-      flags = static_cast<HAllocate::Flags>(
-          flags | HAllocate::CAN_ALLOCATE_IN_OLD_DATA_SPACE);
-    } else {
-      flags = static_cast<HAllocate::Flags>(
-          flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
-    }
-  }
-
-  return Add<HAllocate>(context, total_size, HType::JSArray(), flags);
+  return Add<HAllocate>(context, total_size, HType::JSArray(),
+      isolate()->heap()->ShouldGloballyPretenure(), kind);
 }
 
 
@@ -1669,14 +1657,14 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HContext* context,
         : FixedArray::SizeFor(length);
   }
 
-  HAllocate::Flags allocate_flags = HAllocate::DefaultFlags(kind);
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
   HValue* size_in_bytes = Add<HConstant>(size);
   HInstruction* object = Add<HAllocate>(context,
                                         size_in_bytes,
                                         HType::JSObject(),
-                                        allocate_flags);
+                                        false,
+                                        kind);
 
   // Copy the JS array part.
   for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
@@ -1958,9 +1946,8 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
                                                       Representation::Smi());
 
   // Allocate (dealing with failure appropriately)
-  HAllocate::Flags flags = HAllocate::DefaultFlags(kind_);
   HAllocate* new_object = builder()->Add<HAllocate>(context, size_in_bytes,
-                                                    HType::JSArray(), flags);
+      HType::JSArray(), false, kind_);
 
   // Fill in the fields: map, properties, length
   HValue* map;
@@ -4573,7 +4560,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
       HInstruction* heap_number = Add<HAllocate>(
           environment()->LookupContext(), heap_number_size,
-          HType::HeapNumber(), HAllocate::CAN_ALLOCATE_IN_NEW_SPACE);
+          HType::HeapNumber(), false);
       AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
       AddStore(heap_number, HObjectAccess::ForHeapNumberValue(), value);
       instr = new(zone()) HStoreNamedField(
@@ -7209,14 +7196,10 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
 
     // Allocate an instance of the implicit receiver object.
     HValue* size_in_bytes = Add<HConstant>(instance_size);
-    HAllocate::Flags flags = HAllocate::DefaultFlags();
-    if (FLAG_pretenuring_call_new &&
-        isolate()->heap()->ShouldGloballyPretenure()) {
-      flags = static_cast<HAllocate::Flags>(
-          flags | HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
-    }
+    bool pretenure = FLAG_pretenuring_call_new &&
+        isolate()->heap()->ShouldGloballyPretenure();
     HAllocate* receiver =
-        Add<HAllocate>(context, size_in_bytes, HType::JSObject(), flags);
+        Add<HAllocate>(context, size_in_bytes, HType::JSObject(), pretenure);
     receiver->set_known_initial_map(initial_map);
 
     // Load the initial map from the constructor.
@@ -8298,12 +8281,9 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
 
   if (isolate()->heap()->ShouldGloballyPretenure()) {
     if (data_size != 0) {
-      HAllocate::Flags data_flags =
-          static_cast<HAllocate::Flags>(HAllocate::DefaultFlags(kind) |
-              HAllocate::CAN_ALLOCATE_IN_OLD_DATA_SPACE);
       HValue* size_in_bytes = Add<HConstant>(data_size);
       data_target = Add<HAllocate>(context, size_in_bytes, HType::JSObject(),
-          data_flags);
+          true, FAST_DOUBLE_ELEMENTS);
       Handle<Map> free_space_map = isolate()->factory()->free_space_map();
       AddStoreMapConstant(data_target, free_space_map);
       HObjectAccess access =
@@ -8311,17 +8291,14 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
       AddStore(data_target, access, size_in_bytes);
     }
     if (pointer_size != 0) {
-      HAllocate::Flags pointer_flags =
-          static_cast<HAllocate::Flags>(HAllocate::DefaultFlags() |
-              HAllocate::CAN_ALLOCATE_IN_OLD_POINTER_SPACE);
       HValue* size_in_bytes = Add<HConstant>(pointer_size);
       target = Add<HAllocate>(context, size_in_bytes, HType::JSObject(),
-          pointer_flags);
+          true);
     }
   } else {
-    HAllocate::Flags flags = HAllocate::DefaultFlags(kind);
     HValue* size_in_bytes = Add<HConstant>(data_size + pointer_size);
-    target = Add<HAllocate>(context, size_in_bytes, HType::JSObject(), flags);
+    target = Add<HAllocate>(context, size_in_bytes, HType::JSObject(), false,
+        kind);
   }
 
   int offset = 0;
