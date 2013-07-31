@@ -1451,12 +1451,12 @@ class HBlockEntry: public HTemplateInstruction<0> {
 
 class HDummyUse: public HTemplateInstruction<1> {
  public:
-  explicit HDummyUse(HValue* value) {
+  explicit HDummyUse(HValue* value)
+      : HTemplateInstruction<1>(HType::Smi()) {
     SetOperandAt(0, value);
     // Pretend to be a Smi so that the HChange instructions inserted
     // before any use generate as little code as possible.
     set_representation(Representation::Tagged());
-    set_type(HType::Smi());
   }
 
   HValue* value() { return OperandAt(0); }
@@ -1665,7 +1665,8 @@ class HAbnormalExit: public HTemplateControlInstruction<0, 0> {
 
 class HUnaryOperation: public HTemplateInstruction<1> {
  public:
-  explicit HUnaryOperation(HValue* value) {
+  HUnaryOperation(HValue* value, HType type = HType::Tagged())
+      : HTemplateInstruction<1>(type) {
     SetOperandAt(0, value);
   }
 
@@ -2510,8 +2511,8 @@ class HCallRuntime: public HCall<1> {
 
 class HMapEnumLength: public HUnaryOperation {
  public:
-  explicit HMapEnumLength(HValue* value) : HUnaryOperation(value) {
-    set_type(HType::Smi());
+  explicit HMapEnumLength(HValue* value)
+      : HUnaryOperation(value, HType::Smi()) {
     set_representation(Representation::Smi());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
@@ -2555,12 +2556,12 @@ class HElementsKind: public HUnaryOperation {
 
 class HBitNot: public HUnaryOperation {
  public:
-  explicit HBitNot(HValue* value) : HUnaryOperation(value) {
+  explicit HBitNot(HValue* value)
+      : HUnaryOperation(value, HType::TaggedNumber()) {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetFlag(kTruncatingToInt32);
     SetFlag(kAllowUndefinedAsNaN);
-    set_type(HType::TaggedNumber());
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2638,7 +2639,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
 
  private:
   HUnaryMathOperation(HValue* context, HValue* value, BuiltinFunctionId op)
-      : op_(op) {
+      : HTemplateInstruction<2>(HType::TaggedNumber()), op_(op) {
     SetOperandAt(0, context);
     SetOperandAt(1, value);
     switch (op) {
@@ -2672,7 +2673,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     }
     SetFlag(kUseGVN);
     SetFlag(kAllowUndefinedAsNaN);
-    set_type(HType::TaggedNumber());
   }
 
   virtual bool IsDeletable() const { return true; }
@@ -2761,7 +2761,8 @@ class HCheckMaps: public HTemplateInstruction<2> {
  private:
   // Clients should use one of the static New* methods above.
   HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
-      : omit_(false), map_unique_ids_(0, zone) {
+      : HTemplateInstruction<2>(value->type()),
+        omit_(false), map_unique_ids_(0, zone) {
     SetOperandAt(0, value);
     // Use the object value for the dependency if NULL is passed.
     // TODO(titzer): do GVN flags already express this dependency?
@@ -2771,7 +2772,6 @@ class HCheckMaps: public HTemplateInstruction<2> {
     SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kDependsOnMaps);
     SetGVNFlag(kDependsOnElementsKind);
-    set_type(value->type());
   }
 
   void omit(CompilationInfo* info) {
@@ -2792,11 +2792,11 @@ class HCheckMaps: public HTemplateInstruction<2> {
 class HCheckFunction: public HUnaryOperation {
  public:
   HCheckFunction(HValue* value, Handle<JSFunction> function)
-      : HUnaryOperation(value), target_(function), target_unique_id_() {
+      : HUnaryOperation(value, value->type()),
+        target_(function), target_unique_id_() {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     target_in_new_space_ = Isolate::Current()->heap()->InNewSpace(*function);
-    set_type(value->type());
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2894,10 +2894,9 @@ class HCheckInstanceType: public HUnaryOperation {
 
 class HCheckSmi: public HUnaryOperation {
  public:
-  explicit HCheckSmi(HValue* value) : HUnaryOperation(value) {
+  explicit HCheckSmi(HValue* value) : HUnaryOperation(value, HType::Smi()) {
     set_representation(Representation::Smi());
     SetFlag(kUseGVN);
-    set_type(HType::Smi());
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2936,10 +2935,10 @@ class HIsNumberAndBranch: public HUnaryControlInstruction {
 
 class HCheckHeapObject: public HUnaryOperation {
  public:
-  explicit HCheckHeapObject(HValue* value) : HUnaryOperation(value) {
+  explicit HCheckHeapObject(HValue* value)
+      : HUnaryOperation(value, HType::NonPrimitive()) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    set_type(HType::NonPrimitive());
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -3694,8 +3693,10 @@ class HConstant: public HTemplateInstruction<0> {
 
 class HBinaryOperation: public HTemplateInstruction<3> {
  public:
-  HBinaryOperation(HValue* context, HValue* left, HValue* right)
-      : observed_output_representation_(Representation::None()) {
+  HBinaryOperation(HValue* context, HValue* left, HValue* right,
+                   HType type = HType::Tagged())
+      : HTemplateInstruction<3>(type),
+        observed_output_representation_(Representation::None()) {
     ASSERT(left != NULL && right != NULL);
     SetOperandAt(0, context);
     SetOperandAt(1, left);
@@ -4046,8 +4047,9 @@ class HBoundsCheckBaseIndexInformation: public HTemplateInstruction<2> {
 
 class HBitwiseBinaryOperation: public HBinaryOperation {
  public:
-  HBitwiseBinaryOperation(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right) {
+  HBitwiseBinaryOperation(HValue* context, HValue* left, HValue* right,
+                          HType type = HType::Tagged())
+      : HBinaryOperation(context, left, right, type) {
     SetFlag(kFlexibleRepresentation);
     SetFlag(kTruncatingToInt32);
     SetFlag(kAllowUndefinedAsNaN);
@@ -4123,11 +4125,10 @@ class HMathFloorOfDiv: public HBinaryOperation {
 class HArithmeticBinaryOperation: public HBinaryOperation {
  public:
   HArithmeticBinaryOperation(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right) {
+      : HBinaryOperation(context, left, right, HType::TaggedNumber()) {
     SetAllSideEffects();
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
-    set_type(HType::TaggedNumber());
   }
 
   virtual void RepresentationChanged(Representation to) {
@@ -4153,10 +4154,10 @@ class HCompareGeneric: public HBinaryOperation {
                   HValue* left,
                   HValue* right,
                   Token::Value token)
-      : HBinaryOperation(context, left, right), token_(token) {
+      : HBinaryOperation(context, left, right, HType::Boolean()),
+        token_(token) {
     ASSERT(Token::IsCompareOp(token));
     set_representation(Representation::Tagged());
-    set_type(HType::Boolean());
     SetAllSideEffects();
   }
 
@@ -4444,9 +4445,8 @@ class HTypeofIsAndBranch: public HUnaryControlInstruction {
 class HInstanceOf: public HBinaryOperation {
  public:
   HInstanceOf(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right) {
+      : HBinaryOperation(context, left, right, HType::Boolean()) {
     set_representation(Representation::Tagged());
-    set_type(HType::Boolean());
     SetAllSideEffects();
   }
 
@@ -4465,10 +4465,9 @@ class HInstanceOfKnownGlobal: public HTemplateInstruction<2> {
   HInstanceOfKnownGlobal(HValue* context,
                          HValue* left,
                          Handle<JSFunction> right)
-      : function_(right) {
+      : HTemplateInstruction<2>(HType::Boolean()), function_(right) {
     SetOperandAt(0, context);
     SetOperandAt(1, left);
-    set_type(HType::Boolean());
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
@@ -4869,7 +4868,8 @@ class HBitwise: public HBitwiseBinaryOperation {
 
  private:
   HBitwise(Token::Value op, HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right), op_(op) {
+      : HBitwiseBinaryOperation(context, left, right, HType::TaggedNumber()),
+        op_(op) {
     ASSERT(op == Token::BIT_AND || op == Token::BIT_OR || op == Token::BIT_XOR);
     // BIT_AND with a smi-range positive value will always unset the
     // entire sign-extension of the smi-sign.
@@ -4892,7 +4892,6 @@ class HBitwise: public HBitwiseBinaryOperation {
           HConstant::cast(right)->Integer32Value() < 0))) {
       SetFlag(kTruncatingToSmi);
     }
-    set_type(HType::TaggedNumber());
   }
 
   Token::Value op_;
@@ -5234,10 +5233,10 @@ class HAllocate: public HTemplateInstruction<2> {
             HValue* size,
             HType type,
             bool pretenure,
-            ElementsKind kind = FAST_ELEMENTS) {
+            ElementsKind kind = FAST_ELEMENTS)
+      : HTemplateInstruction<2>(type) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
-    set_type(type);
     set_representation(Representation::Tagged());
     SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kChangesNewSpacePromotion);
@@ -5336,10 +5335,9 @@ class HAllocate: public HTemplateInstruction<2> {
 class HInnerAllocatedObject: public HTemplateInstruction<1> {
  public:
   HInnerAllocatedObject(HValue* value, int offset, HType type = HType::Tagged())
-      : offset_(offset) {
+      : HTemplateInstruction<1>(type), offset_(offset) {
     ASSERT(value->IsAllocate());
     SetOperandAt(0, value);
-    set_type(type);
     set_representation(Representation::Tagged());
   }
 
@@ -6477,12 +6475,11 @@ class HStringAdd: public HBinaryOperation {
 
  private:
   HStringAdd(HValue* context, HValue* left, HValue* right, StringAddFlags flags)
-      : HBinaryOperation(context, left, right), flags_(flags) {
+      : HBinaryOperation(context, left, right, HType::String()), flags_(flags) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
     SetGVNFlag(kChangesNewSpacePromotion);
-    set_type(HType::String());
   }
 
   // No side-effects except possible allocation.
@@ -6551,13 +6548,13 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(StringCharFromCode)
 
  private:
-  HStringCharFromCode(HValue* context, HValue* char_code) {
+  HStringCharFromCode(HValue* context, HValue* char_code)
+      : HTemplateInstruction<2>(HType::String()) {
     SetOperandAt(0, context);
     SetOperandAt(1, char_code);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kChangesNewSpacePromotion);
-    set_type(HType::String());
   }
 
   virtual bool IsDeletable() const {
@@ -6584,12 +6581,12 @@ class HStringLength: public HUnaryOperation {
   }
 
  private:
-  explicit HStringLength(HValue* string) : HUnaryOperation(string) {
+  explicit HStringLength(HValue* string)
+      : HUnaryOperation(string, HType::Smi()) {
     STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
-    set_type(HType::Smi());
   }
 
   virtual bool IsDeletable() const { return true; }
@@ -6664,13 +6661,13 @@ class HFunctionLiteral: public HTemplateInstruction<1> {
   HFunctionLiteral(HValue* context,
                    Handle<SharedFunctionInfo> shared,
                    bool pretenure)
-      : shared_info_(shared),
+      : HTemplateInstruction<1>(HType::JSObject()),
+        shared_info_(shared),
         pretenure_(pretenure),
         has_no_literals_(shared->num_literals() == 0),
         is_generator_(shared->is_generator()),
         language_mode_(shared->language_mode()) {
     SetOperandAt(0, context);
-    set_type(HType::JSObject());
     set_representation(Representation::Tagged());
     SetGVNFlag(kChangesNewSpacePromotion);
   }

@@ -2640,7 +2640,8 @@ static bool IsInteger32(double value) {
 
 
 HConstant::HConstant(Handle<Object> handle, Representation r)
-  : handle_(handle),
+  : HTemplateInstruction<0>(HType::TypeFromValue(handle)),
+    handle_(handle),
     unique_id_(),
     has_smi_value_(false),
     has_int32_value_(false),
@@ -2650,8 +2651,6 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     is_not_in_new_space_(true),
     is_cell_(false),
     boolean_value_(handle->BooleanValue()) {
-  set_type(HType::TypeFromValue(handle));
-
   if (handle_->IsHeapObject()) {
     Heap* heap = Handle<HeapObject>::cast(handle)->GetHeap();
     is_not_in_new_space_ = !heap->InNewSpace(*handle);
@@ -2681,7 +2680,8 @@ HConstant::HConstant(Handle<Object> handle,
                      bool is_not_in_new_space,
                      bool is_cell,
                      bool boolean_value)
-  : handle_(handle),
+  : HTemplateInstruction<0>(type),
+    handle_(handle),
     unique_id_(unique_id),
     has_smi_value_(false),
     has_int32_value_(false),
@@ -2693,7 +2693,6 @@ HConstant::HConstant(Handle<Object> handle,
     boolean_value_(boolean_value) {
   ASSERT(!handle.is_null());
   ASSERT(!type.IsTaggedNumber());
-  set_type(type);
   Initialize(r);
 }
 
