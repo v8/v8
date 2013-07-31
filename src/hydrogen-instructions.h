@@ -5374,6 +5374,11 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
   if (object->IsConstant() && HConstant::cast(object)->IsCell()) {
     return false;
   }
+  if (object->IsConstant() &&
+      HConstant::cast(object)->HasExternalReferenceValue()) {
+    // Stores to external references require no write barriers
+    return false;
+  }
   if (object != new_space_dominator) return true;
   if (object->IsAllocate()) {
     return !HAllocate::cast(object)->IsNewSpaceAllocation();
@@ -6155,6 +6160,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
     if (field_representation().IsInteger32()) return false;
+    if (field_representation().IsExternal()) return false;
     return StoringValueNeedsWriteBarrier(value()) &&
         ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }

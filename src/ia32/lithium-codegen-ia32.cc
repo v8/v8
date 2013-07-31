@@ -4342,6 +4342,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     MemOperand operand = instr->object()->IsConstantOperand()
         ? MemOperand::StaticVariable(
             ToExternalReference(LConstantOperand::cast(instr->object())))

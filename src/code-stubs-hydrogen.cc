@@ -459,11 +459,9 @@ Handle<Code> FastCloneShallowObjectStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
-  Zone* zone = this->zone();
-
-  HValue* size = AddInstruction(new(zone) HConstant(AllocationSite::kSize));
-  HInstruction* object = AddInstruction(new(zone)
-      HAllocate(context(), size, HType::JSObject(), true));
+  HValue* size = Add<HConstant>(AllocationSite::kSize);
+  HInstruction* object = Add<HAllocate>(
+      context(), size, HType::JSObject(), true);
 
   // Store the map
   Handle<Map> allocation_site_map(isolate()->heap()->allocation_site_map(),
@@ -471,8 +469,7 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   AddStoreMapConstant(object, allocation_site_map);
 
   // Store the payload (smi elements kind)
-  HValue* initial_elements_kind = AddInstruction(new(zone) HConstant(
-      GetInitialFastElementsKind()));
+  HValue* initial_elements_kind = Add<HConstant>(GetInitialFastElementsKind());
   Add<HStoreNamedField>(object,
                         HObjectAccess::ForAllocationSiteTransitionInfo(),
                         initial_elements_kind);
