@@ -7729,7 +7729,7 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
       break;
     case Token::BIT_XOR:
     case Token::BIT_AND:
-      instr = New<HBitwise>(expr->op(), left, right);
+      instr = NewUncasted<HBitwise>(expr->op(), left, right);
       break;
     case Token::BIT_OR: {
       HValue* operand, *shift_amount;
@@ -7738,7 +7738,7 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
           MatchRotateRight(left, right, &operand, &shift_amount)) {
         instr = new(zone()) HRor(context, operand, shift_amount);
       } else {
-        instr = New<HBitwise>(expr->op(), left, right);
+        instr = NewUncasted<HBitwise>(expr->op(), left, right);
       }
       break;
     }
