@@ -1746,8 +1746,10 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
               instr->can_deopt()) {
             if (shift_count != 1) {
               __ mov(result, Operand(left, LSL, shift_count - 1));
+              __ SmiTag(result, result, SetCC);
+            } else {
+              __ SmiTag(result, left, SetCC);
             }
-            __ SmiTag(result, result, SetCC);
             DeoptimizeIf(vs, instr->environment());
           } else {
             __ mov(result, Operand(left, LSL, shift_count));

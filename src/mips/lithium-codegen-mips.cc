@@ -1585,8 +1585,10 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
               instr->can_deopt()) {
             if (shift_count != 1) {
               __ sll(result, left, shift_count - 1);
+              __ SmiTagCheckOverflow(result, result, scratch);
+            } else {
+              __ SmiTagCheckOverflow(result, left, scratch);
             }
-            __ SmiTagCheckOverflow(result, result, scratch);
             DeoptimizeIf(lt, instr->environment(), scratch, Operand(zero_reg));
           } else {
             __ sll(result, left, shift_count);
