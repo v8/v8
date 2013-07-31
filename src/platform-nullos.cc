@@ -477,6 +477,37 @@ void Thread::YieldCPU() {
 }
 
 
+class NullMutex : public Mutex {
+ public:
+  NullMutex() : data_(NULL) {
+    UNIMPLEMENTED();
+  }
+
+  virtual ~NullMutex() {
+    UNIMPLEMENTED();
+  }
+
+  virtual int Lock() {
+    UNIMPLEMENTED();
+    return 0;
+  }
+
+  virtual int Unlock() {
+    UNIMPLEMENTED();
+    return 0;
+  }
+
+ private:
+  void* data_;
+};
+
+
+Mutex* OS::CreateMutex() {
+  UNIMPLEMENTED();
+  return new NullMutex();
+}
+
+
 class NullSemaphore : public Semaphore {
  public:
   explicit NullSemaphore(int count) : data_(NULL) {

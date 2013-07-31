@@ -214,7 +214,7 @@ bool ThreadManager::RestoreThread() {
 
 
 void ThreadManager::Lock() {
-  mutex_.Lock();
+  mutex_->Lock();
   mutex_owner_ = ThreadId::Current();
   ASSERT(IsLockedByCurrentThread());
 }
@@ -222,7 +222,7 @@ void ThreadManager::Lock() {
 
 void ThreadManager::Unlock() {
   mutex_owner_ = ThreadId::Invalid();
-  mutex_.Unlock();
+  mutex_->Unlock();
 }
 
 
@@ -303,7 +303,8 @@ ThreadState* ThreadState::Next() {
 // be distinguished from not having a thread id at all (since NULL is
 // defined as 0.)
 ThreadManager::ThreadManager()
-    : mutex_owner_(ThreadId::Invalid()),
+    : mutex_(OS::CreateMutex()),
+      mutex_owner_(ThreadId::Invalid()),
       lazily_archived_thread_(ThreadId::Invalid()),
       lazily_archived_thread_state_(NULL),
       free_anchor_(NULL),
@@ -314,6 +315,7 @@ ThreadManager::ThreadManager()
 
 
 ThreadManager::~ThreadManager() {
+  delete mutex_;
   DeleteThreadStateList(free_anchor_);
   DeleteThreadStateList(in_use_anchor_);
 }

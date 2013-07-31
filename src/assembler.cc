@@ -891,7 +891,7 @@ void ExternalReference::SetUp() {
   double_constants.the_hole_nan = BitCast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
 
-  math_exp_data_mutex = new Mutex;
+  math_exp_data_mutex = OS::CreateMutex();
 }
 
 
@@ -899,7 +899,7 @@ void ExternalReference::InitializeMathExpData() {
   // Early return?
   if (math_exp_data_initialized) return;
 
-  ScopedLock with(math_exp_data_mutex);
+  math_exp_data_mutex->Lock();
   if (!math_exp_data_initialized) {
     // If this is changed, generated code must be adapted too.
     const int kTableSizeBits = 11;
@@ -935,6 +935,7 @@ void ExternalReference::InitializeMathExpData() {
 
     math_exp_data_initialized = true;
   }
+  math_exp_data_mutex->Unlock();
 }
 
 

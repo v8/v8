@@ -388,7 +388,7 @@ class Shell : public i::AllStatic {
   static CounterCollection local_counters_;
   static CounterCollection* counters_;
   static i::OS::MemoryMappedFile* counters_file_;
-  static i::Mutex context_mutex_;
+  static i::Mutex* context_mutex_;
 
   static Counter* GetCounter(const char* name, bool is_histogram);
   static void InstallUtilityScript(Isolate* isolate);

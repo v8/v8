@@ -2606,6 +2606,7 @@ Debugger::Debugger(Isolate* isolate)
       message_handler_(NULL),
       debugger_unload_pending_(false),
       host_dispatch_handler_(NULL),
+      dispatch_handler_access_(OS::CreateMutex()),
       debug_message_dispatch_handler_(NULL),
       message_dispatch_helper_thread_(NULL),
       host_dispatch_micros_(100 * 1000),
@@ -2618,6 +2619,8 @@ Debugger::Debugger(Isolate* isolate)
 
 
 Debugger::~Debugger() {
+  delete dispatch_handler_access_;
+  dispatch_handler_access_ = 0;
   delete command_received_;
   command_received_ = 0;
 }
@@ -3300,7 +3303,7 @@ void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
 
 void Debugger::SetDebugMessageDispatchHandler(
     v8::Debug::DebugMessageDispatchHandler handler, bool provide_locker) {
-  ScopedLock with(&dispatch_handler_access_);
+  ScopedLock with(dispatch_handler_access_);
   debug_message_dispatch_handler_ = handler;
 
   if (provide_locker && message_dispatch_helper_thread_ == NULL) {
@@ -3343,7 +3346,7 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
 
   MessageDispatchHelperThread* dispatch_thread;
   {
-    ScopedLock with(&dispatch_handler_access_);
+    ScopedLock with(dispatch_handler_access_);
     dispatch_thread = message_dispatch_helper_thread_;
   }
 
@@ -3463,7 +3466,7 @@ void Debugger::WaitForAgent() {
 void Debugger::CallMessageDispatchHandler() {
   v8::Debug::DebugMessageDispatchHandler handler;
   {
-    ScopedLock with(&dispatch_handler_access_);
+    ScopedLock with(dispatch_handler_access_);
     handler = Debugger::debug_message_dispatch_handler_;
   }
   if (handler != NULL) {
@@ -3784,20 +3787,24 @@ void CommandMessageQueue::Expand() {
 
 
 LockingCommandMessageQueue::LockingCommandMessageQueue(Logger* logger, int size)
-    : logger_(logger), queue_(size) {}
+    : logger_(logger), queue_(size) {
+  lock_ = OS::CreateMutex();
+}
 
 
-LockingCommandMessageQueue::~LockingCommandMessageQueue() {}
+LockingCommandMessageQueue::~LockingCommandMessageQueue() {
+  delete lock_;
+}
 
 
-bool LockingCommandMessageQueue::IsEmpty() {
-  ScopedLock sl(&lock_);
+bool LockingCommandMessageQueue::IsEmpty() const {
+  ScopedLock sl(lock_);
   return queue_.IsEmpty();
 }
 
 
 CommandMessage LockingCommandMessageQueue::Get() {
-  ScopedLock sl(&lock_);
+  ScopedLock sl(lock_);
   CommandMessage result = queue_.Get();
   logger_->DebugEvent("Get", result.text());
   return result;
@@ -3805,14 +3812,14 @@ CommandMessage LockingCommandMessageQueue::Get() {
 
 
 void LockingCommandMessageQueue::Put(const CommandMessage& message) {
-  ScopedLock sl(&lock_);
+  ScopedLock sl(lock_);
   queue_.Put(message);
   logger_->DebugEvent("Put", message.text());
 }
 
 
 void LockingCommandMessageQueue::Clear() {
-  ScopedLock sl(&lock_);
+  ScopedLock sl(lock_);
   queue_.Clear();
 }
 
@@ -3820,17 +3827,19 @@ void LockingCommandMessageQueue::Clear() {
 MessageDispatchHelperThread::MessageDispatchHelperThread(Isolate* isolate)
     : Thread("v8:MsgDispHelpr"),
       isolate_(isolate), sem_(OS::CreateSemaphore(0)),
-      already_signalled_(false) {}
+      mutex_(OS::CreateMutex()), already_signalled_(false) {
+}
 
 
 MessageDispatchHelperThread::~MessageDispatchHelperThread() {
+  delete mutex_;
   delete sem_;
 }
 
 
 void MessageDispatchHelperThread::Schedule() {
   {
-    ScopedLock lock(&mutex_);
+    ScopedLock lock(mutex_);
     if (already_signalled_) {
       return;
     }
@@ -3844,7 +3853,7 @@ void MessageDispatchHelperThread::Run() {
   while (true) {
     sem_->Wait();
     {
-      ScopedLock lock(&mutex_);
+      ScopedLock lock(mutex_);
       already_signalled_ = false;
     }
     {

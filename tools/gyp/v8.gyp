@@ -419,8 +419,6 @@
         '../../src/marking-thread.cc',
         '../../src/messages.cc',
         '../../src/messages.h',
-        '../../src/mutex.cc',
-        '../../src/mutex.h',
         '../../src/natives.h',
         '../../src/objects-debug.cc',
         '../../src/objects-inl.h',

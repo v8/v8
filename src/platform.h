@@ -100,7 +100,7 @@ int random();
 
 #endif  // WIN32
 
-#include "mutex.h"
+#include "lazy-instance.h"
 #include "utils.h"
 #include "v8globals.h"
 
@@ -308,6 +308,10 @@ class OS {
   };
 
   static int StackWalk(Vector<StackFrame> frames);
+
+  // Factory method for creating platform dependent Mutex.
+  // Please use delete to reclaim the storage for the returned Mutex.
+  static Mutex* CreateMutex();
 
   // Factory method for creating platform dependent Semaphore.
   // Please use delete to reclaim the storage for the returned Semaphore.
@@ -708,6 +712,72 @@ class Thread {
   Semaphore* start_semaphore_;
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
+};
+
+
+// ----------------------------------------------------------------------------
+// Mutex
+//
+// Mutexes are used for serializing access to non-reentrant sections of code.
+// The implementations of mutex should allow for nested/recursive locking.
+
+class Mutex {
+ public:
+  virtual ~Mutex() {}
+
+  // Locks the given mutex. If the mutex is currently unlocked, it becomes
+  // locked and owned by the calling thread, and immediately. If the mutex
+  // is already locked by another thread, suspends the calling thread until
+  // the mutex is unlocked.
+  virtual int Lock() = 0;
+
+  // Unlocks the given mutex. The mutex is assumed to be locked and owned by
+  // the calling thread on entrance.
+  virtual int Unlock() = 0;
+
+  // Tries to lock the given mutex. Returns whether the mutex was
+  // successfully locked.
+  virtual bool TryLock() = 0;
+};
+
+struct CreateMutexTrait {
+  static Mutex* Create() {
+    return OS::CreateMutex();
+  }
+};
+
+// POD Mutex initialized lazily (i.e. the first time Pointer() is called).
+// Usage:
+//   static LazyMutex my_mutex = LAZY_MUTEX_INITIALIZER;
+//
+//   void my_function() {
+//     ScopedLock my_lock(my_mutex.Pointer());
+//     // Do something.
+//   }
+//
+typedef LazyDynamicInstance<
+    Mutex, CreateMutexTrait, ThreadSafeInitOnceTrait>::type LazyMutex;
+
+#define LAZY_MUTEX_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER
+
+// ----------------------------------------------------------------------------
+// ScopedLock
+//
+// Stack-allocated ScopedLocks provide block-scoped locking and
+// unlocking of a mutex.
+class ScopedLock {
+ public:
+  explicit ScopedLock(Mutex* mutex): mutex_(mutex) {
+    ASSERT(mutex_ != NULL);
+    mutex_->Lock();
+  }
+  ~ScopedLock() {
+    mutex_->Unlock();
+  }
+
+ private:
+  Mutex* mutex_;
+  DISALLOW_COPY_AND_ASSIGN(ScopedLock);
 };
 
 

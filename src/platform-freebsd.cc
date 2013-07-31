@@ -436,7 +436,7 @@ void OS::SetUp() {
   // call this setup code within the same millisecond.
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srandom(static_cast<unsigned int>(seed));
-  limit_mutex = new Mutex;
+  limit_mutex = CreateMutex();
 }
 
 

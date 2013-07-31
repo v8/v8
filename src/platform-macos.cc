@@ -443,7 +443,7 @@ void OS::SetUp() {
   // Seed the random number generator. We preserve microsecond resolution.
   uint64_t seed = Ticks() ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
-  limit_mutex = new Mutex;
+  limit_mutex = CreateMutex();
 }
 
 
