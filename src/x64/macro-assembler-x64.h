@@ -1518,6 +1518,10 @@ inline Operand StackSpaceOperand(int index) {
 }
 
 
+inline Operand StackOperandForReturnAddress(int32_t disp) {
+  return Operand(rsp, disp);
+}
+
 
 #ifdef GENERATED_CODE_COVERAGE
 extern void LogGeneratedCodeCoverage(const char* file_line);
