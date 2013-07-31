@@ -261,8 +261,8 @@ class BoundsCheckBbData: public ZoneObject {
     if (index_context == NULL) return false;
 
     Zone* zone = BasicBlock()->zone();
-    HConstant* new_constant = HConstant::New(
-        zone, index_context, new_offset);
+    HConstant* new_constant = HConstant::New(zone, index_context,
+                                             new_offset, representation);
     if (*add == NULL) {
       new_constant->InsertBefore(check);
       (*add) = HAdd::New(zone, index_context, original_value, new_constant);

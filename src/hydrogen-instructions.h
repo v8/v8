@@ -3644,6 +3644,7 @@ class HArgumentsObject: public HTemplateInstruction<0> {
 class HConstant: public HTemplateInstruction<0> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, int32_t);
+  DECLARE_INSTRUCTION_FACTORY_P2(HConstant, int32_t, Representation);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, double);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, Handle<Object>);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, ExternalReference);
