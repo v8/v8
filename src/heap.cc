@@ -6945,6 +6945,8 @@ void Heap::TearDown() {
 
   external_string_table_.TearDown();
 
+  mark_compact_collector()->TearDown();
+
   new_space_.TearDown();
 
   if (old_pointer_space_ != NULL) {
