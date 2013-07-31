@@ -2741,7 +2741,7 @@ HConstant::HConstant(double double_value,
 
 
 HConstant::HConstant(ExternalReference reference)
-  : HTemplateInstruction(HType::None()),
+  : HTemplateInstruction<0>(HType::None()),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
