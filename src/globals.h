@@ -66,6 +66,7 @@
 # define V8_OS_UNIX 1
 #elif defined(__native_client__)
 # define V8_OS_NACL 1
+# define V8_OS_UNIX 1
 #elif defined(__linux__) || defined(__linux)
 # define V8_OS_LINUX 1
 # define V8_OS_UNIX 1
