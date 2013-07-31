@@ -2741,7 +2741,8 @@ HConstant::HConstant(double double_value,
 
 
 HConstant::HConstant(ExternalReference reference)
-  : has_smi_value_(false),
+  : HTemplateInstruction(HType::None()),
+    has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
     has_external_reference_value_(true),
@@ -2750,7 +2751,6 @@ HConstant::HConstant(ExternalReference reference)
     is_cell_(false),
     boolean_value_(true),
     external_reference_value_(reference) {
-  set_type(HType::None());
   Initialize(Representation::External());
 }
 

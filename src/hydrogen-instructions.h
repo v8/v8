@@ -873,12 +873,13 @@ class HValue: public ZoneObject {
     HYDROGEN_ABSTRACT_INSTRUCTION_LIST(DECLARE_PREDICATE)
   #undef DECLARE_PREDICATE
 
-  HValue() : block_(NULL),
-             id_(kNoNumber),
-             type_(HType::Tagged()),
-             use_list_(NULL),
-             range_(NULL),
-             flags_(0) {}
+  HValue(HType type = HType::Tagged())
+      : block_(NULL),
+        id_(kNoNumber),
+        type_(type),
+        use_list_(NULL),
+        range_(NULL),
+        flags_(0) {}
   virtual ~HValue() {}
 
   HBasicBlock* block() const { return block_; }
@@ -1343,8 +1344,9 @@ class HInstruction: public HValue {
   DECLARE_ABSTRACT_INSTRUCTION(Instruction)
 
  protected:
-  HInstruction()
-      : next_(NULL),
+  HInstruction(HType type = HType::Tagged())
+      : HValue(type),
+        next_(NULL),
         previous_(NULL),
         position_(RelocInfo::kNoPosition) {
     SetGVNFlag(kDependsOnOsrEntries);
@@ -1375,6 +1377,8 @@ class HTemplateInstruction : public HInstruction {
   HValue* OperandAt(int i) const { return inputs_[i]; }
 
  protected:
+  HTemplateInstruction(HType type = HType::Tagged()) : HInstruction(type) {}
+
   void InternalSetOperandAt(int i, HValue* value) { inputs_[i] = value; }
 
  private:
