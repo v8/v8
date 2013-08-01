@@ -4531,7 +4531,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       NoObservableSideEffectsScope no_side_effects(this);
       HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
       HInstruction* heap_number = Add<HAllocate>(heap_number_size,
-          HType::HeapNumber(), NOT_TENURED, HEAP_NUMBER_TYPE);
+          HType::HeapNumber(), isolate()->heap()->GetPretenureMode(),
+          HEAP_NUMBER_TYPE);
       AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
       Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
                             value);
