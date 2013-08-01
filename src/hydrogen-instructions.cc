@@ -3737,7 +3737,13 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 
 void HAllocate::PrintDataTo(StringStream* stream) {
   size()->PrintNameTo(stream);
-  if (!IsNewSpaceAllocation()) stream->Add(" (pretenure)");
+  stream->Add(" (");
+  if (IsNewSpaceAllocation()) stream->Add("N");
+  if (IsOldPointerSpaceAllocation()) stream->Add("P");
+  if (IsOldDataSpaceAllocation()) stream->Add("D");
+  if (MustAllocateDoubleAligned()) stream->Add("A");
+  if (MustPrefillWithFiller()) stream->Add("F");
+  stream->Add(")");
 }
 
 
