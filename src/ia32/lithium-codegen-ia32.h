@@ -408,6 +408,14 @@ class LCodeGen BASE_EMBEDDED {
   int X87ArrayIndex(X87Register reg);
   int x87_st2idx(int pos);
 
+#ifdef _MSC_VER
+  // On windows, you may not access the stack more than one page below
+  // the most recently mapped page. To make the allocated area randomly
+  // accessible, we write an arbitrary value to each page in range
+  // esp + offset - page_size .. esp in turn.
+  void MakeSureStackPagesMapped(int offset);
+#endif
+
   Zone* zone_;
   LPlatformChunk* const chunk_;
   MacroAssembler* const masm_;

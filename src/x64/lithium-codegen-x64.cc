@@ -120,6 +120,16 @@ void LCodeGen::Comment(const char* format, ...) {
 }
 
 
+#ifdef _MSC_VER
+void LCodeGen::MakeSureStackPagesMapped(int offset) {
+  const int kPageSize = 4 * KB;
+  for (offset -= kPageSize; offset > 0; offset -= kPageSize) {
+    __ movq(Operand(rsp, offset), rax);
+  }
+}
+#endif
+
+
 bool LCodeGen::GeneratePrologue() {
   ASSERT(is_generating());
 
@@ -169,6 +179,9 @@ bool LCodeGen::GeneratePrologue() {
   if (slots > 0) {
     if (FLAG_debug_code) {
       __ subq(rsp, Immediate(slots * kPointerSize));
+#ifdef _MSC_VER
+      MakeSureStackPagesMapped(slots * kPointerSize);
+#endif
       __ push(rax);
       __ Set(rax, slots);
       __ movq(kScratchRegister, kSlotsZapValue, RelocInfo::NONE64);
@@ -182,15 +195,7 @@ bool LCodeGen::GeneratePrologue() {
     } else {
       __ subq(rsp, Immediate(slots * kPointerSize));
 #ifdef _MSC_VER
-      // On windows, you may not access the stack more than one page below
-      // the most recently mapped page. To make the allocated area randomly
-      // accessible, we write to each page in turn (the value is irrelevant).
-      const int kPageSize = 4 * KB;
-      for (int offset = slots * kPointerSize - kPageSize;
-           offset > 0;
-           offset -= kPageSize) {
-        __ movq(Operand(rsp, offset), rax);
-      }
+      MakeSureStackPagesMapped(slots * kPointerSize);
 #endif
     }
 
