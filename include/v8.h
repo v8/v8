@@ -2410,20 +2410,8 @@ class V8EXPORT ArrayBuffer : public Object {
 
     /**
      * Allocate |length| bytes. Return NULL if allocation is not successful.
-     * Memory should be initialized to zeroes.
      */
     virtual void* Allocate(size_t length) = 0;
-
-    /**
-     * Allocate |length| bytes. Return NULL if allocation is not successful.
-     * Memory does not have to be initialized.
-     */
-    virtual void* AllocateUninitialized(size_t length) {
-      // Override with call to |Allocate| for compatibility
-      // with legacy version.
-      return Allocate(length);
-    }
-
     /**
      * Free the memory pointed to |data|. That memory is guaranteed to be
      * previously allocated by |Allocate|.

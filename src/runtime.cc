@@ -712,18 +712,13 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
 bool Runtime::SetupArrayBufferAllocatingData(
     Isolate* isolate,
     Handle<JSArrayBuffer> array_buffer,
-    size_t allocated_length,
-    bool initialize) {
+    size_t allocated_length) {
   void* data;
   CHECK(V8::ArrayBufferAllocator() != NULL);
   if (allocated_length != 0) {
-    if (initialize) {
-      data = V8::ArrayBufferAllocator()->Allocate(allocated_length);
-    } else {
-      data =
-        V8::ArrayBufferAllocator()->AllocateUninitialized(allocated_length);
-    }
+    data = V8::ArrayBufferAllocator()->Allocate(allocated_length);
     if (data == NULL) return false;
+    memset(data, 0, allocated_length);
   } else {
     data = NULL;
   }
@@ -810,50 +805,6 @@ enum TypedArrayId {
   ARRAY_ID_UINT8C = 9
 };
 
-static void ArrayIdToTypeAndSize(
-    int arrayId, ExternalArrayType* array_type, size_t* element_size) {
-  switch (arrayId) {
-    case ARRAY_ID_UINT8:
-      *array_type = kExternalUnsignedByteArray;
-      *element_size = 1;
-      break;
-    case ARRAY_ID_INT8:
-      *array_type = kExternalByteArray;
-      *element_size = 1;
-      break;
-    case ARRAY_ID_UINT16:
-      *array_type = kExternalUnsignedShortArray;
-      *element_size = 2;
-      break;
-    case ARRAY_ID_INT16:
-      *array_type = kExternalShortArray;
-      *element_size = 2;
-      break;
-    case ARRAY_ID_UINT32:
-      *array_type = kExternalUnsignedIntArray;
-      *element_size = 4;
-      break;
-    case ARRAY_ID_INT32:
-      *array_type = kExternalIntArray;
-      *element_size = 4;
-      break;
-    case ARRAY_ID_FLOAT32:
-      *array_type = kExternalFloatArray;
-      *element_size = 4;
-      break;
-    case ARRAY_ID_FLOAT64:
-      *array_type = kExternalDoubleArray;
-      *element_size = 8;
-      break;
-    case ARRAY_ID_UINT8C:
-      *array_type = kExternalPixelArray;
-      *element_size = 1;
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   HandleScope scope(isolate);
@@ -870,9 +821,49 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
     holder->SetInternalField(i, Smi::FromInt(0));
   }
 
-  ExternalArrayType array_type;
-  size_t element_size;
-  ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
+  ExternalArrayType arrayType;
+  size_t elementSize;
+  switch (arrayId) {
+    case ARRAY_ID_UINT8:
+      arrayType = kExternalUnsignedByteArray;
+      elementSize = 1;
+      break;
+    case ARRAY_ID_INT8:
+      arrayType = kExternalByteArray;
+      elementSize = 1;
+      break;
+    case ARRAY_ID_UINT16:
+      arrayType = kExternalUnsignedShortArray;
+      elementSize = 2;
+      break;
+    case ARRAY_ID_INT16:
+      arrayType = kExternalShortArray;
+      elementSize = 2;
+      break;
+    case ARRAY_ID_UINT32:
+      arrayType = kExternalUnsignedIntArray;
+      elementSize = 4;
+      break;
+    case ARRAY_ID_INT32:
+      arrayType = kExternalIntArray;
+      elementSize = 4;
+      break;
+    case ARRAY_ID_FLOAT32:
+      arrayType = kExternalFloatArray;
+      elementSize = 4;
+      break;
+    case ARRAY_ID_FLOAT64:
+      arrayType = kExternalDoubleArray;
+      elementSize = 8;
+      break;
+    case ARRAY_ID_UINT8C:
+      arrayType = kExternalPixelArray;
+      elementSize = 1;
+      break;
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
 
   holder->set_buffer(*buffer);
   holder->set_byte_offset(*byte_offset_object);
@@ -880,8 +871,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   size_t byte_offset = NumberToSize(isolate, *byte_offset_object);
   size_t byte_length = NumberToSize(isolate, *byte_length_object);
-  ASSERT(byte_length % element_size == 0);
-  size_t length = byte_length / element_size;
+  ASSERT(byte_length % elementSize == 0);
+  size_t length = byte_length / elementSize;
 
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
@@ -890,96 +881,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   Handle<ExternalArray> elements =
       isolate->factory()->NewExternalArray(
-          static_cast<int>(length), array_type,
+          static_cast<int>(length), arrayType,
           static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   holder->set_elements(*elements);
   return isolate->heap()->undefined_value();
-}
-
-
-// Initializes a typed array from an array-like object.
-// If an array-like object happens to be a typed array of the same type,
-// initializes backing store using memove.
-//
-// Returns true if backing store was initialized or false otherwise.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
-  CONVERT_SMI_ARG_CHECKED(arrayId, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, source, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, length_obj, 3);
-
-  ASSERT(holder->GetInternalFieldCount() ==
-      v8::ArrayBufferView::kInternalFieldCount);
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    holder->SetInternalField(i, Smi::FromInt(0));
-  }
-
-  ExternalArrayType array_type;
-  size_t element_size;
-  ArrayIdToTypeAndSize(arrayId, &array_type, &element_size);
-
-  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
-  size_t length = NumberToSize(isolate, *length_obj);
-  size_t byte_length = length * element_size;
-  if (byte_length < length) {  // Overflow
-    return isolate->Throw(*isolate->factory()->
-          NewRangeError("invalid_array_buffer_length",
-            HandleVector<Object>(NULL, 0)));
-  }
-
-  // We assume that the caller of this function will initialize holder
-  // with the loop
-  //      for(i = 0; i < length; i++) { holder[i] = source[i]; }
-  // If source is a typed array, this loop will always run to completion,
-  // so we are sure that the backing store will be initialized.
-  // Otherwise, we do not know (the indexing operation might throw).
-  // Hence we require zero initialization unless our source is a typed array.
-  bool should_zero_initialize = !source->IsJSTypedArray();
-
-  if (!Runtime::SetupArrayBufferAllocatingData(
-        isolate, buffer, byte_length, should_zero_initialize)) {
-    return isolate->Throw(*isolate->factory()->
-          NewRangeError("invalid_array_buffer_length",
-            HandleVector<Object>(NULL, 0)));
-  }
-
-  holder->set_buffer(*buffer);
-  holder->set_byte_offset(Smi::FromInt(0));
-  Handle<Object> byte_length_obj(
-      isolate->factory()->NewNumberFromSize(byte_length));
-  holder->set_byte_length(*byte_length_obj);
-  holder->set_length(*length_obj);
-  holder->set_weak_next(buffer->weak_first_view());
-  buffer->set_weak_first_view(*holder);
-
-  Handle<ExternalArray> elements =
-      isolate->factory()->NewExternalArray(
-          static_cast<int>(length), array_type,
-          static_cast<uint8_t*>(buffer->backing_store()));
-  holder->set_elements(*elements);
-
-  if (source->IsJSTypedArray()) {
-    Handle<JSTypedArray> typed_array(JSTypedArray::cast(*source));
-
-    if (typed_array->type() == holder->type()) {
-      uint8_t* backing_store =
-        static_cast<uint8_t*>(
-          JSArrayBuffer::cast(typed_array->buffer())->backing_store());
-      size_t source_byte_offset =
-          NumberToSize(isolate, typed_array->byte_offset());
-      OS::MemCopy(
-          buffer->backing_store(),
-          backing_store + source_byte_offset,
-          byte_length);
-      return *isolate->factory()->true_value();
-    } else {
-      return *isolate->factory()->false_value();
-    }
-  }
-
-  return *isolate->factory()->false_value();
 }
 
 

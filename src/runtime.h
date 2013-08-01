@@ -361,7 +361,6 @@ namespace internal {
   F(ArrayBufferSliceImpl, 3, 1) \
   \
   F(TypedArrayInitialize, 5, 1) \
-  F(TypedArrayInitializeFromArrayLike, 4, 1) \
   F(TypedArrayGetBuffer, 1, 1) \
   F(TypedArrayGetByteLength, 1, 1) \
   F(TypedArrayGetByteOffset, 1, 1) \
@@ -785,8 +784,7 @@ class Runtime : public AllStatic {
   static bool SetupArrayBufferAllocatingData(
       Isolate* isolate,
       Handle<JSArrayBuffer> array_buffer,
-      size_t allocated_length,
-      bool initialize = true);
+      size_t allocated_length);
 
   static void FreeArrayBuffer(
       Isolate* isolate,

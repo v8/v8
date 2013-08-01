@@ -77,10 +77,11 @@ function CreateTypedArrayConstructor(name, elementSize, arrayId, constructor) {
   function ConstructByArrayLike(obj, arrayLike) {
     var length = arrayLike.length;
     var l =  ToPositiveInteger(length, "invalid_typed_array_length");
-    if(!%TypedArrayInitializeFromArrayLike(obj, arrayId, arrayLike, l)) {
-      for (var i = 0; i < l; i++) {
-        obj[i] = arrayLike[i];
-      }
+    var byteLength = l * elementSize;
+    var buffer = new $ArrayBuffer(byteLength);
+    %TypedArrayInitialize(obj, arrayId, buffer, 0, byteLength);
+    for (var i = 0; i < l; i++) {
+      obj[i] = arrayLike[i];
     }
   }
 

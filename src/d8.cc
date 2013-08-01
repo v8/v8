@@ -1562,14 +1562,7 @@ static void SetStandaloneFlagsViaCommandLine() {
 
 class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  virtual void* Allocate(size_t length) {
-    void* result = malloc(length);
-    memset(result, 0, length);
-    return result;
-  }
-  virtual void* AllocateUninitialized(size_t length) {
-    return malloc(length);
-  }
+  virtual void* Allocate(size_t length) { return malloc(length); }
   virtual void Free(void* data) { free(data); }
 };
 
