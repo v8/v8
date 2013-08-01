@@ -178,7 +178,6 @@ class LChunkBuilder;
   V(StringCharCodeAt)                          \
   V(StringCharFromCode)                        \
   V(StringCompareAndBranch)                    \
-  V(StringLength)                              \
   V(Sub)                                       \
   V(ThisFunction)                              \
   V(Throw)                                     \
@@ -200,6 +199,7 @@ class LChunkBuilder;
 #define GVN_UNTRACKED_FLAG_LIST(V)             \
   V(ArrayElements)                             \
   V(ArrayLengths)                              \
+  V(StringLengths)                             \
   V(BackingStoreFields)                        \
   V(Calls)                                     \
   V(ContextSlots)                              \
@@ -5840,6 +5840,10 @@ class HObjectAccess {
     return portion() == kExternalMemory;
   }
 
+  inline bool IsStringLength() const {
+    return portion() == kStringLengths;
+  }
+
   inline int offset() const {
     return OffsetField::decode(value_);
   }
@@ -5890,6 +5894,14 @@ class HObjectAccess {
     return HObjectAccess(
         kArrayLengths,
         FixedArray::kLengthOffset,
+        FLAG_track_fields ? Representation::Smi() : Representation::Tagged());
+  }
+
+  static HObjectAccess ForStringLength() {
+    STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
+    return HObjectAccess(
+        kStringLengths,
+        String::kLengthOffset,
         FLAG_track_fields ? Representation::Smi() : Representation::Tagged());
   }
 
@@ -5956,6 +5968,7 @@ class HObjectAccess {
   enum Portion {
     kMaps,             // map of an object
     kArrayLengths,     // the length of an array
+    kStringLengths,    // the length of a string
     kElementsPointer,  // elements pointer
     kBackingStore,     // some field in the backing store
     kDouble,           // some double field
@@ -6018,6 +6031,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
     }
     return Representation::Tagged();
   }
+  virtual Range* InferRange(Zone* zone);
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField)
@@ -6850,36 +6864,6 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
   virtual bool IsDeletable() const {
     return !value()->ToNumberCanBeObserved();
   }
-};
-
-
-class HStringLength: public HUnaryOperation {
- public:
-  static HInstruction* New(Zone* zone, HValue* context, HValue* string);
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(StringLength)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-
-  virtual Range* InferRange(Zone* zone) {
-    return new(zone) Range(0, String::kMaxLength);
-  }
-
- private:
-  explicit HStringLength(HValue* string)
-      : HUnaryOperation(string, HType::Smi()) {
-    STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
-  }
-
-  virtual bool IsDeletable() const { return true; }
 };
 
 

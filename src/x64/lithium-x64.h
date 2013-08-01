@@ -173,7 +173,6 @@ class LCodeGen;
   V(StringCharCodeAt)                           \
   V(StringCharFromCode)                         \
   V(StringCompareAndBranch)                     \
-  V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
   V(ThisFunction)                               \
@@ -2221,19 +2220,6 @@ class LStringCharFromCode: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(StringCharFromCode, "string-char-from-code")
   DECLARE_HYDROGEN_ACCESSOR(StringCharFromCode)
-};
-
-
-class LStringLength: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LStringLength(LOperand* string) {
-    inputs_[0] = string;
-  }
-
-  LOperand* string() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StringLength, "string-length")
-  DECLARE_HYDROGEN_ACCESSOR(StringLength)
 };
 
 

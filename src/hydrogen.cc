@@ -5314,7 +5314,8 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
 
 
 HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
-                                                    HObjectAccess access) {
+                                                    HObjectAccess access,
+                                                    HValue* typecheck) {
   if (FLAG_track_double_fields && access.representation().IsDouble()) {
     // load the heap number
     HLoadNamedField* heap_number = Add<HLoadNamedField>(
@@ -5322,9 +5323,23 @@ HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
     heap_number->set_type(HType::HeapNumber());
     // load the double value from it
     return New<HLoadNamedField>(heap_number,
-                                HObjectAccess::ForHeapNumberValue());
+                                HObjectAccess::ForHeapNumberValue(),
+                                typecheck);
   }
-  return New<HLoadNamedField>(object, access);
+  return New<HLoadNamedField>(object, access, typecheck);
+}
+
+
+HInstruction* HGraphBuilder::BuildLoadStringLength(HValue* object,
+                                                   HValue* typecheck) {
+  if (FLAG_fold_constants && object->IsConstant()) {
+    HConstant* constant = HConstant::cast(object);
+    if (constant->HasStringValue()) {
+      return New<HConstant>(constant->StringValue()->length());
+    }
+  }
+  return BuildLoadNamedField(
+      object, HObjectAccess::ForStringLength(), typecheck);
 }
 
 
@@ -5808,8 +5823,9 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   if (expr->IsStringLength()) {
     HValue* string = Pop();
     BuildCheckHeapObject(string);
-    AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
-    instr = NewUncasted<HStringLength>(string);
+    HInstruction* checkstring =
+        AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
+    instr = BuildLoadStringLength(string, checkstring);
   } else if (expr->IsStringAccess()) {
     CHECK_ALIVE(VisitForValue(expr->key()));
     HValue* index = Pop();
@@ -7587,8 +7603,10 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
     }
   }
   BuildCheckHeapObject(string);
-  AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
-  HInstruction* length = Add<HStringLength>(string);
+  HValue* checkstring =
+      AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
+  HInstruction* length = BuildLoadStringLength(string, checkstring);
+  AddInstruction(length);
   HInstruction* checked_index = Add<HBoundsCheck>(index, length);
   return New<HStringCharCodeAt>(string, checked_index);
 }

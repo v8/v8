@@ -1237,10 +1237,6 @@ class HGraphBuilder {
       LoadKeyedHoleMode load_mode,
       KeyedAccessStoreMode store_mode);
 
-  HLoadNamedField* BuildLoadNamedField(
-      HValue* object,
-      HObjectAccess access);
-
   HInstruction* AddExternalArrayElementAccess(
       HValue* external_elements,
       HValue* checked_key,
@@ -1259,6 +1255,11 @@ class HGraphBuilder {
       LoadKeyedHoleMode load_mode,
       KeyedAccessStoreMode store_mode);
 
+  HLoadNamedField* BuildLoadNamedField(
+      HValue* object,
+      HObjectAccess access,
+      HValue* typecheck = NULL);
+  HInstruction* BuildLoadStringLength(HValue* object, HValue* typecheck = NULL);
   HStoreNamedField* AddStoreMapConstant(HValue *object, Handle<Map>);
   HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck = NULL);
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);

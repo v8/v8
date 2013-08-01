@@ -3050,6 +3050,14 @@ Range* HShl::InferRange(Zone* zone) {
 }
 
 
+Range* HLoadNamedField::InferRange(Zone* zone) {
+  if (access().IsStringLength()) {
+    return new(zone) Range(0, String::kMaxLength);
+  }
+  return HValue::InferRange(zone);
+}
+
+
 Range* HLoadKeyed::InferRange(Zone* zone) {
   switch (elements_kind()) {
     case EXTERNAL_PIXEL_ELEMENTS:
@@ -3937,17 +3945,6 @@ HInstruction* HStringCharFromCode::New(
 }
 
 
-HInstruction* HStringLength::New(Zone* zone, HValue* context, HValue* string) {
-  if (FLAG_fold_constants && string->IsConstant()) {
-    HConstant* c_string = HConstant::cast(string);
-    if (c_string->HasStringValue()) {
-      return HConstant::New(zone, context, c_string->StringValue()->length());
-    }
-  }
-  return new(zone) HStringLength(string);
-}
-
-
 HInstruction* HUnaryMathOperation::New(
     Zone* zone, HValue* context, HValue* value, BuiltinFunctionId op) {
   do {
@@ -4425,6 +4422,10 @@ void HObjectAccess::SetGVNFlags(HValue *instr, bool is_store) {
       instr->SetGVNFlag(is_store
           ? kChangesArrayLengths : kDependsOnArrayLengths);
       break;
+    case kStringLengths:
+      instr->SetGVNFlag(is_store
+          ? kChangesStringLengths : kDependsOnStringLengths);
+      break;
     case kInobject:
       instr->SetGVNFlag(is_store
           ? kChangesInobjectFields : kDependsOnInobjectFields);
@@ -4458,6 +4459,7 @@ void HObjectAccess::PrintTo(StringStream* stream) {
 
   switch (portion()) {
     case kArrayLengths:
+    case kStringLengths:
       stream->Add("%length");
       break;
     case kElementsPointer:
