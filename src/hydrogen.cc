@@ -7679,26 +7679,6 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Handle<Type>* expected) {
       *expected = handle(Type::Number(), isolate());
       return AddInstruction(number.value);
     }
-    return value;
-  }
-
-  Handle<Type> expected_type = *expected;
-  Representation rep = Representation::FromType(expected_type);
-  if (!rep.IsTagged()) return value;
-
-  // If our type feedback suggests that we can non-observably truncate to number
-  // we introduce the appropriate check here. This avoids 'value' having a
-  // tagged representation later on.
-  if (expected_type->Is(Type::Oddball())) {
-    // TODO(olivf) The BinaryOpStub only records undefined. It might pay off to
-    // also record booleans and convert them to 0/1 here.
-    IfBuilder if_nan(this);
-    if_nan.If<HCompareObjectEqAndBranch>(value,
-        graph()->GetConstantUndefined());
-    if_nan.Then();
-    if_nan.ElseDeopt();
-    if_nan.End();
-    return Add<HConstant>(OS::nan_value());
   }
 
   return value;
