@@ -36,6 +36,5 @@ date-format/default-locale: FAIL
 date-format/resolved-options: FAIL
 date-format/timezone: FAIL
 date-format/wellformed-unsupported-locale: FAIL
-general/v8Intl-exists: FAIL
 number-format/default-locale: FAIL
 number-format/wellformed-unsupported-locale: FAIL
