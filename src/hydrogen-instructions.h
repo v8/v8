@@ -5457,9 +5457,10 @@ class HAllocate: public HTemplateInstruction<2> {
                         HValue* context,
                         HValue* size,
                         HType type,
-                        bool pretenure,
-                        ElementsKind kind = FAST_ELEMENTS) {
-    return new(zone) HAllocate(context, size, type, pretenure, kind);
+                        PretenureFlag pretenure_flag,
+                        InstanceType instance_type) {
+    return new(zone) HAllocate(context, size, type, pretenure_flag,
+        instance_type);
   }
 
   // Maximum instance size for which allocations will be inlined.
@@ -5535,8 +5536,8 @@ class HAllocate: public HTemplateInstruction<2> {
   HAllocate(HValue* context,
             HValue* size,
             HType type,
-            bool pretenure,
-            ElementsKind kind)
+            PretenureFlag pretenure_flag,
+            InstanceType instance_type)
       : HTemplateInstruction<2>(type) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
@@ -5544,19 +5545,13 @@ class HAllocate: public HTemplateInstruction<2> {
     SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kChangesNewSpacePromotion);
     SetGVNFlag(kDependsOnNewSpacePromotion);
-    if (pretenure) {
-      if (IsFastDoubleElementsKind(kind)) {
-        flags_ = static_cast<HAllocate::Flags>(ALLOCATE_IN_OLD_DATA_SPACE |
-             ALLOCATE_DOUBLE_ALIGNED);
-      } else {
-        flags_ = ALLOCATE_IN_OLD_POINTER_SPACE;
-      }
-    } else {
-      flags_ = ALLOCATE_IN_NEW_SPACE;
-      if (IsFastDoubleElementsKind(kind)) {
-        flags_ = static_cast<HAllocate::Flags>(flags_ |
-            ALLOCATE_DOUBLE_ALIGNED);
-      }
+    flags_ = pretenure_flag == TENURED
+        ? (Heap::TargetSpaceId(instance_type) == OLD_POINTER_SPACE
+            ? ALLOCATE_IN_OLD_POINTER_SPACE : ALLOCATE_IN_OLD_DATA_SPACE)
+        : ALLOCATE_IN_NEW_SPACE;
+    if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
+      flags_ = static_cast<HAllocate::Flags>(flags_ |
+          ALLOCATE_DOUBLE_ALIGNED);
     }
   }
 

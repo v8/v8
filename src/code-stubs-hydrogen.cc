@@ -425,7 +425,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HValue* size_in_bytes = Add<HConstant>(size);
 
   HInstruction* object = Add<HAllocate>(size_in_bytes, HType::JSObject(),
-          isolate()->heap()->ShouldGloballyPretenure());
+      isolate()->heap()->GetPretenureMode(), JS_OBJECT_TYPE);
 
   for (int i = 0; i < size; i += kPointerSize) {
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(i);
@@ -449,7 +449,8 @@ Handle<Code> FastCloneShallowObjectStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   HValue* size = Add<HConstant>(AllocationSite::kSize);
-  HInstruction* object = Add<HAllocate>(size, HType::JSObject(), true);
+  HInstruction* object = Add<HAllocate>(size, HType::JSObject(), TENURED,
+      JS_OBJECT_TYPE);
 
   // Store the map
   Handle<Map> allocation_site_map(isolate()->heap()->allocation_site_map(),

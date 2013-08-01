@@ -1315,8 +1315,17 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 
 HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
                                              HValue* capacity) {
-  int elements_size = IsFastDoubleElementsKind(kind)
-      ? kDoubleSize : kPointerSize;
+  int elements_size;
+  InstanceType instance_type;
+
+  if (IsFastDoubleElementsKind(kind)) {
+    elements_size = kDoubleSize;
+    instance_type = FIXED_DOUBLE_ARRAY_TYPE;
+  } else {
+    elements_size = kPointerSize;
+    instance_type = FIXED_ARRAY_TYPE;
+  }
+
   HConstant* elements_size_value = Add<HConstant>(elements_size);
   HValue* mul = Add<HMul>(capacity, elements_size_value);
   mul->ClearFlag(HValue::kCanOverflow);
@@ -1326,7 +1335,7 @@ HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
   total_size->ClearFlag(HValue::kCanOverflow);
 
   return Add<HAllocate>(total_size, HType::JSArray(),
-      isolate()->heap()->ShouldGloballyPretenure(), kind);
+      isolate()->heap()->GetPretenureMode(), instance_type);
 }
 
 
@@ -1646,6 +1655,8 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
     size += AllocationMemento::kSize;
   }
   int elems_offset = size;
+  InstanceType instance_type = IsFastDoubleElementsKind(kind) ?
+      FIXED_DOUBLE_ARRAY_TYPE : FIXED_ARRAY_TYPE;
   if (length > 0) {
     size += IsFastDoubleElementsKind(kind)
         ? FixedDoubleArray::SizeFor(length)
@@ -1657,8 +1668,8 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
   HValue* size_in_bytes = Add<HConstant>(size);
   HInstruction* object = Add<HAllocate>(size_in_bytes,
                                         HType::JSObject(),
-                                        false,
-                                        kind);
+                                        NOT_TENURED,
+                                        instance_type);
 
   // Copy the JS array part.
   for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
@@ -1936,7 +1947,7 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
                                                       Representation::Smi());
   // Allocate (dealing with failure appropriately)
   HAllocate* new_object = builder()->Add<HAllocate>(size_in_bytes,
-      HType::JSArray(), false, kind_);
+      HType::JSArray(), NOT_TENURED, JS_ARRAY_TYPE);
 
   // Fill in the fields: map, properties, length
   HValue* map;
@@ -4520,7 +4531,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       NoObservableSideEffectsScope no_side_effects(this);
       HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
       HInstruction* heap_number = Add<HAllocate>(heap_number_size,
-          HType::HeapNumber(), false);
+          HType::HeapNumber(), NOT_TENURED, HEAP_NUMBER_TYPE);
       AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
       Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
                             value);
@@ -7090,10 +7101,13 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
 
     // Allocate an instance of the implicit receiver object.
     HValue* size_in_bytes = Add<HConstant>(instance_size);
-    bool pretenure = FLAG_pretenuring_call_new &&
-        isolate()->heap()->ShouldGloballyPretenure();
+    PretenureFlag pretenure_flag =
+        (FLAG_pretenuring_call_new &&
+            isolate()->heap()->GetPretenureMode() == TENURED)
+                ? TENURED : NOT_TENURED;
     HAllocate* receiver =
-        Add<HAllocate>(size_in_bytes, HType::JSObject(), pretenure);
+        Add<HAllocate>(size_in_bytes, HType::JSObject(), pretenure_flag,
+        JS_OBJECT_TYPE);
     receiver->set_known_initial_map(initial_map);
 
     // Load the initial map from the constructor.
@@ -8165,13 +8179,11 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HInstruction* target = NULL;
   HInstruction* data_target = NULL;
 
-  ElementsKind kind = boilerplate_object->map()->elements_kind();
-
-  if (isolate()->heap()->ShouldGloballyPretenure()) {
+  if (isolate()->heap()->GetPretenureMode() == TENURED) {
     if (data_size != 0) {
       HValue* size_in_bytes = Add<HConstant>(data_size);
-      data_target = Add<HAllocate>(size_in_bytes, HType::JSObject(),
-          true, FAST_DOUBLE_ELEMENTS);
+      data_target = Add<HAllocate>(size_in_bytes, HType::JSObject(), TENURED,
+          FIXED_DOUBLE_ARRAY_TYPE);
       Handle<Map> free_space_map = isolate()->factory()->free_space_map();
       AddStoreMapConstant(data_target, free_space_map);
       HObjectAccess access =
@@ -8180,11 +8192,14 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     }
     if (pointer_size != 0) {
       HValue* size_in_bytes = Add<HConstant>(pointer_size);
-      target = Add<HAllocate>(size_in_bytes, HType::JSObject(), true);
+      target = Add<HAllocate>(size_in_bytes, HType::JSObject(), TENURED,
+          JS_OBJECT_TYPE);
     }
   } else {
+    InstanceType instance_type = boilerplate_object->map()->instance_type();
     HValue* size_in_bytes = Add<HConstant>(data_size + pointer_size);
-    target = Add<HAllocate>(size_in_bytes, HType::JSObject(), false, kind);
+    target = Add<HAllocate>(size_in_bytes, HType::JSObject(), NOT_TENURED,
+        instance_type);
   }
 
   int offset = 0;

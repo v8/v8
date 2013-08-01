@@ -483,6 +483,7 @@ enum ArrayStorageAllocationMode {
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
 };
 
+
 class Heap {
  public:
   // Configure heap size before setup. Return false if the heap has been
@@ -1399,7 +1400,7 @@ class Heap {
 
   // Finds out which space an object should get promoted to based on its type.
   inline OldSpace* TargetSpace(HeapObject* object);
-  inline AllocationSpace TargetSpaceId(InstanceType type);
+  static inline AllocationSpace TargetSpaceId(InstanceType type);
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
   void public_set_code_stubs(UnseededNumberDictionary* value) {
@@ -1546,19 +1547,16 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length,
                                                      PretenureFlag pretenure);
 
-  // Predicate that governs global pre-tenuring decisions based on observed
-  // promotion rates of previous collections.
-  inline bool ShouldGloballyPretenure() {
-    return FLAG_pretenuring && new_space_high_promotion_mode_active_;
-  }
-
   // This is only needed for testing high promotion mode.
   void SetNewSpaceHighPromotionModeActive(bool mode) {
     new_space_high_promotion_mode_active_ = mode;
   }
 
+  // Returns the allocation mode (pre-tenuring) based on observed promotion
+  // rates of previous collections.
   inline PretenureFlag GetPretenureMode() {
-    return new_space_high_promotion_mode_active_ ? TENURED : NOT_TENURED;
+    return FLAG_pretenuring && new_space_high_promotion_mode_active_
+        ? TENURED : NOT_TENURED;
   }
 
   inline Address* NewSpaceHighPromotionModeActiveAddress() {
