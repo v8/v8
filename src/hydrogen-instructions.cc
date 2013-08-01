@@ -1633,11 +1633,13 @@ HValue* HUnaryMathOperation::Canonicalize() {
 
 HValue* HCheckInstanceType::Canonicalize() {
   if (check_ == IS_STRING && value()->type().IsString()) {
-    return NULL;
+    return value();
   }
 
   if (check_ == IS_INTERNALIZED_STRING && value()->IsConstant()) {
-    if (HConstant::cast(value())->HasInternalizedStringValue()) return NULL;
+    if (HConstant::cast(value())->HasInternalizedStringValue()) {
+      return value();
+    }
   }
   return this;
 }
