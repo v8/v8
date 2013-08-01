@@ -1,3 +1,20 @@
+2013-08-01: Version 3.20.12
+
+        Removed buggy ToNumber truncation (partial fix for issue 2813)
+
+        Calling Map etc without new should throw TypeError (issue 2819)
+
+        Fixed a crash for large code objects on ARM (Chromium issue 2736)
+
+        Fixed stale unhandlified value in JSObject::SetPropertyForResult.
+        (Chromium issue 265894)
+
+        Added new Harmony methods to String.prototype object.
+        (issue 2796,v8:2797,v8:2798,v8:2799)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-07-30: Version 3.20.11
 
         Performance and stability improvements on all platforms.
