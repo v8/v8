@@ -66,6 +66,15 @@
 #include "v8threads.h"
 #include "vm-state-inl.h"
 
+#ifdef V8_I18N_SUPPORT
+#include "unicode/brkiter.h"
+#include "unicode/coll.h"
+#include "unicode/datefmt.h"
+#include "unicode/numfmt.h"
+#include "unicode/uloc.h"
+#include "unicode/uversion.h"
+#endif
+
 #ifndef _STLP_VENDOR_CSTD
 // STLPort doesn't import fpclassify and isless into the std namespace.
 using std::fpclassify;
@@ -13360,6 +13369,200 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHeapUsage) {
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
+
+
+#ifdef V8_I18N_SUPPORT
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CanonicalizeLanguageTag) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, locale_id_str, 0);
+
+  v8::String::Utf8Value locale_id(v8::Utils::ToLocal(locale_id_str));
+
+  // Return value which denotes invalid language tag.
+  const char* const kInvalidTag = "invalid-tag";
+
+  UErrorCode error = U_ZERO_ERROR;
+  char icu_result[ULOC_FULLNAME_CAPACITY];
+  int icu_length = 0;
+
+  uloc_forLanguageTag(*locale_id, icu_result, ULOC_FULLNAME_CAPACITY,
+                      &icu_length, &error);
+  if (U_FAILURE(error) || icu_length == 0) {
+    return isolate->heap()->AllocateStringFromOneByte(CStrVector(kInvalidTag));
+  }
+
+  char result[ULOC_FULLNAME_CAPACITY];
+
+  // Force strict BCP47 rules.
+  uloc_toLanguageTag(icu_result, result, ULOC_FULLNAME_CAPACITY, TRUE, &error);
+
+  if (U_FAILURE(error)) {
+    return isolate->heap()->AllocateStringFromOneByte(CStrVector(kInvalidTag));
+  }
+
+  return isolate->heap()->AllocateStringFromOneByte(CStrVector(result));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_AvailableLocalesOf) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, service, 0);
+
+  const icu::Locale* available_locales = NULL;
+  int32_t count = 0;
+
+  if (service->IsUtf8EqualTo(CStrVector("collator"))) {
+    available_locales = icu::Collator::getAvailableLocales(count);
+  } else if (service->IsUtf8EqualTo(CStrVector("numberformat"))) {
+    available_locales = icu::NumberFormat::getAvailableLocales(count);
+  } else if (service->IsUtf8EqualTo(CStrVector("dateformat"))) {
+    available_locales = icu::DateFormat::getAvailableLocales(count);
+  } else if (service->IsUtf8EqualTo(CStrVector("breakiterator"))) {
+    available_locales = icu::BreakIterator::getAvailableLocales(count);
+  }
+
+  UErrorCode error = U_ZERO_ERROR;
+  char result[ULOC_FULLNAME_CAPACITY];
+  Handle<JSObject> locales =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  for (int32_t i = 0; i < count; ++i) {
+    const char* icu_name = available_locales[i].getName();
+
+    error = U_ZERO_ERROR;
+    // No need to force strict BCP47 rules.
+    uloc_toLanguageTag(icu_name, result, ULOC_FULLNAME_CAPACITY, FALSE, &error);
+    if (U_FAILURE(error)) {
+      // This shouldn't happen, but lets not break the user.
+      continue;
+    }
+
+    RETURN_IF_EMPTY_HANDLE(isolate,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            locales,
+            isolate->factory()->NewStringFromAscii(CStrVector(result)),
+            isolate->factory()->NewNumber(i),
+            NONE));
+  }
+
+  return *locales;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultICULocale) {
+  SealHandleScope shs(isolate);
+
+  ASSERT(args.length() == 0);
+
+  icu::Locale default_locale;
+
+  // Set the locale
+  char result[ULOC_FULLNAME_CAPACITY];
+  UErrorCode status = U_ZERO_ERROR;
+  uloc_toLanguageTag(
+      default_locale.getName(), result, ULOC_FULLNAME_CAPACITY, FALSE, &status);
+  if (U_SUCCESS(status)) {
+    return isolate->heap()->AllocateStringFromOneByte(CStrVector(result));
+  }
+
+  return isolate->heap()->AllocateStringFromOneByte(CStrVector("und"));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, input, 0);
+
+  uint32_t length = static_cast<uint32_t>(input->length()->Number());
+  Handle<FixedArray> output = isolate->factory()->NewFixedArray(length);
+  Handle<Name> maximized =
+      isolate->factory()->NewStringFromAscii(CStrVector("maximized"));
+  Handle<Name> base =
+      isolate->factory()->NewStringFromAscii(CStrVector("base"));
+  for (unsigned int i = 0; i < length; ++i) {
+    MaybeObject* maybe_string = input->GetElement(i);
+    Object* locale_id;
+    if (!maybe_string->ToObject(&locale_id) || !locale_id->IsString()) {
+      return isolate->Throw(isolate->heap()->illegal_argument_string());
+    }
+
+    v8::String::Utf8Value utf8_locale_id(
+        v8::Utils::ToLocal(Handle<String>(String::cast(locale_id))));
+
+    UErrorCode error = U_ZERO_ERROR;
+
+    // Convert from BCP47 to ICU format.
+    // de-DE-u-co-phonebk -> de_DE@collation=phonebook
+    char icu_locale[ULOC_FULLNAME_CAPACITY];
+    int icu_locale_length = 0;
+    uloc_forLanguageTag(*utf8_locale_id, icu_locale, ULOC_FULLNAME_CAPACITY,
+                        &icu_locale_length, &error);
+    if (U_FAILURE(error) || icu_locale_length == 0) {
+      return isolate->Throw(isolate->heap()->illegal_argument_string());
+    }
+
+    // Maximize the locale.
+    // de_DE@collation=phonebook -> de_Latn_DE@collation=phonebook
+    char icu_max_locale[ULOC_FULLNAME_CAPACITY];
+    uloc_addLikelySubtags(
+        icu_locale, icu_max_locale, ULOC_FULLNAME_CAPACITY, &error);
+
+    // Remove extensions from maximized locale.
+    // de_Latn_DE@collation=phonebook -> de_Latn_DE
+    char icu_base_max_locale[ULOC_FULLNAME_CAPACITY];
+    uloc_getBaseName(
+        icu_max_locale, icu_base_max_locale, ULOC_FULLNAME_CAPACITY, &error);
+
+    // Get original name without extensions.
+    // de_DE@collation=phonebook -> de_DE
+    char icu_base_locale[ULOC_FULLNAME_CAPACITY];
+    uloc_getBaseName(
+        icu_locale, icu_base_locale, ULOC_FULLNAME_CAPACITY, &error);
+
+    // Convert from ICU locale format to BCP47 format.
+    // de_Latn_DE -> de-Latn-DE
+    char base_max_locale[ULOC_FULLNAME_CAPACITY];
+    uloc_toLanguageTag(icu_base_max_locale, base_max_locale,
+                       ULOC_FULLNAME_CAPACITY, FALSE, &error);
+
+    // de_DE -> de-DE
+    char base_locale[ULOC_FULLNAME_CAPACITY];
+    uloc_toLanguageTag(
+        icu_base_locale, base_locale, ULOC_FULLNAME_CAPACITY, FALSE, &error);
+
+    if (U_FAILURE(error)) {
+      return isolate->Throw(isolate->heap()->illegal_argument_string());
+    }
+
+    Handle<JSObject> result =
+        isolate->factory()->NewJSObject(isolate->object_function());
+    RETURN_IF_EMPTY_HANDLE(isolate,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            result,
+            maximized,
+            isolate->factory()->NewStringFromAscii(CStrVector(base_max_locale)),
+            NONE));
+    RETURN_IF_EMPTY_HANDLE(isolate,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            result,
+            base,
+            isolate->factory()->NewStringFromAscii(CStrVector(base_locale)),
+            NONE));
+    output->set(i, *result);
+  }
+
+  Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(output);
+  result->set_length(Smi::FromInt(length));
+  return *result;
+}
+#endif  // V8_I18N_SUPPORT
 
 
 // Finds the script object from the script data. NOTE: This operation uses

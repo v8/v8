@@ -832,8 +832,6 @@
             '../../src/extensions/i18n/i18n-extension.h',
             '../../src/extensions/i18n/i18n-utils.cc',
             '../../src/extensions/i18n/i18n-utils.h',
-            '../../src/extensions/i18n/locale.cc',
-            '../../src/extensions/i18n/locale.h',
             '../../src/extensions/i18n/number-format.cc',
             '../../src/extensions/i18n/number-format.h',
           ],

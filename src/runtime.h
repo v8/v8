@@ -534,6 +534,21 @@ namespace internal {
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 #endif
 
+
+#ifdef V8_I18N_SUPPORT
+#define RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F) \
+  /* i18n support */ \
+  /* Standalone, helper methods. */ \
+  F(CanonicalizeLanguageTag, 1, 1) \
+  F(AvailableLocalesOf, 1, 1) \
+  F(GetDefaultICULocale, 0, 1) \
+  F(GetLanguageTagVariants, 1, 1) \
+
+#else
+#define RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
+#endif
+
+
 #ifdef DEBUG
 #define RUNTIME_FUNCTION_LIST_DEBUG(F) \
   /* Testing */ \
@@ -551,7 +566,8 @@ namespace internal {
   RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
   RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   RUNTIME_FUNCTION_LIST_DEBUG(F) \
-  RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
+  RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
+  RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
 
 // ----------------------------------------------------------------------------
 // INLINE_FUNCTION_LIST defines all inlined functions accessed
