@@ -297,6 +297,7 @@ class LCodeGen BASE_EMBEDDED {
   X87Register ToX87Register(int index) const;
   int ToRepresentation(LConstantOperand* op, const Representation& r) const;
   int32_t ToInteger32(LConstantOperand* op) const;
+  ExternalReference ToExternalReference(LConstantOperand* op) const;
 
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,
@@ -406,6 +407,14 @@ class LCodeGen BASE_EMBEDDED {
   bool X87StackContains(X87Register reg);
   int X87ArrayIndex(X87Register reg);
   int x87_st2idx(int pos);
+
+#ifdef _MSC_VER
+  // On windows, you may not access the stack more than one page below
+  // the most recently mapped page. To make the allocated area randomly
+  // accessible, we write an arbitrary value to each page in range
+  // esp + offset - page_size .. esp in turn.
+  void MakeSureStackPagesMapped(int offset);
+#endif
 
   Zone* zone_;
   LPlatformChunk* const chunk_;

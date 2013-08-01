@@ -737,6 +737,7 @@ class Isolate {
   void PrintStackTrace(FILE* out, char* thread_data);
   void PrintStack(StringStream* accumulator);
   void PrintStack(FILE* out);
+  void PrintStack();
   Handle<String> StackTraceString();
   NO_INLINE(void PushStackTraceAndDie(unsigned int magic,
                                       Object* object,

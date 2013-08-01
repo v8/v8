@@ -571,6 +571,8 @@ class MarkCompactCollector {
 
   static void Initialize();
 
+  void TearDown();
+
   void CollectEvacuationCandidates(PagedSpace* space);
 
   void AddEvacuationCandidate(Page* p);

@@ -361,6 +361,8 @@
         '../../src/hydrogen-infer-representation.h',
         '../../src/hydrogen-infer-types.cc',
         '../../src/hydrogen-infer-types.h',
+        '../../src/hydrogen-mark-deoptimize.cc',
+        '../../src/hydrogen-mark-deoptimize.h',
         '../../src/hydrogen-minus-zero.cc',
         '../../src/hydrogen-minus-zero.h',
         '../../src/hydrogen-range-analysis.cc',
@@ -904,7 +906,8 @@
           '../../src/arraybuffer.js',
           '../../src/typedarray.js',
           '../../src/generator.js',
-          '../../src/array-iterator.js'
+          '../../src/array-iterator.js',
+          '../../src/harmony-string.js'
         ],
         'i18n_library_files': [
           '../../src/extensions/i18n/header.js',

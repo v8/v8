@@ -1742,7 +1742,18 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
       case Token::SHL:
         if (shift_count != 0) {
-          __ mov(result, Operand(left, LSL, shift_count));
+          if (instr->hydrogen_value()->representation().IsSmi() &&
+              instr->can_deopt()) {
+            if (shift_count != 1) {
+              __ mov(result, Operand(left, LSL, shift_count - 1));
+              __ SmiTag(result, result, SetCC);
+            } else {
+              __ SmiTag(result, left, SetCC);
+            }
+            DeoptimizeIf(vs, instr->environment());
+          } else {
+            __ mov(result, Operand(left, LSL, shift_count));
+          }
         } else {
           __ Move(result, left);
         }
@@ -1812,6 +1823,11 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   DwVfpRegister result = ToDoubleRegister(instr->result());
   double v = instr->value();
   __ Vmov(result, v, scratch0());
+}
+
+
+void LCodeGen::DoConstantE(LConstantE* instr) {
+  __ mov(ToRegister(instr->result()), Operand(instr->value()));
 }
 
 
@@ -2924,19 +2940,6 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
 }
 
 
-void LCodeGen::DoLinkObjectInList(LLinkObjectInList* instr) {
-  Register object = ToRegister(instr->object());
-  ExternalReference sites_list_address = instr->GetReference(isolate());
-
-  __ mov(ip, Operand(sites_list_address));
-  __ ldr(ip, MemOperand(ip));
-  __ str(ip, FieldMemOperand(object,
-                             instr->hydrogen()->store_field().offset()));
-  __ mov(ip, Operand(sites_list_address));
-  __ str(object, MemOperand(ip));
-}
-
-
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
@@ -2995,6 +2998,13 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
   Register object = ToRegister(instr->object());
+
+  if (access.IsExternalMemory()) {
+    Register result = ToRegister(instr->result());
+    __ ldr(result, MemOperand(object, offset));
+    return;
+  }
+
   if (instr->hydrogen()->representation().IsDouble()) {
     DwVfpRegister result = ToDoubleRegister(instr->result());
     __ vldr(result, FieldMemOperand(object, offset));
@@ -4174,9 +4184,14 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Register object = ToRegister(instr->object());
   Register scratch = scratch0();
-
   HObjectAccess access = instr->hydrogen()->access();
   int offset = access.offset();
+
+  if (access.IsExternalMemory()) {
+    Register value = ToRegister(instr->value());
+    __ str(value, MemOperand(object, offset));
+    return;
+  }
 
   Handle<Map> transition = instr->transition();
 
@@ -4500,7 +4515,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     // Write barrier.
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         scratch, GetLinkRegisterState(), kDontSaveFPRegs);
-  } else if (FLAG_compiled_transitions) {
+  } else {
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
     __ Move(r0, object_reg);
     __ Move(r1, to_map);
@@ -4508,28 +4523,6 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ CallStub(&stub);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
-  } else if (IsFastSmiElementsKind(from_kind) &&
-             IsFastDoubleElementsKind(to_kind)) {
-    Register fixed_object_reg = ToRegister(instr->temp());
-    ASSERT(fixed_object_reg.is(r2));
-    Register new_map_reg = ToRegister(instr->new_map_temp());
-    ASSERT(new_map_reg.is(r3));
-    __ mov(new_map_reg, Operand(to_map));
-    __ mov(fixed_object_reg, object_reg);
-    CallCode(isolate()->builtins()->TransitionElementsSmiToDouble(),
-             RelocInfo::CODE_TARGET, instr);
-  } else if (IsFastDoubleElementsKind(from_kind) &&
-             IsFastObjectElementsKind(to_kind)) {
-    Register fixed_object_reg = ToRegister(instr->temp());
-    ASSERT(fixed_object_reg.is(r2));
-    Register new_map_reg = ToRegister(instr->new_map_temp());
-    ASSERT(new_map_reg.is(r3));
-    __ mov(new_map_reg, Operand(to_map));
-    __ mov(fixed_object_reg, object_reg);
-    CallCode(isolate()->builtins()->TransitionElementsDoubleToObject(),
-             RelocInfo::CODE_TARGET, instr);
-  } else {
-    UNREACHABLE();
   }
   __ bind(&not_applicable);
 }
@@ -4649,13 +4642,6 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
   __ push(char_code);
   CallRuntimeFromDeferred(Runtime::kCharFromCode, 1, instr);
   __ StoreToSafepointRegisterSlot(r0, result);
-}
-
-
-void LCodeGen::DoStringLength(LStringLength* instr) {
-  Register string = ToRegister(instr->string());
-  Register result = ToRegister(instr->result());
-  __ ldr(result, FieldMemOperand(string, String::kLengthOffset));
 }
 
 
@@ -5351,10 +5337,12 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   if (instr->hydrogen()->MustAllocateDoubleAligned()) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
-  if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
-    ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
+  if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
+    ASSERT(!instr->hydrogen()->IsOldDataSpaceAllocation());
+    ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
     flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE);
-  } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
+  } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
+    ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
     flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_DATA_SPACE);
   }
 
@@ -5413,10 +5401,12 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     __ Push(Smi::FromInt(size));
   }
 
-  if (instr->hydrogen()->CanAllocateInOldPointerSpace()) {
-    ASSERT(!instr->hydrogen()->CanAllocateInOldDataSpace());
+  if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
+    ASSERT(!instr->hydrogen()->IsOldDataSpaceAllocation());
+    ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
     CallRuntimeFromDeferred(Runtime::kAllocateInOldPointerSpace, 1, instr);
-  } else if (instr->hydrogen()->CanAllocateInOldDataSpace()) {
+  } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
+    ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
     CallRuntimeFromDeferred(Runtime::kAllocateInOldDataSpace, 1, instr);
   } else {
     CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);

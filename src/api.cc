@@ -1918,6 +1918,7 @@ Local<Script> Script::New(v8::Handle<String> source,
     i::Handle<i::Object> name_obj;
     int line_offset = 0;
     int column_offset = 0;
+    bool is_shared_cross_origin = false;
     if (origin != NULL) {
       if (!origin->ResourceName().IsEmpty()) {
         name_obj = Utils::OpenHandle(*origin->ResourceName());
@@ -1928,6 +1929,10 @@ Local<Script> Script::New(v8::Handle<String> source,
       if (!origin->ResourceColumnOffset().IsEmpty()) {
         column_offset =
             static_cast<int>(origin->ResourceColumnOffset()->Value());
+      }
+      if (!origin->ResourceIsSharedCrossOrigin().IsEmpty()) {
+        is_shared_cross_origin =
+            origin->ResourceIsSharedCrossOrigin() == v8::True();
       }
     }
     EXCEPTION_PREAMBLE(isolate);
@@ -1945,6 +1950,7 @@ Local<Script> Script::New(v8::Handle<String> source,
                            name_obj,
                            line_offset,
                            column_offset,
+                           is_shared_cross_origin,
                            isolate->global_context(),
                            NULL,
                            pre_data_impl,
@@ -2409,6 +2415,20 @@ int Message::GetEndColumn() const {
   int start = message->start_position();
   int end = message->end_position();
   return static_cast<int>(start_col_obj->Number()) + (end - start);
+}
+
+
+bool Message::IsSharedCrossOrigin() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Message::IsSharedCrossOrigin()")) return 0;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::JSValue> script =
+      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script(),
+                                                       isolate));
+  return i::Script::cast(script->value())->is_shared_cross_origin();
 }
 
 
@@ -5931,6 +5951,23 @@ i::Handle<i::String> NewExternalAsciiStringHandle(i::Isolate* isolate,
 }
 
 
+bool RedirectToExternalString(i::Isolate* isolate,
+                              i::Handle<i::String> parent,
+                              i::Handle<i::String> external) {
+  if (parent->IsConsString()) {
+    i::Handle<i::ConsString> cons = i::Handle<i::ConsString>::cast(parent);
+    cons->set_first(*external);
+    cons->set_second(isolate->heap()->empty_string());
+  } else {
+    ASSERT(parent->IsSlicedString());
+    i::Handle<i::SlicedString> slice = i::Handle<i::SlicedString>::cast(parent);
+    slice->set_parent(*external);
+    slice->set_offset(0);
+  }
+  return true;
+}
+
+
 Local<String> v8::String::NewExternal(
       v8::String::ExternalStringResource* resource) {
   i::Isolate* isolate = i::Isolate::Current();
@@ -5959,9 +5996,23 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     return false;
   }
   CHECK(resource && resource->data());
-  bool result = obj->MakeExternal(resource);
-  if (result && !obj->IsInternalizedString()) {
-    isolate->heap()->external_string_table()->AddString(*obj);
+
+  bool result;
+  i::Handle<i::String> external;
+  if (isolate->heap()->old_pointer_space()->Contains(*obj)) {
+    // We do not allow external strings in the old pointer space.  Instead of
+    // converting the string in-place, we keep the cons/sliced string and
+    // point it to a newly-allocated external string.
+    external = NewExternalStringHandle(isolate, resource);
+    result = RedirectToExternalString(isolate, obj, external);
+  } else {
+    result = obj->MakeExternal(resource);
+    external = obj;
+  }
+
+  ASSERT(external->IsExternalString());
+  if (result && !external->IsInternalizedString()) {
+    isolate->heap()->external_string_table()->AddString(*external);
   }
   return result;
 }
@@ -5996,9 +6047,23 @@ bool v8::String::MakeExternal(
     return false;
   }
   CHECK(resource && resource->data());
-  bool result = obj->MakeExternal(resource);
-  if (result && !obj->IsInternalizedString()) {
-    isolate->heap()->external_string_table()->AddString(*obj);
+
+  bool result;
+  i::Handle<i::String> external;
+  if (isolate->heap()->old_pointer_space()->Contains(*obj)) {
+    // We do not allow external strings in the old pointer space.  Instead of
+    // converting the string in-place, we keep the cons/sliced string and
+    // point it to a newly-allocated external string.
+    external = NewExternalAsciiStringHandle(isolate, resource);
+    result = RedirectToExternalString(isolate, obj, external);
+  } else {
+    result = obj->MakeExternal(resource);
+    external = obj;
+  }
+
+  ASSERT(external->IsExternalString());
+  if (result && !external->IsInternalizedString()) {
+    isolate->heap()->external_string_table()->AddString(*external);
   }
   return result;
 }
@@ -6039,7 +6104,7 @@ Local<v8::Value> v8::NumberObject::New(double value) {
 }
 
 
-double v8::NumberObject::NumberValue() const {
+double v8::NumberObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::NumberObject::NumberValue()")) return 0;
   LOG_API(isolate, "NumberObject::NumberValue");
@@ -6063,7 +6128,7 @@ Local<v8::Value> v8::BooleanObject::New(bool value) {
 }
 
 
-bool v8::BooleanObject::BooleanValue() const {
+bool v8::BooleanObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::BooleanObject::BooleanValue()")) return 0;
   LOG_API(isolate, "BooleanObject::BooleanValue");
@@ -6084,7 +6149,7 @@ Local<v8::Value> v8::StringObject::New(Handle<String> value) {
 }
 
 
-Local<v8::String> v8::StringObject::StringValue() const {
+Local<v8::String> v8::StringObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::StringObject::StringValue()")) {
     return Local<v8::String>();
@@ -6108,7 +6173,7 @@ Local<v8::Value> v8::SymbolObject::New(Isolate* isolate, Handle<Symbol> value) {
 }
 
 
-Local<v8::Symbol> v8::SymbolObject::SymbolValue() const {
+Local<v8::Symbol> v8::SymbolObject::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::SymbolObject::SymbolValue()"))
     return Local<v8::Symbol>();
@@ -6137,7 +6202,7 @@ Local<v8::Value> v8::Date::New(double time) {
 }
 
 
-double v8::Date::NumberValue() const {
+double v8::Date::ValueOf() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Date::NumberValue()")) return 0;
   LOG_API(isolate, "Date::NumberValue");

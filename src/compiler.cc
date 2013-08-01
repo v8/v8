@@ -558,8 +558,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (info->is_eval()) {
-    Script::CompilationType compilation_type = Script::COMPILATION_TYPE_EVAL;
-    script->set_compilation_type(Smi::FromInt(compilation_type));
+    script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
     // For eval scripts add information on the function from which eval was
     // called.
     if (info->is_eval()) {
@@ -650,8 +649,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // the instances of the function.
   SetExpectedNofPropertiesFromEstimate(result, lit->expected_property_count());
 
-  script->set_compilation_state(
-      Smi::FromInt(Script::COMPILATION_STATE_COMPILED));
+  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
@@ -669,6 +667,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              Handle<Object> script_name,
                                              int line_offset,
                                              int column_offset,
+                                             bool is_shared_cross_origin,
                                              Handle<Context> context,
                                              v8::Extension* extension,
                                              ScriptDataImpl* pre_data,
@@ -691,6 +690,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              script_name,
                                              line_offset,
                                              column_offset,
+                                             is_shared_cross_origin,
                                              context);
   }
 
@@ -714,6 +714,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
       script->set_line_offset(Smi::FromInt(line_offset));
       script->set_column_offset(Smi::FromInt(column_offset));
     }
+    script->set_is_shared_cross_origin(is_shared_cross_origin);
 
     script->set_data(script_data.is_null() ? HEAP->undefined_value()
                                            : *script_data);

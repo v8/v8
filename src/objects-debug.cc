@@ -1162,10 +1162,6 @@ static bool CheckOneBackPointer(Map* current_map, Object* target) {
 
 
 bool TransitionArray::IsConsistentWithBackPointers(Map* current_map) {
-  if (HasElementsTransition() &&
-      !CheckOneBackPointer(current_map, elements_transition())) {
-    return false;
-  }
   for (int i = 0; i < number_of_transitions(); ++i) {
     if (!CheckOneBackPointer(current_map, GetTarget(i))) return false;
   }

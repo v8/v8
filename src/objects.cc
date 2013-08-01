@@ -2486,8 +2486,7 @@ void Map::DeprecateTransitionTree() {
   deprecate();
   dependent_code()->DeoptimizeDependentCodeGroup(
       GetIsolate(), DependentCode::kTransitionGroup);
-  dependent_code()->DeoptimizeDependentCodeGroup(
-      GetIsolate(), DependentCode::kPrototypeCheckGroup);
+  NotifyLeafMapLayoutChange();
 }
 
 
@@ -3949,7 +3948,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
   Handle<Object> hresult;
   if (!result->ToHandle(&hresult, isolate)) return result;
 
-  if (FLAG_harmony_observation && map()->is_observed()) {
+  if (FLAG_harmony_observation && self->map()->is_observed()) {
     if (lookup->IsTransition()) {
       EnqueueChangeRecord(self, "new", name, old_value);
     } else {
@@ -6495,6 +6494,7 @@ MaybeObject* Map::RawCopy(int instance_size) {
   new_bit_field3 = NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
   new_bit_field3 = EnumLengthBits::update(new_bit_field3, kInvalidEnumCache);
   new_bit_field3 = Deprecated::update(new_bit_field3, false);
+  new_bit_field3 = IsUnstable::update(new_bit_field3, false);
   result->set_bit_field3(new_bit_field3);
   return result;
 }
@@ -7023,12 +7023,6 @@ class IntrusiveMapTransitionIterator {
       return transition_array_->GetTarget(index);
     }
 
-    if (index == number_of_transitions &&
-        transition_array_->HasElementsTransition()) {
-      Map* elements_transition = transition_array_->elements_transition();
-      *TransitionArrayHeader() = Smi::FromInt(index + 1);
-      return elements_transition;
-    }
     *TransitionArrayHeader() = transition_array_->GetHeap()->fixed_array_map();
     return NULL;
   }
@@ -9145,18 +9139,10 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     }
   }
 
-  if (t->HasElementsTransition() &&
-      ClearBackPointer(heap, t->elements_transition())) {
-    if (t->elements_transition()->instance_descriptors() == descriptors) {
-      descriptors_owner_died = true;
-    }
-    t->ClearElementsTransition();
-  } else {
-    // If there are no transitions to be cleared, return.
-    // TODO(verwaest) Should be an assert, otherwise back pointers are not
-    // properly cleared.
-    if (transition_index == t->number_of_transitions()) return;
-  }
+  // If there are no transitions to be cleared, return.
+  // TODO(verwaest) Should be an assert, otherwise back pointers are not
+  // properly cleared.
+  if (transition_index == t->number_of_transitions()) return;
 
   int number_of_own_descriptors = NumberOfOwnDescriptors();
 

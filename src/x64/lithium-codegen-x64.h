@@ -106,6 +106,7 @@ class LCodeGen BASE_EMBEDDED {
   int32_t ToInteger32(LConstantOperand* op) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
+  ExternalReference ToExternalReference(LConstantOperand* op) const;
   bool IsTaggedConstant(LConstantOperand* op) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op) const;
@@ -344,6 +345,13 @@ class LCodeGen BASE_EMBEDDED {
   void DoStoreKeyedExternalArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedArray(LStoreKeyed* instr);
+#ifdef _MSC_VER
+  // On windows, you may not access the stack more than one page below
+  // the most recently mapped page. To make the allocated area randomly
+  // accessible, we write an arbitrary value to each page in range
+  // rsp + offset - page_size .. rsp in turn.
+  void MakeSureStackPagesMapped(int offset);
+#endif
 
   Zone* zone_;
   LPlatformChunk* const chunk_;
