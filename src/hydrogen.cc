@@ -2979,11 +2979,10 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   // Eliminate redundant stack checks on backwards branches.
   Run<HStackCheckEliminationPhase>();
 
-  if (FLAG_idefs) SetupInformativeDefinitions();
-  if (FLAG_array_bounds_checks_elimination && !FLAG_idefs) {
+  if (FLAG_array_bounds_checks_elimination) {
     Run<HBoundsCheckEliminationPhase>();
   }
-  if (FLAG_array_bounds_checks_hoisting && !FLAG_idefs) {
+  if (FLAG_array_bounds_checks_hoisting) {
     Run<HBoundsCheckHoistingPhase>();
   }
   if (FLAG_array_index_dehoisting) Run<HDehoistIndexComputationsPhase>();
@@ -2992,50 +2991,6 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   RestoreActualValues();
 
   return true;
-}
-
-
-void HGraph::SetupInformativeDefinitionsInBlock(HBasicBlock* block) {
-  for (int phi_index = 0; phi_index < block->phis()->length(); phi_index++) {
-    HPhi* phi = block->phis()->at(phi_index);
-    phi->AddInformativeDefinitions();
-    phi->SetFlag(HValue::kIDefsProcessingDone);
-    // We do not support phis that "redefine just one operand".
-    ASSERT(!phi->IsInformativeDefinition());
-  }
-
-  for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-    HInstruction* i = it.Current();
-    i->AddInformativeDefinitions();
-    i->SetFlag(HValue::kIDefsProcessingDone);
-    i->UpdateRedefinedUsesWhileSettingUpInformativeDefinitions();
-  }
-}
-
-
-// This method is recursive, so if its stack frame is large it could
-// cause a stack overflow.
-// To keep the individual stack frames small we do the actual work inside
-// SetupInformativeDefinitionsInBlock();
-void HGraph::SetupInformativeDefinitionsRecursively(HBasicBlock* block) {
-  SetupInformativeDefinitionsInBlock(block);
-  for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
-    SetupInformativeDefinitionsRecursively(block->dominated_blocks()->at(i));
-  }
-
-  for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
-    HInstruction* i = it.Current();
-    if (i->IsBoundsCheck()) {
-      HBoundsCheck* check = HBoundsCheck::cast(i);
-      check->ApplyIndexChange();
-    }
-  }
-}
-
-
-void HGraph::SetupInformativeDefinitions() {
-  HPhase phase("H_Setup informative definitions", this);
-  SetupInformativeDefinitionsRecursively(entry_block());
 }
 
 

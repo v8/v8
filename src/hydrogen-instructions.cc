@@ -149,116 +149,6 @@ void HValue::AddDependantsToWorklist(HInferRepresentationPhase* h_infer) {
 }
 
 
-// This method is recursive but it is guaranteed to terminate because
-// RedefinedOperand() always dominates "this".
-bool HValue::IsRelationTrue(NumericRelation relation,
-                            HValue* other,
-                            int offset,
-                            int scale) {
-  if (this == other) {
-    return scale == 0 && relation.IsExtendable(offset);
-  }
-
-  // Test the direct relation.
-  if (IsRelationTrueInternal(relation, other, offset, scale)) return true;
-
-  // If scale is 0 try the reversed relation.
-  if (scale == 0 &&
-      // TODO(mmassi): do we need the full, recursive IsRelationTrue?
-      other->IsRelationTrueInternal(relation.Reversed(), this, -offset)) {
-    return true;
-  }
-
-  // Try decomposition (but do not accept scaled compounds).
-  DecompositionResult decomposition;
-  if (TryDecompose(&decomposition) &&
-      decomposition.scale() == 0 &&
-      decomposition.base()->IsRelationTrue(relation, other,
-                                           offset + decomposition.offset(),
-                                           scale)) {
-    return true;
-  }
-
-  // Pass the request to the redefined value.
-  HValue* redefined = RedefinedOperand();
-  return redefined != NULL && redefined->IsRelationTrue(relation, other,
-                                                        offset, scale);
-}
-
-
-bool HValue::TryGuaranteeRange(HValue* upper_bound) {
-  RangeEvaluationContext context = RangeEvaluationContext(this, upper_bound);
-  TryGuaranteeRangeRecursive(&context);
-  bool result = context.is_range_satisfied();
-  if (result) {
-    context.lower_bound_guarantee()->SetResponsibilityForRange(DIRECTION_LOWER);
-    context.upper_bound_guarantee()->SetResponsibilityForRange(DIRECTION_UPPER);
-  }
-  return result;
-}
-
-
-void HValue::TryGuaranteeRangeRecursive(RangeEvaluationContext* context) {
-  // Check if we already know that this value satisfies the lower bound.
-  if (context->lower_bound_guarantee() == NULL) {
-    if (IsRelationTrueInternal(NumericRelation::Ge(), context->lower_bound(),
-                               context->offset(), context->scale())) {
-      context->set_lower_bound_guarantee(this);
-    }
-  }
-
-  // Check if we already know that this value satisfies the upper bound.
-  if (context->upper_bound_guarantee() == NULL) {
-    if (IsRelationTrueInternal(NumericRelation::Lt(), context->upper_bound(),
-                               context->offset(), context->scale()) ||
-        (context->scale() == 0 &&
-         context->upper_bound()->IsRelationTrue(NumericRelation::Gt(),
-                                                this, -context->offset()))) {
-      context->set_upper_bound_guarantee(this);
-    }
-  }
-
-  if (context->is_range_satisfied()) return;
-
-  // See if our RedefinedOperand() satisfies the constraints.
-  if (RedefinedOperand() != NULL) {
-    RedefinedOperand()->TryGuaranteeRangeRecursive(context);
-  }
-  if (context->is_range_satisfied()) return;
-
-  // See if the constraints can be satisfied by decomposition.
-  DecompositionResult decomposition;
-  if (TryDecompose(&decomposition)) {
-    context->swap_candidate(&decomposition);
-    context->candidate()->TryGuaranteeRangeRecursive(context);
-    context->swap_candidate(&decomposition);
-  }
-  if (context->is_range_satisfied()) return;
-
-  // Try to modify this to satisfy the constraint.
-
-  TryGuaranteeRangeChanging(context);
-}
-
-
-RangeEvaluationContext::RangeEvaluationContext(HValue* value, HValue* upper)
-    : lower_bound_(upper->block()->graph()->GetConstant0()),
-      lower_bound_guarantee_(NULL),
-      candidate_(value),
-      upper_bound_(upper),
-      upper_bound_guarantee_(NULL),
-      offset_(0),
-      scale_(0) {
-}
-
-
-HValue* RangeEvaluationContext::ConvertGuarantee(HValue* guarantee) {
-  return guarantee->IsBoundsCheckBaseIndexInformation()
-      ? HBoundsCheckBaseIndexInformation::cast(guarantee)->bounds_check()
-      : guarantee;
-}
-
-
 static int32_t ConvertAndSetOverflow(Representation r,
                                      int64_t result,
                                      bool* overflow) {
@@ -481,55 +371,6 @@ HType HType::TypeFromValue(Handle<Object> value) {
     result = HType::JSArray();
   }
   return result;
-}
-
-
-bool HValue::Dominates(HValue* dominator, HValue* dominated) {
-  if (dominator->block() != dominated->block()) {
-    // If they are in different blocks we can use the dominance relation
-    // between the blocks.
-    return dominator->block()->Dominates(dominated->block());
-  } else {
-    // Otherwise we must see which instruction comes first, considering
-    // that phis always precede regular instructions.
-    if (dominator->IsInstruction()) {
-      if (dominated->IsInstruction()) {
-        for (HInstruction* next = HInstruction::cast(dominator)->next();
-             next != NULL;
-             next = next->next()) {
-          if (next == dominated) return true;
-        }
-        return false;
-      } else if (dominated->IsPhi()) {
-        return false;
-      } else {
-        UNREACHABLE();
-      }
-    } else if (dominator->IsPhi()) {
-      if (dominated->IsInstruction()) {
-        return true;
-      } else {
-        // We cannot compare which phi comes first.
-        UNREACHABLE();
-      }
-    } else {
-      UNREACHABLE();
-    }
-    return false;
-  }
-}
-
-
-bool HValue::TestDominanceUsingProcessedFlag(HValue* dominator,
-                                             HValue* dominated) {
-  if (dominator->block() != dominated->block()) {
-    return dominator->block()->Dominates(dominated->block());
-  } else {
-    // If both arguments are in the same block we check if dominator is a phi
-    // or if dominated has not already been processed: in either case we know
-    // that dominator precedes dominated.
-    return dominator->IsPhi() || !dominated->CheckFlag(kIDefsProcessingDone);
-  }
 }
 
 
@@ -960,58 +801,6 @@ void HInstruction::Verify() {
 #endif
 
 
-HNumericConstraint* HNumericConstraint::AddToGraph(
-    HValue* constrained_value,
-    NumericRelation relation,
-    HValue* related_value,
-    HInstruction* insertion_point) {
-  if (insertion_point == NULL) {
-    if (constrained_value->IsInstruction()) {
-      insertion_point = HInstruction::cast(constrained_value);
-    } else if (constrained_value->IsPhi()) {
-      insertion_point = constrained_value->block()->first();
-    } else {
-      UNREACHABLE();
-    }
-  }
-  HNumericConstraint* result =
-      new(insertion_point->block()->zone()) HNumericConstraint(
-          constrained_value, relation, related_value);
-  result->InsertAfter(insertion_point);
-  return result;
-}
-
-
-void HNumericConstraint::PrintDataTo(StringStream* stream) {
-  stream->Add("(");
-  constrained_value()->PrintNameTo(stream);
-  stream->Add(" %s ", relation().Mnemonic());
-  related_value()->PrintNameTo(stream);
-  stream->Add(")");
-}
-
-
-HInductionVariableAnnotation* HInductionVariableAnnotation::AddToGraph(
-    HPhi* phi,
-    NumericRelation relation,
-    int operand_index) {
-  HInductionVariableAnnotation* result =
-      new(phi->block()->zone()) HInductionVariableAnnotation(phi, relation,
-                                                             operand_index);
-  result->InsertAfter(phi->block()->first());
-  return result;
-}
-
-
-void HInductionVariableAnnotation::PrintDataTo(StringStream* stream) {
-  stream->Add("(");
-  RedefinedOperand()->PrintNameTo(stream);
-  stream->Add(" %s ", relation().Mnemonic());
-  induction_base()->PrintNameTo(stream);
-  stream->Add(")");
-}
-
-
 void HDummyUse::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }
@@ -1035,40 +824,6 @@ void HBinaryCall::PrintDataTo(StringStream* stream) {
   second()->PrintNameTo(stream);
   stream->Add(" ");
   stream->Add("#%d", argument_count());
-}
-
-
-void HBoundsCheck::TryGuaranteeRangeChanging(RangeEvaluationContext* context) {
-  if (context->candidate()->ActualValue() != base()->ActualValue() ||
-      context->scale() < scale()) {
-    return;
-  }
-
-  // TODO(mmassi)
-  // Instead of checking for "same basic block" we should check for
-  // "dominates and postdominates".
-  if (context->upper_bound() == length() &&
-      context->lower_bound_guarantee() != NULL &&
-      context->lower_bound_guarantee() != this &&
-      context->lower_bound_guarantee()->block() != block() &&
-      offset() < context->offset() &&
-      index_can_increase() &&
-      context->upper_bound_guarantee() == NULL) {
-    offset_ = context->offset();
-    SetResponsibilityForRange(DIRECTION_UPPER);
-    context->set_upper_bound_guarantee(this);
-    isolate()->counters()->bounds_checks_eliminated()->Increment();
-  } else if (context->upper_bound_guarantee() != NULL &&
-             context->upper_bound_guarantee() != this &&
-             context->upper_bound_guarantee()->block() != block() &&
-             offset() > context->offset() &&
-             index_can_decrease() &&
-             context->lower_bound_guarantee() == NULL) {
-    offset_ = context->offset();
-    SetResponsibilityForRange(DIRECTION_LOWER);
-    context->set_lower_bound_guarantee(this);
-    isolate()->counters()->bounds_checks_eliminated()->Increment();
-  }
 }
 
 
@@ -1119,40 +874,6 @@ void HBoundsCheck::ApplyIndexChange() {
   base_ = NULL;
   offset_ = 0;
   scale_ = 0;
-  responsibility_direction_ = DIRECTION_NONE;
-}
-
-
-void HBoundsCheck::AddInformativeDefinitions() {
-  // TODO(mmassi): Executing this code during AddInformativeDefinitions
-  // is a hack. Move it to some other HPhase.
-  if (FLAG_array_bounds_checks_elimination) {
-    if (index()->TryGuaranteeRange(length())) {
-      set_skip_check();
-    }
-    if (DetectCompoundIndex()) {
-      HBoundsCheckBaseIndexInformation* base_index_info =
-          new(block()->graph()->zone())
-          HBoundsCheckBaseIndexInformation(this);
-      base_index_info->InsertAfter(this);
-    }
-  }
-}
-
-
-bool HBoundsCheck::IsRelationTrueInternal(NumericRelation relation,
-                                          HValue* related_value,
-                                          int offset,
-                                          int scale) {
-  if (related_value == length()) {
-    // A HBoundsCheck is smaller than the length it compared against.
-    return NumericRelation::Lt().CompoundImplies(relation, 0, 0, offset, scale);
-  } else if (related_value == block()->graph()->GetConstant0()) {
-    // A HBoundsCheck is greater than or equal to zero.
-    return NumericRelation::Ge().CompoundImplies(relation, 0, 0, offset, scale);
-  } else {
-    return false;
-  }
 }
 
 
@@ -1192,25 +913,6 @@ void HBoundsCheck::InferRepresentation(HInferRepresentationPhase* h_infer) {
     r = Representation::Integer32();
   }
   UpdateRepresentation(r, h_infer, "boundscheck");
-}
-
-
-bool HBoundsCheckBaseIndexInformation::IsRelationTrueInternal(
-    NumericRelation relation,
-    HValue* related_value,
-    int offset,
-    int scale) {
-  if (related_value == bounds_check()->length()) {
-    return NumericRelation::Lt().CompoundImplies(
-        relation,
-        bounds_check()->offset(), bounds_check()->scale(), offset, scale);
-  } else if (related_value == block()->graph()->GetConstant0()) {
-    return NumericRelation::Ge().CompoundImplies(
-        relation,
-        bounds_check()->offset(), bounds_check()->scale(), offset, scale);
-  } else {
-    return false;
-  }
 }
 
 
@@ -1947,60 +1649,6 @@ Range* HMod::InferRange(Zone* zone) {
   } else {
     return HValue::InferRange(zone);
   }
-}
-
-
-void HPhi::AddInformativeDefinitions() {
-  if (OperandCount() == 2) {
-    // If one of the operands is an OSR block give up (this cannot be an
-    // induction variable).
-    if (OperandAt(0)->block()->is_osr_entry() ||
-        OperandAt(1)->block()->is_osr_entry()) return;
-
-    for (int operand_index = 0; operand_index < 2; operand_index++) {
-      int other_operand_index = (operand_index + 1) % 2;
-
-      static NumericRelation relations[] = {
-        NumericRelation::Ge(),
-        NumericRelation::Le()
-      };
-
-      // Check if this phi is an induction variable. If, e.g., we know that
-      // its first input is greater than the phi itself, then that must be
-      // the back edge, and the phi is always greater than its second input.
-      for (int relation_index = 0; relation_index < 2; relation_index++) {
-        if (OperandAt(operand_index)->IsRelationTrue(relations[relation_index],
-                                                     this)) {
-          HInductionVariableAnnotation::AddToGraph(this,
-                                                   relations[relation_index],
-                                                   other_operand_index);
-        }
-      }
-    }
-  }
-}
-
-
-bool HPhi::IsRelationTrueInternal(NumericRelation relation,
-                                  HValue* other,
-                                  int offset,
-                                  int scale) {
-  if (CheckFlag(kNumericConstraintEvaluationInProgress)) return false;
-
-  SetFlag(kNumericConstraintEvaluationInProgress);
-  bool result = true;
-  for (int i = 0; i < OperandCount(); i++) {
-    // Skip OSR entry blocks
-    if (OperandAt(i)->block()->is_osr_entry()) continue;
-
-    if (!OperandAt(i)->IsRelationTrue(relation, other, offset, scale)) {
-      result = false;
-      break;
-    }
-  }
-  ClearFlag(kNumericConstraintEvaluationInProgress);
-
-  return result;
 }
 
 
@@ -3087,16 +2735,6 @@ void HStringCompareAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add(Token::Name(token()));
   stream->Add(" ");
   HControlInstruction::PrintDataTo(stream);
-}
-
-
-void HCompareNumericAndBranch::AddInformativeDefinitions() {
-  NumericRelation r = NumericRelation::FromToken(token());
-  if (r.IsNone()) return;
-
-  HNumericConstraint::AddToGraph(left(), r, right(), SuccessorAt(0)->first());
-  HNumericConstraint::AddToGraph(
-        left(), r.Negated(), right(), SuccessorAt(1)->first());
 }
 
 

@@ -1745,17 +1745,6 @@ LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoNumericConstraint(HNumericConstraint* instr) {
-  return NULL;
-}
-
-
-LInstruction* LChunkBuilder::DoInductionVariableAnnotation(
-    HInductionVariableAnnotation* instr) {
-  return NULL;
-}
-
-
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
   LOperand* value = UseRegisterOrConstantAtStart(instr->index());
   LOperand* length = Use(instr->length());
