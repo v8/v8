@@ -41,13 +41,13 @@ static LChunk* OptimizeGraph(HGraph* graph) {
   DisallowHandleDereference no_deref;
 
   ASSERT(graph != NULL);
-  SmartArrayPointer<char> bailout_reason;
+  BailoutReason bailout_reason = kNoReason;
   if (!graph->Optimize(&bailout_reason)) {
-    FATAL(bailout_reason.is_empty() ? "unknown" : *bailout_reason);
+    FATAL(GetBailoutReason(bailout_reason));
   }
   LChunk* chunk = LChunk::NewChunk(graph);
   if (chunk == NULL) {
-    FATAL(graph->info()->bailout_reason());
+    FATAL(GetBailoutReason(graph->info()->bailout_reason()));
   }
   return chunk;
 }

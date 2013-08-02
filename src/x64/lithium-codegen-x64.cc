@@ -96,7 +96,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 }
 
 
-void LChunkBuilder::Abort(const char* reason) {
+void LChunkBuilder::Abort(BailoutReason reason) {
   info()->set_bailout_reason(reason);
   status_ = ABORTED;
 }
@@ -661,7 +661,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
   if (entry == NULL) {
-    Abort("bailout was not prepared");
+    Abort(kBailoutWasNotPrepared);
     return;
   }
 
@@ -1642,7 +1642,7 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
     __ cmpq(value, Immediate(encoding == String::ONE_BYTE_ENCODING
                                  ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(equal, "Unexpected string type");
+    __ Check(equal, kUnexpectedStringType);
     __ pop(value);
   }
 
@@ -3088,7 +3088,7 @@ Operand LCodeGen::BuildFastArrayOperand(
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
-      Abort("array index constant value too big");
+      Abort(kArrayIndexConstantValueTooBig);
     }
     return Operand(elements_pointer_reg,
                    ((constant_value + additional_index) << shift_size)

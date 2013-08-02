@@ -511,9 +511,8 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   Label after_sentinel;
   __ JumpIfNotSmi(rcx, &after_sentinel, Label::kNear);
   if (FLAG_debug_code) {
-    const char* message = "Expected 0 as a Smi sentinel";
     __ cmpq(rcx, Immediate(0));
-    __ Assert(equal, message);
+    __ Assert(equal, kExpected0AsASmiSentinel);
   }
   __ movq(rcx, GlobalObjectOperand());
   __ movq(rcx, FieldOperand(rcx, GlobalObject::kNativeContextOffset));
@@ -954,7 +953,7 @@ static void BinaryOpStub_GenerateFloatingPointCode(MacroAssembler* masm,
         // Set the map.
         __ AssertRootValue(heap_number_map,
                            Heap::kHeapNumberMapRootIndex,
-                           "HeapNumberMap register clobbered.");
+                           kHeapNumberMapRegisterClobbered);
         __ movq(FieldOperand(rax, HeapObject::kMapOffset),
                 heap_number_map);
         __ cvtqsi2sd(xmm0, rbx);
@@ -974,8 +973,7 @@ static void BinaryOpStub_GenerateFloatingPointCode(MacroAssembler* masm,
   }
   // No fall-through from this generated code.
   if (FLAG_debug_code) {
-    __ Abort("Unexpected fall-through in "
-             "BinaryStub_GenerateFloatingPointCode.");
+    __ Abort(kUnexpectedFallThroughInBinaryStubGenerateFloatingPointCode);
   }
 }
 
@@ -2616,9 +2614,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     Condition is_smi = masm->CheckSmi(rax);
     __ Check(NegateCondition(is_smi),
-        "Unexpected type for RegExp data, FixedArray expected");
+        kUnexpectedTypeForRegExpDataFixedArrayExpected);
     __ CmpObjectType(rax, FIXED_ARRAY_TYPE, kScratchRegister);
-    __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
+    __ Check(equal, kUnexpectedTypeForRegExpDataFixedArrayExpected);
   }
 
   // rax: RegExp data (FixedArray)
@@ -2984,7 +2982,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
     // Assert that we do not have a cons or slice (indirect strings) here.
     // Sequential strings have already been ruled out.
     __ testb(rbx, Immediate(kIsIndirectStringMask));
-    __ Assert(zero, "external string expected, but not found");
+    __ Assert(zero, kExternalStringExpectedButNotFound);
   }
   __ movq(rdi, FieldOperand(rdi, ExternalString::kResourceDataOffset));
   // Move the pointer so that offset-wise, it looks like a sequential string.
@@ -3448,7 +3446,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   }
 
 #ifdef DEBUG
-  __ Abort("Unexpected fall-through from string comparison");
+  __ Abort(kUnexpectedFallThroughFromStringComparison);
 #endif
 
   __ bind(&check_unequal_objects);
@@ -4275,7 +4273,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     if (FLAG_debug_code) {
       __ movl(rdi, Immediate(kWordBeforeMapCheckValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToMapCheckValue - 4), rdi);
-      __ Assert(equal, "InstanceofStub unexpected call site cache (check).");
+      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheCheck);
     }
     __ movq(kScratchRegister,
             Operand(kScratchRegister, kOffsetToMapCheckValue));
@@ -4317,7 +4315,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     if (FLAG_debug_code) {
       __ movl(rax, Immediate(kWordBeforeResultValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToResultValue - 4), rax);
-      __ Assert(equal, "InstanceofStub unexpected call site cache (mov).");
+      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheMov);
     }
     __ Set(rax, 0);
   }
@@ -4340,7 +4338,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     if (FLAG_debug_code) {
       __ movl(rax, Immediate(kWordBeforeResultValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToResultValue - 4), rax);
-      __ Assert(equal, "InstanceofStub unexpected call site cache (mov)");
+      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheMov);
     }
   }
   __ ret(2 * kPointerSize + extra_stack_space);
@@ -4404,7 +4402,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharCodeAtGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort("Unexpected fallthrough to CharCodeAt slow case");
+  __ Abort(kUnexpectedFallthroughToCharCodeAtSlowCase);
 
   Factory* factory = masm->isolate()->factory();
   // Index is not a smi.
@@ -4454,7 +4452,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
-  __ Abort("Unexpected fallthrough from CharCodeAt slow case");
+  __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
 }
 
 
@@ -4480,7 +4478,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharFromCodeGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort("Unexpected fallthrough to CharFromCode slow case");
+  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
 
   __ bind(&slow_case_);
   call_helper.BeforeCall(masm);
@@ -4492,7 +4490,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
-  __ Abort("Unexpected fallthrough from CharFromCode slow case");
+  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
 
@@ -5040,7 +5038,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
     if (FLAG_debug_code) {
       __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
       __ cmpq(kScratchRegister, candidate);
-      __ Assert(equal, "oddball in string table is not undefined or the hole");
+      __ Assert(equal, kOddballInStringTableIsNotUndefinedOrTheHole);
     }
     __ jmp(&next_probe[i]);
 
@@ -6539,7 +6537,7 @@ static void CreateArrayDispatch(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort("Unexpected ElementsKind in array constructor");
+  __ Abort(kUnexpectedElementsKindInArrayConstructor);
 }
 
 
@@ -6602,7 +6600,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort("Unexpected ElementsKind in array constructor");
+  __ Abort(kUnexpectedElementsKindInArrayConstructor);
 }
 
 
@@ -6668,9 +6666,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Will both indicate a NULL and a Smi.
     STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rcx));
-    __ Check(not_smi, "Unexpected initial map for Array function");
+    __ Check(not_smi, kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(rcx, MAP_TYPE, rcx);
-    __ Check(equal, "Unexpected initial map for Array function");
+    __ Check(equal, kUnexpectedInitialMapForArrayFunction);
 
     // We should either have undefined in rbx or a valid cell
     Label okay_here;
@@ -6678,7 +6676,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Cmp(rbx, undefined_sentinel);
     __ j(equal, &okay_here);
     __ Cmp(FieldOperand(rbx, 0), cell_map);
-    __ Assert(equal, "Expected property cell in register rbx");
+    __ Assert(equal, kExpectedPropertyCellInRegisterRbx);
     __ bind(&okay_here);
   }
 
@@ -6783,9 +6781,9 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Will both indicate a NULL and a Smi.
     STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rcx));
-    __ Check(not_smi, "Unexpected initial map for Array function");
+    __ Check(not_smi, kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(rcx, MAP_TYPE, rcx);
-    __ Check(equal, "Unexpected initial map for Array function");
+    __ Check(equal, kUnexpectedInitialMapForArrayFunction);
   }
 
   // Figure out the right elements kind
@@ -6804,7 +6802,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ j(equal, &done);
     __ cmpl(rcx, Immediate(FAST_HOLEY_ELEMENTS));
     __ Assert(equal,
-              "Invalid ElementsKind for InternalArray or InternalPackedArray");
+              kInvalidElementsKindForInternalArrayOrInternalPackedArray);
     __ bind(&done);
   }
 

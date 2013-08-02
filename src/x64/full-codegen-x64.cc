@@ -753,9 +753,9 @@ void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
     // Check that we're not inside a with or catch context.
     __ movq(rbx, FieldOperand(rsi, HeapObject::kMapOffset));
     __ CompareRoot(rbx, Heap::kWithContextMapRootIndex);
-    __ Check(not_equal, "Declaration in with context.");
+    __ Check(not_equal, kDeclarationInWithContext);
     __ CompareRoot(rbx, Heap::kCatchContextMapRootIndex);
-    __ Check(not_equal, "Declaration in catch context.");
+    __ Check(not_equal, kDeclarationInCatchContext);
   }
 }
 
@@ -2192,7 +2192,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ Push(Smi::FromInt(resume_mode));
   __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
   // Not reached: the runtime call returns elsewhere.
-  __ Abort("Generator failed to resume.");
+  __ Abort(kGeneratorFailedToResume);
 
   // Throw error if we attempt to operate on a running generator.
   __ bind(&wrong_state);
@@ -2456,7 +2456,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         // Check for an uninitialized let binding.
         __ movq(rdx, location);
         __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
-        __ Check(equal, "Let binding re-initialization.");
+        __ Check(equal, kLetBindingReInitialization);
       }
       // Perform the assignment.
       __ movq(location, rax);
@@ -3398,14 +3398,14 @@ void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
                                                   Register index,
                                                   Register value,
                                                   uint32_t encoding_mask) {
-  __ Check(masm()->CheckSmi(index), "Non-smi index");
-  __ Check(masm()->CheckSmi(value), "Non-smi value");
+  __ Check(masm()->CheckSmi(index), kNonSmiIndex);
+  __ Check(masm()->CheckSmi(value), kNonSmiValue);
 
   __ SmiCompare(index, FieldOperand(string, String::kLengthOffset));
-  __ Check(less, "Index is too large");
+  __ Check(less, kIndexIsTooLarge);
 
   __ SmiCompare(index, Smi::FromInt(0));
-  __ Check(greater_equal, "Index is negative");
+  __ Check(greater_equal, kIndexIsNegative);
 
   __ push(value);
   __ movq(value, FieldOperand(string, HeapObject::kMapOffset));
@@ -3413,7 +3413,7 @@ void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
 
   __ andb(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
   __ cmpq(value, Immediate(encoding_mask));
-  __ Check(equal, "Unexpected string type");
+  __ Check(equal, kUnexpectedStringType);
   __ pop(value);
 }
 
@@ -3777,7 +3777,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   Handle<FixedArray> jsfunction_result_caches(
       isolate()->native_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
-    __ Abort("Attempt to use undefined cache.");
+    __ Abort(kAttemptToUseUndefinedCache);
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
     context()->Plug(rax);
     return;
@@ -3971,7 +3971,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //                      scratch, string_length(int32), elements(FixedArray*).
   if (generate_debug_code_) {
     __ cmpq(index, array_length);
-    __ Assert(below, "No empty arrays here in EmitFastAsciiArrayJoin");
+    __ Assert(below, kNoEmptyArraysHereInEmitFastAsciiArrayJoin);
   }
   __ bind(&loop);
   __ movq(string, FieldOperand(elements,

@@ -179,7 +179,7 @@ class LCodeGen BASE_EMBEDDED {
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
-  void Abort(const char* reason);
+  void Abort(BailoutReason reason);
   void FPRINTF_CHECKING Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }

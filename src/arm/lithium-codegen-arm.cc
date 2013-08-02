@@ -91,7 +91,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 }
 
 
-void LCodeGen::Abort(const char* reason) {
+void LCodeGen::Abort(BailoutReason reason) {
   info()->set_bailout_reason(reason);
   status_ = ABORTED;
 }
@@ -334,7 +334,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
   // 32bit data after it.
   if (!is_int24((masm()->pc_offset() / Assembler::kInstrSize) +
       deopt_jump_table_.length() * 7)) {
-    Abort("Generated code is too large");
+    Abort(kGeneratedCodeIsTooLarge);
   }
 
   if (deopt_jump_table_.length() > 0) {
@@ -423,7 +423,7 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
       ASSERT(literal->IsNumber());
       __ mov(scratch, Operand(static_cast<int32_t>(literal->Number())));
     } else if (r.IsDouble()) {
-      Abort("EmitLoadRegister: Unsupported double immediate.");
+      Abort(kEmitLoadRegisterUnsupportedDoubleImmediate);
     } else {
       ASSERT(r.IsTagged());
       __ LoadObject(scratch, literal);
@@ -461,9 +461,9 @@ DwVfpRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
       __ vcvt_f64_s32(dbl_scratch, flt_scratch);
       return dbl_scratch;
     } else if (r.IsDouble()) {
-      Abort("unsupported double immediate");
+      Abort(kUnsupportedDoubleImmediate);
     } else if (r.IsTagged()) {
-      Abort("unsupported tagged immediate");
+      Abort(kUnsupportedTaggedImmediate);
     }
   } else if (op->IsStackSlot() || op->IsArgument()) {
     // TODO(regis): Why is vldr not taking a MemOperand?
@@ -534,14 +534,14 @@ Operand LCodeGen::ToOperand(LOperand* op) {
       ASSERT(constant->HasInteger32Value());
       return Operand(constant->Integer32Value());
     } else if (r.IsDouble()) {
-      Abort("ToOperand Unsupported double immediate.");
+      Abort(kToOperandUnsupportedDoubleImmediate);
     }
     ASSERT(r.IsTagged());
     return Operand(constant->handle());
   } else if (op->IsRegister()) {
     return Operand(ToRegister(op));
   } else if (op->IsDoubleRegister()) {
-    Abort("ToOperand IsDoubleRegister unimplemented");
+    Abort(kToOperandIsDoubleRegisterUnimplemented);
     return Operand::Zero();
   }
   // Stack slots not implemented, use ToMemOperand instead.
@@ -772,7 +772,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
   if (entry == NULL) {
-    Abort("bailout was not prepared");
+    Abort(kBailoutWasNotPrepared);
     return;
   }
 
@@ -1936,7 +1936,7 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
     __ cmp(ip, Operand(encoding == String::ONE_BYTE_ENCODING
                            ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(eq, "Unexpected string type");
+    __ Check(eq, kUnexpectedStringType);
   }
 
   __ add(ip,
@@ -3200,7 +3200,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
-      Abort("array index constant value too big.");
+      Abort(kArrayIndexConstantValueTooBig);
     }
   } else {
     key = ToRegister(instr->key());
@@ -3284,7 +3284,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
-      Abort("array index constant value too big.");
+      Abort(kArrayIndexConstantValueTooBig);
     }
   } else {
     key = ToRegister(instr->key());
@@ -3545,7 +3545,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
   LOperand* argument = instr->value();
   if (argument->IsDoubleRegister() || argument->IsDoubleStackSlot()) {
-    Abort("DoPushArgument not implemented for double type.");
+    Abort(kDoPushArgumentNotImplementedForDoubleType);
   } else {
     Register argument_reg = EmitLoadRegister(argument, ip);
     __ push(argument_reg);
@@ -4319,7 +4319,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
-      Abort("array index constant value too big.");
+      Abort(kArrayIndexConstantValueTooBig);
     }
   } else {
     key = ToRegister(instr->key());
@@ -4392,7 +4392,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
     if (constant_key & 0xF0000000) {
-      Abort("array index constant value too big.");
+      Abort(kArrayIndexConstantValueTooBig);
     }
   } else {
     key = ToRegister(instr->key());
@@ -4415,7 +4415,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     if (masm()->emit_debug_code()) {
       __ vmrs(ip);
       __ tst(ip, Operand(kVFPDefaultNaNModeControlBit));
-      __ Assert(ne, "Default NaN mode not set");
+      __ Assert(ne, kDefaultNaNModeNotSet);
     }
     __ VFPCanonicalizeNaN(value);
   }

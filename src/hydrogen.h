@@ -367,7 +367,7 @@ class HGraph: public ZoneObject {
     return NULL;
   }
 
-  bool Optimize(SmartArrayPointer<char>* bailout_reason);
+  bool Optimize(BailoutReason* bailout_reason);
 
 #ifdef DEBUG
   void Verify(bool do_full_verify) const;
@@ -1726,7 +1726,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
   HValue* context() { return environment()->context(); }
 
-  void Bailout(const char* reason);
+  void Bailout(BailoutReason reason);
 
   HBasicBlock* CreateJoin(HBasicBlock* first,
                           HBasicBlock* second,

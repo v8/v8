@@ -113,7 +113,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 }
 
 
-void LCodeGen::Abort(const char* reason) {
+void LCodeGen::Abort(BailoutReason reason) {
   info()->set_bailout_reason(reason);
   status_ = ABORTED;
 }
@@ -220,7 +220,7 @@ bool LCodeGen::GeneratePrologue() {
       dynamic_frame_alignment_ &&
       FLAG_debug_code) {
     __ test(esp, Immediate(kPointerSize));
-    __ Assert(zero, "frame is expected to be aligned");
+    __ Assert(zero, kFrameIsExpectedToBeAligned);
   }
 
   // Reserve space for the stack slots needed by the code.
@@ -948,7 +948,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
   if (entry == NULL) {
-    Abort("bailout was not prepared");
+    Abort(kBailoutWasNotPrepared);
     return;
   }
 
@@ -1976,7 +1976,7 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
     __ cmp(value, Immediate(encoding == String::ONE_BYTE_ENCODING
                                 ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(equal, "Unexpected string type");
+    __ Check(equal, kUnexpectedStringType);
     __ pop(value);
   }
 
@@ -2863,7 +2863,7 @@ void LCodeGen::EmitReturn(LReturn* instr, bool dynamic_frame_alignment) {
       __ cmp(Operand(esp,
                      (parameter_count + extra_value_count) * kPointerSize),
              Immediate(kAlignmentZapValue));
-      __ Assert(equal, "expected alignment marker");
+      __ Assert(equal, kExpectedAlignmentMarker);
     }
     __ Ret((parameter_count + extra_value_count) * kPointerSize, ecx);
   } else {
@@ -2876,7 +2876,7 @@ void LCodeGen::EmitReturn(LReturn* instr, bool dynamic_frame_alignment) {
       __ cmp(Operand(esp, reg, times_pointer_size,
                      extra_value_count * kPointerSize),
              Immediate(kAlignmentZapValue));
-      __ Assert(equal, "expected alignment marker");
+      __ Assert(equal, kExpectedAlignmentMarker);
     }
 
     // emit code to restore stack based on instr->parameter_count()
@@ -3447,7 +3447,7 @@ Operand LCodeGen::BuildFastArrayOperand(
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
-      Abort("array index constant value too big");
+      Abort(kArrayIndexConstantValueTooBig);
     }
     return Operand(elements_pointer_reg,
                    ((constant_value + additional_index) << shift_size)

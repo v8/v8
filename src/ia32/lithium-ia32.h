@@ -2800,7 +2800,7 @@ class LChunkBuilder BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  void Abort(const char* reason);
+  void Abort(BailoutReason reason);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);

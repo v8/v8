@@ -9804,7 +9804,7 @@ void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
 }
 
 
-void SharedFunctionInfo::DisableOptimization(const char* reason) {
+void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   // Disable optimization for the shared function info and mark the
   // code as non-optimizable. The marker on the shared function info
   // is there because we flush non-optimized code thereby loosing the
@@ -9822,7 +9822,7 @@ void SharedFunctionInfo::DisableOptimization(const char* reason) {
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for ");
     ShortPrint();
-    PrintF(", reason: %s]\n", reason);
+    PrintF(", reason: %s]\n", GetBailoutReason(reason));
   }
 }
 
@@ -15961,6 +15961,17 @@ void PropertyCell::AddDependentCode(Handle<Code> code) {
       Handle<DependentCode>(dependent_code()),
       DependentCode::kPropertyCellChangedGroup, code);
   if (*codes != dependent_code()) set_dependent_code(*codes);
+}
+
+
+const char* GetBailoutReason(BailoutReason reason) {
+  ASSERT(reason < kLastErrorMessage);
+#define ERROR_MESSAGES_TEXTS(C, T) T,
+  static const char* error_messages_[] = {
+      ERROR_MESSAGES_LIST(ERROR_MESSAGES_TEXTS)
+  };
+#undef ERROR_MESSAGES_TEXTS
+  return error_messages_[reason];
 }
 
 

@@ -2938,7 +2938,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     __ j(equal, &miss);
   } else if (FLAG_debug_code) {
     __ CompareRoot(rbx, Heap::kTheHoleValueRootIndex);
-    __ Check(not_equal, "DontDelete cells can't contain the hole");
+    __ Check(not_equal, kDontDeleteCellsCannotContainTheHole);
   }
 
   HandlerFrontendFooter(name, &success, &miss);

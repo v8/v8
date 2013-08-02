@@ -437,7 +437,7 @@ LPlatformChunk* LChunkBuilder::Build() {
 }
 
 
-void LChunkBuilder::Abort(const char* reason) {
+void LChunkBuilder::Abort(BailoutReason reason) {
   info()->set_bailout_reason(reason);
   status_ = ABORTED;
 }
@@ -645,7 +645,7 @@ LUnallocated* LChunkBuilder::TempRegister() {
       new(zone()) LUnallocated(LUnallocated::MUST_HAVE_REGISTER);
   int vreg = allocator_->GetVirtualRegister();
   if (!allocator_->AllocationOk()) {
-    Abort("Out of virtual registers while trying to allocate temp register.");
+    Abort(kOutOfVirtualRegistersWhileTryingToAllocateTempRegister);
     vreg = 0;
   }
   operand->set_virtual_register(vreg);
@@ -2442,7 +2442,7 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
 LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
   int spill_index = chunk()->GetNextSpillIndex(false);  // Not double-width.
   if (spill_index > LUnallocated::kMaxFixedSlotIndex) {
-    Abort("Too many spill slots needed for OSR");
+    Abort(kTooManySpillSlotsNeededForOSR);
     spill_index = 0;
   }
   return DefineAsSpilled(new(zone()) LUnknownOSRValue, spill_index);
