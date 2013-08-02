@@ -1596,7 +1596,7 @@ static void DumpHeapConstants(i::Isolate* isolate) {
     ROOT_LIST(ROOT_LIST_CASE)
     STRUCT_LIST(STRUCT_LIST_CASE)
     if (n == NULL) continue;
-    printf("  0x%05" V8_PTR_PREFIX "x: (%d, \"%s\"),\n", p, t, n);
+    printf("  0x%05" V8PRIxPTR ": (%d, \"%s\"),\n", p, t, n);
   }
   printf("}\n");
 #undef STRUCT_LIST_CASE
@@ -1616,7 +1616,7 @@ static void DumpHeapConstants(i::Isolate* isolate) {
       intptr_t p = reinterpret_cast<intptr_t>(o) & 0xfffff;
       ROOT_LIST(ROOT_LIST_CASE)
       if (n == NULL) continue;
-      printf("  (\"%s\", 0x%05" V8_PTR_PREFIX "x): \"%s\",\n", sname, p, n);
+      printf("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", sname, p, n);
     }
   }
   printf("}\n");
