@@ -905,7 +905,8 @@
           '../../src/typedarray.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',
-          '../../src/harmony-string.js'
+          '../../src/harmony-string.js',
+          '../../src/harmony-array.js',
         ],
         'i18n_library_files': [
           '../../src/extensions/i18n/header.js',
