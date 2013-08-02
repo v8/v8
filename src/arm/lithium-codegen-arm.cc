@@ -3765,7 +3765,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     DwVfpRegister input = ToDoubleRegister(instr->value());
     DwVfpRegister result = ToDoubleRegister(instr->result());
     __ vabs(result, input);
-  } else if (r.IsInteger32()) {
+  } else if (r.IsSmiOrInteger32()) {
     EmitIntegerMathAbs(instr);
   } else {
     // Representation is tagged.

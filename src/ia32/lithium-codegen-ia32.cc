@@ -3821,7 +3821,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
     __ pand(input_reg, scratch);
-  } else if (r.IsInteger32()) {
+  } else if (r.IsSmiOrInteger32()) {
     EmitIntegerMathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =

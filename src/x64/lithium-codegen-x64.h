@@ -268,6 +268,7 @@ class LCodeGen BASE_EMBEDDED {
       uint32_t additional_index = 0);
 
   void EmitIntegerMathAbs(LMathAbs* instr);
+  void EmitInteger64MathAbs(LMathAbs* instr);
 
   // Support for recording safepoint and position information.
   void RecordSafepoint(LPointerMap* pointers,

@@ -3426,6 +3426,17 @@ void LCodeGen::EmitIntegerMathAbs(LMathAbs* instr) {
 }
 
 
+void LCodeGen::EmitInteger64MathAbs(LMathAbs* instr) {
+  Register input_reg = ToRegister(instr->value());
+  __ testq(input_reg, input_reg);
+  Label is_positive;
+  __ j(not_sign, &is_positive, Label::kNear);
+  __ neg(input_reg);  // Sets flags.
+  DeoptimizeIf(negative, instr->environment());
+  __ bind(&is_positive);
+}
+
+
 void LCodeGen::DoMathAbs(LMathAbs* instr) {
   // Class for deferred case.
   class DeferredMathAbsTaggedHeapNumber: public LDeferredCode {
@@ -3451,6 +3462,8 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     __ andpd(input_reg, scratch);
   } else if (r.IsInteger32()) {
     EmitIntegerMathAbs(instr);
+  } else if (r.IsSmi()) {
+    EmitInteger64MathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
         new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr);
