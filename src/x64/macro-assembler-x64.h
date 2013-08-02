@@ -823,6 +823,8 @@ class MacroAssembler: public Assembler {
   void Drop(int stack_elements);
 
   void Call(Label* target) { call(target); }
+  void PushReturnAddressFrom(Register src) { push(src); }
+  void PopReturnAddressTo(Register dst) { pop(dst); }
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);

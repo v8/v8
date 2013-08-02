@@ -4816,7 +4816,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
   ASSERT(!result_register().is(rdx));
   ASSERT(!result_register().is(rcx));
   // Cook return address on top of stack (smi encoded Code* delta)
-  __ pop(rdx);
+  __ PopReturnAddressTo(rdx);
   __ Move(rcx, masm_->CodeObject());
   __ subq(rdx, rcx);
   __ Integer32ToSmi(rdx, rdx);

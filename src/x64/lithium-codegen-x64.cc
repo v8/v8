@@ -2568,7 +2568,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     // The argument count parameter is a smi
     __ SmiToInteger32(reg, reg);
     Register return_addr_reg = reg.is(rcx) ? rbx : rcx;
-    __ pop(return_addr_reg);
+    __ PopReturnAddressTo(return_addr_reg);
     __ shl(reg, Immediate(kPointerSizeLog2));
     __ addq(rsp, reg);
     __ jmp(return_addr_reg);

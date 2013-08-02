@@ -430,12 +430,12 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   // Create a new closure through the slower runtime call.
   __ bind(&gc);
-  __ pop(rcx);  // Temporarily remove return address.
+  __ PopReturnAddressTo(rcx);
   __ pop(rdx);
   __ push(rsi);
   __ push(rdx);
   __ PushRoot(Heap::kFalseValueRootIndex);
-  __ push(rcx);  // Restore return address.
+  __ PushReturnAddressFrom(rcx);
   __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
 }
 
@@ -694,13 +694,13 @@ void BinaryOpStub::Initialize() {}
 
 
 void BinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
-  __ pop(rcx);  // Save return address.
+  __ PopReturnAddressTo(rcx);
   __ push(rdx);
   __ push(rax);
   // Left and right arguments are now on top.
   __ Push(Smi::FromInt(MinorKey()));
 
-  __ push(rcx);  // Push return address.
+  __ PushReturnAddressFrom(rcx);
 
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.
@@ -982,10 +982,10 @@ static void BinaryOpStub_GenerateRegisterArgsPushUnderReturn(
     MacroAssembler* masm) {
   // Push arguments, but ensure they are under the return address
   // for a tail call.
-  __ pop(rcx);
+  __ PopReturnAddressTo(rcx);
   __ push(rdx);
   __ push(rax);
-  __ push(rcx);
+  __ PushReturnAddressFrom(rcx);
 }
 
 
@@ -2153,10 +2153,10 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotSmi(value, &miss);
 
   // Prepare tail call to StoreIC_ArrayLength.
-  __ pop(scratch);
+  __ PopReturnAddressTo(scratch);
   __ push(receiver);
   __ push(value);
-  __ push(scratch);  // return address
+  __ PushReturnAddressFrom(scratch);
 
   ExternalReference ref =
       ExternalReference(IC_Utility(IC::kStoreIC_ArrayLength), masm->isolate());
@@ -2222,9 +2222,9 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // Slow-case: Handle non-smi or out-of-bounds access to arguments
   // by calling the runtime system.
   __ bind(&slow);
-  __ pop(rbx);  // Return address.
+  __ PopReturnAddressTo(rbx);
   __ push(rdx);
-  __ push(rbx);
+  __ PushReturnAddressFrom(rbx);
   __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
 }
 
@@ -3484,7 +3484,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   }
 
   // Push arguments below the return address to prepare jump to builtin.
-  __ pop(rcx);
+  __ PopReturnAddressTo(rcx);
   __ push(rdx);
   __ push(rax);
 
@@ -3497,8 +3497,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
     __ Push(Smi::FromInt(NegativeComparisonResult(cc)));
   }
 
-  // Restore return address on the stack.
-  __ push(rcx);
+  __ PushReturnAddressFrom(rcx);
 
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
@@ -3667,9 +3666,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Check for function proxy.
   __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
   __ j(not_equal, &non_function);
-  __ pop(rcx);
+  __ PopReturnAddressTo(rcx);
   __ push(rdi);  // put proxy as additional argument under return address
-  __ push(rcx);
+  __ PushReturnAddressFrom(rcx);
   __ Set(rax, argc_ + 1);
   __ Set(rbx, 0);
   __ SetCallKind(rcx, CALL_AS_METHOD);
@@ -4347,9 +4346,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ bind(&slow);
   if (HasCallSiteInlineCheck()) {
     // Remove extra value from the stack.
-    __ pop(rcx);
+    __ PopReturnAddressTo(rcx);
     __ pop(rax);
-    __ push(rcx);
+    __ PushReturnAddressFrom(rcx);
   }
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
@@ -4820,10 +4819,10 @@ void StringAddStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
 
 void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm,
                                             Register temp) {
-  __ pop(temp);
+  __ PopReturnAddressTo(temp);
   __ pop(rdx);
   __ pop(rax);
-  __ push(temp);
+  __ PushReturnAddressFrom(temp);
 }
 
 
@@ -5527,9 +5526,9 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Inline comparison of ASCII strings.
   __ IncrementCounter(counters->string_compare_native(), 1);
   // Drop arguments from the stack
-  __ pop(rcx);
+  __ PopReturnAddressTo(rcx);
   __ addq(rsp, Immediate(2 * kPointerSize));
-  __ push(rcx);
+  __ PushReturnAddressFrom(rcx);
   GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi, r8);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
@@ -5798,10 +5797,10 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
   // Handle more complex cases in runtime.
   __ bind(&runtime);
-  __ pop(tmp1);  // Return address.
+  __ PopReturnAddressTo(tmp1);
   __ push(left);
   __ push(right);
-  __ push(tmp1);
+  __ PushReturnAddressFrom(tmp1);
   if (equality) {
     __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
   } else {
@@ -6409,16 +6408,14 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // the runtime.
 
   __ bind(&slow_elements);
-  __ pop(rdi);  // Pop return address and remember to put back later for tail
-                // call.
+  __ PopReturnAddressTo(rdi);
   __ push(rbx);
   __ push(rcx);
   __ push(rax);
   __ movq(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
   __ push(rdx);
-  __ push(rdi);  // Return return address so that tail call returns to right
-                 // place.
+  __ PushReturnAddressFrom(rdi);
   __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
 
   // Array literal has ElementsKind of FAST_*_ELEMENTS and value is an object.
@@ -6465,7 +6462,7 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
   __ movq(rbx, MemOperand(rbp, parameter_count_offset));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
-  __ pop(rcx);
+  __ PopReturnAddressTo(rcx);
   int additional_offset = function_mode_ == JS_FUNCTION_STUB_MODE
       ? kPointerSize
       : 0;
