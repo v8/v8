@@ -488,9 +488,9 @@
                 'BasicRuntimeChecks': '0',
                 'conditions': [
                   ['component=="shared_library"', {
-                    'RuntimeLibrary': '2',  #/MD
+                    'RuntimeLibrary': '3',  #/MDd
                   }, {
-                    'RuntimeLibrary': '0',  #/MT
+                    'RuntimeLibrary': '1',  #/MTd
                   }],
                   ['v8_target_arch=="x64"', {
                     # TODO(2207): remove this option once the bug is fixed.
