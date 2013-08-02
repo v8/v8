@@ -5971,7 +5971,7 @@ class HLoadKeyedGeneric: public HTemplateInstruction<3> {
 };
 
 
-class HStoreNamedField: public HTemplateInstruction<2> {
+class HStoreNamedField: public HTemplateInstruction<3> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P3(HStoreNamedField, HValue*,
                                  HObjectAccess, HValue*);
@@ -6003,24 +6003,37 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     return write_barrier_mode_ == SKIP_WRITE_BARRIER;
   }
 
-  HValue* object() { return OperandAt(0); }
-  HValue* value() { return OperandAt(1); }
+  HValue* object() const { return OperandAt(0); }
+  HValue* value() const { return OperandAt(1); }
+  HValue* transition() const { return OperandAt(2); }
 
   HObjectAccess access() const { return access_; }
-  Handle<Map> transition() const { return transition_; }
-  UniqueValueId transition_unique_id() const { return transition_unique_id_; }
-  void SetTransition(Handle<Map> map, CompilationInfo* info) {
-    ASSERT(transition_.is_null());  // Only set once.
+  HValue* new_space_dominator() const { return new_space_dominator_; }
+
+  bool has_transition() const {
+    return transition() != object();
+  }
+
+  Handle<Map> transition_map() const {
+    if (has_transition()) {
+      return Handle<Map>::cast(HConstant::cast(transition())->handle());
+    } else {
+      return Handle<Map>();
+    }
+  }
+
+  void SetTransition(HConstant* map_constant, CompilationInfo* info) {
+    ASSERT(!has_transition());  // Only set once.
+    Handle<Map> map = Handle<Map>::cast(map_constant->handle());
     if (map->CanBeDeprecated()) {
       map->AddDependentCompilationInfo(DependentCode::kTransitionGroup, info);
     }
-    transition_ = map;
+    SetOperandAt(2, map_constant);
   }
-  HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {
     ASSERT(!(FLAG_track_double_fields && field_representation().IsDouble()) ||
-           transition_.is_null());
+           !has_transition());
     if (IsSkipWriteBarrier()) return false;
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
@@ -6035,10 +6048,6 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     return ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
-  virtual void FinalizeUniqueValueId() {
-    transition_unique_id_ = UniqueValueId(transition_);
-  }
-
   Representation field_representation() const {
     return access_.representation();
   }
@@ -6048,18 +6057,15 @@ class HStoreNamedField: public HTemplateInstruction<2> {
                    HObjectAccess access,
                    HValue* val)
       : access_(access),
-        transition_(),
-        transition_unique_id_(),
         new_space_dominator_(NULL),
         write_barrier_mode_(UPDATE_WRITE_BARRIER) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
+    SetOperandAt(2, obj);
     access.SetGVNFlags(this, true);
   }
 
   HObjectAccess access_;
-  Handle<Map> transition_;
-  UniqueValueId transition_unique_id_;
   HValue* new_space_dominator_;
   WriteBarrierMode write_barrier_mode_;
 };

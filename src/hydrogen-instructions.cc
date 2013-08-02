@@ -1389,10 +1389,10 @@ void HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
   // for which the map is known.
   if (HasNoUses() && dominator->IsStoreNamedField()) {
     HStoreNamedField* store = HStoreNamedField::cast(dominator);
-    UniqueValueId map_unique_id = store->transition_unique_id();
-    if (!map_unique_id.IsInitialized() || store->object() != value()) return;
+    if (!store->has_transition() || store->object() != value()) return;
+    HConstant* transition = HConstant::cast(store->transition());
     for (int i = 0; i < map_set()->length(); i++) {
-      if (map_unique_id == map_unique_ids_.at(i)) {
+      if (transition->UniqueValueIdsMatch(map_unique_ids_.at(i))) {
         DeleteAndReplaceWith(NULL);
         return;
       }
@@ -3160,8 +3160,8 @@ void HStoreNamedField::PrintDataTo(StringStream* stream) {
   if (NeedsWriteBarrier()) {
     stream->Add(" (write-barrier)");
   }
-  if (!transition().is_null()) {
-    stream->Add(" (transition map %p)", *transition());
+  if (has_transition()) {
+    stream->Add(" (transition map %p)", *transition_map());
   }
 }
 

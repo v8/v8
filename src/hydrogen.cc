@@ -4506,7 +4506,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
 
   if (transition_to_field) {
     Handle<Map> transition(lookup->GetTransitionMapFromMap(*map));
-    instr->SetTransition(transition, top_info());
+    HConstant* transition_constant = Add<HConstant>(transition);
+    instr->SetTransition(transition_constant, top_info());
     // TODO(fschneider): Record the new map type of the object in the IR to
     // enable elimination of redundant checks after the transition store.
     instr->SetGVNFlag(kChangesMaps);

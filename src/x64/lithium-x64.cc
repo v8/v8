@@ -2222,7 +2222,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   bool is_external_location = instr->access().IsExternalMemory() &&
       instr->access().offset() == 0;
   bool needs_write_barrier = instr->NeedsWriteBarrier();
-  bool needs_write_barrier_for_map = !instr->transition().is_null() &&
+  bool needs_write_barrier_for_map = instr->has_transition() &&
       instr->NeedsWriteBarrierForMap();
 
   LOperand* obj;

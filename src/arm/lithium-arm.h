@@ -2150,7 +2150,7 @@ class LStoreNamedField: public LTemplateInstruction<0, 2, 1> {
 
   virtual void PrintDataTo(StringStream* stream);
 
-  Handle<Map> transition() const { return hydrogen()->transition(); }
+  Handle<Map> transition() const { return hydrogen()->transition_map(); }
   Representation representation() const {
     return hydrogen()->field_representation();
   }
