@@ -99,10 +99,9 @@ v8::Isolate* CcTest::default_isolate_;
 
 
 class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
   virtual void* Allocate(size_t length) { return malloc(length); }
-  virtual void Free(void* data, size_t length) { free(data); }
-  // TODO(dslomov): Remove when v8:2823 is fixed.
-  virtual void Free(void* data) { UNREACHABLE(); }
+  virtual void Free(void* data) { free(data); }
 };
 
 

@@ -3071,12 +3071,6 @@ void v8::ArrayBuffer::CheckCast(Value* that) {
 }
 
 
-void v8::ArrayBuffer::Allocator::Free(void* data) {
-  API_Fatal("v8::ArrayBuffer::Allocator::Free",
-            "Override Allocator::Free(void*, size_t)");
-}
-
-
 void v8::ArrayBufferView::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSArrayBufferView(),

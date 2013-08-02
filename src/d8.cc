@@ -1635,9 +1635,7 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void* AllocateUninitialized(size_t length) {
     return malloc(length);
   }
-  virtual void Free(void* data, size_t) { free(data); }
-  // TODO(dslomov): Remove when v8:2823 is fixed.
-  virtual void Free(void* data) { UNREACHABLE(); }
+  virtual void Free(void* data) { free(data); }
 };
 
 

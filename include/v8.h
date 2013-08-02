@@ -2425,20 +2425,10 @@ class V8EXPORT ArrayBuffer : public Object {
     }
 
     /**
-     * Free the memory block of size |length|, pointed to by |data|.
-     * That memory is guaranteed to be previously allocated by |Allocate|.
+     * Free the memory pointed to |data|. That memory is guaranteed to be
+     * previously allocated by |Allocate|.
      */
-    virtual void Free(void* data, size_t length) {
-      // Override with call to |Free(void*)| for compatibility
-      // with legacy version.
-      Free(data);
-    }
-
-    /**
-     * Deprecated. Never called directly by V8.
-     * For compatibility with legacy version of this interface.
-     */
-    virtual void Free(void* data);
+    virtual void Free(void* data) = 0;
   };
 
   /**
