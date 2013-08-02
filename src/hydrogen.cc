@@ -1718,33 +1718,14 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
 
 HInstruction* HGraphBuilder::BuildUnaryMathOp(
     HValue* input, Handle<Type> type, Token::Value operation) {
+  ASSERT_EQ(Token::BIT_NOT, operation);
   // We only handle the numeric cases here
   type = handle(
       Type::Intersect(type, handle(Type::Number(), isolate())), isolate());
-
-  switch (operation) {
-    default:
-      UNREACHABLE();
-    case Token::SUB: {
-        HInstruction* instr =
-            NewUncasted<HMul>(input, graph()->GetConstantMinus1());
-        Representation rep = Representation::FromType(type);
-        if (type->Is(Type::None())) {
-          Add<HDeoptimize>(Deoptimizer::SOFT);
-        }
-        if (instr->IsBinaryOperation()) {
-          HBinaryOperation* binop = HBinaryOperation::cast(instr);
-          binop->set_observed_input_representation(1, rep);
-          binop->set_observed_input_representation(2, rep);
-        }
-        return instr;
-      }
-    case Token::BIT_NOT:
-      if (type->Is(Type::None())) {
-        Add<HDeoptimize>(Deoptimizer::SOFT);
-      }
-      return New<HBitNot>(input);
+  if (type->Is(Type::None())) {
+    Add<HDeoptimize>(Deoptimizer::SOFT);
   }
+  return New<HBitNot>(input);
 }
 
 
@@ -7220,7 +7201,6 @@ void HOptimizedGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::DELETE: return VisitDelete(expr);
     case Token::VOID: return VisitVoid(expr);
     case Token::TYPEOF: return VisitTypeof(expr);
-    case Token::SUB: return VisitSub(expr);
     case Token::BIT_NOT: return VisitBitNot(expr);
     case Token::NOT: return VisitNot(expr);
     default: UNREACHABLE();
@@ -7279,15 +7259,6 @@ void HOptimizedGraphBuilder::VisitTypeof(UnaryOperation* expr) {
   HValue* value = Pop();
   HValue* context = environment()->context();
   HInstruction* instr = new(zone()) HTypeof(context, value);
-  return ast_context()->ReturnInstruction(instr, expr->id());
-}
-
-
-void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
-  CHECK_ALIVE(VisitForValue(expr->expression()));
-  Handle<Type> operand_type = expr->expression()->bounds().lower;
-  HValue* value = TruncateToNumber(Pop(), &operand_type);
-  HInstruction* instr = BuildUnaryMathOp(value, operand_type, Token::SUB);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 

@@ -804,6 +804,7 @@ Handle<Code> CompareNilICStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<UnaryOpStub>::BuildCodeInitializedStub() {
   UnaryOpStub* stub = casted_stub();
+  ASSERT_EQ(Token::BIT_NOT, stub->operation());
   Handle<Type> type = stub->GetType(graph()->isolate());
   HValue* input = GetParameter(0);
 

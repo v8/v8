@@ -4347,10 +4347,6 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       break;
     }
 
-    case Token::SUB:
-      EmitUnaryOperation(expr, "[ UnaryOperation (SUB)");
-      break;
-
     case Token::BIT_NOT:
       EmitUnaryOperation(expr, "[ UnaryOperation (BIT_NOT)");
       break;
@@ -4363,6 +4359,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
                                            const char* comment) {
+  ASSERT_EQ(Token::BIT_NOT, expr->op());
   Comment cmt(masm_, comment);
   UnaryOpStub stub(expr->op());
   // UnaryOpStub expects the argument to be in the

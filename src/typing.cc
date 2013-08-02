@@ -419,13 +419,6 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::VOID:
       NarrowType(expr, Bounds(Type::Undefined(), isolate_));
       break;
-    case Token::ADD:
-    case Token::SUB: {
-      Type* upper = *expr->expression()->bounds().upper;
-      if (!upper->Is(Type::Number())) upper = Type::Number();
-      NarrowType(expr, Bounds(Type::Smi(), upper, isolate_));
-      break;
-    }
     case Token::BIT_NOT:
       NarrowType(expr, Bounds(Type::Smi(), Type::Signed32(), isolate_));
       break;
