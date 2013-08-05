@@ -285,9 +285,6 @@ class LCodeGen BASE_EMBEDDED {
                     LEnvironment* environment,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
-  void SoftDeoptimize(LEnvironment* environment,
-                      Register src1 = zero_reg,
-                      const Operand& src2 = Operand(zero_reg));
 
   void AddToTranslation(Translation* translation,
                         LOperand* op,

@@ -2120,16 +2120,6 @@ void HSimulate::PrintDataTo(StringStream* stream) {
 }
 
 
-void HDeoptimize::PrintDataTo(StringStream* stream) {
-  if (OperandCount() == 0) return;
-  OperandAt(0)->PrintNameTo(stream);
-  for (int i = 1; i < OperandCount(); ++i) {
-    stream->Add(" ");
-    OperandAt(i)->PrintNameTo(stream);
-  }
-}
-
-
 void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
                                          Zone* zone) {
   ASSERT(return_target->IsInlineReturnTarget());

@@ -434,6 +434,7 @@ class LDummyUse: public LTemplateInstruction<1, 1, 0> {
 class LDeoptimize: public LTemplateInstruction<0, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize, "deoptimize")
+  DECLARE_HYDROGEN_ACCESSOR(Deoptimize)
 };
 
 

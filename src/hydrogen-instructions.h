@@ -33,6 +33,7 @@
 #include "allocation.h"
 #include "code-stubs.h"
 #include "data-flow.h"
+#include "deoptimizer.h"
 #include "small-pointer-list.h"
 #include "string-stream.h"
 #include "v8conversions.h"
@@ -162,7 +163,6 @@ class LChunkBuilder;
   V(Shl)                                       \
   V(Shr)                                       \
   V(Simulate)                                  \
-  V(SoftDeoptimize)                            \
   V(StackCheck)                                \
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
@@ -1482,16 +1482,20 @@ class HNumericConstraint : public HTemplateInstruction<2> {
 };
 
 
-// We insert soft-deoptimize when we hit code with unknown typefeedback,
-// so that we get a chance of re-optimizing with useful typefeedback.
-// HSoftDeoptimize does not end a basic block as opposed to HDeoptimize.
-class HSoftDeoptimize: public HTemplateInstruction<0> {
+class HDeoptimize: public HTemplateInstruction<0> {
  public:
+  explicit HDeoptimize(Deoptimizer::BailoutType type) : type_(type) {}
+
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(SoftDeoptimize)
+  Deoptimizer::BailoutType type() { return type_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
+
+ private:
+  Deoptimizer::BailoutType type_;
 };
 
 
@@ -1503,59 +1507,6 @@ class HDebugBreak: public HTemplateInstruction<0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(DebugBreak)
-};
-
-
-class HDeoptimize: public HControlInstruction {
- public:
-  HDeoptimize(int environment_length,
-              int first_local_index,
-              int first_expression_index,
-              Zone* zone)
-      : values_(environment_length, zone),
-        first_local_index_(first_local_index),
-        first_expression_index_(first_expression_index) { }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::None();
-  }
-
-  virtual int OperandCount() { return values_.length(); }
-  virtual HValue* OperandAt(int index) const { return values_[index]; }
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual int SuccessorCount() { return 0; }
-  virtual HBasicBlock* SuccessorAt(int i) {
-    UNREACHABLE();
-    return NULL;
-  }
-  virtual void SetSuccessorAt(int i, HBasicBlock* block) {
-    UNREACHABLE();
-  }
-
-  void AddEnvironmentValue(HValue* value, Zone* zone) {
-    values_.Add(NULL, zone);
-    SetOperandAt(values_.length() - 1, value);
-  }
-  int first_local_index() { return first_local_index_; }
-  int first_expression_index() { return first_expression_index_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
-
-  enum UseEnvironment {
-    kNoUses,
-    kUseAll
-  };
-
- protected:
-  virtual void InternalSetOperandAt(int index, HValue* value) {
-    values_[index] = value;
-  }
-
- private:
-  ZoneList<HValue*> values_;
-  int first_local_index_;
-  int first_expression_index_;
 };
 
 

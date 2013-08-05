@@ -843,14 +843,6 @@ void LCodeGen::DeoptimizeIf(Condition cc,
 }
 
 
-void LCodeGen::SoftDeoptimize(LEnvironment* environment,
-                              Register src1,
-                              const Operand& src2) {
-  ASSERT(!info()->IsStub());
-  DeoptimizeIf(al, environment, Deoptimizer::SOFT, src1, src2);
-}
-
-
 void LCodeGen::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
   ZoneList<Handle<Map> > maps(1, zone());
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
@@ -5651,11 +5643,15 @@ void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
 
 
 void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
-  if (instr->hydrogen_value()->IsSoftDeoptimize()) {
-    SoftDeoptimize(instr->environment(), zero_reg, Operand(zero_reg));
-  } else {
-    DeoptimizeIf(al, instr->environment(), zero_reg, Operand(zero_reg));
+  Deoptimizer::BailoutType type = instr->hydrogen()->type();
+  // TODO(danno): Stubs expect all deopts to be lazy for historical reasons (the
+  // needed return address), even though the implementation of LAZY and EAGER is
+  // now identical. When LAZY is eventually completely folded into EAGER, remove
+  // the special case below.
+  if (info()->IsStub() && type == Deoptimizer::EAGER) {
+    type = Deoptimizer::LAZY;
   }
+  DeoptimizeIf(al, instr->environment(), type, zero_reg, Operand(zero_reg));
 }
 
 

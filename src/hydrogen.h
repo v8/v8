@@ -136,16 +136,14 @@ class HBasicBlock: public ZoneObject {
   }
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
-  void AddSimulate(BailoutId ast_id,
-                   RemovableSimulate removable = FIXED_SIMULATE) {
-    AddInstruction(CreateSimulate(ast_id, removable));
+  HSimulate* AddSimulate(BailoutId ast_id,
+                         RemovableSimulate removable = FIXED_SIMULATE) {
+    HSimulate* instr = CreateSimulate(ast_id, removable);
+    AddInstruction(instr);
+    return instr;
   }
   void AssignCommonDominator(HBasicBlock* other);
   void AssignLoopSuccessorDominators();
-
-  void FinishExitWithDeoptimization(HDeoptimize::UseEnvironment has_uses) {
-    FinishExit(CreateDeoptimize(has_uses));
-  }
 
   // Add the inlined function exit sequence, adding an HLeaveInlined
   // instruction and updating the bailout environment.
@@ -181,11 +179,12 @@ class HBasicBlock: public ZoneObject {
 #endif
 
  private:
+  friend class HGraphBuilder;
+
   void RegisterPredecessor(HBasicBlock* pred);
   void AddDominatedBlock(HBasicBlock* block);
 
   HSimulate* CreateSimulate(BailoutId ast_id, RemovableSimulate removable);
-  HDeoptimize* CreateDeoptimize(HDeoptimize::UseEnvironment has_uses);
 
   int block_id_;
   HGraph* graph_;
@@ -991,8 +990,6 @@ class HGraphBuilder {
 
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
-  void AddSimulate(BailoutId id,
-                   RemovableSimulate removable = FIXED_SIMULATE);
   HBoundsCheck* AddBoundsCheck(HValue* index, HValue* length);
 
   HReturn* AddReturn(HValue* value);
@@ -1003,6 +1000,18 @@ class HGraphBuilder {
 
   void DecrementInNoSideEffectsScope() {
     no_side_effects_scope_count_--;
+  }
+
+  void FinishExitWithHardDeoptimization(HBasicBlock* continuation);
+
+  template<class I, class P1>
+  I* Add(P1 p1) {
+    return I::cast(AddInstruction(new (zone()) I(p1)));
+  }
+
+  template<class I, class P1, class P2>
+  I* Add(P1 p1, P2 p2) {
+    return I::cast(AddInstruction(new (zone()) I(p1, p2)));
   }
 
  protected:
@@ -1183,7 +1192,6 @@ class HGraphBuilder {
     void ElseDeopt() {
       Else();
       Deopt();
-      End();
     }
 
     void Return(HValue* value);
@@ -1196,6 +1204,8 @@ class HGraphBuilder {
     HGraphBuilder* builder_;
     int position_;
     bool finished_ : 1;
+    bool deopt_then_ : 1;
+    bool deopt_else_ : 1;
     bool did_then_ : 1;
     bool did_else_ : 1;
     bool did_and_ : 1;
@@ -1374,11 +1384,64 @@ class HGraphBuilder {
 
  private:
   HGraphBuilder();
+
+  void PadEnvironmentForContinuation(HBasicBlock* from,
+                                     HBasicBlock* continuation);
+
   CompilationInfo* info_;
   HGraph* graph_;
   HBasicBlock* current_block_;
   int no_side_effects_scope_count_;
 };
+
+
+template<>
+inline HDeoptimize* HGraphBuilder::Add(Deoptimizer::BailoutType type) {
+  if (type == Deoptimizer::SOFT) {
+    if (FLAG_always_opt) return NULL;
+  }
+  if (current_block()->IsDeoptimizing()) return NULL;
+  HDeoptimize* instr = new(zone()) HDeoptimize(type);
+  AddInstruction(instr);
+  if (type == Deoptimizer::SOFT) {
+    graph()->set_has_soft_deoptimize(true);
+  }
+  current_block()->MarkAsDeoptimizing();
+  return instr;
+}
+
+
+template<>
+inline HSimulate* HGraphBuilder::Add(BailoutId id,
+                                     RemovableSimulate removable) {
+  HSimulate* instr = current_block()->CreateSimulate(id, removable);
+  AddInstruction(instr);
+  return instr;
+}
+
+
+template<>
+inline HSimulate* HGraphBuilder::Add(BailoutId id) {
+  return Add<HSimulate>(id, FIXED_SIMULATE);
+}
+
+
+template<>
+inline HReturn* HGraphBuilder::Add(HValue* value) {
+  HValue* context = environment()->LookupContext();
+  int num_parameters = graph()->info()->num_parameters();
+  HValue* params = Add<HConstant>(num_parameters);
+  HReturn* return_instruction = new(graph()->zone())
+    HReturn(value, context, params);
+  current_block()->FinishExit(return_instruction);
+  return return_instruction;
+}
+
+
+template<>
+inline HReturn* HGraphBuilder::Add(HConstant* p1) {
+  return Add<HReturn>(static_cast<HValue*>(p1));
+}
 
 
 class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
@@ -1445,8 +1508,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   void set_break_scope(BreakAndContinueScope* head) { break_scope_ = head; }
 
   bool inline_bailout() { return inline_bailout_; }
-
-  void AddSoftDeoptimize();
 
   void Bailout(const char* reason);
 

@@ -177,7 +177,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   AddInstruction(context_);
   start_environment->BindContext(context_);
 
-  AddSimulate(BailoutId::StubEntry());
+  Add<HSimulate>(BailoutId::StubEntry());
 
   NoObservableSideEffectsScope no_effects(this);
 
@@ -360,9 +360,10 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                length));
   }
 
-  HValue* result = environment()->Pop();
   checker.ElseDeopt();
-  return result;
+  checker.End();
+
+  return environment()->Pop();
 }
 
 
@@ -409,8 +410,11 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
     AddStore(object, access, AddLoad(boilerplate, access));
   }
 
+  environment()->Push(object);
   checker.ElseDeopt();
-  return object;
+  checker.End();
+
+  return environment()->Pop();
 }
 
 

@@ -711,11 +711,6 @@ LInstruction* LChunkBuilder::DoEnvironmentMarker(HEnvironmentMarker* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoSoftDeoptimize(HSoftDeoptimize* instr) {
-  return AssignEnvironment(new(zone()) LDeoptimize);
-}
-
-
 LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
   return AssignEnvironment(new(zone()) LDeoptimize);
 }
