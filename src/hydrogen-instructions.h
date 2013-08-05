@@ -6009,10 +6009,7 @@ class HStoreNamedField: public HTemplateInstruction<3> {
 
   HObjectAccess access() const { return access_; }
   HValue* new_space_dominator() const { return new_space_dominator_; }
-
-  bool has_transition() const {
-    return transition() != object();
-  }
+  bool has_transition() const { return has_transition_; }
 
   Handle<Map> transition_map() const {
     if (has_transition()) {
@@ -6029,6 +6026,7 @@ class HStoreNamedField: public HTemplateInstruction<3> {
       map->AddDependentCompilationInfo(DependentCode::kTransitionGroup, info);
     }
     SetOperandAt(2, map_constant);
+    has_transition_ = true;
   }
 
   bool NeedsWriteBarrier() {
@@ -6058,7 +6056,8 @@ class HStoreNamedField: public HTemplateInstruction<3> {
                    HValue* val)
       : access_(access),
         new_space_dominator_(NULL),
-        write_barrier_mode_(UPDATE_WRITE_BARRIER) {
+        write_barrier_mode_(UPDATE_WRITE_BARRIER),
+        has_transition_(false) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     SetOperandAt(2, obj);
@@ -6067,7 +6066,8 @@ class HStoreNamedField: public HTemplateInstruction<3> {
 
   HObjectAccess access_;
   HValue* new_space_dominator_;
-  WriteBarrierMode write_barrier_mode_;
+  WriteBarrierMode write_barrier_mode_ : 1;
+  bool has_transition_ : 1;
 };
 
 
