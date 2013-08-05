@@ -1807,7 +1807,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);
   void VisitTypeof(UnaryOperation* expr);
-  void VisitSub(UnaryOperation* expr);
   void VisitBitNot(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
 

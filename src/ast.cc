@@ -307,7 +307,6 @@ void UnaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 bool UnaryOperation::ResultOverwriteAllowed() {
   switch (op_) {
     case Token::BIT_NOT:
-    case Token::SUB:
       return true;
     default:
       return false;
