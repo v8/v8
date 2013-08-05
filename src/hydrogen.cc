@@ -1050,12 +1050,14 @@ void HGraphBuilder::PadEnvironmentForContinuation(
     HBasicBlock* continuation) {
   if (continuation->last_environment() != NULL) {
     // When merging from a deopt block to a continuation, resolve differences in
-    // environment by pushing undefined and popping extra values so that the
-    // environments match during the join.
+    // environment by pushing constant 0 and popping extra values so that the
+    // environments match during the join. Push 0 since it has the most specific
+    // representation, and will not influence representation inference of the
+    // phi.
     int continuation_env_length = continuation->last_environment()->length();
     while (continuation_env_length != from->last_environment()->length()) {
       if (continuation_env_length > from->last_environment()->length()) {
-        from->last_environment()->Push(graph()->GetConstantUndefined());
+        from->last_environment()->Push(graph()->GetConstant0());
       } else {
         from->last_environment()->Pop();
       }
