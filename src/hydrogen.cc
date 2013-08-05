@@ -957,8 +957,9 @@ void HGraphBuilder::LoopBuilder::EndBody() {
 
   // Push the new increment value on the expression stack to merge into the phi.
   builder_->environment()->Push(increment_);
-  builder_->current_block()->GotoNoSimulate(header_block_);
-  header_block_->loop_information()->RegisterBackEdge(body_block_);
+  HBasicBlock* last_block = builder_->current_block();
+  last_block->GotoNoSimulate(header_block_);
+  header_block_->loop_information()->RegisterBackEdge(last_block);
 
   builder_->set_current_block(exit_block_);
   // Pop the phi from the expression stack
