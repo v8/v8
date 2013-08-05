@@ -209,12 +209,15 @@ class CpuProfile {
   void AddPath(const Vector<CodeEntry*>& path);
   void CalculateTotalTicksAndSamplingRate();
 
-  INLINE(const char* title() const) { return title_; }
-  INLINE(unsigned uid() const) { return uid_; }
-  INLINE(const ProfileTree* top_down() const) { return &top_down_; }
+  const char* title() const { return title_; }
+  unsigned uid() const { return uid_; }
+  const ProfileTree* top_down() const { return &top_down_; }
 
-  INLINE(int samples_count() const) { return samples_.length(); }
-  INLINE(ProfileNode* sample(int index) const) { return samples_.at(index); }
+  int samples_count() const { return samples_.length(); }
+  ProfileNode* sample(int index) const { return samples_.at(index); }
+
+  double start_time_ms() const { return start_time_ms_; }
+  double end_time_ms() const { return end_time_ms_; }
 
   void UpdateTicksScale();
 

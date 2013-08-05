@@ -7567,6 +7567,18 @@ const CpuProfileNode* CpuProfile::GetSample(int index) const {
 }
 
 
+double CpuProfile::GetStartTime() const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return profile->start_time_ms();
+}
+
+
+double CpuProfile::GetEndTime() const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return profile->end_time_ms();
+}
+
+
 int CpuProfile::GetSamplesCount() const {
   return reinterpret_cast<const i::CpuProfile*>(this)->samples_count();
 }
