@@ -2038,15 +2038,6 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
-  LUnallocated* temp = NULL;
-  if (!instr->CanOmitPrototypeChecks()) temp = TempRegister();
-  LCheckPrototypeMaps* result = new(zone()) LCheckPrototypeMaps(temp);
-  if (instr->CanOmitPrototypeChecks()) return result;
-  return AssignEnvironment(result);
-}
-
-
 LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
   // If the target is in new space, we'll emit a global cell compare and so
   // want the value in a register.  If the target gets promoted before we

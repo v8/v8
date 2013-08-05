@@ -3677,11 +3677,6 @@ void Map::NotifyLeafMapLayoutChange() {
 }
 
 
-bool Map::CanOmitPrototypeChecks() {
-  return is_stable() && FLAG_omit_prototype_checks_for_leaf_maps;
-}
-
-
 bool Map::CanOmitMapChecks() {
   return is_stable() && FLAG_omit_map_checks_for_leaf_maps;
 }

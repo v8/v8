@@ -1443,13 +1443,6 @@ void HCheckInstanceType::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCheckPrototypeMaps::PrintDataTo(StringStream* stream) {
-  stream->Add("[receiver_prototype=%p,holder=%p]%s",
-              *prototypes_.first(), *prototypes_.last(),
-              CanOmitPrototypeChecks() ? " (omitted)" : "");
-}
-
-
 void HCallStub::PrintDataTo(StringStream* stream) {
   stream->Add("%s ",
               CodeStub::MajorName(major_key_, false));
@@ -2403,6 +2396,14 @@ HConstant::HConstant(ExternalReference reference)
 }
 
 
+static void PrepareConstant(Handle<Object> object) {
+  if (!object->IsJSObject()) return;
+  Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+  if (!js_object->map()->is_deprecated()) return;
+  JSObject::TryMigrateInstance(js_object);
+}
+
+
 void HConstant::Initialize(Representation r) {
   if (r.IsNone()) {
     if (has_smi_value_ && kSmiValueSize == 31) {
@@ -2414,6 +2415,7 @@ void HConstant::Initialize(Representation r) {
     } else if (has_external_reference_value_) {
       r = Representation::External();
     } else {
+      PrepareConstant(handle_);
       r = Representation::Tagged();
     }
   }

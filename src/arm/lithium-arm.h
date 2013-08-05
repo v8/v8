@@ -68,7 +68,6 @@ class LCodeGen;
   V(CheckNonSmi)                                \
   V(CheckMaps)                                  \
   V(CheckMapValue)                              \
-  V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
@@ -2349,26 +2348,6 @@ class LCheckMaps: public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMaps, "check-maps")
   DECLARE_HYDROGEN_ACCESSOR(CheckMaps)
-};
-
-
-class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 2> {
- public:
-  LCheckPrototypeMaps(LOperand* temp, LOperand* temp2)  {
-    temps_[0] = temp;
-    temps_[1] = temp2;
-  }
-
-  LOperand* temp() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check-prototype-maps")
-  DECLARE_HYDROGEN_ACCESSOR(CheckPrototypeMaps)
-
-  ZoneList<Handle<JSObject> >* prototypes() const {
-    return hydrogen()->prototypes();
-  }
-  ZoneList<Handle<Map> >* maps() const { return hydrogen()->maps(); }
 };
 
 

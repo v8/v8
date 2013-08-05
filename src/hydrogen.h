@@ -1563,6 +1563,10 @@ class HGraphBuilder {
                                        int previous_object_size,
                                        HValue* payload);
 
+  void BuildConstantMapCheck(Handle<JSObject> constant, CompilationInfo* info);
+  void BuildCheckPrototypeMaps(Handle<JSObject> prototype,
+                               Handle<JSObject> holder);
+
   HInstruction* BuildGetNativeContext();
   HInstruction* BuildGetArrayFunction();
 

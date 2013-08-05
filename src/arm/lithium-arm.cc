@@ -2005,19 +2005,6 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
-  LUnallocated* temp1 = NULL;
-  LOperand* temp2 = NULL;
-  if (!instr->CanOmitPrototypeChecks()) {
-    temp1 = TempRegister();
-    temp2 = TempRegister();
-  }
-  LCheckPrototypeMaps* result = new(zone()) LCheckPrototypeMaps(temp1, temp2);
-  if (instr->CanOmitPrototypeChecks()) return result;
-  return AssignEnvironment(result);
-}
-
-
 LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   return AssignEnvironment(new(zone()) LCheckFunction(value));

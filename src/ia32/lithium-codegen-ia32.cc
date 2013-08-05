@@ -5994,22 +5994,6 @@ void LCodeGen::DoClampTToUint8NoSSE2(LClampTToUint8NoSSE2* instr) {
 }
 
 
-void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
-  if (instr->hydrogen()->CanOmitPrototypeChecks()) return;
-  Register reg = ToRegister(instr->temp());
-
-  ZoneList<Handle<JSObject> >* prototypes = instr->prototypes();
-  ZoneList<Handle<Map> >* maps = instr->maps();
-
-  ASSERT(prototypes->length() == maps->length());
-
-  for (int i = 0; i < prototypes->length(); i++) {
-    __ LoadHeapObject(reg, prototypes->at(i));
-    DoCheckMapCommon(reg, maps->at(i), instr);
-  }
-}
-
-
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate: public LDeferredCode {
    public:

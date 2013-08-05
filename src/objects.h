@@ -5921,7 +5921,6 @@ class Map: public HeapObject {
   // the descriptor array.
   inline void NotifyLeafMapLayoutChange();
 
-  inline bool CanOmitPrototypeChecks();
   inline bool CanOmitMapChecks();
 
   void AddDependentCompilationInfo(DependentCode::DependencyGroup group,
@@ -5938,7 +5937,7 @@ class Map: public HeapObject {
 
 #ifdef VERIFY_HEAP
   void SharedMapVerify();
-  void VerifyOmittedPrototypeChecks();
+  void VerifyOmittedMapChecks();
 #endif
 
   inline int visitor_id();

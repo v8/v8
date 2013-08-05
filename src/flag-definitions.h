@@ -310,9 +310,6 @@ DEFINE_int(parallel_recompilation_queue_length, 8,
            "the length of the parallel compilation queue")
 DEFINE_int(parallel_recompilation_delay, 0,
            "artificial compilation delay in ms")
-DEFINE_bool(omit_prototype_checks_for_leaf_maps, true,
-            "do not emit prototype checks if all prototypes have leaf maps, "
-            "deoptimize the optimized code if the layout of the maps changes.")
 DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")

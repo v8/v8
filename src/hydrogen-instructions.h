@@ -93,7 +93,6 @@ class LChunkBuilder;
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
   V(CheckMapValue)                             \
-  V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
@@ -2810,87 +2809,6 @@ class HCheckHeapObject: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
-};
-
-
-class HCheckPrototypeMaps: public HTemplateInstruction<0> {
- public:
-  static HCheckPrototypeMaps* New(Zone* zone,
-                                  HValue* context,
-                                  Handle<JSObject> prototype,
-                                  Handle<JSObject> holder,
-                                  CompilationInfo* info) {
-    return new(zone) HCheckPrototypeMaps(prototype, holder, zone, info);
-  }
-
-  ZoneList<Handle<JSObject> >* prototypes() { return &prototypes_; }
-
-  ZoneList<Handle<Map> >* maps() { return &maps_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps)
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::None();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual intptr_t Hashcode() {
-    return first_prototype_unique_id_.Hashcode() * 17 +
-           last_prototype_unique_id_.Hashcode();
-  }
-
-  virtual void FinalizeUniqueValueId() {
-    first_prototype_unique_id_ = UniqueValueId(prototypes_.first());
-    last_prototype_unique_id_ = UniqueValueId(prototypes_.last());
-  }
-
-  bool CanOmitPrototypeChecks() { return can_omit_prototype_maps_; }
-
- protected:
-  virtual bool DataEquals(HValue* other) {
-    HCheckPrototypeMaps* b = HCheckPrototypeMaps::cast(other);
-    return first_prototype_unique_id_ == b->first_prototype_unique_id_ &&
-           last_prototype_unique_id_ == b->last_prototype_unique_id_;
-  }
-
- private:
-  HCheckPrototypeMaps(Handle<JSObject> prototype,
-                      Handle<JSObject> holder,
-                      Zone* zone,
-                      CompilationInfo* info)
-      : prototypes_(2, zone),
-        maps_(2, zone),
-        first_prototype_unique_id_(),
-        last_prototype_unique_id_(),
-        can_omit_prototype_maps_(true) {
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
-    // Keep a list of all objects on the prototype chain up to the holder
-    // and the expected maps.
-    while (true) {
-      prototypes_.Add(prototype, zone);
-      Handle<Map> map(prototype->map());
-      maps_.Add(map, zone);
-      can_omit_prototype_maps_ &= map->CanOmitPrototypeChecks();
-      if (prototype.is_identical_to(holder)) break;
-      prototype = Handle<JSObject>(JSObject::cast(prototype->GetPrototype()));
-    }
-    if (can_omit_prototype_maps_) {
-      // Mark in-flight compilation as dependent on those maps.
-      for (int i = 0; i < maps()->length(); i++) {
-        Handle<Map> map = maps()->at(i);
-        map->AddDependentCompilationInfo(DependentCode::kPrototypeCheckGroup,
-                                         info);
-      }
-    }
-  }
-
-  ZoneList<Handle<JSObject> > prototypes_;
-  ZoneList<Handle<Map> > maps_;
-  UniqueValueId first_prototype_unique_id_;
-  UniqueValueId last_prototype_unique_id_;
-  bool can_omit_prototype_maps_;
 };
 
 

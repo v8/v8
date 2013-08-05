@@ -4047,8 +4047,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
                           int* data_size,
                           int* pointer_size) {
   if (boilerplate->map()->is_deprecated()) {
-    Handle<Object> result =
-        JSObject::TryMigrateInstance(boilerplate);
+    Handle<Object> result = JSObject::TryMigrateInstance(boilerplate);
     if (result->IsSmi()) return false;
   }
 
@@ -4448,9 +4447,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       ASSERT(proto->GetPrototype(isolate())->IsNull());
     }
     ASSERT(proto->IsJSObject());
-    Add<HCheckPrototypeMaps>(
+    BuildCheckPrototypeMaps(
         Handle<JSObject>(JSObject::cast(map->prototype())),
-        Handle<JSObject>(JSObject::cast(proto)), top_info());
+        Handle<JSObject>(JSObject::cast(proto)));
   }
 
   HObjectAccess field_access = HObjectAccess::ForField(map, lookup, name);
@@ -4605,8 +4604,7 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
 
   Handle<JSObject> holder(lookup.holder());
   Handle<Map> holder_map(holder->map());
-  Add<HCheckPrototypeMaps>(
-      Handle<JSObject>::cast(prototype), holder, top_info());
+  BuildCheckPrototypeMaps(Handle<JSObject>::cast(prototype), holder);
   HValue* holder_value = Add<HConstant>(holder);
   return BuildLoadNamedField(holder_value,
       HObjectAccess::ForField(holder_map, &lookup, name));
@@ -5340,7 +5338,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
     AddCheckMap(object, map);
-    Add<HCheckPrototypeMaps>(prototype, holder, top_info());
+    BuildCheckPrototypeMaps(prototype, holder);
     HValue* holder_value = Add<HConstant>(holder);
     return BuildLoadNamedField(holder_value,
         HObjectAccess::ForField(holder_map, &lookup, name));
@@ -5352,7 +5350,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
     AddCheckMap(object, map);
-    Add<HCheckPrototypeMaps>(prototype, holder, top_info());
+    BuildCheckPrototypeMaps(prototype, holder);
     Handle<Object> constant(lookup.GetConstantFromMap(*holder_map), isolate());
     return New<HConstant>(constant);
   }
@@ -5388,7 +5386,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
       isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
     Handle<JSObject> prototype(JSObject::cast(map->prototype()), isolate());
     Handle<JSObject> object_prototype = isolate()->initial_object_prototype();
-    Add<HCheckPrototypeMaps>(prototype, object_prototype, top_info());
+    BuildCheckPrototypeMaps(prototype, object_prototype);
     load_mode = ALLOW_RETURN_HOLE;
     graph()->MarkDependsOnEmptyArrayProtoElements();
   }
@@ -5834,11 +5832,38 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
 }
 
 
+void HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant,
+                                          CompilationInfo* info) {
+  HConstant* constant_value = New<HConstant>(constant);
+
+  if (constant->map()->CanOmitMapChecks()) {
+    constant->map()->AddDependentCompilationInfo(
+        DependentCode::kPrototypeCheckGroup, info);
+    return;
+  }
+
+  AddInstruction(constant_value);
+  HCheckMaps* check =
+      Add<HCheckMaps>(constant_value, handle(constant->map()), info);
+  check->ClearGVNFlag(kDependsOnElementsKind);
+}
+
+
+void HGraphBuilder::BuildCheckPrototypeMaps(Handle<JSObject> prototype,
+                                            Handle<JSObject> holder) {
+  BuildConstantMapCheck(prototype, top_info());
+  while (!prototype.is_identical_to(holder)) {
+    prototype = handle(JSObject::cast(prototype->GetPrototype()));
+    BuildConstantMapCheck(prototype, top_info());
+  }
+}
+
+
 void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
                                                    Handle<Map> receiver_map) {
   if (!holder.is_null()) {
     Handle<JSObject> prototype(JSObject::cast(receiver_map->prototype()));
-    Add<HCheckPrototypeMaps>(prototype, holder, top_info());
+    BuildCheckPrototypeMaps(prototype, holder);
   }
 }
 
@@ -6579,9 +6604,9 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         HValue* string = Pop();
         HValue* context = environment()->context();
         ASSERT(!expr->holder().is_null());
-        Add<HCheckPrototypeMaps>(Call::GetPrototypeForPrimitiveCheck(
+        BuildCheckPrototypeMaps(Call::GetPrototypeForPrimitiveCheck(
                 STRING_CHECK, expr->holder()->GetIsolate()),
-            expr->holder(), top_info());
+            expr->holder());
         HInstruction* char_code =
             BuildStringCharCodeAt(string, index);
         if (id == kStringCharCodeAt) {
