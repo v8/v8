@@ -216,8 +216,8 @@ class CpuProfile {
   int samples_count() const { return samples_.length(); }
   ProfileNode* sample(int index) const { return samples_.at(index); }
 
-  double start_time_ms() const { return start_time_ms_; }
-  double end_time_ms() const { return end_time_ms_; }
+  int64_t start_time_us() const { return start_time_us_; }
+  int64_t end_time_us() const { return end_time_us_; }
 
   void UpdateTicksScale();
 
@@ -228,8 +228,8 @@ class CpuProfile {
   const char* title_;
   unsigned uid_;
   bool record_samples_;
-  double start_time_ms_;
-  double end_time_ms_;
+  int64_t start_time_us_;
+  int64_t end_time_us_;
   List<ProfileNode*> samples_;
   ProfileTree top_down_;
 
