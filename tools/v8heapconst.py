@@ -208,7 +208,7 @@ KNOWN_MAPS = {
 KNOWN_OBJECTS = {
   ("OLD_POINTER_SPACE", 0x08081): "NullValue",
   ("OLD_POINTER_SPACE", 0x08091): "UndefinedValue",
-  ("OLD_POINTER_SPACE", 0x080a1): "InstanceofCacheMap",
+  ("OLD_POINTER_SPACE", 0x080a1): "TheHoleValue",
   ("OLD_POINTER_SPACE", 0x080b1): "TrueValue",
   ("OLD_POINTER_SPACE", 0x080c1): "FalseValue",
   ("OLD_POINTER_SPACE", 0x080d1): "UninitializedValue",
@@ -231,7 +231,7 @@ KNOWN_OBJECTS = {
   ("OLD_POINTER_SPACE", 0x0e0a1): "ElementsTransitionSymbol",
   ("OLD_POINTER_SPACE", 0x0e0ad): "EmptySlowElementDictionary",
   ("OLD_POINTER_SPACE", 0x0e249): "ObservedSymbol",
-  ("OLD_POINTER_SPACE", 0x27631): "StringTable",
+  ("OLD_POINTER_SPACE", 0x27585): "StringTable",
   ("OLD_DATA_SPACE", 0x08099): "EmptyDescriptorArray",
   ("OLD_DATA_SPACE", 0x080a1): "EmptyFixedArray",
   ("OLD_DATA_SPACE", 0x080a9): "NanValue",
@@ -247,6 +247,6 @@ KNOWN_OBJECTS = {
   ("OLD_DATA_SPACE", 0x082c9): "EmptyExternalPixelArray",
   ("OLD_DATA_SPACE", 0x082d5): "InfinityValue",
   ("OLD_DATA_SPACE", 0x082e1): "MinusZeroValue",
-  ("CODE_SPACE", 0x0e801): "JsConstructEntryCode",
-  ("CODE_SPACE", 0x176e1): "JsEntryCode",
+  ("CODE_SPACE", 0x0eb41): "JsConstructEntryCode",
+  ("CODE_SPACE", 0x177a1): "JsEntryCode",
 }
