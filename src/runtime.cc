@@ -9483,7 +9483,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   ASSERT_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
 
-  source = Handle<String>(source->TryFlattenGetString());
+  source = Handle<String>(FlattenGetString(source));
   // Optimized fast case where we only have ASCII characters.
   Handle<Object> result;
   if (source->IsSeqOneByteString()) {

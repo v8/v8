@@ -1254,6 +1254,22 @@ class V8EXPORT StackFrame {
 };
 
 
+/**
+ * A JSON Parser.
+ */
+class V8EXPORT JSON {
+ public:
+  /**
+   * Tries to parse the string |json_string| and returns it as object if
+   * successful.
+   *
+   * \param json_string The string to parse.
+   * \return The corresponding object if successfully parsed.
+   */
+  static Local<Object> Parse(Local<String> json_string);
+};
+
+
 // --- Value ---
 
 

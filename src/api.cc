@@ -46,6 +46,7 @@
 #include "heap-profiler.h"
 #include "heap-snapshot-generator-inl.h"
 #include "icu_util.h"
+#include "json-parser.h"
 #include "messages.h"
 #ifdef COMPRESS_STARTUP_DATA_BZ2
 #include "natives.h"
@@ -2604,6 +2605,29 @@ bool StackFrame::IsConstructor() const {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> is_constructor = GetProperty(self, "isConstructor");
   return is_constructor->IsTrue();
+}
+
+
+// --- J S O N ---
+
+Local<Object> JSON::Parse(Local<String> json_string) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::JSON::Parse");
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::String> source = i::Handle<i::String>(
+      FlattenGetString(Utils::OpenHandle(*json_string)));
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> result;
+  if (source->IsSeqOneByteString()) {
+    result = i::JsonParser<true>::Parse(source);
+  } else {
+    result = i::JsonParser<false>::Parse(source);
+  }
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
+  return Utils::ToLocal(
+      i::Handle<i::JSObject>::cast(scope.CloseAndEscape(result)));
 }
 
 
