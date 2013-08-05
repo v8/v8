@@ -469,3 +469,37 @@ TEST(RandomMutation) {
   // clear everything
   data.RemoveAll();
 }
+
+
+TEST(EternalHandles) {
+  CcTest::InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  EternalHandles* eternals = isolate->eternal_handles();
+
+  // Create a number of handles that will not be on a block boundary
+  const int kArrayLength = 2048-1;
+  int indices[kArrayLength];
+
+  CHECK_EQ(0, eternals->NumberOfHandles());
+  for (int i = 0; i < kArrayLength; i++) {
+    HandleScope scope(isolate);
+    v8::Handle<v8::Object> object = v8::Object::New();
+    object->Set(i, v8::Integer::New(i, v8_isolate));
+    indices[i] = eternals->Create(isolate, *v8::Utils::OpenHandle(*object));
+  }
+
+  isolate->heap()->CollectAllAvailableGarbage();
+
+  for (int i = 0; i < kArrayLength; i++) {
+    HandleScope scope(isolate);
+    v8::Handle<v8::Value> local = v8::Utils::ToLocal(eternals->Get(i));
+    v8::Handle<v8::Object> object = v8::Handle<v8::Object>::Cast(local);
+    v8::Handle<v8::Value> value = object->Get(i);
+    CHECK(value->IsInt32());
+    CHECK_EQ(i, value->Int32Value());
+  }
+
+  CHECK_EQ(kArrayLength, eternals->NumberOfHandles());
+}
+

@@ -1014,6 +1014,8 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   }
   gc_post_processing_depth_--;
 
+  isolate_->eternal_handles()->PostGarbageCollectionProcessing(this);
+
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing();
 
@@ -3217,9 +3219,6 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_observed_symbol(Symbol::cast(obj));
-
-  set_i18n_template_one(the_hole_value());
-  set_i18n_template_two(the_hole_value());
 
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::Script::kNoScriptId));
@@ -6607,6 +6606,14 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
       break;
   }
   v->Synchronize(VisitorSynchronization::kGlobalHandles);
+
+  // Iterate over eternal handles.
+  if (mode == VISIT_ALL_IN_SCAVENGE) {
+    isolate_->eternal_handles()->IterateNewSpaceRoots(v);
+  } else {
+    isolate_->eternal_handles()->IterateAllRoots(v);
+  }
+  v->Synchronize(VisitorSynchronization::kEternalHandles);
 
   // Iterate over pointers being held by inactive threads.
   isolate_->thread_manager()->Iterate(v);

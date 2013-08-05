@@ -1250,4 +1250,67 @@ void GlobalHandles::ComputeObjectGroupsAndImplicitReferences() {
 }
 
 
+EternalHandles::EternalHandles() : size_(0) {
+  for (unsigned i = 0; i < ARRAY_SIZE(singleton_handles_); i++) {
+    singleton_handles_[i] = kInvalidIndex;
+  }
+}
+
+
+EternalHandles::~EternalHandles() {
+  for (int i = 0; i < blocks_.length(); i++) delete blocks_[i];
+}
+
+
+void EternalHandles::IterateAllRoots(ObjectVisitor* visitor) {
+  int limit = size_;
+  for (int i = 0; i < blocks_.length(); i++) {
+    ASSERT(limit > 0);
+    Object** block = blocks_[i];
+    visitor->VisitPointers(block, block + Min(limit, kSize));
+    limit -= kSize;
+  }
+}
+
+
+void EternalHandles::IterateNewSpaceRoots(ObjectVisitor* visitor) {
+  for (int i = 0; i < new_space_indices_.length(); i++) {
+    visitor->VisitPointer(GetLocation(new_space_indices_[i]));
+  }
+}
+
+
+void EternalHandles::PostGarbageCollectionProcessing(Heap* heap) {
+  int last = 0;
+  for (int i = 0; i < new_space_indices_.length(); i++) {
+    int index = new_space_indices_[i];
+    if (heap->InNewSpace(*GetLocation(index))) {
+      new_space_indices_[last++] = index;
+    }
+  }
+  new_space_indices_.Rewind(last);
+}
+
+
+int EternalHandles::Create(Isolate* isolate, Object* object) {
+  if (object == NULL) return kInvalidIndex;
+  ASSERT_NE(isolate->heap()->the_hole_value(), object);
+  int block = size_ >> kShift;
+  int offset = size_ & kMask;
+  // need to resize
+  if (offset == 0) {
+    Object** next_block = new Object*[kSize];
+    Object* the_hole = isolate->heap()->the_hole_value();
+    MemsetPointer(next_block, the_hole, kSize);
+    blocks_.Add(next_block);
+  }
+  ASSERT_EQ(isolate->heap()->the_hole_value(), blocks_[block][offset]);
+  blocks_[block][offset] = object;
+  if (isolate->heap()->InNewSpace(object)) {
+    new_space_indices_.Add(size_);
+  }
+  return size_++;
+}
+
+
 } }  // namespace v8::internal
