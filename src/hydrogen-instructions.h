@@ -2564,6 +2564,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
     for (int i = 0; i < maps->length(); i++) {
       check_map->map_set_.Add(maps->at(i), zone);
+      check_map->has_migration_target_ |= maps->at(i)->is_migration_target();
     }
     check_map->map_set_.Sort();
     return check_map;
@@ -2581,6 +2582,10 @@ class HCheckMaps: public HTemplateInstruction<2> {
 
   HValue* value() { return OperandAt(0); }
   SmallMapList* map_set() { return &map_set_; }
+
+  bool has_migration_target() {
+    return has_migration_target_;
+  }
 
   virtual void FinalizeUniqueValueId();
 
@@ -2606,7 +2611,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
   // Clients should use one of the static New* methods above.
   HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
       : HTemplateInstruction<2>(value->type()),
-        omit_(false), map_unique_ids_(0, zone) {
+        omit_(false), has_migration_target_(false), map_unique_ids_(0, zone) {
     SetOperandAt(0, value);
     // Use the object value for the dependency if NULL is passed.
     // TODO(titzer): do GVN flags already express this dependency?
@@ -2628,6 +2633,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
   }
 
   bool omit_;
+  bool has_migration_target_;
   SmallMapList map_set_;
   ZoneList<UniqueValueId> map_unique_ids_;
 };

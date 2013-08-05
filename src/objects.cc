@@ -2719,6 +2719,7 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
       Handle<Map>(new_map);
       return maybe_map;
     }
+    new_map->set_migration_target(true);
   }
 
   new_map->set_owns_descriptors(true);
@@ -6517,6 +6518,7 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
 
   result->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
   result->set_dictionary_map(true);
+  result->set_migration_target(false);
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && result->is_shared()) {

@@ -13685,6 +13685,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FlattenString) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MigrateInstance) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  if (!object->IsJSObject()) return Smi::FromInt(0);
+  Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+  if (!js_object->map()->is_deprecated()) return Smi::FromInt(0);
+  JSObject::MigrateInstance(js_object);
+  return *object;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
   SealHandleScope shs(isolate);
   // This is only called from codegen, so checks might be more lax.

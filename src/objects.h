@@ -5456,8 +5456,8 @@ class Map: public HeapObject {
   inline void set_bit_field2(byte value);
 
   // Bit field 3.
-  inline int bit_field3();
-  inline void set_bit_field3(int value);
+  inline uint32_t bit_field3();
+  inline void set_bit_field3(uint32_t bits);
 
   class EnumLengthBits:             public BitField<int,   0, 11> {};
   class NumberOfOwnDescriptorsBits: public BitField<int,  11, 11> {};
@@ -5469,6 +5469,7 @@ class Map: public HeapObject {
   class Deprecated:                 public BitField<bool, 27,  1> {};
   class IsFrozen:                   public BitField<bool, 28,  1> {};
   class IsUnstable:                 public BitField<bool, 29,  1> {};
+  class IsMigrationTarget:          public BitField<bool, 30,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -5775,6 +5776,8 @@ class Map: public HeapObject {
   inline bool is_frozen();
   inline void mark_unstable();
   inline bool is_stable();
+  inline void set_migration_target(bool value);
+  inline bool is_migration_target();
   inline void deprecate();
   inline bool is_deprecated();
   inline bool CanBeDeprecated();

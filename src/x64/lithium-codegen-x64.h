@@ -132,8 +132,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredAllocate(LAllocate* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
-
-  void DoCheckMapCommon(Register reg, Handle<Map> map, LInstruction* instr);
+  void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
 
 // Parallel move support.
   void DoParallelMove(LParallelMove* move);
