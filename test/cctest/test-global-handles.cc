@@ -493,7 +493,8 @@ TEST(EternalHandles) {
 
   for (int i = 0; i < kArrayLength; i++) {
     HandleScope scope(isolate);
-    v8::Handle<v8::Value> local = v8::Utils::ToLocal(eternals->Get(i));
+    v8::Handle<v8::Value> local =
+        v8::Utils::ToLocal(eternals->Get(indices[i]));
     v8::Handle<v8::Object> object = v8::Handle<v8::Object>::Cast(local);
     v8::Handle<v8::Value> value = object->Get(i);
     CHECK(value->IsInt32());
