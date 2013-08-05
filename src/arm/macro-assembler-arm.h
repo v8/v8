@@ -144,6 +144,8 @@ class MacroAssembler: public Assembler {
             Condition cond = al);
 
   void Call(Label* target);
+  void Push(Register src) { push(src); }
+  void Pop(Register dst) { pop(dst); }
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Handle<Object> value);

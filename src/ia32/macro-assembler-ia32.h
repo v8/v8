@@ -807,6 +807,8 @@ class MacroAssembler: public Assembler {
   void Drop(int element_count);
 
   void Call(Label* target) { call(target); }
+  void Push(Register src) { push(src); }
+  void Pop(Register dst) { pop(dst); }
 
   // Emit call to the code we are currently generating.
   void CallSelf() {
