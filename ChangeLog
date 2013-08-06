@@ -1,3 +1,11 @@
+2013-08-06: Version 3.20.14
+
+        Added new Harmony methods to Array.prototype object.
+        (issue 2776,v8:2777)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-01: Version 3.20.12
 
         Removed buggy ToNumber truncation (partial fix for issue 2813)
