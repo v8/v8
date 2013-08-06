@@ -841,7 +841,7 @@ class MacroAssembler: public Assembler {
 
   // The size of the code generated for different call instructions.
   int CallSize(Address destination, RelocInfo::Mode rmode) {
-    return kCallInstructionLength;
+    return kCallSequenceLength;
   }
   int CallSize(ExternalReference ext);
   int CallSize(Handle<Code> code_object) {
