@@ -24,33 +24,21 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-#ifndef V8_EXTENSIONS_I18N_SRC_LOCALE_H_
-#define V8_EXTENSIONS_I18N_SRC_LOCALE_H_
+// Flags: --allow-natives-syntax
 
-#include "unicode/uversion.h"
-#include "v8.h"
+function foo(x) {
+  var a = x + 1;
+  var b = x + 2;
+  if (x != 0) {
+    if (x > 0 & x < 100) {
+      return a;
+    }
+  }
+  return 0;
+}
 
-namespace v8_i18n {
-
-// Canonicalizes the BCP47 language tag using BCP47 rules.
-// Returns 'invalid-tag' in case input was not well formed.
-void JSCanonicalizeLanguageTag(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-// Returns a list of available locales for collator, date or number formatter.
-void JSAvailableLocalesOf(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-// Returns default ICU locale.
-void JSGetDefaultICULocale(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-// Returns an array of objects, that have maximized and base names of inputs.
-// Unicode extensions are dropped from both.
-// Input: ['zh-TW-u-nu-thai', 'sr']
-// Output: [{maximized: 'zh-Hant-TW', base: 'zh-TW'},
-//          {maximized: 'sr-Cyrl-RS', base: 'sr'}]
-void JSGetLanguageTagVariants(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-}  // namespace v8_i18n
-
-#endif  // V8_EXTENSIONS_I18N_LOCALE_H_
+assertEquals(0, foo(0));
+assertEquals(0, foo(0));
+%OptimizeFunctionOnNextCall(foo);
+assertEquals(3, foo(2));

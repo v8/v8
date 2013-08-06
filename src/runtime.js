@@ -294,13 +294,6 @@ function BIT_XOR(y) {
 }
 
 
-// ECMA-262, section 11.4.7, page 47.
-function UNARY_MINUS() {
-  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
-  return %NumberUnaryMinus(x);
-}
-
-
 // ECMA-262, section 11.4.8, page 48.
 function BIT_NOT() {
   var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);

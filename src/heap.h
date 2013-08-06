@@ -189,9 +189,7 @@ namespace internal {
   V(Symbol, elements_transition_symbol, ElementsTransitionSymbol)              \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
       EmptySlowElementDictionary)                                              \
-  V(Symbol, observed_symbol, ObservedSymbol)                                   \
-  V(HeapObject, i18n_template_one, I18nTemplateOne)                            \
-  V(HeapObject, i18n_template_two, I18nTemplateTwo)
+  V(Symbol, observed_symbol, ObservedSymbol)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -1301,12 +1299,6 @@ class Heap {
   void SetGlobalGCEpilogueCallback(GCCallback callback) {
     ASSERT((callback == NULL) ^ (global_gc_epilogue_callback_ == NULL));
     global_gc_epilogue_callback_ = callback;
-  }
-  void SetI18nTemplateOne(ObjectTemplateInfo* tmpl) {
-    set_i18n_template_one(tmpl);
-  }
-  void SetI18nTemplateTwo(ObjectTemplateInfo* tmpl) {
-    set_i18n_template_two(tmpl);
   }
 
   // Heap root getters.  We have versions with and without type::cast() here.

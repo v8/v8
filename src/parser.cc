@@ -3197,6 +3197,13 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
                                            factory()->NewNumberLiteral(1),
                                            position);
     }
+    // The same idea for '-foo' => 'foo*(-1)'.
+    if (op == Token::SUB) {
+      return factory()->NewBinaryOperation(Token::MUL,
+                                           expression,
+                                           factory()->NewNumberLiteral(-1),
+                                           position);
+    }
 
     return factory()->NewUnaryOperation(op, expression, position);
 

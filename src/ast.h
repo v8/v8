@@ -291,7 +291,6 @@ class SmallMapList {
   }
 
   void Add(Handle<Map> handle, Zone* zone) {
-    ASSERT(!handle->is_deprecated());
     list_.Add(handle.location(), zone);
   }
 

@@ -208,8 +208,6 @@ Builtins::JavaScript UnaryOpStub::ToJSBuiltin() {
   switch (operation_) {
     default:
       UNREACHABLE();
-    case Token::SUB:
-      return Builtins::UNARY_MINUS;
     case Token::BIT_NOT:
       return Builtins::BIT_NOT;
   }
@@ -239,10 +237,6 @@ void UnaryOpStub::UpdateStatus(Handle<Object> object) {
   State old_state(state_);
   if (object->IsSmi()) {
     state_.Add(SMI);
-    if (operation_ == Token::SUB && *object == 0) {
-      // The result (-0) has to be represented as double.
-      state_.Add(HEAP_NUMBER);
-    }
   } else if (object->IsHeapNumber()) {
     state_.Add(HEAP_NUMBER);
   } else {
@@ -356,7 +350,6 @@ void BinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
 
 void UnaryOpStub::PrintBaseName(StringStream* stream) {
   CodeStub::PrintBaseName(stream);
-  if (operation_ == Token::SUB) stream->Add("Minus");
   if (operation_ == Token::BIT_NOT) stream->Add("Not");
 }
 

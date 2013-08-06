@@ -149,6 +149,18 @@ class V8EXPORT CpuProfile {
   const CpuProfileNode* GetSample(int index) const;
 
   /**
+    * Returns time when the profile recording started (in milliseconds
+    * since the Epoch).
+    */
+  double GetStartTime() const;
+
+  /**
+    * Returns time when the profile recording was stopped (in milliseconds
+    * since the Epoch).
+    */
+  double GetEndTime() const;
+
+  /**
    * Deletes the profile and removes it from CpuProfiler's list.
    * All pointers to nodes previously returned become invalid.
    * Profiles with the same uid but obtained using different

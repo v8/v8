@@ -258,8 +258,8 @@ class CompilationInfo {
     SaveHandle(&script_);
   }
 
-  const char* bailout_reason() const { return bailout_reason_; }
-  void set_bailout_reason(const char* reason) { bailout_reason_ = reason; }
+  BailoutReason bailout_reason() const { return bailout_reason_; }
+  void set_bailout_reason(BailoutReason reason) { bailout_reason_ = reason; }
 
   int prologue_offset() const {
     ASSERT_NE(kPrologueOffsetNotSet, prologue_offset_);
@@ -412,7 +412,7 @@ class CompilationInfo {
     }
   }
 
-  const char* bailout_reason_;
+  BailoutReason bailout_reason_;
 
   int prologue_offset_;
 

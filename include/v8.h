@@ -1254,6 +1254,22 @@ class V8EXPORT StackFrame {
 };
 
 
+/**
+ * A JSON Parser.
+ */
+class V8EXPORT JSON {
+ public:
+  /**
+   * Tries to parse the string |json_string| and returns it as object if
+   * successful.
+   *
+   * \param json_string The string to parse.
+   * \return The corresponding object if successfully parsed.
+   */
+  static Local<Object> Parse(Local<String> json_string);
+};
+
+
 // --- Value ---
 
 
@@ -2425,10 +2441,20 @@ class V8EXPORT ArrayBuffer : public Object {
     }
 
     /**
-     * Free the memory pointed to |data|. That memory is guaranteed to be
-     * previously allocated by |Allocate|.
+     * Free the memory block of size |length|, pointed to by |data|.
+     * That memory is guaranteed to be previously allocated by |Allocate|.
      */
-    virtual void Free(void* data) = 0;
+    virtual void Free(void* data, size_t length) {
+      // Override with call to |Free(void*)| for compatibility
+      // with legacy version.
+      Free(data);
+    }
+
+    /**
+     * Deprecated. Never called directly by V8.
+     * For compatibility with legacy version of this interface.
+     */
+    virtual void Free(void* data);
   };
 
   /**
@@ -5441,12 +5467,13 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 135;
+  static const int kEmptyStringRootIndex = 133;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
   static const int kNodeStateMask = 0xf;
   static const int kNodeStateIsWeakValue = 2;
+  static const int kNodeStateIsPendingValue = 3;
   static const int kNodeStateIsNearDeathValue = 4;
   static const int kNodeIsIndependentShift = 4;
   static const int kNodeIsPartiallyDependentShift = 5;
@@ -5662,8 +5689,10 @@ template <class T>
 bool Persistent<T>::IsNearDeath() const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
-  return I::GetNodeState(reinterpret_cast<internal::Object**>(this->val_)) ==
-      I::kNodeStateIsNearDeathValue;
+  uint8_t node_state =
+      I::GetNodeState(reinterpret_cast<internal::Object**>(this->val_));
+  return node_state == I::kNodeStateIsNearDeathValue ||
+      node_state == I::kNodeStateIsPendingValue;
 }
 
 

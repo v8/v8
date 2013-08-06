@@ -832,8 +832,6 @@
             '../../src/extensions/i18n/i18n-extension.h',
             '../../src/extensions/i18n/i18n-utils.cc',
             '../../src/extensions/i18n/i18n-utils.h',
-            '../../src/extensions/i18n/locale.cc',
-            '../../src/extensions/i18n/locale.h',
             '../../src/extensions/i18n/number-format.cc',
             '../../src/extensions/i18n/number-format.h',
           ],
@@ -907,7 +905,8 @@
           '../../src/typedarray.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',
-          '../../src/harmony-string.js'
+          '../../src/harmony-string.js',
+          '../../src/harmony-array.js',
         ],
         'i18n_library_files': [
           '../../src/extensions/i18n/header.js',
