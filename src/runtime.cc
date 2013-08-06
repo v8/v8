@@ -8547,23 +8547,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
 
     // Use linear search of the unoptimized code's back edge table to find
     // the AST id matching the PC.
-    Address start = unoptimized->instruction_start();
-    unsigned target_pc_offset = static_cast<unsigned>(frame->pc() - start);
-    Address table_cursor = start + unoptimized->back_edge_table_offset();
-    uint32_t table_length = Memory::uint32_at(table_cursor);
-    table_cursor += kIntSize;
+    uint32_t target_pc_offset = frame->pc() - unoptimized->instruction_start();
     uint32_t loop_depth = 0;
-    for (unsigned i = 0; i < table_length; ++i) {
-      // Table entries are (AST id, pc offset) pairs.
-      uint32_t pc_offset = Memory::uint32_at(table_cursor + kIntSize);
-      if (pc_offset == target_pc_offset) {
-        ast_id = BailoutId(static_cast<int>(Memory::uint32_at(table_cursor)));
-        loop_depth = Memory::uint32_at(table_cursor + 2 * kIntSize);
+
+    for (FullCodeGenerator::BackEdgeTableIterator back_edges(*unoptimized);
+         !back_edges.Done();
+         back_edges.Next()) {
+      if (back_edges.pc_offset() == target_pc_offset) {
+        ast_id = back_edges.ast_id();
+        loop_depth = back_edges.loop_depth();
         break;
       }
-      table_cursor += FullCodeGenerator::kBackEdgeEntrySize;
     }
     ASSERT(!ast_id.IsNone());
+
     if (FLAG_trace_osr) {
       PrintF("[replacing on-stack at AST id %d, loop depth %d in ",
               ast_id.ToInt(), loop_depth);
