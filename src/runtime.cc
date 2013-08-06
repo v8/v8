@@ -8547,7 +8547,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
 
     // Use linear search of the unoptimized code's back edge table to find
     // the AST id matching the PC.
-    uint32_t target_pc_offset = frame->pc() - unoptimized->instruction_start();
+    uint32_t target_pc_offset =
+      static_cast<uint32_t>(frame->pc() - unoptimized->instruction_start());
     uint32_t loop_depth = 0;
 
     for (FullCodeGenerator::BackEdgeTableIterator back_edges(*unoptimized);
