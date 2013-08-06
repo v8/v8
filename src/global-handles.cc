@@ -1258,7 +1258,7 @@ EternalHandles::EternalHandles() : size_(0) {
 
 
 EternalHandles::~EternalHandles() {
-  for (int i = 0; i < blocks_.length(); i++) delete blocks_[i];
+  for (int i = 0; i < blocks_.length(); i++) delete[] blocks_[i];
 }
 
 
