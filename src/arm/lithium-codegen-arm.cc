@@ -5219,7 +5219,7 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
     __ push(object);
     CallRuntimeFromDeferred(Runtime::kMigrateInstance, 1, instr);
-    __ StoreToSafepointRegisterSlot(scratch0(), r0);
+    __ StoreToSafepointRegisterSlot(r0, scratch0());
   }
   __ tst(scratch0(), Operand(kSmiTagMask));
   DeoptimizeIf(eq, instr->environment());
