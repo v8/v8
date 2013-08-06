@@ -13931,6 +13931,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
     ASSERT(proto->IsJSGlobalObject());
     obj = JSReceiver::cast(proto);
   }
+  if (obj->IsJSProxy())
+    return isolate->heap()->undefined_value();
+
   ASSERT(!(obj->map()->is_observed() && obj->IsJSObject() &&
            JSObject::cast(obj)->HasFastElements()));
   ASSERT(obj->IsJSObject());
