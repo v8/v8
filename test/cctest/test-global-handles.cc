@@ -418,7 +418,7 @@ class RandomMutationData {
     int32_t offset = ++weak_offset_;
     object->Set(7, v8::Integer::New(offset, isolate));
     v8::Persistent<v8::Object> persistent(isolate, object);
-    persistent.MakeWeak(isolate, this, WeakCallback);
+    persistent.MakeWeak(this, WeakCallback);
     persistent.MarkIndependent();
     Object** location = v8::Utils::OpenPersistent(persistent).location();
     bool inserted =
