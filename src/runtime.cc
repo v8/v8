@@ -8680,8 +8680,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, arguments, 2);
   CONVERT_SMI_ARG_CHECKED(offset, 3);
   CONVERT_SMI_ARG_CHECKED(argc, 4);
-  ASSERT(offset >= 0);
-  ASSERT(argc >= 0);
+  RUNTIME_ASSERT(offset >= 0);
+  RUNTIME_ASSERT(argc >= 0);
 
   // If there are too many arguments, allocate argv via malloc.
   const int argv_small_size = 10;
