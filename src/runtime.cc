@@ -7245,15 +7245,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberXor) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberNot) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  return isolate->heap()->NumberFromInt32(~x);
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberShl) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);

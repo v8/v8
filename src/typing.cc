@@ -497,8 +497,6 @@ void AstTyper::VisitCallRuntime(CallRuntime* expr) {
 
 void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
   // Collect type feedback.
-  Handle<Type> op_type = oracle()->UnaryType(expr->UnaryOperationFeedbackId());
-  NarrowLowerType(expr->expression(), op_type);
   if (expr->op() == Token::NOT) {
     // TODO(rossberg): only do in test or value context.
     expr->expression()->RecordToBooleanTypeFeedback(oracle());
@@ -513,9 +511,6 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
       break;
     case Token::VOID:
       NarrowType(expr, Bounds(Type::Undefined(), isolate_));
-      break;
-    case Token::BIT_NOT:
-      NarrowType(expr, Bounds(Type::Smi(), Type::Signed32(), isolate_));
       break;
     case Token::TYPEOF:
       NarrowType(expr, Bounds(Type::InternalizedString(), isolate_));

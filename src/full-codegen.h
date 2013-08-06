@@ -625,8 +625,6 @@ class FullCodeGenerator: public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  void EmitUnaryOperation(UnaryOperation* expr, const char* comment);
-
   void VisitComma(BinaryOperation* expr);
   void VisitLogicalExpression(BinaryOperation* expr);
   void VisitArithmeticExpression(BinaryOperation* expr);

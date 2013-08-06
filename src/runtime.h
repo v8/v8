@@ -158,7 +158,6 @@ namespace internal {
   F(NumberOr, 2, 1) \
   F(NumberAnd, 2, 1) \
   F(NumberXor, 2, 1) \
-  F(NumberNot, 1, 1) \
   \
   F(NumberShl, 2, 1) \
   F(NumberShr, 2, 1) \

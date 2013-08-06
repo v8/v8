@@ -294,7 +294,7 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
   X87Register ToX87Register(int index) const;
-  int ToRepresentation(LConstantOperand* op, const Representation& r) const;
+  int32_t ToRepresentation(LConstantOperand* op, const Representation& r) const;
   int32_t ToInteger32(LConstantOperand* op) const;
   ExternalReference ToExternalReference(LConstantOperand* op) const;
 

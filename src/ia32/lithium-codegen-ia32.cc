@@ -1679,8 +1679,9 @@ void LCodeGen::DoBitI(LBitI* instr) {
   ASSERT(left->IsRegister());
 
   if (right->IsConstantOperand()) {
-    int right_operand = ToRepresentation(LConstantOperand::cast(right),
-                                         instr->hydrogen()->representation());
+    int32_t right_operand =
+        ToRepresentation(LConstantOperand::cast(right),
+                         instr->hydrogen()->representation());
     switch (instr->op()) {
       case Token::BIT_AND:
         __ and_(ToRegister(left), right_operand);
@@ -1689,7 +1690,11 @@ void LCodeGen::DoBitI(LBitI* instr) {
         __ or_(ToRegister(left), right_operand);
         break;
       case Token::BIT_XOR:
-        __ xor_(ToRegister(left), right_operand);
+        if (right_operand == int32_t(~0)) {
+          __ not_(ToRegister(left));
+        } else {
+          __ xor_(ToRegister(left), right_operand);
+        }
         break;
       default:
         UNREACHABLE();
@@ -1987,13 +1992,6 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     __ mov_w(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
              value);
   }
-}
-
-
-void LCodeGen::DoBitNotI(LBitNotI* instr) {
-  LOperand* input = instr->value();
-  ASSERT(input->Equals(instr->result()));
-  __ not_(ToRegister(input));
 }
 
 
