@@ -1273,13 +1273,13 @@ class V8_EXPORT StackFrame {
 class V8_EXPORT JSON {
  public:
   /**
-   * Tries to parse the string |json_string| and returns it as object if
+   * Tries to parse the string |json_string| and returns it as value if
    * successful.
    *
    * \param json_string The string to parse.
-   * \return The corresponding object if successfully parsed.
+   * \return The corresponding value if successfully parsed.
    */
-  static Local<Object> Parse(Local<String> json_string);
+  static Local<Value> Parse(Local<String> json_string);
 };
 
 

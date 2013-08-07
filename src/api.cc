@@ -2620,7 +2620,7 @@ bool StackFrame::IsConstructor() const {
 
 // --- J S O N ---
 
-Local<Object> JSON::Parse(Local<String> json_string) {
+Local<Value> JSON::Parse(Local<String> json_string) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::JSON::Parse");
   ENTER_V8(isolate);
@@ -2637,7 +2637,7 @@ Local<Object> JSON::Parse(Local<String> json_string) {
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(
-      i::Handle<i::JSObject>::cast(scope.CloseAndEscape(result)));
+      i::Handle<i::Object>::cast(scope.CloseAndEscape(result)));
 }
 
 
