@@ -177,7 +177,6 @@ struct ZoneAllocationPolicy {
   explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) { }
   INLINE(void* New(size_t size));
   INLINE(static void Delete(void *pointer)) { }
-  Zone* zone() { return zone_; }
 
  private:
   Zone* zone_;
