@@ -388,9 +388,7 @@ void AstTyper::VisitAssignment(Assignment* expr) {
     Property* prop = target->AsProperty();
     if (prop != NULL) {
       prop->RecordTypeFeedback(oracle(), zone());
-      if (!prop->key()->IsPropertyName()) {  // i.e., keyed
-        expr->RecordTypeFeedback(oracle(), zone());
-      }
+      expr->RecordTypeFeedback(oracle(), zone());
     }
 
     RECURSE(Visit(expr->binary_operation()));

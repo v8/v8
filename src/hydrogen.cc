@@ -5039,7 +5039,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         Add<HSimulate>(operation->id(), REMOVABLE_SIMULATE);
       }
 
-      return BuildStoreNamed(prop, expr->id(), expr->position(),
+      return BuildStoreNamed(expr, expr->id(), expr->position(),
                              expr->AssignmentId(), prop, object, instr, instr);
     } else {
       // Keyed property.
@@ -7474,7 +7474,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
       after = BuildIncrement(returns_original_input, expr);
       HValue* result = returns_original_input ? Pop() : after;
 
-      return BuildStoreNamed(prop, expr->id(), expr->position(),
+      return BuildStoreNamed(expr, expr->id(), expr->position(),
                              expr->AssignmentId(), prop, object, after, result);
     } else {
       // Keyed property.
