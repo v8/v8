@@ -290,10 +290,13 @@ class LCodeGen BASE_EMBEDDED {
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
 
-  void AddToTranslation(Translation* translation,
+  void AddToTranslation(LEnvironment* environment,
+                        Translation* translation,
                         LOperand* op,
                         bool is_tagged,
-                        bool is_uint32);
+                        bool is_uint32,
+                        int* object_index_pointer,
+                        int* dematerialized_index_pointer);
   void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
