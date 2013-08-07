@@ -484,21 +484,36 @@ TEST(EternalHandles) {
   CHECK_EQ(0, eternals->NumberOfHandles());
   for (int i = 0; i < kArrayLength; i++) {
     HandleScope scope(isolate);
-    v8::Handle<v8::Object> object = v8::Object::New();
+    v8::Local<v8::Object> object = v8::Object::New();
     object->Set(i, v8::Integer::New(i, v8_isolate));
-    indices[i] = eternals->Create(isolate, *v8::Utils::OpenHandle(*object));
+    if (i % 2 == 0) {
+      // Create with internal api
+      indices[i] = eternals->Create(isolate, *v8::Utils::OpenHandle(*object));
+    } else {
+      // Create with external api
+      indices[i] = object.Eternalize(v8_isolate);
+    }
   }
 
   isolate->heap()->CollectAllAvailableGarbage();
 
   for (int i = 0; i < kArrayLength; i++) {
-    HandleScope scope(isolate);
-    v8::Handle<v8::Value> local =
-        v8::Utils::ToLocal(eternals->Get(indices[i]));
-    v8::Handle<v8::Object> object = v8::Handle<v8::Object>::Cast(local);
-    v8::Handle<v8::Value> value = object->Get(i);
-    CHECK(value->IsInt32());
-    CHECK_EQ(i, value->Int32Value());
+    for (int j = 0; j < 2; j++) {
+      HandleScope scope(isolate);
+      v8::Local<v8::Object> object;
+      if (j == 0) {
+        // Test internal api
+        v8::Local<v8::Value> local =
+            v8::Utils::ToLocal(eternals->Get(indices[i]));
+        object = v8::Handle<v8::Object>::Cast(local);
+      } else {
+        // Test external api
+        object = v8::Local<v8::Object>::GetEternal(v8_isolate, indices[i]);
+      }
+      v8::Local<v8::Value> value = object->Get(i);
+      CHECK(value->IsInt32());
+      CHECK_EQ(i, value->Int32Value());
+    }
   }
 
   CHECK_EQ(kArrayLength, eternals->NumberOfHandles());

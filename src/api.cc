@@ -676,6 +676,16 @@ void V8::DisposeGlobal(i::Object** obj) {
 }
 
 
+int V8::Eternalize(i::Isolate* isolate, i::Object** handle) {
+  return isolate->eternal_handles()->Create(isolate, *handle);
+}
+
+
+i::Object** V8::GetEternal(i::Isolate* isolate, int index) {
+  return isolate->eternal_handles()->Get(index).location();
+}
+
+
 // --- H a n d l e s ---
 
 

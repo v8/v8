@@ -388,6 +388,11 @@ template <class T> class Handle {
 };
 
 
+// A value which will never be returned by Local::Eternalize
+// Useful for static initialization
+const int kUninitializedEternalIndex = -1;
+
+
 /**
  * A light-weight stack-allocated object handle.  All operations
  * that return objects from within v8 return them in local handles.  They
@@ -432,6 +437,11 @@ template <class T> class Local : public Handle<T> {
   template <class S> V8_INLINE(Local<S> As()) {
     return Local<S>::Cast(*this);
   }
+
+  // Keep this Local alive for the lifetime of the Isolate.
+  // It remains retrievable via the returned index,
+  V8_INLINE(int Eternalize(Isolate* isolate));
+  V8_INLINE(static Local<T> GetEternal(Isolate* isolate, int index));
 
   /**
    * Create a local handle for the content of another handle.
@@ -4787,6 +4797,9 @@ class V8_EXPORT V8 {
                        void* data,
                        RevivableCallback weak_reference_callback);
   static void ClearWeak(internal::Object** global_handle);
+  static int Eternalize(internal::Isolate* isolate,
+                        internal::Object** handle);
+  static internal::Object** GetEternal(internal::Isolate* isolate, int index);
 
   template <class T> friend class Handle;
   template <class T> friend class Local;
@@ -5647,6 +5660,21 @@ Local<T> Local<T>::New(Isolate* isolate, T* that) {
   internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
   return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
       reinterpret_cast<internal::Isolate*>(isolate), *p)));
+}
+
+
+template<class T>
+int Local<T>::Eternalize(Isolate* isolate) {
+  return V8::Eternalize(reinterpret_cast<internal::Isolate*>(isolate),
+                        reinterpret_cast<internal::Object**>(this->val_));
+}
+
+
+template<class T>
+Local<T> Local<T>::GetEternal(Isolate* isolate, int index) {
+  internal::Object** handle =
+      V8::GetEternal(reinterpret_cast<internal::Isolate*>(isolate), index);
+  return Local<T>(T::Cast(reinterpret_cast<Value*>(handle)));
 }
 
 
