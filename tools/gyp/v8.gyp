@@ -833,8 +833,6 @@
             '../../src/extensions/i18n/i18n-extension.h',
             '../../src/extensions/i18n/i18n-utils.cc',
             '../../src/extensions/i18n/i18n-utils.h',
-            '../../src/extensions/i18n/number-format.cc',
-            '../../src/extensions/i18n/number-format.h',
           ],
           'dependencies': [
             '<(DEPTH)/third_party/icu/icu.gyp:icui18n',

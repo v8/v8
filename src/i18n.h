@@ -33,6 +33,7 @@
 #include "v8.h"
 
 namespace U_ICU_NAMESPACE {
+class DecimalFormat;
 class SimpleDateFormat;
 }
 
@@ -50,6 +51,7 @@ class I18N {
  private:
   I18N();
 };
+
 
 class DateFormat {
  public:
@@ -72,6 +74,30 @@ class DateFormat {
                                void* param);
  private:
   DateFormat();
+};
+
+
+class NumberFormat {
+ public:
+  // Create a formatter for the specificied locale and options. Returns the
+  // resolved settings for the locale / options.
+  static icu::DecimalFormat* InitializeNumberFormat(
+      Isolate* isolate,
+      Handle<String> locale,
+      Handle<JSObject> options,
+      Handle<JSObject> resolved);
+
+  // Unpacks number format object from corresponding JavaScript object.
+  static icu::DecimalFormat* UnpackNumberFormat(Isolate* isolate,
+                                                Handle<JSObject> obj);
+
+  // Release memory we allocated for the NumberFormat once the JS object that
+  // holds the pointer gets garbage collected.
+  static void DeleteNumberFormat(v8::Isolate* isolate,
+                                 Persistent<v8::Object>* object,
+                                 void* param);
+ private:
+  NumberFormat();
 };
 
 } }  // namespace v8::internal
