@@ -1389,8 +1389,6 @@ LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
     LOperand* dividend = UseRegister(instr->left());
     LOperand* divisor = UseRegisterOrConstant(right);
     LOperand* remainder = TempRegister();
-    ASSERT(right->IsConstant() &&
-           HConstant::cast(right)->HasInteger32Value());
     return AssignEnvironment(DefineAsRegister(
           new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
 }

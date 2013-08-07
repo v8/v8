@@ -1154,7 +1154,6 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
     Register scratch,
     LEnvironment* environment) {
   ASSERT(!AreAliased(dividend, scratch, at, no_reg));
-  ASSERT(LChunkBuilder::HasMagicNumberForDivisor(divisor));
 
   uint32_t divisor_abs = abs(divisor);
 
