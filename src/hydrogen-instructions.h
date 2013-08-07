@@ -3212,6 +3212,9 @@ class HConstant: public HTemplateInstruction<0> {
       }
       return false;
     }
+    if (has_external_reference_value_) {
+      return false;
+    }
 
     ASSERT(!handle_.is_null());
     Heap* heap = isolate()->heap();
