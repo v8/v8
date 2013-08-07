@@ -809,11 +809,10 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
   ASSERT(instr->representation().IsDouble());
   ASSERT(instr->left()->representation().IsDouble());
   ASSERT(instr->right()->representation().IsDouble());
+  ASSERT(op != Token::MOD);
   LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
   LOperand* right = UseRegisterAtStart(instr->BetterRightOperand());
   LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
-  // We call a C function for double modulo. It can't trigger a GC.
-  if (op == Token::MOD) return MarkAsCall(DefineAsRegister(result), instr);
   return DefineSameAsFirst(result);
 }
 
@@ -1564,7 +1563,13 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
     return DoArithmeticT(Token::MOD, instr);
   } else {
     ASSERT(instr->representation().IsDouble());
-    return DoArithmeticD(Token::MOD, instr);
+    // We call a C function for double modulo. It can't trigger a GC. We need
+    // to use fixed result register for the call.
+    // TODO(fschneider): Allow any register as input registers.
+    LArithmeticD* mod = new(zone()) LArithmeticD(Token::MOD,
+                                                 UseFixedDouble(left, xmm2),
+                                                 UseFixedDouble(right, xmm1));
+    return MarkAsCall(DefineFixedDouble(mod, xmm1), instr);
   }
 }
 
