@@ -676,6 +676,16 @@ void V8::DisposeGlobal(i::Object** obj) {
 }
 
 
+int V8::Eternalize(i::Isolate* isolate, i::Object** handle) {
+  return isolate->eternal_handles()->Create(isolate, *handle);
+}
+
+
+i::Object** V8::GetEternal(i::Isolate* isolate, int index) {
+  return isolate->eternal_handles()->Get(index).location();
+}
+
+
 // --- H a n d l e s ---
 
 
@@ -7591,15 +7601,15 @@ const CpuProfileNode* CpuProfile::GetSample(int index) const {
 }
 
 
-double CpuProfile::GetStartTime() const {
+int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return profile->start_time_ms();
+  return profile->start_time_us();
 }
 
 
-double CpuProfile::GetEndTime() const {
+int64_t CpuProfile::GetEndTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return profile->end_time_ms();
+  return profile->end_time_us();
 }
 
 

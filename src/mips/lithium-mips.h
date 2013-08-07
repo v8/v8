@@ -50,7 +50,6 @@ class LCodeGen;
   V(ArithmeticD)                                \
   V(ArithmeticT)                                \
   V(BitI)                                       \
-  V(BitNotI)                                    \
   V(BoundsCheck)                                \
   V(Branch)                                     \
   V(CallConstantFunction)                       \
@@ -1352,18 +1351,6 @@ class LThrow: public LTemplateInstruction<0, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
-};
-
-
-class LBitNotI: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LBitNotI(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(BitNotI, "bit-not-i")
 };
 
 

@@ -10795,18 +10795,17 @@ void Code::Disassemble(const char* name, FILE* out) {
     // If there is no back edge table, the "table start" will be at or after
     // (due to alignment) the end of the instruction stream.
     if (static_cast<int>(offset) < instruction_size()) {
-      Address back_edge_cursor = instruction_start() + offset;
-      uint32_t table_length = Memory::uint32_at(back_edge_cursor);
-      PrintF(out, "Back edges (size = %u)\n", table_length);
+      FullCodeGenerator::BackEdgeTableIterator back_edges(this);
+
+      PrintF(out, "Back edges (size = %u)\n", back_edges.table_length());
       PrintF(out, "ast_id  pc_offset  loop_depth\n");
-      for (uint32_t i = 0; i < table_length; ++i) {
-        uint32_t ast_id = Memory::uint32_at(back_edge_cursor);
-        uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
-        uint32_t loop_depth = Memory::uint32_at(back_edge_cursor +
-                                                2 * kIntSize);
-        PrintF(out, "%6u  %9u  %10u\n", ast_id, pc_offset, loop_depth);
-        back_edge_cursor += FullCodeGenerator::kBackEdgeEntrySize;
+
+      for ( ; !back_edges.Done(); back_edges.Next()) {
+        PrintF(out, "%6d  %9u  %10u\n", back_edges.ast_id().ToInt(),
+                                        back_edges.pc_offset(),
+                                        back_edges.loop_depth());
       }
+
       PrintF(out, "\n");
     }
 #ifdef OBJECT_PRINT

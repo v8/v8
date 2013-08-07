@@ -159,7 +159,6 @@ void BreakLocationIterator::Next() {
       Code* code = Code::GetCodeFromTargetAddress(target);
       if ((code->is_inline_cache_stub() &&
            !code->is_binary_op_stub() &&
-           !code->is_unary_op_stub() &&
            !code->is_compare_ic_stub() &&
            !code->is_to_boolean_ic_stub()) ||
           RelocInfo::IsConstructCall(rmode())) {

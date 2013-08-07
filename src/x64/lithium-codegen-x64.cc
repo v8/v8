@@ -1270,7 +1270,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
   bool can_overflow =
       instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   if (right->IsConstantOperand()) {
-    int right_value = ToInteger32(LConstantOperand::cast(right));
+    int32_t right_value = ToInteger32(LConstantOperand::cast(right));
     if (right_value == -1) {
       __ negl(left);
     } else if (right_value == 0) {
@@ -1362,7 +1362,7 @@ void LCodeGen::DoBitI(LBitI* instr) {
   ASSERT(left->IsRegister());
 
   if (right->IsConstantOperand()) {
-    int right_operand = ToInteger32(LConstantOperand::cast(right));
+    int32_t right_operand = ToInteger32(LConstantOperand::cast(right));
     switch (instr->op()) {
       case Token::BIT_AND:
         __ andl(ToRegister(left), Immediate(right_operand));
@@ -1371,7 +1371,11 @@ void LCodeGen::DoBitI(LBitI* instr) {
         __ orl(ToRegister(left), Immediate(right_operand));
         break;
       case Token::BIT_XOR:
-        __ xorl(ToRegister(left), Immediate(right_operand));
+        if (right_operand == int32_t(~0)) {
+          __ not_(ToRegister(left));
+        } else {
+          __ xorl(ToRegister(left), Immediate(right_operand));
+        }
         break;
       default:
         UNREACHABLE();
@@ -1442,7 +1446,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
     }
   } else {
-    int value = ToInteger32(LConstantOperand::cast(right));
+    int32_t value = ToInteger32(LConstantOperand::cast(right));
     uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
     switch (instr->op()) {
       case Token::ROR:
@@ -1653,13 +1657,6 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     __ movw(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
             value);
   }
-}
-
-
-void LCodeGen::DoBitNotI(LBitNotI* instr) {
-  LOperand* input = instr->value();
-  ASSERT(input->Equals(instr->result()));
-  __ not_(ToRegister(input));
 }
 
 
@@ -2898,8 +2895,8 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 
   if (instr->length()->IsConstantOperand() &&
       instr->index()->IsConstantOperand()) {
-    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
-    int const_length = ToInteger32(LConstantOperand::cast(instr->length()));
+    int32_t const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+    int32_t const_length = ToInteger32(LConstantOperand::cast(instr->length()));
     int index = (const_length - const_index) + 1;
     __ movq(result, Operand(arguments, index * kPointerSize));
   } else {
@@ -3086,7 +3083,7 @@ Operand LCodeGen::BuildFastArrayOperand(
   Register elements_pointer_reg = ToRegister(elements_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
   if (key->IsConstantOperand()) {
-    int constant_value = ToInteger32(LConstantOperand::cast(key));
+    int32_t constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
       Abort(kArrayIndexConstantValueTooBig);
     }
@@ -4096,7 +4093,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
       __ AssertZeroExtended(reg);
     }
     if (instr->index()->IsConstantOperand()) {
-      int constant_index =
+      int32_t constant_index =
           ToInteger32(LConstantOperand::cast(instr->index()));
       if (instr->hydrogen()->length()->representation().IsSmi()) {
         __ Cmp(reg, Smi::FromInt(constant_index));
@@ -4113,7 +4110,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   } else {
     Operand length = ToOperand(instr->length());
     if (instr->index()->IsConstantOperand()) {
-      int constant_index =
+      int32_t constant_index =
           ToInteger32(LConstantOperand::cast(instr->index()));
       if (instr->hydrogen()->length()->representation().IsSmi()) {
         __ Cmp(length, Smi::FromInt(constant_index));
@@ -4400,7 +4397,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
   // DoStringCharCodeAt above.
   STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
   if (instr->index()->IsConstantOperand()) {
-    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+    int32_t const_index = ToInteger32(LConstantOperand::cast(instr->index()));
     __ Push(Smi::FromInt(const_index));
   } else {
     Register index = ToRegister(instr->index());

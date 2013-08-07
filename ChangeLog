@@ -1,3 +1,19 @@
+2013-08-07: Version 3.20.14
+
+        Exposed eternal handle api.
+
+        Bugfix to solve issues with enabling V8 typed arrays in Blink.
+
+        Fixed Array index dehoisting.  (Chromium issue 264203)
+
+        Updated Array Iterator to use numeric indexes (issue 2818)
+
+        Return start/end profiling time in microseconds instead of milliseconds
+        (issue 2824)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-06: Version 3.20.14
 
         Added new Harmony methods to Array.prototype object.

@@ -1155,6 +1155,29 @@ void HLoadFieldByIndex::PrintDataTo(StringStream* stream) {
 }
 
 
+static bool MatchLeftIsOnes(HValue* l, HValue* r, HValue** negated) {
+  if (!l->EqualsInteger32Constant(~0)) return false;
+  *negated = r;
+  return true;
+}
+
+
+static bool MatchNegationViaXor(HValue* instr, HValue** negated) {
+  if (!instr->IsBitwise()) return false;
+  HBitwise* b = HBitwise::cast(instr);
+  return (b->op() == Token::BIT_XOR) &&
+      (MatchLeftIsOnes(b->left(), b->right(), negated) ||
+       MatchLeftIsOnes(b->right(), b->left(), negated));
+}
+
+
+static bool MatchDoubleNegation(HValue* instr, HValue** arg) {
+  HValue* negated;
+  return MatchNegationViaXor(instr, &negated) &&
+      MatchNegationViaXor(negated, arg);
+}
+
+
 HValue* HBitwise::Canonicalize() {
   if (!representation().IsSmiOrInteger32()) return this;
   // If x is an int32, then x & -1 == x, x | 0 == x and x ^ 0 == x.
@@ -1167,18 +1190,10 @@ HValue* HBitwise::Canonicalize() {
       !left()->CheckFlag(kUint32)) {
     return left();
   }
-  return this;
-}
-
-
-HValue* HBitNot::Canonicalize() {
-  // Optimize ~~x, a common pattern used for ToInt32(x).
-  if (value()->IsBitNot()) {
-    HValue* result = HBitNot::cast(value())->value();
-    ASSERT(result->representation().IsInteger32());
-    if (!result->CheckFlag(kUint32)) {
-      return result;
-    }
+  // Optimize double negation, a common pattern used for ToInt32(x).
+  HValue* arg;
+  if (MatchDoubleNegation(this, &arg) && !arg->CheckFlag(kUint32)) {
+    return arg;
   }
   return this;
 }

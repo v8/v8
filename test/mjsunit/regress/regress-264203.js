@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,51 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8_TEST_H_
-#define V8_V8_TEST_H_
+// Flags: --allow-natives-syntax
 
-#include "v8.h"
+function foo(x) {
+  var a = [1, 2, 3, 4, 5, 6, 7, 8];
+  a[x + 5];
+  var result;
+  for (var i = 0; i < 3; i++) {
+    result = a[0 - x];
+  }
+  return result;
+}
 
-/**
- * Testing support for the V8 JavaScript engine.
- */
-namespace v8 {
-
-class V8_EXPORT Testing {
- public:
-  enum StressType {
-    kStressTypeOpt,
-    kStressTypeDeopt
-  };
-
-  /**
-   * Set the type of stressing to do. The default if not set is kStressTypeOpt.
-   */
-  static void SetStressRunType(StressType type);
-
-  /**
-   * Get the number of runs of a given test that is required to get the full
-   * stress coverage.
-   */
-  static int GetStressRuns();
-
-  /**
-   * Indicate the number of the run which is about to start. The value of run
-   * should be between 0 and one less than the result from GetStressRuns()
-   */
-  static void PrepareStressRun(int run);
-
-  /**
-   * Force deoptimization of all functions.
-   */
-  static void DeoptimizeAll();
-};
-
-
-}  // namespace v8
-
-
-#undef V8_EXPORT
-
-
-#endif  // V8_V8_TEST_H_
+foo(0);
+foo(0);
+%OptimizeFunctionOnNextCall(foo);
+var r = foo(-2);
+assertEquals(3, r);

@@ -3204,6 +3204,13 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
                                            factory()->NewNumberLiteral(-1),
                                            position);
     }
+    // ...and one more time for '~foo' => 'foo^(~0)'.
+    if (op == Token::BIT_NOT) {
+      return factory()->NewBinaryOperation(Token::BIT_XOR,
+                                           expression,
+                                           factory()->NewNumberLiteral(~0),
+                                           position);
+    }
 
     return factory()->NewUnaryOperation(op, expression, position);
 

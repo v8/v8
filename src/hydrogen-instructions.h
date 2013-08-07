@@ -72,7 +72,6 @@ class LChunkBuilder;
   V(ArgumentsLength)                           \
   V(ArgumentsObject)                           \
   V(Bitwise)                                   \
-  V(BitNot)                                    \
   V(BlockEntry)                                \
   V(BoundsCheck)                               \
   V(BoundsCheckBaseIndexInformation)           \
@@ -2392,37 +2391,6 @@ class HElementsKind: public HUnaryOperation {
 };
 
 
-class HBitNot: public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HBitNot, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Integer32();
-  }
-  virtual Representation observed_input_representation(int index) {
-    return Representation::Integer32();
-  }
-
-  virtual HValue* Canonicalize();
-
-  DECLARE_CONCRETE_INSTRUCTION(BitNot)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-
- private:
-  explicit HBitNot(HValue* value)
-      : HUnaryOperation(value, HType::TaggedNumber()) {
-    set_representation(Representation::Integer32());
-    SetFlag(kUseGVN);
-    SetFlag(kTruncatingToInt32);
-    SetFlag(kAllowUndefinedAsNaN);
-  }
-
-  virtual bool IsDeletable() const { return true; }
-};
-
-
 class HUnaryMathOperation: public HTemplateInstruction<2> {
  public:
   static HInstruction* New(Zone* zone,
@@ -3242,6 +3210,9 @@ class HConstant: public HTemplateInstruction<0> {
       if (IsSpecialDouble()) {
         return true;
       }
+      return false;
+    }
+    if (has_external_reference_value_) {
       return false;
     }
 
