@@ -2016,6 +2016,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ bind(&not_string);
       }
 
+      if (expected.Contains(ToBooleanStub::SYMBOL)) {
+        // Symbol value -> true.
+        __ CmpInstanceType(map, SYMBOL_TYPE);
+        __ j(equal, instr->TrueLabel(chunk_));
+      }
+
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
         // heap number -> false iff +0, -0, or NaN.
         Label not_heap_number;
