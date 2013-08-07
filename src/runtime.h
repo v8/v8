@@ -543,6 +543,11 @@ namespace internal {
   F(AvailableLocalesOf, 1, 1) \
   F(GetDefaultICULocale, 0, 1) \
   F(GetLanguageTagVariants, 1, 1) \
+  \
+  /* Date format and parse. */ \
+  F(CreateDateTimeFormat, 3, 1) \
+  F(InternalDateFormat, 2, 1) \
+  F(InternalDateParse, 2, 1) \
 
 #else
 #define RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)

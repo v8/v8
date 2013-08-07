@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // limitations under the License.
 
-#ifndef V8_EXTENSIONS_I18N_DATE_FORMAT_H_
-#define V8_EXTENSIONS_I18N_DATE_FORMAT_H_
+#ifndef V8_I18N_H_
+#define V8_I18N_H_
 
 #include "unicode/uversion.h"
 #include "v8.h"
@@ -36,36 +36,44 @@ namespace U_ICU_NAMESPACE {
 class SimpleDateFormat;
 }
 
-namespace v8_i18n {
+namespace v8 {
+namespace internal {
+
+class I18N {
+ public:
+  // Creates an ObjectTemplate with one internal field.
+  static Handle<ObjectTemplateInfo> GetTemplate(Isolate* isolate);
+
+  // Creates an ObjectTemplate with two internal fields.
+  static Handle<ObjectTemplateInfo> GetTemplate2(Isolate* isolate);
+
+ private:
+  I18N();
+};
 
 class DateFormat {
  public:
-  static void JSCreateDateTimeFormat(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  // Helper methods for various bindings.
+  // Create a formatter for the specificied locale and options. Returns the
+  // resolved settings for the locale / options.
+  static icu::SimpleDateFormat* InitializeDateTimeFormat(
+      Isolate* isolate,
+      Handle<String> locale,
+      Handle<JSObject> options,
+      Handle<JSObject> resolved);
 
   // Unpacks date format object from corresponding JavaScript object.
-  static icu::SimpleDateFormat* UnpackDateFormat(
-      v8::Handle<v8::Object> obj);
+  static icu::SimpleDateFormat* UnpackDateFormat(Isolate* isolate,
+                                                 Handle<JSObject> obj);
 
   // Release memory we allocated for the DateFormat once the JS object that
   // holds the pointer gets garbage collected.
   static void DeleteDateFormat(v8::Isolate* isolate,
-                               v8::Persistent<v8::Object>* object,
+                               Persistent<v8::Object>* object,
                                void* param);
-
-  // Formats date and returns corresponding string.
-  static void JSInternalFormat(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  // Parses date and returns corresponding Date object or undefined if parse
-  // failed.
-  static void JSInternalParse(const v8::FunctionCallbackInfo<v8::Value>& args);
-
  private:
   DateFormat();
 };
 
-}  // namespace v8_i18n
+} }  // namespace v8::internal
 
-#endif  // V8_EXTENSIONS_I18N_DATE_FORMAT_H_
+#endif  // V8_I18N_H_
