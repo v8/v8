@@ -2916,6 +2916,9 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
 
   // Remove dead code and phis
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
+
+  if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
+
   CollectPhis();
 
   if (has_osr()) osr()->FinishOsrValues();
@@ -2938,8 +2941,6 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   if (FLAG_opt_safe_uint32_operations) Run<HUint32AnalysisPhase>();
 
   if (FLAG_use_canonicalizing) Run<HCanonicalizePhase>();
-
-  if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
 
   if (FLAG_use_gvn) Run<HGlobalValueNumberingPhase>();
 

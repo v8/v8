@@ -736,7 +736,7 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMap(
-      Map* map, PretenureFlag pretenure = NOT_TENURED);
+      Map* map, PretenureFlag pretenure = NOT_TENURED, bool alloc_props = true);
 
   MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMapWithAllocationSite(
       Map* map, Handle<AllocationSite> allocation_site);

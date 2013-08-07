@@ -2627,7 +2627,8 @@ class LChunkBuilder BASE_EMBEDDED {
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
 
   LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
-                                  int* argument_index_accumulator);
+                                  int* argument_index_accumulator,
+                                  ZoneList<HValue*>* objects_to_materialize);
 
   void VisitInstruction(HInstruction* current);
 

@@ -10636,7 +10636,14 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
-        case Translation::ARGUMENTS_OBJECT: {
+        case Translation::DUPLICATED_OBJECT: {
+          int object_index = iterator.Next();
+          PrintF(out, "{object_index=%d}", object_index);
+          break;
+        }
+
+        case Translation::ARGUMENTS_OBJECT:
+        case Translation::CAPTURED_OBJECT: {
           int args_length = iterator.Next();
           PrintF(out, "{length=%d}", args_length);
           break;

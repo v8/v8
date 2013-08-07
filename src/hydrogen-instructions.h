@@ -86,6 +86,7 @@ class LChunkBuilder;
   V(CallNewArray)                              \
   V(CallRuntime)                               \
   V(CallStub)                                  \
+  V(CapturedObject)                            \
   V(Change)                                    \
   V(CheckFunction)                             \
   V(CheckHeapObject)                           \
@@ -2760,6 +2761,7 @@ class HCheckHeapObject: public HUnaryOperation {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HCheckHeapObject, HValue*);
 
+  virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
@@ -3123,21 +3125,10 @@ class HPhi: public HValue {
 };
 
 
-class HArgumentsObject: public HTemplateInstruction<0> {
+// Common base class for HArgumentsObject and HCapturedObject.
+class HDematerializedObject: public HTemplateInstruction<0> {
  public:
-  static HArgumentsObject* New(Zone* zone,
-                               HValue* context,
-                               int count) {
-    return new(zone) HArgumentsObject(count, zone);
-  }
-
-  const ZoneList<HValue*>* arguments_values() const { return &values_; }
-  int arguments_count() const { return values_.length(); }
-
-  void AddArgument(HValue* argument, Zone* zone) {
-    values_.Add(NULL, zone);  // Resize list.
-    SetOperandAt(values_.length() - 1, argument);
-  }
+  HDematerializedObject(int count, Zone* zone) : values_(count, zone) {}
 
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) const { return values_[index]; }
@@ -3147,22 +3138,61 @@ class HArgumentsObject: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(ArgumentsObject)
-
  protected:
   virtual void InternalSetOperandAt(int index, HValue* value) {
     values_[index] = value;
   }
 
+  // List of values tracked by this marker.
+  ZoneList<HValue*> values_;
+
  private:
-  HArgumentsObject(int count, Zone* zone) : values_(count, zone) {
+  virtual bool IsDeletable() const { return true; }
+};
+
+
+class HArgumentsObject: public HDematerializedObject {
+ public:
+  static HArgumentsObject* New(Zone* zone, HValue* context, int count) {
+    return new(zone) HArgumentsObject(count, zone);
+  }
+
+  // The values contain a list of all elements in the arguments object
+  // including the receiver object, which is skipped when materializing.
+  const ZoneList<HValue*>* arguments_values() const { return &values_; }
+  int arguments_count() const { return values_.length(); }
+
+  void AddArgument(HValue* argument, Zone* zone) {
+    values_.Add(NULL, zone);  // Resize list.
+    SetOperandAt(values_.length() - 1, argument);
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ArgumentsObject)
+
+ private:
+  HArgumentsObject(int count, Zone* zone)
+      : HDematerializedObject(count, zone) {
     set_representation(Representation::Tagged());
     SetFlag(kIsArguments);
   }
+};
 
-  virtual bool IsDeletable() const { return true; }
 
-  ZoneList<HValue*> values_;
+class HCapturedObject: public HDematerializedObject {
+ public:
+  HCapturedObject(int length, Zone* zone)
+      : HDematerializedObject(length, zone) {
+    set_representation(Representation::Tagged());
+    values_.AddBlock(NULL, length, zone);  // Resize list.
+  }
+
+  // The values contain a list of all in-object properties inside the
+  // captured object and is index by field index. Properties in the
+  // properties or elements backing store are not tracked here.
+  const ZoneList<HValue*>* values() const { return &values_; }
+  int length() const { return values_.length(); }
+
+  DECLARE_CONCRETE_INSTRUCTION(CapturedObject)
 };
 
 
@@ -6007,7 +6037,6 @@ class HStoreKeyed
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind);
 
-  virtual bool HasEscapingOperandAt(int index) { return index != 0; }
   virtual Representation RequiredInputRepresentation(int index) {
     // kind_fast:       tagged[int32] = tagged
     // kind_double:     tagged[int32] = double
