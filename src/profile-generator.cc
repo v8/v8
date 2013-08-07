@@ -614,6 +614,8 @@ const char* const ProfileGenerator::kAnonymousFunctionName =
     "(anonymous function)";
 const char* const ProfileGenerator::kProgramEntryName =
     "(program)";
+const char* const ProfileGenerator::kIdleEntryName =
+    "(idle)";
 const char* const ProfileGenerator::kGarbageCollectorEntryName =
     "(garbage collector)";
 const char* const ProfileGenerator::kUnresolvedFunctionName =
@@ -624,6 +626,8 @@ ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
     : profiles_(profiles),
       program_entry_(
           profiles->NewCodeEntry(Logger::FUNCTION_TAG, kProgramEntryName)),
+      idle_entry_(
+          profiles->NewCodeEntry(Logger::FUNCTION_TAG, kIdleEntryName)),
       gc_entry_(
           profiles->NewCodeEntry(Logger::BUILTIN_TAG,
                                  kGarbageCollectorEntryName)),

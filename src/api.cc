@@ -7646,6 +7646,19 @@ void CpuProfiler::DeleteAllCpuProfiles() {
 }
 
 
+void CpuProfiler::SetIdle(bool is_idle) {
+  i::Isolate* isolate = reinterpret_cast<i::CpuProfiler*>(this)->isolate();
+  i::StateTag state = isolate->current_vm_state();
+  ASSERT(state == i::EXTERNAL || state == i::IDLE);
+  if (isolate->js_entry_sp() != NULL) return;
+  if (is_idle) {
+    isolate->set_current_vm_state(i::IDLE);
+  } else if (state == i::IDLE) {
+    isolate->set_current_vm_state(i::EXTERNAL);
+  }
+}
+
+
 static i::HeapGraphEdge* ToInternal(const HeapGraphEdge* edge) {
   return const_cast<i::HeapGraphEdge*>(
       reinterpret_cast<const i::HeapGraphEdge*>(edge));

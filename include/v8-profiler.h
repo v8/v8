@@ -192,6 +192,11 @@ class V8_EXPORT CpuProfiler {
    */
   void DeleteAllCpuProfiles();
 
+  /**
+   * Tells the profiler whether the embedder is idle.
+   */
+  void SetIdle(bool is_idle);
+
  private:
   CpuProfiler();
   ~CpuProfiler();
