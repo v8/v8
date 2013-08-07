@@ -1215,6 +1215,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   shared->set_num_literals(literals_array_size);
   if (is_generator) {
     shared->set_instance_class_name(isolate()->heap()->Generator_string());
+    shared->DisableOptimization(kGenerator);
   }
   return shared;
 }

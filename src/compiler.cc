@@ -972,7 +972,9 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
 
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
     if (FLAG_trace_parallel_recompilation) {
-      PrintF("  ** Compilation queue, will retry opting on next run.\n");
+      PrintF("  ** Compilation queue full, will retry optimizing ");
+      closure->PrintName();
+      PrintF(" on next run.\n");
     }
     return;
   }

@@ -9222,6 +9222,7 @@ void JSFunction::MarkForLazyRecompilation() {
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
+  ASSERT(!shared()->is_generator());
   set_code_no_write_barrier(
       GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile));
   // No write barrier required, since the builtin is part of the root set.
@@ -9232,10 +9233,8 @@ void JSFunction::MarkForParallelRecompilation() {
   ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  if (!FLAG_parallel_recompilation) {
-    JSFunction::MarkForLazyRecompilation();
-    return;
-  }
+  ASSERT(!shared()->is_generator());
+  ASSERT(FLAG_parallel_recompilation);
   if (FLAG_trace_parallel_recompilation) {
     PrintF("  ** Marking ");
     PrintName();
