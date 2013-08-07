@@ -1057,20 +1057,16 @@ void LCodeGen::DoModI(LModI* instr) {
   HValue* left = hmod->left();
   HValue* right = hmod->right();
   if (hmod->HasPowerOf2Divisor()) {
-    const Register scratch = scratch0();
     const Register left_reg = ToRegister(instr->left());
-    ASSERT(!left_reg.is(scratch));
     const Register result_reg = ToRegister(instr->result());
 
     // Note: The code below even works when right contains kMinInt.
     int32_t divisor = Abs(right->GetInteger32Constant());
 
-    __ mov(scratch, left_reg);
-
     Label left_is_not_negative, done;
     if (left->CanBeNegative()) {
-      __ Branch(USE_DELAY_SLOT, &left_is_not_negative,
-                ge, left_reg, Operand(zero_reg));
+      __ Branch(left_reg.is(result_reg) ? PROTECT : USE_DELAY_SLOT,
+                &left_is_not_negative, ge, left_reg, Operand(zero_reg));
       __ subu(result_reg, zero_reg, left_reg);
       __ And(result_reg, result_reg, divisor - 1);
       if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
@@ -1081,15 +1077,13 @@ void LCodeGen::DoModI(LModI* instr) {
     }
 
     __ bind(&left_is_not_negative);
-    __ And(result_reg, scratch, divisor - 1);
+    __ And(result_reg, left_reg, divisor - 1);
     __ bind(&done);
 
   } else if (hmod->fixed_right_arg().has_value) {
-    const Register scratch = scratch0();
     const Register left_reg = ToRegister(instr->left());
     const Register result_reg = ToRegister(instr->result());
-
-    Register right_reg = EmitLoadRegister(instr->right(), scratch);
+    const Register right_reg = ToRegister(instr->right());
 
     int32_t divisor = hmod->fixed_right_arg().value;
     ASSERT(IsPowerOf2(divisor));
@@ -1099,8 +1093,8 @@ void LCodeGen::DoModI(LModI* instr) {
 
     Label left_is_not_negative, done;
     if (left->CanBeNegative()) {
-      __ Branch(USE_DELAY_SLOT, &left_is_not_negative,
-                ge, left_reg, Operand(zero_reg));
+      __ Branch(left_reg.is(result_reg) ? PROTECT : USE_DELAY_SLOT,
+                &left_is_not_negative, ge, left_reg, Operand(zero_reg));
       __ subu(result_reg, zero_reg, left_reg);
       __ And(result_reg, result_reg, divisor - 1);
       if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
