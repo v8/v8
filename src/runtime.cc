@@ -12014,8 +12014,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
   JavaScriptFrameIterator frame_it(isolate, id);
   JavaScriptFrame* frame = frame_it.frame();
 
+  Handle<JSFunction> fun =
+      Handle<JSFunction>(frame->function());
   Handle<SharedFunctionInfo> shared =
-      Handle<SharedFunctionInfo>(frame->function()->shared());
+      Handle<SharedFunctionInfo>(fun->shared());
+
+  if (!isolate->debug()->EnsureDebugInfo(shared, fun)) {
+    return isolate->heap()->undefined_value();
+  }
+
   Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared);
 
   int len = 0;
@@ -12028,12 +12035,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
   int current_statement_pos = break_location_iterator.statement_position();
 
   while (!break_location_iterator.Done()) {
-    if (break_location_iterator.IsStepInLocation(isolate)) {
-      Smi* position_value = Smi::FromInt(break_location_iterator.position());
-      JSObject::SetElement(array, len,
-          Handle<Object>(position_value, isolate),
-          NONE, kNonStrictMode);
-      len++;
+    if (break_location_iterator.pc() > frame->pc()) {
+      if (break_location_iterator.IsStepInLocation(isolate)) {
+        Smi* position_value = Smi::FromInt(break_location_iterator.position());
+        JSObject::SetElement(array, len,
+            Handle<Object>(position_value, isolate),
+            NONE, kNonStrictMode);
+        len++;
+      }
     }
     // Advance iterator.
     break_location_iterator.Next();

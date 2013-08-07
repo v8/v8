@@ -409,6 +409,9 @@ bool BreakLocationIterator::IsStepInLocation(Isolate* isolate) {
     HandleScope scope(debug_info_->GetIsolate());
     Address target = rinfo()->target_address();
     Handle<Code> target_code(Code::GetCodeFromTargetAddress(target));
+    if (target_code->kind() == Code::STUB) {
+      return target_code->major_key() == CodeStub::CallFunction;
+    }
     return target_code->is_call_stub() || target_code->is_keyed_call_stub();
   } else {
     return false;
