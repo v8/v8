@@ -3449,7 +3449,7 @@ void LCodeGen::EmitIntegerMathAbs(LMathAbs* instr) {
 }
 
 
-void LCodeGen::EmitInteger64MathAbs(LMathAbs* instr) {
+void LCodeGen::EmitSmiMathAbs(LMathAbs* instr) {
   Register input_reg = ToRegister(instr->value());
   __ testq(input_reg, input_reg);
   Label is_positive;
@@ -3486,16 +3486,14 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
   } else if (r.IsInteger32()) {
     EmitIntegerMathAbs(instr);
   } else if (r.IsSmi()) {
-    EmitInteger64MathAbs(instr);
+    EmitSmiMathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
         new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr);
     Register input_reg = ToRegister(instr->value());
     // Smi check.
     __ JumpIfNotSmi(input_reg, deferred->entry());
-    __ SmiToInteger32(input_reg, input_reg);
-    EmitIntegerMathAbs(instr);
-    __ Integer32ToSmi(input_reg, input_reg);
+    EmitSmiMathAbs(instr);
     __ bind(deferred->exit());
   }
 }
