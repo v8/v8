@@ -268,6 +268,8 @@ bool LCodeGen::GenerateBody() {
               instr->Mnemonic());
     }
 
+    RecordAndUpdatePosition(instr->position());
+
     instr->CompileToNative(this);
   }
   EnsureSpaceForLazyDeopt();
@@ -281,6 +283,10 @@ bool LCodeGen::GenerateDeferredCode() {
   if (deferred_.length() > 0) {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
       LDeferredCode* code = deferred_[i];
+
+      int pos = instructions_->at(code->instruction_index())->position();
+      RecordAndUpdatePosition(pos);
+
       Comment(";;; <@%d,#%d> "
               "-------------------- Deferred %s --------------------",
               code->instruction_index(),
@@ -977,6 +983,14 @@ void LCodeGen::RecordSafepointWithRegistersAndDoubles(
 void LCodeGen::RecordPosition(int position) {
   if (position == RelocInfo::kNoPosition) return;
   masm()->positions_recorder()->RecordPosition(position);
+}
+
+
+void LCodeGen::RecordAndUpdatePosition(int position) {
+  if (position >= 0 && position != old_position_) {
+    masm()->positions_recorder()->RecordPosition(position);
+    old_position_ = position;
+  }
 }
 
 
