@@ -61,26 +61,19 @@ class V8_EXPORT CpuProfileNode {
    * Returns total (self + children) execution time of the function,
    * in milliseconds, estimated by samples count.
    */
-  V8_DEPRECATED(double GetTotalTime() const);
+  double GetTotalTime() const;
 
   /**
    * Returns self execution time of the function, in milliseconds,
    * estimated by samples count.
    */
-  V8_DEPRECATED(double GetSelfTime() const);
+  double GetSelfTime() const;
 
   /** Returns the count of samples where function exists. */
-  V8_DEPRECATED(double GetTotalSamplesCount() const);
+  double GetTotalSamplesCount() const;
 
-  /** DEPRECATED. Please use GetHitCount instead.
-    * Returns the count of samples where function was currently executing.
-    */
+  /** Returns the count of samples where function was currently executing. */
   double GetSelfSamplesCount() const;
-
-  /**
-    * Returns the count of samples where the function was currently executing.
-    */
-  unsigned GetHitCount() const;
 
   /** Returns function entry UID. */
   unsigned GetCallUid() const;

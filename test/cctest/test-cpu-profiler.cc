@@ -1369,13 +1369,11 @@ TEST(IdleTime) {
       GetChild(root, ProfileGenerator::kProgramEntryName);
   CHECK_EQ(0, programNode->GetChildrenCount());
   CHECK_GE(programNode->GetSelfSamplesCount(), 3);
-  CHECK_GE(programNode->GetHitCount(), 3);
 
   const v8::CpuProfileNode* idleNode =
       GetChild(root, ProfileGenerator::kIdleEntryName);
   CHECK_EQ(0, idleNode->GetChildrenCount());
   CHECK_GE(idleNode->GetSelfSamplesCount(), 3);
-  CHECK_GE(idleNode->GetHitCount(), 3);
 
   cpu_profiler->DeleteAllCpuProfiles();
 }

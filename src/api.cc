@@ -7477,6 +7477,8 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
 
 
 int CpuProfileNode::GetScriptId() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetScriptId");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   const i::CodeEntry* entry = node->entry();
   return entry->script_id();
@@ -7493,6 +7495,8 @@ Handle<String> CpuProfileNode::GetScriptResourceName() const {
 
 
 int CpuProfileNode::GetLineNumber() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetLineNumber");
   return reinterpret_cast<const i::ProfileNode*>(this)->entry()->line_number();
 }
 
@@ -7525,12 +7529,9 @@ double CpuProfileNode::GetSelfSamplesCount() const {
 }
 
 
-unsigned CpuProfileNode::GetHitCount() const {
-  return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
-}
-
-
 unsigned CpuProfileNode::GetCallUid() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetCallUid");
   return reinterpret_cast<const i::ProfileNode*>(this)->entry()->GetCallUid();
 }
 
@@ -7541,11 +7542,15 @@ unsigned CpuProfileNode::GetNodeId() const {
 
 
 int CpuProfileNode::GetChildrenCount() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetChildrenCount");
   return reinterpret_cast<const i::ProfileNode*>(this)->children()->length();
 }
 
 
 const CpuProfileNode* CpuProfileNode::GetChild(int index) const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetChild");
   const i::ProfileNode* child =
       reinterpret_cast<const i::ProfileNode*>(this)->children()->at(index);
   return reinterpret_cast<const CpuProfileNode*>(child);
@@ -7566,6 +7571,8 @@ void CpuProfile::Delete() {
 
 
 unsigned CpuProfile::GetUid() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfile::GetUid");
   return reinterpret_cast<const i::CpuProfile*>(this)->uid();
 }
 
@@ -7580,6 +7587,8 @@ Handle<String> CpuProfile::GetTitle() const {
 
 
 const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfile::GetTopDownRoot");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return reinterpret_cast<const CpuProfileNode*>(profile->top_down()->root());
 }

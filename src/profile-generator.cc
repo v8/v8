@@ -220,7 +220,7 @@ double ProfileNode::GetTotalMillis() const {
 
 
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %5u %*c %s%s %d #%d",
+  OS::Print("%5u %5u %*c %s%s #%d %d",
             total_ticks_, self_ticks_,
             indent, ' ',
             entry_->name_prefix(),
