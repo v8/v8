@@ -5253,11 +5253,11 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
     __ CompareMapAndBranch(map_reg, map, &success, eq, &success);
   }
   Handle<Map> map = map_set->last();
-  __ CompareMapAndBranch(map_reg, map, &success, eq, &success);
+  // Do the CompareMap() directly within the Branch() and DeoptimizeIf().
   if (instr->hydrogen()->has_migration_target()) {
-    __ Branch(deferred->entry());
+    __ Branch(deferred->entry(), ne, map_reg, Operand(map));
   } else {
-    DeoptimizeIf(al, instr->environment());
+    DeoptimizeIf(ne, instr->environment(), map_reg, Operand(map));
   }
 
   __ bind(&success);
