@@ -884,6 +884,7 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     }
 #endif
 
+    instr->set_position(position_);
     if (FLAG_stress_pointer_maps && !instr->HasPointerMap()) {
       instr = AssignPointerMap(instr);
     }

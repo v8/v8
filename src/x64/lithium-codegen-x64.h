@@ -67,7 +67,8 @@ class LCodeGen BASE_EMBEDDED {
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple) {
+        expected_safepoint_kind_(Safepoint::kSimple),
+        old_position_(RelocInfo::kNoPosition) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -282,6 +283,7 @@ class LCodeGen BASE_EMBEDDED {
                                     int arguments,
                                     Safepoint::DeoptMode mode);
   void RecordPosition(int position);
+  void RecordAndUpdatePosition(int position);
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
@@ -383,6 +385,8 @@ class LCodeGen BASE_EMBEDDED {
   LGapResolver resolver_;
 
   Safepoint::Kind expected_safepoint_kind_;
+
+  int old_position_;
 
   class PushSafepointRegistersScope BASE_EMBEDDED {
    public:

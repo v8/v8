@@ -209,7 +209,10 @@ class LInstruction: public ZoneObject {
   LInstruction()
       : environment_(NULL),
         hydrogen_value_(NULL),
-        is_call_(false) { }
+        bit_field_(IsCallBits::encode(false)) {
+    set_position(RelocInfo::kNoPosition);
+  }
+
   virtual ~LInstruction() { }
 
   virtual void CompileToNative(LCodeGen* generator) = 0;
@@ -248,19 +251,28 @@ class LInstruction: public ZoneObject {
   LPointerMap* pointer_map() const { return pointer_map_.get(); }
   bool HasPointerMap() const { return pointer_map_.is_set(); }
 
+  // The 31 bits PositionBits is used to store the int position value. And the
+  // position value may be RelocInfo::kNoPosition (-1). The accessor always
+  // +1/-1 so that the encoded value of position in bit_field_ is always >= 0
+  // and can fit into the 31 bits PositionBits.
+  void set_position(int pos) {
+    bit_field_ = PositionBits::update(bit_field_, pos + 1);
+  }
+  int position() { return PositionBits::decode(bit_field_) - 1; }
 
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
 
   virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) { }
 
-  void MarkAsCall() { is_call_ = true; }
+  void MarkAsCall() { bit_field_ = IsCallBits::update(bit_field_, true); }
+  bool IsCall() const { return IsCallBits::decode(bit_field_); }
 
   // Interface to the register allocator and iterators.
-  bool ClobbersTemps() const { return is_call_; }
-  bool ClobbersRegisters() const { return is_call_; }
+  bool ClobbersTemps() const { return IsCall(); }
+  bool ClobbersRegisters() const { return IsCall(); }
   virtual bool ClobbersDoubleRegisters() const {
-    return is_call_ ||
+    return IsCall() ||
       (!CpuFeatures::IsSupported(SSE2) &&
        // We only have rudimentary X87Stack tracking, thus in general
        // cannot handle deoptimization nor phi-nodes.
@@ -293,10 +305,13 @@ class LInstruction: public ZoneObject {
   virtual int TempCount() = 0;
   virtual LOperand* TempAt(int i) = 0;
 
+  class IsCallBits: public BitField<bool, 0, 1> {};
+  class PositionBits: public BitField<int, 1, 31> {};
+
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
-  bool is_call_;
+  int bit_field_;
 };
 
 
