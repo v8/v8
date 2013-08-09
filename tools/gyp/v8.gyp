@@ -890,8 +890,6 @@
           '../../src/date.js',
           '../../src/json.js',
           '../../src/regexp.js',
-          '../../src/arraybuffer.js',
-          '../../src/typedarray.js',
           '../../src/macros.py',
         ],
         'experimental_library_files': [
@@ -900,6 +898,8 @@
           '../../src/proxy.js',
           '../../src/collection.js',
           '../../src/object-observe.js',
+          '../../src/arraybuffer.js',
+          '../../src/typedarray.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',
           '../../src/harmony-string.js',
