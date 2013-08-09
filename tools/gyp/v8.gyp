@@ -827,8 +827,6 @@
             '../../src/i18n.h',
             '../../src/extensions/i18n/break-iterator.cc',
             '../../src/extensions/i18n/break-iterator.h',
-            '../../src/extensions/i18n/collator.cc',
-            '../../src/extensions/i18n/collator.h',
             '../../src/extensions/i18n/i18n-extension.cc',
             '../../src/extensions/i18n/i18n-extension.h',
             '../../src/extensions/i18n/i18n-utils.cc',

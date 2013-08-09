@@ -29,6 +29,7 @@
 #include "i18n.h"
 
 #include "unicode/calendar.h"
+#include "unicode/coll.h"
 #include "unicode/curramt.h"
 #include "unicode/dcfmtsym.h"
 #include "unicode/decimfmt.h"
@@ -40,6 +41,7 @@
 #include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
 #include "unicode/uchar.h"
+#include "unicode/ucol.h"
 #include "unicode/ucurr.h"
 #include "unicode/unum.h"
 #include "unicode/uversion.h"
@@ -505,6 +507,228 @@ void SetResolvedNumberSettings(Isolate* isolate,
   }
 }
 
+
+icu::Collator* CreateICUCollator(
+    Isolate* isolate,
+    const icu::Locale& icu_locale,
+    Handle<JSObject> options) {
+  // Make collator from options.
+  icu::Collator* collator = NULL;
+  UErrorCode status = U_ZERO_ERROR;
+  collator = icu::Collator::createInstance(icu_locale, status);
+
+  if (U_FAILURE(status)) {
+    delete collator;
+    return NULL;
+  }
+
+  // Set flags first, and then override them with sensitivity if necessary.
+  bool numeric;
+  if (ExtractBooleanSetting(isolate, options, "numeric", &numeric)) {
+    collator->setAttribute(
+        UCOL_NUMERIC_COLLATION, numeric ? UCOL_ON : UCOL_OFF, status);
+  }
+
+  // Normalization is always on, by the spec. We are free to optimize
+  // if the strings are already normalized (but we don't have a way to tell
+  // that right now).
+  collator->setAttribute(UCOL_NORMALIZATION_MODE, UCOL_ON, status);
+
+  icu::UnicodeString case_first;
+  if (ExtractStringSetting(isolate, options, "caseFirst", &case_first)) {
+    if (case_first == UNICODE_STRING_SIMPLE("upper")) {
+      collator->setAttribute(UCOL_CASE_FIRST, UCOL_UPPER_FIRST, status);
+    } else if (case_first == UNICODE_STRING_SIMPLE("lower")) {
+      collator->setAttribute(UCOL_CASE_FIRST, UCOL_LOWER_FIRST, status);
+    } else {
+      // Default (false/off).
+      collator->setAttribute(UCOL_CASE_FIRST, UCOL_OFF, status);
+    }
+  }
+
+  icu::UnicodeString sensitivity;
+  if (ExtractStringSetting(isolate, options, "sensitivity", &sensitivity)) {
+    if (sensitivity == UNICODE_STRING_SIMPLE("base")) {
+      collator->setStrength(icu::Collator::PRIMARY);
+    } else if (sensitivity == UNICODE_STRING_SIMPLE("accent")) {
+      collator->setStrength(icu::Collator::SECONDARY);
+    } else if (sensitivity == UNICODE_STRING_SIMPLE("case")) {
+      collator->setStrength(icu::Collator::PRIMARY);
+      collator->setAttribute(UCOL_CASE_LEVEL, UCOL_ON, status);
+    } else {
+      // variant (default)
+      collator->setStrength(icu::Collator::TERTIARY);
+    }
+  }
+
+  bool ignore;
+  if (ExtractBooleanSetting(isolate, options, "ignorePunctuation", &ignore)) {
+    if (ignore) {
+      collator->setAttribute(UCOL_ALTERNATE_HANDLING, UCOL_SHIFTED, status);
+    }
+  }
+
+  return collator;
+}
+
+
+void SetResolvedCollatorSettings(Isolate* isolate,
+                                 const icu::Locale& icu_locale,
+                                 icu::Collator* collator,
+                                 Handle<JSObject> resolved) {
+  UErrorCode status = U_ZERO_ERROR;
+
+  JSObject::SetProperty(
+      resolved,
+      isolate->factory()->NewStringFromAscii(CStrVector("numeric")),
+      isolate->factory()->ToBoolean(
+          collator->getAttribute(UCOL_NUMERIC_COLLATION, status) == UCOL_ON),
+      NONE,
+      kNonStrictMode);
+
+  switch (collator->getAttribute(UCOL_CASE_FIRST, status)) {
+    case UCOL_LOWER_FIRST:
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("caseFirst")),
+          isolate->factory()->NewStringFromAscii(CStrVector("lower")),
+          NONE,
+          kNonStrictMode);
+      break;
+    case UCOL_UPPER_FIRST:
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("caseFirst")),
+          isolate->factory()->NewStringFromAscii(CStrVector("upper")),
+          NONE,
+          kNonStrictMode);
+      break;
+    default:
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("caseFirst")),
+          isolate->factory()->NewStringFromAscii(CStrVector("false")),
+          NONE,
+          kNonStrictMode);
+  }
+
+  switch (collator->getAttribute(UCOL_STRENGTH, status)) {
+    case UCOL_PRIMARY: {
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("strength")),
+          isolate->factory()->NewStringFromAscii(CStrVector("primary")),
+          NONE,
+          kNonStrictMode);
+
+      // case level: true + s1 -> case, s1 -> base.
+      if (UCOL_ON == collator->getAttribute(UCOL_CASE_LEVEL, status)) {
+        JSObject::SetProperty(
+            resolved,
+            isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
+            isolate->factory()->NewStringFromAscii(CStrVector("case")),
+            NONE,
+            kNonStrictMode);
+      } else {
+        JSObject::SetProperty(
+            resolved,
+            isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
+            isolate->factory()->NewStringFromAscii(CStrVector("base")),
+            NONE,
+            kNonStrictMode);
+      }
+      break;
+    }
+    case UCOL_SECONDARY:
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("strength")),
+          isolate->factory()->NewStringFromAscii(CStrVector("secondary")),
+          NONE,
+          kNonStrictMode);
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
+          isolate->factory()->NewStringFromAscii(CStrVector("accent")),
+          NONE,
+          kNonStrictMode);
+      break;
+    case UCOL_TERTIARY:
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("strength")),
+          isolate->factory()->NewStringFromAscii(CStrVector("tertiary")),
+          NONE,
+          kNonStrictMode);
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
+          isolate->factory()->NewStringFromAscii(CStrVector("variant")),
+          NONE,
+          kNonStrictMode);
+      break;
+    case UCOL_QUATERNARY:
+      // We shouldn't get quaternary and identical from ICU, but if we do
+      // put them into variant.
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("strength")),
+          isolate->factory()->NewStringFromAscii(CStrVector("quaternary")),
+          NONE,
+          kNonStrictMode);
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
+          isolate->factory()->NewStringFromAscii(CStrVector("variant")),
+          NONE,
+          kNonStrictMode);
+      break;
+    default:
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("strength")),
+          isolate->factory()->NewStringFromAscii(CStrVector("identical")),
+          NONE,
+          kNonStrictMode);
+      JSObject::SetProperty(
+          resolved,
+          isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
+          isolate->factory()->NewStringFromAscii(CStrVector("variant")),
+          NONE,
+          kNonStrictMode);
+  }
+
+  JSObject::SetProperty(
+      resolved,
+      isolate->factory()->NewStringFromAscii(CStrVector("ignorePunctuation")),
+      isolate->factory()->ToBoolean(collator->getAttribute(
+          UCOL_ALTERNATE_HANDLING, status) == UCOL_SHIFTED),
+      NONE,
+      kNonStrictMode);
+
+  // Set the locale
+  char result[ULOC_FULLNAME_CAPACITY];
+  status = U_ZERO_ERROR;
+  uloc_toLanguageTag(
+      icu_locale.getName(), result, ULOC_FULLNAME_CAPACITY, FALSE, &status);
+  if (U_SUCCESS(status)) {
+    JSObject::SetProperty(
+        resolved,
+        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
+        isolate->factory()->NewStringFromAscii(CStrVector(result)),
+        NONE,
+        kNonStrictMode);
+  } else {
+    // This would never happen, since we got the locale from ICU.
+    JSObject::SetProperty(
+        resolved,
+        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
+        isolate->factory()->NewStringFromAscii(CStrVector("und")),
+        NONE,
+        kNonStrictMode);
+  }
+}
+
 }  // namespace
 
 
@@ -640,6 +864,66 @@ void NumberFormat::DeleteNumberFormat(v8::Isolate* isolate,
                                       void* param) {
   // First delete the hidden C++ object.
   delete reinterpret_cast<icu::DecimalFormat*>(Handle<JSObject>::cast(
+      v8::Utils::OpenPersistent(object))->GetInternalField(0));
+
+  // Then dispose of the persistent handle to JS object.
+  object->Dispose(isolate);
+}
+
+
+icu::Collator* Collator::InitializeCollator(
+    Isolate* isolate,
+    Handle<String> locale,
+    Handle<JSObject> options,
+    Handle<JSObject> resolved) {
+  // Convert BCP47 into ICU locale format.
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Locale icu_locale;
+  char icu_result[ULOC_FULLNAME_CAPACITY];
+  int icu_length = 0;
+  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  if (bcp47_locale.length() != 0) {
+    uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
+                        &icu_length, &status);
+    if (U_FAILURE(status) || icu_length == 0) {
+      return NULL;
+    }
+    icu_locale = icu::Locale(icu_result);
+  }
+
+  icu::Collator* collator = CreateICUCollator(isolate, icu_locale, options);
+  if (!collator) {
+    // Remove extensions and try again.
+    icu::Locale no_extension_locale(icu_locale.getBaseName());
+    collator = CreateICUCollator(isolate, no_extension_locale, options);
+
+    // Set resolved settings (pattern, numbering system).
+    SetResolvedCollatorSettings(
+        isolate, no_extension_locale, collator, resolved);
+  } else {
+    SetResolvedCollatorSettings(isolate, icu_locale, collator, resolved);
+  }
+
+  return collator;
+}
+
+
+icu::Collator* Collator::UnpackCollator(Isolate* isolate,
+                                        Handle<JSObject> obj) {
+  if (obj->HasLocalProperty(*isolate->factory()->NewStringFromAscii(
+          CStrVector("collator")))) {
+    return reinterpret_cast<icu::Collator*>(obj->GetInternalField(0));
+  }
+
+  return NULL;
+}
+
+
+void Collator::DeleteCollator(v8::Isolate* isolate,
+                              Persistent<v8::Object>* object,
+                              void* param) {
+  // First delete the hidden C++ object.
+  delete reinterpret_cast<icu::Collator*>(Handle<JSObject>::cast(
       v8::Utils::OpenPersistent(object))->GetInternalField(0));
 
   // Then dispose of the persistent handle to JS object.

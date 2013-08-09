@@ -29,7 +29,6 @@
 #include "i18n-extension.h"
 
 #include "break-iterator.h"
-#include "collator.h"
 #include "natives.h"
 
 using v8::internal::I18NNatives;
@@ -46,13 +45,6 @@ Extension::Extension()
 
 v8::Handle<v8::FunctionTemplate> Extension::GetNativeFunction(
     v8::Handle<v8::String> name) {
-  // Collator.
-  if (name->Equals(v8::String::New("NativeJSCreateCollator"))) {
-    return v8::FunctionTemplate::New(Collator::JSCreateCollator);
-  } else if (name->Equals(v8::String::New("NativeJSInternalCompare"))) {
-    return v8::FunctionTemplate::New(Collator::JSInternalCompare);
-  }
-
   // Break iterator.
   if (name->Equals(v8::String::New("NativeJSCreateBreakIterator"))) {
     return v8::FunctionTemplate::New(BreakIterator::JSCreateBreakIterator);
