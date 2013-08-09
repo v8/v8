@@ -199,6 +199,11 @@ class CompilationInfo {
     return IsCompilingForDebugging::decode(flags_);
   }
 
+  bool ShouldTrapOnDeopt() const {
+    return (FLAG_trap_on_deopt && IsOptimizing()) ||
+        (FLAG_trap_on_stub_deopt && IsStub());
+  }
+
   bool has_global_object() const {
     return !closure().is_null() &&
         (closure()->context()->global_object() != NULL);

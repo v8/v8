@@ -1010,7 +1010,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     __ bind(&done);
   }
 
-  if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
+  if (info()->ShouldTrapOnDeopt()) {
     Label done;
     if (cc != no_condition) __ j(NegateCondition(cc), &done, Label::kNear);
     __ int3();

@@ -693,7 +693,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
 
   ASSERT(FLAG_deopt_every_n_times == 0);  // Not yet implemented on x64.
 
-  if (FLAG_trap_on_deopt && info()->IsOptimizing()) {
+  if (info()->ShouldTrapOnDeopt()) {
     Label done;
     if (cc != no_condition) {
       __ j(NegateCondition(cc), &done, Label::kNear);
