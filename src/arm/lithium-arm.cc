@@ -815,7 +815,11 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
     HEnvironment* last_environment = pred->last_environment();
     for (int i = 0; i < block->phis()->length(); ++i) {
       HPhi* phi = block->phis()->at(i);
-      if (phi->merged_index() < last_environment->length()) {
+      // TODO(mstarzinger): The length check below should actually not
+      // be necessary, but some array stubs already rely on it. This
+      // should be investigated and fixed.
+      if (phi->HasMergedIndex() &&
+          phi->merged_index() < last_environment->length()) {
         last_environment->SetValueAt(phi->merged_index(), phi);
       }
     }

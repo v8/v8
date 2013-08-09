@@ -110,14 +110,11 @@ HCapturedObject* HEscapeAnalysisPhase::NewStateCopy(
 
 
 // Insert a newly created phi into the given block and fill all incoming
-// edges with the given value. The merge index is chosen so that it is
-// unique for this particular scalar replacement index.
+// edges with the given value.
 HPhi* HEscapeAnalysisPhase::NewPhiAndInsert(
     HBasicBlock* block, HValue* incoming_value, int index) {
   Zone* zone = graph()->zone();
-  HBasicBlock* pred = block->predecessors()->first();
-  int phi_index = pred->last_environment()->length() + cumulative_values_;
-  HPhi* phi = new(zone) HPhi(phi_index + index, zone);
+  HPhi* phi = new(zone) HPhi(HPhi::kInvalidMergedIndex, zone);
   for (int i = 0; i < block->predecessors()->length(); i++) {
     phi->AddInput(incoming_value);
   }

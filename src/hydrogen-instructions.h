@@ -3042,7 +3042,7 @@ class HPhi: public HValue {
       non_phi_uses_[i] = 0;
       indirect_uses_[i] = 0;
     }
-    ASSERT(merged_index >= 0);
+    ASSERT(merged_index >= 0 || merged_index == kInvalidMergedIndex);
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
   }
@@ -3065,6 +3065,7 @@ class HPhi: public HValue {
   bool HasRealUses();
 
   bool IsReceiver() const { return merged_index_ == 0; }
+  bool HasMergedIndex() const { return merged_index_ != kInvalidMergedIndex; }
 
   int merged_index() const { return merged_index_; }
 
@@ -3126,6 +3127,9 @@ class HPhi: public HValue {
   virtual Opcode opcode() const { return HValue::kPhi; }
 
   void SimplifyConstantInputs();
+
+  // Marker value representing an invalid merge index.
+  static const int kInvalidMergedIndex = -1;
 
  protected:
   virtual void DeleteFromGraph();

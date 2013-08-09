@@ -142,8 +142,9 @@ class HBasicBlock: public ZoneObject {
   }
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
-  HSimulate* AddSimulate(BailoutId ast_id,
-                         RemovableSimulate removable = FIXED_SIMULATE) {
+  HPhi* AddNewPhi(int merged_index);
+  HSimulate* AddNewSimulate(BailoutId ast_id,
+                            RemovableSimulate removable = FIXED_SIMULATE) {
     HSimulate* instr = CreateSimulate(ast_id, removable);
     AddInstruction(instr);
     return instr;
@@ -453,6 +454,10 @@ class HGraph: public ZoneObject {
     uint32_instructions_->Add(instr, zone());
   }
 
+  void IncrementInNoSideEffectsScope() { no_side_effects_scope_count_++; }
+  void DecrementInNoSideEffectsScope() { no_side_effects_scope_count_--; }
+  bool IsInsideNoSideEffectsScope() { return no_side_effects_scope_count_ > 0; }
+
  private:
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
                          int32_t integer_value);
@@ -498,6 +503,7 @@ class HGraph: public ZoneObject {
   bool depends_on_empty_array_proto_elements_;
   int type_change_checksum_;
   int maximum_environment_size_;
+  int no_side_effects_scope_count_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -970,8 +976,7 @@ class HGraphBuilder {
   explicit HGraphBuilder(CompilationInfo* info)
       : info_(info),
         graph_(NULL),
-        current_block_(NULL),
-        no_side_effects_scope_count_(0) {}
+        current_block_(NULL) {}
   virtual ~HGraphBuilder() {}
 
   HBasicBlock* current_block() const { return current_block_; }
@@ -1186,16 +1191,7 @@ class HGraphBuilder {
         AddInstruction(NewUncasted<I>(p1, p2, p3, p4, p5, p6, p7, p8)));
   }
 
-  void AddSimulate(BailoutId id,
-                   RemovableSimulate removable = FIXED_SIMULATE);
-
-  void IncrementInNoSideEffectsScope() {
-    no_side_effects_scope_count_++;
-  }
-
-  void DecrementInNoSideEffectsScope() {
-    no_side_effects_scope_count_--;
-  }
+  void AddSimulate(BailoutId id, RemovableSimulate removable = FIXED_SIMULATE);
 
  protected:
   virtual bool BuildGraph() = 0;
@@ -1442,20 +1438,6 @@ class HGraphBuilder {
     bool finished_;
   };
 
-  class NoObservableSideEffectsScope {
-   public:
-    explicit NoObservableSideEffectsScope(HGraphBuilder* builder) :
-        builder_(builder) {
-      builder_->IncrementInNoSideEffectsScope();
-    }
-    ~NoObservableSideEffectsScope() {
-      builder_->DecrementInNoSideEffectsScope();
-    }
-
-   private:
-    HGraphBuilder* builder_;
-  };
-
   HValue* BuildNewElementsCapacity(HValue* old_capacity);
 
   void BuildNewSpaceArrayCheck(HValue* length,
@@ -1577,7 +1559,6 @@ class HGraphBuilder {
   CompilationInfo* info_;
   HGraph* graph_;
   HBasicBlock* current_block_;
-  int no_side_effects_scope_count_;
 };
 
 
@@ -2327,6 +2308,21 @@ class HTracer: public Malloced {
   HeapStringAllocator string_allocator_;
   StringStream trace_;
   int indent_;
+};
+
+
+class NoObservableSideEffectsScope {
+ public:
+  explicit NoObservableSideEffectsScope(HGraphBuilder* builder) :
+      builder_(builder) {
+    builder_->graph()->IncrementInNoSideEffectsScope();
+  }
+  ~NoObservableSideEffectsScope() {
+    builder_->graph()->DecrementInNoSideEffectsScope();
+  }
+
+ private:
+  HGraphBuilder* builder_;
 };
 
 

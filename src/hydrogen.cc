@@ -148,6 +148,16 @@ void HBasicBlock::AddInstruction(HInstruction* instr) {
 }
 
 
+HPhi* HBasicBlock::AddNewPhi(int merged_index) {
+  if (graph()->IsInsideNoSideEffectsScope()) {
+    merged_index = HPhi::kInvalidMergedIndex;
+  }
+  HPhi* phi = new(zone()) HPhi(merged_index, zone());
+  AddPhi(phi);
+  return phi;
+}
+
+
 HSimulate* HBasicBlock::CreateSimulate(BailoutId ast_id,
                                        RemovableSimulate removable) {
   ASSERT(HasEnvironment());
@@ -203,7 +213,7 @@ void HBasicBlock::Goto(HBasicBlock* block,
     UpdateEnvironment(last_environment()->DiscardInlined(drop_extra));
   }
 
-  if (add_simulate) AddSimulate(BailoutId::None());
+  if (add_simulate) AddNewSimulate(BailoutId::None());
   HGoto* instr = new(zone()) HGoto(block);
   Finish(instr);
 }
@@ -219,7 +229,7 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value,
   AddInstruction(new(zone()) HLeaveInlined());
   UpdateEnvironment(last_environment()->DiscardInlined(drop_extra));
   last_environment()->Push(return_value);
-  AddSimulate(BailoutId::None());
+  AddNewSimulate(BailoutId::None());
   HGoto* instr = new(zone()) HGoto(target);
   Finish(instr);
 }
@@ -904,8 +914,7 @@ HValue* HGraphBuilder::LoopBuilder::BeginBody(
     HValue* terminating,
     Token::Value token) {
   HEnvironment* env = builder_->environment();
-  phi_ = new(zone()) HPhi(env->values()->length(), zone());
-  header_block_->AddPhi(phi_);
+  phi_ = header_block_->AddNewPhi(env->values()->length());
   phi_->AddInput(initial);
   env->Push(initial);
   builder_->current_block()->GotoNoSimulate(header_block_);
@@ -982,7 +991,7 @@ HGraph* HGraphBuilder::CreateGraph() {
 HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
   ASSERT(current_block() != NULL);
   current_block()->AddInstruction(instr);
-  if (no_side_effects_scope_count_ > 0) {
+  if (graph()->IsInsideNoSideEffectsScope()) {
     instr->SetFlag(HValue::kHasNoObservableSideEffects);
   }
   return instr;
@@ -1006,8 +1015,8 @@ void HGraphBuilder::AddIncrementCounter(StatsCounter* counter,
 void HGraphBuilder::AddSimulate(BailoutId id,
                                 RemovableSimulate removable) {
   ASSERT(current_block() != NULL);
-  ASSERT(no_side_effects_scope_count_ == 0);
-  current_block()->AddSimulate(id, removable);
+  ASSERT(!graph()->IsInsideNoSideEffectsScope());
+  current_block()->AddNewSimulate(id, removable);
 }
 
 
@@ -1037,7 +1046,7 @@ void HGraphBuilder::FinishExitWithHardDeoptimization(
     const char* reason, HBasicBlock* continuation) {
   PadEnvironmentForContinuation(current_block(), continuation);
   Add<HDeoptimize>(reason, Deoptimizer::EAGER);
-  if (no_side_effects_scope_count_ > 0) {
+  if (graph()->IsInsideNoSideEffectsScope()) {
     current_block()->GotoNoSimulate(continuation);
   } else {
     current_block()->Goto(continuation);
@@ -2049,7 +2058,8 @@ HGraph::HGraph(CompilationInfo* info)
       has_soft_deoptimize_(false),
       depends_on_empty_array_proto_elements_(false),
       type_change_checksum_(0),
-      maximum_environment_size_(0) {
+      maximum_environment_size_(0),
+      no_side_effects_scope_count_(0) {
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
     CodeStubInterfaceDescriptor* descriptor =
@@ -9326,20 +9336,19 @@ void HEnvironment::AddIncomingEdge(HBasicBlock* block, HEnvironment* other) {
       // There is already a phi for the i'th value.
       HPhi* phi = HPhi::cast(value);
       // Assert index is correct and that we haven't missed an incoming edge.
-      ASSERT(phi->merged_index() == i);
+      ASSERT(phi->merged_index() == i || !phi->HasMergedIndex());
       ASSERT(phi->OperandCount() == block->predecessors()->length());
       phi->AddInput(other->values_[i]);
     } else if (values_[i] != other->values_[i]) {
       // There is a fresh value on the incoming edge, a phi is needed.
       ASSERT(values_[i] != NULL && other->values_[i] != NULL);
-      HPhi* phi = new(zone()) HPhi(i, zone());
+      HPhi* phi = block->AddNewPhi(i);
       HValue* old_value = values_[i];
       for (int j = 0; j < block->predecessors()->length(); j++) {
         phi->AddInput(old_value);
       }
       phi->AddInput(other->values_[i]);
       this->values_[i] = phi;
-      block->AddPhi(phi);
     }
   }
 }
@@ -9400,10 +9409,9 @@ HEnvironment* HEnvironment::CopyWithoutHistory() const {
 HEnvironment* HEnvironment::CopyAsLoopHeader(HBasicBlock* loop_header) const {
   HEnvironment* new_env = Copy();
   for (int i = 0; i < values_.length(); ++i) {
-    HPhi* phi = new(zone()) HPhi(i, zone());
+    HPhi* phi = loop_header->AddNewPhi(i);
     phi->AddInput(values_[i]);
     new_env->values_[i] = phi;
-    loop_header->AddPhi(phi);
   }
   new_env->ClearHistory();
   return new_env;
