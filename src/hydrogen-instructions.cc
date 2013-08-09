@@ -1291,7 +1291,15 @@ HValue* HUnaryMathOperation::Canonicalize() {
 
     // If the input is integer32 then we replace the round instruction
     // with its input.
-    if (val->representation().IsSmiOrInteger32()) return val;
+    if (val->representation().IsSmiOrInteger32()) {
+      if (!val->representation().Equals(representation())) {
+        HChange* result = new(block()->zone()) HChange(
+            val, representation(), false, false, false);
+        result->InsertBefore(this);
+        return result;
+      }
+      return val;
+    }
   }
 
   if (op() == kMathFloor) {
@@ -1300,7 +1308,15 @@ HValue* HUnaryMathOperation::Canonicalize() {
 
     // If the input is integer32 then we replace the floor instruction
     // with its input.
-    if (val->representation().IsSmiOrInteger32()) return val;
+    if (val->representation().IsSmiOrInteger32()) {
+      if (!val->representation().Equals(representation())) {
+        HChange* result = new(block()->zone()) HChange(
+            val, representation(), false, false, false);
+        result->InsertBefore(this);
+        return result;
+      }
+      return val;
+    }
 
     if (val->IsDiv() && (val->UseCount() == 1)) {
       HDiv* hdiv = HDiv::cast(val);
