@@ -1393,8 +1393,10 @@ Handle<JSFunction> Factory::CreateApiFunction(
         Smi::cast(instance_template->internal_field_count())->value();
   }
 
+  // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing
+  // JSObject::GetHeaderSize.
   int instance_size = kPointerSize * internal_field_count;
-  InstanceType type = INVALID_TYPE;
+  InstanceType type;
   switch (instance_type) {
     case JavaScriptObject:
       type = JS_OBJECT_TYPE;
@@ -1409,9 +1411,10 @@ Handle<JSFunction> Factory::CreateApiFunction(
       instance_size += JSGlobalProxy::kSize;
       break;
     default:
+      UNREACHABLE();
+      type = JS_OBJECT_TYPE;  // Keep the compiler happy.
       break;
   }
-  ASSERT(type != INVALID_TYPE);
 
   Handle<JSFunction> result =
       NewFunction(Factory::empty_string(),
