@@ -485,7 +485,7 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     DisallowDeferredHandleDereference no_deferred_handle_deref;
     Handle<Code> optimized_code = chunk_->Codegen();
     if (optimized_code.is_null()) {
-      if (info()->bailout_reason() != kNoReason) {
+      if (info()->bailout_reason() == kNoReason) {
         info()->set_bailout_reason(kCodeGenerationFailed);
       }
       return AbortOptimization();
