@@ -1270,7 +1270,8 @@ class HGraphBuilder {
 
   void PushAndAdd(HInstruction* instr);
 
-  void FinishExitWithHardDeoptimization(HBasicBlock* continuation);
+  void FinishExitWithHardDeoptimization(const char* reason,
+                                        HBasicBlock* continuation);
 
   void AddIncrementCounter(StatsCounter* counter,
                            HValue* context);
@@ -1374,10 +1375,10 @@ class HGraphBuilder {
     void Else();
     void End();
 
-    void Deopt();
-    void ElseDeopt() {
+    void Deopt(const char* reason);
+    void ElseDeopt(const char* reason) {
       Else();
-      Deopt();
+      Deopt(reason);
     }
 
     void Return(HValue* value);
@@ -1582,13 +1583,13 @@ class HGraphBuilder {
 
 template<>
 inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
-    Deoptimizer::BailoutType type) {
+    const char* reason, Deoptimizer::BailoutType type) {
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_requested()->Increment();
     if (FLAG_always_opt) return NULL;
   }
   if (current_block()->IsDeoptimizing()) return NULL;
-  HDeoptimize* instr = New<HDeoptimize>(type);
+  HDeoptimize* instr = New<HDeoptimize>(reason, type);
   AddInstruction(instr);
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_inserted()->Increment();
@@ -1601,8 +1602,8 @@ inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
 
 template<>
 inline HDeoptimize* HGraphBuilder::Add<HDeoptimize>(
-    Deoptimizer::BailoutType type) {
-  return static_cast<HDeoptimize*>(AddUncasted<HDeoptimize>(type));
+    const char* reason, Deoptimizer::BailoutType type) {
+  return static_cast<HDeoptimize*>(AddUncasted<HDeoptimize>(reason, type));
 }
 
 

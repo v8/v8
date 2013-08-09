@@ -1248,19 +1248,23 @@ class HDummyUse: public HTemplateInstruction<1> {
 
 class HDeoptimize: public HTemplateInstruction<0> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HDeoptimize, Deoptimizer::BailoutType);
+  DECLARE_INSTRUCTION_FACTORY_P2(HDeoptimize, const char*,
+                                 Deoptimizer::BailoutType);
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
+  const char* reason() const { return reason_; }
   Deoptimizer::BailoutType type() { return type_; }
 
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
 
  private:
-  explicit HDeoptimize(Deoptimizer::BailoutType type) : type_(type) {}
+  explicit HDeoptimize(const char* reason, Deoptimizer::BailoutType type)
+      : reason_(reason), type_(type) {}
 
+  const char* reason_;
   Deoptimizer::BailoutType type_;
 };
 

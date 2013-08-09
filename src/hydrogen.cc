@@ -824,14 +824,14 @@ void HGraphBuilder::IfBuilder::Else() {
 }
 
 
-void HGraphBuilder::IfBuilder::Deopt() {
+void HGraphBuilder::IfBuilder::Deopt(const char* reason) {
   ASSERT(did_then_);
   if (did_else_) {
     deopt_else_ = true;
   } else {
     deopt_then_ = true;
   }
-  builder_->Add<HDeoptimize>(Deoptimizer::EAGER);
+  builder_->Add<HDeoptimize>(reason, Deoptimizer::EAGER);
 }
 
 
@@ -1034,9 +1034,9 @@ HValue* HGraphBuilder::BuildCheckHeapObject(HValue* obj) {
 
 
 void HGraphBuilder::FinishExitWithHardDeoptimization(
-    HBasicBlock* continuation) {
+    const char* reason, HBasicBlock* continuation) {
   PadEnvironmentForContinuation(current_block(), continuation);
-  Add<HDeoptimize>(Deoptimizer::EAGER);
+  Add<HDeoptimize>(reason, Deoptimizer::EAGER);
   if (no_side_effects_scope_count_ > 0) {
     current_block()->GotoNoSimulate(continuation);
   } else {
@@ -1108,7 +1108,7 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(HValue* object,
   IfBuilder key_checker(this);
   key_checker.If<HCompareNumericAndBranch>(key, max_capacity, Token::LT);
   key_checker.Then();
-  key_checker.ElseDeopt();
+  key_checker.ElseDeopt("Key out of capacity range");
   key_checker.End();
 
   HValue* new_capacity = BuildNewElementsCapacity(key);
@@ -1264,7 +1264,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       negative_checker.Then();
       HInstruction* result = AddExternalArrayElementAccess(
           external_elements, key, val, bounds_check, elements_kind, is_store);
-      negative_checker.ElseDeopt();
+      negative_checker.ElseDeopt("Negative key encountered");
       length_checker.End();
       return result;
     } else {
@@ -1751,7 +1751,7 @@ void HGraphBuilder::BuildCompareNil(
       // emitted below is the actual monomorphic map.
       BuildCheckMap(value, type->Classes().Current());
     } else {
-      if_nil.Deopt();
+      if_nil.Deopt("Too many undetectable types");
     }
   }
 
@@ -3347,7 +3347,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 
     if (stmt->switch_type() == SwitchStatement::SMI_SWITCH) {
       if (!clause->compare_type()->Is(Type::Smi())) {
-        Add<HDeoptimize>(Deoptimizer::SOFT);
+        Add<HDeoptimize>("Non-smi switch type", Deoptimizer::SOFT);
       }
 
       HCompareNumericAndBranch* compare_ =
@@ -4736,7 +4736,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    FinishExitWithHardDeoptimization(join);
+    FinishExitWithHardDeoptimization("All known maps handled", join);
   } else {
     HInstruction* instr = BuildStoreNamedGeneric(object, name, store_value);
     instr->set_position(position);
@@ -4784,7 +4784,10 @@ void HOptimizedGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     HValue* value = environment()->ExpressionStackAt(0);
     HValue* object = environment()->ExpressionStackAt(1);
 
-    if (expr->IsUninitialized()) Add<HDeoptimize>(Deoptimizer::SOFT);
+    if (expr->IsUninitialized()) {
+      Add<HDeoptimize>("Insufficient type feedback for property assignment",
+                       Deoptimizer::SOFT);
+    }
     return BuildStoreNamed(expr, expr->id(), expr->position(),
                            expr->AssignmentId(), prop, object, value, value);
   } else {
@@ -4830,7 +4833,8 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
       }
       builder.Then();
       builder.Else();
-      Add<HDeoptimize>(Deoptimizer::EAGER);
+      Add<HDeoptimize>("Constant global variable assignment",
+                       Deoptimizer::EAGER);
       builder.End();
     }
     HInstruction* instr =
@@ -5271,7 +5275,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedGeneric(
     Handle<String> name,
     Property* expr) {
   if (expr->IsUninitialized()) {
-    Add<HDeoptimize>(Deoptimizer::SOFT);
+    Add<HDeoptimize>("Insufficient feedback for generic named load",
+                     Deoptimizer::SOFT);
   }
   HValue* context = environment()->context();
   return new(zone()) HLoadNamedGeneric(context, object, name);
@@ -5588,7 +5593,8 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
   // Deopt if none of the cases matched.
   NoObservableSideEffectsScope scope(this);
-  FinishExitWithHardDeoptimization(join);
+  FinishExitWithHardDeoptimization("Unknown type in polymorphic element access",
+                                   join);
   set_current_block(join);
   return is_store ? NULL : Pop();
 }
@@ -5624,12 +5630,14 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   } else {
     if (is_store) {
       if (expr->IsAssignment() && expr->AsAssignment()->IsUninitialized()) {
-        Add<HDeoptimize>(Deoptimizer::SOFT);
+        Add<HDeoptimize>("Insufficient feedback for keyed store",
+                         Deoptimizer::SOFT);
       }
       instr = BuildStoreKeyedGeneric(obj, key, val);
     } else {
       if (expr->AsProperty()->IsUninitialized()) {
-        Add<HDeoptimize>(Deoptimizer::SOFT);
+        Add<HDeoptimize>("Insufficient feedback for keyed load",
+                         Deoptimizer::SOFT);
       }
       instr = BuildLoadKeyedGeneric(obj, key);
     }
@@ -6076,7 +6084,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     // that the environment stack matches the depth on deopt that it otherwise
     // would have had after a successful call.
     Drop(argument_count - (ast_context()->IsEffect() ? 0 : 1));
-    FinishExitWithHardDeoptimization(join);
+    FinishExitWithHardDeoptimization("Unknown map in polymorphic call", join);
   } else {
     HValue* context = environment()->context();
     HCallNamed* call = new(zone()) HCallNamed(context, name, argument_count);
@@ -7636,12 +7644,14 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   }
 
   if (left_type->Is(Type::None())) {
-    Add<HDeoptimize>(Deoptimizer::SOFT);
+    Add<HDeoptimize>("Insufficient type feedback for left side",
+                     Deoptimizer::SOFT);
     // TODO(rossberg): we should be able to get rid of non-continuous defaults.
     left_type = handle(Type::Any(), isolate());
   }
   if (right_type->Is(Type::None())) {
-    Add<HDeoptimize>(Deoptimizer::SOFT);
+    Add<HDeoptimize>("Insufficient type feedback for right side",
+                     Deoptimizer::SOFT);
     right_type = handle(Type::Any(), isolate());
   }
   HInstruction* instr = NULL;
@@ -7991,7 +8001,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   // Cases handled below depend on collected type feedback. They should
   // soft deoptimize when there is no type feedback.
   if (combined_type->Is(Type::None())) {
-    Add<HDeoptimize>(Deoptimizer::SOFT);
+    Add<HDeoptimize>("insufficient type feedback for combined type",
+                     Deoptimizer::SOFT);
     combined_type = left_type = right_type = handle(Type::Any(), isolate());
   }
 

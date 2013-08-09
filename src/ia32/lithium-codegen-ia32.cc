@@ -6390,6 +6390,7 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
   if (info()->IsStub() && type == Deoptimizer::EAGER) {
     type = Deoptimizer::LAZY;
   }
+  Comment(";;; deoptimize: %s", instr->hydrogen()->reason());
   DeoptimizeIf(no_condition, instr->environment(), type);
 }
 
