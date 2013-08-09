@@ -142,7 +142,6 @@ class LChunkBuilder;
   V(LoadKeyed)                                 \
   V(LoadKeyedGeneric)                          \
   V(LoadNamedField)                            \
-  V(LoadNamedFieldPolymorphic)                 \
   V(LoadNamedGeneric)                          \
   V(MapEnumLength)                             \
   V(MathFloorOfDiv)                            \
@@ -5620,45 +5619,6 @@ class HLoadNamedField: public HTemplateInstruction<2> {
 
   HObjectAccess access_;
 };
-
-
-class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
- public:
-  HLoadNamedFieldPolymorphic(HValue* context,
-                             HValue* object,
-                             SmallMapList* types,
-                             Handle<String> name,
-                             Zone* zone);
-
-  HValue* context() { return OperandAt(0); }
-  HValue* object() { return OperandAt(1); }
-  SmallMapList* types() { return &types_; }
-  Handle<String> name() { return name_; }
-  bool need_generic() { return need_generic_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadNamedFieldPolymorphic)
-
-  static const int kMaxLoadPolymorphism = 4;
-
-  virtual void FinalizeUniqueValueId();
-
- protected:
-  virtual bool DataEquals(HValue* value);
-
- private:
-  SmallMapList types_;
-  Handle<String> name_;
-  ZoneList<UniqueValueId> types_unique_ids_;
-  UniqueValueId name_unique_id_;
-  bool need_generic_;
-};
-
 
 
 class HLoadNamedGeneric: public HTemplateInstruction<2> {

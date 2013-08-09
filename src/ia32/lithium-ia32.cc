@@ -2205,25 +2205,6 @@ LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
-    HLoadNamedFieldPolymorphic* instr) {
-  ASSERT(instr->representation().IsTagged());
-  if (instr->need_generic()) {
-    LOperand* context = UseFixed(instr->context(), esi);
-    LOperand* obj = UseFixed(instr->object(), edx);
-    LLoadNamedFieldPolymorphic* result =
-        new(zone()) LLoadNamedFieldPolymorphic(context, obj);
-    return MarkAsCall(DefineFixed(result, eax), instr);
-  } else {
-    LOperand* context = UseAny(instr->context());  // Not actually used.
-    LOperand* obj = UseRegisterAtStart(instr->object());
-    LLoadNamedFieldPolymorphic* result =
-        new(zone()) LLoadNamedFieldPolymorphic(context, obj);
-    return AssignEnvironment(DefineAsRegister(result));
-  }
-}
-
-
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), edx);

@@ -324,12 +324,6 @@ class LCodeGen BASE_EMBEDDED {
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp);
 
-  void EmitLoadFieldOrConstantFunction(Register result,
-                                       Register object,
-                                       Handle<Map> type,
-                                       Handle<String> name,
-                                       LEnvironment* env);
-
   // Emits code for pushing either a tagged constant, a (non-double)
   // register, or a stack slot operand.
   void EmitPushTaggedOperand(LOperand* operand);

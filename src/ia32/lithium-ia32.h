@@ -127,7 +127,6 @@ class LCodeGen;
   V(LoadKeyed)                                  \
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
-  V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
@@ -1521,21 +1520,6 @@ class LLoadNamedField: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field")
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedField)
-};
-
-
-class LLoadNamedFieldPolymorphic: public LTemplateInstruction<1, 2, 0> {
- public:
-  LLoadNamedFieldPolymorphic(LOperand* context, LOperand* object) {
-    inputs_[0] = context;
-    inputs_[1] = object;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* object() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field-polymorphic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadNamedFieldPolymorphic)
 };
 
 

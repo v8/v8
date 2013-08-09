@@ -4601,6 +4601,36 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
 }
 
 
+// Returns true if an instance of this map can never find a property with this
+// name in its prototype chain.  This means all prototypes up to the top are
+// fast and don't have the name in them.  It would be good if we could optimize
+// polymorphic loads where the property is sometimes found in the prototype
+// chain.
+static bool PrototypeChainCanNeverResolve(
+    Handle<Map> map, Handle<String> name) {
+  Isolate* isolate = map->GetIsolate();
+  Object* current = map->prototype();
+  while (current != isolate->heap()->null_value()) {
+    if (current->IsJSGlobalProxy() ||
+        current->IsGlobalObject() ||
+        !current->IsJSObject() ||
+        JSObject::cast(current)->map()->has_named_interceptor() ||
+        JSObject::cast(current)->IsAccessCheckNeeded() ||
+        !JSObject::cast(current)->HasFastProperties()) {
+      return false;
+    }
+
+    LookupResult lookup(isolate);
+    Map* map = JSObject::cast(current)->map();
+    map->LookupDescriptor(NULL, *name, &lookup);
+    if (lookup.IsFound()) return false;
+    if (!lookup.IsCacheable()) return false;
+    current = JSObject::cast(current)->GetPrototype();
+  }
+  return true;
+}
+
+
 void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
     Property* expr,
     HValue* object,
@@ -4608,16 +4638,90 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
     Handle<String> name) {
   HInstruction* instr = TryLoadPolymorphicAsMonomorphic(
       expr, object, types, name);
-  if (instr == NULL) {
-    // Something did not match; must use a polymorphic load.
-    BuildCheckHeapObject(object);
-    HValue* context = environment()->context();
-    instr = new(zone()) HLoadNamedFieldPolymorphic(
-        context, object, types, name, zone());
+  if (instr != NULL) {
+    instr->set_position(expr->position());
+    return ast_context()->ReturnInstruction(instr, expr->id());
   }
 
-  instr->set_position(expr->position());
-  return ast_context()->ReturnInstruction(instr, expr->id());
+  // Something did not match; must use a polymorphic load.
+  int count = 0;
+  HBasicBlock* join = NULL;
+  for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
+    Handle<Map> map = types->at(i);
+    LookupResult lookup(isolate());
+    if (ComputeLoadStoreField(map, name, &lookup, false) ||
+        (lookup.IsCacheable() &&
+         !map->is_dictionary_map() &&
+         !map->has_named_interceptor() &&
+         (lookup.IsConstant() ||
+          (!lookup.IsFound() &&
+           PrototypeChainCanNeverResolve(map, name))))) {
+      if (count == 0) {
+        BuildCheckHeapObject(object);
+        join = graph()->CreateBasicBlock();
+      }
+      ++count;
+      HBasicBlock* if_true = graph()->CreateBasicBlock();
+      HBasicBlock* if_false = graph()->CreateBasicBlock();
+      HCompareMap* compare =
+          new(zone()) HCompareMap(object, map,  if_true, if_false);
+      current_block()->Finish(compare);
+
+      set_current_block(if_true);
+
+      // TODO(verwaest): Merge logic with BuildLoadNamedMonomorphic.
+      if (lookup.IsField()) {
+        HObjectAccess access = HObjectAccess::ForField(map, &lookup, name);
+        HLoadNamedField* load = BuildLoadNamedField(object, access);
+        load->set_position(expr->position());
+        AddInstruction(load);
+        if (!ast_context()->IsEffect()) Push(load);
+      } else if (lookup.IsConstant()) {
+        Handle<Object> constant(lookup.GetConstantFromMap(*map), isolate());
+        HConstant* hconstant = Add<HConstant>(constant);
+        if (!ast_context()->IsEffect()) Push(hconstant);
+      } else {
+        ASSERT(!lookup.IsFound());
+        if (map->prototype()->IsJSObject()) {
+          Handle<JSObject> prototype(JSObject::cast(map->prototype()));
+          Handle<JSObject> holder = prototype;
+          while (holder->map()->prototype()->IsJSObject()) {
+            holder = handle(JSObject::cast(holder->map()->prototype()));
+          }
+          BuildCheckPrototypeMaps(prototype, holder);
+        }
+        if (!ast_context()->IsEffect()) Push(graph()->GetConstantUndefined());
+      }
+
+      current_block()->Goto(join);
+      set_current_block(if_false);
+    }
+  }
+
+  // Finish up.  Unconditionally deoptimize if we've handled all the maps we
+  // know about and do not want to handle ones we've never seen.  Otherwise
+  // use a generic IC.
+  if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
+    FinishExitWithHardDeoptimization("Unknown map in polymorphic load", join);
+  } else {
+    HInstruction* load = BuildLoadNamedGeneric(object, name, expr);
+    load->set_position(expr->position());
+    AddInstruction(load);
+    if (!ast_context()->IsEffect()) Push(load);
+
+    if (join != NULL) {
+      current_block()->Goto(join);
+    } else {
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
+      return;
+    }
+  }
+
+  ASSERT(join != NULL);
+  join->SetJoinId(expr->id());
+  set_current_block(join);
+  if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
 }
 
 
@@ -4736,7 +4840,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    FinishExitWithHardDeoptimization("All known maps handled", join);
+    FinishExitWithHardDeoptimization("Unknown map in polymorphic store", join);
   } else {
     HInstruction* instr = BuildStoreNamedGeneric(object, name, store_value);
     instr->set_position(position);

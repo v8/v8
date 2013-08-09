@@ -3122,47 +3122,6 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 }
 
 
-void LCodeGen::EmitLoadFieldOrConstant(Register result,
-                                       Register object,
-                                       Handle<Map> type,
-                                       Handle<String> name,
-                                       LEnvironment* env) {
-  LookupResult lookup(isolate());
-  type->LookupDescriptor(NULL, *name, &lookup);
-  ASSERT(lookup.IsFound() || lookup.IsCacheable());
-  if (lookup.IsField()) {
-    int index = lookup.GetLocalFieldIndexFromMap(*type);
-    int offset = index * kPointerSize;
-    if (index < 0) {
-      // Negative property indices are in-object properties, indexed
-      // from the end of the fixed part of the object.
-      __ mov(result, FieldOperand(object, offset + type->instance_size()));
-    } else {
-      // Non-negative property indices are in the properties array.
-      __ mov(result, FieldOperand(object, JSObject::kPropertiesOffset));
-      __ mov(result, FieldOperand(result, offset + FixedArray::kHeaderSize));
-    }
-  } else if (lookup.IsConstant()) {
-    Handle<Object> constant(lookup.GetConstantFromMap(*type), isolate());
-    __ LoadObject(result, constant);
-  } else {
-    // Negative lookup.
-    // Check prototypes.
-    Handle<HeapObject> current(HeapObject::cast((*type)->prototype()));
-    Heap* heap = type->GetHeap();
-    while (*current != heap->null_value()) {
-      __ LoadHeapObject(result, current);
-      __ cmp(FieldOperand(result, HeapObject::kMapOffset),
-                          Handle<Map>(current->map()));
-      DeoptimizeIf(not_equal, env);
-      current =
-          Handle<HeapObject>(HeapObject::cast(current->map()->prototype()));
-    }
-    __ mov(result, factory()->undefined_value());
-  }
-}
-
-
 void LCodeGen::EmitPushTaggedOperand(LOperand* operand) {
   ASSERT(!operand->IsDoubleRegister());
   if (operand->IsConstantOperand()) {
@@ -3178,68 +3137,6 @@ void LCodeGen::EmitPushTaggedOperand(LOperand* operand) {
   } else {
     __ push(ToOperand(operand));
   }
-}
-
-
-// Check for cases where EmitLoadFieldOrConstantFunction needs to walk the
-// prototype chain, which causes unbounded code generation.
-static bool CompactEmit(SmallMapList* list,
-                        Handle<String> name,
-                        int i,
-                        Isolate* isolate) {
-  Handle<Map> map = list->at(i);
-  LookupResult lookup(isolate);
-  map->LookupDescriptor(NULL, *name, &lookup);
-  return lookup.IsField() || lookup.IsConstant();
-}
-
-
-void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
-  Register object = ToRegister(instr->object());
-  Register result = ToRegister(instr->result());
-
-  int map_count = instr->hydrogen()->types()->length();
-  bool need_generic = instr->hydrogen()->need_generic();
-
-  if (map_count == 0 && !need_generic) {
-    DeoptimizeIf(no_condition, instr->environment());
-    return;
-  }
-  Handle<String> name = instr->hydrogen()->name();
-  Label done;
-  bool all_are_compact = true;
-  for (int i = 0; i < map_count; ++i) {
-    if (!CompactEmit(instr->hydrogen()->types(), name, i, isolate())) {
-      all_are_compact = false;
-      break;
-    }
-  }
-  for (int i = 0; i < map_count; ++i) {
-    bool last = (i == map_count - 1);
-    Handle<Map> map = instr->hydrogen()->types()->at(i);
-    Label check_passed;
-    __ CompareMap(object, map, &check_passed);
-    if (last && !need_generic) {
-      DeoptimizeIf(not_equal, instr->environment());
-      __ bind(&check_passed);
-      EmitLoadFieldOrConstant(result, object, map, name, instr->environment());
-    } else {
-      Label next;
-      bool compact = all_are_compact ? true :
-          CompactEmit(instr->hydrogen()->types(), name, i, isolate());
-      __ j(not_equal, &next, compact ? Label::kNear : Label::kFar);
-      __ bind(&check_passed);
-      EmitLoadFieldOrConstant(result, object, map, name, instr->environment());
-      __ jmp(&done, all_are_compact ? Label::kNear : Label::kFar);
-      __ bind(&next);
-    }
-  }
-  if (need_generic) {
-    __ mov(ecx, name);
-    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-    CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  }
-  __ bind(&done);
 }
 
 
