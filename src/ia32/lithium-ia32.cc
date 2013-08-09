@@ -736,7 +736,7 @@ LUnallocated* LChunkBuilder::TempRegister() {
   int vreg = allocator_->GetVirtualRegister();
   if (!allocator_->AllocationOk()) {
     Abort("Out of virtual registers while trying to allocate temp register.");
-    return NULL;
+    vreg = 0;
   }
   operand->set_virtual_register(vreg);
   return operand;
