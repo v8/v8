@@ -1285,12 +1285,12 @@ static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
 
 
 HValue* HUnaryMathOperation::Canonicalize() {
-  if (op() == kMathRound) {
+  if (op() == kMathRound || op() == kMathFloor) {
     HValue* val = value();
     if (val->IsChange()) val = HChange::cast(val)->value();
 
-    // If the input is integer32 then we replace the round instruction
-    // with its input.
+    // If the input is smi or integer32 then we replace the instruction with its
+    // input.
     if (val->representation().IsSmiOrInteger32()) {
       if (!val->representation().Equals(representation())) {
         HChange* result = new(block()->zone()) HChange(
@@ -1305,19 +1305,6 @@ HValue* HUnaryMathOperation::Canonicalize() {
   if (op() == kMathFloor) {
     HValue* val = value();
     if (val->IsChange()) val = HChange::cast(val)->value();
-
-    // If the input is integer32 then we replace the floor instruction
-    // with its input.
-    if (val->representation().IsSmiOrInteger32()) {
-      if (!val->representation().Equals(representation())) {
-        HChange* result = new(block()->zone()) HChange(
-            val, representation(), false, false, false);
-        result->InsertBefore(this);
-        return result;
-      }
-      return val;
-    }
-
     if (val->IsDiv() && (val->UseCount() == 1)) {
       HDiv* hdiv = HDiv::cast(val);
       HValue* left = hdiv->left();
