@@ -1191,7 +1191,7 @@ void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
   }
 
   if (!IsSimpleMapChangeTransition(from_kind, to_kind)) {
-    HInstruction* elements = AddLoadElements(object);
+    HInstruction* elements = AddLoadElements(object, NULL);
 
     HInstruction* empty_fixed_array = Add<HConstant>(
         isolate()->factory()->empty_fixed_array());
@@ -1700,7 +1700,7 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
   if (length > 0) {
     // Get hold of the elements array of the boilerplate and setup the
     // elements pointer in the resulting object.
-    HValue* boilerplate_elements = AddLoadElements(boilerplate);
+    HValue* boilerplate_elements = AddLoadElements(boilerplate, NULL);
     HValue* object_elements = Add<HInnerAllocatedObject>(object, elems_offset);
     Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
                           object_elements);
@@ -1833,7 +1833,7 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode() {
     // map, because we can just load the map in that case.
     HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
     return builder()->AddInstruction(
-        builder()->BuildLoadNamedField(constructor_function_, access));
+        builder()->BuildLoadNamedField(constructor_function_, access, NULL));
   }
 
   HInstruction* native_context = builder()->BuildGetNativeContext();
@@ -1854,7 +1854,7 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitInternalMapCode() {
   // Find the map near the constructor function
   HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
   return builder()->AddInstruction(
-      builder()->BuildLoadNamedField(constructor_function_, access));
+      builder()->BuildLoadNamedField(constructor_function_, access, NULL));
 }
 
 
@@ -4298,6 +4298,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   int data_size = 0;
   int pointer_size = 0;
   int max_properties = kMaxFastLiteralProperties;
+  HCheckMaps* type_check = NULL;
   if (IsFastLiteral(original_boilerplate_object,
                     kMaxFastLiteralDepth,
                     &max_properties,
@@ -4335,7 +4336,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     // De-opt if elements kind changed from boilerplate_elements_kind.
     Handle<Map> map = Handle<Map>(original_boilerplate_object->map(),
                                   isolate());
-    Add<HCheckMaps>(literal, map, top_info());
+    type_check = Add<HCheckMaps>(literal, map, top_info());
   }
 
   // The array is expected in the bailout environment during computation
@@ -4356,7 +4357,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     HValue* value = Pop();
     if (!Smi::IsValid(i)) return Bailout(kNonSmiKeyInArrayLiteral);
 
-    elements = AddLoadElements(literal);
+    elements = AddLoadElements(literal, type_check);
 
     HValue* key = Add<HConstant>(i);
 
@@ -4410,9 +4411,10 @@ static bool ComputeLoadStoreField(Handle<Map> type,
 }
 
 
-void HOptimizedGraphBuilder::AddCheckMap(HValue* object, Handle<Map> map) {
+HCheckMaps* HOptimizedGraphBuilder::AddCheckMap(HValue* object,
+                                                Handle<Map> map) {
   BuildCheckHeapObject(object);
-  Add<HCheckMaps>(object, map, top_info());
+  return Add<HCheckMaps>(object, map, top_info());
 }
 
 
@@ -4578,8 +4580,8 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
   if (count == types->length()) {
     // Everything matched; can use monomorphic load.
     BuildCheckHeapObject(object);
-    Add<HCheckMaps>(object, types);
-    return BuildLoadNamedField(object, access);
+    HCheckMaps* type_check = Add<HCheckMaps>(object, types);
+    return BuildLoadNamedField(object, access, type_check);
   }
 
   if (count != 0) return NULL;
@@ -4600,14 +4602,14 @@ HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
   if (!lookup.IsField()) return NULL;
 
   BuildCheckHeapObject(object);
-  Add<HCheckMaps>(object, types);
+  HCheckMaps* type_check = Add<HCheckMaps>(object, types);
 
   Handle<JSObject> holder(lookup.holder());
   Handle<Map> holder_map(holder->map());
   BuildCheckPrototypeMaps(Handle<JSObject>::cast(prototype), holder);
   HValue* holder_value = Add<HConstant>(holder);
   return BuildLoadNamedField(holder_value,
-      HObjectAccess::ForField(holder_map, &lookup, name));
+      HObjectAccess::ForField(holder_map, &lookup, name), type_check);
 }
 
 
@@ -4682,7 +4684,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
       // TODO(verwaest): Merge logic with BuildLoadNamedMonomorphic.
       if (lookup.IsField()) {
         HObjectAccess access = HObjectAccess::ForField(map, &lookup, name);
-        HLoadNamedField* load = BuildLoadNamedField(object, access);
+        HLoadNamedField* load = BuildLoadNamedField(object, access, compare);
         load->set_position(expr->position());
         AddInstruction(load);
         if (!ast_context()->IsEffect()) Push(load);
@@ -5419,18 +5421,18 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
   // Handle access to various length properties
   if (name->Equals(isolate()->heap()->length_string())) {
     if (map->instance_type() == JS_ARRAY_TYPE) {
-      AddCheckMap(object, map);
+      HCheckMaps* type_check = AddCheckMap(object, map);
       return New<HLoadNamedField>(object,
-          HObjectAccess::ForArrayLength(map->elements_kind()));
+          HObjectAccess::ForArrayLength(map->elements_kind()), type_check);
     }
   }
 
   LookupResult lookup(isolate());
   map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsField()) {
-    AddCheckMap(object, map);
+    HCheckMaps* type_check = AddCheckMap(object, map);
     return BuildLoadNamedField(object,
-        HObjectAccess::ForField(map, &lookup, name));
+        HObjectAccess::ForField(map, &lookup, name), type_check);
   }
 
   // Handle a load of a constant known function.
@@ -5446,11 +5448,11 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
-    AddCheckMap(object, map);
+    HCheckMaps* type_check = AddCheckMap(object, map);
     BuildCheckPrototypeMaps(prototype, holder);
     HValue* holder_value = Add<HConstant>(holder);
     return BuildLoadNamedField(holder_value,
-        HObjectAccess::ForField(holder_map, &lookup, name));
+        HObjectAccess::ForField(holder_map, &lookup, name), type_check);
   }
 
   // Handle a load of a constant function somewhere in the prototype chain.
