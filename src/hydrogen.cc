@@ -5701,6 +5701,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     if (!is_store) {
       Push(access);
     }
+    NoObservableSideEffectsScope scope(this);
     current_block()->GotoNoSimulate(join);
     set_current_block(other_map);
   }
