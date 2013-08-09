@@ -8041,10 +8041,6 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       result->set_position(expr->position());
       return ast_context()->ReturnInstruction(result, expr->id());
     } else {
-      // TODO(verwaest): Remove once Representation::FromType properly
-      // returns Smi when the IC measures Smi.
-      if (left_type->Is(Type::Smi())) left_rep = Representation::Smi();
-      if (right_type->Is(Type::Smi())) right_rep = Representation::Smi();
       HCompareNumericAndBranch* result =
           new(zone()) HCompareNumericAndBranch(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);
