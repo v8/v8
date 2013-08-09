@@ -37,7 +37,6 @@ OKAY = 'OKAY'
 TIMEOUT = 'TIMEOUT'
 CRASH = 'CRASH'
 SLOW = 'SLOW'
-FLAKY = 'FLAKY'
 # These are just for the status files and are mapped below in DEFS:
 FAIL_OK = 'FAIL_OK'
 PASS_OR_FAIL = 'PASS_OR_FAIL'
@@ -49,7 +48,6 @@ KEYWORDS = {SKIP: SKIP,
             TIMEOUT: TIMEOUT,
             CRASH: CRASH,
             SLOW: SLOW,
-            FLAKY: FLAKY,
             FAIL_OK: FAIL_OK,
             PASS_OR_FAIL: PASS_OR_FAIL}
 

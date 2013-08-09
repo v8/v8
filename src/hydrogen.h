@@ -367,7 +367,7 @@ class HGraph: public ZoneObject {
     return NULL;
   }
 
-  bool Optimize(BailoutReason* bailout_reason);
+  bool Optimize(SmartArrayPointer<char>* bailout_reason);
 
 #ifdef DEBUG
   void Verify(bool do_full_verify) const;
@@ -1550,6 +1550,9 @@ class HGraphBuilder {
                                  ElementsKind kind,
                                  int length);
 
+  HInstruction* BuildUnaryMathOp(
+      HValue* value, Handle<Type> type, Token::Value token);
+
   void BuildCompareNil(
       HValue* value,
       Handle<Type> type,
@@ -1559,10 +1562,6 @@ class HGraphBuilder {
   HValue* BuildCreateAllocationMemento(HValue* previous_object,
                                        int previous_object_size,
                                        HValue* payload);
-
-  void BuildConstantMapCheck(Handle<JSObject> constant, CompilationInfo* info);
-  void BuildCheckPrototypeMaps(Handle<JSObject> prototype,
-                               Handle<JSObject> holder);
 
   HInstruction* BuildGetNativeContext();
   HInstruction* BuildGetArrayFunction();
@@ -1727,7 +1726,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
   HValue* context() { return environment()->context(); }
 
-  void Bailout(BailoutReason reason);
+  void Bailout(const char* reason);
 
   HBasicBlock* CreateJoin(HBasicBlock* first,
                           HBasicBlock* second,
@@ -1808,6 +1807,8 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);
   void VisitTypeof(UnaryOperation* expr);
+  void VisitSub(UnaryOperation* expr);
+  void VisitBitNot(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
 
   void VisitComma(BinaryOperation* expr);

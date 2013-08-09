@@ -960,7 +960,7 @@ TEST(Regression39128) {
   Factory* factory = isolate->factory();
 
   // Increase the chance of 'bump-the-pointer' allocation in old space.
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   v8::HandleScope scope(CcTest::isolate());
 
@@ -984,7 +984,7 @@ TEST(Regression39128) {
   // just enough room to allocate JSObject and thus fill the newspace.
 
   int allocation_amount = Min(FixedArray::kMaxSize,
-                              Page::kMaxNonCodeHeapObjectSize + kPointerSize);
+                              Page::kMaxNonCodeHeapObjectSize);
   int allocation_len = LenFromSize(allocation_amount);
   NewSpace* new_space = HEAP->new_space();
   Address* top_addr = new_space->allocation_top_address();

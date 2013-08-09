@@ -638,7 +638,7 @@ class MarkCompactCollector {
   static void VerifyMarkbitsAreClean(PagedSpace* space);
   static void VerifyMarkbitsAreClean(NewSpace* space);
   void VerifyWeakEmbeddedMapsInOptimizedCode();
-  void VerifyOmittedMapChecks();
+  void VerifyOmittedPrototypeChecks();
 #endif
 
   // Sweep a single page from the given space conservatively.

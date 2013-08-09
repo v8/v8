@@ -394,7 +394,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   if (FLAG_debug_code) {
     __ CompareRoot(rbx, Heap::kTheHoleValueRootIndex);
-    __ Assert(equal, kObjectFoundInSmiOnlyArray);
+    __ Assert(equal, "object found in smi-only array");
   }
 
   __ movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
@@ -577,7 +577,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
     // Assert that we do not have a cons or slice (indirect strings) here.
     // Sequential strings have already been ruled out.
     __ testb(result, Immediate(kIsIndirectStringMask));
-    __ Assert(zero, kExternalStringExpectedButNotFound);
+    __ Assert(zero, "external string expected, but not found");
   }
   // Rule out short external strings.
   STATIC_CHECK(kShortExternalStringTag != 0);

@@ -745,9 +745,9 @@ void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
     // Check that we're not inside a with or catch context.
     __ mov(ebx, FieldOperand(esi, HeapObject::kMapOffset));
     __ cmp(ebx, isolate()->factory()->with_context_map());
-    __ Check(not_equal, kDeclarationInWithContext);
+    __ Check(not_equal, "Declaration in with context.");
     __ cmp(ebx, isolate()->factory()->catch_context_map());
-    __ Check(not_equal, kDeclarationInCatchContext);
+    __ Check(not_equal, "Declaration in catch context.");
   }
 }
 
@@ -2169,7 +2169,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ Push(Smi::FromInt(resume_mode));
   __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
   // Not reached: the runtime call returns elsewhere.
-  __ Abort(kGeneratorFailedToResume);
+  __ Abort("Generator failed to resume.");
 
   // Throw error if we attempt to operate on a running generator.
   __ bind(&wrong_state);
@@ -2468,7 +2468,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         // Check for an uninitialized let binding.
         __ mov(edx, location);
         __ cmp(edx, isolate()->factory()->the_hole_value());
-        __ Check(equal, kLetBindingReInitialization);
+        __ Check(equal, "Let binding re-initialization.");
       }
       // Perform the assignment.
       __ mov(location, eax);
@@ -3430,15 +3430,15 @@ void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
                                                   Register value,
                                                   uint32_t encoding_mask) {
   __ test(index, Immediate(kSmiTagMask));
-  __ Check(zero, kNonSmiIndex);
+  __ Check(zero, "Non-smi index");
   __ test(value, Immediate(kSmiTagMask));
-  __ Check(zero, kNonSmiValue);
+  __ Check(zero, "Non-smi value");
 
   __ cmp(index, FieldOperand(string, String::kLengthOffset));
-  __ Check(less, kIndexIsTooLarge);
+  __ Check(less, "Index is too large");
 
   __ cmp(index, Immediate(Smi::FromInt(0)));
-  __ Check(greater_equal, kIndexIsNegative);
+  __ Check(greater_equal, "Index is negative");
 
   __ push(value);
   __ mov(value, FieldOperand(string, HeapObject::kMapOffset));
@@ -3446,7 +3446,7 @@ void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
 
   __ and_(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
   __ cmp(value, Immediate(encoding_mask));
-  __ Check(equal, kUnexpectedStringType);
+  __ Check(equal, "Unexpected string type");
   __ pop(value);
 }
 
@@ -3818,7 +3818,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   Handle<FixedArray> jsfunction_result_caches(
       isolate()->native_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
-    __ Abort(kAttemptToUseUndefinedCache);
+    __ Abort("Attempt to use undefined cache.");
     __ mov(eax, isolate()->factory()->undefined_value());
     context()->Plug(eax);
     return;
@@ -4000,7 +4000,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //                      scratch, string_length, elements.
   if (generate_debug_code_) {
     __ cmp(index, array_length);
-    __ Assert(less, kNoEmptyArraysHereInEmitFastAsciiArrayJoin);
+    __ Assert(less, "No empty arrays here in EmitFastAsciiArrayJoin");
   }
   __ bind(&loop);
   __ mov(string, FieldOperand(elements,
@@ -4347,9 +4347,31 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       break;
     }
 
+    case Token::SUB:
+      EmitUnaryOperation(expr, "[ UnaryOperation (SUB)");
+      break;
+
+    case Token::BIT_NOT:
+      EmitUnaryOperation(expr, "[ UnaryOperation (BIT_NOT)");
+      break;
+
     default:
       UNREACHABLE();
   }
+}
+
+
+void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
+                                           const char* comment) {
+  Comment cmt(masm_, comment);
+  UnaryOpStub stub(expr->op());
+  // UnaryOpStub expects the argument to be in the
+  // accumulator register eax.
+  VisitForAccumulatorValue(expr->expression());
+  SetSourcePosition(expr->position());
+  CallIC(stub.GetCode(isolate()), RelocInfo::CODE_TARGET,
+         expr->UnaryOperationFeedbackId());
+  context()->Plug(eax);
 }
 
 

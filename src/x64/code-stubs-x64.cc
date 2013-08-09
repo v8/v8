@@ -246,6 +246,17 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
 }
 
 
+void UnaryOpStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rax };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+     FUNCTION_ADDR(UnaryOpIC_Miss);
+}
+
+
 void StoreGlobalStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -419,12 +430,12 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   // Create a new closure through the slower runtime call.
   __ bind(&gc);
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);  // Temporarily remove return address.
   __ pop(rdx);
   __ push(rsi);
   __ push(rdx);
   __ PushRoot(Heap::kFalseValueRootIndex);
-  __ PushReturnAddressFrom(rcx);
+  __ push(rcx);  // Restore return address.
   __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
 }
 
@@ -500,8 +511,9 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   Label after_sentinel;
   __ JumpIfNotSmi(rcx, &after_sentinel, Label::kNear);
   if (FLAG_debug_code) {
+    const char* message = "Expected 0 as a Smi sentinel";
     __ cmpq(rcx, Immediate(0));
-    __ Assert(equal, kExpected0AsASmiSentinel);
+    __ Assert(equal, message);
   }
   __ movq(rcx, GlobalObjectOperand());
   __ movq(rcx, FieldOperand(rcx, GlobalObject::kNativeContextOffset));
@@ -683,13 +695,13 @@ void BinaryOpStub::Initialize() {}
 
 
 void BinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);  // Save return address.
   __ push(rdx);
   __ push(rax);
   // Left and right arguments are now on top.
   __ Push(Smi::FromInt(MinorKey()));
 
-  __ PushReturnAddressFrom(rcx);
+  __ push(rcx);  // Push return address.
 
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.
@@ -942,7 +954,7 @@ static void BinaryOpStub_GenerateFloatingPointCode(MacroAssembler* masm,
         // Set the map.
         __ AssertRootValue(heap_number_map,
                            Heap::kHeapNumberMapRootIndex,
-                           kHeapNumberMapRegisterClobbered);
+                           "HeapNumberMap register clobbered.");
         __ movq(FieldOperand(rax, HeapObject::kMapOffset),
                 heap_number_map);
         __ cvtqsi2sd(xmm0, rbx);
@@ -962,7 +974,8 @@ static void BinaryOpStub_GenerateFloatingPointCode(MacroAssembler* masm,
   }
   // No fall-through from this generated code.
   if (FLAG_debug_code) {
-    __ Abort(kUnexpectedFallThroughInBinaryStubGenerateFloatingPointCode);
+    __ Abort("Unexpected fall-through in "
+             "BinaryStub_GenerateFloatingPointCode.");
   }
 }
 
@@ -971,10 +984,10 @@ static void BinaryOpStub_GenerateRegisterArgsPushUnderReturn(
     MacroAssembler* masm) {
   // Push arguments, but ensure they are under the return address
   // for a tail call.
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);
   __ push(rdx);
   __ push(rax);
-  __ PushReturnAddressFrom(rcx);
+  __ push(rcx);
 }
 
 
@@ -2142,10 +2155,10 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotSmi(value, &miss);
 
   // Prepare tail call to StoreIC_ArrayLength.
-  __ PopReturnAddressTo(scratch);
+  __ pop(scratch);
   __ push(receiver);
   __ push(value);
-  __ PushReturnAddressFrom(scratch);
+  __ push(scratch);  // return address
 
   ExternalReference ref =
       ExternalReference(IC_Utility(IC::kStoreIC_ArrayLength), masm->isolate());
@@ -2211,9 +2224,9 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // Slow-case: Handle non-smi or out-of-bounds access to arguments
   // by calling the runtime system.
   __ bind(&slow);
-  __ PopReturnAddressTo(rbx);
+  __ pop(rbx);  // Return address.
   __ push(rdx);
-  __ PushReturnAddressFrom(rbx);
+  __ push(rbx);
   __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
 }
 
@@ -2603,9 +2616,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     Condition is_smi = masm->CheckSmi(rax);
     __ Check(NegateCondition(is_smi),
-        kUnexpectedTypeForRegExpDataFixedArrayExpected);
+        "Unexpected type for RegExp data, FixedArray expected");
     __ CmpObjectType(rax, FIXED_ARRAY_TYPE, kScratchRegister);
-    __ Check(equal, kUnexpectedTypeForRegExpDataFixedArrayExpected);
+    __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
   }
 
   // rax: RegExp data (FixedArray)
@@ -2971,7 +2984,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
     // Assert that we do not have a cons or slice (indirect strings) here.
     // Sequential strings have already been ruled out.
     __ testb(rbx, Immediate(kIsIndirectStringMask));
-    __ Assert(zero, kExternalStringExpectedButNotFound);
+    __ Assert(zero, "external string expected, but not found");
   }
   __ movq(rdi, FieldOperand(rdi, ExternalString::kResourceDataOffset));
   // Move the pointer so that offset-wise, it looks like a sequential string.
@@ -3435,7 +3448,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   }
 
 #ifdef DEBUG
-  __ Abort(kUnexpectedFallThroughFromStringComparison);
+  __ Abort("Unexpected fall-through from string comparison");
 #endif
 
   __ bind(&check_unequal_objects);
@@ -3473,7 +3486,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   }
 
   // Push arguments below the return address to prepare jump to builtin.
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);
   __ push(rdx);
   __ push(rax);
 
@@ -3486,7 +3499,8 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
     __ Push(Smi::FromInt(NegativeComparisonResult(cc)));
   }
 
-  __ PushReturnAddressFrom(rcx);
+  // Restore return address on the stack.
+  __ push(rcx);
 
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
@@ -3655,9 +3669,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Check for function proxy.
   __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
   __ j(not_equal, &non_function);
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);
   __ push(rdi);  // put proxy as additional argument under return address
-  __ PushReturnAddressFrom(rcx);
+  __ push(rcx);
   __ Set(rax, argc_ + 1);
   __ Set(rbx, 0);
   __ SetCallKind(rcx, CALL_AS_METHOD);
@@ -4261,7 +4275,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     if (FLAG_debug_code) {
       __ movl(rdi, Immediate(kWordBeforeMapCheckValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToMapCheckValue - 4), rdi);
-      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheCheck);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (check).");
     }
     __ movq(kScratchRegister,
             Operand(kScratchRegister, kOffsetToMapCheckValue));
@@ -4303,7 +4317,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     if (FLAG_debug_code) {
       __ movl(rax, Immediate(kWordBeforeResultValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToResultValue - 4), rax);
-      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheMov);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (mov).");
     }
     __ Set(rax, 0);
   }
@@ -4326,7 +4340,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     if (FLAG_debug_code) {
       __ movl(rax, Immediate(kWordBeforeResultValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToResultValue - 4), rax);
-      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheMov);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (mov)");
     }
   }
   __ ret(2 * kPointerSize + extra_stack_space);
@@ -4335,9 +4349,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ bind(&slow);
   if (HasCallSiteInlineCheck()) {
     // Remove extra value from the stack.
-    __ PopReturnAddressTo(rcx);
+    __ pop(rcx);
     __ pop(rax);
-    __ PushReturnAddressFrom(rcx);
+    __ push(rcx);
   }
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
@@ -4390,7 +4404,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharCodeAtGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort(kUnexpectedFallthroughToCharCodeAtSlowCase);
+  __ Abort("Unexpected fallthrough to CharCodeAt slow case");
 
   Factory* factory = masm->isolate()->factory();
   // Index is not a smi.
@@ -4440,7 +4454,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
-  __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
+  __ Abort("Unexpected fallthrough from CharCodeAt slow case");
 }
 
 
@@ -4466,7 +4480,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharFromCodeGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
+  __ Abort("Unexpected fallthrough to CharFromCode slow case");
 
   __ bind(&slow_case_);
   call_helper.BeforeCall(masm);
@@ -4478,7 +4492,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
-  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
+  __ Abort("Unexpected fallthrough from CharFromCode slow case");
 }
 
 
@@ -4808,10 +4822,10 @@ void StringAddStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
 
 void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm,
                                             Register temp) {
-  __ PopReturnAddressTo(temp);
+  __ pop(temp);
   __ pop(rdx);
   __ pop(rax);
-  __ PushReturnAddressFrom(temp);
+  __ push(temp);
 }
 
 
@@ -5026,7 +5040,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
     if (FLAG_debug_code) {
       __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
       __ cmpq(kScratchRegister, candidate);
-      __ Assert(equal, kOddballInStringTableIsNotUndefinedOrTheHole);
+      __ Assert(equal, "oddball in string table is not undefined or the hole");
     }
     __ jmp(&next_probe[i]);
 
@@ -5515,9 +5529,9 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Inline comparison of ASCII strings.
   __ IncrementCounter(counters->string_compare_native(), 1);
   // Drop arguments from the stack
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);
   __ addq(rsp, Immediate(2 * kPointerSize));
-  __ PushReturnAddressFrom(rcx);
+  __ push(rcx);
   GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi, r8);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
@@ -5786,10 +5800,10 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
   // Handle more complex cases in runtime.
   __ bind(&runtime);
-  __ PopReturnAddressTo(tmp1);
+  __ pop(tmp1);  // Return address.
   __ push(left);
   __ push(right);
-  __ PushReturnAddressFrom(tmp1);
+  __ push(tmp1);
   if (equality) {
     __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
   } else {
@@ -6397,14 +6411,16 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // the runtime.
 
   __ bind(&slow_elements);
-  __ PopReturnAddressTo(rdi);
+  __ pop(rdi);  // Pop return address and remember to put back later for tail
+                // call.
   __ push(rbx);
   __ push(rcx);
   __ push(rax);
   __ movq(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
   __ push(rdx);
-  __ PushReturnAddressFrom(rdi);
+  __ push(rdi);  // Return return address so that tail call returns to right
+                 // place.
   __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
 
   // Array literal has ElementsKind of FAST_*_ELEMENTS and value is an object.
@@ -6451,7 +6467,7 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
   __ movq(rbx, MemOperand(rbp, parameter_count_offset));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);
   int additional_offset = function_mode_ == JS_FUNCTION_STUB_MODE
       ? kPointerSize
       : 0;
@@ -6523,7 +6539,7 @@ static void CreateArrayDispatch(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort(kUnexpectedElementsKindInArrayConstructor);
+  __ Abort("Unexpected ElementsKind in array constructor");
 }
 
 
@@ -6586,7 +6602,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort(kUnexpectedElementsKindInArrayConstructor);
+  __ Abort("Unexpected ElementsKind in array constructor");
 }
 
 
@@ -6652,9 +6668,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Will both indicate a NULL and a Smi.
     STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rcx));
-    __ Check(not_smi, kUnexpectedInitialMapForArrayFunction);
+    __ Check(not_smi, "Unexpected initial map for Array function");
     __ CmpObjectType(rcx, MAP_TYPE, rcx);
-    __ Check(equal, kUnexpectedInitialMapForArrayFunction);
+    __ Check(equal, "Unexpected initial map for Array function");
 
     // We should either have undefined in rbx or a valid cell
     Label okay_here;
@@ -6662,7 +6678,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Cmp(rbx, undefined_sentinel);
     __ j(equal, &okay_here);
     __ Cmp(FieldOperand(rbx, 0), cell_map);
-    __ Assert(equal, kExpectedPropertyCellInRegisterRbx);
+    __ Assert(equal, "Expected property cell in register rbx");
     __ bind(&okay_here);
   }
 
@@ -6767,9 +6783,9 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Will both indicate a NULL and a Smi.
     STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rcx));
-    __ Check(not_smi, kUnexpectedInitialMapForArrayFunction);
+    __ Check(not_smi, "Unexpected initial map for Array function");
     __ CmpObjectType(rcx, MAP_TYPE, rcx);
-    __ Check(equal, kUnexpectedInitialMapForArrayFunction);
+    __ Check(equal, "Unexpected initial map for Array function");
   }
 
   // Figure out the right elements kind
@@ -6788,7 +6804,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ j(equal, &done);
     __ cmpl(rcx, Immediate(FAST_HOLEY_ELEMENTS));
     __ Assert(equal,
-              kInvalidElementsKindForInternalArrayOrInternalPackedArray);
+              "Invalid ElementsKind for InternalArray or InternalPackedArray");
     __ bind(&done);
   }
 

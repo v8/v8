@@ -443,7 +443,7 @@ LPlatformChunk* LChunkBuilder::Build() {
 }
 
 
-void LCodeGen::Abort(BailoutReason reason) {
+void LCodeGen::Abort(const char* reason) {
   info()->set_bailout_reason(reason);
   status_ = ABORTED;
 }
@@ -654,7 +654,7 @@ LUnallocated* LChunkBuilder::TempRegister() {
       new(zone()) LUnallocated(LUnallocated::MUST_HAVE_REGISTER);
   int vreg = allocator_->GetVirtualRegister();
   if (!allocator_->AllocationOk()) {
-    Abort(kOutOfVirtualRegistersWhileTryingToAllocateTempRegister);
+    Abort("Out of virtual registers while trying to allocate temp register.");
     vreg = 0;
   }
   operand->set_virtual_register(vreg);
@@ -1321,6 +1321,16 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
+  ASSERT(instr->value()->representation().IsInteger32());
+  ASSERT(instr->representation().IsInteger32());
+  if (instr->HasNoUses()) return NULL;
+  LOperand* input = UseRegisterAtStart(instr->value());
+  LBitNotI* result = new(zone()) LBitNotI(input);
+  return DefineSameAsFirst(result);
+}
+
+
 LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::DIV, instr);
@@ -1735,6 +1745,17 @@ LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoNumericConstraint(HNumericConstraint* instr) {
+  return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoInductionVariableAnnotation(
+    HInductionVariableAnnotation* instr) {
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
   LOperand* value = UseRegisterOrConstantAtStart(instr->index());
   LOperand* length = Use(instr->length());
@@ -1899,6 +1920,15 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
+  LUnallocated* temp = NULL;
+  if (!instr->CanOmitPrototypeChecks()) temp = TempRegister();
+  LCheckPrototypeMaps* result = new(zone()) LCheckPrototypeMaps(temp);
+  if (instr->CanOmitPrototypeChecks()) return result;
+  return AssignEnvironment(result);
+}
+
+
 LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   return AssignEnvironment(new(zone()) LCheckFunction(value));
@@ -1907,16 +1937,10 @@ LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
 
 LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
   LOperand* value = NULL;
-  if (!instr->CanOmitMapChecks()) {
-    value = UseRegisterAtStart(instr->value());
-    if (instr->has_migration_target()) info()->MarkAsDeferredCalling();
-  }
+  if (!instr->CanOmitMapChecks()) value = UseRegisterAtStart(instr->value());
   LCheckMaps* result = new(zone()) LCheckMaps(value);
-  if (!instr->CanOmitMapChecks()) {
-    AssignEnvironment(result);
-    if (instr->has_migration_target()) return AssignPointerMap(result);
-  }
-  return result;
+  if (instr->CanOmitMapChecks()) return result;
+  return AssignEnvironment(result);
 }
 
 
@@ -2209,7 +2233,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   bool is_external_location = instr->access().IsExternalMemory() &&
       instr->access().offset() == 0;
   bool needs_write_barrier = instr->NeedsWriteBarrier();
-  bool needs_write_barrier_for_map = instr->has_transition() &&
+  bool needs_write_barrier_for_map = !instr->transition().is_null() &&
       instr->NeedsWriteBarrierForMap();
 
   LOperand* obj;
@@ -2344,7 +2368,7 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
 LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
   int spill_index = chunk()->GetNextSpillIndex(false);  // Not double-width.
   if (spill_index > LUnallocated::kMaxFixedSlotIndex) {
-    Abort(kTooManySpillSlotsNeededForOSR);
+    Abort("Too many spill slots needed for OSR");
     spill_index = 0;
   }
   return DefineAsSpilled(new(zone()) LUnknownOSRValue, spill_index);

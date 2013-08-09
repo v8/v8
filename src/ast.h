@@ -291,6 +291,7 @@ class SmallMapList {
   }
 
   void Add(Handle<Map> handle, Zone* zone) {
+    ASSERT(!handle->is_deprecated());
     list_.Add(handle.location(), zone);
   }
 
@@ -1826,12 +1827,16 @@ class UnaryOperation: public Expression {
  public:
   DECLARE_NODE_TYPE(UnaryOperation)
 
+  virtual bool ResultOverwriteAllowed();
+
   Token::Value op() const { return op_; }
   Expression* expression() const { return expression_; }
   virtual int position() const { return pos_; }
 
   BailoutId MaterializeTrueId() { return materialize_true_id_; }
   BailoutId MaterializeFalseId() { return materialize_false_id_; }
+
+  TypeFeedbackId UnaryOperationFeedbackId() const { return reuse(id()); }
 
   virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
 

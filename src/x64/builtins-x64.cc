@@ -59,9 +59,9 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   int num_extra_args = 0;
   if (extra_args == NEEDS_CALLED_FUNCTION) {
     num_extra_args = 1;
-    __ PopReturnAddressTo(kScratchRegister);
+    __ pop(kScratchRegister);  // Save return address.
     __ push(rdi);
-    __ PushReturnAddressFrom(kScratchRegister);
+    __ push(kScratchRegister);  // Restore return address.
   } else {
     ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
   }
@@ -249,7 +249,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         if (FLAG_debug_code) {
           __ cmpq(rsi, rdi);
           __ Assert(less_equal,
-                    kUnexpectedNumberOfPreAllocatedPropertyFields);
+                    "Unexpected number of pre-allocated property fields.");
         }
         __ InitializeFieldsWithFiller(rcx, rsi, rdx);
         __ LoadRoot(rdx, Heap::kOnePointerFillerMapRootIndex);
@@ -280,7 +280,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ subq(rdx, rcx);
       // Done if no extra properties are to be allocated.
       __ j(zero, &allocated);
-      __ Assert(positive, kPropertyAllocationCountFailed);
+      __ Assert(positive, "Property allocation count failed.");
 
       // Scale the number of elements by pointer size and add the header for
       // FixedArrays to the start of the next object calculation from above.
@@ -429,10 +429,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   }
 
   // Remove caller arguments from the stack and return.
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);
   SmiIndex index = masm->SmiToIndex(rbx, rbx, kPointerSizeLog2);
   __ lea(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
-  __ PushReturnAddressFrom(rcx);
+  __ push(rcx);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->constructed_objects(), 1);
   __ ret(0);
@@ -723,7 +723,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ ret(2 * kPointerSize);  // Remove state, rax.
 
   __ bind(&not_tos_rax);
-  __ Abort(kNoCasesLeft);
+  __ Abort("no cases left");
 }
 
 
@@ -772,9 +772,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   { Label done;
     __ testq(rax, rax);
     __ j(not_zero, &done);
-    __ PopReturnAddressTo(rbx);
+    __ pop(rbx);
     __ Push(masm->isolate()->factory()->undefined_value());
-    __ PushReturnAddressFrom(rbx);
+    __ push(rbx);
     __ incq(rax);
     __ bind(&done);
   }
@@ -895,9 +895,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ cmpq(rdx, Immediate(1));
     __ j(not_equal, &non_proxy);
 
-    __ PopReturnAddressTo(rdx);
+    __ pop(rdx);   // return address
     __ push(rdi);  // re-add proxy object as additional argument
-    __ PushReturnAddressFrom(rdx);
+    __ push(rdx);
     __ incq(rax);
     __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
@@ -1113,9 +1113,9 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
     // Will both indicate a NULL and a Smi.
     STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
-    __ Check(not_smi, kUnexpectedInitialMapForInternalArrayFunction);
+    __ Check(not_smi, "Unexpected initial map for InternalArray function");
     __ CmpObjectType(rbx, MAP_TYPE, rcx);
-    __ Check(equal, kUnexpectedInitialMapForInternalArrayFunction);
+    __ Check(equal, "Unexpected initial map for InternalArray function");
   }
 
   // Run the native code for the InternalArray function called as a normal
@@ -1143,9 +1143,9 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
     // Will both indicate a NULL and a Smi.
     STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
-    __ Check(not_smi, kUnexpectedInitialMapForArrayFunction);
+    __ Check(not_smi, "Unexpected initial map for Array function");
     __ CmpObjectType(rbx, MAP_TYPE, rcx);
-    __ Check(equal, kUnexpectedInitialMapForArrayFunction);
+    __ Check(equal, "Unexpected initial map for Array function");
   }
 
   // Run the native code for the Array function called as a normal function.
@@ -1173,7 +1173,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, rcx);
     __ cmpq(rdi, rcx);
-    __ Assert(equal, kUnexpectedStringFunction);
+    __ Assert(equal, "Unexpected String function");
   }
 
   // Load the first argument into rax and get rid of the rest
@@ -1182,9 +1182,9 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ testq(rax, rax);
   __ j(zero, &no_arguments);
   __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);
   __ lea(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
-  __ PushReturnAddressFrom(rcx);
+  __ push(rcx);
   __ movq(rax, rbx);
 
   // Lookup the argument in the number to string cache.
@@ -1219,9 +1219,9 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ cmpb(FieldOperand(rcx, Map::kInstanceSizeOffset),
             Immediate(JSValue::kSize >> kPointerSizeLog2));
-    __ Assert(equal, kUnexpectedStringWrapperInstanceSize);
+    __ Assert(equal, "Unexpected string wrapper instance size");
     __ cmpb(FieldOperand(rcx, Map::kUnusedPropertyFieldsOffset), Immediate(0));
-    __ Assert(equal, kUnexpectedUnusedPropertiesOfStringWrapper);
+    __ Assert(equal, "Unexpected unused properties of string wrapper");
   }
   __ movq(FieldOperand(rax, HeapObject::kMapOffset), rcx);
 
@@ -1268,9 +1268,9 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // stack, and jump back to the case where the argument is a string.
   __ bind(&no_arguments);
   __ LoadRoot(rbx, Heap::kempty_stringRootIndex);
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);
   __ lea(rsp, Operand(rsp, kPointerSize));
-  __ PushReturnAddressFrom(rcx);
+  __ push(rcx);
   __ jmp(&argument_is_string);
 
   // At this point the argument is already a string. Call runtime to
@@ -1313,10 +1313,10 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ pop(rbp);
 
   // Remove caller arguments from the stack.
-  __ PopReturnAddressTo(rcx);
+  __ pop(rcx);
   SmiIndex index = masm->SmiToIndex(rbx, rbx, kPointerSizeLog2);
   __ lea(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
-  __ PushReturnAddressFrom(rcx);
+  __ push(rcx);
 }
 
 

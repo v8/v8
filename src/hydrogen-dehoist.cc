@@ -38,7 +38,7 @@ static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
   HConstant* constant;
   HValue* subexpression;
   HBinaryOperation* binary_operation = HBinaryOperation::cast(index);
-  if (binary_operation->left()->IsConstant() && index->IsAdd()) {
+  if (binary_operation->left()->IsConstant()) {
     subexpression = binary_operation->right();
     constant = HConstant::cast(binary_operation->left());
   } else if (binary_operation->right()->IsConstant()) {

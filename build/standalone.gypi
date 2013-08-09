@@ -120,9 +120,6 @@
     },
     'target_conditions': [
       ['v8_code == 0', {
-        'defines!': [
-          'DEBUG',
-        ],
         'conditions': [
           ['os_posix == 1 and OS != "mac"', {
             'cflags!': [
@@ -135,6 +132,9 @@
             },
           }],
           ['OS == "win"', {
+            'defines!': [
+              'DEBUG',
+            ],
             'msvs_settings': {
               'VCCLCompilerTool': {
                 'WarnAsError': 'false',

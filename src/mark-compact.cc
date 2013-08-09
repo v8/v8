@@ -431,8 +431,8 @@ void MarkCompactCollector::CollectGarbage() {
       heap()->weak_embedded_maps_verification_enabled()) {
     VerifyWeakEmbeddedMapsInOptimizedCode();
   }
-  if (FLAG_collect_maps && FLAG_omit_map_checks_for_leaf_maps) {
-    VerifyOmittedMapChecks();
+  if (FLAG_collect_maps && FLAG_omit_prototype_checks_for_leaf_maps) {
+    VerifyOmittedPrototypeChecks();
   }
 #endif
 
@@ -503,13 +503,13 @@ void MarkCompactCollector::VerifyWeakEmbeddedMapsInOptimizedCode() {
 }
 
 
-void MarkCompactCollector::VerifyOmittedMapChecks() {
+void MarkCompactCollector::VerifyOmittedPrototypeChecks() {
   HeapObjectIterator iterator(heap()->map_space());
   for (HeapObject* obj = iterator.Next();
        obj != NULL;
        obj = iterator.Next()) {
     Map* map = Map::cast(obj);
-    map->VerifyOmittedMapChecks();
+    map->VerifyOmittedPrototypeChecks();
   }
 }
 #endif  // VERIFY_HEAP

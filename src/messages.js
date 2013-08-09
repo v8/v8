@@ -228,18 +228,16 @@ function NoSideEffectToString(obj) {
       }
     }
   }
-  if (CanBeSafelyTreatedAsAnErrorObject(obj)) {
-    return %_CallFunction(obj, ErrorToString);
-  }
+  if (IsNativeErrorObject(obj)) return %_CallFunction(obj, ErrorToString);
   return %_CallFunction(obj, ObjectToString);
 }
 
-// To determine whether we can safely stringify an object using ErrorToString
-// without the risk of side-effects, we need to check whether the object is
-// either an instance of a native error type (via '%_ClassOf'), or has $Error
-// in its prototype chain and hasn't overwritten 'toString' with something
-// strange and unusual.
-function CanBeSafelyTreatedAsAnErrorObject(obj) {
+
+// To check if something is a native error we need to check the
+// concrete native error types. It is not sufficient to use instanceof
+// since it possible to create an object that has Error.prototype on
+// its prototype chain. This is the case for DOMException for example.
+function IsNativeErrorObject(obj) {
   switch (%_ClassOf(obj)) {
     case 'Error':
     case 'EvalError':
@@ -250,9 +248,7 @@ function CanBeSafelyTreatedAsAnErrorObject(obj) {
     case 'URIError':
       return true;
   }
-
-  var objToString = %GetDataProperty(obj, "toString");
-  return obj instanceof $Error && objToString === ErrorToString;
+  return false;
 }
 
 
@@ -261,7 +257,7 @@ function CanBeSafelyTreatedAsAnErrorObject(obj) {
 // the error to string method. This is to avoid leaking error
 // objects between script tags in a browser setting.
 function ToStringCheckErrorObject(obj) {
-  if (CanBeSafelyTreatedAsAnErrorObject(obj)) {
+  if (IsNativeErrorObject(obj)) {
     return %_CallFunction(obj, ErrorToString);
   } else {
     return ToString(obj);

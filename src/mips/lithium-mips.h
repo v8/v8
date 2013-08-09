@@ -50,6 +50,7 @@ class LCodeGen;
   V(ArithmeticD)                                \
   V(ArithmeticT)                                \
   V(BitI)                                       \
+  V(BitNotI)                                    \
   V(BoundsCheck)                                \
   V(Branch)                                     \
   V(CallConstantFunction)                       \
@@ -67,6 +68,7 @@ class LCodeGen;
   V(CheckMaps)                                  \
   V(CheckMapValue)                              \
   V(CheckNonSmi)                                \
+  V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
@@ -1354,6 +1356,18 @@ class LThrow: public LTemplateInstruction<0, 1, 0> {
 };
 
 
+class LBitNotI: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LBitNotI(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(BitNotI, "bit-not-i")
+};
+
+
 class LAddI: public LTemplateInstruction<1, 2, 0> {
  public:
   LAddI(LOperand* left, LOperand* right) {
@@ -2114,7 +2128,7 @@ class LStoreNamedField: public LTemplateInstruction<0, 2, 1> {
 
   virtual void PrintDataTo(StringStream* stream);
 
-  Handle<Map> transition() const { return hydrogen()->transition_map(); }
+  Handle<Map> transition() const { return hydrogen()->transition(); }
   Representation representation() const {
     return hydrogen()->field_representation();
   }
@@ -2307,6 +2321,26 @@ class LCheckMaps: public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMaps, "check-maps")
   DECLARE_HYDROGEN_ACCESSOR(CheckMaps)
+};
+
+
+class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 2> {
+ public:
+  LCheckPrototypeMaps(LOperand* temp, LOperand* temp2)  {
+    temps_[0] = temp;
+    temps_[1] = temp2;
+  }
+
+  LOperand* temp() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check-prototype-maps")
+  DECLARE_HYDROGEN_ACCESSOR(CheckPrototypeMaps)
+
+  ZoneList<Handle<JSObject> >* prototypes() const {
+    return hydrogen()->prototypes();
+  }
+  ZoneList<Handle<Map> >* maps() const { return hydrogen()->maps(); }
 };
 
 
@@ -2608,7 +2642,7 @@ class LChunkBuilder BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  void Abort(BailoutReason reason);
+  void Abort(const char* reason);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);

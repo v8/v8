@@ -41,13 +41,13 @@ static LChunk* OptimizeGraph(HGraph* graph) {
   DisallowHandleDereference no_deref;
 
   ASSERT(graph != NULL);
-  BailoutReason bailout_reason = kNoReason;
+  SmartArrayPointer<char> bailout_reason;
   if (!graph->Optimize(&bailout_reason)) {
-    FATAL(GetBailoutReason(bailout_reason));
+    FATAL(bailout_reason.is_empty() ? "unknown" : *bailout_reason);
   }
   LChunk* chunk = LChunk::NewChunk(graph);
   if (chunk == NULL) {
-    FATAL(GetBailoutReason(graph->info()->bailout_reason()));
+    FATAL(graph->info()->bailout_reason());
   }
   return chunk;
 }
@@ -797,6 +797,44 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
 
 
 Handle<Code> CompareNilICStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<UnaryOpStub>::BuildCodeInitializedStub() {
+  UnaryOpStub* stub = casted_stub();
+  Handle<Type> type = stub->GetType(graph()->isolate());
+  HValue* input = GetParameter(0);
+
+  // Prevent unwanted HChange being inserted to ensure that the stub
+  // deopts on newly encountered types.
+  if (!type->Maybe(Type::Double())) {
+    input = Add<HForceRepresentation>(input, Representation::Smi());
+  }
+
+  if (!type->Is(Type::Number())) {
+    // If we expect to see other things than Numbers, we will create a generic
+    // stub, which handles all numbers and calls into the runtime for the rest.
+    IfBuilder if_number(this);
+    if_number.If<HIsNumberAndBranch>(input);
+    if_number.Then();
+    HInstruction* res = BuildUnaryMathOp(input, type, stub->operation());
+    if_number.Return(AddInstruction(res));
+    if_number.Else();
+    HValue* function = AddLoadJSBuiltin(stub->ToJSBuiltin());
+    Add<HPushArgument>(GetParameter(0));
+    HValue* result = Add<HInvokeFunction>(function, 1);
+    if_number.Return(result);
+    if_number.End();
+    return graph()->GetConstantUndefined();
+  }
+
+  return AddInstruction(BuildUnaryMathOp(input, type, stub->operation()));
+}
+
+
+Handle<Code> UnaryOpStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 

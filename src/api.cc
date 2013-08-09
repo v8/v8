@@ -46,7 +46,6 @@
 #include "heap-profiler.h"
 #include "heap-snapshot-generator-inl.h"
 #include "icu_util.h"
-#include "json-parser.h"
 #include "messages.h"
 #ifdef COMPRESS_STARTUP_DATA_BZ2
 #include "natives.h"
@@ -399,7 +398,7 @@ enum CompressedStartupDataItems {
   kSnapshotContext,
   kLibraries,
   kExperimentalLibraries,
-#if defined(V8_I18N_SUPPORT)
+#if defined(ENABLE_I18N_SUPPORT)
   kI18NExtension,
 #endif
   kCompressedStartupDataCount
@@ -443,7 +442,7 @@ void V8::GetCompressedStartupData(StartupData* compressed_data) {
   compressed_data[kExperimentalLibraries].raw_size =
       i::ExperimentalNatives::GetRawScriptsSize();
 
-#if defined(V8_I18N_SUPPORT)
+#if defined(ENABLE_I18N_SUPPORT)
   i::Vector<const ii:byte> i18n_extension_source =
       i::I18NNatives::GetScriptsSource();
   compressed_data[kI18NExtension].data =
@@ -483,7 +482,7 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
       decompressed_data[kExperimentalLibraries].raw_size);
   i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
 
-#if defined(V8_I18N_SUPPORT)
+#if defined(ENABLE_I18N_SUPPORT)
   ASSERT_EQ(i::I18NNatives::GetRawScriptsSize(),
             decompressed_data[kI18NExtension].raw_size);
   i::Vector<const char> i18n_extension_source(
@@ -673,16 +672,6 @@ void V8::ClearWeak(i::Object** obj) {
 
 void V8::DisposeGlobal(i::Object** obj) {
   i::GlobalHandles::Destroy(obj);
-}
-
-
-int V8::Eternalize(i::Isolate* isolate, i::Object** handle) {
-  return isolate->eternal_handles()->Create(isolate, *handle);
-}
-
-
-i::Object** V8::GetEternal(i::Isolate* isolate, int index) {
-  return isolate->eternal_handles()->Get(index).location();
 }
 
 
@@ -2615,29 +2604,6 @@ bool StackFrame::IsConstructor() const {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> is_constructor = GetProperty(self, "isConstructor");
   return is_constructor->IsTrue();
-}
-
-
-// --- J S O N ---
-
-Local<Object> JSON::Parse(Local<String> json_string) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::JSON::Parse");
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::String> source = i::Handle<i::String>(
-      FlattenGetString(Utils::OpenHandle(*json_string)));
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result;
-  if (source->IsSeqOneByteString()) {
-    result = i::JsonParser<true>::Parse(source);
-  } else {
-    result = i::JsonParser<false>::Parse(source);
-  }
-  has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
-  return Utils::ToLocal(
-      i::Handle<i::JSObject>::cast(scope.CloseAndEscape(result)));
 }
 
 
@@ -7598,18 +7564,6 @@ const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
 const CpuProfileNode* CpuProfile::GetSample(int index) const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return reinterpret_cast<const CpuProfileNode*>(profile->sample(index));
-}
-
-
-int64_t CpuProfile::GetStartTime() const {
-  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return profile->start_time_us();
-}
-
-
-int64_t CpuProfile::GetEndTime() const {
-  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return profile->end_time_us();
 }
 
 

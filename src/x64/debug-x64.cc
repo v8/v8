@@ -48,10 +48,11 @@ bool BreakLocationIterator::IsDebugBreakAtReturn()  {
 // CodeGenerator::VisitReturnStatement and VirtualFrame::Exit in codegen-x64.cc
 // for the precise return instructions sequence.
 void BreakLocationIterator::SetDebugBreakAtReturn()  {
-  ASSERT(Assembler::kJSReturnSequenceLength >= Assembler::kCallSequenceLength);
+  ASSERT(Assembler::kJSReturnSequenceLength >=
+         Assembler::kCallInstructionLength);
   rinfo()->PatchCodeWithCall(
       Isolate::Current()->debug()->debug_break_return()->entry(),
-      Assembler::kJSReturnSequenceLength - Assembler::kCallSequenceLength);
+      Assembler::kJSReturnSequenceLength - Assembler::kCallInstructionLength);
 }
 
 
@@ -81,7 +82,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   ASSERT(IsDebugBreakSlot());
   rinfo()->PatchCodeWithCall(
       Isolate::Current()->debug()->debug_break_slot()->entry(),
-      Assembler::kDebugBreakSlotLength - Assembler::kCallSequenceLength);
+      Assembler::kDebugBreakSlotLength - Assembler::kCallInstructionLength);
 }
 
 

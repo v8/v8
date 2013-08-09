@@ -38,7 +38,7 @@ assertFalse(options.locale === '');
 assertFalse(options.locale === undefined);
 
 // Then check for equality.
-assertEquals(options.locale, %GetDefaultICULocale());
+assertEquals(options.locale, getDefaultLocale());
 
 var dtfNone = new Intl.DateTimeFormat();
 assertEquals(options.locale, dtfNone.resolvedOptions().locale);

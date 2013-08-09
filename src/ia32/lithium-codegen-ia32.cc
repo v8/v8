@@ -113,7 +113,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 }
 
 
-void LCodeGen::Abort(BailoutReason reason) {
+void LCodeGen::Abort(const char* reason) {
   info()->set_bailout_reason(reason);
   status_ = ABORTED;
 }
@@ -220,7 +220,7 @@ bool LCodeGen::GeneratePrologue() {
       dynamic_frame_alignment_ &&
       FLAG_debug_code) {
     __ test(esp, Immediate(kPointerSize));
-    __ Assert(zero, kFrameIsExpectedToBeAligned);
+    __ Assert(zero, "frame is expected to be aligned");
   }
 
   // Reserve space for the stack slots needed by the code.
@@ -882,7 +882,7 @@ void LCodeGen::LoadContextFromDeferred(LOperand* context) {
   } else if (context->IsConstantOperand()) {
     HConstant* constant =
         chunk_->LookupConstant(LConstantOperand::cast(context));
-    __ LoadObject(esi, Handle<Object>::cast(constant->handle()));
+    __ LoadHeapObject(esi, Handle<Context>::cast(constant->handle()));
   } else {
     UNREACHABLE();
   }
@@ -948,7 +948,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
   if (entry == NULL) {
-    Abort(kBailoutWasNotPrepared);
+    Abort("bailout was not prepared");
     return;
   }
 
@@ -1679,9 +1679,8 @@ void LCodeGen::DoBitI(LBitI* instr) {
   ASSERT(left->IsRegister());
 
   if (right->IsConstantOperand()) {
-    int32_t right_operand =
-        ToRepresentation(LConstantOperand::cast(right),
-                         instr->hydrogen()->representation());
+    int right_operand = ToRepresentation(LConstantOperand::cast(right),
+                                         instr->hydrogen()->representation());
     switch (instr->op()) {
       case Token::BIT_AND:
         __ and_(ToRegister(left), right_operand);
@@ -1690,11 +1689,7 @@ void LCodeGen::DoBitI(LBitI* instr) {
         __ or_(ToRegister(left), right_operand);
         break;
       case Token::BIT_XOR:
-        if (right_operand == int32_t(~0)) {
-          __ not_(ToRegister(left));
-        } else {
-          __ xor_(ToRegister(left), right_operand);
-        }
+        __ xor_(ToRegister(left), right_operand);
         break;
       default:
         UNREACHABLE();
@@ -1981,7 +1976,7 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
     __ cmp(value, Immediate(encoding == String::ONE_BYTE_ENCODING
                                 ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(equal, kUnexpectedStringType);
+    __ Check(equal, "Unexpected string type");
     __ pop(value);
   }
 
@@ -1992,6 +1987,13 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
     __ mov_w(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
              value);
   }
+}
+
+
+void LCodeGen::DoBitNotI(LBitNotI* instr) {
+  LOperand* input = instr->value();
+  ASSERT(input->Equals(instr->result()));
+  __ not_(ToRegister(input));
 }
 
 
@@ -2861,7 +2863,7 @@ void LCodeGen::EmitReturn(LReturn* instr, bool dynamic_frame_alignment) {
       __ cmp(Operand(esp,
                      (parameter_count + extra_value_count) * kPointerSize),
              Immediate(kAlignmentZapValue));
-      __ Assert(equal, kExpectedAlignmentMarker);
+      __ Assert(equal, "expected alignment marker");
     }
     __ Ret((parameter_count + extra_value_count) * kPointerSize, ecx);
   } else {
@@ -2874,7 +2876,7 @@ void LCodeGen::EmitReturn(LReturn* instr, bool dynamic_frame_alignment) {
       __ cmp(Operand(esp, reg, times_pointer_size,
                      extra_value_count * kPointerSize),
              Immediate(kAlignmentZapValue));
-      __ Assert(equal, kExpectedAlignmentMarker);
+      __ Assert(equal, "expected alignment marker");
     }
 
     // emit code to restore stack based on instr->parameter_count()
@@ -3445,7 +3447,7 @@ Operand LCodeGen::BuildFastArrayOperand(
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
-      Abort(kArrayIndexConstantValueTooBig);
+      Abort("array index constant value too big");
     }
     return Operand(elements_pointer_reg,
                    ((constant_value + additional_index) << shift_size)
@@ -3819,7 +3821,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
     __ pand(input_reg, scratch);
-  } else if (r.IsSmiOrInteger32()) {
+  } else if (r.IsInteger32()) {
     EmitIntegerMathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
@@ -5791,68 +5793,31 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 }
 
 
-void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
-  {
-    PushSafepointRegistersScope scope(this);
-    __ push(object);
-    __ xor_(esi, esi);
-    __ CallRuntimeSaveDoubles(Runtime::kMigrateInstance);
-    RecordSafepointWithRegisters(
-        instr->pointer_map(), 1, Safepoint::kNoLazyDeopt);
-
-    __ test(eax, Immediate(kSmiTagMask));
-  }
-  DeoptimizeIf(zero, instr->environment());
+void LCodeGen::DoCheckMapCommon(Register reg,
+                                Handle<Map> map,
+                                LInstruction* instr) {
+  Label success;
+  __ CompareMap(reg, map, &success);
+  DeoptimizeIf(not_equal, instr->environment());
+  __ bind(&success);
 }
 
 
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
-  class DeferredCheckMaps: public LDeferredCode {
-   public:
-    DeferredCheckMaps(LCodeGen* codegen, LCheckMaps* instr, Register object)
-        : LDeferredCode(codegen), instr_(instr), object_(object) {
-      SetExit(check_maps());
-    }
-    virtual void Generate() {
-      codegen()->DoDeferredInstanceMigration(instr_, object_);
-    }
-    Label* check_maps() { return &check_maps_; }
-    virtual LInstruction* instr() { return instr_; }
-   private:
-    LCheckMaps* instr_;
-    Label check_maps_;
-    Register object_;
-  };
-
   if (instr->hydrogen()->CanOmitMapChecks()) return;
-
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
 
-  SmallMapList* map_set = instr->hydrogen()->map_set();
-
-  DeferredCheckMaps* deferred = NULL;
-  if (instr->hydrogen()->has_migration_target()) {
-    deferred = new(zone()) DeferredCheckMaps(this, instr, reg);
-    __ bind(deferred->check_maps());
-  }
-
   Label success;
+  SmallMapList* map_set = instr->hydrogen()->map_set();
   for (int i = 0; i < map_set->length() - 1; i++) {
     Handle<Map> map = map_set->at(i);
     __ CompareMap(reg, map, &success);
     __ j(equal, &success);
   }
-
   Handle<Map> map = map_set->last();
-  __ CompareMap(reg, map, &success);
-  if (instr->hydrogen()->has_migration_target()) {
-    __ j(not_equal, deferred->entry());
-  } else {
-    DeoptimizeIf(not_equal, instr->environment());
-  }
-
+  DoCheckMapCommon(reg, map, instr);
   __ bind(&success);
 }
 
@@ -6026,6 +5991,22 @@ void LCodeGen::DoClampTToUint8NoSSE2(LClampTToUint8NoSSE2* instr) {
   __ SmiUntag(result_reg);
   __ ClampUint8(result_reg);
   __ bind(&done);
+}
+
+
+void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
+  if (instr->hydrogen()->CanOmitPrototypeChecks()) return;
+  Register reg = ToRegister(instr->temp());
+
+  ZoneList<Handle<JSObject> >* prototypes = instr->prototypes();
+  ZoneList<Handle<Map> >* maps = instr->maps();
+
+  ASSERT(prototypes->length() == maps->length());
+
+  for (int i = 0; i < prototypes->length(); i++) {
+    __ LoadHeapObject(reg, prototypes->at(i));
+    DoCheckMapCommon(reg, maps->at(i), instr);
+  }
 }
 
 

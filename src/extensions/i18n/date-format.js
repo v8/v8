@@ -235,6 +235,7 @@ function toDateTimeOptions(options, required, defaults) {
  * Useful for subclassing.
  */
 function initializeDateTimeFormat(dateFormat, locales, options) {
+  native function NativeJSCreateDateTimeFormat();
 
   if (dateFormat.hasOwnProperty('__initializedIntlObject')) {
     throw new TypeError('Trying to re-initialize DateTimeFormat object.');
@@ -291,7 +292,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     year: {writable: true}
   });
 
-  var formatter = %CreateDateTimeFormat(
+  var formatter = NativeJSCreateDateTimeFormat(
     requestedLocale, {skeleton: ldmlString, timeZone: tz}, resolved);
 
   if (tz !== undefined && tz !== resolved.timeZone) {
@@ -408,6 +409,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  * DateTimeFormat.
  */
 function formatDate(formatter, dateValue) {
+  native function NativeJSInternalDateFormat();
+
   var dateMs;
   if (dateValue === undefined) {
     dateMs = Date.now();
@@ -419,7 +422,7 @@ function formatDate(formatter, dateValue) {
     throw new RangeError('Provided date is not in valid range.');
   }
 
-  return %InternalDateFormat(formatter.formatter, new Date(dateMs));
+  return NativeJSInternalDateFormat(formatter.formatter, new Date(dateMs));
 }
 
 
@@ -430,7 +433,8 @@ function formatDate(formatter, dateValue) {
  * Returns undefined if date string cannot be parsed.
  */
 function parseDate(formatter, value) {
-  return %InternalDateParse(formatter.formatter, String(value));
+  native function NativeJSInternalDateParse();
+  return NativeJSInternalDateParse(formatter.formatter, String(value));
 }
 
 
