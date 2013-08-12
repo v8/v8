@@ -1254,10 +1254,10 @@ class HGraphBuilder {
   HLoadNamedField* BuildLoadNamedField(
       HValue* object,
       HObjectAccess access,
-      HValue* typecheck = NULL);
-  HInstruction* BuildLoadStringLength(HValue* object, HValue* typecheck = NULL);
+      HValue* typecheck);
+  HInstruction* BuildLoadStringLength(HValue* object, HValue* typecheck);
   HStoreNamedField* AddStoreMapConstant(HValue *object, Handle<Map>);
-  HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck = NULL);
+  HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck);
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin);
@@ -2036,7 +2036,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                           Property* expr,
                                           Handle<Map> map);
 
-  void AddCheckMap(HValue* object, Handle<Map> map);
+  HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 
   void BuildStoreNamed(Expression* expression,
                        BailoutId id,
