@@ -5568,6 +5568,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
   }
 
   bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
+  void ClearTypeCheck() { SetOperandAt(1, object()); }
   HObjectAccess access() const { return access_; }
   Representation field_representation() const {
       return access_.representation();
