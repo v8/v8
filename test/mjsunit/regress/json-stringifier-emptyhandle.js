@@ -25,38 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "icu_util.h"
 
-#if defined(_WIN32) && defined(V8_I18N_SUPPORT)
-#include <windows.h>
+function explode() {
+  var array = [1,2,3];
 
-#include "unicode/putil.h"
-#include "unicode/udata.h"
+  Object.defineProperty(array, 4, {
+    get: function () { throw "dynamite"; },
+  });
 
-#define ICU_UTIL_DATA_SYMBOL "icudt" U_ICU_VERSION_SHORT "_dat"
-#define ICU_UTIL_DATA_SHARED_MODULE_NAME "icudt.dll"
-#endif
-
-namespace v8 {
-
-namespace internal {
-
-bool InitializeICU() {
-#if defined(_WIN32) && defined(V8_I18N_SUPPORT)
-  // We expect to find the ICU data module alongside the current module.
-  HMODULE module = LoadLibraryA(ICU_UTIL_DATA_SHARED_MODULE_NAME);
-  if (!module) return false;
-
-  FARPROC addr = GetProcAddress(module, ICU_UTIL_DATA_SYMBOL);
-  if (!addr) return false;
-
-  UErrorCode err = U_ZERO_ERROR;
-  udata_setCommonData(reinterpret_cast<void*>(addr), &err);
-  return err == U_ZERO_ERROR;
-#else
-  // Mac/Linux bundle the ICU data in.
-  return true;
-#endif
+  JSON.stringify(array);
 }
 
-} }  // namespace v8::internal
+try {
+  explode();
+  assertUnreachable();
+} catch(e) {
+  assertEquals("dynamite", e);
+}

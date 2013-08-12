@@ -398,7 +398,7 @@ enum CompressedStartupDataItems {
   kSnapshotContext,
   kLibraries,
   kExperimentalLibraries,
-#if defined(ENABLE_I18N_SUPPORT)
+#if defined(V8_I18N_SUPPORT)
   kI18NExtension,
 #endif
   kCompressedStartupDataCount
@@ -442,7 +442,7 @@ void V8::GetCompressedStartupData(StartupData* compressed_data) {
   compressed_data[kExperimentalLibraries].raw_size =
       i::ExperimentalNatives::GetRawScriptsSize();
 
-#if defined(ENABLE_I18N_SUPPORT)
+#if defined(V8_I18N_SUPPORT)
   i::Vector<const ii:byte> i18n_extension_source =
       i::I18NNatives::GetScriptsSource();
   compressed_data[kI18NExtension].data =
@@ -482,7 +482,7 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
       decompressed_data[kExperimentalLibraries].raw_size);
   i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
 
-#if defined(ENABLE_I18N_SUPPORT)
+#if defined(V8_I18N_SUPPORT)
   ASSERT_EQ(i::I18NNatives::GetRawScriptsSize(),
             decompressed_data[kI18NExtension].raw_size);
   i::Vector<const char> i18n_extension_source(

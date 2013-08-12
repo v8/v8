@@ -25,38 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "icu_util.h"
+// Flags: --allow-natives-syntax
 
-#if defined(_WIN32) && defined(V8_I18N_SUPPORT)
-#include <windows.h>
-
-#include "unicode/putil.h"
-#include "unicode/udata.h"
-
-#define ICU_UTIL_DATA_SYMBOL "icudt" U_ICU_VERSION_SHORT "_dat"
-#define ICU_UTIL_DATA_SHARED_MODULE_NAME "icudt.dll"
-#endif
-
-namespace v8 {
-
-namespace internal {
-
-bool InitializeICU() {
-#if defined(_WIN32) && defined(V8_I18N_SUPPORT)
-  // We expect to find the ICU data module alongside the current module.
-  HMODULE module = LoadLibraryA(ICU_UTIL_DATA_SHARED_MODULE_NAME);
-  if (!module) return false;
-
-  FARPROC addr = GetProcAddress(module, ICU_UTIL_DATA_SYMBOL);
-  if (!addr) return false;
-
-  UErrorCode err = U_ZERO_ERROR;
-  udata_setCommonData(reinterpret_cast<void*>(addr), &err);
-  return err == U_ZERO_ERROR;
-#else
-  // Mac/Linux bundle the ICU data in.
-  return true;
-#endif
+function foo(x) {
+  var a = [1, 2, 3, 4, 5, 6, 7, 8];
+  a[x + 5];
+  var result;
+  for (var i = 0; i < 3; i++) {
+    result = a[0 - x];
+  }
+  return result;
 }
 
-} }  // namespace v8::internal
+foo(0);
+foo(0);
+%OptimizeFunctionOnNextCall(foo);
+var r = foo(-2);
+assertEquals(3, r);
