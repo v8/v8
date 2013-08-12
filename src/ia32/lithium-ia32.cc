@@ -1415,9 +1415,8 @@ LInstruction* LChunkBuilder::DoShl(HShl* instr) {
 
 LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->right()->representation().Equals(
-        instr->left()->representation()));
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
 
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
@@ -1525,8 +1524,8 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   HValue* left = instr->left();
   HValue* right = instr->right();
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(left->representation().IsSmiOrInteger32());
-    ASSERT(right->representation().Equals(left->representation()));
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
 
     if (instr->HasPowerOf2Divisor()) {
       ASSERT(!right->CanBeZero());
@@ -1602,9 +1601,8 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
 
 LInstruction* LChunkBuilder::DoSub(HSub* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->right()->representation().Equals(
-        instr->left()->representation()));
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     LSubI* sub = new(zone()) LSubI(left, right);
@@ -1624,9 +1622,8 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
 
 LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->right()->representation().Equals(
-        instr->left()->representation()));
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
     // Check to see if it would be advantageous to use an lea instruction rather
     // than an add. This is the case when no overflow check is needed and there
     // are multiple uses of the add's inputs, so using a 3-register add will
@@ -1659,9 +1656,8 @@ LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
   LOperand* left = NULL;
   LOperand* right = NULL;
   if (instr->representation().IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->right()->representation().Equals(
-        instr->left()->representation()));
+    ASSERT(instr->left()->representation().Equals(instr->representation()));
+    ASSERT(instr->right()->representation().Equals(instr->representation()));
     left = UseRegisterAtStart(instr->BetterLeftOperand());
     right = UseOrConstantAtStart(instr->BetterRightOperand());
   } else {
@@ -1716,9 +1712,8 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     HCompareNumericAndBranch* instr) {
   Representation r = instr->representation();
   if (r.IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->left()->representation().Equals(
-        instr->right()->representation()));
+    ASSERT(instr->left()->representation().Equals(r));
+    ASSERT(instr->right()->representation().Equals(r));
     LOperand* left = UseRegisterOrConstantAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     return new(zone()) LCompareNumericAndBranch(left, right);
