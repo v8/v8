@@ -13619,9 +13619,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateDateTimeFormat) {
                                  v8::Utils::ToLocal(local_object));
   // Make object handle weak so we can delete the data format once GC kicks in.
   wrapper.MakeWeak<void>(NULL, &DateFormat::DeleteDateFormat);
-  Handle<Object> result = Utils::OpenPersistent(wrapper);
   wrapper.ClearAndLeak();
-  return *result;
+  return *local_object;
 }
 
 
@@ -13724,9 +13723,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateNumberFormat) {
   // Make object handle weak so we can delete the number format once GC kicks
   // in.
   wrapper.MakeWeak<void>(NULL, &NumberFormat::DeleteNumberFormat);
-  Handle<Object> result = Utils::OpenPersistent(wrapper);
   wrapper.ClearAndLeak();
-  return *result;
+  return *local_object;
 }
 
 
@@ -13837,9 +13835,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCollator) {
                                  v8::Utils::ToLocal(local_object));
   // Make object handle weak so we can delete the collator once GC kicks in.
   wrapper.MakeWeak<void>(NULL, &Collator::DeleteCollator);
-  Handle<Object> result = Utils::OpenPersistent(wrapper);
   wrapper.ClearAndLeak();
-  return *result;
+  return *local_object;
 }
 
 
