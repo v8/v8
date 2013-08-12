@@ -1076,7 +1076,7 @@ class MaybeObject BASE_EMBEDDED {
     "bad value context for arguments object value")                           \
   V(kBadValueContextForArgumentsValue,                                        \
     "bad value context for arguments value")                                  \
-  V(kBailedOutDueToDependentMap, "bailed out due to dependent map")           \
+  V(kBailedOutDueToDependencyChange, "bailed out due to dependency change")   \
   V(kBailoutWasNotPrepared, "bailout was not prepared")                       \
   V(kBinaryStubGenerateFloatingPointCode,                                     \
     "BinaryStub_GenerateFloatingPointCode")                                   \

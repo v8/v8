@@ -11354,6 +11354,7 @@ bool DependentCode::Contains(DependencyGroup group, Code* code) {
 void DependentCode::DeoptimizeDependentCodeGroup(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
+  ASSERT(AllowCodeDependencyChange::IsAllowed());
   DisallowHeapAllocation no_allocation_scope;
   DependentCode::GroupStartIndexes starts(this);
   int start = starts.at(group);
