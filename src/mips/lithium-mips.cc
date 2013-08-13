@@ -1628,9 +1628,8 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     HCompareNumericAndBranch* instr) {
   Representation r = instr->representation();
   if (r.IsSmiOrInteger32()) {
-    ASSERT(instr->left()->representation().IsSmiOrInteger32());
-    ASSERT(instr->left()->representation().Equals(
-        instr->right()->representation()));
+    ASSERT(instr->left()->representation().Equals(r));
+    ASSERT(instr->right()->representation().Equals(r));
     LOperand* left = UseRegisterOrConstantAtStart(instr->left());
     LOperand* right = UseRegisterOrConstantAtStart(instr->right());
     return new(zone()) LCompareNumericAndBranch(left, right);
