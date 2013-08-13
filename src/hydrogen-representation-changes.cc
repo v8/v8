@@ -127,7 +127,7 @@ void HRepresentationChangesPhase::Run() {
            !(input_representation.IsInteger32() &&
              use->CheckFlag(HValue::kTruncatingToInt32))) ||
           (phi->representation().IsSmi() &&
-           !(input_representation.IsSmi() ||
+           !(input_representation.IsSmi() &&
              use->CheckFlag(HValue::kTruncatingToSmi)))) {
         if (FLAG_trace_representation) {
           PrintF("#%d Phi is not truncating because of #%d %s\n",
