@@ -250,17 +250,6 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
 }
 
 
-void UnaryOpStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { eax };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(UnaryOpIC_Miss);
-}
-
-
 void StoreGlobalStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -511,9 +500,8 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   Label after_sentinel;
   __ JumpIfNotSmi(ecx, &after_sentinel, Label::kNear);
   if (FLAG_debug_code) {
-    const char* message = "Expected 0 as a Smi sentinel";
     __ cmp(ecx, 0);
-    __ Assert(equal, message);
+    __ Assert(equal, kExpected0AsASmiSentinel);
   }
   __ mov(ecx, GlobalObjectOperand());
   __ mov(ecx, FieldOperand(ecx, GlobalObject::kNativeContextOffset));
@@ -3469,9 +3457,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, FieldOperand(eax, JSRegExp::kDataOffset));
   if (FLAG_debug_code) {
     __ test(ecx, Immediate(kSmiTagMask));
-    __ Check(not_zero, "Unexpected type for RegExp data, FixedArray expected");
+    __ Check(not_zero, kUnexpectedTypeForRegExpDataFixedArrayExpected);
     __ CmpObjectType(ecx, FIXED_ARRAY_TYPE, ebx);
-    __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
+    __ Check(equal, kUnexpectedTypeForRegExpDataFixedArrayExpected);
   }
 
   // ecx: RegExp data (FixedArray)
@@ -3831,7 +3819,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
     // Assert that we do not have a cons or slice (indirect strings) here.
     // Sequential strings have already been ruled out.
     __ test_b(ebx, kIsIndirectStringMask);
-    __ Assert(zero, "external string expected, but not found");
+    __ Assert(zero, kExternalStringExpectedButNotFound);
   }
   __ mov(eax, FieldOperand(eax, ExternalString::kResourceDataOffset));
   // Move the pointer so that offset-wise, it looks like a sequential string.
@@ -3968,11 +3956,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Register scratch = scratch2;
 
   // Load the number string cache.
-  ExternalReference roots_array_start =
-      ExternalReference::roots_array_start(masm->isolate());
-  __ mov(scratch, Immediate(Heap::kNumberStringCacheRootIndex));
-  __ mov(number_string_cache,
-         Operand::StaticArray(scratch, times_pointer_size, roots_array_start));
+  __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
   // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
   __ mov(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
@@ -4326,7 +4310,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
                                                        edi);
   }
 #ifdef DEBUG
-  __ Abort("Unexpected fall-through from string comparison");
+  __ Abort(kUnexpectedFallThroughFromStringComparison);
 #endif
 
   __ bind(&check_unequal_objects);
@@ -5022,9 +5006,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const int8_t kCmpEdiOperandByte2 = BitCast<int8_t, uint8_t>(0x3d);
   static const int8_t kMovEaxImmediateByte = BitCast<int8_t, uint8_t>(0xb8);
 
-  ExternalReference roots_array_start =
-      ExternalReference::roots_array_start(masm->isolate());
-
   ASSERT_EQ(object.code(), InstanceofStub::left().code());
   ASSERT_EQ(function.code(), InstanceofStub::right().code());
 
@@ -5044,18 +5025,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   if (!HasCallSiteInlineCheck()) {
     // Look up the function and the map in the instanceof cache.
     Label miss;
-    __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
-    __ cmp(function, Operand::StaticArray(scratch,
-                                          times_pointer_size,
-                                          roots_array_start));
+    __ CompareRoot(function, scratch, Heap::kInstanceofCacheFunctionRootIndex);
     __ j(not_equal, &miss, Label::kNear);
-    __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
-    __ cmp(map, Operand::StaticArray(
-        scratch, times_pointer_size, roots_array_start));
+    __ CompareRoot(map, scratch, Heap::kInstanceofCacheMapRootIndex);
     __ j(not_equal, &miss, Label::kNear);
-    __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
-    __ mov(eax, Operand::StaticArray(
-        scratch, times_pointer_size, roots_array_start));
+    __ LoadRoot(eax, Heap::kInstanceofCacheAnswerRootIndex);
     __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
     __ bind(&miss);
   }
@@ -5070,12 +5044,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Update the global instanceof or call site inlined cache with the current
   // map and function. The cached answer will be set when it is known below.
   if (!HasCallSiteInlineCheck()) {
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
-  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_array_start),
-         map);
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
-  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_array_start),
-         function);
+    __ StoreRoot(map, scratch, Heap::kInstanceofCacheMapRootIndex);
+    __ StoreRoot(function, scratch, Heap::kInstanceofCacheFunctionRootIndex);
   } else {
     // The constants for the code patching are based on no push instructions
     // at the call site.
@@ -5085,9 +5055,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ sub(scratch, Operand(esp, 1 * kPointerSize));
     if (FLAG_debug_code) {
       __ cmpb(Operand(scratch, 0), kCmpEdiOperandByte1);
-      __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 1)");
+      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheCmp1);
       __ cmpb(Operand(scratch, 1), kCmpEdiOperandByte2);
-      __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 2)");
+      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheCmp2);
     }
     __ mov(scratch, Operand(scratch, kDeltaToCmpImmediate));
     __ mov(Operand(scratch, 0), map);
@@ -5109,10 +5079,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   __ bind(&is_instance);
   if (!HasCallSiteInlineCheck()) {
-    __ Set(eax, Immediate(0));
-    __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
-    __ mov(Operand::StaticArray(scratch,
-                                times_pointer_size, roots_array_start), eax);
+    __ mov(eax, Immediate(0));
+    __ StoreRoot(eax, scratch, Heap::kInstanceofCacheAnswerRootIndex);
   } else {
     // Get return address and delta to inlined map check.
     __ mov(eax, factory->true_value());
@@ -5120,7 +5088,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ sub(scratch, Operand(esp, 1 * kPointerSize));
     if (FLAG_debug_code) {
       __ cmpb(Operand(scratch, kDeltaToMov), kMovEaxImmediateByte);
-      __ Assert(equal, "InstanceofStub unexpected call site cache (mov)");
+      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheMov);
     }
     __ mov(Operand(scratch, kDeltaToMovImmediate), eax);
     if (!ReturnTrueFalseObject()) {
@@ -5131,10 +5099,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   __ bind(&is_not_instance);
   if (!HasCallSiteInlineCheck()) {
-    __ Set(eax, Immediate(Smi::FromInt(1)));
-    __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
-    __ mov(Operand::StaticArray(
-        scratch, times_pointer_size, roots_array_start), eax);
+    __ mov(eax, Immediate(Smi::FromInt(1)));
+    __ StoreRoot(eax, scratch, Heap::kInstanceofCacheAnswerRootIndex);
   } else {
     // Get return address and delta to inlined map check.
     __ mov(eax, factory->false_value());
@@ -5142,7 +5108,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ sub(scratch, Operand(esp, 1 * kPointerSize));
     if (FLAG_debug_code) {
       __ cmpb(Operand(scratch, kDeltaToMov), kMovEaxImmediateByte);
-      __ Assert(equal, "InstanceofStub unexpected call site cache (mov)");
+      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheMov);
     }
     __ mov(Operand(scratch, kDeltaToMovImmediate), eax);
     if (!ReturnTrueFalseObject()) {
@@ -5255,7 +5221,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharCodeAtGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort("Unexpected fallthrough to CharCodeAt slow case");
+  __ Abort(kUnexpectedFallthroughToCharCodeAtSlowCase);
 
   // Index is not a smi.
   __ bind(&index_not_smi_);
@@ -5305,7 +5271,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
-  __ Abort("Unexpected fallthrough from CharCodeAt slow case");
+  __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
 }
 
 
@@ -5340,7 +5306,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 void StringCharFromCodeGenerator::GenerateSlow(
     MacroAssembler* masm,
     const RuntimeCallHelper& call_helper) {
-  __ Abort("Unexpected fallthrough to CharFromCode slow case");
+  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
 
   __ bind(&slow_case_);
   call_helper.BeforeCall(masm);
@@ -5352,7 +5318,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
-  __ Abort("Unexpected fallthrough from CharFromCode slow case");
+  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
 
@@ -5887,11 +5853,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
 
   // Load the string table.
   Register string_table = c2;
-  ExternalReference roots_array_start =
-      ExternalReference::roots_array_start(masm->isolate());
-  __ mov(scratch, Immediate(Heap::kStringTableRootIndex));
-  __ mov(string_table,
-         Operand::StaticArray(scratch, times_pointer_size, roots_array_start));
+  __ LoadRoot(string_table, Heap::kStringTableRootIndex);
 
   // Calculate capacity mask from the string table capacity.
   Register mask = scratch2;
@@ -5979,12 +5941,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register scratch) {
   // hash = (seed + character) + ((seed + character) << 10);
   if (Serializer::enabled()) {
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(masm->isolate());
-    __ mov(scratch, Immediate(Heap::kHashSeedRootIndex));
-    __ mov(scratch, Operand::StaticArray(scratch,
-                                         times_pointer_size,
-                                         roots_array_start));
+    __ LoadRoot(scratch, Heap::kHashSeedRootIndex);
     __ SmiUntag(scratch);
     __ add(scratch, character);
     __ mov(hash, scratch);
@@ -7482,7 +7439,7 @@ static void CreateArrayDispatch(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort("Unexpected ElementsKind in array constructor");
+  __ Abort(kUnexpectedElementsKindInArrayConstructor);
 }
 
 
@@ -7545,7 +7502,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   }
 
   // If we reached this point there is a problem.
-  __ Abort("Unexpected ElementsKind in array constructor");
+  __ Abort(kUnexpectedElementsKindInArrayConstructor);
 }
 
 
@@ -7610,9 +7567,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ mov(ecx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     __ test(ecx, Immediate(kSmiTagMask));
-    __ Assert(not_zero, "Unexpected initial map for Array function");
+    __ Assert(not_zero, kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(ecx, MAP_TYPE, ecx);
-    __ Assert(equal, "Unexpected initial map for Array function");
+    __ Assert(equal, kUnexpectedInitialMapForArrayFunction);
 
     // We should either have undefined in ebx or a valid cell
     Label okay_here;
@@ -7620,7 +7577,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ cmp(ebx, Immediate(undefined_sentinel));
     __ j(equal, &okay_here);
     __ cmp(FieldOperand(ebx, 0), Immediate(cell_map));
-    __ Assert(equal, "Expected property cell in register ebx");
+    __ Assert(equal, kExpectedPropertyCellInRegisterEbx);
     __ bind(&okay_here);
   }
 
@@ -7724,9 +7681,9 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ mov(ecx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     __ test(ecx, Immediate(kSmiTagMask));
-    __ Assert(not_zero, "Unexpected initial map for Array function");
+    __ Assert(not_zero, kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(ecx, MAP_TYPE, ecx);
-    __ Assert(equal, "Unexpected initial map for Array function");
+    __ Assert(equal, kUnexpectedInitialMapForArrayFunction);
   }
 
   // Figure out the right elements kind
@@ -7745,7 +7702,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ j(equal, &done);
     __ cmp(ecx, Immediate(FAST_HOLEY_ELEMENTS));
     __ Assert(equal,
-              "Invalid ElementsKind for InternalArray or InternalPackedArray");
+              kInvalidElementsKindForInternalArrayOrInternalPackedArray);
     __ bind(&done);
   }
 

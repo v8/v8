@@ -2085,6 +2085,11 @@ bool Genesis::InstallExperimentalNatives() {
                "native harmony-string.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
+    if (FLAG_harmony_arrays &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native harmony-array.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
   }
 
   InstallExperimentalNativeFunctions();
