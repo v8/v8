@@ -55,8 +55,8 @@ bool ExtractStringSetting(Isolate* isolate,
                           Handle<JSObject> options,
                           const char* key,
                           icu::UnicodeString* setting) {
-  MaybeObject* maybe_object = options->GetProperty(
-      *isolate->factory()->NewStringFromAscii(CStrVector(key)));
+  Handle<String> str = isolate->factory()->NewStringFromAscii(CStrVector(key));
+  MaybeObject* maybe_object = options->GetProperty(*str);
   Object* object;
   if (maybe_object->ToObject(&object) && object->IsString()) {
     v8::String::Utf8Value utf8_string(
@@ -72,8 +72,8 @@ bool ExtractIntegerSetting(Isolate* isolate,
                            Handle<JSObject> options,
                            const char* key,
                            int32_t* value) {
-  MaybeObject* maybe_object = options->GetProperty(
-      *isolate->factory()->NewStringFromAscii(CStrVector(key)));
+  Handle<String> str = isolate->factory()->NewStringFromAscii(CStrVector(key));
+  MaybeObject* maybe_object = options->GetProperty(*str);
   Object* object;
   if (maybe_object->ToObject(&object) && object->IsNumber()) {
     object->ToInt32(value);
@@ -87,8 +87,8 @@ bool ExtractBooleanSetting(Isolate* isolate,
                            Handle<JSObject> options,
                            const char* key,
                            bool* value) {
-  MaybeObject* maybe_object = options->GetProperty(
-      *isolate->factory()->NewStringFromAscii(CStrVector(key)));
+  Handle<String> str = isolate->factory()->NewStringFromAscii(CStrVector(key));
+  MaybeObject* maybe_object = options->GetProperty(*str);
   Object* object;
   if (maybe_object->ToObject(&object) && object->IsBoolean()) {
     *value = object->BooleanValue();
@@ -460,8 +460,9 @@ void SetResolvedNumberSettings(Isolate* isolate,
       NONE,
       kNonStrictMode);
 
-  if (resolved->HasLocalProperty(*isolate->factory()->NewStringFromAscii(
-          CStrVector("minimumSignificantDigits")))) {
+  Handle<String> key = isolate->factory()->NewStringFromAscii(
+      CStrVector("minimumSignificantDigits"));
+  if (resolved->HasLocalProperty(*key)) {
     JSObject::SetProperty(
         resolved,
         isolate->factory()->NewStringFromAscii(
@@ -472,8 +473,9 @@ void SetResolvedNumberSettings(Isolate* isolate,
         kNonStrictMode);
   }
 
-  if (resolved->HasLocalProperty(*isolate->factory()->NewStringFromAscii(
-          CStrVector("maximumSignificantDigits")))) {
+  key = isolate->factory()->NewStringFromAscii(
+      CStrVector("maximumSignificantDigits"));
+  if (resolved->HasLocalProperty(*key)) {
     JSObject::SetProperty(
         resolved,
         isolate->factory()->NewStringFromAscii(
@@ -786,8 +788,9 @@ icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
 icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
     Isolate* isolate,
     Handle<JSObject> obj) {
-  if (obj->HasLocalProperty(
-          *isolate->factory()->NewStringFromAscii(CStrVector("dateFormat")))) {
+  Handle<String> key =
+      isolate->factory()->NewStringFromAscii(CStrVector("dateFormat"));
+  if (obj->HasLocalProperty(*key)) {
     return reinterpret_cast<icu::SimpleDateFormat*>(
         obj->GetInternalField(0));
   }
@@ -850,8 +853,9 @@ icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
 icu::DecimalFormat* NumberFormat::UnpackNumberFormat(
     Isolate* isolate,
     Handle<JSObject> obj) {
-  if (obj->HasLocalProperty(*isolate->factory()->NewStringFromAscii(
-          CStrVector("numberFormat")))) {
+  Handle<String> key =
+      isolate->factory()->NewStringFromAscii(CStrVector("numberFormat"));
+  if (obj->HasLocalProperty(*key)) {
     return reinterpret_cast<icu::DecimalFormat*>(obj->GetInternalField(0));
   }
 
@@ -910,8 +914,9 @@ icu::Collator* Collator::InitializeCollator(
 
 icu::Collator* Collator::UnpackCollator(Isolate* isolate,
                                         Handle<JSObject> obj) {
-  if (obj->HasLocalProperty(*isolate->factory()->NewStringFromAscii(
-          CStrVector("collator")))) {
+  Handle<String> key =
+      isolate->factory()->NewStringFromAscii(CStrVector("collator"));
+  if (obj->HasLocalProperty(*key)) {
     return reinterpret_cast<icu::Collator*>(obj->GetInternalField(0));
   }
 
