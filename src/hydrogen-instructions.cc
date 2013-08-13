@@ -3731,10 +3731,10 @@ void HPhi::SimplifyConstantInputs() {
                          DoubleToInt32(operand->DoubleValue()));
       integer_input->InsertAfter(operand);
       SetOperandAt(i, integer_input);
-    } else if (operand == graph->GetConstantTrue()) {
-      SetOperandAt(i, graph->GetConstant1());
-    } else {
-      // This catches |false|, |undefined|, strings and objects.
+    } else if (operand->HasBooleanValue()) {
+      SetOperandAt(i, operand->BooleanValue() ? graph->GetConstant1()
+                                              : graph->GetConstant0());
+    } else if (operand->ImmortalImmovable()) {
       SetOperandAt(i, graph->GetConstant0());
     }
   }

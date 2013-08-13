@@ -3362,6 +3362,7 @@ class HConstant: public HTemplateInstruction<0> {
     return external_reference_value_;
   }
 
+  bool HasBooleanValue() const { return type_.IsBoolean(); }
   bool BooleanValue() const { return boolean_value_; }
 
   virtual intptr_t Hashcode() {
