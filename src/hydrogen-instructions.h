@@ -6550,8 +6550,11 @@ class HToFastProperties: public HUnaryOperation {
 
  private:
   explicit HToFastProperties(HValue* value) : HUnaryOperation(value) {
-    // This instruction is not marked as having side effects, but
-    // changes the map of the input operand. Use it only when creating
+    set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
+
+    // This instruction is not marked as kChangesMaps, but does
+    // change the map of the input operand. Use it only when creating
     // object literals via a runtime call.
     ASSERT(value->IsCallRuntime());
 #ifdef DEBUG
@@ -6559,7 +6562,6 @@ class HToFastProperties: public HUnaryOperation {
     ASSERT(function->function_id == Runtime::kCreateObjectLiteral ||
            function->function_id == Runtime::kCreateObjectLiteralShallow);
 #endif
-    set_representation(Representation::Tagged());
   }
 
   virtual bool IsDeletable() const { return true; }
