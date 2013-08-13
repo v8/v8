@@ -2851,8 +2851,7 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
                             CompilationInfo* info,
                             HValue* typecheck) {
   HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
-  check_map->map_set_.Add(map, zone);
-  check_map->has_migration_target_ = map->is_migration_target();
+  check_map->Add(map, zone);
   if (map->CanOmitMapChecks() &&
       value->IsConstant() &&
       HConstant::cast(value)->InstanceOf(map)) {

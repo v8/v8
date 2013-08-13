@@ -2554,8 +2554,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
                          HValue *typecheck = NULL) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
     for (int i = 0; i < maps->length(); i++) {
-      check_map->map_set_.Add(maps->at(i), zone);
-      check_map->has_migration_target_ |= maps->at(i)->is_migration_target();
+      check_map->Add(maps->at(i), zone);
     }
     check_map->map_set_.Sort();
     return check_map;
@@ -2599,6 +2598,14 @@ class HCheckMaps: public HTemplateInstruction<2> {
   }
 
  private:
+  void Add(Handle<Map> map, Zone* zone) {
+    map_set_.Add(map, zone);
+    if (!has_migration_target_ && map->is_migration_target()) {
+      has_migration_target_ = true;
+      SetGVNFlag(kChangesNewSpacePromotion);
+    }
+  }
+
   // Clients should use one of the static New* methods above.
   HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
       : HTemplateInstruction<2>(value->type()),
