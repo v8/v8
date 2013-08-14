@@ -2236,7 +2236,11 @@ void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
 template<class InstrType>
 void LCodeGen::EmitFalseBranch(InstrType instr, Condition cc) {
   int false_block = instr->FalseDestination(chunk_);
-  __ j(cc, chunk_->GetAssemblyLabel(false_block));
+  if (cc == no_condition) {
+    __ jmp(chunk_->GetAssemblyLabel(false_block));
+  } else {
+    __ j(cc, chunk_->GetAssemblyLabel(false_block));
+  }
 }
 
 
@@ -2503,6 +2507,7 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister input_reg = ToDoubleRegister(instr->object());
     __ ucomisd(input_reg, input_reg);
+    EmitFalseBranch(instr, parity_odd);
   } else {
     // Put the value to the top of stack
     X87Register src = ToX87Register(instr->object());
@@ -2510,9 +2515,13 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
     __ fld(0);
     __ fld(0);
     __ FCmp();
+    Label ok;
+    __ j(parity_even, &ok);
+    __ fstp(0);
+    EmitFalseBranch(instr, no_condition);
+    __ bind(&ok);
   }
 
-  EmitFalseBranch(instr, parity_odd);
 
   __ sub(esp, Immediate(kDoubleSize));
   if (use_sse2) {
@@ -2520,7 +2529,6 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
     XMMRegister input_reg = ToDoubleRegister(instr->object());
     __ movdbl(MemOperand(esp, 0), input_reg);
   } else {
-    __ fld(0);
     __ fstp_d(MemOperand(esp, 0));
   }
 
