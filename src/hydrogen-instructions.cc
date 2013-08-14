@@ -3175,8 +3175,6 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
   Representation input_rep = value()->representation();
   if (!input_rep.IsTagged()) {
     rep = rep.generalize(input_rep);
-  } else if (flexible_int()) {
-    rep = Representation::Integer32();
   }
   return rep;
 }

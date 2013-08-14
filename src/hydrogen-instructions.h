@@ -2433,21 +2433,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     }
   }
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) {
-    if (flexible_int() && !new_rep.IsSmi()) {
-      new_rep = Representation::Integer32();
-    }
-    HValue::UpdateRepresentation(new_rep, h_infer, reason);
-  }
-
-  virtual void RepresentationChanged(Representation new_rep) {
-    if (flexible_int() && new_rep.IsInteger32()) {
-      ClearFlag(kFlexibleRepresentation);
-    }
-  }
-
   virtual Range* InferRange(Zone* zone);
 
   virtual HValue* Canonicalize();
@@ -2465,10 +2450,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
   }
 
  private:
-  bool flexible_int() {
-    return op_ == kMathFloor || op_ == kMathRound;
-  }
-
   HUnaryMathOperation(HValue* context, HValue* value, BuiltinFunctionId op)
       : HTemplateInstruction<2>(HType::TaggedNumber()), op_(op) {
     SetOperandAt(0, context);
@@ -2476,8 +2457,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     switch (op) {
       case kMathFloor:
       case kMathRound:
-        set_representation(Representation::Smi());
-        SetFlag(kFlexibleRepresentation);
+        set_representation(Representation::Integer32());
         break;
       case kMathAbs:
         // Not setting representation here: it is None intentionally.
