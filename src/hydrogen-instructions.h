@@ -3230,8 +3230,8 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   bool InstanceOf(Handle<Map> map) {
-    return handle_->IsJSObject() &&
-        Handle<JSObject>::cast(handle_)->map() == *map;
+    return handle()->IsJSObject() &&
+        Handle<JSObject>::cast(handle())->map() == *map;
   }
 
   bool IsSpecialDouble() const {
