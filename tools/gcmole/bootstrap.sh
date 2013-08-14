@@ -121,6 +121,6 @@ set +x
 
 echo
 echo You can now run gcmole using this command:
-echo 
+echo
 echo CLANG_BIN=\"third_party/llvm/Release/bin\" lua tools/gcmole/gcmole.lua
 echo
