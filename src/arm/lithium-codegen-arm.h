@@ -281,11 +281,11 @@ class LCodeGen BASE_EMBEDDED {
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition cc,
+  void DeoptimizeIf(Condition condition,
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type);
-  void DeoptimizeIf(Condition cc, LEnvironment* environment);
-  void ApplyCheckIf(Condition cc, LBoundsCheck* check);
+  void DeoptimizeIf(Condition condition, LEnvironment* environment);
+  void ApplyCheckIf(Condition condition, LBoundsCheck* check);
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
@@ -324,7 +324,9 @@ class LCodeGen BASE_EMBEDDED {
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
   template<class InstrType>
-  void EmitBranch(InstrType instr, Condition cc);
+  void EmitBranch(InstrType instr, Condition condition);
+  template<class InstrType>
+  void EmitFalseBranch(InstrType instr, Condition condition);
   void EmitNumberUntagD(Register input,
                         DwVfpRegister result,
                         bool allow_undefined_as_nan,

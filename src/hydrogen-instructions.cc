@@ -388,7 +388,7 @@ HUseListNode* HUseListNode::tail() {
 }
 
 
-bool HValue::CheckUsesForFlag(Flag f) {
+bool HValue::CheckUsesForFlag(Flag f) const {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     if (it.value()->IsSimulate()) continue;
     if (!it.value()->CheckFlag(f)) return false;
@@ -397,7 +397,7 @@ bool HValue::CheckUsesForFlag(Flag f) {
 }
 
 
-bool HValue::HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) {
+bool HValue::HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const {
   bool return_value = false;
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     if (it.value()->IsSimulate()) continue;
@@ -1294,7 +1294,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
     if (val->representation().IsSmiOrInteger32()) {
       if (!val->representation().Equals(representation())) {
         HChange* result = new(block()->zone()) HChange(
-            val, representation(), false, false, false);
+            val, representation(), false, false);
         result->InsertBefore(this);
         return result;
       }
@@ -1314,7 +1314,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
       if (new_left == NULL &&
           hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
         new_left = new(block()->zone()) HChange(
-            left, Representation::Integer32(), false, false, false);
+            left, Representation::Integer32(), false, false);
         HChange::cast(new_left)->InsertBefore(this);
       }
       HValue* new_right =
@@ -1325,7 +1325,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
 #endif
           hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
         new_right = new(block()->zone()) HChange(
-            right, Representation::Integer32(), false, false, false);
+            right, Representation::Integer32(), false, false);
         HChange::cast(new_right)->InsertBefore(this);
       }
 
@@ -2785,6 +2785,18 @@ void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+void HCompareHoleAndBranch::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  HControlInstruction::PrintDataTo(stream);
+}
+
+
+void HCompareHoleAndBranch::InferRepresentation(
+    HInferRepresentationPhase* h_infer) {
+  ChangeRepresentation(object()->representation());
+}
+
+
 void HGoto::PrintDataTo(StringStream* stream) {
   stream->Add("B%d", SuccessorAt(0)->block_id());
 }
@@ -2943,18 +2955,8 @@ bool HLoadKeyed::UsesMustHandleHole() const {
 
 
 bool HLoadKeyed::AllUsesCanTreatHoleAsNaN() const {
-  if (!IsFastDoubleElementsKind(elements_kind())) {
-    return false;
-  }
-
-  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
-    HValue* use = it.value();
-    if (!use->CheckFlag(HValue::kAllowUndefinedAsNaN)) {
-      return false;
-    }
-  }
-
-  return true;
+  return IsFastDoubleElementsKind(elements_kind()) &&
+      CheckUsesForFlag(HValue::kAllowUndefinedAsNaN);
 }
 
 

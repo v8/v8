@@ -289,6 +289,8 @@ class LCodeGen BASE_EMBEDDED {
   void EmitGoto(int block);
   template<class InstrType>
   void EmitBranch(InstrType instr, Condition cc);
+  template<class InstrType>
+  void EmitFalseBranch(InstrType instr, Condition cc);
   void EmitNumberUntagD(
       Register input,
       XMMRegister result,

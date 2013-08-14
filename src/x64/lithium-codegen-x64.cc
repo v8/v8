@@ -1900,6 +1900,13 @@ void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
 }
 
 
+template<class InstrType>
+void LCodeGen::EmitFalseBranch(InstrType instr, Condition cc) {
+  int false_block = instr->FalseDestination(chunk_);
+  __ j(cc, chunk_->GetAssemblyLabel(false_block));
+}
+
+
 void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
   __ int3();
 }
@@ -2169,6 +2176,29 @@ void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
     Register right = ToRegister(instr->right());
     __ cmpq(left, right);
   }
+  EmitBranch(instr, equal);
+}
+
+
+void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
+  if (instr->hydrogen()->representation().IsTagged()) {
+    Register input_reg = ToRegister(instr->object());
+    __ Cmp(input_reg, factory()->the_hole_value());
+    EmitBranch(instr, equal);
+    return;
+  }
+
+  XMMRegister input_reg = ToDoubleRegister(instr->object());
+  __ ucomisd(input_reg, input_reg);
+  EmitFalseBranch(instr, parity_odd);
+
+  __ subq(rsp, Immediate(kDoubleSize));
+  __ movsd(MemOperand(rsp, 0), input_reg);
+  __ addq(rsp, Immediate(kDoubleSize));
+
+  int size = sizeof(kHoleNanUpper32);
+  __ cmpl(MemOperand(rsp, -size),
+         Immediate(kHoleNanUpper32));
   EmitBranch(instr, equal);
 }
 
@@ -4516,36 +4546,6 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   Register reg = ToRegister(instr->result());
   Register tmp = ToRegister(instr->temp());
 
-  bool convert_hole = false;
-  HValue* change_input = instr->hydrogen()->value();
-  if (change_input->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(change_input);
-    convert_hole = load->UsesMustHandleHole();
-  }
-
-  Label no_special_nan_handling;
-  Label done;
-  if (convert_hole) {
-    XMMRegister input_reg = ToDoubleRegister(instr->value());
-    __ ucomisd(input_reg, input_reg);
-    __ j(parity_odd, &no_special_nan_handling);
-    __ subq(rsp, Immediate(kDoubleSize));
-    __ movsd(MemOperand(rsp, 0), input_reg);
-    __ cmpl(MemOperand(rsp, sizeof(kHoleNanLower32)),
-            Immediate(kHoleNanUpper32));
-    Label canonicalize;
-    __ j(not_equal, &canonicalize);
-    __ addq(rsp, Immediate(kDoubleSize));
-    __ Move(reg, factory()->the_hole_value());
-    __ jmp(&done);
-    __ bind(&canonicalize);
-    __ addq(rsp, Immediate(kDoubleSize));
-    __ Set(kScratchRegister, BitCast<uint64_t>(
-        FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
-    __ movq(input_reg, kScratchRegister);
-  }
-
-  __ bind(&no_special_nan_handling);
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, deferred->entry());
@@ -4554,8 +4554,6 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   }
   __ bind(deferred->exit());
   __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
-
-  __ bind(&done);
 }
 
 
@@ -4599,22 +4597,20 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 XMMRegister result_reg,
-                                bool allow_undefined_as_nan,
+                                bool can_convert_undefined_to_nan,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
   Label load_smi, done;
 
-  STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
-                NUMBER_CANDIDATE_IS_ANY_TAGGED);
-  if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
 
     // Heap number map check.
     __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
-    if (!allow_undefined_as_nan) {
+    if (!can_convert_undefined_to_nan) {
       DeoptimizeIf(not_equal, env);
     } else {
       Label heap_number, convert;
@@ -4622,10 +4618,6 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
       // Convert undefined (and hole) to NaN. Compute NaN as 0/0.
       __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
-      if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE) {
-        __ j(equal, &convert, Label::kNear);
-        __ CompareRoot(input_reg, Heap::kTheHoleValueRootIndex);
-      }
       DeoptimizeIf(not_equal, env);
 
       __ bind(&convert);
@@ -4738,19 +4730,12 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   Register input_reg = ToRegister(input);
   XMMRegister result_reg = ToDoubleRegister(result);
 
-  NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
   HValue* value = instr->hydrogen()->value();
-  if (value->type().IsSmi()) {
-    mode = NUMBER_CANDIDATE_IS_SMI;
-  } else if (value->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(value);
-    if (load->UsesMustHandleHole()) {
-      mode = NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE;
-    }
-  }
+  NumberUntagDMode mode = value->representation().IsSmi()
+      ? NUMBER_CANDIDATE_IS_SMI : NUMBER_CANDIDATE_IS_ANY_TAGGED;
 
   EmitNumberUntagD(input_reg, result_reg,
-                   instr->hydrogen()->allow_undefined_as_nan(),
+                   instr->hydrogen()->can_convert_undefined_to_nan(),
                    instr->hydrogen()->deoptimize_on_minus_zero(),
                    instr->environment(),
                    mode);

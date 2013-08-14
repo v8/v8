@@ -2233,6 +2233,13 @@ void LCodeGen::EmitBranch(InstrType instr, Condition cc) {
 }
 
 
+template<class InstrType>
+void LCodeGen::EmitFalseBranch(InstrType instr, Condition cc) {
+  int false_block = instr->FalseDestination(chunk_);
+  __ j(cc, chunk_->GetAssemblyLabel(false_block));
+}
+
+
 void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsSmiOrInteger32() || r.IsDouble()) {
@@ -2479,6 +2486,46 @@ void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
     Operand right = ToOperand(instr->right());
     __ cmp(left, right);
   }
+  EmitBranch(instr, equal);
+}
+
+
+void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
+  if (instr->hydrogen()->representation().IsTagged()) {
+    Register input_reg = ToRegister(instr->object());
+    __ cmp(input_reg, factory()->the_hole_value());
+    EmitBranch(instr, equal);
+    return;
+  }
+
+  bool use_sse2 = CpuFeatures::IsSupported(SSE2);
+  if (use_sse2) {
+    CpuFeatureScope scope(masm(), SSE2);
+    XMMRegister input_reg = ToDoubleRegister(instr->object());
+    __ ucomisd(input_reg, input_reg);
+  } else {
+    // Put the value to the top of stack
+    X87Register src = ToX87Register(instr->object());
+    X87LoadForUsage(src);
+    __ fld(0);
+    __ fld(0);
+    __ FCmp();
+  }
+
+  EmitFalseBranch(instr, parity_odd);
+
+  __ sub(esp, Immediate(kDoubleSize));
+  if (use_sse2) {
+    CpuFeatureScope scope(masm(), SSE2);
+    XMMRegister input_reg = ToDoubleRegister(instr->object());
+    __ movdbl(MemOperand(esp, 0), input_reg);
+  } else {
+    __ fld(0);
+    __ fstp_d(MemOperand(esp, 0));
+  }
+
+  __ add(esp, Immediate(kDoubleSize));
+  __ cmp(MemOperand(esp, -sizeof(kHoleNanUpper32)), Immediate(kHoleNanUpper32));
   EmitBranch(instr, equal);
 }
 
@@ -4989,13 +5036,6 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
 
   Register reg = ToRegister(instr->result());
 
-  bool convert_hole = false;
-  HValue* change_input = instr->hydrogen()->value();
-  if (change_input->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(change_input);
-    convert_hole = load->UsesMustHandleHole();
-  }
-
   bool use_sse2 = CpuFeatures::IsSupported(SSE2);
   if (!use_sse2) {
     // Put the value to the top of stack
@@ -5003,54 +5043,6 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     X87LoadForUsage(src);
   }
 
-  Label no_special_nan_handling;
-  Label done;
-  if (convert_hole) {
-    if (use_sse2) {
-      CpuFeatureScope scope(masm(), SSE2);
-      XMMRegister input_reg = ToDoubleRegister(instr->value());
-      __ ucomisd(input_reg, input_reg);
-    } else {
-      __ fld(0);
-      __ fld(0);
-      __ FCmp();
-    }
-
-    __ j(parity_odd, &no_special_nan_handling);
-    __ sub(esp, Immediate(kDoubleSize));
-    if (use_sse2) {
-      CpuFeatureScope scope(masm(), SSE2);
-      XMMRegister input_reg = ToDoubleRegister(instr->value());
-      __ movdbl(MemOperand(esp, 0), input_reg);
-    } else {
-      __ fld(0);
-      __ fstp_d(MemOperand(esp, 0));
-    }
-    __ cmp(MemOperand(esp, sizeof(kHoleNanLower32)),
-           Immediate(kHoleNanUpper32));
-    Label canonicalize;
-    __ j(not_equal, &canonicalize);
-    __ add(esp, Immediate(kDoubleSize));
-    __ mov(reg, factory()->the_hole_value());
-    if (!use_sse2) {
-      __ fstp(0);
-    }
-    __ jmp(&done);
-    __ bind(&canonicalize);
-    __ add(esp, Immediate(kDoubleSize));
-    ExternalReference nan =
-        ExternalReference::address_of_canonical_non_hole_nan();
-    if (use_sse2) {
-      CpuFeatureScope scope(masm(), SSE2);
-      XMMRegister input_reg = ToDoubleRegister(instr->value());
-      __ movdbl(input_reg, Operand::StaticVariable(nan));
-    } else {
-      __ fstp(0);
-      __ fld_d(Operand::StaticVariable(nan));
-    }
-  }
-
-  __ bind(&no_special_nan_handling);
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     Register tmp = ToRegister(instr->temp());
@@ -5066,7 +5058,6 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   } else {
     __ fstp_d(FieldOperand(reg, HeapNumber::kValueOffset));
   }
-  __ bind(&done);
 }
 
 
@@ -5116,23 +5107,21 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
                                       Register temp_reg,
                                       X87Register res_reg,
-                                      bool allow_undefined_as_nan,
+                                      bool can_convert_undefined_to_nan,
                                       bool deoptimize_on_minus_zero,
                                       LEnvironment* env,
                                       NumberUntagDMode mode) {
   Label load_smi, done;
 
   X87PrepareToWrite(res_reg);
-  STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
-                NUMBER_CANDIDATE_IS_ANY_TAGGED);
-  if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
 
     // Heap number map check.
     __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
            factory()->heap_number_map());
-    if (!allow_undefined_as_nan) {
+    if (!can_convert_undefined_to_nan) {
       DeoptimizeIf(not_equal, env);
     } else {
       Label heap_number, convert;
@@ -5140,10 +5129,6 @@ void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
 
       // Convert undefined (or hole) to NaN.
       __ cmp(input_reg, factory()->undefined_value());
-      if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE) {
-        __ j(equal, &convert, Label::kNear);
-        __ cmp(input_reg, factory()->the_hole_value());
-      }
       DeoptimizeIf(not_equal, env);
 
       __ bind(&convert);
@@ -5190,22 +5175,20 @@ void LCodeGen::EmitNumberUntagDNoSSE2(Register input_reg,
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 Register temp_reg,
                                 XMMRegister result_reg,
-                                bool allow_undefined_as_nan,
+                                bool can_convert_undefined_to_nan,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
   Label load_smi, done;
 
-  STATIC_ASSERT(NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE >
-                NUMBER_CANDIDATE_IS_ANY_TAGGED);
-  if (mode >= NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
     // Smi check.
     __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
 
     // Heap number map check.
     __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
            factory()->heap_number_map());
-    if (!allow_undefined_as_nan) {
+    if (!can_convert_undefined_to_nan) {
       DeoptimizeIf(not_equal, env);
     } else {
       Label heap_number, convert;
@@ -5213,10 +5196,6 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
       // Convert undefined (and hole) to NaN.
       __ cmp(input_reg, factory()->undefined_value());
-      if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE) {
-        __ j(equal, &convert, Label::kNear);
-        __ cmp(input_reg, factory()->the_hole_value());
-      }
       DeoptimizeIf(not_equal, env);
 
       __ bind(&convert);
@@ -5541,16 +5520,9 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
       instr->hydrogen()->deoptimize_on_minus_zero();
   Register temp_reg = deoptimize_on_minus_zero ? ToRegister(temp) : no_reg;
 
-  NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
   HValue* value = instr->hydrogen()->value();
-  if (value->representation().IsSmi()) {
-    mode = NUMBER_CANDIDATE_IS_SMI;
-  } else if (value->IsLoadKeyed()) {
-    HLoadKeyed* load = HLoadKeyed::cast(value);
-    if (load->UsesMustHandleHole()) {
-      mode = NUMBER_CANDIDATE_IS_ANY_TAGGED_CONVERT_HOLE;
-    }
-  }
+  NumberUntagDMode mode = value->representation().IsSmi()
+      ? NUMBER_CANDIDATE_IS_SMI : NUMBER_CANDIDATE_IS_ANY_TAGGED;
 
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
@@ -5558,7 +5530,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
     EmitNumberUntagD(input_reg,
                      temp_reg,
                      result_reg,
-                     instr->hydrogen()->allow_undefined_as_nan(),
+                     instr->hydrogen()->can_convert_undefined_to_nan(),
                      deoptimize_on_minus_zero,
                      instr->environment(),
                      mode);
@@ -5566,7 +5538,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
     EmitNumberUntagDNoSSE2(input_reg,
                            temp_reg,
                            ToX87Register(instr->result()),
-                           instr->hydrogen()->allow_undefined_as_nan(),
+                           instr->hydrogen()->can_convert_undefined_to_nan(),
                            deoptimize_on_minus_zero,
                            instr->environment(),
                            mode);

@@ -4717,7 +4717,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     __ Move(reg, scratch0(), input_reg);
     Label canonicalize;
     __ Branch(&canonicalize, ne, scratch0(), Operand(kHoleNanUpper32));
-    __ li(reg, factory()->the_hole_value());
+    __ li(reg, factory()->undefined_value());
     __ Branch(&done);
     __ bind(&canonicalize);
     __ Move(input_reg,
