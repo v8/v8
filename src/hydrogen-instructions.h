@@ -3841,6 +3841,10 @@ class HMathFloorOfDiv: public HBinaryOperation {
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Integer32();
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv)
 
  protected:
