@@ -2511,7 +2511,7 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
   } else {
     // Put the value to the top of stack
     X87Register src = ToX87Register(instr->object());
-    X87Fxch(src);
+    X87LoadForUsage(src);
     __ fld(0);
     __ fld(0);
     __ FCmp();
