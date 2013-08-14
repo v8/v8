@@ -2506,7 +2506,7 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
   } else {
     // Put the value to the top of stack
     X87Register src = ToX87Register(instr->object());
-    X87LoadForUsage(src);
+    X87Fxch(src);
     __ fld(0);
     __ fld(0);
     __ FCmp();
@@ -2525,7 +2525,8 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
   }
 
   __ add(esp, Immediate(kDoubleSize));
-  __ cmp(MemOperand(esp, -sizeof(kHoleNanUpper32)), Immediate(kHoleNanUpper32));
+  int offset = sizeof(kHoleNanUpper32);
+  __ cmp(MemOperand(esp, -offset), Immediate(kHoleNanUpper32));
   EmitBranch(instr, equal);
 }
 

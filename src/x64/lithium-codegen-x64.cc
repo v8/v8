@@ -2196,9 +2196,8 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
   __ movsd(MemOperand(rsp, 0), input_reg);
   __ addq(rsp, Immediate(kDoubleSize));
 
-  int size = sizeof(kHoleNanUpper32);
-  __ cmpl(MemOperand(rsp, -size),
-         Immediate(kHoleNanUpper32));
+  int offset = sizeof(kHoleNanUpper32);
+  __ cmpl(MemOperand(rsp, -offset), Immediate(kHoleNanUpper32));
   EmitBranch(instr, equal);
 }
 
