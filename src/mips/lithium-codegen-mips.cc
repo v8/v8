@@ -4405,12 +4405,13 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         scratch, GetRAState(), kDontSaveFPRegs);
   } else {
-    PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+    PushSafepointRegistersScope scope(
+        this, Safepoint::kWithRegistersAndDoubles);
     __ mov(a0, object_reg);
     __ li(a1, Operand(to_map));
     TransitionElementsKindStub stub(from_kind, to_kind);
     __ CallStub(&stub);
-    RecordSafepointWithRegisters(
+    RecordSafepointWithRegistersAndDoubles(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
   }
   __ bind(&not_applicable);
@@ -4716,7 +4717,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     __ Move(reg, scratch0(), input_reg);
     Label canonicalize;
     __ Branch(&canonicalize, ne, scratch0(), Operand(kHoleNanUpper32));
-    __ li(reg, factory()->the_hole_value());
+    __ li(reg, factory()->undefined_value());
     __ Branch(&done);
     __ bind(&canonicalize);
     __ Move(input_reg,

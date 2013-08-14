@@ -97,6 +97,7 @@ class LChunkBuilder;
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareNumericAndBranch)                   \
+  V(CompareHoleAndBranch)                      \
   V(CompareGeneric)                            \
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
@@ -801,10 +802,10 @@ class HValue: public ZoneObject {
   bool CheckFlag(Flag f) const { return (flags_ & (1 << f)) != 0; }
 
   // Returns true if the flag specified is set for all uses, false otherwise.
-  bool CheckUsesForFlag(Flag f);
+  bool CheckUsesForFlag(Flag f) const;
   // Returns true if the flag specified is set for all uses, and this set
   // of uses is non-empty.
-  bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f);
+  bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const;
 
   GVNFlagSet gvn_flags() const { return gvn_flags_; }
   void SetGVNFlag(GVNFlag f) { gvn_flags_.Add(f); }
@@ -1521,15 +1522,13 @@ class HChange: public HUnaryOperation {
   HChange(HValue* value,
           Representation to,
           bool is_truncating_to_smi,
-          bool is_truncating_to_int32,
-          bool allow_undefined_as_nan)
+          bool is_truncating_to_int32)
       : HUnaryOperation(value) {
     ASSERT(!value->representation().IsNone());
     ASSERT(!to.IsNone());
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
-    if (allow_undefined_as_nan) SetFlag(kAllowUndefinedAsNaN);
     if (is_truncating_to_smi) SetFlag(kTruncatingToSmi);
     if (is_truncating_to_int32) SetFlag(kTruncatingToInt32);
     if (value->representation().IsSmi() || value->type().IsSmi()) {
@@ -1540,15 +1539,16 @@ class HChange: public HUnaryOperation {
     }
   }
 
+  bool can_convert_undefined_to_nan() {
+    return CheckUsesForFlag(kAllowUndefinedAsNaN);
+  }
+
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
   virtual HType CalculateInferredType();
   virtual HValue* Canonicalize();
 
   Representation from() const { return value()->representation(); }
   Representation to() const { return representation(); }
-  bool allow_undefined_as_nan() const {
-    return CheckFlag(kAllowUndefinedAsNaN);
-  }
   bool deoptimize_on_minus_zero() const {
     return CheckFlag(kBailoutOnMinusZero);
   }
@@ -2433,21 +2433,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     }
   }
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) {
-    if (flexible_int() && !new_rep.IsSmi()) {
-      new_rep = Representation::Integer32();
-    }
-    HValue::UpdateRepresentation(new_rep, h_infer, reason);
-  }
-
-  virtual void RepresentationChanged(Representation new_rep) {
-    if (flexible_int() && new_rep.IsInteger32()) {
-      ClearFlag(kFlexibleRepresentation);
-    }
-  }
-
   virtual Range* InferRange(Zone* zone);
 
   virtual HValue* Canonicalize();
@@ -2465,10 +2450,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
   }
 
  private:
-  bool flexible_int() {
-    return op_ == kMathFloor || op_ == kMathRound;
-  }
-
   HUnaryMathOperation(HValue* context, HValue* value, BuiltinFunctionId op)
       : HTemplateInstruction<2>(HType::TaggedNumber()), op_(op) {
     SetOperandAt(0, context);
@@ -2476,8 +2457,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     switch (op) {
       case kMathFloor:
       case kMathRound:
-        set_representation(Representation::Smi());
-        SetFlag(kFlexibleRepresentation);
+        set_representation(Representation::Integer32());
         break;
       case kMathAbs:
         // Not setting representation here: it is None intentionally.
@@ -3250,8 +3230,9 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   bool InstanceOf(Handle<Map> map) {
-    return handle_->IsJSObject() &&
-        Handle<JSObject>::cast(handle_)->map() == *map;
+    Handle<Object> constant_object = handle();
+    return constant_object->IsJSObject() &&
+        Handle<JSObject>::cast(constant_object)->map() == *map;
   }
 
   bool IsSpecialDouble() const {
@@ -3979,6 +3960,32 @@ class HCompareNumericAndBranch: public HTemplateControlInstruction<2, 2> {
 };
 
 
+class HCompareHoleAndBranch: public HTemplateControlInstruction<2, 1> {
+ public:
+  // TODO(danno): make this private when the IfBuilder properly constructs
+  // control flow instructions.
+  explicit HCompareHoleAndBranch(HValue* object) {
+    SetFlag(kFlexibleRepresentation);
+    SetFlag(kAllowUndefinedAsNaN);
+    SetOperandAt(0, object);
+  }
+
+  DECLARE_INSTRUCTION_FACTORY_P1(HCompareHoleAndBranch, HValue*);
+
+  HValue* object() { return OperandAt(0); }
+
+  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return representation();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareHoleAndBranch)
+};
+
+
 class HCompareObjectEqAndBranch: public HTemplateControlInstruction<2, 2> {
  public:
   // TODO(danno): make this private when the IfBuilder properly constructs
@@ -4360,6 +4367,11 @@ class HAdd: public HArithmeticBinaryOperation {
     } else {
       return false;
     }
+  }
+
+  virtual void RepresentationChanged(Representation to) {
+    if (to.IsTagged()) ClearFlag(kAllowUndefinedAsNaN);
+    HArithmeticBinaryOperation::RepresentationChanged(to);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Add)

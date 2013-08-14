@@ -25,51 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HYDROGEN_MARK_DEOPTIMIZE_H_
-#define V8_HYDROGEN_MARK_DEOPTIMIZE_H_
+// Flags: --allow-natives-syntax
 
-#include "hydrogen.h"
+function f() {
+  var end = 1073741823;  // 2^30 - 1
+  var start = end - 100000;  // Run long enough to trigger OSR.
+  for (var i = start; i <= end; ++i) {
+    assertTrue(i >= start);  // No overflow allowed!
+  }
+}
 
-namespace v8 {
-namespace internal {
-
-
-// Compute DeoptimizeOnUndefined flag for phis.  Any phi that can reach a use
-// with DeoptimizeOnUndefined set must have DeoptimizeOnUndefined set.
-// Currently only HCompareNumericAndBranch, with double input representation,
-// has this flag set.  The flag is used by HChange tagged->double, which must
-// deoptimize if one of its uses has this flag set.
-class HMarkDeoptimizeOnUndefinedPhase : public HPhase {
- public:
-  explicit HMarkDeoptimizeOnUndefinedPhase(HGraph* graph)
-      : HPhase("H_Mark deoptimize on undefined", graph),
-        worklist_(16, zone()) {}
-
-  void Run();
-
- private:
-  void ProcessPhi(HPhi* phi);
-
-  // Preallocated worklist used as an optimization so we don't have
-  // to allocate a new ZoneList for every ProcessPhi() invocation.
-  ZoneList<HPhi*> worklist_;
-
-  DISALLOW_COPY_AND_ASSIGN(HMarkDeoptimizeOnUndefinedPhase);
-};
-
-
-class HComputeChangeUndefinedToNaN : public HPhase {
- public:
-  explicit HComputeChangeUndefinedToNaN(HGraph* graph)
-      : HPhase("H_Compute change undefined to nan", graph) {}
-
-  void Run();
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(HComputeChangeUndefinedToNaN);
-};
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_HYDROGEN_MARK_DEOPTIMIZE_H_
+f();

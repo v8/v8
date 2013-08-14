@@ -24,52 +24,63 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Flags: --allow-natives-syntax --notrack-allocation-sites
 
-#ifndef V8_HYDROGEN_MARK_DEOPTIMIZE_H_
-#define V8_HYDROGEN_MARK_DEOPTIMIZE_H_
+// Test adding undefined from hole in double-holey to string.
+var a = [1.5, , 1.8];
 
-#include "hydrogen.h"
+function f(a, i, l) {
+  var v = a[i];
+  return l + v;
+}
 
-namespace v8 {
-namespace internal {
+assertEquals("test1.5", f(a, 0, "test"));
+assertEquals("test1.5", f(a, 0, "test"));
+%OptimizeFunctionOnNextCall(f);
+assertEquals("testundefined", f(a, 1, "test"));
 
+// Test double-hole going through a phi to a string-add.
+function f2(b, a1, a2) {
+  var v;
+  if (b) {
+    v = a1[0];
+  } else {
+    v = a2[0];
+  }
+  x = v * 2;
+  return "test" + v + x;
+}
 
-// Compute DeoptimizeOnUndefined flag for phis.  Any phi that can reach a use
-// with DeoptimizeOnUndefined set must have DeoptimizeOnUndefined set.
-// Currently only HCompareNumericAndBranch, with double input representation,
-// has this flag set.  The flag is used by HChange tagged->double, which must
-// deoptimize if one of its uses has this flag set.
-class HMarkDeoptimizeOnUndefinedPhase : public HPhase {
- public:
-  explicit HMarkDeoptimizeOnUndefinedPhase(HGraph* graph)
-      : HPhase("H_Mark deoptimize on undefined", graph),
-        worklist_(16, zone()) {}
+f2(true, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
+f2(true, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
+f2(false, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
+f2(false, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
+%OptimizeFunctionOnNextCall(f2);
+assertEquals("testundefinedNaN", f2(false, [,1.8,,1.9], [,1.9,,1.9]));
 
-  void Run();
+// Test converting smi-hole to double-hole.
+function t_smi(a) {
+  a[0] = 1.5;
+}
 
- private:
-  void ProcessPhi(HPhi* phi);
+t_smi([1,,3]);
+t_smi([1,,3]);
+t_smi([1,,3]);
+%OptimizeFunctionOnNextCall(t_smi);
+var ta = [1,,3];
+t_smi(ta);
+ta.__proto__ = [6,6,6];
+assertEquals([1.5,6,3], ta);
 
-  // Preallocated worklist used as an optimization so we don't have
-  // to allocate a new ZoneList for every ProcessPhi() invocation.
-  ZoneList<HPhi*> worklist_;
+// Test converting double-hole to tagged-hole.
+function t(b) {
+  b[1] = {};
+}
 
-  DISALLOW_COPY_AND_ASSIGN(HMarkDeoptimizeOnUndefinedPhase);
-};
-
-
-class HComputeChangeUndefinedToNaN : public HPhase {
- public:
-  explicit HComputeChangeUndefinedToNaN(HGraph* graph)
-      : HPhase("H_Compute change undefined to nan", graph) {}
-
-  void Run();
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(HComputeChangeUndefinedToNaN);
-};
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_HYDROGEN_MARK_DEOPTIMIZE_H_
+t([1.4, 1.6,,1.8, NaN]);
+t([1.4, 1.6,,1.8, NaN]);
+%OptimizeFunctionOnNextCall(t);
+var a = [1.6, 1.8,,1.9, NaN];
+t(a);
+a.__proto__ = [6,6,6,6,6];
+assertEquals([1.6, {}, 6, 1.9, NaN], a);

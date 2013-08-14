@@ -1,3 +1,11 @@
+2013-08-14: Version 3.20.17
+
+        Fixed Math.round/floor that had bogus Smi representation
+        (Chromium issue 272564)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-13: Version 3.20.16
 
         Fixed bug in HPhi::SimplifyConstantInput (Chromium issue 269679)

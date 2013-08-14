@@ -1635,13 +1635,26 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
                                     from_elements_kind,
                                     ALLOW_RETURN_HOLE);
 
-  ElementsKind holey_kind = IsFastSmiElementsKind(to_elements_kind)
+  ElementsKind kind = (IsHoleyElementsKind(from_elements_kind) &&
+                       IsFastSmiElementsKind(to_elements_kind))
       ? FAST_HOLEY_ELEMENTS : to_elements_kind;
-  HInstruction* holey_store = Add<HStoreKeyed>(to_elements, key,
-                                               element, holey_kind);
-  // Allow NaN hole values to converted to their tagged counterparts.
-  if (IsFastHoleyElementsKind(to_elements_kind)) {
-    holey_store->SetFlag(HValue::kAllowUndefinedAsNaN);
+
+  if (IsHoleyElementsKind(from_elements_kind) &&
+      from_elements_kind != to_elements_kind) {
+    IfBuilder if_hole(this);
+    if_hole.If<HCompareHoleAndBranch>(element);
+    if_hole.Then();
+    HConstant* hole_constant = IsFastDoubleElementsKind(to_elements_kind)
+        ? Add<HConstant>(FixedDoubleArray::hole_nan_as_double())
+        : graph()->GetConstantHole();
+    Add<HStoreKeyed>(to_elements, key, hole_constant, kind);
+    if_hole.Else();
+    HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
+    store->SetFlag(HValue::kAllowUndefinedAsNaN);
+    if_hole.End();
+  } else {
+    HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
+    store->SetFlag(HValue::kAllowUndefinedAsNaN);
   }
 
   builder.EndBody();
@@ -2956,6 +2969,7 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
 
   if (FLAG_use_range) Run<HRangeAnalysisPhase>();
 
+  Run<HComputeChangeUndefinedToNaN>();
   Run<HComputeMinusZeroChecksPhase>();
 
   // Eliminate redundant stack checks on backwards branches.
