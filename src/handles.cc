@@ -208,17 +208,6 @@ Handle<String> FlattenGetString(Handle<String> string) {
 }
 
 
-Handle<Object> SetPrototype(Handle<JSFunction> function,
-                            Handle<Object> prototype) {
-  ASSERT(function->should_have_prototype());
-  CALL_HEAP_FUNCTION(function->GetIsolate(),
-                     Accessors::FunctionSetPrototype(*function,
-                                                     *prototype,
-                                                     NULL),
-                     Object);
-}
-
-
 Handle<Object> SetProperty(Isolate* isolate,
                            Handle<Object> object,
                            Handle<Object> key,

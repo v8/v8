@@ -440,10 +440,21 @@ const AccessorDescriptor Accessors::ScriptEvalFromFunctionName = {
 //
 
 
-Handle<Object> Accessors::FunctionGetPrototype(Handle<Object> object) {
-  Isolate* isolate = Isolate::Current();
-  CALL_HEAP_FUNCTION(
-      isolate, Accessors::FunctionGetPrototype(*object, 0), Object);
+Handle<Object> Accessors::FunctionGetPrototype(Handle<JSFunction> function) {
+  CALL_HEAP_FUNCTION(function->GetIsolate(),
+                     Accessors::FunctionGetPrototype(*function, NULL),
+                     Object);
+}
+
+
+Handle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
+                                               Handle<Object> prototype) {
+  ASSERT(function->should_have_prototype());
+  CALL_HEAP_FUNCTION(function->GetIsolate(),
+                     Accessors::FunctionSetPrototype(*function,
+                                                     *prototype,
+                                                     NULL),
+                     Object);
 }
 
 
@@ -575,10 +586,10 @@ const AccessorDescriptor Accessors::FunctionName = {
 //
 
 
-Handle<Object> Accessors::FunctionGetArguments(Handle<Object> object) {
-  Isolate* isolate = Isolate::Current();
-  CALL_HEAP_FUNCTION(
-      isolate, Accessors::FunctionGetArguments(*object, 0), Object);
+Handle<Object> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
+  CALL_HEAP_FUNCTION(function->GetIsolate(),
+                     Accessors::FunctionGetArguments(*function, NULL),
+                     Object);
 }
 
 

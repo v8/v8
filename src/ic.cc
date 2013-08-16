@@ -925,7 +925,7 @@ MaybeObject* LoadIC::Load(State state,
         if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
 #endif
       }
-      return *Accessors::FunctionGetPrototype(object);
+      return *Accessors::FunctionGetPrototype(Handle<JSFunction>::cast(object));
     }
   }
 

@@ -2780,16 +2780,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetLength) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetPrototype) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
-  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   ASSERT(fun->should_have_prototype());
-  Object* obj;
-  { MaybeObject* maybe_obj =
-        Accessors::FunctionSetPrototype(fun, args[1], NULL);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  Accessors::FunctionSetPrototype(fun, value);
   return args[0];  // return TOS
 }
 
