@@ -34,7 +34,7 @@
  * Intl object is a single object that has some named properties,
  * all of which are constructors.
  */
-Object.defineProperty(this, "Intl", { enumerable: false, value: (function() {
+var Intl = (function() {
 
 'use strict';
 
