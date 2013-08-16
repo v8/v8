@@ -4081,6 +4081,7 @@ class HStringCompareAndBranch: public HTemplateControlInstruction<2, 3> {
     SetOperandAt(1, left);
     SetOperandAt(2, right);
     set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   HValue* context() { return OperandAt(0); }

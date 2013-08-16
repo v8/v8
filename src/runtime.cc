@@ -8635,6 +8635,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAllocationTimeout) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+#ifdef DEBUG
+  CONVERT_SMI_ARG_CHECKED(interval, 0);
+  CONVERT_SMI_ARG_CHECKED(timeout, 1);
+  isolate->heap()->set_allocation_timeout(timeout);
+  FLAG_gc_interval = interval;
+#endif
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
