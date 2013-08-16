@@ -368,7 +368,7 @@ class HGraph: public ZoneObject {
     return NULL;
   }
 
-  bool Optimize(SmartArrayPointer<char>* bailout_reason);
+  bool Optimize(BailoutReason* bailout_reason);
 
 #ifdef DEBUG
   void Verify(bool do_full_verify) const;
@@ -1266,7 +1266,8 @@ class HGraphBuilder {
 
   void PushAndAdd(HInstruction* instr);
 
-  void FinishExitWithHardDeoptimization(HBasicBlock* continuation);
+  void FinishExitWithHardDeoptimization(const char* reason,
+                                        HBasicBlock* continuation);
 
   void AddIncrementCounter(StatsCounter* counter,
                            HValue* context);
@@ -1370,10 +1371,10 @@ class HGraphBuilder {
     void Else();
     void End();
 
-    void Deopt();
-    void ElseDeopt() {
+    void Deopt(const char* reason);
+    void ElseDeopt(const char* reason) {
       Else();
-      Deopt();
+      Deopt(reason);
     }
 
     void Return(HValue* value);
@@ -1532,9 +1533,6 @@ class HGraphBuilder {
                                  ElementsKind kind,
                                  int length);
 
-  HInstruction* BuildUnaryMathOp(
-      HValue* value, Handle<Type> type, Token::Value token);
-
   void BuildCompareNil(
       HValue* value,
       Handle<Type> type,
@@ -1544,6 +1542,10 @@ class HGraphBuilder {
   HValue* BuildCreateAllocationMemento(HValue* previous_object,
                                        int previous_object_size,
                                        HValue* payload);
+
+  void BuildConstantMapCheck(Handle<JSObject> constant, CompilationInfo* info);
+  void BuildCheckPrototypeMaps(Handle<JSObject> prototype,
+                               Handle<JSObject> holder);
 
   HInstruction* BuildGetNativeContext();
   HInstruction* BuildGetArrayFunction();
@@ -1562,13 +1564,13 @@ class HGraphBuilder {
 
 template<>
 inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
-    Deoptimizer::BailoutType type) {
+    const char* reason, Deoptimizer::BailoutType type) {
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_requested()->Increment();
     if (FLAG_always_opt) return NULL;
   }
   if (current_block()->IsDeoptimizing()) return NULL;
-  HDeoptimize* instr = New<HDeoptimize>(type);
+  HDeoptimize* instr = New<HDeoptimize>(reason, type);
   AddInstruction(instr);
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_inserted()->Increment();
@@ -1581,8 +1583,8 @@ inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
 
 template<>
 inline HDeoptimize* HGraphBuilder::Add<HDeoptimize>(
-    Deoptimizer::BailoutType type) {
-  return static_cast<HDeoptimize*>(AddUncasted<HDeoptimize>(type));
+    const char* reason, Deoptimizer::BailoutType type) {
+  return static_cast<HDeoptimize*>(AddUncasted<HDeoptimize>(reason, type));
 }
 
 
@@ -1707,7 +1709,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
   HValue* context() { return environment()->context(); }
 
-  void Bailout(const char* reason);
+  void Bailout(BailoutReason reason);
 
   HBasicBlock* CreateJoin(HBasicBlock* first,
                           HBasicBlock* second,
@@ -1788,8 +1790,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);
   void VisitTypeof(UnaryOperation* expr);
-  void VisitSub(UnaryOperation* expr);
-  void VisitBitNot(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
 
   void VisitComma(BinaryOperation* expr);

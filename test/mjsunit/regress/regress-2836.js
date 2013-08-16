@@ -24,48 +24,15 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-#ifndef V8_EXTENSIONS_I18N_DATE_FORMAT_H_
-#define V8_EXTENSIONS_I18N_DATE_FORMAT_H_
+// Flags: --allow-natives-syntax
 
-#include "unicode/uversion.h"
-#include "v8.h"
-
-namespace U_ICU_NAMESPACE {
-class SimpleDateFormat;
+function f() {
+  var end = 1073741823;  // 2^30 - 1
+  var start = end - 100000;  // Run long enough to trigger OSR.
+  for (var i = start; i <= end; ++i) {
+    assertTrue(i >= start);  // No overflow allowed!
+  }
 }
 
-namespace v8_i18n {
-
-class DateFormat {
- public:
-  static void JSCreateDateTimeFormat(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  // Helper methods for various bindings.
-
-  // Unpacks date format object from corresponding JavaScript object.
-  static icu::SimpleDateFormat* UnpackDateFormat(
-      v8::Handle<v8::Object> obj);
-
-  // Release memory we allocated for the DateFormat once the JS object that
-  // holds the pointer gets garbage collected.
-  static void DeleteDateFormat(v8::Isolate* isolate,
-                               v8::Persistent<v8::Object>* object,
-                               void* param);
-
-  // Formats date and returns corresponding string.
-  static void JSInternalFormat(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  // Parses date and returns corresponding Date object or undefined if parse
-  // failed.
-  static void JSInternalParse(const v8::FunctionCallbackInfo<v8::Value>& args);
-
- private:
-  DateFormat();
-};
-
-}  // namespace v8_i18n
-
-#endif  // V8_EXTENSIONS_I18N_DATE_FORMAT_H_
+f();

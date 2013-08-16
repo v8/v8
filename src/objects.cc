@@ -2719,6 +2719,7 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
       Handle<Map>(new_map);
       return maybe_map;
     }
+    new_map->set_migration_target(true);
   }
 
   new_map->set_owns_descriptors(true);
@@ -6517,6 +6518,7 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
 
   result->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
   result->set_dictionary_map(true);
+  result->set_migration_target(false);
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && result->is_shared()) {
@@ -9220,6 +9222,7 @@ void JSFunction::MarkForLazyRecompilation() {
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
+  ASSERT(!shared()->is_generator());
   set_code_no_write_barrier(
       GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile));
   // No write barrier required, since the builtin is part of the root set.
@@ -9230,10 +9233,8 @@ void JSFunction::MarkForParallelRecompilation() {
   ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  if (!FLAG_parallel_recompilation) {
-    JSFunction::MarkForLazyRecompilation();
-    return;
-  }
+  ASSERT(!shared()->is_generator());
+  ASSERT(FLAG_parallel_recompilation);
   if (FLAG_trace_parallel_recompilation) {
     PrintF("  ** Marking ");
     PrintName();
@@ -9804,7 +9805,7 @@ void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
 }
 
 
-void SharedFunctionInfo::DisableOptimization(const char* reason) {
+void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   // Disable optimization for the shared function info and mark the
   // code as non-optimizable. The marker on the shared function info
   // is there because we flush non-optimized code thereby loosing the
@@ -9822,7 +9823,7 @@ void SharedFunctionInfo::DisableOptimization(const char* reason) {
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for ");
     ShortPrint();
-    PrintF(", reason: %s]\n", reason);
+    PrintF(", reason: %s]\n", GetBailoutReason(reason));
   }
 }
 
@@ -10635,7 +10636,14 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
-        case Translation::ARGUMENTS_OBJECT: {
+        case Translation::DUPLICATED_OBJECT: {
+          int object_index = iterator.Next();
+          PrintF(out, "{object_index=%d}", object_index);
+          break;
+        }
+
+        case Translation::ARGUMENTS_OBJECT:
+        case Translation::CAPTURED_OBJECT: {
           int args_length = iterator.Next();
           PrintF(out, "{length=%d}", args_length);
           break;
@@ -10793,18 +10801,17 @@ void Code::Disassemble(const char* name, FILE* out) {
     // If there is no back edge table, the "table start" will be at or after
     // (due to alignment) the end of the instruction stream.
     if (static_cast<int>(offset) < instruction_size()) {
-      Address back_edge_cursor = instruction_start() + offset;
-      uint32_t table_length = Memory::uint32_at(back_edge_cursor);
-      PrintF(out, "Back edges (size = %u)\n", table_length);
+      FullCodeGenerator::BackEdgeTableIterator back_edges(this);
+
+      PrintF(out, "Back edges (size = %u)\n", back_edges.table_length());
       PrintF(out, "ast_id  pc_offset  loop_depth\n");
-      for (uint32_t i = 0; i < table_length; ++i) {
-        uint32_t ast_id = Memory::uint32_at(back_edge_cursor);
-        uint32_t pc_offset = Memory::uint32_at(back_edge_cursor + kIntSize);
-        uint32_t loop_depth = Memory::uint32_at(back_edge_cursor +
-                                                2 * kIntSize);
-        PrintF(out, "%6u  %9u  %10u\n", ast_id, pc_offset, loop_depth);
-        back_edge_cursor += FullCodeGenerator::kBackEdgeEntrySize;
+
+      for ( ; !back_edges.Done(); back_edges.Next()) {
+        PrintF(out, "%6d  %9u  %10u\n", back_edges.ast_id().ToInt(),
+                                        back_edges.pc_offset(),
+                                        back_edges.loop_depth());
       }
+
       PrintF(out, "\n");
     }
 #ifdef OBJECT_PRINT
@@ -11347,6 +11354,7 @@ bool DependentCode::Contains(DependencyGroup group, Code* code) {
 void DependentCode::DeoptimizeDependentCodeGroup(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
+  ASSERT(AllowCodeDependencyChange::IsAllowed());
   DisallowHeapAllocation no_allocation_scope;
   DependentCode::GroupStartIndexes starts(this);
   int start = starts.at(group);
@@ -15961,6 +15969,17 @@ void PropertyCell::AddDependentCode(Handle<Code> code) {
       Handle<DependentCode>(dependent_code()),
       DependentCode::kPropertyCellChangedGroup, code);
   if (*codes != dependent_code()) set_dependent_code(*codes);
+}
+
+
+const char* GetBailoutReason(BailoutReason reason) {
+  ASSERT(reason < kLastErrorMessage);
+#define ERROR_MESSAGES_TEXTS(C, T) T,
+  static const char* error_messages_[] = {
+      ERROR_MESSAGES_LIST(ERROR_MESSAGES_TEXTS)
+  };
+#undef ERROR_MESSAGES_TEXTS
+  return error_messages_[reason];
 }
 
 

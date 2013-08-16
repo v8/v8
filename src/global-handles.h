@@ -31,6 +31,7 @@
 #include "../include/v8.h"
 #include "../include/v8-profiler.h"
 
+#include "handles.h"
 #include "list.h"
 #include "v8utils.h"
 
@@ -328,6 +329,76 @@ class GlobalHandles {
   friend class Isolate;
 
   DISALLOW_COPY_AND_ASSIGN(GlobalHandles);
+};
+
+
+class EternalHandles {
+ public:
+  enum SingletonHandle {
+    I18N_TEMPLATE_ONE,
+    I18N_TEMPLATE_TWO,
+
+    NUMBER_OF_SINGLETON_HANDLES
+  };
+
+  EternalHandles();
+  ~EternalHandles();
+
+  int NumberOfHandles() { return size_; }
+
+  // Create an EternalHandle, returning the index.
+  int Create(Isolate* isolate, Object* object);
+
+  // Grab the handle for an existing EternalHandle.
+  inline Handle<Object> Get(int index) {
+    return Handle<Object>(GetLocation(index));
+  }
+
+  // Grab the handle for an existing SingletonHandle.
+  inline Handle<Object> GetSingleton(SingletonHandle singleton) {
+    ASSERT(Exists(singleton));
+    return Get(singleton_handles_[singleton]);
+  }
+
+  // Checks whether a SingletonHandle has been assigned.
+  inline bool Exists(SingletonHandle singleton) {
+    return singleton_handles_[singleton] != kInvalidIndex;
+  }
+
+  // Assign a SingletonHandle to an empty slot and returns the handle.
+  Handle<Object> CreateSingleton(Isolate* isolate,
+                                 Object* object,
+                                 SingletonHandle singleton) {
+    ASSERT(singleton_handles_[singleton] == kInvalidIndex);
+    singleton_handles_[singleton] = Create(isolate, object);
+    return Get(singleton_handles_[singleton]);
+  }
+
+  // Iterates over all handles.
+  void IterateAllRoots(ObjectVisitor* visitor);
+  // Iterates over all handles which might be in new space.
+  void IterateNewSpaceRoots(ObjectVisitor* visitor);
+  // Rebuilds new space list.
+  void PostGarbageCollectionProcessing(Heap* heap);
+
+ private:
+  static const int kInvalidIndex = -1;
+  static const int kShift = 8;
+  static const int kSize = 1 << kShift;
+  static const int kMask = 0xff;
+
+  // Gets the slot for an index
+  inline Object** GetLocation(int index) {
+    ASSERT(index >= 0 && index < size_);
+    return &blocks_[index >> kShift][index & kMask];
+  }
+
+  int size_;
+  List<Object**> blocks_;
+  List<int> new_space_indices_;
+  int singleton_handles_[NUMBER_OF_SINGLETON_HANDLES];
+
+  DISALLOW_COPY_AND_ASSIGN(EternalHandles);
 };
 
 

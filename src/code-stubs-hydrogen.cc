@@ -41,13 +41,13 @@ static LChunk* OptimizeGraph(HGraph* graph) {
   DisallowHandleDereference no_deref;
 
   ASSERT(graph != NULL);
-  SmartArrayPointer<char> bailout_reason;
+  BailoutReason bailout_reason = kNoReason;
   if (!graph->Optimize(&bailout_reason)) {
-    FATAL(bailout_reason.is_empty() ? "unknown" : *bailout_reason);
+    FATAL(GetBailoutReason(bailout_reason));
   }
   LChunk* chunk = LChunk::NewChunk(graph);
   if (chunk == NULL) {
-    FATAL(graph->info()->bailout_reason());
+    FATAL(GetBailoutReason(graph->info()->bailout_reason()));
   }
   return chunk;
 }
@@ -92,7 +92,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
     }
 
     ~ArrayContextChecker() {
-      checker_.ElseDeopt();
+      checker_.ElseDeopt("Array constructor called from different context");
       checker_.End();
     }
    private:
@@ -233,7 +233,7 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
     IfBuilder builder(this);
     builder.IfNot<HCompareObjectEqAndBranch, HValue*>(undefined, undefined);
     builder.Then();
-    builder.ElseDeopt();
+    builder.ElseDeopt("Forced deopt to runtime");
     return undefined;
   }
 
@@ -387,7 +387,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
                                                length));
   }
 
-  checker.ElseDeopt();
+  checker.ElseDeopt("Uninitialized boilerplate literals");
   checker.End();
 
   return environment()->Pop();
@@ -434,7 +434,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   }
 
   environment()->Push(object);
-  checker.ElseDeopt();
+  checker.ElseDeopt("Uninitialized boilerplate in fast clone");
   checker.End();
 
   return environment()->Pop();
@@ -802,44 +802,6 @@ Handle<Code> CompareNilICStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<UnaryOpStub>::BuildCodeInitializedStub() {
-  UnaryOpStub* stub = casted_stub();
-  Handle<Type> type = stub->GetType(graph()->isolate());
-  HValue* input = GetParameter(0);
-
-  // Prevent unwanted HChange being inserted to ensure that the stub
-  // deopts on newly encountered types.
-  if (!type->Maybe(Type::Double())) {
-    input = Add<HForceRepresentation>(input, Representation::Smi());
-  }
-
-  if (!type->Is(Type::Number())) {
-    // If we expect to see other things than Numbers, we will create a generic
-    // stub, which handles all numbers and calls into the runtime for the rest.
-    IfBuilder if_number(this);
-    if_number.If<HIsNumberAndBranch>(input);
-    if_number.Then();
-    HInstruction* res = BuildUnaryMathOp(input, type, stub->operation());
-    if_number.Return(AddInstruction(res));
-    if_number.Else();
-    HValue* function = AddLoadJSBuiltin(stub->ToJSBuiltin());
-    Add<HPushArgument>(GetParameter(0));
-    HValue* result = Add<HInvokeFunction>(function, 1);
-    if_number.Return(result);
-    if_number.End();
-    return graph()->GetConstantUndefined();
-  }
-
-  return AddInstruction(BuildUnaryMathOp(input, type, stub->operation()));
-}
-
-
-Handle<Code> UnaryOpStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
 HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
   ToBooleanStub* stub = casted_stub();
 
@@ -882,7 +844,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     IfBuilder builder(this);
     builder.If<HCompareObjectEqAndBranch>(cell_contents, value);
     builder.Then();
-    builder.ElseDeopt();
+    builder.ElseDeopt("Unexpected cell contents in constant global store");
     builder.End();
   } else {
     // Load the payload of the global parameter cell. A hole indicates that the
@@ -892,7 +854,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     HValue* hole_value = Add<HConstant>(hole);
     builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
     builder.Then();
-    builder.Deopt();
+    builder.Deopt("Unexpected cell contents in global store");
     builder.Else();
     Add<HStoreNamedField>(cell, access, value);
     builder.End();
@@ -916,7 +878,8 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
-    Add<HDeoptimize>(Deoptimizer::EAGER);
+    Add<HDeoptimize>("Deopt due to --trace-elements-transitions",
+                     Deoptimizer::EAGER);
   } else {
     info()->MarkAsSavesCallerDoubles();
 

@@ -72,7 +72,6 @@ class LChunkBuilder;
   V(ArgumentsLength)                           \
   V(ArgumentsObject)                           \
   V(Bitwise)                                   \
-  V(BitNot)                                    \
   V(BlockEntry)                                \
   V(BoundsCheck)                               \
   V(BoundsCheckBaseIndexInformation)           \
@@ -87,17 +86,18 @@ class LChunkBuilder;
   V(CallNewArray)                              \
   V(CallRuntime)                               \
   V(CallStub)                                  \
+  V(CapturedObject)                            \
   V(Change)                                    \
   V(CheckFunction)                             \
   V(CheckHeapObject)                           \
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
   V(CheckMapValue)                             \
-  V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareNumericAndBranch)                   \
+  V(CompareHoleAndBranch)                      \
   V(CompareGeneric)                            \
   V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
@@ -122,7 +122,6 @@ class LChunkBuilder;
   V(Goto)                                      \
   V(HasCachedArrayIndexAndBranch)              \
   V(HasInstanceTypeAndBranch)                  \
-  V(InductionVariableAnnotation)               \
   V(InnerAllocatedObject)                      \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
@@ -144,14 +143,12 @@ class LChunkBuilder;
   V(LoadKeyed)                                 \
   V(LoadKeyedGeneric)                          \
   V(LoadNamedField)                            \
-  V(LoadNamedFieldPolymorphic)                 \
   V(LoadNamedGeneric)                          \
   V(MapEnumLength)                             \
   V(MathFloorOfDiv)                            \
   V(MathMinMax)                                \
   V(Mod)                                       \
   V(Mul)                                       \
-  V(NumericConstraint)                         \
   V(OsrEntry)                                  \
   V(OuterContext)                              \
   V(Parameter)                                 \
@@ -542,158 +539,6 @@ enum GVNFlag {
 };
 
 
-class NumericRelation {
- public:
-  enum Kind { NONE, EQ, GT, GE, LT, LE, NE };
-  static const char* MnemonicFromKind(Kind kind) {
-    switch (kind) {
-      case NONE: return "NONE";
-      case EQ: return "EQ";
-      case GT: return "GT";
-      case GE: return "GE";
-      case LT: return "LT";
-      case LE: return "LE";
-      case NE: return "NE";
-    }
-    UNREACHABLE();
-    return NULL;
-  }
-  const char* Mnemonic() const { return MnemonicFromKind(kind_); }
-
-  static NumericRelation None() { return NumericRelation(NONE); }
-  static NumericRelation Eq() { return NumericRelation(EQ); }
-  static NumericRelation Gt() { return NumericRelation(GT); }
-  static NumericRelation Ge() { return NumericRelation(GE); }
-  static NumericRelation Lt() { return NumericRelation(LT); }
-  static NumericRelation Le() { return NumericRelation(LE); }
-  static NumericRelation Ne() { return NumericRelation(NE); }
-
-  bool IsNone() { return kind_ == NONE; }
-
-  static NumericRelation FromToken(Token::Value token) {
-    switch (token) {
-      case Token::EQ: return Eq();
-      case Token::EQ_STRICT: return Eq();
-      case Token::LT: return Lt();
-      case Token::GT: return Gt();
-      case Token::LTE: return Le();
-      case Token::GTE: return Ge();
-      case Token::NE: return Ne();
-      case Token::NE_STRICT: return Ne();
-      default: return None();
-    }
-  }
-
-  // The semantics of "Reversed" is that if "x rel y" is true then also
-  // "y rel.Reversed() x" is true, and that rel.Reversed().Reversed() == rel.
-  NumericRelation Reversed() {
-    switch (kind_) {
-      case NONE: return None();
-      case EQ: return Eq();
-      case GT: return Lt();
-      case GE: return Le();
-      case LT: return Gt();
-      case LE: return Ge();
-      case NE: return Ne();
-    }
-    UNREACHABLE();
-    return None();
-  }
-
-  // The semantics of "Negated" is that if "x rel y" is true then also
-  // "!(x rel.Negated() y)" is true.
-  NumericRelation Negated() {
-    switch (kind_) {
-      case NONE: return None();
-      case EQ: return Ne();
-      case GT: return Le();
-      case GE: return Lt();
-      case LT: return Ge();
-      case LE: return Gt();
-      case NE: return Eq();
-    }
-    UNREACHABLE();
-    return None();
-  }
-
-  // The semantics of "Implies" is that if "x rel y" is true
-  // then also "x other_relation y" is true.
-  bool Implies(NumericRelation other_relation) {
-    switch (kind_) {
-      case NONE: return false;
-      case EQ: return (other_relation.kind_ == EQ)
-          || (other_relation.kind_ == GE)
-          || (other_relation.kind_ == LE);
-      case GT: return (other_relation.kind_ == GT)
-          || (other_relation.kind_ == GE)
-          || (other_relation.kind_ == NE);
-      case LT: return (other_relation.kind_ == LT)
-          || (other_relation.kind_ == LE)
-          || (other_relation.kind_ == NE);
-      case GE: return (other_relation.kind_ == GE);
-      case LE: return (other_relation.kind_ == LE);
-      case NE: return (other_relation.kind_ == NE);
-    }
-    UNREACHABLE();
-    return false;
-  }
-
-  // The semantics of "IsExtendable" is that if
-  // "rel.IsExtendable(direction)" is true then
-  // "x rel y" implies "(x + direction) rel y" .
-  bool IsExtendable(int direction) {
-    switch (kind_) {
-      case NONE: return false;
-      case EQ: return false;
-      case GT: return (direction >= 0);
-      case GE: return (direction >= 0);
-      case LT: return (direction <= 0);
-      case LE: return (direction <= 0);
-      case NE: return false;
-    }
-    UNREACHABLE();
-    return false;
-  }
-
-  // CompoundImplies returns true when
-  // "((x + my_offset) >> my_scale) rel y" implies
-  // "((x + other_offset) >> other_scale) other_relation y".
-  bool CompoundImplies(NumericRelation other_relation,
-                       int my_offset,
-                       int my_scale,
-                       int other_offset = 0,
-                       int other_scale = 0) {
-    return Implies(other_relation) && ComponentsImply(
-        my_offset, my_scale, other_offset, other_scale);
-  }
-
- private:
-  // ComponentsImply returns true when
-  // "((x + my_offset) >> my_scale) rel y" implies
-  // "((x + other_offset) >> other_scale) rel y".
-  bool ComponentsImply(int my_offset,
-                       int my_scale,
-                       int other_offset,
-                       int other_scale) {
-    switch (kind_) {
-      case NONE: break;  // Fall through to UNREACHABLE().
-      case EQ:
-      case NE: return my_offset == other_offset && my_scale == other_scale;
-      case GT:
-      case GE: return my_offset <= other_offset && my_scale >= other_scale;
-      case LT:
-      case LE: return my_offset >= other_offset && my_scale <= other_scale;
-    }
-    UNREACHABLE();
-    return false;
-  }
-
-  explicit NumericRelation(Kind kind) : kind_(kind) {}
-
-  Kind kind_;
-};
-
-
 class DecompositionResult BASE_EMBEDDED {
  public:
   DecompositionResult() : base_(NULL), offset_(0), scale_(0) {}
@@ -739,46 +584,6 @@ class DecompositionResult BASE_EMBEDDED {
 };
 
 
-class RangeEvaluationContext BASE_EMBEDDED {
- public:
-  RangeEvaluationContext(HValue* value, HValue* upper);
-
-  HValue* lower_bound() { return lower_bound_; }
-  HValue* lower_bound_guarantee() { return lower_bound_guarantee_; }
-  HValue* candidate() { return candidate_; }
-  HValue* upper_bound() { return upper_bound_; }
-  HValue* upper_bound_guarantee() { return upper_bound_guarantee_; }
-  int offset() { return offset_; }
-  int scale() { return scale_; }
-
-  bool is_range_satisfied() {
-    return lower_bound_guarantee() != NULL && upper_bound_guarantee() != NULL;
-  }
-
-  void set_lower_bound_guarantee(HValue* guarantee) {
-    lower_bound_guarantee_ = ConvertGuarantee(guarantee);
-  }
-  void set_upper_bound_guarantee(HValue* guarantee) {
-    upper_bound_guarantee_ = ConvertGuarantee(guarantee);
-  }
-
-  void swap_candidate(DecompositionResult* other_candicate) {
-    other_candicate->SwapValues(&candidate_, &offset_, &scale_);
-  }
-
- private:
-  HValue* ConvertGuarantee(HValue* guarantee);
-
-  HValue* lower_bound_;
-  HValue* lower_bound_guarantee_;
-  HValue* candidate_;
-  HValue* upper_bound_;
-  HValue* upper_bound_guarantee_;
-  int offset_;
-  int scale_;
-};
-
-
 typedef EnumSet<GVNFlag> GVNFlagSet;
 
 
@@ -816,12 +621,6 @@ class HValue: public ZoneObject {
     // HGraph::ComputeSafeUint32Operations is responsible for setting this
     // flag.
     kUint32,
-    // If a phi is involved in the evaluation of a numeric constraint the
-    // recursion can cause an endless cycle: we use this flag to exit the loop.
-    kNumericConstraintEvaluationInProgress,
-    // This flag is set to true after the SetupInformativeDefinitions() pass
-    // has processed this instruction.
-    kIDefsProcessingDone,
     kHasNoObservableSideEffects,
     // Indicates the instruction is live during dead code elimination.
     kIsLive,
@@ -959,8 +758,8 @@ class HValue: public ZoneObject {
     return RedefinedOperandIndex() != kNoRedefinedOperand;
   }
   HValue* RedefinedOperand() {
-    return IsInformativeDefinition() ? OperandAt(RedefinedOperandIndex())
-                                     : NULL;
+    int index = RedefinedOperandIndex();
+    return index == kNoRedefinedOperand ? NULL : OperandAt(index);
   }
 
   // A purely informative definition is an idef that will not emit code and
@@ -971,17 +770,8 @@ class HValue: public ZoneObject {
   // This method must always return the original HValue SSA definition
   // (regardless of any iDef of this value).
   HValue* ActualValue() {
-    return IsInformativeDefinition() ? RedefinedOperand()->ActualValue()
-                                     : this;
-  }
-
-  virtual void AddInformativeDefinitions() {}
-
-  void UpdateRedefinedUsesWhileSettingUpInformativeDefinitions() {
-    UpdateRedefinedUsesInner<TestDominanceUsingProcessedFlag>();
-  }
-  void UpdateRedefinedUses() {
-    UpdateRedefinedUsesInner<Dominates>();
+    int index = RedefinedOperandIndex();
+    return index == kNoRedefinedOperand ? this : OperandAt(index);
   }
 
   bool IsInteger32Constant();
@@ -1012,10 +802,10 @@ class HValue: public ZoneObject {
   bool CheckFlag(Flag f) const { return (flags_ & (1 << f)) != 0; }
 
   // Returns true if the flag specified is set for all uses, false otherwise.
-  bool CheckUsesForFlag(Flag f);
+  bool CheckUsesForFlag(Flag f) const;
   // Returns true if the flag specified is set for all uses, and this set
   // of uses is non-empty.
-  bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f);
+  bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const;
 
   GVNFlagSet gvn_flags() const { return gvn_flags_; }
   void SetGVNFlag(GVNFlag f) { gvn_flags_.Add(f); }
@@ -1132,12 +922,6 @@ class HValue: public ZoneObject {
   virtual void Verify() = 0;
 #endif
 
-  bool IsRelationTrue(NumericRelation relation,
-                      HValue* other,
-                      int offset = 0,
-                      int scale = 0);
-
-  bool TryGuaranteeRange(HValue* upper_bound);
   virtual bool TryDecompose(DecompositionResult* decomposition) {
     if (RedefinedOperand() != NULL) {
       return RedefinedOperand()->TryDecompose(decomposition);
@@ -1159,17 +943,6 @@ class HValue: public ZoneObject {
   }
 
  protected:
-  void TryGuaranteeRangeRecursive(RangeEvaluationContext* context);
-
-  enum RangeGuaranteeDirection {
-    DIRECTION_NONE = 0,
-    DIRECTION_UPPER = 1,
-    DIRECTION_LOWER = 2,
-    DIRECTION_BOTH = DIRECTION_UPPER | DIRECTION_LOWER
-  };
-  virtual void SetResponsibilityForRange(RangeGuaranteeDirection direction) {}
-  virtual void TryGuaranteeRangeChanging(RangeEvaluationContext* context) {}
-
   // This function must be overridden for instructions with flag kUseGVN, to
   // compare the non-Operand parts of the instruction.
   virtual bool DataEquals(HValue* other) {
@@ -1201,47 +974,6 @@ class HValue: public ZoneObject {
   void set_representation(Representation r) {
     ASSERT(representation_.IsNone() && !r.IsNone());
     representation_ = r;
-  }
-
-  // Signature of a function testing if a HValue properly dominates another.
-  typedef bool (*DominanceTest)(HValue*, HValue*);
-
-  // Simple implementation of DominanceTest implemented walking the chain
-  // of Hinstructions (used in UpdateRedefinedUsesInner).
-  static bool Dominates(HValue* dominator, HValue* dominated);
-
-  // A fast implementation of DominanceTest that works only for the
-  // "current" instruction in the SetupInformativeDefinitions() phase.
-  // During that phase we use a flag to mark processed instructions, and by
-  // checking the flag we can quickly test if an instruction comes before or
-  // after the "current" one.
-  static bool TestDominanceUsingProcessedFlag(HValue* dominator,
-                                              HValue* dominated);
-
-  // If we are redefining an operand, update all its dominated uses (the
-  // function that checks if a use is dominated is the template argument).
-  template<DominanceTest TestDominance>
-  void UpdateRedefinedUsesInner() {
-    HValue* input = RedefinedOperand();
-    if (input != NULL) {
-      for (HUseIterator uses = input->uses(); !uses.Done(); uses.Advance()) {
-        HValue* use = uses.value();
-        if (TestDominance(this, use)) {
-          use->SetOperandAt(uses.index(), this);
-        }
-      }
-    }
-  }
-
-  // Informative definitions can override this method to state any numeric
-  // relation they provide on the redefined value.
-  // Returns true if it is guaranteed that:
-  // ((this + offset) >> scale) relation other
-  virtual bool IsRelationTrueInternal(NumericRelation relation,
-                                      HValue* other,
-                                      int offset = 0,
-                                      int scale = 0) {
-    return false;
   }
 
   static GVNFlagSet AllDependsOnFlagSet() {
@@ -1514,67 +1246,25 @@ class HDummyUse: public HTemplateInstruction<1> {
 };
 
 
-class HNumericConstraint : public HTemplateInstruction<2> {
- public:
-  static HNumericConstraint* AddToGraph(HValue* constrained_value,
-                                        NumericRelation relation,
-                                        HValue* related_value,
-                                        HInstruction* insertion_point = NULL);
-
-  HValue* constrained_value() { return OperandAt(0); }
-  HValue* related_value() { return OperandAt(1); }
-  NumericRelation relation() { return relation_; }
-
-  virtual int RedefinedOperandIndex() { return 0; }
-  virtual bool IsPurelyInformativeDefinition() { return true; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return representation();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual bool IsRelationTrueInternal(NumericRelation other_relation,
-                                      HValue* other_related_value,
-                                      int offset = 0,
-                                      int scale = 0) {
-    if (related_value() == other_related_value) {
-      return relation().CompoundImplies(other_relation, offset, scale);
-    } else {
-      return false;
-    }
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(NumericConstraint)
-
- private:
-  HNumericConstraint(HValue* constrained_value,
-                     NumericRelation relation,
-                     HValue* related_value)
-      : relation_(relation) {
-    SetOperandAt(0, constrained_value);
-    SetOperandAt(1, related_value);
-  }
-
-  NumericRelation relation_;
-};
-
-
 class HDeoptimize: public HTemplateInstruction<0> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HDeoptimize, Deoptimizer::BailoutType);
+  DECLARE_INSTRUCTION_FACTORY_P2(HDeoptimize, const char*,
+                                 Deoptimizer::BailoutType);
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
+  const char* reason() const { return reason_; }
   Deoptimizer::BailoutType type() { return type_; }
 
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
 
  private:
-  explicit HDeoptimize(Deoptimizer::BailoutType type) : type_(type) {}
+  explicit HDeoptimize(const char* reason, Deoptimizer::BailoutType type)
+      : reason_(reason), type_(type) {}
 
+  const char* reason_;
   Deoptimizer::BailoutType type_;
 };
 
@@ -1832,15 +1522,13 @@ class HChange: public HUnaryOperation {
   HChange(HValue* value,
           Representation to,
           bool is_truncating_to_smi,
-          bool is_truncating_to_int32,
-          bool allow_undefined_as_nan)
+          bool is_truncating_to_int32)
       : HUnaryOperation(value) {
     ASSERT(!value->representation().IsNone());
     ASSERT(!to.IsNone());
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
-    if (allow_undefined_as_nan) SetFlag(kAllowUndefinedAsNaN);
     if (is_truncating_to_smi) SetFlag(kTruncatingToSmi);
     if (is_truncating_to_int32) SetFlag(kTruncatingToInt32);
     if (value->representation().IsSmi() || value->type().IsSmi()) {
@@ -1851,15 +1539,16 @@ class HChange: public HUnaryOperation {
     }
   }
 
+  bool can_convert_undefined_to_nan() {
+    return CheckUsesForFlag(kAllowUndefinedAsNaN);
+  }
+
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
   virtual HType CalculateInferredType();
   virtual HValue* Canonicalize();
 
   Representation from() const { return value()->representation(); }
   Representation to() const { return representation(); }
-  bool allow_undefined_as_nan() const {
-    return CheckFlag(kAllowUndefinedAsNaN);
-  }
   bool deoptimize_on_minus_zero() const {
     return CheckFlag(kBailoutOnMinusZero);
   }
@@ -2706,37 +2395,6 @@ class HElementsKind: public HUnaryOperation {
 };
 
 
-class HBitNot: public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HBitNot, HValue*);
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Integer32();
-  }
-  virtual Representation observed_input_representation(int index) {
-    return Representation::Integer32();
-  }
-
-  virtual HValue* Canonicalize();
-
-  DECLARE_CONCRETE_INSTRUCTION(BitNot)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-
- private:
-  explicit HBitNot(HValue* value)
-      : HUnaryOperation(value, HType::TaggedNumber()) {
-    set_representation(Representation::Integer32());
-    SetFlag(kUseGVN);
-    SetFlag(kTruncatingToInt32);
-    SetFlag(kAllowUndefinedAsNaN);
-  }
-
-  virtual bool IsDeletable() const { return true; }
-};
-
-
 class HUnaryMathOperation: public HTemplateInstruction<2> {
  public:
   static HInstruction* New(Zone* zone,
@@ -2775,21 +2433,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     }
   }
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) {
-    if (flexible_int() && !new_rep.IsSmi()) {
-      new_rep = Representation::Integer32();
-    }
-    HValue::UpdateRepresentation(new_rep, h_infer, reason);
-  }
-
-  virtual void RepresentationChanged(Representation new_rep) {
-    if (flexible_int() && new_rep.IsInteger32()) {
-      ClearFlag(kFlexibleRepresentation);
-    }
-  }
-
   virtual Range* InferRange(Zone* zone);
 
   virtual HValue* Canonicalize();
@@ -2807,10 +2450,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
   }
 
  private:
-  bool flexible_int() {
-    return op_ == kMathFloor || op_ == kMathRound;
-  }
-
   HUnaryMathOperation(HValue* context, HValue* value, BuiltinFunctionId op)
       : HTemplateInstruction<2>(HType::TaggedNumber()), op_(op) {
     SetOperandAt(0, context);
@@ -2818,8 +2457,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     switch (op) {
       case kMathFloor:
       case kMathRound:
-        set_representation(Representation::Smi());
-        SetFlag(kFlexibleRepresentation);
+        set_representation(Representation::Integer32());
         break;
       case kMathAbs:
         // Not setting representation here: it is None intentionally.
@@ -2896,7 +2534,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
                          HValue *typecheck = NULL) {
     HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
     for (int i = 0; i < maps->length(); i++) {
-      check_map->map_set_.Add(maps->at(i), zone);
+      check_map->Add(maps->at(i), zone);
     }
     check_map->map_set_.Sort();
     return check_map;
@@ -2914,6 +2552,10 @@ class HCheckMaps: public HTemplateInstruction<2> {
 
   HValue* value() { return OperandAt(0); }
   SmallMapList* map_set() { return &map_set_; }
+
+  bool has_migration_target() {
+    return has_migration_target_;
+  }
 
   virtual void FinalizeUniqueValueId();
 
@@ -2936,10 +2578,18 @@ class HCheckMaps: public HTemplateInstruction<2> {
   }
 
  private:
+  void Add(Handle<Map> map, Zone* zone) {
+    map_set_.Add(map, zone);
+    if (!has_migration_target_ && map->is_migration_target()) {
+      has_migration_target_ = true;
+      SetGVNFlag(kChangesNewSpacePromotion);
+    }
+  }
+
   // Clients should use one of the static New* methods above.
   HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
       : HTemplateInstruction<2>(value->type()),
-        omit_(false), map_unique_ids_(0, zone) {
+        omit_(false), has_migration_target_(false), map_unique_ids_(0, zone) {
     SetOperandAt(0, value);
     // Use the object value for the dependency if NULL is passed.
     // TODO(titzer): do GVN flags already express this dependency?
@@ -2961,6 +2611,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
   }
 
   bool omit_;
+  bool has_migration_target_;
   SmallMapList map_set_;
   ZoneList<UniqueValueId> map_unique_ids_;
 };
@@ -3119,6 +2770,7 @@ class HCheckHeapObject: public HUnaryOperation {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HCheckHeapObject, HValue*);
 
+  virtual bool HasEscapingOperandAt(int index) { return false; }
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
@@ -3142,87 +2794,6 @@ class HCheckHeapObject: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
-};
-
-
-class HCheckPrototypeMaps: public HTemplateInstruction<0> {
- public:
-  static HCheckPrototypeMaps* New(Zone* zone,
-                                  HValue* context,
-                                  Handle<JSObject> prototype,
-                                  Handle<JSObject> holder,
-                                  CompilationInfo* info) {
-    return new(zone) HCheckPrototypeMaps(prototype, holder, zone, info);
-  }
-
-  ZoneList<Handle<JSObject> >* prototypes() { return &prototypes_; }
-
-  ZoneList<Handle<Map> >* maps() { return &maps_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps)
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::None();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual intptr_t Hashcode() {
-    return first_prototype_unique_id_.Hashcode() * 17 +
-           last_prototype_unique_id_.Hashcode();
-  }
-
-  virtual void FinalizeUniqueValueId() {
-    first_prototype_unique_id_ = UniqueValueId(prototypes_.first());
-    last_prototype_unique_id_ = UniqueValueId(prototypes_.last());
-  }
-
-  bool CanOmitPrototypeChecks() { return can_omit_prototype_maps_; }
-
- protected:
-  virtual bool DataEquals(HValue* other) {
-    HCheckPrototypeMaps* b = HCheckPrototypeMaps::cast(other);
-    return first_prototype_unique_id_ == b->first_prototype_unique_id_ &&
-           last_prototype_unique_id_ == b->last_prototype_unique_id_;
-  }
-
- private:
-  HCheckPrototypeMaps(Handle<JSObject> prototype,
-                      Handle<JSObject> holder,
-                      Zone* zone,
-                      CompilationInfo* info)
-      : prototypes_(2, zone),
-        maps_(2, zone),
-        first_prototype_unique_id_(),
-        last_prototype_unique_id_(),
-        can_omit_prototype_maps_(true) {
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
-    // Keep a list of all objects on the prototype chain up to the holder
-    // and the expected maps.
-    while (true) {
-      prototypes_.Add(prototype, zone);
-      Handle<Map> map(prototype->map());
-      maps_.Add(map, zone);
-      can_omit_prototype_maps_ &= map->CanOmitPrototypeChecks();
-      if (prototype.is_identical_to(holder)) break;
-      prototype = Handle<JSObject>(JSObject::cast(prototype->GetPrototype()));
-    }
-    if (can_omit_prototype_maps_) {
-      // Mark in-flight compilation as dependent on those maps.
-      for (int i = 0; i < maps()->length(); i++) {
-        Handle<Map> map = maps()->at(i);
-        map->AddDependentCompilationInfo(DependentCode::kPrototypeCheckGroup,
-                                         info);
-      }
-    }
-  }
-
-  ZoneList<Handle<JSObject> > prototypes_;
-  ZoneList<Handle<Map> > maps_;
-  UniqueValueId first_prototype_unique_id_;
-  UniqueValueId last_prototype_unique_id_;
-  bool can_omit_prototype_maps_;
 };
 
 
@@ -3500,8 +3071,6 @@ class HPhi: public HValue {
     induction_variable_data_ = InductionVariableData::ExaminePhi(this);
   }
 
-  virtual void AddInformativeDefinitions();
-
   virtual void PrintTo(StringStream* stream);
 
 #ifdef DEBUG
@@ -3555,11 +3124,6 @@ class HPhi: public HValue {
     inputs_[index] = value;
   }
 
-  virtual bool IsRelationTrueInternal(NumericRelation relation,
-                                      HValue* other,
-                                      int offset = 0,
-                                      int scale = 0);
-
  private:
   ZoneList<HValue*> inputs_;
   int merged_index_;
@@ -3574,68 +3138,10 @@ class HPhi: public HValue {
 };
 
 
-class HInductionVariableAnnotation : public HUnaryOperation {
+// Common base class for HArgumentsObject and HCapturedObject.
+class HDematerializedObject: public HTemplateInstruction<0> {
  public:
-  static HInductionVariableAnnotation* AddToGraph(HPhi* phi,
-                                                  NumericRelation relation,
-                                                  int operand_index);
-
-  NumericRelation relation() { return relation_; }
-  HValue* induction_base() { return phi_->OperandAt(operand_index_); }
-
-  virtual int RedefinedOperandIndex() { return 0; }
-  virtual bool IsPurelyInformativeDefinition() { return true; }
-  virtual Representation RequiredInputRepresentation(int index) {
-    return representation();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual bool IsRelationTrueInternal(NumericRelation other_relation,
-                                      HValue* other_related_value,
-                                      int offset = 0,
-                                      int scale = 0) {
-    if (induction_base() == other_related_value) {
-      return relation().CompoundImplies(other_relation, offset, scale);
-    } else {
-      return false;
-    }
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(InductionVariableAnnotation)
-
- private:
-  HInductionVariableAnnotation(HPhi* phi,
-                               NumericRelation relation,
-                               int operand_index)
-      : HUnaryOperation(phi),
-    phi_(phi), relation_(relation), operand_index_(operand_index) {
-  }
-
-  // We need to store the phi both here and in the instruction operand because
-  // the operand can change if a new idef of the phi is added between the phi
-  // and this instruction (inserting an idef updates every use).
-  HPhi* phi_;
-  NumericRelation relation_;
-  int operand_index_;
-};
-
-
-class HArgumentsObject: public HTemplateInstruction<0> {
- public:
-  static HArgumentsObject* New(Zone* zone,
-                               HValue* context,
-                               int count) {
-    return new(zone) HArgumentsObject(count, zone);
-  }
-
-  const ZoneList<HValue*>* arguments_values() const { return &values_; }
-  int arguments_count() const { return values_.length(); }
-
-  void AddArgument(HValue* argument, Zone* zone) {
-    values_.Add(NULL, zone);  // Resize list.
-    SetOperandAt(values_.length() - 1, argument);
-  }
+  HDematerializedObject(int count, Zone* zone) : values_(count, zone) {}
 
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) const { return values_[index]; }
@@ -3645,22 +3151,61 @@ class HArgumentsObject: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(ArgumentsObject)
-
  protected:
   virtual void InternalSetOperandAt(int index, HValue* value) {
     values_[index] = value;
   }
 
+  // List of values tracked by this marker.
+  ZoneList<HValue*> values_;
+
  private:
-  HArgumentsObject(int count, Zone* zone) : values_(count, zone) {
+  virtual bool IsDeletable() const { return true; }
+};
+
+
+class HArgumentsObject: public HDematerializedObject {
+ public:
+  static HArgumentsObject* New(Zone* zone, HValue* context, int count) {
+    return new(zone) HArgumentsObject(count, zone);
+  }
+
+  // The values contain a list of all elements in the arguments object
+  // including the receiver object, which is skipped when materializing.
+  const ZoneList<HValue*>* arguments_values() const { return &values_; }
+  int arguments_count() const { return values_.length(); }
+
+  void AddArgument(HValue* argument, Zone* zone) {
+    values_.Add(NULL, zone);  // Resize list.
+    SetOperandAt(values_.length() - 1, argument);
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ArgumentsObject)
+
+ private:
+  HArgumentsObject(int count, Zone* zone)
+      : HDematerializedObject(count, zone) {
     set_representation(Representation::Tagged());
     SetFlag(kIsArguments);
   }
+};
 
-  virtual bool IsDeletable() const { return true; }
 
-  ZoneList<HValue*> values_;
+class HCapturedObject: public HDematerializedObject {
+ public:
+  HCapturedObject(int length, Zone* zone)
+      : HDematerializedObject(length, zone) {
+    set_representation(Representation::Tagged());
+    values_.AddBlock(NULL, length, zone);  // Resize list.
+  }
+
+  // The values contain a list of all in-object properties inside the
+  // captured object and is index by field index. Properties in the
+  // properties or elements backing store are not tracked here.
+  const ZoneList<HValue*>* values() const { return &values_; }
+  int length() const { return values_.length(); }
+
+  DECLARE_CONCRETE_INSTRUCTION(CapturedObject)
 };
 
 
@@ -3685,8 +3230,9 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   bool InstanceOf(Handle<Map> map) {
-    return handle_->IsJSObject() &&
-        Handle<JSObject>::cast(handle_)->map() == *map;
+    Handle<Object> constant_object = handle();
+    return constant_object->IsJSObject() &&
+        Handle<JSObject>::cast(constant_object)->map() == *map;
   }
 
   bool IsSpecialDouble() const {
@@ -3708,6 +3254,9 @@ class HConstant: public HTemplateInstruction<0> {
       if (IsSpecialDouble()) {
         return true;
       }
+      return false;
+    }
+    if (has_external_reference_value_) {
       return false;
     }
 
@@ -3794,6 +3343,7 @@ class HConstant: public HTemplateInstruction<0> {
     return external_reference_value_;
   }
 
+  bool HasBooleanValue() const { return type_.IsBoolean(); }
   bool BooleanValue() const { return boolean_value_; }
 
   virtual intptr_t Hashcode() {
@@ -4138,12 +3688,6 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   HValue* base() { return base_; }
   int offset() { return offset_; }
   int scale() { return scale_; }
-  bool index_can_increase() {
-    return (responsibility_direction_ & DIRECTION_LOWER) == 0;
-  }
-  bool index_can_decrease() {
-    return (responsibility_direction_ & DIRECTION_UPPER) == 0;
-  }
 
   void ApplyIndexChange();
   bool DetectCompoundIndex() {
@@ -4167,11 +3711,6 @@ class HBoundsCheck: public HTemplateInstruction<2> {
     return representation();
   }
 
-  virtual bool IsRelationTrueInternal(NumericRelation relation,
-                                      HValue* related_value,
-                                      int offset = 0,
-                                      int scale = 0);
-
   virtual void PrintDataTo(StringStream* stream);
   virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
 
@@ -4182,25 +3721,17 @@ class HBoundsCheck: public HTemplateInstruction<2> {
 
   virtual int RedefinedOperandIndex() { return 0; }
   virtual bool IsPurelyInformativeDefinition() { return skip_check(); }
-  virtual void AddInformativeDefinitions();
 
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck)
 
  protected:
   friend class HBoundsCheckBaseIndexInformation;
 
-  virtual void SetResponsibilityForRange(RangeGuaranteeDirection direction) {
-    responsibility_direction_ = static_cast<RangeGuaranteeDirection>(
-        responsibility_direction_ | direction);
-  }
-
   virtual bool DataEquals(HValue* other) { return true; }
-  virtual void TryGuaranteeRangeChanging(RangeEvaluationContext* context);
   bool skip_check_;
   HValue* base_;
   int offset_;
   int scale_;
-  RangeGuaranteeDirection responsibility_direction_;
   bool allow_equality_;
 
  private:
@@ -4211,7 +3742,6 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   HBoundsCheck(HValue* index, HValue* length)
     : skip_check_(false),
       base_(NULL), offset_(0), scale_(0),
-      responsibility_direction_(DIRECTION_NONE),
       allow_equality_(false) {
     SetOperandAt(0, index);
     SetOperandAt(1, length);
@@ -4246,22 +3776,10 @@ class HBoundsCheckBaseIndexInformation: public HTemplateInstruction<2> {
     return representation();
   }
 
-  virtual bool IsRelationTrueInternal(NumericRelation relation,
-                                      HValue* related_value,
-                                      int offset = 0,
-                                      int scale = 0);
   virtual void PrintDataTo(StringStream* stream);
 
   virtual int RedefinedOperandIndex() { return 0; }
   virtual bool IsPurelyInformativeDefinition() { return true; }
-
- protected:
-  virtual void SetResponsibilityForRange(RangeGuaranteeDirection direction) {
-    bounds_check()->SetResponsibilityForRange(direction);
-  }
-  virtual void TryGuaranteeRangeChanging(RangeEvaluationContext* context) {
-    bounds_check()->TryGuaranteeRangeChanging(context);
-  }
 };
 
 
@@ -4434,13 +3952,37 @@ class HCompareNumericAndBranch: public HTemplateControlInstruction<2, 2> {
   }
   virtual void PrintDataTo(StringStream* stream);
 
-  virtual void AddInformativeDefinitions();
-
   DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch)
 
  private:
   Representation observed_input_representation_[2];
   Token::Value token_;
+};
+
+
+class HCompareHoleAndBranch: public HTemplateControlInstruction<2, 1> {
+ public:
+  // TODO(danno): make this private when the IfBuilder properly constructs
+  // control flow instructions.
+  explicit HCompareHoleAndBranch(HValue* object) {
+    SetFlag(kFlexibleRepresentation);
+    SetFlag(kAllowUndefinedAsNaN);
+    SetOperandAt(0, object);
+  }
+
+  DECLARE_INSTRUCTION_FACTORY_P1(HCompareHoleAndBranch, HValue*);
+
+  HValue* object() { return OperandAt(0); }
+
+  virtual void InferRepresentation(HInferRepresentationPhase* h_infer);
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return representation();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareHoleAndBranch)
 };
 
 
@@ -4825,6 +4367,11 @@ class HAdd: public HArithmeticBinaryOperation {
     } else {
       return false;
     }
+  }
+
+  virtual void RepresentationChanged(Representation to) {
+    if (to.IsTagged()) ClearFlag(kAllowUndefinedAsNaN);
+    HArithmeticBinaryOperation::RepresentationChanged(to);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Add)
@@ -6041,6 +5588,7 @@ class HLoadNamedField: public HTemplateInstruction<2> {
   }
 
   bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
+  void ClearTypeCheck() { SetOperandAt(1, object()); }
   HObjectAccess access() const { return access_; }
   Representation field_representation() const {
       return access_.representation();
@@ -6096,45 +5644,6 @@ class HLoadNamedField: public HTemplateInstruction<2> {
 
   HObjectAccess access_;
 };
-
-
-class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
- public:
-  HLoadNamedFieldPolymorphic(HValue* context,
-                             HValue* object,
-                             SmallMapList* types,
-                             Handle<String> name,
-                             Zone* zone);
-
-  HValue* context() { return OperandAt(0); }
-  HValue* object() { return OperandAt(1); }
-  SmallMapList* types() { return &types_; }
-  Handle<String> name() { return name_; }
-  bool need_generic() { return need_generic_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadNamedFieldPolymorphic)
-
-  static const int kMaxLoadPolymorphism = 4;
-
-  virtual void FinalizeUniqueValueId();
-
- protected:
-  virtual bool DataEquals(HValue* value);
-
- private:
-  SmallMapList types_;
-  Handle<String> name_;
-  ZoneList<UniqueValueId> types_unique_ids_;
-  UniqueValueId name_unique_id_;
-  bool need_generic_;
-};
-
 
 
 class HLoadNamedGeneric: public HTemplateInstruction<2> {
@@ -6395,7 +5904,7 @@ class HLoadKeyedGeneric: public HTemplateInstruction<3> {
 };
 
 
-class HStoreNamedField: public HTemplateInstruction<2> {
+class HStoreNamedField: public HTemplateInstruction<3> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P3(HStoreNamedField, HValue*,
                                  HObjectAccess, HValue*);
@@ -6427,24 +5936,35 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     return write_barrier_mode_ == SKIP_WRITE_BARRIER;
   }
 
-  HValue* object() { return OperandAt(0); }
-  HValue* value() { return OperandAt(1); }
+  HValue* object() const { return OperandAt(0); }
+  HValue* value() const { return OperandAt(1); }
+  HValue* transition() const { return OperandAt(2); }
 
   HObjectAccess access() const { return access_; }
-  Handle<Map> transition() const { return transition_; }
-  UniqueValueId transition_unique_id() const { return transition_unique_id_; }
-  void SetTransition(Handle<Map> map, CompilationInfo* info) {
-    ASSERT(transition_.is_null());  // Only set once.
+  HValue* new_space_dominator() const { return new_space_dominator_; }
+  bool has_transition() const { return has_transition_; }
+
+  Handle<Map> transition_map() const {
+    if (has_transition()) {
+      return Handle<Map>::cast(HConstant::cast(transition())->handle());
+    } else {
+      return Handle<Map>();
+    }
+  }
+
+  void SetTransition(HConstant* map_constant, CompilationInfo* info) {
+    ASSERT(!has_transition());  // Only set once.
+    Handle<Map> map = Handle<Map>::cast(map_constant->handle());
     if (map->CanBeDeprecated()) {
       map->AddDependentCompilationInfo(DependentCode::kTransitionGroup, info);
     }
-    transition_ = map;
+    SetOperandAt(2, map_constant);
+    has_transition_ = true;
   }
-  HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {
     ASSERT(!(FLAG_track_double_fields && field_representation().IsDouble()) ||
-           transition_.is_null());
+           !has_transition());
     if (IsSkipWriteBarrier()) return false;
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
@@ -6459,10 +5979,6 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     return ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
-  virtual void FinalizeUniqueValueId() {
-    transition_unique_id_ = UniqueValueId(transition_);
-  }
-
   Representation field_representation() const {
     return access_.representation();
   }
@@ -6472,20 +5988,19 @@ class HStoreNamedField: public HTemplateInstruction<2> {
                    HObjectAccess access,
                    HValue* val)
       : access_(access),
-        transition_(),
-        transition_unique_id_(),
         new_space_dominator_(NULL),
-        write_barrier_mode_(UPDATE_WRITE_BARRIER) {
+        write_barrier_mode_(UPDATE_WRITE_BARRIER),
+        has_transition_(false) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
+    SetOperandAt(2, obj);
     access.SetGVNFlags(this, true);
   }
 
   HObjectAccess access_;
-  Handle<Map> transition_;
-  UniqueValueId transition_unique_id_;
   HValue* new_space_dominator_;
-  WriteBarrierMode write_barrier_mode_;
+  WriteBarrierMode write_barrier_mode_ : 1;
+  bool has_transition_ : 1;
 };
 
 
@@ -6530,7 +6045,6 @@ class HStoreKeyed
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind);
 
-  virtual bool HasEscapingOperandAt(int index) { return index != 0; }
   virtual Representation RequiredInputRepresentation(int index) {
     // kind_fast:       tagged[int32] = tagged
     // kind_double:     tagged[int32] = double
@@ -7049,8 +6563,11 @@ class HToFastProperties: public HUnaryOperation {
 
  private:
   explicit HToFastProperties(HValue* value) : HUnaryOperation(value) {
-    // This instruction is not marked as having side effects, but
-    // changes the map of the input operand. Use it only when creating
+    set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
+
+    // This instruction is not marked as kChangesMaps, but does
+    // change the map of the input operand. Use it only when creating
     // object literals via a runtime call.
     ASSERT(value->IsCallRuntime());
 #ifdef DEBUG
@@ -7058,7 +6575,6 @@ class HToFastProperties: public HUnaryOperation {
     ASSERT(function->function_id == Runtime::kCreateObjectLiteral ||
            function->function_id == Runtime::kCreateObjectLiteralShallow);
 #endif
-    set_representation(Representation::Tagged());
   }
 
   virtual bool IsDeletable() const { return true; }

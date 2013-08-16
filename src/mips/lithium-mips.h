@@ -50,7 +50,6 @@ class LCodeGen;
   V(ArithmeticD)                                \
   V(ArithmeticT)                                \
   V(BitI)                                       \
-  V(BitNotI)                                    \
   V(BoundsCheck)                                \
   V(Branch)                                     \
   V(CallConstantFunction)                       \
@@ -68,7 +67,6 @@ class LCodeGen;
   V(CheckMaps)                                  \
   V(CheckMapValue)                              \
   V(CheckNonSmi)                                \
-  V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
   V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
@@ -76,6 +74,7 @@ class LCodeGen;
   V(ClassOfTestAndBranch)                       \
   V(CompareNumericAndBranch)                    \
   V(CmpObjectEqAndBranch)                       \
+  V(CmpHoleAndBranch)                           \
   V(CmpMapAndBranch)                            \
   V(CmpT)                                       \
   V(ConstantD)                                  \
@@ -128,7 +127,6 @@ class LCodeGen;
   V(LoadKeyed)                                  \
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
-  V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
   V(MapEnumLength)                              \
   V(MathAbs)                                    \
@@ -207,9 +205,12 @@ class LCodeGen;
 class LInstruction: public ZoneObject {
  public:
   LInstruction()
-      :  environment_(NULL),
-         hydrogen_value_(NULL),
-         is_call_(false) { }
+      : environment_(NULL),
+        hydrogen_value_(NULL),
+        bit_field_(IsCallBits::encode(false)) {
+    set_position(RelocInfo::kNoPosition);
+  }
+
   virtual ~LInstruction() { }
 
   virtual void CompileToNative(LCodeGen* generator) = 0;
@@ -248,20 +249,30 @@ class LInstruction: public ZoneObject {
   LPointerMap* pointer_map() const { return pointer_map_.get(); }
   bool HasPointerMap() const { return pointer_map_.is_set(); }
 
+  // The 31 bits PositionBits is used to store the int position value. And the
+  // position value may be RelocInfo::kNoPosition (-1). The accessor always
+  // +1/-1 so that the encoded value of position in bit_field_ is always >= 0
+  // and can fit into the 31 bits PositionBits.
+  void set_position(int pos) {
+    bit_field_ = PositionBits::update(bit_field_, pos + 1);
+  }
+  int position() { return PositionBits::decode(bit_field_) - 1; }
+
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
 
   virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) { }
 
-  void MarkAsCall() { is_call_ = true; }
+  void MarkAsCall() { bit_field_ = IsCallBits::update(bit_field_, true); }
+  bool IsCall() const { return IsCallBits::decode(bit_field_); }
 
   // Interface to the register allocator and iterators.
-  bool ClobbersTemps() const { return is_call_; }
-  bool ClobbersRegisters() const { return is_call_; }
-  bool ClobbersDoubleRegisters() const { return is_call_; }
+  bool ClobbersTemps() const { return IsCall(); }
+  bool ClobbersRegisters() const { return IsCall(); }
+  bool ClobbersDoubleRegisters() const { return IsCall(); }
 
   // Interface to the register allocator and iterators.
-  bool IsMarkedAsCall() const { return is_call_; }
+  bool IsMarkedAsCall() const { return IsCall(); }
 
   virtual bool HasResult() const = 0;
   virtual LOperand* result() const = 0;
@@ -285,10 +296,13 @@ class LInstruction: public ZoneObject {
   virtual int TempCount() = 0;
   virtual LOperand* TempAt(int i) = 0;
 
+  class IsCallBits: public BitField<bool, 0, 1> {};
+  class PositionBits: public BitField<int, 1, 31> {};
+
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
-  bool is_call_;
+  int bit_field_;
 };
 
 
@@ -874,9 +888,21 @@ class LCmpObjectEqAndBranch: public LControlInstruction<2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CmpObjectEqAndBranch,
-                               "cmp-object-eq-and-branch")
+  DECLARE_CONCRETE_INSTRUCTION(CmpObjectEqAndBranch, "cmp-object-eq-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareObjectEqAndBranch)
+};
+
+
+class LCmpHoleAndBranch: public LControlInstruction<1, 0> {
+ public:
+  explicit LCmpHoleAndBranch(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpHoleAndBranch, "cmp-hole-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareHoleAndBranch)
 };
 
 
@@ -1356,18 +1382,6 @@ class LThrow: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LBitNotI: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LBitNotI(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(BitNotI, "bit-not-i")
-};
-
-
 class LAddI: public LTemplateInstruction<1, 2, 0> {
  public:
   LAddI(LOperand* left, LOperand* right) {
@@ -1500,19 +1514,6 @@ class LLoadNamedField: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field")
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedField)
-};
-
-
-class LLoadNamedFieldPolymorphic: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LLoadNamedFieldPolymorphic(LOperand* object) {
-    inputs_[0] = object;
-  }
-
-  LOperand* object() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field-polymorphic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadNamedFieldPolymorphic)
 };
 
 
@@ -2128,7 +2129,7 @@ class LStoreNamedField: public LTemplateInstruction<0, 2, 1> {
 
   virtual void PrintDataTo(StringStream* stream);
 
-  Handle<Map> transition() const { return hydrogen()->transition(); }
+  Handle<Map> transition() const { return hydrogen()->transition_map(); }
   Representation representation() const {
     return hydrogen()->field_representation();
   }
@@ -2321,26 +2322,6 @@ class LCheckMaps: public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMaps, "check-maps")
   DECLARE_HYDROGEN_ACCESSOR(CheckMaps)
-};
-
-
-class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 2> {
- public:
-  LCheckPrototypeMaps(LOperand* temp, LOperand* temp2)  {
-    temps_[0] = temp;
-    temps_[1] = temp2;
-  }
-
-  LOperand* temp() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check-prototype-maps")
-  DECLARE_HYDROGEN_ACCESSOR(CheckPrototypeMaps)
-
-  ZoneList<Handle<JSObject> >* prototypes() const {
-    return hydrogen()->prototypes();
-  }
-  ZoneList<Handle<Map> >* maps() const { return hydrogen()->maps(); }
 };
 
 
@@ -2642,7 +2623,7 @@ class LChunkBuilder BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  void Abort(const char* reason);
+  void Abort(BailoutReason reason);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);
@@ -2724,7 +2705,8 @@ class LChunkBuilder BASE_EMBEDDED {
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
 
   LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
-                                  int* argument_index_accumulator);
+                                  int* argument_index_accumulator,
+                                  ZoneList<HValue*>* objects_to_materialize);
 
   void VisitInstruction(HInstruction* current);
 

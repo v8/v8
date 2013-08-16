@@ -290,6 +290,7 @@
         '../../src/double.h',
         '../../src/dtoa.cc',
         '../../src/dtoa.h',
+        '../../src/effects.h',
         '../../src/elements-kind.cc',
         '../../src/elements-kind.h',
         '../../src/elements.cc',
@@ -822,20 +823,14 @@
         }],
         ['v8_enable_i18n_support==1', {
           'sources': [
+            '../../src/i18n.cc',
+            '../../src/i18n.h',
             '../../src/extensions/i18n/break-iterator.cc',
             '../../src/extensions/i18n/break-iterator.h',
-            '../../src/extensions/i18n/collator.cc',
-            '../../src/extensions/i18n/collator.h',
-            '../../src/extensions/i18n/date-format.cc',
-            '../../src/extensions/i18n/date-format.h',
             '../../src/extensions/i18n/i18n-extension.cc',
             '../../src/extensions/i18n/i18n-extension.h',
             '../../src/extensions/i18n/i18n-utils.cc',
             '../../src/extensions/i18n/i18n-utils.h',
-            '../../src/extensions/i18n/locale.cc',
-            '../../src/extensions/i18n/locale.h',
-            '../../src/extensions/i18n/number-format.cc',
-            '../../src/extensions/i18n/number-format.h',
           ],
           'dependencies': [
             '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
@@ -907,7 +902,8 @@
           '../../src/typedarray.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',
-          '../../src/harmony-string.js'
+          '../../src/harmony-string.js',
+          '../../src/harmony-array.js',
         ],
         'i18n_library_files': [
           '../../src/extensions/i18n/header.js',

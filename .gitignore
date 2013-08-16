@@ -37,6 +37,12 @@ shell_g
 /out
 /perf.data
 /perf.data.old
+/test/benchmarks/benchmarks.status2
+/test/benchmarks/CHECKED_OUT_*
+/test/benchmarks/downloaded_*
+/test/benchmarks/kraken
+/test/benchmarks/octane
+/test/benchmarks/sunspider
 /test/cctest/cctest.status2
 /test/message/message.status2
 /test/mjsunit/mjsunit.status2
