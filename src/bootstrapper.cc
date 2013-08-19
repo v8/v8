@@ -491,7 +491,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     // prototype, otherwise the missing initial_array_prototype will cause
     // assertions during startup.
     native_context()->set_initial_array_prototype(*prototype);
-    SetPrototype(object_fun, prototype);
+    Accessors::FunctionSetPrototype(object_fun, prototype);
   }
 
   // Allocate the empty function as the prototype for function ECMAScript
@@ -1632,7 +1632,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(
                       true, true);
   Handle<JSObject> prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
-  SetPrototype(array_function, prototype);
+  Accessors::FunctionSetPrototype(array_function, prototype);
 
   InternalArrayConstructorStub internal_array_constructor_stub(isolate());
   Handle<Code> code = internal_array_constructor_stub.GetCode(isolate());
@@ -1730,7 +1730,7 @@ bool Genesis::InstallNatives() {
                         Builtins::kIllegal, false, false);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
-    SetPrototype(script_fun, prototype);
+    Accessors::FunctionSetPrototype(script_fun, prototype);
     native_context()->set_script_function(*script_fun);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
@@ -1886,7 +1886,7 @@ bool Genesis::InstallNatives() {
                         Builtins::kIllegal, false, false);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
-    SetPrototype(opaque_reference_fun, prototype);
+    Accessors::FunctionSetPrototype(opaque_reference_fun, prototype);
     native_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 

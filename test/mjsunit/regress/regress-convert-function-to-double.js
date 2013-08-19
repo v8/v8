@@ -24,18 +24,13 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-// ECMAScript 402 API implementation is broken into separate files for
-// each service. The build system combines them together into one
-// Intl namespace.
+function f(v) {
+  this.func = v;
+}
 
-/**
- * Intl object is a single object that has some named properties,
- * all of which are constructors.
- */
-var Intl = (function() {
-
-'use strict';
-
-var Intl = {};
+var o1 = new f(f);
+var d = 1.4;
+var o2 = new f(d);
+o2.func = 1.8;
+assertEquals(1.4, d)

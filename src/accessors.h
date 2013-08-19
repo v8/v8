@@ -77,12 +77,10 @@ class Accessors : public AllStatic {
   };
 
   // Accessor functions called directly from the runtime system.
-  static Handle<Object> FunctionGetPrototype(Handle<Object> object);
-  static Handle<Object> FunctionGetArguments(Handle<Object> object);
-
-  MUST_USE_RESULT static MaybeObject* FunctionSetPrototype(JSObject* object,
-                                                      Object* value,
-                                                      void*);
+  static Handle<Object> FunctionSetPrototype(Handle<JSFunction> object,
+                                             Handle<Object> value);
+  static Handle<Object> FunctionGetPrototype(Handle<JSFunction> object);
+  static Handle<Object> FunctionGetArguments(Handle<JSFunction> object);
 
   // Accessor infos.
   static Handle<AccessorInfo> MakeModuleExport(
@@ -90,13 +88,13 @@ class Accessors : public AllStatic {
 
  private:
   // Accessor functions only used through the descriptor.
+  static MaybeObject* FunctionSetPrototype(JSObject* object, Object*, void*);
   static MaybeObject* FunctionGetPrototype(Object* object, void*);
   static MaybeObject* FunctionGetLength(Object* object, void*);
   static MaybeObject* FunctionGetName(Object* object, void*);
   static MaybeObject* FunctionGetArguments(Object* object, void*);
   static MaybeObject* FunctionGetCaller(Object* object, void*);
-  MUST_USE_RESULT static MaybeObject* ArraySetLength(JSObject* object,
-                                                     Object* value, void*);
+  static MaybeObject* ArraySetLength(JSObject* object, Object*, void*);
   static MaybeObject* ArrayGetLength(Object* object, void*);
   static MaybeObject* StringGetLength(Object* object, void*);
   static MaybeObject* ScriptGetName(Object* object, void*);

@@ -2231,7 +2231,7 @@ MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
   if (new_properties != NULL) {
     set_properties(new_properties);
   }
-  FastPropertyAtPut(index, new_value);
+  FastPropertyAtPut(index, storage);
   return new_value;
 }
 

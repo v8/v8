@@ -1,3 +1,12 @@
+2013-08-19: Version 3.21.0
+
+        Fixed GC-related crasher (Chromium issue 274438)
+
+        Reverted making Intl non-enumerable.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-14: Version 3.20.17
 
         Fixed Math.round/floor that had bogus Smi representation

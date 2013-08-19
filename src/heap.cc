@@ -4013,10 +4013,10 @@ MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
     return AllocateByteArray(length);
   }
   int size = ByteArray::SizeFor(length);
+  AllocationSpace space =
+      (size > Page::kMaxNonCodeHeapObjectSize) ? LO_SPACE : OLD_DATA_SPACE;
   Object* result;
-  { MaybeObject* maybe_result = (size <= Page::kMaxNonCodeHeapObjectSize)
-                   ? old_data_space_->AllocateRaw(size)
-                   : lo_space_->AllocateRaw(size, NOT_EXECUTABLE);
+  { MaybeObject* maybe_result = AllocateRaw(size, space, space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 

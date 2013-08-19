@@ -24,18 +24,20 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-// ECMAScript 402 API implementation is broken into separate files for
-// each service. The build system combines them together into one
-// Intl namespace.
+// Flags: --allow-natives-syntax
 
-/**
- * Intl object is a single object that has some named properties,
- * all of which are constructors.
- */
-var Intl = (function() {
+function f(a, b) {
+  var x = { a:a };
+  switch(b) { case "string": }
+  var y = { b:b };
+  return y;
+}
 
-'use strict';
-
-var Intl = {};
+f("a", "b");
+f("a", "b");
+%OptimizeFunctionOnNextCall(f);
+f("a", "b");
+%SetAllocationTimeout(100, 0);
+var killer = f("bang", "bo" + "om");
+assertEquals("boom", killer.b);
