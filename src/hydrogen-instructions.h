@@ -6265,11 +6265,7 @@ class HTransitionElementsKind: public HTemplateInstruction<2> {
     SetOperandAt(1, context);
     SetFlag(kUseGVN);
     SetGVNFlag(kChangesElementsKind);
-    if (original_map->has_fast_double_elements()) {
-      SetGVNFlag(kChangesElementsPointer);
-      SetGVNFlag(kChangesNewSpacePromotion);
-    }
-    if (transitioned_map->has_fast_double_elements()) {
+    if (!IsSimpleMapChangeTransition(from_kind_, to_kind_)) {
       SetGVNFlag(kChangesElementsPointer);
       SetGVNFlag(kChangesNewSpacePromotion);
     }
