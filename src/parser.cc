@@ -2319,7 +2319,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     Expression* generator = factory()->NewVariableProxy(
         current_function_state_->generator_object_variable());
     Expression* yield = factory()->NewYield(
-        generator, return_value, Yield::FINAL, RelocInfo::kNoPosition);
+        generator, return_value, Yield::kFinal, RelocInfo::kNoPosition);
     result = factory()->NewExpressionStatement(yield);
   } else {
     result = factory()->NewReturnStatement(return_value);
@@ -2997,13 +2997,13 @@ Expression* Parser::ParseYieldExpression(bool* ok) {
   int position = scanner().peek_location().beg_pos;
   Expect(Token::YIELD, CHECK_OK);
   Yield::Kind kind =
-      Check(Token::MUL) ? Yield::DELEGATING : Yield::SUSPEND;
+      Check(Token::MUL) ? Yield::kDelegating : Yield::kSuspend;
   Expression* generator_object = factory()->NewVariableProxy(
       current_function_state_->generator_object_variable());
   Expression* expression = ParseAssignmentExpression(false, CHECK_OK);
   Yield* yield =
       factory()->NewYield(generator_object, expression, kind, position);
-  if (kind == Yield::DELEGATING) {
+  if (kind == Yield::kDelegating) {
     yield->set_index(current_function_state_->NextHandlerIndex());
   }
   return yield;
@@ -4484,7 +4484,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         VariableProxy* get_proxy = factory()->NewVariableProxy(
             current_function_state_->generator_object_variable());
         Yield* yield = factory()->NewYield(
-            get_proxy, assignment, Yield::INITIAL, RelocInfo::kNoPosition);
+            get_proxy, assignment, Yield::kInitial, RelocInfo::kNoPosition);
         body->Add(factory()->NewExpressionStatement(yield), zone());
       }
 
@@ -4496,7 +4496,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         Expression *undefined = factory()->NewLiteral(
             isolate()->factory()->undefined_value());
         Yield* yield = factory()->NewYield(
-            get_proxy, undefined, Yield::FINAL, RelocInfo::kNoPosition);
+            get_proxy, undefined, Yield::kFinal, RelocInfo::kNoPosition);
         body->Add(factory()->NewExpressionStatement(yield), zone());
       }
 
