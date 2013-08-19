@@ -3314,6 +3314,7 @@ class HConstant: public HTemplateInstruction<0> {
     return HasStringValue() && is_internalized_string_;
   }
 
+  bool HasBooleanValue() const { return type_from_value_.IsBoolean(); }
   bool BooleanValue() const { return boolean_value_; }
 
   virtual intptr_t Hashcode() {

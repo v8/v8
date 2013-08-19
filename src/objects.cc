@@ -11265,6 +11265,7 @@ class DeoptimizeDependentCodeFilter : public OptimizedFunctionFilter {
 void DependentCode::DeoptimizeDependentCodeGroup(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
+  ASSERT(AllowCodeDependencyChange::IsAllowed());
   DisallowHeapAllocation no_allocation_scope;
   DependentCode::GroupStartIndexes starts(this);
   int start = starts.at(group);
@@ -11277,7 +11278,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
       code->set_marked_for_deoptimization(true);
     } else {
       CompilationInfo* info = compilation_info_at(i);
-      info->AbortDueToDependentMap();
+      info->AbortDueToDependencyChange();
     }
   }
   // Compact the array by moving all subsequent groups to fill in the new holes.
