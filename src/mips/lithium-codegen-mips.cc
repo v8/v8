@@ -323,16 +323,6 @@ bool LCodeGen::GenerateDeferredCode() {
 
 
 bool LCodeGen::GenerateDeoptJumpTable() {
-  // Check that the jump table is accessible from everywhere in the function
-  // code, i.e. that offsets to the table can be encoded in the 16bit signed
-  // immediate of a branch instruction.
-  // To simplify we consider the code size from the first instruction to the
-  // end of the jump table.
-  if (!is_int16((masm()->pc_offset() / Assembler::kInstrSize) +
-      deopt_jump_table_.length() * 12)) {
-    Abort(kGeneratedCodeIsTooLarge);
-  }
-
   if (deopt_jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
   }
