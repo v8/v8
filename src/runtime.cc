@@ -13753,7 +13753,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalNumberFormat) {
   CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
 
   bool has_pending_exception = false;
-  double value = Execution::ToNumber(number, &has_pending_exception)->Number();
+  Handle<Object> value = Execution::ToNumber(number, &has_pending_exception);
   if (has_pending_exception) {
     ASSERT(isolate->has_pending_exception());
     return Failure::Exception();
@@ -13764,7 +13764,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalNumberFormat) {
   if (!number_format) return isolate->ThrowIllegalOperation();
 
   icu::UnicodeString result;
-  number_format->format(value, result);
+  number_format->format(value->Number(), result);
 
   return *isolate->factory()->NewStringFromTwoByte(
       Vector<const uint16_t>(
