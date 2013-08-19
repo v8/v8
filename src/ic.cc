@@ -1847,18 +1847,6 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     return strict_mode == kStrictMode ? generic_stub_strict() : generic_stub();
   }
 
-  if (!FLAG_compiled_keyed_stores &&
-      (store_mode == STORE_NO_TRANSITION_HANDLE_COW ||
-       store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS)) {
-    // TODO(danno): We'll soon handle MONOMORPHIC ICs that also support
-    // copying COW arrays and silently ignoring some OOB stores into external
-    // arrays, but for now use the generic.
-    TRACE_GENERIC_IC(isolate(), "KeyedIC", "COW/OOB external array");
-    return strict_mode == kStrictMode
-        ? generic_stub_strict()
-        : generic_stub();
-  }
-
   State ic_state = target()->ic_state();
   Handle<Map> receiver_map(receiver->map(), isolate());
   if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
@@ -2139,8 +2127,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
         if (receiver->map()->is_deprecated()) {
           JSObject::MigrateInstance(receiver);
         }
-        bool key_is_smi_like = key->IsSmi() ||
-            (FLAG_compiled_keyed_stores && !key->ToSmi()->IsFailure());
+        bool key_is_smi_like = key->IsSmi() || !key->ToSmi()->IsFailure();
         if (receiver->elements()->map() ==
             isolate()->heap()->non_strict_arguments_elements_map()) {
           stub = non_strict_arguments_stub();
