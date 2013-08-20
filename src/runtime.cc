@@ -996,7 +996,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
           JSArrayBuffer::cast(typed_array->buffer())->backing_store());
       size_t source_byte_offset =
           NumberToSize(isolate, typed_array->byte_offset());
-      OS::MemCopy(
+      memcpy(
           buffer->backing_store(),
           backing_store + source_byte_offset,
           byte_length);
