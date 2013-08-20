@@ -68,7 +68,7 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
         frame_is_built_(false),
-        x87_stack_depth_(0),
+        x87_stack_(assembler),
         safepoints_(info->zone()),
         resolver_(this),
         expected_safepoint_kind_(Safepoint::kSimple),
@@ -122,14 +122,23 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
 
   void X87Mov(X87Register reg, Operand src,
       X87OperandType operand = kX87DoubleOperand);
-  void X87Mov(Operand src, X87Register reg);
+  void X87Mov(Operand src, X87Register reg,
+      X87OperandType operand = kX87DoubleOperand);
 
   void X87PrepareBinaryOp(
       X87Register left, X87Register right, X87Register result);
 
   void X87LoadForUsage(X87Register reg);
-  void X87PrepareToWrite(X87Register reg);
-  void X87CommitWrite(X87Register reg);
+  void X87PrepareToWrite(X87Register reg) { x87_stack_.PrepareToWrite(reg); }
+  void X87CommitWrite(X87Register reg) { x87_stack_.CommitWrite(reg); }
+
+  void X87Fxch(X87Register reg, int other_slot = 0) {
+    x87_stack_.Fxch(reg, other_slot);
+  }
+
+  bool X87StackEmpty() {
+    return x87_stack_.depth() == 0;
+  }
 
   Handle<Object> ToHandle(LConstantOperand* op) const;
 
@@ -399,15 +408,13 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
   // register, or a stack slot operand.
   void EmitPushTaggedOperand(LOperand* operand);
 
-  void X87Fxch(X87Register reg, int other_slot = 0);
   void X87Fld(Operand src, X87OperandType opts);
-  void X87Free(X87Register reg);
 
-  void FlushX87StackIfNecessary(LInstruction* instr);
   void EmitFlushX87ForDeopt();
-  bool X87StackContains(X87Register reg);
-  int X87ArrayIndex(X87Register reg);
-  int x87_st2idx(int pos);
+  void FlushX87StackIfNecessary(LInstruction* instr) {
+    x87_stack_.FlushIfNecessary(instr, this);
+  }
+  friend class LGapResolver;
 
 #ifdef _MSC_VER
   // On windows, you may not access the stack more than one page below
@@ -438,8 +445,48 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
   int osr_pc_offset_;
   int last_lazy_deopt_pc_;
   bool frame_is_built_;
-  X87Register x87_stack_[X87Register::kNumAllocatableRegisters];
-  int x87_stack_depth_;
+
+  class X87Stack {
+   public:
+    explicit X87Stack(MacroAssembler* masm) : stack_depth_(0), masm_(masm) { }
+    explicit X87Stack(const X87Stack& other)
+        : stack_depth_(0), masm_(other.masm_) {
+      stack_depth_ = other.stack_depth_;
+      for (int i = 0; i < stack_depth_; i++) {
+        stack_[i] = other.stack_[i];
+      }
+    }
+    bool operator==(const X87Stack& other) const {
+      if (stack_depth_ != other.stack_depth_) return false;
+      for (int i = 0; i < stack_depth_; i++) {
+        if (!stack_[i].is(other.stack_[i])) return false;
+      }
+      return true;
+    }
+    bool Contains(X87Register reg);
+    void Fxch(X87Register reg, int other_slot = 0);
+    void Free(X87Register reg);
+    void PrepareToWrite(X87Register reg);
+    void CommitWrite(X87Register reg);
+    void FlushIfNecessary(LInstruction* instr, LCodeGen* cgen);
+    int depth() const { return stack_depth_; }
+    void pop() { stack_depth_--; }
+    void push(X87Register reg) {
+      ASSERT(stack_depth_ < X87Register::kNumAllocatableRegisters);
+      stack_[stack_depth_] = reg;
+      stack_depth_++;
+    }
+
+    MacroAssembler* masm() const { return masm_; }
+
+   private:
+    int ArrayIndex(X87Register reg);
+    int st2idx(int pos);
+    X87Register stack_[X87Register::kNumAllocatableRegisters];
+    int stack_depth_;
+    MacroAssembler* const masm_;
+  };
+  X87Stack x87_stack_;
 
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.

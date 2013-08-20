@@ -1641,6 +1641,13 @@ void Assembler::fstp_s(const Operand& adr) {
 }
 
 
+void Assembler::fst_s(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD9);
+  emit_operand(edx, adr);
+}
+
+
 void Assembler::fstp_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   EMIT(0xDD);

@@ -277,10 +277,9 @@ class LInstruction : public ZoneObject {
   bool ClobbersRegisters() const { return IsCall(); }
   virtual bool ClobbersDoubleRegisters() const {
     return IsCall() ||
-      (!CpuFeatures::IsSupported(SSE2) &&
-       // We only have rudimentary X87Stack tracking, thus in general
-       // cannot handle deoptimization nor phi-nodes.
-       (HasEnvironment() || IsControl()));
+           // We only have rudimentary X87Stack tracking, thus in general
+           // cannot handle phi-nodes.
+           (!CpuFeatures::IsSafeForSnapshot(SSE2) && IsControl());
   }
 
   virtual bool HasResult() const = 0;
@@ -1542,11 +1541,6 @@ class LLoadNamedField V8_FINAL : public LTemplateInstruction<1, 1, 0> {
     inputs_[0] = object;
   }
 
-  virtual bool ClobbersDoubleRegisters() const {
-    return !CpuFeatures::IsSupported(SSE2) &&
-        !hydrogen()->representation().IsDouble();
-  }
-
   LOperand* object() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field")
@@ -2205,8 +2199,6 @@ class LNumberUntagD V8_FINAL : public LTemplateInstruction<1, 1, 1> {
 
   LOperand* value() { return inputs_[0]; }
   LOperand* temp() { return temps_[0]; }
-
-  virtual bool ClobbersDoubleRegisters() const V8_OVERRIDE { return false; }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberUntagD, "double-untag")
   DECLARE_HYDROGEN_ACCESSOR(Change);

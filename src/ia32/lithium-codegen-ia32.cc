@@ -359,10 +359,9 @@ bool LCodeGen::GenerateBody() {
 
     instr->CompileToNative(this);
 
-    if (!CpuFeatures::IsSupported(SSE2)) {
-      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
-        __ VerifyX87StackDepth(x87_stack_depth_);
-      }
+    if (!CpuFeatures::IsSupported(SSE2) &&
+        FLAG_debug_code && FLAG_enable_slow_asserts) {
+        __ VerifyX87StackDepth(x87_stack_.depth());
     }
   }
   EnsureSpaceForLazyDeopt();
@@ -497,21 +496,21 @@ XMMRegister LCodeGen::ToDoubleRegister(int index) const {
 
 
 void LCodeGen::X87LoadForUsage(X87Register reg) {
-  ASSERT(X87StackContains(reg));
-  X87Fxch(reg);
-  x87_stack_depth_--;
+  ASSERT(x87_stack_.Contains(reg));
+  x87_stack_.Fxch(reg);
+  x87_stack_.pop();
 }
 
 
-void LCodeGen::X87Fxch(X87Register reg, int other_slot) {
-  ASSERT(X87StackContains(reg) && x87_stack_depth_ > other_slot);
-  int i  = X87ArrayIndex(reg);
-  int st = x87_st2idx(i);
+void LCodeGen::X87Stack::Fxch(X87Register reg, int other_slot) {
+  ASSERT(Contains(reg) && stack_depth_ > other_slot);
+  int i  = ArrayIndex(reg);
+  int st = st2idx(i);
   if (st != other_slot) {
-    int other_i = x87_st2idx(other_slot);
-    X87Register other   = x87_stack_[other_i];
-    x87_stack_[other_i] = reg;
-    x87_stack_[i]       = other;
+    int other_i = st2idx(other_slot);
+    X87Register other = stack_[other_i];
+    stack_[other_i]   = reg;
+    stack_[i]         = other;
     if (st == 0) {
       __ fxch(other_slot);
     } else if (other_slot == 0) {
@@ -525,88 +524,101 @@ void LCodeGen::X87Fxch(X87Register reg, int other_slot) {
 }
 
 
-int LCodeGen::x87_st2idx(int pos) {
-  return x87_stack_depth_ - pos - 1;
+int LCodeGen::X87Stack::st2idx(int pos) {
+  return stack_depth_ - pos - 1;
 }
 
 
-int LCodeGen::X87ArrayIndex(X87Register reg) {
-  for (int i = 0; i < x87_stack_depth_; i++) {
-    if (x87_stack_[i].is(reg)) return i;
+int LCodeGen::X87Stack::ArrayIndex(X87Register reg) {
+  for (int i = 0; i < stack_depth_; i++) {
+    if (stack_[i].is(reg)) return i;
   }
   UNREACHABLE();
   return -1;
 }
 
 
-bool LCodeGen::X87StackContains(X87Register reg) {
-  for (int i = 0; i < x87_stack_depth_; i++) {
-    if (x87_stack_[i].is(reg)) return true;
+bool LCodeGen::X87Stack::Contains(X87Register reg) {
+  for (int i = 0; i < stack_depth_; i++) {
+    if (stack_[i].is(reg)) return true;
   }
   return false;
 }
 
 
-void LCodeGen::X87Free(X87Register reg) {
-  ASSERT(X87StackContains(reg));
-  int i  = X87ArrayIndex(reg);
-  int st = x87_st2idx(i);
+void LCodeGen::X87Stack::Free(X87Register reg) {
+  ASSERT(Contains(reg));
+  int i  = ArrayIndex(reg);
+  int st = st2idx(i);
   if (st > 0) {
     // keep track of how fstp(i) changes the order of elements
-    int tos_i = x87_st2idx(0);
-    x87_stack_[i] = x87_stack_[tos_i];
+    int tos_i = st2idx(0);
+    stack_[i] = stack_[tos_i];
   }
-  x87_stack_depth_--;
+  pop();
   __ fstp(st);
 }
 
 
 void LCodeGen::X87Mov(X87Register dst, Operand src, X87OperandType opts) {
-  if (X87StackContains(dst)) {
-    X87Fxch(dst);
+  if (x87_stack_.Contains(dst)) {
+    x87_stack_.Fxch(dst);
     __ fstp(0);
   } else {
-    ASSERT(x87_stack_depth_ < X87Register::kNumAllocatableRegisters);
-    x87_stack_[x87_stack_depth_] = dst;
-    x87_stack_depth_++;
+    x87_stack_.push(dst);
   }
   X87Fld(src, opts);
 }
 
 
 void LCodeGen::X87Fld(Operand src, X87OperandType opts) {
-  if (opts == kX87DoubleOperand) {
-    __ fld_d(src);
-  } else if (opts == kX87FloatOperand) {
-    __ fld_s(src);
-  } else if (opts == kX87IntOperand) {
-    __ fild_s(src);
-  } else {
-    UNREACHABLE();
+  ASSERT(!src.is_reg_only());
+  switch (opts) {
+    case kX87DoubleOperand:
+      __ fld_d(src);
+      break;
+    case kX87FloatOperand:
+      __ fld_s(src);
+      break;
+    case kX87IntOperand:
+      __ fild_s(src);
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 
 
-void LCodeGen::X87Mov(Operand dst, X87Register src) {
-  X87Fxch(src);
-  __ fst_d(dst);
+void LCodeGen::X87Mov(Operand dst, X87Register src, X87OperandType opts) {
+  ASSERT(!dst.is_reg_only());
+  x87_stack_.Fxch(src);
+  switch (opts) {
+    case kX87DoubleOperand:
+      __ fst_d(dst);
+      break;
+    case kX87IntOperand:
+      __ fist_s(dst);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 
-void LCodeGen::X87PrepareToWrite(X87Register reg) {
-  if (X87StackContains(reg)) {
-    X87Free(reg);
+void LCodeGen::X87Stack::PrepareToWrite(X87Register reg) {
+  if (Contains(reg)) {
+    Free(reg);
   }
   // Mark this register as the next register to write to
-  x87_stack_[x87_stack_depth_] = reg;
+  stack_[stack_depth_] = reg;
 }
 
 
-void LCodeGen::X87CommitWrite(X87Register reg) {
+void LCodeGen::X87Stack::CommitWrite(X87Register reg) {
   // Assert the reg is prepared to write, but not on the virtual stack yet
-  ASSERT(!X87StackContains(reg) && x87_stack_[x87_stack_depth_].is(reg) &&
-      x87_stack_depth_ < X87Register::kNumAllocatableRegisters);
-  x87_stack_depth_++;
+  ASSERT(!Contains(reg) && stack_[stack_depth_].is(reg) &&
+      stack_depth_ < X87Register::kNumAllocatableRegisters);
+  stack_depth_++;
 }
 
 
@@ -614,38 +626,47 @@ void LCodeGen::X87PrepareBinaryOp(
     X87Register left, X87Register right, X87Register result) {
   // You need to use DefineSameAsFirst for x87 instructions
   ASSERT(result.is(left));
-  X87Fxch(right, 1);
-  X87Fxch(left);
+  x87_stack_.Fxch(right, 1);
+  x87_stack_.Fxch(left);
 }
 
 
-void LCodeGen::FlushX87StackIfNecessary(LInstruction* instr) {
-  if (x87_stack_depth_ > 0 && instr->ClobbersDoubleRegisters()) {
+void LCodeGen::X87Stack::FlushIfNecessary(LInstruction* instr, LCodeGen* cgen) {
+  if (stack_depth_ > 0 && instr->ClobbersDoubleRegisters()) {
     bool double_inputs = instr->HasDoubleRegisterInput();
 
     // Flush stack from tos down, since FreeX87() will mess with tos
-    for (int i = x87_stack_depth_-1; i >= 0; i--) {
-      X87Register reg = x87_stack_[i];
+    for (int i = stack_depth_-1; i >= 0; i--) {
+      X87Register reg = stack_[i];
       // Skip registers which contain the inputs for the next instruction
       // when flushing the stack
-      if (double_inputs && instr->IsDoubleInput(reg, this)) {
+      if (double_inputs && instr->IsDoubleInput(reg, cgen)) {
         continue;
       }
-      X87Free(reg);
-      if (i < x87_stack_depth_-1) i++;
+      Free(reg);
+      if (i < stack_depth_-1) i++;
     }
   }
   if (instr->IsReturn()) {
-    while (x87_stack_depth_ > 0) {
+    while (stack_depth_ > 0) {
       __ fstp(0);
-      x87_stack_depth_--;
+      stack_depth_--;
     }
   }
 }
 
 
 void LCodeGen::EmitFlushX87ForDeopt() {
-  for (int i = 0; i < x87_stack_depth_; i++) __ fstp(0);
+  // The deoptimizer does not support X87 Registers. But as long as we
+  // deopt from a stub its not a problem, since we will re-materialize the
+  // original stub inputs, which can't be double registers.
+  ASSERT(info()->IsStub());
+  if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+    __ pushfd();
+    __ VerifyX87StackDepth(x87_stack_.depth());
+    __ popfd();
+  }
+  for (int i = 0; i < x87_stack_.depth(); i++) __ fstp(0);
 }
 
 
@@ -1003,7 +1024,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   // we can have inputs or outputs of the current instruction on the stack,
   // thus we need to flush them here from the physical stack to leave it in a
   // consistent state.
-  if (x87_stack_depth_ > 0) {
+  if (x87_stack_.depth() > 0) {
     Label done;
     if (cc != no_condition) __ j(NegateCondition(cc), &done, Label::kNear);
     EmitFlushX87ForDeopt();
@@ -1865,15 +1886,16 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   uint64_t int_val = BitCast<uint64_t, double>(v);
   int32_t lower = static_cast<int32_t>(int_val);
   int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
+  ASSERT(instr->result()->IsDoubleRegister());
 
   if (!CpuFeatures::IsSafeForSnapshot(SSE2)) {
     __ push(Immediate(upper));
     __ push(Immediate(lower));
-    X87Mov(ToX87Register(instr->result()), Operand(esp, 0));
+    X87Register reg = ToX87Register(instr->result());
+    X87Mov(reg, Operand(esp, 0));
     __ add(Operand(esp), Immediate(kDoubleSize));
   } else {
     CpuFeatureScope scope1(masm(), SSE2);
-    ASSERT(instr->result()->IsDoubleRegister());
     XMMRegister res = ToDoubleRegister(instr->result());
     if (int_val == 0) {
       __ xorps(res, res);
@@ -2266,7 +2288,6 @@ void LCodeGen::DoIsNumberAndBranch(LIsNumberAndBranch* instr) {
 void LCodeGen::DoBranch(LBranch* instr) {
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsSmiOrInteger32()) {
-    ASSERT(!info()->IsStub());
     Register reg = ToRegister(instr->value());
     __ test(reg, Operand(reg));
     EmitBranch(instr, not_zero);
@@ -4874,15 +4895,20 @@ void LCodeGen::DoStringAdd(LStringAdd* instr) {
 
 
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
+  LOperand* input = instr->value();
+  LOperand* output = instr->result();
+  ASSERT(input->IsRegister() || input->IsStackSlot());
+  ASSERT(output->IsDoubleRegister());
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
-    LOperand* input = instr->value();
-    ASSERT(input->IsRegister() || input->IsStackSlot());
-    LOperand* output = instr->result();
-    ASSERT(output->IsDoubleRegister());
     __ cvtsi2sd(ToDoubleRegister(output), ToOperand(input));
+  } else if (input->IsRegister()) {
+    Register input_reg = ToRegister(input);
+    __ push(input_reg);
+    X87Mov(ToX87Register(output), Operand(esp, 0), kX87IntOperand);
+    __ pop(input_reg);
   } else {
-    UNREACHABLE();
+    X87Mov(ToX87Register(output), ToOperand(input), kX87IntOperand);
   }
 }
 
@@ -5570,27 +5596,93 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   ASSERT(input->IsDoubleRegister());
   LOperand* result = instr->result();
   ASSERT(result->IsRegister());
-  CpuFeatureScope scope(masm(), SSE2);
-
-  XMMRegister input_reg = ToDoubleRegister(input);
   Register result_reg = ToRegister(result);
 
-  __ cvttsd2si(result_reg, Operand(input_reg));
+  Label done;
+  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+    CpuFeatureScope scope(masm(), SSE2);
 
-  if (instr->truncating()) {
-    // Performs a truncating conversion of a floating point number as used by
-    // the JS bitwise operations.
-    Label fast_case_succeeded;
-    __ cmp(result_reg, 0x80000000u);
-    __ j(not_equal, &fast_case_succeeded);
-    __ sub(esp, Immediate(kDoubleSize));
-    __ movdbl(MemOperand(esp, 0), input_reg);
-    DoubleToIStub stub(esp, result_reg, 0, true);
-    __ call(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
-    __ add(esp, Immediate(kDoubleSize));
-    __ bind(&fast_case_succeeded);
+    XMMRegister input_reg = ToDoubleRegister(input);
+
+    __ cvttsd2si(result_reg, Operand(input_reg));
+
+    if (instr->truncating()) {
+      // Performs a truncating conversion of a floating point number as used by
+      // the JS bitwise operations.
+      Label fast_case_succeeded;
+      __ cmp(result_reg, 0x80000000u);
+      __ j(not_equal, &fast_case_succeeded);
+      __ sub(esp, Immediate(kDoubleSize));
+      __ movdbl(MemOperand(esp, 0), input_reg);
+      DoubleToIStub stub(esp, result_reg, 0, true);
+      __ call(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+      __ add(esp, Immediate(kDoubleSize));
+      __ bind(&fast_case_succeeded);
+    } else {
+      __ cvtsi2sd(xmm0, Operand(result_reg));
+      __ ucomisd(xmm0, input_reg);
+      DeoptimizeIf(not_equal, instr->environment());
+      DeoptimizeIf(parity_even, instr->environment());  // NaN.
+      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        // The integer converted back is equal to the original. We
+        // only have to test if we got -0 as an input.
+        __ test(result_reg, Operand(result_reg));
+        __ j(not_zero, &done, Label::kNear);
+        __ movmskpd(result_reg, input_reg);
+        // Bit 0 contains the sign of the double in input_reg.
+        // If input was positive, we are ok and return 0, otherwise
+        // deoptimize.
+        __ and_(result_reg, 1);
+        DeoptimizeIf(not_zero, instr->environment());
+      }
+      __ bind(&done);
+    }
   } else {
-    Label done;
+    X87Register input_reg = ToX87Register(input);
+    __ push(result_reg);
+    X87Mov(Operand(esp, 0), input_reg, kX87IntOperand);
+    if (instr->truncating()) {
+      __ pop(result_reg);
+    } else {
+      X87Fxch(input_reg);
+      __ fld(0);
+      __ fild_s(Operand(esp, 0));
+      __ pop(result_reg);
+      __ FCmp();
+      DeoptimizeIf(not_equal, instr->environment());
+      DeoptimizeIf(parity_even, instr->environment());  // NaN.
+    }
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ test(result_reg, Operand(result_reg));
+      __ j(not_zero, &done, Label::kNear);
+      // To check for minus zero, we load the value again as float, and check
+      // if that is still 0.
+      X87Fxch(input_reg);
+      __ push(result_reg);
+      __ fst_s(Operand(esp, 0));
+      __ pop(result_reg);
+      __ test(result_reg, Operand(result_reg));
+      DeoptimizeIf(not_zero, instr->environment());
+      __ bind(&done);
+    }
+  }
+}
+
+
+void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
+  LOperand* input = instr->value();
+  ASSERT(input->IsDoubleRegister());
+  LOperand* result = instr->result();
+  ASSERT(result->IsRegister());
+  Register result_reg = ToRegister(result);
+
+  Label done;
+  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+    CpuFeatureScope scope(masm(), SSE2);
+
+    XMMRegister input_reg = ToDoubleRegister(input);
+
+    __ cvttsd2si(result_reg, Operand(input_reg));
     __ cvtsi2sd(xmm0, Operand(result_reg));
     __ ucomisd(xmm0, input_reg);
     DeoptimizeIf(not_equal, instr->environment());
@@ -5606,41 +5698,32 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
       // deoptimize.
       __ and_(result_reg, 1);
       DeoptimizeIf(not_zero, instr->environment());
+      __ bind(&done);
     }
-    __ bind(&done);
-  }
-}
+  } else {
+    X87Register input_reg = ToX87Register(input);
+    X87Fxch(input_reg);
+    __ push(result_reg);
+    X87Mov(Operand(esp, 0), input_reg, kX87IntOperand);
+    __ fld(0);
+    __ fild_s(Operand(esp, 0));
+    __ pop(result_reg);
+    __ FCmp();
+    DeoptimizeIf(not_equal, instr->environment());
+    DeoptimizeIf(parity_even, instr->environment());  // NaN.
 
-
-void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
-  LOperand* input = instr->value();
-  ASSERT(input->IsDoubleRegister());
-  LOperand* result = instr->result();
-  ASSERT(result->IsRegister());
-  CpuFeatureScope scope(masm(), SSE2);
-
-  XMMRegister input_reg = ToDoubleRegister(input);
-  Register result_reg = ToRegister(result);
-
-  Label done;
-  __ cvttsd2si(result_reg, Operand(input_reg));
-  __ cvtsi2sd(xmm0, Operand(result_reg));
-  __ ucomisd(xmm0, input_reg);
-  DeoptimizeIf(not_equal, instr->environment());
-  DeoptimizeIf(parity_even, instr->environment());  // NaN.
-
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    // The integer converted back is equal to the original. We
-    // only have to test if we got -0 as an input.
-    __ test(result_reg, Operand(result_reg));
-    __ j(not_zero, &done, Label::kNear);
-    __ movmskpd(result_reg, input_reg);
-    // Bit 0 contains the sign of the double in input_reg.
-    // If input was positive, we are ok and return 0, otherwise
-    // deoptimize.
-    __ and_(result_reg, 1);
-    DeoptimizeIf(not_zero, instr->environment());
-    __ bind(&done);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ test(result_reg, Operand(result_reg));
+      __ j(not_zero, &done, Label::kNear);
+      // To check for minus zero, we load the value again as float, and check
+      // if that is still 0.
+      __ push(result_reg);
+      __ fst_s(Operand(esp, 0));
+      __ pop(result_reg);
+      __ test(result_reg, Operand(result_reg));
+      DeoptimizeIf(not_zero, instr->environment());
+      __ bind(&done);
+    }
   }
   __ SmiTag(result_reg);
   DeoptimizeIf(overflow, instr->environment());
