@@ -2144,10 +2144,10 @@ class Yield: public Expression {
   DECLARE_NODE_TYPE(Yield)
 
   enum Kind {
-    kInitial,     // The initial yield that returns the unboxed generator object
-    kSuspend,     // A normal yield: { value: EXPRESSION, done: false }
-    kDelegating,  // A yield*.
-    kFinal        // A return: { value: EXPRESSION, done: true }
+    INITIAL,     // The initial yield that returns the unboxed generator object.
+    SUSPEND,     // A normal yield: { value: EXPRESSION, done: false }
+    DELEGATING,  // A yield*.
+    FINAL        // A return: { value: EXPRESSION, done: true }
   };
 
   Expression* generator_object() const { return generator_object_; }
@@ -2159,11 +2159,11 @@ class Yield: public Expression {
   // locates the catch handler in the handler table, and is equivalent to
   // TryCatchStatement::index().
   int index() const {
-    ASSERT(yield_kind() == kDelegating);
+    ASSERT(yield_kind() == DELEGATING);
     return index_;
   }
   void set_index(int index) {
-    ASSERT(yield_kind() == kDelegating);
+    ASSERT(yield_kind() == DELEGATING);
     index_ = index;
   }
 

@@ -1945,12 +1945,12 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   VisitForStackValue(expr->expression());
 
   switch (expr->yield_kind()) {
-    case Yield::kSuspend:
+    case Yield::SUSPEND:
       // Pop value from top-of-stack slot; box result into result register.
       EmitCreateIteratorResult(false);
       __ push(result_register());
       // Fall through.
-    case Yield::kInitial: {
+    case Yield::INITIAL: {
       Label suspend, continuation, post_runtime, resume;
 
       __ jmp(&suspend);
@@ -1983,7 +1983,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       break;
     }
 
-    case Yield::kFinal: {
+    case Yield::FINAL: {
       VisitForAccumulatorValue(expr->generator_object());
       __ mov(FieldOperand(result_register(),
                           JSGeneratorObject::kContinuationOffset),
@@ -1995,7 +1995,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       break;
     }
 
-    case Yield::kDelegating: {
+    case Yield::DELEGATING: {
       VisitForStackValue(expr->generator_object());
 
       // Initial stack layout is as follows:
