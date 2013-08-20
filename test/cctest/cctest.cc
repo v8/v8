@@ -106,6 +106,13 @@ class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 };
 
 
+static void SuggestTestHarness(int tests) {
+  if (tests == 0) return;
+  printf("Running multiple tests in sequence is deprecated and may cause "
+         "bogus failure.  Consider using tools/run-tests.py instead.\n");
+}
+
+
 int main(int argc, char* argv[]) {
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
   v8::internal::FLAG_harmony_array_buffer = true;
@@ -138,8 +145,8 @@ int main(int argc, char* argv[]) {
           if (test->enabled()
               && strcmp(test->file(), file) == 0
               && strcmp(test->name(), name) == 0) {
+            SuggestTestHarness(tests_run++);
             test->Run();
-            tests_run++;
           }
           test = test->prev();
         }
@@ -152,8 +159,8 @@ int main(int argc, char* argv[]) {
           if (test->enabled()
               && (strcmp(test->file(), file_or_name) == 0
                   || strcmp(test->name(), file_or_name) == 0)) {
+            SuggestTestHarness(tests_run++);
             test->Run();
-            tests_run++;
           }
           test = test->prev();
         }
