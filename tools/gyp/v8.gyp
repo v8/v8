@@ -380,6 +380,8 @@
         '../../src/hydrogen-uint32-analysis.h',
         '../../src/hydrogen-osr.cc',
         '../../src/hydrogen-osr.h',
+        '../../src/i18n.cc',
+        '../../src/i18n.h',
         '../../src/icu_util.cc',
         '../../src/icu_util.h',
         '../../src/ic-inl.h',
@@ -874,19 +876,18 @@
         }],
         ['v8_enable_i18n_support==1', {
           'sources': [
-            '../../src/i18n.cc',
-            '../../src/i18n.h',
-            '../../src/extensions/i18n/break-iterator.cc',
-            '../../src/extensions/i18n/break-iterator.h',
             '../../src/extensions/i18n/i18n-extension.cc',
             '../../src/extensions/i18n/i18n-extension.h',
-            '../../src/extensions/i18n/i18n-utils.cc',
-            '../../src/extensions/i18n/i18n-utils.h',
           ],
           'dependencies': [
             '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
             '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
           ]
+        }, {  # v8_enable_i18n_support==0
+          'sources!': [
+            '../../src/i18n.cc',
+            '../../src/i18n.h',
+          ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [

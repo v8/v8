@@ -35,8 +35,6 @@
  * Useful for subclassing.
  */
 function initializeBreakIterator(iterator, locales, options) {
-  native function NativeJSCreateBreakIterator();
-
   if (iterator.hasOwnProperty('__initializedIntlObject')) {
     throw new TypeError('Trying to re-initialize v8BreakIterator object.');
   }
@@ -59,9 +57,9 @@ function initializeBreakIterator(iterator, locales, options) {
     locale: {writable: true}
   });
 
-  var internalIterator = NativeJSCreateBreakIterator(locale.locale,
-                                                     internalOptions,
-                                                     resolved);
+  var internalIterator = %CreateBreakIterator(locale.locale,
+                                              internalOptions,
+                                              resolved);
 
   Object.defineProperty(iterator, 'iterator', {value: internalIterator});
   Object.defineProperty(iterator, 'resolved', {value: resolved});
@@ -149,8 +147,7 @@ function initializeBreakIterator(iterator, locales, options) {
  * gets discarded.
  */
 function adoptText(iterator, text) {
-  native function NativeJSBreakIteratorAdoptText();
-  NativeJSBreakIteratorAdoptText(iterator.iterator, String(text));
+  %BreakIteratorAdoptText(iterator.iterator, String(text));
 }
 
 
@@ -158,8 +155,7 @@ function adoptText(iterator, text) {
  * Returns index of the first break in the string and moves current pointer.
  */
 function first(iterator) {
-  native function NativeJSBreakIteratorFirst();
-  return NativeJSBreakIteratorFirst(iterator.iterator);
+  return %BreakIteratorFirst(iterator.iterator);
 }
 
 
@@ -167,8 +163,7 @@ function first(iterator) {
  * Returns the index of the next break and moves the pointer.
  */
 function next(iterator) {
-  native function NativeJSBreakIteratorNext();
-  return NativeJSBreakIteratorNext(iterator.iterator);
+  return %BreakIteratorNext(iterator.iterator);
 }
 
 
@@ -176,8 +171,7 @@ function next(iterator) {
  * Returns index of the current break.
  */
 function current(iterator) {
-  native function NativeJSBreakIteratorCurrent();
-  return NativeJSBreakIteratorCurrent(iterator.iterator);
+  return %BreakIteratorCurrent(iterator.iterator);
 }
 
 
@@ -185,8 +179,7 @@ function current(iterator) {
  * Returns type of the current break.
  */
 function breakType(iterator) {
-  native function NativeJSBreakIteratorBreakType();
-  return NativeJSBreakIteratorBreakType(iterator.iterator);
+  return %BreakIteratorBreakType(iterator.iterator);
 }
 
 

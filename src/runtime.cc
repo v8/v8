@@ -80,6 +80,7 @@
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
+#include "unicode/rbbi.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
 #include "unicode/uchar.h"
@@ -13878,6 +13879,158 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalCompare) {
   if (U_FAILURE(status)) return isolate->ThrowIllegalOperation();
 
   return *isolate->factory()->NewNumberFromInt(result);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateBreakIterator) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
+
+  Handle<ObjectTemplateInfo> break_iterator_template =
+      I18N::GetTemplate2(isolate);
+
+  // Create an empty object wrapper.
+  bool has_pending_exception = false;
+  Handle<JSObject> local_object = Execution::InstantiateObject(
+      break_iterator_template, &has_pending_exception);
+  if (has_pending_exception) {
+    ASSERT(isolate->has_pending_exception());
+    return Failure::Exception();
+  }
+
+  // Set break iterator as internal field of the resulting JS object.
+  icu::BreakIterator* break_iterator = BreakIterator::InitializeBreakIterator(
+      isolate, locale, options, resolved);
+
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  local_object->SetInternalField(0, reinterpret_cast<Smi*>(break_iterator));
+  // Make sure that the pointer to adopted text is NULL.
+  local_object->SetInternalField(1, reinterpret_cast<Smi*>(NULL));
+
+  RETURN_IF_EMPTY_HANDLE(isolate,
+      JSObject::SetLocalPropertyIgnoreAttributes(
+          local_object,
+          isolate->factory()->NewStringFromAscii(CStrVector("breakIterator")),
+          isolate->factory()->NewStringFromAscii(CStrVector("valid")),
+          NONE));
+
+  // Make object handle weak so we can delete the break iterator once GC kicks
+  // in.
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
+                          NULL,
+                          BreakIterator::DeleteBreakIterator);
+  return *local_object;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorAdoptText) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, text, 1);
+
+  icu::BreakIterator* break_iterator =
+      BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  icu::UnicodeString* u_text = reinterpret_cast<icu::UnicodeString*>(
+      break_iterator_holder->GetInternalField(1));
+  delete u_text;
+
+  v8::String::Value text_value(v8::Utils::ToLocal(text));
+  u_text = new icu::UnicodeString(
+      reinterpret_cast<const UChar*>(*text_value), text_value.length());
+  break_iterator_holder->SetInternalField(1, reinterpret_cast<Smi*>(u_text));
+
+  break_iterator->setText(*u_text);
+
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorFirst) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
+
+  icu::BreakIterator* break_iterator =
+      BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  return *isolate->factory()->NewNumberFromInt(break_iterator->first());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorNext) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
+
+  icu::BreakIterator* break_iterator =
+      BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  return *isolate->factory()->NewNumberFromInt(break_iterator->next());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorCurrent) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
+
+  icu::BreakIterator* break_iterator =
+      BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  return *isolate->factory()->NewNumberFromInt(break_iterator->current());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorBreakType) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
+
+  icu::BreakIterator* break_iterator =
+      BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
+
+  // TODO(cira): Remove cast once ICU fixes base BreakIterator class.
+  icu::RuleBasedBreakIterator* rule_based_iterator =
+      static_cast<icu::RuleBasedBreakIterator*>(break_iterator);
+  int32_t status = rule_based_iterator->getRuleStatus();
+  // Keep return values in sync with JavaScript BreakType enum.
+  if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("none"));
+  } else if (status >= UBRK_WORD_NUMBER && status < UBRK_WORD_NUMBER_LIMIT) {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("number"));
+  } else if (status >= UBRK_WORD_LETTER && status < UBRK_WORD_LETTER_LIMIT) {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("letter"));
+  } else if (status >= UBRK_WORD_KANA && status < UBRK_WORD_KANA_LIMIT) {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("kana"));
+  } else if (status >= UBRK_WORD_IDEO && status < UBRK_WORD_IDEO_LIMIT) {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("ideo"));
+  } else {
+    return *isolate->factory()->NewStringFromAscii(CStrVector("unknown"));
+  }
 }
 #endif  // V8_I18N_SUPPORT
 
