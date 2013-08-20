@@ -13631,11 +13631,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateDateTimeFormat) {
           isolate->factory()->NewStringFromAscii(CStrVector("valid")),
           NONE));
 
-  Persistent<v8::Object> wrapper(reinterpret_cast<v8::Isolate*>(isolate),
-                                 v8::Utils::ToLocal(local_object));
   // Make object handle weak so we can delete the data format once GC kicks in.
-  wrapper.MakeWeak<void>(NULL, &DateFormat::DeleteDateFormat);
-  wrapper.ClearAndLeak();
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
+                          NULL,
+                          DateFormat::DeleteDateFormat);
   return *local_object;
 }
 
@@ -13734,12 +13734,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateNumberFormat) {
           isolate->factory()->NewStringFromAscii(CStrVector("valid")),
           NONE));
 
-  Persistent<v8::Object> wrapper(reinterpret_cast<v8::Isolate*>(isolate),
-                                 v8::Utils::ToLocal(local_object));
-  // Make object handle weak so we can delete the number format once GC kicks
-  // in.
-  wrapper.MakeWeak<void>(NULL, &NumberFormat::DeleteNumberFormat);
-  wrapper.ClearAndLeak();
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
+                          NULL,
+                          NumberFormat::DeleteNumberFormat);
   return *local_object;
 }
 
@@ -13847,11 +13845,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCollator) {
           isolate->factory()->NewStringFromAscii(CStrVector("valid")),
           NONE));
 
-  Persistent<v8::Object> wrapper(reinterpret_cast<v8::Isolate*>(isolate),
-                                 v8::Utils::ToLocal(local_object));
-  // Make object handle weak so we can delete the collator once GC kicks in.
-  wrapper.MakeWeak<void>(NULL, &Collator::DeleteCollator);
-  wrapper.ClearAndLeak();
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(wrapper.location()),
+                          NULL,
+                          Collator::DeleteCollator);
   return *local_object;
 }
 

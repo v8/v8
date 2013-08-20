@@ -800,7 +800,7 @@ icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
 
 
 void DateFormat::DeleteDateFormat(v8::Isolate* isolate,
-                                  Persistent<v8::Object>* object,
+                                  Persistent<v8::Value>* object,
                                   void* param) {
   // First delete the hidden C++ object.
   delete reinterpret_cast<icu::SimpleDateFormat*>(Handle<JSObject>::cast(
@@ -864,7 +864,7 @@ icu::DecimalFormat* NumberFormat::UnpackNumberFormat(
 
 
 void NumberFormat::DeleteNumberFormat(v8::Isolate* isolate,
-                                      Persistent<v8::Object>* object,
+                                      Persistent<v8::Value>* object,
                                       void* param) {
   // First delete the hidden C++ object.
   delete reinterpret_cast<icu::DecimalFormat*>(Handle<JSObject>::cast(
@@ -925,7 +925,7 @@ icu::Collator* Collator::UnpackCollator(Isolate* isolate,
 
 
 void Collator::DeleteCollator(v8::Isolate* isolate,
-                              Persistent<v8::Object>* object,
+                              Persistent<v8::Value>* object,
                               void* param) {
   // First delete the hidden C++ object.
   delete reinterpret_cast<icu::Collator*>(Handle<JSObject>::cast(

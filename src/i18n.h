@@ -71,7 +71,7 @@ class DateFormat {
   // Release memory we allocated for the DateFormat once the JS object that
   // holds the pointer gets garbage collected.
   static void DeleteDateFormat(v8::Isolate* isolate,
-                               Persistent<v8::Object>* object,
+                               Persistent<v8::Value>* object,
                                void* param);
  private:
   DateFormat();
@@ -95,7 +95,7 @@ class NumberFormat {
   // Release memory we allocated for the NumberFormat once the JS object that
   // holds the pointer gets garbage collected.
   static void DeleteNumberFormat(v8::Isolate* isolate,
-                                 Persistent<v8::Object>* object,
+                                 Persistent<v8::Value>* object,
                                  void* param);
  private:
   NumberFormat();
@@ -118,7 +118,7 @@ class Collator {
   // Release memory we allocated for the Collator once the JS object that holds
   // the pointer gets garbage collected.
   static void DeleteCollator(v8::Isolate* isolate,
-                             Persistent<v8::Object>* object,
+                             Persistent<v8::Value>* object,
                              void* param);
  private:
   Collator();
