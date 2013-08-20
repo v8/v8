@@ -333,12 +333,7 @@ F FUNCTION_CAST(Address addr) {
 // Compiler feature detection.
 #if defined(__clang__)
 
-// Compatibility with older clang versions.
-# ifndef __has_extension
-# define __has_extension __has_feature
-# endif
-
-# if __has_extension(cxx_override_control)
+# if __has_feature(cxx_override_control)
 #  define V8_HAVE_CXX11_FINAL
 #  define V8_HAVE_CXX11_OVERRIDE
 # endif
