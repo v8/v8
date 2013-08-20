@@ -1556,10 +1556,11 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 
 #ifdef V8_SHARED
 static void SetStandaloneFlagsViaCommandLine() {
-  int fake_argc = 2;
-  char **fake_argv = new char*[2];
+  int fake_argc = 3;
+  char **fake_argv = new char*[3];
   fake_argv[0] = NULL;
-  fake_argv[1] = strdup("--trace-hydrogen-file=hydrogen.cfg");
+  fake_argv[1] = strdup("--harmony-typed-arrays");
+  fake_argv[2] = strdup("--trace-hydrogen-file=hydrogen.cfg");
   v8::V8::SetFlagsFromCommandLine(&fake_argc, fake_argv, false);
   free(fake_argv[1]);
   delete[] fake_argv;
@@ -1648,6 +1649,8 @@ int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU();
 #ifndef V8_SHARED
+  i::FLAG_harmony_array_buffer = true;
+  i::FLAG_harmony_typed_arrays = true;
   i::FLAG_trace_hydrogen_file = "hydrogen.cfg";
 #else
   SetStandaloneFlagsViaCommandLine();
