@@ -7032,7 +7032,7 @@ void Map::RemoveFromCodeCache(Name* name, Code* code, int index) {
 
 // An iterator over all map transitions in an descriptor array, reusing the map
 // field of the contens array while it is running.
-class IntrusiveMapTransitionIterator {
+class IntrusiveMapTransitionIterator V8_FINAL {
  public:
   explicit IntrusiveMapTransitionIterator(TransitionArray* transition_array)
       : transition_array_(transition_array) { }
@@ -7070,7 +7070,7 @@ class IntrusiveMapTransitionIterator {
 
 // An iterator over all prototype transitions, reusing the map field of the
 // underlying array while it is running.
-class IntrusivePrototypeTransitionIterator {
+class IntrusivePrototypeTransitionIterator V8_FINAL {
  public:
   explicit IntrusivePrototypeTransitionIterator(HeapObject* proto_trans)
       : proto_trans_(proto_trans) { }
@@ -7143,7 +7143,7 @@ class IntrusivePrototypeTransitionIterator {
 //
 // Note that the child iterator is just a concatenation of two iterators: One
 // iterating over map transitions and one iterating over prototype transisitons.
-class TraversableMap : public Map {
+class TraversableMap V8_FINAL : public Map {
  public:
   // Record the parent in the traversal within this map. Note that this destroys
   // this map's map!
@@ -7391,7 +7391,7 @@ void CodeCache::RemoveByIndex(Object* name, Code* code, int index) {
 // code object. The actual match is on the name and the code flags. If a key
 // is created using the flags and not a code object it can only be used for
 // lookup not to create a new entry.
-class CodeCacheHashTableKey : public HashTableKey {
+class CodeCacheHashTableKey V8_FINAL : public HashTableKey {
  public:
   CodeCacheHashTableKey(Name* name, Code::Flags flags)
       : name_(name), flags_(flags), code_(NULL) { }
@@ -7546,7 +7546,7 @@ Handle<Object> PolymorphicCodeCache::Lookup(MapHandleList* maps,
 // Despite their name, object of this class are not stored in the actual
 // hash table; instead they're temporarily used for lookups. It is therefore
 // safe to have a weak (non-owning) pointer to a MapList as a member field.
-class PolymorphicCodeCacheHashTableKey : public HashTableKey {
+class PolymorphicCodeCacheHashTableKey V8_FINAL : public HashTableKey {
  public:
   // Callers must ensure that |maps| outlives the newly constructed object.
   PolymorphicCodeCacheHashTableKey(MapHandleList* maps, int code_flags)
@@ -8546,7 +8546,7 @@ static inline bool CompareRawStringContents(const Char* const a,
 
 
 template<typename Chars1, typename Chars2>
-class RawStringComparator : public AllStatic {
+class RawStringComparator V8_FINAL : public AllStatic {
  public:
   static inline bool compare(const Chars1* a, const Chars2* b, int len) {
     ASSERT(sizeof(Chars1) != sizeof(Chars2));
@@ -8561,7 +8561,7 @@ class RawStringComparator : public AllStatic {
 
 
 template<>
-class RawStringComparator<uint16_t, uint16_t> {
+class RawStringComparator<uint16_t, uint16_t> V8_FINAL {
  public:
   static inline bool compare(const uint16_t* a, const uint16_t* b, int len) {
     return CompareRawStringContents(a, b, len);
@@ -8570,7 +8570,7 @@ class RawStringComparator<uint16_t, uint16_t> {
 
 
 template<>
-class RawStringComparator<uint8_t, uint8_t> {
+class RawStringComparator<uint8_t, uint8_t> V8_FINAL {
  public:
   static inline bool compare(const uint8_t* a, const uint8_t* b, int len) {
     return CompareRawStringContents(a, b, len);
@@ -8578,8 +8578,8 @@ class RawStringComparator<uint8_t, uint8_t> {
 };
 
 
-class StringComparator {
-  class State {
+class StringComparator V8_FINAL {
+  class State V8_FINAL {
    public:
     explicit inline State(ConsStringIteratorOp* op)
       : op_(op), is_one_byte_(true), length_(0), buffer8_(NULL) {}
@@ -8815,7 +8815,7 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
 }
 
 
-class IteratingStringHasher: public StringHasher {
+class IteratingStringHasher V8_FINAL : public StringHasher {
  public:
   static inline uint32_t Hash(String* string, uint32_t seed) {
     const unsigned len = static_cast<unsigned>(string->length());
@@ -13279,7 +13279,7 @@ int JSObject::GetEnumElementKeys(FixedArray* storage) {
 
 
 // StringKey simply carries a string object as key.
-class StringKey : public HashTableKey {
+class StringKey V8_FINAL : public HashTableKey {
  public:
   explicit StringKey(String* string) :
       string_(string),
@@ -13306,7 +13306,7 @@ class StringKey : public HashTableKey {
 
 
 // StringSharedKeys are used as keys in the eval cache.
-class StringSharedKey : public HashTableKey {
+class StringSharedKey V8_FINAL : public HashTableKey {
  public:
   StringSharedKey(String* source,
                   SharedFunctionInfo* shared,
@@ -13395,7 +13395,7 @@ class StringSharedKey : public HashTableKey {
 
 
 // RegExpKey carries the source and flags of a regular expression as key.
-class RegExpKey : public HashTableKey {
+class RegExpKey V8_FINAL : public HashTableKey {
  public:
   RegExpKey(String* string, JSRegExp::Flags flags)
       : string_(string),
@@ -13436,7 +13436,7 @@ class RegExpKey : public HashTableKey {
 
 
 // Utf8StringKey carries a vector of chars as key.
-class Utf8StringKey : public HashTableKey {
+class Utf8StringKey V8_FINAL : public HashTableKey {
  public:
   explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
@@ -13499,7 +13499,7 @@ class SequentialStringKey : public HashTableKey {
 
 
 
-class OneByteStringKey : public SequentialStringKey<uint8_t> {
+class OneByteStringKey V8_FINAL : public SequentialStringKey<uint8_t> {
  public:
   OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
       : SequentialStringKey<uint8_t>(str, seed) { }
@@ -13515,7 +13515,7 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
 };
 
 
-class SubStringOneByteStringKey : public HashTableKey {
+class SubStringOneByteStringKey V8_FINAL : public HashTableKey {
  public:
   explicit SubStringOneByteStringKey(Handle<SeqOneByteString> string,
                                      int from,
@@ -13557,7 +13557,7 @@ class SubStringOneByteStringKey : public HashTableKey {
 };
 
 
-class TwoByteStringKey : public SequentialStringKey<uc16> {
+class TwoByteStringKey V8_FINAL : public SequentialStringKey<uc16> {
  public:
   explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
       : SequentialStringKey<uc16>(str, seed) { }
@@ -13574,7 +13574,7 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
 
 
 // InternalizedStringKey carries a string/internalized-string object as key.
-class InternalizedStringKey : public HashTableKey {
+class InternalizedStringKey V8_FINAL : public HashTableKey {
  public:
   explicit InternalizedStringKey(String* string)
       : string_(string) { }
@@ -14424,7 +14424,7 @@ MaybeObject* StringTable::LookupString(String* string, Object** s) {
 // string hash calculation loop here for speed.  Doesn't work if the two
 // characters form a decimal integer, since such strings have a different hash
 // algorithm.
-class TwoCharHashTableKey : public HashTableKey {
+class TwoCharHashTableKey V8_FINAL : public HashTableKey {
  public:
   TwoCharHashTableKey(uint16_t c1, uint16_t c2, uint32_t seed)
     : c1_(c1), c2_(c2) {
@@ -14713,7 +14713,7 @@ void CompilationCacheTable::Remove(Object* value) {
 
 
 // StringsKey used for HashTable where key is array of internalized strings.
-class StringsKey : public HashTableKey {
+class StringsKey V8_FINAL : public HashTableKey {
  public:
   explicit StringsKey(FixedArray* strings) : strings_(strings) { }
 
