@@ -235,9 +235,10 @@ class CompilationInfo {
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();
 
-  // Disable all optimization attempts of this info for the rest of the
-  // current compilation pipeline.
-  void AbortOptimization();
+  // Reset code to the unoptimized version when optimization is aborted.
+  void AbortOptimization() {
+    SetCode(handle(shared_info()->code()));
+  }
 
   void set_deferred_handles(DeferredHandles* deferred_handles) {
     ASSERT(deferred_handles_ == NULL);
