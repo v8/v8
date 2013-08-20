@@ -330,6 +330,50 @@ F FUNCTION_CAST(Address addr) {
 }
 
 
+// Compiler feature detection.
+#if defined(__clang__)
+
+// Compatibility with older clang versions.
+# ifndef __has_extension
+# define __has_extension __has_feature
+# endif
+
+# if __has_extension(cxx_override_control)
+#  define V8_HAVE_CXX11_FINAL
+#  define V8_HAVE_CXX11_OVERRIDE
+# endif
+
+#elif defined(__GNUC__)
+
+// g++ requires -std=c++0x or -std=gnu++0x to support C++11 functionality
+// without warnings (functionality used by the macros below).  These modes
+// are detectable by checking whether __GXX_EXPERIMENTAL_CXX0X__ is defined or,
+// more standardly, by checking whether __cplusplus has a C++11 or greater
+// value. Current versions of g++ do not correctly set __cplusplus, so we check
+// both for forward compatibility.
+# if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+#  if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)
+#   define V8_HAVE_CXX11_OVERRIDE
+#   define V8_HAVE_CXX11_FINAL
+#  endif
+# else
+// '__final' is a non-C++11 GCC synonym for 'final', per GCC r176655.
+#  if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)
+#   define V8_HAVE_GXX_FINAL
+#  endif
+# endif
+
+#elif defined(_MSC_VER)
+
+# if _MSC_VER >= 1400
+#  define V8_HAVE_CXX11_OVERRIDE
+// MSVC currently spells "final" as "sealed".
+#  define V8_HAVE_MSVC_SEALED
+# endif
+
+#endif
+
+
 #if __cplusplus >= 201103L
 #define DISALLOW_BY_DELETE = delete
 #else
@@ -372,6 +416,33 @@ F FUNCTION_CAST(Address addr) {
 #else
 #define INLINE(header) inline header
 #define NO_INLINE(header) header
+#endif
+
+
+// Annotate a virtual method indicating it must be overriding a virtual
+// method in the parent class.
+// Use like:
+//   virtual void bar() V8_OVERRIDE;
+#if defined(V8_HAVE_CXX11_OVERRIDE)
+#define V8_OVERRIDE override
+#else
+#define V8_OVERRIDE
+#endif
+
+
+// Annotate a virtual method indicating that subclasses must not override it,
+// or annotate a class to indicate that it cannot be subclassed.
+// Use like:
+//   class B V8_FINAL : public A {};
+//   virtual void bar() V8_FINAL;
+#if defined(V8_HAVE_CXX11_FINAL)
+#define V8_FINAL final
+#elif defined(V8_HAVE_GXX_FINAL)
+#define V8_FINAL __final
+#elif defined(V8_HAVE_MSVC_SEALED)
+#define V8_FINAL sealed
+#else
+#define V8_FINAL
 #endif
 
 
