@@ -43,7 +43,7 @@ namespace internal {
 class LDeferredCode;
 class SafepointGenerator;
 
-class LCodeGen V8_FINAL BASE_EMBEDDED {
+class LCodeGen BASE_EMBEDDED {
  public:
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : zone_(info->zone()),
@@ -420,7 +420,7 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
 
   int old_position_;
 
-  class PushSafepointRegistersScope V8_FINAL BASE_EMBEDDED {
+  class PushSafepointRegistersScope BASE_EMBEDDED {
    public:
     PushSafepointRegistersScope(LCodeGen* codegen,
                                 Safepoint::Kind kind)
@@ -468,7 +468,7 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
 };
 
 
-class LDeferredCode : public ZoneObject {
+class LDeferredCode: public ZoneObject {
  public:
   explicit LDeferredCode(LCodeGen* codegen)
       : codegen_(codegen),
@@ -477,7 +477,7 @@ class LDeferredCode : public ZoneObject {
     codegen->AddDeferredCode(this);
   }
 
-  virtual ~LDeferredCode() {}
+  virtual ~LDeferredCode() { }
   virtual void Generate() = 0;
   virtual LInstruction* instr() = 0;
 

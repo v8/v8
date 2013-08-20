@@ -7279,7 +7279,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     CHECK_ALIVE(VisitArgument(expr->expression()));
     HValue* constructor = HPushArgument::cast(Top())->argument();
     CHECK_ALIVE(VisitArgumentList(expr->arguments()));
-    HBinaryCall* call;
+    HCallNew* call;
     if (expr->target().is_identical_to(array_function)) {
       Handle<Cell> cell = expr->allocation_info_cell();
       Add<HCheckFunction>(constructor, array_function);

@@ -53,10 +53,10 @@ class LChunk;
 class LiveRange;
 
 
-class HBasicBlock V8_FINAL : public ZoneObject {
+class HBasicBlock: public ZoneObject {
  public:
   explicit HBasicBlock(HGraph* graph);
-  ~HBasicBlock() { }
+  virtual ~HBasicBlock() { }
 
   // Simple accessors.
   int block_id() const { return block_id_; }
@@ -220,7 +220,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
 };
 
 
-class HPredecessorIterator V8_FINAL BASE_EMBEDDED {
+class HPredecessorIterator BASE_EMBEDDED {
  public:
   explicit HPredecessorIterator(HBasicBlock* block)
       : predecessor_list_(block->predecessors()), current_(0) { }
@@ -235,7 +235,7 @@ class HPredecessorIterator V8_FINAL BASE_EMBEDDED {
 };
 
 
-class HInstructionIterator V8_FINAL BASE_EMBEDDED {
+class HInstructionIterator BASE_EMBEDDED {
  public:
   explicit HInstructionIterator(HBasicBlock* block)
       : instr_(block->first()) {
@@ -255,7 +255,7 @@ class HInstructionIterator V8_FINAL BASE_EMBEDDED {
 };
 
 
-class HLoopInformation V8_FINAL : public ZoneObject {
+class HLoopInformation: public ZoneObject {
  public:
   HLoopInformation(HBasicBlock* loop_header, Zone* zone)
       : back_edges_(4, zone),
@@ -264,7 +264,7 @@ class HLoopInformation V8_FINAL : public ZoneObject {
         stack_check_(NULL) {
     blocks_.Add(loop_header, zone);
   }
-  ~HLoopInformation() {}
+  virtual ~HLoopInformation() {}
 
   const ZoneList<HBasicBlock*>* back_edges() const { return &back_edges_; }
   const ZoneList<HBasicBlock*>* blocks() const { return &blocks_; }
@@ -303,7 +303,7 @@ class HLoopInformation V8_FINAL : public ZoneObject {
 
 class BoundsCheckTable;
 class InductionVariableBlocksTable;
-class HGraph V8_FINAL : public ZoneObject {
+class HGraph: public ZoneObject {
  public:
   explicit HGraph(CompilationInfo* info);
 
@@ -523,7 +523,7 @@ enum FrameType {
 };
 
 
-class HEnvironment V8_FINAL : public ZoneObject {
+class HEnvironment: public ZoneObject {
  public:
   HEnvironment(HEnvironment* outer,
                Scope* scope,
@@ -793,37 +793,33 @@ class AstContext {
 };
 
 
-class EffectContext V8_FINAL : public AstContext {
+class EffectContext: public AstContext {
  public:
   explicit EffectContext(HOptimizedGraphBuilder* owner)
       : AstContext(owner, Expression::kEffect) {
   }
   virtual ~EffectContext();
 
-  virtual void ReturnValue(HValue* value) V8_OVERRIDE;
-  virtual void ReturnInstruction(HInstruction* instr,
-                                 BailoutId ast_id) V8_OVERRIDE;
-  virtual void ReturnControl(HControlInstruction* instr,
-                             BailoutId ast_id) V8_OVERRIDE;
+  virtual void ReturnValue(HValue* value);
+  virtual void ReturnInstruction(HInstruction* instr, BailoutId ast_id);
+  virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id);
   virtual void ReturnContinuation(HIfContinuation* continuation,
-                                  BailoutId ast_id) V8_OVERRIDE;
+                                  BailoutId ast_id);
 };
 
 
-class ValueContext V8_FINAL : public AstContext {
+class ValueContext: public AstContext {
  public:
   ValueContext(HOptimizedGraphBuilder* owner, ArgumentsAllowedFlag flag)
       : AstContext(owner, Expression::kValue), flag_(flag) {
   }
   virtual ~ValueContext();
 
-  virtual void ReturnValue(HValue* value) V8_OVERRIDE;
-  virtual void ReturnInstruction(HInstruction* instr,
-                                 BailoutId ast_id) V8_OVERRIDE;
-  virtual void ReturnControl(HControlInstruction* instr,
-                             BailoutId ast_id) V8_OVERRIDE;
+  virtual void ReturnValue(HValue* value);
+  virtual void ReturnInstruction(HInstruction* instr, BailoutId ast_id);
+  virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id);
   virtual void ReturnContinuation(HIfContinuation* continuation,
-                                  BailoutId ast_id) V8_OVERRIDE;
+                                  BailoutId ast_id);
 
   bool arguments_allowed() { return flag_ == ARGUMENTS_ALLOWED; }
 
@@ -832,7 +828,7 @@ class ValueContext V8_FINAL : public AstContext {
 };
 
 
-class TestContext V8_FINAL : public AstContext {
+class TestContext: public AstContext {
  public:
   TestContext(HOptimizedGraphBuilder* owner,
               Expression* condition,
@@ -844,13 +840,11 @@ class TestContext V8_FINAL : public AstContext {
         if_false_(if_false) {
   }
 
-  virtual void ReturnValue(HValue* value) V8_OVERRIDE;
-  virtual void ReturnInstruction(HInstruction* instr,
-                                 BailoutId ast_id) V8_OVERRIDE;
-  virtual void ReturnControl(HControlInstruction* instr,
-                             BailoutId ast_id) V8_OVERRIDE;
+  virtual void ReturnValue(HValue* value);
+  virtual void ReturnInstruction(HInstruction* instr, BailoutId ast_id);
+  virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id);
   virtual void ReturnContinuation(HIfContinuation* continuation,
-                                  BailoutId ast_id) V8_OVERRIDE;
+                                  BailoutId ast_id);
 
   static TestContext* cast(AstContext* context) {
     ASSERT(context->IsTest());
@@ -872,7 +866,7 @@ class TestContext V8_FINAL : public AstContext {
 };
 
 
-class FunctionState V8_FINAL {
+class FunctionState {
  public:
   FunctionState(HOptimizedGraphBuilder* owner,
                 CompilationInfo* info,
@@ -939,7 +933,7 @@ class FunctionState V8_FINAL {
 };
 
 
-class HIfContinuation V8_FINAL {
+class HIfContinuation {
  public:
   HIfContinuation() { continuation_captured_ = false; }
   ~HIfContinuation() { ASSERT(!continuation_captured_); }
@@ -1278,7 +1272,7 @@ class HGraphBuilder {
   void AddIncrementCounter(StatsCounter* counter,
                            HValue* context);
 
-  class IfBuilder V8_FINAL {
+  class IfBuilder {
    public:
     explicit IfBuilder(HGraphBuilder* builder,
                        int position = RelocInfo::kNoPosition);
@@ -1408,7 +1402,7 @@ class HGraphBuilder {
     HBasicBlock* merge_block_;
   };
 
-  class LoopBuilder V8_FINAL {
+  class LoopBuilder {
    public:
     enum Direction {
       kPreIncrement,
@@ -1449,7 +1443,7 @@ class HGraphBuilder {
   void BuildNewSpaceArrayCheck(HValue* length,
                                ElementsKind kind);
 
-  class JSArrayBuilder V8_FINAL {
+  class JSArrayBuilder {
    public:
     JSArrayBuilder(HGraphBuilder* builder,
                    ElementsKind kind,
@@ -1648,13 +1642,12 @@ inline HInstruction* HGraphBuilder::NewUncasted<HContext>() {
 }
 
 
-class HOptimizedGraphBuilder V8_FINAL
-    : public HGraphBuilder, public AstVisitor {
+class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
  public:
   // A class encapsulating (lazily-allocated) break and continue blocks for
   // a breakable statement.  Separated from BreakAndContinueScope so that it
   // can have a separate lifetime.
-  class BreakAndContinueInfo V8_FINAL BASE_EMBEDDED {
+  class BreakAndContinueInfo BASE_EMBEDDED {
    public:
     explicit BreakAndContinueInfo(BreakableStatement* target,
                                   int drop_extra = 0)
@@ -1680,7 +1673,7 @@ class HOptimizedGraphBuilder V8_FINAL
 
   // A helper class to maintain a stack of current BreakAndContinueInfo
   // structures mirroring BreakableStatement nesting.
-  class BreakAndContinueScope V8_FINAL BASE_EMBEDDED {
+  class BreakAndContinueScope BASE_EMBEDDED {
    public:
     BreakAndContinueScope(BreakAndContinueInfo* info,
                           HOptimizedGraphBuilder* owner)
@@ -1706,7 +1699,7 @@ class HOptimizedGraphBuilder V8_FINAL
 
   explicit HOptimizedGraphBuilder(CompilationInfo* info);
 
-  virtual bool BuildGraph() V8_OVERRIDE;
+  virtual bool BuildGraph();
 
   // Simple accessors.
   BreakAndContinueScope* break_scope() const { return break_scope_; }
@@ -1892,9 +1885,9 @@ class HOptimizedGraphBuilder V8_FINAL
   template <class Instruction> HInstruction* PreProcessCall(Instruction* call);
 
   void SetUpScope(Scope* scope);
-  virtual void VisitStatements(ZoneList<Statement*>* statements) V8_OVERRIDE;
+  virtual void VisitStatements(ZoneList<Statement*>* statements);
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) V8_OVERRIDE;
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
@@ -2173,7 +2166,7 @@ class HOptimizedGraphBuilder V8_FINAL
 Zone* AstContext::zone() const { return owner_->zone(); }
 
 
-class HStatistics V8_FINAL: public Malloced {
+class HStatistics: public Malloced {
  public:
   HStatistics()
       : timing_(5),
@@ -2232,7 +2225,7 @@ class HPhase : public CompilationPhase {
 };
 
 
-class HTracer V8_FINAL : public Malloced {
+class HTracer: public Malloced {
  public:
   explicit HTracer(int isolate_id)
       : trace_(&string_allocator_), indent_(0) {
@@ -2253,7 +2246,7 @@ class HTracer V8_FINAL : public Malloced {
   void TraceLiveRanges(const char* name, LAllocator* allocator);
 
  private:
-  class Tag V8_FINAL BASE_EMBEDDED {
+  class Tag BASE_EMBEDDED {
    public:
     Tag(HTracer* tracer, const char* name) {
       name_ = name;
@@ -2318,7 +2311,7 @@ class HTracer V8_FINAL : public Malloced {
 };
 
 
-class NoObservableSideEffectsScope V8_FINAL {
+class NoObservableSideEffectsScope {
  public:
   explicit NoObservableSideEffectsScope(HGraphBuilder* builder) :
       builder_(builder) {

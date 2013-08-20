@@ -86,11 +86,6 @@
 //           - DescriptorArray
 //           - HashTable
 //             - Dictionary
-//               - NameDictionary
-//               - SeededNumberDictionary
-//               - UnseededNumberDictionary
-//             - ObjectHashSet
-//             - ObjectHashTable
 //             - StringTable
 //             - CompilationCacheTable
 //             - CodeCacheHashTable
@@ -1541,7 +1536,7 @@ class Object : public MaybeObject {
 // For long smis it has the following format:
 //     [32 bit signed int] [31 bits zero padding] 0
 // Smi stands for small integer.
-class Smi V8_FINAL : public Object {
+class Smi: public Object {
  public:
   // Returns the integer value.
   inline int value();
@@ -1602,7 +1597,7 @@ class Smi V8_FINAL : public Object {
 const int kFailureTypeTagSize = 2;
 const int kFailureTypeTagMask = (1 << kFailureTypeTagSize) - 1;
 
-class Failure V8_FINAL : public MaybeObject {
+class Failure: public MaybeObject {
  public:
   // RuntimeStubs assumes EXCEPTION = 1 in the compiler-generated code.
   enum Type {
@@ -1652,7 +1647,7 @@ class Failure V8_FINAL : public MaybeObject {
 // during GC other data (e.g. mark bits, forwarding addresses) is sometimes
 // encoded in the first word.  The class MapWord is an abstraction of the
 // value in a heap object's first word.
-class MapWord V8_FINAL BASE_EMBEDDED {
+class MapWord BASE_EMBEDDED {
  public:
   // Normal state: the map word contains a map pointer.
 
@@ -1697,7 +1692,7 @@ class MapWord V8_FINAL BASE_EMBEDDED {
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
-class HeapObject : public Object {
+class HeapObject: public Object {
  public:
   // [map]: Contains a map which contains the object's reflective
   // information.
@@ -1841,7 +1836,7 @@ class FlexibleBodyDescriptor {
 
 // The HeapNumber class describes heap allocated numbers that cannot be
 // represented in a Smi (small integer)
-class HeapNumber V8_FINAL : public HeapObject {
+class HeapNumber: public HeapObject {
  public:
   // [value]: number value.
   inline double value();
@@ -1916,7 +1911,7 @@ enum AccessorComponent {
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
-class JSReceiver : public HeapObject {
+class JSReceiver: public HeapObject {
  public:
   enum DeleteMode {
     NORMAL_DELETION,
@@ -2049,7 +2044,7 @@ class JSReceiver : public HeapObject {
 // properties.
 // Note that the map of JSObject changes during execution to enable inline
 // caching.
-class JSObject : public JSReceiver {
+class JSObject: public JSReceiver {
  public:
   // [properties]: Backing storage for properties.
   // properties is a FixedArray in the fast case and a Dictionary in the
@@ -2681,7 +2676,7 @@ class JSObject : public JSReceiver {
 
 #ifdef DEBUG
   // Structure for collecting spill information about JSObjects.
-  class SpillInformation V8_FINAL {
+  class SpillInformation {
    public:
     void Clear();
     void Print();
@@ -2742,8 +2737,7 @@ class JSObject : public JSReceiver {
 
   STATIC_CHECK(kHeaderSize == Internals::kJSObjectHeaderSize);
 
-  class BodyDescriptor V8_FINAL
-      : public FlexibleBodyDescriptor<kPropertiesOffset> {
+  class BodyDescriptor : public FlexibleBodyDescriptor<kPropertiesOffset> {
    public:
     static inline int SizeOf(Map* map, HeapObject* object);
   };
@@ -2887,7 +2881,7 @@ class JSObject : public JSReceiver {
 
 // Common superclass for FixedArrays that allow implementations to share
 // common accessors and some code paths.
-class FixedArrayBase : public HeapObject {
+class FixedArrayBase: public HeapObject {
  public:
   // [length]: length of the array.
   inline int length();
@@ -2907,7 +2901,7 @@ class IncrementalMarking;
 
 
 // FixedArray describes fixed-sized arrays with element type Object*.
-class FixedArray : public FixedArrayBase {
+class FixedArray: public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline Object* get(int index);
@@ -2982,7 +2976,7 @@ class FixedArray : public FixedArrayBase {
   // object, the prefix of this array is sorted.
   void SortPairs(FixedArray* numbers, uint32_t len);
 
-  class BodyDescriptor V8_FINAL : public FlexibleBodyDescriptor<kHeaderSize> {
+  class BodyDescriptor : public FlexibleBodyDescriptor<kHeaderSize> {
    public:
     static inline int SizeOf(Map* map, HeapObject* object) {
       return SizeFor(reinterpret_cast<FixedArray*>(object)->length());
@@ -3011,7 +3005,7 @@ class FixedArray : public FixedArrayBase {
 
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.
-class FixedDoubleArray V8_FINAL : public FixedArrayBase {
+class FixedDoubleArray: public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline double get_scalar(int index);
@@ -3068,7 +3062,7 @@ class FixedDoubleArray V8_FINAL : public FixedArrayBase {
 //          [1]: either Smi(0) or pointer to fixed array with indices
 //   [2]: first key
 //   [2 + number of descriptors * kDescriptorSize]: start of slack
-class DescriptorArray V8_FINAL : public FixedArray {
+class DescriptorArray: public FixedArray {
  public:
   // WhitenessWitness is used to prove that a descriptor array is white
   // (unmarked), so incremental write barriers can be skipped because the
@@ -3078,7 +3072,7 @@ class DescriptorArray V8_FINAL : public FixedArray {
   // witness, incremental marking is globally disabled. The witness is then
   // passed along wherever needed to statically prove that the array is known to
   // be white.
-  class WhitenessWitness V8_FINAL {
+  class WhitenessWitness {
    public:
     inline explicit WhitenessWitness(FixedArray* array);
     inline ~WhitenessWitness();
@@ -3286,7 +3280,7 @@ class DescriptorArray V8_FINAL : public FixedArray {
 
  private:
   // An entry in a DescriptorArray, represented as an (array, index) pair.
-  class Entry V8_FINAL {
+  class Entry {
    public:
     inline explicit Entry(DescriptorArray* descs, int index) :
         descs_(descs), index_(index) { }
@@ -3385,7 +3379,7 @@ class BaseShape {
 };
 
 template<typename Shape, typename Key>
-class HashTable : public FixedArray {
+class HashTable: public FixedArray {
  public:
   enum MinimumCapacity {
     USE_DEFAULT_MINIMUM_CAPACITY,
@@ -3572,7 +3566,7 @@ class HashTableKey {
 };
 
 
-class StringTableShape V8_FINAL : public BaseShape<HashTableKey*> {
+class StringTableShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -3598,7 +3592,7 @@ class SeqOneByteString;
 //
 // No special elements in the prefix and the element size is 1
 // because only the string itself (the key) needs to be stored.
-class StringTable V8_FINAL : public HashTable<StringTableShape, HashTableKey*> {
+class StringTable: public HashTable<StringTableShape, HashTableKey*> {
  public:
   // Find string in the string table.  If it is not there yet, it is
   // added.  The return value is the string table which might have
@@ -3638,7 +3632,7 @@ class StringTable V8_FINAL : public HashTable<StringTableShape, HashTableKey*> {
 };
 
 
-class MapCacheShape V8_FINAL : public BaseShape<HashTableKey*> {
+class MapCacheShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -3665,7 +3659,7 @@ class MapCacheShape V8_FINAL : public BaseShape<HashTableKey*> {
 //
 // Maps keys that are a fixed array of unique names to a map.
 // Used for canonicalize maps for object literals.
-class MapCache V8_FINAL : public HashTable<MapCacheShape, HashTableKey*> {
+class MapCache: public HashTable<MapCacheShape, HashTableKey*> {
  public:
   // Find cached value for a name key, otherwise return null.
   Object* Lookup(FixedArray* key);
@@ -3678,7 +3672,7 @@ class MapCache V8_FINAL : public HashTable<MapCacheShape, HashTableKey*> {
 
 
 template <typename Shape, typename Key>
-class Dictionary : public HashTable<Shape, Key> {
+class Dictionary: public HashTable<Shape, Key> {
  public:
   static inline Dictionary<Shape, Key>* cast(Object* obj) {
     return reinterpret_cast<Dictionary<Shape, Key>*>(obj);
@@ -3792,7 +3786,7 @@ class Dictionary : public HashTable<Shape, Key> {
 };
 
 
-class NameDictionaryShape V8_FINAL : public BaseShape<Name*> {
+class NameDictionaryShape : public BaseShape<Name*> {
  public:
   static inline bool IsMatch(Name* key, Object* other);
   static inline uint32_t Hash(Name* key);
@@ -3805,7 +3799,7 @@ class NameDictionaryShape V8_FINAL : public BaseShape<Name*> {
 };
 
 
-class NameDictionary V8_FINAL : public Dictionary<NameDictionaryShape, Name*> {
+class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
  public:
   static inline NameDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
@@ -3838,7 +3832,7 @@ class NumberDictionaryShape : public BaseShape<uint32_t> {
 };
 
 
-class SeededNumberDictionaryShape V8_FINAL : public NumberDictionaryShape {
+class SeededNumberDictionaryShape : public NumberDictionaryShape {
  public:
   static const bool UsesSeed = true;
   static const int kPrefixSize = 2;
@@ -3850,7 +3844,7 @@ class SeededNumberDictionaryShape V8_FINAL : public NumberDictionaryShape {
 };
 
 
-class UnseededNumberDictionaryShape V8_FINAL : public NumberDictionaryShape {
+class UnseededNumberDictionaryShape : public NumberDictionaryShape {
  public:
   static const int kPrefixSize = 0;
 
@@ -3859,7 +3853,7 @@ class UnseededNumberDictionaryShape V8_FINAL : public NumberDictionaryShape {
 };
 
 
-class SeededNumberDictionary V8_FINAL
+class SeededNumberDictionary
     : public Dictionary<SeededNumberDictionaryShape, uint32_t> {
  public:
   static SeededNumberDictionary* cast(Object* obj) {
@@ -3907,7 +3901,7 @@ class SeededNumberDictionary V8_FINAL
 };
 
 
-class UnseededNumberDictionary V8_FINAL
+class UnseededNumberDictionary
     : public Dictionary<UnseededNumberDictionaryShape, uint32_t> {
  public:
   static UnseededNumberDictionary* cast(Object* obj) {
@@ -3931,7 +3925,7 @@ class UnseededNumberDictionary V8_FINAL
 
 
 template <int entrysize>
-class ObjectHashTableShape V8_FINAL : public BaseShape<Object*> {
+class ObjectHashTableShape : public BaseShape<Object*> {
  public:
   static inline bool IsMatch(Object* key, Object* other);
   static inline uint32_t Hash(Object* key);
@@ -3945,8 +3939,7 @@ class ObjectHashTableShape V8_FINAL : public BaseShape<Object*> {
 
 // ObjectHashSet holds keys that are arbitrary objects by using the identity
 // hash of the key for hashing purposes.
-class ObjectHashSet V8_FINAL
-    : public HashTable<ObjectHashTableShape<1>, Object*> {
+class ObjectHashSet: public HashTable<ObjectHashTableShape<1>, Object*> {
  public:
   static inline ObjectHashSet* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -3966,8 +3959,7 @@ class ObjectHashSet V8_FINAL
 
 // ObjectHashTable maps keys that are arbitrary objects to object values by
 // using the identity hash of the key for hashing purposes.
-class ObjectHashTable V8_FINAL
-    : public HashTable<ObjectHashTableShape<2>, Object*> {
+class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
  public:
   static inline ObjectHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -4002,7 +3994,7 @@ class ObjectHashTable V8_FINAL
 //   [2]: current cache size
 //   [3]: dummy field.
 // The rest of array are key/value pairs.
-class JSFunctionResultCache V8_FINAL : public FixedArray {
+class JSFunctionResultCache: public FixedArray {
  public:
   static const int kFactoryIndex = 0;
   static const int kFingerIndex = kFactoryIndex + 1;
@@ -4038,7 +4030,7 @@ class JSFunctionResultCache V8_FINAL : public FixedArray {
 
 // This object provides quick access to scope info details for runtime
 // routines.
-class ScopeInfo V8_FINAL : public FixedArray {
+class ScopeInfo : public FixedArray {
  public:
   static inline ScopeInfo* cast(Object* object);
 
@@ -4242,7 +4234,7 @@ class ScopeInfo V8_FINAL : public FixedArray {
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
 // needs very limited number of distinct normalized maps.
-class NormalizedMapCache V8_FINAL : public FixedArray {
+class NormalizedMapCache: public FixedArray {
  public:
   static const int kEntries = 64;
 
@@ -4260,7 +4252,7 @@ class NormalizedMapCache V8_FINAL : public FixedArray {
 
 // ByteArray represents fixed sized byte arrays.  Used for the relocation info
 // that is attached to code objects.
-class ByteArray V8_FINAL : public FixedArrayBase {
+class ByteArray: public FixedArrayBase {
  public:
   inline int Size() { return RoundUp(length() + kHeaderSize, kPointerSize); }
 
@@ -4315,7 +4307,7 @@ class ByteArray V8_FINAL : public FixedArrayBase {
 
 // FreeSpace represents fixed sized areas of the heap that are not currently in
 // use.  Used by the heap and GC.
-class FreeSpace V8_FINAL : public HeapObject {
+class FreeSpace: public HeapObject {
  public:
   // [size]: size of the free space including the header.
   inline int size();
@@ -4353,7 +4345,7 @@ class FreeSpace V8_FINAL : public HeapObject {
 // Out-of-range values passed to the setter are converted via a C
 // cast, not clamping. Out-of-range indices cause exceptions to be
 // raised rather than being silently ignored.
-class ExternalArray : public FixedArrayBase {
+class ExternalArray: public FixedArrayBase {
  public:
   inline bool is_the_hole(int index) { return false; }
 
@@ -4386,7 +4378,7 @@ class ExternalArray : public FixedArrayBase {
 //                      multipage/the-canvas-element.html#canvaspixelarray
 // In particular, write access clamps the value written to 0 or 255 if the
 // value written is outside this range.
-class ExternalPixelArray V8_FINAL : public ExternalArray {
+class ExternalPixelArray: public ExternalArray {
  public:
   inline uint8_t* external_pixel_pointer();
 
@@ -4411,7 +4403,7 @@ class ExternalPixelArray V8_FINAL : public ExternalArray {
 };
 
 
-class ExternalByteArray V8_FINAL : public ExternalArray {
+class ExternalByteArray: public ExternalArray {
  public:
   // Setter and getter.
   inline int8_t get_scalar(int index);
@@ -4434,7 +4426,7 @@ class ExternalByteArray V8_FINAL : public ExternalArray {
 };
 
 
-class ExternalUnsignedByteArray V8_FINAL : public ExternalArray {
+class ExternalUnsignedByteArray: public ExternalArray {
  public:
   // Setter and getter.
   inline uint8_t get_scalar(int index);
@@ -4457,7 +4449,7 @@ class ExternalUnsignedByteArray V8_FINAL : public ExternalArray {
 };
 
 
-class ExternalShortArray V8_FINAL : public ExternalArray {
+class ExternalShortArray: public ExternalArray {
  public:
   // Setter and getter.
   inline int16_t get_scalar(int index);
@@ -4480,7 +4472,7 @@ class ExternalShortArray V8_FINAL : public ExternalArray {
 };
 
 
-class ExternalUnsignedShortArray V8_FINAL : public ExternalArray {
+class ExternalUnsignedShortArray: public ExternalArray {
  public:
   // Setter and getter.
   inline uint16_t get_scalar(int index);
@@ -4503,7 +4495,7 @@ class ExternalUnsignedShortArray V8_FINAL : public ExternalArray {
 };
 
 
-class ExternalIntArray V8_FINAL : public ExternalArray {
+class ExternalIntArray: public ExternalArray {
  public:
   // Setter and getter.
   inline int32_t get_scalar(int index);
@@ -4526,7 +4518,7 @@ class ExternalIntArray V8_FINAL : public ExternalArray {
 };
 
 
-class ExternalUnsignedIntArray V8_FINAL : public ExternalArray {
+class ExternalUnsignedIntArray: public ExternalArray {
  public:
   // Setter and getter.
   inline uint32_t get_scalar(int index);
@@ -4549,7 +4541,7 @@ class ExternalUnsignedIntArray V8_FINAL : public ExternalArray {
 };
 
 
-class ExternalFloatArray V8_FINAL : public ExternalArray {
+class ExternalFloatArray: public ExternalArray {
  public:
   // Setter and getter.
   inline float get_scalar(int index);
@@ -4572,7 +4564,7 @@ class ExternalFloatArray V8_FINAL : public ExternalArray {
 };
 
 
-class ExternalDoubleArray V8_FINAL : public ExternalArray {
+class ExternalDoubleArray: public ExternalArray {
  public:
   // Setter and getter.
   inline double get_scalar(int index);
@@ -4602,7 +4594,7 @@ class ExternalDoubleArray V8_FINAL : public ExternalArray {
 // contain these functions.
 //
 // It can be empty.
-class DeoptimizationInputData V8_FINAL : public FixedArray {
+class DeoptimizationInputData: public FixedArray {
  public:
   // Layout description.  Indices in the array.
   static const int kTranslationByteArrayIndex = 0;
@@ -4691,7 +4683,7 @@ class DeoptimizationInputData V8_FINAL : public FixedArray {
 // The format of the these objects is
 //   [i * 2]: Ast ID for ith deoptimization.
 //   [i * 2 + 1]: PC and state of ith deoptimization
-class DeoptimizationOutputData V8_FINAL : public FixedArray {
+class DeoptimizationOutputData: public FixedArray {
  public:
   int DeoptPoints() { return length() / 2; }
 
@@ -4732,7 +4724,7 @@ class PropertyCell;
 // The format of the these objects is
 //   [i * 2]: Global property cell of ith cache cell.
 //   [i * 2 + 1]: Ast ID for ith cache cell.
-class TypeFeedbackCells V8_FINAL : public FixedArray {
+class TypeFeedbackCells: public FixedArray {
  public:
   int CellCount() { return length() / 2; }
   static int LengthOfFixedArray(int cell_count) { return cell_count * 2; }
@@ -4773,7 +4765,7 @@ class SafepointEntry;
 class TypeFeedbackInfo;
 
 // Code describes objects with on-the-fly generated machine code.
-class Code V8_FINAL : public HeapObject {
+class Code: public HeapObject {
  public:
   // Opaque data type for encapsulating code flags like kind, inline
   // cache state, and arguments count.
@@ -5344,7 +5336,7 @@ class CompilationInfo;
 // code object of the first group. In other words, code index 0 corresponds
 // to array index n = kCodesStartIndex.
 
-class DependentCode V8_FINAL : public FixedArray {
+class DependentCode: public FixedArray {
  public:
   enum DependencyGroup {
     // Group of code that weakly embed this map and depend on being
@@ -5369,7 +5361,7 @@ class DependentCode V8_FINAL : public FixedArray {
 
   // Array for holding the index of the first code object of each group.
   // The last element stores the total number of code objects.
-  class GroupStartIndexes V8_FINAL {
+  class GroupStartIndexes {
    public:
     explicit GroupStartIndexes(DependentCode* entries);
     void Recompute(DependentCode* entries);
@@ -5421,7 +5413,7 @@ class DependentCode V8_FINAL : public FixedArray {
 //  A Map contains information about:
 //  - Size information about the object
 //  - How to iterate over an object (for garbage collection)
-class Map : public HeapObject {
+class Map: public HeapObject {
  public:
   // Instance size.
   // Size in bytes or kVariableSizeSentinel if instances do not have
@@ -6075,7 +6067,7 @@ class Struct: public HeapObject {
 
 
 // A simple one-element struct, useful where smis need to be boxed.
-class Box V8_FINAL : public Struct {
+class Box : public Struct {
  public:
   // [value]: the boxed contents.
   DECL_ACCESSORS(value, Object)
@@ -6095,7 +6087,7 @@ class Box V8_FINAL : public Struct {
 
 
 // Script describes a script which has been added to the VM.
-class Script V8_FINAL : public Struct {
+class Script: public Struct {
  public:
   // Script types.
   enum Type {
@@ -6264,7 +6256,7 @@ enum BuiltinFunctionId {
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
-class SharedFunctionInfo V8_FINAL : public HeapObject {
+class SharedFunctionInfo: public HeapObject {
  public:
   // [name]: Function name.
   DECL_ACCESSORS(name, Object)
@@ -6843,7 +6835,7 @@ class SharedFunctionInfo V8_FINAL : public HeapObject {
 };
 
 
-class JSGeneratorObject V8_FINAL : public JSObject {
+class JSGeneratorObject: public JSObject {
  public:
   // [function]: The function corresponding to this generator object.
   DECL_ACCESSORS(function, JSFunction)
@@ -6911,7 +6903,7 @@ class JSGeneratorObject V8_FINAL : public JSObject {
 
 
 // Representation for module instance objects.
-class JSModule V8_FINAL : public JSObject {
+class JSModule: public JSObject {
  public:
   // [context]: the context holding the module's locals, or undefined if none.
   DECL_ACCESSORS(context, Object)
@@ -6937,7 +6929,7 @@ class JSModule V8_FINAL : public JSObject {
 
 
 // JSFunction describes JavaScript functions.
-class JSFunction V8_FINAL : public JSObject {
+class JSFunction: public JSObject {
  public:
   // [prototype_or_initial_map]:
   DECL_ACCESSORS(prototype_or_initial_map, Object)
@@ -7124,7 +7116,7 @@ class JSFunction V8_FINAL : public JSObject {
 //
 // Accessing a JSGlobalProxy requires security check.
 
-class JSGlobalProxy V8_FINAL : public JSObject {
+class JSGlobalProxy : public JSObject {
  public:
   // [native_context]: the owner native context of this global proxy object.
   // It is null value if this object is not used by any context.
@@ -7151,7 +7143,7 @@ class JSBuiltinsObject;
 
 // Common super class for JavaScript global objects and the special
 // builtins global objects.
-class GlobalObject : public JSObject {
+class GlobalObject: public JSObject {
  public:
   // [builtins]: the object holding the runtime routines written in JS.
   DECL_ACCESSORS(builtins, JSBuiltinsObject)
@@ -7197,7 +7189,7 @@ class GlobalObject : public JSObject {
 
 
 // JavaScript global object.
-class JSGlobalObject V8_FINAL : public GlobalObject {
+class JSGlobalObject: public GlobalObject {
  public:
   // Casting.
   static inline JSGlobalObject* cast(Object* obj);
@@ -7216,7 +7208,7 @@ class JSGlobalObject V8_FINAL : public GlobalObject {
 
 // Builtins global object which holds the runtime routines written in
 // JavaScript.
-class JSBuiltinsObject V8_FINAL : public GlobalObject {
+class JSBuiltinsObject: public GlobalObject {
  public:
   // Accessors for the runtime routines written in JavaScript.
   inline Object* javascript_builtin(Builtins::JavaScript id);
@@ -7257,7 +7249,7 @@ class JSBuiltinsObject V8_FINAL : public GlobalObject {
 
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.
-class JSValue V8_FINAL : public JSObject {
+class JSValue: public JSObject {
  public:
   // [value]: the object being wrapped.
   DECL_ACCESSORS(value, Object)
@@ -7281,7 +7273,7 @@ class JSValue V8_FINAL : public JSObject {
 class DateCache;
 
 // Representation for JS date objects.
-class JSDate V8_FINAL : public JSObject {
+class JSDate: public JSObject {
  public:
   // If one component is NaN, all of them are, indicating a NaN time value.
   // [value]: the time value.
@@ -7378,7 +7370,7 @@ class JSDate V8_FINAL : public JSObject {
 // error messages are not directly accessible from JavaScript to
 // prevent leaking information to user code called during error
 // formatting.
-class JSMessageObject V8_FINAL : public JSObject {
+class JSMessageObject: public JSObject {
  public:
   // [type]: the type of error message.
   DECL_ACCESSORS(type, String)
@@ -7442,7 +7434,7 @@ class JSMessageObject V8_FINAL : public JSObject {
 // used for tracking the last usage (used for code flushing)..
 // - max number of registers used by irregexp implementations.
 // - number of capture registers (output values) of the regexp.
-class JSRegExp V8_FINAL : public JSObject {
+class JSRegExp: public JSObject {
  public:
   // Meaning of Type:
   // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
@@ -7565,7 +7557,7 @@ class JSRegExp V8_FINAL : public JSObject {
 };
 
 
-class CompilationCacheShape V8_FINAL  : public BaseShape<HashTableKey*> {
+class CompilationCacheShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -7589,8 +7581,8 @@ class CompilationCacheShape V8_FINAL  : public BaseShape<HashTableKey*> {
 };
 
 
-class CompilationCacheTable V8_FINAL : public HashTable<CompilationCacheShape,
-                                                     HashTableKey*> {
+class CompilationCacheTable: public HashTable<CompilationCacheShape,
+                                              HashTableKey*> {
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(String* src, Context* context);
@@ -7620,7 +7612,7 @@ class CompilationCacheTable V8_FINAL : public HashTable<CompilationCacheShape,
 };
 
 
-class CodeCache V8_FINAL : public Struct {
+class CodeCache: public Struct {
  public:
   DECL_ACCESSORS(default_cache, FixedArray)
   DECL_ACCESSORS(normal_type_cache, Object)
@@ -7668,7 +7660,7 @@ class CodeCache V8_FINAL : public Struct {
 };
 
 
-class CodeCacheHashTableShape V8_FINAL : public BaseShape<HashTableKey*> {
+class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -7692,8 +7684,8 @@ class CodeCacheHashTableShape V8_FINAL : public BaseShape<HashTableKey*> {
 };
 
 
-class CodeCacheHashTable V8_FINAL : public HashTable<CodeCacheHashTableShape,
-                                                  HashTableKey*> {
+class CodeCacheHashTable: public HashTable<CodeCacheHashTableShape,
+                                           HashTableKey*> {
  public:
   Object* Lookup(Name* name, Code::Flags flags);
   MUST_USE_RESULT MaybeObject* Put(Name* name, Code* code);
@@ -7711,7 +7703,7 @@ class CodeCacheHashTable V8_FINAL : public HashTable<CodeCacheHashTableShape,
 };
 
 
-class PolymorphicCodeCache V8_FINAL : public Struct {
+class PolymorphicCodeCache: public Struct {
  public:
   DECL_ACCESSORS(cache, Object)
 
@@ -7741,7 +7733,7 @@ class PolymorphicCodeCache V8_FINAL : public Struct {
 };
 
 
-class PolymorphicCodeCacheHashTable V8_FINAL
+class PolymorphicCodeCacheHashTable
     : public HashTable<CodeCacheHashTableShape, HashTableKey*> {
  public:
   Object* Lookup(MapHandleList* maps, int code_kind);
@@ -7758,7 +7750,7 @@ class PolymorphicCodeCacheHashTable V8_FINAL
 };
 
 
-class TypeFeedbackInfo V8_FINAL : public Struct {
+class TypeFeedbackInfo: public Struct {
  public:
   inline int ic_total_count();
   inline void set_ic_total_count(int count);
@@ -7812,7 +7804,7 @@ enum AllocationSiteMode {
 };
 
 
-class AllocationSite V8_FINAL : public Struct {
+class AllocationSite: public Struct {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
@@ -7860,7 +7852,7 @@ class AllocationSite V8_FINAL : public Struct {
 };
 
 
-class AllocationMemento V8_FINAL : public Struct {
+class AllocationMemento: public Struct {
  public:
   static const int kAllocationSiteOffset = HeapObject::kHeaderSize;
   static const int kSize = kAllocationSiteOffset + kPointerSize;
@@ -7893,7 +7885,7 @@ class AllocationMemento V8_FINAL : public Struct {
 // - the parameter map contains no fast alias mapping (i.e. the hole)
 // - this struct (in the slow backing store) contains an index into the context
 // - all attributes are available as part if the property details
-class AliasedArgumentsEntry V8_FINAL : public Struct {
+class AliasedArgumentsEntry: public Struct {
  public:
   inline int aliased_context_slot();
   inline void set_aliased_context_slot(int count);
@@ -7981,7 +7973,7 @@ class StringHasher {
 // shortcutting.  Keeping these restrictions in mind has proven to be error-
 // prone and so we no longer put StringShapes in variables unless there is a
 // concrete performance benefit at that particular point in the code.
-class StringShape V8_FINAL BASE_EMBEDDED {
+class StringShape BASE_EMBEDDED {
  public:
   inline explicit StringShape(String* s);
   inline explicit StringShape(Map* s);
@@ -8021,7 +8013,7 @@ class StringShape V8_FINAL BASE_EMBEDDED {
 
 // The Name abstract class captures anything that can be used as a property
 // name, i.e., strings and symbols.  All names store a hash value.
-class Name : public HeapObject {
+class Name: public HeapObject {
  public:
   // Get and set the hash field of the name.
   inline uint32_t hash_field();
@@ -8106,7 +8098,7 @@ class Name : public HeapObject {
 
 
 // ES6 symbols.
-class Symbol V8_FINAL : public Name {
+class Symbol: public Name {
  public:
   // [name]: the print name of a symbol, or undefined if none.
   DECL_ACCESSORS(name, Object)
@@ -8140,7 +8132,7 @@ class ConsString;
 //    ordered sequence of zero or more 16-bit unsigned integer values.
 //
 // All string values have a length field.
-class String : public Name {
+class String: public Name {
  public:
   enum Encoding { ONE_BYTE_ENCODING, TWO_BYTE_ENCODING };
 
@@ -8455,7 +8447,7 @@ class String : public Name {
 
 
 // The SeqString abstract class captures sequential string values.
-class SeqString : public String {
+class SeqString: public String {
  public:
   // Casting.
   static inline SeqString* cast(Object* obj);
@@ -8475,7 +8467,7 @@ class SeqString : public String {
 
 // The AsciiString class captures sequential ASCII string objects.
 // Each character in the AsciiString is an ASCII character.
-class SeqOneByteString V8_FINAL : public SeqString {
+class SeqOneByteString: public SeqString {
  public:
   static const bool kHasAsciiEncoding = true;
 
@@ -8514,7 +8506,7 @@ class SeqOneByteString V8_FINAL : public SeqString {
 
 // The TwoByteString class captures sequential unicode string objects.
 // Each character in the TwoByteString is a two-byte uint16_t.
-class SeqTwoByteString V8_FINAL : public SeqString {
+class SeqTwoByteString: public SeqString {
  public:
   static const bool kHasAsciiEncoding = false;
 
@@ -8562,7 +8554,7 @@ class SeqTwoByteString V8_FINAL : public SeqString {
 // are non-ConsString string values.  The string value represented by
 // a ConsString can be obtained by concatenating the leaf string
 // values in a left-to-right depth-first traversal of the tree.
-class ConsString V8_FINAL : public String {
+class ConsString: public String {
  public:
   // First string of the cons cell.
   inline String* first();
@@ -8616,7 +8608,7 @@ class ConsString V8_FINAL : public String {
 //  - handling externalized parent strings
 //  - external strings as parent
 //  - truncating sliced string to enable otherwise unneeded parent to be GC'ed.
-class SlicedString V8_FINAL : public String {
+class SlicedString: public String {
  public:
   inline String* parent();
   inline void set_parent(String* parent,
@@ -8658,7 +8650,7 @@ class SlicedString V8_FINAL : public String {
 //
 // The API expects that all ExternalStrings are created through the
 // API.  Therefore, ExternalStrings should not be used internally.
-class ExternalString : public String {
+class ExternalString: public String {
  public:
   // Casting
   static inline ExternalString* cast(Object* obj);
@@ -8684,7 +8676,7 @@ class ExternalString : public String {
 
 // The ExternalAsciiString class is an external string backed by an
 // ASCII string.
-class ExternalAsciiString V8_FINAL : public ExternalString {
+class ExternalAsciiString: public ExternalString {
  public:
   static const bool kHasAsciiEncoding = true;
 
@@ -8721,7 +8713,7 @@ class ExternalAsciiString V8_FINAL : public ExternalString {
 
 // The ExternalTwoByteString class is an external string backed by a UTF-16
 // encoded string.
-class ExternalTwoByteString V8_FINAL : public ExternalString {
+class ExternalTwoByteString: public ExternalString {
  public:
   static const bool kHasAsciiEncoding = false;
 
@@ -8785,7 +8777,7 @@ class Relocatable BASE_EMBEDDED {
 // A flat string reader provides random access to the contents of a
 // string independent of the character width of the string.  The handle
 // must be valid as long as the reader is being used.
-class FlatStringReader V8_FINAL : public Relocatable {
+class FlatStringReader : public Relocatable {
  public:
   FlatStringReader(Isolate* isolate, Handle<String> str);
   FlatStringReader(Isolate* isolate, Vector<const char> input);
@@ -8803,7 +8795,7 @@ class FlatStringReader V8_FINAL : public Relocatable {
 // A ConsStringOp that returns null.
 // Useful when the operation to apply on a ConsString
 // requires an expensive data structure.
-class ConsStringNullOp V8_FINAL {
+class ConsStringNullOp {
  public:
   inline ConsStringNullOp() {}
   static inline String* Operate(String*, unsigned*, int32_t*, unsigned*);
@@ -8816,7 +8808,7 @@ class ConsStringNullOp V8_FINAL {
 // to traverse a ConsString, allowing an entirely iterative and restartable
 // traversal of the entire string
 // Note: this class is not GC-safe.
-class ConsStringIteratorOp V8_FINAL {
+class ConsStringIteratorOp {
  public:
   inline ConsStringIteratorOp() {}
   String* Operate(String* string,
@@ -8856,7 +8848,7 @@ class ConsStringIteratorOp V8_FINAL {
 
 
 // Note: this class is not GC-safe.
-class StringCharacterStream V8_FINAL {
+class StringCharacterStream {
  public:
   inline StringCharacterStream(String* string,
                                ConsStringIteratorOp* op,
@@ -8880,7 +8872,7 @@ class StringCharacterStream V8_FINAL {
 
 
 template <typename T>
-class VectorIterator V8_FINAL {
+class VectorIterator {
  public:
   VectorIterator(T* d, int l) : data_(Vector<const T>(d, l)), index_(0) { }
   explicit VectorIterator(Vector<const T> data) : data_(data), index_(0) { }
@@ -8893,7 +8885,7 @@ class VectorIterator V8_FINAL {
 
 
 // The Oddball describes objects null, undefined, true, and false.
-class Oddball V8_FINAL : public HeapObject {
+class Oddball: public HeapObject {
  public:
   // [to_string]: Cached to_string computed at startup.
   DECL_ACCESSORS(to_string, String)
@@ -8944,7 +8936,7 @@ class Oddball V8_FINAL : public HeapObject {
 };
 
 
-class Cell : public HeapObject {
+class Cell: public HeapObject {
  public:
   // [value]: value of the global property.
   DECL_ACCESSORS(value, Object)
@@ -8979,7 +8971,7 @@ class Cell : public HeapObject {
 };
 
 
-class PropertyCell V8_FINAL : public Cell {
+class PropertyCell: public Cell {
  public:
   // [type]: type of the global property.
   Type* type();
@@ -9034,7 +9026,7 @@ class PropertyCell V8_FINAL : public Cell {
 
 
 // The JSProxy describes EcmaScript Harmony proxies
-class JSProxy : public JSReceiver {
+class JSProxy: public JSReceiver {
  public:
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
@@ -9135,7 +9127,7 @@ class JSProxy : public JSReceiver {
 };
 
 
-class JSFunctionProxy V8_FINAL : public JSProxy {
+class JSFunctionProxy: public JSProxy {
  public:
   // [call_trap]: The call trap.
   DECL_ACCESSORS(call_trap, Object)
@@ -9169,7 +9161,7 @@ class JSFunctionProxy V8_FINAL : public JSProxy {
 
 
 // The JSSet describes EcmaScript Harmony sets
-class JSSet V8_FINAL : public JSObject {
+class JSSet: public JSObject {
  public:
   // [set]: the backing hash set containing keys.
   DECL_ACCESSORS(table, Object)
@@ -9190,7 +9182,7 @@ class JSSet V8_FINAL : public JSObject {
 
 
 // The JSMap describes EcmaScript Harmony maps
-class JSMap V8_FINAL : public JSObject {
+class JSMap: public JSObject {
  public:
   // [table]: the backing hash table mapping keys to values.
   DECL_ACCESSORS(table, Object)
@@ -9211,7 +9203,7 @@ class JSMap V8_FINAL : public JSObject {
 
 
 // Base class for both JSWeakMap and JSWeakSet
-class JSWeakCollection : public JSObject {
+class JSWeakCollection: public JSObject {
  public:
   // [table]: the backing hash table mapping keys to values.
   DECL_ACCESSORS(table, Object)
@@ -9229,7 +9221,7 @@ class JSWeakCollection : public JSObject {
 
 
 // The JSWeakMap describes EcmaScript Harmony weak maps
-class JSWeakMap V8_FINAL : public JSWeakCollection {
+class JSWeakMap: public JSWeakCollection {
  public:
   // Casting.
   static inline JSWeakMap* cast(Object* obj);
@@ -9244,7 +9236,7 @@ class JSWeakMap V8_FINAL : public JSWeakCollection {
 
 
 // The JSWeakSet describes EcmaScript Harmony weak sets
-class JSWeakSet V8_FINAL : public JSWeakCollection {
+class JSWeakSet: public JSWeakCollection {
  public:
   // Casting.
   static inline JSWeakSet* cast(Object* obj);
@@ -9258,7 +9250,7 @@ class JSWeakSet V8_FINAL : public JSWeakCollection {
 };
 
 
-class JSArrayBuffer : public JSObject {
+class JSArrayBuffer: public JSObject {
  public:
   // [backing_store]: backing memory for this array
   DECL_ACCESSORS(backing_store, void)
@@ -9306,7 +9298,7 @@ class JSArrayBuffer : public JSObject {
 };
 
 
-class JSArrayBufferView : public JSObject {
+class JSArrayBufferView: public JSObject {
  public:
   // [buffer]: ArrayBuffer that this typed array views.
   DECL_ACCESSORS(buffer, Object)
@@ -9339,7 +9331,7 @@ class JSArrayBufferView : public JSObject {
 };
 
 
-class JSTypedArray V8_FINAL : public JSArrayBufferView {
+class JSTypedArray: public JSArrayBufferView {
  public:
   // [length]: length of typed array in elements.
   DECL_ACCESSORS(length, Object)
@@ -9368,7 +9360,7 @@ class JSTypedArray V8_FINAL : public JSArrayBufferView {
 };
 
 
-class JSDataView V8_FINAL : public JSArrayBufferView {
+class JSDataView: public JSArrayBufferView {
  public:
   // Only neuters this DataView
   void Neuter();
@@ -9393,7 +9385,7 @@ class JSDataView V8_FINAL : public JSArrayBufferView {
 // Foreign describes objects pointing from JavaScript to C structures.
 // Since they cannot contain references to JS HeapObjects they can be
 // placed in old_data_space.
-class Foreign V8_FINAL : public HeapObject {
+class Foreign: public HeapObject {
  public:
   // [address]: field containing the address.
   inline Address foreign_address();
@@ -9429,7 +9421,7 @@ class Foreign V8_FINAL : public HeapObject {
 //    - fast, backing storage is a FixedArray and length <= elements.length();
 //       Please note: push and pop can be used to grow and shrink the array.
 //    - slow, backing storage is a HashTable with numbers as keys.
-class JSArray : public JSObject {
+class JSArray: public JSObject {
  public:
   // [length]: The length property.
   DECL_ACCESSORS(length, Object)
@@ -9491,7 +9483,7 @@ Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
 // faster creation of RegExp exec results.
 // This class just holds constants used when creating the result.
 // After creation the result must be treated as a JSArray in all regards.
-class JSRegExpResult V8_FINAL : public JSArray {
+class JSRegExpResult: public JSArray {
  public:
   // Offsets of object fields.
   static const int kIndexOffset = JSArray::kSize;
@@ -9505,7 +9497,7 @@ class JSRegExpResult V8_FINAL : public JSArray {
 };
 
 
-class AccessorInfo : public Struct {
+class AccessorInfo: public Struct {
  public:
   DECL_ACCESSORS(name, Object)
   DECL_ACCESSORS(flag, Smi)
@@ -9602,7 +9594,7 @@ struct DeclaredAccessorDescriptorData {
 class DeclaredAccessorDescriptor;
 
 
-class DeclaredAccessorDescriptorIterator V8_FINAL {
+class DeclaredAccessorDescriptorIterator {
  public:
   explicit DeclaredAccessorDescriptorIterator(
       DeclaredAccessorDescriptor* descriptor);
@@ -9616,7 +9608,7 @@ class DeclaredAccessorDescriptorIterator V8_FINAL {
 };
 
 
-class DeclaredAccessorDescriptor V8_FINAL : public Struct {
+class DeclaredAccessorDescriptor: public Struct {
  public:
   DECL_ACCESSORS(serialized_data, ByteArray)
 
@@ -9639,7 +9631,7 @@ class DeclaredAccessorDescriptor V8_FINAL : public Struct {
 };
 
 
-class DeclaredAccessorInfo V8_FINAL : public AccessorInfo {
+class DeclaredAccessorInfo: public AccessorInfo {
  public:
   DECL_ACCESSORS(descriptor, DeclaredAccessorDescriptor)
 
@@ -9666,7 +9658,7 @@ class DeclaredAccessorInfo V8_FINAL : public AccessorInfo {
 // If the accessor in the prototype has the READ_ONLY property attribute, then
 // a new value is added to the local object when the property is set.
 // This shadows the accessor in the prototype.
-class ExecutableAccessorInfo V8_FINAL : public AccessorInfo {
+class ExecutableAccessorInfo: public AccessorInfo {
  public:
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
@@ -9694,7 +9686,7 @@ class ExecutableAccessorInfo V8_FINAL : public AccessorInfo {
 //   * undefined: considered an accessor by the spec, too, strangely enough
 //   * the hole: an accessor which has not been set
 //   * a pointer to a map: a transition used to ensure map sharing
-class AccessorPair V8_FINAL : public Struct {
+class AccessorPair: public Struct {
  public:
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
@@ -9750,7 +9742,7 @@ class AccessorPair V8_FINAL : public Struct {
 };
 
 
-class AccessCheckInfo V8_FINAL : public Struct {
+class AccessCheckInfo: public Struct {
  public:
   DECL_ACCESSORS(named_callback, Object)
   DECL_ACCESSORS(indexed_callback, Object)
@@ -9772,7 +9764,7 @@ class AccessCheckInfo V8_FINAL : public Struct {
 };
 
 
-class InterceptorInfo V8_FINAL : public Struct {
+class InterceptorInfo: public Struct {
  public:
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
@@ -9800,7 +9792,7 @@ class InterceptorInfo V8_FINAL : public Struct {
 };
 
 
-class CallHandlerInfo V8_FINAL : public Struct {
+class CallHandlerInfo: public Struct {
  public:
   DECL_ACCESSORS(callback, Object)
   DECL_ACCESSORS(data, Object)
@@ -9836,7 +9828,7 @@ class TemplateInfo: public Struct {
 };
 
 
-class FunctionTemplateInfo V8_FINAL : public TemplateInfo {
+class FunctionTemplateInfo: public TemplateInfo {
  public:
   DECL_ACCESSORS(serial_number, Object)
   DECL_ACCESSORS(call_code, Object)
@@ -9902,7 +9894,7 @@ class FunctionTemplateInfo V8_FINAL : public TemplateInfo {
 };
 
 
-class ObjectTemplateInfo V8_FINAL : public TemplateInfo {
+class ObjectTemplateInfo: public TemplateInfo {
  public:
   DECL_ACCESSORS(constructor, Object)
   DECL_ACCESSORS(internal_field_count, Object)
@@ -9920,7 +9912,7 @@ class ObjectTemplateInfo V8_FINAL : public TemplateInfo {
 };
 
 
-class SignatureInfo V8_FINAL : public Struct {
+class SignatureInfo: public Struct {
  public:
   DECL_ACCESSORS(receiver, Object)
   DECL_ACCESSORS(args, Object)
@@ -9940,7 +9932,7 @@ class SignatureInfo V8_FINAL : public Struct {
 };
 
 
-class TypeSwitchInfo V8_FINAL : public Struct {
+class TypeSwitchInfo: public Struct {
  public:
   DECL_ACCESSORS(types, Object)
 
@@ -9958,7 +9950,7 @@ class TypeSwitchInfo V8_FINAL : public Struct {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 // The DebugInfo class holds additional information for a function being
 // debugged.
-class DebugInfo V8_FINAL : public Struct {
+class DebugInfo: public Struct {
  public:
   // The shared function info for the source being debugged.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
@@ -10018,7 +10010,7 @@ class DebugInfo V8_FINAL : public Struct {
 // The BreakPointInfo class holds information for break points set in a
 // function. The DebugInfo object holds a BreakPointInfo object for each code
 // position with one or more break points.
-class BreakPointInfo V8_FINAL : public Struct {
+class BreakPointInfo: public Struct {
  public:
   // The position in the code for the break point.
   DECL_ACCESSORS(code_position, Smi)
@@ -10083,7 +10075,7 @@ class BreakPointInfo V8_FINAL : public Struct {
   V(kThreadManager, "threadmanager", "(Thread manager)")                \
   V(kExtensions, "Extensions", "(Extensions)")
 
-class VisitorSynchronization V8_FINAL : public AllStatic {
+class VisitorSynchronization : public AllStatic {
  public:
 #define DECLARE_ENUM(enum_item, ignore1, ignore2) enum_item,
   enum SyncTag {
@@ -10161,7 +10153,7 @@ class ObjectVisitor BASE_EMBEDDED {
 };
 
 
-class StructBodyDescriptor V8_FINAL : public
+class StructBodyDescriptor : public
   FlexibleBodyDescriptor<HeapObject::kHeaderSize> {
  public:
   static inline int SizeOf(Map* map, HeapObject* object) {
@@ -10172,7 +10164,7 @@ class StructBodyDescriptor V8_FINAL : public
 
 // BooleanBit is a helper class for setting and getting a bit in an
 // integer or Smi.
-class BooleanBit V8_FINAL : public AllStatic {
+class BooleanBit : public AllStatic {
  public:
   static inline bool get(Smi* smi, int bit_position) {
     return get(smi->value(), bit_position);
