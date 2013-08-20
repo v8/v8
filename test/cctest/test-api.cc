@@ -20171,6 +20171,10 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%GetLocalPropertyNames(other, true)");
   CheckCorrectThrow("%DefineOrRedefineAccessorProperty("
                         "other, 'x', null, null, 1)");
+
+  // Reset the failed access check callback so it does not influence
+  // the other tests.
+  v8::V8::SetFailedAccessCheckCallbackFunction(NULL);
 }
 
 #endif  // WIN32
