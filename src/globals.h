@@ -360,10 +360,15 @@ F FUNCTION_CAST(Address addr) {
 
 #elif defined(_MSC_VER)
 
+// Override control was added with Visual Studio 2005.
 # if _MSC_VER >= 1400
+#  if _MSC_VER >= 1700
+#   define V8_HAVE_CXX11_FINAL
+#  else
+// Visual Studio 2010 and earlier spell "final" as "sealed".
+#   define V8_HAVE_MSVC_SEALED
+#  endif
 #  define V8_HAVE_CXX11_OVERRIDE
-// MSVC currently spells "final" as "sealed".
-#  define V8_HAVE_MSVC_SEALED
 # endif
 
 #endif
