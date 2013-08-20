@@ -13649,7 +13649,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalDateFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 1);
 
   bool has_pending_exception = false;
-  double millis = Execution::ToNumber(date, &has_pending_exception)->Number();
+  Handle<Object> value = Execution::ToNumber(date, &has_pending_exception);
   if (has_pending_exception) {
     ASSERT(isolate->has_pending_exception());
     return Failure::Exception();
@@ -13660,7 +13660,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalDateFormat) {
   if (!date_format) return isolate->ThrowIllegalOperation();
 
   icu::UnicodeString result;
-  date_format->format(millis, result);
+  date_format->format(value->Number(), result);
 
   return *isolate->factory()->NewStringFromTwoByte(
       Vector<const uint16_t>(
