@@ -28,32 +28,88 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-// Define V8_INFINITY
-#define V8_INFINITY INFINITY
 
-// GCC specific stuff
-#ifdef __GNUC__
+// Compiler feature/bug detection.
+#if defined(__clang__)
 
-#define __GNUC_VERSION_FOR_INFTY__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
+// Don't treat clang as GCC.
+# define V8_GNUC_PREREQ(major, minor, patchlevel) 0
+
+# if __has_feature(cxx_deleted_functions)
+#  define V8_HAVE_CXX11_DELETE
+# endif
+
+# if __has_feature(cxx_override_control)
+#  define V8_HAVE_CXX11_FINAL
+#  define V8_HAVE_CXX11_OVERRIDE
+# endif
+
+# if __has_feature(cxx_static_assert)
+#  define V8_HAVE_CXX11_STATIC_ASSERT
+# endif
+
+# define V8_INFINITY INFINITY
+
+#elif defined(__GNUC__)
+
+// GCC version detection.
+# define V8_GNUC_PREREQ(major, minor, patchlevel)                         \
+    ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) >=   \
+     ((major) * 10000 + (minor) * 100 + (patchlevel)))
+
+// g++ requires -std=c++0x or -std=gnu++0x to support C++11 functionality
+// without warnings (functionality used by the macros below).  These modes
+// are detectable by checking whether __GXX_EXPERIMENTAL_CXX0X__ is defined or,
+// more standardly, by checking whether __cplusplus has a C++11 or greater
+// value. Current versions of g++ do not correctly set __cplusplus, so we check
+// both for forward compatibility.
+# if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+#  if V8_GNUC_PREREQ(4, 3, 0)
+#   define V8_HAVE_CXX11_STATIC_ASSERT
+#  endif
+#  if V8_GNUC_PREREQ(4, 4, 0)
+#   define V8_HAVE_CXX11_DELETE
+#  endif
+#  if V8_GNUC_PREREQ(4, 7, 0)
+#   define V8_HAVE_CXX11_OVERRIDE
+#   define V8_HAVE_CXX11_FINAL
+#  endif
+# else
+// '__final' is a non-C++11 GCC synonym for 'final', per GCC r176655.
+#  if V8_GNUC_PREREQ(4, 7, 0)
+#   define V8_HAVE_GXX_FINAL
+#  endif
+# endif
 
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
 // warning flag and certain versions of GCC due to a bug:
 // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=11931
 // For now, we use the more involved template-based version from <limits>, but
 // only when compiling with GCC versions affected by the bug (2.96.x - 4.0.x)
-// __GNUC_PREREQ is not defined in GCC for Mac OS X, so we define our own macro
-#if __GNUC_VERSION_FOR_INFTY__ >= 29600 && __GNUC_VERSION_FOR_INFTY__ < 40100
-#include <limits>
-#undef V8_INFINITY
-#define V8_INFINITY std::numeric_limits<double>::infinity()
-#endif
-#undef __GNUC_VERSION_FOR_INFTY__
+# if V8_GNUC_PREREQ(2, 96, 0) && !V8_GNUC_PREREQ(4, 1, 0)
+#  include <limits>
+#  define V8_INFINITY std::numeric_limits<double>::infinity()
+# else
+#  define V8_INFINITY INFINITY
+# endif
 
-#endif  // __GNUC__
+#elif defined(_MSC_VER)
 
-#ifdef _MSC_VER
-#undef V8_INFINITY
-#define V8_INFINITY HUGE_VAL
+# define V8_GNUC_PREREQ(major, minor, patchlevel) 0
+
+// Override control was added with Visual Studio 2005.
+# if _MSC_VER >= 1400
+#  if _MSC_VER >= 1700
+#   define V8_HAVE_CXX11_FINAL
+#  else
+// Visual Studio 2010 and earlier spell "final" as "sealed".
+#   define V8_HAVE_MSVC_SEALED
+#  endif
+#  define V8_HAVE_CXX11_OVERRIDE
+# endif
+
+# define V8_INFINITY HUGE_VAL
+
 #endif
 
 
@@ -330,62 +386,58 @@ F FUNCTION_CAST(Address addr) {
 }
 
 
-// Compiler feature detection.
-#if defined(__clang__)
-
-# if __has_feature(cxx_override_control)
-#  define V8_HAVE_CXX11_FINAL
-#  define V8_HAVE_CXX11_OVERRIDE
-# endif
-
-#elif defined(__GNUC__)
-
-// g++ requires -std=c++0x or -std=gnu++0x to support C++11 functionality
-// without warnings (functionality used by the macros below).  These modes
-// are detectable by checking whether __GXX_EXPERIMENTAL_CXX0X__ is defined or,
-// more standardly, by checking whether __cplusplus has a C++11 or greater
-// value. Current versions of g++ do not correctly set __cplusplus, so we check
-// both for forward compatibility.
-# if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
-#  if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)
-#   define V8_HAVE_CXX11_OVERRIDE
-#   define V8_HAVE_CXX11_FINAL
-#  endif
-# else
-// '__final' is a non-C++11 GCC synonym for 'final', per GCC r176655.
-#  if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)
-#   define V8_HAVE_GXX_FINAL
-#  endif
-# endif
-
-#elif defined(_MSC_VER)
-
-// Override control was added with Visual Studio 2005.
-# if _MSC_VER >= 1400
-#  if _MSC_VER >= 1700
-#   define V8_HAVE_CXX11_FINAL
-#  else
-// Visual Studio 2010 and earlier spell "final" as "sealed".
-#   define V8_HAVE_MSVC_SEALED
-#  endif
-#  define V8_HAVE_CXX11_OVERRIDE
-# endif
-
+// A macro to specify that a method is deleted from the corresponding class.
+// Any attempt to use the method will always produce an error at compile time
+// when this macro can be implemented (i.e. if the compiler supports C++11).
+// If the current compiler does not support C++11, use of the annotated method
+// will still cause an error, but the error will most likely occur at link time
+// rather than at compile time. As a backstop, method declarations using this
+// macro should be private.
+// Use like:
+//   class A {
+//    private:
+//     A(const A& other) V8_DELETE;
+//     A& operator=(const A& other) V8_DELETE;
+//   };
+#if defined(V8_HAVE_CXX11_DELETE)
+# define V8_DELETE = delete
+#else
+# define V8_DELETE /* NOT SUPPORTED */
 #endif
 
 
-#if __cplusplus >= 201103L
-#define DISALLOW_BY_DELETE = delete
+// Annotate a virtual method indicating it must be overriding a virtual
+// method in the parent class.
+// Use like:
+//   virtual void bar() V8_OVERRIDE;
+#if defined(V8_HAVE_CXX11_OVERRIDE)
+# define V8_OVERRIDE override
 #else
-#define DISALLOW_BY_DELETE
+# define V8_OVERRIDE /* NOT SUPPORTED */
+#endif
+
+
+// Annotate a virtual method indicating that subclasses must not override it,
+// or annotate a class to indicate that it cannot be subclassed.
+// Use like:
+//   class B V8_FINAL : public A {};
+//   virtual void bar() V8_FINAL;
+#if defined(V8_HAVE_CXX11_FINAL)
+# define V8_FINAL final
+#elif defined(V8_HAVE_GXX_FINAL)
+# define V8_FINAL __final
+#elif defined(V8_HAVE_MSVC_SEALED)
+# define V8_FINAL sealed
+#else
+# define V8_FINAL /* NOT SUPPORTED */
 #endif
 
 
 // A macro to disallow the evil copy constructor and operator= functions
 // This should be used in the private: declarations for a class
-#define DISALLOW_COPY_AND_ASSIGN(TypeName)           \
-  TypeName(const TypeName&) DISALLOW_BY_DELETE;      \
-  void operator=(const TypeName&) DISALLOW_BY_DELETE
+#define DISALLOW_COPY_AND_ASSIGN(TypeName)  \
+  TypeName(const TypeName&) V8_DELETE;      \
+  void operator=(const TypeName&) V8_DELETE
 
 
 // A macro to disallow all the implicit constructors, namely the
@@ -394,8 +446,8 @@ F FUNCTION_CAST(Address addr) {
 // This should be used in the private: declarations for a class
 // that wants to prevent anyone from instantiating it. This is
 // especially useful for classes containing only static methods.
-#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
-  TypeName() DISALLOW_BY_DELETE;                 \
+#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName)  \
+  TypeName() V8_DELETE;                           \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 
@@ -416,33 +468,6 @@ F FUNCTION_CAST(Address addr) {
 #else
 #define INLINE(header) inline header
 #define NO_INLINE(header) header
-#endif
-
-
-// Annotate a virtual method indicating it must be overriding a virtual
-// method in the parent class.
-// Use like:
-//   virtual void bar() V8_OVERRIDE;
-#if defined(V8_HAVE_CXX11_OVERRIDE)
-#define V8_OVERRIDE override
-#else
-#define V8_OVERRIDE
-#endif
-
-
-// Annotate a virtual method indicating that subclasses must not override it,
-// or annotate a class to indicate that it cannot be subclassed.
-// Use like:
-//   class B V8_FINAL : public A {};
-//   virtual void bar() V8_FINAL;
-#if defined(V8_HAVE_CXX11_FINAL)
-#define V8_FINAL final
-#elif defined(V8_HAVE_GXX_FINAL)
-#define V8_FINAL __final
-#elif defined(V8_HAVE_MSVC_SEALED)
-#define V8_FINAL sealed
-#else
-#define V8_FINAL
 #endif
 
 
