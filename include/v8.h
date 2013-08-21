@@ -303,7 +303,7 @@ template <class T> class Handle {
    * to which they refer are identical.
    * The handles' references are not checked.
    */
-  template <class S> V8_INLINE(bool operator==(const Handle<S> that) const) {
+  template <class S> V8_INLINE(bool operator==(const Handle<S>& that) const) {
     internal::Object** a = reinterpret_cast<internal::Object**>(**this);
     internal::Object** b = reinterpret_cast<internal::Object**>(*that);
     if (a == 0) return b == 0;
@@ -328,9 +328,16 @@ template <class T> class Handle {
    * the objects to which they refer are different.
    * The handles' references are not checked.
    */
-  template <class S> V8_INLINE(bool operator!=(Handle<S> that) const) {
+  template <class S> V8_INLINE(bool operator!=(const Handle<S>& that) const) {
     return !operator==(that);
   }
+
+#ifndef V8_USE_UNSAFE_HANDLES
+  template <class S> V8_INLINE(
+      bool operator!=(const Persistent<S>& that) const) {
+    return !operator==(that);
+  }
+#endif
 
   template <class S> V8_INLINE(static Handle<T> Cast(Handle<S> that)) {
 #ifdef V8_ENABLE_CHECKS
@@ -618,12 +625,21 @@ template <class T> class Persistent // NOLINT
     return *a == *b;
   }
 
-  template <class S> V8_INLINE(bool operator==(const Handle<S> that) const) {
+  template <class S> V8_INLINE(bool operator==(const Handle<S>& that) const) {
     internal::Object** a = reinterpret_cast<internal::Object**>(**this);
     internal::Object** b = reinterpret_cast<internal::Object**>(*that);
     if (a == 0) return b == 0;
     if (b == 0) return false;
     return *a == *b;
+  }
+
+  template <class S> V8_INLINE(
+      bool operator!=(const Persistent<S>& that) const) {
+    return !operator==(that);
+  }
+
+  template <class S> V8_INLINE(bool operator!=(const Handle<S>& that) const) {
+    return !operator==(that);
   }
 #endif
 
