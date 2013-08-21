@@ -1,3 +1,24 @@
+2013-08-21: Version 3.21.1
+
+        Promoted ArrayBuffer, DataView and typed arrays to non-experimental.
+        (Chromium issue 270527)
+
+        Replaced OS::MemCopy with memcpy in typed array initialization.
+        (Chromium issue 270642)
+
+        Moved i18n break iterator C++ code to runtime (issue 2745)
+
+        Fixed invalid out-of-bounds store in MacroAssembler::Allocate.
+        (Chromium issue 263515)
+
+        Fixed register misuse in Allocate() on ARM. (issue 2851)
+
+        Fixed empty handle dereference in Runtime_InternalNumberFormat.
+        (Chromium issue 275467)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-19: Version 3.21.0
 
         Fixed GC-related crasher (Chromium issue 274438)
