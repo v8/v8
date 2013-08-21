@@ -232,12 +232,6 @@ bool CompilationInfo::ShouldSelfOptimize() {
 }
 
 
-void CompilationInfo::AbortOptimization() {
-  Handle<Code> code(shared_info()->code());
-  SetCode(code);
-}
-
-
 // Determine whether to use the full compiler for all code. If the flag
 // --always-full-compiler is specified this is the case. For the virtual frame
 // based compiler the full compiler is also used if a debugger is connected, as
@@ -323,8 +317,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
 
   // We should never arrive here if there is no code object on the
   // shared function object.
-  Handle<Code> code(info()->shared_info()->code());
-  ASSERT(code->kind() == Code::FUNCTION);
+  ASSERT(info()->shared_info()->code()->kind() == Code::FUNCTION);
 
   // We should never arrive here if optimization has been disabled on the
   // shared function info.
@@ -334,7 +327,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // to use the Hydrogen-based optimizing compiler. We already have
   // generated code for this from the shared function object.
   if (AlwaysFullCompiler(isolate())) {
-    info()->SetCode(code);
+    info()->AbortOptimization();
     return SetLastStatus(BAILED_OUT);
   }
 
@@ -370,8 +363,8 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
 
   // Take --hydrogen-filter into account.
   if (!info()->closure()->PassesHydrogenFilter()) {
-      info()->SetCode(code);
-      return SetLastStatus(BAILED_OUT);
+    info()->AbortOptimization();
+    return SetLastStatus(BAILED_OUT);
   }
 
   // Recompile the unoptimized version of the code if the current version
@@ -411,7 +404,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // optimizable marker in the code object and optimize anyway. This
   // is safe as long as the unoptimized code has deoptimization
   // support.
-  ASSERT(FLAG_always_opt || code->optimizable());
+  ASSERT(FLAG_always_opt || info()->shared_info()->code()->optimizable());
   ASSERT(info()->shared_info()->has_deoptimization_support());
 
   if (FLAG_trace_hydrogen) {
@@ -1099,7 +1092,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
       PrintF(" installed.\n");
     }
   } else {
-    info->SetCode(Handle<Code>(info->shared_info()->code()));
+    info->AbortOptimization();
     InstallFullCode(*info);
   }
   // Optimized code is finally replacing unoptimized code.  Reset the latter's

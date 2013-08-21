@@ -1855,9 +1855,8 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub;
-  if (FLAG_compiled_keyed_stores &&
-      (receiver_map->has_fast_elements() ||
-       receiver_map->has_external_array_elements())) {
+  if (receiver_map->has_fast_elements() ||
+      receiver_map->has_external_array_elements()) {
     stub = KeyedStoreFastElementStub(
         is_jsarray,
         elements_kind,
@@ -1998,9 +1997,8 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
           is_js_array,
           store_mode_).GetCode(isolate());
     } else {
-      if (FLAG_compiled_keyed_stores &&
-          (receiver_map->has_fast_elements() ||
-           receiver_map->has_external_array_elements())) {
+      if (receiver_map->has_fast_elements() ||
+          receiver_map->has_external_array_elements()) {
         cached_stub = KeyedStoreFastElementStub(
             is_js_array,
             elements_kind,

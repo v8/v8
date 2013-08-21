@@ -984,18 +984,6 @@ class KeyedStoreStubCompiler: public BaseStoreStubCompiler {
 
   Handle<Code> CompileStoreElementPolymorphic(MapHandleList* receiver_maps);
 
-  static void GenerateStoreFastElement(MacroAssembler* masm,
-                                       bool is_js_array,
-                                       ElementsKind element_kind,
-                                       KeyedAccessStoreMode store_mode);
-
-  static void GenerateStoreFastDoubleElement(MacroAssembler* masm,
-                                             bool is_js_array,
-                                             KeyedAccessStoreMode store_mode);
-
-  static void GenerateStoreExternalArray(MacroAssembler* masm,
-                                         ElementsKind elements_kind);
-
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 
  protected:

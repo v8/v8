@@ -28,7 +28,6 @@
 
 #include "i18n-extension.h"
 
-#include "break-iterator.h"
 #include "natives.h"
 
 using v8::internal::I18NNatives;
@@ -42,31 +41,6 @@ Extension::Extension()
                     0,
                     0,
                     I18NNatives::GetScriptsSource().length()) {}
-
-v8::Handle<v8::FunctionTemplate> Extension::GetNativeFunction(
-    v8::Handle<v8::String> name) {
-  // Break iterator.
-  if (name->Equals(v8::String::New("NativeJSCreateBreakIterator"))) {
-    return v8::FunctionTemplate::New(BreakIterator::JSCreateBreakIterator);
-  } else if (name->Equals(v8::String::New("NativeJSBreakIteratorAdoptText"))) {
-    return v8::FunctionTemplate::New(
-        BreakIterator::JSInternalBreakIteratorAdoptText);
-  } else if (name->Equals(v8::String::New("NativeJSBreakIteratorFirst"))) {
-    return v8::FunctionTemplate::New(
-        BreakIterator::JSInternalBreakIteratorFirst);
-  } else if (name->Equals(v8::String::New("NativeJSBreakIteratorNext"))) {
-    return v8::FunctionTemplate::New(
-        BreakIterator::JSInternalBreakIteratorNext);
-  } else if (name->Equals(v8::String::New("NativeJSBreakIteratorCurrent"))) {
-    return v8::FunctionTemplate::New(
-        BreakIterator::JSInternalBreakIteratorCurrent);
-  } else if (name->Equals(v8::String::New("NativeJSBreakIteratorBreakType"))) {
-    return v8::FunctionTemplate::New(
-        BreakIterator::JSInternalBreakIteratorBreakType);
-  }
-
-  return v8::Handle<v8::FunctionTemplate>();
-}
 
 
 void Extension::Register() {

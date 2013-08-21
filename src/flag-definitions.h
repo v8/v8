@@ -164,9 +164,9 @@ DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
 DEFINE_bool(harmony_observation, false,
             "enable harmony object observation (implies harmony collections")
-DEFINE_bool(harmony_typed_arrays, false,
+DEFINE_bool(harmony_typed_arrays, true,
             "enable harmony typed arrays")
-DEFINE_bool(harmony_array_buffer, false,
+DEFINE_bool(harmony_array_buffer, true,
             "enable harmony array buffer")
 DEFINE_implication(harmony_typed_arrays, harmony_array_buffer)
 DEFINE_bool(harmony_generators, false, "enable harmony generators")
@@ -194,8 +194,6 @@ DEFINE_implication(harmony_observation, harmony_collections)
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
 DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
-DEFINE_bool(compiled_keyed_stores, true, "use optimizing compiler to "
-            "generate keyed store stubs")
 DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")

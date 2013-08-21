@@ -734,12 +734,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     if (FLAG_opt_safe_uint32_operations) {
       does_deopt = !instr->CheckFlag(HInstruction::kUint32);
     } else {
-      for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
-        if (!it.value()->CheckFlag(HValue::kTruncatingToInt32)) {
-          does_deopt = true;
-          break;
-        }
-      }
+      does_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToInt32);
     }
   }
 

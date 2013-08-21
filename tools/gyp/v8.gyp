@@ -380,6 +380,8 @@
         '../../src/hydrogen-uint32-analysis.h',
         '../../src/hydrogen-osr.cc',
         '../../src/hydrogen-osr.h',
+        '../../src/i18n.cc',
+        '../../src/i18n.h',
         '../../src/icu_util.cc',
         '../../src/icu_util.h',
         '../../src/ic-inl.h',
@@ -687,6 +689,10 @@
                 }],
               ],
             },
+            'defines': [
+              'V8_OS_LINUX=1',
+              'V8_OS_POSIX=1'
+            ],
             'sources': [  ### gcmole(os:linux) ###
               '../../src/platform-linux.cc',
               '../../src/platform-posix.cc'
@@ -704,16 +710,29 @@
               ['host_os=="mac"', {
                 'target_conditions': [
                   ['_toolset=="host"', {
+                    'defines': [
+                      'V8_OS_BSD=1',
+                      'V8_OS_MACOSX=1',
+                      'V8_OS_POSIX=1'
+                    ],
                     'sources': [
                       '../../src/platform-macos.cc'
                     ]
                   }, {
+                    'defines': [
+                      'V8_OS_LINUX=1',
+                      'V8_OS_POSIX=1'
+                    ],
                     'sources': [
                       '../../src/platform-linux.cc'
                     ]
                   }],
                 ],
               }, {
+                'defines': [
+                  'V8_OS_LINUX=1',
+                  'V8_OS_POSIX=1'
+                ],
                 'sources': [
                   '../../src/platform-linux.cc'
                 ]
@@ -722,6 +741,11 @@
           },
         ],
         ['OS=="freebsd"', {
+            'defines': [
+              'V8_OS_BSD=1',
+              'V8_OS_FREEBSD=1',
+              'V8_OS_POSIX=1'
+            ],
             'link_settings': {
               'libraries': [
                 '-L/usr/local/lib -lexecinfo',
@@ -733,6 +757,11 @@
           }
         ],
         ['OS=="openbsd"', {
+            'defines': [
+              'V8_OS_BSD=1',
+              'V8_OS_OPENBSD=1',
+              'V8_OS_POSIX=1'
+            ],
             'link_settings': {
               'libraries': [
                 '-L/usr/local/lib -lexecinfo',
@@ -744,6 +773,11 @@
           }
         ],
         ['OS=="netbsd"', {
+            'defines': [
+              'V8_OS_BSD=1',
+              'V8_OS_NETBSD=1',
+              'V8_OS_POSIX=1'
+            ],
             'link_settings': {
               'libraries': [
                 '-L/usr/pkg/lib -Wl,-R/usr/pkg/lib -lexecinfo',
@@ -755,6 +789,10 @@
           }
         ],
         ['OS=="solaris"', {
+            'defines': [
+              'V8_OS_POSIX=1',
+              'V8_OS_SOLARIS=1'
+            ],
             'link_settings': {
               'libraries': [
                 '-lsocket -lnsl',
@@ -766,6 +804,11 @@
           }
         ],
         ['OS=="mac"', {
+          'defines': [
+            'V8_OS_BSD=1',
+            'V8_OS_MACOSX=1',
+            'V8_OS_POSIX=1'
+          ],
           'sources': [
             '../../src/platform-macos.cc',
             '../../src/platform-posix.cc'
@@ -782,11 +825,18 @@
               },
               'conditions': [
                 ['build_env=="Cygwin"', {
+                  'defines': [
+                    'V8_OS_CYGWIN=1',
+                    'V8_OS_POSIX=1'
+                  ],
                   'sources': [
                     '../../src/platform-cygwin.cc',
                     '../../src/platform-posix.cc',
                   ],
                 }, {
+                  'defines': [
+                    'V8_OS_WIN=1'
+                  ],
                   'sources': [
                     '../../src/platform-win32.cc',
                     '../../src/win32-math.h',
@@ -798,6 +848,9 @@
                 'libraries': [ '-lwinmm', '-lws2_32' ],
               },
             }, {
+              'defines': [
+                'V8_OS_WIN=1'
+              ],
               'sources': [
                 '../../src/platform-win32.cc',
                 '../../src/win32-math.h',
@@ -823,19 +876,18 @@
         }],
         ['v8_enable_i18n_support==1', {
           'sources': [
-            '../../src/i18n.cc',
-            '../../src/i18n.h',
-            '../../src/extensions/i18n/break-iterator.cc',
-            '../../src/extensions/i18n/break-iterator.h',
             '../../src/extensions/i18n/i18n-extension.cc',
             '../../src/extensions/i18n/i18n-extension.h',
-            '../../src/extensions/i18n/i18n-utils.cc',
-            '../../src/extensions/i18n/i18n-utils.h',
           ],
           'dependencies': [
             '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
             '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
           ]
+        }, {  # v8_enable_i18n_support==0
+          'sources!': [
+            '../../src/i18n.cc',
+            '../../src/i18n.h',
+          ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
@@ -890,6 +942,8 @@
           '../../src/date.js',
           '../../src/json.js',
           '../../src/regexp.js',
+          '../../src/arraybuffer.js',
+          '../../src/typedarray.js',
           '../../src/macros.py',
         ],
         'experimental_library_files': [
@@ -898,8 +952,6 @@
           '../../src/proxy.js',
           '../../src/collection.js',
           '../../src/object-observe.js',
-          '../../src/arraybuffer.js',
-          '../../src/typedarray.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',
           '../../src/harmony-string.js',

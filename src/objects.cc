@@ -1449,6 +1449,54 @@ void JSObject::PrintElementsTransition(
 }
 
 
+void Map::PrintGeneralization(FILE* file,
+                              int modify_index,
+                              int split,
+                              int descriptors,
+                              Representation old_representation,
+                              Representation new_representation) {
+  PrintF(file, "[generalizing ");
+  constructor_name()->PrintOn(file);
+  PrintF(file, "] ");
+  String::cast(instance_descriptors()->GetKey(modify_index))->PrintOn(file);
+  PrintF(file, ":%s->%s (+%i maps) [",
+         old_representation.Mnemonic(),
+         new_representation.Mnemonic(),
+         descriptors - split);
+  JavaScriptFrame::PrintTop(GetIsolate(), file, false, true);
+  PrintF(file, "]\n");
+}
+
+
+void JSObject::PrintInstanceMigration(FILE* file,
+                                      Map* original_map,
+                                      Map* new_map) {
+  PrintF(file, "[migrating ");
+  map()->constructor_name()->PrintOn(file);
+  PrintF(file, "] ");
+  DescriptorArray* o = original_map->instance_descriptors();
+  DescriptorArray* n = new_map->instance_descriptors();
+  for (int i = 0; i < original_map->NumberOfOwnDescriptors(); i++) {
+    Representation o_r = o->GetDetails(i).representation();
+    Representation n_r = n->GetDetails(i).representation();
+    if (!o_r.Equals(n_r)) {
+      String::cast(o->GetKey(i))->PrintOn(file);
+      PrintF(file, ":%s->%s ", o_r.Mnemonic(), n_r.Mnemonic());
+    } else if (o->GetDetails(i).type() == CONSTANT &&
+               n->GetDetails(i).type() == FIELD) {
+      Name* name = o->GetKey(i);
+      if (name->IsString()) {
+        String::cast(name)->PrintOn(file);
+      } else {
+        PrintF(file, "???");
+      }
+      PrintF(file, " ");
+    }
+  }
+  PrintF(file, "\n");
+}
+
+
 void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
   Heap* heap = GetHeap();
   if (!heap->Contains(this)) {
@@ -1783,19 +1831,24 @@ String* JSReceiver::class_name() {
 }
 
 
-String* JSReceiver::constructor_name() {
-  if (map()->constructor()->IsJSFunction()) {
-    JSFunction* constructor = JSFunction::cast(map()->constructor());
+String* Map::constructor_name() {
+  if (constructor()->IsJSFunction()) {
+    JSFunction* constructor = JSFunction::cast(this->constructor());
     String* name = String::cast(constructor->shared()->name());
     if (name->length() > 0) return name;
     String* inferred_name = constructor->shared()->inferred_name();
     if (inferred_name->length() > 0) return inferred_name;
-    Object* proto = GetPrototype();
+    Object* proto = prototype();
     if (proto->IsJSObject()) return JSObject::cast(proto)->constructor_name();
   }
   // TODO(rossberg): what about proxies?
   // If the constructor is not present, return "Object".
   return GetHeap()->Object_string();
+}
+
+
+String* JSReceiver::constructor_name() {
+  return map()->constructor_name();
 }
 
 
@@ -2626,12 +2679,6 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
   if (old_representation.IsNone() &&
       !new_representation.IsNone() &&
       !new_representation.IsDouble()) {
-    if (FLAG_trace_generalization) {
-      PrintF("initializing representation %i: %p -> %s\n",
-             modify_index,
-             static_cast<void*>(this),
-             new_representation.Mnemonic());
-    }
     old_descriptors->SetRepresentation(modify_index, new_representation);
     return old_map;
   }
@@ -2661,11 +2708,9 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
       if (FLAG_trace_generalization &&
           !(modify_index == 0 && new_representation.IsNone())) {
         PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-        PrintF("migrating to existing map %p(%s) -> %p(%s)\n",
-               static_cast<void*>(this),
-               old_details.representation().Mnemonic(),
-               static_cast<void*>(updated),
-               updated_representation.Mnemonic());
+        PrintGeneralization(stdout, modify_index, descriptors, descriptors,
+                            old_details.representation(),
+                            updated_representation);
       }
       return updated;
     }
@@ -2698,13 +2743,8 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
 
   if (FLAG_trace_generalization &&
       !(modify_index == 0 && new_representation.IsNone())) {
-    PrintF("migrating to new map %i: %p(%s) -> %p(%s) (%i steps)\n",
-           modify_index,
-           static_cast<void*>(this),
-           old_representation.Mnemonic(),
-           static_cast<void*>(new_descriptors),
-           updated_representation.Mnemonic(),
-           descriptors - descriptor);
+    PrintGeneralization(stdout, modify_index, descriptor, descriptors,
+                        old_representation, updated_representation);
   }
 
   Map* new_map = split_map;
@@ -3726,11 +3766,6 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
 
 
 void JSObject::MigrateInstance(Handle<JSObject> object) {
-  if (FLAG_trace_migration) {
-    PrintF("migrating instance %p (%p)\n",
-           static_cast<void*>(*object),
-           static_cast<void*>(object->map()));
-  }
   CALL_HEAP_FUNCTION_VOID(
       object->GetIsolate(),
       object->MigrateInstance());
@@ -3738,11 +3773,6 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
 
 
 Handle<Object> JSObject::TryMigrateInstance(Handle<JSObject> object) {
-  if (FLAG_trace_migration) {
-    PrintF("migrating instance (no new maps) %p (%p)\n",
-           static_cast<void*>(*object),
-           static_cast<void*>(object->map()));
-  }
   CALL_HEAP_FUNCTION(
       object->GetIsolate(),
       object->MigrateInstance(),

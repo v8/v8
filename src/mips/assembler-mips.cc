@@ -2203,8 +2203,7 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 
   Instr instr3 = instr_at(pc + 2 * kInstrSize);
   uint32_t ipc = reinterpret_cast<uint32_t>(pc + 3 * kInstrSize);
-  bool in_range = (ipc ^ static_cast<uint32_t>(itarget) >>
-                  (kImm26Bits + kImmFieldShift)) == 0;
+  bool in_range = ((ipc ^ itarget) >> (kImm26Bits + kImmFieldShift)) == 0;
   uint32_t target_field =
       static_cast<uint32_t>(itarget & kJumpAddrMask) >> kImmFieldShift;
   bool patched_jump = false;

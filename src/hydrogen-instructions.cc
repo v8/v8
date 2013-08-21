@@ -3085,6 +3085,7 @@ void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
               ElementsAccessor::ForKind(from_kind)->name(),
               *transitioned_map(),
               ElementsAccessor::ForKind(to_kind)->name());
+  if (IsSimpleMapChangeTransition(from_kind, to_kind)) stream->Add(" (simple)");
 }
 
 

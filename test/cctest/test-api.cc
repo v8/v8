@@ -2682,9 +2682,6 @@ static void CheckInternalFieldsAreZero(v8::Handle<T> value) {
 
 
 THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
-  i::FLAG_harmony_array_buffer = true;
-  i::FLAG_harmony_typed_arrays = true;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -2721,9 +2718,6 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
 
 
 THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
-  i::FLAG_harmony_array_buffer = true;
-  i::FLAG_harmony_typed_arrays = true;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -2766,9 +2760,6 @@ THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
 
 
 THREADED_TEST(ArrayBuffer_External) {
-  i::FLAG_harmony_array_buffer = true;
-  i::FLAG_harmony_typed_arrays = true;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -3185,6 +3176,44 @@ THREADED_TEST(GlobalHandleUpcast) {
   CHECK(v8::Local<v8::Value>::New(isolate, global_value)->IsString());
   CHECK(global_string == v8::Persistent<String>::Cast(global_value));
   global_string.Dispose();
+}
+
+
+THREADED_TEST(HandleEquality) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Persistent<String> global1;
+  v8::Persistent<String> global2;
+  {
+    v8::HandleScope scope(isolate);
+    global1.Reset(isolate, v8_str("str"));
+    global2.Reset(isolate, v8_str("str2"));
+  }
+  CHECK_EQ(global1 == global1, true);
+  CHECK_EQ(global1 != global1, false);
+  {
+    v8::HandleScope scope(isolate);
+    Local<String> local1 = Local<String>::New(isolate, global1);
+    Local<String> local2 = Local<String>::New(isolate, global2);
+
+    CHECK_EQ(global1 == local1, true);
+    CHECK_EQ(global1 != local1, false);
+    CHECK_EQ(local1 == global1, true);
+    CHECK_EQ(local1 != global1, false);
+
+    CHECK_EQ(global1 == local2, false);
+    CHECK_EQ(global1 != local2, true);
+    CHECK_EQ(local2 == global1, false);
+    CHECK_EQ(local2 != global1, true);
+
+    CHECK_EQ(local1 == local2, false);
+    CHECK_EQ(local1 != local2, true);
+
+    Local<String> anotherLocal1 = Local<String>::New(isolate, global1);
+    CHECK_EQ(local1 == anotherLocal1, true);
+    CHECK_EQ(local1 != anotherLocal1, false);
+  }
+  global1.Dispose();
+  global2.Dispose();
 }
 
 
@@ -12958,9 +12987,6 @@ TEST(SetFunctionEntryHook) {
   // Experimental natives are compiled during snapshot deserialization.
   // This test breaks because InstallGetter (function from snapshot that
   // only gets called from experimental natives) is compiled with entry hooks.
-  i::FLAG_harmony_typed_arrays = false;
-  i::FLAG_harmony_array_buffer = false;
-
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_use_inlining = false;
 
@@ -16157,8 +16183,6 @@ THREADED_TEST(DataView) {
 
 #define IS_ARRAY_BUFFER_VIEW_TEST(View)                                       \
   THREADED_TEST(Is##View) {                                                   \
-    i::FLAG_harmony_array_buffer = true;                                      \
-    i::FLAG_harmony_typed_arrays = true;                                      \
     LocalContext env;                                                         \
     v8::Isolate* isolate = env->GetIsolate();                                 \
     v8::HandleScope handle_scope(isolate);                                    \
@@ -20171,6 +20195,10 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%GetLocalPropertyNames(other, true)");
   CheckCorrectThrow("%DefineOrRedefineAccessorProperty("
                         "other, 'x', null, null, 1)");
+
+  // Reset the failed access check callback so it does not influence
+  // the other tests.
+  v8::V8::SetFailedAccessCheckCallbackFunction(NULL);
 }
 
 #endif  // WIN32

@@ -596,19 +596,9 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case FAST_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS: {
-      KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
-                                                       is_js_array_,
-                                                       elements_kind_,
-                                                       store_mode_);
-    }
-      break;
+    case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
-      KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
-                                                             is_js_array_,
-                                                             store_mode_);
-      break;
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -618,7 +608,7 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
-      KeyedStoreStubCompiler::GenerateStoreExternalArray(masm, elements_kind_);
+      UNREACHABLE();
       break;
     case DICTIONARY_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreDictionaryElement(masm);

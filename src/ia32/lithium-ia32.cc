@@ -772,12 +772,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     // Left shifts can deoptimize if we shift by > 0 and the result cannot be
     // truncated to smi.
     if (instr->representation().IsSmi() && constant_value > 0) {
-      for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
-        if (!it.value()->CheckFlag(HValue::kTruncatingToSmi)) {
-          does_deopt = true;
-          break;
-        }
-      }
+      does_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToSmi);
     }
   } else {
     right = UseFixed(right_value, ecx);
@@ -789,12 +784,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     if (FLAG_opt_safe_uint32_operations) {
       does_deopt = !instr->CheckFlag(HInstruction::kUint32);
     } else {
-      for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
-        if (!it.value()->CheckFlag(HValue::kTruncatingToInt32)) {
-          does_deopt = true;
-          break;
-        }
-      }
+      does_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToInt32);
     }
   }
 

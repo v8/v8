@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,59 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ARM_LITHIUM_GAP_RESOLVER_ARM_H_
-#define V8_ARM_LITHIUM_GAP_RESOLVER_ARM_H_
+// Flags: --allow-natives-syntax --noenable-sse2
 
-#include "v8.h"
+// Regression for register allocation.
+var x;
+var a = new Float32Array([1,2, 4, 6, 8, 11, NaN, 1/0, -3])
+var val = 2.1*a[1]*a[0]*a[1*2*3*0]*a[1*1]*1.0;
+assertEquals(8.4, val);
 
-#include "lithium.h"
-
-namespace v8 {
-namespace internal {
-
-class LCodeGen;
-class LGapResolver;
-
-class LGapResolver V8_FINAL BASE_EMBEDDED {
- public:
-  explicit LGapResolver(LCodeGen* owner);
-
-  // Resolve a set of parallel moves, emitting assembler instructions.
-  void Resolve(LParallelMove* parallel_move);
-
- private:
-  // Build the initial list of moves.
-  void BuildInitialMoveList(LParallelMove* parallel_move);
-
-  // Perform the move at the moves_ index in question (possibly requiring
-  // other moves to satisfy dependencies).
-  void PerformMove(int index);
-
-  // If a cycle is found in the series of moves, save the blocking value to
-  // a scratch register.  The cycle must be found by hitting the root of the
-  // depth-first search.
-  void BreakCycle(int index);
-
-  // After a cycle has been resolved, restore the value from the scratch
-  // register to its proper destination.
-  void RestoreValue();
-
-  // Emit a move and remove it from the move graph.
-  void EmitMove(int index);
-
-  // Verify the move list before performing moves.
-  void Verify();
-
-  LCodeGen* cgen_;
-
-  // List of moves not yet resolved.
-  ZoneList<LMoveOperands> moves_;
-
-  int root_index_;
-  bool in_cycle_;
-  LOperand* saved_destination_;
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_ARM_LITHIUM_GAP_RESOLVER_ARM_H_
+// Regression for double-phis
+var a;
+var t = true;
+var res = [2.5, 2];
+for (var i = 0; i < 2; i++) {
+  if (t) {
+    a = 1.5;
+  } else {
+    a = true;
+  }
+  assertEquals(res[i], a+1);
+  t = false;
+}
