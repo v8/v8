@@ -1745,22 +1745,35 @@ void HGraphBuilder::BuildCompareNil(
     int position,
     HIfContinuation* continuation) {
   IfBuilder if_nil(this, position);
-  bool needs_or = false;
+  bool some_case_handled = false;
+  bool some_case_missing = false;
+
   if (type->Maybe(Type::Null())) {
-    if (needs_or) if_nil.Or();
+    if (some_case_handled) if_nil.Or();
     if_nil.If<HCompareObjectEqAndBranch>(value, graph()->GetConstantNull());
-    needs_or = true;
+    some_case_handled = true;
+  } else {
+    some_case_missing = true;
   }
+
   if (type->Maybe(Type::Undefined())) {
-    if (needs_or) if_nil.Or();
+    if (some_case_handled) if_nil.Or();
     if_nil.If<HCompareObjectEqAndBranch>(value,
                                          graph()->GetConstantUndefined());
-    needs_or = true;
-  }
-  if (type->Maybe(Type::Undetectable())) {
-    if (needs_or) if_nil.Or();
-    if_nil.If<HIsUndetectableAndBranch>(value);
+    some_case_handled = true;
   } else {
+    some_case_missing = true;
+  }
+
+  if (type->Maybe(Type::Undetectable())) {
+    if (some_case_handled) if_nil.Or();
+    if_nil.If<HIsUndetectableAndBranch>(value);
+    some_case_handled = true;
+  } else {
+    some_case_missing = true;
+  }
+
+  if (some_case_missing) {
     if_nil.Then();
     if_nil.Else();
     if (type->NumClasses() == 1) {
@@ -8209,21 +8222,23 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   ASSERT(expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT);
   CHECK_ALIVE(VisitForValue(sub_expr));
   HValue* value = Pop();
-  HIfContinuation continuation;
   if (expr->op() == Token::EQ_STRICT) {
-    IfBuilder if_nil(this);
-    if_nil.If<HCompareObjectEqAndBranch>(
-        value, (nil == kNullValue) ? graph()->GetConstantNull()
-                                   : graph()->GetConstantUndefined());
-    if_nil.Then();
-    if_nil.Else();
-    if_nil.CaptureContinuation(&continuation);
+    HConstant* nil_constant = nil == kNullValue
+        ? graph()->GetConstantNull()
+        : graph()->GetConstantUndefined();
+    HCompareObjectEqAndBranch* instr =
+        New<HCompareObjectEqAndBranch>(value, nil_constant);
+    instr->set_position(expr->position());
+    return ast_context()->ReturnControl(instr, expr->id());
+  } else {
+    ASSERT_EQ(Token::EQ, expr->op());
+    Handle<Type> type = expr->combined_type()->Is(Type::None())
+        ? handle(Type::Any(), isolate_)
+        : expr->combined_type();
+    HIfContinuation continuation;
+    BuildCompareNil(value, type, expr->position(), &continuation);
     return ast_context()->ReturnContinuation(&continuation, expr->id());
   }
-  Handle<Type> type = expr->combined_type()->Is(Type::None())
-      ? handle(Type::Any(), isolate_) : expr->combined_type();
-  BuildCompareNil(value, type, expr->position(), &continuation);
-  return ast_context()->ReturnContinuation(&continuation, expr->id());
 }
 
 
