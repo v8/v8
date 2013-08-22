@@ -522,7 +522,7 @@ void Isolate::IterateDeferredHandles(ObjectVisitor* visitor) {
 #ifdef DEBUG
 bool Isolate::IsDeferredHandle(Object** handle) {
   // Each DeferredHandles instance keeps the handles to one job in the
-  // parallel recompilation queue, containing a list of blocks.  Each block
+  // concurrent recompilation queue, containing a list of blocks.  Each block
   // contains kHandleBlockSize handles except for the first block, which may
   // not be fully filled.
   // We iterate through all the blocks to see whether the argument handle
@@ -1886,7 +1886,7 @@ void Isolate::Deinit() {
     debugger()->UnloadDebugger();
 #endif
 
-    if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
+    if (FLAG_concurrent_recompilation) optimizing_compiler_thread_.Stop();
 
     if (FLAG_sweeper_threads > 0) {
       for (int i = 0; i < FLAG_sweeper_threads; i++) {
@@ -2331,7 +2331,7 @@ bool Isolate::Init(Deserializer* des) {
     InternalArrayConstructorStubBase::InstallDescriptors(this);
   }
 
-  if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
+  if (FLAG_concurrent_recompilation) optimizing_compiler_thread_.Start();
 
   if (FLAG_marking_threads > 0) {
     marking_thread_ = new MarkingThread*[FLAG_marking_threads];

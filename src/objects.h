@@ -6969,7 +6969,7 @@ class JSFunction: public JSObject {
   // Mark this function for lazy recompilation. The function will be
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();
-  void MarkForParallelRecompilation();
+  void MarkForConcurrentRecompilation();
   void MarkForInstallingRecompiledCode();
   void MarkInRecompileQueue();
 
@@ -6986,11 +6986,10 @@ class JSFunction: public JSObject {
   // Tells whether or not the function is already marked for lazy
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
-  inline bool IsMarkedForParallelRecompilation();
+  inline bool IsMarkedForConcurrentRecompilation();
   inline bool IsMarkedForInstallingRecompiledCode();
 
-  // Tells whether or not the function is on the parallel
-  // recompilation queue.
+  // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInRecompileQueue();
 
   // Check whether or not this function is inlineable.

@@ -9202,19 +9202,19 @@ void JSFunction::MarkForLazyRecompilation() {
 }
 
 
-void JSFunction::MarkForParallelRecompilation() {
+void JSFunction::MarkForConcurrentRecompilation() {
   ASSERT(is_compiled() || GetIsolate()->DebuggerHasBreakPoints());
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
   ASSERT(!shared()->is_generator());
-  ASSERT(FLAG_parallel_recompilation);
-  if (FLAG_trace_parallel_recompilation) {
+  ASSERT(FLAG_concurrent_recompilation);
+  if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Marking ");
     PrintName();
-    PrintF(" for parallel recompilation.\n");
+    PrintF(" for concurrent recompilation.\n");
   }
   set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kParallelRecompile));
+      GetIsolate()->builtins()->builtin(Builtins::kConcurrentRecompile));
   // No write barrier required, since the builtin is part of the root set.
 }
 
@@ -9224,7 +9224,7 @@ void JSFunction::MarkForInstallingRecompiledCode() {
   // In that case, simply carry on.  It will be dealt with later.
   ASSERT(!IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  ASSERT(FLAG_parallel_recompilation);
+  ASSERT(FLAG_concurrent_recompilation);
   set_code_no_write_barrier(
       GetIsolate()->builtins()->builtin(Builtins::kInstallRecompiledCode));
   // No write barrier required, since the builtin is part of the root set.
@@ -9232,16 +9232,16 @@ void JSFunction::MarkForInstallingRecompiledCode() {
 
 
 void JSFunction::MarkInRecompileQueue() {
-  // We can only arrive here via the parallel-recompilation builtin.  If
+  // We can only arrive here via the concurrent-recompilation builtin.  If
   // break points were set, the code would point to the lazy-compile builtin.
   ASSERT(!GetIsolate()->DebuggerHasBreakPoints());
-  ASSERT(IsMarkedForParallelRecompilation() && !IsOptimized());
+  ASSERT(IsMarkedForConcurrentRecompilation() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
-  ASSERT(FLAG_parallel_recompilation);
-  if (FLAG_trace_parallel_recompilation) {
+  ASSERT(FLAG_concurrent_recompilation);
+  if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queueing ");
     PrintName();
-    PrintF(" for parallel recompilation.\n");
+    PrintF(" for concurrent recompilation.\n");
   }
   set_code_no_write_barrier(
       GetIsolate()->builtins()->builtin(Builtins::kInRecompileQueue));

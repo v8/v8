@@ -4959,9 +4959,9 @@ bool JSFunction::IsMarkedForInstallingRecompiledCode() {
 }
 
 
-bool JSFunction::IsMarkedForParallelRecompilation() {
+bool JSFunction::IsMarkedForConcurrentRecompilation() {
   return code() == GetIsolate()->builtins()->builtin(
-      Builtins::kParallelRecompile);
+      Builtins::kConcurrentRecompile);
 }
 
 

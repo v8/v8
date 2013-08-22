@@ -150,7 +150,7 @@ var knownProblems = {
   "PushModuleContext": true,
   "LazyCompile": true,
   "LazyRecompile": true,
-  "ParallelRecompile": true,
+  "ConcurrentRecompile": true,
   "InstallRecompiledCode": true,
   "NotifyDeoptimized": true,
   "NotifyStubFailure": true,

@@ -882,7 +882,7 @@ class HValue : public ZoneObject {
   bool Equals(HValue* other);
   virtual intptr_t Hashcode();
 
-  // Compute unique ids upfront that is safe wrt GC and parallel recompilation.
+  // Compute unique ids upfront that is safe wrt GC and concurrent compilation.
   virtual void FinalizeUniqueValueId() { }
 
   // Printing support.

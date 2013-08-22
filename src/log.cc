@@ -906,8 +906,8 @@ void Logger::TimerEventScope::LogTimerEvent(StartEnd se) {
 
 const char* Logger::TimerEventScope::v8_recompile_synchronous =
     "V8.RecompileSynchronous";
-const char* Logger::TimerEventScope::v8_recompile_parallel =
-    "V8.RecompileParallel";
+const char* Logger::TimerEventScope::v8_recompile_concurrent =
+    "V8.RecompileConcurrent";
 const char* Logger::TimerEventScope::v8_compile_full_code =
     "V8.CompileFullCode";
 const char* Logger::TimerEventScope::v8_execute = "V8.Execute";

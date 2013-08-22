@@ -139,10 +139,10 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     PrintF("]\n");
   }
 
-  if (FLAG_parallel_recompilation && !isolate_->bootstrapper()->IsActive()) {
+  if (FLAG_concurrent_recompilation && !isolate_->bootstrapper()->IsActive()) {
     ASSERT(!function->IsMarkedForInstallingRecompiledCode());
     ASSERT(!function->IsInRecompileQueue());
-    function->MarkForParallelRecompilation();
+    function->MarkForConcurrentRecompilation();
   } else {
     // The next call to the function will trigger optimization.
     function->MarkForLazyRecompilation();
@@ -229,7 +229,7 @@ void RuntimeProfiler::OptimizeNow() {
 
   if (isolate_->DebuggerHasBreakPoints()) return;
 
-  if (FLAG_parallel_recompilation) {
+  if (FLAG_concurrent_recompilation) {
     // Take this as opportunity to process the optimizing compiler thread's
     // output queue so that it does not unnecessarily keep objects alive.
     isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
@@ -283,7 +283,7 @@ void RuntimeProfiler::OptimizeNow() {
       // Fall through and do a normal optimized compile as well.
     } else if (!frame->is_optimized() &&
         (function->IsMarkedForLazyRecompilation() ||
-         function->IsMarkedForParallelRecompilation() ||
+         function->IsMarkedForConcurrentRecompilation() ||
          function->IsOptimized())) {
       // Attempt OSR if we are still running unoptimized code even though the
       // the function has long been marked or even already been optimized.

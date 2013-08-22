@@ -49,22 +49,22 @@ void OptimizingCompilerThread::Run() {
   DisallowHandleDereference no_deref;
 
   int64_t epoch = 0;
-  if (FLAG_trace_parallel_recompilation) epoch = OS::Ticks();
+  if (FLAG_trace_concurrent_recompilation) epoch = OS::Ticks();
 
   while (true) {
     input_queue_semaphore_->Wait();
     Logger::TimerEventScope timer(
-        isolate_, Logger::TimerEventScope::v8_recompile_parallel);
+        isolate_, Logger::TimerEventScope::v8_recompile_concurrent);
 
-    if (FLAG_parallel_recompilation_delay != 0) {
-      OS::Sleep(FLAG_parallel_recompilation_delay);
+    if (FLAG_concurrent_recompilation_delay != 0) {
+      OS::Sleep(FLAG_concurrent_recompilation_delay);
     }
 
     switch (static_cast<StopFlag>(Acquire_Load(&stop_thread_))) {
       case CONTINUE:
         break;
       case STOP:
-        if (FLAG_trace_parallel_recompilation) {
+        if (FLAG_trace_concurrent_recompilation) {
           time_spent_total_ = OS::Ticks() - epoch;
         }
         stop_semaphore_->Signal();
@@ -82,11 +82,11 @@ void OptimizingCompilerThread::Run() {
     }
 
     int64_t compiling_start = 0;
-    if (FLAG_trace_parallel_recompilation) compiling_start = OS::Ticks();
+    if (FLAG_trace_concurrent_recompilation) compiling_start = OS::Ticks();
 
     CompileNext();
 
-    if (FLAG_trace_parallel_recompilation) {
+    if (FLAG_trace_concurrent_recompilation) {
       time_spent_compiling_ += OS::Ticks() - compiling_start;
     }
   }
@@ -163,7 +163,7 @@ void OptimizingCompilerThread::Stop() {
   input_queue_semaphore_->Signal();
   stop_semaphore_->Wait();
 
-  if (FLAG_parallel_recompilation_delay != 0) {
+  if (FLAG_concurrent_recompilation_delay != 0) {
     // Barrier when loading queue length is not necessary since the write
     // happens in CompileNext on the same thread.
     // This is used only for testing.
@@ -174,7 +174,7 @@ void OptimizingCompilerThread::Stop() {
     FlushOutputQueue(false);
   }
 
-  if (FLAG_trace_parallel_recompilation) {
+  if (FLAG_trace_concurrent_recompilation) {
     double compile_time = static_cast<double>(time_spent_compiling_);
     double total_time = static_cast<double>(time_spent_total_);
     double percentage = (compile_time * 100) / total_time;
@@ -212,7 +212,7 @@ void OptimizingCompilerThread::QueueForOptimization(
 
 #ifdef DEBUG
 bool OptimizingCompilerThread::IsOptimizerThread() {
-  if (!FLAG_parallel_recompilation) return false;
+  if (!FLAG_concurrent_recompilation) return false;
   ScopedLock lock(thread_id_mutex_);
   return ThreadId::Current().ToInteger() == thread_id_;
 }
