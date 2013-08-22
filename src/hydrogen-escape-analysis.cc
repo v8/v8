@@ -215,7 +215,6 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           for (HUseIterator it(mapcheck->uses()); !it.Done(); it.Advance()) {
             if (!it.value()->IsLoadNamedField()) continue;
             HLoadNamedField* load = HLoadNamedField::cast(it.value());
-            ASSERT(load->typecheck() == mapcheck);
             load->ClearTypeCheck();
           }
           ASSERT(mapcheck->HasNoUses());

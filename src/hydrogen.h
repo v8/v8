@@ -1257,13 +1257,10 @@ class HGraphBuilder {
       LoadKeyedHoleMode load_mode,
       KeyedAccessStoreMode store_mode);
 
-  HLoadNamedField* BuildLoadNamedField(
-      HValue* object,
-      HObjectAccess access,
-      HValue* typecheck);
-  HInstruction* BuildLoadStringLength(HValue* object, HValue* typecheck);
-  HStoreNamedField* AddStoreMapConstant(HValue *object, Handle<Map>);
-  HLoadNamedField* AddLoadElements(HValue *object, HValue *typecheck);
+  HLoadNamedField* BuildLoadNamedField(HValue* object, HObjectAccess access);
+  HInstruction* BuildLoadStringLength(HValue* object, HValue* checked_value);
+  HStoreNamedField* AddStoreMapConstant(HValue* object, Handle<Map>);
+  HLoadNamedField* AddLoadElements(HValue* object);
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin);
@@ -1549,9 +1546,10 @@ class HGraphBuilder {
                                        int previous_object_size,
                                        HValue* payload);
 
-  void BuildConstantMapCheck(Handle<JSObject> constant, CompilationInfo* info);
-  void BuildCheckPrototypeMaps(Handle<JSObject> prototype,
-                               Handle<JSObject> holder);
+  HInstruction* BuildConstantMapCheck(Handle<JSObject> constant,
+                                      CompilationInfo* info);
+  HInstruction* BuildCheckPrototypeMaps(Handle<JSObject> prototype,
+                                        Handle<JSObject> holder);
 
   HInstruction* BuildGetNativeContext();
   HInstruction* BuildGetArrayFunction();
@@ -1601,22 +1599,6 @@ inline HInstruction* HGraphBuilder::AddUncasted<HSimulate>(
   HSimulate* instr = current_block()->CreateSimulate(id, removable);
   AddInstruction(instr);
   return instr;
-}
-
-
-template<>
-inline HInstruction* HGraphBuilder::NewUncasted<HLoadNamedField>(
-    HValue* object, HObjectAccess access) {
-  return NewUncasted<HLoadNamedField>(object, access,
-                                      static_cast<HValue*>(NULL));
-}
-
-
-template<>
-inline HInstruction* HGraphBuilder::AddUncasted<HLoadNamedField>(
-    HValue* object, HObjectAccess access) {
-  return AddUncasted<HLoadNamedField>(object, access,
-                                      static_cast<HValue*>(NULL));
 }
 
 

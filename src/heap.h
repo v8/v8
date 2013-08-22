@@ -1391,6 +1391,10 @@ class Heap {
   inline OldSpace* TargetSpace(HeapObject* object);
   static inline AllocationSpace TargetSpaceId(InstanceType type);
 
+  // Checks whether the given object is allowed to be migrated from it's
+  // current space into the given destination space. Used for debugging.
+  inline bool AllowedToBeMigrated(HeapObject* object, AllocationSpace dest);
+
   // Sets the stub_cache_ (only used when expanding the dictionary).
   void public_set_code_stubs(UnseededNumberDictionary* value) {
     roots_[kCodeStubsRootIndex] = value;

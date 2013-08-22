@@ -352,7 +352,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   HObjectAccess access = HObjectAccess::ForAllocationSiteTransitionInfo();
   HInstruction* boilerplate = Add<HLoadNamedField>(allocation_site, access);
   if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
-    HValue* elements = AddLoadElements(boilerplate, NULL);
+    HValue* elements = AddLoadElements(boilerplate);
 
     IfBuilder if_fixed_cow(this);
     if_fixed_cow.If<HCompareMap>(elements, factory->fixed_cow_array_map());
@@ -513,7 +513,7 @@ HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
   HObjectAccess access = casted_stub()->is_inobject() ?
       HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
       HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access, NULL));
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
 }
 
 
@@ -528,7 +528,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadFieldStub>::BuildCodeStub() {
   HObjectAccess access = casted_stub()->is_inobject() ?
       HObjectAccess::ForJSObjectOffset(casted_stub()->offset(), rep) :
       HObjectAccess::ForBackingStoreOffset(casted_stub()->offset(), rep);
-  return AddInstruction(BuildLoadNamedField(GetParameter(0), access, NULL));
+  return AddInstruction(BuildLoadNamedField(GetParameter(0), access));
 }
 
 

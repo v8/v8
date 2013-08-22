@@ -1,3 +1,8 @@
+2013-08-22: Version 3.21.2
+
+        Stability improvements on all platforms.
+
+
 2013-08-21: Version 3.21.1
 
         Promoted ArrayBuffer, DataView and typed arrays to non-experimental.

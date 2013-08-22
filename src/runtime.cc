@@ -14153,6 +14153,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FlattenString) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyContextDisposed) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 0);
+  isolate->heap()->NotifyContextDisposed();
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MigrateInstance) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);

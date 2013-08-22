@@ -111,6 +111,7 @@ namespace internal {
   F(DebugPrepareStepInIfStepping, 1, 1) \
   F(FlattenString, 1, 1) \
   F(MigrateInstance, 1, 1) \
+  F(NotifyContextDisposed, 0, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \

@@ -1919,13 +1919,6 @@ void Assembler::pushfq() {
 }
 
 
-void Assembler::rdtsc() {
-  EnsureSpace ensure_space(this);
-  emit(0x0F);
-  emit(0x31);
-}
-
-
 void Assembler::ret(int imm16) {
   EnsureSpace ensure_space(this);
   ASSERT(is_uint16(imm16));

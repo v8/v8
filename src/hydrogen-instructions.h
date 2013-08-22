@@ -1371,6 +1371,9 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
 
   DECLARE_CONCRETE_INSTRUCTION(CompareMap)
 
+ protected:
+  virtual int RedefinedOperandIndex() { return 0; }
+
  private:
   Handle<Map> map_;
 };
@@ -2575,6 +2578,8 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     return true;
   }
 
+  virtual int RedefinedOperandIndex() { return 0; }
+
  private:
   void Add(Handle<Map> map, Zone* zone) {
     map_set_.Add(map, zone);
@@ -2698,6 +2703,8 @@ class HCheckInstanceType V8_FINAL : public HUnaryOperation {
     HCheckInstanceType* b = HCheckInstanceType::cast(other);
     return check_ == b->check_;
   }
+
+  virtual int RedefinedOperandIndex() { return 0; }
 
  private:
   enum Check {
@@ -5585,20 +5592,13 @@ class HObjectAccess V8_FINAL {
 };
 
 
-class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
+class HLoadNamedField V8_FINAL : public HTemplateInstruction<1> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P2(HLoadNamedField, HValue*, HObjectAccess);
-  DECLARE_INSTRUCTION_FACTORY_P3(HLoadNamedField, HValue*, HObjectAccess,
-                                 HValue*);
 
   HValue* object() { return OperandAt(0); }
-  HValue* typecheck() {
-    ASSERT(HasTypeCheck());
-    return OperandAt(1);
-  }
-
-  bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
-  void ClearTypeCheck() { SetOperandAt(1, object()); }
+  bool HasTypeCheck() { return object()->IsCheckMaps(); }
+  void ClearTypeCheck() { SetOperandAt(0, object()->ActualValue()); }
   HObjectAccess access() const { return access_; }
   Representation field_representation() const {
       return access_.representation();
@@ -5624,13 +5624,9 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
   }
 
  private:
-  HLoadNamedField(HValue* object,
-                  HObjectAccess access,
-                  HValue* typecheck = NULL)
-      : access_(access) {
+  HLoadNamedField(HValue* object, HObjectAccess access) : access_(access) {
     ASSERT(object != NULL);
     SetOperandAt(0, object);
-    SetOperandAt(1, typecheck != NULL ? typecheck : object);
 
     Representation representation = access.representation();
     if (representation.IsSmi()) {
