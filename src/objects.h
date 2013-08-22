@@ -2159,7 +2159,6 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
-      ExtensibilityCheck extensibility_check,
       StoreMode mode = ALLOW_AS_CONSTANT);
 
   static Handle<Object> SetLocalPropertyIgnoreAttributes(
@@ -2197,7 +2196,8 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT);
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
 
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.

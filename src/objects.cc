@@ -2163,7 +2163,6 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     Object* value,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode,
-    ExtensibilityCheck extensibility_check,
     StoreMode mode) {
   // Check local property, ignore interceptor.
   LookupResult result(GetIsolate());
@@ -2175,13 +2174,12 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     return SetProperty(&result, name, value, attributes, strict_mode);
   }
   bool done = false;
-  MaybeObject* result_object;
-  result_object =
+  MaybeObject* result_object =
       SetPropertyViaPrototypes(name, value, attributes, strict_mode, &done);
   if (done) return result_object;
   // Add a new real property.
   return AddProperty(name, value, attributes, strict_mode,
-                     MAY_BE_STORE_FROM_KEYED, extensibility_check,
+                     MAY_BE_STORE_FROM_KEYED, PERFORM_EXTENSIBILITY_CHECK,
                      OPTIMAL_REPRESENTATION, mode);
 }
 
@@ -2824,8 +2822,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
       this_handle->SetPropertyPostInterceptor(*name_handle,
                                               *value_handle,
                                               attributes,
-                                              strict_mode,
-                                              PERFORM_EXTENSIBILITY_CHECK);
+                                              strict_mode);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
 }
@@ -4030,7 +4027,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     Object* value_raw,
     PropertyAttributes attributes,
     ValueType value_type,
-    StoreMode mode) {
+    StoreMode mode,
+    ExtensibilityCheck extensibility_check) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
@@ -4058,7 +4056,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
         value_raw,
         attributes,
         value_type,
-        mode);
+        mode,
+        extensibility_check);
   }
 
   // Check for accessor in prototype chain removed here in clone.
@@ -4066,7 +4065,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     // Neither properties nor transitions found.
     return AddProperty(
         name_raw, value_raw, attributes, kNonStrictMode,
-        MAY_BE_STORE_FROM_KEYED, PERFORM_EXTENSIBILITY_CHECK, value_type, mode);
+        MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode);
   }
 
   // From this point on everything needs to be handlified.
@@ -4923,12 +4922,12 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
   }
 
   MaybeObject* store_result =
-      SetPropertyPostInterceptor(GetHeap()->hidden_string(),
-                                 hashtable,
-                                 DONT_ENUM,
-                                 kNonStrictMode,
-                                 OMIT_EXTENSIBILITY_CHECK,
-                                 FORCE_FIELD);
+      SetLocalPropertyIgnoreAttributes(GetHeap()->hidden_string(),
+                                       hashtable,
+                                       DONT_ENUM,
+                                       OPTIMAL_REPRESENTATION,
+                                       ALLOW_AS_CONSTANT,
+                                       OMIT_EXTENSIBILITY_CHECK);
   if (store_result->IsFailure()) return store_result;
   return hashtable;
 }
@@ -4956,12 +4955,12 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
     }
   }
   MaybeObject* store_result =
-      SetPropertyPostInterceptor(GetHeap()->hidden_string(),
-                                 value,
-                                 DONT_ENUM,
-                                 kNonStrictMode,
-                                 OMIT_EXTENSIBILITY_CHECK,
-                                 FORCE_FIELD);
+      SetLocalPropertyIgnoreAttributes(GetHeap()->hidden_string(),
+                                       value,
+                                       DONT_ENUM,
+                                       OPTIMAL_REPRESENTATION,
+                                       ALLOW_AS_CONSTANT,
+                                       OMIT_EXTENSIBILITY_CHECK);
   if (store_result->IsFailure()) return store_result;
   return this;
 }
@@ -15307,6 +15306,7 @@ MaybeObject* ObjectHashSet::Add(Object* key) {
   int hash;
   { MaybeObject* maybe_hash = key->GetHash(ALLOW_CREATION);
     if (maybe_hash->IsFailure()) return maybe_hash;
+    ASSERT(key->GetHash(OMIT_CREATION) == maybe_hash);
     hash = Smi::cast(maybe_hash->ToObjectUnchecked())->value();
   }
   int entry = FindEntry(key);
@@ -15368,6 +15368,7 @@ MaybeObject* ObjectHashTable::Put(Object* key, Object* value) {
   int hash;
   { MaybeObject* maybe_hash = key->GetHash(ALLOW_CREATION);
     if (maybe_hash->IsFailure()) return maybe_hash;
+    ASSERT(key->GetHash(OMIT_CREATION) == maybe_hash);
     hash = Smi::cast(maybe_hash->ToObjectUnchecked())->value();
   }
   int entry = FindEntry(key);
