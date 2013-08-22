@@ -232,6 +232,13 @@ static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
 enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
 
 
+// Indicates whether a value can be loaded as a constant.
+enum StoreMode {
+  ALLOW_AS_CONSTANT,
+  FORCE_FIELD
+};
+
+
 // PropertyNormalizationMode is used to specify whether to keep
 // inobject properties when normalizing properties of a JSObject.
 enum PropertyNormalizationMode {
@@ -258,7 +265,6 @@ enum CreationFlag {
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag {
   INSERT_TRANSITION,
-  OMIT_TRANSITION_KEEP_REPRESENTATIONS,
   OMIT_TRANSITION
 };
 
@@ -1926,12 +1932,6 @@ class JSReceiver: public HeapObject {
     CERTAINLY_NOT_STORE_FROM_KEYED
   };
 
-  // Indicates whether a value can be loaded as a constant.
-  enum StoreMode {
-    ALLOW_AS_CONSTANT,
-    FORCE_FIELD
-  };
-
   // Internal properties (e.g. the hidden properties dictionary) might
   // be added even though the receiver is non-extensible.
   enum ExtensibilityCheck {
@@ -2522,13 +2522,6 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
-  // Replaces an existing transition with a transition to a map with a FIELD.
-  MUST_USE_RESULT MaybeObject* ConvertTransitionToMapTransition(
-      int transition_index,
-      Name* name,
-      Object* new_value,
-      PropertyAttributes attributes);
-
   // Converts a descriptor of any other type to a real field, backed by the
   // properties array.
   MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
@@ -2540,7 +2533,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
   MUST_USE_RESULT MaybeObject* GeneralizeFieldRepresentation(
       int modify_index,
-      Representation new_representation);
+      Representation new_representation,
+      StoreMode store_mode);
 
   // Add a property to a fast-case object.
   MUST_USE_RESULT MaybeObject* AddFastProperty(
@@ -3190,6 +3184,8 @@ class DescriptorArray: public FixedArray {
   MUST_USE_RESULT MaybeObject* Merge(int verbatim,
                                      int valid,
                                      int new_size,
+                                     int modify_index,
+                                     StoreMode store_mode,
                                      DescriptorArray* other);
 
   bool IsMoreGeneralThan(int verbatim,
@@ -5619,16 +5615,23 @@ class Map: public HeapObject {
   static Handle<Map> GeneralizeRepresentation(
       Handle<Map> map,
       int modify_index,
-      Representation new_representation);
+      Representation new_representation,
+      StoreMode store_mode);
   MUST_USE_RESULT MaybeObject* GeneralizeRepresentation(
       int modify_index,
-      Representation representation);
-  MUST_USE_RESULT MaybeObject* CopyGeneralizeAllRepresentations();
+      Representation representation,
+      StoreMode store_mode);
+  MUST_USE_RESULT MaybeObject* CopyGeneralizeAllRepresentations(
+      int modify_index,
+      StoreMode store_mode,
+      const char* reason);
 
   void PrintGeneralization(FILE* file,
+                           const char* reason,
                            int modify_index,
                            int split,
                            int descriptors,
+                           bool constant_to_field,
                            Representation old_representation,
                            Representation new_representation);
 

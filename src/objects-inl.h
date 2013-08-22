@@ -1569,7 +1569,7 @@ MaybeObject* JSObject::MigrateInstance() {
   // transition that matches the object. This achieves what is needed.
   Map* original_map = map();
   MaybeObject* maybe_result = GeneralizeFieldRepresentation(
-      0, Representation::None());
+      0, Representation::None(), ALLOW_AS_CONSTANT);
   JSObject* result;
   if (FLAG_trace_migration && maybe_result->To(&result)) {
     PrintInstanceMigration(stdout, original_map, result->map());
@@ -2361,6 +2361,7 @@ PropertyType DescriptorArray::GetType(int descriptor_number) {
 
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
+  ASSERT(GetDetails(descriptor_number).type() == FIELD);
   return GetDetails(descriptor_number).field_index();
 }
 

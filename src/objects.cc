@@ -1450,19 +1450,31 @@ void JSObject::PrintElementsTransition(
 
 
 void Map::PrintGeneralization(FILE* file,
+                              const char* reason,
                               int modify_index,
                               int split,
                               int descriptors,
+                              bool constant_to_field,
                               Representation old_representation,
                               Representation new_representation) {
   PrintF(file, "[generalizing ");
   constructor_name()->PrintOn(file);
   PrintF(file, "] ");
   String::cast(instance_descriptors()->GetKey(modify_index))->PrintOn(file);
-  PrintF(file, ":%s->%s (+%i maps) [",
-         old_representation.Mnemonic(),
-         new_representation.Mnemonic(),
-         descriptors - split);
+  if (constant_to_field) {
+    PrintF(file, ":c->f");
+  } else {
+    PrintF(file, ":%s->%s",
+           old_representation.Mnemonic(),
+           new_representation.Mnemonic());
+  }
+  PrintF(file, " (");
+  if (strlen(reason) > 0) {
+    PrintF(file, "%s", reason);
+  } else {
+    PrintF(file, "+%i maps", descriptors - split);
+  }
+  PrintF(file, ") [");
   JavaScriptFrame::PrintTop(GetIsolate(), file, false, true);
   PrintF(file, "]\n");
 }
@@ -1988,7 +2000,7 @@ MaybeObject* JSObject::AddConstantProperty(
   ConstantDescriptor d(name, constant, attributes);
 
   TransitionFlag flag =
-      // Do not add transitions to  global objects.
+      // Do not add transitions to global objects.
       (IsGlobalObject() ||
       // Don't add transitions to special properties with non-trivial
       // attributes.
@@ -2187,55 +2199,6 @@ MaybeObject* JSObject::ReplaceSlowProperty(Name* name,
 
   PropertyDetails new_details(attributes, NORMAL, new_enumeration_index);
   return SetNormalizedProperty(name, value, new_details);
-}
-
-
-MaybeObject* JSObject::ConvertTransitionToMapTransition(
-    int transition_index,
-    Name* name,
-    Object* new_value,
-    PropertyAttributes attributes) {
-  Map* old_map = map();
-  Map* old_target = old_map->GetTransition(transition_index);
-  Object* result;
-
-  MaybeObject* maybe_result = ConvertDescriptorToField(
-      name, new_value, attributes, OMIT_TRANSITION_KEEP_REPRESENTATIONS);
-  if (!maybe_result->To(&result)) return maybe_result;
-
-  if (!HasFastProperties()) return result;
-
-  // This method should only be used to convert existing transitions.
-  Map* new_map = map();
-
-  // TODO(verwaest): From here on we lose existing map transitions, causing
-  // invalid back pointers. This will change once we can store multiple
-  // transitions with the same key.
-  bool owned_descriptors = old_map->owns_descriptors();
-  if (owned_descriptors ||
-      old_target->instance_descriptors() == old_map->instance_descriptors()) {
-    // Since the conversion above generated a new fast map with an additional
-    // property which can be shared as well, install this descriptor pointer
-    // along the entire chain of smaller maps.
-    Map* map;
-    DescriptorArray* new_descriptors = new_map->instance_descriptors();
-    DescriptorArray* old_descriptors = old_map->instance_descriptors();
-    for (Object* current = old_map;
-         !current->IsUndefined();
-         current = map->GetBackPointer()) {
-      map = Map::cast(current);
-      if (map->instance_descriptors() != old_descriptors) break;
-      map->SetEnumLength(Map::kInvalidEnumCache);
-      map->set_instance_descriptors(new_descriptors);
-    }
-    old_map->set_owns_descriptors(false);
-  }
-
-  old_target->DeprecateTransitionTree();
-
-  old_map->SetTransition(transition_index, new_map);
-  new_map->SetBackPointer(old_map);
-  return result;
 }
 
 
@@ -2491,10 +2454,11 @@ MaybeObject* JSObject::MigrateToMap(Map* new_map) {
 
 MaybeObject* JSObject::GeneralizeFieldRepresentation(
     int modify_index,
-    Representation new_representation) {
+    Representation new_representation,
+    StoreMode store_mode) {
   Map* new_map;
-  MaybeObject* maybe_new_map =
-      map()->GeneralizeRepresentation(modify_index, new_representation);
+  MaybeObject* maybe_new_map = map()->GeneralizeRepresentation(
+      modify_index, new_representation, store_mode);
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
   if (map() == new_map) return this;
 
@@ -2512,16 +2476,39 @@ int Map::NumberOfFields() {
 }
 
 
-MaybeObject* Map::CopyGeneralizeAllRepresentations() {
+MaybeObject* Map::CopyGeneralizeAllRepresentations(
+    int modify_index,
+    StoreMode store_mode,
+    const char* reason) {
   Map* new_map;
   MaybeObject* maybe_map = this->Copy();
   if (!maybe_map->To(&new_map)) return maybe_map;
 
-  new_map->instance_descriptors()->InitializeRepresentations(
-      Representation::Tagged());
+  DescriptorArray* descriptors = new_map->instance_descriptors();
+  descriptors->InitializeRepresentations(Representation::Tagged());
+
+  // Unless the instance is being migrated, ensure that modify_index is a field.
+  PropertyDetails details = descriptors->GetDetails(modify_index);
+  if (store_mode == FORCE_FIELD && details.type() != FIELD) {
+    FieldDescriptor d(descriptors->GetKey(modify_index),
+                      new_map->NumberOfFields(),
+                      details.attributes(),
+                      Representation::Tagged());
+    d.SetSortedKeyIndex(details.pointer());
+    descriptors->Set(modify_index, &d);
+    int unused_property_fields = new_map->unused_property_fields() - 1;
+    if (unused_property_fields < 0) {
+      unused_property_fields += JSObject::kFieldsAdded;
+    }
+    new_map->set_unused_property_fields(unused_property_fields);
+  }
+
   if (FLAG_trace_generalization) {
-    PrintF("failed generalization %p -> %p\n",
-           static_cast<void*>(this), static_cast<void*>(new_map));
+    PrintGeneralization(stdout, reason, modify_index,
+                        new_map->NumberOfOwnDescriptors(),
+                        new_map->NumberOfOwnDescriptors(),
+                        details.type() == CONSTANT && store_mode == FORCE_FIELD,
+                        Representation::Tagged(), Representation::Tagged());
   }
   return new_map;
 }
@@ -2666,7 +2653,8 @@ Map* Map::FindLastMatchMap(int verbatim,
 // - Otherwise, invalidate the outdated transition target from |updated|, and
 //   replace its transition tree with a new branch for the updated descriptors.
 MaybeObject* Map::GeneralizeRepresentation(int modify_index,
-                                           Representation new_representation) {
+                                           Representation new_representation,
+                                           StoreMode store_mode) {
   Map* old_map = this;
   DescriptorArray* old_descriptors = old_map->instance_descriptors();
   Representation old_representation =
@@ -2688,38 +2676,45 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
 
   // Check the state of the root map.
   if (!old_map->EquivalentToForTransition(root_map)) {
-    return CopyGeneralizeAllRepresentations();
+    return CopyGeneralizeAllRepresentations(
+        modify_index, store_mode, "not equivalent");
   }
 
   int verbatim = root_map->NumberOfOwnDescriptors();
 
+  if (store_mode != ALLOW_AS_CONSTANT && modify_index < verbatim) {
+    return CopyGeneralizeAllRepresentations(
+        modify_index, store_mode, "root modification");
+  }
+
   Map* updated = root_map->FindUpdatedMap(
       verbatim, descriptors, old_descriptors);
-  if (updated == NULL) return CopyGeneralizeAllRepresentations();
+  if (updated == NULL) {
+    return CopyGeneralizeAllRepresentations(
+        modify_index, store_mode, "incompatible");
+  }
 
   DescriptorArray* updated_descriptors = updated->instance_descriptors();
 
   int valid = updated->NumberOfOwnDescriptors();
+
+  // Directly change the map if the target map is more general. Ensure that the
+  // target type of the modify_index is a FIELD, unless we are migrating.
   if (updated_descriptors->IsMoreGeneralThan(
-          verbatim, valid, descriptors, old_descriptors)) {
+          verbatim, valid, descriptors, old_descriptors) &&
+      (store_mode == ALLOW_AS_CONSTANT ||
+       updated_descriptors->GetDetails(modify_index).type() == FIELD)) {
     Representation updated_representation =
         updated_descriptors->GetDetails(modify_index).representation();
-    if (new_representation.fits_into(updated_representation)) {
-      if (FLAG_trace_generalization &&
-          !(modify_index == 0 && new_representation.IsNone())) {
-        PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-        PrintGeneralization(stdout, modify_index, descriptors, descriptors,
-                            old_details.representation(),
-                            updated_representation);
-      }
-      return updated;
-    }
+    if (new_representation.fits_into(updated_representation)) return updated;
   }
 
   DescriptorArray* new_descriptors;
   MaybeObject* maybe_descriptors = updated_descriptors->Merge(
-      verbatim, valid, descriptors, old_descriptors);
+      verbatim, valid, descriptors, modify_index, store_mode, old_descriptors);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
+  ASSERT(store_mode == ALLOW_AS_CONSTANT ||
+         new_descriptors->GetDetails(modify_index).type() == FIELD);
 
   old_representation =
       new_descriptors->GetDetails(modify_index).representation();
@@ -2741,10 +2736,12 @@ MaybeObject* Map::GeneralizeRepresentation(int modify_index,
   split_map->DeprecateTarget(
       old_descriptors->GetKey(descriptor), new_descriptors);
 
-  if (FLAG_trace_generalization &&
-      !(modify_index == 0 && new_representation.IsNone())) {
-    PrintGeneralization(stdout, modify_index, descriptor, descriptors,
-                        old_representation, updated_representation);
+  if (FLAG_trace_generalization) {
+    PrintGeneralization(
+        stdout, "", modify_index, descriptor, descriptors,
+        old_descriptors->GetDetails(modify_index).type() == CONSTANT &&
+            store_mode == FORCE_FIELD,
+        old_representation, updated_representation);
   }
 
   Map* new_map = split_map;
@@ -3782,11 +3779,89 @@ Handle<Object> JSObject::TryMigrateInstance(Handle<JSObject> object) {
 
 Handle<Map> Map::GeneralizeRepresentation(Handle<Map> map,
                                           int modify_index,
-                                          Representation representation) {
+                                          Representation representation,
+                                          StoreMode store_mode) {
   CALL_HEAP_FUNCTION(
       map->GetIsolate(),
-      map->GeneralizeRepresentation(modify_index, representation),
+      map->GeneralizeRepresentation(modify_index, representation, store_mode),
       Map);
+}
+
+
+static MaybeObject* SetPropertyUsingTransition(LookupResult* lookup,
+                                               Handle<Name> name,
+                                               Handle<Object> value,
+                                               PropertyAttributes attributes) {
+  Map* transition_map = lookup->GetTransitionTarget();
+  int descriptor = transition_map->LastAdded();
+
+  DescriptorArray* descriptors = transition_map->instance_descriptors();
+  PropertyDetails details = descriptors->GetDetails(descriptor);
+
+  if (details.type() == CALLBACKS || attributes != details.attributes()) {
+    return lookup->holder()->ConvertDescriptorToField(
+        *name, *value, attributes);
+  }
+
+  // Keep the target CONSTANT if the same value is stored.
+  // TODO(verwaest): Also support keeping the placeholder
+  // (value->IsUninitialized) as constant.
+  if (details.type() == CONSTANT &&
+      descriptors->GetValue(descriptor) == *value) {
+    lookup->holder()->set_map(transition_map);
+    return *value;
+  }
+
+  Representation representation = details.representation();
+
+  if (!value->FitsRepresentation(representation) ||
+      details.type() == CONSTANT) {
+    MaybeObject* maybe_map = transition_map->GeneralizeRepresentation(
+        descriptor, value->OptimalRepresentation(), FORCE_FIELD);
+    if (!maybe_map->To(&transition_map)) return maybe_map;
+    Object* back = transition_map->GetBackPointer();
+    if (back->IsMap()) {
+      MaybeObject* maybe_failure =
+          lookup->holder()->MigrateToMap(Map::cast(back));
+      if (maybe_failure->IsFailure()) return maybe_failure;
+    }
+    descriptors = transition_map->instance_descriptors();
+    representation = descriptors->GetDetails(descriptor).representation();
+  }
+
+  int field_index = descriptors->GetFieldIndex(descriptor);
+  return lookup->holder()->AddFastPropertyUsingMap(
+      transition_map, *name, *value, field_index, representation);
+}
+
+
+static MaybeObject* SetPropertyToField(LookupResult* lookup,
+                                       Handle<Name> name,
+                                       Handle<Object> value) {
+  Representation representation = lookup->representation();
+  if (!value->FitsRepresentation(representation) ||
+      lookup->type() == CONSTANT) {
+    MaybeObject* maybe_failure =
+        lookup->holder()->GeneralizeFieldRepresentation(
+            lookup->GetDescriptorIndex(),
+            value->OptimalRepresentation(),
+            FORCE_FIELD);
+    if (maybe_failure->IsFailure()) return maybe_failure;
+    DescriptorArray* desc = lookup->holder()->map()->instance_descriptors();
+    int descriptor = lookup->GetDescriptorIndex();
+    representation = desc->GetDetails(descriptor).representation();
+  }
+
+  if (FLAG_track_double_fields && representation.IsDouble()) {
+    HeapNumber* storage = HeapNumber::cast(lookup->holder()->RawFastPropertyAt(
+        lookup->GetFieldIndex().field_index()));
+    storage->set_value(value->Number());
+    return *value;
+  }
+
+  lookup->holder()->FastPropertyAtPut(
+      lookup->GetFieldIndex().field_index(), *value);
+  return *value;
 }
 
 
@@ -3878,37 +3953,13 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
     case NORMAL:
       result = lookup->holder()->SetNormalizedProperty(lookup, *value);
       break;
-    case FIELD: {
-      Representation representation = lookup->representation();
-      if (!value->FitsRepresentation(representation)) {
-        MaybeObject* maybe_failure =
-            lookup->holder()->GeneralizeFieldRepresentation(
-                lookup->GetDescriptorIndex(), value->OptimalRepresentation());
-        if (maybe_failure->IsFailure()) return maybe_failure;
-        DescriptorArray* desc = lookup->holder()->map()->instance_descriptors();
-        int descriptor = lookup->GetDescriptorIndex();
-        representation = desc->GetDetails(descriptor).representation();
-      }
-      if (FLAG_track_double_fields && representation.IsDouble()) {
-        HeapNumber* storage =
-            HeapNumber::cast(lookup->holder()->RawFastPropertyAt(
-                lookup->GetFieldIndex().field_index()));
-        storage->set_value(value->Number());
-        result = *value;
-        break;
-      }
-      lookup->holder()->FastPropertyAtPut(
-          lookup->GetFieldIndex().field_index(), *value);
-      result = *value;
+    case FIELD:
+      result = SetPropertyToField(lookup, name, value);
       break;
-    }
     case CONSTANT:
       // Only replace the constant if necessary.
       if (*value == lookup->GetConstant()) return *value;
-      // Preserve the attributes of this existing property.
-      attributes = lookup->GetAttributes();
-      result = lookup->holder()->ConvertDescriptorToField(
-          *name, *value, attributes);
+      result = SetPropertyToField(lookup, name, value);
       break;
     case CALLBACKS: {
       Object* callback_object = lookup->GetCallbackObject();
@@ -3920,55 +3971,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
           *name, *value, attributes, strict_mode);
       break;
     case TRANSITION: {
-      Map* transition_map = lookup->GetTransitionTarget();
-      int descriptor = transition_map->LastAdded();
-
-      DescriptorArray* descriptors = transition_map->instance_descriptors();
-      PropertyDetails details = descriptors->GetDetails(descriptor);
-
-      if (details.type() == FIELD) {
-        if (attributes == details.attributes()) {
-          Representation representation = details.representation();
-          if (!value->FitsRepresentation(representation)) {
-            MaybeObject* maybe_map = transition_map->GeneralizeRepresentation(
-                descriptor, value->OptimalRepresentation());
-            if (!maybe_map->To(&transition_map)) return maybe_map;
-            Object* back = transition_map->GetBackPointer();
-            if (back->IsMap()) {
-              MaybeObject* maybe_failure =
-                  lookup->holder()->MigrateToMap(Map::cast(back));
-              if (maybe_failure->IsFailure()) return maybe_failure;
-            }
-            DescriptorArray* desc = transition_map->instance_descriptors();
-            int descriptor = transition_map->LastAdded();
-            representation = desc->GetDetails(descriptor).representation();
-          }
-          int field_index = descriptors->GetFieldIndex(descriptor);
-          result = lookup->holder()->AddFastPropertyUsingMap(
-              transition_map, *name, *value, field_index, representation);
-        } else {
-          result = lookup->holder()->ConvertDescriptorToField(
-              *name, *value, attributes);
-        }
-      } else if (details.type() == CALLBACKS) {
-        result = lookup->holder()->ConvertDescriptorToField(
-            *name, *value, attributes);
-      } else {
-        ASSERT(details.type() == CONSTANT);
-
-        Object* constant = descriptors->GetValue(descriptor);
-        if (constant == *value) {
-          // If the same constant function is being added we can simply
-          // transition to the target map.
-          lookup->holder()->set_map(transition_map);
-          result = constant;
-        } else {
-          // Otherwise, replace with a map transition to a new map with a FIELD,
-          // even if the value is a constant function.
-          result = lookup->holder()->ConvertTransitionToMapTransition(
-              lookup->GetTransitionIndex(), *name, *value, attributes);
-        }
-      }
+      result = SetPropertyUsingTransition(lookup, name, value, attributes);
       break;
     }
     case HANDLER:
@@ -4088,87 +4091,24 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       result = self->SetNormalizedProperty(*name, *value, details);
       break;
     }
-    case FIELD: {
-      Representation representation = lookup.representation();
-      Representation value_representation =
-          value->OptimalRepresentation(value_type);
-      if (value_representation.IsNone()) break;
-      if (!value_representation.fits_into(representation)) {
-        MaybeObject* maybe_failure = self->GeneralizeFieldRepresentation(
-            lookup.GetDescriptorIndex(), value_representation);
-        if (maybe_failure->IsFailure()) return maybe_failure;
-        DescriptorArray* desc = self->map()->instance_descriptors();
-        int descriptor = lookup.GetDescriptorIndex();
-        representation = desc->GetDetails(descriptor).representation();
-      }
-      if (FLAG_track_double_fields && representation.IsDouble()) {
-        HeapNumber* storage =
-            HeapNumber::cast(self->RawFastPropertyAt(
-                lookup.GetFieldIndex().field_index()));
-        storage->set_value(value->Number());
-        result = *value;
-        break;
-      }
-      self->FastPropertyAtPut(lookup.GetFieldIndex().field_index(), *value);
-      result = *value;
+    case FIELD:
+      if (value->IsUninitialized()) break;
+      result = SetPropertyToField(&lookup, name, value);
       break;
-    }
     case CONSTANT:
-      // Only replace the function if necessary.
-      if (*value != lookup.GetConstant()) {
-        // Preserve the attributes of this existing property.
-        attributes = lookup.GetAttributes();
-        result = self->ConvertDescriptorToField(*name, *value, attributes);
-      }
+      // Only replace the constant if necessary.
+      if (*value == lookup.GetConstant()) return *value;
+      if (value->IsUninitialized()) break;
+      result = SetPropertyToField(&lookup, name, value);
       break;
     case CALLBACKS:
     case INTERCEPTOR:
       // Override callback in clone
       result = self->ConvertDescriptorToField(*name, *value, attributes);
       break;
-    case TRANSITION: {
-      Map* transition_map = lookup.GetTransitionTarget();
-      int descriptor = transition_map->LastAdded();
-
-      DescriptorArray* descriptors = transition_map->instance_descriptors();
-      PropertyDetails details = descriptors->GetDetails(descriptor);
-
-      if (details.type() == FIELD) {
-        if (attributes == details.attributes()) {
-          Representation representation = details.representation();
-          Representation value_representation =
-              value->OptimalRepresentation(value_type);
-          if (!value_representation.fits_into(representation)) {
-            MaybeObject* maybe_map = transition_map->GeneralizeRepresentation(
-                descriptor, value_representation);
-            if (!maybe_map->To(&transition_map)) return maybe_map;
-            Object* back = transition_map->GetBackPointer();
-            if (back->IsMap()) {
-              MaybeObject* maybe_failure = self->MigrateToMap(Map::cast(back));
-              if (maybe_failure->IsFailure()) return maybe_failure;
-            }
-            DescriptorArray* desc = transition_map->instance_descriptors();
-            int descriptor = transition_map->LastAdded();
-            representation = desc->GetDetails(descriptor).representation();
-          }
-          int field_index = descriptors->GetFieldIndex(descriptor);
-          result = self->AddFastPropertyUsingMap(
-              transition_map, *name, *value, field_index, representation);
-        } else {
-          result = self->ConvertDescriptorToField(*name, *value, attributes);
-        }
-      } else if (details.type() == CALLBACKS) {
-        result = self->ConvertDescriptorToField(*name, *value, attributes);
-      } else {
-        ASSERT(details.type() == CONSTANT);
-
-        // Replace transition to CONSTANT FUNCTION with a map transition to a
-        // new map with a FIELD, even if the value is a function.
-        result = self->ConvertTransitionToMapTransition(
-            lookup.GetTransitionIndex(), *name, *value, attributes);
-      }
+    case TRANSITION:
+      result = SetPropertyUsingTransition(&lookup, name, value, attributes);
       break;
-    }
     case HANDLER:
     case NONEXISTENT:
       UNREACHABLE();
@@ -6675,7 +6615,7 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
     set_transitions(transitions);
     result->SetBackPointer(this);
-  } else if (flag != OMIT_TRANSITION_KEEP_REPRESENTATIONS) {
+  } else {
     descriptors->InitializeRepresentations(Representation::Tagged());
   }
 
@@ -7803,6 +7743,8 @@ void DescriptorArray::CopyFrom(int dst_index,
 MaybeObject* DescriptorArray::Merge(int verbatim,
                                     int valid,
                                     int new_size,
+                                    int modify_index,
+                                    StoreMode store_mode,
                                     DescriptorArray* other) {
   ASSERT(verbatim <= valid);
   ASSERT(valid <= new_size);
@@ -7836,6 +7778,7 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
     PropertyDetails other_details = other->GetDetails(descriptor);
 
     if (details.type() == FIELD || other_details.type() == FIELD ||
+        (store_mode == FORCE_FIELD && descriptor == modify_index) ||
         (details.type() == CONSTANT &&
          other_details.type() == CONSTANT &&
          GetValue(descriptor) != other->GetValue(descriptor))) {
@@ -7854,7 +7797,8 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
   // |valid| -> |new_size|
   for (; descriptor < new_size; descriptor++) {
     PropertyDetails details = other->GetDetails(descriptor);
-    if (details.type() == FIELD) {
+    if (details.type() == FIELD ||
+        (store_mode == FORCE_FIELD && descriptor == modify_index)) {
       Name* key = other->GetKey(descriptor);
       FieldDescriptor d(key,
                         current_offset++,
