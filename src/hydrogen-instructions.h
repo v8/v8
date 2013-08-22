@@ -2608,6 +2608,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     omit_ = true;
     for (int i = 0; i < map_set_.length(); i++) {
       Handle<Map> map = map_set_.at(i);
+      if (!map->CanTransition()) continue;
       map->AddDependentCompilationInfo(DependentCode::kPrototypeCheckGroup,
                                        info);
     }
@@ -3243,10 +3244,10 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return handle_;
   }
 
-  bool InstanceOf(Handle<Map> map) {
+  bool HasMap(Handle<Map> map) {
     Handle<Object> constant_object = handle();
-    return constant_object->IsJSObject() &&
-        Handle<JSObject>::cast(constant_object)->map() == *map;
+    return constant_object->IsHeapObject() &&
+        Handle<HeapObject>::cast(constant_object)->map() == *map;
   }
 
   bool IsSpecialDouble() const {
