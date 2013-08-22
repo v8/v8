@@ -104,11 +104,6 @@ TEST(DisasmIa320) {
     CpuFeatureScope fscope(&assm, CPUID);
     __ cpuid();
   }
-  {
-    CHECK(CpuFeatures::IsSupported(RDTSC));
-    CpuFeatureScope fscope(&assm, RDTSC);
-    __ rdtsc();
-  }
   __ movsx_b(edx, ecx);
   __ movsx_w(edx, ecx);
   __ movzx_b(edx, ecx);

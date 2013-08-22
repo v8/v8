@@ -1229,8 +1229,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintRightXMMOperand(current);
     AppendToBuffer(", %s", NameOfXMMRegister(regop));
 
-  } else if (opcode == 0xA2 || opcode == 0x31) {
-    // RDTSC or CPUID
+  } else if (opcode == 0xA2) {
+    // CPUID
     AppendToBuffer("%s", mnemonic);
 
   } else if ((opcode & 0xF0) == 0x40) {
@@ -1294,8 +1294,6 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "nop";
     case 0x2A:  // F2/F3 prefix.
       return "cvtsi2s";
-    case 0x31:
-      return "rdtsc";
     case 0x51:  // F2 prefix.
       return "sqrtsd";
     case 0x58:  // F2 prefix.

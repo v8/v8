@@ -1310,14 +1310,6 @@ void Assembler::nop() {
 }
 
 
-void Assembler::rdtsc() {
-  ASSERT(IsEnabled(RDTSC));
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0x31);
-}
-
-
 void Assembler::ret(int imm16) {
   EnsureSpace ensure_space(this);
   ASSERT(is_uint16(imm16));

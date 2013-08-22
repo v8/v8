@@ -83,7 +83,7 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
   // Mac OS X requires all these to install so we can assume they are present.
   // These constants are defined by the CPUid instructions.
   const uint64_t one = 1;
-  return (one << SSE2) | (one << CMOV) | (one << RDTSC) | (one << CPUID);
+  return (one << SSE2) | (one << CMOV) | (one << CPUID);
 #else
   return 0;  // Nothing special about the other systems.
 #endif
