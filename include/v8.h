@@ -43,7 +43,7 @@
 // We reserve the V8_* prefix for macros defined in V8 public API and
 // assume there are no name conflicts with the embedder's code.
 
-#ifdef _WIN32
+#ifdef V8_OS_WIN
 
 // Setup for Windows DLL export/import. When building the V8 DLL the
 // BUILDING_V8_SHARED needs to be defined. When building a program which uses
@@ -56,52 +56,27 @@
 #endif
 
 #ifdef BUILDING_V8_SHARED
-#define V8_EXPORT __declspec(dllexport)
+# define V8_EXPORT __declspec(dllexport)
 #elif USING_V8_SHARED
-#define V8_EXPORT __declspec(dllimport)
+# define V8_EXPORT __declspec(dllimport)
 #else
-#define V8_EXPORT
+# define V8_EXPORT
 #endif  // BUILDING_V8_SHARED
 
-#else  // _WIN32
+#else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
-#if defined(__GNUC__) && ((__GNUC__ >= 4) || \
-    (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)) && defined(V8_SHARED)
-#ifdef BUILDING_V8_SHARED
-#define V8_EXPORT __attribute__ ((visibility("default")))
+#if V8_HAS_ATTRIBUTE_VISIBILITY && defined(V8_SHARED)
+# ifdef BUILDING_V8_SHARED
+#  define V8_EXPORT __attribute__ ((visibility("default")))
+# else
+#  define V8_EXPORT
+# endif
 #else
-#define V8_EXPORT
-#endif
-#else
-#define V8_EXPORT
-#endif
-
-#endif  // _WIN32
-
-#if defined(__GNUC__) && !defined(DEBUG)
-#define V8_INLINE(declarator) inline __attribute__((always_inline)) declarator
-#elif defined(_MSC_VER) && !defined(DEBUG)
-#define V8_INLINE(declarator) __forceinline declarator
-#else
-#define V8_INLINE(declarator) inline declarator
+# define V8_EXPORT
 #endif
 
-#if defined(__GNUC__) && !V8_DISABLE_DEPRECATIONS
-#define V8_DEPRECATED(declarator) declarator __attribute__ ((deprecated))
-#elif defined(_MSC_VER) && !V8_DISABLE_DEPRECATIONS
-#define V8_DEPRECATED(declarator) __declspec(deprecated) declarator
-#else
-#define V8_DEPRECATED(declarator) declarator
-#endif
-
-#if __GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95))
-  #define V8_UNLIKELY(condition) __builtin_expect((condition), 0)
-  #define V8_LIKELY(condition) __builtin_expect((condition), 1)
-#else
-  #define V8_UNLIKELY(condition) (condition)
-  #define V8_LIKELY(condition) (condition)
-#endif
+#endif  // V8_OS_WIN
 
 /**
  * The v8 JavaScript engine.
