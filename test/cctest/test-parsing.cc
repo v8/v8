@@ -1263,10 +1263,6 @@ TEST(ParserSync) {
     NULL
   };
 
-  // TODO(mstarzinger): Disabled in GC stress mode for now, we should find the
-  // correct timeout for this and re-enable this test again.
-  if (i::FLAG_stress_compaction) return;
-
   i::Isolate* isolate = i::Isolate::Current();
   i::Factory* factory = isolate->factory();
 
