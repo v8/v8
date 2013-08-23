@@ -79,8 +79,8 @@ class SamplingCircularQueue {
   Entry* Next(Entry* entry);
 
   Entry buffer_[Length];
-  Entry* enqueue_pos_ V8_ALIGNAS(PROCESSOR_CACHE_LINE_SIZE);
-  Entry* dequeue_pos_ V8_ALIGNAS(PROCESSOR_CACHE_LINE_SIZE);
+  V8_ALIGNAS(PROCESSOR_CACHE_LINE_SIZE) Entry* enqueue_pos_;
+  V8_ALIGNAS(PROCESSOR_CACHE_LINE_SIZE) Entry* dequeue_pos_;
 
   DISALLOW_COPY_AND_ASSIGN(SamplingCircularQueue);
 };
