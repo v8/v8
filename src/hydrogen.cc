@@ -4495,7 +4495,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
       Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
                             value);
-      instr = New<HStoreNamedField>(checked_object,
+      instr = New<HStoreNamedField>(checked_object->ActualValue(),
                                     heap_number_access,
                                     heap_number);
     } else {
@@ -4509,7 +4509,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     }
   } else {
     // This is a normal store.
-    instr = New<HStoreNamedField>(checked_object, field_access, value);
+    instr = New<HStoreNamedField>(checked_object->ActualValue(),
+                                  field_access,
+                                  value);
   }
 
   if (transition_to_field) {
