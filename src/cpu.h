@@ -59,9 +59,6 @@ class CPU : public AllStatic {
 
   // Flush instruction cache.
   static void FlushICache(void* start, size_t size);
-
-  // Try to activate a system level debugger.
-  static void DebugBreak();
 };
 
 } }  // namespace v8::internal
