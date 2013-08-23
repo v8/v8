@@ -613,11 +613,6 @@ class FloatingPointHelper : public AllStatic {
                                      BinaryOpIC::TypeInfo right_type,
                                      Label* operand_conversion_failure);
 
-  // Assumes that operands are smis or heap numbers and loads them
-  // into xmm0 and xmm1. Operands are in edx and eax.
-  // Leaves operands unchanged.
-  static void LoadSSE2Operands(MacroAssembler* masm);
-
   // Test if operands are numbers (smi or HeapNumber objects), and load
   // them into xmm0 and xmm1 if they are.  Jump to label not_numbers if
   // either operand is not a number.  Operands are in edx and eax.
@@ -2456,33 +2451,6 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
   __ push(number);
   __ fild_s(Operand(esp, 0));
   __ pop(number);
-
-  __ bind(&done);
-}
-
-
-void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm) {
-  Label load_smi_edx, load_eax, load_smi_eax, done;
-  // Load operand in edx into xmm0.
-  __ JumpIfSmi(edx, &load_smi_edx, Label::kNear);
-  __ movdbl(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
-
-  __ bind(&load_eax);
-  // Load operand in eax into xmm1.
-  __ JumpIfSmi(eax, &load_smi_eax, Label::kNear);
-  __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&load_smi_edx);
-  __ SmiUntag(edx);  // Untag smi before converting to float.
-  __ cvtsi2sd(xmm0, edx);
-  __ SmiTag(edx);  // Retag smi for heap number overwriting test.
-  __ jmp(&load_eax);
-
-  __ bind(&load_smi_eax);
-  __ SmiUntag(eax);  // Untag smi before converting to float.
-  __ cvtsi2sd(xmm1, eax);
-  __ SmiTag(eax);  // Retag smi for heap number overwriting test.
 
   __ bind(&done);
 }
