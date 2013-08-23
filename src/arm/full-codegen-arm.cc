@@ -3079,11 +3079,6 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ cmp(r2, r3);
   __ b(ne, if_false);
 
-  // Set the bit in the map to indicate that it has been checked safe for
-  // default valueOf and set true result.
-  __ ldrb(r2, FieldMemOperand(r1, Map::kBitField2Offset));
-  __ orr(r2, r2, Operand(1 << Map::kStringWrapperSafeForDefaultValueOf));
-  __ strb(r2, FieldMemOperand(r1, Map::kBitField2Offset));
   __ jmp(if_true);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);

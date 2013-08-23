@@ -77,27 +77,27 @@ class AlwaysOptimizeAllowNativesSyntaxNoInlining {
 
 // Utility class to set --allow-natives-syntax and --nouse-inlining when
 // constructed and return to their default state when destroyed.
-class AllowNativesSyntaxNoInliningNoParallel {
+class AllowNativesSyntaxNoInliningNoConcurrent {
  public:
-  AllowNativesSyntaxNoInliningNoParallel()
+  AllowNativesSyntaxNoInliningNoConcurrent()
       : allow_natives_syntax_(i::FLAG_allow_natives_syntax),
         use_inlining_(i::FLAG_use_inlining),
-        parallel_recompilation_(i::FLAG_parallel_recompilation) {
+        concurrent_recompilation_(i::FLAG_concurrent_recompilation) {
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_use_inlining = false;
-    i::FLAG_parallel_recompilation = false;
+    i::FLAG_concurrent_recompilation = false;
   }
 
-  ~AllowNativesSyntaxNoInliningNoParallel() {
+  ~AllowNativesSyntaxNoInliningNoConcurrent() {
     i::FLAG_allow_natives_syntax = allow_natives_syntax_;
     i::FLAG_use_inlining = use_inlining_;
-    i::FLAG_parallel_recompilation = parallel_recompilation_;
+    i::FLAG_concurrent_recompilation = concurrent_recompilation_;
   }
 
  private:
   bool allow_natives_syntax_;
   bool use_inlining_;
-  bool parallel_recompilation_;
+  bool concurrent_recompilation_;
 };
 
 
@@ -347,7 +347,7 @@ TEST(DeoptimizeBinaryOperationADDString) {
   const char* f_source = "function f(x, y) { return x + y; };";
 
   {
-    AllowNativesSyntaxNoInliningNoParallel options;
+    AllowNativesSyntaxNoInliningNoConcurrent options;
     // Compile function f and collect to type feedback to insert binary op stub
     // call in the optimized code.
     i::FLAG_prepare_always_opt = true;
@@ -405,7 +405,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
                binary_op);
   char* f_source = f_source_buffer.start();
 
-  AllowNativesSyntaxNoInliningNoParallel options;
+  AllowNativesSyntaxNoInliningNoConcurrent options;
   // Compile function f and collect to type feedback to insert binary op stub
   // call in the optimized code.
   i::FLAG_prepare_always_opt = true;
@@ -497,7 +497,7 @@ TEST(DeoptimizeCompare) {
   const char* f_source = "function f(x, y) { return x < y; };";
 
   {
-    AllowNativesSyntaxNoInliningNoParallel options;
+    AllowNativesSyntaxNoInliningNoConcurrent options;
     // Compile function f and collect to type feedback to insert compare ic
     // call in the optimized code.
     i::FLAG_prepare_always_opt = true;
@@ -544,7 +544,7 @@ TEST(DeoptimizeLoadICStoreIC) {
   const char* g2_source = "function g2(x, y) { x[y] = 1; };";
 
   {
-    AllowNativesSyntaxNoInliningNoParallel options;
+    AllowNativesSyntaxNoInliningNoConcurrent options;
     // Compile functions and collect to type feedback to insert ic
     // calls in the optimized code.
     i::FLAG_prepare_always_opt = true;
@@ -624,7 +624,7 @@ TEST(DeoptimizeLoadICStoreICNested) {
   const char* g2_source = "function g2(x, y) { x[y] = 1; };";
 
   {
-    AllowNativesSyntaxNoInliningNoParallel options;
+    AllowNativesSyntaxNoInliningNoConcurrent options;
     // Compile functions and collect to type feedback to insert ic
     // calls in the optimized code.
     i::FLAG_prepare_always_opt = true;

@@ -422,12 +422,10 @@ class LookupResult BASE_EMBEDDED {
 
   PropertyIndex GetFieldIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
-    ASSERT(IsField());
     return PropertyIndex::NewFieldIndex(GetFieldIndexFromMap(holder()->map()));
   }
 
   int GetLocalFieldIndexFromMap(Map* map) {
-    ASSERT(IsField());
     return GetFieldIndexFromMap(map) - map->inobject_properties();
   }
 

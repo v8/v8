@@ -1615,7 +1615,8 @@ static bool LookupForWrite(Handle<JSObject> receiver,
   if (!value->FitsRepresentation(target_details.representation())) {
     Handle<Map> target(lookup->GetTransitionMapFromMap(receiver->map()));
     Map::GeneralizeRepresentation(
-        target, target->LastAdded(), value->OptimalRepresentation());
+        target, target->LastAdded(),
+        value->OptimalRepresentation(), FORCE_FIELD);
     // Lookup the transition again since the transition tree may have changed
     // entirely by the migration above.
     receiver->map()->LookupTransition(*holder, *name, lookup);

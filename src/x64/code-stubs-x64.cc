@@ -560,7 +560,6 @@ class FloatingPointHelper : public AllStatic {
   // Leaves rdx and rax unchanged.  SmiOperands assumes both are smis.
   // NumberOperands assumes both are smis or heap numbers.
   static void LoadSSE2SmiOperands(MacroAssembler* masm);
-  static void LoadSSE2NumberOperands(MacroAssembler* masm);
   static void LoadSSE2UnknownOperands(MacroAssembler* masm,
                                       Label* not_numbers);
 
@@ -569,9 +568,6 @@ class FloatingPointHelper : public AllStatic {
   static void LoadAsIntegers(MacroAssembler* masm,
                              Label* operand_conversion_failure,
                              Register heap_number_map);
-  // As above, but we know the operands to be numbers. In that case,
-  // conversion can't fail.
-  static void LoadNumbersAsIntegers(MacroAssembler* masm);
 
   // Tries to convert two values to smis losslessly.
   // This fails if either argument is not a Smi nor a HeapNumber,
@@ -1548,40 +1544,6 @@ void TranscendentalCacheStub::GenerateOperation(
 
 // Input: rdx, rax are the left and right objects of a bit op.
 // Output: rax, rcx are left and right integers for a bit op.
-void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
-  // Check float operands.
-  Label done;
-  Label rax_is_smi;
-  Label rax_is_object;
-  Label rdx_is_object;
-
-  __ JumpIfNotSmi(rdx, &rdx_is_object);
-  __ SmiToInteger32(rdx, rdx);
-  __ JumpIfSmi(rax, &rax_is_smi);
-
-  __ bind(&rax_is_object);
-  DoubleToIStub stub1(rax, rcx, HeapNumber::kValueOffset - kHeapObjectTag,
-                     true);
-  __ call(stub1.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
-
-  __ jmp(&done);
-
-  __ bind(&rdx_is_object);
-  DoubleToIStub stub2(rdx, rdx, HeapNumber::kValueOffset - kHeapObjectTag,
-                     true);
-  __ call(stub1.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
-  __ JumpIfNotSmi(rax, &rax_is_object);
-
-  __ bind(&rax_is_smi);
-  __ SmiToInteger32(rcx, rax);
-
-  __ bind(&done);
-  __ movl(rax, rdx);
-}
-
-
-// Input: rdx, rax are the left and right objects of a bit op.
-// Output: rax, rcx are left and right integers for a bit op.
 // Jump to conversion_failure: rdx and rax are unchanged.
 void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
                                          Label* conversion_failure,
@@ -1642,30 +1604,6 @@ void FloatingPointHelper::LoadSSE2SmiOperands(MacroAssembler* masm) {
   __ cvtlsi2sd(xmm0, kScratchRegister);
   __ SmiToInteger32(kScratchRegister, rax);
   __ cvtlsi2sd(xmm1, kScratchRegister);
-}
-
-
-void FloatingPointHelper::LoadSSE2NumberOperands(MacroAssembler* masm) {
-  Label load_smi_rdx, load_nonsmi_rax, load_smi_rax, done;
-  // Load operand in rdx into xmm0.
-  __ JumpIfSmi(rdx, &load_smi_rdx);
-  __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
-  // Load operand in rax into xmm1.
-  __ JumpIfSmi(rax, &load_smi_rax);
-  __ bind(&load_nonsmi_rax);
-  __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ jmp(&done);
-
-  __ bind(&load_smi_rdx);
-  __ SmiToInteger32(kScratchRegister, rdx);
-  __ cvtlsi2sd(xmm0, kScratchRegister);
-  __ JumpIfNotSmi(rax, &load_nonsmi_rax);
-
-  __ bind(&load_smi_rax);
-  __ SmiToInteger32(kScratchRegister, rax);
-  __ cvtlsi2sd(xmm1, kScratchRegister);
-
-  __ bind(&done);
 }
 
 

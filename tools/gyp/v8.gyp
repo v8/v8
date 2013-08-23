@@ -129,11 +129,6 @@
             ],
           },
         }],
-        ['v8_enable_i18n_support==1', {
-          'sources': [
-            '<(SHARED_INTERMEDIATE_DIR)/i18n-libraries.cc',
-          ],
-        }],
       ],
       'dependencies': [
         'v8_base.<(v8_target_arch)',
@@ -197,11 +192,6 @@
             'V8_SHARED',
           ],
         }],
-        ['v8_enable_i18n_support==1', {
-          'sources': [
-            '<(SHARED_INTERMEDIATE_DIR)/i18n-libraries.cc',
-          ],
-        }],
       ]
     },
     {
@@ -246,7 +236,6 @@
         '../../src/checks.cc',
         '../../src/checks.h',
         '../../src/circular-queue-inl.h',
-        '../../src/circular-queue.cc',
         '../../src/circular-queue.h',
         '../../src/code-stubs.cc',
         '../../src/code-stubs.h',
@@ -824,10 +813,6 @@
           ]
         }],
         ['v8_enable_i18n_support==1', {
-          'sources': [
-            '../../src/extensions/i18n/i18n-extension.cc',
-            '../../src/extensions/i18n/i18n-extension.h',
-          ],
           'dependencies': [
             '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
             '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
@@ -855,24 +840,15 @@
           'toolsets': ['target'],
         }],
         ['v8_enable_i18n_support==1', {
-          'actions': [{
-            'action_name': 'js2c_i18n',
-            'inputs': [
-              '../../tools/js2c.py',
-              '<@(i18n_library_files)',
+          'variables': {
+            'i18n_library_files': [
+              '../../src/i18n.js',
             ],
-            'outputs': [
-              '<(SHARED_INTERMEDIATE_DIR)/i18n-libraries.cc',
-            ],
-            'action': [
-              'python',
-              '../../tools/js2c.py',
-              '<@(_outputs)',
-              'I18N',
-              '<(v8_compress_startup_data)',
-              '<@(i18n_library_files)'
-            ],
-          }],
+          },
+        }, {
+          'variables': {
+            'i18n_library_files': [],
+          },
         }],
       ],
       'variables': {
@@ -906,18 +882,6 @@
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
         ],
-        'i18n_library_files': [
-          '../../src/extensions/i18n/header.js',
-          '../../src/extensions/i18n/globals.js',
-          '../../src/extensions/i18n/locale.js',
-          '../../src/extensions/i18n/collator.js',
-          '../../src/extensions/i18n/number-format.js',
-          '../../src/extensions/i18n/date-format.js',
-          '../../src/extensions/i18n/break-iterator.js',
-          '../../src/extensions/i18n/i18n-utils.js',
-          '../../src/extensions/i18n/overrides.js',
-          '../../src/extensions/i18n/footer.js',
-        ],
       },
       'actions': [
         {
@@ -925,6 +889,7 @@
           'inputs': [
             '../../tools/js2c.py',
             '<@(library_files)',
+            '<@(i18n_library_files)',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
@@ -935,7 +900,8 @@
             '<@(_outputs)',
             'CORE',
             '<(v8_compress_startup_data)',
-            '<@(library_files)'
+            '<@(library_files)',
+            '<@(i18n_library_files)',
           ],
         },
         {

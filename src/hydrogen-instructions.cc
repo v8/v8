@@ -2862,7 +2862,7 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
   check_map->Add(map, zone);
   if (map->CanOmitMapChecks() &&
       value->IsConstant() &&
-      HConstant::cast(value)->InstanceOf(map)) {
+      HConstant::cast(value)->HasMap(map)) {
     check_map->omit(info);
   }
   return check_map;

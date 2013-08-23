@@ -101,7 +101,7 @@ function PlotScriptComposer(kResX, kResY) {
         new TimerEvent("compile unopt", "#CC0000",  true, 0),
       'V8.RecompileSynchronous':
         new TimerEvent("recompile sync", "#CC0044",  true, 0),
-      'V8.RecompileParallel':
+      'V8.RecompileConcurrent':
         new TimerEvent("recompile async", "#CC4499", false, 1),
       'V8.CompileEval':
         new TimerEvent("compile eval", "#CC4400",  true, 0),

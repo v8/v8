@@ -40,8 +40,6 @@
 namespace v8 {
 namespace internal {
 
-static const int kTickSamplesBufferChunkSize = 64 * KB;
-static const int kTickSamplesBufferChunksCount = 16;
 static const int kProfilerStackSize = 64 * KB;
 
 
@@ -49,9 +47,6 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
       running_(true),
-      ticks_buffer_(sizeof(TickSampleEventRecord),
-                    kTickSamplesBufferChunkSize,
-                    kTickSamplesBufferChunksCount),
       last_code_event_id_(0), last_processed_code_event_id_(0) {
 }
 
@@ -114,23 +109,10 @@ bool ProfilerEventsProcessor::ProcessTicks() {
       generator_->RecordTickSample(record.sample);
     }
 
-    const TickSampleEventRecord* rec =
-        TickSampleEventRecord::cast(ticks_buffer_.StartDequeue());
-    if (rec == NULL) return !ticks_from_vm_buffer_.IsEmpty();
-    // Make a local copy of tick sample record to ensure that it won't
-    // be modified as we are processing it. This is possible as the
-    // sampler writes w/o any sync to the queue, so if the processor
-    // will get far behind, a record may be modified right under its
-    // feet.
-    TickSampleEventRecord record = *rec;
-    if (record.order != last_processed_code_event_id_) return true;
-
-    // A paranoid check to make sure that we don't get a memory overrun
-    // in case of frames_count having a wild value.
-    if (record.sample.frames_count < 0
-        || record.sample.frames_count > TickSample::kMaxFramesCount)
-      record.sample.frames_count = 0;
-    generator_->RecordTickSample(record.sample);
+    const TickSampleEventRecord* record = ticks_buffer_.StartDequeue();
+    if (record == NULL) return !ticks_from_vm_buffer_.IsEmpty();
+    if (record->order != last_processed_code_event_id_) return true;
+    generator_->RecordTickSample(record->sample);
     ticks_buffer_.FinishDequeue();
   }
 }
@@ -148,7 +130,6 @@ void ProfilerEventsProcessor::Run() {
   }
 
   // Process remaining tick events.
-  ticks_buffer_.FlushResidualRecords();
   do {
     ProcessTicks();
   } while (ProcessCodeEvent());
@@ -163,12 +144,6 @@ int CpuProfiler::GetProfilesCount() {
 
 CpuProfile* CpuProfiler::GetProfile(int index) {
   return profiles_->profiles()->at(index);
-}
-
-
-TickSample* CpuProfiler::TickSampleEvent() {
-  if (is_profiling_) return processor_->TickSampleEvent();
-  return NULL;
 }
 
 

@@ -30,7 +30,7 @@
 
 #include <string.h>
 
-#include "globals.h"
+#include "../include/v8stdint.h"
 
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 
@@ -233,7 +233,7 @@ inline void CheckNonEqualsHelper(const char* file,
 
 // Use C++11 static_assert if possible, which gives error
 // messages that are easier to understand on first sight.
-#if defined(V8_HAVE_CXX11_STATIC_ASSERT)
+#if V8_HAS_CXX11_STATIC_ASSERT
 #define STATIC_CHECK(test) static_assert(test, #test)
 #else
 // This is inspired by the static assertion facility in boost.  This

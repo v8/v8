@@ -704,7 +704,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
 
 int Heap::NotifyContextDisposed() {
-  if (FLAG_parallel_recompilation) {
+  if (FLAG_concurrent_recompilation) {
     // Flush the queued recompilation tasks.
     isolate()->optimizing_compiler_thread()->Flush();
   }
@@ -6896,7 +6896,7 @@ bool Heap::SetUp() {
 
   store_buffer()->SetUp();
 
-  if (FLAG_parallel_recompilation) relocation_mutex_ = OS::CreateMutex();
+  if (FLAG_concurrent_recompilation) relocation_mutex_ = OS::CreateMutex();
 #ifdef DEBUG
   relocation_mutex_locked_by_optimizer_thread_ = false;
 #endif  // DEBUG
@@ -8047,7 +8047,7 @@ void Heap::CheckpointObjectStats() {
 
 
 Heap::RelocationLock::RelocationLock(Heap* heap) : heap_(heap) {
-  if (FLAG_parallel_recompilation) {
+  if (FLAG_concurrent_recompilation) {
     heap_->relocation_mutex_->Lock();
 #ifdef DEBUG
     heap_->relocation_mutex_locked_by_optimizer_thread_ =

@@ -97,7 +97,7 @@ const int kPageSizeBits = 20;
 // On Intel architecture, cache line size is 64 bytes.
 // On ARM it may be less (32 bytes), but as far this constant is
 // used for aligning data, it doesn't hurt to align on a greater value.
-const int kProcessorCacheLineSize = 64;
+#define PROCESSOR_CACHE_LINE_SIZE 64
 
 // Constants relevant to double precision floating point numbers.
 // If looking only at the top 32 bits, the QNaN mask is bits 19 to 30.

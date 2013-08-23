@@ -320,7 +320,6 @@ class HGraph V8_FINAL : public ZoneObject {
   bool ProcessArgumentsObject();
   void OrderBlocks();
   void AssignDominators();
-  void SetupInformativeDefinitions();
   void RestoreActualValues();
 
   // Returns false if there are phi-uses of the arguments-object
@@ -468,9 +467,6 @@ class HGraph V8_FINAL : public ZoneObject {
     phase.Run();
   }
 
-  void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
-  void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
-  void SetupInformativeDefinitionsRecursively(HBasicBlock* block);
   void EliminateRedundantBoundsChecksUsingInductionVariables();
 
   Isolate* isolate_;

@@ -6643,11 +6643,6 @@ TEST(ScriptCollectedEventContext) {
   script_collected_message_count = 0;
   v8::HandleScope scope(isolate);
 
-  // TODO(mstarzinger): This test relies explicit GCs being the only
-  // ones triggered. Remove this temporary workaround once we skip
-  // running cctests on the GC stress builder.
-  i::FLAG_gc_interval = -1;
-
   v8::Persistent<v8::Context> context;
   {
     v8::HandleScope scope(isolate);

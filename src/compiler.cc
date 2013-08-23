@@ -965,17 +965,17 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 }
 
 
-void Compiler::RecompileParallel(Handle<JSFunction> closure) {
-  ASSERT(closure->IsMarkedForParallelRecompilation());
+void Compiler::RecompileConcurrent(Handle<JSFunction> closure) {
+  ASSERT(closure->IsMarkedForConcurrentRecompilation());
 
   Isolate* isolate = closure->GetIsolate();
-  // Here we prepare compile data for the parallel recompilation thread, but
+  // Here we prepare compile data for the concurrent recompilation thread, but
   // this still happens synchronously and interrupts execution.
   Logger::TimerEventScope timer(
       isolate, Logger::TimerEventScope::v8_recompile_synchronous);
 
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
-    if (FLAG_trace_parallel_recompilation) {
+    if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
       closure->PrintName();
       PrintF(" on next run.\n");
@@ -1046,7 +1046,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   if (info->shared_info()->optimization_disabled()) {
     info->AbortOptimization();
     InstallFullCode(*info);
-    if (FLAG_trace_parallel_recompilation) {
+    if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** aborting optimization for ");
       info->closure()->PrintName();
       PrintF(" as it has been disabled.\n");
@@ -1086,7 +1086,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
             info->closure()->context()->native_context()) == -1) {
       InsertCodeIntoOptimizedCodeMap(*info);
     }
-    if (FLAG_trace_parallel_recompilation) {
+    if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Optimized code for ");
       info->closure()->PrintName();
       PrintF(" installed.\n");

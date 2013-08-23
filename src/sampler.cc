@@ -65,7 +65,7 @@
 
 #include "v8.h"
 
-#include "cpu-profiler.h"
+#include "cpu-profiler-inl.h"
 #include "flags.h"
 #include "frames-inl.h"
 #include "log.h"
@@ -693,7 +693,7 @@ void Sampler::Stop() {
 
 
 void Sampler::SampleStack(const RegisterState& state) {
-  TickSample* sample = isolate_->cpu_profiler()->TickSampleEvent();
+  TickSample* sample = isolate_->cpu_profiler()->StartTickSample();
   TickSample sample_obj;
   if (sample == NULL) sample = &sample_obj;
   sample->Init(isolate_, state);
@@ -703,6 +703,9 @@ void Sampler::SampleStack(const RegisterState& state) {
     }
   }
   Tick(sample);
+  if (sample != &sample_obj) {
+    isolate_->cpu_profiler()->FinishTickSample();
+  }
 }
 
 } }  // namespace v8::internal

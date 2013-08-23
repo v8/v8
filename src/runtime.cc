@@ -290,9 +290,7 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
     }
     Handle<Object> result;
     uint32_t element_index = 0;
-    JSReceiver::StoreMode mode = value->IsJSObject()
-        ? JSReceiver::FORCE_FIELD
-        : JSReceiver::ALLOW_AS_CONSTANT;
+    StoreMode mode = value->IsJSObject() ? FORCE_FIELD : ALLOW_AS_CONSTANT;
     if (key->IsInternalizedString()) {
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
@@ -8265,7 +8263,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ConcurrentRecompile) {
   HandleScope handle_scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -8274,8 +8272,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
     return isolate->heap()->undefined_value();
   }
   function->shared()->code()->set_profiler_ticks(0);
-  ASSERT(FLAG_parallel_recompilation);
-  Compiler::RecompileParallel(function);
+  ASSERT(FLAG_concurrent_recompilation);
+  Compiler::RecompileConcurrent(function);
   return isolate->heap()->undefined_value();
 }
 
@@ -8284,7 +8282,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
   HandleScope handle_scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  ASSERT(V8::UseCrankshaft() && FLAG_parallel_recompilation);
+  ASSERT(V8::UseCrankshaft() && FLAG_concurrent_recompilation);
   isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
   return function->code();
 }
@@ -8424,9 +8422,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_IsParallelRecompilationSupported) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConcurrentRecompilationSupported) {
   HandleScope scope(isolate);
-  return FLAG_parallel_recompilation
+  return FLAG_concurrent_recompilation
       ? isolate->heap()->true_value() : isolate->heap()->false_value();
 }
 
@@ -8448,8 +8446,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
         unoptimized->set_allow_osr_at_loop_nesting_level(i);
         isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
       }
-    } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("parallel"))) {
-      function->MarkForParallelRecompilation();
+    } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("concurrent"))) {
+      function->MarkForConcurrentRecompilation();
     }
   }
 
@@ -8481,7 +8479,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
     }
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  if (FLAG_parallel_recompilation && sync_with_compiler_thread) {
+  if (FLAG_concurrent_recompilation && sync_with_compiler_thread) {
     while (function->IsInRecompileQueue() ||
            function->IsMarkedForInstallingRecompiledCode()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
@@ -12974,7 +12972,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugSetScriptSource) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SystemBreak) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  CPU::DebugBreak();
+  OS::DebugBreak();
   return isolate->heap()->undefined_value();
 }
 

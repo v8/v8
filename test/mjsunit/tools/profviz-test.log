@@ -1921,7 +1921,7 @@ timer-event-end,"V8.ParseLazy",57586
 code-creation,LazyCompile,0,0x2b84d920,3418,"sjcl.cipher.aes.H bsuite/kraken-once/stanford-crypto-ccm.js:7",0x2f3399b0,~
 tick,0x8092457,57778,0,0x19e,2,0x2b846a46,0x2b8455f6,0x2b84a5e0,0x2b83a281,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
 timer-event-end,"V8.RecompileSynchronous",57904
-timer-event-start,"V8.RecompileParallel",57929
+timer-event-start,"V8.RecompileConcurrent",57929
 code-creation,Stub,2,0x2b84e680,559,"ElementsTransitionAndStoreStub"
 code-creation,KeyedStorePolymorphicIC,10,0x2b84e8c0,107,""
 code-creation,KeyedStorePolymorphicIC,10,0x2b84e8c0,107,"args_count: 0"
@@ -1942,12 +1942,12 @@ tick,0x810f40c,58868,0,0x0,1
 timer-event-start,"V8.External",59191
 timer-event-end,"V8.External",59200
 timer-event-end,"V8.GCScavenger",59205
-timer-event-end,"V8.RecompileParallel",59219
-timer-event-start,"V8.RecompileParallel",59254
+timer-event-end,"V8.RecompileConcurrent",59219
+timer-event-start,"V8.RecompileConcurrent",59254
 timer-event-start,"V8.RecompileSynchronous",59271
 code-creation,LazyCompile,1,0x2b84f020,4592,"sjcl.cipher.aes.H bsuite/kraken-once/stanford-crypto-ccm.js:7",0x2f3399b0,*
 timer-event-end,"V8.RecompileSynchronous",59549
-timer-event-end,"V8.RecompileParallel",59567
+timer-event-end,"V8.RecompileConcurrent",59567
 timer-event-start,"V8.RecompileSynchronous",59590
 code-creation,LazyCompile,1,0x2b850220,1662,"parseInt native v8natives.js:130",0x4421ec1c,*
 timer-event-end,"V8.RecompileSynchronous",59672
@@ -1956,13 +1956,13 @@ timer-event-start,"V8.ParseLazy",59687
 timer-event-end,"V8.ParseLazy",59701
 code-creation,LazyCompile,0,0x2b8508a0,236,"sjcl.bitArray.getPartial bsuite/kraken-once/stanford-crypto-ccm.js:10",0x2f339bf0,~
 timer-event-end,"V8.RecompileSynchronous",59750
-timer-event-start,"V8.RecompileParallel",59776
+timer-event-start,"V8.RecompileConcurrent",59776
 timer-event-start,"V8.RecompileSynchronous",59811
 timer-event-start,"V8.ParseLazy",59820
 timer-event-end,"V8.ParseLazy",59838
 code-creation,LazyCompile,0,0x2b8509a0,388,"sjcl.bitArray.k bsuite/kraken-once/stanford-crypto-ccm.js:11",0x2f339d10,~
-timer-event-end,"V8.RecompileParallel",59909
-timer-event-start,"V8.RecompileParallel",59926
+timer-event-end,"V8.RecompileConcurrent",59909
+timer-event-start,"V8.RecompileConcurrent",59926
 timer-event-end,"V8.RecompileSynchronous",59933
 timer-event-start,"V8.RecompileSynchronous",59950
 tick,0xf776d430,59966,0,0x90ec418,2,0x2b8455e6,0x2b84a5e0,0x2b83a281,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
@@ -1970,11 +1970,11 @@ code-creation,LazyCompile,1,0x2b850b40,536,"sjcl.bitArray.getPartial bsuite/krak
 timer-event-end,"V8.RecompileSynchronous",60077
 timer-event-start,"V8.RecompileSynchronous",60141
 timer-event-start,"V8.ParseLazy",60149
-timer-event-end,"V8.RecompileParallel",60177
+timer-event-end,"V8.RecompileConcurrent",60177
 timer-event-end,"V8.ParseLazy",60195
 code-creation,LazyCompile,0,0x2b850d60,960,"substr native string.js:749",0x44216608,~
 timer-event-end,"V8.RecompileSynchronous",60329
-timer-event-start,"V8.RecompileParallel",60356
+timer-event-start,"V8.RecompileConcurrent",60356
 code-deopt,60375,544
 timer-event-start,"V8.RecompileSynchronous",60409
 code-creation,LazyCompile,1,0x2b851120,1534,"sjcl.bitArray.k bsuite/kraken-once/stanford-crypto-ccm.js:11",0x2f339d10,*
@@ -1982,7 +1982,7 @@ timer-event-end,"V8.RecompileSynchronous",60474
 code-creation,LoadPolymorphicIC,5,0x2b851720,105,"length"
 code-creation,LoadPolymorphicIC,5,0x2b8517a0,105,"length"
 code-creation,LoadPolymorphicIC,5,0x2b851820,105,"length"
-timer-event-end,"V8.RecompileParallel",60691
+timer-event-end,"V8.RecompileConcurrent",60691
 timer-event-start,"V8.RecompileSynchronous",60716
 code-creation,LazyCompile,1,0x2b8518a0,1792,"substr native string.js:749",0x44216608,*
 timer-event-end,"V8.RecompileSynchronous",60803
@@ -1992,17 +1992,17 @@ timer-event-start,"V8.ParseLazy",61054
 timer-event-end,"V8.ParseLazy",61066
 code-creation,LazyCompile,0,0x2b851fa0,184,"sjcl.cipher.aes.encrypt bsuite/kraken-once/stanford-crypto-ccm.js:6",0x2f339890,~
 timer-event-end,"V8.RecompileSynchronous",61112
-timer-event-start,"V8.RecompileParallel",61139
+timer-event-start,"V8.RecompileConcurrent",61139
 timer-event-start,"V8.RecompileSynchronous",61159
 timer-event-start,"V8.ParseLazy",61168
 timer-event-end,"V8.ParseLazy",61186
-timer-event-end,"V8.RecompileParallel",61201
+timer-event-end,"V8.RecompileConcurrent",61201
 code-creation,LazyCompile,0,0x2b852060,336,"sjcl.bitArray.bitLength bsuite/kraken-once/stanford-crypto-ccm.js:9",0x2f339ad0,~
 timer-event-start,"V8.ParseLazy",61249
 timer-event-end,"V8.ParseLazy",61264
 timer-event-end,"V8.RecompileSynchronous",61290
 timer-event-start,"V8.RecompileSynchronous",61309
-timer-event-start,"V8.RecompileParallel",61317
+timer-event-start,"V8.RecompileConcurrent",61317
 code-creation,LazyCompile,1,0x2b8521c0,196,"sjcl.cipher.aes.encrypt bsuite/kraken-once/stanford-crypto-ccm.js:6",0x2f339890,*
 timer-event-end,"V8.RecompileSynchronous",61348
 timer-event-start,"V8.RecompileSynchronous",61374
@@ -2013,19 +2013,19 @@ timer-event-start,"V8.RecompileSynchronous",61424
 timer-event-start,"V8.ParseLazy",61429
 timer-event-end,"V8.ParseLazy",61442
 code-creation,LazyCompile,0,0x2b8522a0,248,"round native math.js:193",0x4422265c,~
-timer-event-end,"V8.RecompileParallel",61471
-timer-event-start,"V8.RecompileParallel",61480
+timer-event-end,"V8.RecompileConcurrent",61471
+timer-event-start,"V8.RecompileConcurrent",61480
 timer-event-end,"V8.RecompileSynchronous",61487
 timer-event-start,"V8.RecompileSynchronous",61512
-timer-event-end,"V8.RecompileParallel",61536
-timer-event-start,"V8.RecompileParallel",61543
+timer-event-end,"V8.RecompileConcurrent",61536
+timer-event-start,"V8.RecompileConcurrent",61543
 code-creation,LazyCompile,1,0x2b8523a0,888,"sjcl.bitArray.bitLength bsuite/kraken-once/stanford-crypto-ccm.js:9",0x2f339ad0,*
 timer-event-end,"V8.RecompileSynchronous",61565
 timer-event-start,"V8.RecompileSynchronous",61570
 code-creation,LazyCompile,1,0x2b852720,536,"sjcl.bitArray.getPartial bsuite/kraken-once/stanford-crypto-ccm.js:10",0x2f339bf0,*
 timer-event-end,"V8.RecompileSynchronous",61599
 timer-event-start,"V8.RecompileSynchronous",61606
-timer-event-end,"V8.RecompileParallel",61610
+timer-event-end,"V8.RecompileConcurrent",61610
 code-creation,LazyCompile,1,0x2b852940,242,"round native math.js:193",0x4422265c,*
 timer-event-end,"V8.RecompileSynchronous",61629
 code-creation,LoadPolymorphicIC,5,0x2b852a40,105,"length"
@@ -2040,15 +2040,15 @@ timer-event-end,"V8.RecompileSynchronous",61926
 timer-event-start,"V8.RecompileSynchronous",61933
 timer-event-start,"V8.ParseLazy",61939
 timer-event-end,"V8.ParseLazy",61953
-timer-event-start,"V8.RecompileParallel",61961
+timer-event-start,"V8.RecompileConcurrent",61961
 code-creation,LazyCompile,0,0x2b852e00,248,"ceil native math.js:81",0x442222fc,~
 timer-event-end,"V8.RecompileSynchronous",62019
 tick,0x811e913,62060,0,0xf773bff4,2,0x2b83dfae,0x2b8445e0,0x2b83a0cc,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
 code-deopt,62122,544
-timer-event-end,"V8.RecompileParallel",62287
-timer-event-start,"V8.RecompileParallel",62297
+timer-event-end,"V8.RecompileConcurrent",62287
+timer-event-start,"V8.RecompileConcurrent",62297
 timer-event-start,"V8.RecompileSynchronous",62309
-timer-event-end,"V8.RecompileParallel",62353
+timer-event-end,"V8.RecompileConcurrent",62353
 code-creation,Stub,2,0x2b852f00,1785,"RecordWriteStub"
 code-creation,LazyCompile,1,0x2b853600,1514,"sjcl.bitArray.clamp bsuite/kraken-once/stanford-crypto-ccm.js:9",0x2f339b30,*
 timer-event-end,"V8.RecompileSynchronous",62415
@@ -2062,8 +2062,8 @@ timer-event-start,"V8.ParseLazy",63067
 timer-event-end,"V8.ParseLazy",63085
 timer-event-end,"V8.RecompileSynchronous",63117
 tick,0xf776d430,63132,0,0x90ec418,0,0x2b8462cc,0x2b845cd7,0x2b848b0a,0x2b84a58b,0x2b83a281,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
-timer-event-start,"V8.RecompileParallel",63203
-timer-event-end,"V8.RecompileParallel",63315
+timer-event-start,"V8.RecompileConcurrent",63203
+timer-event-end,"V8.RecompileConcurrent",63315
 timer-event-start,"V8.RecompileSynchronous",63329
 code-creation,LazyCompile,1,0x2b853e00,644,"sjcl.bitArray.partial bsuite/kraken-once/stanford-crypto-ccm.js:10",0x2f339b90,*
 timer-event-end,"V8.RecompileSynchronous",63379
@@ -2071,10 +2071,10 @@ timer-event-start,"V8.RecompileSynchronous",63494
 timer-event-start,"V8.ParseLazy",63503
 timer-event-end,"V8.ParseLazy",63517
 timer-event-end,"V8.RecompileSynchronous",63544
-timer-event-start,"V8.RecompileParallel",63572
+timer-event-start,"V8.RecompileConcurrent",63572
 timer-event-start,"V8.RecompileSynchronous",63641
 timer-event-start,"V8.ParseLazy",63651
-timer-event-end,"V8.RecompileParallel",63664
+timer-event-end,"V8.RecompileConcurrent",63664
 timer-event-end,"V8.ParseLazy",63678
 code-creation,LazyCompile,0,0x2b8540a0,560,"sjcl.bitArray.concat bsuite/kraken-once/stanford-crypto-ccm.js:9",0x2f339a70,~
 timer-event-start,"V8.ParseLazy",63757
@@ -2088,7 +2088,7 @@ timer-event-start,"V8.ParseLazy",64023
 timer-event-end,"V8.ParseLazy",64039
 timer-event-end,"V8.RecompileSynchronous",64072
 timer-event-start,"V8.RecompileSynchronous",64079
-timer-event-start,"V8.RecompileParallel",64099
+timer-event-start,"V8.RecompileConcurrent",64099
 code-creation,LazyCompile,1,0x2b854760,536,"sjcl.bitArray.getPartial bsuite/kraken-once/stanford-crypto-ccm.js:10",0x2f339bf0,*
 timer-event-end,"V8.RecompileSynchronous",64194
 tick,0xf776d430,64209,0,0x4059,2,0x2b845c29,0x2b848b0a,0x2b844670,0x2b83a0cc,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
@@ -2098,8 +2098,8 @@ timer-event-start,"V8.ParseLazy",64476
 timer-event-end,"V8.ParseLazy",64542
 code-creation,LazyCompile,0,0x2b854980,3002,"sjcl.cipher.aes bsuite/kraken-once/stanford-crypto-ccm.js:4",0x2f339830,~
 timer-event-end,"V8.RecompileSynchronous",64818
-timer-event-end,"V8.RecompileParallel",64871
-timer-event-start,"V8.RecompileParallel",64883
+timer-event-end,"V8.RecompileConcurrent",64871
+timer-event-start,"V8.RecompileConcurrent",64883
 timer-event-start,"V8.RecompileSynchronous",64890
 code-creation,LazyCompile,1,0x2b855540,3364,"sjcl.bitArray.concat bsuite/kraken-once/stanford-crypto-ccm.js:9",0x2f339a70,*
 timer-event-end,"V8.RecompileSynchronous",65047
@@ -2114,7 +2114,7 @@ timer-event-end,"V8.External",65770
 timer-event-start,"V8.External",66154
 timer-event-end,"V8.External",66162
 timer-event-end,"V8.GCScavenger",66166
-timer-event-end,"V8.RecompileParallel",66181
+timer-event-end,"V8.RecompileConcurrent",66181
 timer-event-start,"V8.RecompileSynchronous",66254
 tick,0x81c09b0,66332,0,0x91632e8,2,0x2b839e65,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
 code-creation,Stub,2,0x2b856400,1785,"RecordWriteStub"
@@ -2128,9 +2128,9 @@ timer-event-start,"V8.RecompileSynchronous",66788
 timer-event-start,"V8.ParseLazy",66797
 timer-event-end,"V8.ParseLazy",66878
 timer-event-end,"V8.RecompileSynchronous",67067
-timer-event-start,"V8.RecompileParallel",67094
+timer-event-start,"V8.RecompileConcurrent",67094
 tick,0x2b8473da,67403,0,0x2f392d35,0,0x2b852252,0x2b8455f6,0x2b84a5e0,0x2b83a281,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
-timer-event-end,"V8.RecompileParallel",68064
+timer-event-end,"V8.RecompileConcurrent",68064
 timer-event-start,"V8.RecompileSynchronous",68081
 code-creation,LazyCompile,1,0x2b859460,4752,"sjcl.cipher.aes.H bsuite/kraken-once/stanford-crypto-ccm.js:7",0x2f3399b0,*
 timer-event-end,"V8.RecompileSynchronous",68294
@@ -2160,16 +2160,16 @@ code-creation,Function,0,0x2b85abc0,208,"sjcl.test.TestCase.pass bsuite/kraken-o
 timer-event-end,"V8.RecompileSynchronous",71195
 timer-event-start,"V8.RecompileSynchronous",71204
 timer-event-start,"V8.ParseLazy",71210
-timer-event-start,"V8.RecompileParallel",71216
+timer-event-start,"V8.RecompileConcurrent",71216
 timer-event-end,"V8.ParseLazy",71228
 timer-event-end,"V8.RecompileSynchronous",71254
-timer-event-end,"V8.RecompileParallel",71304
-timer-event-start,"V8.RecompileParallel",71312
+timer-event-end,"V8.RecompileConcurrent",71304
+timer-event-start,"V8.RecompileConcurrent",71312
 timer-event-start,"V8.RecompileSynchronous",71316
 code-creation,LazyCompile,1,0x2b85aca0,322,"sjcl.test.TestCase.require bsuite/kraken-once/stanford-crypto-ccm.js:131",0x2f33b390,*
 timer-event-end,"V8.RecompileSynchronous",71361
 timer-event-start,"V8.RecompileSynchronous",71367
-timer-event-end,"V8.RecompileParallel",71373
+timer-event-end,"V8.RecompileConcurrent",71373
 code-creation,LazyCompile,1,0x2b85ae00,198,"sjcl.test.TestCase.pass bsuite/kraken-once/stanford-crypto-ccm.js:110",0x2f33b270,*
 timer-event-end,"V8.RecompileSynchronous",71390
 tick,0x2b83c3b1,71653,0,0xffffff6b,0,0x2b83bd35,0x2b83a725,0x2b839f55,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
@@ -2196,10 +2196,10 @@ timer-event-end,"V8.ParseLazy",73289
 timer-event-start,"V8.ParseLazy",73339
 timer-event-end,"V8.ParseLazy",73356
 timer-event-end,"V8.RecompileSynchronous",73393
-timer-event-start,"V8.RecompileParallel",73422
+timer-event-start,"V8.RecompileConcurrent",73422
 tick,0x82eea09,73786,0,0x90de9b0,0,0x2b85056f,0x2b83a782,0x2b839e4e,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
 timer-event-start,"V8.ParseLazy",74228
-timer-event-end,"V8.RecompileParallel",74243
+timer-event-end,"V8.RecompileConcurrent",74243
 timer-event-end,"V8.ParseLazy",74259
 timer-event-start,"V8.CompileLazy",74267
 timer-event-start,"V8.CompileFullCode",74273
@@ -2228,8 +2228,8 @@ timer-event-end,"V8.ParseLazy",78559
 timer-event-start,"V8.ParseLazy",78614
 timer-event-end,"V8.ParseLazy",78632
 timer-event-end,"V8.RecompileSynchronous",78666
-timer-event-start,"V8.RecompileParallel",78695
-timer-event-end,"V8.RecompileParallel",79073
+timer-event-start,"V8.RecompileConcurrent",78695
+timer-event-end,"V8.RecompileConcurrent",79073
 timer-event-start,"V8.RecompileSynchronous",79089
 tick,0x2b859d1c,79108,0,0x6,0,0x2b852252,0x2b8455f6,0x2b844628,0x2b83a0cc,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
 code-creation,Stub,2,0x2b85c5a0,1421,"StringAddStub"
@@ -2289,7 +2289,7 @@ timer-event-end,"V8.ParseLazy",88967
 timer-event-start,"V8.ParseLazy",88996
 timer-event-end,"V8.ParseLazy",89012
 timer-event-end,"V8.RecompileSynchronous",89134
-timer-event-start,"V8.RecompileParallel",89160
+timer-event-start,"V8.RecompileConcurrent",89160
 timer-event-start,"V8.RecompileSynchronous",89215
 timer-event-start,"V8.ParseLazy",89224
 timer-event-end,"V8.ParseLazy",89245
@@ -2322,15 +2322,15 @@ timer-event-start,"V8.ParseLazy",90326
 timer-event-end,"V8.ParseLazy",90344
 timer-event-end,"V8.RecompileSynchronous",90480
 tick,0x2b8596f9,90829,0,0x8,0,0x2b852252,0x2b8454f6,0x2b844628,0x2b83a0cc,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
-timer-event-end,"V8.RecompileParallel",91133
-timer-event-start,"V8.RecompileParallel",91145
+timer-event-end,"V8.RecompileConcurrent",91133
+timer-event-start,"V8.RecompileConcurrent",91145
 timer-event-start,"V8.RecompileSynchronous",91197
 code-creation,Stub,2,0x2b85e2a0,1800,"RecordWriteStub"
 code-creation,Stub,2,0x2b85e9c0,1805,"RecordWriteStub"
 code-creation,Stub,2,0x2b85f0e0,1785,"RecordWriteStub"
 code-creation,Stub,2,0x2b85f7e0,1797,"RecordWriteStub"
-timer-event-end,"V8.RecompileParallel",91529
-timer-event-start,"V8.RecompileParallel",91540
+timer-event-end,"V8.RecompileConcurrent",91529
+timer-event-start,"V8.RecompileConcurrent",91540
 code-creation,Stub,2,0x2b85ff00,1789,"RecordWriteStub"
 code-creation,Stub,2,0x2b860600,1805,"RecordWriteStub"
 code-creation,LazyCompile,1,0x2b860d20,9288,"sjcl.mode.ccm.I bsuite/kraken-once/stanford-crypto-ccm.js:21",0x2f33a370,*
@@ -2345,7 +2345,7 @@ tick,0x2b859a99,92950,0,0x4,0,0x2b852252,0x2b8455f6,0x2b844628,0x2b83a0cc,0x2b83
 timer-event-start,"V8.GCScavenger",93234
 timer-event-start,"V8.External",93245
 timer-event-end,"V8.External",93249
-timer-event-end,"V8.RecompileParallel",93304
+timer-event-end,"V8.RecompileConcurrent",93304
 timer-event-start,"V8.External",93319
 timer-event-end,"V8.External",93327
 timer-event-end,"V8.GCScavenger",93331
@@ -2407,9 +2407,9 @@ timer-event-start,"V8.RecompileSynchronous",107462
 timer-event-start,"V8.ParseLazy",107471
 timer-event-end,"V8.ParseLazy",107537
 timer-event-end,"V8.RecompileSynchronous",107729
-timer-event-start,"V8.RecompileParallel",107764
+timer-event-start,"V8.RecompileConcurrent",107764
 tick,0x2b859da9,107874,0,0x2,0,0x2b852252,0x2b848b65,0x2b84a58b,0x2b83a281,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
-timer-event-end,"V8.RecompileParallel",108795
+timer-event-end,"V8.RecompileConcurrent",108795
 timer-event-start,"V8.RecompileSynchronous",108885
 tick,0x2b859d60,108935,0,0x0,0,0x2b852252,0x2b8658f7,0x2b84a5e0,0x2b83a281,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
 code-creation,Stub,2,0x2b866a80,783,"RecordWriteStub"
@@ -2445,7 +2445,7 @@ timer-event-end,"V8.ParseLazy",112819
 timer-event-start,"V8.ParseLazy",112848
 timer-event-end,"V8.ParseLazy",112863
 timer-event-end,"V8.RecompileSynchronous",112986
-timer-event-start,"V8.RecompileParallel",113012
+timer-event-start,"V8.RecompileConcurrent",113012
 tick,0x2b867dc3,113148,0,0x100,0,0x2b839e65,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
 timer-event-start,"V8.GCScavenger",114171
 timer-event-start,"V8.External",114182
@@ -2454,7 +2454,7 @@ tick,0x82c920e,114254,0,0x0,1
 timer-event-start,"V8.External",114309
 timer-event-end,"V8.External",114330
 timer-event-end,"V8.GCScavenger",114350
-timer-event-end,"V8.RecompileParallel",115013
+timer-event-end,"V8.RecompileConcurrent",115013
 timer-event-start,"V8.RecompileSynchronous",115032
 tick,0x8369515,115325,0,0x9135ff0,2,0x2b844670,0x2b83a0cc,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
 code-creation,LazyCompile,1,0x5120a000,9284,"sjcl.mode.ccm.I bsuite/kraken-once/stanford-crypto-ccm.js:21",0x2f33a370,*
@@ -2541,7 +2541,7 @@ timer-event-end,"V8.ParseLazy",136270
 timer-event-start,"V8.ParseLazy",136301
 timer-event-end,"V8.ParseLazy",136317
 timer-event-end,"V8.RecompileSynchronous",136440
-timer-event-start,"V8.RecompileParallel",136466
+timer-event-start,"V8.RecompileConcurrent",136466
 tick,0x2b859c6e,136680,0,0x0,0,0x2b852252,0x2b8658f7,0x2b84a5e0,0x2b83a281,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b85b238,0x2b83a474,0x2b838f3f,0x2b838c50,0x2b839b39,0x2b83970e,0x2b83964b,0x2b8394a8,0x2b839273,0x2b839036,0x2b838f3f,0x2b838c50,0x2b83892e,0x2b8383df,0x2b8350ac
 code-creation,LoadPolymorphicIC,5,0x5120c460,105,"length"
 code-creation,LoadPolymorphicIC,5,0x5120c4e0,117,"length"
@@ -2555,7 +2555,7 @@ timer-event-end,"V8.External",138217
 timer-event-start,"V8.External",138271
 timer-event-end,"V8.External",138277
 timer-event-end,"V8.GCScavenger",138281
-timer-event-end,"V8.RecompileParallel",138393
+timer-event-end,"V8.RecompileConcurrent",138393
 timer-event-start,"V8.RecompileSynchronous",138412
 code-creation,LazyCompile,1,0x5120c6e0,9284,"sjcl.mode.ccm.I bsuite/kraken-once/stanford-crypto-ccm.js:21",0x2f33a370,*
 timer-event-end,"V8.RecompileSynchronous",138781
@@ -2608,6 +2608,6 @@ timer-event-end,"V8.CompileLazy",146603
 timer-event-start,"V8.External",146613
 timer-event-end,"V8.External",146656
 timer-event-end,"V8.Execute",146662
-timer-event-start,"V8.RecompileParallel",146700
-timer-event-end,"V8.RecompileParallel",146738
+timer-event-start,"V8.RecompileConcurrent",146700
+timer-event-end,"V8.RecompileConcurrent",146738
 profiler,"end"

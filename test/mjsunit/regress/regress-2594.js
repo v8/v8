@@ -24,18 +24,81 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-// ECMAScript 402 API implementation is broken into separate files for
-// each service. The build system combines them together into one
-// Intl namespace.
+// In the assertions but the first, the ES5 spec actually requires 0, but
+// that is arguably a spec bug, and other browsers return 1 like us.
+// In ES6, all of those will presumably result in a ReferenceError.
+// Our main concern with this test is that we do not crash, though.
 
-/**
- * Intl object is a single object that has some named properties,
- * all of which are constructors.
- */
-var Intl = (function() {
+function f1() {
+  var XXX = 0
+  try { throw 1 } catch (XXX) {
+    eval("var h = function() { return XXX }")
+  }
+  return h()
+}
+assertEquals(1, f1())
 
-'use strict';
+function f2() {
+  var XXX = 0
+  try { throw 1 } catch (XXX) {
+    eval("function h(){ return XXX }")
+  }
+  return h()
+}
+assertEquals(1, f2())
 
-var Intl = {};
+function f3() {
+  var XXX = 0
+  try { throw 1 } catch (XXX) {
+    try { throw 2 } catch (y) {
+      eval("function h(){ return XXX }")
+    }
+  }
+  return h()
+}
+assertEquals(1, f3())
+
+function f4() {
+  var XXX = 0
+  try { throw 1 } catch (XXX) {
+    with ({}) {
+      eval("function h(){ return XXX }")
+    }
+  }
+  return h()
+}
+assertEquals(1, f4())
+
+function f5() {
+  var XXX = 0
+  try { throw 1 } catch (XXX) {
+    eval('eval("function h(){ return XXX }")')
+  }
+  return h()
+}
+assertEquals(1, f5())
+
+function f6() {
+  var XXX = 0
+  try { throw 1 } catch (XXX) {
+    eval("var h = (function() { function g(){ return XXX } return g })()")
+  }
+  return h()
+}
+assertEquals(1, f6())
+
+function f7() {
+  var XXX = 0
+  try { throw 1 } catch (XXX) {
+    eval("function h() { var XXX=2; function g(){ return XXX } return g }")
+  }
+  return h()()
+}
+assertEquals(2, f7())  // !
+
+var XXX = 0
+try { throw 1 } catch (XXX) {
+  eval("function h(){ return XXX }")
+}
+assertEquals(1, h())

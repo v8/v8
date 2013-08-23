@@ -24,25 +24,30 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// limitations under the License.
 
-#ifndef V8_EXTENSIONS_I18N_I18N_EXTENSION_H_
-#define V8_EXTENSIONS_I18N_I18N_EXTENSION_H_
+// Flags: --harmony-collections
 
-#include "v8.h"
+(function test1() {
+  var wm1 = new WeakMap();
+  wm1.set(Object.prototype, 23);
+  assertTrue(wm1.has(Object.prototype));
+  Object.freeze(Object.prototype);
 
-namespace v8_i18n {
+  var wm2 = new WeakMap();
+  var o = {};
+  wm2.set(o, 42);
+  assertEquals(42, wm2.get(o));
+})();
 
-class Extension : public v8::Extension {
- public:
-  Extension();
+(function test2() {
+  var wm1 = new WeakMap();
+  var o1 = {};
+  wm1.set(o1, 23);
+  assertTrue(wm1.has(o1));
+  Object.freeze(o1);
 
-  static void Register();
-
- private:
-  static Extension* extension_;
-};
-
-}  // namespace v8_i18n
-
-#endif  // V8_EXTENSIONS_I18N_I18N_EXTENSION_H_
+  var wm2 = new WeakMap();
+  var o2 = Object.create(o1);
+  wm2.set(o2, 42);
+  assertEquals(42, wm2.get(o2));
+})();

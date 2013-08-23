@@ -6830,8 +6830,6 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           } else if (exponent == 2.0) {
             result = HMul::New(zone(), context, left, left);
           }
-        } else if (right->EqualsInteger32Constant(2)) {
-          result = HMul::New(zone(), context, left, left);
         }
 
         if (result == NULL) {
@@ -9577,7 +9575,7 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
 
 
 void HTracer::TraceLithium(const char* name, LChunk* chunk) {
-  ASSERT(!FLAG_parallel_recompilation);
+  ASSERT(!FLAG_concurrent_recompilation);
   AllowHandleDereference allow_deref;
   AllowDeferredHandleDereference allow_deferred_deref;
   Trace(name, chunk->graph(), chunk);
@@ -9585,7 +9583,7 @@ void HTracer::TraceLithium(const char* name, LChunk* chunk) {
 
 
 void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
-  ASSERT(!FLAG_parallel_recompilation);
+  ASSERT(!FLAG_concurrent_recompilation);
   AllowHandleDereference allow_deref;
   AllowDeferredHandleDereference allow_deferred_deref;
   Trace(name, graph, NULL);

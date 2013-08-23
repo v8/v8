@@ -426,20 +426,41 @@ FOR_EACH_REG_EXP_TREE_TYPE(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
 
-class TextElement {
+class TextElement V8_FINAL BASE_EMBEDDED {
  public:
-  enum TextType {UNINITIALIZED, ATOM, CHAR_CLASS};
-  TextElement() : text_type(UNINITIALIZED) { }
-  explicit TextElement(TextType t) : text_type(t), cp_offset(-1) { }
+  enum TextType {
+    ATOM,
+    CHAR_CLASS
+  };
+
   static TextElement Atom(RegExpAtom* atom);
   static TextElement CharClass(RegExpCharacterClass* char_class);
-  int length();
-  TextType text_type;
-  union {
-    RegExpAtom* u_atom;
-    RegExpCharacterClass* u_char_class;
-  } data;
-  int cp_offset;
+
+  int cp_offset() const { return cp_offset_; }
+  void set_cp_offset(int cp_offset) { cp_offset_ = cp_offset; }
+  int length() const;
+
+  TextType text_type() const { return text_type_; }
+
+  RegExpTree* tree() const { return tree_; }
+
+  RegExpAtom* atom() const {
+    ASSERT(text_type() == ATOM);
+    return reinterpret_cast<RegExpAtom*>(tree());
+  }
+
+  RegExpCharacterClass* char_class() const {
+    ASSERT(text_type() == CHAR_CLASS);
+    return reinterpret_cast<RegExpCharacterClass*>(tree());
+  }
+
+ private:
+  TextElement(TextType text_type, RegExpTree* tree)
+      : cp_offset_(-1), text_type_(text_type), tree_(tree) {}
+
+  int cp_offset_;
+  TextType text_type_;
+  RegExpTree* tree_;
 };
 
 

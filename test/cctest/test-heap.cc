@@ -2826,7 +2826,7 @@ void ReleaseStackTraceDataTest(const char* source, const char* accessor) {
   // to check whether the data is being released since the external string
   // resource's callback is fired when the external string is GC'ed.
   FLAG_use_ic = false;  // ICs retain objects.
-  FLAG_parallel_recompilation = false;
+  FLAG_concurrent_recompilation = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   SourceResource* resource = new SourceResource(i::StrDup(source));
@@ -3067,10 +3067,6 @@ TEST(Regress169209) {
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
-
-  // Disable loading the i18n extension which breaks the assumptions of this
-  // test about the heap layout.
-  i::FLAG_enable_i18n = false;
 
   CcTest::InitializeVM();
   Isolate* isolate = Isolate::Current();

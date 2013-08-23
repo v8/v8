@@ -2047,7 +2047,7 @@ void Debug::PrepareForBreakPoints() {
   // If preparing for the first break point make sure to deoptimize all
   // functions as debugging does not work with optimized code.
   if (!has_break_points_) {
-    if (FLAG_parallel_recompilation) {
+    if (FLAG_concurrent_recompilation) {
       isolate_->optimizing_compiler_thread()->Flush();
     }
 
@@ -2108,7 +2108,7 @@ void Debug::PrepareForBreakPoints() {
               (function->IsMarkedForInstallingRecompiledCode() ||
                function->IsInRecompileQueue() ||
                function->IsMarkedForLazyRecompilation() ||
-               function->IsMarkedForParallelRecompilation())) {
+               function->IsMarkedForConcurrentRecompilation())) {
             // Abort in-flight compilation.
             Code* shared_code = function->shared()->code();
             if (shared_code->kind() == Code::FUNCTION &&
