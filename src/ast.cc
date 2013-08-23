@@ -962,12 +962,12 @@ void* RegExpUnparser::VisitAtom(RegExpAtom* that, void* data) {
 
 void* RegExpUnparser::VisitText(RegExpText* that, void* data) {
   if (that->elements()->length() == 1) {
-    that->elements()->at(0).data.u_atom->Accept(this, data);
+    that->elements()->at(0).tree()->Accept(this, data);
   } else {
     stream()->Add("(!");
     for (int i = 0; i < that->elements()->length(); i++) {
       stream()->Add(" ");
-      that->elements()->at(i).data.u_atom->Accept(this, data);
+      that->elements()->at(i).tree()->Accept(this, data);
     }
     stream()->Add(")");
   }
