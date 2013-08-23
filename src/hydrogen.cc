@@ -4443,7 +4443,7 @@ HCheckMaps* HOptimizedGraphBuilder::AddCheckMap(HValue* object,
 
 
 HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
-    HValue* object,
+    HValue* checked_object,
     Handle<String> name,
     HValue* value,
     Handle<Map> map,
@@ -4495,11 +4495,12 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
       Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
                             value);
-      instr = New<HStoreNamedField>(object, heap_number_access,
-                                           heap_number);
+      instr = New<HStoreNamedField>(checked_object,
+                                    heap_number_access,
+                                    heap_number);
     } else {
       // Already holds a HeapNumber; load the box and write its value field.
-      HInstruction* heap_number = Add<HLoadNamedField>(object,
+      HInstruction* heap_number = Add<HLoadNamedField>(checked_object,
                                                        heap_number_access);
       heap_number->set_type(HType::HeapNumber());
       instr = New<HStoreNamedField>(heap_number,
@@ -4508,7 +4509,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     }
   } else {
     // This is a normal store.
-    instr = New<HStoreNamedField>(object, field_access, value);
+    instr = New<HStoreNamedField>(checked_object, field_access, value);
   }
 
   if (transition_to_field) {
@@ -4545,8 +4546,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
   // Handle a store to a known field.
   LookupResult lookup(isolate());
   if (ComputeLoadStoreField(map, name, &lookup, true)) {
-    AddCheckMap(object, map);
-    return BuildStoreNamedField(object, name, value, map, &lookup);
+    HCheckMaps* checked_object = AddCheckMap(object, map);
+    return BuildStoreNamedField(checked_object, name, value, map, &lookup);
   }
 
   // No luck, do a generic store.
@@ -4808,11 +4809,11 @@ bool HOptimizedGraphBuilder::TryStorePolymorphicAsMonomorphic(
 
   // Everything matched; can use monomorphic store.
   BuildCheckHeapObject(object);
-  Add<HCheckMaps>(object, types);
+  HCheckMaps* checked_object = Add<HCheckMaps>(object, types);
   HInstruction* store;
   CHECK_ALIVE_OR_RETURN(
       store = BuildStoreNamedField(
-          object, name, store_value, types->at(count - 1), &lookup),
+          checked_object, name, store_value, types->at(count - 1), &lookup),
       true);
   if (!ast_context()->IsEffect()) Push(result_value);
   store->set_position(position);
@@ -4861,7 +4862,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
       set_current_block(if_true);
       HInstruction* instr;
       CHECK_ALIVE(instr = BuildStoreNamedField(
-          object, name, store_value, map, &lookup));
+          compare, name, store_value, map, &lookup));
       instr->set_position(position);
       // Goto will add the HSimulate for the store.
       AddInstruction(instr);

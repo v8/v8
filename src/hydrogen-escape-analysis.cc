@@ -212,14 +212,8 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           if (mapcheck->value() != allocate) continue;
           // TODO(mstarzinger): This approach breaks if the tracked map value
           // is not a HConstant. Find a repro test case and fix this.
-          for (HUseIterator it(mapcheck->uses()); !it.Done(); it.Advance()) {
-            if (!it.value()->IsLoadNamedField()) continue;
-            HLoadNamedField* load = HLoadNamedField::cast(it.value());
-            load->ClearTypeCheck();
-          }
-          ASSERT(mapcheck->HasNoUses());
-
-          mapcheck->DeleteAndReplaceWith(NULL);
+          ASSERT(mapcheck->ActualValue() == allocate);
+          mapcheck->DeleteAndReplaceWith(mapcheck->ActualValue());
           break;
         }
         default:
