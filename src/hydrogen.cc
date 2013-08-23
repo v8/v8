@@ -6830,8 +6830,6 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           } else if (exponent == 2.0) {
             result = HMul::New(zone(), context, left, left);
           }
-        } else if (right->EqualsInteger32Constant(2)) {
-          result = HMul::New(zone(), context, left, left);
         }
 
         if (result == NULL) {
