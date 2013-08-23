@@ -1865,15 +1865,14 @@ bool JSObject::HasFastProperties() {
 }
 
 
-bool JSObject::TooManyFastProperties(StoreFromKeyed store_mode) {
+bool JSObject::TooManyFastProperties(int properties,
+                                     JSObject::StoreFromKeyed store_mode) {
   // Allow extra fast properties if the object has more than
-  // kFastPropertiesSoftLimit in-object properties. When this is the case, it is
-  // very unlikely that the object is being used as a dictionary and there is a
-  // good chance that allowing more map transitions will be worth it.
-  Map* map = this->map();
-  if (map->unused_property_fields() != 0) return false;
-
-  int inobject = map->inobject_properties();
+  // kFastPropertiesSoftLimit in-object properties. When this is the case,
+  // it is very unlikely that the object is being used as a dictionary
+  // and there is a good chance that allowing more map transitions
+  // will be worth it.
+  int inobject = map()->inobject_properties();
 
   int limit;
   if (store_mode == CERTAINLY_NOT_STORE_FROM_KEYED) {
@@ -1881,7 +1880,7 @@ bool JSObject::TooManyFastProperties(StoreFromKeyed store_mode) {
   } else {
     limit = Max(inobject, kFastPropertiesSoftLimit);
   }
-  return properties()->length() > limit;
+  return properties > limit;
 }
 
 
