@@ -1209,6 +1209,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
     int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    int column_num =
+        GetScriptColumnNumber(script, shared->start_position()) + 1;
     USE(line_num);
     if (script->name()->IsString()) {
       PROFILE(info->isolate(),
@@ -1217,7 +1219,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *shared,
                               info,
                               String::cast(script->name()),
-                              line_num));
+                              line_num,
+                              column_num));
     } else {
       PROFILE(info->isolate(),
               CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
@@ -1225,7 +1228,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *shared,
                               info,
                               info->isolate()->heap()->empty_string(),
-                              line_num));
+                              line_num,
+                              column_num));
     }
   }
 

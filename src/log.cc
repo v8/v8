@@ -1233,7 +1233,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              SharedFunctionInfo* shared,
                              CompilationInfo* info,
-                             Name* source, int line) {
+                             Name* source, int line, int column) {
   PROFILER_LOG(CodeCreateEvent(tag, code, shared, info, source, line));
 
   if (!is_logging_code_events()) return;
@@ -1252,7 +1252,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   } else {
     msg.AppendSymbolName(Symbol::cast(source));
   }
-  msg.Append(":%d\",", line);
+  msg.Append(":%d:%d\",", line, column);
   msg.AppendAddress(shared->address());
   msg.Append(",%s", ComputeMarker(code));
   msg.Append('\n');
@@ -1712,6 +1712,8 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
   if (shared->script()->IsScript()) {
     Handle<Script> script(Script::cast(shared->script()));
     int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    int column_num =
+        GetScriptColumnNumber(script, shared->start_position()) + 1;
     if (script->name()->IsString()) {
       Handle<String> script_name(String::cast(script->name()));
       if (line_num > 0) {
@@ -1719,7 +1721,7 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                 CodeCreateEvent(
                     Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
                     *code, *shared, NULL,
-                    *script_name, line_num));
+                    *script_name, line_num, column_num));
       } else {
         // Can't distinguish eval and script here, so always use Script.
         PROFILE(isolate_,
@@ -1732,7 +1734,7 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
               CodeCreateEvent(
                   Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
                   *code, *shared, NULL,
-                  isolate_->heap()->empty_string(), line_num));
+                  isolate_->heap()->empty_string(), line_num, column_num));
     }
   } else if (shared->IsApiFunction()) {
     // API function.

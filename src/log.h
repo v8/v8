@@ -248,7 +248,7 @@ class Logger {
                        Code* code,
                        SharedFunctionInfo* shared,
                        CompilationInfo* info,
-                       Name* source, int line);
+                       Name* source, int line, int column);
   void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
   void CodeMovingGCEvent();
   // Emits a code create event for a RegExp.
