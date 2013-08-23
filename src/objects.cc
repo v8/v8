@@ -9620,31 +9620,28 @@ Context* JSFunction::NativeContextFromLiterals(FixedArray* literals) {
 }
 
 
-bool JSFunction::PassesHydrogenFilter() {
+// The filter is a pattern that matches function names in this way:
+//   "*"      all; the default
+//   "-"      all but the top-level function
+//   "-name"  all but the function "name"
+//   ""       only the top-level function
+//   "name"   only the function "name"
+//   "name*"  only functions starting with "name"
+bool JSFunction::PassesFilter(const char* raw_filter) {
+  if (*raw_filter == '*') return true;
   String* name = shared()->DebugName();
-  // The filter string is a pattern that matches functions in this way:
-  //   "*"      all; the default
-  //   "-"      all but the top-level function
-  //   "-name"  all but the function "name"
-  //   ""       only the top-level function
-  //   "name"   only the function "name"
-  //   "name*"  only functions starting with "name"
-  if (*FLAG_hydrogen_filter != '*') {
-    Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
-    if (filter.length() == 0) return name->length() == 0;
-    if (filter[0] != '-' && name->IsUtf8EqualTo(filter)) return true;
-    if (filter[0] == '-' &&
-        !name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
-      return true;
-    }
-    if (filter[filter.length() - 1] == '*' &&
-        name->IsUtf8EqualTo(filter.SubVector(0, filter.length() - 1), true)) {
-      return true;
-    }
-    return false;
+  Vector<const char> filter = CStrVector(raw_filter);
+  if (filter.length() == 0) return name->length() == 0;
+  if (filter[0] != '-' && name->IsUtf8EqualTo(filter)) return true;
+  if (filter[0] == '-' &&
+      !name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+    return true;
   }
-
-  return true;
+  if (filter[filter.length() - 1] == '*' &&
+      name->IsUtf8EqualTo(filter.SubVector(0, filter.length() - 1), true)) {
+    return true;
+  }
+  return false;
 }
 
 

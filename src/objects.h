@@ -7081,7 +7081,8 @@ class JSFunction: public JSObject {
   // Retrieve the native context from a function's literal array.
   static Context* NativeContextFromLiterals(FixedArray* literals);
 
-  bool PassesHydrogenFilter();
+  // Used for flags such as --hydrogen-filter.
+  bool PassesFilter(const char* raw_filter);
 
   // Layout descriptors. The last property (from kNonWeakFieldsEndOffset to
   // kSize) is weak and has special handling during garbage collection.

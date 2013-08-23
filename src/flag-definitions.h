@@ -256,6 +256,7 @@ DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             "crankshaft harvests type feedback from stub cache")
 DEFINE_bool(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_bool(trace_hydrogen, false, "trace generated hydrogen to file")
+DEFINE_string(trace_hydrogen_filter, "*", "hydrogen tracing filter")
 DEFINE_bool(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")
 DEFINE_string(trace_hydrogen_file, NULL, "trace hydrogen to given file name")
 DEFINE_string(trace_phase, "HLZ", "trace generated IR for specified phases")
