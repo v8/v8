@@ -63,7 +63,7 @@ static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame1,
                                    i::Address frame2 = NULL,
                                    i::Address frame3 = NULL) {
-  i::TickSample* sample = proc->TickSampleEvent();
+  i::TickSample* sample = proc->StartTickSample();
   sample->pc = frame1;
   sample->tos = frame1;
   sample->frames_count = 0;
@@ -75,6 +75,7 @@ static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
     sample->stack[1] = frame3;
     sample->frames_count = 2;
   }
+  proc->FinishTickSample();
 }
 
 namespace {
@@ -276,13 +277,14 @@ TEST(Issue1398) {
 
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
-  i::TickSample* sample = processor.TickSampleEvent();
+  i::TickSample* sample = processor.StartTickSample();
   sample->pc = code->address();
   sample->tos = 0;
   sample->frames_count = i::TickSample::kMaxFramesCount;
   for (int i = 0; i < sample->frames_count; ++i) {
     sample->stack[i] = code->address();
   }
+  processor.FinishTickSample();
 
   processor.StopSynchronously();
   processor.Join();

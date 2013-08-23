@@ -282,6 +282,10 @@ const int kOneByteSize    = kCharSize;
 const int kUC16Size     = sizeof(uc16);      // NOLINT
 
 
+// Round up n to be a multiple of sz, where sz is a power of 2.
+#define ROUND_UP(n, sz) (((n) + ((sz) - 1)) & ~((sz) - 1))
+
+
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This
 // corresponds to 'offsetof' (in stddef.h), except that it doesn't

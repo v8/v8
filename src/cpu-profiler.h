@@ -114,10 +114,6 @@ class TickSampleEventRecord {
 
   unsigned order;
   TickSample sample;
-
-  static TickSampleEventRecord* cast(void* value) {
-    return reinterpret_cast<TickSampleEventRecord*>(value);
-  }
 };
 
 
@@ -156,7 +152,8 @@ class ProfilerEventsProcessor : public Thread {
   // queue (because the structure is of fixed width, but usually not all
   // stack frame entries are filled.) This method returns a pointer to the
   // next record of the buffer.
-  INLINE(TickSample* TickSampleEvent());
+  inline TickSample* StartTickSample();
+  inline void FinishTickSample();
 
  private:
   // Called from events processing thread (Run() method.)
@@ -166,7 +163,11 @@ class ProfilerEventsProcessor : public Thread {
   ProfileGenerator* generator_;
   bool running_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
-  SamplingCircularQueue ticks_buffer_;
+  static const size_t kTickSampleBufferSize = 1 * MB;
+  static const size_t kTickSampleQueueLength =
+      kTickSampleBufferSize / sizeof(TickSampleEventRecord);
+  SamplingCircularQueue<TickSampleEventRecord,
+                        kTickSampleQueueLength> ticks_buffer_;
   UnboundQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
   unsigned last_code_event_id_;
   unsigned last_processed_code_event_id_;
@@ -205,7 +206,8 @@ class CpuProfiler : public CodeEventListener {
   void DeleteProfile(CpuProfile* profile);
 
   // Invoked from stack sampler (thread or signal handler.)
-  TickSample* TickSampleEvent();
+  inline TickSample* StartTickSample();
+  inline void FinishTickSample();
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.

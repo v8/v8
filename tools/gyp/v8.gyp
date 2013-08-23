@@ -246,7 +246,6 @@
         '../../src/checks.cc',
         '../../src/checks.h',
         '../../src/circular-queue-inl.h',
-        '../../src/circular-queue.cc',
         '../../src/circular-queue.h',
         '../../src/code-stubs.cc',
         '../../src/code-stubs.h',
