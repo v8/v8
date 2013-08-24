@@ -147,7 +147,10 @@
 # endif
 
 # define V8_HAS_ATTRIBUTE___ALIGNED__ (V8_GNUC_PREREQ(2, 95, 0))
-# define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (V8_GNUC_PREREQ(4, 0, 0))
+// always_inline is available in gcc 4.0 but not very reliable until 4.4.
+// Works around "sorry, unimplemented: inlining failed" build errors with
+// older compilers.
+# define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (V8_GNUC_PREREQ(4, 4, 0))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
 
