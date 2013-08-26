@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,45 +24,28 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// limitations under the License.
 
-#ifndef V8_NATIVES_H_
-#define V8_NATIVES_H_
+#include "i18n-extension.h"
 
-namespace v8 {
-namespace internal {
+#include "natives.h"
 
-typedef bool (*NativeSourceCallback)(Vector<const char> name,
-                                     Vector<const char> source,
-                                     int index);
+using v8::internal::I18NNatives;
 
-enum NativeType {
-  CORE, EXPERIMENTAL, D8, TEST, I18N
-};
+namespace v8_i18n {
 
-template <NativeType type>
-class NativesCollection {
- public:
-  // Number of built-in scripts.
-  static int GetBuiltinsCount();
-  // Number of debugger implementation scripts.
-  static int GetDebuggerCount();
+Extension::Extension()
+    : v8::Extension("v8/i18n",
+                    reinterpret_cast<const char*>(
+                        I18NNatives::GetScriptsSource().start()),
+                    0,
+                    0,
+                    I18NNatives::GetScriptsSource().length()) {}
 
-  // These are used to access built-in scripts.  The debugger implementation
-  // scripts have an index in the interval [0, GetDebuggerCount()).  The
-  // non-debugger scripts have an index in the interval [GetDebuggerCount(),
-  // GetNativesCount()).
-  static int GetIndex(const char* name);
-  static int GetRawScriptsSize();
-  static Vector<const char> GetRawScriptSource(int index);
-  static Vector<const char> GetScriptName(int index);
-  static Vector<const byte> GetScriptsSource();
-  static void SetRawScriptsSource(Vector<const char> raw_source);
-};
 
-typedef NativesCollection<CORE> Natives;
-typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
-typedef NativesCollection<I18N> I18NNatives;
+void Extension::Register() {
+  static Extension i18n_extension;
+  static v8::DeclareExtension extension_declaration(&i18n_extension);
+}
 
-} }  // namespace v8::internal
-
-#endif  // V8_NATIVES_H_
+}  // namespace v8_i18n
