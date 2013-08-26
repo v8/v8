@@ -2500,7 +2500,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* AddConstantProperty(
       Name* name,
       Object* constant,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      TransitionFlag flag);
 
   MUST_USE_RESULT MaybeObject* ReplaceSlowProperty(
       Name* name,
@@ -2523,14 +2524,6 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
-  // Converts a descriptor of any other type to a real field, backed by the
-  // properties array.
-  MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
-      Name* name,
-      Object* new_value,
-      PropertyAttributes attributes,
-      TransitionFlag flag = OMIT_TRANSITION);
-
   MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
   MUST_USE_RESULT MaybeObject* GeneralizeFieldRepresentation(
       int modify_index,
@@ -2543,7 +2536,8 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
-      ValueType value_type = OPTIMAL_REPRESENTATION);
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      TransitionFlag flag = INSERT_TRANSITION);
 
   // Add a property to a slow-case object.
   MUST_USE_RESULT MaybeObject* AddSlowProperty(Name* name,
@@ -2559,7 +2553,8 @@ class JSObject: public JSReceiver {
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
       ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
       ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT);
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      TransitionFlag flag = INSERT_TRANSITION);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
@@ -2695,7 +2690,8 @@ class JSObject: public JSReceiver {
   // Maximal number of fast properties for the JSObject. Used to
   // restrict the number of map transitions to avoid an explosion in
   // the number of maps for objects used as dictionaries.
-  inline bool TooManyFastProperties(int properties, StoreFromKeyed store_mode);
+  inline bool TooManyFastProperties(
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
@@ -5631,6 +5627,7 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyGeneralizeAllRepresentations(
       int modify_index,
       StoreMode store_mode,
+      PropertyAttributes attributes,
       const char* reason);
 
   void PrintGeneralization(FILE* file,
