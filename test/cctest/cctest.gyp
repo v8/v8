@@ -132,6 +132,8 @@
         ['v8_target_arch=="arm"', {
           'sources': [
             'test-assembler-arm.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-arm.cc',
             'test-disasm-arm.cc'
           ],
         }],

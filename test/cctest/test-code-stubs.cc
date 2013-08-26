@@ -71,12 +71,19 @@ int STDCALL ConvertDToICVersion(double d) {
 }
 
 
-void RunOneTruncationTestWithTest(ConvertDToIFunc func,
+void RunOneTruncationTestWithTest(ConvertDToICallWrapper callWrapper,
+                                  ConvertDToIFunc func,
                                   double from,
                                   double raw) {
   uint64_t to = static_cast<int64_t>(raw);
-  int result = (*func)(from);
+  int result = (*callWrapper)(func, from);
   CHECK_EQ(static_cast<int>(to), result);
+}
+
+
+int32_t DefaultCallWrapper(ConvertDToIFunc func,
+                           double from) {
+  return (*func)(from);
 }
 
 
@@ -84,9 +91,17 @@ void RunOneTruncationTestWithTest(ConvertDToIFunc func,
 // directly to a .js file and run them.
 #define NaN (OS::nan_value())
 #define Infinity (std::numeric_limits<double>::infinity())
-#define RunOneTruncationTest(p1, p2) RunOneTruncationTestWithTest(func, p1, p2)
+#define RunOneTruncationTest(p1, p2) \
+    RunOneTruncationTestWithTest(callWrapper, func, p1, p2)
+
 
 void RunAllTruncationTests(ConvertDToIFunc func) {
+  RunAllTruncationTests(DefaultCallWrapper, func);
+}
+
+
+void RunAllTruncationTests(ConvertDToICallWrapper callWrapper,
+                           ConvertDToIFunc func) {
   RunOneTruncationTest(0, 0);
   RunOneTruncationTest(0.5, 0);
   RunOneTruncationTest(-0.5, 0);

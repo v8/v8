@@ -1704,11 +1704,13 @@ class DoubleToIStub : public PlatformCodeStub {
   DoubleToIStub(Register source,
                 Register destination,
                 int offset,
-                bool is_truncating) : bit_field_(0) {
+                bool is_truncating,
+                bool skip_fastpath = false) : bit_field_(0) {
     bit_field_ = SourceRegisterBits::encode(source.code_) |
       DestinationRegisterBits::encode(destination.code_) |
       OffsetBits::encode(offset) |
-      IsTruncatingBits::encode(is_truncating);
+      IsTruncatingBits::encode(is_truncating) |
+      SkipFastPathBits::encode(skip_fastpath);
   }
 
   Register source() {
@@ -1725,11 +1727,17 @@ class DoubleToIStub : public PlatformCodeStub {
     return IsTruncatingBits::decode(bit_field_);
   }
 
+  bool skip_fastpath() {
+    return SkipFastPathBits::decode(bit_field_);
+  }
+
   int offset() {
     return OffsetBits::decode(bit_field_);
   }
 
   void Generate(MacroAssembler* masm);
+
+  virtual bool SometimesSetsUpAFrame() { return false; }
 
  private:
   static const int kBitsPerRegisterNumber = 6;
@@ -1743,6 +1751,8 @@ class DoubleToIStub : public PlatformCodeStub {
       public BitField<bool, 2 * kBitsPerRegisterNumber, 1> {};  // NOLINT
   class OffsetBits:
       public BitField<int, 2 * kBitsPerRegisterNumber + 1, 3> {};  // NOLINT
+  class SkipFastPathBits:
+      public BitField<int, 2 * kBitsPerRegisterNumber + 4, 1> {};  // NOLINT
 
   Major MajorKey() { return DoubleToI; }
   int MinorKey() { return bit_field_; }
