@@ -332,15 +332,6 @@ DEFINE_int(concurrent_recompilation_queue_length, 8,
 DEFINE_int(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
 
-// TODO(yangguo): to ease transitioning to the new naming scheme, we keep
-//                the old flags for now as aliases.  Remove soon.
-DEFINE_ALIAS_bool(parallel_recompilation, concurrent_recompilation)
-DEFINE_ALIAS_bool(trace_parallel_recompilation, trace_concurrent_recompilation)
-DEFINE_ALIAS_int(parallel_recompilation_queue_length,
-                 concurrent_recompilation_queue_length)
-DEFINE_ALIAS_int(parallel_recompilation_delay, concurrent_recompilation_delay)
-
-
 DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")
