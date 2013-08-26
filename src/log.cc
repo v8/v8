@@ -560,6 +560,14 @@ class Profiler: public Thread {
     }
   }
 
+  virtual void Run();
+
+  // Pause and Resume TickSample data collection.
+  bool paused() const { return paused_; }
+  void pause() { paused_ = true; }
+  void resume() { paused_ = false; }
+
+ private:
   // Waits for a signal and removes profiling data.
   bool Remove(TickSample* sample) {
     buffer_semaphore_->Wait();  // Wait for an element.
@@ -570,14 +578,6 @@ class Profiler: public Thread {
     return result;
   }
 
-  void Run();
-
-  // Pause and Resume TickSample data collection.
-  bool paused() const { return paused_; }
-  void pause() { paused_ = true; }
-  void resume() { paused_ = false; }
-
- private:
   // Returns the next index in the cyclic buffer.
   int Succ(int index) { return (index + 1) % kBufferSize; }
 
@@ -589,7 +589,8 @@ class Profiler: public Thread {
   int head_;  // Index to the buffer head.
   int tail_;  // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
-  Semaphore* buffer_semaphore_;  // Sempahore used for buffer synchronization.
+  // Sempahore used for buffer synchronization.
+  SmartPointer<Semaphore> buffer_semaphore_;
 
   // Tells whether profiler is engaged, that is, processing thread is stated.
   bool engaged_;
