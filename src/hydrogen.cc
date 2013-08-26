@@ -1219,10 +1219,9 @@ void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
 
 
 HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
-    HValue* object,
+    HValue* checked_object,
     HValue* key,
     HValue* val,
-    HCheckMaps* checked_object,
     bool is_js_array,
     ElementsKind elements_kind,
     bool is_store,
@@ -1237,14 +1236,12 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   // generated store code.
   if ((elements_kind == FAST_HOLEY_ELEMENTS) ||
       (elements_kind == FAST_ELEMENTS && is_store)) {
-    if (checked_object != NULL) {
-      checked_object->ClearGVNFlag(kDependsOnElementsKind);
-    }
+    checked_object->ClearGVNFlag(kDependsOnElementsKind);
   }
-  if (checked_object != NULL) object = checked_object;
+
   bool fast_smi_only_elements = IsFastSmiElementsKind(elements_kind);
   bool fast_elements = IsFastObjectElementsKind(elements_kind);
-  HValue* elements = AddLoadElements(object);
+  HValue* elements = AddLoadElements(checked_object);
   if (is_store && (fast_elements || fast_smi_only_elements) &&
       store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
     HCheckMaps* check_cow_map = Add<HCheckMaps>(
@@ -1254,7 +1251,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   HInstruction* length = NULL;
   if (is_js_array) {
     length = Add<HLoadNamedField>(
-        object, HObjectAccess::ForArrayLength(elements_kind));
+        checked_object, HObjectAccess::ForArrayLength(elements_kind));
   } else {
     length = AddLoadFixedArrayLength(elements);
   }
@@ -1301,8 +1298,9 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 
   if (IsGrowStoreMode(store_mode)) {
     NoObservableSideEffectsScope no_effects(this);
-    elements = BuildCheckForCapacityGrow(object, elements, elements_kind,
-                                         length, key, is_js_array);
+    elements = BuildCheckForCapacityGrow(checked_object, elements,
+                                         elements_kind, length, key,
+                                         is_js_array);
     checked_key = key;
   } else {
     checked_key = Add<HBoundsCheck>(key, length);
@@ -1310,9 +1308,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     if (is_store && (fast_elements || fast_smi_only_elements)) {
       if (store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
         NoObservableSideEffectsScope no_effects(this);
-
-        elements = BuildCopyElementsOnWrite(object, elements, elements_kind,
-                                            length);
+        elements = BuildCopyElementsOnWrite(checked_object, elements,
+                                            elements_kind, length);
       } else {
         HCheckMaps* check_cow_map = Add<HCheckMaps>(
             elements, isolate()->factory()->fixed_array_map(),
@@ -5501,19 +5498,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadKeyedGeneric(HValue* object,
 }
 
 
-HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
-    HValue* object,
-    HValue* key,
-    HValue* val,
-    HValue* dependency,
-    Handle<Map> map,
-    bool is_store,
-    KeyedAccessStoreMode store_mode) {
-  HCheckMaps* mapcheck = Add<HCheckMaps>(object, map, top_info(), dependency);
-  if (dependency) {
-    mapcheck->ClearGVNFlag(kDependsOnElementsKind);
-  }
-
+LoadKeyedHoleMode HOptimizedGraphBuilder::BuildKeyedHoleMode(Handle<Map> map) {
   // Loads from a "stock" fast holey double arrays can elide the hole check.
   LoadKeyedHoleMode load_mode = NEVER_RETURN_HOLE;
   if (*map == isolate()->get_initial_js_array_map(FAST_HOLEY_DOUBLE_ELEMENTS) &&
@@ -5525,10 +5510,30 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     graph()->MarkDependsOnEmptyArrayProtoElements();
   }
 
+  return load_mode;
+}
+
+
+HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
+    HValue* object,
+    HValue* key,
+    HValue* val,
+    HValue* dependency,
+    Handle<Map> map,
+    bool is_store,
+    KeyedAccessStoreMode store_mode) {
+  HCheckMaps* checked_object = Add<HCheckMaps>(object, map, top_info(),
+                                               dependency);
+  if (dependency) {
+    checked_object->ClearGVNFlag(kDependsOnElementsKind);
+  }
+
+  LoadKeyedHoleMode load_mode = BuildKeyedHoleMode(map);
   return BuildUncheckedMonomorphicElementAccess(
-      object, key, val,
-      mapcheck, map->instance_type() == JS_ARRAY_TYPE,
-      map->elements_kind(), is_store, load_mode, store_mode);
+      checked_object, key, val,
+      map->instance_type() == JS_ARRAY_TYPE,
+      map->elements_kind(), is_store,
+      load_mode, store_mode);
 }
 
 
@@ -5582,14 +5587,14 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
   }
   if (!has_double_maps && !has_smi_or_object_maps) return NULL;
 
-  HCheckMaps* check_maps = Add<HCheckMaps>(object, maps);
+  HCheckMaps* checked_object = Add<HCheckMaps>(object, maps);
   // FAST_ELEMENTS is considered more general than FAST_HOLEY_SMI_ELEMENTS.
   // If we've seen both, the consolidated load must use FAST_HOLEY_ELEMENTS.
   ElementsKind consolidated_elements_kind = has_seen_holey_elements
       ? GetHoleyElementsKind(most_general_consolidated_map->elements_kind())
       : most_general_consolidated_map->elements_kind();
   HInstruction* instr = BuildUncheckedMonomorphicElementAccess(
-      object, key, val, check_maps,
+      checked_object, key, val,
       most_general_consolidated_map->instance_type() == JS_ARRAY_TYPE,
       consolidated_elements_kind,
       false, NEVER_RETURN_HOLE, STANDARD_STORE);
@@ -5678,11 +5683,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     return is_store ? NULL : instr;
   }
 
-  HInstruction* checked_object =
-      AddInstruction(HCheckInstanceType::NewIsSpecObject(object, zone()));
   HBasicBlock* join = graph()->CreateBasicBlock();
-
-  HInstruction* elements = AddLoadElements(checked_object);
 
   for (int i = 0; i < untransitionable_maps.length(); ++i) {
     Handle<Map> map = untransitionable_maps[i];
@@ -5694,40 +5695,22 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     current_block()->Finish(mapcompare);
 
     set_current_block(this_map);
-    HInstruction* checked_key = NULL;
     HInstruction* access = NULL;
-    if (IsFastElementsKind(elements_kind)) {
-      if (is_store && !IsFastDoubleElementsKind(elements_kind)) {
-        Add<HCheckMaps>(
-            elements, isolate()->factory()->fixed_array_map(),
-            top_info(), mapcompare);
-      }
-      if (map->instance_type() == JS_ARRAY_TYPE) {
-        HInstruction* length = Add<HLoadNamedField>(
-            mapcompare, HObjectAccess::ForArrayLength(elements_kind));
-        checked_key = Add<HBoundsCheck>(key, length);
-      } else {
-        HInstruction* length = AddLoadFixedArrayLength(elements);
-        checked_key = Add<HBoundsCheck>(key, length);
-      }
-      access = AddFastElementAccess(
-          elements, checked_key, val, mapcompare,
-          elements_kind, is_store, NEVER_RETURN_HOLE, STANDARD_STORE);
-    } else if (IsDictionaryElementsKind(elements_kind)) {
-      if (is_store) {
-        access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));
-      } else {
-        access = AddInstruction(BuildLoadKeyedGeneric(object, key));
-      }
+    if (IsDictionaryElementsKind(elements_kind)) {
+      access = is_store
+          ? AddInstruction(BuildStoreKeyedGeneric(object, key, val))
+          : AddInstruction(BuildLoadKeyedGeneric(object, key));
     } else {
-      ASSERT(IsExternalArrayElementsKind(elements_kind));
-      HInstruction* length = AddLoadFixedArrayLength(elements);
-      checked_key = Add<HBoundsCheck>(key, length);
-      HLoadExternalArrayPointer* external_elements =
-          Add<HLoadExternalArrayPointer>(elements);
-      access = AddExternalArrayElementAccess(
-          external_elements, checked_key, val,
-          mapcompare, elements_kind, is_store);
+      ASSERT(IsFastElementsKind(elements_kind) ||
+             IsExternalArrayElementsKind(elements_kind));
+      LoadKeyedHoleMode load_mode = BuildKeyedHoleMode(map);
+      // Happily, mapcompare is a checked object.
+      access = BuildUncheckedMonomorphicElementAccess(
+          mapcompare, key, val,
+          map->instance_type() == JS_ARRAY_TYPE,
+          elements_kind, is_store,
+          load_mode,
+          store_mode);
     }
     *has_side_effects |= access->HasObservableSideEffects();
     // The caller will use has_side_effects and add a correct Simulate.

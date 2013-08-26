@@ -1225,10 +1225,9 @@ class HGraphBuilder {
                                    bool is_jsarray);
 
   HInstruction* BuildUncheckedMonomorphicElementAccess(
-      HValue* object,
+      HValue* checked_object,
       HValue* key,
       HValue* val,
-      HCheckMaps* mapcheck,
       bool is_js_array,
       ElementsKind elements_kind,
       bool is_store,
@@ -1981,6 +1980,8 @@ class HOptimizedGraphBuilder V8_FINAL
                                                 HValue* key,
                                                 HValue* val,
                                                 SmallMapList* maps);
+
+  LoadKeyedHoleMode BuildKeyedHoleMode(Handle<Map> map);
 
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,
