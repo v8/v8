@@ -513,6 +513,12 @@ MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
             return result->holder()->GetPropertyWithCallback(
                 receiver, result->GetCallbackObject(), name);
           }
+        } else if (obj->IsAccessorPair()) {
+          AccessorPair* pair = AccessorPair::cast(obj);
+          if (pair->all_can_read()) {
+            return result->holder()->GetPropertyWithCallback(
+                receiver, result->GetCallbackObject(), name);
+          }
         }
         break;
       }
@@ -571,6 +577,11 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
         if (obj->IsAccessorInfo()) {
           AccessorInfo* info = AccessorInfo::cast(obj);
           if (info->all_can_read()) {
+            return result->GetAttributes();
+          }
+        } else if (obj->IsAccessorPair()) {
+          AccessorPair* pair = AccessorPair::cast(obj);
+          if (pair->all_can_read()) {
             return result->GetAttributes();
           }
         }
@@ -3395,6 +3406,15 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
                                              result->holder(),
                                              strict_mode);
             }
+          } else if (obj->IsAccessorPair()) {
+            AccessorPair* pair = AccessorPair::cast(obj);
+            if (pair->all_can_read()) {
+              return SetPropertyWithCallback(result->GetCallbackObject(),
+                                             name,
+                                             value,
+                                             result->holder(),
+                                             strict_mode);
+            }
           }
           break;
         }
@@ -5892,7 +5912,8 @@ void JSObject::DefineElementAccessor(Handle<JSObject> object,
                                      uint32_t index,
                                      Handle<Object> getter,
                                      Handle<Object> setter,
-                                     PropertyAttributes attributes) {
+                                     PropertyAttributes attributes,
+                                     v8::AccessControl access_control) {
   switch (object->GetElementsKind()) {
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
@@ -5950,6 +5971,7 @@ void JSObject::DefineElementAccessor(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
   Handle<AccessorPair> accessors = isolate->factory()->NewAccessorPair();
   accessors->SetComponents(*getter, *setter);
+  accessors->set_access_flags(access_control);
 
   CALL_HEAP_FUNCTION_VOID(
       isolate, object->SetElementCallback(index, *accessors, attributes));
@@ -5981,11 +6003,13 @@ void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
                                       Handle<Name> name,
                                       Handle<Object> getter,
                                       Handle<Object> setter,
-                                      PropertyAttributes attributes) {
+                                      PropertyAttributes attributes,
+                                      v8::AccessControl access_control) {
   // We could assert that the property is configurable here, but we would need
   // to do a lookup, which seems to be a bit of overkill.
   bool only_attribute_changes = getter->IsNull() && setter->IsNull();
   if (object->HasFastProperties() && !only_attribute_changes &&
+      access_control == v8::DEFAULT &&
       (object->map()->NumberOfOwnDescriptors() <
        DescriptorArray::kMaxNumberOfDescriptors)) {
     bool getterOk = getter->IsNull() ||
@@ -5997,6 +6021,7 @@ void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
 
   Handle<AccessorPair> accessors = CreateAccessorPairFor(object, name);
   accessors->SetComponents(*getter, *setter);
+  accessors->set_access_flags(access_control);
 
   CALL_HEAP_FUNCTION_VOID(
       object->GetIsolate(),
@@ -6018,12 +6043,13 @@ bool JSObject::CanSetCallback(Name* name) {
   LookupCallbackProperty(name, &callback_result);
   if (callback_result.IsFound()) {
     Object* obj = callback_result.GetCallbackObject();
-    if (obj->IsAccessorInfo() &&
-        AccessorInfo::cast(obj)->prohibits_overwriting()) {
-      return false;
+    if (obj->IsAccessorInfo()) {
+      return !AccessorInfo::cast(obj)->prohibits_overwriting();
+    }
+    if (obj->IsAccessorPair()) {
+      return !AccessorPair::cast(obj)->prohibits_overwriting();
     }
   }
-
   return true;
 }
 
@@ -6101,7 +6127,8 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
                               Handle<Name> name,
                               Handle<Object> getter,
                               Handle<Object> setter,
-                              PropertyAttributes attributes) {
+                              PropertyAttributes attributes,
+                              v8::AccessControl access_control) {
   Isolate* isolate = object->GetIsolate();
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
@@ -6114,8 +6141,12 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
     Handle<Object> proto(object->GetPrototype(), isolate);
     if (proto->IsNull()) return;
     ASSERT(proto->IsJSGlobalObject());
-    DefineAccessor(
-        Handle<JSObject>::cast(proto), name, getter, setter, attributes);
+    DefineAccessor(Handle<JSObject>::cast(proto),
+                   name,
+                   getter,
+                   setter,
+                   attributes,
+                   access_control);
     return;
   }
 
@@ -6151,9 +6182,11 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   }
 
   if (is_element) {
-    DefineElementAccessor(object, index, getter, setter, attributes);
+    DefineElementAccessor(
+        object, index, getter, setter, attributes, access_control);
   } else {
-    DefinePropertyAccessor(object, name, getter, setter, attributes);
+    DefinePropertyAccessor(
+        object, name, getter, setter, attributes, access_control);
   }
 
   if (is_observed) {

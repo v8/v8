@@ -856,6 +856,7 @@ void AccessorPair::AccessorPairVerify() {
   CHECK(IsAccessorPair());
   VerifyPointer(getter());
   VerifyPointer(setter());
+  VerifySmiField(kAccessFlagsOffset);
 }
 
 

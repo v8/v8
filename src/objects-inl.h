@@ -4454,6 +4454,7 @@ ACCESSORS(Box, value, Object, kValueOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
+ACCESSORS_TO_SMI(AccessorPair, access_flags, kAccessFlagsOffset)
 
 ACCESSORS(AccessCheckInfo, named_callback, Object, kNamedCallbackOffset)
 ACCESSORS(AccessCheckInfo, indexed_callback, Object, kIndexedCallbackOffset)
@@ -5847,6 +5848,36 @@ bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
   Object* function_template = expected_receiver_type();
   if (!function_template->IsFunctionTemplateInfo()) return true;
   return receiver->IsInstanceOf(FunctionTemplateInfo::cast(function_template));
+}
+
+
+void AccessorPair::set_access_flags(v8::AccessControl access_control) {
+  int current = access_flags()->value();
+  current = BooleanBit::set(current,
+                            kProhibitsOverwritingBit,
+                            access_control & PROHIBITS_OVERWRITING);
+  current = BooleanBit::set(current,
+                            kAllCanReadBit,
+                            access_control & ALL_CAN_READ);
+  current = BooleanBit::set(current,
+                            kAllCanWriteBit,
+                            access_control & ALL_CAN_WRITE);
+  set_access_flags(Smi::FromInt(current));
+}
+
+
+bool AccessorPair::all_can_read() {
+  return BooleanBit::get(access_flags(), kAllCanReadBit);
+}
+
+
+bool AccessorPair::all_can_write() {
+  return BooleanBit::get(access_flags(), kAllCanWriteBit);
+}
+
+
+bool AccessorPair::prohibits_overwriting() {
+  return BooleanBit::get(access_flags(), kProhibitsOverwritingBit);
 }
 
 

@@ -2982,6 +2982,14 @@ class V8_EXPORT Template : public Data {
   void Set(Handle<String> name, Handle<Data> value,
            PropertyAttribute attributes = None);
   V8_INLINE(void Set(const char* name, Handle<Data> value));
+
+  void SetAccessorProperty(
+     Local<String> name,
+     Local<FunctionTemplate> getter = Local<FunctionTemplate>(),
+     Local<FunctionTemplate> setter = Local<FunctionTemplate>(),
+     PropertyAttribute attribute = None,
+     AccessControl settings = DEFAULT);
+
  private:
   Template();
 

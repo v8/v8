@@ -2252,7 +2252,8 @@ class JSObject: public JSReceiver {
                              Handle<Name> name,
                              Handle<Object> getter,
                              Handle<Object> setter,
-                             PropertyAttributes attributes);
+                             PropertyAttributes attributes,
+                             v8::AccessControl access_control = v8::DEFAULT);
 
   MaybeObject* LookupAccessor(Name* name, AccessorComponent component);
 
@@ -2836,14 +2837,16 @@ class JSObject: public JSReceiver {
                                     uint32_t index,
                                     Handle<Object> getter,
                                     Handle<Object> setter,
-                                    PropertyAttributes attributes);
+                                    PropertyAttributes attributes,
+                                    v8::AccessControl access_control);
   static Handle<AccessorPair> CreateAccessorPairFor(Handle<JSObject> object,
                                                     Handle<Name> name);
   static void DefinePropertyAccessor(Handle<JSObject> object,
                                      Handle<Name> name,
                                      Handle<Object> getter,
                                      Handle<Object> setter,
-                                     PropertyAttributes attributes);
+                                     PropertyAttributes attributes,
+                                     v8::AccessControl access_control);
 
   // Try to define a single accessor paying attention to map transitions.
   // Returns false if this was not possible and we have to use the slow case.
@@ -9689,10 +9692,18 @@ class ExecutableAccessorInfo: public AccessorInfo {
 //   * undefined: considered an accessor by the spec, too, strangely enough
 //   * the hole: an accessor which has not been set
 //   * a pointer to a map: a transition used to ensure map sharing
+// access_flags provides the ability to override access checks on access check
+// failure.
 class AccessorPair: public Struct {
  public:
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
+  DECL_ACCESSORS(access_flags, Smi)
+
+  inline void set_access_flags(v8::AccessControl access_control);
+  inline bool all_can_read();
+  inline bool all_can_write();
+  inline bool prohibits_overwriting();
 
   static inline AccessorPair* cast(Object* obj);
 
@@ -9729,9 +9740,14 @@ class AccessorPair: public Struct {
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
-  static const int kSize = kSetterOffset + kPointerSize;
+  static const int kAccessFlagsOffset = kSetterOffset + kPointerSize;
+  static const int kSize = kAccessFlagsOffset + kPointerSize;
 
  private:
+  static const int kAllCanReadBit = 0;
+  static const int kAllCanWriteBit = 1;
+  static const int kProhibitsOverwritingBit = 2;
+
   // Strangely enough, in addition to functions and harmony proxies, the spec
   // requires us to consider undefined as a kind of accessor, too:
   //    var obj = {};

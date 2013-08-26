@@ -165,6 +165,7 @@ var knownProblems = {
   "DeclareGlobals": true,
   "ArrayConstructor": true,
   "InternalArrayConstructor": true,
+  "SetAccessorProperty": true,
 
   "PromoteScheduledException": true,
   "DeleteHandleScopeExtensions": true,
