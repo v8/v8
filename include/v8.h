@@ -120,6 +120,7 @@ class Utils;
 class Value;
 template <class T> class Handle;
 template <class T> class Local;
+template <class T> class Eternal;
 template <class T> class Persistent;
 class FunctionTemplate;
 class ObjectTemplate;
@@ -370,11 +371,6 @@ template <class T> class Handle {
 };
 
 
-// A value which will never be returned by Local::Eternalize
-// Useful for static initialization
-const int kUninitializedEternalIndex = -1;
-
-
 /**
  * A light-weight stack-allocated object handle.  All operations
  * that return objects from within v8 return them in local handles.  They
@@ -420,11 +416,6 @@ template <class T> class Local : public Handle<T> {
     return Local<S>::Cast(*this);
   }
 
-  // Keep this Local alive for the lifetime of the Isolate.
-  // It remains retrievable via the returned index,
-  V8_INLINE(int Eternalize(Isolate* isolate));
-  V8_INLINE(static Local<T> GetEternal(Isolate* isolate, int index));
-
   /**
    * Create a local handle for the content of another handle.
    * The referee is kept alive by the local handle even when
@@ -445,6 +436,7 @@ template <class T> class Local : public Handle<T> {
 
  private:
   friend class Utils;
+  template<class F> friend class Eternal;
   template<class F> friend class Persistent;
   template<class F> friend class Handle;
   friend class Arguments;
@@ -459,6 +451,28 @@ template <class T> class Local : public Handle<T> {
 
   V8_INLINE(static Local<T> New(Isolate* isolate, T* that));
 };
+
+
+// Eternal handles are set-once handles that live for the life of the isolate.
+template <class T> class Eternal {
+ public:
+  V8_INLINE(Eternal()) : index_(kInitialValue) { }
+  template<class S>
+  V8_INLINE(Eternal(Isolate* isolate, Local<S> handle))
+      : index_(kInitialValue) {
+    Set(isolate, handle);
+  }
+  // Can only be safely called if already set.
+  V8_INLINE(Local<T> Get(Isolate* isolate));
+  V8_INLINE(bool IsEmpty()) { return index_ != kInitialValue; }
+  template<class S>
+  V8_INLINE(void Set(Isolate* isolate, Local<S> handle));
+
+ private:
+  static const int kInitialValue = -1;
+  int index_;
+};
+
 
 /**
  * An object reference that is independent of any handle scope.  Where
@@ -4788,12 +4802,14 @@ class V8_EXPORT V8 {
                        void* data,
                        RevivableCallback weak_reference_callback);
   static void ClearWeak(internal::Object** global_handle);
-  static int Eternalize(internal::Isolate* isolate,
-                        internal::Object** handle);
-  static internal::Object** GetEternal(internal::Isolate* isolate, int index);
+  static void Eternalize(Isolate* isolate,
+                         Value* handle,
+                         int* index);
+  static Local<Value> GetEternal(Isolate* isolate, int index);
 
   template <class T> friend class Handle;
   template <class T> friend class Local;
+  template <class T> friend class Eternal;
   template <class T> friend class Persistent;
   friend class Context;
 };
@@ -5655,17 +5671,16 @@ Local<T> Local<T>::New(Isolate* isolate, T* that) {
 
 
 template<class T>
-int Local<T>::Eternalize(Isolate* isolate) {
-  return V8::Eternalize(reinterpret_cast<internal::Isolate*>(isolate),
-                        reinterpret_cast<internal::Object**>(this->val_));
+template<class S>
+void Eternal<T>::Set(Isolate* isolate, Local<S> handle) {
+  TYPE_CHECK(T, S);
+  V8::Eternalize(isolate, Value::Cast(*handle), &this->index_);
 }
 
 
 template<class T>
-Local<T> Local<T>::GetEternal(Isolate* isolate, int index) {
-  internal::Object** handle =
-      V8::GetEternal(reinterpret_cast<internal::Isolate*>(isolate), index);
-  return Local<T>(T::Cast(reinterpret_cast<Value*>(handle)));
+Local<T> Eternal<T>::Get(Isolate* isolate) {
+  return Local<T>::Cast(V8::GetEternal(isolate, index_));
 }
 
 
