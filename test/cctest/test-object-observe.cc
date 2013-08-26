@@ -435,14 +435,14 @@ TEST(ObservationWeakMap) {
   i::Handle<i::JSWeakMap> objectInfoMap =
       i::Handle<i::JSWeakMap>::cast(
           i::GetProperty(observation_state, "objectInfoMap"));
-  i::Handle<i::JSWeakMap> notifierTargetMap =
+  i::Handle<i::JSWeakMap> notifierObjectInfoMap =
       i::Handle<i::JSWeakMap>::cast(
-          i::GetProperty(observation_state, "notifierTargetMap"));
+          i::GetProperty(observation_state, "notifierObjectInfoMap"));
   CHECK_EQ(1, NumberOfElements(callbackInfoMap));
   CHECK_EQ(1, NumberOfElements(objectInfoMap));
-  CHECK_EQ(1, NumberOfElements(notifierTargetMap));
+  CHECK_EQ(1, NumberOfElements(notifierObjectInfoMap));
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, NumberOfElements(callbackInfoMap));
   CHECK_EQ(0, NumberOfElements(objectInfoMap));
-  CHECK_EQ(0, NumberOfElements(notifierTargetMap));
+  CHECK_EQ(0, NumberOfElements(notifierObjectInfoMap));
 }
