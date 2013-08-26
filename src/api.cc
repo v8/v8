@@ -1451,6 +1451,17 @@ void FunctionTemplate::ReadOnlyPrototype() {
   Utils::OpenHandle(this)->set_read_only_prototype(true);
 }
 
+
+void FunctionTemplate::RemovePrototype() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::RemovePrototype()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  Utils::OpenHandle(this)->set_remove_prototype(true);
+}
+
+
 template<
     typename Getter,
     typename Setter,
