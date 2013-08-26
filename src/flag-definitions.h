@@ -703,13 +703,14 @@ DEFINE_bool(stress_compaction, false,
 DEFINE_bool(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
 
-// codegen-ia32.cc / codegen-arm.cc
+// codegen-ia32.cc / codegen-arm.cc / macro-assembler-*.cc
 DEFINE_bool(print_source, false, "pretty print source code")
 DEFINE_bool(print_builtin_source, false,
             "pretty print source code for builtins")
 DEFINE_bool(print_ast, false, "print source AST")
 DEFINE_bool(print_builtin_ast, false, "print source AST for builtins")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
+DEFINE_bool(trap_on_abort, false, "replace aborts by breakpoints")
 
 // compiler.cc
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
