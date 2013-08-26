@@ -86,6 +86,31 @@
 #endif
 
 
+// This macro checks for a required GCC version. It also works with compilers
+// that pretend to be GCC, i.e. Clang, ICC or the ARM compiler with the --gnu
+// flag.
+// Use like this if you want to check for a GCC compatible version:
+//   #if V8_GNUC_PREREQ(x, y, z)
+//    ...
+//   #endif
+//
+// Use like ths if you want to check for a specific GCC version:
+//   #if V8_CC_GNU && V8_GNUC_PREREQ(x, y, z)
+//    ...
+//  #endif
+#if defined(__GNUC__) && defined(__GNUC_MINOR__) && defined(__GNUC_PATCHLEVEL__)
+# define V8_GNUC_PREREQ(major, minor, patchlevel)                         \
+    ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) >=   \
+     ((major) * 10000 + (minor) * 100 + (patchlevel)))
+#elif defined(__GNUC__) && defined(__GNUC_MINOR__)
+# define V8_GNUC_PREREQ(major, minor, patchlevel)       \
+    ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100) >=       \
+     ((major) * 10000 + (minor) * 100 + (patchlevel)))
+#else
+# define V8_GNUC_PREREQ(major, minor, patchlevel) 0
+#endif
+
+
 // -----------------------------------------------------------------------------
 // Compiler detection
 //
@@ -97,6 +122,7 @@
 // C++11 feature detection
 //
 //  V8_HAS_CXX11_ALIGNAS        - alignas specifier supported
+//  V8_HAS_CXX11_ALIGNOF        - alignas operator supported
 //  V8_HAS_CXX11_STATIC_ASSERT  - static_assert() supported
 //  V8_HAS_CXX11_DELETE         - deleted functions supported
 //  V8_HAS_CXX11_FINAL          - final marker supported
@@ -104,7 +130,9 @@
 //
 // Compiler-specific feature detection
 //
-//  V8_HAS_ATTRIBUTE___ALIGNED__    - __attribute__((__aligned__(n))) supported
+//  V8_HAS___ALIGNOF                - __alignof(t) operator supported
+//  V8_HAS___ALIGNOF__              - __alignof__(t) operator supported
+//  V8_HAS_ATTRIBUTE_ALIGNED        - __attribute__((aligned(n))) supported
 //  V8_HAS_ATTRIBUTE_ALWAYS_INLINE  - __attribute__((always_inline)) supported
 //  V8_HAS_ATTRIBUTE_DEPRECATED     - __attribute__((deprecated)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY     - __attribute__((visibility)) supported
@@ -117,12 +145,11 @@
 
 #if defined(__clang__)
 
-// Don't treat clang as GCC.
-# define V8_GNUC_PREREQ(major, minor, patchlevel) 0
-
 # define V8_CC_CLANG 1
 
-# define V8_HAS_ATTRIBUTE___ALIGNED__ (__has_attribute(__aligned__))
+# define V8_HAS___ALIGNOF__ (V8_GNUC_PREREQ(2, 95, 0))
+
+# define V8_HAS_ATTRIBUTE_ALIGNED (__has_attribute(aligned))
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
@@ -137,16 +164,14 @@
 
 #elif defined(__GNUC__)
 
-# define V8_GNUC_PREREQ(major, minor, patchlevel)                         \
-    ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) >=   \
-     ((major) * 10000 + (minor) * 100 + (patchlevel)))
-
 # define V8_CC_GNU 1
 # if defined(__MINGW32__)
 #  define V8_CC_MINGW 1
 # endif
 
-# define V8_HAS_ATTRIBUTE___ALIGNED__ (V8_GNUC_PREREQ(2, 95, 0))
+# define V8_HAS___ALIGNOF__ (V8_GNUC_PREREQ(2, 95, 0))
+
+# define V8_HAS_ATTRIBUTE_ALIGNED (V8_GNUC_PREREQ(2, 95, 0))
 // always_inline is available in gcc 4.0 but not very reliable until 4.4.
 // Works around "sorry, unimplemented: inlining failed" build errors with
 // older compilers.
@@ -164,6 +189,7 @@
 // both for forward compatibility.
 # if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 #  define V8_HAS_CXX11_ALIGNAS (V8_GNUC_PREREQ(4, 8, 0))
+#  define V8_HAS_CXX11_ALIGNOF (V8_GNUC_PREREQ(4, 5, 0))
 #  define V8_HAS_CXX11_STATIC_ASSERT (V8_GNUC_PREREQ(4, 3, 0))
 #  define V8_HAS_CXX11_DELETE (V8_GNUC_PREREQ(4, 4, 0))
 #  define V8_HAS_CXX11_OVERRIDE (V8_GNUC_PREREQ(4, 7, 0))
@@ -174,8 +200,6 @@
 # endif
 
 #elif defined(_MSC_VER)
-
-# define V8_GNUC_PREREQ(major, minor, patchlevel) 0
 
 # define V8_CC_MSVC 1
 
@@ -188,6 +212,7 @@
 # define V8_HAS_DECLSPEC_ALIGN 1
 # define V8_HAS_DECLSPEC_DEPRECATED (_MSC_VER >= 1300)
 
+# define V8_HAS___ALIGNOF 1
 # define V8_HAS___FORCEINLINE 1
 
 #endif
@@ -279,12 +304,28 @@
 //   V8_ALIGNAS(32) int array[42];
 #if V8_HAS_CXX11_ALIGNAS
 # define V8_ALIGNAS(n) alignas(n)
-#elif V8_HAS_ATTRIBUTE___ALIGNED__
-# define V8_ALIGNAS(n) __attribute__((__aligned__(n)))
+#elif V8_HAS_ATTRIBUTE_ALIGNED
+# define V8_ALIGNAS(n) __attribute__((aligned(n)))
 #elif V8_HAS_DECLSPEC_ALIGN
 # define V8_ALIGNAS(n) __declspec(align(n))
 #else
 # define V8_ALIGNAS(n) /* NOT SUPPORTED */
+#endif
+
+// This macro takes a type and returns the power of 2 byte boundary on which
+// the type instances must be allocated.
+// Use like:
+//   size_t alignment = V8_ALIGNOF(double);
+//   V8_ALIGNAS(V8_ALIGNOF(void*)) int x;
+#if V8_HAS_CXX11_ALIGNOF
+# define V8_ALIGNOF(t) alignof(t)
+#elif V8_HAS___ALIGNOF
+# define V8_ALIGNOF(t) __alignof(t)
+#elif V8_HAS___ALIGNOF__
+# define V8_ALIGNOF(t) __alignof__(t)
+#else
+namespace v8 { template <typename T> struct AlignOfHelper { char x; T t; }; }
+# define V8_ALIGNOF(t) (sizeof(::v8::AlignOfHelper<t>) - sizeof(t))
 #endif
 
 #endif  // V8CONFIG_H_
