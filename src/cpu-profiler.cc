@@ -436,7 +436,6 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     processor_ = new ProfilerEventsProcessor(
         generator_, sampler, FLAG_cpu_profiler_sampling_interval);
     is_profiling_ = true;
-    processor_->StartSynchronously();
     // Enumerate stuff we already have in the heap.
     ASSERT(isolate_->heap()->HasBeenSetUp());
     if (!FLAG_prof_browser_mode) {
@@ -454,6 +453,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
       sampler->Start();
       need_to_stop_sampler_ = true;
     }
+    processor_->StartSynchronously();
   }
 }
 
