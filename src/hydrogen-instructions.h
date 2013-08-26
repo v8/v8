@@ -1676,6 +1676,9 @@ class HSimulate V8_FINAL : public HInstruction {
   void MergeWith(ZoneList<HSimulate*>* list);
   bool is_candidate_for_removal() { return removable_ == REMOVABLE_SIMULATE; }
 
+  // Replay effects of this instruction on the given environment.
+  void ReplayEnvironment(HEnvironment* env);
+
   DECLARE_CONCRETE_INSTRUCTION(Simulate)
 
 #ifdef DEBUG

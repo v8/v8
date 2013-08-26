@@ -2289,6 +2289,21 @@ void HSimulate::PrintDataTo(StringStream* stream) {
 }
 
 
+void HSimulate::ReplayEnvironment(HEnvironment* env) {
+  ASSERT(env != NULL);
+  env->set_ast_id(ast_id());
+  env->Drop(pop_count());
+  for (int i = values()->length() - 1; i >= 0; --i) {
+    HValue* value = values()->at(i);
+    if (HasAssignedIndexAt(i)) {
+      env->Bind(GetAssignedIndexAt(i), value);
+    } else {
+      env->Push(value);
+    }
+  }
+}
+
+
 // Replay captured objects by replacing all captured objects with the
 // same capture id in the current and all outer environments.
 void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
