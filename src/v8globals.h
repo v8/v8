@@ -412,33 +412,12 @@ enum StateTag {
 #endif
 
 
-enum CpuImplementer {
-  UNKNOWN_IMPLEMENTER,
-  ARM_IMPLEMENTER,
-  QUALCOMM_IMPLEMENTER
-};
-
-
-enum CpuPart {
-  CPU_UNKNOWN,
-  CORTEX_A15,
-  CORTEX_A12,
-  CORTEX_A9,
-  CORTEX_A8,
-  CORTEX_A7,
-  CORTEX_A5
-};
-
-
 // Feature flags bit positions. They are mostly based on the CPUID spec.
-// (We assign CPUID itself to one of the currently reserved bits --
-// feel free to change this if needed.)
 // On X86/X64, values below 32 are bits in EDX, values above 32 are bits in ECX.
 enum CpuFeature { SSE4_1 = 32 + 19,  // x86
                   SSE3 = 32 + 0,     // x86
                   SSE2 = 26,   // x86
                   CMOV = 15,   // x86
-                  CPUID = 10,  // x86
                   VFP3 = 1,    // ARM
                   ARMv7 = 2,   // ARM
                   SUDIV = 3,   // ARM

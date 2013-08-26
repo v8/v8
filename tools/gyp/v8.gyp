@@ -257,6 +257,7 @@
         '../../src/cpu-profiler-inl.h',
         '../../src/cpu-profiler.cc',
         '../../src/cpu-profiler.h',
+        '../../src/cpu.cc',
         '../../src/cpu.h',
         '../../src/data-flow.cc',
         '../../src/data-flow.h',

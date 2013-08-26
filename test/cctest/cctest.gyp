@@ -56,6 +56,7 @@
         'test-circular-queue.cc',
         'test-compiler.cc',
         'test-conversions.cc',
+        'test-cpu.cc',
         'test-cpu-profiler.cc',
         'test-dataflow.cc',
         'test-date.cc',
@@ -113,6 +114,7 @@
             'test-assembler-ia32.cc',
             'test-code-stubs.cc',
             'test-code-stubs-ia32.cc',
+            'test-cpu-ia32.cc',
             'test-disasm-ia32.cc',
             'test-log-stack-tracer.cc'
           ],
@@ -122,6 +124,7 @@
             'test-assembler-x64.cc',
             'test-code-stubs.cc',
             'test-code-stubs-x64.cc',
+            'test-cpu-x64.cc',
             'test-macro-assembler-x64.cc',
             'test-log-stack-tracer.cc'
           ],
