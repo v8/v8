@@ -43,10 +43,15 @@ namespace internal {
 static const int kProfilerStackSize = 64 * KB;
 
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
+ProfilerEventsProcessor::ProfilerEventsProcessor(
+    ProfileGenerator* generator,
+    Sampler* sampler,
+    int period_in_useconds)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
+      sampler_(sampler),
       running_(true),
+      period_in_useconds_(period_in_useconds),
       last_code_event_id_(0), last_processed_code_event_id_(0) {
 }
 
@@ -118,15 +123,39 @@ bool ProfilerEventsProcessor::ProcessTicks() {
 }
 
 
-void ProfilerEventsProcessor::Run() {
-  while (running_) {
-    // Process ticks until we have any.
+void ProfilerEventsProcessor::ProcessEventsAndDoSample() {
+  int64_t stop_time = OS::Ticks() + period_in_useconds_;
+  // Keep processing existing events until we need to do next sample.
+  while (OS::Ticks() < stop_time) {
     if (ProcessTicks()) {
-      // All ticks of the current last_processed_code_event_id_ are processed,
+      // All ticks of the current dequeue_order are processed,
       // proceed to the next code event.
       ProcessCodeEvent();
     }
-    YieldCPU();
+  }
+  // Schedule next sample. sampler_ is NULL in tests.
+  if (sampler_) sampler_->DoSample();
+}
+
+
+void ProfilerEventsProcessor::ProcessEventsAndYield() {
+  // Process ticks until we have any.
+  if (ProcessTicks()) {
+    // All ticks of the current dequeue_order are processed,
+    // proceed to the next code event.
+    ProcessCodeEvent();
+  }
+  YieldCPU();
+}
+
+
+void ProfilerEventsProcessor::Run() {
+  while (running_) {
+    if (Sampler::CanSampleOnProfilerEventsProcessorThread()) {
+      ProcessEventsAndDoSample();
+    } else {
+      ProcessEventsAndYield();
+    }
   }
 
   // Process remaining tick events.
@@ -403,7 +432,9 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     saved_logging_nesting_ = logger->logging_nesting_;
     logger->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
-    processor_ = new ProfilerEventsProcessor(generator_);
+    Sampler* sampler = logger->sampler();
+    processor_ = new ProfilerEventsProcessor(
+        generator_, sampler, FLAG_cpu_profiler_sampling_interval);
     is_profiling_ = true;
     processor_->StartSynchronously();
     // Enumerate stuff we already have in the heap.
@@ -415,7 +446,9 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     logger->LogAccessorCallbacks();
     LogBuiltins();
     // Enable stack sampling.
-    Sampler* sampler = logger->sampler();
+    if (Sampler::CanSampleOnProfilerEventsProcessorThread()) {
+      sampler->SetHasProcessingThread(true);
+    }
     sampler->IncreaseProfilingDepth();
     if (!sampler->IsActive()) {
       sampler->Start();
@@ -453,16 +486,19 @@ void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();
   Sampler* sampler = reinterpret_cast<Sampler*>(logger->ticker_);
   sampler->DecreaseProfilingDepth();
-  if (need_to_stop_sampler_) {
-    sampler->Stop();
-    need_to_stop_sampler_ = false;
-  }
   is_profiling_ = false;
   processor_->StopSynchronously();
   delete processor_;
   delete generator_;
   processor_ = NULL;
   generator_ = NULL;
+  if (Sampler::CanSampleOnProfilerEventsProcessorThread()) {
+    sampler->SetHasProcessingThread(false);
+  }
+  if (need_to_stop_sampler_) {
+    sampler->Stop();
+    need_to_stop_sampler_ = false;
+  }
   logger->logging_nesting_ = saved_logging_nesting_;
 }
 

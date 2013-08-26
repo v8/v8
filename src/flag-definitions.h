@@ -462,6 +462,18 @@ DEFINE_bool(compilation_cache, true, "enable compilation cache")
 
 DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
 
+// cpu-profiler.cc
+#if defined(ANDROID)
+// Phones and tablets have processors that are much slower than desktop
+// and laptop computers for which current heuristics are tuned.
+#define DEFAULT_INTERVAL 5000
+#else
+#define DEFAULT_INTERVAL 1000
+#endif
+DEFINE_int(cpu_profiler_sampling_interval, DEFAULT_INTERVAL,
+           "CPU profiler sampling interval in microseconds")
+#undef DEFAULT_INTERVAL
+
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
 DEFINE_bool(trace_js_array_abuse, false,

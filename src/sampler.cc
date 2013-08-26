@@ -174,7 +174,8 @@ class PlatformDataCommon : public Malloced {
 class Sampler::PlatformData : public PlatformDataCommon {
  public:
   PlatformData() : vm_tid_(pthread_self()) {}
-  pthread_t vm_tid() const { return vm_tid_; }
+
+  void SendProfilingSignal() const;
 
  private:
   pthread_t vm_tid_;
@@ -492,9 +493,7 @@ class SamplerThread : public Thread {
 #if defined(USE_SIGNALS)
 
   void SampleContext(Sampler* sampler) {
-    if (!SignalHandler::Installed()) return;
-    pthread_t tid = sampler->platform_data()->vm_tid();
-    pthread_kill(tid, SIGPROF);
+    sampler->platform_data()->SendProfilingSignal();
   }
 
 #elif defined(__MACH__)
@@ -607,6 +606,14 @@ Mutex* SamplerThread::mutex_ = NULL;
 SamplerThread* SamplerThread::instance_ = NULL;
 
 
+#if defined(USE_SIGNALS)
+void Sampler::PlatformData::SendProfilingSignal() const {
+  if (!SignalHandler::Installed()) return;
+  pthread_kill(vm_tid_, SIGPROF);
+}
+#endif
+
+
 //
 // StackTracer implementation
 //
@@ -665,6 +672,7 @@ Sampler::Sampler(Isolate* isolate, int interval)
     : isolate_(isolate),
       interval_(interval),
       profiling_(false),
+      has_processing_thread_(false),
       active_(false),
       is_counting_samples_(false),
       js_and_external_sample_count_(0) {
@@ -706,6 +714,22 @@ void Sampler::SampleStack(const RegisterState& state) {
   if (sample != &sample_obj) {
     isolate_->cpu_profiler()->FinishTickSample();
   }
+}
+
+
+bool Sampler::CanSampleOnProfilerEventsProcessorThread() {
+#if defined(USE_SIGNALS)
+  return true;
+#else
+  return false;
+#endif
+}
+
+
+void Sampler::DoSample() {
+#if defined(USE_SIGNALS)
+  platform_data()->SendProfilingSignal();
+#endif
 }
 
 } }  // namespace v8::internal

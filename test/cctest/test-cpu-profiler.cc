@@ -51,7 +51,7 @@ TEST(StartStop) {
   CpuProfilesCollection profiles;
   ProfileGenerator generator(&profiles);
   SmartPointer<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(&generator));
+      new ProfilerEventsProcessor(&generator, NULL, 100));
   processor->Start();
   processor->StopSynchronously();
 }
@@ -143,7 +143,7 @@ TEST(CodeEvents) {
   profiles->StartProfiling("", 1, false);
   ProfileGenerator generator(profiles);
   SmartPointer<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(&generator));
+      new ProfilerEventsProcessor(&generator, NULL, 100));
   processor->Start();
   CpuProfiler profiler(isolate, profiles, &generator, *processor);
 
@@ -205,7 +205,7 @@ TEST(TickEvents) {
   profiles->StartProfiling("", 1, false);
   ProfileGenerator generator(profiles);
   SmartPointer<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(&generator));
+      new ProfilerEventsProcessor(&generator, NULL, 100));
   processor->Start();
   CpuProfiler profiler(isolate, profiles, &generator, *processor);
 
@@ -274,7 +274,7 @@ TEST(Issue1398) {
   profiles->StartProfiling("", 1, false);
   ProfileGenerator generator(profiles);
   SmartPointer<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(&generator));
+      new ProfilerEventsProcessor(&generator, NULL, 100));
   processor->Start();
   CpuProfiler profiler(isolate, profiles, &generator, *processor);
 
