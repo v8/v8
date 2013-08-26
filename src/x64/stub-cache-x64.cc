@@ -2200,8 +2200,130 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
     Handle<JSFunction> function,
     Handle<String> name,
     Code::StubType type) {
-  // TODO(872): implement this.
-  return Handle<Code>::null();
+  // ----------- S t a t e -------------
+  //  -- rcx                 : name
+  //  -- rsp[0]              : return address
+  //  -- rsp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- rsp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  if (!CpuFeatures::IsSupported(SSE2)) {
+    return Handle<Code>::null();
+  }
+
+  CpuFeatureScope use_sse2(masm(), SSE2);
+
+  const int argc = arguments().immediate();
+
+  // If the object is not a JSObject or we got an unexpected number of
+  // arguments, bail out to the regular call.
+  if (!object->IsJSObject() || argc != 1) {
+    return Handle<Code>::null();
+  }
+
+  Label miss;
+  GenerateNameCheck(name, &miss);
+
+  if (cell.is_null()) {
+    __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+
+    STATIC_ASSERT(kSmiTag == 0);
+    __ JumpIfSmi(rdx, &miss);
+
+    CheckPrototypes(Handle<JSObject>::cast(object), rdx, holder, rbx, rax, rdi,
+                    name, &miss);
+  } else {
+    ASSERT(cell->value() == *function);
+    GenerateGlobalReceiverCheck(Handle<JSObject>::cast(object), holder, name,
+                                &miss);
+    GenerateLoadFunctionFromCell(cell, function, &miss);
+  }
+
+  // Load the (only) argument into rax.
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+
+  // Check if the argument is a smi.
+  Label smi;
+  STATIC_ASSERT(kSmiTag == 0);
+  __ JumpIfSmi(rax, &smi);
+
+  // Check if the argument is a heap number and load its value into xmm0.
+  Label slow;
+  __ CheckMap(rax, factory()->heap_number_map(), &slow, DONT_DO_SMI_CHECK);
+  __ movsd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
+
+  // Check if the argument is strictly positive. Note this also discards NaN.
+  __ xorpd(xmm1, xmm1);
+  __ ucomisd(xmm0, xmm1);
+  __ j(below_equal, &slow);
+
+  // Do a truncating conversion.
+  __ cvttsd2si(rax, xmm0);
+
+  // Checks for 0x80000000 which signals a failed conversion.
+  Label conversion_failure;
+  __ cmpl(rax, Immediate(0x80000000));
+  __ j(equal, &conversion_failure);
+
+  // Smi tag and return.
+  __ Integer32ToSmi(rax, rax);
+  __ bind(&smi);
+  __ ret(2 * kPointerSize);
+
+  // Check if the argument is < 2^kMantissaBits.
+  Label already_round;
+  __ bind(&conversion_failure);
+  int64_t kTwoMantissaBits= V8_INT64_C(0x4330000000000000);
+  __ movq(rbx, kTwoMantissaBits, RelocInfo::NONE64);
+  __ movq(xmm1, rbx);
+  __ ucomisd(xmm0, xmm1);
+  __ j(above_equal, &already_round);
+
+  // Save a copy of the argument.
+  __ movaps(xmm2, xmm0);
+
+  // Compute (argument + 2^kMantissaBits) - 2^kMantissaBits.
+  __ addsd(xmm0, xmm1);
+  __ subsd(xmm0, xmm1);
+
+  // Compare the argument and the tentative result to get the right mask:
+  //   if xmm2 < xmm0:
+  //     xmm2 = 1...1
+  //   else:
+  //     xmm2 = 0...0
+  __ cmpltsd(xmm2, xmm0);
+
+  // Subtract 1 if the argument was less than the tentative result.
+  int64_t kOne = V8_INT64_C(0x3ff0000000000000);
+  __ movq(rbx, kOne, RelocInfo::NONE64);
+  __ movq(xmm1, rbx);
+  __ andpd(xmm1, xmm2);
+  __ subsd(xmm0, xmm1);
+
+  // Return a new heap number.
+  __ AllocateHeapNumber(rax, rbx, &slow);
+  __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm0);
+  __ ret(2 * kPointerSize);
+
+  // Return the argument (when it's an already round heap number).
+  __ bind(&already_round);
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+  __ ret(2 * kPointerSize);
+
+  // Tail call the full function. We do not have to patch the receiver
+  // because the function makes no use of it.
+  __ bind(&slow);
+  ParameterCount expected(function);
+  __ InvokeFunction(function, expected, arguments(),
+                    JUMP_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+
+  __ bind(&miss);
+  // rcx: function name.
+  GenerateMissBranch();
+
+  // Return the generated code.
+  return GetCode(type, name);
 }
 
 

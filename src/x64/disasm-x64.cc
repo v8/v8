@@ -1153,6 +1153,25 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
+    } else if (opcode == 0xC2) {
+      // Intel manual 2A, Table 3-18.
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      const char* const pseudo_op[] = {
+        "cmpeqsd",
+        "cmpltsd",
+        "cmplesd",
+        "cmpunordsd",
+        "cmpneqsd",
+        "cmpnltsd",
+        "cmpnlesd",
+        "cmpordsd"
+      };
+      AppendToBuffer("%s %s,%s",
+                     pseudo_op[current[1]],
+                     NameOfXMMRegister(regop),
+                     NameOfXMMRegister(rm));
+      current += 2;
     } else {
       UnimplementedInstruction();
     }
