@@ -42,8 +42,9 @@ using namespace v8::internal;
 
 
 int STDCALL ConvertDToICVersion(double d) {
-  Address double_ptr = reinterpret_cast<Address>(&d);
-  uint32_t exponent_bits = Memory::uint32_at(double_ptr + kDoubleSize / 2);
+  union { double d; uint32_t u[2]; } dbl;
+  dbl.d = d;
+  uint32_t exponent_bits = dbl.u[1];
   int32_t shifted_mask = static_cast<int32_t>(Double::kExponentMask >> 32);
   int32_t exponent = (((exponent_bits & shifted_mask) >>
                        (Double::kPhysicalSignificandSize - 32)) -
@@ -54,8 +55,7 @@ int STDCALL ConvertDToICVersion(double d) {
     static_cast<uint32_t>(Double::kPhysicalSignificandSize);
   if (unsigned_exponent >= max_exponent) {
     if ((exponent - Double::kPhysicalSignificandSize) < 32) {
-      result = Memory::uint32_at(double_ptr) <<
-        (exponent - Double::kPhysicalSignificandSize);
+      result = dbl.u[0] << (exponent - Double::kPhysicalSignificandSize);
     }
   } else {
     uint64_t big_result =
