@@ -2289,6 +2289,23 @@ void HSimulate::PrintDataTo(StringStream* stream) {
 }
 
 
+// Replay captured objects by replacing all captured objects with the
+// same capture id in the current and all outer environments.
+void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
+  ASSERT(env != NULL);
+  while (env != NULL) {
+    for (int i = 0; i < env->length(); ++i) {
+      HValue* value = env->values()->at(i);
+      if (value->IsCapturedObject() &&
+          HCapturedObject::cast(value)->capture_id() == this->capture_id()) {
+        env->SetValueAt(i, this);
+      }
+    }
+    env = env->outer();
+  }
+}
+
+
 void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
                                          Zone* zone) {
   ASSERT(return_target->IsInlineReturnTarget());

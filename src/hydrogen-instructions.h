@@ -3208,8 +3208,8 @@ class HArgumentsObject V8_FINAL : public HDematerializedObject {
 
 class HCapturedObject V8_FINAL : public HDematerializedObject {
  public:
-  HCapturedObject(int length, Zone* zone)
-      : HDematerializedObject(length, zone) {
+  HCapturedObject(int length, int id, Zone* zone)
+      : HDematerializedObject(length, zone), capture_id_(id) {
     set_representation(Representation::Tagged());
     values_.AddBlock(NULL, length, zone);  // Resize list.
   }
@@ -3219,8 +3219,15 @@ class HCapturedObject V8_FINAL : public HDematerializedObject {
   // properties or elements backing store are not tracked here.
   const ZoneList<HValue*>* values() const { return &values_; }
   int length() const { return values_.length(); }
+  int capture_id() const { return capture_id_; }
+
+  // Replay effects of this instruction on the given environment.
+  void ReplayEnvironment(HEnvironment* env);
 
   DECLARE_CONCRETE_INSTRUCTION(CapturedObject)
+
+ private:
+  int capture_id_;
 };
 
 

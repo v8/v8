@@ -40,6 +40,7 @@ class HEscapeAnalysisPhase : public HPhase {
   explicit HEscapeAnalysisPhase(HGraph* graph)
       : HPhase("H_Escape analysis", graph),
         captured_(0, zone()),
+        number_of_objects_(0),
         number_of_values_(0),
         cumulative_values_(0),
         block_states_(graph->blocks()->length(), zone()) { }
@@ -72,6 +73,9 @@ class HEscapeAnalysisPhase : public HPhase {
 
   // List of allocations captured during collection phase.
   ZoneList<HInstruction*> captured_;
+
+  // Number of captured objects on which scalar replacement was done.
+  int number_of_objects_;
 
   // Number of scalar values tracked during scalar replacement phase.
   int number_of_values_;

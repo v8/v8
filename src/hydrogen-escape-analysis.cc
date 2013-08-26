@@ -65,7 +65,8 @@ void HEscapeAnalysisPhase::CollectCapturedValues() {
 
 HCapturedObject* HEscapeAnalysisPhase::NewState(HInstruction* previous) {
   Zone* zone = graph()->zone();
-  HCapturedObject* state = new(zone) HCapturedObject(number_of_values_, zone);
+  HCapturedObject* state =
+      new(zone) HCapturedObject(number_of_values_, number_of_objects_, zone);
   state->InsertAfter(previous);
   return state;
 }
@@ -183,18 +184,9 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           }
           break;
         }
-        case HValue::kSimulate: {
-          HSimulate* simulate = HSimulate::cast(instr);
-          // TODO(mstarzinger): This doesn't track deltas for values on the
-          // operand stack yet. Find a repro test case and fix this.
-          for (int i = 0; i < simulate->OperandCount(); i++) {
-            if (simulate->OperandAt(i) != allocate) continue;
-            simulate->SetOperandAt(i, state);
-          }
-          break;
-        }
         case HValue::kArgumentsObject:
-        case HValue::kCapturedObject: {
+        case HValue::kCapturedObject:
+        case HValue::kSimulate: {
           for (int i = 0; i < instr->OperandCount(); i++) {
             if (instr->OperandAt(i) != allocate) continue;
             instr->SetOperandAt(i, state);
@@ -274,6 +266,7 @@ void HEscapeAnalysisPhase::PerformScalarReplacement() {
     if (!allocate->size()->IsInteger32Constant()) continue;
     int size_in_bytes = allocate->size()->GetInteger32Constant();
     number_of_values_ = size_in_bytes / kPointerSize;
+    number_of_objects_++;
     block_states_.Clear();
 
     // Perform actual analysis steps.
