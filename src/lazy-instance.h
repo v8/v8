@@ -111,9 +111,17 @@ struct LeakyInstanceTrait {
 
 // Traits that define how an instance is allocated and accessed.
 
+// TODO(kalmard): __alignof__ is only defined for GCC > 4.2. Fix alignment issue
+// on MIPS with other compilers.
+#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 2))
+#define LAZY_ALIGN(x) __attribute__((aligned(__alignof__(x))))
+#else
+#define LAZY_ALIGN(x)
+#endif
+
 template <typename T>
 struct StaticallyAllocatedInstanceTrait {
-  typedef char StorageType[sizeof(T)] V8_ALIGNAS(V8_ALIGNOF(T));
+  typedef char StorageType[sizeof(T)] LAZY_ALIGN(T);
 
   static T* MutableInstance(StorageType* storage) {
     return reinterpret_cast<T*>(storage);
@@ -124,6 +132,8 @@ struct StaticallyAllocatedInstanceTrait {
     ConstructTrait::Construct(MutableInstance(storage));
   }
 };
+
+#undef LAZY_ALIGN
 
 
 template <typename T>
