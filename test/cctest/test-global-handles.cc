@@ -330,6 +330,7 @@ TEST(EternalHandles) {
 
   CHECK_EQ(0, eternal_handles->NumberOfHandles());
   for (int i = 0; i < kArrayLength; i++) {
+    indices[i] = -1;
     HandleScope scope(isolate);
     v8::Local<v8::Object> object = v8::Object::New();
     object->Set(i, v8::Integer::New(i, v8_isolate));
