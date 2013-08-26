@@ -42,9 +42,6 @@ test-serialize/DependentTestThatAlwaysFails: FAIL
 # This test always fails.  It tests that LiveEdit causes abort when turned off.
 test-debug/LiveEditDisabled: FAIL
 
-# Bug(2857)
-test-log/EquivalenceOfLoggingAndTraversal: SKIP
-
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL
 test-weaksets/WeakSet_Shrinking: FAIL
