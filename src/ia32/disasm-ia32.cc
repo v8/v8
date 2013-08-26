@@ -606,7 +606,7 @@ int DisassemblerIA32::D1D3C1Instruction(byte* data) {
     }
     ASSERT_NE(NULL, mnem);
     AppendToBuffer("%s %s,", mnem, NameOfCPURegister(rm));
-    if (imm8 > 0) {
+    if (imm8 >= 0) {
       AppendToBuffer("%d", imm8);
     } else {
       AppendToBuffer("cl");

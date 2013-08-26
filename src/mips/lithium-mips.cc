@@ -2361,6 +2361,9 @@ LInstruction* LChunkBuilder::DoArgumentsObject(HArgumentsObject* instr) {
 
 
 LInstruction* LChunkBuilder::DoCapturedObject(HCapturedObject* instr) {
+  HEnvironment* env = current_block_->last_environment();
+  instr->ReplayEnvironment(env);
+
   // There are no real uses of a captured object.
   return NULL;
 }

@@ -376,7 +376,7 @@ class RecordWriteStub: public PlatformCodeStub {
           address_(address),
           scratch0_(scratch0) {
       ASSERT(!AreAliased(scratch0, object, address, no_reg));
-      scratch1_ = GetRegThatIsNotOneOf(object_, address_, scratch0_);
+      scratch1_ = GetRegisterThatIsNotOneOf(object_, address_, scratch0_);
     }
 
     void Save(MacroAssembler* masm) {
@@ -419,19 +419,6 @@ class RecordWriteStub: public PlatformCodeStub {
     Register scratch0_;
     Register scratch1_;
 
-    Register GetRegThatIsNotOneOf(Register r1,
-                                  Register r2,
-                                  Register r3) {
-      for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
-        Register candidate = Register::FromAllocationIndex(i);
-        if (candidate.is(r1)) continue;
-        if (candidate.is(r2)) continue;
-        if (candidate.is(r3)) continue;
-        return candidate;
-      }
-      UNREACHABLE();
-      return no_reg;
-    }
     friend class RecordWriteStub;
   };
 

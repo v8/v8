@@ -2774,6 +2774,11 @@ void MacroAssembler::Abort(BailoutReason reason) {
     RecordComment("Abort message: ");
     RecordComment(msg);
   }
+
+  if (FLAG_trap_on_abort) {
+    int3();
+    return;
+  }
 #endif
 
   push(eax);

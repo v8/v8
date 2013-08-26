@@ -126,7 +126,8 @@ void CpuFeatures::Probe() {
   supported_ |= static_cast<uint64_t>(1) << FPU;
 #else
   // Probe for additional features not already known to be available.
-  if (OS::MipsCpuHasFeature(FPU)) {
+  CPU cpu;
+  if (cpu.has_fpu()) {
     // This implementation also sets the FPU flags if
     // runtime detection of FPU returns true.
     supported_ |= static_cast<uint64_t>(1) << FPU;

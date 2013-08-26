@@ -258,6 +258,7 @@ namespace internal {
   F(GetTemplateField, 2, 1) \
   F(DisableAccessChecks, 1, 1) \
   F(EnableAccessChecks, 1, 1) \
+  F(SetAccessorProperty, 6, 1) \
   \
   /* Dates */ \
   F(DateCurrentTime, 0, 1) \

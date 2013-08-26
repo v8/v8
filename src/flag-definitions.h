@@ -256,6 +256,7 @@ DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             "crankshaft harvests type feedback from stub cache")
 DEFINE_bool(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_bool(trace_hydrogen, false, "trace generated hydrogen to file")
+DEFINE_string(trace_hydrogen_filter, "*", "hydrogen tracing filter")
 DEFINE_bool(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")
 DEFINE_string(trace_hydrogen_file, NULL, "trace hydrogen to given file name")
 DEFINE_string(trace_phase, "HLZ", "trace generated IR for specified phases")
@@ -331,15 +332,6 @@ DEFINE_int(concurrent_recompilation_queue_length, 8,
 DEFINE_int(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
 
-// TODO(yangguo): to ease transitioning to the new naming scheme, we keep
-//                the old flags for now as aliases.  Remove soon.
-DEFINE_ALIAS_bool(parallel_recompilation, concurrent_recompilation)
-DEFINE_ALIAS_bool(trace_parallel_recompilation, trace_concurrent_recompilation)
-DEFINE_ALIAS_int(parallel_recompilation_queue_length,
-                 concurrent_recompilation_queue_length)
-DEFINE_ALIAS_int(parallel_recompilation_delay, concurrent_recompilation_delay)
-
-
 DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")
@@ -407,6 +399,7 @@ DEFINE_bool(enable_vldr_imm, false,
             "enable use of constant pools for double immediate (ARM only)")
 
 // bootstrapper.cc
+DEFINE_bool(enable_i18n, true, "enable i18n extension")
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
 DEFINE_bool(expose_gc, false, "expose gc extension")
@@ -460,6 +453,18 @@ DEFINE_int(max_opt_count, 10,
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
 
 DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
+
+// cpu-profiler.cc
+#if defined(ANDROID)
+// Phones and tablets have processors that are much slower than desktop
+// and laptop computers for which current heuristics are tuned.
+#define DEFAULT_INTERVAL 5000
+#else
+#define DEFAULT_INTERVAL 1000
+#endif
+DEFINE_int(cpu_profiler_sampling_interval, DEFAULT_INTERVAL,
+           "CPU profiler sampling interval in microseconds")
+#undef DEFAULT_INTERVAL
 
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
@@ -690,13 +695,14 @@ DEFINE_bool(stress_compaction, false,
 DEFINE_bool(enable_slow_asserts, false,
             "enable asserts that are slow to execute")
 
-// codegen-ia32.cc / codegen-arm.cc
+// codegen-ia32.cc / codegen-arm.cc / macro-assembler-*.cc
 DEFINE_bool(print_source, false, "pretty print source code")
 DEFINE_bool(print_builtin_source, false,
             "pretty print source code for builtins")
 DEFINE_bool(print_ast, false, "print source AST")
 DEFINE_bool(print_builtin_ast, false, "print source AST for builtins")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
+DEFINE_bool(trap_on_abort, false, "replace aborts by breakpoints")
 
 // compiler.cc
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")

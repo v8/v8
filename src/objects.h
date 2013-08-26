@@ -2252,7 +2252,8 @@ class JSObject: public JSReceiver {
                              Handle<Name> name,
                              Handle<Object> getter,
                              Handle<Object> setter,
-                             PropertyAttributes attributes);
+                             PropertyAttributes attributes,
+                             v8::AccessControl access_control = v8::DEFAULT);
 
   MaybeObject* LookupAccessor(Name* name, AccessorComponent component);
 
@@ -2499,7 +2500,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* AddConstantProperty(
       Name* name,
       Object* constant,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      TransitionFlag flag);
 
   MUST_USE_RESULT MaybeObject* ReplaceSlowProperty(
       Name* name,
@@ -2522,14 +2524,6 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* UpdateAllocationSite(ElementsKind to_kind);
 
-  // Converts a descriptor of any other type to a real field, backed by the
-  // properties array.
-  MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
-      Name* name,
-      Object* new_value,
-      PropertyAttributes attributes,
-      TransitionFlag flag = OMIT_TRANSITION);
-
   MUST_USE_RESULT MaybeObject* MigrateToMap(Map* new_map);
   MUST_USE_RESULT MaybeObject* GeneralizeFieldRepresentation(
       int modify_index,
@@ -2542,7 +2536,8 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
-      ValueType value_type = OPTIMAL_REPRESENTATION);
+      ValueType value_type = OPTIMAL_REPRESENTATION,
+      TransitionFlag flag = INSERT_TRANSITION);
 
   // Add a property to a slow-case object.
   MUST_USE_RESULT MaybeObject* AddSlowProperty(Name* name,
@@ -2558,7 +2553,8 @@ class JSObject: public JSReceiver {
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
       ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
       ValueType value_type = OPTIMAL_REPRESENTATION,
-      StoreMode mode = ALLOW_AS_CONSTANT);
+      StoreMode mode = ALLOW_AS_CONSTANT,
+      TransitionFlag flag = INSERT_TRANSITION);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
@@ -2694,7 +2690,8 @@ class JSObject: public JSReceiver {
   // Maximal number of fast properties for the JSObject. Used to
   // restrict the number of map transitions to avoid an explosion in
   // the number of maps for objects used as dictionaries.
-  inline bool TooManyFastProperties(int properties, StoreFromKeyed store_mode);
+  inline bool TooManyFastProperties(
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
@@ -2715,7 +2712,11 @@ class JSObject: public JSReceiver {
   // don't want to be wasteful with long lived objects.
   static const int kMaxUncheckedOldFastElementsLength = 500;
 
-  static const int kInitialMaxFastElementArray = 100000;
+  // TODO(2790): HAllocate currently always allocates fast backing stores
+  // in new space, where on x64 we can only fit ~98K elements. Keep this
+  // limit lower than that until HAllocate is made smarter.
+  static const int kInitialMaxFastElementArray = 95000;
+
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 64;
   static const int kMaxInstanceSize = 255 * kPointerSize;
@@ -2836,14 +2837,16 @@ class JSObject: public JSReceiver {
                                     uint32_t index,
                                     Handle<Object> getter,
                                     Handle<Object> setter,
-                                    PropertyAttributes attributes);
+                                    PropertyAttributes attributes,
+                                    v8::AccessControl access_control);
   static Handle<AccessorPair> CreateAccessorPairFor(Handle<JSObject> object,
                                                     Handle<Name> name);
   static void DefinePropertyAccessor(Handle<JSObject> object,
                                      Handle<Name> name,
                                      Handle<Object> getter,
                                      Handle<Object> setter,
-                                     PropertyAttributes attributes);
+                                     PropertyAttributes attributes,
+                                     v8::AccessControl access_control);
 
   // Try to define a single accessor paying attention to map transitions.
   // Returns false if this was not possible and we have to use the slow case.
@@ -5624,6 +5627,7 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyGeneralizeAllRepresentations(
       int modify_index,
       StoreMode store_mode,
+      PropertyAttributes attributes,
       const char* reason);
 
   void PrintGeneralization(FILE* file,
@@ -7081,7 +7085,8 @@ class JSFunction: public JSObject {
   // Retrieve the native context from a function's literal array.
   static Context* NativeContextFromLiterals(FixedArray* literals);
 
-  bool PassesHydrogenFilter();
+  // Used for flags such as --hydrogen-filter.
+  bool PassesFilter(const char* raw_filter);
 
   // Layout descriptors. The last property (from kNonWeakFieldsEndOffset to
   // kSize) is weak and has special handling during garbage collection.
@@ -9688,10 +9693,18 @@ class ExecutableAccessorInfo: public AccessorInfo {
 //   * undefined: considered an accessor by the spec, too, strangely enough
 //   * the hole: an accessor which has not been set
 //   * a pointer to a map: a transition used to ensure map sharing
+// access_flags provides the ability to override access checks on access check
+// failure.
 class AccessorPair: public Struct {
  public:
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
+  DECL_ACCESSORS(access_flags, Smi)
+
+  inline void set_access_flags(v8::AccessControl access_control);
+  inline bool all_can_read();
+  inline bool all_can_write();
+  inline bool prohibits_overwriting();
 
   static inline AccessorPair* cast(Object* obj);
 
@@ -9728,9 +9741,14 @@ class AccessorPair: public Struct {
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
-  static const int kSize = kSetterOffset + kPointerSize;
+  static const int kAccessFlagsOffset = kSetterOffset + kPointerSize;
+  static const int kSize = kAccessFlagsOffset + kPointerSize;
 
  private:
+  static const int kAllCanReadBit = 0;
+  static const int kAllCanWriteBit = 1;
+  static const int kProhibitsOverwritingBit = 2;
+
   // Strangely enough, in addition to functions and harmony proxies, the spec
   // requires us to consider undefined as a kind of accessor, too:
   //    var obj = {};

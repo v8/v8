@@ -132,3 +132,44 @@
   delete deopt.deopt;
   func(); func();
 })();
+
+
+// Test deoptimization with captured objects on operand stack.
+(function testDeoptOperand() {
+  var deopt = { deopt:false };
+  function constructor1() {
+    this.a = 1.0;
+    this.b = 2.3;
+    deopt.deopt;
+    assertEquals(1.0, this.a);
+    assertEquals(2.3, this.b);
+    this.b = 2.7;
+    this.c = 3.0;
+    this.d = 4.5;
+  }
+  function constructor2() {
+    this.e = 5.0;
+    this.f = new constructor1();
+    assertEquals(1.0, this.f.a);
+    assertEquals(2.7, this.f.b);
+    assertEquals(3.0, this.f.c);
+    assertEquals(4.5, this.f.d);
+    assertEquals(5.0, this.e);
+    this.e = 5.9;
+    this.g = 6.7;
+  }
+  function func() {
+    var o = new constructor2();
+    assertEquals(1.0, o.f.a);
+    assertEquals(2.7, o.f.b);
+    assertEquals(3.0, o.f.c);
+    assertEquals(4.5, o.f.d);
+    assertEquals(5.9, o.e);
+    assertEquals(6.7, o.g);
+  }
+  func(); func();
+  %OptimizeFunctionOnNextCall(func);
+  func(); func();
+  delete deopt.deopt;
+  func(); func();
+})();

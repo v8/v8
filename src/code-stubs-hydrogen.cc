@@ -495,7 +495,7 @@ Handle<Code> CreateAllocationSiteStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
-      GetParameter(0), GetParameter(1), NULL, NULL,
+      GetParameter(0), GetParameter(1), NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
       false, NEVER_RETURN_HOLE, STANDARD_STORE);
   return load;
@@ -540,7 +540,7 @@ Handle<Code> KeyedLoadFieldStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
   BuildUncheckedMonomorphicElementAccess(
-      GetParameter(0), GetParameter(1), GetParameter(2), NULL,
+      GetParameter(0), GetParameter(1), GetParameter(2),
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
       true, NEVER_RETURN_HOLE, casted_stub()->store_mode());
 
@@ -888,11 +888,11 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
                                 casted_stub()->to_kind(),
                                 casted_stub()->is_jsarray());
 
-    BuildUncheckedMonomorphicElementAccess(object, key, value, NULL,
-                                          casted_stub()->is_jsarray(),
-                                          casted_stub()->to_kind(),
-                                          true, ALLOW_RETURN_HOLE,
-                                          casted_stub()->store_mode());
+    BuildUncheckedMonomorphicElementAccess(object, key, value,
+                                           casted_stub()->is_jsarray(),
+                                           casted_stub()->to_kind(),
+                                           true, ALLOW_RETURN_HOLE,
+                                           casted_stub()->store_mode());
   }
 
   return value;

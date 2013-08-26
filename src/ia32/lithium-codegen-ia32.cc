@@ -1787,8 +1787,8 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::ROR:
         __ ror_cl(ToRegister(left));
         if (instr->can_deopt()) {
-          __ test(ToRegister(left), Immediate(0x80000000));
-          DeoptimizeIf(not_zero, instr->environment());
+          __ test(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(sign, instr->environment());
         }
         break;
       case Token::SAR:
@@ -1797,8 +1797,8 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::SHR:
         __ shr_cl(ToRegister(left));
         if (instr->can_deopt()) {
-          __ test(ToRegister(left), Immediate(0x80000000));
-          DeoptimizeIf(not_zero, instr->environment());
+          __ test(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(sign, instr->environment());
         }
         break;
       case Token::SHL:
@@ -1814,8 +1814,8 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     switch (instr->op()) {
       case Token::ROR:
         if (shift_count == 0 && instr->can_deopt()) {
-          __ test(ToRegister(left), Immediate(0x80000000));
-          DeoptimizeIf(not_zero, instr->environment());
+          __ test(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(sign, instr->environment());
         } else {
           __ ror(ToRegister(left), shift_count);
         }
@@ -1827,8 +1827,8 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
       case Token::SHR:
         if (shift_count == 0 && instr->can_deopt()) {
-          __ test(ToRegister(left), Immediate(0x80000000));
-          DeoptimizeIf(not_zero, instr->environment());
+          __ test(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(sign, instr->environment());
         } else {
           __ shr(ToRegister(left), shift_count);
         }

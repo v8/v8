@@ -30,19 +30,14 @@
 
 #include "../include/v8stdint.h"
 
-// Find a working V8_INFINITY.
-#if V8_CC_GNU
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
 // warning flag and certain versions of GCC due to a bug:
 // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=11931
 // For now, we use the more involved template-based version from <limits>, but
 // only when compiling with GCC versions affected by the bug (2.96.x - 4.0.x)
-# if V8_GNUC_PREREQ(2, 96, 0) && !V8_GNUC_PREREQ(4, 1, 0)
-#  include <limits>  // NOLINT
-#  define V8_INFINITY std::numeric_limits<double>::infinity()
-# else
-#  define V8_INFINITY INFINITY
-# endif
+#if V8_CC_GNU && V8_GNUC_PREREQ(2, 96, 0) && !V8_GNUC_PREREQ(4, 1, 0)
+# include <limits>  // NOLINT
+# define V8_INFINITY std::numeric_limits<double>::infinity()
 #elif V8_CC_MSVC
 # define V8_INFINITY HUGE_VAL
 #else

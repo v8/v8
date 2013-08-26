@@ -152,7 +152,8 @@ void CpuFeatures::Probe() {
 
 #else  // __arm__
   // Probe for additional features not already known to be available.
-  if (!IsSupported(VFP3) && FLAG_enable_vfp3 && OS::ArmCpuHasFeature(VFP3)) {
+  CPU cpu;
+  if (!IsSupported(VFP3) && FLAG_enable_vfp3 && cpu.has_vfp3()) {
     // This implementation also sets the VFP flags if runtime
     // detection of VFP returns true. VFPv3 implies ARMv7, see ARM DDI
     // 0406B, page A1-6.
@@ -161,38 +162,40 @@ void CpuFeatures::Probe() {
         static_cast<uint64_t>(1) << ARMv7;
   }
 
-  if (!IsSupported(NEON) && FLAG_enable_neon && OS::ArmCpuHasFeature(NEON)) {
+  if (!IsSupported(NEON) && FLAG_enable_neon && cpu.has_neon()) {
     found_by_runtime_probing_only_ |= 1u << NEON;
   }
 
-  if (!IsSupported(ARMv7) && FLAG_enable_armv7 && OS::ArmCpuHasFeature(ARMv7)) {
+  if (!IsSupported(ARMv7) && FLAG_enable_armv7 && cpu.architecture() >= 7) {
     found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << ARMv7;
   }
 
-  if (!IsSupported(SUDIV) && FLAG_enable_sudiv && OS::ArmCpuHasFeature(SUDIV)) {
+  if (!IsSupported(SUDIV) && FLAG_enable_sudiv && cpu.has_idiva()) {
     found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << SUDIV;
   }
 
   if (!IsSupported(UNALIGNED_ACCESSES) && FLAG_enable_unaligned_accesses
-      && OS::ArmCpuHasFeature(ARMv7)) {
+      && cpu.architecture() >= 7) {
     found_by_runtime_probing_only_ |=
         static_cast<uint64_t>(1) << UNALIGNED_ACCESSES;
   }
 
-  CpuImplementer implementer = OS::GetCpuImplementer();
-  if (implementer == QUALCOMM_IMPLEMENTER &&
-      FLAG_enable_movw_movt && OS::ArmCpuHasFeature(ARMv7)) {
+  // Use movw/movt for QUALCOMM ARMv7 cores.
+  if (cpu.implementer() == CPU::QUALCOMM &&
+      cpu.architecture() >= 7 &&
+      FLAG_enable_movw_movt) {
     found_by_runtime_probing_only_ |=
         static_cast<uint64_t>(1) << MOVW_MOVT_IMMEDIATE_LOADS;
   }
 
-  CpuPart part = OS::GetCpuPart(implementer);
-  if ((part == CORTEX_A9) || (part == CORTEX_A5)) {
+  // ARM Cortex-A9 and Cortex-A5 have 32 byte cachelines.
+  if (cpu.implementer() == CPU::ARM &&
+      (cpu.part() == CPU::ARM_CORTEX_A5 ||
+       cpu.part() == CPU::ARM_CORTEX_A9)) {
     cache_line_size_ = 32;
   }
 
-  if (!IsSupported(VFP32DREGS) && FLAG_enable_32dregs
-      && OS::ArmCpuHasFeature(VFP32DREGS)) {
+  if (!IsSupported(VFP32DREGS) && FLAG_enable_32dregs && cpu.has_vfp3_d32()) {
     found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << VFP32DREGS;
   }
 

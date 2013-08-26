@@ -907,26 +907,32 @@ void Scope::Print(int n) {
   PrintF("%d heap slots\n", num_heap_slots_); }
 
   // Print locals.
-  Indent(n1, "// function var\n");
   if (function_ != NULL) {
+    Indent(n1, "// function var:\n");
     PrintVar(n1, function_->proxy()->var());
   }
 
-  Indent(n1, "// temporary vars\n");
-  for (int i = 0; i < temps_.length(); i++) {
-    PrintVar(n1, temps_[i]);
+  if (temps_.length() > 0) {
+    Indent(n1, "// temporary vars:\n");
+    for (int i = 0; i < temps_.length(); i++) {
+      PrintVar(n1, temps_[i]);
+    }
   }
 
-  Indent(n1, "// internal vars\n");
-  for (int i = 0; i < internals_.length(); i++) {
-    PrintVar(n1, internals_[i]);
+  if (internals_.length() > 0) {
+    Indent(n1, "// internal vars:\n");
+    for (int i = 0; i < internals_.length(); i++) {
+      PrintVar(n1, internals_[i]);
+    }
   }
 
-  Indent(n1, "// local vars\n");
-  PrintMap(n1, &variables_);
+  if (variables_.Start() != NULL) {
+    Indent(n1, "// local vars:\n");
+    PrintMap(n1, &variables_);
+  }
 
-  Indent(n1, "// dynamic vars\n");
   if (dynamics_ != NULL) {
+    Indent(n1, "// dynamic vars:\n");
     PrintMap(n1, dynamics_->GetMap(DYNAMIC));
     PrintMap(n1, dynamics_->GetMap(DYNAMIC_LOCAL));
     PrintMap(n1, dynamics_->GetMap(DYNAMIC_GLOBAL));

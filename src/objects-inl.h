@@ -1865,14 +1865,15 @@ bool JSObject::HasFastProperties() {
 }
 
 
-bool JSObject::TooManyFastProperties(int properties,
-                                     JSObject::StoreFromKeyed store_mode) {
+bool JSObject::TooManyFastProperties(StoreFromKeyed store_mode) {
   // Allow extra fast properties if the object has more than
-  // kFastPropertiesSoftLimit in-object properties. When this is the case,
-  // it is very unlikely that the object is being used as a dictionary
-  // and there is a good chance that allowing more map transitions
-  // will be worth it.
-  int inobject = map()->inobject_properties();
+  // kFastPropertiesSoftLimit in-object properties. When this is the case, it is
+  // very unlikely that the object is being used as a dictionary and there is a
+  // good chance that allowing more map transitions will be worth it.
+  Map* map = this->map();
+  if (map->unused_property_fields() != 0) return false;
+
+  int inobject = map->inobject_properties();
 
   int limit;
   if (store_mode == CERTAINLY_NOT_STORE_FROM_KEYED) {
@@ -1880,7 +1881,7 @@ bool JSObject::TooManyFastProperties(int properties,
   } else {
     limit = Max(inobject, kFastPropertiesSoftLimit);
   }
-  return properties > limit;
+  return properties()->length() > limit;
 }
 
 
@@ -4454,6 +4455,7 @@ ACCESSORS(Box, value, Object, kValueOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
+ACCESSORS_TO_SMI(AccessorPair, access_flags, kAccessFlagsOffset)
 
 ACCESSORS(AccessCheckInfo, named_callback, Object, kNamedCallbackOffset)
 ACCESSORS(AccessCheckInfo, indexed_callback, Object, kIndexedCallbackOffset)
@@ -5847,6 +5849,36 @@ bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
   Object* function_template = expected_receiver_type();
   if (!function_template->IsFunctionTemplateInfo()) return true;
   return receiver->IsInstanceOf(FunctionTemplateInfo::cast(function_template));
+}
+
+
+void AccessorPair::set_access_flags(v8::AccessControl access_control) {
+  int current = access_flags()->value();
+  current = BooleanBit::set(current,
+                            kProhibitsOverwritingBit,
+                            access_control & PROHIBITS_OVERWRITING);
+  current = BooleanBit::set(current,
+                            kAllCanReadBit,
+                            access_control & ALL_CAN_READ);
+  current = BooleanBit::set(current,
+                            kAllCanWriteBit,
+                            access_control & ALL_CAN_WRITE);
+  set_access_flags(Smi::FromInt(current));
+}
+
+
+bool AccessorPair::all_can_read() {
+  return BooleanBit::get(access_flags(), kAllCanReadBit);
+}
+
+
+bool AccessorPair::all_can_write() {
+  return BooleanBit::get(access_flags(), kAllCanWriteBit);
+}
+
+
+bool AccessorPair::prohibits_overwriting() {
+  return BooleanBit::get(access_flags(), kProhibitsOverwritingBit);
 }
 
 

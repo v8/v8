@@ -1020,7 +1020,6 @@ void GlobalHandles::ComputeObjectGroupsAndImplicitReferences() {
 
 
 EternalHandles::EternalHandles() : size_(0) {
-  STATIC_ASSERT(v8::kUninitializedEternalIndex == kInvalidIndex);
   for (unsigned i = 0; i < ARRAY_SIZE(singleton_handles_); i++) {
     singleton_handles_[i] = kInvalidIndex;
   }
@@ -1062,8 +1061,9 @@ void EternalHandles::PostGarbageCollectionProcessing(Heap* heap) {
 }
 
 
-int EternalHandles::Create(Isolate* isolate, Object* object) {
-  if (object == NULL) return kInvalidIndex;
+void EternalHandles::Create(Isolate* isolate, Object* object, int* index) {
+  ASSERT_EQ(kInvalidIndex, *index);
+  if (object == NULL) return;
   ASSERT_NE(isolate->heap()->the_hole_value(), object);
   int block = size_ >> kShift;
   int offset = size_ & kMask;
@@ -1079,7 +1079,7 @@ int EternalHandles::Create(Isolate* isolate, Object* object) {
   if (isolate->heap()->InNewSpace(object)) {
     new_space_indices_.Add(size_);
   }
-  return size_++;
+  *index = size_++;
 }
 
 

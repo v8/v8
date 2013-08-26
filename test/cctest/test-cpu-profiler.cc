@@ -51,7 +51,7 @@ TEST(StartStop) {
   CpuProfilesCollection profiles;
   ProfileGenerator generator(&profiles);
   SmartPointer<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(&generator));
+      new ProfilerEventsProcessor(&generator, NULL, 100));
   processor->Start();
   processor->StopSynchronously();
 }
@@ -143,7 +143,7 @@ TEST(CodeEvents) {
   profiles->StartProfiling("", 1, false);
   ProfileGenerator generator(profiles);
   SmartPointer<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(&generator));
+      new ProfilerEventsProcessor(&generator, NULL, 100));
   processor->Start();
   CpuProfiler profiler(isolate, profiles, &generator, *processor);
 
@@ -205,7 +205,7 @@ TEST(TickEvents) {
   profiles->StartProfiling("", 1, false);
   ProfileGenerator generator(profiles);
   SmartPointer<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(&generator));
+      new ProfilerEventsProcessor(&generator, NULL, 100));
   processor->Start();
   CpuProfiler profiler(isolate, profiles, &generator, *processor);
 
@@ -274,7 +274,7 @@ TEST(Issue1398) {
   profiles->StartProfiling("", 1, false);
   ProfileGenerator generator(profiles);
   SmartPointer<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(&generator));
+      new ProfilerEventsProcessor(&generator, NULL, 100));
   processor->Start();
   CpuProfiler profiler(isolate, profiles, &generator, *processor);
 
@@ -1372,13 +1372,11 @@ TEST(IdleTime) {
   const v8::CpuProfileNode* programNode =
       GetChild(root, ProfileGenerator::kProgramEntryName);
   CHECK_EQ(0, programNode->GetChildrenCount());
-  CHECK_GE(programNode->GetSelfSamplesCount(), 3);
   CHECK_GE(programNode->GetHitCount(), 3);
 
   const v8::CpuProfileNode* idleNode =
       GetChild(root, ProfileGenerator::kIdleEntryName);
   CHECK_EQ(0, idleNode->GetChildrenCount());
-  CHECK_GE(idleNode->GetSelfSamplesCount(), 3);
   CHECK_GE(idleNode->GetHitCount(), 3);
 
   cpu_profiler->DeleteAllCpuProfiles();

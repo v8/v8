@@ -362,7 +362,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   }
 
   // Take --hydrogen-filter into account.
-  if (!info()->closure()->PassesHydrogenFilter()) {
+  if (!info()->closure()->PassesFilter(FLAG_hydrogen_filter)) {
     info()->AbortOptimization();
     return SetLastStatus(BAILED_OUT);
   }
@@ -1209,6 +1209,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
     int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    int column_num =
+        GetScriptColumnNumber(script, shared->start_position()) + 1;
     USE(line_num);
     if (script->name()->IsString()) {
       PROFILE(info->isolate(),
@@ -1217,7 +1219,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *shared,
                               info,
                               String::cast(script->name()),
-                              line_num));
+                              line_num,
+                              column_num));
     } else {
       PROFILE(info->isolate(),
               CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
@@ -1225,7 +1228,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *shared,
                               info,
                               info->isolate()->heap()->empty_string(),
-                              line_num));
+                              line_num,
+                              column_num));
     }
   }
 
@@ -1258,9 +1262,10 @@ CompilationPhase::~CompilationPhase() {
 bool CompilationPhase::ShouldProduceTraceOutput() const {
   // Trace if the appropriate trace flag is set and the phase name's first
   // character is in the FLAG_trace_phase command line parameter.
-  bool tracing_on = info()->IsStub() ?
-      FLAG_trace_hydrogen_stubs :
-      FLAG_trace_hydrogen;
+  bool tracing_on = info()->IsStub()
+      ? FLAG_trace_hydrogen_stubs
+      : (FLAG_trace_hydrogen &&
+         info()->closure()->PassesFilter(FLAG_trace_hydrogen_filter));
   return (tracing_on &&
       OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
 }
