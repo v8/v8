@@ -1,3 +1,21 @@
+2013-08-26: Version 3.21.4
+
+        Lowered kInitialMaxFastElementArray constant to 95K (issue 2790).
+
+        Use signals for cpu profiling on Mac OS X (issue 2814).
+
+        Deprecated CpuProfileNode::GetSelfSamplesCount (Chromium issue 267595).
+
+        Added support for higher CPU profiler sampling rate on posix systems
+        (issue 2814).
+
+        Worked around 'inlining failed' build error with older GCC 4.x releases.
+
+        Added source map support to tick processor.
+
+        Stability improvements on all platforms.
+
+
 2013-08-23: Version 3.21.3
 
         Temporarily disabled optimization for StringWrappers to use native
