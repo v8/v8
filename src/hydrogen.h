@@ -1412,6 +1412,11 @@ class HGraphBuilder {
     LoopBuilder(HGraphBuilder* builder,
                 HValue* context,
                 Direction direction);
+    LoopBuilder(HGraphBuilder* builder,
+                HValue* context,
+                Direction direction,
+                HValue* increment_amount);
+
     ~LoopBuilder() {
       ASSERT(finished_);
     }
@@ -1420,6 +1425,9 @@ class HGraphBuilder {
         HValue* initial,
         HValue* terminating,
         Token::Value token);
+
+    void Break();
+
     void EndBody();
 
    private:
@@ -1427,11 +1435,13 @@ class HGraphBuilder {
 
     HGraphBuilder* builder_;
     HValue* context_;
+    HValue* increment_amount_;
     HInstruction* increment_;
     HPhi* phi_;
     HBasicBlock* header_block_;
     HBasicBlock* body_block_;
     HBasicBlock* exit_block_;
+    HBasicBlock* exit_trampoline_block_;
     Direction direction_;
     bool finished_;
   };

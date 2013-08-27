@@ -164,6 +164,7 @@ class LChunkBuilder;
   V(Shr)                                       \
   V(Simulate)                                  \
   V(StackCheck)                                \
+  V(StoreCodeEntry)                            \
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
   V(StoreGlobalGeneric)                        \
@@ -5200,7 +5201,33 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
 };
 
 
-class HInnerAllocatedObject V8_FINAL : public HTemplateInstruction<1> {
+class HStoreCodeEntry V8_FINAL: public HTemplateInstruction<2> {
+ public:
+  static HStoreCodeEntry* New(Zone* zone,
+                              HValue* context,
+                              HValue* function,
+                              HValue* code) {
+    return new(zone) HStoreCodeEntry(function, code);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  HValue* function() { return OperandAt(0); }
+  HValue* code_object() { return OperandAt(1); }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreCodeEntry)
+
+ private:
+  HStoreCodeEntry(HValue* function, HValue* code) {
+    SetOperandAt(0, function);
+    SetOperandAt(1, code);
+  }
+};
+
+
+class HInnerAllocatedObject V8_FINAL: public HTemplateInstruction<1> {
  public:
   static HInnerAllocatedObject* New(Zone* zone,
                                     HValue* context,
@@ -5509,6 +5536,14 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(kElementsPointer, JSObject::kElementsOffset);
   }
 
+  static HObjectAccess ForLiteralsPointer() {
+    return HObjectAccess(kInobject, JSFunction::kLiteralsOffset);
+  }
+
+  static HObjectAccess ForNextFunctionLinkPointer() {
+    return HObjectAccess(kInobject, JSFunction::kNextFunctionLinkOffset);
+  }
+
   static HObjectAccess ForArrayLength(ElementsKind elements_kind) {
     return HObjectAccess(
         kArrayLengths,
@@ -5553,6 +5588,35 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(kInobject, JSFunction::kPrototypeOrInitialMapOffset);
   }
 
+  static HObjectAccess ForSharedFunctionInfoPointer() {
+    return HObjectAccess(kInobject, JSFunction::kSharedFunctionInfoOffset);
+  }
+
+  static HObjectAccess ForCodeEntryPointer() {
+    return HObjectAccess(kInobject, JSFunction::kCodeEntryOffset);
+  }
+
+  static HObjectAccess ForCodeOffset() {
+    return HObjectAccess(kInobject, SharedFunctionInfo::kCodeOffset);
+  }
+
+  static HObjectAccess ForFirstCodeSlot() {
+    return HObjectAccess(kInobject, SharedFunctionInfo::kFirstCodeSlot);
+  }
+
+  static HObjectAccess ForFirstContextSlot() {
+    return HObjectAccess(kInobject, SharedFunctionInfo::kFirstContextSlot);
+  }
+
+  static HObjectAccess ForOptimizedCodeMap() {
+    return HObjectAccess(kInobject,
+                         SharedFunctionInfo::kOptimizedCodeMapOffset);
+  }
+
+  static HObjectAccess ForFunctionContextPointer() {
+    return HObjectAccess(kInobject, JSFunction::kContextOffset);
+  }
+
   static HObjectAccess ForMap() {
     return HObjectAccess(kMaps, JSObject::kMapOffset);
   }
@@ -5582,6 +5646,8 @@ class HObjectAccess V8_FINAL {
 
   // Create an access to an in-object property in a JSArray.
   static HObjectAccess ForJSArrayOffset(int offset);
+
+  static HObjectAccess ForContextSlot(int index);
 
   // Create an access to the backing store of an object.
   static HObjectAccess ForBackingStoreOffset(int offset,

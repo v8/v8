@@ -2325,6 +2325,7 @@ bool Isolate::Init(Deserializer* des) {
     ToBooleanStub::InitializeForIsolate(this);
     ArrayConstructorStubBase::InstallDescriptors(this);
     InternalArrayConstructorStubBase::InstallDescriptors(this);
+    FastNewClosureStub::InstallDescriptors(this);
   }
 
   if (FLAG_concurrent_recompilation) optimizing_compiler_thread_.Start();

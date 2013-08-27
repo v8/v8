@@ -489,20 +489,29 @@ class ToNumberStub: public HydrogenCodeStub {
 };
 
 
-class FastNewClosureStub : public PlatformCodeStub {
+class FastNewClosureStub : public HydrogenCodeStub {
  public:
   explicit FastNewClosureStub(LanguageMode language_mode, bool is_generator)
     : language_mode_(language_mode),
       is_generator_(is_generator) { }
 
-  void Generate(MacroAssembler* masm);
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  LanguageMode language_mode() const { return language_mode_; }
+  bool is_generator() const { return is_generator_; }
 
  private:
   class StrictModeBits: public BitField<bool, 0, 1> {};
   class IsGeneratorBits: public BitField<bool, 1, 1> {};
 
   Major MajorKey() { return FastNewClosure; }
-  int MinorKey() {
+  int NotMissMinorKey() {
     return StrictModeBits::encode(language_mode_ != CLASSIC_MODE) |
       IsGeneratorBits::encode(is_generator_);
   }

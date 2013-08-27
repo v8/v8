@@ -4045,6 +4045,15 @@ HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
 }
 
 
+HObjectAccess HObjectAccess::ForContextSlot(int index) {
+  ASSERT(index >= 0);
+  Portion portion = kInobject;
+  int offset = Context::kHeaderSize + index * kPointerSize;
+  ASSERT_EQ(offset, Context::SlotOffset(index) + kHeapObjectTag);
+  return HObjectAccess(portion, offset, Representation::Tagged());
+}
+
+
 HObjectAccess HObjectAccess::ForJSArrayOffset(int offset) {
   ASSERT(offset >= 0);
   Portion portion = kInobject;

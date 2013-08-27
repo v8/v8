@@ -395,6 +395,7 @@ namespace internal {
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \
+  F(NewClosureFromStubFailure, 1, 1) \
   F(NewObject, 1, 1) \
   F(NewObjectFromBound, 1, 1) \
   F(FinalizeInstanceSize, 1, 1) \
