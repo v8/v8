@@ -49,10 +49,10 @@ class HEnvironment;
 class HInferRepresentationPhase;
 class HInstruction;
 class HLoopInformation;
+class HStoreNamedField;
 class HValue;
 class LInstruction;
 class LChunkBuilder;
-
 
 #define HYDROGEN_ABSTRACT_INSTRUCTION_LIST(V)  \
   V(ArithmeticBinaryOperation)                 \
@@ -3237,7 +3237,30 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   DECLARE_INSTRUCTION_FACTORY_P2(HConstant, int32_t, Representation);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, double);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, Handle<Object>);
+  DECLARE_INSTRUCTION_FACTORY_P2(HConstant, Handle<Map>, UniqueValueId);
   DECLARE_INSTRUCTION_FACTORY_P1(HConstant, ExternalReference);
+
+  static HConstant* CreateAndInsertAfter(Zone* zone,
+                                         HValue* context,
+                                         int32_t value,
+                                         Representation representation,
+                                         HInstruction* instruction) {
+    HConstant* new_constant =
+        HConstant::New(zone, context, value, representation);
+    new_constant->InsertAfter(instruction);
+    return new_constant;
+  }
+
+  static HConstant* CreateAndInsertBefore(Zone* zone,
+                                          HValue* context,
+                                          int32_t value,
+                                          Representation representation,
+                                          HInstruction* instruction) {
+    HConstant* new_constant =
+        HConstant::New(zone, context, value, representation);
+    new_constant->InsertBefore(instruction);
+    return new_constant;
+  }
 
   Handle<Object> handle() {
     if (handle_.is_null()) {
@@ -3441,6 +3464,8 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
             bool is_not_in_new_space,
             bool is_cell,
             bool boolean_value);
+  HConstant(Handle<Map> handle,
+            UniqueValueId unique_id);
   explicit HConstant(ExternalReference reference);
 
   void Initialize(Representation r);
@@ -5108,10 +5133,6 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
   }
 
-  void UpdateSize(HValue* size) {
-    SetOperandAt(1, size);
-  }
-
   virtual void HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE;
 
@@ -5133,7 +5154,9 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             HType type,
             PretenureFlag pretenure_flag,
             InstanceType instance_type)
-      : HTemplateInstruction<2>(type) {
+      : HTemplateInstruction<2>(type),
+        dominating_allocate_(NULL),
+        filler_free_space_size_(NULL) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
@@ -5150,8 +5173,27 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     }
   }
 
+  void UpdateSize(HValue* size) {
+    SetOperandAt(1, size);
+  }
+
+  HAllocate* GetFoldableDominator(HAllocate* dominator);
+
+  void UpdateFreeSpaceFiller(int32_t filler_size);
+
+  void CreateFreeSpaceFiller(int32_t filler_size);
+
+  bool IsFoldable(HAllocate* allocate) {
+    return (IsNewSpaceAllocation() && allocate->IsNewSpaceAllocation()) ||
+        (IsOldDataSpaceAllocation() && allocate->IsOldDataSpaceAllocation()) ||
+        (IsOldPointerSpaceAllocation() &&
+            allocate->IsOldPointerSpaceAllocation());
+  }
+
   Flags flags_;
   Handle<Map> known_initial_map_;
+  HAllocate* dominating_allocate_;
+  HStoreNamedField* filler_free_space_size_;
 };
 
 
@@ -5996,6 +6038,10 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
 
   Representation field_representation() const {
     return access_.representation();
+  }
+
+  void UpdateValue(HValue* value) {
+    SetOperandAt(1, value);
   }
 
  private:
