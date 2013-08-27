@@ -119,4 +119,4 @@ test-sockets/Socket: SKIP
 test-cpu-profiler/*: SKIP
 
 # Fails since 16322 (new test).
-test-code-stubs-arm: SKIP
+test-code-stubs-arm/ConvertDToI: SKIP
