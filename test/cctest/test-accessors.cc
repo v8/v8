@@ -41,7 +41,6 @@ using ::v8::Local;
 using ::v8::String;
 using ::v8::Script;
 using ::v8::Function;
-using ::v8::AccessorInfo;
 using ::v8::Extension;
 
 static void handle_property(Local<String> name,

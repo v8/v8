@@ -493,8 +493,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   // Function address is a foreign pointer outside V8's heap.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
-  bool returns_handle =
-      !CallbackTable::ReturnsVoid(masm->isolate(), function_address);
+  // TODO(dcarney): fix signatures using returns_handle
+  const bool returns_handle = false;
 
 #if defined(__MINGW64__)
   Register arguments_arg = rcx;
@@ -524,9 +524,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // v8::InvocationCallback's argument.
   __ lea(arguments_arg, StackSpaceOperand(0));
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeInvocationCallback)
-      : FUNCTION_ADDR(&InvokeFunctionCallback);
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
 
   __ CallApiFunctionAndReturn(function_address,
                               thunk_address,
@@ -1309,8 +1307,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // passed as the const ExecutableAccessorInfo& to the C++ callback.
 
   Address getter_address = v8::ToCData<Address>(callback->getter());
-  bool returns_handle =
-      !CallbackTable::ReturnsVoid(isolate(), getter_address);
+  // TODO(dcarney): fix signatures using returns_handle
+  const bool returns_handle = false;
 
 #if defined(__MINGW64__)
   Register getter_arg = r8;
@@ -1348,9 +1346,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // could be used to pass arguments.
   __ lea(accessor_info_arg, StackSpaceOperand(0));
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeAccessorGetter)
-      : FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
 
   __ CallApiFunctionAndReturn(getter_address,
                               thunk_address,

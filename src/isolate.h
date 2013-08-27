@@ -52,7 +52,6 @@ namespace v8 {
 namespace internal {
 
 class Bootstrapper;
-class CallbackTable;
 class CodeGenerator;
 class CodeRange;
 struct CodeStubInterfaceDescriptor;
@@ -1111,13 +1110,6 @@ class Isolate {
     return sweeper_thread_;
   }
 
-  CallbackTable* callback_table() {
-    return callback_table_;
-  }
-  void set_callback_table(CallbackTable* callback_table) {
-    callback_table_ = callback_table;
-  }
-
   int id() const { return static_cast<int>(id_); }
 
   HStatistics* GetHStatistics();
@@ -1363,7 +1355,6 @@ class Isolate {
   OptimizingCompilerThread optimizing_compiler_thread_;
   MarkingThread** marking_thread_;
   SweeperThread** sweeper_thread_;
-  CallbackTable* callback_table_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;

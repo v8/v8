@@ -83,7 +83,6 @@
  */
 namespace v8 {
 
-class AccessorInfo;
 class AccessorSignature;
 class Array;
 class Boolean;
@@ -125,7 +124,6 @@ template <class T> class Persistent;
 class FunctionTemplate;
 class ObjectTemplate;
 class Data;
-class AccessorInfo;
 template<typename T> class PropertyCallbackInfo;
 class StackTrace;
 class StackFrame;
@@ -351,11 +349,9 @@ template <class T> class Handle {
   friend class Utils;
   template<class F> friend class Persistent;
   template<class F> friend class Local;
-  friend class Arguments;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
   template<class F> friend class internal::CustomArguments;
-  friend class AccessorInfo;
   friend Handle<Primitive> Undefined(Isolate* isolate);
   friend Handle<Primitive> Null(Isolate* isolate);
   friend Handle<Boolean> True(Isolate* isolate);
@@ -439,12 +435,10 @@ template <class T> class Local : public Handle<T> {
   template<class F> friend class Eternal;
   template<class F> friend class Persistent;
   template<class F> friend class Handle;
-  friend class Arguments;
   template<class F> friend class FunctionCallbackInfo;
   template<class F> friend class PropertyCallbackInfo;
   friend class String;
   friend class Object;
-  friend class AccessorInfo;
   friend class Context;
   template<class F> friend class internal::CustomArguments;
   friend class HandleScope;
@@ -2035,16 +2029,11 @@ enum ExternalArrayType {
  * setting|getting a particular property. See Object and ObjectTemplate's
  * method SetAccessor.
  */
-typedef Handle<Value> (*AccessorGetter)(Local<String> property,
-                                        const AccessorInfo& info);
 typedef void (*AccessorGetterCallback)(
     Local<String> property,
     const PropertyCallbackInfo<Value>& info);
 
 
-typedef void (*AccessorSetter)(Local<String> property,
-                               Local<Value> value,
-                               const AccessorInfo& info);
 typedef void (*AccessorSetterCallback)(
     Local<String> property,
     Local<Value> value,
@@ -2118,12 +2107,6 @@ class V8_EXPORT Object : public Value {
 
   bool Delete(uint32_t index);
 
-  V8_DEPRECATED(bool SetAccessor(Handle<String> name,
-                                 AccessorGetter getter,
-                                 AccessorSetter setter = 0,
-                                 Handle<Value> data = Handle<Value>(),
-                                 AccessControl settings = DEFAULT,
-                                 PropertyAttribute attribute = None));
   bool SetAccessor(Handle<String> name,
                    AccessorGetterCallback getter,
                    AccessorSetterCallback setter = 0,
@@ -3072,15 +3055,6 @@ class FunctionCallbackInfo {
 };
 
 
-class V8_EXPORT Arguments : public FunctionCallbackInfo<Value> {
- private:
-  friend class internal::FunctionCallbackArguments;
-  V8_INLINE(Arguments(internal::Object** implicit_args,
-                      internal::Object** values,
-                      int length,
-                      bool is_construct_call));
-};
-
 /**
  * The information passed to a property callback about the context
  * of the property access.
@@ -3113,23 +3087,12 @@ class PropertyCallbackInfo {
 };
 
 
-class V8_EXPORT AccessorInfo : public PropertyCallbackInfo<Value> {
- private:
-  friend class internal::PropertyCallbackArguments;
-  V8_INLINE(AccessorInfo(internal::Object** args))
-      : PropertyCallbackInfo<Value>(args) { }
-};
-
-
-typedef Handle<Value> (*InvocationCallback)(const Arguments& args);
 typedef void (*FunctionCallback)(const FunctionCallbackInfo<Value>& info);
 
 /**
  * NamedProperty[Getter|Setter] are used as interceptors on object.
  * See ObjectTemplate::SetNamedPropertyHandler.
  */
-typedef Handle<Value> (*NamedPropertyGetter)(Local<String> property,
-                                             const AccessorInfo& info);
 typedef void (*NamedPropertyGetterCallback)(
     Local<String> property,
     const PropertyCallbackInfo<Value>& info);
@@ -3139,9 +3102,6 @@ typedef void (*NamedPropertyGetterCallback)(
  * Returns the value if the setter intercepts the request.
  * Otherwise, returns an empty handle.
  */
-typedef Handle<Value> (*NamedPropertySetter)(Local<String> property,
-                                             Local<Value> value,
-                                             const AccessorInfo& info);
 typedef void (*NamedPropertySetterCallback)(
     Local<String> property,
     Local<Value> value,
@@ -3153,8 +3113,6 @@ typedef void (*NamedPropertySetterCallback)(
  * The result is an integer encoding property attributes (like v8::None,
  * v8::DontEnum, etc.)
  */
-typedef Handle<Integer> (*NamedPropertyQuery)(Local<String> property,
-                                              const AccessorInfo& info);
 typedef void (*NamedPropertyQueryCallback)(
     Local<String> property,
     const PropertyCallbackInfo<Integer>& info);
@@ -3165,8 +3123,6 @@ typedef void (*NamedPropertyQueryCallback)(
  * The return value is true if the property could be deleted and false
  * otherwise.
  */
-typedef Handle<Boolean> (*NamedPropertyDeleter)(Local<String> property,
-                                                const AccessorInfo& info);
 typedef void (*NamedPropertyDeleterCallback)(
     Local<String> property,
     const PropertyCallbackInfo<Boolean>& info);
@@ -3176,7 +3132,6 @@ typedef void (*NamedPropertyDeleterCallback)(
  * Returns an array containing the names of the properties the named
  * property getter intercepts.
  */
-typedef Handle<Array> (*NamedPropertyEnumerator)(const AccessorInfo& info);
 typedef void (*NamedPropertyEnumeratorCallback)(
     const PropertyCallbackInfo<Array>& info);
 
@@ -3185,8 +3140,6 @@ typedef void (*NamedPropertyEnumeratorCallback)(
  * Returns the value of the property if the getter intercepts the
  * request.  Otherwise, returns an empty handle.
  */
-typedef Handle<Value> (*IndexedPropertyGetter)(uint32_t index,
-                                               const AccessorInfo& info);
 typedef void (*IndexedPropertyGetterCallback)(
     uint32_t index,
     const PropertyCallbackInfo<Value>& info);
@@ -3196,9 +3149,6 @@ typedef void (*IndexedPropertyGetterCallback)(
  * Returns the value if the setter intercepts the request.
  * Otherwise, returns an empty handle.
  */
-typedef Handle<Value> (*IndexedPropertySetter)(uint32_t index,
-                                               Local<Value> value,
-                                               const AccessorInfo& info);
 typedef void (*IndexedPropertySetterCallback)(
     uint32_t index,
     Local<Value> value,
@@ -3209,8 +3159,6 @@ typedef void (*IndexedPropertySetterCallback)(
  * Returns a non-empty handle if the interceptor intercepts the request.
  * The result is an integer encoding property attributes.
  */
-typedef Handle<Integer> (*IndexedPropertyQuery)(uint32_t index,
-                                                const AccessorInfo& info);
 typedef void (*IndexedPropertyQueryCallback)(
     uint32_t index,
     const PropertyCallbackInfo<Integer>& info);
@@ -3221,8 +3169,6 @@ typedef void (*IndexedPropertyQueryCallback)(
  * The return value is true if the property could be deleted and false
  * otherwise.
  */
-typedef Handle<Boolean> (*IndexedPropertyDeleter)(uint32_t index,
-                                                  const AccessorInfo& info);
 typedef void (*IndexedPropertyDeleterCallback)(
     uint32_t index,
     const PropertyCallbackInfo<Boolean>& info);
@@ -3232,7 +3178,6 @@ typedef void (*IndexedPropertyDeleterCallback)(
  * Returns an array containing the indices of the properties the
  * indexed property getter intercepts.
  */
-typedef Handle<Array> (*IndexedPropertyEnumerator)(const AccessorInfo& info);
 typedef void (*IndexedPropertyEnumeratorCallback)(
     const PropertyCallbackInfo<Array>& info);
 
@@ -3364,11 +3309,6 @@ typedef bool (*IndexedSecurityCallback)(Local<Object> host,
 class V8_EXPORT FunctionTemplate : public Template {
  public:
   /** Creates a function template.*/
-  V8_DEPRECATED(static Local<FunctionTemplate> New(
-      InvocationCallback callback,
-      Handle<Value> data = Handle<Value>(),
-      Handle<Signature> signature = Handle<Signature>(),
-      int length = 0));
   static Local<FunctionTemplate> New(
       FunctionCallback callback = 0,
       Handle<Value> data = Handle<Value>(),
@@ -3383,8 +3323,6 @@ class V8_EXPORT FunctionTemplate : public Template {
    * callback is called whenever the function created from this
    * FunctionTemplate is called.
    */
-  V8_DEPRECATED(void SetCallHandler(InvocationCallback callback,
-                                    Handle<Value> data = Handle<Value>()));
   void SetCallHandler(FunctionCallback callback,
                       Handle<Value> data = Handle<Value>());
 
@@ -3444,9 +3382,6 @@ class V8_EXPORT FunctionTemplate : public Template {
 
  private:
   FunctionTemplate();
-  // TODO(dcarney): Remove with SetCallHandler.
-  friend class v8::CallHandlerHelper;
-  void SetCallHandlerInternal(InvocationCallback callback, Handle<Value> data);
   friend class Context;
   friend class ObjectTemplate;
 };
@@ -3495,14 +3430,6 @@ class V8_EXPORT ObjectTemplate : public Template {
    *   defined by FunctionTemplate::HasInstance()), an implicit TypeError is
    *   thrown and no callback is invoked.
    */
-  V8_DEPRECATED(void SetAccessor(Handle<String> name,
-                                 AccessorGetter getter,
-                                 AccessorSetter setter = 0,
-                                 Handle<Value> data = Handle<Value>(),
-                                 AccessControl settings = DEFAULT,
-                                 PropertyAttribute attribute = None,
-                                 Handle<AccessorSignature> signature =
-                                     Handle<AccessorSignature>()));
   void SetAccessor(Handle<String> name,
                    AccessorGetterCallback getter,
                    AccessorSetterCallback setter = 0,
@@ -3537,13 +3464,6 @@ class V8_EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
-  V8_DEPRECATED(void SetNamedPropertyHandler(
-      NamedPropertyGetter getter,
-      NamedPropertySetter setter = 0,
-      NamedPropertyQuery query = 0,
-      NamedPropertyDeleter deleter = 0,
-      NamedPropertyEnumerator enumerator = 0,
-      Handle<Value> data = Handle<Value>()));
   void SetNamedPropertyHandler(
       NamedPropertyGetterCallback getter,
       NamedPropertySetterCallback setter = 0,
@@ -3568,13 +3488,6 @@ class V8_EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
-  V8_DEPRECATED(void SetIndexedPropertyHandler(
-      IndexedPropertyGetter getter,
-      IndexedPropertySetter setter = 0,
-      IndexedPropertyQuery query = 0,
-      IndexedPropertyDeleter deleter = 0,
-      IndexedPropertyEnumerator enumerator = 0,
-      Handle<Value> data = Handle<Value>()));
   void SetIndexedPropertyHandler(
       IndexedPropertyGetterCallback getter,
       IndexedPropertySetterCallback setter = 0,
@@ -3589,9 +3502,6 @@ class V8_EXPORT ObjectTemplate : public Template {
    * behave like normal JavaScript objects that cannot be called as a
    * function.
    */
-  V8_DEPRECATED(void SetCallAsFunctionHandler(
-      InvocationCallback callback,
-      Handle<Value> data = Handle<Value>()));
   void SetCallAsFunctionHandler(FunctionCallback callback,
                                 Handle<Value> data = Handle<Value>());
 
@@ -6011,13 +5921,6 @@ FunctionCallbackInfo<T>::FunctionCallbackInfo(internal::Object** implicit_args,
       values_(values),
       length_(length),
       is_construct_call_(is_construct_call) { }
-
-
-Arguments::Arguments(internal::Object** args,
-                     internal::Object** values,
-                     int length,
-                     bool is_construct_call)
-    : FunctionCallbackInfo<Value>(args, values, length, is_construct_call) { }
 
 
 template<typename T>

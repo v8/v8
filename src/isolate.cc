@@ -1793,7 +1793,6 @@ Isolate::Isolate()
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
       sweeper_thread_(NULL),
-      callback_table_(NULL),
       stress_deopt_count_(0) {
   id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
@@ -2062,9 +2061,6 @@ Isolate::~Isolate() {
 
   delete external_reference_table_;
   external_reference_table_ = NULL;
-
-  delete callback_table_;
-  callback_table_ = NULL;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   delete debugger_;

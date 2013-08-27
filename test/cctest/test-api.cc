@@ -53,8 +53,6 @@
 
 static const bool kLogThreading = false;
 
-using ::v8::AccessorInfo;
-using ::v8::Arguments;
 using ::v8::Boolean;
 using ::v8::BooleanObject;
 using ::v8::Context;

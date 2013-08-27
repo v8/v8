@@ -903,8 +903,8 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
 
   const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
-  bool returns_handle =
-      !CallbackTable::ReturnsVoid(masm->isolate(), function_address);
+  // TODO(dcarney): fix signatures using returns_handle
+  const bool returns_handle = false;
   ApiFunction fun(function_address);
   ExternalReference::Type type =
       returns_handle ?
@@ -913,9 +913,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   ExternalReference ref = ExternalReference(&fun,
                                             type,
                                             masm->isolate());
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeInvocationCallback)
-      : FUNCTION_ADDR(&InvokeFunctionCallback);
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
   ExternalReference::Type thunk_type =
       returns_handle ?
           ExternalReference::PROFILING_API_CALL :
@@ -1424,8 +1422,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
 
   const int kStackUnwindSpace = kFastApiCallArguments + 1;
   Address getter_address = v8::ToCData<Address>(callback->getter());
-  bool returns_handle =
-      !CallbackTable::ReturnsVoid(isolate(), getter_address);
+  // TODO(dcarney): fix signatures using returns_handle
+  const bool returns_handle = false;
 
   ApiFunction fun(getter_address);
   ExternalReference::Type type =
@@ -1434,13 +1432,9 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
           ExternalReference::DIRECT_GETTER_CALL_NEW;
   ExternalReference ref = ExternalReference(&fun, type, isolate());
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeAccessorGetter)
-      : FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
   ExternalReference::Type thunk_type =
-      returns_handle ?
-          ExternalReference::PROFILING_GETTER_CALL :
-          ExternalReference::PROFILING_GETTER_CALL_NEW;
+      ExternalReference::PROFILING_GETTER_CALL_NEW;
   ApiFunction thunk_fun(thunk_address);
   ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
       isolate());
