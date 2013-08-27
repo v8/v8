@@ -7494,7 +7494,12 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
   HConstant* delta = (expr->op() == Token::INC)
       ? graph()->GetConstant1()
       : graph()->GetConstantMinus1();
-  HInstruction* instr = Add<HAdd>(Top(), delta);
+  HInstruction* instr = AddUncasted<HAdd>(Top(), delta);
+  if (instr->IsAdd()) {
+    HAdd* add = HAdd::cast(instr);
+    add->set_observed_input_representation(1, rep);
+    add->set_observed_input_representation(2, Representation::Smi());
+  }
   instr->SetFlag(HInstruction::kCannotBeTagged);
   instr->ClearAllSideEffects();
   return instr;

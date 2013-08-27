@@ -1058,7 +1058,7 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2>
   I* Add(P1 p1, P2 p2) {
-    return static_cast<I*>(AddUncasted<I>(p1, p2));
+    return I::cast(AddUncasted<I>(p1, p2));
   }
 
   template<class I, class P1, class P2, class P3>
