@@ -337,24 +337,9 @@ F FUNCTION_CAST(Address addr) {
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 
-// Define used for helping GCC to make better inlining. Don't bother for debug
-// builds. On GCC 3.4.5 using __attribute__((always_inline)) causes compilation
-// errors in debug build.
-#if defined(__GNUC__) && !defined(DEBUG)
-#if (__GNUC__ >= 4)
-#define INLINE(header) inline header  __attribute__((always_inline))
-#define NO_INLINE(header) header __attribute__((noinline))
-#else
-#define INLINE(header) inline __attribute__((always_inline)) header
-#define NO_INLINE(header) __attribute__((noinline)) header
-#endif
-#elif defined(_MSC_VER) && !defined(DEBUG)
-#define INLINE(header) __forceinline header
-#define NO_INLINE(header) header
-#else
-#define INLINE(header) inline header
-#define NO_INLINE(header) header
-#endif
+// Newly written code should use V8_INLINE() and V8_NOINLINE() directly.
+#define INLINE(declarator)    V8_INLINE(declarator)
+#define NO_INLINE(declarator) V8_NOINLINE(declarator)
 
 
 // Newly written code should use V8_WARN_UNUSED_RESULT.

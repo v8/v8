@@ -112,12 +112,14 @@
 //  V8_HAS_ATTRIBUTE_ALWAYS_INLINE      - __attribute__((always_inline))
 //                                        supported
 //  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
+//  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
 //  V8_HAS_BUILTIN_EXPECT               - __builtin_expect() supported
 //  V8_HAS_DECLSPEC_ALIGN               - __declspec(align(n)) supported
 //  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
+//  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS___FINAL                      - __final supported in non-C++11 mode
 //  V8_HAS___FORCEINLINE                - __forceinline supported
 //  V8_HAS_SEALED                       - MSVC style sealed marker supported
@@ -142,6 +144,7 @@
 # define V8_HAS_ATTRIBUTE_ALIGNED (__has_attribute(aligned))
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
+# define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
@@ -173,6 +176,7 @@
 // older compilers.
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (V8_GNUC_PREREQ(4, 4, 0))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (V8_GNUC_PREREQ(3, 4, 0))
+# define V8_HAS_ATTRIBUTE_NOINLINE (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (!V8_CC_INTEL && V8_GNUC_PREREQ(4, 1, 0))
@@ -213,6 +217,7 @@
 
 # define V8_HAS_DECLSPEC_ALIGN 1
 # define V8_HAS_DECLSPEC_DEPRECATED (_MSC_VER >= 1300)
+# define V8_HAS_DECLSPEC_NOINLINE 1
 
 # define V8_HAS___FORCEINLINE 1
 
@@ -229,6 +234,17 @@
 # define V8_INLINE(declarator) __forceinline declarator
 #else
 # define V8_INLINE(declarator) inline declarator
+#endif
+
+
+// A macro used to tell the compiler to never inline a particular function.
+// Don't bother for debug builds.
+#if !defined(DEBUG) && V8_HAS_ATTRIBUTE_NOINLINE
+# define V8_NOINLINE(declarator) __attribute__((noinline)) declarator
+#elif !defined(DEBUG) && V8_HAS_DECLSPEC_NOINLINE
+# define V8_NOINLINE(declarator) __declspec(noinline) declarator
+#else
+# define V8_NOINLINE(declarator) declarator
 #endif
 
 
