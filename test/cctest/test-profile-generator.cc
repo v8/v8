@@ -132,14 +132,12 @@ TEST(ProfileTreeAddPathFromStart) {
   CHECK_EQ(NULL, helper.Walk(&entry3));
   ProfileNode* node1 = helper.Walk(&entry1);
   CHECK_NE(NULL, node1);
-  CHECK_EQ(0, node1->total_ticks());
   CHECK_EQ(0, node1->self_ticks());
   CHECK_EQ(NULL, helper.Walk(&entry1, &entry1));
   CHECK_EQ(NULL, helper.Walk(&entry1, &entry3));
   ProfileNode* node2 = helper.Walk(&entry1, &entry2);
   CHECK_NE(NULL, node2);
   CHECK_NE(node1, node2);
-  CHECK_EQ(0, node2->total_ticks());
   CHECK_EQ(0, node2->self_ticks());
   CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry1));
   CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry2));
@@ -147,18 +145,14 @@ TEST(ProfileTreeAddPathFromStart) {
   CHECK_NE(NULL, node3);
   CHECK_NE(node1, node3);
   CHECK_NE(node2, node3);
-  CHECK_EQ(0, node3->total_ticks());
   CHECK_EQ(1, node3->self_ticks());
 
   tree.AddPathFromStart(path_vec);
   CHECK_EQ(node1, helper.Walk(&entry1));
   CHECK_EQ(node2, helper.Walk(&entry1, &entry2));
   CHECK_EQ(node3, helper.Walk(&entry1, &entry2, &entry3));
-  CHECK_EQ(0, node1->total_ticks());
   CHECK_EQ(0, node1->self_ticks());
-  CHECK_EQ(0, node2->total_ticks());
   CHECK_EQ(0, node2->self_ticks());
-  CHECK_EQ(0, node3->total_ticks());
   CHECK_EQ(2, node3->self_ticks());
 
   CodeEntry* path2[] = {&entry1, &entry2, &entry2};
@@ -172,12 +166,10 @@ TEST(ProfileTreeAddPathFromStart) {
   CHECK_EQ(node2, helper.Walk(&entry1, &entry2));
   CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry1));
   CHECK_EQ(node3, helper.Walk(&entry1, &entry2, &entry3));
-  CHECK_EQ(0, node3->total_ticks());
   CHECK_EQ(2, node3->self_ticks());
   ProfileNode* node4 = helper.Walk(&entry1, &entry2, &entry2);
   CHECK_NE(NULL, node4);
   CHECK_NE(node3, node4);
-  CHECK_EQ(0, node4->total_ticks());
   CHECK_EQ(1, node4->self_ticks());
 }
 
@@ -199,14 +191,12 @@ TEST(ProfileTreeAddPathFromEnd) {
   CHECK_EQ(NULL, helper.Walk(&entry3));
   ProfileNode* node1 = helper.Walk(&entry1);
   CHECK_NE(NULL, node1);
-  CHECK_EQ(0, node1->total_ticks());
   CHECK_EQ(0, node1->self_ticks());
   CHECK_EQ(NULL, helper.Walk(&entry1, &entry1));
   CHECK_EQ(NULL, helper.Walk(&entry1, &entry3));
   ProfileNode* node2 = helper.Walk(&entry1, &entry2);
   CHECK_NE(NULL, node2);
   CHECK_NE(node1, node2);
-  CHECK_EQ(0, node2->total_ticks());
   CHECK_EQ(0, node2->self_ticks());
   CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry1));
   CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry2));
@@ -214,18 +204,14 @@ TEST(ProfileTreeAddPathFromEnd) {
   CHECK_NE(NULL, node3);
   CHECK_NE(node1, node3);
   CHECK_NE(node2, node3);
-  CHECK_EQ(0, node3->total_ticks());
   CHECK_EQ(1, node3->self_ticks());
 
   tree.AddPathFromEnd(path_vec);
   CHECK_EQ(node1, helper.Walk(&entry1));
   CHECK_EQ(node2, helper.Walk(&entry1, &entry2));
   CHECK_EQ(node3, helper.Walk(&entry1, &entry2, &entry3));
-  CHECK_EQ(0, node1->total_ticks());
   CHECK_EQ(0, node1->self_ticks());
-  CHECK_EQ(0, node2->total_ticks());
   CHECK_EQ(0, node2->self_ticks());
-  CHECK_EQ(0, node3->total_ticks());
   CHECK_EQ(2, node3->self_ticks());
 
   CodeEntry* path2[] = {&entry2, &entry2, &entry1};
@@ -239,28 +225,18 @@ TEST(ProfileTreeAddPathFromEnd) {
   CHECK_EQ(node2, helper.Walk(&entry1, &entry2));
   CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry1));
   CHECK_EQ(node3, helper.Walk(&entry1, &entry2, &entry3));
-  CHECK_EQ(0, node3->total_ticks());
   CHECK_EQ(2, node3->self_ticks());
   ProfileNode* node4 = helper.Walk(&entry1, &entry2, &entry2);
   CHECK_NE(NULL, node4);
   CHECK_NE(node3, node4);
-  CHECK_EQ(0, node4->total_ticks());
   CHECK_EQ(1, node4->self_ticks());
 }
 
 
 TEST(ProfileTreeCalculateTotalTicks) {
   ProfileTree empty_tree;
-  CHECK_EQ(0, empty_tree.root()->total_ticks());
-  CHECK_EQ(0, empty_tree.root()->self_ticks());
-  empty_tree.CalculateTotalTicks();
-  CHECK_EQ(0, empty_tree.root()->total_ticks());
   CHECK_EQ(0, empty_tree.root()->self_ticks());
   empty_tree.root()->IncrementSelfTicks();
-  CHECK_EQ(0, empty_tree.root()->total_ticks());
-  CHECK_EQ(1, empty_tree.root()->self_ticks());
-  empty_tree.CalculateTotalTicks();
-  CHECK_EQ(1, empty_tree.root()->total_ticks());
   CHECK_EQ(1, empty_tree.root()->self_ticks());
 
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
@@ -271,17 +247,11 @@ TEST(ProfileTreeCalculateTotalTicks) {
   ProfileTree single_child_tree;
   single_child_tree.AddPathFromStart(e1_path_vec);
   single_child_tree.root()->IncrementSelfTicks();
-  CHECK_EQ(0, single_child_tree.root()->total_ticks());
   CHECK_EQ(1, single_child_tree.root()->self_ticks());
   ProfileTreeTestHelper single_child_helper(&single_child_tree);
   ProfileNode* node1 = single_child_helper.Walk(&entry1);
   CHECK_NE(NULL, node1);
-  CHECK_EQ(0, node1->total_ticks());
-  CHECK_EQ(1, node1->self_ticks());
-  single_child_tree.CalculateTotalTicks();
-  CHECK_EQ(2, single_child_tree.root()->total_ticks());
   CHECK_EQ(1, single_child_tree.root()->self_ticks());
-  CHECK_EQ(1, node1->total_ticks());
   CHECK_EQ(1, node1->self_ticks());
 
   CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
@@ -297,24 +267,16 @@ TEST(ProfileTreeCalculateTotalTicks) {
   flat_tree.AddPathFromStart(e1_e2_path_vec);
   flat_tree.AddPathFromStart(e1_e2_path_vec);
   // Results in {root,0,0} -> {entry1,0,2} -> {entry2,0,3}
-  CHECK_EQ(0, flat_tree.root()->total_ticks());
   CHECK_EQ(0, flat_tree.root()->self_ticks());
   node1 = flat_helper.Walk(&entry1);
   CHECK_NE(NULL, node1);
-  CHECK_EQ(0, node1->total_ticks());
   CHECK_EQ(2, node1->self_ticks());
   ProfileNode* node2 = flat_helper.Walk(&entry1, &entry2);
   CHECK_NE(NULL, node2);
-  CHECK_EQ(0, node2->total_ticks());
   CHECK_EQ(3, node2->self_ticks());
-  flat_tree.CalculateTotalTicks();
   // Must calculate {root,5,0} -> {entry1,5,2} -> {entry2,3,3}
-  CHECK_EQ(5, flat_tree.root()->total_ticks());
   CHECK_EQ(0, flat_tree.root()->self_ticks());
-  CHECK_EQ(5, node1->total_ticks());
   CHECK_EQ(2, node1->self_ticks());
-  CHECK_EQ(3, node2->total_ticks());
-  CHECK_EQ(3, node2->self_ticks());
 
   CodeEntry* e2_path[] = {&entry2};
   Vector<CodeEntry*> e2_path_vec(
@@ -339,37 +301,26 @@ TEST(ProfileTreeCalculateTotalTicks) {
   // Results in            -> {entry1,0,2} -> {entry2,0,1}
   //            {root,0,0} -> {entry2,0,3}
   //                       -> {entry3,0,4}
-  CHECK_EQ(0, wide_tree.root()->total_ticks());
   CHECK_EQ(0, wide_tree.root()->self_ticks());
   node1 = wide_helper.Walk(&entry1);
   CHECK_NE(NULL, node1);
-  CHECK_EQ(0, node1->total_ticks());
   CHECK_EQ(2, node1->self_ticks());
   ProfileNode* node1_2 = wide_helper.Walk(&entry1, &entry2);
   CHECK_NE(NULL, node1_2);
-  CHECK_EQ(0, node1_2->total_ticks());
   CHECK_EQ(1, node1_2->self_ticks());
   node2 = wide_helper.Walk(&entry2);
   CHECK_NE(NULL, node2);
-  CHECK_EQ(0, node2->total_ticks());
   CHECK_EQ(3, node2->self_ticks());
   ProfileNode* node3 = wide_helper.Walk(&entry3);
   CHECK_NE(NULL, node3);
-  CHECK_EQ(0, node3->total_ticks());
   CHECK_EQ(4, node3->self_ticks());
-  wide_tree.CalculateTotalTicks();
   // Calculates             -> {entry1,3,2} -> {entry2,1,1}
   //            {root,10,0} -> {entry2,3,3}
   //                        -> {entry3,4,4}
-  CHECK_EQ(10, wide_tree.root()->total_ticks());
   CHECK_EQ(0, wide_tree.root()->self_ticks());
-  CHECK_EQ(3, node1->total_ticks());
   CHECK_EQ(2, node1->self_ticks());
-  CHECK_EQ(1, node1_2->total_ticks());
   CHECK_EQ(1, node1_2->self_ticks());
-  CHECK_EQ(3, node2->total_ticks());
   CHECK_EQ(3, node2->self_ticks());
-  CHECK_EQ(4, node3->total_ticks());
   CHECK_EQ(4, node3->self_ticks());
 }
 

@@ -7295,27 +7295,6 @@ int CpuProfileNode::GetLineNumber() const {
 }
 
 
-double CpuProfileNode::GetTotalTime() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetTotalTime");
-  return reinterpret_cast<const i::ProfileNode*>(this)->GetTotalMillis();
-}
-
-
-double CpuProfileNode::GetSelfTime() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetSelfTime");
-  return reinterpret_cast<const i::ProfileNode*>(this)->GetSelfMillis();
-}
-
-
-double CpuProfileNode::GetTotalSamplesCount() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::CpuProfileNode::GetTotalSamplesCount");
-  return reinterpret_cast<const i::ProfileNode*>(this)->total_ticks();
-}
-
-
 double CpuProfileNode::GetSelfSamplesCount() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetSelfSamplesCount");
