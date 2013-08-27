@@ -357,11 +357,8 @@ F FUNCTION_CAST(Address addr) {
 #endif
 
 
-#if defined(__GNUC__) && __GNUC__ >= 4
-#define MUST_USE_RESULT __attribute__ ((warn_unused_result))
-#else
-#define MUST_USE_RESULT
-#endif
+// Newly written code should use V8_WARN_UNUSED_RESULT.
+#define MUST_USE_RESULT V8_WARN_UNUSED_RESULT
 
 
 // Define DISABLE_ASAN macros.
