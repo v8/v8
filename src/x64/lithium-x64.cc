@@ -1843,8 +1843,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       return AssignEnvironment(DefineSameAsFirst(new(zone()) LCheckSmi(value)));
     } else {
       ASSERT(to.IsInteger32());
-      LOperand* value = UseRegister(instr->value());
-      if (instr->value()->type().IsSmi()) {
+      HValue* val = instr->value();
+      LOperand* value = UseRegister(val);
+      if (val->type().IsSmi() || val->representation().IsSmi()) {
         return DefineSameAsFirst(new(zone()) LSmiUntag(value, false));
       } else {
         bool truncating = instr->CanTruncateToInt32();

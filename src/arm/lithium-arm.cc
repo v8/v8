@@ -1925,11 +1925,12 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       ASSERT(to.IsInteger32());
       LOperand* value = NULL;
       LInstruction* res = NULL;
-      if (instr->value()->type().IsSmi()) {
-        value = UseRegisterAtStart(instr->value());
+      HValue* val = instr->value();
+      if (val->type().IsSmi() || val->representation().IsSmi()) {
+        value = UseRegisterAtStart(val);
         res = DefineAsRegister(new(zone()) LSmiUntag(value, false));
       } else {
-        value = UseRegister(instr->value());
+        value = UseRegister(val);
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = FixedTemp(d11);
         res = DefineSameAsFirst(new(zone()) LTaggedToI(value,

@@ -1945,13 +1945,14 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       return AssignEnvironment(DefineSameAsFirst(new(zone()) LCheckSmi(value)));
     } else {
       ASSERT(to.IsInteger32());
-      if (instr->value()->type().IsSmi()) {
-        LOperand* value = UseRegister(instr->value());
+      HValue* val = instr->value();
+      if (val->type().IsSmi() || val->representation().IsSmi()) {
+        LOperand* value = UseRegister(val);
         return DefineSameAsFirst(new(zone()) LSmiUntag(value, false));
       } else {
         bool truncating = instr->CanTruncateToInt32();
         if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
-          LOperand* value = UseRegister(instr->value());
+          LOperand* value = UseRegister(val);
           LOperand* xmm_temp =
               (truncating && CpuFeatures::IsSupported(SSE3))
               ? NULL
@@ -1959,7 +1960,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
           LTaggedToI* res = new(zone()) LTaggedToI(value, xmm_temp);
           return AssignEnvironment(DefineSameAsFirst(res));
         } else {
-          LOperand* value = UseFixed(instr->value(), ecx);
+          LOperand* value = UseFixed(val, ecx);
           LTaggedToINoSSE2* res =
               new(zone()) LTaggedToINoSSE2(value, TempRegister(),
                                            TempRegister(), TempRegister());
