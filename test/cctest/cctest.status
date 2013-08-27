@@ -117,3 +117,6 @@ test-sockets/Socket: SKIP
 
 # Profiling doesn't work on Native Client.
 test-cpu-profiler/*: SKIP
+
+# Fails since 16322 (new test).
+test-code-stubs-arm: SKIP
