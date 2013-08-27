@@ -3335,7 +3335,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   }
 
   virtual Representation KnownOptimalRepresentation() V8_OVERRIDE {
-    if (HasSmiValue() && kSmiValueSize == 31) return Representation::Smi();
+    if (HasSmiValue() && SmiValuesAre31Bits()) return Representation::Smi();
     if (HasInteger32Value()) return Representation::Integer32();
     if (HasNumberValue()) return Representation::Double();
     if (HasExternalReferenceValue()) return Representation::External();
@@ -5841,7 +5841,7 @@ class ArrayInstructionInterface {
   virtual ~ArrayInstructionInterface() { };
 
   static Representation KeyedAccessIndexRequirement(Representation r) {
-    return r.IsInteger32() || kSmiValueSize != 31
+    return r.IsInteger32() || SmiValuesAre32Bits()
         ? Representation::Integer32() : Representation::Smi();
   }
 };

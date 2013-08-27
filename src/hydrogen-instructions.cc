@@ -2496,7 +2496,7 @@ static void PrepareConstant(Handle<Object> object) {
 
 void HConstant::Initialize(Representation r) {
   if (r.IsNone()) {
-    if (has_smi_value_ && kSmiValueSize == 31) {
+    if (has_smi_value_ && SmiValuesAre31Bits()) {
       r = Representation::Smi();
     } else if (has_int32_value_) {
       r = Representation::Integer32();

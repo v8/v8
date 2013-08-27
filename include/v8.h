@@ -5383,6 +5383,8 @@ template <> struct SmiTagging<8> {
 typedef SmiTagging<kApiPointerSize> PlatformSmiTagging;
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
+V8_INLINE(static bool SmiValuesAre31Bits()) { return kSmiValueSize == 31; }
+V8_INLINE(static bool SmiValuesAre32Bits()) { return kSmiValueSize == 32; }
 
 /**
  * This class exports constants and functionality from within v8 that
