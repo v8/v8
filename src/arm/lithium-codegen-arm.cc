@@ -431,7 +431,7 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
     } else if (r.IsDouble()) {
       Abort(kEmitLoadRegisterUnsupportedDoubleImmediate);
     } else {
-      ASSERT(r.IsTagged());
+      ASSERT(r.IsSmiOrTagged());
       __ LoadObject(scratch, literal);
     }
     return scratch;
@@ -1584,10 +1584,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
     instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
 
   if (right_op->IsConstantOperand() && !can_overflow) {
-    // Use optimized code for specific constants.
-    int32_t constant = ToRepresentation(
-        LConstantOperand::cast(right_op),
-        instr->hydrogen()->right()->representation());
+    int32_t constant = ToInteger32(LConstantOperand::cast(right_op));
 
     if (bailout_on_minus_zero && (constant < 0)) {
       // The case of a null constant will be handled separately.

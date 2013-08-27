@@ -807,6 +807,8 @@ class HValue : public ZoneObject {
 
   // Returns true if the flag specified is set for all uses, false otherwise.
   bool CheckUsesForFlag(Flag f) const;
+  // Same as before and the first one without the flag is returned in value.
+  bool CheckUsesForFlag(Flag f, HValue** value) const;
   // Returns true if the flag specified is set for all uses, and this set
   // of uses is non-empty.
   bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const;
@@ -1545,7 +1547,10 @@ class HChange V8_FINAL : public HUnaryOperation {
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
-    if (is_truncating_to_smi) SetFlag(kTruncatingToSmi);
+    if (is_truncating_to_smi) {
+      SetFlag(kTruncatingToSmi);
+      SetFlag(kTruncatingToInt32);
+    }
     if (is_truncating_to_int32) SetFlag(kTruncatingToInt32);
     if (value->representation().IsSmi() || value->type().IsSmi()) {
       set_type(HType::Smi());
@@ -4514,7 +4519,6 @@ class HMul V8_FINAL : public HArithmeticBinaryOperation {
   virtual void UpdateRepresentation(Representation new_rep,
                                     HInferRepresentationPhase* h_infer,
                                     const char* reason) V8_OVERRIDE {
-    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
     HArithmeticBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
 
@@ -4724,6 +4728,7 @@ class HBitwise V8_FINAL : public HBitwiseBinaryOperation {
           right->representation().IsSmi() &&
           HConstant::cast(right)->Integer32Value() >= 0))) {
       SetFlag(kTruncatingToSmi);
+      SetFlag(kTruncatingToInt32);
     // BIT_OR with a smi-range negative value will always set the entire
     // sign-extension of the smi-sign.
     } else if (op == Token::BIT_OR &&
@@ -4734,6 +4739,7 @@ class HBitwise V8_FINAL : public HBitwiseBinaryOperation {
           right->representation().IsSmi() &&
           HConstant::cast(right)->Integer32Value() < 0))) {
       SetFlag(kTruncatingToSmi);
+      SetFlag(kTruncatingToInt32);
     }
   }
 

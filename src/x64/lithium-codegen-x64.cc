@@ -1299,7 +1299,11 @@ void LCodeGen::DoMulI(LMulI* instr) {
   LOperand* right = instr->right();
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ movl(kScratchRegister, left);
+    if (instr->hydrogen_value()->representation().IsSmi()) {
+      __ movq(kScratchRegister, left);
+    } else {
+      __ movl(kScratchRegister, left);
+    }
   }
 
   bool can_overflow =
@@ -1347,14 +1351,14 @@ void LCodeGen::DoMulI(LMulI* instr) {
     }
   } else if (right->IsStackSlot()) {
     if (instr->hydrogen_value()->representation().IsSmi()) {
-      __ SmiToInteger32(left, left);
+      __ SmiToInteger64(left, left);
       __ imul(left, ToOperand(right));
     } else {
       __ imull(left, ToOperand(right));
     }
   } else {
     if (instr->hydrogen_value()->representation().IsSmi()) {
-      __ SmiToInteger32(left, left);
+      __ SmiToInteger64(left, left);
       __ imul(left, ToRegister(right));
     } else {
       __ imull(left, ToRegister(right));
@@ -1368,9 +1372,15 @@ void LCodeGen::DoMulI(LMulI* instr) {
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Bail out if the result is supposed to be negative zero.
     Label done;
-    __ testl(left, left);
+    if (instr->hydrogen_value()->representation().IsSmi()) {
+      __ testq(left, left);
+    } else {
+      __ testl(left, left);
+    }
     __ j(not_zero, &done, Label::kNear);
     if (right->IsConstantOperand()) {
+      // Constant can't be represented as Smi due to immediate size limit.
+      ASSERT(!instr->hydrogen_value()->representation().IsSmi());
       if (ToInteger32(LConstantOperand::cast(right)) < 0) {
         DeoptimizeIf(no_condition, instr->environment());
       } else if (ToInteger32(LConstantOperand::cast(right)) == 0) {
@@ -1378,11 +1388,19 @@ void LCodeGen::DoMulI(LMulI* instr) {
         DeoptimizeIf(less, instr->environment());
       }
     } else if (right->IsStackSlot()) {
-      __ orl(kScratchRegister, ToOperand(right));
+      if (instr->hydrogen_value()->representation().IsSmi()) {
+        __ or_(kScratchRegister, ToOperand(right));
+      } else {
+        __ orl(kScratchRegister, ToOperand(right));
+      }
       DeoptimizeIf(sign, instr->environment());
     } else {
       // Test the non-zero operand for negative sign.
-      __ orl(kScratchRegister, ToRegister(right));
+      if (instr->hydrogen_value()->representation().IsSmi()) {
+        __ or_(kScratchRegister, ToRegister(right));
+      } else {
+        __ orl(kScratchRegister, ToRegister(right));
+      }
       DeoptimizeIf(sign, instr->environment());
     }
     __ bind(&done);

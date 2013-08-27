@@ -397,6 +397,18 @@ bool HValue::CheckUsesForFlag(Flag f) const {
 }
 
 
+bool HValue::CheckUsesForFlag(Flag f, HValue** value) const {
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    if (it.value()->IsSimulate()) continue;
+    if (!it.value()->CheckFlag(f)) {
+      *value = it.value();
+      return false;
+    }
+  }
+  return true;
+}
+
+
 bool HValue::HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const {
   bool return_value = false;
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
