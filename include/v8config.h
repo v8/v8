@@ -93,6 +93,8 @@
 //  V8_CC_GNU     - GNU C++
 //  V8_CC_INTEL   - Intel C++
 //  V8_CC_MINGW   - Minimalist GNU for Windows
+//  V8_CC_MINGW32 - Minimalist GNU for Windows (mingw32)
+//  V8_CC_MINGW64 - Minimalist GNU for Windows (mingw-w64)
 //  V8_CC_MSVC    - Microsoft Visual C/C++
 //
 // C++11 feature detection
@@ -166,7 +168,9 @@
 # define V8_CC_GNU 1
 // Intel C++ also masquerades as GCC 3.2.0
 # define V8_CC_INTEL (defined(__INTEL_COMPILER))
-# define V8_CC_MINGW (defined(__MINGW32__))
+# define V8_CC_MINGW32 (defined(__MINGW32__))
+# define V8_CC_MINGW64 (defined(__MINGW64__))
+# define V8_CC_MINGW (V8_CC_MINGW32 || V8_CC_MINGW64)
 
 # define V8_HAS___ALIGNOF__ (V8_GNUC_PREREQ(4, 3, 0))
 
