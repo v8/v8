@@ -493,16 +493,10 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   // Function address is a foreign pointer outside V8's heap.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
-  // TODO(dcarney): fix signatures using returns_handle
-  const bool returns_handle = false;
 
-#if defined(__MINGW64__)
+#if defined(__MINGW64__) || defined(_WIN64)
   Register arguments_arg = rcx;
   Register callback_arg = rdx;
-#elif defined(_WIN64)
-  // Win64 uses first register--rcx--for returned value.
-  Register arguments_arg = returns_handle ? rdx : rcx;
-  Register callback_arg = returns_handle ? r8 : rdx;
 #else
   Register arguments_arg = rdi;
   Register callback_arg = rsi;
@@ -512,7 +506,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
-  __ PrepareCallApiFunction(kApiStackSpace, returns_handle);
+  __ PrepareCallApiFunction(kApiStackSpace);
 
   __ movq(StackSpaceOperand(0), rbx);  // v8::Arguments::implicit_args_.
   __ addq(rbx, Immediate(argc * kPointerSize));
@@ -530,7 +524,6 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                               thunk_address,
                               callback_arg,
                               api_call_argc + 1,
-                              returns_handle,
                               kFastApiCallArguments + 1);
 }
 
@@ -1307,18 +1300,11 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // passed as the const ExecutableAccessorInfo& to the C++ callback.
 
   Address getter_address = v8::ToCData<Address>(callback->getter());
-  // TODO(dcarney): fix signatures using returns_handle
-  const bool returns_handle = false;
 
-#if defined(__MINGW64__)
+#if defined(__MINGW64__) || defined(_WIN64)
   Register getter_arg = r8;
   Register accessor_info_arg = rdx;
   Register name_arg = rcx;
-#elif defined(_WIN64)
-  // Win64 uses first register--rcx--for returned value.
-  Register getter_arg = returns_handle ? r9 : r8;
-  Register accessor_info_arg = returns_handle ? r8 : rdx;
-  Register name_arg = returns_handle ? rdx : rcx;
 #else
   Register getter_arg = rdx;
   Register accessor_info_arg = rsi;
@@ -1335,7 +1321,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // Allocate v8::AccessorInfo in non-GCed stack space.
   const int kArgStackSpace = 1;
 
-  __ PrepareCallApiFunction(kArgStackSpace, returns_handle);
+  __ PrepareCallApiFunction(kArgStackSpace);
   STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
   __ lea(rax, Operand(name_arg, 6 * kPointerSize));
 
@@ -1352,7 +1338,6 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
                               thunk_address,
                               getter_arg,
                               kStackSpace,
-                              returns_handle,
                               5);
 }
 

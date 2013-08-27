@@ -685,22 +685,8 @@ static int Offset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::PrepareCallApiFunction(int arg_stack_space,
-                                            bool returns_handle) {
-#if defined(_WIN64) && !defined(__MINGW64__)
-  if (!returns_handle) {
-    EnterApiExitFrame(arg_stack_space);
-    return;
-  }
-  // We need to prepare a slot for result handle on stack and put
-  // a pointer to it into 1st arg register.
-  EnterApiExitFrame(arg_stack_space + 1);
-
-  // rcx must be used to pass the pointer to the return value slot.
-  lea(rcx, StackSpaceOperand(arg_stack_space));
-#else
+void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
   EnterApiExitFrame(arg_stack_space);
-#endif
 }
 
 
@@ -708,7 +694,6 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
                                               Address thunk_address,
                                               Register thunk_last_arg,
                                               int stack_space,
-                                              bool returns_handle,
                                               int return_value_offset) {
   Label prologue;
   Label promote_scheduled_exception;
@@ -781,23 +766,6 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
     PopSafepointRegisters();
   }
 
-  // Can skip the result check for new-style callbacks
-  // TODO(dcarney): may need to pass this information down
-  // as some function_addresses might not have been registered
-  if (returns_handle) {
-    Label empty_result;
-#if defined(_WIN64) && !defined(__MINGW64__)
-    // rax keeps a pointer to v8::Handle, unpack it.
-    movq(rax, Operand(rax, 0));
-#endif
-    // Check if the result handle holds 0.
-    testq(rax, rax);
-    j(zero, &empty_result);
-    // It was non-zero.  Dereference to get the result value.
-    movq(rax, Operand(rax, 0));
-    jmp(&prologue);
-    bind(&empty_result);
-  }
   // Load the value from ReturnValue
   movq(rax, Operand(rbp, return_value_offset * kPointerSize));
   bind(&prologue);

@@ -1977,50 +1977,15 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 }
 
 
-// If true, a Handle<T> returned by value from a function with cdecl calling
-// convention will be returned directly as a value of location_ field in a
-// register eax.
-// If false, it is returned as a pointer to a preallocated by caller memory
-// region. Pointer to this region should be passed to a function as an
-// implicit first argument.
-#if defined(USING_BSD_ABI) || defined(__MINGW32__) || defined(__CYGWIN__)
-static const bool kReturnHandlesDirectly = true;
-#else
-static const bool kReturnHandlesDirectly = false;
-#endif
-
-
-Operand ApiParameterOperand(int index, bool returns_handle) {
-  int offset = (index +(kReturnHandlesDirectly || !returns_handle ? 0 : 1));
-  return Operand(esp, offset * kPointerSize);
+Operand ApiParameterOperand(int index) {
+  return Operand(esp, index * kPointerSize);
 }
 
 
-void MacroAssembler::PrepareCallApiFunction(int argc, bool returns_handle) {
-  if (kReturnHandlesDirectly || !returns_handle) {
-    EnterApiExitFrame(argc);
-    // When handles are returned directly we don't have to allocate extra
-    // space for and pass an out parameter.
-    if (emit_debug_code()) {
-      mov(esi, Immediate(BitCast<int32_t>(kZapValue)));
-    }
-  } else {
-    // We allocate two additional slots: return value and pointer to it.
-    EnterApiExitFrame(argc + 2);
-
-    // The argument slots are filled as follows:
-    //
-    //   n + 1: output slot
-    //   n: arg n
-    //   ...
-    //   1: arg1
-    //   0: pointer to the output slot
-
-    lea(esi, Operand(esp, (argc + 1) * kPointerSize));
-    mov(Operand(esp, 0 * kPointerSize), esi);
-    if (emit_debug_code()) {
-      mov(Operand(esi, 0), Immediate(0));
-    }
+void MacroAssembler::PrepareCallApiFunction(int argc) {
+  EnterApiExitFrame(argc);
+  if (emit_debug_code()) {
+    mov(esi, Immediate(BitCast<int32_t>(kZapValue)));
   }
 }
 
@@ -2029,7 +1994,6 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
                                               Address thunk_address,
                                               Operand thunk_last_arg,
                                               int stack_space,
-                                              bool returns_handle,
                                               int return_value_offset) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
@@ -2085,21 +2049,6 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   }
 
   Label prologue;
-  if (returns_handle) {
-    if (!kReturnHandlesDirectly) {
-      // PrepareCallApiFunction saved pointer to the output slot into
-      // callee-save register esi.
-      mov(eax, Operand(esi, 0));
-    }
-    Label empty_handle;
-    // Check if the result handle holds 0.
-    test(eax, eax);
-    j(zero, &empty_handle);
-    // It was non-zero.  Dereference to get the result value.
-    mov(eax, Operand(eax, 0));
-    jmp(&prologue);
-    bind(&empty_handle);
-  }
   // Load the value from ReturnValue
   mov(eax, Operand(ebp, return_value_offset * kPointerSize));
 
