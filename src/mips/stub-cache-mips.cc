@@ -879,49 +879,31 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
-  // NOTE: the O32 abi requires a0 to hold a special pointer when returning a
-  // struct from the function (which is currently the case). This means we pass
-  // the first argument in a1 instead of a0, if returns_handle is true.
-  // CallApiFunctionAndReturn will set up a0.
-
-  Address function_address = v8::ToCData<Address>(api_call_info->callback());
-  // TODO(dcarney): fix signatures using returns_handle
-  const bool returns_handle = false;
-
-  Register first_arg = returns_handle ? a1 : a0;
-  Register second_arg = returns_handle ? a2 : a1;
-
-  // first_arg = v8::Arguments&
+  // a0 = v8::Arguments&
   // Arguments is built at sp + 1 (sp is a reserved spot for ra).
-  __ Addu(first_arg, sp, kPointerSize);
+  __ Addu(a0, sp, kPointerSize);
 
   // v8::Arguments::implicit_args_
-  __ sw(a2, MemOperand(first_arg, 0 * kPointerSize));
+  __ sw(a2, MemOperand(a0, 0 * kPointerSize));
   // v8::Arguments::values_
   __ Addu(t0, a2, Operand(argc * kPointerSize));
-  __ sw(t0, MemOperand(first_arg, 1 * kPointerSize));
+  __ sw(t0, MemOperand(a0, 1 * kPointerSize));
   // v8::Arguments::length_ = argc
   __ li(t0, Operand(argc));
-  __ sw(t0, MemOperand(first_arg, 2 * kPointerSize));
+  __ sw(t0, MemOperand(a0, 2 * kPointerSize));
   // v8::Arguments::is_construct_call = 0
-  __ sw(zero_reg, MemOperand(first_arg, 3 * kPointerSize));
+  __ sw(zero_reg, MemOperand(a0, 3 * kPointerSize));
 
   const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
+  Address function_address = v8::ToCData<Address>(api_call_info->callback());
   ApiFunction fun(function_address);
-  ExternalReference::Type type =
-      returns_handle ?
-          ExternalReference::DIRECT_API_CALL :
-          ExternalReference::DIRECT_API_CALL_NEW;
+  ExternalReference::Type type = ExternalReference::DIRECT_API_CALL;
   ExternalReference ref =
       ExternalReference(&fun,
                         type,
                         masm->isolate());
-
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
-  ExternalReference::Type thunk_type =
-      returns_handle ?
-          ExternalReference::PROFILING_API_CALL :
-          ExternalReference::PROFILING_API_CALL_NEW;
+  ExternalReference::Type thunk_type = ExternalReference::PROFILING_API_CALL;
   ApiFunction thunk_fun(thunk_address);
   ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
       masm->isolate());
@@ -930,9 +912,8 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   __ CallApiFunctionAndReturn(ref,
                               function_address,
                               thunk_ref,
-                              second_arg,
+                              a1,
                               kStackUnwindSpace,
-                              returns_handle,
                               kFastApiCallArguments + 1);
 }
 
@@ -1417,21 +1398,8 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ sw(scratch4(), MemOperand(sp, 1 * kPointerSize));
   __ sw(name(), MemOperand(sp, 0 * kPointerSize));
 
-  Address getter_address = v8::ToCData<Address>(callback->getter());
-  // TODO(dcarney): fix signatures using returns_handle
-  const bool returns_handle = false;
-
-  Register first_arg = returns_handle ? a1 : a0;
-  Register second_arg = returns_handle ? a2 : a1;
-  Register third_arg = returns_handle ? a3 : a2;
-
   __ mov(a2, scratch2());  // Saved in case scratch2 == a1.
-  __ mov(first_arg, sp);  // (first argument - see note below) = Handle<Name>
-
-  // NOTE: the O32 abi requires a0 to hold a special pointer when returning a
-  // struct from the function (which is currently the case). This means we pass
-  // the arguments in a1-a2 instead of a0-a1, if returns_handle is true.
-  // CallApiFunctionAndReturn will set up a0.
+  __ mov(a0, sp);  // (first argument - a0) = Handle<Name>
 
   const int kApiStackSpace = 1;
   FrameScope frame_scope(masm(), StackFrame::MANUAL);
@@ -1440,30 +1408,26 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // Create AccessorInfo instance on the stack above the exit frame with
   // scratch2 (internal::Object** args_) as the data.
   __ sw(a2, MemOperand(sp, kPointerSize));
-  // (second argument - see note above) = AccessorInfo&
-  __ Addu(second_arg, sp, kPointerSize);
+  // (second argument - a1) = AccessorInfo&
+  __ Addu(a1, sp, kPointerSize);
 
   const int kStackUnwindSpace = kFastApiCallArguments + 1;
-
+  Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
-  ExternalReference::Type type =
-      returns_handle ?
-          ExternalReference::DIRECT_GETTER_CALL :
-          ExternalReference::DIRECT_GETTER_CALL_NEW;
+  ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
   ExternalReference ref = ExternalReference(&fun, type, isolate());
 
   Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
   ExternalReference::Type thunk_type =
-      ExternalReference::PROFILING_GETTER_CALL_NEW;
+      ExternalReference::PROFILING_GETTER_CALL;
   ApiFunction thunk_fun(thunk_address);
   ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
       isolate());
   __ CallApiFunctionAndReturn(ref,
                               getter_address,
                               thunk_ref,
-                              third_arg,
+                              a2,
                               kStackUnwindSpace,
-                              returns_handle,
                               5);
 }
 
