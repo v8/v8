@@ -39,6 +39,17 @@ namespace v8 {
 namespace internal {
 
 
+void FastNewClosureStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a2 };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry;
+}
+
+
 void ToNumberStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -307,134 +318,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   }
 
   __ Ret();
-}
-
-
-void FastNewClosureStub::Generate(MacroAssembler* masm) {
-  // Create a new closure from the given function info in new
-  // space. Set the context to the current context in cp.
-  Counters* counters = masm->isolate()->counters();
-
-  Label gc;
-
-  // Pop the function info from the stack.
-  __ pop(a3);
-
-  // Attempt to allocate new JSFunction in new space.
-  __ Allocate(JSFunction::kSize, v0, a1, a2, &gc, TAG_OBJECT);
-
-  __ IncrementCounter(counters->fast_new_closure_total(), 1, t2, t3);
-
-  int map_index = Context::FunctionMapIndex(language_mode_, is_generator_);
-
-  // Compute the function map in the current native context and set that
-  // as the map of the allocated object.
-  __ lw(a2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ lw(a2, FieldMemOperand(a2, GlobalObject::kNativeContextOffset));
-  __ lw(t1, MemOperand(a2, Context::SlotOffset(map_index)));
-  __ sw(t1, FieldMemOperand(v0, HeapObject::kMapOffset));
-
-  // Initialize the rest of the function. We don't have to update the
-  // write barrier because the allocated object is in new space.
-  __ LoadRoot(a1, Heap::kEmptyFixedArrayRootIndex);
-  __ LoadRoot(t1, Heap::kTheHoleValueRootIndex);
-  __ sw(a1, FieldMemOperand(v0, JSObject::kPropertiesOffset));
-  __ sw(a1, FieldMemOperand(v0, JSObject::kElementsOffset));
-  __ sw(t1, FieldMemOperand(v0, JSFunction::kPrototypeOrInitialMapOffset));
-  __ sw(a3, FieldMemOperand(v0, JSFunction::kSharedFunctionInfoOffset));
-  __ sw(cp, FieldMemOperand(v0, JSFunction::kContextOffset));
-  __ sw(a1, FieldMemOperand(v0, JSFunction::kLiteralsOffset));
-
-  // Initialize the code pointer in the function to be the one
-  // found in the shared function info object.
-  // But first check if there is an optimized version for our context.
-  Label check_optimized;
-  Label install_unoptimized;
-  if (FLAG_cache_optimized_code) {
-    __ lw(a1,
-          FieldMemOperand(a3, SharedFunctionInfo::kOptimizedCodeMapOffset));
-    __ And(at, a1, a1);
-    __ Branch(&check_optimized, ne, at, Operand(zero_reg));
-  }
-  __ bind(&install_unoptimized);
-  __ LoadRoot(t0, Heap::kUndefinedValueRootIndex);
-  __ sw(t0, FieldMemOperand(v0, JSFunction::kNextFunctionLinkOffset));
-  __ lw(a3, FieldMemOperand(a3, SharedFunctionInfo::kCodeOffset));
-  __ Addu(a3, a3, Operand(Code::kHeaderSize - kHeapObjectTag));
-
-  // Return result. The argument function info has been popped already.
-  __ Ret(USE_DELAY_SLOT);
-  __ sw(a3, FieldMemOperand(v0, JSFunction::kCodeEntryOffset));
-
-  __ bind(&check_optimized);
-
-  __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1, t2, t3);
-
-  // a2 holds native context, a1 points to fixed array of 3-element entries
-  // (native context, optimized code, literals).
-  // The optimized code map must never be empty, so check the first elements.
-  Label install_optimized;
-  // Speculatively move code object into t0.
-  __ lw(t0, FieldMemOperand(a1, SharedFunctionInfo::kFirstCodeSlot));
-  __ lw(t1, FieldMemOperand(a1, SharedFunctionInfo::kFirstContextSlot));
-  __ Branch(&install_optimized, eq, a2, Operand(t1));
-
-  // Iterate through the rest of map backwards.  t0 holds an index as a Smi.
-  Label loop;
-  __ lw(t0, FieldMemOperand(a1, FixedArray::kLengthOffset));
-  __ bind(&loop);
-  // Do not double check first entry.
-  __ Branch(&install_unoptimized, eq, t0,
-            Operand(Smi::FromInt(SharedFunctionInfo::kSecondEntryIndex)));
-  __ Subu(t0, t0, Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
-  __ Addu(t1, a1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(at, t0, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t1, t1, Operand(at));
-  __ lw(t1, MemOperand(t1));
-  __ Branch(&loop, ne, a2, Operand(t1));
-  // Hit: fetch the optimized code.
-  __ Addu(t1, a1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(at, t0, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t1, t1, Operand(at));
-  __ Addu(t1, t1, Operand(kPointerSize));
-  __ lw(t0, MemOperand(t1));
-
-  __ bind(&install_optimized);
-  __ IncrementCounter(counters->fast_new_closure_install_optimized(),
-                      1, t2, t3);
-
-  // TODO(fschneider): Idea: store proper code pointers in the map and either
-  // unmangle them on marking or do nothing as the whole map is discarded on
-  // major GC anyway.
-  __ Addu(t0, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ sw(t0, FieldMemOperand(v0, JSFunction::kCodeEntryOffset));
-
-  // Now link a function into a list of optimized functions.
-  __ lw(t0, ContextOperand(a2, Context::OPTIMIZED_FUNCTIONS_LIST));
-
-  __ sw(t0, FieldMemOperand(v0, JSFunction::kNextFunctionLinkOffset));
-  // No need for write barrier as JSFunction (eax) is in the new space.
-
-  __ sw(v0, ContextOperand(a2, Context::OPTIMIZED_FUNCTIONS_LIST));
-  // Store JSFunction (eax) into edx before issuing write barrier as
-  // it clobbers all the registers passed.
-  __ mov(t0, v0);
-  __ RecordWriteContextSlot(
-      a2,
-      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST),
-      t0,
-      a1,
-      kRAHasNotBeenSaved,
-      kDontSaveFPRegs);
-
-  // Return result. The argument function info has been popped already.
-  __ Ret();
-
-  // Create a new closure through the slower runtime call.
-  __ bind(&gc);
-  __ LoadRoot(t0, Heap::kFalseValueRootIndex);
-  __ Push(cp, a3, t0);
-  __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
 }
 
 
