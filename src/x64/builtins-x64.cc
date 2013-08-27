@@ -708,7 +708,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   }
 
   // Get the full codegen state from the stack and untag it.
-  __ SmiToInteger32(r10, Operand(rsp, 1 * kPointerSize));
+  __ SmiToInteger32(r10, Operand(rsp, kPCOnStackSize));
 
   // Switch on the state.
   Label not_no_registers, not_tos_rax;
@@ -717,7 +717,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ ret(1 * kPointerSize);  // Remove state.
 
   __ bind(&not_no_registers);
-  __ movq(rax, Operand(rsp, 2 * kPointerSize));
+  __ movq(rax, Operand(rsp, kPCOnStackSize + kPointerSize));
   __ cmpq(r10, Immediate(FullCodeGenerator::TOS_REG));
   __ j(not_equal, &not_tos_rax, Label::kNear);
   __ ret(2 * kPointerSize);  // Remove state, rax.
@@ -782,8 +782,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 2. Get the function to call (passed as receiver) from the stack, check
   //    if it is a function.
   Label slow, non_function;
-  // The function to call is at position n+1 on the stack.
-  __ movq(rdi, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
+  StackArgumentsAccessor args(rsp, rax);
+  __ movq(rdi, args.GetReceiverOperand());
   __ JumpIfSmi(rdi, &non_function);
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
   __ j(not_equal, &slow);
@@ -808,7 +808,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
-    __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
+    __ movq(rbx, args.GetArgumentOperand(1));
     __ JumpIfSmi(rbx, &convert_to_object, Label::kNear);
 
     __ CompareRoot(rbx, Heap::kNullValueRootIndex);
@@ -837,7 +837,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     }
 
     // Restore the function to rdi.
-    __ movq(rdi, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
+    __ movq(rdi, args.GetReceiverOperand());
     __ jmp(&patch_receiver, Label::kNear);
 
     // Use the global receiver object from the called function as the
@@ -851,7 +851,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
-    __ movq(Operand(rsp, rax, times_pointer_size, 0), rbx);
+    __ movq(args.GetArgumentOperand(1), rbx);
 
     __ jmp(&shift_arguments);
   }
@@ -868,7 +868,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //     CALL_NON_FUNCTION builtin expects the non-function callee as
   //     receiver, so overwrite the first argument which will ultimately
   //     become the receiver.
-  __ movq(Operand(rsp, rax, times_pointer_size, 0), rdi);
+  __ movq(args.GetArgumentOperand(1), rdi);
 
   // 4. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -1178,10 +1178,11 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   // Load the first argument into rax and get rid of the rest
   // (including the receiver).
+  StackArgumentsAccessor args(rsp, rax);
   Label no_arguments;
   __ testq(rax, rax);
   __ j(zero, &no_arguments);
-  __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
+  __ movq(rbx, args.GetArgumentOperand(1));
   __ PopReturnAddressTo(rcx);
   __ lea(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
   __ PushReturnAddressFrom(rcx);
