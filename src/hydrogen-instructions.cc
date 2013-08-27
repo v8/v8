@@ -1243,6 +1243,7 @@ HValue* HMod::Canonicalize() {
 
 
 HValue* HDiv::Canonicalize() {
+  if (IsIdentityOperation(left(), right(), 1)) return left();
   return this;
 }
 
