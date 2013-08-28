@@ -338,7 +338,7 @@ class HighResolutionTickClock V8_FINAL : public TickClock {
  public:
   explicit HighResolutionTickClock(int64_t ticks_per_second)
       : ticks_per_second_(ticks_per_second) {
-    ASSERT_NE(0, ticks_per_second);
+    ASSERT_LT(0, ticks_per_second);
   }
   virtual ~HighResolutionTickClock() {}
 
