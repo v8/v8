@@ -58,7 +58,7 @@ static V8_INLINE(void __cpuid(int cpu_info[4], int info_type)) {
 
 #else  // !V8_CC_MSVC || (!defined(__i386__) && !defined(__pic__))
 
-static void V8_INLINE(__cpuid(int cpu_info[4], int info_type)) {
+static V8_INLINE(void __cpuid(int cpu_info[4], int info_type)) {
   __asm__ volatile (
     "cpuid \n\t"
     : "=a"(cpu_info[0]), "=b"(cpu_info[1]), "=c"(cpu_info[2]), "=d"(cpu_info[3])
