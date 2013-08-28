@@ -722,6 +722,15 @@
                   }],
                 ],
               }, {
+                'link_settings': {
+                  'target_conditions': [
+                    ['_toolset=="host"', {
+                      'libraries': [
+                        '-lrt'
+                      ]
+                    }]
+                  ]
+                },
                 'sources': [
                   '../../src/platform-linux.cc'
                 ]
