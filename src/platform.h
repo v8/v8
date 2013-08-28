@@ -192,10 +192,6 @@ class OS {
   // micro-second resolution.
   static int GetUserTime(uint32_t* secs,  uint32_t* usecs);
 
-  // Get a tick counter normalized to one tick per microsecond.
-  // Used for calculating time intervals.
-  static int64_t Ticks();
-
   // Returns current time as the number of milliseconds since
   // 00:00:00 UTC, January 1, 1970.
   static double TimeCurrentMillis();
