@@ -27,6 +27,10 @@
 
 #include "cpu.h"
 
+#if V8_CC_MSVC
+#include <intrin.h>  // __cpuid()
+#endif
+
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -40,33 +44,30 @@ namespace internal {
 
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
-#if V8_CC_MSVC
-
-#include <intrin.h>  // NOLINT
-
-#elif defined(__i386__) && defined(__pic__)
+// Define __cpuid() for non-MSVC compilers.
+#if !V8_CC_MSVC
 
 static V8_INLINE(void __cpuid(int cpu_info[4], int info_type)) {
+#if defined(__i386__) && defined(__pic__)
+  // Make sure to preserve ebx, which contains the pointer
+  // to the GOT in case we're generating PIC.
   __asm__ volatile (
-    "mov %%ebx, %%edi\n"
-    "cpuid\n"
-    "xchg %%edi, %%ebx\n"
+    "mov %%ebx, %%edi\n\t"
+    "cpuid\n\t"
+    "xchg %%edi, %%ebx\n\t"
     : "=a"(cpu_info[0]), "=D"(cpu_info[1]), "=c"(cpu_info[2]), "=d"(cpu_info[3])
     : "a"(info_type)
   );
-}
-
-#else  // !V8_CC_MSVC || (!defined(__i386__) && !defined(__pic__))
-
-static V8_INLINE(void __cpuid(int cpu_info[4], int info_type)) {
+#else
   __asm__ volatile (
     "cpuid \n\t"
     : "=a"(cpu_info[0]), "=b"(cpu_info[1]), "=c"(cpu_info[2]), "=d"(cpu_info[3])
     : "a"(info_type)
   );
+#endif  // defined(__i386__) && defined(__pic__)
 }
 
-#endif
+#endif  // !V8_CC_MSVC
 
 #elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS
 
