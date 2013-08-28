@@ -1312,7 +1312,7 @@ void JSObject::ValidateElements() {
 
 
 bool JSObject::ShouldTrackAllocationInfo() {
-  if (map()->CanTrackAllocationSite()) {
+  if (AllocationSite::CanTrack(map()->instance_type())) {
     if (!IsJSArray()) {
       return true;
     }
@@ -1346,6 +1346,11 @@ AllocationSiteMode AllocationSite::GetMode(ElementsKind from,
   }
 
   return DONT_TRACK_ALLOCATION_SITE;
+}
+
+
+inline bool AllocationSite::CanTrack(InstanceType type) {
+  return type == JS_ARRAY_TYPE;
 }
 
 
@@ -3593,11 +3598,6 @@ Code::Flags Code::flags() {
 }
 
 
-inline bool Map::CanTrackAllocationSite() {
-  return instance_type() == JS_ARRAY_TYPE;
-}
-
-
 void Map::set_owns_descriptors(bool is_shared) {
   set_bit_field3(OwnsDescriptors::update(bit_field3(), is_shared));
 }
@@ -4576,6 +4576,8 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
                kNeedsAccessCheckBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
                kReadOnlyPrototypeBit)
+BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
+               kRemovePrototypeBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,

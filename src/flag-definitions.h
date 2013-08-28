@@ -620,7 +620,7 @@ DEFINE_int(testing_int_flag, 13, "testing_int_flag")
 DEFINE_float(testing_float_flag, 2.5, "float-flag")
 DEFINE_string(testing_string_flag, "Hello, world!", "string-flag")
 DEFINE_int(testing_prng_seed, 42, "Seed used for threading test randomness")
-#ifdef WIN32
+#ifdef _WIN32
 DEFINE_string(testing_serialization_file, "C:\\Windows\\Temp\\serdes",
               "file in which to testing_serialize heap")
 #else

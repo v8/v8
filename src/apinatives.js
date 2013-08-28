@@ -75,22 +75,26 @@ function InstantiateFunction(data, name) {
       var fun = %CreateApiFunction(data);
       if (name) %FunctionSetName(fun, name);
       cache[serialNumber] = fun;
-      var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
       var flags = %GetTemplateField(data, kApiFlagOffset);
-      // Note: Do not directly use an object template as a condition, our
-      // internal ToBoolean doesn't handle that!
-      fun.prototype = typeof prototype === 'undefined' ?
-          {} : Instantiate(prototype);
-      if (flags & (1 << kReadOnlyPrototypeBit)) {
-        %FunctionSetReadOnlyPrototype(fun);
-      }
-      %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
-      var parent = %GetTemplateField(data, kApiParentTemplateOffset);
-      // Note: Do not directly use a function template as a condition, our
-      // internal ToBoolean doesn't handle that!
-      if (!(typeof parent === 'undefined')) {
-        var parent_fun = Instantiate(parent);
-        %SetPrototype(fun.prototype, parent_fun.prototype);
+      if (flags & (1 << kRemovePrototypeBit)) {
+        %FunctionRemovePrototype(fun);
+      } else {
+        var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
+        // Note: Do not directly use an object template as a condition, our
+        // internal ToBoolean doesn't handle that!
+        fun.prototype = typeof prototype === 'undefined' ?
+            {} : Instantiate(prototype);
+        if (flags & (1 << kReadOnlyPrototypeBit)) {
+          %FunctionSetReadOnlyPrototype(fun);
+        }
+        %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
+        var parent = %GetTemplateField(data, kApiParentTemplateOffset);
+        // Note: Do not directly use a function template as a condition, our
+        // internal ToBoolean doesn't handle that!
+        if (!(typeof parent === 'undefined')) {
+          var parent_fun = Instantiate(parent);
+          %SetPrototype(fun.prototype, parent_fun.prototype);
+        }
       }
       ConfigureTemplateInstance(fun, data);
     } catch (e) {

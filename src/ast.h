@@ -123,10 +123,6 @@ namespace internal {
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
 
-#ifdef WIN32
-#undef Yield
-#endif
-
 // Forward declarations
 class AstConstructionVisitor;
 template<class> class AstNodeFactory;
@@ -1963,7 +1959,7 @@ class CountOperation V8_FINAL : public Expression {
   Expression* expression() const { return expression_; }
   virtual int position() const V8_OVERRIDE { return pos_; }
 
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* znoe);
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() V8_OVERRIDE { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() V8_OVERRIDE {
     return &receiver_types_;

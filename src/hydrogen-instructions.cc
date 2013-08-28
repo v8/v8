@@ -397,6 +397,18 @@ bool HValue::CheckUsesForFlag(Flag f) const {
 }
 
 
+bool HValue::CheckUsesForFlag(Flag f, HValue** value) const {
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    if (it.value()->IsSimulate()) continue;
+    if (!it.value()->CheckFlag(f)) {
+      *value = it.value();
+      return false;
+    }
+  }
+  return true;
+}
+
+
 bool HValue::HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const {
   bool return_value = false;
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
@@ -1231,6 +1243,7 @@ HValue* HMod::Canonicalize() {
 
 
 HValue* HDiv::Canonicalize() {
+  if (IsIdentityOperation(left(), right(), 1)) return left();
   return this;
 }
 
@@ -2289,6 +2302,21 @@ void HSimulate::PrintDataTo(StringStream* stream) {
 }
 
 
+void HSimulate::ReplayEnvironment(HEnvironment* env) {
+  ASSERT(env != NULL);
+  env->set_ast_id(ast_id());
+  env->Drop(pop_count());
+  for (int i = values()->length() - 1; i >= 0; --i) {
+    HValue* value = values()->at(i);
+    if (HasAssignedIndexAt(i)) {
+      env->Bind(GetAssignedIndexAt(i), value);
+    } else {
+      env->Push(value);
+    }
+  }
+}
+
+
 // Replay captured objects by replacing all captured objects with the
 // same capture id in the current and all outer environments.
 void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
@@ -2468,7 +2496,7 @@ static void PrepareConstant(Handle<Object> object) {
 
 void HConstant::Initialize(Representation r) {
   if (r.IsNone()) {
-    if (has_smi_value_ && kSmiValueSize == 31) {
+    if (has_smi_value_ && SmiValuesAre31Bits()) {
       r = Representation::Smi();
     } else if (has_int32_value_) {
       r = Representation::Integer32();
@@ -3255,8 +3283,9 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 
   // First update the size of the dominator allocate instruction.
   dominator_size = dominator_allocate->size();
-  int32_t dominator_size_constant =
+  int32_t original_object_size =
       HConstant::cast(dominator_size)->GetInteger32Constant();
+  int32_t dominator_size_constant = original_object_size;
   int32_t current_size_constant =
       HConstant::cast(current_size)->GetInteger32Constant();
   int32_t new_dominator_size = dominator_size_constant + current_size_constant;
@@ -3291,8 +3320,18 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && dominator_allocate->IsNewSpaceAllocation()) {
     dominator_allocate->MakePrefillWithFiller();
+  } else {
+    // TODO(hpayer): This is a short-term hack to make allocation mementos
+    // work again in new space.
+    ClearNextMapWord(original_object_size);
   }
+#else
+  // TODO(hpayer): This is a short-term hack to make allocation mementos
+  // work again in new space.
+  ClearNextMapWord(original_object_size);
 #endif
+
+  dominator_allocate->clear_next_map_word_ = clear_next_map_word_;
 
   // After that replace the dominated allocate instruction.
   HInstruction* dominated_allocate_instr =
@@ -3426,6 +3465,19 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   store_size->SetFlag(HValue::kHasNoObservableSideEffects);
   store_size->InsertAfter(filler_size);
   filler_free_space_size_ = store_size;
+}
+
+
+void HAllocate::ClearNextMapWord(int offset) {
+  if (clear_next_map_word_) {
+    Zone* zone = block()->zone();
+    HObjectAccess access = HObjectAccess::ForJSObjectOffset(offset);
+    HStoreNamedField* clear_next_map =
+        HStoreNamedField::New(zone, context(), this, access,
+            block()->graph()->GetConstantNull());
+    clear_next_map->ClearAllSideEffects();
+    clear_next_map->InsertAfter(this);
+  }
 }
 
 
@@ -4027,6 +4079,15 @@ HObjectAccess HObjectAccess::ForJSObjectOffset(int offset,
     portion = kMaps;
   }
   return HObjectAccess(portion, offset, representation);
+}
+
+
+HObjectAccess HObjectAccess::ForContextSlot(int index) {
+  ASSERT(index >= 0);
+  Portion portion = kInobject;
+  int offset = Context::kHeaderSize + index * kPointerSize;
+  ASSERT_EQ(offset, Context::SlotOffset(index) + kHeapObjectTag);
+  return HObjectAccess(portion, offset, Representation::Tagged());
 }
 
 

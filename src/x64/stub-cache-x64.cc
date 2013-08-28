@@ -414,8 +414,10 @@ static void ReserveSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   __ subq(rsp, Immediate(kFastApiCallArguments * kPointerSize));
   __ movq(StackOperandForReturnAddress(0), scratch);
   __ Move(scratch, Smi::FromInt(0));
-  for (int i = 1; i <= kFastApiCallArguments; i++) {
-     __ movq(Operand(rsp, i * kPointerSize), scratch);
+  StackArgumentsAccessor args(rsp, kFastApiCallArguments,
+                              ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  for (int i = 0; i < kFastApiCallArguments; i++) {
+     __ movq(args.GetArgumentOperand(i), scratch);
   }
 }
 
@@ -464,23 +466,26 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ LoadHeapObject(rdi, function);
   __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
+  int api_call_argc = argc + kFastApiCallArguments;
+  StackArgumentsAccessor args(rsp, api_call_argc);
+
   // Pass the additional arguments.
-  __ movq(Operand(rsp, 2 * kPointerSize), rdi);
+  __ movq(args.GetArgumentOperand(api_call_argc - 1), rdi);
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data(api_call_info->data(), masm->isolate());
   if (masm->isolate()->heap()->InNewSpace(*call_data)) {
     __ Move(rcx, api_call_info);
     __ movq(rbx, FieldOperand(rcx, CallHandlerInfo::kDataOffset));
-    __ movq(Operand(rsp, 3 * kPointerSize), rbx);
+    __ movq(args.GetArgumentOperand(api_call_argc - 2), rbx);
   } else {
-    __ Move(Operand(rsp, 3 * kPointerSize), call_data);
+    __ Move(args.GetArgumentOperand(api_call_argc - 2), call_data);
   }
   __ movq(kScratchRegister,
           ExternalReference::isolate_address(masm->isolate()));
-  __ movq(Operand(rsp, 4 * kPointerSize), kScratchRegister);
+  __ movq(args.GetArgumentOperand(api_call_argc - 3), kScratchRegister);
   __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
-  __ movq(Operand(rsp, 5 * kPointerSize), kScratchRegister);
-  __ movq(Operand(rsp, 6 * kPointerSize), kScratchRegister);
+  __ movq(args.GetArgumentOperand(api_call_argc - 4), kScratchRegister);
+  __ movq(args.GetArgumentOperand(api_call_argc - 5), kScratchRegister);
 
   // Prepare arguments.
   STATIC_ASSERT(kFastApiCallArguments == 6);
@@ -488,16 +493,10 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   // Function address is a foreign pointer outside V8's heap.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
-  bool returns_handle =
-      !CallbackTable::ReturnsVoid(masm->isolate(), function_address);
 
-#if defined(__MINGW64__)
+#if defined(__MINGW64__) || defined(_WIN64)
   Register arguments_arg = rcx;
   Register callback_arg = rdx;
-#elif defined(_WIN64)
-  // Win64 uses first register--rcx--for returned value.
-  Register arguments_arg = returns_handle ? rdx : rcx;
-  Register callback_arg = returns_handle ? r8 : rdx;
 #else
   Register arguments_arg = rdi;
   Register callback_arg = rsi;
@@ -507,7 +506,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
-  __ PrepareCallApiFunction(kApiStackSpace, returns_handle);
+  __ PrepareCallApiFunction(kApiStackSpace);
 
   __ movq(StackSpaceOperand(0), rbx);  // v8::Arguments::implicit_args_.
   __ addq(rbx, Immediate(argc * kPointerSize));
@@ -519,15 +518,12 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // v8::InvocationCallback's argument.
   __ lea(arguments_arg, StackSpaceOperand(0));
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeInvocationCallback)
-      : FUNCTION_ADDR(&InvokeFunctionCallback);
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
 
   __ CallApiFunctionAndReturn(function_address,
                               thunk_address,
                               callback_arg,
-                              argc + kFastApiCallArguments + 1,
-                              returns_handle,
+                              api_call_argc + 1,
                               kFastApiCallArguments + 1);
 }
 
@@ -1075,7 +1071,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   int depth = 0;
 
   if (save_at_depth == depth) {
-    __ movq(Operand(rsp, kPointerSize), object_reg);
+    __ movq(Operand(rsp, kPCOnStackSize), object_reg);
   }
 
   // Check the maps in the prototype chain.
@@ -1135,7 +1131,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     }
 
     if (save_at_depth == depth) {
-      __ movq(Operand(rsp, kPointerSize), reg);
+      __ movq(Operand(rsp, kPCOnStackSize), reg);
     }
 
     // Go to the next object in the prototype chain.
@@ -1304,18 +1300,11 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // passed as the const ExecutableAccessorInfo& to the C++ callback.
 
   Address getter_address = v8::ToCData<Address>(callback->getter());
-  bool returns_handle =
-      !CallbackTable::ReturnsVoid(isolate(), getter_address);
 
-#if defined(__MINGW64__)
+#if defined(__MINGW64__) || defined(_WIN64)
   Register getter_arg = r8;
   Register accessor_info_arg = rdx;
   Register name_arg = rcx;
-#elif defined(_WIN64)
-  // Win64 uses first register--rcx--for returned value.
-  Register getter_arg = returns_handle ? r9 : r8;
-  Register accessor_info_arg = returns_handle ? r8 : rdx;
-  Register name_arg = returns_handle ? rdx : rcx;
 #else
   Register getter_arg = rdx;
   Register accessor_info_arg = rsi;
@@ -1332,7 +1321,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // Allocate v8::AccessorInfo in non-GCed stack space.
   const int kArgStackSpace = 1;
 
-  __ PrepareCallApiFunction(kArgStackSpace, returns_handle);
+  __ PrepareCallApiFunction(kArgStackSpace);
   STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
   __ lea(rax, Operand(name_arg, 6 * kPointerSize));
 
@@ -1343,15 +1332,12 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   // could be used to pass arguments.
   __ lea(accessor_info_arg, StackSpaceOperand(0));
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeAccessorGetter)
-      : FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
 
   __ CallApiFunctionAndReturn(getter_address,
                               thunk_address,
                               getter_arg,
                               kStackSpace,
-                              returns_handle,
                               5);
 }
 
@@ -1470,11 +1456,8 @@ void CallStubCompiler::GenerateGlobalReceiverCheck(Handle<JSObject> object,
                                                    Label* miss) {
   ASSERT(holder->IsGlobalObject());
 
-  // Get the number of arguments.
-  const int argc = arguments().immediate();
-
-  // Get the receiver from the stack.
-  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  StackArgumentsAccessor args(rsp, arguments());
+  __ movq(rdx, args.GetReceiverOperand());
 
 
   // Check that the maps haven't changed.
@@ -1538,9 +1521,8 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
 
   GenerateNameCheck(name, &miss);
 
-  // Get the receiver from the stack.
-  const int argc = arguments().immediate();
-  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  StackArgumentsAccessor args(rsp, arguments());
+  __ movq(rdx, args.GetReceiverOperand());
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(rdx, &miss);
@@ -1561,7 +1543,7 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
   // necessary.
   if (object->IsGlobalObject()) {
     __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
-    __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
+    __ movq(args.GetReceiverOperand(), rdx);
   }
 
   // Invoke the function.
@@ -1591,11 +1573,11 @@ Handle<Code> CallStubCompiler::CompileArrayCodeCall(
 
   // Check that function is still array
   const int argc = arguments().immediate();
+  StackArgumentsAccessor args(rsp, argc);
   GenerateNameCheck(name, &miss);
 
   if (cell.is_null()) {
-    // Get the receiver from the stack.
-    __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+    __ movq(rdx, args.GetReceiverOperand());
 
     // Check that the receiver isn't a smi.
     __ JumpIfSmi(rdx, &miss);
@@ -1647,9 +1629,9 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
   Label miss;
   GenerateNameCheck(name, &miss);
 
-  // Get the receiver from the stack.
   const int argc = arguments().immediate();
-  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  StackArgumentsAccessor args(rsp, argc);
+  __ movq(rdx, args.GetReceiverOperand());
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(rdx, &miss);
@@ -1688,7 +1670,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ j(greater, &attempt_to_grow_elements);
 
       // Check if value is a smi.
-      __ movq(rcx, Operand(rsp, argc * kPointerSize));
+      __ movq(rcx, args.GetArgumentOperand(1));
       __ JumpIfNotSmi(rcx, &with_write_barrier);
 
       // Save new length.
@@ -1723,7 +1705,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ cmpl(rax, rcx);
       __ j(greater, &call_builtin);
 
-      __ movq(rcx, Operand(rsp, argc * kPointerSize));
+      __ movq(rcx, args.GetArgumentOperand(1));
       __ StoreNumberToDoubleElements(
           rcx, rdi, rax, xmm0, &call_builtin, argc * kDoubleSize);
 
@@ -1800,7 +1782,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         __ jmp(&call_builtin);
       }
 
-      __ movq(rbx, Operand(rsp, argc * kPointerSize));
+      __ movq(rbx, args.GetArgumentOperand(1));
       // Growing elements that are SMI-only requires special handling in case
       // the new element is non-Smi. For now, delegate to the builtin.
       Label no_fast_elements_check;
@@ -1849,7 +1831,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ RecordWrite(rdi, rdx, rbx, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
 
       // Restore receiver to rdx as finish sequence assumes it's here.
-      __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+      __ movq(rdx, args.GetReceiverOperand());
 
       // Increment element's and array's sizes.
       __ SmiAddConstant(FieldOperand(rdi, FixedArray::kLengthOffset),
@@ -1898,9 +1880,9 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
   Label miss, return_undefined, call_builtin;
   GenerateNameCheck(name, &miss);
 
-  // Get the receiver from the stack.
   const int argc = arguments().immediate();
-  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  StackArgumentsAccessor args(rsp, argc);
+  __ movq(rdx, args.GetReceiverOperand());
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(rdx, &miss);
@@ -1978,6 +1960,7 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
   if (!object->IsString() || !cell.is_null()) return Handle<Code>::null();
 
   const int argc = arguments().immediate();
+  StackArgumentsAccessor args(rsp, argc);
 
   Label miss;
   Label name_miss;
@@ -2003,9 +1986,9 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
   Register receiver = rbx;
   Register index = rdi;
   Register result = rax;
-  __ movq(receiver, Operand(rsp, (argc + 1) * kPointerSize));
+  __ movq(receiver, args.GetReceiverOperand());
   if (argc > 0) {
-    __ movq(index, Operand(rsp, (argc - 0) * kPointerSize));
+    __ movq(index, args.GetArgumentOperand(1));
   } else {
     __ LoadRoot(index, Heap::kUndefinedValueRootIndex);
   }
@@ -2059,6 +2042,8 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
   if (!object->IsString() || !cell.is_null()) return Handle<Code>::null();
 
   const int argc = arguments().immediate();
+  StackArgumentsAccessor args(rsp, argc);
+
   Label miss;
   Label name_miss;
   Label index_out_of_range;
@@ -2084,9 +2069,9 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
   Register index = rdi;
   Register scratch = rdx;
   Register result = rax;
-  __ movq(receiver, Operand(rsp, (argc + 1) * kPointerSize));
+  __ movq(receiver, args.GetReceiverOperand());
   if (argc > 0) {
-    __ movq(index, Operand(rsp, (argc - 0) * kPointerSize));
+    __ movq(index, args.GetArgumentOperand(1));
   } else {
     __ LoadRoot(index, Heap::kUndefinedValueRootIndex);
   }
@@ -2139,13 +2124,14 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
   const int argc = arguments().immediate();
+  StackArgumentsAccessor args(rsp, argc);
   if (!object->IsJSObject() || argc != 1) return Handle<Code>::null();
 
   Label miss;
   GenerateNameCheck(name, &miss);
 
   if (cell.is_null()) {
-    __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+    __ movq(rdx, args.GetArgumentOperand(argc - 1));
     __ JumpIfSmi(rdx, &miss);
     CheckPrototypes(Handle<JSObject>::cast(object), rdx, holder, rbx, rax, rdi,
                     name, &miss);
@@ -2158,7 +2144,7 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
 
   // Load the char code argument.
   Register code = rbx;
-  __ movq(code, Operand(rsp, 1 * kPointerSize));
+  __ movq(code, args.GetArgumentOperand(argc));
 
   // Check the code is a smi.
   Label slow;
@@ -2345,13 +2331,14 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
   const int argc = arguments().immediate();
+  StackArgumentsAccessor args(rsp, argc);
   if (!object->IsJSObject() || argc != 1) return Handle<Code>::null();
 
   Label miss;
   GenerateNameCheck(name, &miss);
 
   if (cell.is_null()) {
-    __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+    __ movq(rdx, args.GetArgumentOperand(argc - 1));
     __ JumpIfSmi(rdx, &miss);
     CheckPrototypes(Handle<JSObject>::cast(object), rdx, holder, rbx, rax, rdi,
                     name, &miss);
@@ -2362,7 +2349,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
     GenerateLoadFunctionFromCell(cell, function, &miss);
   }
   // Load the (only) argument into rax.
-  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+  __ movq(rax, args.GetArgumentOperand(argc));
 
   // Check if the argument is a smi.
   Label not_smi;
@@ -2452,9 +2439,9 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
   Label miss, miss_before_stack_reserved;
   GenerateNameCheck(name, &miss_before_stack_reserved);
 
-  // Get the receiver from the stack.
   const int argc = arguments().immediate();
-  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  StackArgumentsAccessor args(rsp, argc);
+  __ movq(rdx, args.GetReceiverOperand());
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(rdx, &miss_before_stack_reserved);
@@ -2506,9 +2493,8 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
   Label miss;
   GenerateNameCheck(name, &miss);
 
-  // Get the receiver from the stack.
-  const int argc = arguments().immediate();
-  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  StackArgumentsAccessor args(rsp, arguments());
+  __ movq(rdx, args.GetReceiverOperand());
 
   // Check that the receiver isn't a smi.
   if (check != NUMBER_CHECK) {
@@ -2532,7 +2518,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       // necessary.
       if (object->IsGlobalObject()) {
         __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
-        __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
+        __ movq(args.GetReceiverOperand(), rdx);
       }
       break;
 
@@ -2652,21 +2638,20 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   Label miss;
   GenerateNameCheck(name, &miss);
 
-  // Get the number of arguments.
-  const int argc = arguments().immediate();
 
   LookupResult lookup(isolate());
   LookupPostInterceptor(holder, name, &lookup);
 
   // Get the receiver from the stack.
-  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  StackArgumentsAccessor args(rsp, arguments());
+  __ movq(rdx, args.GetReceiverOperand());
 
   CallInterceptorCompiler compiler(this, arguments(), rcx, extra_state_);
   compiler.Compile(masm(), object, holder, name, &lookup, rdx, rbx, rdi, rax,
                    &miss);
 
   // Restore receiver.
-  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  __ movq(rdx, args.GetReceiverOperand());
 
   // Check that the function really is a function.
   __ JumpIfSmi(rax, &miss);
@@ -2677,7 +2662,7 @@ Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
   // necessary.
   if (object->IsGlobalObject()) {
     __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
-    __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
+    __ movq(args.GetReceiverOperand(), rdx);
   }
 
   // Invoke the function.
@@ -2724,15 +2709,14 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
   Label miss;
   GenerateNameCheck(name, &miss);
 
-  // Get the number of arguments.
-  const int argc = arguments().immediate();
+  StackArgumentsAccessor args(rsp, arguments());
   GenerateGlobalReceiverCheck(object, holder, name, &miss);
   GenerateLoadFunctionFromCell(cell, function, &miss);
 
   // Patch the receiver on the stack with the global proxy.
   if (object->IsGlobalObject()) {
     __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
-    __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
+    __ movq(args.GetReceiverOperand(), rdx);
   }
 
   // Set up the context (function already in rdi).

@@ -52,7 +52,6 @@ namespace v8 {
 namespace internal {
 
 class Bootstrapper;
-class CallbackTable;
 class CodeGenerator;
 class CodeRange;
 struct CodeStubInterfaceDescriptor;
@@ -321,7 +320,6 @@ class SystemThreadManager {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
-  V(v8::Debug::EventCallback, debug_event_callback, NULL)                      \
   V(DebuggerAgent*, debugger_agent_instance, NULL)
 #else
 
@@ -361,7 +359,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(byte*, assembler_spare_buffer, NULL)                                       \
   V(FatalErrorCallback, exception_behavior, NULL)                              \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, NULL)     \
-  V(v8::Debug::MessageHandler, message_handler, NULL)                          \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
   V(int, next_serial_number, 0)                                                \
@@ -1111,13 +1108,6 @@ class Isolate {
     return sweeper_thread_;
   }
 
-  CallbackTable* callback_table() {
-    return callback_table_;
-  }
-  void set_callback_table(CallbackTable* callback_table) {
-    callback_table_ = callback_table;
-  }
-
   int id() const { return static_cast<int>(id_); }
 
   HStatistics* GetHStatistics();
@@ -1363,7 +1353,6 @@ class Isolate {
   OptimizingCompilerThread optimizing_compiler_thread_;
   MarkingThread** marking_thread_;
   SweeperThread** sweeper_thread_;
-  CallbackTable* callback_table_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;

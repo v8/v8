@@ -57,21 +57,6 @@ class V8_EXPORT CpuProfileNode {
    */
   int GetLineNumber() const;
 
-  /**
-   * Returns total (self + children) execution time of the function,
-   * in milliseconds, estimated by samples count.
-   */
-  V8_DEPRECATED(double GetTotalTime() const);
-
-  /**
-   * Returns self execution time of the function, in milliseconds,
-   * estimated by samples count.
-   */
-  V8_DEPRECATED(double GetSelfTime() const);
-
-  /** Returns the count of samples where function exists. */
-  V8_DEPRECATED(double GetTotalSamplesCount() const);
-
   /** DEPRECATED. Please use GetHitCount instead.
     * Returns the count of samples where function was currently executing.
     */

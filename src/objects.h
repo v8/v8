@@ -5776,7 +5776,6 @@ class Map: public HeapObject {
     set_bit_field3(EnumLengthBits::update(bit_field3(), length));
   }
 
-  inline bool CanTrackAllocationSite();
   inline bool owns_descriptors();
   inline void set_owns_descriptors(bool is_shared);
   inline bool is_observed();
@@ -7845,6 +7844,7 @@ class AllocationSite: public Struct {
   static inline AllocationSiteMode GetMode(
       ElementsKind boilerplate_elements_kind);
   static inline AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
+  static inline bool CanTrack(InstanceType type);
 
   static const int kTransitionInfoOffset = HeapObject::kHeaderSize;
   static const int kWeakNextOffset = kTransitionInfoOffset + kPointerSize;
@@ -9874,6 +9874,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   // requires access check.
   DECL_BOOLEAN_ACCESSORS(needs_access_check)
   DECL_BOOLEAN_ACCESSORS(read_only_prototype)
+  DECL_BOOLEAN_ACCESSORS(remove_prototype)
 
   static inline FunctionTemplateInfo* cast(Object* obj);
 
@@ -9909,6 +9910,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kUndetectableBit      = 1;
   static const int kNeedsAccessCheckBit  = 2;
   static const int kReadOnlyPrototypeBit = 3;
+  static const int kRemovePrototypeBit   = 4;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateInfo);
 };

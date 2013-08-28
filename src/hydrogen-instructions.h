@@ -164,6 +164,7 @@ class LChunkBuilder;
   V(Shr)                                       \
   V(Simulate)                                  \
   V(StackCheck)                                \
+  V(StoreCodeEntry)                            \
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
   V(StoreGlobalGeneric)                        \
@@ -806,6 +807,8 @@ class HValue : public ZoneObject {
 
   // Returns true if the flag specified is set for all uses, false otherwise.
   bool CheckUsesForFlag(Flag f) const;
+  // Same as before and the first one without the flag is returned in value.
+  bool CheckUsesForFlag(Flag f, HValue** value) const;
   // Returns true if the flag specified is set for all uses, and this set
   // of uses is non-empty.
   bool HasAtLeastOneUseWithFlagAndNoneWithout(Flag f) const;
@@ -1544,7 +1547,10 @@ class HChange V8_FINAL : public HUnaryOperation {
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
-    if (is_truncating_to_smi) SetFlag(kTruncatingToSmi);
+    if (is_truncating_to_smi) {
+      SetFlag(kTruncatingToSmi);
+      SetFlag(kTruncatingToInt32);
+    }
     if (is_truncating_to_int32) SetFlag(kTruncatingToInt32);
     if (value->representation().IsSmi() || value->type().IsSmi()) {
       set_type(HType::Smi());
@@ -1675,6 +1681,9 @@ class HSimulate V8_FINAL : public HInstruction {
 
   void MergeWith(ZoneList<HSimulate*>* list);
   bool is_candidate_for_removal() { return removable_ == REMOVABLE_SIMULATE; }
+
+  // Replay effects of this instruction on the given environment.
+  void ReplayEnvironment(HEnvironment* env);
 
   DECLARE_CONCRETE_INSTRUCTION(Simulate)
 
@@ -3326,7 +3335,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   }
 
   virtual Representation KnownOptimalRepresentation() V8_OVERRIDE {
-    if (HasSmiValue() && kSmiValueSize == 31) return Representation::Smi();
+    if (HasSmiValue() && SmiValuesAre31Bits()) return Representation::Smi();
     if (HasInteger32Value()) return Representation::Integer32();
     if (HasNumberValue()) return Representation::Double();
     if (HasExternalReferenceValue()) return Representation::External();
@@ -4510,7 +4519,6 @@ class HMul V8_FINAL : public HArithmeticBinaryOperation {
   virtual void UpdateRepresentation(Representation new_rep,
                                     HInferRepresentationPhase* h_infer,
                                     const char* reason) V8_OVERRIDE {
-    if (new_rep.IsSmi()) new_rep = Representation::Integer32();
     HArithmeticBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
 
@@ -4720,6 +4728,7 @@ class HBitwise V8_FINAL : public HBitwiseBinaryOperation {
           right->representation().IsSmi() &&
           HConstant::cast(right)->Integer32Value() >= 0))) {
       SetFlag(kTruncatingToSmi);
+      SetFlag(kTruncatingToInt32);
     // BIT_OR with a smi-range negative value will always set the entire
     // sign-extension of the smi-sign.
     } else if (op == Token::BIT_OR &&
@@ -4730,6 +4739,7 @@ class HBitwise V8_FINAL : public HBitwiseBinaryOperation {
           right->representation().IsSmi() &&
           HConstant::cast(right)->Integer32Value() < 0))) {
       SetFlag(kTruncatingToSmi);
+      SetFlag(kTruncatingToInt32);
     }
   }
 
@@ -5156,7 +5166,8 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             InstanceType instance_type)
       : HTemplateInstruction<2>(type),
         dominating_allocate_(NULL),
-        filler_free_space_size_(NULL) {
+        filler_free_space_size_(NULL),
+        clear_next_map_word_(false) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
@@ -5168,9 +5179,18 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             ? ALLOCATE_IN_OLD_POINTER_SPACE : ALLOCATE_IN_OLD_DATA_SPACE)
         : ALLOCATE_IN_NEW_SPACE;
     if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
-      flags_ = static_cast<HAllocate::Flags>(flags_ |
-          ALLOCATE_DOUBLE_ALIGNED);
+      flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
     }
+    // We have to fill the allocated object with one word fillers if we do
+    // not use allocation folding since some allocations may depend on each
+    // other, i.e., have a pointer to each other. A GC in between these
+    // allocations may leave such objects behind in a not completely initialized
+    // state.
+    if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
+      flags_ = static_cast<HAllocate::Flags>(flags_ | PREFILL_WITH_FILLER);
+    }
+    clear_next_map_word_ = pretenure_flag == NOT_TENURED &&
+        AllocationSite::CanTrack(instance_type);
   }
 
   void UpdateSize(HValue* size) {
@@ -5190,14 +5210,43 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             allocate->IsOldPointerSpaceAllocation());
   }
 
+  void ClearNextMapWord(int offset);
+
   Flags flags_;
   Handle<Map> known_initial_map_;
   HAllocate* dominating_allocate_;
   HStoreNamedField* filler_free_space_size_;
+  bool clear_next_map_word_;
 };
 
 
-class HInnerAllocatedObject V8_FINAL : public HTemplateInstruction<1> {
+class HStoreCodeEntry V8_FINAL: public HTemplateInstruction<2> {
+ public:
+  static HStoreCodeEntry* New(Zone* zone,
+                              HValue* context,
+                              HValue* function,
+                              HValue* code) {
+    return new(zone) HStoreCodeEntry(function, code);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  HValue* function() { return OperandAt(0); }
+  HValue* code_object() { return OperandAt(1); }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreCodeEntry)
+
+ private:
+  HStoreCodeEntry(HValue* function, HValue* code) {
+    SetOperandAt(0, function);
+    SetOperandAt(1, code);
+  }
+};
+
+
+class HInnerAllocatedObject V8_FINAL: public HTemplateInstruction<1> {
  public:
   static HInnerAllocatedObject* New(Zone* zone,
                                     HValue* context,
@@ -5506,6 +5555,14 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(kElementsPointer, JSObject::kElementsOffset);
   }
 
+  static HObjectAccess ForLiteralsPointer() {
+    return HObjectAccess(kInobject, JSFunction::kLiteralsOffset);
+  }
+
+  static HObjectAccess ForNextFunctionLinkPointer() {
+    return HObjectAccess(kInobject, JSFunction::kNextFunctionLinkOffset);
+  }
+
   static HObjectAccess ForArrayLength(ElementsKind elements_kind) {
     return HObjectAccess(
         kArrayLengths,
@@ -5550,6 +5607,35 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(kInobject, JSFunction::kPrototypeOrInitialMapOffset);
   }
 
+  static HObjectAccess ForSharedFunctionInfoPointer() {
+    return HObjectAccess(kInobject, JSFunction::kSharedFunctionInfoOffset);
+  }
+
+  static HObjectAccess ForCodeEntryPointer() {
+    return HObjectAccess(kInobject, JSFunction::kCodeEntryOffset);
+  }
+
+  static HObjectAccess ForCodeOffset() {
+    return HObjectAccess(kInobject, SharedFunctionInfo::kCodeOffset);
+  }
+
+  static HObjectAccess ForFirstCodeSlot() {
+    return HObjectAccess(kInobject, SharedFunctionInfo::kFirstCodeSlot);
+  }
+
+  static HObjectAccess ForFirstContextSlot() {
+    return HObjectAccess(kInobject, SharedFunctionInfo::kFirstContextSlot);
+  }
+
+  static HObjectAccess ForOptimizedCodeMap() {
+    return HObjectAccess(kInobject,
+                         SharedFunctionInfo::kOptimizedCodeMapOffset);
+  }
+
+  static HObjectAccess ForFunctionContextPointer() {
+    return HObjectAccess(kInobject, JSFunction::kContextOffset);
+  }
+
   static HObjectAccess ForMap() {
     return HObjectAccess(kMaps, JSObject::kMapOffset);
   }
@@ -5579,6 +5665,8 @@ class HObjectAccess V8_FINAL {
 
   // Create an access to an in-object property in a JSArray.
   static HObjectAccess ForJSArrayOffset(int offset);
+
+  static HObjectAccess ForContextSlot(int index);
 
   // Create an access to the backing store of an object.
   static HObjectAccess ForBackingStoreOffset(int offset,
@@ -5759,7 +5847,7 @@ class ArrayInstructionInterface {
   virtual ~ArrayInstructionInterface() { };
 
   static Representation KeyedAccessIndexRequirement(Representation r) {
-    return r.IsInteger32() || kSmiValueSize != 31
+    return r.IsInteger32() || SmiValuesAre32Bits()
         ? Representation::Integer32() : Representation::Smi();
   }
 };

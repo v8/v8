@@ -25,16 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <limits.h>
-
-#ifndef WIN32
-#include <signal.h>  // kill
-#include <unistd.h>  // getpid
-#endif  // WIN32
+#include <climits>
+#include <csignal>
 #include <string>
 #include <map>
 
 #include "v8.h"
+
+#if V8_OS_POSIX
+#include <unistd.h>  // NOLINT
+#endif
 
 #include "api.h"
 #include "arguments.h"
@@ -53,8 +53,6 @@
 
 static const bool kLogThreading = false;
 
-using ::v8::AccessorInfo;
-using ::v8::Arguments;
 using ::v8::Boolean;
 using ::v8::BooleanObject;
 using ::v8::Context;
@@ -1360,7 +1358,7 @@ THREADED_TEST(BigSmiInteger) {
 
   int32_t value = i::Smi::kMaxValue;
   // We cannot add one to a Smi::kMaxValue without wrapping.
-  if (i::kSmiValueSize < 32) {
+  if (i::SmiValuesAre31Bits()) {
     CHECK(i::Smi::IsValid(value));
     CHECK(!i::Smi::IsValid(value + 1));
 
@@ -1379,7 +1377,7 @@ THREADED_TEST(BigInteger) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
 
   // We cannot add one to a Smi::kMaxValue without wrapping.
-  if (i::kSmiValueSize < 32) {
+  if (i::SmiValuesAre31Bits()) {
     // The casts allow this to compile, even if Smi::kMaxValue is 2^31-1.
     // The code will not be run in that case, due to the "if" guard.
     int32_t value =
@@ -9605,6 +9603,26 @@ THREADED_TEST(SetPrototypeThrows) {
   ASSERT(!i::Isolate::Current()->has_pending_exception());
 
   CHECK_EQ(42, CompileRun("function f() { return 42; }; f()")->Int32Value());
+}
+
+
+THREADED_TEST(FunctionRemovePrototype) {
+  LocalContext context;
+  v8::HandleScope handle_scope(context->GetIsolate());
+
+  Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  t1->RemovePrototype();
+  Local<v8::Function> fun = t1->GetFunction();
+  context->Global()->Set(v8_str("fun"), fun);
+  CHECK(!CompileRun("'prototype' in fun")->BooleanValue());
+
+  v8::TryCatch try_catch;
+  CompileRun("new fun()");
+  CHECK(try_catch.HasCaught());
+
+  try_catch.Reset();
+  fun->NewInstance();
+  CHECK(try_catch.HasCaught());
 }
 
 
@@ -20013,7 +20031,7 @@ THREADED_TEST(JSONParseNumber) {
 }
 
 
-#ifndef WIN32
+#if V8_OS_POSIX
 class ThreadInterruptTest {
  public:
   ThreadInterruptTest() : sem_(NULL), sem_value_(0) { }
@@ -20255,4 +20273,4 @@ TEST(AccessCheckThrows) {
   v8::V8::SetFailedAccessCheckCallbackFunction(NULL);
 }
 
-#endif  // WIN32
+#endif  // V8_OS_POSIX

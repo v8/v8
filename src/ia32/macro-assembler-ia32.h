@@ -782,7 +782,7 @@ class MacroAssembler: public Assembler {
   // Arguments must be stored in ApiParameterOperand(0), ApiParameterOperand(1)
   // etc. Saves context (esi). If space was reserved for return value then
   // stores the pointer to the reserved slot into esi.
-  void PrepareCallApiFunction(int argc, bool returns_handle);
+  void PrepareCallApiFunction(int argc);
 
   // Calls an API function.  Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions.  Clobbers ebx, edi and
@@ -792,7 +792,6 @@ class MacroAssembler: public Assembler {
                                 Address thunk_address,
                                 Operand thunk_last_arg,
                                 int stack_space,
-                                bool returns_handle,
                                 int return_value_offset_from_ebp);
 
   // Jump to a runtime routine.
@@ -1039,7 +1038,7 @@ inline Operand GlobalObjectOperand() {
 
 
 // Generates an Operand for saving parameters after PrepareCallApiFunction.
-Operand ApiParameterOperand(int index, bool returns_handle);
+Operand ApiParameterOperand(int index);
 
 
 #ifdef GENERATED_CODE_COVERAGE

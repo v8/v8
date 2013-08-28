@@ -759,6 +759,12 @@ void ArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
 }
 
 
+void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
+  FastNewClosureStub stub(STRICT_MODE, false);
+  InstallDescriptor(isolate, &stub);
+}
+
+
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : argument_count_(ANY) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);

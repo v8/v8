@@ -39,6 +39,17 @@ namespace v8 {
 namespace internal {
 
 
+void FastNewClosureStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rbx };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry;
+}
+
+
 void ToNumberStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -295,140 +306,6 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
 }
 
 
-void FastNewClosureStub::Generate(MacroAssembler* masm) {
-  // Create a new closure from the given function info in new
-  // space. Set the context to the current context in rsi.
-  Counters* counters = masm->isolate()->counters();
-
-  Label gc;
-  __ Allocate(JSFunction::kSize, rax, rbx, rcx, &gc, TAG_OBJECT);
-
-  __ IncrementCounter(counters->fast_new_closure_total(), 1);
-
-  // Get the function info from the stack.
-  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
-
-  int map_index = Context::FunctionMapIndex(language_mode_, is_generator_);
-
-  // Compute the function map in the current native context and set that
-  // as the map of the allocated object.
-  __ movq(rcx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ movq(rcx, FieldOperand(rcx, GlobalObject::kNativeContextOffset));
-  __ movq(rbx, Operand(rcx, Context::SlotOffset(map_index)));
-  __ movq(FieldOperand(rax, JSObject::kMapOffset), rbx);
-
-  // Initialize the rest of the function. We don't have to update the
-  // write barrier because the allocated object is in new space.
-  __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
-  __ LoadRoot(r8, Heap::kTheHoleValueRootIndex);
-  __ LoadRoot(rdi, Heap::kUndefinedValueRootIndex);
-  __ movq(FieldOperand(rax, JSObject::kPropertiesOffset), rbx);
-  __ movq(FieldOperand(rax, JSObject::kElementsOffset), rbx);
-  __ movq(FieldOperand(rax, JSFunction::kPrototypeOrInitialMapOffset), r8);
-  __ movq(FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset), rdx);
-  __ movq(FieldOperand(rax, JSFunction::kContextOffset), rsi);
-  __ movq(FieldOperand(rax, JSFunction::kLiteralsOffset), rbx);
-
-  // Initialize the code pointer in the function to be the one
-  // found in the shared function info object.
-  // But first check if there is an optimized version for our context.
-  Label check_optimized;
-  Label install_unoptimized;
-  if (FLAG_cache_optimized_code) {
-    __ movq(rbx,
-            FieldOperand(rdx, SharedFunctionInfo::kOptimizedCodeMapOffset));
-    __ testq(rbx, rbx);
-    __ j(not_zero, &check_optimized, Label::kNear);
-  }
-  __ bind(&install_unoptimized);
-  __ movq(FieldOperand(rax, JSFunction::kNextFunctionLinkOffset),
-          rdi);  // Initialize with undefined.
-  __ movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-  __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
-  __ movq(FieldOperand(rax, JSFunction::kCodeEntryOffset), rdx);
-
-  // Return and remove the on-stack parameter.
-  __ ret(1 * kPointerSize);
-
-  __ bind(&check_optimized);
-
-  __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1);
-
-  // rcx holds native context, rbx points to fixed array of 3-element entries
-  // (native context, optimized code, literals).
-  // The optimized code map must never be empty, so check the first elements.
-  Label install_optimized;
-  // Speculatively move code object into edx.
-  __ movq(rdx, FieldOperand(rbx, SharedFunctionInfo::kFirstCodeSlot));
-  __ cmpq(rcx, FieldOperand(rbx, SharedFunctionInfo::kFirstContextSlot));
-  __ j(equal, &install_optimized);
-
-  // Iterate through the rest of map backwards. rdx holds an index.
-  Label loop;
-  Label restore;
-  __ movq(rdx, FieldOperand(rbx, FixedArray::kLengthOffset));
-  __ SmiToInteger32(rdx, rdx);
-  __ bind(&loop);
-  // Do not double check first entry.
-  __ cmpq(rdx, Immediate(SharedFunctionInfo::kSecondEntryIndex));
-  __ j(equal, &restore);
-  __ subq(rdx, Immediate(SharedFunctionInfo::kEntryLength));
-  __ cmpq(rcx, FieldOperand(rbx,
-                            rdx,
-                            times_pointer_size,
-                            FixedArray::kHeaderSize));
-  __ j(not_equal, &loop, Label::kNear);
-  // Hit: fetch the optimized code.
-  __ movq(rdx, FieldOperand(rbx,
-                            rdx,
-                            times_pointer_size,
-                            FixedArray::kHeaderSize + 1 * kPointerSize));
-
-  __ bind(&install_optimized);
-  __ IncrementCounter(counters->fast_new_closure_install_optimized(), 1);
-
-  // TODO(fschneider): Idea: store proper code pointers in the map and either
-  // unmangle them on marking or do nothing as the whole map is discarded on
-  // major GC anyway.
-  __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
-  __ movq(FieldOperand(rax, JSFunction::kCodeEntryOffset), rdx);
-
-  // Now link a function into a list of optimized functions.
-  __ movq(rdx, ContextOperand(rcx, Context::OPTIMIZED_FUNCTIONS_LIST));
-
-  __ movq(FieldOperand(rax, JSFunction::kNextFunctionLinkOffset), rdx);
-  // No need for write barrier as JSFunction (rax) is in the new space.
-
-  __ movq(ContextOperand(rcx, Context::OPTIMIZED_FUNCTIONS_LIST), rax);
-  // Store JSFunction (rax) into rdx before issuing write barrier as
-  // it clobbers all the registers passed.
-  __ movq(rdx, rax);
-  __ RecordWriteContextSlot(
-      rcx,
-      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST),
-      rdx,
-      rbx,
-      kDontSaveFPRegs);
-
-  // Return and remove the on-stack parameter.
-  __ ret(1 * kPointerSize);
-
-  __ bind(&restore);
-  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
-  __ jmp(&install_unoptimized);
-
-  // Create a new closure through the slower runtime call.
-  __ bind(&gc);
-  __ PopReturnAddressTo(rcx);
-  __ pop(rdx);
-  __ push(rsi);
-  __ push(rdx);
-  __ PushRoot(Heap::kFalseValueRootIndex);
-  __ PushReturnAddressFrom(rcx);
-  __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
-}
-
-
 void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Try to allocate the context in new space.
   Label gc;
@@ -437,7 +314,8 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
               rax, rbx, rcx, &gc, TAG_OBJECT);
 
   // Get the function from the stack.
-  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
+  StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rcx, args.GetArgumentOperand(0));
 
   // Set up the object header.
   __ LoadRoot(kScratchRegister, Heap::kFunctionContextMapRootIndex);
@@ -483,10 +361,10 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
               rax, rbx, rcx, &gc, TAG_OBJECT);
 
   // Get the function from the stack.
-  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
-
+  StackArgumentsAccessor args(rsp, 2, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rcx, args.GetArgumentOperand(1));
   // Get the serialized scope info from the stack.
-  __ movq(rbx, Operand(rsp, 2 * kPointerSize));
+  __ movq(rbx, args.GetArgumentOperand(0));
 
   // Set up the object header.
   __ LoadRoot(kScratchRegister, Heap::kBlockContextMapRootIndex);
@@ -1259,7 +1137,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   if (tagged) {
     Label input_not_smi, loaded;
     // Test that rax is a number.
-    __ movq(rax, Operand(rsp, kPointerSize));
+    StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+    __ movq(rax, args.GetArgumentOperand(0));
     __ JumpIfNotSmi(rax, &input_not_smi, Label::kNear);
     // Input is a smi. Untag and load it onto the FPU stack.
     // Then load the bits of the double into rbx.
@@ -1734,8 +1613,9 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     // The exponent and base are supplied as arguments on the stack.
     // This can only happen if the stub is called from non-optimized code.
     // Load input parameters from stack.
-    __ movq(base, Operand(rsp, 2 * kPointerSize));
-    __ movq(exponent, Operand(rsp, 1 * kPointerSize));
+    StackArgumentsAccessor args(rsp, 2, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+    __ movq(base, args.GetArgumentOperand(0));
+    __ movq(exponent, args.GetArgumentOperand(1));
     __ JumpIfSmi(base, &base_is_smi, Label::kNear);
     __ CompareRoot(FieldOperand(base, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
@@ -2168,7 +2048,8 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
   Factory* factory = masm->isolate()->factory();
 
-  __ SmiToInteger64(rbx, Operand(rsp, 1 * kPointerSize));
+  StackArgumentsAccessor args(rsp, 3, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ SmiToInteger64(rbx, args.GetArgumentOperand(2));
   // rbx = parameter count (untagged)
 
   // Check if the calling frame is an arguments adaptor frame.
@@ -2190,7 +2071,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
                             ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ lea(rdx, Operand(rdx, rcx, times_pointer_size,
                       StandardFrameConstants::kCallerSPOffset));
-  __ movq(Operand(rsp, 2 * kPointerSize), rdx);
+  __ movq(args.GetArgumentOperand(1), rdx);
 
   // rbx = parameter count (untagged)
   // rcx = argument count (untagged)
@@ -2251,7 +2132,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
   // Set up the callee in-object property.
   STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
-  __ movq(rdx, Operand(rsp, 3 * kPointerSize));
+  __ movq(rdx, args.GetArgumentOperand(0));
   __ movq(FieldOperand(rax, JSObject::kHeaderSize +
                        Heap::kArgumentsCalleeIndex * kPointerSize),
           rdx);
@@ -2302,7 +2183,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // Load tagged parameter count into r9.
   __ Integer32ToSmi(r9, rbx);
   __ Move(r8, Smi::FromInt(Context::MIN_CONTEXT_SLOTS));
-  __ addq(r8, Operand(rsp, 1 * kPointerSize));
+  __ addq(r8, args.GetArgumentOperand(2));
   __ subq(r8, r9);
   __ Move(r11, factory->the_hole_value());
   __ movq(rdx, rdi);
@@ -2341,7 +2222,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
   Label arguments_loop, arguments_test;
   __ movq(r8, rbx);
-  __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+  __ movq(rdx, args.GetArgumentOperand(1));
   // Untag rcx for the loop below.
   __ SmiToInteger64(rcx, rcx);
   __ lea(kScratchRegister, Operand(r8, times_pointer_size, 0));
@@ -2368,7 +2249,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // rcx = argument count (untagged)
   __ bind(&runtime);
   __ Integer32ToSmi(rcx, rcx);
-  __ movq(Operand(rsp, 1 * kPointerSize), rcx);  // Patch argument count.
+  __ movq(args.GetArgumentOperand(2), rcx);  // Patch argument count.
   __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
 
@@ -2387,12 +2268,13 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
   __ j(not_equal, &runtime);
 
   // Patch the arguments.length and the parameters pointer.
+  StackArgumentsAccessor args(rsp, 3, ARGUMENTS_DONT_CONTAIN_RECEIVER);
   __ movq(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ movq(Operand(rsp, 1 * kPointerSize), rcx);
+  __ movq(args.GetArgumentOperand(2), rcx);
   __ SmiToInteger64(rcx, rcx);
   __ lea(rdx, Operand(rdx, rcx, times_pointer_size,
               StandardFrameConstants::kCallerSPOffset));
-  __ movq(Operand(rsp, 2 * kPointerSize), rdx);
+  __ movq(args.GetArgumentOperand(1), rdx);
 
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
@@ -2413,18 +2295,19 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ j(equal, &adaptor_frame);
 
   // Get the length from the frame.
-  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
+  StackArgumentsAccessor args(rsp, 3, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rcx, args.GetArgumentOperand(2));
   __ SmiToInteger64(rcx, rcx);
   __ jmp(&try_allocate);
 
   // Patch the arguments.length and the parameters pointer.
   __ bind(&adaptor_frame);
   __ movq(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ movq(Operand(rsp, 1 * kPointerSize), rcx);
+  __ movq(args.GetArgumentOperand(2), rcx);
   __ SmiToInteger64(rcx, rcx);
   __ lea(rdx, Operand(rdx, rcx, times_pointer_size,
                       StandardFrameConstants::kCallerSPOffset));
-  __ movq(Operand(rsp, 2 * kPointerSize), rdx);
+  __ movq(args.GetArgumentOperand(1), rdx);
 
   // Try the new space allocation. Start out with computing the size of
   // the arguments object and the elements array.
@@ -2454,7 +2337,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
-  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
+  __ movq(rcx, args.GetArgumentOperand(2));
   __ movq(FieldOperand(rax, JSObject::kHeaderSize +
                        Heap::kArgumentsLengthIndex * kPointerSize),
           rcx);
@@ -2465,7 +2348,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ j(zero, &done);
 
   // Get the parameters pointer from the stack.
-  __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+  __ movq(rdx, args.GetArgumentOperand(1));
 
   // Set up the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
@@ -2948,7 +2831,8 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   const int kMaxInlineLength = 100;
   Label slowcase;
   Label done;
-  __ movq(r8, Operand(rsp, kPointerSize * 3));
+  StackArgumentsAccessor args(rsp, 3, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(r8, args.GetArgumentOperand(0));
   __ JumpIfNotSmi(r8, &slowcase);
   __ SmiToInteger32(rbx, r8);
   __ cmpl(rbx, Immediate(kMaxInlineLength));
@@ -2986,11 +2870,11 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   __ movq(FieldOperand(rax, JSObject::kElementsOffset), rcx);
 
   // Set input, index and length fields from arguments.
-  __ movq(r8, Operand(rsp, kPointerSize * 1));
+  __ movq(r8, args.GetArgumentOperand(2));
   __ movq(FieldOperand(rax, JSRegExpResult::kInputOffset), r8);
-  __ movq(r8, Operand(rsp, kPointerSize * 2));
+  __ movq(r8, args.GetArgumentOperand(1));
   __ movq(FieldOperand(rax, JSRegExpResult::kIndexOffset), r8);
-  __ movq(r8, Operand(rsp, kPointerSize * 3));
+  __ movq(r8, args.GetArgumentOperand(0));
   __ movq(FieldOperand(rax, JSArray::kLengthOffset), r8);
 
   // Fill out the elements FixedArray.
@@ -3121,7 +3005,8 @@ void NumberToStringStub::GenerateConvertHashCodeToIndex(MacroAssembler* masm,
 void NumberToStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
-  __ movq(rbx, Operand(rsp, kPointerSize));
+  StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rbx, args.GetArgumentOperand(0));
 
   // Generate code to lookup number in the number string cache.
   GenerateLookupNumberStringCache(masm, rbx, rax, r8, r9, &runtime);
@@ -3506,6 +3391,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    __ Integer32ToSmi(rax, rax);
     __ push(rax);
     __ push(rdi);
     __ push(rbx);
@@ -3516,6 +3402,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     __ pop(rbx);
     __ pop(rdi);
     __ pop(rax);
+    __ SmiToInteger32(rax, rax);
   }
   __ jmp(&done);
 
@@ -3532,6 +3419,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // rdi : the function to call
   Isolate* isolate = masm->isolate();
   Label slow, non_function;
+  StackArgumentsAccessor args(rsp, argc_);
 
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
@@ -3539,15 +3427,14 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   if (ReceiverMightBeImplicit()) {
     Label call;
     // Get the receiver from the stack.
-    // +1 ~ return address
-    __ movq(rax, Operand(rsp, (argc_ + 1) * kPointerSize));
+    __ movq(rax, args.GetReceiverOperand());
     // Call as function is indicated with the hole.
     __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
     __ j(not_equal, &call, Label::kNear);
     // Patch the receiver on the stack with the global receiver object.
     __ movq(rcx, GlobalObjectOperand());
     __ movq(rcx, FieldOperand(rcx, GlobalObject::kGlobalReceiverOffset));
-    __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rcx);
+    __ movq(args.GetReceiverOperand(), rcx);
     __ bind(&call);
   }
 
@@ -3609,7 +3496,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
   // of the original receiver from the call site).
   __ bind(&non_function);
-  __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rdi);
+  __ movq(args.GetReceiverOperand(), rdi);
   __ Set(rax, argc_);
   __ Set(rbx, 0);
   __ SetCallKind(rcx, CALL_AS_METHOD);
@@ -4144,12 +4031,13 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const unsigned int kWordBeforeResultValue = 0x458B4909;
   // Only the inline check flag is supported on X64.
   ASSERT(flags_ == kNoFlags || HasCallSiteInlineCheck());
-  int extra_stack_space = HasCallSiteInlineCheck() ? kPointerSize : 0;
+  int extra_argument_offset = HasCallSiteInlineCheck() ? 1 : 0;
 
   // Get the object - go slow case if it's a smi.
   Label slow;
-
-  __ movq(rax, Operand(rsp, 2 * kPointerSize + extra_stack_space));
+  StackArgumentsAccessor args(rsp, 2 + extra_argument_offset,
+                              ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rax, args.GetArgumentOperand(0));
   __ JumpIfSmi(rax, &slow);
 
   // Check that the left hand is a JS object. Leave its map in rax.
@@ -4159,7 +4047,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ j(above, &slow);
 
   // Get the prototype of the function.
-  __ movq(rdx, Operand(rsp, 1 * kPointerSize + extra_stack_space));
+  __ movq(rdx, args.GetArgumentOperand(1));
   // rdx is function, rax is map.
 
   // If there is a call site cache don't look in the global cache, but do the
@@ -4194,8 +4082,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ StoreRoot(rax, Heap::kInstanceofCacheMapRootIndex);
   } else {
     // Get return address and delta to inlined map check.
-    __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
-    __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
+    __ movq(kScratchRegister, StackOperandForReturnAddress(0));
+    __ subq(kScratchRegister, args.GetArgumentOperand(2));
     if (FLAG_debug_code) {
       __ movl(rdi, Immediate(kWordBeforeMapCheckValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToMapCheckValue - 4), rdi);
@@ -4235,8 +4123,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Assert it is a 1-byte signed value.
     ASSERT(true_offset >= 0 && true_offset < 0x100);
     __ movl(rax, Immediate(true_offset));
-    __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
-    __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
+    __ movq(kScratchRegister, StackOperandForReturnAddress(0));
+    __ subq(kScratchRegister, args.GetArgumentOperand(2));
     __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
     if (FLAG_debug_code) {
       __ movl(rax, Immediate(kWordBeforeResultValue));
@@ -4245,7 +4133,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     }
     __ Set(rax, 0);
   }
-  __ ret(2 * kPointerSize + extra_stack_space);
+  __ ret((2 + extra_argument_offset) * kPointerSize);
 
   __ bind(&is_not_instance);
   if (!HasCallSiteInlineCheck()) {
@@ -4258,8 +4146,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Assert it is a 1-byte signed value.
     ASSERT(false_offset >= 0 && false_offset < 0x100);
     __ movl(rax, Immediate(false_offset));
-    __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
-    __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
+    __ movq(kScratchRegister, StackOperandForReturnAddress(0));
+    __ subq(kScratchRegister, args.GetArgumentOperand(2));
     __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
     if (FLAG_debug_code) {
       __ movl(rax, Immediate(kWordBeforeResultValue));
@@ -4267,7 +4155,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
       __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheMov);
     }
   }
-  __ ret(2 * kPointerSize + extra_stack_space);
+  __ ret((2 + extra_argument_offset) * kPointerSize);
 
   // Slow-case: Go through the JavaScript implementation.
   __ bind(&slow);
@@ -4425,8 +4313,9 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   Builtins::JavaScript builtin_id = Builtins::ADD;
 
   // Load the two arguments.
-  __ movq(rax, Operand(rsp, 2 * kPointerSize));  // First argument (left).
-  __ movq(rdx, Operand(rsp, 1 * kPointerSize));  // Second argument (right).
+  StackArgumentsAccessor args(rsp, 2, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rax, args.GetArgumentOperand(0));  // First argument (left).
+  __ movq(rdx, args.GetArgumentOperand(1));  // Second argument (right).
 
   // Make sure that both arguments are strings if not known in advance.
   // Otherwise, at least one of the arguments is definitely a string,
@@ -5433,8 +5322,9 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   //  rsp[8]  : right string
   //  rsp[16] : left string
 
-  __ movq(rdx, Operand(rsp, 2 * kPointerSize));  // left
-  __ movq(rax, Operand(rsp, 1 * kPointerSize));  // right
+  StackArgumentsAccessor args(rsp, 2, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rdx, args.GetArgumentOperand(0));  // left
+  __ movq(rax, args.GetArgumentOperand(1));  // right
 
   // Check for identity.
   Label not_same;
@@ -5947,9 +5837,11 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   // undefined value), it guarantees the hash table doesn't contain the
   // property. It's true even if some slots represent deleted properties
   // (their names are the null value).
+  StackArgumentsAccessor args(rsp, 2, ARGUMENTS_DONT_CONTAIN_RECEIVER,
+                              kPointerSize);
   for (int i = kInlinedProbes; i < kTotalProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
-    __ movq(scratch, Operand(rsp, 2 * kPointerSize));
+    __ movq(scratch, args.GetArgumentOperand(1));
     if (i > 0) {
       __ addl(scratch, Immediate(NameDictionary::GetProbeOffset(i)));
     }
@@ -5969,7 +5861,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     __ j(equal, &not_in_dictionary);
 
     // Stop if found the property.
-    __ cmpq(scratch, Operand(rsp, 3 * kPointerSize));
+    __ cmpq(scratch, args.GetArgumentOperand(0));
     __ j(equal, &in_dictionary);
 
     if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
@@ -6321,8 +6213,9 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   Label fast_elements;
 
   // Get array literal index, array literal and its map.
-  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
-  __ movq(rbx, Operand(rsp, 2 * kPointerSize));
+  StackArgumentsAccessor args(rsp, 2, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rdx, args.GetArgumentOperand(1));
+  __ movq(rbx, args.GetArgumentOperand(0));
   __ movq(rdi, FieldOperand(rbx, JSObject::kMapOffset));
 
   __ CheckFastElements(rdi, &double_elements);
@@ -6489,7 +6382,8 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm) {
   __ j(not_zero, &normal_sequence);
 
   // look at the first argument
-  __ movq(rcx, Operand(rsp, kPointerSize));
+  StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+  __ movq(rcx, args.GetArgumentOperand(0));
   __ testq(rcx, rcx);
   __ j(zero, &normal_sequence);
 
@@ -6668,7 +6562,8 @@ void InternalArrayConstructorStub::GenerateCase(
   if (IsFastPackedElementsKind(kind)) {
     // We might need to create a holey array
     // look at the first argument
-    __ movq(rcx, Operand(rsp, kPointerSize));
+    StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+    __ movq(rcx, args.GetArgumentOperand(0));
     __ testq(rcx, rcx);
     __ j(zero, &normal_sequence);
 

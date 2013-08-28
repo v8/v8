@@ -516,34 +516,28 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   // Function address is a foreign pointer outside V8's heap.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
-  bool returns_handle =
-    !CallbackTable::ReturnsVoid(masm->isolate(),
-                                reinterpret_cast<void*>(function_address));
-  __ PrepareCallApiFunction(kApiArgc + kApiStackSpace, returns_handle);
+  __ PrepareCallApiFunction(kApiArgc + kApiStackSpace);
 
   // v8::Arguments::implicit_args_.
-  __ mov(ApiParameterOperand(2, returns_handle), eax);
+  __ mov(ApiParameterOperand(2), eax);
   __ add(eax, Immediate(argc * kPointerSize));
   // v8::Arguments::values_.
-  __ mov(ApiParameterOperand(3, returns_handle), eax);
+  __ mov(ApiParameterOperand(3), eax);
   // v8::Arguments::length_.
-  __ Set(ApiParameterOperand(4, returns_handle), Immediate(argc));
+  __ Set(ApiParameterOperand(4), Immediate(argc));
   // v8::Arguments::is_construct_call_.
-  __ Set(ApiParameterOperand(5, returns_handle), Immediate(0));
+  __ Set(ApiParameterOperand(5), Immediate(0));
 
   // v8::InvocationCallback's argument.
-  __ lea(eax, ApiParameterOperand(2, returns_handle));
-  __ mov(ApiParameterOperand(0, returns_handle), eax);
+  __ lea(eax, ApiParameterOperand(2));
+  __ mov(ApiParameterOperand(0), eax);
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeInvocationCallback)
-      : FUNCTION_ADDR(&InvokeFunctionCallback);
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
 
   __ CallApiFunctionAndReturn(function_address,
                               thunk_address,
-                              ApiParameterOperand(1, returns_handle),
+                              ApiParameterOperand(1),
                               argc + kFastApiCallArguments + 1,
-                              returns_handle,
                               kFastApiCallArguments + 1);
 }
 
@@ -1400,28 +1394,22 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   const int kApiArgc = 2 + 1;
 
   Address getter_address = v8::ToCData<Address>(callback->getter());
-  bool returns_handle =
-    !CallbackTable::ReturnsVoid(isolate(),
-                                reinterpret_cast<void*>(getter_address));
-  __ PrepareCallApiFunction(kApiArgc, returns_handle);
-  __ mov(ApiParameterOperand(0, returns_handle), ebx);  // name.
+  __ PrepareCallApiFunction(kApiArgc);
+  __ mov(ApiParameterOperand(0), ebx);  // name.
   __ add(ebx, Immediate(kPointerSize));
-  __ mov(ApiParameterOperand(1, returns_handle), ebx);  // arguments pointer.
+  __ mov(ApiParameterOperand(1), ebx);  // arguments pointer.
 
   // Emitting a stub call may try to allocate (if the code is not
   // already generated).  Do not allow the assembler to perform a
   // garbage collection but instead return the allocation failure
   // object.
 
-  Address thunk_address = returns_handle
-      ? FUNCTION_ADDR(&InvokeAccessorGetter)
-      : FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
 
   __ CallApiFunctionAndReturn(getter_address,
                               thunk_address,
-                              ApiParameterOperand(2, returns_handle),
+                              ApiParameterOperand(2),
                               kStackSpace,
-                              returns_handle,
                               6);
 }
 

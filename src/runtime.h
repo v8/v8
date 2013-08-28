@@ -221,7 +221,8 @@ namespace internal {
   F(NumberToRadixString, 2, 1) \
   F(NumberToFixed, 2, 1) \
   F(NumberToExponential, 2, 1) \
-  F(NumberToPrecision, 2, 1)
+  F(NumberToPrecision, 2, 1) \
+  F(IsValidSmi, 1, 1)
 
 
 #define RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
@@ -395,6 +396,7 @@ namespace internal {
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \
+  F(NewClosureFromStubFailure, 1, 1) \
   F(NewObject, 1, 1) \
   F(NewObjectFromBound, 1, 1) \
   F(FinalizeInstanceSize, 1, 1) \

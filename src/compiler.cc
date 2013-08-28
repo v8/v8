@@ -1262,6 +1262,7 @@ CompilationPhase::~CompilationPhase() {
 bool CompilationPhase::ShouldProduceTraceOutput() const {
   // Trace if the appropriate trace flag is set and the phase name's first
   // character is in the FLAG_trace_phase command line parameter.
+  AllowHandleDereference allow_deref;
   bool tracing_on = info()->IsStub()
       ? FLAG_trace_hydrogen_stubs
       : (FLAG_trace_hydrogen &&

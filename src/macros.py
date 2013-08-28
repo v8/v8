@@ -67,7 +67,8 @@ const msPerMonth       = 2592000000;
 
 # For apinatives.js
 const kUninitialized = -1;
-const kReadOnlyPrototypeBit = 3;  # For FunctionTemplateInfo, matches objects.h
+const kReadOnlyPrototypeBit = 3;
+const kRemovePrototypeBit = 4;  # For FunctionTemplateInfo, matches objects.h
 
 # Note: kDayZeroInJulianDay = ToJulianDay(1970, 0, 1).
 const kInvalidDate        = 'Invalid Date';

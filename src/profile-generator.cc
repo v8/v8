@@ -209,19 +209,9 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
 }
 
 
-double ProfileNode::GetSelfMillis() const {
-  return tree_->TicksToMillis(self_ticks_);
-}
-
-
-double ProfileNode::GetTotalMillis() const {
-  return tree_->TicksToMillis(total_ticks_);
-}
-
-
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %5u %*c %s%s %d #%d",
-            total_ticks_, self_ticks_,
+  OS::Print("%5u %*c %s%s %d #%d",
+            self_ticks_,
             indent, ' ',
             entry_->name_prefix(),
             entry_->name(),
@@ -298,11 +288,6 @@ struct NodesPair {
 };
 
 
-void ProfileTree::SetTickRatePerMs(double ticks_per_ms) {
-  ms_to_ticks_scale_ = ticks_per_ms > 0 ? 1.0 / ticks_per_ms : 1.0;
-}
-
-
 class Position {
  public:
   explicit Position(ProfileNode* node)
@@ -345,33 +330,6 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
 }
 
 
-class CalculateTotalTicksCallback {
- public:
-  void BeforeTraversingChild(ProfileNode*, ProfileNode*) { }
-
-  void AfterAllChildrenTraversed(ProfileNode* node) {
-    node->IncreaseTotalTicks(node->self_ticks());
-  }
-
-  void AfterChildTraversed(ProfileNode* parent, ProfileNode* child) {
-    parent->IncreaseTotalTicks(child->total_ticks());
-  }
-};
-
-
-void ProfileTree::CalculateTotalTicks() {
-  CalculateTotalTicksCallback cb;
-  TraverseDepthFirst(&cb);
-}
-
-
-void ProfileTree::ShortPrint() {
-  OS::Print("root: %u %u %.2fms %.2fms\n",
-            root_->total_ticks(), root_->self_ticks(),
-            root_->GetTotalMillis(), root_->GetSelfMillis());
-}
-
-
 CpuProfile::CpuProfile(const char* title, unsigned uid, bool record_samples)
     : title_(title),
       uid_(uid),
@@ -389,19 +347,6 @@ void CpuProfile::AddPath(const Vector<CodeEntry*>& path) {
 
 void CpuProfile::CalculateTotalTicksAndSamplingRate() {
   end_time_us_ = OS::Ticks();
-  top_down_.CalculateTotalTicks();
-
-  double duration_ms = (end_time_us_ - start_time_us_) / 1000.;
-  if (duration_ms < 1) duration_ms = 1;
-  unsigned ticks = top_down_.root()->total_ticks();
-  double rate = ticks / duration_ms;
-  top_down_.SetTickRatePerMs(rate);
-}
-
-
-void CpuProfile::ShortPrint() {
-  OS::Print("top down ");
-  top_down_.ShortPrint();
 }
 
 

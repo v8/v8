@@ -1176,7 +1176,8 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   JSObject* recv = JSObject::cast(args[0]);
   ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[1]);
   Address setter_address = v8::ToCData<Address>(callback->setter());
-  v8::AccessorSetter fun = FUNCTION_CAST<v8::AccessorSetter>(setter_address);
+  v8::AccessorSetterCallback fun =
+      FUNCTION_CAST<v8::AccessorSetterCallback>(setter_address);
   ASSERT(fun != NULL);
   ASSERT(callback->IsCompatibleReceiver(recv));
   Handle<Name> name = args.at<Name>(2);
@@ -1221,8 +1222,8 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   Handle<String> name = Handle<String>::cast(name_handle);
 
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
-  v8::NamedPropertyGetter getter =
-      FUNCTION_CAST<v8::NamedPropertyGetter>(getter_address);
+  v8::NamedPropertyGetterCallback getter =
+      FUNCTION_CAST<v8::NamedPropertyGetterCallback>(getter_address);
   ASSERT(getter != NULL);
 
   Handle<JSObject> receiver =
@@ -1291,8 +1292,8 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
   Handle<String> name = Handle<String>::cast(name_handle);
 
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
-  v8::NamedPropertyGetter getter =
-      FUNCTION_CAST<v8::NamedPropertyGetter>(getter_address);
+  v8::NamedPropertyGetterCallback getter =
+      FUNCTION_CAST<v8::NamedPropertyGetterCallback>(getter_address);
   ASSERT(getter != NULL);
 
   PropertyCallbackArguments callback_args(isolate,

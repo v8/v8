@@ -2285,7 +2285,6 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
                                               ExternalReference thunk_ref,
                                               Register thunk_last_arg,
                                               int stack_space,
-                                              bool returns_handle,
                                               int return_value_offset) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address(isolate());
@@ -2354,15 +2353,6 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   Label leave_exit_frame;
   Label return_value_loaded;
 
-  if (returns_handle) {
-    Label load_return_value;
-    cmp(r0, Operand::Zero());
-    b(eq, &load_return_value);
-    // derefernce returned value
-    ldr(r0, MemOperand(r0));
-    b(&return_value_loaded);
-    bind(&load_return_value);
-  }
   // load value from ReturnValue
   ldr(r0, MemOperand(fp, return_value_offset*kPointerSize));
   bind(&return_value_loaded);

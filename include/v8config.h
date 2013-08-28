@@ -91,7 +91,10 @@
 //
 //  V8_CC_CLANG   - Clang
 //  V8_CC_GNU     - GNU C++
+//  V8_CC_INTEL   - Intel C++
 //  V8_CC_MINGW   - Minimalist GNU for Windows
+//  V8_CC_MINGW32 - Minimalist GNU for Windows (mingw32)
+//  V8_CC_MINGW64 - Minimalist GNU for Windows (mingw-w64)
 //  V8_CC_MSVC    - Microsoft Visual C/C++
 //
 // C++11 feature detection
@@ -105,18 +108,29 @@
 //
 // Compiler-specific feature detection
 //
-//  V8_HAS___ALIGNOF                - __alignof(type) operator supported
-//  V8_HAS___ALIGNOF__              - __alignof__(type) operator supported
-//  V8_HAS_ATTRIBUTE_ALIGNED        - __attribute__((aligned(n))) supported
-//  V8_HAS_ATTRIBUTE_ALWAYS_INLINE  - __attribute__((always_inline)) supported
-//  V8_HAS_ATTRIBUTE_DEPRECATED     - __attribute__((deprecated)) supported
-//  V8_HAS_ATTRIBUTE_VISIBILITY     - __attribute__((visibility)) supported
-//  V8_HAS_BUILTIN_EXPECT           - __builtin_expect() supported
-//  V8_HAS_DECLSPEC_ALIGN           - __declspec(align(n)) supported
-//  V8_HAS_DECLSPEC_DEPRECATED      - __declspec(deprecated) supported
-//  V8_HAS___FINAL                  - __final supported in non-C++11 mode
-//  V8_HAS___FORCEINLINE            - __forceinline supported
-//  V8_HAS_SEALED                   - MSVC style sealed marker supported
+//  V8_HAS___ALIGNOF                    - __alignof(type) operator supported
+//  V8_HAS___ALIGNOF__                  - __alignof__(type) operator supported
+//  V8_HAS_ATTRIBUTE_ALIGNED            - __attribute__((aligned(n))) supported
+//  V8_HAS_ATTRIBUTE_ALWAYS_INLINE      - __attribute__((always_inline))
+//                                        supported
+//  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
+//  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
+//  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
+//  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
+//                                        supported
+//  V8_HAS_BUILTIN_EXPECT               - __builtin_expect() supported
+//  V8_HAS_DECLSPEC_ALIGN               - __declspec(align(n)) supported
+//  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
+//  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
+//  V8_HAS___FINAL                      - __final supported in non-C++11 mode
+//  V8_HAS___FORCEINLINE                - __forceinline supported
+//  V8_HAS_SEALED                       - MSVC style sealed marker supported
+//
+// Note that testing for compilers and/or features must be done using #if
+// not #ifdef. For example, to test for Intel C++ Compiler, use:
+//  #if V8_CC_INTEL
+//   ...
+//  #endif
 
 #if defined(__clang__)
 
@@ -132,7 +146,10 @@
 # define V8_HAS_ATTRIBUTE_ALIGNED (__has_attribute(aligned))
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
+# define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
+# define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
+    (__has_attribute(warn_unused_result))
 
 # define V8_HAS_BUILTIN_EXPECT (__has_builtin(__builtin_expect))
 
@@ -149,9 +166,11 @@
      ((major) * 10000 + (minor) * 100 + (patchlevel)))
 
 # define V8_CC_GNU 1
-# if defined(__MINGW32__)
-#  define V8_CC_MINGW 1
-# endif
+// Intel C++ also masquerades as GCC 3.2.0
+# define V8_CC_INTEL (defined(__INTEL_COMPILER))
+# define V8_CC_MINGW32 (defined(__MINGW32__))
+# define V8_CC_MINGW64 (defined(__MINGW64__))
+# define V8_CC_MINGW (V8_CC_MINGW32 || V8_CC_MINGW64)
 
 # define V8_HAS___ALIGNOF__ (V8_GNUC_PREREQ(4, 3, 0))
 
@@ -161,7 +180,10 @@
 // older compilers.
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (V8_GNUC_PREREQ(4, 4, 0))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (V8_GNUC_PREREQ(3, 4, 0))
+# define V8_HAS_ATTRIBUTE_NOINLINE (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
+# define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
+    (!V8_CC_INTEL && V8_GNUC_PREREQ(4, 1, 0))
 
 # define V8_HAS_BUILTIN_EXPECT (V8_GNUC_PREREQ(2, 96, 0))
 
@@ -199,6 +221,7 @@
 
 # define V8_HAS_DECLSPEC_ALIGN 1
 # define V8_HAS_DECLSPEC_DEPRECATED (_MSC_VER >= 1300)
+# define V8_HAS_DECLSPEC_NOINLINE 1
 
 # define V8_HAS___FORCEINLINE 1
 
@@ -218,6 +241,17 @@
 #endif
 
 
+// A macro used to tell the compiler to never inline a particular function.
+// Don't bother for debug builds.
+#if !defined(DEBUG) && V8_HAS_ATTRIBUTE_NOINLINE
+# define V8_NOINLINE(declarator) __attribute__((noinline)) declarator
+#elif !defined(DEBUG) && V8_HAS_DECLSPEC_NOINLINE
+# define V8_NOINLINE(declarator) __declspec(noinline) declarator
+#else
+# define V8_NOINLINE(declarator) declarator
+#endif
+
+
 // A macro to mark classes or functions as deprecated.
 #if !V8_DISABLE_DEPRECATIONS && V8_HAS_ATTRIBUTE_DEPRECATED
 # define V8_DEPRECATED(declarator) declarator __attribute__((deprecated))
@@ -225,6 +259,16 @@
 # define V8_DEPRECATED(declarator) __declspec(deprecated) declarator
 #else
 # define V8_DEPRECATED(declarator) declarator
+#endif
+
+
+// Annotate a function indicating the caller must examine the return value.
+// Use like:
+//   int foo() V8_WARN_UNUSED_RESULT;
+#if V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT
+# define V8_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+# define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
 #endif
 
 

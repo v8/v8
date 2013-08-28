@@ -171,27 +171,32 @@ typedef byte* Address;
 // Define our own macros for writing 64-bit constants.  This is less fragile
 // than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
 // works on compilers that don't have it (like MSVC).
-#if V8_HOST_ARCH_64_BIT
-#if defined(_MSC_VER)
-#define V8_UINT64_C(x)  (x ## UI64)
-#define V8_INT64_C(x)   (x ## I64)
-#define V8_INTPTR_C(x)  (x ## I64)
-#define V8_PTR_PREFIX "ll"
-#elif defined(__MINGW64__)
-#define V8_UINT64_C(x)  (x ## ULL)
-#define V8_INT64_C(x)   (x ## LL)
-#define V8_INTPTR_C(x)  (x ## LL)
-#define V8_PTR_PREFIX "I64"
+#if V8_CC_MSVC
+# define V8_UINT64_C(x)   (x ## UI64)
+# define V8_INT64_C(x)    (x ## I64)
+# if V8_HOST_ARCH_64_BIT
+#  define V8_INTPTR_C(x)  (x ## I64)
+#  define V8_PTR_PREFIX   "ll"
+# else
+#  define V8_INTPTR_C(x)  (x)
+#  define V8_PTR_PREFIX   ""
+# endif  // V8_HOST_ARCH_64_BIT
+#elif V8_CC_MINGW64
+# define V8_UINT64_C(x)   (x ## ULL)
+# define V8_INT64_C(x)    (x ## LL)
+# define V8_INTPTR_C(x)   (x ## LL)
+# define V8_PTR_PREFIX    "I64"
+#elif V8_HOST_ARCH_64_BIT
+# define V8_UINT64_C(x)   (x ## UL)
+# define V8_INT64_C(x)    (x ## L)
+# define V8_INTPTR_C(x)   (x ## L)
+# define V8_PTR_PREFIX    "l"
 #else
-#define V8_UINT64_C(x)  (x ## UL)
-#define V8_INT64_C(x)   (x ## L)
-#define V8_INTPTR_C(x)  (x ## L)
-#define V8_PTR_PREFIX "l"
+# define V8_UINT64_C(x)   (x ## ULL)
+# define V8_INT64_C(x)    (x ## LL)
+# define V8_INTPTR_C(x)   (x)
+# define V8_PTR_PREFIX    ""
 #endif
-#else  // V8_HOST_ARCH_64_BIT
-#define V8_INTPTR_C(x)  (x)
-#define V8_PTR_PREFIX ""
-#endif  // V8_HOST_ARCH_64_BIT
 
 // The following macro works on both 32 and 64-bit platforms.
 // Usage: instead of writing 0x1234567890123456
@@ -337,31 +342,13 @@ F FUNCTION_CAST(Address addr) {
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 
-// Define used for helping GCC to make better inlining. Don't bother for debug
-// builds. On GCC 3.4.5 using __attribute__((always_inline)) causes compilation
-// errors in debug build.
-#if defined(__GNUC__) && !defined(DEBUG)
-#if (__GNUC__ >= 4)
-#define INLINE(header) inline header  __attribute__((always_inline))
-#define NO_INLINE(header) header __attribute__((noinline))
-#else
-#define INLINE(header) inline __attribute__((always_inline)) header
-#define NO_INLINE(header) __attribute__((noinline)) header
-#endif
-#elif defined(_MSC_VER) && !defined(DEBUG)
-#define INLINE(header) __forceinline header
-#define NO_INLINE(header) header
-#else
-#define INLINE(header) inline header
-#define NO_INLINE(header) header
-#endif
+// Newly written code should use V8_INLINE() and V8_NOINLINE() directly.
+#define INLINE(declarator)    V8_INLINE(declarator)
+#define NO_INLINE(declarator) V8_NOINLINE(declarator)
 
 
-#if defined(__GNUC__) && __GNUC__ >= 4
-#define MUST_USE_RESULT __attribute__ ((warn_unused_result))
-#else
-#define MUST_USE_RESULT
-#endif
+// Newly written code should use V8_WARN_UNUSED_RESULT.
+#define MUST_USE_RESULT V8_WARN_UNUSED_RESULT
 
 
 // Define DISABLE_ASAN macros.
