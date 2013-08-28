@@ -260,10 +260,9 @@ void OptimizingCompiler::RecordOptimizationStats() {
   Handle<JSFunction> function = info()->closure();
   int opt_count = function->shared()->opt_count();
   function->shared()->set_opt_count(opt_count + 1);
-  double ms_creategraph =
-      static_cast<double>(time_taken_to_create_graph_) / 1000;
-  double ms_optimize = static_cast<double>(time_taken_to_optimize_) / 1000;
-  double ms_codegen = static_cast<double>(time_taken_to_codegen_) / 1000;
+  double ms_creategraph = time_taken_to_create_graph_.InMillisecondsF();
+  double ms_optimize = time_taken_to_optimize_.InMillisecondsF();
+  double ms_codegen = time_taken_to_codegen_.InMillisecondsF();
   if (FLAG_trace_opt) {
     PrintF("[optimizing ");
     function->ShortPrint();
@@ -373,9 +372,9 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // performance of the hydrogen-based compiler.
   bool should_recompile = !info()->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
-    int64_t start_ticks = 0;
+    ElapsedTimer timer;
     if (FLAG_hydrogen_stats) {
-      start_ticks = OS::Ticks();
+      timer.Start();
     }
     CompilationInfoWithZone unoptimized(info()->shared_info());
     // Note that we use the same AST that we will use for generating the
@@ -394,8 +393,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
           Logger::LAZY_COMPILE_TAG, &unoptimized, shared);
     }
     if (FLAG_hydrogen_stats) {
-      int64_t ticks = OS::Ticks() - start_ticks;
-      isolate()->GetHStatistics()->IncrementFullCodeGen(ticks);
+      isolate()->GetHStatistics()->IncrementFullCodeGen(timer.Elapsed());
     }
   }
 
@@ -1244,7 +1242,7 @@ CompilationPhase::CompilationPhase(const char* name, CompilationInfo* info)
     : name_(name), info_(info), zone_(info->isolate()) {
   if (FLAG_hydrogen_stats) {
     info_zone_start_allocation_size_ = info->zone()->allocation_size();
-    start_ticks_ = OS::Ticks();
+    timer_.Start();
   }
 }
 
@@ -1253,8 +1251,7 @@ CompilationPhase::~CompilationPhase() {
   if (FLAG_hydrogen_stats) {
     unsigned size = zone()->allocation_size();
     size += info_->zone()->allocation_size() - info_zone_start_allocation_size_;
-    int64_t ticks = OS::Ticks() - start_ticks_;
-    isolate()->GetHStatistics()->SaveTiming(name_, ticks, size);
+    isolate()->GetHStatistics()->SaveTiming(name_, timer_.Elapsed(), size);
   }
 }
 

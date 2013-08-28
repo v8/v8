@@ -716,8 +716,7 @@ Logger::Logger(Isolate* isolate)
     ll_logger_(NULL),
     jit_logger_(NULL),
     listeners_(5),
-    is_initialized_(false),
-    epoch_(0) {
+    is_initialized_(false) {
 }
 
 
@@ -868,7 +867,7 @@ void Logger::CodeDeoptEvent(Code* code) {
   if (!log_->IsEnabled()) return;
   ASSERT(FLAG_log_internal_timer_events);
   Log::MessageBuilder msg(log_);
-  int since_epoch = static_cast<int>(OS::Ticks() - epoch_);
+  int since_epoch = static_cast<int>(timer_.Elapsed().InMicroseconds());
   msg.Append("code-deopt,%ld,%d\n", since_epoch, code->CodeSize());
   msg.WriteToLogFile();
 }
@@ -878,7 +877,7 @@ void Logger::TimerEvent(StartEnd se, const char* name) {
   if (!log_->IsEnabled()) return;
   ASSERT(FLAG_log_internal_timer_events);
   Log::MessageBuilder msg(log_);
-  int since_epoch = static_cast<int>(OS::Ticks() - epoch_);
+  int since_epoch = static_cast<int>(timer_.Elapsed().InMicroseconds());
   const char* format = (se == START) ? "timer-event-start,\"%s\",%ld\n"
                                      : "timer-event-end,\"%s\",%ld\n";
   msg.Append(format, name, since_epoch);
@@ -1501,7 +1500,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[TICK_EVENT]);
   msg.AppendAddress(sample->pc);
-  msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
+  msg.Append(",%ld", static_cast<int>(timer_.Elapsed().InMicroseconds()));
   if (sample->has_external_callback) {
     msg.Append(",1,");
     msg.AppendAddress(sample->external_callback);
@@ -1896,7 +1895,7 @@ bool Logger::SetUp(Isolate* isolate) {
     }
   }
 
-  if (FLAG_log_internal_timer_events || FLAG_prof) epoch_ = OS::Ticks();
+  if (FLAG_log_internal_timer_events || FLAG_prof) timer_.Start();
 
   return true;
 }

@@ -246,18 +246,14 @@ void MathSetup() {
 // timestamps are represented as a doubles in milliseconds since 00:00:00 UTC,
 // January 1, 1970.
 
-class Time {
+class Win32Time {
  public:
   // Constructors.
-  Time();
-  explicit Time(double jstime);
-  Time(int year, int mon, int day, int hour, int min, int sec);
+  explicit Win32Time(double jstime);
+  Win32Time(int year, int mon, int day, int hour, int min, int sec);
 
   // Convert timestamp to JavaScript representation.
   double ToJSTime();
-
-  // Set timestamp to current time.
-  void SetToCurrentTime();
 
   // Returns the local timezone offset in milliseconds east of UTC. This is
   // the number of milliseconds you must add to UTC to get local time, i.e.
@@ -300,10 +296,6 @@ class Time {
   // Return whether or not daylight savings time is in effect at this time.
   bool InDST();
 
-  // Return the difference (in milliseconds) between this timestamp and
-  // another timestamp.
-  int64_t Diff(Time* other);
-
   // Accessor for FILETIME representation.
   FILETIME& ft() { return time_.ft_; }
 
@@ -325,26 +317,20 @@ class Time {
 
 
 // Static variables.
-bool Time::tz_initialized_ = false;
-TIME_ZONE_INFORMATION Time::tzinfo_;
-char Time::std_tz_name_[kTzNameSize];
-char Time::dst_tz_name_[kTzNameSize];
-
-
-// Initialize timestamp to start of epoc.
-Time::Time() {
-  t() = 0;
-}
+bool Win32Time::tz_initialized_ = false;
+TIME_ZONE_INFORMATION Win32Time::tzinfo_;
+char Win32Time::std_tz_name_[kTzNameSize];
+char Win32Time::dst_tz_name_[kTzNameSize];
 
 
 // Initialize timestamp from a JavaScript timestamp.
-Time::Time(double jstime) {
+Win32Time::Win32Time(double jstime) {
   t() = static_cast<int64_t>(jstime) * kTimeScaler + kTimeEpoc;
 }
 
 
 // Initialize timestamp from date/time components.
-Time::Time(int year, int mon, int day, int hour, int min, int sec) {
+Win32Time::Win32Time(int year, int mon, int day, int hour, int min, int sec) {
   SYSTEMTIME st;
   st.wYear = year;
   st.wMonth = mon;
@@ -358,14 +344,14 @@ Time::Time(int year, int mon, int day, int hour, int min, int sec) {
 
 
 // Convert timestamp to JavaScript timestamp.
-double Time::ToJSTime() {
+double Win32Time::ToJSTime() {
   return static_cast<double>((t() - kTimeEpoc) / kTimeScaler);
 }
 
 
 // Guess the name of the timezone from the bias.
 // The guess is very biased towards the northern hemisphere.
-const char* Time::GuessTimezoneNameFromBias(int bias) {
+const char* Win32Time::GuessTimezoneNameFromBias(int bias) {
   static const int kHour = 60;
   switch (-bias) {
     case -9*kHour: return "Alaska";
@@ -390,7 +376,7 @@ const char* Time::GuessTimezoneNameFromBias(int bias) {
 // Initialize timezone information. The timezone information is obtained from
 // windows. If we cannot get the timezone information we fall back to CET.
 // Please notice that this code is not thread-safe.
-void Time::TzSet() {
+void Win32Time::TzSet() {
   // Just return if timezone information has already been initialized.
   if (tz_initialized_) return;
 
@@ -439,78 +425,16 @@ void Time::TzSet() {
 }
 
 
-// Return the difference in milliseconds between this and another timestamp.
-int64_t Time::Diff(Time* other) {
-  return (t() - other->t()) / kTimeScaler;
-}
-
-
-// Set timestamp to current time.
-void Time::SetToCurrentTime() {
-  // The default GetSystemTimeAsFileTime has a ~15.5ms resolution.
-  // Because we're fast, we like fast timers which have at least a
-  // 1ms resolution.
-  //
-  // timeGetTime() provides 1ms granularity when combined with
-  // timeBeginPeriod().  If the host application for v8 wants fast
-  // timers, it can use timeBeginPeriod to increase the resolution.
-  //
-  // Using timeGetTime() has a drawback because it is a 32bit value
-  // and hence rolls-over every ~49days.
-  //
-  // To use the clock, we use GetSystemTimeAsFileTime as our base;
-  // and then use timeGetTime to extrapolate current time from the
-  // start time.  To deal with rollovers, we resync the clock
-  // any time when more than kMaxClockElapsedTime has passed or
-  // whenever timeGetTime creates a rollover.
-
-  static bool initialized = false;
-  static TimeStamp init_time;
-  static DWORD init_ticks;
-  static const int64_t kHundredNanosecondsPerSecond = 10000000;
-  static const int64_t kMaxClockElapsedTime =
-      60*kHundredNanosecondsPerSecond;  // 1 minute
-
-  // If we are uninitialized, we need to resync the clock.
-  bool needs_resync = !initialized;
-
-  // Get the current time.
-  TimeStamp time_now;
-  GetSystemTimeAsFileTime(&time_now.ft_);
-  DWORD ticks_now = timeGetTime();
-
-  // Check if we need to resync due to clock rollover.
-  needs_resync |= ticks_now < init_ticks;
-
-  // Check if we need to resync due to elapsed time.
-  needs_resync |= (time_now.t_ - init_time.t_) > kMaxClockElapsedTime;
-
-  // Check if we need to resync due to backwards time change.
-  needs_resync |= time_now.t_ < init_time.t_;
-
-  // Resync the clock if necessary.
-  if (needs_resync) {
-    GetSystemTimeAsFileTime(&init_time.ft_);
-    init_ticks = ticks_now = timeGetTime();
-    initialized = true;
-  }
-
-  // Finally, compute the actual time.  Why is this so hard.
-  DWORD elapsed = ticks_now - init_ticks;
-  this->time_.t_ = init_time.t_ + (static_cast<int64_t>(elapsed) * 10000);
-}
-
-
 // Return the local timezone offset in milliseconds east of UTC. This
 // takes into account whether daylight saving is in effect at the time.
 // Only times in the 32-bit Unix range may be passed to this function.
 // Also, adding the time-zone offset to the input must not overflow.
 // The function EquivalentTime() in date.js guarantees this.
-int64_t Time::LocalOffset() {
+int64_t Win32Time::LocalOffset() {
   // Initialize timezone information, if needed.
   TzSet();
 
-  Time rounded_to_second(*this);
+  Win32Time rounded_to_second(*this);
   rounded_to_second.t() = rounded_to_second.t() / 1000 / kTimeScaler *
       1000 * kTimeScaler;
   // Convert to local time using POSIX localtime function.
@@ -541,7 +465,7 @@ int64_t Time::LocalOffset() {
 
 
 // Return whether or not daylight savings time is in effect at this time.
-bool Time::InDST() {
+bool Win32Time::InDST() {
   // Initialize timezone information, if needed.
   TzSet();
 
@@ -565,14 +489,14 @@ bool Time::InDST() {
 
 
 // Return the daylight savings time offset for this time.
-int64_t Time::DaylightSavingsOffset() {
+int64_t Win32Time::DaylightSavingsOffset() {
   return InDST() ? 60 * kMsPerMinute : 0;
 }
 
 
 // Returns a string identifying the current timezone for the
 // timestamp taking into account daylight saving.
-char* Time::LocalTimezone() {
+char* Win32Time::LocalTimezone() {
   // Return the standard or DST time zone name based on whether daylight
   // saving is in effect at the given time.
   return InDST() ? dst_tz_name_ : std_tz_name_;
@@ -614,22 +538,14 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
 // Returns current time as the number of milliseconds since
 // 00:00:00 UTC, January 1, 1970.
 double OS::TimeCurrentMillis() {
-  Time t;
-  t.SetToCurrentTime();
-  return t.ToJSTime();
-}
-
-
-// Returns the tickcounter based on timeGetTime.
-int64_t OS::Ticks() {
-  return timeGetTime() * 1000;  // Convert to microseconds.
+  return Time::Now().ToJsTime();
 }
 
 
 // Returns a string identifying the current timezone taking into
 // account daylight saving.
 const char* OS::LocalTimezone(double time) {
-  return Time(time).LocalTimezone();
+  return Win32Time(time).LocalTimezone();
 }
 
 
@@ -637,7 +553,7 @@ const char* OS::LocalTimezone(double time) {
 // taking daylight savings time into account.
 double OS::LocalTimeOffset() {
   // Use current time, rounded to the millisecond.
-  Time t(TimeCurrentMillis());
+  Win32Time t(TimeCurrentMillis());
   // Time::LocalOffset inlcudes any daylight savings offset, so subtract it.
   return static_cast<double>(t.LocalOffset() - t.DaylightSavingsOffset());
 }
@@ -646,7 +562,7 @@ double OS::LocalTimeOffset() {
 // Returns the daylight savings offset in milliseconds for the given
 // time.
 double OS::DaylightSavingsOffset(double time) {
-  int64_t offset = Time(time).DaylightSavingsOffset();
+  int64_t offset = Win32Time(time).DaylightSavingsOffset();
   return static_cast<double>(offset);
 }
 
