@@ -86,7 +86,8 @@ HCapturedObject* HEscapeAnalysisPhase::NewStateForAllocation(
 
 // Create a new state full of phis for loop header entries.
 HCapturedObject* HEscapeAnalysisPhase::NewStateForLoopHeader(
-    HInstruction* previous, HCapturedObject* old_state) {
+    HInstruction* previous,
+    HCapturedObject* old_state) {
   HBasicBlock* block = previous->block();
   HCapturedObject* state = NewState(previous);
   for (int index = 0; index < number_of_values_; index++) {
@@ -100,7 +101,8 @@ HCapturedObject* HEscapeAnalysisPhase::NewStateForLoopHeader(
 
 // Create a new state by copying an existing one.
 HCapturedObject* HEscapeAnalysisPhase::NewStateCopy(
-    HInstruction* previous, HCapturedObject* old_state) {
+    HInstruction* previous,
+    HCapturedObject* old_state) {
   HCapturedObject* state = NewState(previous);
   for (int index = 0; index < number_of_values_; index++) {
     HValue* operand = old_state->OperandAt(index);
@@ -112,8 +114,9 @@ HCapturedObject* HEscapeAnalysisPhase::NewStateCopy(
 
 // Insert a newly created phi into the given block and fill all incoming
 // edges with the given value.
-HPhi* HEscapeAnalysisPhase::NewPhiAndInsert(
-    HBasicBlock* block, HValue* incoming_value, int index) {
+HPhi* HEscapeAnalysisPhase::NewPhiAndInsert(HBasicBlock* block,
+                                            HValue* incoming_value,
+                                            int index) {
   Zone* zone = graph()->zone();
   HPhi* phi = new(zone) HPhi(HPhi::kInvalidMergedIndex, zone);
   for (int i = 0; i < block->predecessors()->length(); i++) {
@@ -121,6 +124,21 @@ HPhi* HEscapeAnalysisPhase::NewPhiAndInsert(
   }
   block->AddPhi(phi);
   return phi;
+}
+
+
+// Insert a newly created value check as a replacement for map checks.
+HValue* HEscapeAnalysisPhase::NewMapCheckAndInsert(HCapturedObject* state,
+                                                   HCheckMaps* mapcheck) {
+  Zone* zone = graph()->zone();
+  HValue* value = state->map_value();
+  // TODO(mstarzinger): This will narrow a map check against a set of maps
+  // down to the first element in the set. Revisit and fix this.
+  Handle<Map> map_object = mapcheck->map_set()->first();
+  UniqueValueId map_id = mapcheck->map_unique_ids()->first();
+  HCheckValue* check = HCheckValue::New(zone, NULL, value, map_object, map_id);
+  check->InsertBefore(mapcheck);
+  return check;
 }
 
 
@@ -180,7 +198,7 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           if (store->HasObservableSideEffects()) {
             state->ReuseSideEffectsFromStore(store);
           }
-          store->DeleteAndReplaceWith(NULL);
+          store->DeleteAndReplaceWith(store->ActualValue());
           if (FLAG_trace_escape_analysis) {
             PrintF("Replacing store #%d%s\n", instr->id(),
                    store->has_transition() ? " (with transition)" : "");
@@ -199,15 +217,13 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
         case HValue::kCheckHeapObject: {
           HCheckHeapObject* check = HCheckHeapObject::cast(instr);
           if (check->value() != allocate) continue;
-          check->DeleteAndReplaceWith(NULL);
+          check->DeleteAndReplaceWith(check->ActualValue());
           break;
         }
         case HValue::kCheckMaps: {
           HCheckMaps* mapcheck = HCheckMaps::cast(instr);
           if (mapcheck->value() != allocate) continue;
-          // TODO(mstarzinger): This approach breaks if the tracked map value
-          // is not a HConstant. Find a repro test case and fix this.
-          ASSERT(mapcheck->ActualValue() == allocate);
+          NewMapCheckAndInsert(state, mapcheck);
           mapcheck->DeleteAndReplaceWith(mapcheck->ActualValue());
           break;
         }

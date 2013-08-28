@@ -88,12 +88,12 @@ class LChunkBuilder;
   V(CallStub)                                  \
   V(CapturedObject)                            \
   V(Change)                                    \
-  V(CheckFunction)                             \
   V(CheckHeapObject)                           \
   V(CheckInstanceType)                         \
   V(CheckMaps)                                 \
   V(CheckMapValue)                             \
   V(CheckSmi)                                  \
+  V(CheckValue)                                \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareNumericAndBranch)                   \
@@ -2562,6 +2562,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
 
   HValue* value() { return OperandAt(0); }
   SmallMapList* map_set() { return &map_set_; }
+  ZoneList<UniqueValueId>* map_unique_ids() { return &map_unique_ids_; }
 
   bool has_migration_target() {
     return has_migration_target_;
@@ -2630,9 +2631,20 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
 };
 
 
-class HCheckFunction V8_FINAL : public HUnaryOperation {
+class HCheckValue V8_FINAL : public HUnaryOperation {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HCheckFunction, HValue*, Handle<JSFunction>);
+  static HCheckValue* New(Zone* zone, HValue* context,
+                          HValue* value, Handle<JSFunction> target) {
+    bool in_new_space = Isolate::Current()->heap()->InNewSpace(*target);
+    HCheckValue* check = new(zone) HCheckValue(value, target, in_new_space);
+    return check;
+  }
+  static HCheckValue* New(Zone* zone, HValue* context,
+                          HValue* value, Handle<Map> map, UniqueValueId id) {
+    HCheckValue* check = new(zone) HCheckValue(value, map, false);
+    check->object_unique_id_ = id;
+    return check;
+  }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
@@ -2646,32 +2658,31 @@ class HCheckFunction V8_FINAL : public HUnaryOperation {
 #endif
 
   virtual void FinalizeUniqueValueId() V8_OVERRIDE {
-    target_unique_id_ = UniqueValueId(target_);
+    object_unique_id_ = UniqueValueId(object_);
   }
 
-  Handle<JSFunction> target() const { return target_; }
-  bool target_in_new_space() const { return target_in_new_space_; }
+  Handle<HeapObject> object() const { return object_; }
+  bool object_in_new_space() const { return object_in_new_space_; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CheckFunction)
+  DECLARE_CONCRETE_INSTRUCTION(CheckValue)
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
-    HCheckFunction* b = HCheckFunction::cast(other);
-    return target_unique_id_ == b->target_unique_id_;
+    HCheckValue* b = HCheckValue::cast(other);
+    return object_unique_id_ == b->object_unique_id_;
   }
 
  private:
-  HCheckFunction(HValue* value, Handle<JSFunction> function)
+  HCheckValue(HValue* value, Handle<HeapObject> object, bool in_new_space)
       : HUnaryOperation(value, value->type()),
-        target_(function), target_unique_id_() {
+        object_(object), object_in_new_space_(in_new_space) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    target_in_new_space_ = Isolate::Current()->heap()->InNewSpace(*function);
   }
 
-  Handle<JSFunction> target_;
-  UniqueValueId target_unique_id_;
-  bool target_in_new_space_;
+  Handle<HeapObject> object_;
+  UniqueValueId object_unique_id_;
+  bool object_in_new_space_;
 };
 
 
@@ -3229,6 +3240,9 @@ class HCapturedObject V8_FINAL : public HDematerializedObject {
   const ZoneList<HValue*>* values() const { return &values_; }
   int length() const { return values_.length(); }
   int capture_id() const { return capture_id_; }
+
+  // Shortcut for the map value of this captured object.
+  HValue* map_value() const { return values()->first(); }
 
   void ReuseSideEffectsFromStore(HInstruction* store) {
     ASSERT(store->HasObservableSideEffects());

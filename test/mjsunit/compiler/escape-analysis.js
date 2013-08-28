@@ -173,3 +173,30 @@
   delete deopt.deopt;
   func(); func();
 })();
+
+
+// Test map checks on captured objects.
+(function testMapCheck() {
+  var sum = 0;
+  function getter() { return 27; }
+  function setter(v) { sum += v; }
+  function constructor() {
+    this.x = 23;
+    this.y = 42;
+  }
+  function check(x, y) {
+    var o = new constructor();
+    assertEquals(x, o.x);
+    assertEquals(y, o.y);
+  }
+  var monkey = Object.create(null, {
+    x: { get:getter, set:setter },
+    y: { get:getter, set:setter }
+  });
+  check(23, 42); check(23, 42);
+  %OptimizeFunctionOnNextCall(check);
+  check(23, 42); check(23, 42);
+  constructor.prototype = monkey;
+  check(27, 27); check(27, 27);
+  assertEquals(130, sum);
+})();

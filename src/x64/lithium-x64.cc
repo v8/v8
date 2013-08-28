@@ -1940,9 +1940,9 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
+LInstruction* LChunkBuilder::DoCheckValue(HCheckValue* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  return AssignEnvironment(new(zone()) LCheckFunction(value));
+  return AssignEnvironment(new(zone()) LCheckValue(value));
 }
 
 

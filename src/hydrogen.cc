@@ -7110,7 +7110,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
         CHECK_ALIVE(VisitForValue(expr->expression()));
         HValue* function = Pop();
-        Add<HCheckFunction>(function, expr->target());
+        Add<HCheckValue>(function, expr->target());
 
         // Replace the global object with the global receiver.
         HGlobalReceiver* global_receiver = Add<HGlobalReceiver>(global_object);
@@ -7162,7 +7162,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       HGlobalReceiver* receiver = New<HGlobalReceiver>(global);
       PushAndAdd(receiver);
       CHECK_ALIVE(VisitExpressions(expr->arguments()));
-      Add<HCheckFunction>(function, expr->target());
+      Add<HCheckValue>(function, expr->target());
 
       if (TryInlineBuiltinFunctionCall(expr, true)) {  // Drop the function.
         if (FLAG_trace_inlining) {
@@ -7225,7 +7225,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     HValue* function = Top();
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
     Handle<JSFunction> constructor = expr->target();
-    HValue* check = Add<HCheckFunction>(function, constructor);
+    HValue* check = Add<HCheckValue>(function, constructor);
 
     // Force completion of inobject slack tracking before generating
     // allocation code to finalize instance size.
@@ -7317,7 +7317,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     HBinaryCall* call;
     if (expr->target().is_identical_to(array_function)) {
       Handle<Cell> cell = expr->allocation_info_cell();
-      Add<HCheckFunction>(constructor, array_function);
+      Add<HCheckValue>(constructor, array_function);
       call = new(zone()) HCallNewArray(context, constructor, argument_count,
                                        cell, expr->elements_kind());
     } else {
@@ -8149,7 +8149,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       result->set_position(expr->position());
       return ast_context()->ReturnInstruction(result, expr->id());
     } else {
-      Add<HCheckFunction>(right, target);
+      Add<HCheckValue>(right, target);
       HInstanceOfKnownGlobal* result =
           new(zone()) HInstanceOfKnownGlobal(context, left, target);
       result->set_position(expr->position());
