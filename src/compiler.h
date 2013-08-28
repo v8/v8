@@ -30,7 +30,6 @@
 
 #include "allocation.h"
 #include "ast.h"
-#include "time/elapsed-timer.h"
 #include "zone.h"
 
 namespace v8 {
@@ -502,6 +501,9 @@ class OptimizingCompiler: public ZoneObject {
         graph_builder_(NULL),
         graph_(NULL),
         chunk_(NULL),
+        time_taken_to_create_graph_(0),
+        time_taken_to_optimize_(0),
+        time_taken_to_codegen_(0),
         last_status_(FAILED) { }
 
   enum Status {
@@ -527,9 +529,9 @@ class OptimizingCompiler: public ZoneObject {
   HOptimizedGraphBuilder* graph_builder_;
   HGraph* graph_;
   LChunk* chunk_;
-  TimeDelta time_taken_to_create_graph_;
-  TimeDelta time_taken_to_optimize_;
-  TimeDelta time_taken_to_codegen_;
+  int64_t time_taken_to_create_graph_;
+  int64_t time_taken_to_optimize_;
+  int64_t time_taken_to_codegen_;
   Status last_status_;
 
   MUST_USE_RESULT Status SetLastStatus(Status status) {
@@ -539,20 +541,18 @@ class OptimizingCompiler: public ZoneObject {
   void RecordOptimizationStats();
 
   struct Timer {
-    Timer(OptimizingCompiler* compiler, TimeDelta* location)
+    Timer(OptimizingCompiler* compiler, int64_t* location)
         : compiler_(compiler),
-          location_(location) {
-      ASSERT(location_ != NULL);
-      timer_.Start();
-    }
+          start_(OS::Ticks()),
+          location_(location) { }
 
     ~Timer() {
-      *location_ += timer_.Elapsed();
+      *location_ += (OS::Ticks() - start_);
     }
 
     OptimizingCompiler* compiler_;
-    ElapsedTimer timer_;
-    TimeDelta* location_;
+    int64_t start_;
+    int64_t* location_;
   };
 };
 
@@ -644,7 +644,7 @@ class CompilationPhase BASE_EMBEDDED {
   CompilationInfo* info_;
   Zone zone_;
   unsigned info_zone_start_allocation_size_;
-  ElapsedTimer timer_;
+  int64_t start_ticks_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationPhase);
 };

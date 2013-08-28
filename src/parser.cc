@@ -569,13 +569,10 @@ Parser::Parser(CompilationInfo* info)
 
 
 FunctionLiteral* Parser::ParseProgram() {
-  HistogramTimerScope timer_scope(isolate()->counters()->parse());
+  HistogramTimerScope timer(isolate()->counters()->parse());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
-  ElapsedTimer timer;
-  if (FLAG_trace_parse) {
-    timer.Start();
-  }
+  int64_t start = FLAG_trace_parse ? OS::Ticks() : 0;
   fni_ = new(zone()) FuncNameInferrer(isolate(), zone());
 
   // Initialize parser state.
@@ -596,7 +593,7 @@ FunctionLiteral* Parser::ParseProgram() {
   }
 
   if (FLAG_trace_parse && result != NULL) {
-    double ms = timer.Elapsed().InMillisecondsF();
+    double ms = static_cast<double>(OS::Ticks() - start) / 1000;
     if (info()->is_eval()) {
       PrintF("[parsing eval");
     } else if (info()->script()->name()->IsString()) {
@@ -700,13 +697,10 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
 
 
 FunctionLiteral* Parser::ParseLazy() {
-  HistogramTimerScope timer_scope(isolate()->counters()->parse_lazy());
+  HistogramTimerScope timer(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
-  ElapsedTimer timer;
-  if (FLAG_trace_parse) {
-    timer.Start();
-  }
+  int64_t start = FLAG_trace_parse ? OS::Ticks() : 0;
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
 
   // Initialize parser state.
@@ -726,7 +720,7 @@ FunctionLiteral* Parser::ParseLazy() {
   }
 
   if (FLAG_trace_parse && result != NULL) {
-    double ms = timer.Elapsed().InMillisecondsF();
+    double ms = static_cast<double>(OS::Ticks() - start) / 1000;
     SmartArrayPointer<char> name_chars = result->debug_name()->ToCString();
     PrintF("[parsing function: %s - took %0.3f ms]\n", *name_chars, ms);
   }

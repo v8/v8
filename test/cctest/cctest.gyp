@@ -100,7 +100,6 @@
         'test-strtod.cc',
         'test-thread-termination.cc',
         'test-threads.cc',
-        'test-time.cc',
         'test-types.cc',
         'test-unbound-queue.cc',
         'test-utils.cc',
