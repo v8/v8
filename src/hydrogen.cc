@@ -8329,7 +8329,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
     int* data_offset,
     AllocationSiteMode mode) {
   bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE &&
-      boilerplate_object->map()->CanTrackAllocationSite();
+      AllocationSite::CanTrack(boilerplate_object->map()->instance_type());
 
   // If using allocation sites, then the payload on the site should already
   // be filled in as a valid (boilerplate) array.
@@ -8385,7 +8385,7 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
 
   // Create allocation site info.
   if (mode == TRACK_ALLOCATION_SITE &&
-      boilerplate_object->map()->CanTrackAllocationSite()) {
+      AllocationSite::CanTrack(boilerplate_object->map()->instance_type())) {
     elements_offset += AllocationMemento::kSize;
     *offset += AllocationMemento::kSize;
     BuildCreateAllocationMemento(target, JSArray::kSize, allocation_site);

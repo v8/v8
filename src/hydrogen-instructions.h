@@ -5166,7 +5166,8 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             InstanceType instance_type)
       : HTemplateInstruction<2>(type),
         dominating_allocate_(NULL),
-        filler_free_space_size_(NULL) {
+        filler_free_space_size_(NULL),
+        clear_next_map_word_(false) {
     SetOperandAt(0, context);
     SetOperandAt(1, size);
     set_representation(Representation::Tagged());
@@ -5188,6 +5189,8 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
       flags_ = static_cast<HAllocate::Flags>(flags_ | PREFILL_WITH_FILLER);
     }
+    clear_next_map_word_ = pretenure_flag == NOT_TENURED &&
+        AllocationSite::CanTrack(instance_type);
   }
 
   void UpdateSize(HValue* size) {
@@ -5207,10 +5210,13 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             allocate->IsOldPointerSpaceAllocation());
   }
 
+  void ClearNextMapWord(int offset);
+
   Flags flags_;
   Handle<Map> known_initial_map_;
   HAllocate* dominating_allocate_;
   HStoreNamedField* filler_free_space_size_;
+  bool clear_next_map_word_;
 };
 
 

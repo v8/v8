@@ -3283,8 +3283,9 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 
   // First update the size of the dominator allocate instruction.
   dominator_size = dominator_allocate->size();
-  int32_t dominator_size_constant =
+  int32_t original_object_size =
       HConstant::cast(dominator_size)->GetInteger32Constant();
+  int32_t dominator_size_constant = original_object_size;
   int32_t current_size_constant =
       HConstant::cast(current_size)->GetInteger32Constant();
   int32_t new_dominator_size = dominator_size_constant + current_size_constant;
@@ -3319,8 +3320,18 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && dominator_allocate->IsNewSpaceAllocation()) {
     dominator_allocate->MakePrefillWithFiller();
+  } else {
+    // TODO(hpayer): This is a short-term hack to make allocation mementos
+    // work again in new space.
+    ClearNextMapWord(original_object_size);
   }
+#else
+  // TODO(hpayer): This is a short-term hack to make allocation mementos
+  // work again in new space.
+  ClearNextMapWord(original_object_size);
 #endif
+
+  dominator_allocate->clear_next_map_word_ = clear_next_map_word_;
 
   // After that replace the dominated allocate instruction.
   HInstruction* dominated_allocate_instr =
@@ -3454,6 +3465,19 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   store_size->SetFlag(HValue::kHasNoObservableSideEffects);
   store_size->InsertAfter(filler_size);
   filler_free_space_size_ = store_size;
+}
+
+
+void HAllocate::ClearNextMapWord(int offset) {
+  if (clear_next_map_word_) {
+    Zone* zone = block()->zone();
+    HObjectAccess access = HObjectAccess::ForJSObjectOffset(offset);
+    HStoreNamedField* clear_next_map =
+        HStoreNamedField::New(zone, context(), this, access,
+            block()->graph()->GetConstantNull());
+    clear_next_map->ClearAllSideEffects();
+    clear_next_map->InsertAfter(this);
+  }
 }
 
 
