@@ -7817,7 +7817,7 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
   int current_offset = 0;
   for (descriptor = 0; descriptor < verbatim; descriptor++) {
     if (GetDetails(descriptor).type() == FIELD) current_offset++;
-    result->CopyFrom(descriptor, this, descriptor, witness);
+    result->CopyFrom(descriptor, other, descriptor, witness);
   }
 
   // |verbatim| -> |valid|
