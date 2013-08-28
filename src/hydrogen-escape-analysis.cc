@@ -172,10 +172,13 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           int index = store->access().offset() / kPointerSize;
           if (store->object() != allocate) continue;
           ASSERT(store->access().IsInobject());
-          state = NewStateCopy(store, state);
+          state = NewStateCopy(store->previous(), state);
           state->SetOperandAt(index, store->value());
           if (store->has_transition()) {
             state->SetOperandAt(0, store->transition());
+          }
+          if (store->HasObservableSideEffects()) {
+            state->ReuseSideEffectsFromStore(store);
           }
           store->DeleteAndReplaceWith(NULL);
           if (FLAG_trace_escape_analysis) {

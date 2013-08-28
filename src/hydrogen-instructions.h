@@ -3230,6 +3230,12 @@ class HCapturedObject V8_FINAL : public HDematerializedObject {
   int length() const { return values_.length(); }
   int capture_id() const { return capture_id_; }
 
+  void ReuseSideEffectsFromStore(HInstruction* store) {
+    ASSERT(store->HasObservableSideEffects());
+    ASSERT(store->IsStoreNamedField());
+    gvn_flags_.Add(store->gvn_flags());
+  }
+
   // Replay effects of this instruction on the given environment.
   void ReplayEnvironment(HEnvironment* env);
 
