@@ -60,7 +60,8 @@ void* Histogram::CreateHistogram() const {
 // Start the timer.
 void HistogramTimer::Start() {
   if (Enabled()) {
-    timer_.Start();
+    stop_time_ = 0;
+    start_time_ = OS::Ticks();
   }
   if (FLAG_log_internal_timer_events) {
     LOG(isolate(), TimerEvent(Logger::START, name()));
@@ -71,9 +72,10 @@ void HistogramTimer::Start() {
 // Stop the timer and record the results.
 void HistogramTimer::Stop() {
   if (Enabled()) {
+    stop_time_ = OS::Ticks();
     // Compute the delta between start and stop, in milliseconds.
-    AddSample(static_cast<int>(timer_.Elapsed().InMilliseconds()));
-    timer_.Stop();
+    int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
+    AddSample(milliseconds);
   }
   if (FLAG_log_internal_timer_events) {
     LOG(isolate(), TimerEvent(Logger::END, name()));

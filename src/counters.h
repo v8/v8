@@ -245,7 +245,9 @@ class HistogramTimer : public Histogram {
                  int max,
                  int num_buckets,
                  Isolate* isolate)
-      : Histogram(name, min, max, num_buckets, isolate) {}
+      : Histogram(name, min, max, num_buckets, isolate),
+        start_time_(0),
+        stop_time_(0) { }
 
   // Start the timer.
   void Start();
@@ -255,11 +257,12 @@ class HistogramTimer : public Histogram {
 
   // Returns true if the timer is running.
   bool Running() {
-    return Enabled() && timer_.IsStarted();
+    return Enabled() && (start_time_ != 0) && (stop_time_ == 0);
   }
 
  private:
-  ElapsedTimer timer_;
+  int64_t start_time_;
+  int64_t stop_time_;
 };
 
 // Helper class for scoping a HistogramTimer.

@@ -313,7 +313,19 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
 
 
 double OS::TimeCurrentMillis() {
-  return Time::Now().ToJsTime();
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) < 0) return 0.0;
+  return (static_cast<double>(tv.tv_sec) * 1000) +
+         (static_cast<double>(tv.tv_usec) / 1000);
+}
+
+
+int64_t OS::Ticks() {
+  // gettimeofday has microsecond resolution.
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) < 0)
+    return 0;
+  return (static_cast<int64_t>(tv.tv_sec) * 1000000) + tv.tv_usec;
 }
 
 
