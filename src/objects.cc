@@ -4093,6 +4093,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
         extensibility_check);
   }
 
+  if (lookup.IsFound() &&
+      (lookup.type() == INTERCEPTOR || lookup.type() == CALLBACKS)) {
+    LocalLookupRealNamedProperty(name_raw, &lookup);
+  }
+
   // Check for accessor in prototype chain removed here in clone.
   if (!lookup.IsFound()) {
     // Neither properties nor transitions found.
@@ -4134,31 +4139,14 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       }
       break;
     case CALLBACKS:
-      // Callbacks are not guaranteed to be installed on the receiver. Also
-      // perform a local lookup again. Fall through.
-    case INTERCEPTOR:
-      self->LocalLookupRealNamedProperty(*name, &lookup);
-      if (lookup.IsFound()) {
-        if (lookup.IsPropertyCallbacks()) {
-          result = ConvertAndSetLocalProperty(
-              &lookup, *name, *value, attributes);
-        } else if (lookup.IsNormal()) {
-          result = self->ReplaceSlowProperty(*name, *value, attributes);
-        } else {
-          result = SetPropertyToFieldWithAttributes(
-              &lookup, name, value, attributes);
-        }
-      } else {
-        result = self->AddProperty(
-            *name, *value, attributes, kNonStrictMode, MAY_BE_STORE_FROM_KEYED,
-            extensibility_check, value_type, mode);
-      }
+      result = ConvertAndSetLocalProperty(&lookup, *name, *value, attributes);
       break;
     case TRANSITION:
       result = SetPropertyUsingTransition(&lookup, name, value, attributes);
       break;
-    case HANDLER:
     case NONEXISTENT:
+    case HANDLER:
+    case INTERCEPTOR:
       UNREACHABLE();
   }
 
