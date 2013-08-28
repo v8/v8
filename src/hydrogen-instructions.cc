@@ -3323,12 +3323,12 @@ void HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   } else {
     // TODO(hpayer): This is a short-term hack to make allocation mementos
     // work again in new space.
-    ClearNextMapWord(original_object_size);
+    dominator_allocate->ClearNextMapWord(original_object_size);
   }
 #else
   // TODO(hpayer): This is a short-term hack to make allocation mementos
   // work again in new space.
-  ClearNextMapWord(original_object_size);
+  dominator_allocate->ClearNextMapWord(original_object_size);
 #endif
 
   dominator_allocate->clear_next_map_word_ = clear_next_map_word_;
