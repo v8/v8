@@ -320,7 +320,6 @@ class SystemThreadManager {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
-  V(v8::Debug::EventCallback, debug_event_callback, NULL)                      \
   V(DebuggerAgent*, debugger_agent_instance, NULL)
 #else
 
@@ -360,7 +359,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(byte*, assembler_spare_buffer, NULL)                                       \
   V(FatalErrorCallback, exception_behavior, NULL)                              \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, NULL)     \
-  V(v8::Debug::MessageHandler, message_handler, NULL)                          \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
   V(int, next_serial_number, 0)                                                \

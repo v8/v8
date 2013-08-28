@@ -7009,37 +7009,6 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
-static void EventCallbackWrapper(const v8::Debug::EventDetails& event_details) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (isolate->debug_event_callback() != NULL) {
-    isolate->debug_event_callback()(event_details.GetEvent(),
-                                    event_details.GetExecutionState(),
-                                    event_details.GetEventData(),
-                                    event_details.GetCallbackData());
-  }
-}
-
-
-bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener()");
-  ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener()", return false);
-  ENTER_V8(isolate);
-
-  isolate->set_debug_event_callback(that);
-
-  i::HandleScope scope(isolate);
-  i::Handle<i::Object> foreign = isolate->factory()->undefined_value();
-  if (that != NULL) {
-    foreign =
-        isolate->factory()->NewForeign(FUNCTION_ADDR(EventCallbackWrapper));
-  }
-  isolate->debugger()->SetEventListener(foreign,
-                                        Utils::OpenHandle(*data, true));
-  return true;
-}
-
-
 bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener2()");
@@ -7095,35 +7064,6 @@ void Debug::DebugBreakForCommand(ClientData* data, Isolate* isolate) {
     internal_isolate->debugger()->EnqueueDebugCommand(data);
   } else {
     i::Isolate::GetDefaultIsolateDebugger()->EnqueueDebugCommand(data);
-  }
-}
-
-
-static void MessageHandlerWrapper(const v8::Debug::Message& message) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (isolate->message_handler()) {
-    v8::String::Value json(message.GetJSON());
-    (isolate->message_handler())(*json, json.length(), message.GetClientData());
-  }
-}
-
-
-void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
-                              bool message_handler_thread) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Debug::SetMessageHandler");
-  ENTER_V8(isolate);
-
-  // Message handler thread not supported any more. Parameter temporally left in
-  // the API for client compatibility reasons.
-  CHECK(!message_handler_thread);
-
-  // TODO(sgjesse) support the old message handler API through a simple wrapper.
-  isolate->set_message_handler(handler);
-  if (handler != NULL) {
-    isolate->debugger()->SetMessageHandler(MessageHandlerWrapper);
-  } else {
-    isolate->debugger()->SetMessageHandler(NULL);
   }
 }
 
