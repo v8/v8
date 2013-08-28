@@ -5406,8 +5406,6 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
   HThrow* instr = Add<HThrow>(value);
   instr->set_position(expr->position());
   Add<HSimulate>(expr->id());
-  current_block()->FinishExit(new(zone()) HAbnormalExit);
-  set_current_block(NULL);
 }
 
 
