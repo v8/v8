@@ -2590,7 +2590,7 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
   for (int i = new_number_of_transitions * step;
        i < number_of_transitions * step;
        i++) {
-    prototype_transitions->set_undefined(heap_, header + i);
+    prototype_transitions->set_undefined(header + i);
   }
 }
 
