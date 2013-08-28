@@ -720,6 +720,14 @@ class MacroAssembler: public Assembler {
   }
 
   void Push(Smi* smi);
+
+  // Save away a 64-bit integer on the stack as two 32-bit integers
+  // masquerading as smis so that the garbage collector skips visiting them.
+  void PushInt64AsTwoSmis(Register src, Register scratch = kScratchRegister);
+  // Reconstruct a 64-bit integer from two 32-bit integers masquerading as
+  // smis on the top of stack.
+  void PopInt64AsTwoSmis(Register dst, Register scratch = kScratchRegister);
+
   void Test(const Operand& dst, Smi* source);
 
 

@@ -2196,6 +2196,30 @@ void MacroAssembler::AddSmiField(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::PushInt64AsTwoSmis(Register src, Register scratch) {
+  movq(scratch, src);
+  // High bits.
+  shr(src, Immediate(64 - kSmiShift));
+  shl(src, Immediate(kSmiShift));
+  push(src);
+  // Low bits.
+  shl(scratch, Immediate(kSmiShift));
+  push(scratch);
+}
+
+
+void MacroAssembler::PopInt64AsTwoSmis(Register dst, Register scratch) {
+  pop(scratch);
+  // Low bits.
+  shr(scratch, Immediate(kSmiShift));
+  pop(dst);
+  shr(dst, Immediate(kSmiShift));
+  // High bits.
+  shl(dst, Immediate(64 - kSmiShift));
+  or_(dst, scratch);
+}
+
+
 void MacroAssembler::JumpIfNotString(Register object,
                                      Register object_map,
                                      Label* not_string,
