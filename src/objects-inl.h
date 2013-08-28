@@ -675,6 +675,7 @@ TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
+TYPE_CHECKER(OptimizedCodeEntry, OPTIMIZED_CODE_ENTRY_TYPE)
 TYPE_CHECKER(JSGeneratorObject, JS_GENERATOR_OBJECT_TYPE)
 TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
@@ -2572,6 +2573,7 @@ CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(SharedFunctionInfo)
+CAST_ACCESSOR(OptimizedCodeEntry)
 CAST_ACCESSOR(Map)
 CAST_ACCESSOR(JSFunction)
 CAST_ACCESSOR(GlobalObject)
@@ -4921,6 +4923,52 @@ void SharedFunctionInfo::TryReenableOptimization() {
     set_deopt_count(0);
     code()->set_optimizable(true);
   }
+}
+
+
+ACCESSORS(OptimizedCodeEntry, native_context, Context, kNativeContextOffset)
+ACCESSORS(OptimizedCodeEntry, function, JSFunction, kFunctionOffset)
+ACCESSORS(OptimizedCodeEntry, code, Code, kCodeOffset)
+ACCESSORS(OptimizedCodeEntry, literals, FixedArray, kLiteralsOffset)
+
+
+OptimizedCodeEntry* OptimizedCodeEntry::next_by_shared_info() {
+  Object* object = READ_FIELD(this, kNextBySharedInfoOffset);
+  if (object == NULL) return NULL;
+  return OptimizedCodeEntry::cast(object);
+}
+
+
+OptimizedCodeEntry* OptimizedCodeEntry::next_by_native_context() {
+  Object* object = READ_FIELD(this, kNextByNativeContextOffset);
+  if (object == NULL) return NULL;
+  return OptimizedCodeEntry::cast(object);
+}
+
+
+void OptimizedCodeEntry::set_next_by_shared_info(OptimizedCodeEntry* value,
+    WriteBarrierMode mode) {
+  WRITE_FIELD(this, kNextBySharedInfoOffset, value);
+  CONDITIONAL_WRITE_BARRIER(
+      GetHeap(), this, kNextBySharedInfoOffset, value, mode);
+}
+
+
+void OptimizedCodeEntry::set_next_by_native_context(OptimizedCodeEntry* value,
+    WriteBarrierMode mode) {
+  WRITE_FIELD(this, kNextByNativeContextOffset, value);
+  CONDITIONAL_WRITE_BARRIER(
+      GetHeap(), this, kNextByNativeContextOffset, value, mode);
+}
+
+
+bool OptimizedCodeEntry::cacheable() {
+  return static_cast<bool>(READ_BYTE_FIELD(this, kCacheableOffset));
+}
+
+
+void OptimizedCodeEntry::set_cacheable(bool val) {
+  WRITE_BYTE_FIELD(this, kCacheableOffset, static_cast<byte>(val));
 }
 
 

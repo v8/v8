@@ -487,6 +487,12 @@ class Factory {
       Handle<ScopeInfo> scope_info);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
+  Handle<OptimizedCodeEntry> NewOptimizedCodeEntry(
+      Handle<Context> native_context,
+      Handle<JSFunction> function,
+      Handle<Code> code,
+      Handle<FixedArray> literals);
+
   Handle<JSMessageObject> NewJSMessageObject(
       Handle<String> type,
       Handle<JSArray> arguments,

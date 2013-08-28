@@ -1786,6 +1786,10 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
       break;
     }
+    case OPTIMIZED_CODE_ENTRY_TYPE: {
+      OptimizedCodeEntry::BodyDescriptor::IterateBody(this, v);
+      break;
+    }
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
         case NAME##_TYPE:
@@ -9427,6 +9431,15 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
   if (code_map->length() == kEntriesStart) {
     ClearOptimizedCodeMap();
   }
+}
+
+
+void OptimizedCodeEntry::Kill() {
+  set_function(NULL, SKIP_WRITE_BARRIER);
+  set_code(NULL, SKIP_WRITE_BARRIER);
+  set_native_context(NULL, SKIP_WRITE_BARRIER);
+  set_literals(NULL, SKIP_WRITE_BARRIER);
+  set_cacheable(false);
 }
 
 
