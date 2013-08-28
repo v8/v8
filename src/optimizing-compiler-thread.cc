@@ -48,8 +48,8 @@ void OptimizingCompilerThread::Run() {
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  ElapsedTimer total_timer;
-  if (FLAG_trace_concurrent_recompilation) total_timer.Start();
+  int64_t epoch = 0;
+  if (FLAG_trace_concurrent_recompilation) epoch = OS::Ticks();
 
   while (true) {
     input_queue_semaphore_->Wait();
@@ -65,7 +65,7 @@ void OptimizingCompilerThread::Run() {
         break;
       case STOP:
         if (FLAG_trace_concurrent_recompilation) {
-          time_spent_total_ = total_timer.Elapsed();
+          time_spent_total_ = OS::Ticks() - epoch;
         }
         stop_semaphore_->Signal();
         return;
@@ -81,13 +81,13 @@ void OptimizingCompilerThread::Run() {
         continue;
     }
 
-    ElapsedTimer compiling_timer;
-    if (FLAG_trace_concurrent_recompilation) compiling_timer.Start();
+    int64_t compiling_start = 0;
+    if (FLAG_trace_concurrent_recompilation) compiling_start = OS::Ticks();
 
     CompileNext();
 
     if (FLAG_trace_concurrent_recompilation) {
-      time_spent_compiling_ += compiling_timer.Elapsed();
+      time_spent_compiling_ += OS::Ticks() - compiling_start;
     }
   }
 }
@@ -175,7 +175,9 @@ void OptimizingCompilerThread::Stop() {
   }
 
   if (FLAG_trace_concurrent_recompilation) {
-    double percentage = time_spent_compiling_.PercentOf(time_spent_total_);
+    double compile_time = static_cast<double>(time_spent_compiling_);
+    double total_time = static_cast<double>(time_spent_total_);
+    double percentage = (compile_time * 100) / total_time;
     PrintF("  ** Compiler thread did %.2f%% useful work\n", percentage);
   }
 

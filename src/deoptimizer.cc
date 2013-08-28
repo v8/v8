@@ -784,13 +784,12 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
 
   // Print some helpful diagnostic information.
+  int64_t start = OS::Ticks();
   if (FLAG_log_timer_events &&
       compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     LOG(isolate(), CodeDeoptEvent(compiled_code_));
   }
-  ElapsedTimer timer;
   if (trace_) {
-    timer.Start();
     PrintF("[deoptimizing (DEOPT %s): begin 0x%08" V8PRIxPTR " ",
            MessageFor(bailout_type_),
            reinterpret_cast<intptr_t>(function_));
@@ -871,7 +870,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   // Print some helpful diagnostic information.
   if (trace_) {
-    double ms = timer.Elapsed().InMillisecondsF();
+    double ms = static_cast<double>(OS::Ticks() - start) / 1000;
     int index = output_count_ - 1;  // Index of the topmost frame.
     JSFunction* function = output_[index]->GetFunction();
     PrintF("[deoptimizing (%s): end 0x%08" V8PRIxPTR " ",

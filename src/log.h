@@ -31,7 +31,6 @@
 #include "allocation.h"
 #include "objects.h"
 #include "platform.h"
-#include "time/elapsed-timer.h"
 
 namespace v8 {
 namespace internal {
@@ -451,7 +450,7 @@ class Logger {
   // 'true' between SetUp() and TearDown().
   bool is_initialized_;
 
-  ElapsedTimer timer_;
+  int64_t epoch_;
 
   friend class CpuProfiler;
 };

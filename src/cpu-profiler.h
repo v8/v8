@@ -138,7 +138,7 @@ class ProfilerEventsProcessor : public Thread {
  public:
   ProfilerEventsProcessor(ProfileGenerator* generator,
                           Sampler* sampler,
-                          TimeDelta period);
+                          int period_in_useconds);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
@@ -169,7 +169,7 @@ class ProfilerEventsProcessor : public Thread {
   Sampler* sampler_;
   bool running_;
   // Sampling period in microseconds.
-  const TimeDelta period_;
+  const int period_in_useconds_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
   static const size_t kTickSampleBufferSize = 1 * MB;
   static const size_t kTickSampleQueueLength =

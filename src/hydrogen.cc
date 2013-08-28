@@ -9815,15 +9815,15 @@ void HStatistics::Initialize(CompilationInfo* info) {
 
 void HStatistics::Print() {
   PrintF("Timing results:\n");
-  TimeDelta sum;
-  for (int i = 0; i < times_.length(); ++i) {
-    sum += times_[i];
+  int64_t sum = 0;
+  for (int i = 0; i < timing_.length(); ++i) {
+    sum += timing_[i];
   }
 
   for (int i = 0; i < names_.length(); ++i) {
     PrintF("%32s", names_[i]);
-    double ms = times_[i].InMillisecondsF();
-    double percent = times_[i].PercentOf(sum);
+    double ms = static_cast<double>(timing_[i]) / 1000;
+    double percent = static_cast<double>(timing_[i]) * 100 / sum;
     PrintF(" %8.3f ms / %4.1f %% ", ms, percent);
 
     unsigned size = sizes_[i];
@@ -9833,29 +9833,29 @@ void HStatistics::Print() {
 
   PrintF("----------------------------------------"
          "---------------------------------------\n");
-  TimeDelta total = create_graph_ + optimize_graph_ + generate_code_;
+  int64_t total = create_graph_ + optimize_graph_ + generate_code_;
   PrintF("%32s %8.3f ms / %4.1f %% \n",
          "Create graph",
-         create_graph_.InMillisecondsF(),
-         create_graph_.PercentOf(total));
+         static_cast<double>(create_graph_) / 1000,
+         static_cast<double>(create_graph_) * 100 / total);
   PrintF("%32s %8.3f ms / %4.1f %% \n",
          "Optimize graph",
-         optimize_graph_.InMillisecondsF(),
-         optimize_graph_.PercentOf(total));
+         static_cast<double>(optimize_graph_) / 1000,
+         static_cast<double>(optimize_graph_) * 100 / total);
   PrintF("%32s %8.3f ms / %4.1f %% \n",
          "Generate and install code",
-         generate_code_.InMillisecondsF(),
-         generate_code_.PercentOf(total));
+         static_cast<double>(generate_code_) / 1000,
+         static_cast<double>(generate_code_) * 100 / total);
   PrintF("----------------------------------------"
          "---------------------------------------\n");
   PrintF("%32s %8.3f ms (%.1f times slower than full code gen)\n",
          "Total",
-         total.InMillisecondsF(),
-         total.TimesOf(full_code_gen_));
+         static_cast<double>(total) / 1000,
+         static_cast<double>(total) / full_code_gen_);
 
   double source_size_in_kb = static_cast<double>(source_size_) / 1024;
   double normalized_time =  source_size_in_kb > 0
-      ? total.InMillisecondsF() / source_size_in_kb
+      ? (static_cast<double>(total) / 1000) / source_size_in_kb
       : 0;
   double normalized_size_in_kb = source_size_in_kb > 0
       ? total_size_ / 1024 / source_size_in_kb
@@ -9866,17 +9866,17 @@ void HStatistics::Print() {
 }
 
 
-void HStatistics::SaveTiming(const char* name, TimeDelta time, unsigned size) {
+void HStatistics::SaveTiming(const char* name, int64_t ticks, unsigned size) {
   total_size_ += size;
   for (int i = 0; i < names_.length(); ++i) {
     if (strcmp(names_[i], name) == 0) {
-      times_[i] += time;
+      timing_[i] += ticks;
       sizes_[i] += size;
       return;
     }
   }
   names_.Add(name);
-  times_.Add(time);
+  timing_.Add(ticks);
   sizes_.Add(size);
 }
 
