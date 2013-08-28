@@ -25,16 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <limits.h>
-
-#ifndef WIN32
-#include <signal.h>  // kill
-#include <unistd.h>  // getpid
-#endif  // WIN32
+#include <climits>
+#include <csignal>
 #include <string>
 #include <map>
 
 #include "v8.h"
+
+#if V8_OS_POSIX
+#include <unistd.h>  // NOLINT
+#endif
 
 #include "api.h"
 #include "arguments.h"
@@ -20031,7 +20031,7 @@ THREADED_TEST(JSONParseNumber) {
 }
 
 
-#ifndef WIN32
+#if V8_OS_POSIX
 class ThreadInterruptTest {
  public:
   ThreadInterruptTest() : sem_(NULL), sem_value_(0) { }
@@ -20273,4 +20273,4 @@ TEST(AccessCheckThrows) {
   v8::V8::SetFailedAccessCheckCallbackFunction(NULL);
 }
 
-#endif  // WIN32
+#endif  // V8_OS_POSIX

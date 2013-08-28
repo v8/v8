@@ -123,10 +123,6 @@ namespace internal {
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
 
-#ifdef WIN32
-#undef Yield
-#endif
-
 // Forward declarations
 class AstConstructionVisitor;
 template<class> class AstNodeFactory;

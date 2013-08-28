@@ -44,6 +44,12 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
+#include <cstdarg>
+
+#include "lazy-instance.h"
+#include "utils.h"
+#include "v8globals.h"
+
 #ifdef __sun
 # ifndef signbit
 namespace std {
@@ -55,19 +61,12 @@ int signbit(double x);
 // GCC specific stuff
 #ifdef __GNUC__
 
-// Needed for va_list on at least MinGW and Android.
-#include <stdarg.h>
-
 #define __GNUC_VERSION__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
 
 #endif  // __GNUC__
 
-
-// Windows specific stuff.
-#ifdef WIN32
-
 // Microsoft Visual C++ specific stuff.
-#ifdef _MSC_VER
+#if V8_CC_MSVC
 
 #include "win32-headers.h"
 #include "win32-math.h"
@@ -76,7 +75,7 @@ int strncasecmp(const char* s1, const char* s2, int n);
 
 inline int lrint(double flt) {
   int intgr;
-#if defined(V8_TARGET_ARCH_IA32)
+#if V8_TARGET_ARCH_IA32
   __asm {
     fld flt
     fistp intgr
@@ -91,18 +90,12 @@ inline int lrint(double flt) {
   return intgr;
 }
 
-#endif  // _MSC_VER
+#endif  // V8_CC_MSVC
 
-#ifndef __CYGWIN__
 // Random is missing on both Visual Studio and MinGW.
+#if V8_CC_MSVC || V8_CC_MINGW
 int random();
-#endif
-
-#endif  // WIN32
-
-#include "lazy-instance.h"
-#include "utils.h"
-#include "v8globals.h"
+#endif  // V8_CC_MSVC || V8_CC_MINGW
 
 namespace v8 {
 namespace internal {
