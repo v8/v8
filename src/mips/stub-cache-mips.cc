@@ -1761,25 +1761,25 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
                   &call_builtin,
                   DONT_DO_SMI_CHECK);
 
-      // Get the array's length into r0 and calculate new length.
-      __ lw(a0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+      // Get the array's length into v0 and calculate new length.
+      __ lw(v0, FieldMemOperand(receiver, JSArray::kLengthOffset));
       STATIC_ASSERT(kSmiTagSize == 1);
       STATIC_ASSERT(kSmiTag == 0);
-      __ Addu(a0, a0, Operand(Smi::FromInt(argc)));
+      __ Addu(v0, v0, Operand(Smi::FromInt(argc)));
 
       // Get the elements' length.
       __ lw(t0, FieldMemOperand(elements, FixedArray::kLengthOffset));
 
       // Check if we could survive without allocation.
-      __ Branch(&call_builtin, gt, a0, Operand(t0));
+      __ Branch(&call_builtin, gt, v0, Operand(t0));
 
       __ lw(t0, MemOperand(sp, (argc - 1) * kPointerSize));
       __ StoreNumberToDoubleElements(
-          t0, a0, elements, a3, t1, a2, t5,
+          t0, v0, elements, a3, t1, a2, t5,
           &call_builtin, argc * kDoubleSize);
 
       // Save new length.
-      __ sw(a0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+      __ sw(v0, FieldMemOperand(receiver, JSArray::kLengthOffset));
 
       // Check for a smi.
       __ DropAndRet(argc + 1);
