@@ -1958,46 +1958,17 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
 
   FieldDescriptor new_field(name, index, attributes, representation);
 
-  ASSERT(index < map()->inobject_properties() ||
-         (index - map()->inobject_properties()) < properties()->length() ||
-         map()->unused_property_fields() == 0);
-
-  FixedArray* values = NULL;
-
-  // TODO(verwaest): Merge with AddFastPropertyUsingMap.
-  if (map()->unused_property_fields() == 0) {
-    // Make room for the new value
-    MaybeObject* maybe_values =
-        properties()->CopySize(properties()->length() + kFieldsAdded);
-    if (!maybe_values->To(&values)) return maybe_values;
-  }
-
-  Heap* heap = isolate->heap();
-
-  Object* storage;
-  MaybeObject* maybe_storage =
-      value->AllocateNewStorageFor(heap, representation);
-  if (!maybe_storage->To(&storage)) return maybe_storage;
-
-  // Note that Map::CopyAddDescriptor has side-effects, the new map is already
-  // inserted in the transition tree. No more allocations that might fail are
-  // allowed after this point.
   Map* new_map;
   MaybeObject* maybe_new_map = map()->CopyAddDescriptor(&new_field, flag);
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
-  if (map()->unused_property_fields() == 0) {
-    ASSERT(values != NULL);
-    set_properties(values);
-    new_map->set_unused_property_fields(kFieldsAdded - 1);
-  } else {
-    new_map->set_unused_property_fields(map()->unused_property_fields() - 1);
+  int unused_property_fields = map()->unused_property_fields() - 1;
+  if (unused_property_fields < 0) {
+    unused_property_fields += kFieldsAdded;
   }
+  new_map->set_unused_property_fields(unused_property_fields);
 
-  set_map(new_map);
-
-  FastPropertyAtPut(index, storage);
-  return value;
+  return AddFastPropertyUsingMap(new_map, name, value, index, representation);
 }
 
 
