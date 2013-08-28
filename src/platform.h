@@ -58,13 +58,6 @@ int signbit(double x);
 # endif
 #endif
 
-// GCC specific stuff
-#ifdef __GNUC__
-
-#define __GNUC_VERSION__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
-
-#endif  // __GNUC__
-
 // Microsoft Visual C++ specific stuff.
 #if V8_CC_MSVC
 

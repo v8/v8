@@ -1406,9 +1406,6 @@ class SaveContext BASE_EMBEDDED {
 
  private:
   Handle<Context> context_;
-#if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
-  Handle<Context> dummy_;
-#endif
   SaveContext* prev_;
   Address c_entry_fp_;
 };
