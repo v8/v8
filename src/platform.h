@@ -273,8 +273,6 @@ class OS {
   // Sleep for a number of milliseconds.
   static void Sleep(const int milliseconds);
 
-  static int NumberOfCores();
-
   // Abort the current process.
   static void Abort();
 

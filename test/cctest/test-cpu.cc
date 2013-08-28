@@ -48,3 +48,8 @@ TEST(FeatureImplications) {
   // arm features
   CHECK(!cpu.has_vfp3_d32() || cpu.has_vfp3());
 }
+
+
+TEST(NumberOfProcessorsOnline) {
+  CHECK_GT(CPU::NumberOfProcessorsOnline(), 0);
+}

@@ -30,14 +30,21 @@
 #if V8_CC_MSVC
 #include <intrin.h>  // __cpuid()
 #endif
+#if V8_OS_POSIX
+#include <unistd.h>  // sysconf()
+#endif
 
 #include <algorithm>
 #include <cctype>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include "checks.h"
+#if V8_OS_WIN
+#include "win32-headers.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -441,6 +448,18 @@ CPU::CPU() : stepping_(0),
   char* cpu_model = cpu_info.ExtractField("cpu model");
   has_fpu_ = HasListItem(cpu_model, "FPU");
   delete[] cpu_model;
+#endif
+}
+
+
+// static
+int CPU::NumberOfProcessorsOnline() {
+#if V8_OS_WIN
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  return info.dwNumberOfProcessors;
+#else
+  return static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
 #endif
 }
 
