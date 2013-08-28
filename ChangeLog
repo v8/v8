@@ -1,3 +1,12 @@
+2013-08-28: Version 3.21.5
+
+        Fixed compilation with recent MinGW64 versions. (issue 2300)
+
+        Added RemovePrototype to FunctionTemplate. (Chromium issue 272440)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-26: Version 3.21.4
 
         Lowered kInitialMaxFastElementArray constant to 95K (issue 2790).
