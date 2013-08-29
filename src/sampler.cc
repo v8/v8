@@ -27,9 +27,7 @@
 
 #include "sampler.h"
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) \
-    || defined(__NetBSD__) || defined(__sun) || defined(__ANDROID__) \
-    || defined(__native_client__) || defined(__MACH__)
+#if V8_OS_POSIX && !V8_OS_CYGWIN
 
 #define USE_SIGNALS
 
@@ -39,24 +37,24 @@
 #include <sys/time.h>
 #include <sys/syscall.h>
 
-#if defined(__MACH__)
+#if V8_OS_MACOSX
 #include <mach/mach.h>
 // OpenBSD doesn't have <ucontext.h>. ucontext_t lives in <signal.h>
 // and is a typedef for struct sigcontext. There is no uc_mcontext.
-#elif(!defined(__ANDROID__) || defined(__BIONIC_HAVE_UCONTEXT_T)) \
-    && !defined(__OpenBSD__)
+#elif(!V8_OS_ANDROID || defined(__BIONIC_HAVE_UCONTEXT_T)) \
+    && !V8_OS_OPENBSD
 #include <ucontext.h>
 #endif
 #include <unistd.h>
 
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
-#if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
+#if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
     defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
 #include <asm/sigcontext.h>
 #endif
 
-#elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#elif V8_OS_WIN || V8_OS_CYGWIN
 
 #include "win32-headers.h"
 
@@ -74,7 +72,7 @@
 #include "vm-state-inl.h"
 
 
-#if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T)
+#if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
 // Not all versions of Android's C library provide ucontext_t.
 // Detect this and provide custom but compatible definitions. Note that these
@@ -146,7 +144,7 @@ typedef struct ucontext {
 enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
 #endif
 
-#endif  // __ANDROID__ && !defined(__BIONIC_HAVE_UCONTEXT_T)
+#endif  // V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
 
 namespace v8 {
@@ -179,7 +177,7 @@ class Sampler::PlatformData : public PlatformDataCommon {
   pthread_t vm_tid_;
 };
 
-#elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#elif V8_OS_WIN || V8_OS_CYGWIN
 
 // ----------------------------------------------------------------------------
 // Win32 profiler support. On Cygwin we use the same sampler implementation as
@@ -283,7 +281,7 @@ bool SignalHandler::signal_handler_installed_ = false;
 
 void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
-#if defined(__native_client__)
+#if V8_OS_NACL
   // As Native Client does not support signal handling, profiling
   // is disabled.
   return;
@@ -312,10 +310,10 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-#if !defined(__OpenBSD__)
+#if !V8_OS_OPENBSD
   mcontext_t& mcontext = ucontext->uc_mcontext;
 #endif
-#if defined(__linux__) || defined(__ANDROID__)
+#if V8_OS_LINUX
 #if V8_HOST_ARCH_IA32
   state.pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
@@ -343,7 +341,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
 #endif  // V8_HOST_ARCH_*
-#elif defined(__MACH__)
+#elif V8_OS_MACOSX
 #if V8_HOST_ARCH_X64
 #if __DARWIN_UNIX03
   state.pc = reinterpret_cast<Address>(mcontext->__ss.__rip);
@@ -365,7 +363,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.fp = reinterpret_cast<Address>(mcontext->ss.ebp);
 #endif  // __DARWIN_UNIX03
 #endif  // V8_HOST_ARCH_IA32
-#elif defined(__FreeBSD__)
+#elif V8_OS_FREEBSD
 #if V8_HOST_ARCH_IA32
   state.pc = reinterpret_cast<Address>(mcontext.mc_eip);
   state.sp = reinterpret_cast<Address>(mcontext.mc_esp);
@@ -379,7 +377,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(mcontext.mc_r13);
   state.fp = reinterpret_cast<Address>(mcontext.mc_r11);
 #endif  // V8_HOST_ARCH_*
-#elif defined(__NetBSD__)
+#elif V8_OS_NETBSD
 #if V8_HOST_ARCH_IA32
   state.pc = reinterpret_cast<Address>(mcontext.__gregs[_REG_EIP]);
   state.sp = reinterpret_cast<Address>(mcontext.__gregs[_REG_ESP]);
@@ -389,7 +387,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(mcontext.__gregs[_REG_RSP]);
   state.fp = reinterpret_cast<Address>(mcontext.__gregs[_REG_RBP]);
 #endif  // V8_HOST_ARCH_*
-#elif defined(__OpenBSD__)
+#elif V8_OS_OPENBSD
 #if V8_HOST_ARCH_IA32
   state.pc = reinterpret_cast<Address>(ucontext->sc_eip);
   state.sp = reinterpret_cast<Address>(ucontext->sc_esp);
@@ -399,14 +397,14 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(ucontext->sc_rsp);
   state.fp = reinterpret_cast<Address>(ucontext->sc_rbp);
 #endif  // V8_HOST_ARCH_*
-#elif defined(__sun)
+#elif V8_OS_SOLARIS
   state.pc = reinterpret_cast<Address>(mcontext.gregs[REG_PC]);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[REG_SP]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[REG_FP]);
-#endif  // __sun
+#endif  // V8_OS_SOLARIS
 #endif  // USE_SIMULATOR
   sampler->SampleStack(state);
-#endif  // __native_client__
+#endif  // V8_OS_NACL
 }
 
 #endif
@@ -624,7 +622,7 @@ void Sampler::DoSample() {
   pthread_kill(platform_data()->vm_tid(), SIGPROF);
 }
 
-#elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#elif V8_OS_WIN || V8_OS_CYGWIN
 
 void Sampler::DoSample() {
   HANDLE profiled_thread = platform_data()->profiled_thread();
