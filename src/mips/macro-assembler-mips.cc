@@ -3266,7 +3266,7 @@ void MacroAssembler::AllocateHeapNumber(Register result,
            tagging_mode == TAG_RESULT ? TAG_OBJECT : NO_ALLOCATION_FLAGS);
 
   // Store heap number map in the allocated object.
-  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  AssertIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   if (tagging_mode == TAG_RESULT) {
     sw(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
   } else {
@@ -3428,7 +3428,6 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                                  Register scratch1,
                                                  Register scratch2,
                                                  Register scratch3,
-                                                 Register scratch4,
                                                  Label* fail,
                                                  int elements_offset) {
   Label smi_value, maybe_nan, have_double_value, is_nan, done;
@@ -3485,25 +3484,11 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   Addu(scratch1, scratch1, scratch2);
   // scratch1 is now effective address of the double element
 
-  FloatingPointHelper::Destination destination;
-  destination = FloatingPointHelper::kFPURegisters;
-
   Register untagged_value = elements_reg;
   SmiUntag(untagged_value, value_reg);
-  FloatingPointHelper::ConvertIntToDouble(this,
-                                          untagged_value,
-                                          destination,
-                                          f0,
-                                          mantissa_reg,
-                                          exponent_reg,
-                                          scratch4,
-                                          f2);
-  if (destination == FloatingPointHelper::kFPURegisters) {
-    sdc1(f0, MemOperand(scratch1, 0));
-  } else {
-    sw(mantissa_reg, MemOperand(scratch1, 0));
-    sw(exponent_reg, MemOperand(scratch1, Register::kSizeInBytes));
-  }
+  mtc1(untagged_value, f2);
+  cvt_d_w(f0, f2);
+  sdc1(f0, MemOperand(scratch1, 0));
   bind(&done);
 }
 
@@ -4400,15 +4385,6 @@ void MacroAssembler::Assert(Condition cc, BailoutReason reason,
 }
 
 
-void MacroAssembler::AssertRegisterIsRoot(Register reg,
-                                          Heap::RootListIndex index) {
-  if (emit_debug_code()) {
-    LoadRoot(at, index);
-    Check(eq, kRegisterDidNotMatchExpectedRoot, reg, Operand(at));
-  }
-}
-
-
 void MacroAssembler::AssertFastElements(Register elements) {
   if (emit_debug_code()) {
     ASSERT(!elements.is(at));
@@ -4598,6 +4574,150 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
     Abort(kGlobalFunctionsMustHaveInitialMap);
     bind(&ok);
   }
+}
+
+
+void MacroAssembler::ConvertNumberToInt32(Register object,
+                                          Register dst,
+                                          Register heap_number_map,
+                                          Register scratch1,
+                                          Register scratch2,
+                                          Register scratch3,
+                                          FPURegister double_scratch,
+                                          Label* not_number) {
+  Label done;
+  Label not_in_int32_range;
+
+  UntagAndJumpIfSmi(dst, object, &done);
+  JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
+  ConvertToInt32(object,
+                 dst,
+                 scratch1,
+                 scratch2,
+                 double_scratch,
+                 &not_in_int32_range);
+  jmp(&done);
+
+  bind(&not_in_int32_range);
+  lw(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
+  lw(scratch2, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+
+  EmitOutOfInt32RangeTruncate(dst,
+                              scratch1,
+                              scratch2,
+                              scratch3);
+
+  bind(&done);
+}
+
+
+void MacroAssembler::LoadNumber(Register object,
+                                FPURegister dst,
+                                Register heap_number_map,
+                                Register scratch,
+                                Label* not_number) {
+  Label is_smi, done;
+
+  UntagAndJumpIfSmi(scratch, object, &is_smi);
+  JumpIfNotHeapNumber(object, heap_number_map, scratch, not_number);
+
+  ldc1(dst, FieldMemOperand(object, HeapNumber::kValueOffset));
+  Branch(&done);
+
+  bind(&is_smi);
+  mtc1(scratch, dst);
+  cvt_d_w(dst, dst);
+
+  bind(&done);
+}
+
+
+void MacroAssembler::LoadNumberAsInt32Double(Register object,
+                                             DoubleRegister double_dst,
+                                             Register heap_number_map,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             FPURegister double_scratch,
+                                             Label* not_int32) {
+  ASSERT(!scratch1.is(object) && !scratch2.is(object));
+  ASSERT(!scratch1.is(scratch2));
+  ASSERT(!heap_number_map.is(object) &&
+         !heap_number_map.is(scratch1) &&
+         !heap_number_map.is(scratch2));
+
+  Label done, obj_is_not_smi;
+
+  UntagAndJumpIfNotSmi(scratch1, object, &obj_is_not_smi);
+  mtc1(scratch1, double_scratch);
+  cvt_d_w(double_dst, double_scratch);
+  Branch(&done);
+
+  bind(&obj_is_not_smi);
+  JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_int32);
+
+  // Load the number.
+  // Load the double value.
+  ldc1(double_dst, FieldMemOperand(object, HeapNumber::kValueOffset));
+
+  Register except_flag = scratch2;
+  EmitFPUTruncate(kRoundToZero,
+                  scratch1,
+                  double_dst,
+                  at,
+                  double_scratch,
+                  except_flag,
+                  kCheckForInexactConversion);
+
+  // Jump to not_int32 if the operation did not succeed.
+  Branch(not_int32, ne, except_flag, Operand(zero_reg));
+  bind(&done);
+}
+
+
+void MacroAssembler::LoadNumberAsInt32(Register object,
+                                       Register dst,
+                                       Register heap_number_map,
+                                       Register scratch1,
+                                       Register scratch2,
+                                       FPURegister double_scratch0,
+                                       FPURegister double_scratch1,
+                                       Label* not_int32) {
+  ASSERT(!dst.is(object));
+  ASSERT(!scratch1.is(object) && !scratch2.is(object));
+  ASSERT(!scratch1.is(scratch2));
+
+  Label done, maybe_undefined;
+
+  UntagAndJumpIfSmi(dst, object, &done);
+
+  JumpIfNotHeapNumber(object, heap_number_map, scratch1, &maybe_undefined);
+
+  // Object is a heap number.
+  // Convert the floating point value to a 32-bit integer.
+  // Load the double value.
+  ldc1(double_scratch0, FieldMemOperand(object, HeapNumber::kValueOffset));
+
+  Register except_flag = scratch2;
+  EmitFPUTruncate(kRoundToZero,
+                  dst,
+                  double_scratch0,
+                  scratch1,
+                  double_scratch1,
+                  except_flag,
+                  kCheckForInexactConversion);
+
+  // Jump to not_int32 if the operation did not succeed.
+  Branch(not_int32, ne, except_flag, Operand(zero_reg));
+  Branch(&done);
+
+  bind(&maybe_undefined);
+  LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  Branch(not_int32, ne, object, Operand(at));
+  // |undefined| is truncated to 0.
+  li(dst, Operand(Smi::FromInt(0)));
+  // Fall through.
+
+  bind(&done);
 }
 
 
@@ -4920,13 +5040,11 @@ void MacroAssembler::AssertName(Register object) {
 }
 
 
-void MacroAssembler::AssertRootValue(Register src,
-                                     Heap::RootListIndex root_value_index,
-                                     BailoutReason reason) {
+void MacroAssembler::AssertIsRoot(Register reg, Heap::RootListIndex index) {
   if (emit_debug_code()) {
-    ASSERT(!src.is(at));
-    LoadRoot(at, root_value_index);
-    Check(eq, reason, src, Operand(at));
+    ASSERT(!reg.is(at));
+    LoadRoot(at, index);
+    Check(eq, kHeapNumberMapRegisterClobbered, reg, Operand(at));
   }
 }
 
@@ -4936,7 +5054,7 @@ void MacroAssembler::JumpIfNotHeapNumber(Register object,
                                          Register scratch,
                                          Label* on_not_heap_number) {
   lw(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  AssertIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   Branch(on_not_heap_number, ne, scratch, Operand(heap_number_map));
 }
 
