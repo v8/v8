@@ -1537,14 +1537,15 @@ HLoadNamedField* HGraphBuilder::AddLoadFixedArrayLength(HValue* object) {
 
 
 HValue* HGraphBuilder::BuildNewElementsCapacity(HValue* old_capacity) {
-  HValue* half_old_capacity = Add<HShr>(old_capacity, graph_->GetConstant1());
+  HValue* half_old_capacity = AddUncasted<HShr>(old_capacity,
+                                                graph_->GetConstant1());
 
-  HValue* new_capacity = Add<HAdd>(half_old_capacity, old_capacity);
+  HValue* new_capacity = AddUncasted<HAdd>(half_old_capacity, old_capacity);
   new_capacity->ClearFlag(HValue::kCanOverflow);
 
   HValue* min_growth = Add<HConstant>(16);
 
-  new_capacity = Add<HAdd>(new_capacity, min_growth);
+  new_capacity = AddUncasted<HAdd>(new_capacity, min_growth);
   new_capacity->ClearFlag(HValue::kCanOverflow);
 
   return new_capacity;
