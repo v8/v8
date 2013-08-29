@@ -4915,10 +4915,10 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 }
 
 
-void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
+void LCodeGen::DoCheckValue(LCheckValue* instr) {
   Register reg = ToRegister(instr->value());
-  Handle<JSFunction> target = instr->hydrogen()->target();
-  __ CmpHeapObject(reg, target);
+  Handle<HeapObject> object = instr->hydrogen()->object();
+  __ CmpHeapObject(reg, object);
   DeoptimizeIf(not_equal, instr->environment());
 }
 

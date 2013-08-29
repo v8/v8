@@ -25,31 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Flags: --allow-natives-syntax
 
-#include "cctest.h"
-#include "cpu.h"
+function bailout() { throw "bailout"; }
+var global;
 
-using namespace v8::internal;
-
-
-TEST(FeatureImplications) {
-  // Test for features implied by other features.
-  CPU cpu;
-
-  // ia32 and x64 features
-  CHECK(!cpu.has_sse() || cpu.has_mmx());
-  CHECK(!cpu.has_sse2() || cpu.has_sse());
-  CHECK(!cpu.has_sse3() || cpu.has_sse2());
-  CHECK(!cpu.has_ssse3() || cpu.has_sse3());
-  CHECK(!cpu.has_sse41() || cpu.has_sse3());
-  CHECK(!cpu.has_sse42() || cpu.has_sse41());
-
-  // arm features
-  CHECK(!cpu.has_vfp3_d32() || cpu.has_vfp3());
+function foo(x, fun) {
+  var a = x + 1;
+  var b = x + 2;  // Need another Simulate to fold the first one into.
+  global = true;  // Need a side effect to deopt to.
+  fun();
+  return a;
 }
 
-
-TEST(NumberOfProcessorsOnline) {
-  CHECK_GT(CPU::NumberOfProcessorsOnline(), 0);
-}
+assertThrows("foo(1, bailout)");
+assertThrows("foo(1, bailout)");
+%OptimizeFunctionOnNextCall(foo);
+assertThrows("foo(1, bailout)");
+assertEquals(2, foo(1, function() {}));

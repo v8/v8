@@ -201,6 +201,9 @@ void HeapObject::HeapObjectVerify() {
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(this)->SharedFunctionInfoVerify();
       break;
+    case OPTIMIZED_CODE_ENTRY_TYPE:
+      OptimizedCodeEntry::cast(this)->OptimizedCodeEntryVerify();
+      break;
     case JS_MESSAGE_OBJECT_TYPE:
       JSMessageObject::cast(this)->JSMessageObjectVerify();
       break;
@@ -574,6 +577,17 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kFunctionDataOffset);
   VerifyObjectField(kScriptOffset);
   VerifyObjectField(kDebugInfoOffset);
+}
+
+
+void OptimizedCodeEntry::OptimizedCodeEntryVerify() {
+  CHECK(IsOptimizedCodeEntry());
+  VerifyObjectField(kNativeContextOffset);
+  VerifyObjectField(kFunctionOffset);
+  VerifyObjectField(kCodeOffset);
+  VerifyObjectField(kLiteralsOffset);
+  VerifyObjectField(kNextBySharedInfoOffset);
+  VerifyObjectField(kNextByNativeContextOffset);
 }
 
 

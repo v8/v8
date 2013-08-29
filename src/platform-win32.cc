@@ -991,13 +991,6 @@ void OS::Sleep(int milliseconds) {
 }
 
 
-int OS::NumberOfCores() {
-  SYSTEM_INFO info;
-  GetSystemInfo(&info);
-  return info.dwNumberOfProcessors;
-}
-
-
 void OS::Abort() {
   if (IsDebuggerPresent() || FLAG_break_on_abort) {
     DebugBreak();

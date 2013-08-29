@@ -1451,15 +1451,16 @@ void HCheckMaps::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCheckFunction::PrintDataTo(StringStream* stream) {
+void HCheckValue::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" %p", *target());
+  stream->Add(" ");
+  object()->ShortPrint(stream);
 }
 
 
-HValue* HCheckFunction::Canonicalize() {
+HValue* HCheckValue::Canonicalize() {
   return (value()->IsConstant() &&
-          HConstant::cast(value())->UniqueValueIdsMatch(target_unique_id_))
+          HConstant::cast(value())->UniqueValueIdsMatch(object_unique_id_))
       ? NULL
       : this;
 }
@@ -4052,7 +4053,7 @@ void HCheckHeapObject::Verify() {
 }
 
 
-void HCheckFunction::Verify() {
+void HCheckValue::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }

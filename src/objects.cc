@@ -1786,6 +1786,10 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
       break;
     }
+    case OPTIMIZED_CODE_ENTRY_TYPE: {
+      OptimizedCodeEntry::BodyDescriptor::IterateBody(this, v);
+      break;
+    }
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
         case NAME##_TYPE:
@@ -1958,46 +1962,17 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
 
   FieldDescriptor new_field(name, index, attributes, representation);
 
-  ASSERT(index < map()->inobject_properties() ||
-         (index - map()->inobject_properties()) < properties()->length() ||
-         map()->unused_property_fields() == 0);
-
-  FixedArray* values = NULL;
-
-  // TODO(verwaest): Merge with AddFastPropertyUsingMap.
-  if (map()->unused_property_fields() == 0) {
-    // Make room for the new value
-    MaybeObject* maybe_values =
-        properties()->CopySize(properties()->length() + kFieldsAdded);
-    if (!maybe_values->To(&values)) return maybe_values;
-  }
-
-  Heap* heap = isolate->heap();
-
-  Object* storage;
-  MaybeObject* maybe_storage =
-      value->AllocateNewStorageFor(heap, representation);
-  if (!maybe_storage->To(&storage)) return maybe_storage;
-
-  // Note that Map::CopyAddDescriptor has side-effects, the new map is already
-  // inserted in the transition tree. No more allocations that might fail are
-  // allowed after this point.
   Map* new_map;
   MaybeObject* maybe_new_map = map()->CopyAddDescriptor(&new_field, flag);
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
-  if (map()->unused_property_fields() == 0) {
-    ASSERT(values != NULL);
-    set_properties(values);
-    new_map->set_unused_property_fields(kFieldsAdded - 1);
-  } else {
-    new_map->set_unused_property_fields(map()->unused_property_fields() - 1);
+  int unused_property_fields = map()->unused_property_fields() - 1;
+  if (unused_property_fields < 0) {
+    unused_property_fields += kFieldsAdded;
   }
+  new_map->set_unused_property_fields(unused_property_fields);
 
-  set_map(new_map);
-
-  FastPropertyAtPut(index, storage);
-  return value;
+  return AddFastPropertyUsingMap(new_map, name, value, index, representation);
 }
 
 
@@ -4093,6 +4068,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
         extensibility_check);
   }
 
+  if (lookup.IsFound() &&
+      (lookup.type() == INTERCEPTOR || lookup.type() == CALLBACKS)) {
+    LocalLookupRealNamedProperty(name_raw, &lookup);
+  }
+
   // Check for accessor in prototype chain removed here in clone.
   if (!lookup.IsFound()) {
     // Neither properties nor transitions found.
@@ -4134,31 +4114,14 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       }
       break;
     case CALLBACKS:
-      // Callbacks are not guaranteed to be installed on the receiver. Also
-      // perform a local lookup again. Fall through.
-    case INTERCEPTOR:
-      self->LocalLookupRealNamedProperty(*name, &lookup);
-      if (lookup.IsFound()) {
-        if (lookup.IsPropertyCallbacks()) {
-          result = ConvertAndSetLocalProperty(
-              &lookup, *name, *value, attributes);
-        } else if (lookup.IsNormal()) {
-          result = self->ReplaceSlowProperty(*name, *value, attributes);
-        } else {
-          result = SetPropertyToFieldWithAttributes(
-              &lookup, name, value, attributes);
-        }
-      } else {
-        result = self->AddProperty(
-            *name, *value, attributes, kNonStrictMode, MAY_BE_STORE_FROM_KEYED,
-            extensibility_check, value_type, mode);
-      }
+      result = ConvertAndSetLocalProperty(&lookup, *name, *value, attributes);
       break;
     case TRANSITION:
       result = SetPropertyUsingTransition(&lookup, name, value, attributes);
       break;
-    case HANDLER:
     case NONEXISTENT:
+    case HANDLER:
+    case INTERCEPTOR:
       UNREACHABLE();
   }
 
@@ -9468,6 +9431,15 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
   if (code_map->length() == kEntriesStart) {
     ClearOptimizedCodeMap();
   }
+}
+
+
+void OptimizedCodeEntry::Kill() {
+  set_function(NULL, SKIP_WRITE_BARRIER);
+  set_code(NULL, SKIP_WRITE_BARRIER);
+  set_native_context(NULL, SKIP_WRITE_BARRIER);
+  set_literals(NULL, SKIP_WRITE_BARRIER);
+  set_cacheable(false);
 }
 
 

@@ -5116,20 +5116,20 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 }
 
 
-void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
+void LCodeGen::DoCheckValue(LCheckValue* instr) {
   Register reg = ToRegister(instr->value());
-  Handle<JSFunction> target = instr->hydrogen()->target();
+  Handle<HeapObject> object = instr->hydrogen()->object();
   AllowDeferredHandleDereference smi_check;
-  if (isolate()->heap()->InNewSpace(*target)) {
+  if (isolate()->heap()->InNewSpace(*object)) {
     Register reg = ToRegister(instr->value());
-    Handle<Cell> cell = isolate()->factory()->NewCell(target);
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
     __ li(at, Operand(Handle<Object>(cell)));
     __ lw(at, FieldMemOperand(at, Cell::kValueOffset));
     DeoptimizeIf(ne, instr->environment(), reg,
                  Operand(at));
   } else {
     DeoptimizeIf(ne, instr->environment(), reg,
-                 Operand(target));
+                 Operand(object));
   }
 }
 

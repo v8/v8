@@ -1886,13 +1886,6 @@ LInstruction* LChunkBuilder::DoBoundsCheckBaseIndexInformation(
 }
 
 
-LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
-  // The control instruction marking the end of a block that completed
-  // abruptly (e.g., threw an exception).  There is nothing specific to do.
-  return NULL;
-}
-
-
 LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* value = UseFixed(instr->value(), eax);
@@ -2060,14 +2053,14 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
-  // If the target is in new space, we'll emit a global cell compare and so
-  // want the value in a register.  If the target gets promoted before we
+LInstruction* LChunkBuilder::DoCheckValue(HCheckValue* instr) {
+  // If the object is in new space, we'll emit a global cell compare and so
+  // want the value in a register.  If the object gets promoted before we
   // emit code, we will still get the register but will do an immediate
   // compare instead of the cell compare.  This is safe.
-  LOperand* value = instr->target_in_new_space()
+  LOperand* value = instr->object_in_new_space()
       ? UseRegisterAtStart(instr->value()) : UseAtStart(instr->value());
-  return AssignEnvironment(new(zone()) LCheckFunction(value));
+  return AssignEnvironment(new(zone()) LCheckValue(value));
 }
 
 

@@ -63,6 +63,8 @@ class HEscapeAnalysisPhase : public HPhase {
 
   HPhi* NewPhiAndInsert(HBasicBlock* block, HValue* incoming_value, int index);
 
+  HValue* NewMapCheckAndInsert(HCapturedObject* state, HCheckMaps* mapcheck);
+
   HCapturedObject* StateAt(HBasicBlock* block) {
     return block_states_.at(block->block_id());
   }

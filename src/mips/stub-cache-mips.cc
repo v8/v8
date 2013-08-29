@@ -1775,7 +1775,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       __ lw(t0, MemOperand(sp, (argc - 1) * kPointerSize));
       __ StoreNumberToDoubleElements(
-          t0, v0, elements, a3, t1, a2, t5,
+          t0, v0, elements, a3, t1, a2,
           &call_builtin, argc * kDoubleSize);
 
       // Save new length.

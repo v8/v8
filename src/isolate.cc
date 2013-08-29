@@ -137,7 +137,7 @@ v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
 
 int SystemThreadManager::NumberOfParallelSystemThreads(
     ParallelSystemComponent type) {
-  int number_of_threads = Min(OS::NumberOfCores(), kMaxThreads);
+  int number_of_threads = Min(CPU::NumberOfProcessorsOnline(), kMaxThreads);
   ASSERT(number_of_threads > 0);
   if (number_of_threads ==  1) {
     return 0;

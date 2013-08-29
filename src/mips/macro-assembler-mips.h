@@ -797,6 +797,54 @@ class MacroAssembler: public Assembler {
                         Register scratch2,
                         Register scratch3);
 
+  // Converts the smi or heap number in object to an int32 using the rules
+  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
+  // and brought into the range -2^31 .. +2^31 - 1.
+  void ConvertNumberToInt32(Register object,
+                            Register dst,
+                            Register heap_number_map,
+                            Register scratch1,
+                            Register scratch2,
+                            Register scratch3,
+                            FPURegister double_scratch,
+                            Label* not_int32);
+
+  // Loads the number from object into dst register.
+  // If |object| is neither smi nor heap number, |not_number| is jumped to
+  // with |object| still intact.
+  void LoadNumber(Register object,
+                  FPURegister dst,
+                  Register heap_number_map,
+                  Register scratch,
+                  Label* not_number);
+
+  // Loads the number from object into double_dst in the double format.
+  // Control will jump to not_int32 if the value cannot be exactly represented
+  // by a 32-bit integer.
+  // Floating point value in the 32-bit integer range that are not exact integer
+  // won't be loaded.
+  void LoadNumberAsInt32Double(Register object,
+                               DoubleRegister double_dst,
+                               Register heap_number_map,
+                               Register scratch1,
+                               Register scratch2,
+                               FPURegister double_scratch,
+                               Label* not_int32);
+
+  // Loads the number from object into dst as a 32-bit integer.
+  // Control will jump to not_int32 if the object cannot be exactly represented
+  // by a 32-bit integer.
+  // Floating point value in the 32-bit integer range that are not exact integer
+  // won't be converted.
+  void LoadNumberAsInt32(Register object,
+                         Register dst,
+                         Register heap_number_map,
+                         Register scratch1,
+                         Register scratch2,
+                         FPURegister double_scratch0,
+                         FPURegister double_scratch1,
+                         Label* not_int32);
+
   // Enter exit frame.
   // argc - argument count to be dropped by LeaveExitFrame.
   // save_doubles - saves FPU registers on stack, currently disabled.
@@ -986,16 +1034,13 @@ class MacroAssembler: public Assembler {
 
   // Check to see if maybe_number can be stored as a double in
   // FastDoubleElements. If it can, store it at the index specified by key in
-  // the FastDoubleElements array elements. Otherwise jump to fail, in which
-  // case scratch2, scratch3 and scratch4 are unmodified.
+  // the FastDoubleElements array elements. Otherwise jump to fail.
   void StoreNumberToDoubleElements(Register value_reg,
                                    Register key_reg,
-                                   // All regs below here overwritten.
                                    Register elements_reg,
                                    Register scratch1,
                                    Register scratch2,
                                    Register scratch3,
-                                   Register scratch4,
                                    Label* fail,
                                    int elements_offset = 0);
 
@@ -1280,7 +1325,6 @@ class MacroAssembler: public Assembler {
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cc, BailoutReason reason, Register rs, Operand rt);
-  void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
@@ -1367,11 +1411,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
-  // Abort execution if argument is not the root value with the given index,
+  // Abort execution if reg is not the root value with the given index,
   // enabled via --debug-code.
-  void AssertRootValue(Register src,
-                       Heap::RootListIndex root_value_index,
-                       BailoutReason reason);
+  void AssertIsRoot(Register reg, Heap::RootListIndex index);
 
   // ---------------------------------------------------------------------------
   // HeapNumber utilities.

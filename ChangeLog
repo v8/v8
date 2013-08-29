@@ -1,3 +1,11 @@
+2013-08-29: Version 3.21.6
+
+        Fixed inlined 'throw' statements interfering with live range
+        computation. (issue 2843)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-28: Version 3.21.5
 
         Fixed compilation with recent MinGW64 versions. (issue 2300)

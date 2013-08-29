@@ -5800,15 +5800,15 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 }
 
 
-void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
-  Handle<JSFunction> target = instr->hydrogen()->target();
-  if (instr->hydrogen()->target_in_new_space()) {
+void LCodeGen::DoCheckValue(LCheckValue* instr) {
+  Handle<HeapObject> object = instr->hydrogen()->object();
+  if (instr->hydrogen()->object_in_new_space()) {
     Register reg = ToRegister(instr->value());
-    Handle<Cell> cell = isolate()->factory()->NewCell(target);
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
     __ cmp(reg, Operand::ForCell(cell));
   } else {
     Operand operand = ToOperand(instr->value());
-    __ cmp(operand, target);
+    __ cmp(operand, object);
   }
   DeoptimizeIf(not_equal, instr->environment());
 }
