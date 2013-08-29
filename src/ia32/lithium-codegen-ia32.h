@@ -448,10 +448,10 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
 
   class X87Stack {
    public:
-    explicit X87Stack(MacroAssembler* masm) : stack_depth_(0), masm_(masm) { }
+    explicit X87Stack(MacroAssembler* masm)
+        : stack_depth_(0), is_mutable_(true), masm_(masm) { }
     explicit X87Stack(const X87Stack& other)
-        : stack_depth_(0), masm_(other.masm_) {
-      stack_depth_ = other.stack_depth_;
+        : stack_depth_(other.stack_depth_), is_mutable_(false), masm_(masm()) {
       for (int i = 0; i < stack_depth_; i++) {
         stack_[i] = other.stack_[i];
       }
@@ -470,8 +470,12 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
     void CommitWrite(X87Register reg);
     void FlushIfNecessary(LInstruction* instr, LCodeGen* cgen);
     int depth() const { return stack_depth_; }
-    void pop() { stack_depth_--; }
+    void pop() {
+      ASSERT(is_mutable_);
+      stack_depth_--;
+    }
     void push(X87Register reg) {
+      ASSERT(is_mutable_);
       ASSERT(stack_depth_ < X87Register::kNumAllocatableRegisters);
       stack_[stack_depth_] = reg;
       stack_depth_++;
@@ -482,9 +486,11 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
    private:
     int ArrayIndex(X87Register reg);
     int st2idx(int pos);
+
     X87Register stack_[X87Register::kNumAllocatableRegisters];
     int stack_depth_;
-    MacroAssembler* const masm_;
+    bool is_mutable_;
+    MacroAssembler* masm_;
   };
   X87Stack x87_stack_;
 
@@ -528,10 +534,11 @@ class LCodeGen V8_FINAL BASE_EMBEDDED {
 
 class LDeferredCode : public ZoneObject {
  public:
-  explicit LDeferredCode(LCodeGen* codegen)
+  explicit LDeferredCode(LCodeGen* codegen, const LCodeGen::X87Stack& x87_stack)
       : codegen_(codegen),
         external_exit_(NULL),
-        instruction_index_(codegen->current_instruction_) {
+        instruction_index_(codegen->current_instruction_),
+        x87_stack_(x87_stack) {
     codegen->AddDeferredCode(this);
   }
 
@@ -543,6 +550,7 @@ class LDeferredCode : public ZoneObject {
   Label* entry() { return &entry_; }
   Label* exit() { return external_exit_ != NULL ? external_exit_ : &exit_; }
   int instruction_index() const { return instruction_index_; }
+  const LCodeGen::X87Stack& x87_stack() const { return x87_stack_; }
 
  protected:
   LCodeGen* codegen() const { return codegen_; }
@@ -554,6 +562,7 @@ class LDeferredCode : public ZoneObject {
   Label exit_;
   Label* external_exit_;
   int instruction_index_;
+  LCodeGen::X87Stack x87_stack_;
 };
 
 } }  // namespace v8::internal
