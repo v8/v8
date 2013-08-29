@@ -1414,12 +1414,30 @@ class SaveContext BASE_EMBEDDED {
 class AssertNoContextChange BASE_EMBEDDED {
 #ifdef DEBUG
  public:
-  AssertNoContextChange() :
+  AssertNoContextChange() : context_(Isolate::Current()->context()) { }
+  ~AssertNoContextChange() {
+    ASSERT(Isolate::Current()->context() == *context_);
+  }
+
+ private:
+  Handle<Context> context_;
+#else
+ public:
+  AssertNoContextChange() { }
+#endif
+};
+
+
+// TODO(mstarzinger): Depracate as soon as everything is handlified.
+class AssertNoContextChangeWithHandleScope BASE_EMBEDDED {
+#ifdef DEBUG
+ public:
+  AssertNoContextChangeWithHandleScope() :
       scope_(Isolate::Current()),
       context_(Isolate::Current()->context(), Isolate::Current()) {
   }
 
-  ~AssertNoContextChange() {
+  ~AssertNoContextChangeWithHandleScope() {
     ASSERT(Isolate::Current()->context() == *context_);
   }
 
@@ -1428,7 +1446,7 @@ class AssertNoContextChange BASE_EMBEDDED {
   Handle<Context> context_;
 #else
  public:
-  AssertNoContextChange() { }
+  AssertNoContextChangeWithHandleScope() { }
 #endif
 };
 

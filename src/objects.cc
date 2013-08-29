@@ -828,7 +828,8 @@ MaybeObject* Object::GetProperty(Object* receiver,
                                  PropertyAttributes* attributes) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
+
   Isolate* isolate = name->GetIsolate();
   Heap* heap = isolate->heap();
 
@@ -3878,9 +3879,10 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
                                             StoreFromKeyed store_mode) {
   Heap* heap = GetHeap();
   Isolate* isolate = heap->isolate();
+
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
 
   // Optimization for 2-byte strings often used as keys in a decompression
   // dictionary.  We internalize these short keys to avoid constantly
@@ -4039,7 +4041,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     ExtensibilityCheck extensibility_check) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
   Isolate* isolate = GetIsolate();
   LookupResult lookup(isolate);
   LocalLookup(name_raw, &lookup, true);
@@ -4183,12 +4185,12 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
   if (name->IsSymbol()) return ABSENT;
 
   Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
 
-  HandleScope scope(isolate);
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
@@ -4318,10 +4320,12 @@ PropertyAttributes JSObject::GetElementAttributeWithReceiver(
 PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
     JSReceiver* receiver, uint32_t index, bool continue_search) {
   Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  HandleScope scope(isolate);
+
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSReceiver> hreceiver(receiver);
   Handle<JSObject> holder(this);
@@ -5030,10 +5034,12 @@ Handle<Object> JSObject::DeletePropertyWithInterceptor(Handle<JSObject> object,
 MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   Isolate* isolate = GetIsolate();
   Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  HandleScope scope(isolate);
+
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   if (interceptor->deleter()->IsUndefined()) return heap->false_value();
   v8::IndexedPropertyDeleterCallback deleter =
@@ -6144,7 +6150,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
 
   // Try to flatten before operating on the string.
   if (name->IsString()) String::cast(*name)->TryFlatten();
@@ -6327,7 +6333,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
 
   // Try to flatten before operating on the string.
   if (name->IsString()) String::cast(name)->TryFlatten();
@@ -6395,7 +6401,7 @@ MaybeObject* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChange ncc;
+  AssertNoContextChangeWithHandleScope ncc;
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
@@ -11543,10 +11549,12 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
                                                  bool check_prototype,
                                                  SetPropertyMode set_mode) {
   Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  HandleScope scope(isolate);
+
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSObject> this_handle(this);
   Handle<Object> value_handle(value, isolate);
@@ -12553,10 +12561,12 @@ MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
 MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
                                                  uint32_t index) {
   Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  HandleScope scope(isolate);
+
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor(), isolate);
   Handle<Object> this_handle(receiver, isolate);
   Handle<JSObject> holder_handle(this, isolate);
