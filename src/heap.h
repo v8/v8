@@ -1490,6 +1490,10 @@ class Heap {
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 
 #ifdef DEBUG
+  void set_allocation_timeout(int timeout) {
+    allocation_timeout_ = timeout;
+  }
+
   bool disallow_allocation_failure() {
     return disallow_allocation_failure_;
   }
