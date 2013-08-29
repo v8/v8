@@ -1655,7 +1655,7 @@ bool Decoder::IsConstantPoolAt(byte* instr_ptr) {
 int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
   if (IsConstantPoolAt(instr_ptr)) {
     int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
-    return DecodeConstantPoolLength(instruction_bits);
+    return DecodeConstantPoolLength(instruction_bits) / Assembler::kInstrSize;
   } else {
     return -1;
   }
