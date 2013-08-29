@@ -1024,13 +1024,7 @@ void Compiler::RecompileConcurrent(Handle<JSFunction> closure) {
     // aborted optimization.  In either case we want to continue executing
     // the unoptimized code without running into OSR.  If the unoptimized
     // code has been patched for OSR, unpatch it.
-    InterruptStub interrupt_stub;
-    Handle<Code> interrupt_code = interrupt_stub.GetCode(isolate);
-    Handle<Code> replacement_code =
-        isolate->builtins()->OnStackReplacement();
-    Deoptimizer::RevertInterruptCode(shared->code(),
-                                     *interrupt_code,
-                                     *replacement_code);
+    Deoptimizer::RevertInterruptCode(isolate, shared->code());
   }
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();

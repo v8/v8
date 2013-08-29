@@ -144,6 +144,11 @@ class Deoptimizer : public Malloced {
     DEBUGGER
   };
 
+  enum InterruptPatchState {
+    NOT_PATCHED,
+    PATCHED_FOR_OSR
+  };
+
   static const int kBailoutTypesWithCodeEntry = SOFT + 1;
 
   struct JumpTableEntry {
@@ -231,40 +236,34 @@ class Deoptimizer : public Malloced {
 
   // Patch all interrupts with allowed loop depth in the unoptimized code to
   // unconditionally call replacement_code.
-  static void PatchInterruptCode(Code* unoptimized_code,
-                                 Code* interrupt_code,
-                                 Code* replacement_code);
+  static void PatchInterruptCode(Isolate* isolate,
+                                 Code* unoptimized_code);
 
   // Patch the interrupt at the instruction before pc_after in
   // the unoptimized code to unconditionally call replacement_code.
   static void PatchInterruptCodeAt(Code* unoptimized_code,
                                    Address pc_after,
-                                   Code* interrupt_code,
                                    Code* replacement_code);
 
   // Change all patched interrupts patched in the unoptimized code
   // back to normal interrupts.
-  static void RevertInterruptCode(Code* unoptimized_code,
-                                  Code* interrupt_code,
-                                  Code* replacement_code);
+  static void RevertInterruptCode(Isolate* isolate,
+                                  Code* unoptimized_code);
 
   // Change patched interrupt in the unoptimized code
   // back to a normal interrupt.
   static void RevertInterruptCodeAt(Code* unoptimized_code,
                                     Address pc_after,
-                                    Code* interrupt_code,
-                                    Code* replacement_code);
+                                    Code* interrupt_code);
 
 #ifdef DEBUG
-  static bool InterruptCodeIsPatched(Code* unoptimized_code,
-                                     Address pc_after,
-                                     Code* interrupt_code,
-                                     Code* replacement_code);
+  static InterruptPatchState GetInterruptPatchState(Isolate* isolate,
+                                                    Code* unoptimized_code,
+                                                    Address pc_after);
 
   // Verify that all back edges of a certain loop depth are patched.
-  static void VerifyInterruptCode(Code* unoptimized_code,
-                                  Code* interrupt_code,
-                                  Code* replacement_code,
+  static void VerifyInterruptCode(Isolate* isolate,
+                                  Code* unoptimized_code,
                                   int loop_nesting_level);
 #endif  // DEBUG
 

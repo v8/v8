@@ -101,12 +101,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 
 void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
                                         Address pc_after,
-                                        Code* interrupt_code,
                                         Code* replacement_code) {
-  ASSERT(!InterruptCodeIsPatched(unoptimized_code,
-                                 pc_after,
-                                 interrupt_code,
-                                 replacement_code));
   static const int kInstrSize = Assembler::kInstrSize;
   // Replace the sltu instruction with load-imm 1 to at, so beq is not taken.
   CodePatcher patcher(pc_after - 6 * kInstrSize, 1);
@@ -123,12 +118,7 @@ void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
 
 void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
                                         Address pc_after,
-                                        Code* interrupt_code,
-                                        Code* replacement_code) {
-  ASSERT(InterruptCodeIsPatched(unoptimized_code,
-                                 pc_after,
-                                 interrupt_code,
-                                 replacement_code));
+                                        Code* interrupt_code) {
   static const int kInstrSize = Assembler::kInstrSize;
   // Restore the sltu instruction so beq can be taken again.
   CodePatcher patcher(pc_after - 6 * kInstrSize, 1);
@@ -143,23 +133,29 @@ void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
 
 
 #ifdef DEBUG
-bool Deoptimizer::InterruptCodeIsPatched(Code* unoptimized_code,
-                                         Address pc_after,
-                                         Code* interrupt_code,
-                                         Code* replacement_code) {
+Deoptimizer::InterruptPatchState Deoptimizer::GetInterruptPatchState(
+    Isolate* isolate,
+    Code* unoptimized_code,
+    Address pc_after) {
   static const int kInstrSize = Assembler::kInstrSize;
   ASSERT(Assembler::IsBeq(Assembler::instr_at(pc_after - 5 * kInstrSize)));
   if (Assembler::IsAddImmediate(
       Assembler::instr_at(pc_after - 6 * kInstrSize))) {
+    Code* osr_builtin =
+        isolate->builtins()->builtin(Builtins::kOnStackReplacement);
     ASSERT(reinterpret_cast<uint32_t>(
         Assembler::target_address_at(pc_after - 4 * kInstrSize)) ==
-        reinterpret_cast<uint32_t>(replacement_code->entry()));
-    return true;
+        reinterpret_cast<uint32_t>(osr_builtin->entry()));
+    return PATCHED_FOR_OSR;
   } else {
+    // Get the interrupt stub code object to match against from cache.
+    Code* interrupt_code = NULL;
+    InterruptStub stub;
+    if (!stub.FindCodeInCache(&interrupt_code, isolate)) UNREACHABLE();
     ASSERT(reinterpret_cast<uint32_t>(
         Assembler::target_address_at(pc_after - 4 * kInstrSize)) ==
         reinterpret_cast<uint32_t>(interrupt_code->entry()));
-    return false;
+    return NOT_PATCHED;
   }
 }
 #endif  // DEBUG

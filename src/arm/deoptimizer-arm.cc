@@ -101,12 +101,7 @@ static const int32_t kBranchBeforeInterrupt =  0x5a000004;
 
 void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
                                        Address pc_after,
-                                       Code* interrupt_code,
                                        Code* replacement_code) {
-  ASSERT(!InterruptCodeIsPatched(unoptimized_code,
-                                 pc_after,
-                                 interrupt_code,
-                                 replacement_code));
   static const int kInstrSize = Assembler::kInstrSize;
   // Turn the jump into nops.
   CodePatcher patcher(pc_after - 3 * kInstrSize, 1);
@@ -125,12 +120,7 @@ void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
 
 void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
                                         Address pc_after,
-                                        Code* interrupt_code,
-                                        Code* replacement_code) {
-  ASSERT(InterruptCodeIsPatched(unoptimized_code,
-                                pc_after,
-                                interrupt_code,
-                                replacement_code));
+                                        Code* interrupt_code) {
   static const int kInstrSize = Assembler::kInstrSize;
   // Restore the original jump.
   CodePatcher patcher(pc_after - 3 * kInstrSize, 1);
@@ -150,10 +140,10 @@ void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
 
 
 #ifdef DEBUG
-bool Deoptimizer::InterruptCodeIsPatched(Code* unoptimized_code,
-                                         Address pc_after,
-                                         Code* interrupt_code,
-                                         Code* replacement_code) {
+Deoptimizer::InterruptPatchState Deoptimizer::GetInterruptPatchState(
+    Isolate* isolate,
+    Code* unoptimized_code,
+    Address pc_after) {
   static const int kInstrSize = Assembler::kInstrSize;
   ASSERT(Memory::int32_at(pc_after - kInstrSize) == kBlxIp);
 
@@ -164,17 +154,23 @@ bool Deoptimizer::InterruptCodeIsPatched(Code* unoptimized_code,
   if (Assembler::IsNop(Assembler::instr_at(pc_after - 3 * kInstrSize))) {
     ASSERT(Assembler::IsLdrPcImmediateOffset(
         Assembler::instr_at(pc_after - 2 * kInstrSize)));
-    ASSERT(reinterpret_cast<uint32_t>(replacement_code->entry()) ==
+    Code* osr_builtin =
+        isolate->builtins()->builtin(Builtins::kOnStackReplacement);
+    ASSERT(reinterpret_cast<uint32_t>(osr_builtin->entry()) ==
            Memory::uint32_at(interrupt_address_pointer));
-    return true;
+    return PATCHED_FOR_OSR;
   } else {
+    // Get the interrupt stub code object to match against from cache.
+    Code* interrupt_code = NULL;
+    InterruptStub stub;
+    if (!stub.FindCodeInCache(&interrupt_code, isolate)) UNREACHABLE();
     ASSERT(Assembler::IsLdrPcImmediateOffset(
         Assembler::instr_at(pc_after - 2 * kInstrSize)));
     ASSERT_EQ(kBranchBeforeInterrupt,
               Memory::int32_at(pc_after - 3 * kInstrSize));
     ASSERT(reinterpret_cast<uint32_t>(interrupt_code->entry()) ==
            Memory::uint32_at(interrupt_address_pointer));
-    return false;
+    return NOT_PATCHED;
   }
 }
 #endif  // DEBUG

@@ -200,12 +200,7 @@ static const byte kNopByteTwo = 0x90;
 
 void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
                                        Address pc_after,
-                                       Code* interrupt_code,
                                        Code* replacement_code) {
-  ASSERT(!InterruptCodeIsPatched(unoptimized_code,
-                                 pc_after,
-                                 interrupt_code,
-                                 replacement_code));
   // Turn the jump into nops.
   Address call_target_address = pc_after - kIntSize;
   *(call_target_address - 3) = kNopByteOne;
@@ -221,12 +216,7 @@ void Deoptimizer::PatchInterruptCodeAt(Code* unoptimized_code,
 
 void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
                                         Address pc_after,
-                                        Code* interrupt_code,
-                                        Code* replacement_code) {
-  ASSERT(InterruptCodeIsPatched(unoptimized_code,
-                                pc_after,
-                                interrupt_code,
-                                replacement_code));
+                                        Code* interrupt_code) {
   // Restore the original jump.
   Address call_target_address = pc_after - kIntSize;
   *(call_target_address - 3) = kJnsInstruction;
@@ -241,23 +231,29 @@ void Deoptimizer::RevertInterruptCodeAt(Code* unoptimized_code,
 
 
 #ifdef DEBUG
-bool Deoptimizer::InterruptCodeIsPatched(Code* unoptimized_code,
-                                         Address pc_after,
-                                         Code* interrupt_code,
-                                         Code* replacement_code) {
+Deoptimizer::InterruptPatchState Deoptimizer::GetInterruptPatchState(
+    Isolate* isolate,
+    Code* unoptimized_code,
+    Address pc_after) {
   Address call_target_address = pc_after - kIntSize;
   ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
   if (*(call_target_address - 3) == kNopByteOne) {
-    ASSERT_EQ(replacement_code->entry(),
-             Assembler::target_address_at(call_target_address));
     ASSERT_EQ(kNopByteTwo,      *(call_target_address - 2));
-    return true;
+    Code* osr_builtin =
+        isolate->builtins()->builtin(Builtins::kOnStackReplacement);
+    ASSERT_EQ(osr_builtin->entry(),
+              Assembler::target_address_at(call_target_address));
+    return PATCHED_FOR_OSR;
   } else {
+    // Get the interrupt stub code object to match against from cache.
+    Code* interrupt_code = NULL;
+    InterruptStub stub;
+    if (!stub.FindCodeInCache(&interrupt_code, isolate)) UNREACHABLE();
     ASSERT_EQ(interrupt_code->entry(),
               Assembler::target_address_at(call_target_address));
     ASSERT_EQ(kJnsInstruction,  *(call_target_address - 3));
     ASSERT_EQ(kJnsOffset,       *(call_target_address - 2));
-    return false;
+    return NOT_PATCHED;
   }
 }
 #endif  // DEBUG
