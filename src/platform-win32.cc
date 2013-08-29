@@ -761,7 +761,7 @@ static void* highest_ever_allocated = reinterpret_cast<void*>(0);
 
 static void UpdateAllocatedSpaceLimits(void* address, int size) {
   ASSERT(limit_mutex != NULL);
-  ScopedLock lock(limit_mutex);
+  LockGuard<Mutex> lock_guard(limit_mutex);
 
   lowest_ever_allocated = Min(lowest_ever_allocated, address);
   highest_ever_allocated =
@@ -1616,46 +1616,6 @@ void Thread::YieldCPU() {
 
 
 // ----------------------------------------------------------------------------
-// Win32 mutex support.
-//
-// On Win32 mutexes are implemented using CRITICAL_SECTION objects. These are
-// faster than Win32 Mutex objects because they are implemented using user mode
-// atomic instructions. Therefore we only do ring transitions if there is lock
-// contention.
-
-class Win32Mutex : public Mutex {
- public:
-  Win32Mutex() { InitializeCriticalSection(&cs_); }
-
-  virtual ~Win32Mutex() { DeleteCriticalSection(&cs_); }
-
-  virtual int Lock() {
-    EnterCriticalSection(&cs_);
-    return 0;
-  }
-
-  virtual int Unlock() {
-    LeaveCriticalSection(&cs_);
-    return 0;
-  }
-
-
-  virtual bool TryLock() {
-    // Returns non-zero if critical section is entered successfully entered.
-    return TryEnterCriticalSection(&cs_);
-  }
-
- private:
-  CRITICAL_SECTION cs_;  // Critical section used for mutex
-};
-
-
-Mutex* OS::CreateMutex() {
-  return new Win32Mutex();
-}
-
-
-// ----------------------------------------------------------------------------
 // Win32 semaphore support.
 //
 // On Win32 semaphores are implemented using Win32 Semaphore objects. The
@@ -1898,7 +1858,7 @@ void OS::SetUp() {
   // call this setup code within the same millisecond.
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srand(static_cast<unsigned int>(seed));
-  limit_mutex = CreateMutex();
+  limit_mutex = new Mutex();
 }
 
 

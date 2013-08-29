@@ -41,14 +41,12 @@ const char* const Log::kLogToConsole = "-";
 Log::Log(Logger* logger)
   : is_stopped_(false),
     output_handle_(NULL),
-    mutex_(NULL),
     message_buffer_(NULL),
     logger_(logger) {
 }
 
 
 void Log::Initialize(const char* log_file_name) {
-  mutex_ = OS::CreateMutex();
   message_buffer_ = NewArray<char>(kMessageBufferSize);
 
   // --log-all enables all the log flags.
@@ -116,9 +114,6 @@ FILE* Log::Close() {
   DeleteArray(message_buffer_);
   message_buffer_ = NULL;
 
-  delete mutex_;
-  mutex_ = NULL;
-
   is_stopped_ = false;
   return result;
 }
@@ -126,7 +121,7 @@ FILE* Log::Close() {
 
 Log::MessageBuilder::MessageBuilder(Log* log)
   : log_(log),
-    sl(log_->mutex_),
+    lock_guard_(&log_->mutex_),
     pos_(0) {
   ASSERT(log_->message_buffer_ != NULL);
 }

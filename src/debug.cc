@@ -2612,7 +2612,6 @@ Debugger::Debugger(Isolate* isolate)
       message_handler_(NULL),
       debugger_unload_pending_(false),
       host_dispatch_handler_(NULL),
-      dispatch_handler_access_(OS::CreateMutex()),
       debug_message_dispatch_handler_(NULL),
       message_dispatch_helper_thread_(NULL),
       host_dispatch_micros_(100 * 1000),
@@ -2625,8 +2624,6 @@ Debugger::Debugger(Isolate* isolate)
 
 
 Debugger::~Debugger() {
-  delete dispatch_handler_access_;
-  dispatch_handler_access_ = 0;
   delete command_received_;
   command_received_ = 0;
 }
@@ -3272,7 +3269,7 @@ void Debugger::SetEventListener(Handle<Object> callback,
 
 
 void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
-  ScopedLock with(debugger_access_);
+  LockGuard<RecursiveMutex> with(debugger_access_);
 
   message_handler_ = handler;
   ListenersChanged();
@@ -3309,7 +3306,7 @@ void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
 
 void Debugger::SetDebugMessageDispatchHandler(
     v8::Debug::DebugMessageDispatchHandler handler, bool provide_locker) {
-  ScopedLock with(dispatch_handler_access_);
+  LockGuard<Mutex> lock_guard(&dispatch_handler_access_);
   debug_message_dispatch_handler_ = handler;
 
   if (provide_locker && message_dispatch_helper_thread_ == NULL) {
@@ -3322,7 +3319,7 @@ void Debugger::SetDebugMessageDispatchHandler(
 // Calls the registered debug message handler. This callback is part of the
 // public API.
 void Debugger::InvokeMessageHandler(MessageImpl message) {
-  ScopedLock with(debugger_access_);
+  LockGuard<RecursiveMutex> with(debugger_access_);
 
   if (message_handler_ != NULL) {
     message_handler_(message);
@@ -3352,7 +3349,7 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
 
   MessageDispatchHelperThread* dispatch_thread;
   {
-    ScopedLock with(dispatch_handler_access_);
+    LockGuard<Mutex> lock_guard(&dispatch_handler_access_);
     dispatch_thread = message_dispatch_helper_thread_;
   }
 
@@ -3381,7 +3378,7 @@ void Debugger::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
 
 
 bool Debugger::IsDebuggerActive() {
-  ScopedLock with(debugger_access_);
+  LockGuard<RecursiveMutex> with(debugger_access_);
 
   return message_handler_ != NULL ||
       !event_listener_.is_null() ||
@@ -3472,7 +3469,7 @@ void Debugger::WaitForAgent() {
 void Debugger::CallMessageDispatchHandler() {
   v8::Debug::DebugMessageDispatchHandler handler;
   {
-    ScopedLock with(dispatch_handler_access_);
+    LockGuard<Mutex> lock_guard(&dispatch_handler_access_);
     handler = Debugger::debug_message_dispatch_handler_;
   }
   if (handler != NULL) {
@@ -3793,24 +3790,17 @@ void CommandMessageQueue::Expand() {
 
 
 LockingCommandMessageQueue::LockingCommandMessageQueue(Logger* logger, int size)
-    : logger_(logger), queue_(size) {
-  lock_ = OS::CreateMutex();
-}
-
-
-LockingCommandMessageQueue::~LockingCommandMessageQueue() {
-  delete lock_;
-}
+    : logger_(logger), queue_(size) {}
 
 
 bool LockingCommandMessageQueue::IsEmpty() const {
-  ScopedLock sl(lock_);
+  LockGuard<Mutex> lock_guard(&mutex_);
   return queue_.IsEmpty();
 }
 
 
 CommandMessage LockingCommandMessageQueue::Get() {
-  ScopedLock sl(lock_);
+  LockGuard<Mutex> lock_guard(&mutex_);
   CommandMessage result = queue_.Get();
   logger_->DebugEvent("Get", result.text());
   return result;
@@ -3818,14 +3808,14 @@ CommandMessage LockingCommandMessageQueue::Get() {
 
 
 void LockingCommandMessageQueue::Put(const CommandMessage& message) {
-  ScopedLock sl(lock_);
+  LockGuard<Mutex> lock_guard(&mutex_);
   queue_.Put(message);
   logger_->DebugEvent("Put", message.text());
 }
 
 
 void LockingCommandMessageQueue::Clear() {
-  ScopedLock sl(lock_);
+  LockGuard<Mutex> lock_guard(&mutex_);
   queue_.Clear();
 }
 
@@ -3833,19 +3823,18 @@ void LockingCommandMessageQueue::Clear() {
 MessageDispatchHelperThread::MessageDispatchHelperThread(Isolate* isolate)
     : Thread("v8:MsgDispHelpr"),
       isolate_(isolate), sem_(OS::CreateSemaphore(0)),
-      mutex_(OS::CreateMutex()), already_signalled_(false) {
+      already_signalled_(false) {
 }
 
 
 MessageDispatchHelperThread::~MessageDispatchHelperThread() {
-  delete mutex_;
   delete sem_;
 }
 
 
 void MessageDispatchHelperThread::Schedule() {
   {
-    ScopedLock lock(mutex_);
+    LockGuard<Mutex> lock_guard(&mutex_);
     if (already_signalled_) {
       return;
     }
@@ -3859,7 +3848,7 @@ void MessageDispatchHelperThread::Run() {
   while (true) {
     sem_->Wait();
     {
-      ScopedLock lock(mutex_);
+      LockGuard<Mutex> lock_guard(&mutex_);
       already_signalled_ = false;
     }
     {

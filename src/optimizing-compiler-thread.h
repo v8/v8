@@ -31,6 +31,7 @@
 #include "atomicops.h"
 #include "flags.h"
 #include "platform.h"
+#include "platform/mutex.h"
 #include "platform/time.h"
 #include "unbound-queue-inl.h"
 
@@ -47,12 +48,10 @@ class OptimizingCompilerThread : public Thread {
       Thread("OptimizingCompilerThread"),
 #ifdef DEBUG
       thread_id_(0),
-      thread_id_mutex_(OS::CreateMutex()),
 #endif
       isolate_(isolate),
       stop_semaphore_(OS::CreateSemaphore(0)),
-      input_queue_semaphore_(OS::CreateSemaphore(0)),
-      install_mutex_(OS::CreateMutex()) {
+      input_queue_semaphore_(OS::CreateSemaphore(0)) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
     NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
   }
@@ -82,11 +81,9 @@ class OptimizingCompilerThread : public Thread {
 #endif
 
   ~OptimizingCompilerThread() {
-    delete install_mutex_;
     delete input_queue_semaphore_;
     delete stop_semaphore_;
 #ifdef DEBUG
-    delete thread_id_mutex_;
 #endif
   }
 
@@ -100,7 +97,7 @@ class OptimizingCompilerThread : public Thread {
 
 #ifdef DEBUG
   int thread_id_;
-  Mutex* thread_id_mutex_;
+  Mutex thread_id_mutex_;
 #endif
 
   Isolate* isolate_;
@@ -108,7 +105,7 @@ class OptimizingCompilerThread : public Thread {
   Semaphore* input_queue_semaphore_;
   UnboundQueue<OptimizingCompiler*> input_queue_;
   UnboundQueue<OptimizingCompiler*> output_queue_;
-  Mutex* install_mutex_;
+  Mutex install_mutex_;
   volatile AtomicWord stop_thread_;
   volatile Atomic32 queue_length_;
   TimeDelta time_spent_compiling_;

@@ -248,7 +248,7 @@ void RemoteDebugger::ConnectionClosed() {
 
 
 void RemoteDebugger::AddEvent(RemoteDebuggerEvent* event) {
-  i::ScopedLock lock(event_access_);
+  i::LockGuard<i::Mutex> lock_guard(&event_access_);
   if (head_ == NULL) {
     ASSERT(tail_ == NULL);
     head_ = event;
@@ -263,7 +263,7 @@ void RemoteDebugger::AddEvent(RemoteDebuggerEvent* event) {
 
 
 RemoteDebuggerEvent* RemoteDebugger::GetEvent() {
-  i::ScopedLock lock(event_access_);
+  i::LockGuard<i::Mutex> lock_guard(&event_access_);
   ASSERT(head_ != NULL);
   RemoteDebuggerEvent* result = head_;
   head_ = head_->next();

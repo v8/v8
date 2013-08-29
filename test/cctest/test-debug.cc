@@ -4678,14 +4678,13 @@ class ThreadBarrier {
  private:
   int num_threads_;
   int num_blocked_;
-  v8::internal::Mutex* lock_;
+  v8::internal::Mutex lock_;
   v8::internal::Semaphore* sem_;
   bool invalid_;
 };
 
 ThreadBarrier::ThreadBarrier(int num_threads)
     : num_threads_(num_threads), num_blocked_(0) {
-  lock_ = OS::CreateMutex();
   sem_ = OS::CreateSemaphore(0);
   invalid_ = false;  // A barrier may only be used once.  Then it is invalid.
 }
@@ -4694,14 +4693,12 @@ ThreadBarrier::ThreadBarrier(int num_threads)
 // Do not call, due to race condition with Wait().
 // Could be resolved with Pthread condition variables.
 ThreadBarrier::~ThreadBarrier() {
-  lock_->Lock();
-  delete lock_;
   delete sem_;
 }
 
 
 void ThreadBarrier::Wait() {
-  lock_->Lock();
+  lock_.Lock();
   CHECK(!invalid_);
   if (num_blocked_ == num_threads_ - 1) {
     // Signal and unblock all waiting threads.
@@ -4711,10 +4708,10 @@ void ThreadBarrier::Wait() {
     invalid_ = true;
     printf("BARRIER\n\n");
     fflush(stdout);
-    lock_->Unlock();
+    lock_.Unlock();
   } else {  // Wait for the semaphore.
     ++num_blocked_;
-    lock_->Unlock();  // Potential race condition with destructor because
+    lock_.Unlock();  // Potential race condition with destructor because
     sem_->Wait();  // these two lines are not atomic.
   }
 }

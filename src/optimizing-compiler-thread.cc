@@ -39,7 +39,7 @@ namespace internal {
 
 void OptimizingCompilerThread::Run() {
 #ifdef DEBUG
-  { ScopedLock lock(thread_id_mutex_);
+  { LockGuard<Mutex> lock_guard(&thread_id_mutex_);
     thread_id_ = ThreadId::Current().ToInteger();
   }
 #endif
@@ -108,7 +108,7 @@ void OptimizingCompilerThread::CompileNext() {
   // The function may have already been optimized by OSR.  Simply continue.
   // Use a mutex to make sure that functions marked for install
   // are always also queued.
-  ScopedLock mark_and_queue(install_mutex_);
+  LockGuard<Mutex> mark_and_queue(&install_mutex_);
   { Heap::RelocationLock relocation_lock(isolate_->heap());
     AllowHandleDereference ahd;
     optimizing_compiler->info()->closure()->MarkForInstallingRecompiledCode();
@@ -189,7 +189,7 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
   OptimizingCompiler* compiler;
   while (true) {
     { // Memory barrier to ensure marked functions are queued.
-      ScopedLock marked_and_queued(install_mutex_);
+      LockGuard<Mutex> marked_and_queued(&install_mutex_);
       if (!output_queue_.Dequeue(&compiler)) return;
     }
     Compiler::InstallOptimizedCode(compiler);
@@ -211,7 +211,7 @@ void OptimizingCompilerThread::QueueForOptimization(
 #ifdef DEBUG
 bool OptimizingCompilerThread::IsOptimizerThread() {
   if (!FLAG_concurrent_recompilation) return false;
-  ScopedLock lock(thread_id_mutex_);
+  LockGuard<Mutex> lock_guard(&thread_id_mutex_);
   return ThreadId::Current().ToInteger() == thread_id_;
 }
 #endif

@@ -151,7 +151,7 @@ static void* highest_ever_allocated = reinterpret_cast<void*>(0);
 
 static void UpdateAllocatedSpaceLimits(void* address, int size) {
   ASSERT(limit_mutex != NULL);
-  ScopedLock lock(limit_mutex);
+  LockGuard<Mutex> lock_guard(limit_mutex);
 
   lowest_ever_allocated = Min(lowest_ever_allocated, address);
   highest_ever_allocated =
@@ -571,7 +571,7 @@ void OS::SetUp() {
   // Seed the random number generator. We preserve microsecond resolution.
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis()) ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
-  limit_mutex = CreateMutex();
+  limit_mutex = new Mutex();
 }
 
 

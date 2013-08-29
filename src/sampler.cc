@@ -418,12 +418,12 @@ class SamplerThread : public Thread {
       : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
-  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
-  static void TearDown() { delete mutex_; }
+  static void SetUp() { if (!mutex_) mutex_ = new Mutex(); }
+  static void TearDown() { delete mutex_; mutex_ = NULL; }
 
   static void AddActiveSampler(Sampler* sampler) {
     bool need_to_start = false;
-    ScopedLock lock(mutex_);
+    LockGuard<Mutex> lock_guard(mutex_);
     if (instance_ == NULL) {
       // Start a thread that will send SIGPROF signal to VM threads,
       // when CPU profiling will be enabled.
@@ -445,7 +445,7 @@ class SamplerThread : public Thread {
   static void RemoveActiveSampler(Sampler* sampler) {
     SamplerThread* instance_to_remove = NULL;
     {
-      ScopedLock lock(mutex_);
+      LockGuard<Mutex> lock_guard(mutex_);
 
       ASSERT(sampler->IsActive());
       bool removed = instance_->active_samplers_.RemoveElement(sampler);
@@ -472,7 +472,7 @@ class SamplerThread : public Thread {
   virtual void Run() {
     while (true) {
       {
-        ScopedLock lock(mutex_);
+        LockGuard<Mutex> lock_guard(mutex_);
         if (active_samplers_.is_empty()) break;
         // When CPU profiling is enabled both JavaScript and C++ code is
         // profiled. We must not suspend.

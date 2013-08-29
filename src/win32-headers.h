@@ -95,7 +95,6 @@
 #undef ANY
 #undef IGNORE
 #undef GetObject
-#undef CreateMutex
 #undef CreateSemaphore
 #undef Yield
 

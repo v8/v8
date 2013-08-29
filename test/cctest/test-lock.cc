@@ -38,33 +38,6 @@
 using namespace ::v8::internal;
 
 
-// Simple test of locking logic
-TEST(Simple) {
-  Mutex* mutex = OS::CreateMutex();
-  CHECK_EQ(0, mutex->Lock());  // acquire the lock with the right token
-  CHECK_EQ(0, mutex->Unlock());  // can unlock with the right token
-  delete mutex;
-}
-
-
-TEST(MultiLock) {
-  Mutex* mutex = OS::CreateMutex();
-  CHECK_EQ(0, mutex->Lock());
-  CHECK_EQ(0, mutex->Unlock());
-  delete mutex;
-}
-
-
-TEST(ShallowLock) {
-  Mutex* mutex = OS::CreateMutex();
-  CHECK_EQ(0, mutex->Lock());
-  CHECK_EQ(0, mutex->Unlock());
-  CHECK_EQ(0, mutex->Lock());
-  CHECK_EQ(0, mutex->Unlock());
-  delete mutex;
-}
-
-
 TEST(SemaphoreTimeout) {
   bool ok;
   Semaphore* sem = OS::CreateSemaphore(0);

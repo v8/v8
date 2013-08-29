@@ -441,6 +441,8 @@
         '../../src/platform/time.h',
         '../../src/platform-posix.h',
         '../../src/platform.h',
+        '../../src/platform/mutex.cc',
+        '../../src/platform/mutex.h',
         '../../src/preparse-data-format.h',
         '../../src/preparse-data.cc',
         '../../src/preparse-data.h',

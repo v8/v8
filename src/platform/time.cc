@@ -131,14 +131,11 @@ int64_t TimeDelta::InNanoseconds() const {
 class Clock V8_FINAL {
  public:
   Clock() : initial_time_(CurrentWallclockTime()),
-            initial_ticks_(TimeTicks::Now()),
-            mutex_(OS::CreateMutex()) {}
-
-  ~Clock() { delete mutex_; }
+            initial_ticks_(TimeTicks::Now()) {}
 
   Time Now() {
     // This must be executed under lock.
-    ScopedLock sl(mutex_);
+    LockGuard<Mutex> lock_guard(&mutex_);
 
     // Calculate the time elapsed since we started our timer.
     TimeDelta elapsed = TimeTicks::Now() - initial_ticks_;
@@ -155,7 +152,10 @@ class Clock V8_FINAL {
   }
 
   Time NowFromSystemTime() {
-    ScopedLock sl(mutex_);
+    // This must be executed under lock.
+    LockGuard<Mutex> lock_guard(&mutex_);
+
+    // Resynchronize with the wallclock.
     initial_ticks_ = TimeTicks::Now();
     initial_time_ = CurrentWallclockTime();
     return initial_time_;
@@ -174,7 +174,7 @@ class Clock V8_FINAL {
 
   TimeTicks initial_ticks_;
   Time initial_time_;
-  Mutex* mutex_;
+  Mutex mutex_;
 };
 
 
@@ -396,15 +396,13 @@ class WindowsVistaTickClock V8_FINAL : public TickClock {
 
 class RolloverProtectedTickClock V8_FINAL : public TickClock {
  public:
-  RolloverProtectedTickClock()
-      : mutex_(OS::CreateMutex()), last_seen_now_(0), rollover_ms_(1) {
-    // We initialize rollover_ms_ to 1 to ensure that we will never
-    // return 0 from TimeTicks::HighResNow() and TimeTicks::Now() below.
-  }
-  virtual ~RolloverProtectedTickClock() { delete mutex_; }
+  // We initialize rollover_ms_ to 1 to ensure that we will never
+  // return 0 from TimeTicks::HighResNow() and TimeTicks::Now() below.
+  RolloverProtectedTickClock() : last_seen_now_(0), rollover_ms_(1) {}
+  virtual ~RolloverProtectedTickClock() {}
 
   virtual int64_t Now() V8_OVERRIDE {
-    ScopedLock sl(mutex_);
+    LockGuard<Mutex> lock_guard(&mutex_);
     // We use timeGetTime() to implement TimeTicks::Now(), which rolls over
     // every ~49.7 days. We try to track rollover ourselves, which works if
     // TimeTicks::Now() is called at least every 49 days.
@@ -420,7 +418,7 @@ class RolloverProtectedTickClock V8_FINAL : public TickClock {
   }
 
  private:
-  Mutex* mutex_;
+  Mutex mutex_;
   DWORD last_seen_now_;
   int64_t rollover_ms_;
 };
