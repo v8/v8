@@ -1982,7 +1982,7 @@ class JSReceiver: public HeapObject {
                                        DeleteMode mode = NORMAL_DELETION);
   static Handle<Object> DeleteElement(Handle<JSReceiver> object,
                                       uint32_t index,
-                                      DeleteMode mode);
+                                      DeleteMode mode = NORMAL_DELETION);
 
   // Set the index'th array element.
   // Can cause GC, or return failure if GC is required.
@@ -2319,11 +2319,6 @@ class JSObject: public JSReceiver {
   static int GetIdentityHash(Handle<JSObject> obj);
   MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
   MUST_USE_RESULT MaybeObject* SetIdentityHash(Smi* hash, CreationFlag flag);
-
-  static Handle<Object> DeleteElement(Handle<JSObject> obj,
-                                      uint32_t index,
-                                      DeleteMode mode = NORMAL_DELETION);
-  MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
 
   inline void ValidateElements();
 
@@ -2812,7 +2807,11 @@ class JSObject: public JSReceiver {
                                                  Handle<Name> name,
                                                  DeleteMode mode);
 
-  MUST_USE_RESULT MaybeObject* DeleteElementWithInterceptor(uint32_t index);
+  static Handle<Object> DeleteElement(Handle<JSObject> object,
+                                      uint32_t index,
+                                      DeleteMode mode);
+  static Handle<Object> DeleteElementWithInterceptor(Handle<JSObject> object,
+                                                     uint32_t index);
 
   MUST_USE_RESULT MaybeObject* DeleteFastElement(uint32_t index);
   MUST_USE_RESULT MaybeObject* DeleteDictionaryElement(uint32_t index,

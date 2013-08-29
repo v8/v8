@@ -5031,113 +5031,110 @@ Handle<Object> JSObject::DeletePropertyWithInterceptor(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
-  Isolate* isolate = GetIsolate();
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
+// TODO(mstarzinger): Temporary wrapper until handlified.
+static Handle<Object> AccessorDelete(Handle<JSObject> object,
+                                     uint32_t index,
+                                     JSObject::DeleteMode mode) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->GetElementsAccessor()->Delete(*object,
+                                                           index,
+                                                           mode),
+                     Object);
+}
+
+
+Handle<Object> JSObject::DeleteElementWithInterceptor(Handle<JSObject> object,
+                                                      uint32_t index) {
+  Isolate* isolate = object->GetIsolate();
+  Factory* factory = isolate->factory();
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
 
-  Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  if (interceptor->deleter()->IsUndefined()) return heap->false_value();
+  Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
+  if (interceptor->deleter()->IsUndefined()) return factory->false_value();
   v8::IndexedPropertyDeleterCallback deleter =
       v8::ToCData<v8::IndexedPropertyDeleterCallback>(interceptor->deleter());
-  Handle<JSObject> this_handle(this);
   LOG(isolate,
-      ApiIndexedPropertyAccess("interceptor-indexed-delete", this, index));
-  PropertyCallbackArguments args(isolate, interceptor->data(), this, this);
+      ApiIndexedPropertyAccess("interceptor-indexed-delete", *object, index));
+  PropertyCallbackArguments args(
+      isolate, interceptor->data(), *object, *object);
   v8::Handle<v8::Boolean> result = args.Call(deleter, index);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
   if (!result.IsEmpty()) {
     ASSERT(result->IsBoolean());
     Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
     result_internal->VerifyApiCallResultType();
-    return *result_internal;
+    // Rebox CustomArguments::kReturnValueOffset before returning.
+    return handle(*result_internal, isolate);
   }
-  MaybeObject* raw_result = this_handle->GetElementsAccessor()->Delete(
-      *this_handle,
-      index,
-      NORMAL_DELETION);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-  return raw_result;
+  Handle<Object> delete_result = AccessorDelete(object, index, NORMAL_DELETION);
+  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  return delete_result;
 }
 
 
-Handle<Object> JSObject::DeleteElement(Handle<JSObject> obj,
+Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
                                        uint32_t index,
                                        DeleteMode mode) {
-  CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->DeleteElement(index, mode),
-                     Object);
-}
+  Isolate* isolate = object->GetIsolate();
+  Factory* factory = isolate->factory();
 
-
-MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
-  Isolate* isolate = GetIsolate();
   // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !isolate->MayIndexedAccess(this, index, v8::ACCESS_DELETE)) {
-    isolate->ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    return isolate->heap()->false_value();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayIndexedAccess(*object, index, v8::ACCESS_DELETE)) {
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_DELETE);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return factory->false_value();
   }
 
-  if (IsStringObjectWithCharacterAt(index)) {
+  if (object->IsStringObjectWithCharacterAt(index)) {
     if (mode == STRICT_DELETION) {
       // Deleting a non-configurable property in strict mode.
-      HandleScope scope(isolate);
-      Handle<Object> holder(this, isolate);
-      Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
-      Handle<Object> args[2] = { name, holder };
+      Handle<Object> name = factory->NewNumberFromUint(index);
+      Handle<Object> args[2] = { name, object };
       Handle<Object> error =
-          isolate->factory()->NewTypeError("strict_delete_property",
-                                           HandleVector(args, 2));
-      return isolate->Throw(*error);
+          factory->NewTypeError("strict_delete_property",
+                                HandleVector(args, 2));
+      isolate->Throw(*error);
+      return Handle<Object>();
     }
-    return isolate->heap()->false_value();
+    return factory->false_value();
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return isolate->heap()->false_value();
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return factory->false_value();
     ASSERT(proto->IsJSGlobalObject());
-    return JSGlobalObject::cast(proto)->DeleteElement(index, mode);
+    return DeleteElement(Handle<JSObject>::cast(proto), index, mode);
   }
-
-  // From this point on everything needs to be handlified.
-  HandleScope scope(isolate);
-  Handle<JSObject> self(this);
 
   Handle<Object> old_value;
   bool should_enqueue_change_record = false;
-  if (FLAG_harmony_observation && self->map()->is_observed()) {
-    should_enqueue_change_record = self->HasLocalElement(index);
+  if (FLAG_harmony_observation && object->map()->is_observed()) {
+    should_enqueue_change_record = object->HasLocalElement(index);
     if (should_enqueue_change_record) {
-      old_value = self->GetLocalElementAccessorPair(index) != NULL
-          ? Handle<Object>::cast(isolate->factory()->the_hole_value())
-          : Object::GetElement(self, index);
+      old_value = object->GetLocalElementAccessorPair(index) != NULL
+          ? Handle<Object>::cast(factory->the_hole_value())
+          : Object::GetElement(object, index);
     }
   }
 
-  MaybeObject* result;
   // Skip interceptor if forcing deletion.
-  if (self->HasIndexedInterceptor() && mode != FORCE_DELETION) {
-    result = self->DeleteElementWithInterceptor(index);
+  Handle<Object> result;
+  if (object->HasIndexedInterceptor() && mode != FORCE_DELETION) {
+    result = DeleteElementWithInterceptor(object, index);
   } else {
-    result = self->GetElementsAccessor()->Delete(*self, index, mode);
+    result = AccessorDelete(object, index, mode);
   }
 
-  Handle<Object> hresult;
-  if (!result->ToHandle(&hresult, isolate)) return result;
-
-  if (should_enqueue_change_record && !self->HasLocalElement(index)) {
-    Handle<String> name = isolate->factory()->Uint32ToString(index);
-    EnqueueChangeRecord(self, "deleted", name, old_value);
+  if (should_enqueue_change_record && !object->HasLocalElement(index)) {
+    Handle<String> name = factory->Uint32ToString(index);
+    EnqueueChangeRecord(object, "deleted", name, old_value);
   }
 
-  return *hresult;
+  return result;
 }
 
 

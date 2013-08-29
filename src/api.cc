@@ -3571,7 +3571,7 @@ bool v8::Object::Delete(uint32_t index) {
   ENTER_V8(isolate);
   HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::JSObject::DeleteElement(self, index)->IsTrue();
+  return i::JSReceiver::DeleteElement(self, index)->IsTrue();
 }
 
 
