@@ -3821,7 +3821,7 @@ void MacroAssembler::Allocate(int object_size,
   LoadAllocationTopHelper(result, scratch, flags);
 
   // Align the next allocation. Storing the filler map without checking top is
-  // always safe because the limit of the heap is always aligned.
+  // safe in new-space because the limit of the heap is aligned there.
   if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
     testq(result, Immediate(kDoubleAlignmentMask));
     Check(zero, "Allocation is not double aligned");
@@ -3888,7 +3888,7 @@ void MacroAssembler::Allocate(int header_size,
   LoadAllocationTopHelper(result, scratch, flags);
 
   // Align the next allocation. Storing the filler map without checking top is
-  // always safe because the limit of the heap is always aligned.
+  // safe in new-space because the limit of the heap is aligned there.
   if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
     testq(result, Immediate(kDoubleAlignmentMask));
     Check(zero, "Allocation is not double aligned");
