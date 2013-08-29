@@ -430,8 +430,8 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_ == NULL) {
     Logger* logger = isolate_->logger();
     // Disable logging when using the new implementation.
-    saved_logging_nesting_ = logger->logging_nesting_;
-    logger->logging_nesting_ = 0;
+    saved_is_logging_ = logger->is_logging_;
+    logger->is_logging_ = false;
     generator_ = new ProfileGenerator(profiles_);
     Sampler* sampler = logger->sampler();
     processor_ = new ProfilerEventsProcessor(
@@ -501,7 +501,7 @@ void CpuProfiler::StopProcessor() {
     sampler->Stop();
     need_to_stop_sampler_ = false;
   }
-  logger->logging_nesting_ = saved_logging_nesting_;
+  logger->is_logging_ = saved_is_logging_;
 }
 
 

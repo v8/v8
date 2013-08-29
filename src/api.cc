@@ -6735,24 +6735,6 @@ void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 }
 
 
-void V8::PauseProfiler() {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->logger()->PauseProfiler();
-}
-
-
-void V8::ResumeProfiler() {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->logger()->ResumeProfiler();
-}
-
-
-bool V8::IsProfilerPaused() {
-  i::Isolate* isolate = i::Isolate::Current();
-  return isolate->logger()->IsProfilerPaused();
-}
-
-
 int V8::GetCurrentThreadId() {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "V8::GetCurrentThreadId()");

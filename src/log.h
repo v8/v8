@@ -341,19 +341,16 @@ class Logger {
   void LogRuntime(Vector<const char> format, JSArray* args);
 
   bool is_logging() {
-    return logging_nesting_ > 0;
+    return is_logging_;
   }
 
   bool is_logging_code_events() {
     return is_logging() || jit_logger_ != NULL;
   }
 
-  // Pause/Resume collection of profiling data.
-  // When data collection is paused, CPU Tick events are discarded until
-  // data collection is Resumed.
-  void PauseProfiler();
-  void ResumeProfiler();
-  bool IsProfilerPaused();
+  // Stop collection of profiling data.
+  // When data collection is paused, CPU Tick events are discarded.
+  void StopProfiler();
 
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
                            Handle<Code> code);
@@ -435,13 +432,9 @@ class Logger {
   friend class TimeLog;
   friend class Profiler;
   template <StateTag Tag> friend class VMState;
-
   friend class LoggerTestHelper;
 
-
-  int logging_nesting_;
-  int cpu_profiler_nesting_;
-
+  bool is_logging_;
   Log* log_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;

@@ -265,7 +265,7 @@ class CpuProfiler : public CodeEventListener {
   unsigned next_profile_uid_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
-  int saved_logging_nesting_;
+  bool saved_is_logging_;
   bool need_to_stop_sampler_;
   bool is_profiling_;
 

@@ -4547,28 +4547,6 @@ class V8_EXPORT V8 {
       intptr_t change_in_bytes);
 
   /**
-   * Suspends recording of tick samples in the profiler.
-   * When the V8 profiling mode is enabled (usually via command line
-   * switches) this function suspends recording of tick samples.
-   * Profiling ticks are discarded until ResumeProfiler() is called.
-   *
-   * See also the --prof and --prof_auto command line switches to
-   * enable V8 profiling.
-   */
-  V8_DEPRECATED(static void PauseProfiler());
-
-  /**
-   * Resumes recording of tick samples in the profiler.
-   * See also PauseProfiler().
-   */
-  V8_DEPRECATED(static void ResumeProfiler());
-
-  /**
-   * Return whether profiler is currently paused.
-   */
-  V8_DEPRECATED(static bool IsProfilerPaused());
-
-  /**
    * Retrieve the V8 thread id of the calling thread.
    *
    * The thread id for a thread should only be retrieved after the V8

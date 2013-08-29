@@ -563,7 +563,6 @@ class Profiler: public Thread {
   virtual void Run();
 
   // Pause and Resume TickSample data collection.
-  bool paused() const { return paused_; }
   void pause() { paused_ = true; }
   void resume() { paused_ = false; }
 
@@ -623,7 +622,7 @@ class Ticker: public Sampler {
     ASSERT(profiler_ == NULL);
     profiler_ = profiler;
     IncreaseProfilingDepth();
-    if (!FLAG_prof_lazy && !IsActive()) Start();
+    if (!IsActive()) Start();
   }
 
   void ClearProfiler() {
@@ -710,8 +709,7 @@ Logger::Logger(Isolate* isolate)
     ticker_(NULL),
     profiler_(NULL),
     log_events_(NULL),
-    logging_nesting_(0),
-    cpu_profiler_nesting_(0),
+    is_logging_(false),
     log_(new Log(this)),
     ll_logger_(NULL),
     jit_logger_(NULL),
@@ -1521,43 +1519,11 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
 }
 
 
-bool Logger::IsProfilerPaused() {
-  return profiler_ == NULL || profiler_->paused();
-}
-
-
-void Logger::PauseProfiler() {
+void Logger::StopProfiler() {
   if (!log_->IsEnabled()) return;
   if (profiler_ != NULL) {
-    // It is OK to have negative nesting.
-    if (--cpu_profiler_nesting_ == 0) {
-      profiler_->pause();
-      if (FLAG_prof_lazy) {
-        ticker_->Stop();
-        FLAG_log_code = false;
-        LOG(ISOLATE, UncheckedStringEvent("profiler", "pause"));
-      }
-      --logging_nesting_;
-    }
-  }
-}
-
-
-void Logger::ResumeProfiler() {
-  if (!log_->IsEnabled()) return;
-  if (profiler_ != NULL) {
-    if (cpu_profiler_nesting_++ == 0) {
-      ++logging_nesting_;
-      if (FLAG_prof_lazy) {
-        profiler_->Engage();
-        LOG(ISOLATE, UncheckedStringEvent("profiler", "resume"));
-        FLAG_log_code = true;
-        LogCompiledFunctions();
-        LogAccessorCallbacks();
-        if (!ticker_->IsActive()) ticker_->Start();
-      }
-      profiler_->resume();
-    }
+    profiler_->pause();
+    is_logging_ = false;
   }
 }
 
@@ -1565,7 +1531,7 @@ void Logger::ResumeProfiler() {
 // This function can be called when Log's mutex is acquired,
 // either from main or Profiler's thread.
 void Logger::LogFailure() {
-  PauseProfiler();
+  StopProfiler();
 }
 
 
@@ -1865,11 +1831,6 @@ bool Logger::SetUp(Isolate* isolate) {
     FLAG_log_snapshot_positions = true;
   }
 
-  // --prof_lazy controls --log-code.
-  if (FLAG_prof_lazy) {
-    FLAG_log_code = false;
-  }
-
   SmartArrayPointer<const char> log_file_name =
       PrepareLogFileName(FLAG_logfile);
   log_->Initialize(*log_file_name);
@@ -1882,17 +1843,13 @@ bool Logger::SetUp(Isolate* isolate) {
   ticker_ = new Ticker(isolate, kSamplingIntervalMs);
 
   if (Log::InitLogAtStart()) {
-    logging_nesting_ = 1;
+    is_logging_ = true;
   }
 
   if (FLAG_prof) {
     profiler_ = new Profiler(isolate);
-    if (FLAG_prof_lazy) {
-      profiler_->pause();
-    } else {
-      logging_nesting_ = 1;
-      profiler_->Engage();
-    }
+    is_logging_ = true;
+    profiler_->Engage();
   }
 
   if (FLAG_log_internal_timer_events || FLAG_prof) timer_.Start();
