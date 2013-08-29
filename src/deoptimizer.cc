@@ -1697,11 +1697,23 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
         Handle<Object> properties = MaterializeNextValue();
         Handle<Object> elements = MaterializeNextValue();
         object->set_properties(FixedArray::cast(*properties));
-        object->set_elements(FixedArray::cast(*elements));
+        object->set_elements(FixedArrayBase::cast(*elements));
         for (int i = 0; i < length - 3; ++i) {
           Handle<Object> value = MaterializeNextValue();
           object->FastPropertyAtPut(i, *value);
         }
+        break;
+      }
+      case JS_ARRAY_TYPE: {
+        Handle<JSArray> object =
+            isolate_->factory()->NewJSArray(0, map->elements_kind());
+        materialized_objects_->Add(object);
+        Handle<Object> properties = MaterializeNextValue();
+        Handle<Object> elements = MaterializeNextValue();
+        Handle<Object> length = MaterializeNextValue();
+        object->set_properties(FixedArray::cast(*properties));
+        object->set_elements(FixedArrayBase::cast(*elements));
+        object->set_length(*length);
         break;
       }
       default:
