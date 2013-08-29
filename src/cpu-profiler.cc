@@ -139,24 +139,9 @@ void ProfilerEventsProcessor::ProcessEventsAndDoSample() {
 }
 
 
-void ProfilerEventsProcessor::ProcessEventsAndYield() {
-  // Process ticks until we have any.
-  if (ProcessTicks()) {
-    // All ticks of the current dequeue_order are processed,
-    // proceed to the next code event.
-    ProcessCodeEvent();
-  }
-  YieldCPU();
-}
-
-
 void ProfilerEventsProcessor::Run() {
   while (running_) {
-    if (Sampler::CanSampleOnProfilerEventsProcessorThread()) {
-      ProcessEventsAndDoSample();
-    } else {
-      ProcessEventsAndYield();
-    }
+    ProcessEventsAndDoSample();
   }
 
   // Process remaining tick events.
@@ -382,7 +367,6 @@ CpuProfiler::CpuProfiler(Isolate* isolate)
       next_profile_uid_(1),
       generator_(NULL),
       processor_(NULL),
-      need_to_stop_sampler_(false),
       is_profiling_(false) {
 }
 
@@ -396,7 +380,6 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
       next_profile_uid_(1),
       generator_(test_generator),
       processor_(test_processor),
-      need_to_stop_sampler_(false),
       is_profiling_(false) {
 }
 
@@ -447,14 +430,8 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     logger->LogAccessorCallbacks();
     LogBuiltins();
     // Enable stack sampling.
-    if (Sampler::CanSampleOnProfilerEventsProcessorThread()) {
-      sampler->SetHasProcessingThread(true);
-    }
+    sampler->SetHasProcessingThread(true);
     sampler->IncreaseProfilingDepth();
-    if (!sampler->IsActive()) {
-      sampler->Start();
-      need_to_stop_sampler_ = true;
-    }
     processor_->StartSynchronously();
   }
 }
@@ -487,20 +464,14 @@ void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
 void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();
   Sampler* sampler = reinterpret_cast<Sampler*>(logger->ticker_);
-  sampler->DecreaseProfilingDepth();
   is_profiling_ = false;
   processor_->StopSynchronously();
   delete processor_;
   delete generator_;
   processor_ = NULL;
   generator_ = NULL;
-  if (Sampler::CanSampleOnProfilerEventsProcessorThread()) {
-    sampler->SetHasProcessingThread(false);
-  }
-  if (need_to_stop_sampler_) {
-    sampler->Stop();
-    need_to_stop_sampler_ = false;
-  }
+  sampler->SetHasProcessingThread(false);
+  sampler->DecreaseProfilingDepth();
   logger->is_logging_ = saved_is_logging_;
 }
 

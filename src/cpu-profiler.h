@@ -163,7 +163,6 @@ class ProfilerEventsProcessor : public Thread {
   bool ProcessTicks();
 
   void ProcessEventsAndDoSample();
-  void ProcessEventsAndYield();
 
   ProfileGenerator* generator_;
   Sampler* sampler_;
@@ -266,7 +265,6 @@ class CpuProfiler : public CodeEventListener {
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   bool saved_is_logging_;
-  bool need_to_stop_sampler_;
   bool is_profiling_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);

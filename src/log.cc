@@ -626,9 +626,9 @@ class Ticker: public Sampler {
   }
 
   void ClearProfiler() {
-    DecreaseProfilingDepth();
     profiler_ = NULL;
     if (IsActive()) Stop();
+    DecreaseProfilingDepth();
   }
 
  private:

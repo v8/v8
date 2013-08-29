@@ -248,8 +248,25 @@ class SimulatorHelper {
 
 class SignalHandler : public AllStatic {
  public:
-  static inline void EnsureInstalled() {
-    if (signal_handler_installed_) return;
+  static void SetUp() { if (!mutex_) mutex_ = new Mutex(); }
+  static void TearDown() { delete mutex_; }
+
+  static void IncreaseSamplerCount() {
+    LockGuard<Mutex> lock_guard(mutex_);
+    if (++client_count_ == 1) Install();
+  }
+
+  static void DecreaseSamplerCount() {
+    LockGuard<Mutex> lock_guard(mutex_);
+    if (--client_count_ == 0) Restore();
+  }
+
+  static bool Installed() {
+    return signal_handler_installed_;
+  }
+
+ private:
+  static void Install() {
     struct sigaction sa;
     sa.sa_sigaction = &HandleProfilerSignal;
     sigemptyset(&sa.sa_mask);
@@ -258,23 +275,24 @@ class SignalHandler : public AllStatic {
         (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
   }
 
-  static inline void Restore() {
+  static void Restore() {
     if (signal_handler_installed_) {
       sigaction(SIGPROF, &old_signal_handler_, 0);
       signal_handler_installed_ = false;
     }
   }
 
-  static inline bool Installed() {
-    return signal_handler_installed_;
-  }
-
- private:
   static void HandleProfilerSignal(int signal, siginfo_t* info, void* context);
+  // Protects the process wide state below.
+  static Mutex* mutex_;
+  static int client_count_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
 };
 
+
+Mutex* SignalHandler::mutex_ = NULL;
+int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
 
@@ -299,7 +317,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   }
 
   Sampler* sampler = isolate->logger()->sampler();
-  if (sampler == NULL || !sampler->IsActive()) return;
+  if (sampler == NULL) return;
 
   RegisterState state;
 
@@ -436,9 +454,6 @@ class SamplerThread : public Thread {
     ASSERT(instance_->interval_ == sampler->interval());
     instance_->active_samplers_.Add(sampler);
 
-#if defined(USE_SIGNALS)
-    SignalHandler::EnsureInstalled();
-#endif
     if (need_to_start) instance_->StartSynchronously();
   }
 
@@ -457,9 +472,6 @@ class SamplerThread : public Thread {
       if (instance_->active_samplers_.is_empty()) {
         instance_to_remove = instance_;
         instance_ = NULL;
-#if defined(USE_SIGNALS)
-        SignalHandler::Restore();
-#endif
       }
     }
 
@@ -548,12 +560,18 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
 
 
 void Sampler::SetUp() {
+#if defined(USE_SIGNALS)
+  SignalHandler::SetUp();
+#endif
   SamplerThread::SetUp();
 }
 
 
 void Sampler::TearDown() {
   SamplerThread::TearDown();
+#if defined(USE_SIGNALS)
+  SignalHandler::TearDown();
+#endif
 }
 
 
@@ -589,6 +607,22 @@ void Sampler::Stop() {
 }
 
 
+void Sampler::IncreaseProfilingDepth() {
+  NoBarrier_AtomicIncrement(&profiling_, 1);
+#if defined(USE_SIGNALS)
+  SignalHandler::IncreaseSamplerCount();
+#endif
+}
+
+
+void Sampler::DecreaseProfilingDepth() {
+#if defined(USE_SIGNALS)
+  SignalHandler::DecreaseSamplerCount();
+#endif
+  NoBarrier_AtomicIncrement(&profiling_, -1);
+}
+
+
 void Sampler::SampleStack(const RegisterState& state) {
   TickSample* sample = isolate_->cpu_profiler()->StartTickSample();
   TickSample sample_obj;
@@ -603,17 +637,6 @@ void Sampler::SampleStack(const RegisterState& state) {
   if (sample != &sample_obj) {
     isolate_->cpu_profiler()->FinishTickSample();
   }
-}
-
-
-bool Sampler::CanSampleOnProfilerEventsProcessorThread() {
-#if defined(USE_SIGNALS)
-  return true;
-#elif V8_OS_WIN || V8_OS_CYGWIN
-  return true;
-#else
-  return false;
-#endif
 }
 
 
