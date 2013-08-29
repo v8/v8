@@ -46,12 +46,12 @@ static const int kProfilerStackSize = 64 * KB;
 ProfilerEventsProcessor::ProfilerEventsProcessor(
     ProfileGenerator* generator,
     Sampler* sampler,
-    int period_in_useconds)
+    TimeDelta period)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
       sampler_(sampler),
       running_(true),
-      period_in_useconds_(period_in_useconds),
+      period_(period),
       last_code_event_id_(0), last_processed_code_event_id_(0) {
 }
 
@@ -124,9 +124,10 @@ bool ProfilerEventsProcessor::ProcessTicks() {
 
 
 void ProfilerEventsProcessor::ProcessEventsAndDoSample() {
-  int64_t stop_time = OS::Ticks() + period_in_useconds_;
+  ElapsedTimer timer;
+  timer.Start();
   // Keep processing existing events until we need to do next sample.
-  while (OS::Ticks() < stop_time) {
+  while (!timer.HasExpired(period_)) {
     if (ProcessTicks()) {
       // All ticks of the current dequeue_order are processed,
       // proceed to the next code event.
@@ -434,7 +435,8 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     generator_ = new ProfileGenerator(profiles_);
     Sampler* sampler = logger->sampler();
     processor_ = new ProfilerEventsProcessor(
-        generator_, sampler, FLAG_cpu_profiler_sampling_interval);
+        generator_, sampler,
+        TimeDelta::FromMicroseconds(FLAG_cpu_profiler_sampling_interval));
     is_profiling_ = true;
     // Enumerate stuff we already have in the heap.
     ASSERT(isolate_->heap()->HasBeenSetUp());

@@ -500,7 +500,7 @@ Semaphore* OS::CreateSemaphore(int count) {
 
 void OS::SetUp() {
   // Seed the random number generator. We preserve microsecond resolution.
-  uint64_t seed = Ticks() ^ (getpid() << 16);
+  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis()) ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
 }

@@ -2165,41 +2165,37 @@ Zone* AstContext::zone() const { return owner_->zone(); }
 class HStatistics V8_FINAL: public Malloced {
  public:
   HStatistics()
-      : timing_(5),
+      : times_(5),
         names_(5),
         sizes_(5),
-        create_graph_(0),
-        optimize_graph_(0),
-        generate_code_(0),
         total_size_(0),
-        full_code_gen_(0),
         source_size_(0) { }
 
   void Initialize(CompilationInfo* info);
   void Print();
-  void SaveTiming(const char* name, int64_t ticks, unsigned size);
+  void SaveTiming(const char* name, TimeDelta time, unsigned size);
 
-  void IncrementFullCodeGen(int64_t full_code_gen) {
+  void IncrementFullCodeGen(TimeDelta full_code_gen) {
     full_code_gen_ += full_code_gen;
   }
 
-  void IncrementSubtotals(int64_t create_graph,
-                          int64_t optimize_graph,
-                          int64_t generate_code) {
+  void IncrementSubtotals(TimeDelta create_graph,
+                          TimeDelta optimize_graph,
+                          TimeDelta generate_code) {
     create_graph_ += create_graph;
     optimize_graph_ += optimize_graph;
     generate_code_ += generate_code;
   }
 
  private:
-  List<int64_t> timing_;
+  List<TimeDelta> times_;
   List<const char*> names_;
   List<unsigned> sizes_;
-  int64_t create_graph_;
-  int64_t optimize_graph_;
-  int64_t generate_code_;
+  TimeDelta create_graph_;
+  TimeDelta optimize_graph_;
+  TimeDelta generate_code_;
   unsigned total_size_;
-  int64_t full_code_gen_;
+  TimeDelta full_code_gen_;
   double source_size_;
 };
 
