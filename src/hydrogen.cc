@@ -4097,9 +4097,7 @@ static bool LookupSetter(Handle<Map> map,
 // size of all objects that are part of the graph.
 static bool IsFastLiteral(Handle<JSObject> boilerplate,
                           int max_depth,
-                          int* max_properties,
-                          int* data_size,
-                          int* pointer_size) {
+                          int* max_properties) {
   if (boilerplate->map()->is_deprecated()) {
     Handle<Object> result = JSObject::TryMigrateInstance(boilerplate);
     if (result->IsSmi()) return false;
@@ -4112,9 +4110,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
   Handle<FixedArrayBase> elements(boilerplate->elements());
   if (elements->length() > 0 &&
       elements->map() != isolate->heap()->fixed_cow_array_map()) {
-    if (boilerplate->HasFastDoubleElements()) {
-      *data_size += FixedDoubleArray::SizeFor(elements->length());
-    } else if (boilerplate->HasFastObjectElements()) {
+    if (boilerplate->HasFastObjectElements()) {
       Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
       int length = elements->length();
       for (int i = 0; i < length; i++) {
@@ -4124,15 +4120,12 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
           Handle<JSObject> value_object = Handle<JSObject>::cast(value);
           if (!IsFastLiteral(value_object,
                              max_depth - 1,
-                             max_properties,
-                             data_size,
-                             pointer_size)) {
+                             max_properties)) {
             return false;
           }
         }
       }
-      *pointer_size += FixedArray::SizeFor(length);
-    } else {
+    } else if (!boilerplate->HasFastDoubleElements()) {
       return false;
     }
   }
@@ -4147,7 +4140,6 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
     for (int i = 0; i < limit; i++) {
       PropertyDetails details = descriptors->GetDetails(i);
       if (details.type() != FIELD) continue;
-      Representation representation = details.representation();
       int index = descriptors->GetFieldIndex(i);
       if ((*max_properties)-- == 0) return false;
       Handle<Object> value(boilerplate->InObjectPropertyAt(index), isolate);
@@ -4155,18 +4147,12 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
         Handle<JSObject> value_object = Handle<JSObject>::cast(value);
         if (!IsFastLiteral(value_object,
                            max_depth - 1,
-                           max_properties,
-                           data_size,
-                           pointer_size)) {
+                           max_properties)) {
           return false;
         }
-      } else if (representation.IsDouble()) {
-        *data_size += HeapNumber::kSize;
       }
     }
   }
-
-  *pointer_size += boilerplate->map()->instance_size();
   return true;
 }
 
@@ -4176,32 +4162,21 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   Handle<JSFunction> closure = function_state()->compilation_info()->closure();
-  HValue* context = environment()->context();
   HInstruction* literal;
 
   // Check whether to use fast or slow deep-copying for boilerplate.
-  int data_size = 0;
-  int pointer_size = 0;
   int max_properties = kMaxFastLiteralProperties;
-  Handle<Object> original_boilerplate(closure->literals()->get(
+  Handle<Object> boilerplate(closure->literals()->get(
       expr->literal_index()), isolate());
-  if (original_boilerplate->IsJSObject() &&
-      IsFastLiteral(Handle<JSObject>::cast(original_boilerplate),
+  if (boilerplate->IsJSObject() &&
+      IsFastLiteral(Handle<JSObject>::cast(boilerplate),
                     kMaxFastLiteralDepth,
-                    &max_properties,
-                    &data_size,
-                    &pointer_size)) {
-    Handle<JSObject> original_boilerplate_object =
-        Handle<JSObject>::cast(original_boilerplate);
+                    &max_properties)) {
     Handle<JSObject> boilerplate_object =
-        DeepCopy(original_boilerplate_object);
+        Handle<JSObject>::cast(boilerplate);
 
-    literal = BuildFastLiteral(context,
-                               boilerplate_object,
-                               original_boilerplate_object,
+    literal = BuildFastLiteral(boilerplate_object,
                                Handle<Object>::null(),
-                               data_size,
-                               pointer_size,
                                DONT_TRACK_ALLOCATION_SITE);
   } else {
     NoObservableSideEffectsScope no_effects(this);
@@ -4303,7 +4278,6 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   ASSERT(current_block()->HasPredecessor());
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
-  HValue* context = environment()->context();
   HInstruction* literal;
 
   Handle<AllocationSite> site;
@@ -4337,10 +4311,10 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   ASSERT(!raw_boilerplate.is_null());
   ASSERT(site->IsLiteralSite());
 
-  Handle<JSObject> original_boilerplate_object =
+  Handle<JSObject> boilerplate_object =
       Handle<JSObject>::cast(raw_boilerplate);
   ElementsKind boilerplate_elements_kind =
-      Handle<JSObject>::cast(original_boilerplate_object)->GetElementsKind();
+      Handle<JSObject>::cast(boilerplate_object)->GetElementsKind();
 
   // TODO(mvstanton): This heuristic is only a temporary solution.  In the
   // end, we want to quit creating allocation site info after a certain number
@@ -4349,25 +4323,12 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       boilerplate_elements_kind);
 
   // Check whether to use fast or slow deep-copying for boilerplate.
-  int data_size = 0;
-  int pointer_size = 0;
   int max_properties = kMaxFastLiteralProperties;
-  if (IsFastLiteral(original_boilerplate_object,
+  if (IsFastLiteral(boilerplate_object,
                     kMaxFastLiteralDepth,
-                    &max_properties,
-                    &data_size,
-                    &pointer_size)) {
-    if (mode == TRACK_ALLOCATION_SITE) {
-      pointer_size += AllocationMemento::kSize;
-    }
-
-    Handle<JSObject> boilerplate_object = DeepCopy(original_boilerplate_object);
-    literal = BuildFastLiteral(context,
-                               boilerplate_object,
-                               original_boilerplate_object,
+                    &max_properties)) {
+    literal = BuildFastLiteral(boilerplate_object,
                                site,
-                               data_size,
-                               pointer_size,
                                mode);
   } else {
     NoObservableSideEffectsScope no_effects(this);
@@ -4387,8 +4348,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                                 3);
 
     // De-opt if elements kind changed from boilerplate_elements_kind.
-    Handle<Map> map = Handle<Map>(original_boilerplate_object->map(),
-                                  isolate());
+    Handle<Map> map = Handle<Map>(boilerplate_object->map(), isolate());
     literal = Add<HCheckMaps>(literal, map, top_info());
   }
 
@@ -8274,59 +8234,15 @@ HInstruction* HOptimizedGraphBuilder::BuildThisFunction() {
 
 
 HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
-    HValue* context,
     Handle<JSObject> boilerplate_object,
-    Handle<JSObject> original_boilerplate_object,
-    Handle<Object> allocation_site,
-    int data_size,
-    int pointer_size,
+    Handle<Object> allocation_site_object,
     AllocationSiteMode mode) {
   NoObservableSideEffectsScope no_effects(this);
 
-  HInstruction* target = NULL;
-  HInstruction* data_target = NULL;
+  Handle<FixedArrayBase> elements(boilerplate_object->elements());
+  int object_size = boilerplate_object->map()->instance_size();
+  int object_offset = object_size;
 
-  if (isolate()->heap()->GetPretenureMode() == TENURED) {
-    if (data_size != 0) {
-      HValue* size_in_bytes = Add<HConstant>(data_size);
-      data_target = Add<HAllocate>(size_in_bytes, HType::JSObject(), TENURED,
-          FIXED_DOUBLE_ARRAY_TYPE);
-      Handle<Map> free_space_map = isolate()->factory()->free_space_map();
-      AddStoreMapConstant(data_target, free_space_map);
-      HObjectAccess access =
-          HObjectAccess::ForJSObjectOffset(FreeSpace::kSizeOffset);
-      Add<HStoreNamedField>(data_target, access, size_in_bytes);
-    }
-    if (pointer_size != 0) {
-      HValue* size_in_bytes = Add<HConstant>(pointer_size);
-      target = Add<HAllocate>(size_in_bytes, HType::JSObject(), TENURED,
-          JS_OBJECT_TYPE);
-    }
-  } else {
-    InstanceType instance_type = boilerplate_object->map()->instance_type();
-    HValue* size_in_bytes = Add<HConstant>(data_size + pointer_size);
-    target = Add<HAllocate>(size_in_bytes, HType::JSObject(), NOT_TENURED,
-        instance_type);
-  }
-
-  int offset = 0;
-  int data_offset = 0;
-  BuildEmitDeepCopy(boilerplate_object, original_boilerplate_object,
-                    allocation_site, target, &offset, data_target,
-                    &data_offset, mode);
-  return target;
-}
-
-
-void HOptimizedGraphBuilder::BuildEmitDeepCopy(
-    Handle<JSObject> boilerplate_object,
-    Handle<JSObject> original_boilerplate_object,
-    Handle<Object> allocation_site_object,
-    HInstruction* target,
-    int* offset,
-    HInstruction* data_target,
-    int* data_offset,
-    AllocationSiteMode mode) {
   bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE &&
       AllocationSite::CanTrack(boilerplate_object->map()->instance_type());
 
@@ -8335,99 +8251,67 @@ void HOptimizedGraphBuilder::BuildEmitDeepCopy(
   ASSERT(!create_allocation_site_info ||
          AllocationSite::cast(*allocation_site_object)->IsLiteralSite());
 
-  HInstruction* allocation_site = NULL;
-
   if (create_allocation_site_info) {
-    allocation_site = Add<HConstant>(allocation_site_object);
+    object_size += AllocationMemento::kSize;
   }
 
-  // Only elements backing stores for non-COW arrays need to be copied.
-  Handle<FixedArrayBase> elements(boilerplate_object->elements());
-  Handle<FixedArrayBase> original_elements(
-      original_boilerplate_object->elements());
-  ElementsKind kind = boilerplate_object->map()->elements_kind();
+  HValue* object_size_constant = Add<HConstant>(object_size);
+  HInstruction* object = Add<HAllocate>(object_size_constant, HType::JSObject(),
+      isolate()->heap()->GetPretenureMode(), JS_OBJECT_TYPE);
 
-  int object_offset = *offset;
-  int object_size = boilerplate_object->map()->instance_size();
+
+  BuildEmitObjectHeader(boilerplate_object, object);
+
+  if (create_allocation_site_info) {
+    HInstruction* allocation_site = Add<HConstant>(allocation_site_object);
+    BuildCreateAllocationMemento(object, object_offset, allocation_site);
+  }
+
   int elements_size = (elements->length() > 0 &&
       elements->map() != isolate()->heap()->fixed_cow_array_map()) ?
           elements->Size() : 0;
-  int elements_offset = 0;
 
-  if (data_target != NULL && boilerplate_object->HasFastDoubleElements()) {
-    elements_offset = *data_offset;
-    *data_offset += elements_size;
-  } else {
-    // Place elements right after this object.
-    elements_offset = *offset + object_size;
-    *offset += elements_size;
+  HInstruction* object_elements = NULL;
+  if (elements_size > 0) {
+    HValue* object_elements_size = Add<HConstant>(elements_size);
+    if (boilerplate_object->HasFastDoubleElements()) {
+      object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
+          isolate()->heap()->GetPretenureMode(), FIXED_DOUBLE_ARRAY_TYPE);
+    } else {
+      object_elements = Add<HAllocate>(object_elements_size, HType::JSObject(),
+          isolate()->heap()->GetPretenureMode(), FIXED_ARRAY_TYPE);
+    }
   }
-  // Increase the offset so that subsequent objects end up right after this
-  // object (and it's elements if they are allocated in the same space).
-  *offset += object_size;
+  BuildInitElementsInObjectHeader(boilerplate_object, object, object_elements);
+
 
   // Copy object elements if non-COW.
-  HValue* object_elements = BuildEmitObjectHeader(boilerplate_object, target,
-      data_target, object_offset, elements_offset, elements_size);
   if (object_elements != NULL) {
-    BuildEmitElements(elements, original_elements, kind, object_elements,
-        target, offset, data_target, data_offset);
+    BuildEmitElements(boilerplate_object, elements, object_elements);
   }
 
   // Copy in-object properties.
   if (boilerplate_object->map()->NumberOfFields() != 0) {
-    HValue* object_properties =
-        Add<HInnerAllocatedObject>(target, object_offset);
-    BuildEmitInObjectProperties(boilerplate_object, original_boilerplate_object,
-        object_properties, target, offset, data_target, data_offset);
+    BuildEmitInObjectProperties(boilerplate_object, object);
   }
-
-  // Create allocation site info.
-  if (mode == TRACK_ALLOCATION_SITE &&
-      AllocationSite::CanTrack(boilerplate_object->map()->instance_type())) {
-    elements_offset += AllocationMemento::kSize;
-    *offset += AllocationMemento::kSize;
-    BuildCreateAllocationMemento(target, JSArray::kSize, allocation_site);
-  }
+  return object;
 }
 
 
-HValue* HOptimizedGraphBuilder::BuildEmitObjectHeader(
+void HOptimizedGraphBuilder::BuildEmitObjectHeader(
     Handle<JSObject> boilerplate_object,
-    HInstruction* target,
-    HInstruction* data_target,
-    int object_offset,
-    int elements_offset,
-    int elements_size) {
+    HInstruction* object) {
   ASSERT(boilerplate_object->properties()->length() == 0);
-  HValue* result = NULL;
 
-  HValue* object_header = Add<HInnerAllocatedObject>(target, object_offset);
   Handle<Map> boilerplate_object_map(boilerplate_object->map());
-  AddStoreMapConstant(object_header, boilerplate_object_map);
-
-  HInstruction* elements;
-  if (elements_size == 0) {
-    Handle<Object> elements_field =
-        Handle<Object>(boilerplate_object->elements(), isolate());
-    elements = Add<HConstant>(elements_field);
-  } else {
-    if (data_target != NULL && boilerplate_object->HasFastDoubleElements()) {
-      elements = Add<HInnerAllocatedObject>(data_target, elements_offset);
-    } else {
-      elements = Add<HInnerAllocatedObject>(target, elements_offset);
-    }
-    result = elements;
-  }
-  Add<HStoreNamedField>(object_header, HObjectAccess::ForElementsPointer(),
-                        elements);
+  AddStoreMapConstant(object, boilerplate_object_map);
 
   Handle<Object> properties_field =
       Handle<Object>(boilerplate_object->properties(), isolate());
   ASSERT(*properties_field == isolate()->heap()->empty_fixed_array());
   HInstruction* properties = Add<HConstant>(properties_field);
   HObjectAccess access = HObjectAccess::ForPropertiesPointer();
-  Add<HStoreNamedField>(object_header, access, properties);
+  Add<HStoreNamedField>(object, access, properties);
 
   if (boilerplate_object->IsJSArray()) {
     Handle<JSArray> boilerplate_array =
@@ -8437,22 +8321,30 @@ HValue* HOptimizedGraphBuilder::BuildEmitObjectHeader(
     HInstruction* length = Add<HConstant>(length_field);
 
     ASSERT(boilerplate_array->length()->IsSmi());
-    Add<HStoreNamedField>(object_header, HObjectAccess::ForArrayLength(
+    Add<HStoreNamedField>(object, HObjectAccess::ForArrayLength(
         boilerplate_array->GetElementsKind()), length);
   }
+}
 
-  return result;
+
+void HOptimizedGraphBuilder::BuildInitElementsInObjectHeader(
+    Handle<JSObject> boilerplate_object,
+    HInstruction* object,
+    HInstruction* object_elements) {
+  ASSERT(boilerplate_object->properties()->length() == 0);
+  if (object_elements == NULL) {
+    Handle<Object> elements_field =
+        Handle<Object>(boilerplate_object->elements(), isolate());
+    object_elements = Add<HConstant>(elements_field);
+  }
+  Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
+      object_elements);
 }
 
 
 void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     Handle<JSObject> boilerplate_object,
-    Handle<JSObject> original_boilerplate_object,
-    HValue* object_properties,
-    HInstruction* target,
-    int* offset,
-    HInstruction* data_target,
-    int* data_offset) {
+    HInstruction* object) {
   Handle<DescriptorArray> descriptors(
       boilerplate_object->map()->instance_descriptors());
   int limit = boilerplate_object->map()->NumberOfOwnDescriptors();
@@ -8476,31 +8368,20 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
 
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      Handle<JSObject> original_value_object = Handle<JSObject>::cast(
-          Handle<Object>(original_boilerplate_object->InObjectPropertyAt(index),
-              isolate()));
-      HInstruction* value_instruction = Add<HInnerAllocatedObject>(target,
-                                                                   *offset);
-
-      Add<HStoreNamedField>(object_properties, access, value_instruction);
-      BuildEmitDeepCopy(value_object, original_value_object,
-                        Handle<Object>::null(), target,
-                        offset, data_target, data_offset,
-                        DONT_TRACK_ALLOCATION_SITE);
+      HInstruction* result =
+          BuildFastLiteral(value_object,
+              Handle<Object>::null(), DONT_TRACK_ALLOCATION_SITE);
+      Add<HStoreNamedField>(object, access, result);
     } else {
       Representation representation = details.representation();
       HInstruction* value_instruction = Add<HConstant>(value);
 
       if (representation.IsDouble()) {
         // Allocate a HeapNumber box and store the value into it.
-        HInstruction* double_box;
-        if (data_target != NULL) {
-          double_box = Add<HInnerAllocatedObject>(data_target, *data_offset);
-          *data_offset += HeapNumber::kSize;
-        } else {
-          double_box = Add<HInnerAllocatedObject>(target, *offset);
-          *offset += HeapNumber::kSize;
-        }
+        HValue* heap_number_constant = Add<HConstant>(HeapNumber::kSize);
+        HInstruction* double_box =
+            Add<HAllocate>(heap_number_constant, HType::HeapNumber(),
+                isolate()->heap()->GetPretenureMode(), HEAP_NUMBER_TYPE);
         AddStoreMapConstant(double_box,
             isolate()->factory()->heap_number_map());
         Add<HStoreNamedField>(double_box, HObjectAccess::ForHeapNumberValue(),
@@ -8508,7 +8389,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         value_instruction = double_box;
       }
 
-      Add<HStoreNamedField>(object_properties, access, value_instruction);
+      Add<HStoreNamedField>(object, access, value_instruction);
     }
   }
 
@@ -8519,31 +8400,25 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     ASSERT(boilerplate_object->IsJSObject());
     int property_offset = boilerplate_object->GetInObjectPropertyOffset(i);
     HObjectAccess access = HObjectAccess::ForJSObjectOffset(property_offset);
-    Add<HStoreNamedField>(object_properties, access, value_instruction);
+    Add<HStoreNamedField>(object, access, value_instruction);
   }
 }
 
 
 void HOptimizedGraphBuilder::BuildEmitElements(
+    Handle<JSObject> boilerplate_object,
     Handle<FixedArrayBase> elements,
-    Handle<FixedArrayBase> original_elements,
-    ElementsKind kind,
-    HValue* object_elements,
-    HInstruction* target,
-    int* offset,
-    HInstruction* data_target,
-    int* data_offset) {
+    HValue* object_elements) {
+  ElementsKind kind = boilerplate_object->map()->elements_kind();
   int elements_length = elements->length();
   HValue* object_elements_length = Add<HConstant>(elements_length);
-
   BuildInitializeElementsHeader(object_elements, kind, object_elements_length);
 
   // Copy elements backing store content.
   if (elements->IsFixedDoubleArray()) {
     BuildEmitFixedDoubleArray(elements, kind, object_elements);
   } else if (elements->IsFixedArray()) {
-    BuildEmitFixedArray(elements, original_elements, kind, object_elements,
-        target, offset, data_target, data_offset);
+    BuildEmitFixedArray(elements, kind, object_elements);
   } else {
     UNREACHABLE();
   }
@@ -8571,32 +8446,20 @@ void HOptimizedGraphBuilder::BuildEmitFixedDoubleArray(
 
 void HOptimizedGraphBuilder::BuildEmitFixedArray(
     Handle<FixedArrayBase> elements,
-    Handle<FixedArrayBase> original_elements,
     ElementsKind kind,
-    HValue* object_elements,
-    HInstruction* target,
-    int* offset,
-    HInstruction* data_target,
-    int* data_offset) {
+    HValue* object_elements) {
   HInstruction* boilerplate_elements = Add<HConstant>(elements);
   int elements_length = elements->length();
   Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
-  Handle<FixedArray> original_fast_elements =
-      Handle<FixedArray>::cast(original_elements);
   for (int i = 0; i < elements_length; i++) {
     Handle<Object> value(fast_elements->get(i), isolate());
     HValue* key_constant = Add<HConstant>(i);
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      Handle<JSObject> original_value_object = Handle<JSObject>::cast(
-          Handle<Object>(original_fast_elements->get(i), isolate()));
-      HInstruction* value_instruction = Add<HInnerAllocatedObject>(target,
-                                                                   *offset);
-      Add<HStoreKeyed>(object_elements, key_constant, value_instruction, kind);
-      BuildEmitDeepCopy(value_object, original_value_object,
-                        Handle<Object>::null(), target,
-                        offset, data_target, data_offset,
-                        DONT_TRACK_ALLOCATION_SITE);
+      HInstruction* result =
+          BuildFastLiteral(value_object,
+              Handle<Object>::null(), DONT_TRACK_ALLOCATION_SITE);
+      Add<HStoreKeyed>(object_elements, key_constant, result, kind);
     } else {
       HInstruction* value_instruction =
           Add<HLoadKeyed>(boilerplate_elements, key_constant,

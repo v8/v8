@@ -2063,60 +2063,31 @@ class HOptimizedGraphBuilder V8_FINAL
 
   HInstruction* BuildThisFunction();
 
-  HInstruction* BuildFastLiteral(HValue* context,
-                                 Handle<JSObject> boilerplate_object,
-                                 Handle<JSObject> original_boilerplate_object,
+  HInstruction* BuildFastLiteral(Handle<JSObject> boilerplate_object,
                                  Handle<Object> allocation_site,
-                                 int data_size,
-                                 int pointer_size,
                                  AllocationSiteMode mode);
 
-  void BuildEmitDeepCopy(Handle<JSObject> boilerplat_object,
-                         Handle<JSObject> object,
-                         Handle<Object> allocation_site,
-                         HInstruction* target,
-                         int* offset,
-                         HInstruction* data_target,
-                         int* data_offset,
-                         AllocationSiteMode mode);
+  void BuildEmitObjectHeader(Handle<JSObject> boilerplate_object,
+                             HInstruction* object);
 
-  MUST_USE_RESULT HValue* BuildEmitObjectHeader(
-      Handle<JSObject> boilerplat_object,
-      HInstruction* target,
-      HInstruction* data_target,
-      int object_offset,
-      int elements_offset,
-      int elements_size);
+  void BuildInitElementsInObjectHeader(Handle<JSObject> boilerplate_object,
+                                       HInstruction* object,
+                                       HInstruction* object_elements);
 
   void BuildEmitInObjectProperties(Handle<JSObject> boilerplate_object,
-                                   Handle<JSObject> original_boilerplate_object,
-                                   HValue* object_properties,
-                                   HInstruction* target,
-                                   int* offset,
-                                   HInstruction* data_target,
-                                   int* data_offset);
+                                   HInstruction* object);
 
-  void BuildEmitElements(Handle<FixedArrayBase> elements,
-                         Handle<FixedArrayBase> original_elements,
-                         ElementsKind kind,
-                         HValue* object_elements,
-                         HInstruction* target,
-                         int* offset,
-                         HInstruction* data_target,
-                         int* data_offset);
+  void BuildEmitElements(Handle<JSObject> boilerplate_object,
+                         Handle<FixedArrayBase> elements,
+                         HValue* object_elements);
 
   void BuildEmitFixedDoubleArray(Handle<FixedArrayBase> elements,
                                  ElementsKind kind,
                                  HValue* object_elements);
 
   void BuildEmitFixedArray(Handle<FixedArrayBase> elements,
-                           Handle<FixedArrayBase> original_elements,
                            ElementsKind kind,
-                           HValue* object_elements,
-                           HInstruction* target,
-                           int* offset,
-                           HInstruction* data_target,
-                           int* data_offset);
+                           HValue* object_elements);
 
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);
