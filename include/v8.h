@@ -5578,13 +5578,13 @@ template<class T>
 template<class S>
 void Eternal<T>::Set(Isolate* isolate, Local<S> handle) {
   TYPE_CHECK(T, S);
-  V8::Eternalize(isolate, Value::Cast(*handle), &this->index_);
+  V8::Eternalize(isolate, reinterpret_cast<Value*>(*handle), &this->index_);
 }
 
 
 template<class T>
 Local<T> Eternal<T>::Get(Isolate* isolate) {
-  return Local<T>::Cast(V8::GetEternal(isolate, index_));
+  return Local<T>(reinterpret_cast<T*>(*V8::GetEternal(isolate, index_)));
 }
 
 
