@@ -2294,7 +2294,8 @@ class JSObject: public JSReceiver {
   Object* GetHiddenProperty(Name* key);
   // Deletes a hidden property. Deleting a non-existing property is
   // considered successful.
-  void DeleteHiddenProperty(Name* key);
+  static void DeleteHiddenProperty(Handle<JSObject> object,
+                                   Handle<Name> key);
   // Returns true if the object has a property with the hidden string as name.
   bool HasHiddenProperties();
 

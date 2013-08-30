@@ -4849,30 +4849,27 @@ MaybeObject* JSObject::SetHiddenProperty(Name* key, Object* value) {
 }
 
 
-void JSObject::DeleteHiddenProperty(Name* key) {
+void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
+  Isolate* isolate = object->GetIsolate();
   ASSERT(key->IsUniqueName());
-  if (IsJSGlobalProxy()) {
-    // For a proxy, use the prototype as target object.
-    Object* proxy_parent = GetPrototype();
-    // If the proxy is detached, return immediately.
-    if (proxy_parent->IsNull()) return;
-    ASSERT(proxy_parent->IsJSGlobalObject());
-    JSObject::cast(proxy_parent)->DeleteHiddenProperty(key);
-    return;
+
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return;
+    ASSERT(proto->IsJSGlobalObject());
+    return DeleteHiddenProperty(Handle<JSObject>::cast(proto), key);
   }
-  ASSERT(!IsJSGlobalProxy());
+
   MaybeObject* hidden_lookup =
-      GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
+      object->GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
   Object* inline_value = hidden_lookup->ToObjectUnchecked();
 
   // We never delete (inline-stored) identity hashes.
-  ASSERT(key != GetHeap()->identity_hash_string());
+  ASSERT(*key != isolate->heap()->identity_hash_string());
   if (inline_value->IsUndefined() || inline_value->IsSmi()) return;
 
-  ObjectHashTable* hashtable = ObjectHashTable::cast(inline_value);
-  MaybeObject* delete_result = hashtable->Put(key, GetHeap()->the_hole_value());
-  USE(delete_result);
-  ASSERT(!delete_result->IsFailure());  // Delete does not cause GC.
+  Handle<ObjectHashTable> hashtable(ObjectHashTable::cast(inline_value));
+  PutIntoObjectHashTable(hashtable, key, isolate->factory()->the_hole_value());
 }
 
 

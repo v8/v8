@@ -3851,7 +3851,7 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::String> key_string =
       isolate->factory()->InternalizeString(key_obj);
-  self->DeleteHiddenProperty(*key_string);
+  i::JSObject::DeleteHiddenProperty(self, key_string);
   return true;
 }
 
