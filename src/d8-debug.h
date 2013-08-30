@@ -53,7 +53,6 @@ class RemoteDebugger {
   explicit RemoteDebugger(Isolate* isolate, int port)
       : isolate_(isolate),
         port_(port),
-        event_access_(i::OS::CreateMutex()),
         event_available_(i::OS::CreateSemaphore(0)),
         head_(NULL), tail_(NULL) {}
   void Run();
@@ -84,7 +83,7 @@ class RemoteDebugger {
   // Linked list of events from debugged V8 and from keyboard input. Access to
   // the list is guarded by a mutex and a semaphore signals new items in the
   // list.
-  i::Mutex* event_access_;
+  i::Mutex event_access_;
   i::Semaphore* event_available_;
   RemoteDebuggerEvent* head_;
   RemoteDebuggerEvent* tail_;

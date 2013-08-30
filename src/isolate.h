@@ -541,10 +541,10 @@ class Isolate {
   static void EnterDefaultIsolate();
 
   // Mutex for serializing access to break control structures.
-  Mutex* break_access() { return break_access_; }
+  RecursiveMutex* break_access() { return &break_access_; }
 
   // Mutex for serializing access to debugger.
-  Mutex* debugger_access() { return debugger_access_; }
+  RecursiveMutex* debugger_access() { return &debugger_access_; }
 
   Address get_address_from_id(AddressId id);
 
@@ -1185,7 +1185,7 @@ class Isolate {
 
   // This mutex protects highest_thread_id_, thread_data_table_ and
   // default_isolate_.
-  static Mutex* process_wide_mutex_;
+  static RecursiveMutex process_wide_mutex_;
 
   static Thread::LocalStorageKey per_isolate_thread_data_key_;
   static Thread::LocalStorageKey isolate_key_;
@@ -1253,9 +1253,9 @@ class Isolate {
   CompilationCache* compilation_cache_;
   Counters* counters_;
   CodeRange* code_range_;
-  Mutex* break_access_;
+  RecursiveMutex break_access_;
   Atomic32 debugger_initialized_;
-  Mutex* debugger_access_;
+  RecursiveMutex debugger_access_;
   Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;
@@ -1414,12 +1414,30 @@ class SaveContext BASE_EMBEDDED {
 class AssertNoContextChange BASE_EMBEDDED {
 #ifdef DEBUG
  public:
-  AssertNoContextChange() :
+  AssertNoContextChange() : context_(Isolate::Current()->context()) { }
+  ~AssertNoContextChange() {
+    ASSERT(Isolate::Current()->context() == *context_);
+  }
+
+ private:
+  Handle<Context> context_;
+#else
+ public:
+  AssertNoContextChange() { }
+#endif
+};
+
+
+// TODO(mstarzinger): Depracate as soon as everything is handlified.
+class AssertNoContextChangeWithHandleScope BASE_EMBEDDED {
+#ifdef DEBUG
+ public:
+  AssertNoContextChangeWithHandleScope() :
       scope_(Isolate::Current()),
       context_(Isolate::Current()->context(), Isolate::Current()) {
   }
 
-  ~AssertNoContextChange() {
+  ~AssertNoContextChangeWithHandleScope() {
     ASSERT(Isolate::Current()->context() == *context_);
   }
 
@@ -1428,7 +1446,7 @@ class AssertNoContextChange BASE_EMBEDDED {
   Handle<Context> context_;
 #else
  public:
-  AssertNoContextChange() { }
+  AssertNoContextChangeWithHandleScope() { }
 #endif
 };
 
@@ -1440,11 +1458,11 @@ class ExecutionAccess BASE_EMBEDDED {
   }
   ~ExecutionAccess() { Unlock(isolate_); }
 
-  static void Lock(Isolate* isolate) { isolate->break_access_->Lock(); }
-  static void Unlock(Isolate* isolate) { isolate->break_access_->Unlock(); }
+  static void Lock(Isolate* isolate) { isolate->break_access()->Lock(); }
+  static void Unlock(Isolate* isolate) { isolate->break_access()->Unlock(); }
 
   static bool TryLock(Isolate* isolate) {
-    return isolate->break_access_->TryLock();
+    return isolate->break_access()->TryLock();
   }
 
  private:

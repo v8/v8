@@ -2063,7 +2063,7 @@ void GDBJITInterface::AddCode(const char* name,
                               CompilationInfo* info) {
   if (!FLAG_gdbjit) return;
 
-  ScopedLock lock(mutex.Pointer());
+  LockGuard<Mutex> lock_guard(mutex.Pointer());
   DisallowHeapAllocation no_gc;
 
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
@@ -2149,7 +2149,7 @@ void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag, Code* code) {
 void GDBJITInterface::RemoveCode(Code* code) {
   if (!FLAG_gdbjit) return;
 
-  ScopedLock lock(mutex.Pointer());
+  LockGuard<Mutex> lock_guard(mutex.Pointer());
   HashMap::Entry* e = GetEntries()->Lookup(code,
                                            HashForCodeObject(code),
                                            false);
@@ -2187,7 +2187,7 @@ void GDBJITInterface::RemoveCodeRange(Address start, Address end) {
 
 void GDBJITInterface::RegisterDetailedLineInfo(Code* code,
                                                GDBJITLineInfo* line_info) {
-  ScopedLock lock(mutex.Pointer());
+  LockGuard<Mutex> lock_guard(mutex.Pointer());
   ASSERT(!IsLineInfoTagged(line_info));
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
   ASSERT(e->value == NULL);

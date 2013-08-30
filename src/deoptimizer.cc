@@ -784,12 +784,13 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
 
   // Print some helpful diagnostic information.
-  int64_t start = OS::Ticks();
   if (FLAG_log_timer_events &&
       compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     LOG(isolate(), CodeDeoptEvent(compiled_code_));
   }
+  ElapsedTimer timer;
   if (trace_) {
+    timer.Start();
     PrintF("[deoptimizing (DEOPT %s): begin 0x%08" V8PRIxPTR " ",
            MessageFor(bailout_type_),
            reinterpret_cast<intptr_t>(function_));
@@ -870,7 +871,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   // Print some helpful diagnostic information.
   if (trace_) {
-    double ms = static_cast<double>(OS::Ticks() - start) / 1000;
+    double ms = timer.Elapsed().InMillisecondsF();
     int index = output_count_ - 1;  // Index of the topmost frame.
     JSFunction* function = output_[index]->GetFunction();
     PrintF("[deoptimizing (%s): end 0x%08" V8PRIxPTR " ",
@@ -1696,11 +1697,23 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
         Handle<Object> properties = MaterializeNextValue();
         Handle<Object> elements = MaterializeNextValue();
         object->set_properties(FixedArray::cast(*properties));
-        object->set_elements(FixedArray::cast(*elements));
+        object->set_elements(FixedArrayBase::cast(*elements));
         for (int i = 0; i < length - 3; ++i) {
           Handle<Object> value = MaterializeNextValue();
           object->FastPropertyAtPut(i, *value);
         }
+        break;
+      }
+      case JS_ARRAY_TYPE: {
+        Handle<JSArray> object =
+            isolate_->factory()->NewJSArray(0, map->elements_kind());
+        materialized_objects_->Add(object);
+        Handle<Object> properties = MaterializeNextValue();
+        Handle<Object> elements = MaterializeNextValue();
+        Handle<Object> length = MaterializeNextValue();
+        object->set_properties(FixedArray::cast(*properties));
+        object->set_elements(FixedArrayBase::cast(*elements));
+        object->set_length(*length);
         break;
       }
       default:
@@ -2577,9 +2590,12 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 }
 
 
-void Deoptimizer::PatchInterruptCode(Code* unoptimized_code,
-                                     Code* interrupt_code,
-                                     Code* replacement_code) {
+void Deoptimizer::PatchInterruptCode(Isolate* isolate,
+                                     Code* unoptimized_code) {
+  DisallowHeapAllocation no_gc;
+  Code* replacement_code =
+      isolate->builtins()->builtin(Builtins::kOnStackReplacement);
+
   // Iterate over the back edge table and patch every interrupt
   // call to an unconditional call to the replacement code.
   int loop_nesting_level = unoptimized_code->allow_osr_at_loop_nesting_level();
@@ -2588,9 +2604,11 @@ void Deoptimizer::PatchInterruptCode(Code* unoptimized_code,
        !back_edges.Done();
        back_edges.Next()) {
     if (static_cast<int>(back_edges.loop_depth()) == loop_nesting_level) {
+      ASSERT_EQ(NOT_PATCHED, GetInterruptPatchState(isolate,
+                                                    unoptimized_code,
+                                                    back_edges.pc()));
       PatchInterruptCodeAt(unoptimized_code,
                            back_edges.pc(),
-                           interrupt_code,
                            replacement_code);
     }
   }
@@ -2598,14 +2616,17 @@ void Deoptimizer::PatchInterruptCode(Code* unoptimized_code,
   unoptimized_code->set_back_edges_patched_for_osr(true);
 #ifdef DEBUG
   Deoptimizer::VerifyInterruptCode(
-      unoptimized_code, interrupt_code, replacement_code, loop_nesting_level);
+      isolate, unoptimized_code, loop_nesting_level);
 #endif  // DEBUG
 }
 
 
-void Deoptimizer::RevertInterruptCode(Code* unoptimized_code,
-                                      Code* interrupt_code,
-                                      Code* replacement_code) {
+void Deoptimizer::RevertInterruptCode(Isolate* isolate,
+                                      Code* unoptimized_code) {
+  DisallowHeapAllocation no_gc;
+  Code* interrupt_code =
+      isolate->builtins()->builtin(Builtins::kInterruptCheck);
+
   // Iterate over the back edge table and revert the patched interrupt calls.
   ASSERT(unoptimized_code->back_edges_patched_for_osr());
   int loop_nesting_level = unoptimized_code->allow_osr_at_loop_nesting_level();
@@ -2614,10 +2635,10 @@ void Deoptimizer::RevertInterruptCode(Code* unoptimized_code,
        !back_edges.Done();
        back_edges.Next()) {
     if (static_cast<int>(back_edges.loop_depth()) <= loop_nesting_level) {
-      RevertInterruptCodeAt(unoptimized_code,
-                            back_edges.pc(),
-                            interrupt_code,
-                            replacement_code);
+      ASSERT_EQ(PATCHED_FOR_OSR, GetInterruptPatchState(isolate,
+                                                        unoptimized_code,
+                                                        back_edges.pc()));
+      RevertInterruptCodeAt(unoptimized_code, back_edges.pc(), interrupt_code);
     }
   }
 
@@ -2625,16 +2646,14 @@ void Deoptimizer::RevertInterruptCode(Code* unoptimized_code,
   unoptimized_code->set_allow_osr_at_loop_nesting_level(0);
 #ifdef DEBUG
   // Assert that none of the back edges are patched anymore.
-  Deoptimizer::VerifyInterruptCode(
-      unoptimized_code, interrupt_code, replacement_code, -1);
+  Deoptimizer::VerifyInterruptCode(isolate, unoptimized_code, -1);
 #endif  // DEBUG
 }
 
 
 #ifdef DEBUG
-void Deoptimizer::VerifyInterruptCode(Code* unoptimized_code,
-                                      Code* interrupt_code,
-                                      Code* replacement_code,
+void Deoptimizer::VerifyInterruptCode(Isolate* isolate,
+                                      Code* unoptimized_code,
                                       int loop_nesting_level) {
   for (FullCodeGenerator::BackEdgeTableIterator back_edges(unoptimized_code);
        !back_edges.Done();
@@ -2644,10 +2663,9 @@ void Deoptimizer::VerifyInterruptCode(Code* unoptimized_code,
     // Assert that all back edges for shallower loops (and only those)
     // have already been patched.
     CHECK_EQ((static_cast<int>(loop_depth) <= loop_nesting_level),
-             InterruptCodeIsPatched(unoptimized_code,
-                                    back_edges.pc(),
-                                    interrupt_code,
-                                    replacement_code));
+             GetInterruptPatchState(isolate,
+                                    unoptimized_code,
+                                    back_edges.pc()) != NOT_PATCHED);
   }
 }
 #endif  // DEBUG

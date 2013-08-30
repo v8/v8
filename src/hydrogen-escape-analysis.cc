@@ -31,21 +31,25 @@ namespace v8 {
 namespace internal {
 
 
-void HEscapeAnalysisPhase::CollectIfNoEscapingUses(HInstruction* instr) {
-  for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
+bool HEscapeAnalysisPhase::HasNoEscapingUses(HValue* value) {
+  for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
     if (use->HasEscapingOperandAt(it.index())) {
       if (FLAG_trace_escape_analysis) {
-        PrintF("#%d (%s) escapes through #%d (%s) @%d\n", instr->id(),
-               instr->Mnemonic(), use->id(), use->Mnemonic(), it.index());
+        PrintF("#%d (%s) escapes through #%d (%s) @%d\n", value->id(),
+               value->Mnemonic(), use->id(), use->Mnemonic(), it.index());
       }
-      return;
+      return false;
+    }
+    if (use->RedefinedOperandIndex() == it.index() && !HasNoEscapingUses(use)) {
+      if (FLAG_trace_escape_analysis) {
+        PrintF("#%d (%s) escapes redefinition #%d (%s) @%d\n", value->id(),
+               value->Mnemonic(), use->id(), use->Mnemonic(), it.index());
+      }
+      return false;
     }
   }
-  if (FLAG_trace_escape_analysis) {
-    PrintF("#%d (%s) is being captured\n", instr->id(), instr->Mnemonic());
-  }
-  captured_.Add(instr, zone());
+  return true;
 }
 
 
@@ -55,8 +59,12 @@ void HEscapeAnalysisPhase::CollectCapturedValues() {
     HBasicBlock* block = graph()->blocks()->at(i);
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
       HInstruction* instr = it.Current();
-      if (instr->IsAllocate()) {
-        CollectIfNoEscapingUses(instr);
+      if (instr->IsAllocate() && HasNoEscapingUses(instr)) {
+        if (FLAG_trace_escape_analysis) {
+          PrintF("#%d (%s) is being captured\n", instr->id(),
+                 instr->Mnemonic());
+        }
+        captured_.Add(instr, zone());
       }
     }
   }

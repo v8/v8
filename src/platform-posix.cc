@@ -313,19 +313,7 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
 
 
 double OS::TimeCurrentMillis() {
-  struct timeval tv;
-  if (gettimeofday(&tv, NULL) < 0) return 0.0;
-  return (static_cast<double>(tv.tv_sec) * 1000) +
-         (static_cast<double>(tv.tv_usec) / 1000);
-}
-
-
-int64_t OS::Ticks() {
-  // gettimeofday has microsecond resolution.
-  struct timeval tv;
-  if (gettimeofday(&tv, NULL) < 0)
-    return 0;
-  return (static_cast<int64_t>(tv.tv_sec) * 1000000) + tv.tv_usec;
+  return Time::Now().ToJsTime();
 }
 
 
@@ -748,48 +736,6 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   int result = pthread_setspecific(pthread_key, value);
   ASSERT_EQ(0, result);
   USE(result);
-}
-
-
-class POSIXMutex : public Mutex {
- public:
-  POSIXMutex() {
-    pthread_mutexattr_t attr;
-    memset(&attr, 0, sizeof(attr));
-    int result = pthread_mutexattr_init(&attr);
-    ASSERT(result == 0);
-    result = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    ASSERT(result == 0);
-    result = pthread_mutex_init(&mutex_, &attr);
-    ASSERT(result == 0);
-    result = pthread_mutexattr_destroy(&attr);
-    ASSERT(result == 0);
-    USE(result);
-  }
-
-  virtual ~POSIXMutex() { pthread_mutex_destroy(&mutex_); }
-
-  virtual int Lock() { return pthread_mutex_lock(&mutex_); }
-
-  virtual int Unlock() { return pthread_mutex_unlock(&mutex_); }
-
-  virtual bool TryLock() {
-    int result = pthread_mutex_trylock(&mutex_);
-    // Return false if the lock is busy and locking failed.
-    if (result == EBUSY) {
-      return false;
-    }
-    ASSERT(result == 0);  // Verify no other errors.
-    return true;
-  }
-
- private:
-  pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
-};
-
-
-Mutex* OS::CreateMutex() {
-  return new POSIXMutex();
 }
 
 

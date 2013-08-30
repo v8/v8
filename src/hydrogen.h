@@ -2063,60 +2063,31 @@ class HOptimizedGraphBuilder V8_FINAL
 
   HInstruction* BuildThisFunction();
 
-  HInstruction* BuildFastLiteral(HValue* context,
-                                 Handle<JSObject> boilerplate_object,
-                                 Handle<JSObject> original_boilerplate_object,
+  HInstruction* BuildFastLiteral(Handle<JSObject> boilerplate_object,
                                  Handle<Object> allocation_site,
-                                 int data_size,
-                                 int pointer_size,
                                  AllocationSiteMode mode);
 
-  void BuildEmitDeepCopy(Handle<JSObject> boilerplat_object,
-                         Handle<JSObject> object,
-                         Handle<Object> allocation_site,
-                         HInstruction* target,
-                         int* offset,
-                         HInstruction* data_target,
-                         int* data_offset,
-                         AllocationSiteMode mode);
+  void BuildEmitObjectHeader(Handle<JSObject> boilerplate_object,
+                             HInstruction* object);
 
-  MUST_USE_RESULT HValue* BuildEmitObjectHeader(
-      Handle<JSObject> boilerplat_object,
-      HInstruction* target,
-      HInstruction* data_target,
-      int object_offset,
-      int elements_offset,
-      int elements_size);
+  void BuildInitElementsInObjectHeader(Handle<JSObject> boilerplate_object,
+                                       HInstruction* object,
+                                       HInstruction* object_elements);
 
   void BuildEmitInObjectProperties(Handle<JSObject> boilerplate_object,
-                                   Handle<JSObject> original_boilerplate_object,
-                                   HValue* object_properties,
-                                   HInstruction* target,
-                                   int* offset,
-                                   HInstruction* data_target,
-                                   int* data_offset);
+                                   HInstruction* object);
 
-  void BuildEmitElements(Handle<FixedArrayBase> elements,
-                         Handle<FixedArrayBase> original_elements,
-                         ElementsKind kind,
-                         HValue* object_elements,
-                         HInstruction* target,
-                         int* offset,
-                         HInstruction* data_target,
-                         int* data_offset);
+  void BuildEmitElements(Handle<JSObject> boilerplate_object,
+                         Handle<FixedArrayBase> elements,
+                         HValue* object_elements);
 
   void BuildEmitFixedDoubleArray(Handle<FixedArrayBase> elements,
                                  ElementsKind kind,
                                  HValue* object_elements);
 
   void BuildEmitFixedArray(Handle<FixedArrayBase> elements,
-                           Handle<FixedArrayBase> original_elements,
                            ElementsKind kind,
-                           HValue* object_elements,
-                           HInstruction* target,
-                           int* offset,
-                           HInstruction* data_target,
-                           int* data_offset);
+                           HValue* object_elements);
 
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);
@@ -2165,41 +2136,37 @@ Zone* AstContext::zone() const { return owner_->zone(); }
 class HStatistics V8_FINAL: public Malloced {
  public:
   HStatistics()
-      : timing_(5),
+      : times_(5),
         names_(5),
         sizes_(5),
-        create_graph_(0),
-        optimize_graph_(0),
-        generate_code_(0),
         total_size_(0),
-        full_code_gen_(0),
         source_size_(0) { }
 
   void Initialize(CompilationInfo* info);
   void Print();
-  void SaveTiming(const char* name, int64_t ticks, unsigned size);
+  void SaveTiming(const char* name, TimeDelta time, unsigned size);
 
-  void IncrementFullCodeGen(int64_t full_code_gen) {
+  void IncrementFullCodeGen(TimeDelta full_code_gen) {
     full_code_gen_ += full_code_gen;
   }
 
-  void IncrementSubtotals(int64_t create_graph,
-                          int64_t optimize_graph,
-                          int64_t generate_code) {
+  void IncrementSubtotals(TimeDelta create_graph,
+                          TimeDelta optimize_graph,
+                          TimeDelta generate_code) {
     create_graph_ += create_graph;
     optimize_graph_ += optimize_graph;
     generate_code_ += generate_code;
   }
 
  private:
-  List<int64_t> timing_;
+  List<TimeDelta> times_;
   List<const char*> names_;
   List<unsigned> sizes_;
-  int64_t create_graph_;
-  int64_t optimize_graph_;
-  int64_t generate_code_;
+  TimeDelta create_graph_;
+  TimeDelta optimize_graph_;
+  TimeDelta generate_code_;
   unsigned total_size_;
-  int64_t full_code_gen_;
+  TimeDelta full_code_gen_;
   double source_size_;
 };
 

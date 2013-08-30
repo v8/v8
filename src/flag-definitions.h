@@ -775,9 +775,6 @@ DEFINE_bool(log_snapshot_positions, false,
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
 DEFINE_bool(prof, false,
             "Log statistical profiling information (implies --log-code).")
-DEFINE_bool(prof_lazy, false,
-            "Used with --prof, only does sampling and logging"
-            " when profiler is active.")
 DEFINE_bool(prof_browser_mode, true,
             "Used with --prof, turns on browser-compatible mode for profiling.")
 DEFINE_bool(log_regexp, false, "Log regular expression execution.")

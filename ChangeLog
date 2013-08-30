@@ -1,3 +1,17 @@
+2013-08-30: Version 3.21.7
+
+        Fixed casts of eternal handles.
+
+        Turned on global handle zapping.
+
+        Always visit branches during HGraph building (Chromium issue 280333).
+
+        Profiler changes: removed deprecated API, support higher sampling
+        rate on Windows.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-29: Version 3.21.6
 
         Fixed inlined 'throw' statements interfering with live range

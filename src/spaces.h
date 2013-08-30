@@ -32,6 +32,7 @@
 #include "hashmap.h"
 #include "list.h"
 #include "log.h"
+#include "platform/mutex.h"
 #include "v8utils.h"
 
 namespace v8 {
@@ -1445,12 +1446,7 @@ class FreeListCategory {
   FreeListCategory() :
       top_(NULL),
       end_(NULL),
-      mutex_(OS::CreateMutex()),
       available_(0) {}
-
-  ~FreeListCategory() {
-    delete mutex_;
-  }
 
   intptr_t Concatenate(FreeListCategory* category);
 
@@ -1477,7 +1473,7 @@ class FreeListCategory {
   int available() const { return available_; }
   void set_available(int available) { available_ = available; }
 
-  Mutex* mutex() { return mutex_; }
+  Mutex* mutex() { return &mutex_; }
 
 #ifdef DEBUG
   intptr_t SumFreeList();
@@ -1487,7 +1483,7 @@ class FreeListCategory {
  private:
   FreeListNode* top_;
   FreeListNode* end_;
-  Mutex* mutex_;
+  Mutex mutex_;
 
   // Total available bytes in all blocks of this free list category.
   int available_;

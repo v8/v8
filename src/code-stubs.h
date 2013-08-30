@@ -449,30 +449,6 @@ class NopRuntimeCallHelper : public RuntimeCallHelper {
 };
 
 
-class StackCheckStub : public PlatformCodeStub {
- public:
-  StackCheckStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return StackCheck; }
-  int MinorKey() { return 0; }
-};
-
-
-class InterruptStub : public PlatformCodeStub {
- public:
-  InterruptStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return Interrupt; }
-  int MinorKey() { return 0; }
-};
-
-
 class ToNumberStub: public HydrogenCodeStub {
  public:
   ToNumberStub() { }

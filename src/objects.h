@@ -1521,10 +1521,7 @@ class Object : public MaybeObject {
   inline void VerifyApiCallResultType();
 
   // Prints this object without details.
-  inline void ShortPrint() {
-    ShortPrint(stdout);
-  }
-  void ShortPrint(FILE* out);
+  void ShortPrint(FILE* out = stdout);
 
   // Prints this object without details to a message accumulator.
   void ShortPrint(StringStream* accumulator);
@@ -1563,10 +1560,7 @@ class Smi: public Object {
   static inline Smi* cast(Object* object);
 
   // Dispatched behavior.
-  inline void SmiPrint() {
-    SmiPrint(stdout);
-  }
-  void SmiPrint(FILE* out);
+  void SmiPrint(FILE* out = stdout);
   void SmiPrint(StringStream* accumulator);
 
   DECLARE_VERIFIER(Smi)
@@ -1637,10 +1631,7 @@ class Failure: public MaybeObject {
   static inline Failure* cast(MaybeObject* object);
 
   // Dispatched behavior.
-  inline void FailurePrint() {
-    FailurePrint(stdout);
-  }
-  void FailurePrint(FILE* out);
+  void FailurePrint(FILE* out = stdout);
   void FailurePrint(StringStream* accumulator);
 
   DECLARE_VERIFIER(Failure)
@@ -1769,12 +1760,9 @@ class HeapObject: public Object {
   // Dispatched behavior.
   void HeapObjectShortPrint(StringStream* accumulator);
 #ifdef OBJECT_PRINT
-  inline void HeapObjectPrint() {
-    HeapObjectPrint(stdout);
-  }
-  void HeapObjectPrint(FILE* out);
   void PrintHeader(FILE* out, const char* id);
 #endif
+  DECLARE_PRINTER(HeapObject)
   DECLARE_VERIFIER(HeapObject)
 #ifdef VERIFY_HEAP
   inline void VerifyObjectField(int offset);
@@ -1858,10 +1846,7 @@ class HeapNumber: public HeapObject {
   // Dispatched behavior.
   bool HeapNumberBooleanValue();
 
-  inline void HeapNumberPrint() {
-    HeapNumberPrint(stdout);
-  }
-  void HeapNumberPrint(FILE* out);
+  void HeapNumberPrint(FILE* out = stdout);
   void HeapNumberPrint(StringStream* accumulator);
   DECLARE_VERIFIER(HeapNumber)
 
@@ -1982,7 +1967,7 @@ class JSReceiver: public HeapObject {
                                        DeleteMode mode = NORMAL_DELETION);
   static Handle<Object> DeleteElement(Handle<JSReceiver> object,
                                       uint32_t index,
-                                      DeleteMode mode);
+                                      DeleteMode mode = NORMAL_DELETION);
 
   // Set the index'th array element.
   // Can cause GC, or return failure if GC is required.
@@ -2320,11 +2305,6 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
   MUST_USE_RESULT MaybeObject* SetIdentityHash(Smi* hash, CreationFlag flag);
 
-  static Handle<Object> DeleteElement(Handle<JSObject> obj,
-                                      uint32_t index,
-                                      DeleteMode mode = NORMAL_DELETION);
-  MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
-
   inline void ValidateElements();
 
   // Makes sure that this object can contain HeapObject as elements.
@@ -2647,19 +2627,9 @@ class JSObject: public JSReceiver {
   DECLARE_PRINTER(JSObject)
   DECLARE_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
-  inline void PrintProperties() {
-    PrintProperties(stdout);
-  }
-  void PrintProperties(FILE* out);
-
-  inline void PrintElements() {
-    PrintElements(stdout);
-  }
-  void PrintElements(FILE* out);
-  inline void PrintTransitions() {
-    PrintTransitions(stdout);
-  }
-  void PrintTransitions(FILE* out);
+  void PrintProperties(FILE* out = stdout);
+  void PrintElements(FILE* out = stdout);
+  void PrintTransitions(FILE* out = stdout);
 #endif
 
   void PrintElementsTransition(
@@ -2812,7 +2782,11 @@ class JSObject: public JSReceiver {
                                                  Handle<Name> name,
                                                  DeleteMode mode);
 
-  MUST_USE_RESULT MaybeObject* DeleteElementWithInterceptor(uint32_t index);
+  static Handle<Object> DeleteElement(Handle<JSObject> object,
+                                      uint32_t index,
+                                      DeleteMode mode);
+  static Handle<Object> DeleteElementWithInterceptor(Handle<JSObject> object,
+                                                     uint32_t index);
 
   MUST_USE_RESULT MaybeObject* DeleteFastElement(uint32_t index);
   MUST_USE_RESULT MaybeObject* DeleteDictionaryElement(uint32_t index,
@@ -3250,10 +3224,7 @@ class DescriptorArray: public FixedArray {
 
 #ifdef OBJECT_PRINT
   // Print all the descriptors.
-  inline void PrintDescriptors() {
-    PrintDescriptors(stdout);
-  }
-  void PrintDescriptors(FILE* out);
+  void PrintDescriptors(FILE* out = stdout);
 #endif
 
 #ifdef DEBUG
@@ -3746,10 +3717,7 @@ class Dictionary: public HashTable<Shape, Key> {
   MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
 
 #ifdef OBJECT_PRINT
-  inline void Print() {
-    Print(stdout);
-  }
-  void Print(FILE* out);
+  void Print(FILE* out = stdout);
 #endif
   // Returns the key (slow).
   Object* SlowReverseLookup(Object* value);
@@ -4831,10 +4799,7 @@ class Code: public HeapObject {
   static const char* ICState2String(InlineCacheState state);
   static const char* StubType2String(StubType type);
   static void PrintExtraICState(FILE* out, Kind kind, ExtraICState extra);
-  inline void Disassemble(const char* name) {
-    Disassemble(name, stdout);
-  }
-  void Disassemble(const char* name, FILE* out);
+  void Disassemble(const char* name, FILE* out = stdout);
 #endif  // ENABLE_DISASSEMBLER
 
   // [instruction_size]: Size of the native instructions
@@ -7132,10 +7097,7 @@ class JSFunction: public JSObject {
   DECL_ACCESSORS(next_function_link, Object)
 
   // Prints the name of the function using PrintF.
-  inline void PrintName() {
-    PrintName(stdout);
-  }
-  void PrintName(FILE* out);
+  void PrintName(FILE* out = stdout);
 
   // Casting.
   static inline JSFunction* cast(Object* obj);
@@ -8380,13 +8342,9 @@ class String: public Name {
   // Dispatched behavior.
   void StringShortPrint(StringStream* accumulator);
 #ifdef OBJECT_PRINT
-  inline void StringPrint() {
-    StringPrint(stdout);
-  }
-  void StringPrint(FILE* out);
-
   char* ToAsciiArray();
 #endif
+  DECLARE_PRINTER(String)
   DECLARE_VERIFIER(String)
 
   inline bool IsFlat();

@@ -6430,8 +6430,9 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
 
     ASSERT(instr->context()->IsRegister());
     ASSERT(ToRegister(instr->context()).is(esi));
-    StackCheckStub stub;
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+    CallCode(isolate()->builtins()->StackCheck(),
+             RelocInfo::CODE_TARGET,
+             instr);
     EnsureSpaceForLazyDeopt();
     __ bind(&done);
     RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);

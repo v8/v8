@@ -8662,12 +8662,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     function->PrintName();
     PrintF("]\n");
   }
-  InterruptStub interrupt_stub;
-  Handle<Code> interrupt_code = interrupt_stub.GetCode(isolate);
-  Handle<Code> replacement_code = isolate->builtins()->OnStackReplacement();
-  Deoptimizer::RevertInterruptCode(*unoptimized,
-                                   *interrupt_code,
-                                   *replacement_code);
+  Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
 
   // If the optimization attempt succeeded, return the AST id tagged as a
   // smi. This tells the builtin that we need to translate the unoptimized

@@ -3571,7 +3571,7 @@ bool v8::Object::Delete(uint32_t index) {
   ENTER_V8(isolate);
   HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::JSObject::DeleteElement(self, index)->IsTrue();
+  return i::JSReceiver::DeleteElement(self, index)->IsTrue();
 }
 
 
@@ -6735,24 +6735,6 @@ void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 }
 
 
-void V8::PauseProfiler() {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->logger()->PauseProfiler();
-}
-
-
-void V8::ResumeProfiler() {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->logger()->ResumeProfiler();
-}
-
-
-bool V8::IsProfilerPaused() {
-  i::Isolate* isolate = i::Isolate::Current();
-  return isolate->logger()->IsProfilerPaused();
-}
-
-
 int V8::GetCurrentThreadId() {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "V8::GetCurrentThreadId()");
@@ -7310,13 +7292,13 @@ const CpuProfileNode* CpuProfile::GetSample(int index) const {
 
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return profile->start_time_us();
+  return (profile->start_time() - i::Time::UnixEpoch()).InMicroseconds();
 }
 
 
 int64_t CpuProfile::GetEndTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return profile->end_time_us();
+  return (profile->end_time() - i::Time::UnixEpoch()).InMicroseconds();
 }
 
 

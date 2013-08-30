@@ -99,16 +99,15 @@ class Sampler {
     return NoBarrier_Load(&profiling_) > 0 &&
         !NoBarrier_Load(&has_processing_thread_);
   }
-  void IncreaseProfilingDepth() { NoBarrier_AtomicIncrement(&profiling_, 1); }
-  void DecreaseProfilingDepth() { NoBarrier_AtomicIncrement(&profiling_, -1); }
+  void IncreaseProfilingDepth();
+  void DecreaseProfilingDepth();
 
   // Whether the sampler is running (that is, consumes resources).
   bool IsActive() const { return NoBarrier_Load(&active_); }
 
+  void DoSample();
   // If true next sample must be initiated on the profiler event processor
   // thread right after latest sample is processed.
-  static bool CanSampleOnProfilerEventsProcessorThread();
-  void DoSample();
   void SetHasProcessingThread(bool value) {
     NoBarrier_Store(&has_processing_thread_, value);
   }

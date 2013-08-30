@@ -1813,6 +1813,16 @@ const char* Builtins::Lookup(byte* pc) {
 }
 
 
+void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {
+  masm->TailCallRuntime(Runtime::kInterrupt, 0, 1);
+}
+
+
+void Builtins::Generate_StackCheck(MacroAssembler* masm) {
+  masm->TailCallRuntime(Runtime::kStackGuard, 0, 1);
+}
+
+
 #define DEFINE_BUILTIN_ACCESSOR_C(name, ignore)               \
 Handle<Code> Builtins::name() {                               \
   Code** code_address =                                       \

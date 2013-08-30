@@ -163,6 +163,7 @@ class Deserializer;
 class MessageLocation;
 class VirtualMemory;
 class Mutex;
+class RecursiveMutex;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
 

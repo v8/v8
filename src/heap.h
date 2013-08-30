@@ -1882,7 +1882,7 @@ class Heap {
 
   void CheckpointObjectStats();
 
-  // We don't use a ScopedLock here since we want to lock the heap
+  // We don't use a LockGuard here since we want to lock the heap
   // only when FLAG_concurrent_recompilation is true.
   class RelocationLock {
    public:

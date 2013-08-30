@@ -5419,8 +5419,9 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     Label done;
     __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
     __ j(above_equal, &done, Label::kNear);
-    StackCheckStub stub;
-    CallCode(stub.GetCode(isolate()), RelocInfo::CODE_TARGET, instr);
+    CallCode(isolate()->builtins()->StackCheck(),
+             RelocInfo::CODE_TARGET,
+             instr);
     EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
     last_lazy_deopt_pc_ = masm()->pc_offset();
     __ bind(&done);

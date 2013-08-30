@@ -138,7 +138,7 @@ class ProfilerEventsProcessor : public Thread {
  public:
   ProfilerEventsProcessor(ProfileGenerator* generator,
                           Sampler* sampler,
-                          int period_in_useconds);
+                          TimeDelta period);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
@@ -163,13 +163,12 @@ class ProfilerEventsProcessor : public Thread {
   bool ProcessTicks();
 
   void ProcessEventsAndDoSample();
-  void ProcessEventsAndYield();
 
   ProfileGenerator* generator_;
   Sampler* sampler_;
   bool running_;
   // Sampling period in microseconds.
-  const int period_in_useconds_;
+  const TimeDelta period_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
   static const size_t kTickSampleBufferSize = 1 * MB;
   static const size_t kTickSampleQueueLength =
@@ -265,8 +264,7 @@ class CpuProfiler : public CodeEventListener {
   unsigned next_profile_uid_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
-  int saved_logging_nesting_;
-  bool need_to_stop_sampler_;
+  bool saved_is_logging_;
   bool is_profiling_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);

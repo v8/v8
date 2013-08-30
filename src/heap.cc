@@ -6927,7 +6927,7 @@ bool Heap::SetUp() {
 
   store_buffer()->SetUp();
 
-  if (FLAG_concurrent_recompilation) relocation_mutex_ = OS::CreateMutex();
+  if (FLAG_concurrent_recompilation) relocation_mutex_ = new Mutex;
 #ifdef DEBUG
   relocation_mutex_locked_by_optimizer_thread_ = false;
 #endif  // DEBUG
@@ -7916,6 +7916,7 @@ void ExternalStringTable::CleanUp() {
     if (new_space_strings_[i] == heap_->the_hole_value()) {
       continue;
     }
+    ASSERT(new_space_strings_[i]->IsExternalString());
     if (heap_->InNewSpace(new_space_strings_[i])) {
       new_space_strings_[last++] = new_space_strings_[i];
     } else {
@@ -7930,6 +7931,7 @@ void ExternalStringTable::CleanUp() {
     if (old_space_strings_[i] == heap_->the_hole_value()) {
       continue;
     }
+    ASSERT(old_space_strings_[i]->IsExternalString());
     ASSERT(!heap_->InNewSpace(old_space_strings_[i]));
     old_space_strings_[last++] = old_space_strings_[i];
   }
@@ -8032,7 +8034,7 @@ static LazyMutex checkpoint_object_stats_mutex = LAZY_MUTEX_INITIALIZER;
 
 
 void Heap::CheckpointObjectStats() {
-  ScopedLock lock(checkpoint_object_stats_mutex.Pointer());
+  LockGuard<Mutex> lock_guard(checkpoint_object_stats_mutex.Pointer());
   Counters* counters = isolate()->counters();
 #define ADJUST_LAST_TIME_OBJECT_COUNT(name)                                    \
   counters->count_of_##name()->Increment(                                      \
