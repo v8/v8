@@ -3113,7 +3113,9 @@ void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
 
 void HOptimizedGraphBuilder::VisitStatements(ZoneList<Statement*>* statements) {
   for (int i = 0; i < statements->length(); i++) {
-    CHECK_ALIVE(Visit(statements->at(i)));
+    Statement* stmt = statements->at(i);
+    CHECK_ALIVE(Visit(stmt));
+    if (stmt->IsJump()) break;
   }
 }
 
