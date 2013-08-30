@@ -452,14 +452,17 @@ MaybeObject* JSProxy::GetElementWithHandler(Object* receiver,
 }
 
 
-MaybeObject* JSProxy::SetElementWithHandler(JSReceiver* receiver,
-                                            uint32_t index,
-                                            Object* value,
-                                            StrictModeFlag strict_mode) {
-  String* name;
-  MaybeObject* maybe = GetHeap()->Uint32ToString(index);
-  if (!maybe->To<String>(&name)) return maybe;
-  return SetPropertyWithHandler(receiver, name, value, NONE, strict_mode);
+Handle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
+                                              Handle<JSReceiver> receiver,
+                                              uint32_t index,
+                                              Handle<Object> value,
+                                              StrictModeFlag strict_mode) {
+  Isolate* isolate = proxy->GetIsolate();
+  Handle<String> name = isolate->factory()->Uint32ToString(index);
+  CALL_HEAP_FUNCTION(isolate,
+                     proxy->SetPropertyWithHandler(
+                         *receiver, *name, *value, NONE, strict_mode),
+                     Object);
 }
 
 
@@ -3541,20 +3544,20 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
 
 
 Handle<Object> JSProxy::DeletePropertyWithHandler(
-    Handle<JSProxy> object, Handle<Name> name, DeleteMode mode) {
-  Isolate* isolate = object->GetIsolate();
+    Handle<JSProxy> proxy, Handle<Name> name, DeleteMode mode) {
+  Isolate* isolate = proxy->GetIsolate();
 
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (name->IsSymbol()) return isolate->factory()->false_value();
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = object->CallTrap(
+  Handle<Object> result = proxy->CallTrap(
       "delete", Handle<Object>(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Handle<Object>();
 
   bool result_bool = result->BooleanValue();
   if (mode == STRICT_DELETION && !result_bool) {
-    Handle<Object> handler(object->handler(), isolate);
+    Handle<Object> handler(proxy->handler(), isolate);
     Handle<String> trap_name = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("delete"));
     Handle<Object> args[] = { handler, trap_name };
@@ -3568,10 +3571,10 @@ Handle<Object> JSProxy::DeletePropertyWithHandler(
 
 
 Handle<Object> JSProxy::DeleteElementWithHandler(
-    Handle<JSProxy> object, uint32_t index, DeleteMode mode) {
-  Isolate* isolate = object->GetIsolate();
+    Handle<JSProxy> proxy, uint32_t index, DeleteMode mode) {
+  Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return JSProxy::DeletePropertyWithHandler(object, name, mode);
+  return JSProxy::DeletePropertyWithHandler(proxy, name, mode);
 }
 
 
@@ -12111,18 +12114,17 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
 }
 
 
-MaybeObject* JSReceiver::SetElement(uint32_t index,
-                                    Object* value,
-                                    PropertyAttributes attributes,
-                                    StrictModeFlag strict_mode,
-                                    bool check_proto) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->SetElementWithHandler(
-        this, index, value, strict_mode);
-  } else {
-    return JSObject::cast(this)->SetElement(
-        index, value, attributes, strict_mode, check_proto);
+Handle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
+                                      uint32_t index,
+                                      Handle<Object> value,
+                                      PropertyAttributes attributes,
+                                      StrictModeFlag strict_mode) {
+  if (object->IsJSProxy()) {
+    return JSProxy::SetElementWithHandler(
+        Handle<JSProxy>::cast(object), object, index, value, strict_mode);
   }
+  return JSObject::SetElement(
+      Handle<JSObject>::cast(object), index, value, attributes, strict_mode);
 }
 
 

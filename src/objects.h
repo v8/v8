@@ -1936,6 +1936,11 @@ class JSReceiver: public HeapObject {
                                     Handle<Object> value,
                                     PropertyAttributes attributes,
                                     StrictModeFlag strict_mode);
+  static Handle<Object> SetElement(Handle<JSReceiver> object,
+                                   uint32_t index,
+                                   Handle<Object> value,
+                                   PropertyAttributes attributes,
+                                   StrictModeFlag strict_mode);
 
   MUST_USE_RESULT static MaybeObject* SetPropertyOrFail(
       Handle<JSReceiver> object,
@@ -1968,14 +1973,6 @@ class JSReceiver: public HeapObject {
   static Handle<Object> DeleteElement(Handle<JSReceiver> object,
                                       uint32_t index,
                                       DeleteMode mode = NORMAL_DELETION);
-
-  // Set the index'th array element.
-  // Can cause GC, or return failure if GC is required.
-  MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
-                                          Object* value,
-                                          PropertyAttributes attributes,
-                                          StrictModeFlag strict_mode,
-                                          bool check_prototype);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -9088,11 +9085,6 @@ class JSProxy: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
-  MUST_USE_RESULT MaybeObject* SetElementWithHandler(
-      JSReceiver* receiver,
-      uint32_t index,
-      Object* value,
-      StrictModeFlag strict_mode);
 
   // If the handler defines an accessor property with a setter, invoke it.
   // If it defines an accessor property without a setter, or a data property
@@ -9151,10 +9143,16 @@ class JSProxy: public JSReceiver {
  private:
   friend class JSReceiver;
 
-  static Handle<Object> DeletePropertyWithHandler(Handle<JSProxy> object,
+  static Handle<Object> SetElementWithHandler(Handle<JSProxy> proxy,
+                                              Handle<JSReceiver> receiver,
+                                              uint32_t index,
+                                              Handle<Object> value,
+                                              StrictModeFlag strict_mode);
+
+  static Handle<Object> DeletePropertyWithHandler(Handle<JSProxy> proxy,
                                                   Handle<Name> name,
                                                   DeleteMode mode);
-  static Handle<Object> DeleteElementWithHandler(Handle<JSProxy> object,
+  static Handle<Object> DeleteElementWithHandler(Handle<JSProxy> proxy,
                                                  uint32_t index,
                                                  DeleteMode mode);
 
