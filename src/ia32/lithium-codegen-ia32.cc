@@ -423,6 +423,8 @@ bool LCodeGen::GenerateDeferredCode() {
   if (deferred_.length() > 0) {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
       LDeferredCode* code = deferred_[i];
+      X87Stack copy(code->x87_stack());
+      x87_stack_ = copy;
 
       int pos = instructions_->at(code->instruction_index())->position();
       RecordAndUpdatePosition(pos);
@@ -503,6 +505,7 @@ void LCodeGen::X87LoadForUsage(X87Register reg) {
 
 
 void LCodeGen::X87Stack::Fxch(X87Register reg, int other_slot) {
+  ASSERT(is_mutable_);
   ASSERT(Contains(reg) && stack_depth_ > other_slot);
   int i  = ArrayIndex(reg);
   int st = st2idx(i);
@@ -547,6 +550,7 @@ bool LCodeGen::X87Stack::Contains(X87Register reg) {
 
 
 void LCodeGen::X87Stack::Free(X87Register reg) {
+  ASSERT(is_mutable_);
   ASSERT(Contains(reg));
   int i  = ArrayIndex(reg);
   int st = st2idx(i);
@@ -606,6 +610,7 @@ void LCodeGen::X87Mov(Operand dst, X87Register src, X87OperandType opts) {
 
 
 void LCodeGen::X87Stack::PrepareToWrite(X87Register reg) {
+  ASSERT(is_mutable_);
   if (Contains(reg)) {
     Free(reg);
   }
@@ -615,6 +620,7 @@ void LCodeGen::X87Stack::PrepareToWrite(X87Register reg) {
 
 
 void LCodeGen::X87Stack::CommitWrite(X87Register reg) {
+  ASSERT(is_mutable_);
   // Assert the reg is prepared to write, but not on the virtual stack yet
   ASSERT(!Contains(reg) && stack_[stack_depth_].is(reg) &&
       stack_depth_ < X87Register::kNumAllocatableRegisters);
@@ -2841,8 +2847,9 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   class DeferredInstanceOfKnownGlobal V8_FINAL : public LDeferredCode {
    public:
     DeferredInstanceOfKnownGlobal(LCodeGen* codegen,
-                                  LInstanceOfKnownGlobal* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+                                  LInstanceOfKnownGlobal* instr,
+                                  const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredInstanceOfKnownGlobal(instr_, &map_check_);
     }
@@ -2854,7 +2861,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   };
 
   DeferredInstanceOfKnownGlobal* deferred;
-  deferred = new(zone()) DeferredInstanceOfKnownGlobal(this, instr);
+  deferred = new(zone()) DeferredInstanceOfKnownGlobal(this, instr, x87_stack_);
 
   Label done, false_result;
   Register object = ToRegister(instr->value());
@@ -3808,8 +3815,10 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
   // Class for deferred case.
   class DeferredMathAbsTaggedHeapNumber V8_FINAL : public LDeferredCode {
    public:
-    DeferredMathAbsTaggedHeapNumber(LCodeGen* codegen, LMathAbs* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredMathAbsTaggedHeapNumber(LCodeGen* codegen,
+                                    LMathAbs* instr,
+                                    const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredMathAbsTaggedHeapNumber(instr_);
     }
@@ -3832,7 +3841,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     EmitIntegerMathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
-        new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr);
+        new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr, x87_stack_);
     Register input_reg = ToRegister(instr->value());
     // Smi check.
     __ JumpIfNotSmi(input_reg, deferred->entry());
@@ -4048,15 +4057,18 @@ void LCodeGen::DoPower(LPower* instr) {
 void LCodeGen::DoRandom(LRandom* instr) {
   class DeferredDoRandom V8_FINAL : public LDeferredCode {
    public:
-    DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredDoRandom(LCodeGen* codegen,
+                     LRandom* instr,
+                     const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE { codegen()->DoDeferredRandom(instr_); }
     virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
    private:
     LRandom* instr_;
   };
 
-  DeferredDoRandom* deferred = new(zone()) DeferredDoRandom(this, instr);
+  DeferredDoRandom* deferred =
+      new(zone()) DeferredDoRandom(this, instr, x87_stack_);
 
   CpuFeatureScope scope(masm(), SSE2);
   // Having marked this instruction as a call we can use any
@@ -4791,8 +4803,10 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   class DeferredStringCharCodeAt V8_FINAL : public LDeferredCode {
    public:
-    DeferredStringCharCodeAt(LCodeGen* codegen, LStringCharCodeAt* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredStringCharCodeAt(LCodeGen* codegen,
+                             LStringCharCodeAt* instr,
+                             const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredStringCharCodeAt(instr_);
     }
@@ -4802,7 +4816,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   };
 
   DeferredStringCharCodeAt* deferred =
-      new(zone()) DeferredStringCharCodeAt(this, instr);
+      new(zone()) DeferredStringCharCodeAt(this, instr, x87_stack_);
 
   StringCharLoadGenerator::Generate(masm(),
                                     factory(),
@@ -4848,8 +4862,10 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
 void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
   class DeferredStringCharFromCode V8_FINAL : public LDeferredCode {
    public:
-    DeferredStringCharFromCode(LCodeGen* codegen, LStringCharFromCode* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredStringCharFromCode(LCodeGen* codegen,
+                               LStringCharFromCode* instr,
+                               const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredStringCharFromCode(instr_);
     }
@@ -4859,7 +4875,7 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
   };
 
   DeferredStringCharFromCode* deferred =
-      new(zone()) DeferredStringCharFromCode(this, instr);
+      new(zone()) DeferredStringCharFromCode(this, instr, x87_stack_);
 
   ASSERT(instr->hydrogen()->value()->representation().IsInteger32());
   Register char_code = ToRegister(instr->char_code());
@@ -4947,8 +4963,10 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
 void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
   class DeferredNumberTagI V8_FINAL : public LDeferredCode {
    public:
-    DeferredNumberTagI(LCodeGen* codegen, LNumberTagI* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredNumberTagI(LCodeGen* codegen,
+                       LNumberTagI* instr,
+                       const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredNumberTagI(instr_, instr_->value(), SIGNED_INT32);
     }
@@ -4961,7 +4979,8 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
   ASSERT(input->IsRegister() && input->Equals(instr->result()));
   Register reg = ToRegister(input);
 
-  DeferredNumberTagI* deferred = new(zone()) DeferredNumberTagI(this, instr);
+  DeferredNumberTagI* deferred =
+      new(zone()) DeferredNumberTagI(this, instr, x87_stack_);
   __ SmiTag(reg);
   __ j(overflow, deferred->entry());
   __ bind(deferred->exit());
@@ -4971,8 +4990,10 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
 void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
   class DeferredNumberTagU V8_FINAL : public LDeferredCode {
    public:
-    DeferredNumberTagU(LCodeGen* codegen, LNumberTagU* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredNumberTagU(LCodeGen* codegen,
+                       LNumberTagU* instr,
+                       const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredNumberTagI(instr_, instr_->value(), UNSIGNED_INT32);
     }
@@ -4985,7 +5006,8 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
   ASSERT(input->IsRegister() && input->Equals(instr->result()));
   Register reg = ToRegister(input);
 
-  DeferredNumberTagU* deferred = new(zone()) DeferredNumberTagU(this, instr);
+  DeferredNumberTagU* deferred =
+      new(zone()) DeferredNumberTagU(this, instr, x87_stack_);
   __ cmp(reg, Immediate(Smi::kMaxValue));
   __ j(above, deferred->entry());
   __ SmiTag(reg);
@@ -5074,8 +5096,10 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
 void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   class DeferredNumberTagD V8_FINAL : public LDeferredCode {
    public:
-    DeferredNumberTagD(LCodeGen* codegen, LNumberTagD* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredNumberTagD(LCodeGen* codegen,
+                       LNumberTagD* instr,
+                       const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredNumberTagD(instr_);
     }
@@ -5093,7 +5117,8 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     X87LoadForUsage(src);
   }
 
-  DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
+  DeferredNumberTagD* deferred =
+      new(zone()) DeferredNumberTagD(this, instr, x87_stack_);
   if (FLAG_inline_new) {
     Register tmp = ToRegister(instr->temp());
     __ AllocateHeapNumber(reg, tmp, no_reg, deferred->entry());
@@ -5375,8 +5400,10 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   class DeferredTaggedToI V8_FINAL : public LDeferredCode {
    public:
-    DeferredTaggedToI(LCodeGen* codegen, LTaggedToI* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredTaggedToI(LCodeGen* codegen,
+                      LTaggedToI* instr,
+                      const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredTaggedToI(instr_);
     }
@@ -5390,7 +5417,8 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   Register input_reg = ToRegister(input);
   ASSERT(input_reg.is(ToRegister(instr->result())));
 
-  DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
+  DeferredTaggedToI* deferred =
+      new(zone()) DeferredTaggedToI(this, instr, x87_stack_);
 
   __ JumpIfNotSmi(input_reg, deferred->entry());
   __ SmiUntag(input_reg);
@@ -5536,8 +5564,10 @@ void LCodeGen::DoDeferredTaggedToINoSSE2(LTaggedToINoSSE2* instr) {
 void LCodeGen::DoTaggedToINoSSE2(LTaggedToINoSSE2* instr) {
   class DeferredTaggedToINoSSE2 V8_FINAL : public LDeferredCode {
    public:
-    DeferredTaggedToINoSSE2(LCodeGen* codegen, LTaggedToINoSSE2* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredTaggedToINoSSE2(LCodeGen* codegen,
+                            LTaggedToINoSSE2* instr,
+                            const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredTaggedToINoSSE2(instr_);
     }
@@ -5552,7 +5582,7 @@ void LCodeGen::DoTaggedToINoSSE2(LTaggedToINoSSE2* instr) {
   ASSERT(input_reg.is(ToRegister(instr->result())));
 
   DeferredTaggedToINoSSE2* deferred =
-      new(zone()) DeferredTaggedToINoSSE2(this, instr);
+      new(zone()) DeferredTaggedToINoSSE2(this, instr, x87_stack_);
 
   // Smi check.
   __ JumpIfNotSmi(input_reg, deferred->entry());
@@ -5832,8 +5862,11 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   class DeferredCheckMaps V8_FINAL : public LDeferredCode {
    public:
-    DeferredCheckMaps(LCodeGen* codegen, LCheckMaps* instr, Register object)
-        : LDeferredCode(codegen), instr_(instr), object_(object) {
+    DeferredCheckMaps(LCodeGen* codegen,
+                      LCheckMaps* instr,
+                      Register object,
+                      const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr), object_(object) {
       SetExit(check_maps());
     }
     virtual void Generate() V8_OVERRIDE {
@@ -5857,7 +5890,7 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 
   DeferredCheckMaps* deferred = NULL;
   if (instr->hydrogen()->has_migration_target()) {
-    deferred = new(zone()) DeferredCheckMaps(this, instr, reg);
+    deferred = new(zone()) DeferredCheckMaps(this, instr, reg, x87_stack_);
     __ bind(deferred->check_maps());
   }
 
@@ -6055,8 +6088,10 @@ void LCodeGen::DoClampTToUint8NoSSE2(LClampTToUint8NoSSE2* instr) {
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate V8_FINAL : public LDeferredCode {
    public:
-    DeferredAllocate(LCodeGen* codegen, LAllocate* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredAllocate(LCodeGen* codegen,
+                     LAllocate* instr,
+                     const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredAllocate(instr_);
     }
@@ -6066,7 +6101,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   };
 
   DeferredAllocate* deferred =
-      new(zone()) DeferredAllocate(this, instr);
+      new(zone()) DeferredAllocate(this, instr, x87_stack_);
 
   Register result = ToRegister(instr->result());
   Register temp = ToRegister(instr->temp());
@@ -6406,8 +6441,10 @@ void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
   class DeferredStackCheck V8_FINAL : public LDeferredCode {
    public:
-    DeferredStackCheck(LCodeGen* codegen, LStackCheck* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredStackCheck(LCodeGen* codegen,
+                       LStackCheck* instr,
+                       const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredStackCheck(instr_);
     }
@@ -6441,7 +6478,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     ASSERT(instr->hydrogen()->is_backwards_branch());
     // Perform stack overflow check if this goto needs it before jumping.
     DeferredStackCheck* deferred_stack_check =
-        new(zone()) DeferredStackCheck(this, instr);
+        new(zone()) DeferredStackCheck(this, instr, x87_stack_);
     ExternalReference stack_limit =
         ExternalReference::address_of_stack_limit(isolate());
     __ cmp(esp, Operand::StaticVariable(stack_limit));
