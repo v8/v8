@@ -28,6 +28,52 @@
 #ifndef V8CONFIG_H_
 #define V8CONFIG_H_
 
+// Platform headers for feature detection below.
+#if defined(__ANDROID__)
+# include <sys/cdefs.h>
+#elif defined(__APPLE__)
+# include <TargetConditions.h>
+#elif defined(__linux__)
+# include <features.h>
+#endif
+
+
+// This macro allows to test for the version of the GNU C library (or
+// a compatible C library that masquerades as glibc). It evaluates to
+// 0 if libc is not GNU libc or compatible.
+// Use like:
+//  #if V8_GLIBC_PREREQ(2, 3)
+//   ...
+//  #endif
+#if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
+# define V8_GLIBC_PREREQ(major, minor)                                    \
+    ((__GLIBC__ * 100 + __GLIBC_MINOR__) >= ((major) * 100 + (minor)))
+#else
+# define V8_GLIBC_PREREQ(major, minor) 0
+#endif
+
+
+// This macro allows to test for the version of the GNU C++ compiler.
+// Note that this also applies to compilers that masquerade as GCC,
+// for example clang and the Intel C++ compiler for Linux.
+// Use like:
+//  #if V8_GNUC_PREREQ(4, 3, 1)
+//   ...
+//  #endif
+#if defined(__GNUC__) && defined(__GNUC_MINOR__) && defined(__GNUC_PATCHLEVEL__)
+# define V8_GNUC_PREREQ(major, minor, patchlevel)                         \
+    ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) >=   \
+     ((major) * 10000 + (minor) * 100 + (patchlevel)))
+#elif defined(__GNUC__) && defined(__GNUC_MINOR__)
+# define V8_GNUC_PREREQ(major, minor, patchlevel)       \
+    ((__GNUC__ * 10000 + __GNUC_MINOR__) >=             \
+     ((major) * 10000 + (minor) * 100 + (patchlevel)))
+#else
+# define V8_GNUC_PREREQ(major, minor, patchlevel) 0
+#endif
+
+
+
 // -----------------------------------------------------------------------------
 // Operating system detection
 //
@@ -87,6 +133,32 @@
 
 
 // -----------------------------------------------------------------------------
+// C library detection
+//
+//  V8_LIBC_BIONIC  - Bionic libc
+//  V8_LIBC_BSD     - BSD libc derivate
+//  V8_LIBC_GLIBC   - GNU C library
+//  V8_LIBC_UCLIBC  - uClibc
+//
+// Note that testing for libc must be done using #if not #ifdef. For example,
+// to test for the GNU C library, use:
+//  #if V8_LIBC_GLIBC
+//   ...
+//  #endif
+
+#if defined(__BIONIC__)
+# define V8_LIBC_BIONIC 1
+# define V8_LIBC_BSD 1
+#elif defined(__UCLIBC__)
+# define V8_LIBC_UCLIBC 1
+#elif defined(__GLIBC__) || defined(__GNU_LIBRARY__)
+# define V8_LIBC_GLIBC 1
+#else
+# define V8_LIBC_BSD V8_OS_BSD
+#endif
+
+
+// -----------------------------------------------------------------------------
 // Compiler detection
 //
 //  V8_CC_CLANG   - Clang
@@ -134,9 +206,6 @@
 
 #if defined(__clang__)
 
-// Don't treat clang as GCC.
-# define V8_GNUC_PREREQ(major, minor, patchlevel) 0
-
 # define V8_CC_CLANG 1
 
 // Clang defines __alignof__ as alias for __alignof
@@ -160,10 +229,6 @@
 # define V8_HAS_CXX11_OVERRIDE (__has_feature(cxx_override_control))
 
 #elif defined(__GNUC__)
-
-# define V8_GNUC_PREREQ(major, minor, patchlevel)                         \
-    ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) >=   \
-     ((major) * 10000 + (minor) * 100 + (patchlevel)))
 
 # define V8_CC_GNU 1
 // Intel C++ also masquerades as GCC 3.2.0
@@ -206,8 +271,6 @@
 # endif
 
 #elif defined(_MSC_VER)
-
-# define V8_GNUC_PREREQ(major, minor, patchlevel) 0
 
 # define V8_CC_MSVC 1
 
