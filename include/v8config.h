@@ -32,7 +32,7 @@
 #if defined(__ANDROID__)
 # include <sys/cdefs.h>
 #elif defined(__APPLE__)
-# include <TargetConditions.h>
+# include <TargetConditionals.h>
 #elif defined(__linux__)
 # include <features.h>
 #endif
