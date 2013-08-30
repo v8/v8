@@ -724,15 +724,28 @@
                   }],
                 ],
               }, {
-                'link_settings': {
-                  'target_conditions': [
-                    ['_toolset=="host"', {
-                      'libraries': [
-                        '-lrt'
-                      ]
-                    }]
-                  ]
-                },
+                # TODO(bmeurer): What we really want here, is this:
+                #
+                # 'link_settings': {
+                #   'target_conditions': [
+                #     ['_toolset=="host"', {
+                #       'libraries': [
+                #         '-lrt'
+                #       ]
+                #     }]
+                #   ]
+                # },
+                #
+                # but we can't do this right now, as the AOSP does not support
+                # linking against the host librt, so we need to work around this
+                # for now, using the following hack (see platform/time.cc):
+                'target_conditions': [
+                  ['_toolset=="host"', {
+                    'defines': [
+                      'V8_LIBRT_NOT_AVAILABLE',
+                    ],
+                  }],
+                ],
                 'sources': [
                   '../../src/platform-linux.cc'
                 ]
