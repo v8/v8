@@ -298,8 +298,7 @@ void FullCodeGenerator::Generate() {
       Label ok;
       __ LoadRoot(t0, Heap::kStackLimitRootIndex);
       __ Branch(&ok, hs, sp, Operand(t0));
-      StackCheckStub stub;
-      __ CallStub(&stub);
+      __ Call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
       __ bind(&ok);
     }
 
@@ -369,9 +368,8 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   EmitProfilingCounterDecrement(weight);
   __ slt(at, a3, zero_reg);
   __ beq(at, zero_reg, &ok);
-  // CallStub will emit a li t9 first, so it is safe to use the delay slot.
-  InterruptStub stub;
-  __ CallStub(&stub);
+  // Call will emit a li t9 first, so it is safe to use the delay slot.
+  __ Call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
   // Record a mapping of this PC offset to the OSR id.  This is used to find
   // the AST id from the unoptimized code in order to use it as a key into
   // the deoptimization input data found in the optimized code.
@@ -418,8 +416,8 @@ void FullCodeGenerator::EmitReturnSequence() {
         __ push(a2);
         __ CallRuntime(Runtime::kOptimizeFunctionOnNextCall, 1);
       } else {
-        InterruptStub stub;
-        __ CallStub(&stub);
+        __ Call(isolate()->builtins()->InterruptCheck(),
+                RelocInfo::CODE_TARGET);
       }
       __ pop(v0);
       EmitProfilingCounterReset();

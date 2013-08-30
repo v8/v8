@@ -288,8 +288,7 @@ void FullCodeGenerator::Generate() {
           ExternalReference::address_of_stack_limit(isolate());
       __ cmp(esp, Operand::StaticVariable(stack_limit));
       __ j(above_equal, &ok, Label::kNear);
-      StackCheckStub stub;
-      __ CallStub(&stub);
+      __ call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
       __ bind(&ok);
     }
 
@@ -347,8 +346,7 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   }
   EmitProfilingCounterDecrement(weight);
   __ j(positive, &ok, Label::kNear);
-  InterruptStub stub;
-  __ CallStub(&stub);
+  __ call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
 
   // Record a mapping of this PC offset to the OSR id.  This is used to find
   // the AST id from the unoptimized code in order to use it as a key into
@@ -395,8 +393,8 @@ void FullCodeGenerator::EmitReturnSequence() {
         __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
         __ CallRuntime(Runtime::kOptimizeFunctionOnNextCall, 1);
       } else {
-        InterruptStub stub;
-        __ CallStub(&stub);
+        __ call(isolate()->builtins()->InterruptCheck(),
+                RelocInfo::CODE_TARGET);
       }
       __ pop(eax);
       EmitProfilingCounterReset();

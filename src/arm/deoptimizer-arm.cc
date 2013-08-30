@@ -161,14 +161,13 @@ Deoptimizer::InterruptPatchState Deoptimizer::GetInterruptPatchState(
     return PATCHED_FOR_OSR;
   } else {
     // Get the interrupt stub code object to match against from cache.
-    Code* interrupt_code = NULL;
-    InterruptStub stub;
-    if (!stub.FindCodeInCache(&interrupt_code, isolate)) UNREACHABLE();
+    Code* interrupt_builtin =
+        isolate->builtins()->builtin(Builtins::kInterruptCheck);
     ASSERT(Assembler::IsLdrPcImmediateOffset(
         Assembler::instr_at(pc_after - 2 * kInstrSize)));
     ASSERT_EQ(kBranchBeforeInterrupt,
               Memory::int32_at(pc_after - 3 * kInstrSize));
-    ASSERT(reinterpret_cast<uint32_t>(interrupt_code->entry()) ==
+    ASSERT(reinterpret_cast<uint32_t>(interrupt_builtin->entry()) ==
            Memory::uint32_at(interrupt_address_pointer));
     return NOT_PATCHED;
   }

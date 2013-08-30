@@ -151,10 +151,9 @@ Deoptimizer::InterruptPatchState Deoptimizer::GetInterruptPatchState(
     return PATCHED_FOR_OSR;
   } else {
     // Get the interrupt stub code object to match against from cache.
-    Code* interrupt_code = NULL;
-    InterruptStub stub;
-    if (!stub.FindCodeInCache(&interrupt_code, isolate)) UNREACHABLE();
-    ASSERT_EQ(interrupt_code->entry(),
+    Code* interrupt_builtin =
+        isolate->builtins()->builtin(Builtins::kInterruptCheck);
+    ASSERT_EQ(interrupt_builtin->entry(),
               Assembler::target_address_at(call_target_address));
     ASSERT_EQ(kJnsInstruction,  *(call_target_address - 3));
     ASSERT_EQ(kJnsOffset,       *(call_target_address - 2));

@@ -2593,11 +2593,6 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 void Deoptimizer::PatchInterruptCode(Isolate* isolate,
                                      Code* unoptimized_code) {
   DisallowHeapAllocation no_gc;
-  // Get the interrupt stub code object to match against.  We aren't
-  // prepared to generate it, but we don't expect to have to.
-  Code* interrupt_code = NULL;
-  InterruptStub interrupt_stub;
-  CHECK(interrupt_stub.FindCodeInCache(&interrupt_code, isolate));
   Code* replacement_code =
       isolate->builtins()->builtin(Builtins::kOnStackReplacement);
 
@@ -2628,9 +2623,9 @@ void Deoptimizer::PatchInterruptCode(Isolate* isolate,
 
 void Deoptimizer::RevertInterruptCode(Isolate* isolate,
                                       Code* unoptimized_code) {
-  InterruptStub interrupt_stub;
-  Code* interrupt_code = *interrupt_stub.GetCode(isolate);
   DisallowHeapAllocation no_gc;
+  Code* interrupt_code =
+      isolate->builtins()->builtin(Builtins::kInterruptCheck);
 
   // Iterate over the back edge table and revert the patched interrupt calls.
   ASSERT(unoptimized_code->back_edges_patched_for_osr());
