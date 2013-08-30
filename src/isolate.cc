@@ -734,7 +734,9 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("column"));
   Handle<String> line_key =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("lineNumber"));
-  Handle<String> script_key =
+  Handle<String> script_id_key =
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("scriptId"));
+  Handle<String> script_name_key =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("scriptName"));
   Handle<String> script_name_or_source_url_key =
       factory()->InternalizeOneByteString(
@@ -790,11 +792,20 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
                 Handle<Smi>(Smi::FromInt(line_number + 1), this), NONE));
       }
 
+      if (options & StackTrace::kScriptId) {
+        Handle<Smi> script_id(script->id(), this);
+        CHECK_NOT_EMPTY_HANDLE(this,
+                               JSObject::SetLocalPropertyIgnoreAttributes(
+                                   stack_frame, script_id_key, script_id,
+                                   NONE));
+      }
+
       if (options & StackTrace::kScriptName) {
         Handle<Object> script_name(script->name(), this);
         CHECK_NOT_EMPTY_HANDLE(this,
                                JSObject::SetLocalPropertyIgnoreAttributes(
-                                   stack_frame, script_key, script_name, NONE));
+                                   stack_frame, script_name_key, script_name,
+                                   NONE));
       }
 
       if (options & StackTrace::kScriptNameOrSourceURL) {

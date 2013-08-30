@@ -2356,6 +2356,22 @@ int StackFrame::GetColumn() const {
 }
 
 
+int StackFrame::GetScriptId() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackFrame::GetScriptId()")) {
+    return Message::kNoScriptIdInfo;
+  }
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> scriptId = GetProperty(self, "scriptId");
+  if (!scriptId->IsSmi()) {
+    return Message::kNoScriptIdInfo;
+  }
+  return i::Smi::cast(*scriptId)->value();
+}
+
+
 Local<String> StackFrame::GetScriptName() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::StackFrame::GetScriptName()")) {

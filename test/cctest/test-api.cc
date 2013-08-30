@@ -16665,6 +16665,42 @@ TEST(SourceURLInStackTrace) {
 }
 
 
+static int scriptIdInStack[2];
+
+void AnalyzeScriptIdInStack(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::HandleScope scope(args.GetIsolate());
+  v8::Handle<v8::StackTrace> stackTrace =
+      v8::StackTrace::CurrentStackTrace(10, v8::StackTrace::kScriptId);
+  CHECK_EQ(2, stackTrace->GetFrameCount());
+  for (int i = 0; i < 2; i++) {
+    scriptIdInStack[i] = stackTrace->GetFrame(i)->GetScriptId();
+  }
+}
+
+
+TEST(ScriptIdInStackTrace) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("AnalyzeScriptIdInStack"),
+             v8::FunctionTemplate::New(AnalyzeScriptIdInStack));
+  LocalContext context(0, templ);
+
+  v8::Handle<v8::String> scriptSource = v8::String::New(
+    "function foo() {\n"
+    "  AnalyzeScriptIdInStack();"
+    "}\n"
+    "foo();\n");
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
+  v8::Local<v8::Script> script(v8::Script::Compile(scriptSource, &origin));
+  script->Run();
+  for (int i = 0; i < 2; i++) {
+    CHECK(scriptIdInStack[i] != v8::Message::kNoScriptIdInfo);
+    CHECK_EQ(scriptIdInStack[i], script->GetId());
+  }
+}
+
+
 void AnalyzeStackOfInlineScriptWithSourceURL(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::HandleScope scope(args.GetIsolate());

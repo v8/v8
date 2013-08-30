@@ -1157,6 +1157,7 @@ class V8_EXPORT Message {
 
   static const int kNoLineNumberInfo = 0;
   static const int kNoColumnInfo = 0;
+  static const int kNoScriptIdInfo = 0;
 };
 
 
@@ -1179,6 +1180,7 @@ class V8_EXPORT StackTrace {
     kIsEval = 1 << 4,
     kIsConstructor = 1 << 5,
     kScriptNameOrSourceURL = 1 << 6,
+    kScriptId = 1 << 7,
     kOverview = kLineNumber | kColumnOffset | kScriptName | kFunctionName,
     kDetailed = kOverview | kIsEval | kIsConstructor | kScriptNameOrSourceURL
   };
@@ -1232,6 +1234,14 @@ class V8_EXPORT StackFrame {
    * capturing the StackTrace.
    */
   int GetColumn() const;
+
+  /**
+   * Returns the id of the script for the function for this StackFrame.
+   * This method will return Message::kNoScriptIdInfo if it is unable to
+   * retrieve the script id, or if kScriptId was not passed as an option when
+   * capturing the StackTrace.
+   */
+  int GetScriptId() const;
 
   /**
    * Returns the name of the resource that contains the script for the
