@@ -5969,8 +5969,7 @@ void JSObject::DefineElementAccessor(Handle<JSObject> object,
   accessors->SetComponents(*getter, *setter);
   accessors->set_access_flags(access_control);
 
-  CALL_HEAP_FUNCTION_VOID(
-      isolate, object->SetElementCallback(index, *accessors, attributes));
+  SetElementCallback(object, index, accessors, attributes);
 }
 
 
@@ -6019,9 +6018,7 @@ void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
   accessors->SetComponents(*getter, *setter);
   accessors->set_access_flags(access_control);
 
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->SetPropertyCallback(*name, *accessors, attributes));
+  SetPropertyCallback(object, name, accessors, attributes);
 }
 
 
@@ -6050,72 +6047,64 @@ bool JSObject::CanSetCallback(Name* name) {
 }
 
 
-MaybeObject* JSObject::SetElementCallback(uint32_t index,
-                                          Object* structure,
-                                          PropertyAttributes attributes) {
+void JSObject::SetElementCallback(Handle<JSObject> object,
+                                  uint32_t index,
+                                  Handle<Object> structure,
+                                  PropertyAttributes attributes) {
+  Heap* heap = object->GetHeap();
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS, 0);
 
   // Normalize elements to make this operation simple.
-  SeededNumberDictionary* dictionary;
-  { MaybeObject* maybe_dictionary = NormalizeElements();
-    if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
-  }
-  ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
+  Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
+  ASSERT(object->HasDictionaryElements() ||
+         object->HasDictionaryArgumentsElements());
 
   // Update the dictionary with the new CALLBACKS property.
-  { MaybeObject* maybe_dictionary = dictionary->Set(index, structure, details);
-    if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
-  }
-
+  dictionary = SeededNumberDictionary::Set(dictionary, index, structure,
+                                           details);
   dictionary->set_requires_slow_elements();
+
   // Update the dictionary backing store on the object.
-  if (elements()->map() == GetHeap()->non_strict_arguments_elements_map()) {
+  if (object->elements()->map() == heap->non_strict_arguments_elements_map()) {
     // Also delete any parameter alias.
     //
     // TODO(kmillikin): when deleting the last parameter alias we could
     // switch to a direct backing store without the parameter map.  This
     // would allow GC of the context.
-    FixedArray* parameter_map = FixedArray::cast(elements());
+    FixedArray* parameter_map = FixedArray::cast(object->elements());
     if (index < static_cast<uint32_t>(parameter_map->length()) - 2) {
-      parameter_map->set(index + 2, GetHeap()->the_hole_value());
+      parameter_map->set(index + 2, heap->the_hole_value());
     }
-    parameter_map->set(1, dictionary);
+    parameter_map->set(1, *dictionary);
   } else {
-    set_elements(dictionary);
+    object->set_elements(*dictionary);
   }
-
-  return GetHeap()->undefined_value();
 }
 
 
-MaybeObject* JSObject::SetPropertyCallback(Name* name,
-                                           Object* structure,
-                                           PropertyAttributes attributes) {
+void JSObject::SetPropertyCallback(Handle<JSObject> object,
+                                   Handle<Name> name,
+                                   Handle<Object> structure,
+                                   PropertyAttributes attributes) {
   // Normalize object to make this operation simple.
-  MaybeObject* maybe_ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
-  if (maybe_ok->IsFailure()) return maybe_ok;
+  NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
 
   // For the global object allocate a new map to invalidate the global inline
   // caches which have a global property cell reference directly in the code.
-  if (IsGlobalObject()) {
-    Map* new_map;
-    MaybeObject* maybe_new_map = map()->CopyDropDescriptors();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+  if (object->IsGlobalObject()) {
+    Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
     ASSERT(new_map->is_dictionary_map());
+    object->set_map(*new_map);
 
-    set_map(new_map);
     // When running crankshaft, changing the map is not enough. We
     // need to deoptimize all functions that rely on this global
     // object.
-    Deoptimizer::DeoptimizeGlobalObject(this);
+    Deoptimizer::DeoptimizeGlobalObject(*object);
   }
 
   // Update the dictionary with the new CALLBACKS property.
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS, 0);
-  maybe_ok = SetNormalizedProperty(name, structure, details);
-  if (maybe_ok->IsFailure()) return maybe_ok;
-
-  return GetHeap()->undefined_value();
+  SetNormalizedProperty(object, name, structure, details);
 }
 
 
@@ -6311,41 +6300,44 @@ bool JSObject::DefineFastAccessor(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
-  Isolate* isolate = GetIsolate();
-  Name* name = Name::cast(info->name());
+Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
+                                     Handle<AccessorInfo> info) {
+  Isolate* isolate = object->GetIsolate();
+  Factory* factory = isolate->factory();
+  Handle<Name> name(Name::cast(info->name()));
+
   // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    return isolate->heap()->undefined_value();
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(*object, *name, v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheck(*object, v8::ACCESS_SET);
+    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return factory->undefined_value();
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return this;
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), isolate);
+    if (proto->IsNull()) return object;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->DefineAccessor(info);
+    return SetAccessor(Handle<JSObject>::cast(proto), info);
   }
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
-  AssertNoContextChangeWithHandleScope ncc;
+  AssertNoContextChange ncc;
 
   // Try to flatten before operating on the string.
-  if (name->IsString()) String::cast(name)->TryFlatten();
+  if (name->IsString()) FlattenString(Handle<String>::cast(name));
 
-  if (!CanSetCallback(name)) return isolate->heap()->undefined_value();
+  if (!object->CanSetCallback(*name)) return factory->undefined_value();
 
   uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
 
   if (is_element) {
-    if (IsJSArray()) return isolate->heap()->undefined_value();
+    if (object->IsJSArray()) return factory->undefined_value();
 
     // Accessors overwrite previous callbacks (cf. with getters/setters).
-    switch (GetElementsKind()) {
+    switch (object->GetElementsKind()) {
       case FAST_SMI_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
@@ -6364,7 +6356,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
       case EXTERNAL_DOUBLE_ELEMENTS:
         // Ignore getters and setters on pixel and external array
         // elements.
-        return isolate->heap()->undefined_value();
+        return factory->undefined_value();
       case DICTIONARY_ELEMENTS:
         break;
       case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -6372,25 +6364,21 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
         break;
     }
 
-    MaybeObject* maybe_ok =
-        SetElementCallback(index, info, info->property_attributes());
-    if (maybe_ok->IsFailure()) return maybe_ok;
+    SetElementCallback(object, index, info, info->property_attributes());
   } else {
     // Lookup the name.
     LookupResult result(isolate);
-    LocalLookup(name, &result, true);
+    object->LocalLookup(*name, &result, true);
     // ES5 forbids turning a property into an accessor if it's not
     // configurable (that is IsDontDelete in ES3 and v8), see 8.6.1 (Table 5).
     if (result.IsFound() && (result.IsReadOnly() || result.IsDontDelete())) {
-      return isolate->heap()->undefined_value();
+      return factory->undefined_value();
     }
 
-    MaybeObject* maybe_ok =
-        SetPropertyCallback(name, info, info->property_attributes());
-    if (maybe_ok->IsFailure()) return maybe_ok;
+    SetPropertyCallback(object, name, info, info->property_attributes());
   }
 
-  return this;
+  return object;
 }
 
 

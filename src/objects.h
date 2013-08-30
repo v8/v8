@@ -2243,7 +2243,8 @@ class JSObject: public JSReceiver {
 
   MaybeObject* LookupAccessor(Name* name, AccessorComponent component);
 
-  MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
+  static Handle<Object> SetAccessor(Handle<JSObject> object,
+                                    Handle<AccessorInfo> info);
 
   // Used from Object::GetProperty().
   MUST_USE_RESULT MaybeObject* GetPropertyWithFailedAccessCheck(
@@ -2785,10 +2786,6 @@ class JSObject: public JSReceiver {
   static Handle<Object> DeleteElementWithInterceptor(Handle<JSObject> object,
                                                      uint32_t index);
 
-  MUST_USE_RESULT MaybeObject* DeleteFastElement(uint32_t index);
-  MUST_USE_RESULT MaybeObject* DeleteDictionaryElement(uint32_t index,
-                                                       DeleteMode mode);
-
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
                                     Object* object);
@@ -2800,14 +2797,14 @@ class JSObject: public JSReceiver {
   void GetElementsCapacityAndUsage(int* capacity, int* used);
 
   bool CanSetCallback(Name* name);
-  MUST_USE_RESULT MaybeObject* SetElementCallback(
-      uint32_t index,
-      Object* structure,
-      PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* SetPropertyCallback(
-      Name* name,
-      Object* structure,
-      PropertyAttributes attributes);
+  static void SetElementCallback(Handle<JSObject> object,
+                                 uint32_t index,
+                                 Handle<Object> structure,
+                                 PropertyAttributes attributes);
+  static void SetPropertyCallback(Handle<JSObject> object,
+                                  Handle<Name> name,
+                                  Handle<Object> structure,
+                                  PropertyAttributes attributes);
   static void DefineElementAccessor(Handle<JSObject> object,
                                     uint32_t index,
                                     Handle<Object> getter,
