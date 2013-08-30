@@ -3656,27 +3656,24 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetElementAttributeWithHandler(
 }
 
 
-void JSProxy::Fix() {
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  Handle<JSProxy> self(this);
+void JSProxy::Fix(Handle<JSProxy> proxy) {
+  Isolate* isolate = proxy->GetIsolate();
 
   // Save identity hash.
-  MaybeObject* maybe_hash = GetIdentityHash(OMIT_CREATION);
+  Handle<Object> hash = JSProxy::GetIdentityHash(proxy, OMIT_CREATION);
 
-  if (IsJSFunctionProxy()) {
-    isolate->factory()->BecomeJSFunction(self);
+  if (proxy->IsJSFunctionProxy()) {
+    isolate->factory()->BecomeJSFunction(proxy);
     // Code will be set on the JavaScript side.
   } else {
-    isolate->factory()->BecomeJSObject(self);
+    isolate->factory()->BecomeJSObject(proxy);
   }
-  ASSERT(self->IsJSObject());
+  ASSERT(proxy->IsJSObject());
 
   // Inherit identity, if it was present.
-  Object* hash;
-  if (maybe_hash->To<Object>(&hash) && hash->IsSmi()) {
-    Handle<JSObject> new_self(JSObject::cast(*self));
-    isolate->factory()->SetIdentityHash(new_self, Smi::cast(hash));
+  if (hash->IsSmi()) {
+    isolate->factory()->SetIdentityHash(
+        Handle<JSObject>::cast(proxy), Smi::cast(*hash));
   }
 }
 
@@ -4751,6 +4748,12 @@ MaybeObject* JSObject::GetIdentityHash(CreationFlag flag) {
     return Smi::FromInt(0);
   }
   return hash;
+}
+
+
+Handle<Object> JSProxy::GetIdentityHash(Handle<JSProxy> proxy,
+                                        CreationFlag flag) {
+  CALL_HEAP_FUNCTION(proxy->GetIsolate(), proxy->GetIdentityHash(flag), Object);
 }
 
 

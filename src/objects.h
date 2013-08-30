@@ -9106,9 +9106,11 @@ class JSProxy: public JSReceiver {
       uint32_t index);
 
   MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
+  static Handle<Object> GetIdentityHash(Handle<JSProxy> proxy,
+                                        CreationFlag flag);
 
   // Turn this into an (empty) JSObject.
-  void Fix();
+  static void Fix(Handle<JSProxy> proxy);
 
   // Initializes the body after the handler slot.
   inline void InitializeBody(int object_size, Object* value);
