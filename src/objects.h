@@ -2299,9 +2299,8 @@ class JSObject: public JSReceiver {
   // Returns true if the object has a property with the hidden string as name.
   bool HasHiddenProperties();
 
-  static int GetIdentityHash(Handle<JSObject> obj);
-  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
-  MUST_USE_RESULT MaybeObject* SetIdentityHash(Smi* hash, CreationFlag flag);
+  static int GetIdentityHash(Handle<JSObject> object);
+  static void SetIdentityHash(Handle<JSObject> object, Smi* hash);
 
   inline void ValidateElements();
 
@@ -2847,6 +2846,8 @@ class JSObject: public JSReceiver {
   // the inline-stored identity hash.
   MUST_USE_RESULT MaybeObject* SetHiddenPropertiesHashTable(
       Object* value);
+
+  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
@@ -9106,11 +9107,7 @@ class JSProxy: public JSReceiver {
       JSReceiver* receiver,
       uint32_t index);
 
-  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
-  static Handle<Object> GetIdentityHash(Handle<JSProxy> proxy,
-                                        CreationFlag flag);
-
-  // Turn this into an (empty) JSObject.
+  // Turn the proxy into an (empty) JSObject.
   static void Fix(Handle<JSProxy> proxy);
 
   // Initializes the body after the handler slot.
@@ -9158,6 +9155,10 @@ class JSProxy: public JSReceiver {
   static Handle<Object> DeleteElementWithHandler(Handle<JSProxy> proxy,
                                                  uint32_t index,
                                                  DeleteMode mode);
+
+  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
+  static Handle<Object> GetIdentityHash(Handle<JSProxy> proxy,
+                                        CreationFlag flag);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };

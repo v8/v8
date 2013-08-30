@@ -3672,8 +3672,7 @@ void JSProxy::Fix(Handle<JSProxy> proxy) {
 
   // Inherit identity, if it was present.
   if (hash->IsSmi()) {
-    isolate->factory()->SetIdentityHash(
-        Handle<JSObject>::cast(proxy), Smi::cast(*hash));
+    JSObject::SetIdentityHash(Handle<JSObject>::cast(proxy), Smi::cast(*hash));
   }
 }
 
@@ -4716,17 +4715,16 @@ Smi* JSReceiver::GenerateIdentityHash() {
 }
 
 
-MaybeObject* JSObject::SetIdentityHash(Smi* hash, CreationFlag flag) {
-  MaybeObject* maybe = SetHiddenProperty(GetHeap()->identity_hash_string(),
-                                         hash);
-  if (maybe->IsFailure()) return maybe;
-  return this;
+void JSObject::SetIdentityHash(Handle<JSObject> object, Smi* hash) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
+                          object->SetHiddenProperty(
+                              object->GetHeap()->identity_hash_string(), hash));
 }
 
 
-int JSObject::GetIdentityHash(Handle<JSObject> obj) {
-  CALL_AND_RETRY_OR_DIE(obj->GetIsolate(),
-                        obj->GetIdentityHash(ALLOW_CREATION),
+int JSObject::GetIdentityHash(Handle<JSObject> object) {
+  CALL_AND_RETRY_OR_DIE(object->GetIsolate(),
+                        object->GetIdentityHash(ALLOW_CREATION),
                         return Smi::cast(__object__)->value(),
                         return 0);
 }
