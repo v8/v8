@@ -742,7 +742,7 @@
                 'target_conditions': [
                   ['_toolset=="host"', {
                     'defines': [
-                      'V8_LIBRT_NOT_AVAILABLE',
+                      'V8_LIBRT_NOT_AVAILABLE=1',
                     ],
                   }],
                 ],
