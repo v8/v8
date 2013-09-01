@@ -4853,7 +4853,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
   DoubleRegister double_scratch = double_scratch0();
-  DoubleRegister double_scratch2 = ToDoubleRegister(instr->temp3());
+  DoubleRegister double_scratch2 = ToDoubleRegister(instr->temp2());
 
   ASSERT(!scratch1.is(input_reg) && !scratch1.is(scratch2));
   ASSERT(!scratch2.is(input_reg) && !scratch2.is(scratch1));
@@ -4868,11 +4868,6 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   // of the if.
 
   if (instr->truncating()) {
-    Register scratch3 = ToRegister(instr->temp2());
-    FPURegister single_scratch = double_scratch.low();
-    ASSERT(!scratch3.is(input_reg) &&
-           !scratch3.is(scratch1) &&
-           !scratch3.is(scratch2));
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
     Label heap_number;
@@ -4886,14 +4881,8 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ Branch(&done);
 
     __ bind(&heap_number);
-    __ ldc1(double_scratch2,
-            FieldMemOperand(input_reg, HeapNumber::kValueOffset));
-    __ EmitECMATruncate(input_reg,
-                        double_scratch2,
-                        single_scratch,
-                        scratch1,
-                        scratch2,
-                        scratch3);
+    __ mov(scratch2, input_reg);
+    __ TruncateHeapNumberToI(input_reg, scratch2);
   } else {
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr->environment(), scratch1, Operand(at));
@@ -4980,20 +4969,12 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register result_reg = ToRegister(instr->result());
   Register scratch1 = scratch0();
-  Register scratch2 = ToRegister(instr->temp());
   DoubleRegister double_input = ToDoubleRegister(instr->value());
 
   if (instr->truncating()) {
-    Register scratch3 = ToRegister(instr->temp2());
-    FPURegister single_scratch = double_scratch0().low();
-    __ EmitECMATruncate(result_reg,
-                        double_input,
-                        single_scratch,
-                        scratch1,
-                        scratch2,
-                        scratch3);
+    __ TruncateDoubleToI(result_reg, double_input);
   } else {
-    Register except_flag = scratch2;
+    Register except_flag = LCodeGen::scratch1();
 
     __ EmitFPUTruncate(kRoundToMinusInf,
                        result_reg,
@@ -5020,21 +5001,13 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
 void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   Register result_reg = ToRegister(instr->result());
-  Register scratch1 = scratch0();
-  Register scratch2 = ToRegister(instr->temp());
+  Register scratch1 = LCodeGen::scratch0();
   DoubleRegister double_input = ToDoubleRegister(instr->value());
 
   if (instr->truncating()) {
-    Register scratch3 = ToRegister(instr->temp2());
-    FPURegister single_scratch = double_scratch0().low();
-    __ EmitECMATruncate(result_reg,
-                        double_input,
-                        single_scratch,
-                        scratch1,
-                        scratch2,
-                        scratch3);
+    __ TruncateDoubleToI(result_reg, double_input);
   } else {
-    Register except_flag = scratch2;
+    Register except_flag = LCodeGen::scratch1();
 
     __ EmitFPUTruncate(kRoundToMinusInf,
                        result_reg,

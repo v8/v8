@@ -90,6 +90,13 @@ enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum RAStatus { kRAHasNotBeenSaved, kRAHasBeenSaved };
 
+Register GetRegisterThatIsNotOneOf(Register reg1,
+                                   Register reg2 = no_reg,
+                                   Register reg3 = no_reg,
+                                   Register reg4 = no_reg,
+                                   Register reg5 = no_reg,
+                                   Register reg6 = no_reg);
+
 bool AreAliased(Register r1, Register r2, Register r3, Register r4);
 
 
@@ -788,26 +795,36 @@ class MacroAssembler: public Assembler {
                                    Register scratch);
 
   // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
+  // succeeds, otherwise falls through if result is saturated. On return
+  // 'result' either holds answer, or is clobbered on fall through.
+  //
+  // Only public for the test code in test-code-stubs-arm.cc.
+  void TryInlineTruncateDoubleToI(Register result,
+                                  DoubleRegister input,
+                                  Label* done);
+
+  // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
-  // Exits with 'result' holding the answer and all other registers clobbered.
-  void EmitECMATruncate(Register result,
-                        FPURegister double_input,
-                        FPURegister single_scratch,
-                        Register scratch,
-                        Register scratch2,
-                        Register scratch3);
+  // Exits with 'result' holding the answer.
+  void TruncateDoubleToI(Register result, DoubleRegister double_input);
+
+  // Performs a truncating conversion of a heap number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. 'result' and 'input'
+  // must be different registers. Exits with 'result' holding the answer.
+  void TruncateHeapNumberToI(Register result, Register object);
 
   // Converts the smi or heap number in object to an int32 using the rules
   // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
-  // and brought into the range -2^31 .. +2^31 - 1.
-  void ConvertNumberToInt32(Register object,
-                            Register dst,
-                            Register heap_number_map,
-                            Register scratch1,
-                            Register scratch2,
-                            Register scratch3,
-                            FPURegister double_scratch,
-                            Label* not_int32);
+  // and brought into the range -2^31 .. +2^31 - 1. 'result' and 'input' must be
+  // different registers.
+  void TruncateNumberToI(Register object,
+                         Register result,
+                         Register heap_number_map,
+                         Register scratch1,
+                         Register scratch2,
+                         Register scratch3,
+                         Label* not_int32);
 
   // Loads the number from object into dst register.
   // If |object| is neither smi nor heap number, |not_number| is jumped to

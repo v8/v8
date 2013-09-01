@@ -521,6 +521,64 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
 }
 
 
+void DoubleToIStub::Generate(MacroAssembler* masm) {
+  Label out_of_range, only_low, negate, done;
+  Register input_reg = source();
+  Register result_reg = destination();
+
+  int double_offset = offset();
+  // Account for saved regs if input is sp.
+  if (input_reg.is(sp)) double_offset += 3 * kPointerSize;
+
+  Register scratch =
+      GetRegisterThatIsNotOneOf(input_reg, result_reg);
+  Register scratch2 =
+      GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch);
+  Register scratch3 =
+      GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch, scratch2);
+  DoubleRegister double_scratch = kLithiumScratchDouble.low();
+  DoubleRegister double_input = f12;
+
+  __ Push(scratch, scratch2, scratch3);
+
+  __ ldc1(double_input, MemOperand(input_reg, double_offset));
+
+  if (!skip_fastpath()) {
+    // Clear cumulative exception flags and save the FCSR.
+    __ cfc1(scratch2, FCSR);
+    __ ctc1(zero_reg, FCSR);
+    // Try a conversion to a signed integer.
+    __ trunc_w_d(double_scratch, double_input);
+    __ mfc1(result_reg, double_scratch);
+    // Retrieve and restore the FCSR.
+    __ cfc1(scratch, FCSR);
+    __ ctc1(scratch2, FCSR);
+    // Check for overflow and NaNs.
+    __ And(
+        scratch, scratch,
+        kFCSROverflowFlagMask | kFCSRUnderflowFlagMask
+           | kFCSRInvalidOpFlagMask);
+    // If we had no exceptions we are done.
+    __ Branch(&done, eq, scratch, Operand(zero_reg));
+  }
+
+  // Load the double value and perform a manual truncation.
+  Register input_high = scratch2;
+  Register input_low = scratch3;
+  __ Move(input_low, input_high, double_input);
+
+  __ EmitOutOfInt32RangeTruncate(result_reg,
+                                 input_high,
+                                 input_low,
+                                 scratch);
+
+  __ bind(&done);
+
+  __ Pop(scratch, scratch2, scratch3);
+  __ Ret();
+}
+
+
 bool WriteInt32ToHeapNumberStub::IsPregenerated() {
   // These variants are compiled ahead of time.  See next method.
   if (the_int_.is(a1) &&
@@ -1532,12 +1590,12 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
         __ SmiUntag(a2, right);
       } else {
         // Convert operands to 32-bit integers. Right in a2 and left in a3.
-        __ ConvertNumberToInt32(
+        __ TruncateNumberToI(
             left, a3, heap_number_map,
-            scratch1, scratch2, scratch3, f0, not_numbers);
-        __ ConvertNumberToInt32(
+            scratch1, scratch2, scratch3, not_numbers);
+        __ TruncateNumberToI(
             right, a2, heap_number_map,
-            scratch1, scratch2, scratch3, f0, not_numbers);
+            scratch1, scratch2, scratch3, not_numbers);
       }
       Label result_not_a_smi;
       switch (op) {
