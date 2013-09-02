@@ -226,8 +226,8 @@ class PreallocatedMemoryThread: public Thread {
   PreallocatedMemoryThread()
       : Thread("v8:PreallocMem"),
         keep_running_(true),
-        wait_for_ever_semaphore_(OS::CreateSemaphore(0)),
-        data_ready_semaphore_(OS::CreateSemaphore(0)),
+        wait_for_ever_semaphore_(new Semaphore(0)),
+        data_ready_semaphore_(new Semaphore(0)),
         data_(NULL),
         length_(0) {
   }

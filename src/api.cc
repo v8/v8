@@ -7095,7 +7095,8 @@ void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetHostDispatchHandler");
   ENTER_V8(isolate);
-  isolate->debugger()->SetHostDispatchHandler(handler, period);
+  isolate->debugger()->SetHostDispatchHandler(
+      handler, i::TimeDelta::FromMilliseconds(period));
 }
 
 

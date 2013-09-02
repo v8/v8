@@ -50,11 +50,12 @@ class OptimizingCompilerThread : public Thread {
       thread_id_(0),
 #endif
       isolate_(isolate),
-      stop_semaphore_(OS::CreateSemaphore(0)),
-      input_queue_semaphore_(OS::CreateSemaphore(0)) {
+      stop_semaphore_(0),
+      input_queue_semaphore_(0) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
     NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
   }
+  ~OptimizingCompilerThread() {}
 
   void Run();
   void Stop();
@@ -80,13 +81,6 @@ class OptimizingCompilerThread : public Thread {
   bool IsOptimizerThread();
 #endif
 
-  ~OptimizingCompilerThread() {
-    delete input_queue_semaphore_;
-    delete stop_semaphore_;
-#ifdef DEBUG
-#endif
-  }
-
  private:
   enum StopFlag { CONTINUE, STOP, FLUSH };
 
@@ -101,8 +95,8 @@ class OptimizingCompilerThread : public Thread {
 #endif
 
   Isolate* isolate_;
-  Semaphore* stop_semaphore_;
-  Semaphore* input_queue_semaphore_;
+  Semaphore stop_semaphore_;
+  Semaphore input_queue_semaphore_;
   UnboundQueue<OptimizingCompiler*> input_queue_;
   UnboundQueue<OptimizingCompiler*> output_queue_;
   Mutex install_mutex_;

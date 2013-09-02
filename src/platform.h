@@ -47,6 +47,7 @@
 #include <cstdarg>
 
 #include "platform/mutex.h"
+#include "platform/semaphore.h"
 #include "utils.h"
 #include "v8globals.h"
 
@@ -92,8 +93,6 @@ int random();
 
 namespace v8 {
 namespace internal {
-
-class Semaphore;
 
 double ceiling(double x);
 double modulo(double x, double y);
@@ -287,10 +286,6 @@ class OS {
   };
 
   static int StackWalk(Vector<StackFrame> frames);
-
-  // Factory method for creating platform dependent Semaphore.
-  // Please use delete to reclaim the storage for the returned Semaphore.
-  static Semaphore* CreateSemaphore(int count);
 
   // Factory method for creating platform dependent Socket.
   // Please use delete to reclaim the storage for the returned Socket.
@@ -510,59 +505,6 @@ class VirtualMemory {
 
 
 // ----------------------------------------------------------------------------
-// Semaphore
-//
-// A semaphore object is a synchronization object that maintains a count. The
-// count is decremented each time a thread completes a wait for the semaphore
-// object and incremented each time a thread signals the semaphore. When the
-// count reaches zero,  threads waiting for the semaphore blocks until the
-// count becomes non-zero.
-
-class Semaphore {
- public:
-  virtual ~Semaphore() {}
-
-  // Suspends the calling thread until the semaphore counter is non zero
-  // and then decrements the semaphore counter.
-  virtual void Wait() = 0;
-
-  // Suspends the calling thread until the counter is non zero or the timeout
-  // time has passed. If timeout happens the return value is false and the
-  // counter is unchanged. Otherwise the semaphore counter is decremented and
-  // true is returned. The timeout value is specified in microseconds.
-  virtual bool Wait(int timeout) = 0;
-
-  // Increments the semaphore counter.
-  virtual void Signal() = 0;
-};
-
-template <int InitialValue>
-struct CreateSemaphoreTrait {
-  static Semaphore* Create() {
-    return OS::CreateSemaphore(InitialValue);
-  }
-};
-
-// POD Semaphore initialized lazily (i.e. the first time Pointer() is called).
-// Usage:
-//   // The following semaphore starts at 0.
-//   static LazySemaphore<0>::type my_semaphore = LAZY_SEMAPHORE_INITIALIZER;
-//
-//   void my_function() {
-//     // Do something with my_semaphore.Pointer().
-//   }
-//
-template <int InitialValue>
-struct LazySemaphore {
-  typedef typename LazyDynamicInstance<
-      Semaphore, CreateSemaphoreTrait<InitialValue>,
-      ThreadSafeInitOnceTrait>::type type;
-};
-
-#define LAZY_SEMAPHORE_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER
-
-
-// ----------------------------------------------------------------------------
 // Thread
 //
 // Thread objects are used for creating and running threads. When the start()
@@ -604,7 +546,7 @@ class Thread {
 
   // Start new thread and wait until Run() method is called on the new thread.
   void StartSynchronously() {
-    start_semaphore_ = OS::CreateSemaphore(0);
+    start_semaphore_ = new Semaphore(0);
     Start();
     start_semaphore_->Wait();
     delete start_semaphore_;

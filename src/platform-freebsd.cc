@@ -372,62 +372,6 @@ bool VirtualMemory::HasLazyCommits() {
 }
 
 
-class FreeBSDSemaphore : public Semaphore {
- public:
-  explicit FreeBSDSemaphore(int count) {  sem_init(&sem_, 0, count); }
-  virtual ~FreeBSDSemaphore() { sem_destroy(&sem_); }
-
-  virtual void Wait();
-  virtual bool Wait(int timeout);
-  virtual void Signal() { sem_post(&sem_); }
- private:
-  sem_t sem_;
-};
-
-
-void FreeBSDSemaphore::Wait() {
-  while (true) {
-    int result = sem_wait(&sem_);
-    if (result == 0) return;  // Successfully got semaphore.
-    CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
-  }
-}
-
-
-bool FreeBSDSemaphore::Wait(int timeout) {
-  const long kOneSecondMicros = 1000000;  // NOLINT
-
-  // Split timeout into second and nanosecond parts.
-  struct timeval delta;
-  delta.tv_usec = timeout % kOneSecondMicros;
-  delta.tv_sec = timeout / kOneSecondMicros;
-
-  struct timeval current_time;
-  // Get the current time.
-  if (gettimeofday(&current_time, NULL) == -1) {
-    return false;
-  }
-
-  // Calculate time for end of timeout.
-  struct timeval end_time;
-  timeradd(&current_time, &delta, &end_time);
-
-  struct timespec ts;
-  TIMEVAL_TO_TIMESPEC(&end_time, &ts);
-  while (true) {
-    int result = sem_timedwait(&sem_, &ts);
-    if (result == 0) return true;  // Successfully got semaphore.
-    if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
-    CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
-  }
-}
-
-
-Semaphore* OS::CreateSemaphore(int count) {
-  return new FreeBSDSemaphore(count);
-}
-
-
 void OS::SetUp() {
   // Seed the random number generator.
   // Convert the current time to a 64-bit integer first, before converting it

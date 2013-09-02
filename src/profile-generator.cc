@@ -442,7 +442,7 @@ void CodeMap::Print() {
 
 
 CpuProfilesCollection::CpuProfilesCollection()
-    : current_profiles_semaphore_(OS::CreateSemaphore(1)) {
+    : current_profiles_semaphore_(1) {
 }
 
 
@@ -457,7 +457,6 @@ static void DeleteCpuProfile(CpuProfile** profile_ptr) {
 
 
 CpuProfilesCollection::~CpuProfilesCollection() {
-  delete current_profiles_semaphore_;
   finished_profiles_.Iterate(DeleteCpuProfile);
   current_profiles_.Iterate(DeleteCpuProfile);
   code_entries_.Iterate(DeleteCodeEntry);
@@ -467,20 +466,20 @@ CpuProfilesCollection::~CpuProfilesCollection() {
 bool CpuProfilesCollection::StartProfiling(const char* title, unsigned uid,
                                            bool record_samples) {
   ASSERT(uid > 0);
-  current_profiles_semaphore_->Wait();
+  current_profiles_semaphore_.Wait();
   if (current_profiles_.length() >= kMaxSimultaneousProfiles) {
-    current_profiles_semaphore_->Signal();
+    current_profiles_semaphore_.Signal();
     return false;
   }
   for (int i = 0; i < current_profiles_.length(); ++i) {
     if (strcmp(current_profiles_[i]->title(), title) == 0) {
       // Ignore attempts to start profile with the same title.
-      current_profiles_semaphore_->Signal();
+      current_profiles_semaphore_.Signal();
       return false;
     }
   }
   current_profiles_.Add(new CpuProfile(title, uid, record_samples));
-  current_profiles_semaphore_->Signal();
+  current_profiles_semaphore_.Signal();
   return true;
 }
 
@@ -488,14 +487,14 @@ bool CpuProfilesCollection::StartProfiling(const char* title, unsigned uid,
 CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
   const int title_len = StrLength(title);
   CpuProfile* profile = NULL;
-  current_profiles_semaphore_->Wait();
+  current_profiles_semaphore_.Wait();
   for (int i = current_profiles_.length() - 1; i >= 0; --i) {
     if (title_len == 0 || strcmp(current_profiles_[i]->title(), title) == 0) {
       profile = current_profiles_.Remove(i);
       break;
     }
   }
-  current_profiles_semaphore_->Signal();
+  current_profiles_semaphore_.Signal();
 
   if (profile == NULL) return NULL;
   profile->CalculateTotalTicksAndSamplingRate();
@@ -531,11 +530,11 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
-  current_profiles_semaphore_->Wait();
+  current_profiles_semaphore_.Wait();
   for (int i = 0; i < current_profiles_.length(); ++i) {
     current_profiles_[i]->AddPath(path);
   }
-  current_profiles_semaphore_->Signal();
+  current_profiles_semaphore_.Signal();
 }
 
 

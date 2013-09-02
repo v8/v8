@@ -312,7 +312,7 @@ class CpuProfilesCollection {
 
   // Accessed by VM thread and profile generator thread.
   List<CpuProfile*> current_profiles_;
-  Semaphore* current_profiles_semaphore_;
+  Semaphore current_profiles_semaphore_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfilesCollection);
 };

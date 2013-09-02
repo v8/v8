@@ -123,6 +123,27 @@ int64_t TimeDelta::InNanoseconds() const {
 }
 
 
+#if V8_OS_MACOSX
+
+TimeDelta TimeDelta::FromMachTimespec(struct mach_timespec ts) {
+  ASSERT(ts.tv_nsec >= 0);
+  return TimeDelta(ts.tv_sec * Time::kMicrosecondsPerSecond +
+                   ts.tv_nsec / Time::kNanosecondsPerMicrosecond);
+}
+
+
+struct mach_timespec TimeDelta::ToMachTimespec() const {
+  struct mach_timespec ts;
+  ASSERT(delta_ >= 0);
+  ts.tv_sec = delta_ / Time::kMicrosecondsPerSecond;
+  ts.tv_nsec = (delta_ % Time::kMicrosecondsPerSecond) *
+      Time::kNanosecondsPerMicrosecond;
+  return ts;
+}
+
+#endif  // V8_OS_MACOSX
+
+
 #if V8_OS_WIN
 
 // We implement time using the high-resolution timers so that we can get
@@ -243,6 +264,39 @@ Time Time::Now() {
 
 Time Time::NowFromSystemTime() {
   return Now();
+}
+
+
+Time Time::FromTimespec(struct timespec ts) {
+  ASSERT(ts.tv_nsec >= 0);
+  ASSERT(ts.tv_nsec < static_cast<long>(kNanosecondsPerSecond));  // NOLINT
+  if (ts.tv_nsec == 0 && ts.tv_sec == 0) {
+    return Time();
+  }
+  if (ts.tv_nsec == static_cast<long>(kNanosecondsPerSecond - 1) &&  // NOLINT
+      ts.tv_sec == std::numeric_limits<time_t>::max()) {
+    return Max();
+  }
+  return Time(ts.tv_sec * kMicrosecondsPerSecond +
+              ts.tv_nsec / kNanosecondsPerMicrosecond);
+}
+
+
+struct timespec Time::ToTimespec() const {
+  struct timespec ts;
+  if (IsNull()) {
+    ts.tv_sec = 0;
+    ts.tv_nsec = 0;
+    return ts;
+  }
+  if (IsMax()) {
+    ts.tv_sec = std::numeric_limits<time_t>::max();
+    ts.tv_nsec = static_cast<long>(kNanosecondsPerSecond - 1);  // NOLINT
+    return ts;
+  }
+  ts.tv_sec = us_ / kMicrosecondsPerSecond;
+  ts.tv_nsec = (us_ % kMicrosecondsPerSecond) * kNanosecondsPerMicrosecond;
+  return ts;
 }
 
 

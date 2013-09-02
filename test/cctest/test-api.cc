@@ -12237,8 +12237,7 @@ THREADED_TEST(ObjectGetConstructorName) {
 
 
 bool ApiTestFuzzer::fuzzing_ = false;
-i::Semaphore* ApiTestFuzzer::all_tests_done_=
-  i::OS::CreateSemaphore(0);
+i::Semaphore ApiTestFuzzer::all_tests_done_(0);
 int ApiTestFuzzer::active_tests_;
 int ApiTestFuzzer::tests_being_run_;
 int ApiTestFuzzer::current_;
@@ -12269,14 +12268,14 @@ bool ApiTestFuzzer::NextThread() {
            RegisterThreadedTest::nth(test_position)->name());
   }
   current_ = test_position;
-  RegisterThreadedTest::nth(current_)->fuzzer_->gate_->Signal();
+  RegisterThreadedTest::nth(current_)->fuzzer_->gate_.Signal();
   return true;
 }
 
 
 void ApiTestFuzzer::Run() {
   // When it is our turn...
-  gate_->Wait();
+  gate_.Wait();
   {
     // ... get the V8 lock and start running the test.
     v8::Locker locker(CcTest::default_isolate());
@@ -12287,7 +12286,7 @@ void ApiTestFuzzer::Run() {
   active_tests_--;
   // If it was the last then signal that fact.
   if (active_tests_ == 0) {
-    all_tests_done_->Signal();
+    all_tests_done_.Signal();
   } else {
     // Otherwise select a new test and start that.
     NextThread();
@@ -12324,7 +12323,7 @@ void ApiTestFuzzer::RunAllTests() {
   current_ = -1;
   NextThread();
   // Wait till they are all done.
-  all_tests_done_->Wait();
+  all_tests_done_.Wait();
 }
 
 
@@ -12345,7 +12344,7 @@ void ApiTestFuzzer::ContextSwitch() {
     // Now it can start.
     v8::Unlocker unlocker(CcTest::default_isolate());
     // Wait till someone starts us again.
-    gate_->Wait();
+    gate_.Wait();
     // And we're off.
   }
 }
@@ -14061,10 +14060,9 @@ THREADED_TEST(CrossContextNew) {
 
 class RegExpInterruptTest {
  public:
-  RegExpInterruptTest() : block_(NULL) {}
-  ~RegExpInterruptTest() { delete block_; }
+  RegExpInterruptTest() : block_(0) {}
+  ~RegExpInterruptTest() {}
   void RunTest() {
-    block_ = i::OS::CreateSemaphore(0);
     gc_count_ = 0;
     gc_during_regexp_ = 0;
     regexp_success_ = false;
@@ -14099,7 +14097,7 @@ class RegExpInterruptTest {
   };
 
   void CollectGarbage() {
-    block_->Wait();
+    block_.Wait();
     while (gc_during_regexp_ < kRequiredGCs) {
       {
         v8::Locker lock(CcTest::default_isolate());
@@ -14113,7 +14111,7 @@ class RegExpInterruptTest {
   }
 
   void LongRunningRegExp() {
-    block_->Signal();  // Enable garbage collection thread on next preemption.
+    block_.Signal();  // Enable garbage collection thread on next preemption.
     int rounds = 0;
     while (gc_during_regexp_ < kRequiredGCs) {
       int gc_before = gc_count_;
@@ -14151,7 +14149,7 @@ class RegExpInterruptTest {
     regexp_success_ = true;
   }
 
-  i::Semaphore* block_;
+  i::Semaphore block_;
   int gc_count_;
   int gc_during_regexp_;
   bool regexp_success_;
@@ -14184,10 +14182,9 @@ TEST(RegExpInterruption) {
 
 class ApplyInterruptTest {
  public:
-  ApplyInterruptTest() : block_(NULL) {}
-  ~ApplyInterruptTest() { delete block_; }
+  ApplyInterruptTest() : block_(0) {}
+  ~ApplyInterruptTest() {}
   void RunTest() {
-    block_ = i::OS::CreateSemaphore(0);
     gc_count_ = 0;
     gc_during_apply_ = 0;
     apply_success_ = false;
@@ -14222,7 +14219,7 @@ class ApplyInterruptTest {
   };
 
   void CollectGarbage() {
-    block_->Wait();
+    block_.Wait();
     while (gc_during_apply_ < kRequiredGCs) {
       {
         v8::Locker lock(CcTest::default_isolate());
@@ -14235,7 +14232,7 @@ class ApplyInterruptTest {
   }
 
   void LongRunningApply() {
-    block_->Signal();
+    block_.Signal();
     int rounds = 0;
     while (gc_during_apply_ < kRequiredGCs) {
       int gc_before = gc_count_;
@@ -14260,7 +14257,7 @@ class ApplyInterruptTest {
     apply_success_ = true;
   }
 
-  i::Semaphore* block_;
+  i::Semaphore block_;
   int gc_count_;
   int gc_during_apply_;
   bool apply_success_;
@@ -14473,12 +14470,12 @@ TEST(CompileExternalTwoByteSource) {
 class RegExpStringModificationTest {
  public:
   RegExpStringModificationTest()
-      : block_(i::OS::CreateSemaphore(0)),
+      : block_(0),
         morphs_(0),
         morphs_during_regexp_(0),
         ascii_resource_(i::Vector<const char>("aaaaaaaaaaaaaab", 15)),
         uc16_resource_(i::Vector<const uint16_t>(two_byte_content_, 15)) {}
-  ~RegExpStringModificationTest() { delete block_; }
+  ~RegExpStringModificationTest() {}
   void RunTest() {
     i::Factory* factory = i::Isolate::Current()->factory();
 
@@ -14535,7 +14532,7 @@ class RegExpStringModificationTest {
   };
 
   void MorphString() {
-    block_->Wait();
+    block_.Wait();
     while (morphs_during_regexp_ < kRequiredModifications &&
            morphs_ < kMaxModifications) {
       {
@@ -14551,7 +14548,7 @@ class RegExpStringModificationTest {
   }
 
   void LongRunningRegExp() {
-    block_->Signal();  // Enable morphing thread on next preemption.
+    block_.Signal();  // Enable morphing thread on next preemption.
     while (morphs_during_regexp_ < kRequiredModifications &&
            morphs_ < kMaxModifications) {
       int morphs_before = morphs_;
@@ -14573,7 +14570,7 @@ class RegExpStringModificationTest {
   }
 
   i::uc16 two_byte_content_[15];
-  i::Semaphore* block_;
+  i::Semaphore block_;
   int morphs_;
   int morphs_during_regexp_;
   bool regexp_success_;
@@ -20070,16 +20067,14 @@ THREADED_TEST(JSONParseNumber) {
 #if V8_OS_POSIX
 class ThreadInterruptTest {
  public:
-  ThreadInterruptTest() : sem_(NULL), sem_value_(0) { }
-  ~ThreadInterruptTest() { delete sem_; }
+  ThreadInterruptTest() : sem_(0), sem_value_(0) { }
+  ~ThreadInterruptTest() {}
 
   void RunTest() {
-    sem_ = i::OS::CreateSemaphore(0);
-
     InterruptThread i_thread(this);
     i_thread.Start();
 
-    sem_->Wait();
+    sem_.Wait();
     CHECK_EQ(kExpectedValue, sem_value_);
   }
 
@@ -20110,7 +20105,7 @@ class ThreadInterruptTest {
 
       // Set value and signal semaphore
       test_->sem_value_ = 1;
-      test_->sem_->Signal();
+      test_->sem_.Signal();
     }
 
     static void SignalHandler(int signal) {
@@ -20120,7 +20115,7 @@ class ThreadInterruptTest {
      ThreadInterruptTest* test_;
   };
 
-  i::Semaphore* sem_;
+  i::Semaphore sem_;
   volatile int sem_value_;
 };
 

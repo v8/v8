@@ -49,8 +49,8 @@ class DebuggerAgent: public Thread {
         name_(StrDup(name)), port_(port),
         server_(OS::CreateSocket()), terminate_(false),
         session_(NULL),
-        terminate_now_(OS::CreateSemaphore(0)),
-        listening_(OS::CreateSemaphore(0)) {
+        terminate_now_(0),
+        listening_(0) {
     ASSERT(isolate_->debugger_agent_instance() == NULL);
     isolate_->set_debugger_agent_instance(this);
   }
@@ -78,8 +78,8 @@ class DebuggerAgent: public Thread {
   bool terminate_;  // Termination flag.
   RecursiveMutex session_access_;  // Mutex guarding access to session_.
   DebuggerAgentSession* session_;  // Current active session if any.
-  Semaphore* terminate_now_;  // Semaphore to signal termination.
-  Semaphore* listening_;
+  Semaphore terminate_now_;  // Semaphore to signal termination.
+  Semaphore listening_;
 
   friend class DebuggerAgentSession;
   friend void DebuggerAgentMessageHandler(const v8::Debug::Message& message);

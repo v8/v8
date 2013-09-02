@@ -140,8 +140,8 @@ class SourceGroup {
  public:
   SourceGroup() :
 #ifndef V8_SHARED
-      next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
-      done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+      next_semaphore_(0),
+      done_semaphore_(0),
       thread_(NULL),
 #endif  // V8_SHARED
       argv_(NULL),
@@ -180,8 +180,8 @@ class SourceGroup {
   static i::Thread::Options GetThreadOptions();
   void ExecuteInThread();
 
-  i::Semaphore* next_semaphore_;
-  i::Semaphore* done_semaphore_;
+  i::Semaphore next_semaphore_;
+  i::Semaphore done_semaphore_;
   i::Thread* thread_;
 #endif  // V8_SHARED
 

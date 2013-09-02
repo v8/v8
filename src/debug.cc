@@ -2614,19 +2614,16 @@ Debugger::Debugger(Isolate* isolate)
       host_dispatch_handler_(NULL),
       debug_message_dispatch_handler_(NULL),
       message_dispatch_helper_thread_(NULL),
-      host_dispatch_micros_(100 * 1000),
+      host_dispatch_period_(TimeDelta::FromMilliseconds(100)),
       agent_(NULL),
       command_queue_(isolate->logger(), kQueueInitialSize),
-      command_received_(OS::CreateSemaphore(0)),
+      command_received_(0),
       event_command_queue_(isolate->logger(), kQueueInitialSize),
       isolate_(isolate) {
 }
 
 
-Debugger::~Debugger() {
-  delete command_received_;
-  command_received_ = 0;
-}
+Debugger::~Debugger() {}
 
 
 Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
@@ -3149,14 +3146,14 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     // Wait for new command in the queue.
     if (Debugger::host_dispatch_handler_) {
       // In case there is a host dispatch - do periodic dispatches.
-      if (!command_received_->Wait(host_dispatch_micros_)) {
+      if (!command_received_.WaitFor(host_dispatch_period_)) {
         // Timout expired, do the dispatch.
         Debugger::host_dispatch_handler_();
         continue;
       }
     } else {
       // In case there is no host dispatch - just wait.
-      command_received_->Wait();
+      command_received_.Wait();
     }
 
     // Get the command from the queue.
@@ -3298,9 +3295,9 @@ void Debugger::ListenersChanged() {
 
 
 void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
-                                      int period) {
+                                      TimeDelta period) {
   host_dispatch_handler_ = handler;
-  host_dispatch_micros_ = period * 1000;
+  host_dispatch_period_ = period;
 }
 
 
@@ -3340,7 +3337,7 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
       client_data);
   isolate_->logger()->DebugTag("Put command on command_queue.");
   command_queue_.Put(message);
-  command_received_->Signal();
+  command_received_.Signal();
 
   // Set the debug command break flag to have the command processed.
   if (!isolate_->debug()->InDebugger()) {
@@ -3822,13 +3819,8 @@ void LockingCommandMessageQueue::Clear() {
 
 MessageDispatchHelperThread::MessageDispatchHelperThread(Isolate* isolate)
     : Thread("v8:MsgDispHelpr"),
-      isolate_(isolate), sem_(OS::CreateSemaphore(0)),
+      isolate_(isolate), sem_(0),
       already_signalled_(false) {
-}
-
-
-MessageDispatchHelperThread::~MessageDispatchHelperThread() {
-  delete sem_;
 }
 
 
@@ -3840,13 +3832,13 @@ void MessageDispatchHelperThread::Schedule() {
     }
     already_signalled_ = true;
   }
-  sem_->Signal();
+  sem_.Signal();
 }
 
 
 void MessageDispatchHelperThread::Run() {
   while (true) {
-    sem_->Wait();
+    sem_.Wait();
     {
       LockGuard<Mutex> lock_guard(&mutex_);
       already_signalled_ = false;

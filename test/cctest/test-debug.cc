@@ -4679,13 +4679,12 @@ class ThreadBarrier {
   int num_threads_;
   int num_blocked_;
   v8::internal::Mutex lock_;
-  v8::internal::Semaphore* sem_;
+  v8::internal::Semaphore sem_;
   bool invalid_;
 };
 
 ThreadBarrier::ThreadBarrier(int num_threads)
-    : num_threads_(num_threads), num_blocked_(0) {
-  sem_ = OS::CreateSemaphore(0);
+    : num_threads_(num_threads), num_blocked_(0), sem_(0) {
   invalid_ = false;  // A barrier may only be used once.  Then it is invalid.
 }
 
@@ -4693,7 +4692,6 @@ ThreadBarrier::ThreadBarrier(int num_threads)
 // Do not call, due to race condition with Wait().
 // Could be resolved with Pthread condition variables.
 ThreadBarrier::~ThreadBarrier() {
-  delete sem_;
 }
 
 
@@ -4703,7 +4701,7 @@ void ThreadBarrier::Wait() {
   if (num_blocked_ == num_threads_ - 1) {
     // Signal and unblock all waiting threads.
     for (int i = 0; i < num_threads_ - 1; ++i) {
-      sem_->Signal();
+      sem_.Signal();
     }
     invalid_ = true;
     printf("BARRIER\n\n");
@@ -4712,7 +4710,7 @@ void ThreadBarrier::Wait() {
   } else {  // Wait for the semaphore.
     ++num_blocked_;
     lock_.Unlock();  // Potential race condition with destructor because
-    sem_->Wait();  // these two lines are not atomic.
+    sem_.Wait();  // these two lines are not atomic.
   }
 }
 
@@ -4735,8 +4733,8 @@ Barriers::Barriers() : barrier_1(2), barrier_2(2),
     barrier_3(2), barrier_4(2), barrier_5(2) {}
 
 void Barriers::Initialize() {
-  semaphore_1 = OS::CreateSemaphore(0);
-  semaphore_2 = OS::CreateSemaphore(0);
+  semaphore_1 = new v8::internal::Semaphore(0);
+  semaphore_2 = new v8::internal::Semaphore(0);
 }
 
 
@@ -5990,17 +5988,16 @@ class DebuggerAgentProtocolServerThread : public i::Thread {
         port_(port),
         server_(NULL),
         client_(NULL),
-        listening_(OS::CreateSemaphore(0)) {
+        listening_(0) {
   }
   ~DebuggerAgentProtocolServerThread() {
     // Close both sockets.
     delete client_;
     delete server_;
-    delete listening_;
   }
 
   void Run();
-  void WaitForListening() { listening_->Wait(); }
+  void WaitForListening() { listening_.Wait(); }
   char* body() { return *body_; }
 
  private:
@@ -6008,7 +6005,7 @@ class DebuggerAgentProtocolServerThread : public i::Thread {
   i::SmartArrayPointer<char> body_;
   i::Socket* server_;  // Server socket used for bind/accept.
   i::Socket* client_;  // Single client connection used by the test.
-  i::Semaphore* listening_;  // Signalled when the server is in listen mode.
+  i::Semaphore listening_;  // Signalled when the server is in listen mode.
 };
 
 
@@ -6024,7 +6021,7 @@ void DebuggerAgentProtocolServerThread::Run() {
   // Listen for new connections.
   ok = server_->Listen(1);
   CHECK(ok);
-  listening_->Signal();
+  listening_.Signal();
 
   // Accept a connection.
   client_ = server_->Accept();

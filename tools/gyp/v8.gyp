@@ -443,6 +443,8 @@
         '../../src/platform.h',
         '../../src/platform/mutex.cc',
         '../../src/platform/mutex.h',
+        '../../src/platform/semaphore.cc',
+        '../../src/platform/semaphore.h',
         '../../src/preparse-data-format.h',
         '../../src/preparse-data.cc',
         '../../src/preparse-data.h',

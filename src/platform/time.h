@@ -36,6 +36,8 @@
 // Forward declarations.
 extern "C" {
 struct _FILETIME;
+struct mach_timespec;
+struct timespec;
 struct timeval;
 }
 
@@ -81,6 +83,10 @@ class TimeDelta V8_FINAL BASE_EMBEDDED {
   int64_t InMillisecondsRoundedUp() const;
   int64_t InMicroseconds() const { return delta_; }
   int64_t InNanoseconds() const;
+
+  // Converts to/from Mach time specs.
+  static TimeDelta FromMachTimespec(struct mach_timespec ts);
+  struct mach_timespec ToMachTimespec() const;
 
   TimeDelta& operator=(const TimeDelta& other) {
     delta_ = other.delta_;
@@ -211,6 +217,10 @@ class Time V8_FINAL BASE_EMBEDDED {
   // Returns the maximum time, which should be greater than any reasonable time
   // with which we might compare it.
   static Time Max() { return Time(std::numeric_limits<int64_t>::max()); }
+
+  // Converts to/from POSIX time specs.
+  static Time FromTimespec(struct timespec ts);
+  struct timespec ToTimespec() const;
 
   // Converts to/from POSIX time values.
   static Time FromTimeval(struct timeval tv);
