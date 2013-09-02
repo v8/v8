@@ -12076,6 +12076,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator frame_it(isolate, id);
+  RUNTIME_ASSERT(!frame_it.done());
+
   JavaScriptFrame* frame = frame_it.frame();
 
   Handle<JSFunction> fun =
@@ -12095,11 +12097,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
   BreakLocationIterator break_location_iterator(debug_info,
                                                 ALL_BREAK_LOCATIONS);
 
-  break_location_iterator.FindBreakLocationFromAddress(frame->pc());
+  break_location_iterator.FindBreakLocationFromAddress(frame->pc() - 1);
   int current_statement_pos = break_location_iterator.statement_position();
 
   while (!break_location_iterator.Done()) {
+    bool accept;
     if (break_location_iterator.pc() > frame->pc()) {
+      accept = true;
+    } else {
+      StackFrame::Id break_frame_id = isolate->debug()->break_frame_id();
+      // The break point is near our pc. Could be a step-in possibility,
+      // that is currently taken by active debugger call.
+      if (break_frame_id == StackFrame::NO_ID) {
+        // We are not stepping.
+        accept = false;
+      } else {
+        JavaScriptFrameIterator additional_frame_it(isolate, break_frame_id);
+        // If our frame is a top frame and we are stepping, we can do step-in
+        // at this place.
+        accept = additional_frame_it.frame()->id() == id;
+      }
+    }
+    if (accept) {
       if (break_location_iterator.IsStepInLocation(isolate)) {
         Smi* position_value = Smi::FromInt(break_location_iterator.position());
         JSObject::SetElement(array, len,

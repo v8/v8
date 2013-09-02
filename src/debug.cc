@@ -403,11 +403,11 @@ void BreakLocationIterator::ClearDebugBreak() {
 
 
 bool BreakLocationIterator::IsStepInLocation(Isolate* isolate) {
-  if (RelocInfo::IsConstructCall(rmode())) {
+  if (RelocInfo::IsConstructCall(original_rmode())) {
     return true;
   } else if (RelocInfo::IsCodeTarget(rmode())) {
     HandleScope scope(debug_info_->GetIsolate());
-    Address target = rinfo()->target_address();
+    Address target = original_rinfo()->target_address();
     Handle<Code> target_code(Code::GetCodeFromTargetAddress(target));
     if (target_code->kind() == Code::STUB) {
       return target_code->major_key() == CodeStub::CallFunction;
