@@ -2719,7 +2719,11 @@ class JSObject: public JSReceiver {
   // don't want to be wasteful with long lived objects.
   static const int kMaxUncheckedOldFastElementsLength = 500;
 
-  static const int kInitialMaxFastElementArray = 100000;
+  // TODO(2790): HAllocate currently always allocates fast backing stores
+  // in new space, where on x64 we can only fit ~98K elements. Keep this
+  // limit lower than that until HAllocate is made smarter.
+  static const int kInitialMaxFastElementArray = 95000;
+
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 64;
   static const int kMaxInstanceSize = 255 * kPointerSize;
