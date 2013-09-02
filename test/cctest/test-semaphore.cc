@@ -36,27 +36,28 @@
 using namespace ::v8::internal;
 
 
-TEST(WaitAndSignal) {
-  class WaitAndSignalThread V8_FINAL : public Thread {
-   public:
-    explicit WaitAndSignalThread(Semaphore* semaphore)
-        : Thread("WaitAndSignalThread"), semaphore_(semaphore) {}
-    virtual ~WaitAndSignalThread() {}
+class WaitAndSignalThread V8_FINAL : public Thread {
+  public:
+  explicit WaitAndSignalThread(Semaphore* semaphore)
+      : Thread("WaitAndSignalThread"), semaphore_(semaphore) {}
+  virtual ~WaitAndSignalThread() {}
 
-    virtual void Run() V8_OVERRIDE {
-      for (int n = 0; n < 1000; ++n) {
-        semaphore_->Wait();
-        bool result = semaphore_->WaitFor(TimeDelta::FromMicroseconds(1));
-        ASSERT(!result);
-        USE(result);
-        semaphore_->Signal();
-      }
+  virtual void Run() V8_OVERRIDE {
+    for (int n = 0; n < 1000; ++n) {
+      semaphore_->Wait();
+      bool result = semaphore_->WaitFor(TimeDelta::FromMicroseconds(1));
+      ASSERT(!result);
+      USE(result);
+      semaphore_->Signal();
     }
+  }
 
-   private:
-    Semaphore* semaphore_;
-  };
+  private:
+  Semaphore* semaphore_;
+};
 
+
+TEST(WaitAndSignal) {
   Semaphore semaphore(0);
   WaitAndSignalThread t1(&semaphore);
   WaitAndSignalThread t2(&semaphore);
@@ -93,8 +94,10 @@ TEST(WaitFor) {
   // Semaphore signalled - no timeout.
   semaphore.Signal();
   ok = semaphore.WaitFor(TimeDelta::FromMicroseconds(0));
+  CHECK(ok);
   semaphore.Signal();
   ok = semaphore.WaitFor(TimeDelta::FromMicroseconds(100));
+  CHECK(ok);
   semaphore.Signal();
   ok = semaphore.WaitFor(TimeDelta::FromMicroseconds(1000));
   CHECK(ok);
