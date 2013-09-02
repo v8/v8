@@ -20309,4 +20309,20 @@ TEST(AccessCheckThrows) {
   v8::V8::SetFailedAccessCheckCallbackFunction(NULL);
 }
 
+
+THREADED_TEST(Regress256330) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Handle<FunctionTemplate> templ = FunctionTemplate::New();
+  AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  context->Global()->Set(v8_str("Bug"), templ->GetFunction());
+  CompileRun("\"use strict\"; var o = new Bug;"
+             "function f(o) { o.x = 10; };"
+             "f(o); f(o); f(o);"
+             "%OptimizeFunctionOnNextCall(f);"
+             "f(o);");
+  ExpectBoolean("%GetOptimizationStatus(f) != 2", true);
+}
+
 #endif  // V8_OS_POSIX
