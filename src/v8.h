@@ -82,7 +82,6 @@ class V8 : public AllStatic {
   // empty heap.
   static bool Initialize(Deserializer* des);
   static void TearDown();
-  static bool IsRunning() { return is_running_; }
   static bool UseCrankshaft() { return use_crankshaft_; }
   // To be dead you have to have lived
   // TODO(isolates): move IsDead to Isolate.
@@ -131,8 +130,6 @@ class V8 : public AllStatic {
   static void InitializeOncePerProcessImpl();
   static void InitializeOncePerProcess();
 
-  // True if engine is currently running
-  static bool is_running_;
   // True if V8 has ever been run
   static bool has_been_set_up_;
   // True if error has been signaled for current engine

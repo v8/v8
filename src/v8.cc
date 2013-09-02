@@ -50,7 +50,6 @@ namespace internal {
 
 V8_DECLARE_ONCE(init_once);
 
-bool V8::is_running_ = false;
 bool V8::has_been_set_up_ = false;
 bool V8::has_been_disposed_ = false;
 bool V8::has_fatal_error_ = false;
@@ -85,7 +84,6 @@ bool V8::Initialize(Deserializer* des) {
   Isolate* isolate = Isolate::Current();
   if (isolate->IsInitialized()) return true;
 
-  is_running_ = true;
   has_been_set_up_ = true;
   has_fatal_error_ = false;
   has_been_disposed_ = false;
@@ -95,7 +93,6 @@ bool V8::Initialize(Deserializer* des) {
 
 
 void V8::SetFatalError() {
-  is_running_ = false;
   has_fatal_error_ = true;
 }
 
@@ -118,7 +115,6 @@ void V8::TearDown() {
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
 
-  is_running_ = false;
   has_been_disposed_ = true;
 
   delete call_completed_callbacks_;
