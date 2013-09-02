@@ -1498,22 +1498,12 @@ void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
 }
 
 
-void MacroAssembler::EmitECMATruncate(Register result,
-                                      FPURegister double_input,
-                                      FPURegister single_scratch,
-                                      Register scratch,
-                                      Register scratch2,
-                                      Register scratch3) {
-  ASSERT(!scratch2.is(result));
-  ASSERT(!scratch3.is(result));
-  ASSERT(!scratch3.is(scratch2));
-  ASSERT(!scratch.is(result) &&
-         !scratch.is(scratch2) &&
-         !scratch.is(scratch3));
-  ASSERT(!single_scratch.is(double_input));
-
-  Label done;
-  Label manual;
+void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
+                                                DoubleRegister double_input,
+                                                Label* done) {
+  DoubleRegister single_scratch = kLithiumScratchDouble.low();
+  Register scratch = at;
+  Register scratch2 = t9;
 
   // Clear cumulative exception flags and save the FCSR.
   cfc1(scratch2, FCSR);
@@ -1529,16 +1519,83 @@ void MacroAssembler::EmitECMATruncate(Register result,
       scratch,
       kFCSROverflowFlagMask | kFCSRUnderflowFlagMask | kFCSRInvalidOpFlagMask);
   // If we had no exceptions we are done.
-  Branch(&done, eq, scratch, Operand(zero_reg));
+  Branch(done, eq, scratch, Operand(zero_reg));
+}
 
-  // Load the double value and perform a manual truncation.
-  Register input_high = scratch2;
-  Register input_low = scratch3;
-  Move(input_low, input_high, double_input);
+
+void MacroAssembler::TruncateDoubleToI(Register result,
+                                       DoubleRegister double_input) {
+  Label done;
+
+  TryInlineTruncateDoubleToI(result, double_input, &done);
+
+  // If we fell through then inline version didn't succeed - call stub instead.
+  push(ra);
+  Subu(sp, sp, Operand(kDoubleSize));  // Put input on stack.
+  sdc1(double_input, MemOperand(sp, 0));
+
+  DoubleToIStub stub(sp, result, 0, true, true);
+  CallStub(&stub);
+
+  Addu(sp, sp, Operand(kDoubleSize));
+  pop(ra);
+
+  bind(&done);
+}
+
+
+void MacroAssembler::TruncateHeapNumberToI(Register result, Register object) {
+  Label done;
+  DoubleRegister double_scratch = f12;
+  ASSERT(!result.is(object));
+
+  ldc1(double_scratch,
+       MemOperand(object, HeapNumber::kValueOffset - kHeapObjectTag));
+  TryInlineTruncateDoubleToI(result, double_scratch, &done);
+
+  // If we fell through then inline version didn't succeed - call stub instead.
+  push(ra);
+  DoubleToIStub stub(object,
+                     result,
+                     HeapNumber::kValueOffset - kHeapObjectTag,
+                     true,
+                     true);
+  CallStub(&stub);
+  pop(ra);
+
+  bind(&done);
+}
+
+
+void MacroAssembler::TruncateNumberToI(Register object,
+                                       Register result,
+                                       Register heap_number_map,
+                                       Register scratch1,
+                                       Register scratch2,
+                                       Register scratch3,
+                                       Label* not_number) {
+  Label done;
+  Label not_in_int32_range;
+  DoubleRegister double_scratch = f12;
+
+  UntagAndJumpIfSmi(result, object, &done);
+  JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
+  ConvertToInt32(object,
+                 result,
+                 scratch1,
+                 scratch2,
+                 double_scratch,
+                 &not_in_int32_range);
+  jmp(&done);
+
+  bind(&not_in_int32_range);
+  lw(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
+  lw(scratch2, FieldMemOperand(object, HeapNumber::kMantissaOffset));
   EmitOutOfInt32RangeTruncate(result,
-                              input_high,
-                              input_low,
-                              scratch);
+                              scratch1,
+                              scratch2,
+                              scratch3);
+
   bind(&done);
 }
 
@@ -4577,40 +4634,6 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
 }
 
 
-void MacroAssembler::ConvertNumberToInt32(Register object,
-                                          Register dst,
-                                          Register heap_number_map,
-                                          Register scratch1,
-                                          Register scratch2,
-                                          Register scratch3,
-                                          FPURegister double_scratch,
-                                          Label* not_number) {
-  Label done;
-  Label not_in_int32_range;
-
-  UntagAndJumpIfSmi(dst, object, &done);
-  JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
-  ConvertToInt32(object,
-                 dst,
-                 scratch1,
-                 scratch2,
-                 double_scratch,
-                 &not_in_int32_range);
-  jmp(&done);
-
-  bind(&not_in_int32_range);
-  lw(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
-  lw(scratch2, FieldMemOperand(object, HeapNumber::kMantissaOffset));
-
-  EmitOutOfInt32RangeTruncate(dst,
-                              scratch1,
-                              scratch2,
-                              scratch3);
-
-  bind(&done);
-}
-
-
 void MacroAssembler::LoadNumber(Register object,
                                 FPURegister dst,
                                 Register heap_number_map,
@@ -5639,6 +5662,30 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   Branch(allocation_memento_present, cond, scratch_reg,
       Operand(Handle<Map>(isolate()->heap()->allocation_memento_map())));
   bind(&no_memento_available);
+}
+
+
+Register GetRegisterThatIsNotOneOf(Register reg1,
+                                   Register reg2,
+                                   Register reg3,
+                                   Register reg4,
+                                   Register reg5,
+                                   Register reg6) {
+  RegList regs = 0;
+  if (reg1.is_valid()) regs |= reg1.bit();
+  if (reg2.is_valid()) regs |= reg2.bit();
+  if (reg3.is_valid()) regs |= reg3.bit();
+  if (reg4.is_valid()) regs |= reg4.bit();
+  if (reg5.is_valid()) regs |= reg5.bit();
+  if (reg6.is_valid()) regs |= reg6.bit();
+
+  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
+    Register candidate = Register::FromAllocationIndex(i);
+    if (regs & candidate.bit()) continue;
+    return candidate;
+  }
+  UNREACHABLE();
+  return no_reg;
 }
 
 

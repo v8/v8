@@ -1381,12 +1381,15 @@ class Literal V8_FINAL : public Expression {
  protected:
   Literal(Isolate* isolate, Handle<Object> value)
       : Expression(isolate),
-        value_(value) { }
+        value_(value),
+        isolate_(isolate) { }
 
  private:
   Handle<String> ToString();
 
   Handle<Object> value_;
+  // TODO(dcarney): remove.  this is only needed for Match and Hash.
+  Isolate* isolate_;
 };
 
 
@@ -2811,8 +2814,8 @@ public:                                                             \
   }                                                                 \
                                                                     \
 private:                                                            \
-  void InitializeAstVisitor() {                                     \
-    isolate_ = Isolate::Current();                                  \
+  void InitializeAstVisitor(Isolate* isolate) {                     \
+    isolate_ = isolate;                                             \
     stack_overflow_ = false;                                        \
   }                                                                 \
   Isolate* isolate() { return isolate_; }                           \

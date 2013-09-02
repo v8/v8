@@ -131,7 +131,6 @@
 //       - Oddball
 //       - Foreign
 //       - SharedFunctionInfo
-//       - OptimizedCodeEntry
 //       - Struct
 //         - Box
 //         - DeclaredAccessorDescriptor
@@ -407,7 +406,6 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(FIXED_ARRAY_TYPE)                                                          \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                                   \
   V(SHARED_FUNCTION_INFO_TYPE)                                                 \
-  V(OPTIMIZED_CODE_ENTRY_TYPE)                                                 \
                                                                                \
   V(JS_MESSAGE_OBJECT_TYPE)                                                    \
                                                                                \
@@ -758,7 +756,6 @@ enum InstanceType {
 
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  OPTIMIZED_CODE_ENTRY_TYPE,
 
   JS_MESSAGE_OBJECT_TYPE,
 
@@ -1020,7 +1017,6 @@ class MaybeObject BASE_EMBEDDED {
   V(Code)                                      \
   V(Oddball)                                   \
   V(SharedFunctionInfo)                        \
-  V(OptimizedCodeEntry)                        \
   V(JSValue)                                   \
   V(JSDate)                                    \
   V(JSMessageObject)                           \
@@ -1936,6 +1932,11 @@ class JSReceiver: public HeapObject {
                                     Handle<Object> value,
                                     PropertyAttributes attributes,
                                     StrictModeFlag strict_mode);
+  static Handle<Object> SetElement(Handle<JSReceiver> object,
+                                   uint32_t index,
+                                   Handle<Object> value,
+                                   PropertyAttributes attributes,
+                                   StrictModeFlag strict_mode);
 
   MUST_USE_RESULT static MaybeObject* SetPropertyOrFail(
       Handle<JSReceiver> object,
@@ -1968,14 +1969,6 @@ class JSReceiver: public HeapObject {
   static Handle<Object> DeleteElement(Handle<JSReceiver> object,
                                       uint32_t index,
                                       DeleteMode mode = NORMAL_DELETION);
-
-  // Set the index'th array element.
-  // Can cause GC, or return failure if GC is required.
-  MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
-                                          Object* value,
-                                          PropertyAttributes attributes,
-                                          StrictModeFlag strict_mode,
-                                          bool check_prototype);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -2246,7 +2239,8 @@ class JSObject: public JSReceiver {
 
   MaybeObject* LookupAccessor(Name* name, AccessorComponent component);
 
-  MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
+  static Handle<Object> SetAccessor(Handle<JSObject> object,
+                                    Handle<AccessorInfo> info);
 
   // Used from Object::GetProperty().
   MUST_USE_RESULT MaybeObject* GetPropertyWithFailedAccessCheck(
@@ -2297,13 +2291,13 @@ class JSObject: public JSReceiver {
   Object* GetHiddenProperty(Name* key);
   // Deletes a hidden property. Deleting a non-existing property is
   // considered successful.
-  void DeleteHiddenProperty(Name* key);
+  static void DeleteHiddenProperty(Handle<JSObject> object,
+                                   Handle<Name> key);
   // Returns true if the object has a property with the hidden string as name.
   bool HasHiddenProperties();
 
-  static int GetIdentityHash(Handle<JSObject> obj);
-  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
-  MUST_USE_RESULT MaybeObject* SetIdentityHash(Smi* hash, CreationFlag flag);
+  static int GetIdentityHash(Handle<JSObject> object);
+  static void SetIdentityHash(Handle<JSObject> object, Smi* hash);
 
   inline void ValidateElements();
 
@@ -2788,10 +2782,6 @@ class JSObject: public JSReceiver {
   static Handle<Object> DeleteElementWithInterceptor(Handle<JSObject> object,
                                                      uint32_t index);
 
-  MUST_USE_RESULT MaybeObject* DeleteFastElement(uint32_t index);
-  MUST_USE_RESULT MaybeObject* DeleteDictionaryElement(uint32_t index,
-                                                       DeleteMode mode);
-
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
                                     Object* object);
@@ -2803,14 +2793,14 @@ class JSObject: public JSReceiver {
   void GetElementsCapacityAndUsage(int* capacity, int* used);
 
   bool CanSetCallback(Name* name);
-  MUST_USE_RESULT MaybeObject* SetElementCallback(
-      uint32_t index,
-      Object* structure,
-      PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* SetPropertyCallback(
-      Name* name,
-      Object* structure,
-      PropertyAttributes attributes);
+  static void SetElementCallback(Handle<JSObject> object,
+                                 uint32_t index,
+                                 Handle<Object> structure,
+                                 PropertyAttributes attributes);
+  static void SetPropertyCallback(Handle<JSObject> object,
+                                  Handle<Name> name,
+                                  Handle<Object> structure,
+                                  PropertyAttributes attributes);
   static void DefineElementAccessor(Handle<JSObject> object,
                                     uint32_t index,
                                     Handle<Object> getter,
@@ -2849,6 +2839,8 @@ class JSObject: public JSReceiver {
   // the inline-stored identity hash.
   MUST_USE_RESULT MaybeObject* SetHiddenPropertiesHashTable(
       Object* value);
+
+  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
@@ -6806,76 +6798,6 @@ class SharedFunctionInfo: public HeapObject {
 };
 
 
-// An optimized code entry represents an association between the native
-// context, a function, optimized code, and the literals. The entries
-// are linked into two lists for efficient lookup: by native context
-// (linked through next_by_native_context), or by shared function
-// info (linked through next_by_shared_info).
-// The references to the native context, function, and code are weak,
-// in order not to leak native contexts or functions through
-// SharedFunctionInfo. This means an entry can become "dead" through GC.
-// Entries are removed lazily as each list is traversed.
-class OptimizedCodeEntry: public HeapObject {
- public:
-  // [native_context]: The native context of this entry. (WEAK)
-  DECL_ACCESSORS(native_context, Context)
-
-  // [function]: The JSFunction of this entry. (WEAK)
-  DECL_ACCESSORS(function, JSFunction)
-
-  // [code]: The optimized code of this entry. (WEAK)
-  DECL_ACCESSORS(code, Code)
-
-  // [literals]: Array of literals for this entry.
-  DECL_ACCESSORS(literals, FixedArray)
-
-  // [next_by_shared_info]: The next link in the list, when traversing
-  // starting with a SharedFunctionInfo. (NULL if none).
-  DECL_ACCESSORS(next_by_shared_info, OptimizedCodeEntry)
-
-  // [next_by_native_context]: The next link in the list, when traversing
-  // starting with a native context. (NULL if none)
-  DECL_ACCESSORS(next_by_native_context, OptimizedCodeEntry)
-
-  // Casting.
-  static inline OptimizedCodeEntry* cast(Object* obj);
-
-  DECLARE_PRINTER(OptimizedCodeEntry)
-  DECLARE_VERIFIER(OptimizedCodeEntry)
-
-  // Layout description.
-  static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kFunctionOffset = kNativeContextOffset + kPointerSize;
-  static const int kCodeOffset = kFunctionOffset + kPointerSize;
-  static const int kLiteralsOffset = kCodeOffset + kPointerSize;
-  static const int kNextBySharedInfoOffset =
-      kLiteralsOffset + kPointerSize;
-  static const int kNextByNativeContextOffset =
-      kNextBySharedInfoOffset + kPointerSize;
-  static const int kCacheableOffset = kNextByNativeContextOffset + kPointerSize;
-  static const int kSize = kCacheableOffset + kIntSize;
-  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kSize);
-
-  typedef FixedBodyDescriptor<kLiteralsOffset,
-                              kNextByNativeContextOffset + kPointerSize,
-                              kSize> BodyDescriptor;
-
-  // Kills an entry, nulling out its references to native context, function,
-  // code, and literals.
-  void Kill();
-  inline bool cacheable();
-  inline void set_cacheable(bool val);
-
- private:
-  // Used internally during traversal to skip dead entries.
-  inline bool IsDead() {
-    return function() == NULL || code() == NULL;
-  }
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(OptimizedCodeEntry);
-};
-
-
 class JSGeneratorObject: public JSObject {
  public:
   // [function]: The function corresponding to this generator object.
@@ -9088,11 +9010,6 @@ class JSProxy: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
-  MUST_USE_RESULT MaybeObject* SetElementWithHandler(
-      JSReceiver* receiver,
-      uint32_t index,
-      Object* value,
-      StrictModeFlag strict_mode);
 
   // If the handler defines an accessor property with a setter, invoke it.
   // If it defines an accessor property without a setter, or a data property
@@ -9113,10 +9030,8 @@ class JSProxy: public JSReceiver {
       JSReceiver* receiver,
       uint32_t index);
 
-  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
-
-  // Turn this into an (empty) JSObject.
-  void Fix();
+  // Turn the proxy into an (empty) JSObject.
+  static void Fix(Handle<JSProxy> proxy);
 
   // Initializes the body after the handler slot.
   inline void InitializeBody(int object_size, Object* value);
@@ -9151,12 +9066,22 @@ class JSProxy: public JSReceiver {
  private:
   friend class JSReceiver;
 
-  static Handle<Object> DeletePropertyWithHandler(Handle<JSProxy> object,
+  static Handle<Object> SetElementWithHandler(Handle<JSProxy> proxy,
+                                              Handle<JSReceiver> receiver,
+                                              uint32_t index,
+                                              Handle<Object> value,
+                                              StrictModeFlag strict_mode);
+
+  static Handle<Object> DeletePropertyWithHandler(Handle<JSProxy> proxy,
                                                   Handle<Name> name,
                                                   DeleteMode mode);
-  static Handle<Object> DeleteElementWithHandler(Handle<JSProxy> object,
+  static Handle<Object> DeleteElementWithHandler(Handle<JSProxy> proxy,
                                                  uint32_t index,
                                                  DeleteMode mode);
+
+  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
+  static Handle<Object> GetIdentityHash(Handle<JSProxy> proxy,
+                                        CreationFlag flag);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };

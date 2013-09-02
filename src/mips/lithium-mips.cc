@@ -1844,13 +1844,10 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else {
         value = UseRegister(val);
         LOperand* temp1 = TempRegister();
-        LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister()
-                                                      : NULL;
-        LOperand* temp3 = FixedTemp(f22);
+        LOperand* temp2 = FixedTemp(f22);
         res = DefineSameAsFirst(new(zone()) LTaggedToI(value,
                                                        temp1,
-                                                       temp2,
-                                                       temp3));
+                                                       temp2));
         res = AssignEnvironment(res);
       }
       return res;
@@ -1870,14 +1867,12 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       return AssignPointerMap(result);
     } else if (to.IsSmi()) {
       LOperand* value = UseRegister(instr->value());
-      return AssignEnvironment(DefineAsRegister(new(zone()) LDoubleToSmi(value,
-          TempRegister(), TempRegister())));
+      return AssignEnvironment(
+          DefineAsRegister(new(zone()) LDoubleToSmi(value)));
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
-      LOperand* temp1 = TempRegister();
-      LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister() : NULL;
-      LDoubleToI* res = new(zone()) LDoubleToI(value, temp1, temp2);
+      LDoubleToI* res = new(zone()) LDoubleToI(value);
       return AssignEnvironment(DefineAsRegister(res));
     }
   } else if (from.IsInteger32()) {

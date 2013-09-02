@@ -1190,13 +1190,6 @@ void Factory::BecomeJSFunction(Handle<JSReceiver> object) {
 }
 
 
-void Factory::SetIdentityHash(Handle<JSObject> object, Smi* hash) {
-  CALL_HEAP_FUNCTION_VOID(
-      isolate(),
-      object->SetIdentityHash(hash, ALLOW_CREATION));
-}
-
-
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name,
     int number_of_literals,
@@ -1246,21 +1239,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateSharedFunctionInfo(*name),
                      SharedFunctionInfo);
-}
-
-
-Handle<OptimizedCodeEntry> Factory::NewOptimizedCodeEntry(
-      Handle<Context> native_context,
-      Handle<JSFunction> function,
-      Handle<Code> code,
-      Handle<FixedArray> literals) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateOptimizedCodeEntry(
-                         *native_context,
-                         *function,
-                         *code,
-                         *literals),
-                     OptimizedCodeEntry);
 }
 
 

@@ -2040,7 +2040,7 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
   function_state_= &initial_function_state_;
-  InitializeAstVisitor();
+  InitializeAstVisitor(info->isolate());
 }
 
 

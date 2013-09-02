@@ -63,7 +63,6 @@ namespace internal {
   V(Map, cell_map, CellMap)                                                    \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
-  V(Map, optimized_code_entry_map, OptimizedCodeEntryMap)                      \
   V(Map, meta_map, MetaMap)                                                    \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, native_context_map, NativeContextMap)                                 \
@@ -1097,16 +1096,6 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateSharedFunctionInfo(Object* name);
-
-  // Allocates a new OptimizedCodeEntry object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateOptimizedCodeEntry(
-      Context* native_context,
-      JSFunction* function,
-      Code* code,
-      FixedArray* literals);
 
   // Allocates a new JSMessageObject object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

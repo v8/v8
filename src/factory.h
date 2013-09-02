@@ -346,8 +346,6 @@ class Factory {
   void BecomeJSObject(Handle<JSReceiver> object);
   void BecomeJSFunction(Handle<JSReceiver> object);
 
-  void SetIdentityHash(Handle<JSObject> object, Smi* hash);
-
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Object> prototype);
 
@@ -486,12 +484,6 @@ class Factory {
       Handle<Code> code,
       Handle<ScopeInfo> scope_info);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
-
-  Handle<OptimizedCodeEntry> NewOptimizedCodeEntry(
-      Handle<Context> native_context,
-      Handle<JSFunction> function,
-      Handle<Code> code,
-      Handle<FixedArray> literals);
 
   Handle<JSMessageObject> NewJSMessageObject(
       Handle<String> type,

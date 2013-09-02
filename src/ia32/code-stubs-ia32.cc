@@ -658,18 +658,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 }
 
 
-// Uses SSE2 to convert the heap number in |source| to an integer. Jumps to
-// |conversion_failure| if the heap number did not contain an int32 value.
-// Result is in ecx. Trashes ebx, xmm0, and xmm1.
-static void ConvertHeapNumberToInt32(MacroAssembler* masm,
-                                     Register source,
-                                     Label* conversion_failure) {
-  __ movdbl(xmm0, FieldOperand(source, HeapNumber::kValueOffset));
-  FloatingPointHelper::CheckSSE2OperandIsInt32(
-      masm, conversion_failure, xmm0, ecx, ebx, xmm1);
-}
-
-
 void BinaryOpStub::Initialize() {
   platform_specific_bit_ = CpuFeatures::IsSupported(SSE3);
 }
@@ -2270,16 +2258,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(
   __ cmp(ebx, factory->heap_number_map());
   __ j(not_equal, &check_undefined_arg1);
 
-  // Get the untagged integer version of the edx heap number in ecx.
-  if (left_type == BinaryOpIC::INT32 && CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope use_sse2(masm, SSE2);
-    ConvertHeapNumberToInt32(masm, edx, conversion_failure);
-  } else {
-    DoubleToIStub stub(edx, ecx, HeapNumber::kValueOffset - kHeapObjectTag,
-                       true);
-    __ call(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
-  }
-  __ mov(edx, ecx);
+  __ TruncateHeapNumberToI(edx, edx);
 
   // Here edx has the untagged integer, eax has a Smi or a heap number.
   __ bind(&load_arg2);
@@ -2308,14 +2287,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(
   __ j(not_equal, &check_undefined_arg2);
   // Get the untagged integer version of the eax heap number in ecx.
 
-  if (right_type == BinaryOpIC::INT32 && CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope use_sse2(masm, SSE2);
-    ConvertHeapNumberToInt32(masm, eax, conversion_failure);
-  } else {
-    DoubleToIStub stub(eax, ecx, HeapNumber::kValueOffset - kHeapObjectTag,
-                       true);
-    __ call(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
-  }
+  __ TruncateHeapNumberToI(ecx, eax);
 
   __ bind(&done);
   __ mov(eax, edx);
@@ -2542,16 +2514,16 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   }
 
   if (exponent_type_ != INTEGER) {
-    Label fast_power;
-    // Detect integer exponents stored as double.
-    __ cvttsd2si(exponent, Operand(double_exponent));
+    Label fast_power, try_arithmetic_simplification;
+    __ DoubleToI(exponent, double_exponent, double_scratch,
+                 TREAT_MINUS_ZERO_AS_ZERO, &try_arithmetic_simplification);
+    __ jmp(&int_exponent);
+
+    __ bind(&try_arithmetic_simplification);
     // Skip to runtime if possibly NaN (indicated by the indefinite integer).
+    __ cvttsd2si(exponent, Operand(double_exponent));
     __ cmp(exponent, Immediate(0x80000000u));
     __ j(equal, &call_runtime);
-    __ cvtsi2sd(double_scratch, exponent);
-    // Already ruled out NaNs for exponent.
-    __ ucomisd(double_exponent, double_scratch);
-    __ j(equal, &int_exponent);
 
     if (exponent_type_ == ON_STACK) {
       // Detect square root case.  Crankshaft detects constant +/-0.5 at

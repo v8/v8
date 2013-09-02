@@ -215,6 +215,231 @@ void MacroAssembler::ClampUint8(Register reg) {
 }
 
 
+void MacroAssembler::SlowTruncateToI(Register result_reg,
+                                     Register input_reg,
+                                     int offset) {
+  DoubleToIStub stub(input_reg, result_reg, offset, true);
+  call(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+}
+
+
+void MacroAssembler::TruncateDoubleToI(Register result_reg,
+                                       XMMRegister input_reg) {
+  Label done;
+  cvttsd2si(result_reg, Operand(input_reg));
+  cmp(result_reg, 0x80000000u);
+  j(not_equal, &done, Label::kNear);
+
+  sub(esp, Immediate(kDoubleSize));
+  movdbl(MemOperand(esp, 0), input_reg);
+  SlowTruncateToI(result_reg, esp, 0);
+  add(esp, Immediate(kDoubleSize));
+  bind(&done);
+}
+
+
+void MacroAssembler::TruncateX87TOSToI(Register result_reg) {
+  sub(esp, Immediate(kDoubleSize));
+  fst_d(MemOperand(esp, 0));
+  SlowTruncateToI(result_reg, esp, 0);
+  add(esp, Immediate(kDoubleSize));
+}
+
+
+void MacroAssembler::X87TOSToI(Register result_reg,
+                               MinusZeroMode minus_zero_mode,
+                               Label* conversion_failed,
+                               Label::Distance dst) {
+  Label done;
+  sub(esp, Immediate(kPointerSize));
+  fist_s(MemOperand(esp, 0));
+  fld(0);
+  fild_s(MemOperand(esp, 0));
+  pop(result_reg);
+  FCmp();
+  j(not_equal, conversion_failed, dst);
+  j(parity_even, conversion_failed, dst);
+  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
+    test(result_reg, Operand(result_reg));
+    j(not_zero, &done, Label::kNear);
+    // To check for minus zero, we load the value again as float, and check
+    // if that is still 0.
+    sub(esp, Immediate(kPointerSize));
+    fst_s(MemOperand(esp, 0));
+    pop(result_reg);
+    test(result_reg, Operand(result_reg));
+    j(not_zero, conversion_failed, dst);
+  }
+  bind(&done);
+}
+
+
+void MacroAssembler::DoubleToI(Register result_reg,
+                               XMMRegister input_reg,
+                               XMMRegister scratch,
+                               MinusZeroMode minus_zero_mode,
+                               Label* conversion_failed,
+                               Label::Distance dst) {
+  ASSERT(!input_reg.is(scratch));
+  Label done;
+  cvttsd2si(result_reg, Operand(input_reg));
+  cvtsi2sd(scratch, Operand(result_reg));
+  ucomisd(scratch, input_reg);
+  j(not_equal, conversion_failed, dst);
+  j(parity_even, conversion_failed, dst);  // NaN.
+  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
+    test(result_reg, Operand(result_reg));
+    j(not_zero, &done, Label::kNear);
+    movmskpd(result_reg, input_reg);
+    and_(result_reg, 1);
+    j(not_zero, conversion_failed, dst);
+  }
+  bind(&done);
+}
+
+
+void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
+                                           Register input_reg) {
+  Label done, slow_case;
+
+  if (CpuFeatures::IsSupported(SSE3)) {
+    CpuFeatureScope scope(this, SSE3);
+    Label convert;
+    // Use more powerful conversion when sse3 is available.
+    // Load x87 register with heap number.
+    fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
+    // Get exponent alone and check for too-big exponent.
+    mov(result_reg, FieldOperand(input_reg, HeapNumber::kExponentOffset));
+    and_(result_reg, HeapNumber::kExponentMask);
+    const uint32_t kTooBigExponent =
+        (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
+    cmp(Operand(result_reg), Immediate(kTooBigExponent));
+    j(greater_equal, &slow_case, Label::kNear);
+
+    // Reserve space for 64 bit answer.
+    sub(Operand(esp), Immediate(kDoubleSize));
+    // Do conversion, which cannot fail because we checked the exponent.
+    fisttp_d(Operand(esp, 0));
+    mov(result_reg, Operand(esp, 0));  // Low word of answer is the result.
+    add(Operand(esp), Immediate(kDoubleSize));
+    jmp(&done, Label::kNear);
+
+    // Slow case.
+    bind(&slow_case);
+    if (input_reg.is(result_reg)) {
+      // Input is clobbered. Restore number from fpu stack
+      sub(Operand(esp), Immediate(kDoubleSize));
+      fstp_d(Operand(esp, 0));
+      SlowTruncateToI(result_reg, esp, 0);
+      add(esp, Immediate(kDoubleSize));
+    } else {
+      fstp(0);
+      SlowTruncateToI(result_reg, input_reg);
+    }
+  } else if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatureScope scope(this, SSE2);
+    movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    cvttsd2si(result_reg, Operand(xmm0));
+    cmp(result_reg, 0x80000000u);
+    j(not_equal, &done, Label::kNear);
+    // Check if the input was 0x8000000 (kMinInt).
+    // If no, then we got an overflow and we deoptimize.
+    ExternalReference min_int = ExternalReference::address_of_min_int();
+    ucomisd(xmm0, Operand::StaticVariable(min_int));
+    j(not_equal, &slow_case, Label::kNear);
+    j(parity_even, &slow_case, Label::kNear);  // NaN.
+    jmp(&done, Label::kNear);
+
+    // Slow case.
+    bind(&slow_case);
+    if (input_reg.is(result_reg)) {
+      // Input is clobbered. Restore number from double scratch.
+      sub(esp, Immediate(kDoubleSize));
+      movdbl(MemOperand(esp, 0), xmm0);
+      SlowTruncateToI(result_reg, esp, 0);
+      add(esp, Immediate(kDoubleSize));
+    } else {
+      SlowTruncateToI(result_reg, input_reg);
+    }
+  } else {
+    SlowTruncateToI(result_reg, input_reg);
+  }
+  bind(&done);
+}
+
+
+void MacroAssembler::TaggedToI(Register result_reg,
+                               Register input_reg,
+                               XMMRegister temp,
+                               MinusZeroMode minus_zero_mode,
+                               Label* lost_precision) {
+  Label done;
+  ASSERT(!temp.is(xmm0));
+
+  cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
+      isolate()->factory()->heap_number_map());
+  j(not_equal, lost_precision, Label::kNear);
+
+  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+    ASSERT(!temp.is(no_xmm_reg));
+    CpuFeatureScope scope(this, SSE2);
+
+    movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    cvttsd2si(result_reg, Operand(xmm0));
+    cvtsi2sd(temp, Operand(result_reg));
+    ucomisd(xmm0, temp);
+    RecordComment("Deferred TaggedToI: lost precision");
+    j(not_equal, lost_precision, Label::kNear);
+    RecordComment("Deferred TaggedToI: NaN");
+    j(parity_even, lost_precision, Label::kNear);
+    if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
+      test(result_reg, Operand(result_reg));
+      j(not_zero, &done, Label::kNear);
+      movmskpd(result_reg, xmm0);
+      and_(result_reg, 1);
+      RecordComment("Deferred TaggedToI: minus zero");
+      j(not_zero, lost_precision, Label::kNear);
+    }
+  } else {
+    // TODO(olivf) Converting a number on the fpu is actually quite slow. We
+    // should first try a fast conversion and then bailout to this slow case.
+    Label lost_precision_pop, zero_check;
+    Label* lost_precision_int = (minus_zero_mode == FAIL_ON_MINUS_ZERO)
+        ? &lost_precision_pop : lost_precision;
+    sub(esp, Immediate(kPointerSize));
+    fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
+    if (minus_zero_mode == FAIL_ON_MINUS_ZERO) fld(0);
+    fist_s(MemOperand(esp, 0));
+    fild_s(MemOperand(esp, 0));
+    FCmp();
+    pop(result_reg);
+    j(not_equal, lost_precision_int, Label::kNear);
+    j(parity_even, lost_precision_int, Label::kNear);  // NaN.
+    if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
+      test(result_reg, Operand(result_reg));
+      j(zero, &zero_check, Label::kNear);
+      fstp(0);
+      jmp(&done, Label::kNear);
+      bind(&zero_check);
+      // To check for minus zero, we load the value again as float, and check
+      // if that is still 0.
+      sub(esp, Immediate(kPointerSize));
+      fstp_s(Operand(esp, 0));
+      pop(result_reg);
+      test(result_reg, Operand(result_reg));
+      j(zero, &done, Label::kNear);
+      jmp(lost_precision, Label::kNear);
+
+      bind(&lost_precision_pop);
+      fstp(0);
+      jmp(lost_precision, Label::kNear);
+    }
+  }
+  bind(&done);
+}
+
+
+
 static double kUint32Bias =
     static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
 

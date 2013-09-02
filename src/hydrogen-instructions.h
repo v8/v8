@@ -947,6 +947,11 @@ class HValue : public ZoneObject {
     return type().ToStringOrToNumberCanBeObserved(representation());
   }
 
+  MinusZeroMode GetMinusZeroMode() {
+    return CheckFlag(kBailoutOnMinusZero)
+        ? FAIL_ON_MINUS_ZERO : TREAT_MINUS_ZERO_AS_ZERO;
+  }
+
  protected:
   // This function must be overridden for instructions with flag kUseGVN, to
   // compare the non-Operand parts of the instruction.

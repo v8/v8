@@ -46,8 +46,8 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 class CodeGenerator: public AstVisitor {
  public:
-  CodeGenerator() {
-    InitializeAstVisitor();
+  explicit CodeGenerator(Isolate* isolate) {
+    InitializeAstVisitor(isolate);
   }
 
   static bool MakeCode(CompilationInfo* info);

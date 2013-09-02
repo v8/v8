@@ -423,6 +423,8 @@ bool LCodeGen::GenerateDeferredCode() {
   if (deferred_.length() > 0) {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
       LDeferredCode* code = deferred_[i];
+      X87Stack copy(code->x87_stack());
+      x87_stack_ = copy;
 
       int pos = instructions_->at(code->instruction_index())->position();
       RecordAndUpdatePosition(pos);
@@ -446,6 +448,7 @@ bool LCodeGen::GenerateDeferredCode() {
         Comment(";;; Deferred code");
       }
       code->Generate();
+      __ bind(code->done());
       if (NeedsDeferredFrame()) {
         Comment(";;; Destroy frame");
         ASSERT(frame_is_built_);
@@ -503,6 +506,7 @@ void LCodeGen::X87LoadForUsage(X87Register reg) {
 
 
 void LCodeGen::X87Stack::Fxch(X87Register reg, int other_slot) {
+  ASSERT(is_mutable_);
   ASSERT(Contains(reg) && stack_depth_ > other_slot);
   int i  = ArrayIndex(reg);
   int st = st2idx(i);
@@ -547,6 +551,7 @@ bool LCodeGen::X87Stack::Contains(X87Register reg) {
 
 
 void LCodeGen::X87Stack::Free(X87Register reg) {
+  ASSERT(is_mutable_);
   ASSERT(Contains(reg));
   int i  = ArrayIndex(reg);
   int st = st2idx(i);
@@ -606,6 +611,7 @@ void LCodeGen::X87Mov(Operand dst, X87Register src, X87OperandType opts) {
 
 
 void LCodeGen::X87Stack::PrepareToWrite(X87Register reg) {
+  ASSERT(is_mutable_);
   if (Contains(reg)) {
     Free(reg);
   }
@@ -615,6 +621,7 @@ void LCodeGen::X87Stack::PrepareToWrite(X87Register reg) {
 
 
 void LCodeGen::X87Stack::CommitWrite(X87Register reg) {
+  ASSERT(is_mutable_);
   // Assert the reg is prepared to write, but not on the virtual stack yet
   ASSERT(!Contains(reg) && stack_[stack_depth_].is(reg) &&
       stack_depth_ < X87Register::kNumAllocatableRegisters);
@@ -2841,8 +2848,9 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   class DeferredInstanceOfKnownGlobal V8_FINAL : public LDeferredCode {
    public:
     DeferredInstanceOfKnownGlobal(LCodeGen* codegen,
-                                  LInstanceOfKnownGlobal* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+                                  LInstanceOfKnownGlobal* instr,
+                                  const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredInstanceOfKnownGlobal(instr_, &map_check_);
     }
@@ -2854,7 +2862,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   };
 
   DeferredInstanceOfKnownGlobal* deferred;
-  deferred = new(zone()) DeferredInstanceOfKnownGlobal(this, instr);
+  deferred = new(zone()) DeferredInstanceOfKnownGlobal(this, instr, x87_stack_);
 
   Label done, false_result;
   Register object = ToRegister(instr->value());
@@ -3808,8 +3816,10 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
   // Class for deferred case.
   class DeferredMathAbsTaggedHeapNumber V8_FINAL : public LDeferredCode {
    public:
-    DeferredMathAbsTaggedHeapNumber(LCodeGen* codegen, LMathAbs* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredMathAbsTaggedHeapNumber(LCodeGen* codegen,
+                                    LMathAbs* instr,
+                                    const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredMathAbsTaggedHeapNumber(instr_);
     }
@@ -3832,7 +3842,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     EmitIntegerMathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
-        new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr);
+        new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr, x87_stack_);
     Register input_reg = ToRegister(instr->value());
     // Smi check.
     __ JumpIfNotSmi(input_reg, deferred->entry());
@@ -4048,15 +4058,18 @@ void LCodeGen::DoPower(LPower* instr) {
 void LCodeGen::DoRandom(LRandom* instr) {
   class DeferredDoRandom V8_FINAL : public LDeferredCode {
    public:
-    DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredDoRandom(LCodeGen* codegen,
+                     LRandom* instr,
+                     const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE { codegen()->DoDeferredRandom(instr_); }
     virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
    private:
     LRandom* instr_;
   };
 
-  DeferredDoRandom* deferred = new(zone()) DeferredDoRandom(this, instr);
+  DeferredDoRandom* deferred =
+      new(zone()) DeferredDoRandom(this, instr, x87_stack_);
 
   CpuFeatureScope scope(masm(), SSE2);
   // Having marked this instruction as a call we can use any
@@ -4791,8 +4804,10 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   class DeferredStringCharCodeAt V8_FINAL : public LDeferredCode {
    public:
-    DeferredStringCharCodeAt(LCodeGen* codegen, LStringCharCodeAt* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredStringCharCodeAt(LCodeGen* codegen,
+                             LStringCharCodeAt* instr,
+                             const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredStringCharCodeAt(instr_);
     }
@@ -4802,7 +4817,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   };
 
   DeferredStringCharCodeAt* deferred =
-      new(zone()) DeferredStringCharCodeAt(this, instr);
+      new(zone()) DeferredStringCharCodeAt(this, instr, x87_stack_);
 
   StringCharLoadGenerator::Generate(masm(),
                                     factory(),
@@ -4848,8 +4863,10 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
 void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
   class DeferredStringCharFromCode V8_FINAL : public LDeferredCode {
    public:
-    DeferredStringCharFromCode(LCodeGen* codegen, LStringCharFromCode* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredStringCharFromCode(LCodeGen* codegen,
+                               LStringCharFromCode* instr,
+                               const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredStringCharFromCode(instr_);
     }
@@ -4859,7 +4876,7 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
   };
 
   DeferredStringCharFromCode* deferred =
-      new(zone()) DeferredStringCharFromCode(this, instr);
+      new(zone()) DeferredStringCharFromCode(this, instr, x87_stack_);
 
   ASSERT(instr->hydrogen()->value()->representation().IsInteger32());
   Register char_code = ToRegister(instr->char_code());
@@ -4947,8 +4964,10 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
 void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
   class DeferredNumberTagI V8_FINAL : public LDeferredCode {
    public:
-    DeferredNumberTagI(LCodeGen* codegen, LNumberTagI* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredNumberTagI(LCodeGen* codegen,
+                       LNumberTagI* instr,
+                       const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredNumberTagI(instr_, instr_->value(), SIGNED_INT32);
     }
@@ -4961,7 +4980,8 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
   ASSERT(input->IsRegister() && input->Equals(instr->result()));
   Register reg = ToRegister(input);
 
-  DeferredNumberTagI* deferred = new(zone()) DeferredNumberTagI(this, instr);
+  DeferredNumberTagI* deferred =
+      new(zone()) DeferredNumberTagI(this, instr, x87_stack_);
   __ SmiTag(reg);
   __ j(overflow, deferred->entry());
   __ bind(deferred->exit());
@@ -4971,8 +4991,10 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
 void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
   class DeferredNumberTagU V8_FINAL : public LDeferredCode {
    public:
-    DeferredNumberTagU(LCodeGen* codegen, LNumberTagU* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredNumberTagU(LCodeGen* codegen,
+                       LNumberTagU* instr,
+                       const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredNumberTagI(instr_, instr_->value(), UNSIGNED_INT32);
     }
@@ -4985,7 +5007,8 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
   ASSERT(input->IsRegister() && input->Equals(instr->result()));
   Register reg = ToRegister(input);
 
-  DeferredNumberTagU* deferred = new(zone()) DeferredNumberTagU(this, instr);
+  DeferredNumberTagU* deferred =
+      new(zone()) DeferredNumberTagU(this, instr, x87_stack_);
   __ cmp(reg, Immediate(Smi::kMaxValue));
   __ j(above, deferred->entry());
   __ SmiTag(reg);
@@ -5074,8 +5097,10 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
 void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   class DeferredNumberTagD V8_FINAL : public LDeferredCode {
    public:
-    DeferredNumberTagD(LCodeGen* codegen, LNumberTagD* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredNumberTagD(LCodeGen* codegen,
+                       LNumberTagD* instr,
+                       const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredNumberTagD(instr_);
     }
@@ -5093,7 +5118,8 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     X87LoadForUsage(src);
   }
 
-  DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
+  DeferredNumberTagD* deferred =
+      new(zone()) DeferredNumberTagD(this, instr, x87_stack_);
   if (FLAG_inline_new) {
     Register tmp = ToRegister(instr->temp());
     __ AllocateHeapNumber(reg, tmp, no_reg, deferred->entry());
@@ -5281,104 +5307,51 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 }
 
 
-void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
-  Label done, heap_number;
+void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
   Register input_reg = ToRegister(instr->value());
 
-  // Heap number map check.
-  __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
-         factory()->heap_number_map());
 
   if (instr->truncating()) {
+    Label heap_number, slow_case;
+
+    // Heap number map check.
+    __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
+           factory()->heap_number_map());
     __ j(equal, &heap_number, Label::kNear);
+
     // Check for undefined. Undefined is converted to zero for truncating
     // conversions.
     __ cmp(input_reg, factory()->undefined_value());
     __ RecordComment("Deferred TaggedToI: cannot truncate");
     DeoptimizeIf(not_equal, instr->environment());
     __ mov(input_reg, 0);
-    __ jmp(&done, Label::kNear);
+    __ jmp(done);
 
     __ bind(&heap_number);
-    if (CpuFeatures::IsSupported(SSE3)) {
-      CpuFeatureScope scope(masm(), SSE3);
-      Label convert;
-      // Use more powerful conversion when sse3 is available.
-      // Load x87 register with heap number.
-      __ fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
-      // Get exponent alone and check for too-big exponent.
-      __ mov(input_reg, FieldOperand(input_reg, HeapNumber::kExponentOffset));
-      __ and_(input_reg, HeapNumber::kExponentMask);
-      const uint32_t kTooBigExponent =
-          (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-      __ cmp(Operand(input_reg), Immediate(kTooBigExponent));
-      __ j(less, &convert, Label::kNear);
-      // Pop FPU stack before deoptimizing.
-      __ fstp(0);
-      __ RecordComment("Deferred TaggedToI: exponent too big");
-      DeoptimizeIf(no_condition, instr->environment());
-
-      // Reserve space for 64 bit answer.
-      __ bind(&convert);
-      __ sub(Operand(esp), Immediate(kDoubleSize));
-      // Do conversion, which cannot fail because we checked the exponent.
-      __ fisttp_d(Operand(esp, 0));
-      __ mov(input_reg, Operand(esp, 0));  // Low word of answer is the result.
-      __ add(Operand(esp), Immediate(kDoubleSize));
-    } else if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatureScope scope(masm(), SSE2);
-      XMMRegister xmm_temp = ToDoubleRegister(instr->temp());
-      __ movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-      __ cvttsd2si(input_reg, Operand(xmm0));
-      __ cmp(input_reg, 0x80000000u);
-      __ j(not_equal, &done);
-      // Check if the input was 0x8000000 (kMinInt).
-      // If no, then we got an overflow and we deoptimize.
-      ExternalReference min_int = ExternalReference::address_of_min_int();
-      __ movdbl(xmm_temp, Operand::StaticVariable(min_int));
-      __ ucomisd(xmm_temp, xmm0);
-      DeoptimizeIf(not_equal, instr->environment());
-      DeoptimizeIf(parity_even, instr->environment());  // NaN.
-    } else {
-      UNREACHABLE();
-    }
-  } else if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope scope(masm(), SSE2);
-    // Deoptimize if we don't have a heap number.
-    __ RecordComment("Deferred TaggedToI: not a heap number");
-    DeoptimizeIf(not_equal, instr->environment());
-
-    XMMRegister xmm_temp = ToDoubleRegister(instr->temp());
-    __ movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-    __ cvttsd2si(input_reg, Operand(xmm0));
-    __ cvtsi2sd(xmm_temp, Operand(input_reg));
-    __ ucomisd(xmm0, xmm_temp);
-    __ RecordComment("Deferred TaggedToI: lost precision");
-    DeoptimizeIf(not_equal, instr->environment());
-    __ RecordComment("Deferred TaggedToI: NaN");
-    DeoptimizeIf(parity_even, instr->environment());  // NaN.
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ test(input_reg, Operand(input_reg));
-      __ j(not_zero, &done);
-      __ movmskpd(input_reg, xmm0);
-      __ and_(input_reg, 1);
-      __ RecordComment("Deferred TaggedToI: minus zero");
-      DeoptimizeIf(not_zero, instr->environment());
-    }
+    __ TruncateHeapNumberToI(input_reg, input_reg);
   } else {
-    UNREACHABLE();
+    Label bailout;
+    XMMRegister scratch = (instr->temp() != NULL)
+        ? ToDoubleRegister(instr->temp())
+        : no_xmm_reg;
+    __ TaggedToI(input_reg, input_reg, scratch,
+                 instr->hydrogen()->GetMinusZeroMode(), &bailout);
+    __ jmp(done);
+    __ bind(&bailout);
+    DeoptimizeIf(no_condition, instr->environment());
   }
-  __ bind(&done);
 }
 
 
 void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   class DeferredTaggedToI V8_FINAL : public LDeferredCode {
    public:
-    DeferredTaggedToI(LCodeGen* codegen, LTaggedToI* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredTaggedToI(LCodeGen* codegen,
+                      LTaggedToI* instr,
+                      const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
-      codegen()->DoDeferredTaggedToI(instr_);
+      codegen()->DoDeferredTaggedToI(instr_, done());
     }
     virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
    private:
@@ -5390,173 +5363,11 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   Register input_reg = ToRegister(input);
   ASSERT(input_reg.is(ToRegister(instr->result())));
 
-  DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
+  DeferredTaggedToI* deferred =
+      new(zone()) DeferredTaggedToI(this, instr, x87_stack_);
 
   __ JumpIfNotSmi(input_reg, deferred->entry());
   __ SmiUntag(input_reg);
-  __ bind(deferred->exit());
-}
-
-
-void LCodeGen::DoDeferredTaggedToINoSSE2(LTaggedToINoSSE2* instr) {
-  Label done, heap_number;
-  Register result_reg = ToRegister(instr->result());
-  Register input_reg = ToRegister(instr->value());
-
-  // Heap number map check.
-  __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
-         factory()->heap_number_map());
-  if (instr->truncating()) {
-    __ j(equal, &heap_number, Label::kNear);
-    // Check for undefined. Undefined is converted to zero for truncating
-    // conversions.
-    __ cmp(input_reg, factory()->undefined_value());
-    __ RecordComment("Deferred TaggedToI: cannot truncate");
-    DeoptimizeIf(not_equal, instr->environment());
-    __ xor_(result_reg, result_reg);
-    __ jmp(&done, Label::kFar);
-    __ bind(&heap_number);
-  } else {
-    // Deoptimize if we don't have a heap number.
-    DeoptimizeIf(not_equal, instr->environment());
-  }
-
-  // Surprisingly, all of this crazy bit manipulation is considerably
-  // faster than using the built-in x86 CPU conversion functions (about 6x).
-  Label right_exponent, adjust_bias, zero_result;
-  Register scratch = ToRegister(instr->scratch());
-  Register scratch2 = ToRegister(instr->scratch2());
-  // Get exponent word.
-  __ mov(scratch, FieldOperand(input_reg, HeapNumber::kExponentOffset));
-  // Get exponent alone in scratch2.
-  __ mov(scratch2, scratch);
-  __ and_(scratch2, HeapNumber::kExponentMask);
-  __ shr(scratch2, HeapNumber::kExponentShift);
-  if (instr->truncating()) {
-    __ j(zero, &zero_result);
-  } else {
-    __ j(not_zero, &adjust_bias);
-    __ test(scratch, Immediate(HeapNumber::kMantissaMask));
-    DeoptimizeIf(not_zero, instr->environment());
-    __ cmp(FieldOperand(input_reg, HeapNumber::kMantissaOffset), Immediate(0));
-    DeoptimizeIf(not_equal, instr->environment());
-    __ bind(&adjust_bias);
-  }
-  __ sub(scratch2, Immediate(HeapNumber::kExponentBias));
-  if (!instr->truncating()) {
-    DeoptimizeIf(negative, instr->environment());
-  } else {
-    __ j(negative, &zero_result);
-  }
-
-  // Get the second half of the double. For some exponents we don't
-  // actually need this because the bits get shifted out again, but
-  // it's probably slower to test than just to do it.
-  Register scratch3 = ToRegister(instr->scratch3());
-  __ mov(scratch3, FieldOperand(input_reg, HeapNumber::kMantissaOffset));
-  __ xor_(result_reg, result_reg);
-
-  const uint32_t non_int32_exponent = 31;
-  __ cmp(scratch2, Immediate(non_int32_exponent));
-  // If we have a match of the int32 exponent then skip some logic.
-  __ j(equal, &right_exponent, Label::kNear);
-  // If the number doesn't find in an int32, deopt.
-  DeoptimizeIf(greater, instr->environment());
-
-  // Exponent word in scratch, exponent in scratch2.  We know that 0 <= exponent
-  // < 31.
-  __ mov(result_reg, Immediate(31));
-  __ sub(result_reg, scratch2);
-
-  __ bind(&right_exponent);
-
-  // Save off exponent for negative check later.
-  __ mov(scratch2, scratch);
-
-  // Here result_reg is the shift, scratch is the exponent word.
-  // Get the top bits of the mantissa.
-  __ and_(scratch, HeapNumber::kMantissaMask);
-  // Put back the implicit 1.
-  __ or_(scratch, 1 << HeapNumber::kExponentShift);
-  // Shift up the mantissa bits to take up the space the exponent used to
-  // take. We have kExponentShift + 1 significant bits int he low end of the
-  // word.  Shift them to the top bits.
-  const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 1;
-  __ shl(scratch, shift_distance);
-  if (!instr->truncating()) {
-    // If not truncating, a non-zero value in the bottom 22 bits means a
-    // non-integral value --> trigger a deopt.
-    __ test(scratch3, Immediate((1 << (32 - shift_distance)) - 1));
-    DeoptimizeIf(not_equal, instr->environment());
-  }
-  // Shift down 22 bits to get the most significant 10 bits or the low
-  // mantissa word.
-  __ shr(scratch3, 32 - shift_distance);
-  __ or_(scratch3, scratch);
-  if (!instr->truncating()) {
-    // If truncating, a non-zero value in the bits that will be shifted away
-    // when adjusting the exponent means rounding --> deopt.
-    __ mov(scratch, 0x1);
-    ASSERT(result_reg.is(ecx));
-    __ shl_cl(scratch);
-    __ dec(scratch);
-    __ test(scratch3, scratch);
-    DeoptimizeIf(not_equal, instr->environment());
-  }
-  // Move down according to the exponent.
-  ASSERT(result_reg.is(ecx));
-  __ shr_cl(scratch3);
-  // Now the unsigned 32-bit answer is in scratch3.  We need to move it to
-  // result_reg and we may need to fix the sign.
-  Label negative_result;
-  __ xor_(result_reg, result_reg);
-  __ cmp(scratch2, result_reg);
-  __ j(less, &negative_result, Label::kNear);
-  __ cmp(scratch3, result_reg);
-  __ mov(result_reg, scratch3);
-  // If the result is > MAX_INT, result doesn't fit in signed 32-bit --> deopt.
-  DeoptimizeIf(less, instr->environment());
-  __ jmp(&done, Label::kNear);
-  __ bind(&zero_result);
-  __ xor_(result_reg, result_reg);
-  __ jmp(&done, Label::kNear);
-  __ bind(&negative_result);
-  __ sub(result_reg, scratch3);
-  if (!instr->truncating()) {
-    // -0.0 triggers a deopt.
-    DeoptimizeIf(zero, instr->environment());
-  }
-  // If the negative subtraction overflows into a positive number, there was an
-  // overflow --> deopt.
-  DeoptimizeIf(positive, instr->environment());
-  __ bind(&done);
-}
-
-
-void LCodeGen::DoTaggedToINoSSE2(LTaggedToINoSSE2* instr) {
-  class DeferredTaggedToINoSSE2 V8_FINAL : public LDeferredCode {
-   public:
-    DeferredTaggedToINoSSE2(LCodeGen* codegen, LTaggedToINoSSE2* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() V8_OVERRIDE {
-      codegen()->DoDeferredTaggedToINoSSE2(instr_);
-    }
-    virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
-   private:
-    LTaggedToINoSSE2* instr_;
-  };
-
-  LOperand* input = instr->value();
-  ASSERT(input->IsRegister());
-  Register input_reg = ToRegister(input);
-  ASSERT(input_reg.is(ToRegister(instr->result())));
-
-  DeferredTaggedToINoSSE2* deferred =
-      new(zone()) DeferredTaggedToINoSSE2(this, instr);
-
-  // Smi check.
-  __ JumpIfNotSmi(input_reg, deferred->entry());
-  __ SmiUntag(input_reg);  // Untag smi.
   __ bind(deferred->exit());
 }
 
@@ -5607,73 +5418,33 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   ASSERT(result->IsRegister());
   Register result_reg = ToRegister(result);
 
-  Label done;
-  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
-    CpuFeatureScope scope(masm(), SSE2);
-
-    XMMRegister input_reg = ToDoubleRegister(input);
-
-    __ cvttsd2si(result_reg, Operand(input_reg));
-
-    if (instr->truncating()) {
-      // Performs a truncating conversion of a floating point number as used by
-      // the JS bitwise operations.
-      Label fast_case_succeeded;
-      __ cmp(result_reg, 0x80000000u);
-      __ j(not_equal, &fast_case_succeeded);
-      __ sub(esp, Immediate(kDoubleSize));
-      __ movdbl(MemOperand(esp, 0), input_reg);
-      DoubleToIStub stub(esp, result_reg, 0, true);
-      __ call(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
-      __ add(esp, Immediate(kDoubleSize));
-      __ bind(&fast_case_succeeded);
+  if (instr->truncating()) {
+    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+      CpuFeatureScope scope(masm(), SSE2);
+      XMMRegister input_reg = ToDoubleRegister(input);
+      __ TruncateDoubleToI(result_reg, input_reg);
     } else {
-      __ cvtsi2sd(xmm0, Operand(result_reg));
-      __ ucomisd(xmm0, input_reg);
-      DeoptimizeIf(not_equal, instr->environment());
-      DeoptimizeIf(parity_even, instr->environment());  // NaN.
-      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-        // The integer converted back is equal to the original. We
-        // only have to test if we got -0 as an input.
-        __ test(result_reg, Operand(result_reg));
-        __ j(not_zero, &done, Label::kNear);
-        __ movmskpd(result_reg, input_reg);
-        // Bit 0 contains the sign of the double in input_reg.
-        // If input was positive, we are ok and return 0, otherwise
-        // deoptimize.
-        __ and_(result_reg, 1);
-        DeoptimizeIf(not_zero, instr->environment());
-      }
-      __ bind(&done);
+      X87Register input_reg = ToX87Register(input);
+      X87Fxch(input_reg);
+      __ TruncateX87TOSToI(result_reg);
     }
   } else {
-    X87Register input_reg = ToX87Register(input);
-    __ push(result_reg);
-    X87Mov(Operand(esp, 0), input_reg, kX87IntOperand);
-    if (instr->truncating()) {
-      __ pop(result_reg);
+    Label bailout, done;
+    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+      CpuFeatureScope scope(masm(), SSE2);
+      XMMRegister input_reg = ToDoubleRegister(input);
+       __ DoubleToI(result_reg, input_reg, xmm0,
+           instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
     } else {
+      X87Register input_reg = ToX87Register(input);
       X87Fxch(input_reg);
-      __ fld(0);
-      __ fild_s(Operand(esp, 0));
-      __ pop(result_reg);
-      __ FCmp();
-      DeoptimizeIf(not_equal, instr->environment());
-      DeoptimizeIf(parity_even, instr->environment());  // NaN.
+      __ X87TOSToI(result_reg, instr->hydrogen()->GetMinusZeroMode(),
+                   &bailout, Label::kNear);
     }
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ test(result_reg, Operand(result_reg));
-      __ j(not_zero, &done, Label::kNear);
-      // To check for minus zero, we load the value again as float, and check
-      // if that is still 0.
-      X87Fxch(input_reg);
-      __ push(result_reg);
-      __ fst_s(Operand(esp, 0));
-      __ pop(result_reg);
-      __ test(result_reg, Operand(result_reg));
-      DeoptimizeIf(not_zero, instr->environment());
-      __ bind(&done);
-    }
+    __ jmp(&done, Label::kNear);
+    __ bind(&bailout);
+    DeoptimizeIf(no_condition, instr->environment());
+    __ bind(&done);
   }
 }
 
@@ -5685,55 +5456,23 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   ASSERT(result->IsRegister());
   Register result_reg = ToRegister(result);
 
-  Label done;
+  Label bailout, done;
   if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
-
     XMMRegister input_reg = ToDoubleRegister(input);
-
-    __ cvttsd2si(result_reg, Operand(input_reg));
-    __ cvtsi2sd(xmm0, Operand(result_reg));
-    __ ucomisd(xmm0, input_reg);
-    DeoptimizeIf(not_equal, instr->environment());
-    DeoptimizeIf(parity_even, instr->environment());  // NaN.
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      // The integer converted back is equal to the original. We
-      // only have to test if we got -0 as an input.
-      __ test(result_reg, Operand(result_reg));
-      __ j(not_zero, &done, Label::kNear);
-      __ movmskpd(result_reg, input_reg);
-      // Bit 0 contains the sign of the double in input_reg.
-      // If input was positive, we are ok and return 0, otherwise
-      // deoptimize.
-      __ and_(result_reg, 1);
-      DeoptimizeIf(not_zero, instr->environment());
-      __ bind(&done);
-    }
+    __ DoubleToI(result_reg, input_reg, xmm0,
+        instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
   } else {
     X87Register input_reg = ToX87Register(input);
     X87Fxch(input_reg);
-    __ push(result_reg);
-    X87Mov(Operand(esp, 0), input_reg, kX87IntOperand);
-    __ fld(0);
-    __ fild_s(Operand(esp, 0));
-    __ pop(result_reg);
-    __ FCmp();
-    DeoptimizeIf(not_equal, instr->environment());
-    DeoptimizeIf(parity_even, instr->environment());  // NaN.
-
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ test(result_reg, Operand(result_reg));
-      __ j(not_zero, &done, Label::kNear);
-      // To check for minus zero, we load the value again as float, and check
-      // if that is still 0.
-      __ push(result_reg);
-      __ fst_s(Operand(esp, 0));
-      __ pop(result_reg);
-      __ test(result_reg, Operand(result_reg));
-      DeoptimizeIf(not_zero, instr->environment());
-      __ bind(&done);
-    }
+    __ X87TOSToI(result_reg, instr->hydrogen()->GetMinusZeroMode(),
+        &bailout, Label::kNear);
   }
+  __ jmp(&done, Label::kNear);
+  __ bind(&bailout);
+  DeoptimizeIf(no_condition, instr->environment());
+  __ bind(&done);
+
   __ SmiTag(result_reg);
   DeoptimizeIf(overflow, instr->environment());
 }
@@ -5832,8 +5571,11 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   class DeferredCheckMaps V8_FINAL : public LDeferredCode {
    public:
-    DeferredCheckMaps(LCodeGen* codegen, LCheckMaps* instr, Register object)
-        : LDeferredCode(codegen), instr_(instr), object_(object) {
+    DeferredCheckMaps(LCodeGen* codegen,
+                      LCheckMaps* instr,
+                      Register object,
+                      const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr), object_(object) {
       SetExit(check_maps());
     }
     virtual void Generate() V8_OVERRIDE {
@@ -5857,7 +5599,7 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 
   DeferredCheckMaps* deferred = NULL;
   if (instr->hydrogen()->has_migration_target()) {
-    deferred = new(zone()) DeferredCheckMaps(this, instr, reg);
+    deferred = new(zone()) DeferredCheckMaps(this, instr, reg, x87_stack_);
     __ bind(deferred->check_maps());
   }
 
@@ -6055,8 +5797,10 @@ void LCodeGen::DoClampTToUint8NoSSE2(LClampTToUint8NoSSE2* instr) {
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate V8_FINAL : public LDeferredCode {
    public:
-    DeferredAllocate(LCodeGen* codegen, LAllocate* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredAllocate(LCodeGen* codegen,
+                     LAllocate* instr,
+                     const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredAllocate(instr_);
     }
@@ -6066,7 +5810,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   };
 
   DeferredAllocate* deferred =
-      new(zone()) DeferredAllocate(this, instr);
+      new(zone()) DeferredAllocate(this, instr, x87_stack_);
 
   Register result = ToRegister(instr->result());
   Register temp = ToRegister(instr->temp());
@@ -6406,8 +6150,10 @@ void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
   class DeferredStackCheck V8_FINAL : public LDeferredCode {
    public:
-    DeferredStackCheck(LCodeGen* codegen, LStackCheck* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
+    DeferredStackCheck(LCodeGen* codegen,
+                       LStackCheck* instr,
+                       const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
       codegen()->DoDeferredStackCheck(instr_);
     }
@@ -6441,7 +6187,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     ASSERT(instr->hydrogen()->is_backwards_branch());
     // Perform stack overflow check if this goto needs it before jumping.
     DeferredStackCheck* deferred_stack_check =
-        new(zone()) DeferredStackCheck(this, instr);
+        new(zone()) DeferredStackCheck(this, instr, x87_stack_);
     ExternalReference stack_limit =
         ExternalReference::address_of_stack_limit(isolate());
     __ cmp(esp, Operand::StaticVariable(stack_limit));

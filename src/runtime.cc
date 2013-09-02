@@ -685,10 +685,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetConstructTrap) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
-  proxy->Fix();
+  CONVERT_ARG_HANDLE_CHECKED(JSProxy, proxy, 0);
+  JSProxy::Fix(proxy);
   return isolate->heap()->undefined_value();
 }
 
@@ -8992,7 +8992,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareModules) {
               IsImmutableVariableMode(mode) ? FROZEN : SEALED;
           Handle<AccessorInfo> info =
               Accessors::MakeModuleExport(name, index, attr);
-          Handle<Object> result = SetAccessor(module, info);
+          Handle<Object> result = JSObject::SetAccessor(module, info);
           ASSERT(!(result.is_null() || result->IsUndefined()));
           USE(result);
           break;
@@ -14156,13 +14156,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAndClearOverflowedStackTrace) {
   HandleScope scope(isolate);
   ASSERT_EQ(args.length(), 1);
-  CONVERT_ARG_CHECKED(JSObject, error_object, 0);
-  String* key = isolate->heap()->hidden_stack_trace_string();
-  Object* result = error_object->GetHiddenProperty(key);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, error_object, 0);
+  Handle<String> key = isolate->factory()->hidden_stack_trace_string();
+  Handle<Object> result(error_object->GetHiddenProperty(*key), isolate);
   if (result->IsTheHole()) return isolate->heap()->undefined_value();
   RUNTIME_ASSERT(result->IsJSArray() || result->IsUndefined());
-  error_object->DeleteHiddenProperty(key);
-  return result;
+  JSObject::DeleteHiddenProperty(error_object, key);
+  return *result;
 }
 
 

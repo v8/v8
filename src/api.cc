@@ -1264,7 +1264,7 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 
 
 #define SET_FIELD_WRAPPED(obj, setter, cdata) do {    \
-    i::Handle<i::Object> foreign = FromCData(cdata);  \
+    i::Handle<i::Object> foreign = FromCData(obj->GetIsolate(), cdata);  \
     (obj)->setter(*foreign);                          \
   } while (false)
 
@@ -2353,6 +2353,22 @@ int StackFrame::GetColumn() const {
     return Message::kNoColumnInfo;
   }
   return i::Smi::cast(*column)->value();
+}
+
+
+int StackFrame::GetScriptId() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackFrame::GetScriptId()")) {
+    return Message::kNoScriptIdInfo;
+  }
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> scriptId = GetProperty(self, "scriptId");
+  if (!scriptId->IsSmi()) {
+    return Message::kNoScriptIdInfo;
+  }
+  return i::Smi::cast(*scriptId)->value();
 }
 
 
@@ -3600,7 +3616,8 @@ static inline bool ObjectSetAccessor(Object* obj,
       name, getter, setter, data, settings, attributes, signature);
   if (info.is_null()) return false;
   bool fast = Utils::OpenHandle(obj)->HasFastProperties();
-  i::Handle<i::Object> result = i::SetAccessor(Utils::OpenHandle(obj), info);
+  i::Handle<i::Object> result =
+      i::JSObject::SetAccessor(Utils::OpenHandle(obj), info);
   if (result.is_null() || result->IsUndefined()) return false;
   if (fast) i::JSObject::TransformToFastProperties(Utils::OpenHandle(obj), 0);
   return true;
@@ -3851,7 +3868,7 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::String> key_string =
       isolate->factory()->InternalizeString(key_obj);
-  self->DeleteHiddenProperty(*key_string);
+  i::JSObject::DeleteHiddenProperty(self, key_string);
   return true;
 }
 

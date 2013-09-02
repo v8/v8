@@ -347,8 +347,9 @@ union IeeeDoubleBigEndianArchType {
 
 // AccessorCallback
 struct AccessorDescriptor {
-  MaybeObject* (*getter)(Object* object, void* data);
-  MaybeObject* (*setter)(JSObject* object, Object* value, void* data);
+  MaybeObject* (*getter)(Isolate* isolate, Object* object, void* data);
+  MaybeObject* (*setter)(
+      Isolate* isolate, JSObject* object, Object* value, void* data);
   void* data;
 };
 
@@ -563,6 +564,11 @@ enum ClearExceptionFlag {
   CLEAR_EXCEPTION
 };
 
+
+enum MinusZeroMode {
+  TREAT_MINUS_ZERO_AS_ZERO,
+  FAIL_ON_MINUS_ZERO
+};
 
 } }  // namespace v8::internal
 

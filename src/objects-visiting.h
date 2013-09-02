@@ -92,7 +92,6 @@ class StaticVisitorBase : public AllStatic {
   V(Cell)                     \
   V(PropertyCell)             \
   V(SharedFunctionInfo)       \
-  V(OptimizedCodeEntry)       \
   V(JSFunction)               \
   V(JSWeakMap)                \
   V(JSWeakSet)                \

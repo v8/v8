@@ -72,7 +72,7 @@ TEST(ObjectHashTable) {
   // Keys should map back to their respective values and also should get
   // an identity hash code generated.
   for (int i = 0; i < 100; i++) {
-    Handle<JSObject> key = factory->NewJSArray(7);
+    Handle<JSReceiver> key = factory->NewJSArray(7);
     Handle<JSObject> value = factory->NewJSArray(11);
     table = PutIntoObjectHashTable(table, key, value);
     CHECK_EQ(table->NumberOfElements(), i + 1);
@@ -84,7 +84,7 @@ TEST(ObjectHashTable) {
   // Keys never added to the map which already have an identity hash
   // code should not be found.
   for (int i = 0; i < 100; i++) {
-    Handle<JSObject> key = factory->NewJSArray(7);
+    Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(key->GetIdentityHash(ALLOW_CREATION)->ToObjectChecked()->IsSmi());
     CHECK_EQ(table->FindEntry(*key), ObjectHashTable::kNotFound);
     CHECK_EQ(table->Lookup(*key), HEAP->the_hole_value());
@@ -94,7 +94,7 @@ TEST(ObjectHashTable) {
   // Keys that don't have an identity hash should not be found and also
   // should not get an identity hash code generated.
   for (int i = 0; i < 100; i++) {
-    Handle<JSObject> key = factory->NewJSArray(7);
+    Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK_EQ(table->Lookup(*key), HEAP->the_hole_value());
     CHECK_EQ(key->GetIdentityHash(OMIT_CREATION), HEAP->undefined_value());
   }
