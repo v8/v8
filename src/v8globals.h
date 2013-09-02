@@ -565,6 +565,11 @@ enum ClearExceptionFlag {
 };
 
 
+enum MinusZeroMode {
+  TREAT_MINUS_ZERO_AS_ZERO,
+  FAIL_ON_MINUS_ZERO
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_V8GLOBALS_H_

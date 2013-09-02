@@ -183,6 +183,7 @@ const IntelDoubleRegister double_register_4 = { 4 };
 const IntelDoubleRegister double_register_5 = { 5 };
 const IntelDoubleRegister double_register_6 = { 6 };
 const IntelDoubleRegister double_register_7 = { 7 };
+const IntelDoubleRegister no_double_reg = { -1 };
 
 
 struct XMMRegister : IntelDoubleRegister {
@@ -227,6 +228,7 @@ struct XMMRegister : IntelDoubleRegister {
 #define xmm5 (static_cast<const XMMRegister&>(double_register_5))
 #define xmm6 (static_cast<const XMMRegister&>(double_register_6))
 #define xmm7 (static_cast<const XMMRegister&>(double_register_7))
+#define no_xmm_reg (static_cast<const XMMRegister&>(no_double_reg))
 
 
 struct X87Register : IntelDoubleRegister {

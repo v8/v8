@@ -1944,21 +1944,11 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
         return DefineSameAsFirst(new(zone()) LSmiUntag(value, false));
       } else {
         bool truncating = instr->CanTruncateToInt32();
-        if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
-          LOperand* value = UseRegister(val);
-          LOperand* xmm_temp =
-              (truncating && CpuFeatures::IsSupported(SSE3))
-              ? NULL
-              : FixedTemp(xmm1);
-          LTaggedToI* res = new(zone()) LTaggedToI(value, xmm_temp);
-          return AssignEnvironment(DefineSameAsFirst(res));
-        } else {
-          LOperand* value = UseFixed(val, ecx);
-          LTaggedToINoSSE2* res =
-              new(zone()) LTaggedToINoSSE2(value, TempRegister(),
-                                           TempRegister(), TempRegister());
-          return AssignEnvironment(DefineFixed(res, ecx));
-        }
+        LOperand* xmm_temp =
+            (CpuFeatures::IsSafeForSnapshot(SSE2) && !truncating)
+                ? FixedTemp(xmm1) : NULL;
+        LTaggedToI* res = new(zone()) LTaggedToI(UseRegister(val), xmm_temp);
+        return AssignEnvironment(DefineSameAsFirst(res));
       }
     }
   } else if (from.IsDouble()) {
@@ -1978,7 +1968,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       bool truncating = instr->CanTruncateToInt32();
-      bool needs_temp = truncating && !CpuFeatures::IsSupported(SSE3);
+      bool needs_temp = CpuFeatures::IsSafeForSnapshot(SSE2) && !truncating;
       LOperand* value = needs_temp ?
           UseTempRegister(instr->value()) : UseRegister(instr->value());
       LOperand* temp = needs_temp ? TempRegister() : NULL;
