@@ -6716,6 +6716,12 @@ bool Heap::ConfigureHeap(int max_semispace_size,
                                  RoundUp(max_old_generation_size_,
                                          Page::kPageSize));
 
+  // We rely on being able to allocate new arrays in paged spaces.
+  ASSERT(MaxRegularSpaceAllocationSize() >=
+         (JSArray::kSize +
+          FixedArray::SizeFor(JSObject::kInitialMaxFastElementArray) +
+          AllocationMemento::kSize));
+
   configured_ = true;
   return true;
 }
