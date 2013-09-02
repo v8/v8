@@ -347,8 +347,9 @@ union IeeeDoubleBigEndianArchType {
 
 // AccessorCallback
 struct AccessorDescriptor {
-  MaybeObject* (*getter)(Object* object, void* data);
-  MaybeObject* (*setter)(JSObject* object, Object* value, void* data);
+  MaybeObject* (*getter)(Isolate* isolate, Object* object, void* data);
+  MaybeObject* (*setter)(
+      Isolate* isolate, JSObject* object, Object* value, void* data);
   void* data;
 };
 

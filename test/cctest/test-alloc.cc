@@ -104,7 +104,7 @@ TEST(StressHandles) {
 }
 
 
-static MaybeObject* TestAccessorGet(Object* object, void*) {
+static MaybeObject* TestAccessorGet(Isolate* isolate, Object* object, void*) {
   return AllocateAfterFailures();
 }
 
