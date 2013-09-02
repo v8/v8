@@ -3773,16 +3773,6 @@ void TestContext::BuildBranch(HValue* value) {
   if (value != NULL && value->CheckFlag(HValue::kIsArguments)) {
     builder->Bailout("arguments object value in a test context");
   }
-  if (value->IsConstant()) {
-    HConstant* constant_value = HConstant::cast(value);
-    if (constant_value->BooleanValue()) {
-      builder->current_block()->Goto(if_true(), builder->function_state());
-    } else {
-      builder->current_block()->Goto(if_false(), builder->function_state());
-    }
-    builder->set_current_block(NULL);
-    return;
-  }
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
   ToBooleanStub::Types expected(condition()->to_boolean_types());
@@ -6971,8 +6961,6 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
   instr->set_position(expr->position());
   AddInstruction(instr);
   Add<HSimulate>(expr->id());
-  current_block()->FinishExit(new(zone()) HAbnormalExit);
-  set_current_block(NULL);
 }
 
 

@@ -1800,13 +1800,6 @@ LInstruction* LChunkBuilder::DoBoundsCheckBaseIndexInformation(
 }
 
 
-LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
-  // The control instruction marking the end of a block that completed
-  // abruptly (e.g., threw an exception).  There is nothing specific to do.
-  return NULL;
-}
-
-
 LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
   LOperand* value = UseFixed(instr->value(), a0);
   return MarkAsCall(new(zone()) LThrow(value), instr);

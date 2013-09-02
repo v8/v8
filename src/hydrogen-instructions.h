@@ -63,7 +63,6 @@ class LChunkBuilder;
 
 
 #define HYDROGEN_CONCRETE_INSTRUCTION_LIST(V)  \
-  V(AbnormalExit)                              \
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
   V(Allocate)                                  \
@@ -1622,16 +1621,6 @@ class HReturn: public HTemplateControlInstruction<0, 3> {
   HValue* parameter_count() { return OperandAt(2); }
 
   DECLARE_CONCRETE_INSTRUCTION(Return)
-};
-
-
-class HAbnormalExit: public HTemplateControlInstruction<0, 0> {
- public:
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(AbnormalExit)
 };
 
 
