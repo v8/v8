@@ -1,3 +1,10 @@
+2013-09-02: Version 3.21.8
+
+        Added scriptId to StackTrace frames (issue 2865).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-08-30: Version 3.21.7
 
         Fixed casts of eternal handles.
