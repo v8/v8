@@ -1719,7 +1719,8 @@ MaybeObject* StoreIC::Store(State state,
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
   } else if (FLAG_use_ic &&
-             (lookup.IsNormal() ||
+             (!name->IsCacheable(isolate()) ||
+              lookup.IsNormal() ||
               (lookup.IsField() && lookup.CanHoldValue(value)))) {
     Handle<Code> stub = strict_mode == kStrictMode
         ? generic_stub_strict() : generic_stub();

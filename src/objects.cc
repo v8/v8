@@ -1909,25 +1909,6 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
 }
 
 
-static bool IsIdentifier(UnicodeCache* cache, Name* name) {
-  // Checks whether the buffer contains an identifier (no escape).
-  if (!name->IsString()) return false;
-  String* string = String::cast(name);
-  if (string->length() == 0) return false;
-  ConsStringIteratorOp op;
-  StringCharacterStream stream(string, &op);
-  if (!cache->IsIdentifierStart(stream.GetNext())) {
-    return false;
-  }
-  while (stream.HasMore()) {
-    if (!cache->IsIdentifierPart(stream.GetNext())) {
-      return false;
-    }
-  }
-  return true;
-}
-
-
 MaybeObject* JSObject::AddFastProperty(Name* name,
                                        Object* value,
                                        PropertyAttributes attributes,
@@ -1943,10 +1924,7 @@ MaybeObject* JSObject::AddFastProperty(Name* name,
   // hidden strings) and is not a real identifier.
   // Normalize the object if it will have too many fast properties.
   Isolate* isolate = GetHeap()->isolate();
-  if ((!name->IsSymbol() &&
-       !IsIdentifier(isolate->unicode_cache(), name) &&
-       name != isolate->heap()->hidden_string()) ||
-      TooManyFastProperties(store_mode)) {
+  if (!name->IsCacheable(isolate) || TooManyFastProperties(store_mode)) {
     MaybeObject* maybe_failure =
         NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
     if (maybe_failure->IsFailure()) return maybe_failure;
@@ -7953,6 +7931,32 @@ bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
   return true;
 }
 #endif
+
+
+static bool IsIdentifier(UnicodeCache* cache, Name* name) {
+  // Checks whether the buffer contains an identifier (no escape).
+  if (!name->IsString()) return false;
+  String* string = String::cast(name);
+  if (string->length() == 0) return false;
+  ConsStringIteratorOp op;
+  StringCharacterStream stream(string, &op);
+  if (!cache->IsIdentifierStart(stream.GetNext())) {
+    return false;
+  }
+  while (stream.HasMore()) {
+    if (!cache->IsIdentifierPart(stream.GetNext())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+bool Name::IsCacheable(Isolate* isolate) {
+  return IsSymbol() ||
+      IsIdentifier(isolate->unicode_cache(), this) ||
+      this == isolate->heap()->hidden_string();
+}
 
 
 bool String::LooksValid() {
