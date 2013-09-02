@@ -1183,7 +1183,6 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 
 Handle<String> Literal::ToString() {
   if (value_->IsString()) return Handle<String>::cast(value_);
-  Factory* factory = Isolate::Current()->factory();
   ASSERT(value_->IsNumber());
   char arr[100];
   Vector<char> buffer(arr, ARRAY_SIZE(arr));
@@ -1195,7 +1194,7 @@ Handle<String> Literal::ToString() {
   } else {
     str = DoubleToCString(value_->Number(), buffer);
   }
-  return factory->NewStringFromAscii(CStrVector(str));
+  return isolate_->factory()->NewStringFromAscii(CStrVector(str));
 }
 
 

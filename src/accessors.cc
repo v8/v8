@@ -896,15 +896,16 @@ Handle<AccessorInfo> Accessors::MakeModuleExport(
     Handle<String> name,
     int index,
     PropertyAttributes attributes) {
-  Factory* factory = name->GetIsolate()->factory();
+  Isolate* isolate = name->GetIsolate();
+  Factory* factory = isolate->factory();
   Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
   info->set_property_attributes(attributes);
   info->set_all_can_read(true);
   info->set_all_can_write(true);
   info->set_name(*name);
   info->set_data(Smi::FromInt(index));
-  Handle<Object> getter = v8::FromCData(&ModuleGetExport);
-  Handle<Object> setter = v8::FromCData(&ModuleSetExport);
+  Handle<Object> getter = v8::FromCData(isolate, &ModuleGetExport);
+  Handle<Object> setter = v8::FromCData(isolate, &ModuleSetExport);
   info->set_getter(*getter);
   if (!(attributes & ReadOnly)) info->set_setter(*setter);
   return info;

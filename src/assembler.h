@@ -691,7 +691,7 @@ class ExternalReference BASE_EMBEDDED {
 
   explicit ExternalReference(const SCTableReference& table_ref);
 
-  // Isolate::Current() as an external reference.
+  // Isolate as an external reference.
   static ExternalReference isolate_address(Isolate* isolate);
 
   // One-of-a-kind references. These references are not part of a general

@@ -1264,7 +1264,7 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 
 
 #define SET_FIELD_WRAPPED(obj, setter, cdata) do {    \
-    i::Handle<i::Object> foreign = FromCData(cdata);  \
+    i::Handle<i::Object> foreign = FromCData(obj->GetIsolate(), cdata);  \
     (obj)->setter(*foreign);                          \
   } while (false)
 
