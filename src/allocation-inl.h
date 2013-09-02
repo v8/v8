@@ -35,12 +35,12 @@ namespace internal {
 
 
 void* PreallocatedStorageAllocationPolicy::New(size_t size) {
-  return isolate_->PreallocatedStorageNew(size);
+  return Isolate::Current()->PreallocatedStorageNew(size);
 }
 
 
 void PreallocatedStorageAllocationPolicy::Delete(void* p) {
-  return isolate_->PreallocatedStorageDelete(p);
+  return Isolate::Current()->PreallocatedStorageDelete(p);
 }
 
 

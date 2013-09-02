@@ -104,7 +104,6 @@ char* StrNDup(const char* str, int n);
 // and free. Used as the default policy for lists.
 class FreeStoreAllocationPolicy {
  public:
-  typedef FreeStoreAllocationPolicy Deleter;
   INLINE(void* New(size_t size)) { return Malloced::New(size); }
   INLINE(static void Delete(void* p)) { Malloced::Delete(p); }
 };
@@ -132,21 +131,9 @@ class PreallocatedStorage {
 };
 
 
-class Isolate;
-
-
-class PreallocatedStorageAllocationPolicy {
- public:
-  typedef PreallocatedStorageAllocationPolicy Deleter;
-  INLINE(explicit PreallocatedStorageAllocationPolicy(Isolate* isolate))
-    : isolate_(isolate) { }
-  INLINE(PreallocatedStorageAllocationPolicy(
-      const PreallocatedStorageAllocationPolicy& policy))
-    : isolate_(policy.isolate_) { }
+struct PreallocatedStorageAllocationPolicy {
   INLINE(void* New(size_t size));
-  INLINE(void Delete(void* ptr));
- private:
-  Isolate* isolate_;
+  INLINE(static void Delete(void* ptr));
 };
 
 
