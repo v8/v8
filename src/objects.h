@@ -131,7 +131,6 @@
 //       - Oddball
 //       - Foreign
 //       - SharedFunctionInfo
-//       - OptimizedCodeEntry
 //       - Struct
 //         - Box
 //         - DeclaredAccessorDescriptor
@@ -407,7 +406,6 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(FIXED_ARRAY_TYPE)                                                          \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                                   \
   V(SHARED_FUNCTION_INFO_TYPE)                                                 \
-  V(OPTIMIZED_CODE_ENTRY_TYPE)                                                 \
                                                                                \
   V(JS_MESSAGE_OBJECT_TYPE)                                                    \
                                                                                \
@@ -758,7 +756,6 @@ enum InstanceType {
 
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  OPTIMIZED_CODE_ENTRY_TYPE,
 
   JS_MESSAGE_OBJECT_TYPE,
 
@@ -1020,7 +1017,6 @@ class MaybeObject BASE_EMBEDDED {
   V(Code)                                      \
   V(Oddball)                                   \
   V(SharedFunctionInfo)                        \
-  V(OptimizedCodeEntry)                        \
   V(JSValue)                                   \
   V(JSDate)                                    \
   V(JSMessageObject)                           \
@@ -6799,76 +6795,6 @@ class SharedFunctionInfo: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
-};
-
-
-// An optimized code entry represents an association between the native
-// context, a function, optimized code, and the literals. The entries
-// are linked into two lists for efficient lookup: by native context
-// (linked through next_by_native_context), or by shared function
-// info (linked through next_by_shared_info).
-// The references to the native context, function, and code are weak,
-// in order not to leak native contexts or functions through
-// SharedFunctionInfo. This means an entry can become "dead" through GC.
-// Entries are removed lazily as each list is traversed.
-class OptimizedCodeEntry: public HeapObject {
- public:
-  // [native_context]: The native context of this entry. (WEAK)
-  DECL_ACCESSORS(native_context, Context)
-
-  // [function]: The JSFunction of this entry. (WEAK)
-  DECL_ACCESSORS(function, JSFunction)
-
-  // [code]: The optimized code of this entry. (WEAK)
-  DECL_ACCESSORS(code, Code)
-
-  // [literals]: Array of literals for this entry.
-  DECL_ACCESSORS(literals, FixedArray)
-
-  // [next_by_shared_info]: The next link in the list, when traversing
-  // starting with a SharedFunctionInfo. (NULL if none).
-  DECL_ACCESSORS(next_by_shared_info, OptimizedCodeEntry)
-
-  // [next_by_native_context]: The next link in the list, when traversing
-  // starting with a native context. (NULL if none)
-  DECL_ACCESSORS(next_by_native_context, OptimizedCodeEntry)
-
-  // Casting.
-  static inline OptimizedCodeEntry* cast(Object* obj);
-
-  DECLARE_PRINTER(OptimizedCodeEntry)
-  DECLARE_VERIFIER(OptimizedCodeEntry)
-
-  // Layout description.
-  static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kFunctionOffset = kNativeContextOffset + kPointerSize;
-  static const int kCodeOffset = kFunctionOffset + kPointerSize;
-  static const int kLiteralsOffset = kCodeOffset + kPointerSize;
-  static const int kNextBySharedInfoOffset =
-      kLiteralsOffset + kPointerSize;
-  static const int kNextByNativeContextOffset =
-      kNextBySharedInfoOffset + kPointerSize;
-  static const int kCacheableOffset = kNextByNativeContextOffset + kPointerSize;
-  static const int kSize = kCacheableOffset + kIntSize;
-  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kSize);
-
-  typedef FixedBodyDescriptor<kLiteralsOffset,
-                              kNextByNativeContextOffset + kPointerSize,
-                              kSize> BodyDescriptor;
-
-  // Kills an entry, nulling out its references to native context, function,
-  // code, and literals.
-  void Kill();
-  inline bool cacheable();
-  inline void set_cacheable(bool val);
-
- private:
-  // Used internally during traversal to skip dead entries.
-  inline bool IsDead() {
-    return function() == NULL || code() == NULL;
-  }
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(OptimizedCodeEntry);
 };
 
 

@@ -1242,21 +1242,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
 }
 
 
-Handle<OptimizedCodeEntry> Factory::NewOptimizedCodeEntry(
-      Handle<Context> native_context,
-      Handle<JSFunction> function,
-      Handle<Code> code,
-      Handle<FixedArray> literals) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateOptimizedCodeEntry(
-                         *native_context,
-                         *function,
-                         *code,
-                         *literals),
-                     OptimizedCodeEntry);
-}
-
-
 Handle<String> Factory::NumberToString(Handle<Object> number) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->NumberToString(*number), String);
