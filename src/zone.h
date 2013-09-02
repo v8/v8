@@ -174,6 +174,11 @@ struct ZoneScope {
 // structures to allocate themselves and their elements in the Zone.
 struct ZoneAllocationPolicy {
  public:
+  class Deleter {
+   public:
+    INLINE(explicit Deleter(const ZoneAllocationPolicy&)) {}
+    INLINE(static void Delete(void *pointer)) { }
+  };
   explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) { }
   INLINE(void* New(size_t size));
   INLINE(static void Delete(void *pointer)) { }

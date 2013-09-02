@@ -48,13 +48,15 @@ namespace internal {
 // template <typename T,
 //           class AllocationPolicy = FreeStoreAllocationPolicy> class List;
 template <typename T, class AllocationPolicy>
-class List {
+class List : private AllocationPolicy::Deleter {
  public:
-  explicit List(AllocationPolicy allocator = AllocationPolicy()) {
+  explicit List(AllocationPolicy allocator = AllocationPolicy())
+    : AllocationPolicy::Deleter(allocator) {
     Initialize(0, allocator);
   }
   INLINE(explicit List(int capacity,
-                       AllocationPolicy allocator = AllocationPolicy())) {
+                       AllocationPolicy allocator = AllocationPolicy()))
+    : AllocationPolicy::Deleter(allocator) {
     Initialize(capacity, allocator);
   }
   INLINE(~List()) { DeleteData(data_); }
@@ -71,12 +73,19 @@ class List {
     return allocator.New(static_cast<int>(size));
   }
   INLINE(void operator delete(void* p)) {
-    AllocationPolicy::Delete(p);
+    AllocationPolicy::Deleter::Delete(p);
   }
 
   // Please the MSVC compiler.  We should never have to execute this.
   INLINE(void operator delete(void* p, AllocationPolicy allocator)) {
     UNREACHABLE();
+  }
+
+  // Delete via the instance Deleter
+  static void Delete(List* p) {
+    if (p == NULL) return;
+    p->~List();
+    p->AllocationPolicy::Deleter::Delete(p);
   }
 
   // Returns a reference to the element at index i.  This reference is
@@ -179,7 +188,7 @@ class List {
     return static_cast<T*>(allocator.New(n * sizeof(T)));
   }
   INLINE(void DeleteData(T* data))  {
-    AllocationPolicy::Delete(data);
+    this->AllocationPolicy::Deleter::Delete(data);
   }
 
   // Increase the capacity of a full list, and add an element.

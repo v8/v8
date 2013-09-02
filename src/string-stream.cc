@@ -204,7 +204,9 @@ void StringStream::PrintObject(Object* o) {
     }
     if (debug_object_cache->length() < kMentionedObjectCacheMaxSize) {
       Add("#%d#", debug_object_cache->length());
-      debug_object_cache->Add(HeapObject::cast(o));
+      HeapObject* ho = HeapObject::cast(o);
+      PreallocatedStorageAllocationPolicy policy(ho->GetIsolate());
+      debug_object_cache->Add(ho, policy);
     } else {
       Add("@%p", o);
     }
@@ -299,8 +301,9 @@ void StringStream::ClearMentionedObjectCache() {
   Isolate* isolate = Isolate::Current();
   isolate->set_string_stream_current_security_token(NULL);
   if (isolate->string_stream_debug_object_cache() == NULL) {
+    PreallocatedStorageAllocationPolicy policy(isolate);
     isolate->set_string_stream_debug_object_cache(
-        new List<HeapObject*, PreallocatedStorageAllocationPolicy>(0));
+        new(policy) DebugObjectCache(policy));
   }
   isolate->string_stream_debug_object_cache()->Clear();
 }

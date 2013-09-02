@@ -2059,7 +2059,7 @@ Isolate::~Isolate() {
   delete eternal_handles_;
   eternal_handles_ = NULL;
 
-  delete string_stream_debug_object_cache_;
+  DebugObjectCache::Delete(string_stream_debug_object_cache_);
   string_stream_debug_object_cache_ = NULL;
 
   delete external_reference_table_;
