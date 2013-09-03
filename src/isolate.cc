@@ -2187,7 +2187,7 @@ bool Isolate::Init(Deserializer* des) {
   string_tracker_ = new StringTracker();
   string_tracker_->isolate_ = this;
   compilation_cache_ = new CompilationCache(this);
-  transcendental_cache_ = new TranscendentalCache();
+  transcendental_cache_ = new TranscendentalCache(this);
   keyed_lookup_cache_ = new KeyedLookupCache();
   context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();

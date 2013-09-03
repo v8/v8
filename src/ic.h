@@ -102,7 +102,7 @@ class IC {
   static State StateFrom(Code* target, Object* receiver, Object* name);
 
   // Clear the inline cache to initial state.
-  static void Clear(Address address);
+  static void Clear(Isolate* isolate, Address address);
 
   // Computes the reloc info for this IC. This is a fairly expensive
   // operation as it has to search through the heap to find the code
@@ -420,14 +420,14 @@ class LoadIC: public IC {
 
  private:
   // Stub accessors.
-  static Handle<Code> initialize_stub() {
-    return Isolate::Current()->builtins()->LoadIC_Initialize();
+  static Handle<Code> initialize_stub(Isolate* isolate) {
+    return isolate->builtins()->LoadIC_Initialize();
   }
   virtual Handle<Code> pre_monomorphic_stub() {
     return isolate()->builtins()->LoadIC_PreMonomorphic();
   }
 
-  static void Clear(Address address, Code* target);
+  static void Clear(Isolate* isolate, Address address, Code* target);
 
   friend class IC;
 };
@@ -496,8 +496,8 @@ class KeyedLoadIC: public LoadIC {
 
  private:
   // Stub accessors.
-  static Handle<Code> initialize_stub() {
-    return Isolate::Current()->builtins()->KeyedLoadIC_Initialize();
+  static Handle<Code> initialize_stub(Isolate* isolate) {
+    return isolate->builtins()->KeyedLoadIC_Initialize();
   }
   virtual Handle<Code> pre_monomorphic_stub() {
     return isolate()->builtins()->KeyedLoadIC_PreMonomorphic();
@@ -512,7 +512,7 @@ class KeyedLoadIC: public LoadIC {
     return isolate()->builtins()->KeyedLoadIC_String();
   }
 
-  static void Clear(Address address, Code* target);
+  static void Clear(Isolate* isolate, Address address, Code* target);
 
   friend class IC;
 };
@@ -601,13 +601,13 @@ class StoreIC: public IC {
     IC::set_target(code);
   }
 
-  static Handle<Code> initialize_stub() {
-    return Isolate::Current()->builtins()->StoreIC_Initialize();
+  static Handle<Code> initialize_stub(Isolate* isolate) {
+    return isolate->builtins()->StoreIC_Initialize();
   }
-  static Handle<Code> initialize_stub_strict() {
-    return Isolate::Current()->builtins()->StoreIC_Initialize_Strict();
+  static Handle<Code> initialize_stub_strict(Isolate* isolate) {
+    return isolate->builtins()->StoreIC_Initialize_Strict();
   }
-  static void Clear(Address address, Code* target);
+  static void Clear(Isolate* isolate, Address address, Code* target);
 
   friend class IC;
 };
@@ -685,11 +685,11 @@ class KeyedStoreIC: public StoreIC {
   }
 
   // Stub accessors.
-  static Handle<Code> initialize_stub() {
-    return Isolate::Current()->builtins()->KeyedStoreIC_Initialize();
+  static Handle<Code> initialize_stub(Isolate* isolate) {
+    return isolate->builtins()->KeyedStoreIC_Initialize();
   }
-  static Handle<Code> initialize_stub_strict() {
-    return Isolate::Current()->builtins()->KeyedStoreIC_Initialize_Strict();
+  static Handle<Code> initialize_stub_strict(Isolate* isolate) {
+    return isolate->builtins()->KeyedStoreIC_Initialize_Strict();
   }
   Handle<Code> generic_stub() const {
     return isolate()->builtins()->KeyedStoreIC_Generic();
@@ -701,7 +701,7 @@ class KeyedStoreIC: public StoreIC {
     return isolate()->builtins()->KeyedStoreIC_NonStrictArguments();
   }
 
-  static void Clear(Address address, Code* target);
+  static void Clear(Isolate* isolate, Address address, Code* target);
 
   KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
                                     Handle<Object> key,
@@ -807,9 +807,9 @@ class CompareIC: public IC {
   bool strict() const { return op_ == Token::EQ_STRICT; }
   Condition GetCondition() const { return ComputeCondition(op_); }
 
-  static Code* GetRawUninitialized(Token::Value op);
+  static Code* GetRawUninitialized(Isolate* isolate, Token::Value op);
 
-  static void Clear(Address address, Code* target);
+  static void Clear(Isolate* isolate, Address address, Code* target);
 
   Token::Value op_;
 

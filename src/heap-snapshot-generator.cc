@@ -732,7 +732,7 @@ V8HeapExplorer::V8HeapExplorer(
     HeapSnapshot* snapshot,
     SnapshottingProgressReportingInterface* progress,
     v8::HeapProfiler::ObjectNameResolver* resolver)
-    : heap_(Isolate::Current()->heap()),
+    : heap_(snapshot->collection()->heap()),
       snapshot_(snapshot),
       collection_(snapshot_->collection()),
       progress_(progress),
@@ -1852,7 +1852,7 @@ class GlobalObjectsEnumerator : public ObjectVisitor {
 
 // Modifies heap. Must not be run during heap traversal.
 void V8HeapExplorer::TagGlobalObjects() {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = heap_->isolate();
   HandleScope scope(isolate);
   GlobalObjectsEnumerator enumerator;
   isolate->global_handles()->IterateAllRoots(&enumerator);
@@ -1927,8 +1927,10 @@ HeapEntry* BasicHeapEntriesAllocator::AllocateEntry(HeapThing ptr) {
 
 
 NativeObjectsExplorer::NativeObjectsExplorer(
-    HeapSnapshot* snapshot, SnapshottingProgressReportingInterface* progress)
-    : snapshot_(snapshot),
+    HeapSnapshot* snapshot,
+    SnapshottingProgressReportingInterface* progress)
+    : isolate_(snapshot->collection()->heap()->isolate()),
+      snapshot_(snapshot),
       collection_(snapshot_->collection()),
       progress_(progress),
       embedder_queried_(false),
@@ -1973,7 +1975,7 @@ int NativeObjectsExplorer::EstimateObjectsCount() {
 
 void NativeObjectsExplorer::FillRetainedObjects() {
   if (embedder_queried_) return;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = isolate_;
   const GCType major_gc_type = kGCTypeMarkSweepCompact;
   // Record objects that are joined into ObjectGroups.
   isolate->heap()->CallGCPrologueCallbacks(
@@ -2000,7 +2002,7 @@ void NativeObjectsExplorer::FillRetainedObjects() {
 
 
 void NativeObjectsExplorer::FillImplicitReferences() {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = isolate_;
   List<ImplicitRefGroup*>* groups =
       isolate->global_handles()->implicit_ref_groups();
   for (int i = 0; i < groups->length(); ++i) {
@@ -2157,7 +2159,7 @@ void NativeObjectsExplorer::SetRootNativeRootsReference() {
 
 void NativeObjectsExplorer::VisitSubtreeWrapper(Object** p, uint16_t class_id) {
   if (in_groups_.Contains(*p)) return;
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = isolate_;
   v8::RetainedObjectInfo* info =
       isolate->heap_profiler()->ExecuteWrapperClassCallback(class_id, p);
   if (info == NULL) return;
@@ -2243,15 +2245,15 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   // full GC is reachable from the root when computing dominators.
   // This is not true for weakly reachable objects.
   // As a temporary solution we call GC twice.
-  Isolate::Current()->heap()->CollectAllGarbage(
+  heap_->CollectAllGarbage(
       Heap::kMakeHeapIterableMask,
       "HeapSnapshotGenerator::GenerateSnapshot");
-  Isolate::Current()->heap()->CollectAllGarbage(
+  heap_->CollectAllGarbage(
       Heap::kMakeHeapIterableMask,
       "HeapSnapshotGenerator::GenerateSnapshot");
 
 #ifdef VERIFY_HEAP
-  Heap* debug_heap = Isolate::Current()->heap();
+  Heap* debug_heap = heap_;
   CHECK(!debug_heap->old_data_space()->was_swept_conservatively());
   CHECK(!debug_heap->old_pointer_space()->was_swept_conservatively());
   CHECK(!debug_heap->code_space()->was_swept_conservatively());

@@ -1396,15 +1396,8 @@ class SaveContext BASE_EMBEDDED {
   inline explicit SaveContext(Isolate* isolate);
 
   ~SaveContext() {
-    if (context_.is_null()) {
-      Isolate* isolate = Isolate::Current();
-      isolate->set_context(NULL);
-      isolate->set_save_context(prev_);
-    } else {
-      Isolate* isolate = context_->GetIsolate();
-      isolate->set_context(*context_);
-      isolate->set_save_context(prev_);
-    }
+    isolate_->set_context(context_.is_null() ? NULL : *context_);
+    isolate_->set_save_context(prev_);
   }
 
   Handle<Context> context() { return context_; }
@@ -1416,6 +1409,7 @@ class SaveContext BASE_EMBEDDED {
   }
 
  private:
+  Isolate* isolate_;
   Handle<Context> context_;
   SaveContext* prev_;
   Address c_entry_fp_;

@@ -375,20 +375,22 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
 }
 
 
-void IC::Clear(Address address) {
+void IC::Clear(Isolate* isolate, Address address) {
   Code* target = GetTargetAtAddress(address);
 
   // Don't clear debug break inline cache as it will remove the break point.
   if (target->is_debug_stub()) return;
 
   switch (target->kind()) {
-    case Code::LOAD_IC: return LoadIC::Clear(address, target);
-    case Code::KEYED_LOAD_IC: return KeyedLoadIC::Clear(address, target);
-    case Code::STORE_IC: return StoreIC::Clear(address, target);
-    case Code::KEYED_STORE_IC: return KeyedStoreIC::Clear(address, target);
+    case Code::LOAD_IC: return LoadIC::Clear(isolate, address, target);
+    case Code::KEYED_LOAD_IC:
+      return KeyedLoadIC::Clear(isolate, address, target);
+    case Code::STORE_IC: return StoreIC::Clear(isolate, address, target);
+    case Code::KEYED_STORE_IC:
+      return KeyedStoreIC::Clear(isolate, address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
-    case Code::COMPARE_IC: return CompareIC::Clear(address, target);
+    case Code::COMPARE_IC: return CompareIC::Clear(isolate, address, target);
     case Code::COMPARE_NIL_IC: return CompareNilIC::Clear(address, target);
     case Code::BINARY_OP_IC:
     case Code::TO_BOOLEAN_IC:
@@ -404,7 +406,7 @@ void CallICBase::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   bool contextual = CallICBase::Contextual::decode(target->extra_ic_state());
   Code* code =
-      Isolate::Current()->stub_cache()->FindCallInitialize(
+      target->GetIsolate()->stub_cache()->FindCallInitialize(
           target->arguments_count(),
           contextual ? RelocInfo::CODE_TARGET_CONTEXT : RelocInfo::CODE_TARGET,
           target->kind());
@@ -412,40 +414,40 @@ void CallICBase::Clear(Address address, Code* target) {
 }
 
 
-void KeyedLoadIC::Clear(Address address, Code* target) {
+void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   // Make sure to also clear the map used in inline fast cases.  If we
   // do not clear these maps, cached code can keep objects alive
   // through the embedded maps.
-  SetTargetAtAddress(address, *initialize_stub());
+  SetTargetAtAddress(address, *initialize_stub(isolate));
 }
 
 
-void LoadIC::Clear(Address address, Code* target) {
+void LoadIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
-  SetTargetAtAddress(address, *initialize_stub());
+  SetTargetAtAddress(address, *initialize_stub(isolate));
 }
 
 
-void StoreIC::Clear(Address address, Code* target) {
-  if (target->ic_state() == UNINITIALIZED) return;
-  SetTargetAtAddress(address,
-      (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
-        ? *initialize_stub_strict()
-        : *initialize_stub());
-}
-
-
-void KeyedStoreIC::Clear(Address address, Code* target) {
+void StoreIC::Clear(Isolate* isolate, Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   SetTargetAtAddress(address,
       (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
-        ? *initialize_stub_strict()
-        : *initialize_stub());
+        ? *initialize_stub_strict(isolate)
+        : *initialize_stub(isolate));
 }
 
 
-void CompareIC::Clear(Address address, Code* target) {
+void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target) {
+  if (target->ic_state() == UNINITIALIZED) return;
+  SetTargetAtAddress(address,
+      (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
+        ? *initialize_stub_strict(isolate)
+        : *initialize_stub(isolate));
+}
+
+
+void CompareIC::Clear(Isolate* isolate, Address address, Code* target) {
   ASSERT(target->major_key() == CodeStub::CompareIC);
   CompareIC::State handler_state;
   Token::Value op;
@@ -453,7 +455,7 @@ void CompareIC::Clear(Address address, Code* target) {
                                 &handler_state, &op);
   // Only clear CompareICs that can retain objects.
   if (handler_state != KNOWN_OBJECT) return;
-  SetTargetAtAddress(address, GetRawUninitialized(op));
+  SetTargetAtAddress(address, GetRawUninitialized(isolate, op));
   PatchInlinedSmiCode(address, DISABLE_INLINED_SMI_CHECK);
 }
 
@@ -2771,10 +2773,10 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
 }
 
 
-Code* CompareIC::GetRawUninitialized(Token::Value op) {
+Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
   ICCompareStub stub(op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
   Code* code = NULL;
-  CHECK(stub.FindCodeInCache(&code, Isolate::Current()));
+  CHECK(stub.FindCodeInCache(&code, isolate));
   return code;
 }
 

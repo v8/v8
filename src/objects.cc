@@ -10305,7 +10305,7 @@ void Code::ClearInlineCaches() {
     RelocInfo* info = it.rinfo();
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
     if (target->is_inline_cache_stub()) {
-      IC::Clear(info->pc());
+      IC::Clear(this->GetIsolate(), info->pc());
     }
   }
 }
