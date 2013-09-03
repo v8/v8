@@ -2621,8 +2621,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsClassicModeFunction) {
   if (!callable->IsJSFunction()) {
     HandleScope scope(isolate);
     bool threw = false;
-    Handle<Object> delegate =
-        Execution::TryGetFunctionDelegate(Handle<JSReceiver>(callable), &threw);
+    Handle<Object> delegate = Execution::TryGetFunctionDelegate(
+        isolate, Handle<JSReceiver>(callable), &threw);
     if (threw) return Failure::Exception();
     callable = JSFunction::cast(*delegate);
   }
@@ -2640,8 +2640,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
   if (!callable->IsJSFunction()) {
     HandleScope scope(isolate);
     bool threw = false;
-    Handle<Object> delegate =
-        Execution::TryGetFunctionDelegate(Handle<JSReceiver>(callable), &threw);
+    Handle<Object> delegate = Execution::TryGetFunctionDelegate(
+        isolate, Handle<JSReceiver>(callable), &threw);
     if (threw) return Failure::Exception();
     callable = JSFunction::cast(*delegate);
   }
@@ -4799,7 +4799,7 @@ MaybeObject* Runtime::HasObjectProperty(Isolate* isolate,
   } else {
     bool has_pending_exception = false;
     Handle<Object> converted =
-        Execution::ToString(key, &has_pending_exception);
+        Execution::ToString(isolate, key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
     name = Handle<Name>::cast(converted);
   }
@@ -4841,7 +4841,7 @@ MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
   } else {
     bool has_pending_exception = false;
     Handle<Object> converted =
-        Execution::ToString(key, &has_pending_exception);
+        Execution::ToString(isolate, key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
     name = Handle<Name>::cast(converted);
   }
@@ -5139,7 +5139,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   if (object->IsJSProxy()) {
     bool has_pending_exception = false;
     Handle<Object> name = key->IsSymbol()
-        ? key : Execution::ToString(key, &has_pending_exception);
+        ? key : Execution::ToString(isolate, key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
     return JSProxy::cast(*object)->SetProperty(
         Name::cast(*name), *value, attr, strict_mode);
@@ -5168,7 +5168,8 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
     if (js_object->HasExternalArrayElements()) {
       if (!value->IsNumber() && !value->IsUndefined()) {
         bool has_exception;
-        Handle<Object> number = Execution::ToNumber(value, &has_exception);
+        Handle<Object> number =
+            Execution::ToNumber(isolate, value, &has_exception);
         if (has_exception) return Failure::Exception();
         value = number;
       }
@@ -5187,7 +5188,8 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
       if (js_object->HasExternalArrayElements()) {
         if (!value->IsNumber() && !value->IsUndefined()) {
           bool has_exception;
-          Handle<Object> number = Execution::ToNumber(value, &has_exception);
+          Handle<Object> number =
+              Execution::ToNumber(isolate, value, &has_exception);
           if (has_exception) return Failure::Exception();
           value = number;
         }
@@ -5204,7 +5206,8 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
 
   // Call-back into JavaScript to convert the key to a string.
   bool has_pending_exception = false;
-  Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+  Handle<Object> converted =
+      Execution::ToString(isolate, key, &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
   Handle<String> name = Handle<String>::cast(converted);
 
@@ -5255,7 +5258,8 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
 
   // Call-back into JavaScript to convert the key to a string.
   bool has_pending_exception = false;
-  Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+  Handle<Object> converted =
+      Execution::ToString(isolate, key, &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
   Handle<String> name = Handle<String>::cast(converted);
 
@@ -5298,7 +5302,8 @@ MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
   } else {
     // Call-back into JavaScript to convert the key to a string.
     bool has_pending_exception = false;
-    Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+    Handle<Object> converted = Execution::ToString(
+        isolate, key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
     name = Handle<String>::cast(converted);
   }
@@ -5890,7 +5895,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   HandleScope scope(isolate);
   bool exception = false;
   Handle<Object> converted =
-      Execution::ToString(args.at<Object>(0), &exception);
+      Execution::ToString(isolate, args.at<Object>(0), &exception);
   if (exception) return Failure::Exception();
   Handle<String> key = Handle<String>::cast(converted);
 
@@ -8151,7 +8156,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
 
   if (!bound_function->IsJSFunction()) {
     bool exception_thrown;
-    bound_function = Execution::TryGetConstructorDelegate(bound_function,
+    bound_function = Execution::TryGetConstructorDelegate(isolate,
+                                                          bound_function,
                                                           &exception_thrown);
     if (exception_thrown) return Failure::Exception();
   }
@@ -8781,7 +8787,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionDelegate) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   RUNTIME_ASSERT(!args[0]->IsJSFunction());
-  return *Execution::GetFunctionDelegate(args.at<Object>(0));
+  return *Execution::GetFunctionDelegate(isolate, args.at<Object>(0));
 }
 
 
@@ -8789,7 +8795,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetConstructorDelegate) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   RUNTIME_ASSERT(!args[0]->IsJSFunction());
-  return *Execution::GetConstructorDelegate(args.at<Object>(0));
+  return *Execution::GetConstructorDelegate(isolate, args.at<Object>(0));
 }
 
 
@@ -10576,7 +10582,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LookupAccessor) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  return Execution::DebugBreakHelper();
+  return Execution::DebugBreakHelper(isolate);
 }
 
 
@@ -12687,7 +12693,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   Handle<Object> context_extension(args[5], isolate);
 
   // Handle the processing of break.
-  DisableBreak disable_break_save(disable_break);
+  DisableBreak disable_break_save(isolate, disable_break);
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
@@ -12754,7 +12760,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   Handle<Object> context_extension(args[3], isolate);
 
   // Handle the processing of break.
-  DisableBreak disable_break_save(disable_break);
+  DisableBreak disable_break_save(isolate, disable_break);
 
   // Enter the top context from before the debugger was invoked.
   SaveContext save(isolate);
@@ -13422,7 +13428,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ExecuteInDebugContext) {
       result = Execution::Call(function, isolate->global_object(), 0, NULL,
                                &pending_exception);
     } else {
-      EnterDebugger enter_debugger;
+      EnterDebugger enter_debugger(isolate);
       result = Execution::Call(function, isolate->global_object(), 0, NULL,
                                &pending_exception);
     }

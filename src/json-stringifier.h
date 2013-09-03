@@ -495,11 +495,13 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSValue(
   bool has_exception = false;
   String* class_name = object->class_name();
   if (class_name == isolate_->heap()->String_string()) {
-    Handle<Object> value = Execution::ToString(object, &has_exception);
+    Handle<Object> value =
+        Execution::ToString(isolate_, object, &has_exception);
     if (has_exception) return EXCEPTION;
     SerializeString(Handle<String>::cast(value));
   } else if (class_name == isolate_->heap()->Number_string()) {
-    Handle<Object> value = Execution::ToNumber(object, &has_exception);
+    Handle<Object> value =
+        Execution::ToNumber(isolate_, object, &has_exception);
     if (has_exception) return EXCEPTION;
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));

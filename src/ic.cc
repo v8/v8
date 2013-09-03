@@ -500,7 +500,7 @@ static void LookupForRead(Handle<Object> object,
 
 
 Handle<Object> CallICBase::TryCallAsFunction(Handle<Object> object) {
-  Handle<Object> delegate = Execution::GetFunctionDelegate(object);
+  Handle<Object> delegate = Execution::GetFunctionDelegate(isolate(), object);
 
   if (delegate->IsJSFunction() && !object->IsJSFunctionProxy()) {
     // Patch the receiver and use the delegate as the function to

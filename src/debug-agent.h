@@ -43,9 +43,9 @@ class DebuggerAgentSession;
 // handles connection from a remote debugger.
 class DebuggerAgent: public Thread {
  public:
-  DebuggerAgent(const char* name, int port)
+  DebuggerAgent(Isolate* isolate, const char* name, int port)
       : Thread(name),
-        isolate_(Isolate::Current()),
+        isolate_(isolate),
         name_(StrDup(name)), port_(port),
         server_(OS::CreateSocket()), terminate_(false),
         session_(NULL),

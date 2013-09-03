@@ -2738,7 +2738,7 @@ Local<String> Value::ToString() const {
     LOG_API(isolate, "ToString");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    str = i::Execution::ToString(obj, &has_pending_exception);
+    str = i::Execution::ToString(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<String>());
   }
   return ToApiHandle<String>(str);
@@ -2758,7 +2758,7 @@ Local<String> Value::ToDetailString() const {
     LOG_API(isolate, "ToDetailString");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    str = i::Execution::ToDetailString(obj, &has_pending_exception);
+    str = i::Execution::ToDetailString(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<String>());
   }
   return ToApiHandle<String>(str);
@@ -2778,7 +2778,7 @@ Local<v8::Object> Value::ToObject() const {
     LOG_API(isolate, "ToObject");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    val = i::Execution::ToObject(obj, &has_pending_exception);
+    val = i::Execution::ToObject(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
   }
   return ToApiHandle<Object>(val);
@@ -2816,7 +2816,7 @@ Local<Number> Value::ToNumber() const {
     LOG_API(isolate, "ToNumber");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToNumber(obj, &has_pending_exception);
+    num = i::Execution::ToNumber(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Number>());
   }
   return ToApiHandle<Number>(num);
@@ -2834,7 +2834,7 @@ Local<Integer> Value::ToInteger() const {
     LOG_API(isolate, "ToInteger");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToInteger(obj, &has_pending_exception);
+    num = i::Execution::ToInteger(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Integer>());
   }
   return ToApiHandle<Integer>(num);
@@ -3054,7 +3054,7 @@ double Value::NumberValue() const {
     LOG_API(isolate, "NumberValue");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToNumber(obj, &has_pending_exception);
+    num = i::Execution::ToNumber(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, i::OS::nan_value());
   }
   return num->Number();
@@ -3072,7 +3072,7 @@ int64_t Value::IntegerValue() const {
     LOG_API(isolate, "IntegerValue");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToInteger(obj, &has_pending_exception);
+    num = i::Execution::ToInteger(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, 0);
   }
   if (num->IsSmi()) {
@@ -3094,7 +3094,7 @@ Local<Int32> Value::ToInt32() const {
     LOG_API(isolate, "ToInt32");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToInt32(obj, &has_pending_exception);
+    num = i::Execution::ToInt32(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Int32>());
   }
   return ToApiHandle<Int32>(num);
@@ -3112,7 +3112,7 @@ Local<Uint32> Value::ToUint32() const {
     LOG_API(isolate, "ToUInt32");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToUint32(obj, &has_pending_exception);
+    num = i::Execution::ToUint32(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Uint32>());
   }
   return ToApiHandle<Uint32>(num);
@@ -3131,7 +3131,7 @@ Local<Uint32> Value::ToArrayIndex() const {
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> string_obj =
-      i::Execution::ToString(obj, &has_pending_exception);
+      i::Execution::ToString(isolate, obj, &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Uint32>());
   i::Handle<i::String> str = i::Handle<i::String>::cast(string_obj);
   uint32_t index;
@@ -3159,7 +3159,7 @@ int32_t Value::Int32Value() const {
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> num =
-        i::Execution::ToInt32(obj, &has_pending_exception);
+        i::Execution::ToInt32(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, 0);
     if (num->IsSmi()) {
       return i::Smi::cast(*num)->value();
@@ -3240,7 +3240,7 @@ uint32_t Value::Uint32Value() const {
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> num =
-        i::Execution::ToUint32(obj, &has_pending_exception);
+        i::Execution::ToUint32(isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, 0);
     if (num->IsSmi()) {
       return i::Smi::cast(*num)->value();
@@ -3377,7 +3377,7 @@ PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   if (!key_obj->IsName()) {
     EXCEPTION_PREAMBLE(isolate);
-    key_obj = i::Execution::ToString(key_obj, &has_pending_exception);
+    key_obj = i::Execution::ToString(isolate, key_obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, static_cast<PropertyAttribute>(NONE));
   }
   i::Handle<i::Name> key_name = i::Handle<i::Name>::cast(key_obj);
@@ -4079,7 +4079,7 @@ bool v8::Object::IsCallable() {
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   if (obj->IsJSFunction()) return true;
-  return i::Execution::GetFunctionDelegate(obj)->IsJSFunction();
+  return i::Execution::GetFunctionDelegate(isolate, obj)->IsJSFunction();
 }
 
 
@@ -4103,8 +4103,8 @@ Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
     fun = i::Handle<i::JSFunction>::cast(obj);
   } else {
     EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> delegate =
-        i::Execution::TryGetFunctionDelegate(obj, &has_pending_exception);
+    i::Handle<i::Object> delegate = i::Execution::TryGetFunctionDelegate(
+        isolate, obj, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
     fun = i::Handle<i::JSFunction>::cast(delegate);
     recv_obj = obj;
@@ -4140,8 +4140,8 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
         i::Handle<i::JSObject>::cast(returned)));
   }
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> delegate =
-      i::Execution::TryGetConstructorDelegate(obj, &has_pending_exception);
+  i::Handle<i::Object> delegate = i::Execution::TryGetConstructorDelegate(
+      isolate, obj, &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
   if (!delegate->IsUndefined()) {
     i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(delegate);
@@ -6050,7 +6050,7 @@ Local<v8::Value> v8::Date::New(double time) {
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj =
-      i::Execution::NewDate(time, &has_pending_exception);
+      i::Execution::NewDate(isolate, time, &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Value>());
   return Utils::ToLocal(obj);
 }
@@ -7170,7 +7170,7 @@ void Debug::DisableAgent() {
 
 
 void Debug::ProcessDebugMessages() {
-  i::Execution::ProcessDebugMessages(true);
+  i::Execution::ProcessDebugMessages(i::Isolate::Current(), true);
 }
 
 

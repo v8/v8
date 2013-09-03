@@ -1586,7 +1586,8 @@ void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
   // instance template.
   Handle<Object> instance_template(desc->instance_template(), isolate());
   if (!instance_template->IsUndefined()) {
-    Execution::ConfigureInstance(instance,
+    Execution::ConfigureInstance(isolate(),
+                                 instance,
                                  instance_template,
                                  pending_exception);
   } else {

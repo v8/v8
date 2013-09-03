@@ -86,8 +86,9 @@ static void PrintLn(v8::Local<v8::Value> value) {
 }
 
 
-static Handle<Code> ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind) {
-  Isolate* isolate = Isolate::Current();
+static Handle<Code> ComputeCallDebugPrepareStepIn(Isolate* isolate,
+                                                  int argc,
+                                                  Code::Kind kind) {
   return isolate->stub_cache()->ComputeCallDebugPrepareStepIn(argc, kind);
 }
 
@@ -433,7 +434,7 @@ void BreakLocationIterator::PrepareStepIn(Isolate* isolate) {
     // the call in the original code as it is the code there that will be
     // executed in place of the debug break call.
     Handle<Code> stub = ComputeCallDebugPrepareStepIn(
-        target_code->arguments_count(), target_code->kind());
+        isolate, target_code->arguments_count(), target_code->kind());
     if (IsDebugBreak()) {
       original_rinfo()->set_target_address(stub->entry());
     } else {
@@ -633,7 +634,7 @@ const int Debug::kFrameDropperFrameSize = 4;
 
 
 void ScriptCache::Add(Handle<Script> script) {
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = isolate_->global_handles();
   // Create an entry in the hash map for the script.
   int id = script->id()->value();
   HashMap::Entry* entry =
@@ -655,7 +656,7 @@ void ScriptCache::Add(Handle<Script> script) {
 
 
 Handle<FixedArray> ScriptCache::GetScripts() {
-  Factory* factory = Isolate::Current()->factory();
+  Factory* factory = isolate_->factory();
   Handle<FixedArray> instances = factory->NewFixedArray(occupancy());
   int count = 0;
   for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
@@ -670,7 +671,7 @@ Handle<FixedArray> ScriptCache::GetScripts() {
 
 
 void ScriptCache::ProcessCollectedScripts() {
-  Debugger* debugger = Isolate::Current()->debugger();
+  Debugger* debugger = isolate_->debugger();
   for (int i = 0; i < collected_scripts_.length(); i++) {
     debugger->OnScriptCollected(collected_scripts_[i]);
   }
@@ -679,7 +680,7 @@ void ScriptCache::ProcessCollectedScripts() {
 
 
 void ScriptCache::Clear() {
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = isolate_->global_handles();
   // Iterate the script cache to get rid of all the weak handles.
   for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
     ASSERT(entry != NULL);
@@ -750,7 +751,7 @@ void Debug::HandleWeakDebugInfo(v8::Isolate* isolate,
 
 
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+  GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
   // Globalize the request debug info object and make it weak.
   debug_info_ = Handle<DebugInfo>::cast(
       (global_handles->Create(debug_info)));
@@ -761,13 +762,12 @@ DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
 
 
 DebugInfoListNode::~DebugInfoListNode() {
-  Isolate::Current()->global_handles()->Destroy(
+  debug_info_->GetIsolate()->global_handles()->Destroy(
       reinterpret_cast<Object**>(debug_info_.location()));
 }
 
 
-bool Debug::CompileDebuggerScript(int index) {
-  Isolate* isolate = Isolate::Current();
+bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -824,7 +824,7 @@ bool Debug::CompileDebuggerScript(int index) {
     ASSERT(!isolate->has_pending_exception());
     if (!exception.is_null()) {
       isolate->set_pending_exception(*exception);
-      MessageHandler::ReportMessage(Isolate::Current(), NULL, message);
+      MessageHandler::ReportMessage(isolate, NULL, message);
       isolate->clear_pending_exception();
     }
     return false;
@@ -852,7 +852,7 @@ bool Debug::Load() {
 
   // Disable breakpoints and interrupts while compiling and running the
   // debugger scripts including the context creation code.
-  DisableBreak disable(true);
+  DisableBreak disable(isolate_, true);
   PostponeInterruptsScope postpone(isolate_);
 
   // Create the debugger context.
@@ -886,12 +886,12 @@ bool Debug::Load() {
   // Compile the JavaScript for the debugger in the debugger context.
   debugger->set_compiling_natives(true);
   bool caught_exception =
-      !CompileDebuggerScript(Natives::GetIndex("mirror")) ||
-      !CompileDebuggerScript(Natives::GetIndex("debug"));
+      !CompileDebuggerScript(isolate_, Natives::GetIndex("mirror")) ||
+      !CompileDebuggerScript(isolate_, Natives::GetIndex("debug"));
 
   if (FLAG_enable_liveedit) {
     caught_exception = caught_exception ||
-        !CompileDebuggerScript(Natives::GetIndex("liveedit"));
+        !CompileDebuggerScript(isolate_, Natives::GetIndex("liveedit"));
   }
 
   debugger->set_compiling_natives(false);
@@ -958,7 +958,7 @@ Object* Debug::Break(Arguments args) {
   }
 
   // Enter the debugger.
-  EnterDebugger debugger;
+  EnterDebugger debugger(isolate_);
   if (debugger.FailedToEnter()) {
     return heap->undefined_value();
   }
@@ -1649,7 +1649,7 @@ bool Debug::IsBreakStub(Code* code) {
 
 // Find the builtin to use for invoking the debug break
 Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = code->GetIsolate();
 
   // Find the builtin debug break function matching the calling convention
   // used by the call site.
@@ -1704,7 +1704,7 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
 Handle<Object> Debug::GetSourceBreakLocations(
     Handle<SharedFunctionInfo> shared,
     BreakPositionAlignment position_alignment) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = shared->GetIsolate();
   Heap* heap = isolate->heap();
   if (!HasDebugInfo(shared)) {
     return Handle<Object>(heap->undefined_value(), isolate);
@@ -1883,7 +1883,7 @@ static bool CompileFullCodeForDebugging(Handle<JSFunction> function,
   // Use compile lazy which will end up compiling the full code in the
   // configuration configured above.
   bool result = Compiler::CompileLazy(&info);
-  ASSERT(result != Isolate::Current()->has_pending_exception());
+  ASSERT(result != info.isolate()->has_pending_exception());
   info.isolate()->clear_pending_exception();
 #if DEBUG
   if (result) {
@@ -2537,7 +2537,7 @@ void Debug::CreateScriptCache() {
                           "Debug::CreateScriptCache");
 
   ASSERT(script_cache_ == NULL);
-  script_cache_ = new ScriptCache();
+  script_cache_ = new ScriptCache(isolate_);
 
   // Scan heap for Script objects.
   int count = 0;
@@ -2754,7 +2754,7 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
   }
 
   // Enter the debugger.
-  EnterDebugger debugger;
+  EnterDebugger debugger(isolate_);
   if (debugger.FailedToEnter()) return;
 
   // Clear all current stepping setup.
@@ -2820,7 +2820,7 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
   if (!EventActive(v8::BeforeCompile)) return;
 
   // Enter the debugger.
-  EnterDebugger debugger;
+  EnterDebugger debugger(isolate_);
   if (debugger.FailedToEnter()) return;
 
   // Create the event data object.
@@ -2857,7 +2857,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   bool in_debugger = debug->InDebugger();
 
   // Enter the debugger.
-  EnterDebugger debugger;
+  EnterDebugger debugger(isolate_);
   if (debugger.FailedToEnter()) return;
 
   // If debugging there might be script break points registered for this
@@ -2885,7 +2885,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   bool caught_exception;
   Handle<Object> argv[] = { wrapper };
   Execution::TryCall(Handle<JSFunction>::cast(update_script_break_points),
-                     Isolate::Current()->js_builtins_object(),
+                     isolate_->js_builtins_object(),
                      ARRAY_SIZE(argv),
                      argv,
                      &caught_exception);
@@ -2920,7 +2920,7 @@ void Debugger::OnScriptCollected(int id) {
   if (!Debugger::EventActive(v8::ScriptCollected)) return;
 
   // Enter the debugger.
-  EnterDebugger debugger;
+  EnterDebugger debugger(isolate_);
   if (debugger.FailedToEnter()) return;
 
   // Create the script collected state object.
@@ -3037,7 +3037,7 @@ void Debugger::CallJSEventCallback(v8::DebugEvent event,
 
 Handle<Context> Debugger::GetDebugContext() {
   never_unload_debugger_ = true;
-  EnterDebugger debugger;
+  EnterDebugger debugger(isolate_);
   return isolate_->debug()->debug_context();
 }
 
@@ -3390,7 +3390,7 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
   Debugger::never_unload_debugger_ = true;
 
   // Enter the debugger.
-  EnterDebugger debugger;
+  EnterDebugger debugger(isolate_);
   if (debugger.FailedToEnter()) {
     return isolate_->factory()->undefined_value();
   }
@@ -3435,7 +3435,7 @@ bool Debugger::StartAgent(const char* name, int port,
 
   if (Socket::SetUp()) {
     if (agent_ == NULL) {
-      agent_ = new DebuggerAgent(name, port);
+      agent_ = new DebuggerAgent(isolate_, name, port);
       agent_->Start();
     }
     return true;
@@ -3475,8 +3475,8 @@ void Debugger::CallMessageDispatchHandler() {
 }
 
 
-EnterDebugger::EnterDebugger()
-    : isolate_(Isolate::Current()),
+EnterDebugger::EnterDebugger(Isolate* isolate)
+    : isolate_(isolate),
       prev_(isolate_->debug()->debugger_entry()),
       it_(isolate_),
       has_js_frames_(!it_.done()),
@@ -3656,7 +3656,7 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
 
 
 v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = event_data_->GetIsolate();
   v8::Handle<v8::Context> context = GetDebugEventContext(isolate);
   // Isolate::context() may be NULL when "script collected" event occures.
   ASSERT(!context.IsEmpty() || event_ == v8::ScriptCollected);
@@ -3697,7 +3697,7 @@ v8::Handle<v8::Object> EventDetailsImpl::GetEventData() const {
 
 
 v8::Handle<v8::Context> EventDetailsImpl::GetEventContext() const {
-  return GetDebugEventContext(Isolate::Current());
+  return GetDebugEventContext(exec_state_->GetIsolate());
 }
 
 

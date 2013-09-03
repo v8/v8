@@ -71,7 +71,7 @@ class V8NameConverter: public disasm::NameConverter {
 
 
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
-  const char* name = Isolate::Current()->builtins()->Lookup(pc);
+  const char* name = code_->GetIsolate()->builtins()->Lookup(pc);
   if (name != NULL) {
     OS::SNPrintF(v8_buffer_, "%s  (%p)", name, pc);
     return v8_buffer_.start();

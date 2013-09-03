@@ -766,7 +766,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (i::FLAG_debugger) printf("JavaScript debugger enabled\n");
   // Install the debugger object in the utility scope
-  i::Debug* debug = i::Isolate::Current()->debug();
+  i::Debug* debug = reinterpret_cast<i::Isolate*>(isolate)->debug();
   debug->Load();
   i::Handle<i::JSObject> js_debug
       = i::Handle<i::JSObject>(debug->debug_context()->global_object());
@@ -935,7 +935,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   Context::Scope scope(context);
 
 #ifndef V8_SHARED
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Factory* factory = reinterpret_cast<i::Isolate*>(isolate)->factory();
   i::JSArguments js_args = i::FLAG_js_arguments;
   i::Handle<i::FixedArray> arguments_array =
       factory->NewFixedArray(js_args.argc());

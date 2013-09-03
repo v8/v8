@@ -1369,7 +1369,8 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       // exception object to be set later must not be turned into a string.
       if (exception_arg->IsJSObject() && !IsErrorObject(exception_arg)) {
         bool failed = false;
-        exception_arg = Execution::ToDetailString(exception_arg, &failed);
+        exception_arg =
+            Execution::ToDetailString(this, exception_arg, &failed);
         if (failed) {
           exception_arg = factory()->InternalizeOneByteString(
               STATIC_ASCII_VECTOR("exception"));

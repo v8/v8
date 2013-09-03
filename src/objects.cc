@@ -12127,7 +12127,8 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   if (object->HasExternalArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
       bool has_exception;
-      Handle<Object> number = Execution::ToNumber(value, &has_exception);
+      Handle<Object> number =
+          Execution::ToNumber(object->GetIsolate(), value, &has_exception);
       if (has_exception) return Handle<Object>();
       value = number;
     }
