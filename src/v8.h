@@ -82,10 +82,6 @@ class V8 : public AllStatic {
   // empty heap.
   static bool Initialize(Deserializer* des);
   static void TearDown();
-  // To be dead you have to have lived
-  // TODO(isolates): move IsDead to Isolate.
-  static bool IsDead() { return has_fatal_error_ || has_been_disposed_; }
-  static void SetFatalError();
 
   // Report process out of memory. Implementation found in api.cc.
   static void FatalProcessOutOfMemory(const char* location,
@@ -131,9 +127,6 @@ class V8 : public AllStatic {
 
   // True if V8 has ever been run
   static bool has_been_set_up_;
-  // True if error has been signaled for current engine
-  // (reset to false if engine is restarted)
-  static bool has_fatal_error_;
   // True if engine has been shut down
   // (reset if engine is restarted)
   static bool has_been_disposed_;

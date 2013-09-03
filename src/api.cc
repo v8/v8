@@ -220,7 +220,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
     // HeapIterator here without doing a special GC.
     isolate->heap()->RecordStats(&heap_stats, false);
   }
-  i::V8::SetFatalError();
+  isolate->SignalFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   const char* message = "Allocation failed - process out of memory";
   callback(location, message);
@@ -232,13 +232,15 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
 bool Utils::ReportApiFailure(const char* location, const char* message) {
   FatalErrorCallback callback = GetFatalErrorHandler();
   callback(location, message);
-  i::V8::SetFatalError();
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->SignalFatalError();
   return false;
 }
 
 
 bool V8::IsDead() {
-  return i::V8::IsDead();
+  i::Isolate* isolate = i::Isolate::Current();
+  return isolate->IsDead();
 }
 
 
@@ -277,7 +279,7 @@ static bool ReportEmptyHandle(const char* location) {
  */
 static inline bool IsDeadCheck(i::Isolate* isolate, const char* location) {
   return !isolate->IsInitialized()
-      && i::V8::IsDead() ? ReportV8Dead(location) : false;
+      && isolate->IsDead() ? ReportV8Dead(location) : false;
 }
 
 
@@ -2843,7 +2845,7 @@ Local<Integer> Value::ToInteger() const {
 
 void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
-  ApiCheck(isolate != NULL && isolate->IsInitialized() && !i::V8::IsDead(),
+  ApiCheck(isolate != NULL && isolate->IsInitialized() && !isolate->IsDead(),
            "v8::internal::Internals::CheckInitialized()",
            "Isolate is not initialized or V8 has died");
 }

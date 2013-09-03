@@ -1793,6 +1793,7 @@ Isolate::Isolate()
       regexp_stack_(NULL),
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
+      has_fatal_error_(false),
       use_crankshaft_(true),
       initialized_from_snapshot_(false),
       cpu_profiler_(NULL),
@@ -2148,6 +2149,8 @@ bool Isolate::Init(Deserializer* des) {
   TRACE_ISOLATE(init);
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
+
+  has_fatal_error_ = false;
 
   use_crankshaft_ = FLAG_crankshaft
       && !Serializer::enabled()
