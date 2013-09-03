@@ -1753,8 +1753,8 @@ class PagedSpace : public Space {
 
   // Report code object related statistics
   void CollectCodeStatistics();
-  static void ReportCodeStatistics();
-  static void ResetCodeStatistics();
+  static void ReportCodeStatistics(Isolate* isolate);
+  static void ResetCodeStatistics(Isolate* isolate);
 #endif
 
   bool was_swept_conservatively() { return was_swept_conservatively_; }

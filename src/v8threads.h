@@ -146,10 +146,10 @@ class ThreadManager {
 class ContextSwitcher: public Thread {
  public:
   // Set the preemption interval for the ContextSwitcher thread.
-  static void StartPreemption(int every_n_ms);
+  static void StartPreemption(Isolate* isolate, int every_n_ms);
 
   // Stop sending preemption requests to threads.
-  static void StopPreemption();
+  static void StopPreemption(Isolate* isolate);
 
   // Preempted thread needs to call back to the ContextSwitcher to acknowledge
   // the handling of a preemption request.

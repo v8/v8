@@ -567,11 +567,11 @@ Handle<String> Isolate::StackTraceString() {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
     HeapStringAllocator allocator;
-    StringStream::ClearMentionedObjectCache();
+    StringStream::ClearMentionedObjectCache(this);
     StringStream accumulator(&allocator);
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
-    Handle<String> stack_trace = accumulator.ToString();
+    Handle<String> stack_trace = accumulator.ToString(this);
     incomplete_message_ = NULL;
     stack_trace_nesting_level_ = 0;
     return stack_trace;
@@ -871,7 +871,7 @@ void Isolate::PrintStack(FILE* out) {
       allocator = preallocated_message_space_;
     }
 
-    StringStream::ClearMentionedObjectCache();
+    StringStream::ClearMentionedObjectCache(this);
     StringStream accumulator(allocator);
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
@@ -915,7 +915,7 @@ void Isolate::PrintStack(StringStream* accumulator) {
   }
   // The MentionedObjectCache is not GC-proof at the moment.
   DisallowHeapAllocation no_gc;
-  ASSERT(StringStream::IsMentionedObjectCacheClear());
+  ASSERT(StringStream::IsMentionedObjectCacheClear(this));
 
   // Avoid printing anything if there are no frames.
   if (c_entry_fp(thread_local_top()) == 0) return;
@@ -928,7 +928,7 @@ void Isolate::PrintStack(StringStream* accumulator) {
       "\n==== Details ================================================\n\n");
   PrintFrames(this, accumulator, StackFrame::DETAILS);
 
-  accumulator->PrintMentionedObjectCache();
+  accumulator->PrintMentionedObjectCache(this);
   accumulator->Add("=====================\n\n");
 }
 
@@ -2272,7 +2272,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // If we are deserializing, read the state into the now-empty heap.
   if (!create_heap_objects) {
-    des->Deserialize();
+    des->Deserialize(this);
   }
   stub_cache_->Initialize();
 

@@ -464,7 +464,8 @@ THREADED_TEST(StackIteration) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-  i::StringStream::ClearMentionedObjectCache();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
+  i::StringStream::ClearMentionedObjectCache(isolate);
   obj->SetAccessor(v8_str("xxx"), StackCheck);
   env->Global()->Set(v8_str("obj"), obj->NewInstance());
   Script::Compile(String::New(

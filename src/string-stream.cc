@@ -194,7 +194,8 @@ void StringStream::PrintObject(Object* o) {
     return;
   }
   if (o->IsHeapObject()) {
-    DebugObjectCache* debug_object_cache = Isolate::Current()->
+    HeapObject* ho = HeapObject::cast(o);
+    DebugObjectCache* debug_object_cache = ho->GetIsolate()->
         string_stream_debug_object_cache();
     for (int i = 0; i < debug_object_cache->length(); i++) {
       if ((*debug_object_cache)[i] == o) {
@@ -289,14 +290,13 @@ void StringStream::OutputToFile(FILE* out) {
 }
 
 
-Handle<String> StringStream::ToString() {
-  Factory* factory = Isolate::Current()->factory();
-  return factory->NewStringFromUtf8(Vector<const char>(buffer_, length_));
+Handle<String> StringStream::ToString(Isolate* isolate) {
+  return isolate->factory()->NewStringFromUtf8(
+      Vector<const char>(buffer_, length_));
 }
 
 
-void StringStream::ClearMentionedObjectCache() {
-  Isolate* isolate = Isolate::Current();
+void StringStream::ClearMentionedObjectCache(Isolate* isolate) {
   isolate->set_string_stream_current_security_token(NULL);
   if (isolate->string_stream_debug_object_cache() == NULL) {
     isolate->set_string_stream_debug_object_cache(
@@ -307,9 +307,8 @@ void StringStream::ClearMentionedObjectCache() {
 
 
 #ifdef DEBUG
-bool StringStream::IsMentionedObjectCacheClear() {
-  return (
-      Isolate::Current()->string_stream_debug_object_cache()->length() == 0);
+bool StringStream::IsMentionedObjectCacheClear(Isolate* isolate) {
+  return isolate->string_stream_debug_object_cache()->length() == 0;
 }
 #endif
 
@@ -422,9 +421,9 @@ void StringStream::PrintByteArray(ByteArray* byte_array) {
 }
 
 
-void StringStream::PrintMentionedObjectCache() {
+void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
   DebugObjectCache* debug_object_cache =
-      Isolate::Current()->string_stream_debug_object_cache();
+      isolate->string_stream_debug_object_cache();
   Add("==== Key         ============================================\n\n");
   for (int i = 0; i < debug_object_cache->length(); i++) {
     HeapObject* printee = (*debug_object_cache)[i];
@@ -457,12 +456,12 @@ void StringStream::PrintMentionedObjectCache() {
 
 
 void StringStream::PrintSecurityTokenIfChanged(Object* f) {
-  Isolate* isolate = Isolate::Current();
+  if (!f->IsHeapObject()) return;
+  HeapObject* obj = HeapObject::cast(f);
+  Isolate* isolate = obj->GetIsolate();
   Heap* heap = isolate->heap();
-  if (!f->IsHeapObject() || !heap->Contains(HeapObject::cast(f))) {
-    return;
-  }
-  Map* map = HeapObject::cast(f)->map();
+  if (!heap->Contains(obj)) return;
+  Map* map = obj->map();
   if (!map->IsHeapObject() ||
       !heap->Contains(map) ||
       !map->IsMap() ||

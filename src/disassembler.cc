@@ -117,7 +117,7 @@ static int DecodeIt(Isolate* isolate,
                     byte* end) {
   SealHandleScope shs(isolate);
   DisallowHeapAllocation no_alloc;
-  ExternalReferenceEncoder ref_encoder;
+  ExternalReferenceEncoder ref_encoder(isolate);
   Heap* heap = HEAP;
 
   v8::internal::EmbeddedVector<char, 128> decode_buffer;

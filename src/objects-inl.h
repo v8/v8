@@ -4195,7 +4195,7 @@ static MaybeObject* EnsureHasTransitionArray(Map* map) {
   TransitionArray* transitions;
   MaybeObject* maybe_transitions;
   if (!map->HasTransitionArray()) {
-    maybe_transitions = TransitionArray::Allocate(0);
+    maybe_transitions = TransitionArray::Allocate(map->GetIsolate(), 0);
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
     transitions->set_back_pointer_storage(map->GetBackPointer());
   } else if (!map->transitions()->IsFullTransitionArray()) {
