@@ -527,6 +527,9 @@ class StoreIC: public IC {
   // Code generators for stub routines. Only called once at startup.
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
+  static void GeneratePreMonomorphic(MacroAssembler* masm) {
+    GenerateMiss(masm);
+  }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   StrictModeFlag strict_mode);
@@ -557,6 +560,12 @@ class StoreIC: public IC {
   }
   virtual Handle<Code> generic_stub_strict() const {
     return isolate()->builtins()->StoreIC_Generic_Strict();
+  }
+  virtual Handle<Code> pre_monomorphic_stub() const {
+    return isolate()->builtins()->StoreIC_PreMonomorphic();
+  }
+  virtual Handle<Code> pre_monomorphic_stub_strict() const {
+    return isolate()->builtins()->StoreIC_PreMonomorphic_Strict();
   }
   virtual Handle<Code> global_proxy_stub() {
     return isolate()->builtins()->StoreIC_GlobalProxy();
@@ -643,6 +652,9 @@ class KeyedStoreIC: public StoreIC {
   static void GenerateInitialize(MacroAssembler* masm) {
     GenerateMiss(masm, MISS);
   }
+  static void GeneratePreMonomorphic(MacroAssembler* masm) {
+    GenerateMiss(masm, MISS);
+  }
   static void GenerateMiss(MacroAssembler* masm, ICMissMode force_generic);
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
@@ -660,6 +672,12 @@ class KeyedStoreIC: public StoreIC {
                                                Handle<Object> value);
   virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
 
+  virtual Handle<Code> pre_monomorphic_stub() const {
+    return isolate()->builtins()->KeyedStoreIC_PreMonomorphic();
+  }
+  virtual Handle<Code> pre_monomorphic_stub_strict() const {
+    return isolate()->builtins()->KeyedStoreIC_PreMonomorphic_Strict();
+  }
   virtual Handle<Code> megamorphic_stub() {
     return isolate()->builtins()->KeyedStoreIC_Generic();
   }

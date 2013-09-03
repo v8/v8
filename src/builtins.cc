@@ -1461,6 +1461,16 @@ static void Generate_StoreIC_Initialize_Strict(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_PreMonomorphic(MacroAssembler* masm) {
+  StoreIC::GeneratePreMonomorphic(masm);
+}
+
+
+static void Generate_StoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
+  StoreIC::GeneratePreMonomorphic(masm);
+}
+
+
 static void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }
@@ -1543,6 +1553,16 @@ static void Generate_KeyedStoreIC_Initialize(MacroAssembler* masm) {
 
 static void Generate_KeyedStoreIC_Initialize_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateInitialize(masm);
+}
+
+
+static void Generate_KeyedStoreIC_PreMonomorphic(MacroAssembler* masm) {
+  KeyedStoreIC::GeneratePreMonomorphic(masm);
+}
+
+
+static void Generate_KeyedStoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
+  KeyedStoreIC::GeneratePreMonomorphic(masm);
 }
 
 

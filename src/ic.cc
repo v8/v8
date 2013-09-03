@@ -1711,22 +1711,30 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   LookupResult lookup(isolate());
-  if (LookupForWrite(receiver, name, value, &lookup, &state)) {
-    if (FLAG_use_ic) {
-      UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
-    }
-  } else if (strict_mode == kStrictMode &&
-             !(lookup.IsProperty() && lookup.IsReadOnly()) &&
-             IsUndeclaredGlobal(object)) {
+  bool can_store = LookupForWrite(receiver, name, value, &lookup, &state);
+  if (!can_store &&
+      strict_mode == kStrictMode &&
+      !(lookup.IsProperty() && lookup.IsReadOnly()) &&
+      IsUndeclaredGlobal(object)) {
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
-  } else if (FLAG_use_ic &&
-             (!name->IsCacheable(isolate()) ||
-              lookup.IsNormal() ||
-              (lookup.IsField() && lookup.CanHoldValue(value)))) {
-    Handle<Code> stub = strict_mode == kStrictMode
-        ? generic_stub_strict() : generic_stub();
-    set_target(*stub);
+  }
+  if (FLAG_use_ic) {
+    if (state == UNINITIALIZED) {
+      Handle<Code> stub = (strict_mode == kStrictMode)
+          ? pre_monomorphic_stub_strict()
+          : pre_monomorphic_stub();
+      set_target(*stub);
+      TRACE_IC("StoreIC", name, state, *stub);
+    } else if (can_store) {
+      UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
+    } else if (!name->IsCacheable(isolate()) ||
+               lookup.IsNormal() ||
+               (lookup.IsField() && lookup.CanHoldValue(value))) {
+      Handle<Code> stub = (strict_mode == kStrictMode) ? generic_stub_strict()
+                                                       : generic_stub();
+      set_target(*stub);
+    }
   }
 
   // Set the property.
