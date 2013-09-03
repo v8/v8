@@ -5006,12 +5006,19 @@ void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
     Handle<JSObject> holder;
     if (LookupSetter(map, name, &setter, &holder)) {
       AddCheckConstantFunction(holder, object, map);
-      // Don't try to inline if the result_value is different from the
-      // store_value. That case isn't handled yet by the inlining.
-      if (result_value == store_value &&
-          FLAG_inline_accessors &&
-          TryInlineSetter(setter, id, assignment_id, store_value)) {
-        return;
+      if (FLAG_inline_accessors) {
+        if (result_value != store_value) {
+          // The result_value and object are already pushed by CountOperation.
+          // Push(store_value) to complete the arguments to the setter.
+          Push(store_value);
+          bool check = TryInlineSetter(setter, id, assignment_id, store_value);
+          // Drop the result of the setter to return result_value that's on the
+          // stack already.
+          Drop(1);
+          if (check) return;
+        } else if (TryInlineSetter(setter, id, assignment_id, store_value)) {
+          return;
+        }
       }
       Drop(2);
       Add<HPushArgument>(object);
@@ -7572,6 +7579,9 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
       after = BuildIncrement(returns_original_input, expr);
       HValue* result = returns_original_input ? Pop() : after;
+      if (returns_original_input) {
+        environment()->SetExpressionStackAt(1, result);
+      }
 
       return BuildStoreNamed(expr, expr->id(), expr->position(),
                              expr->AssignmentId(), prop, object, after, result);
