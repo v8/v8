@@ -13721,7 +13721,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalDateFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 1);
 
   bool has_pending_exception = false;
-  Handle<Object> value = Execution::ToNumber(date, &has_pending_exception);
+  Handle<Object> value =
+      Execution::ToNumber(isolate, date, &has_pending_exception);
   if (has_pending_exception) {
     ASSERT(isolate->has_pending_exception());
     return Failure::Exception();
@@ -13761,7 +13762,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalDateParse) {
 
   bool has_pending_exception = false;
   Handle<JSDate> result = Handle<JSDate>::cast(
-      Execution::NewDate(static_cast<double>(date), &has_pending_exception));
+      Execution::NewDate(
+          isolate, static_cast<double>(date), &has_pending_exception));
   if (has_pending_exception) {
     ASSERT(isolate->has_pending_exception());
     return Failure::Exception();
@@ -13823,7 +13825,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalNumberFormat) {
   CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
 
   bool has_pending_exception = false;
-  Handle<Object> value = Execution::ToNumber(number, &has_pending_exception);
+  Handle<Object> value = Execution::ToNumber(
+      isolate, number, &has_pending_exception);
   if (has_pending_exception) {
     ASSERT(isolate->has_pending_exception());
     return Failure::Exception();
