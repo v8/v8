@@ -441,6 +441,8 @@
         '../../src/platform/time.h',
         '../../src/platform-posix.h',
         '../../src/platform.h',
+        '../../src/platform/condition-variable.cc',
+        '../../src/platform/condition-variable.h',
         '../../src/platform/mutex.cc',
         '../../src/platform/mutex.h',
         '../../src/platform/semaphore.cc',

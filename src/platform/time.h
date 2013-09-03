@@ -88,6 +88,10 @@ class TimeDelta V8_FINAL BASE_EMBEDDED {
   static TimeDelta FromMachTimespec(struct mach_timespec ts);
   struct mach_timespec ToMachTimespec() const;
 
+  // Converts to/from POSIX time specs.
+  static TimeDelta FromTimespec(struct timespec ts);
+  struct timespec ToTimespec() const;
+
   TimeDelta& operator=(const TimeDelta& other) {
     delta_ = other.delta_;
     return *this;

@@ -126,7 +126,9 @@ int64_t TimeDelta::InNanoseconds() const {
 #if V8_OS_MACOSX
 
 TimeDelta TimeDelta::FromMachTimespec(struct mach_timespec ts) {
-  ASSERT(ts.tv_nsec >= 0);
+  ASSERT_GE(ts.tv_nsec, 0);
+  ASSERT_LT(ts.tv_nsec,
+            static_cast<long>(Time::kNanosecondsPerSecond));  // NOLINT
   return TimeDelta(ts.tv_sec * Time::kMicrosecondsPerSecond +
                    ts.tv_nsec / Time::kNanosecondsPerMicrosecond);
 }
@@ -142,6 +144,28 @@ struct mach_timespec TimeDelta::ToMachTimespec() const {
 }
 
 #endif  // V8_OS_MACOSX
+
+
+#if V8_OS_POSIX
+
+TimeDelta TimeDelta::FromTimespec(struct timespec ts) {
+  ASSERT_GE(ts.tv_nsec, 0);
+  ASSERT_LT(ts.tv_nsec,
+            static_cast<long>(Time::kNanosecondsPerSecond));  // NOLINT
+  return TimeDelta(ts.tv_sec * Time::kMicrosecondsPerSecond +
+                   ts.tv_nsec / Time::kNanosecondsPerMicrosecond);
+}
+
+
+struct timespec TimeDelta::ToTimespec() const {
+  struct timespec ts;
+  ts.tv_sec = delta_ / Time::kMicrosecondsPerSecond;
+  ts.tv_nsec = (delta_ % Time::kMicrosecondsPerSecond) *
+      Time::kNanosecondsPerMicrosecond;
+  return ts;
+}
+
+#endif  // V8_OS_POSIX
 
 
 #if V8_OS_WIN
