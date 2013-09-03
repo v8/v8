@@ -119,7 +119,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     mode_ = STUB;
     return;
   }
-  mode_ = V8::UseCrankshaft() ? mode : NONOPT;
+  mode_ = isolate->use_crankshaft() ? mode : NONOPT;
   abort_due_to_dependency_ = false;
   if (script_->type()->value() == Script::TYPE_NATIVE) {
     MarkAsNative();
@@ -242,7 +242,7 @@ bool CompilationInfo::ShouldSelfOptimize() {
 // break points has actually been set.
 static bool IsDebuggerActive(Isolate* isolate) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  return V8::UseCrankshaft() ?
+  return isolate->use_crankshaft() ?
     isolate->debug()->has_break_points() :
     isolate->debugger()->IsDebuggerActive();
 #else
@@ -310,7 +310,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 
 
 OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
-  ASSERT(V8::UseCrankshaft());
+  ASSERT(isolate()->use_crankshaft());
   ASSERT(info()->IsOptimizing());
   ASSERT(!info()->IsCompilingForDebugging());
 
@@ -499,7 +499,7 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
 
 
 static bool GenerateCode(CompilationInfo* info) {
-  bool is_optimizing = V8::UseCrankshaft() &&
+  bool is_optimizing = info->isolate()->use_crankshaft() &&
                        !info->IsCompilingForDebugging() &&
                        info->IsOptimizing();
   if (is_optimizing) {
@@ -838,7 +838,7 @@ static bool InstallFullCode(CompilationInfo* info) {
   shared->set_dont_inline(lit->flags()->Contains(kDontInline));
   shared->set_ast_node_count(lit->ast_node_count());
 
-  if (V8::UseCrankshaft() &&
+  if (info->isolate()->use_crankshaft() &&
       !function.is_null() &&
       !shared->optimization_disabled()) {
     // If we're asked to always optimize, we compile the optimized

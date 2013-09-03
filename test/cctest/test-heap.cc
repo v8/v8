@@ -1335,7 +1335,7 @@ TEST(TestInternalWeakLists) {
     isolate->compilation_cache()->Clear();
     heap->CollectAllGarbage(Heap::kNoGCFlags);
 
-    bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
+    bool opt = (FLAG_always_opt && isolate->use_crankshaft());
 
     CHECK_EQ(i + 1, CountNativeContexts());
 
@@ -1479,7 +1479,7 @@ TEST(TestInternalWeakListsTraverseWithGC) {
     CHECK_EQ(i + 1, CountNativeContextsWithGC(isolate, i / 2 + 1));
   }
 
-  bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
+  bool opt = (FLAG_always_opt && isolate->use_crankshaft());
 
   // Compile a number of functions the length of the weak list of optimized
   // functions both with and without GCs while iterating the list.
@@ -1879,7 +1879,7 @@ TEST(InstanceOfStubWriteBarrier) {
 #endif
 
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft()) return;
+  if (!i::Isolate::Current()->use_crankshaft()) return;
   if (i::FLAG_force_marking_deque_overflows) return;
   v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
 
@@ -1996,7 +1996,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 #endif
 
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft()) return;
+  if (!i::Isolate::Current()->use_crankshaft()) return;
   v8::HandleScope outer_scope(v8::Isolate::GetCurrent());
 
   {
@@ -2053,7 +2053,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 #endif
 
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft()) return;
+  if (!i::Isolate::Current()->use_crankshaft()) return;
   v8::HandleScope outer_scope(CcTest::isolate());
 
   {
@@ -2092,7 +2092,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 TEST(OptimizedAllocationAlwaysInNewSpace) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2121,7 +2121,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 TEST(OptimizedPretenuringAllocationFolding) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2157,7 +2157,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
 TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2193,7 +2193,7 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
 TEST(OptimizedPretenuringObjectArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2218,7 +2218,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 TEST(OptimizedPretenuringMixedInObjectProperties) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2249,7 +2249,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 TEST(OptimizedPretenuringDoubleArrayProperties) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2274,7 +2274,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 TEST(OptimizedPretenuringdoubleArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2299,7 +2299,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
 TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2333,7 +2333,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
 TEST(OptimizedPretenuringNestedObjectLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2367,7 +2367,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
 TEST(OptimizedPretenuringNestedDoubleLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);
@@ -2404,7 +2404,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
 TEST(OptimizedAllocationArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2431,7 +2431,7 @@ TEST(OptimizedPretenuringCallNew) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_pretenuring_call_new = true;
   CcTest::InitializeVM();
-  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (!i::Isolate::Current()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
   HEAP->SetNewSpaceHighPromotionModeActive(true);

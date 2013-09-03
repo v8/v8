@@ -82,7 +82,6 @@ class V8 : public AllStatic {
   // empty heap.
   static bool Initialize(Deserializer* des);
   static void TearDown();
-  static bool UseCrankshaft() { return use_crankshaft_; }
   // To be dead you have to have lived
   // TODO(isolates): move IsDead to Isolate.
   static bool IsDead() { return has_fatal_error_ || has_been_disposed_; }
@@ -138,8 +137,6 @@ class V8 : public AllStatic {
   // True if engine has been shut down
   // (reset if engine is restarted)
   static bool has_been_disposed_;
-  // True if we are using the crankshaft optimizing compiler.
-  static bool use_crankshaft_;
   // List of callbacks when a Call completes.
   static List<CallCompletedCallback>* call_completed_callbacks_;
   // Allocator for external array buffers.

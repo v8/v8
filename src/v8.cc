@@ -53,7 +53,6 @@ V8_DECLARE_ONCE(init_once);
 bool V8::has_been_set_up_ = false;
 bool V8::has_been_disposed_ = false;
 bool V8::has_fatal_error_ = false;
-bool V8::use_crankshaft_ = true;
 List<CallCompletedCallback>* V8::call_completed_callbacks_ = NULL;
 v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
 
@@ -314,9 +313,6 @@ void V8::InitializeOncePerProcessImpl() {
   OS::SetUp();
   Sampler::SetUp();
   CPU::SetUp();
-  use_crankshaft_ = FLAG_crankshaft
-      && !Serializer::enabled()
-      && CPU::SupportsCrankshaft();
   OS::PostSetUp();
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();

@@ -367,7 +367,7 @@ TEST(DeoptimizeBinaryOperationADDString) {
     i::FLAG_always_opt = true;
     CompileRun(f_source);
     CompileRun("f('a+', new X());");
-    CHECK(!i::V8::UseCrankshaft() ||
+    CHECK(!i::Isolate::Current()->use_crankshaft() ||
           GetJSFunction(env->Global(), "f")->IsOptimized());
 
     // Call f and force deoptimization while processing the binary operation.
@@ -419,7 +419,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
   i::FLAG_always_opt = true;
   CompileRun(f_source);
   CompileRun("f(7, new X());");
-  CHECK(!i::V8::UseCrankshaft() ||
+  CHECK(!i::Isolate::Current()->use_crankshaft() ||
         GetJSFunction((*env)->Global(), "f")->IsOptimized());
 
   // Call f and force deoptimization while processing the binary operation.
@@ -517,7 +517,7 @@ TEST(DeoptimizeCompare) {
     i::FLAG_always_opt = true;
     CompileRun(f_source);
     CompileRun("f('a', new X());");
-    CHECK(!i::V8::UseCrankshaft() ||
+    CHECK(!i::Isolate::Current()->use_crankshaft() ||
           GetJSFunction(env->Global(), "f")->IsOptimized());
 
     // Call f and force deoptimization while processing the comparison.
@@ -587,7 +587,7 @@ TEST(DeoptimizeLoadICStoreIC) {
     CompileRun("g1(new X());");
     CompileRun("f2(new X(), 'z');");
     CompileRun("g2(new X(), 'z');");
-    if (i::V8::UseCrankshaft()) {
+    if (i::Isolate::Current()->use_crankshaft()) {
       CHECK(GetJSFunction(env->Global(), "f1")->IsOptimized());
       CHECK(GetJSFunction(env->Global(), "g1")->IsOptimized());
       CHECK(GetJSFunction(env->Global(), "f2")->IsOptimized());
@@ -671,7 +671,7 @@ TEST(DeoptimizeLoadICStoreICNested) {
     CompileRun("g1(new X());");
     CompileRun("f2(new X(), 'z');");
     CompileRun("g2(new X(), 'z');");
-    if (i::V8::UseCrankshaft()) {
+    if (i::Isolate::Current()->use_crankshaft()) {
       CHECK(GetJSFunction(env->Global(), "f1")->IsOptimized());
       CHECK(GetJSFunction(env->Global(), "g1")->IsOptimized());
       CHECK(GetJSFunction(env->Global(), "f2")->IsOptimized());

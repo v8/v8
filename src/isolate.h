@@ -1059,6 +1059,8 @@ class Isolate {
     thread_local_top_.top_lookup_result_ = top;
   }
 
+  bool use_crankshaft() const { return use_crankshaft_; }
+
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   double time_millis_since_init() {
@@ -1299,6 +1301,9 @@ class Isolate {
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
+
+  // True if we are using the Crankshaft optimizing compiler.
+  bool use_crankshaft_;
 
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_;
