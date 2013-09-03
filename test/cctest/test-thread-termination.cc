@@ -171,7 +171,7 @@ class TerminatorThread : public v8::internal::Thread {
 // Test that a single thread of JavaScript execution can be terminated
 // from the side by another thread.
 TEST(TerminateOnlyV8ThreadFromOtherThread) {
-  semaphore = v8::internal::OS::CreateSemaphore(0);
+  semaphore = new v8::internal::Semaphore(0);
   TerminatorThread thread(i::Isolate::Current());
   thread.Start();
 
@@ -225,7 +225,7 @@ TEST(TerminateMultipleV8ThreadsDefaultIsolate) {
     v8::Locker locker(CcTest::default_isolate());
     v8::V8::Initialize();
     v8::Locker::StartPreemption(1);
-    semaphore = v8::internal::OS::CreateSemaphore(0);
+    semaphore = new v8::internal::Semaphore(0);
   }
   const int kThreads = 2;
   i::List<LoopingThread*> threads(kThreads);

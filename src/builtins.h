@@ -292,7 +292,7 @@ class Builtins {
 
   // Generate all builtin code objects. Should be called once during
   // isolate initialization.
-  void SetUp(bool create_heap_objects);
+  void SetUp(Isolate* isolate, bool create_heap_objects);
   void TearDown();
 
   // Garbage collection support.

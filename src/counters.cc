@@ -41,7 +41,7 @@ StatsTable::StatsTable()
 
 
 int* StatsCounter::FindLocationInStatsTable() const {
-  return Isolate::Current()->stats_table()->FindLocation(name_);
+  return isolate_->stats_table()->FindLocation(name_);
 }
 
 

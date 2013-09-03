@@ -174,7 +174,8 @@ class BreakLocationIterator {
 // the cache is the script id.
 class ScriptCache : private HashMap {
  public:
-  ScriptCache() : HashMap(ScriptMatch), collected_scripts_(10) {}
+  explicit ScriptCache(Isolate* isolate)
+    : HashMap(ScriptMatch), isolate_(isolate), collected_scripts_(10) {}
   virtual ~ScriptCache() { Clear(); }
 
   // Add script to the cache.
@@ -203,6 +204,7 @@ class ScriptCache : private HashMap {
                                v8::Persistent<v8::Value>* obj,
                                void* data);
 
+  Isolate* isolate_;
   // List used during GC to temporarily store id's of collected scripts.
   List<int> collected_scripts_;
 };
@@ -532,7 +534,7 @@ class Debug {
   explicit Debug(Isolate* isolate);
   ~Debug();
 
-  static bool CompileDebuggerScript(int index);
+  static bool CompileDebuggerScript(Isolate* isolate, int index);
   void ClearOneShot();
   void ActivateStepIn(StackFrame* frame);
   void ClearStepIn();
@@ -820,7 +822,7 @@ class Debugger {
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
   void SetMessageHandler(v8::Debug::MessageHandler2 handler);
   void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
-                              int period);
+                              TimeDelta period);
   void SetDebugMessageDispatchHandler(
       v8::Debug::DebugMessageDispatchHandler handler,
       bool provide_locker);
@@ -931,13 +933,13 @@ class Debugger {
   Mutex dispatch_handler_access_;  // Mutex guarding dispatch handler.
   v8::Debug::DebugMessageDispatchHandler debug_message_dispatch_handler_;
   MessageDispatchHelperThread* message_dispatch_helper_thread_;
-  int host_dispatch_micros_;
+  TimeDelta host_dispatch_period_;
 
   DebuggerAgent* agent_;
 
   static const int kQueueInitialSize = 4;
   LockingCommandMessageQueue command_queue_;
-  Semaphore* command_received_;  // Signaled for each command received.
+  Semaphore command_received_;  // Signaled for each command received.
   LockingCommandMessageQueue event_command_queue_;
 
   Isolate* isolate_;
@@ -955,7 +957,7 @@ class Debugger {
 // some reason could not be entered FailedToEnter will return true.
 class EnterDebugger BASE_EMBEDDED {
  public:
-  EnterDebugger();
+  explicit EnterDebugger(Isolate* isolate);
   ~EnterDebugger();
 
   // Check whether the debugger could be entered.
@@ -982,7 +984,8 @@ class EnterDebugger BASE_EMBEDDED {
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {
  public:
-  explicit DisableBreak(bool disable_break) : isolate_(Isolate::Current()) {
+  explicit DisableBreak(Isolate* isolate, bool disable_break)
+    : isolate_(isolate) {
     prev_disable_break_ = isolate_->debug()->disable_break();
     isolate_->debug()->set_disable_break(disable_break);
   }
@@ -1046,7 +1049,7 @@ class Debug_Address {
 class MessageDispatchHelperThread: public Thread {
  public:
   explicit MessageDispatchHelperThread(Isolate* isolate);
-  ~MessageDispatchHelperThread();
+  ~MessageDispatchHelperThread() {}
 
   void Schedule();
 
@@ -1054,7 +1057,7 @@ class MessageDispatchHelperThread: public Thread {
   void Run();
 
   Isolate* isolate_;
-  Semaphore* const sem_;
+  Semaphore sem_;
   Mutex mutex_;
   bool already_signalled_;
 

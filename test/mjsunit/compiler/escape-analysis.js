@@ -200,3 +200,44 @@
   check(27, 27); check(27, 27);
   assertEquals(130, sum);
 })();
+
+
+// Test OSR into a loop with captured objects.
+(function testOSR() {
+  function constructor() {
+    this.a = 23;
+  }
+  function osr1(length) {
+    assertEquals(23, (new constructor()).a);
+    var result = 0;
+    for (var i = 0; i < length; i++) {
+      result = (result + i) % 99;
+    }
+    return result;
+  }
+  function osr2(length) {
+    var result = 0;
+    for (var i = 0; i < length; i++) {
+      result = (result + i) % 99;
+    }
+    assertEquals(23, (new constructor()).a);
+    return result;
+  }
+  function osr3(length) {
+    var result = 0;
+    var o = new constructor();
+    for (var i = 0; i < length; i++) {
+      result = (result + i) % 99;
+    }
+    assertEquals(23, o.a);
+    return result;
+  }
+  function test(closure) {
+    assertEquals(45, closure(10));
+    assertEquals(45, closure(10));
+    assertEquals(10, closure(50000));
+  }
+  test(osr1);
+  test(osr2);
+  test(osr3);
+})();

@@ -56,6 +56,18 @@ TEST(TimeDeltaFromAndIn) {
 }
 
 
+#if V8_OS_MACOSX
+TEST(TimeDeltaFromMachTimespec) {
+  TimeDelta null = TimeDelta();
+  CHECK(null == TimeDelta::FromMachTimespec(null.ToMachTimespec()));
+  TimeDelta delta1 = TimeDelta::FromMilliseconds(42);
+  CHECK(delta1 == TimeDelta::FromMachTimespec(delta1.ToMachTimespec()));
+  TimeDelta delta2 = TimeDelta::FromDays(42);
+  CHECK(delta2 == TimeDelta::FromMachTimespec(delta2.ToMachTimespec()));
+}
+#endif
+
+
 TEST(TimeJsTime) {
   Time t = Time::FromJsTime(700000.3);
   CHECK_EQ(700000.3, t.ToJsTime());
@@ -63,7 +75,23 @@ TEST(TimeJsTime) {
 
 
 #if V8_OS_POSIX
-TEST(TimeFromTimeVal) {
+TEST(TimeFromTimespec) {
+  Time null;
+  CHECK(null.IsNull());
+  CHECK(null == Time::FromTimespec(null.ToTimespec()));
+  Time now = Time::Now();
+  CHECK(now == Time::FromTimespec(now.ToTimespec()));
+  Time now_sys = Time::NowFromSystemTime();
+  CHECK(now_sys == Time::FromTimespec(now_sys.ToTimespec()));
+  Time unix_epoch = Time::UnixEpoch();
+  CHECK(unix_epoch == Time::FromTimespec(unix_epoch.ToTimespec()));
+  Time max = Time::Max();
+  CHECK(max.IsMax());
+  CHECK(max == Time::FromTimespec(max.ToTimespec()));
+}
+
+
+TEST(TimeFromTimeval) {
   Time null;
   CHECK(null.IsNull());
   CHECK(null == Time::FromTimeval(null.ToTimeval()));

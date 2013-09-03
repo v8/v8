@@ -116,8 +116,8 @@ class StatsTable {
 class StatsCounter {
  public:
   StatsCounter() { }
-  explicit StatsCounter(const char* name)
-      : name_(name), ptr_(NULL), lookup_done_(false) { }
+  explicit StatsCounter(Isolate* isolate, const char* name)
+      : isolate_(isolate), name_(name), ptr_(NULL), lookup_done_(false) { }
 
   // Sets the counter to a specific value.
   void Set(int value) {
@@ -175,6 +175,7 @@ class StatsCounter {
  private:
   int* FindLocationInStatsTable() const;
 
+  Isolate* isolate_;
   const char* name_;
   int* ptr_;
   bool lookup_done_;

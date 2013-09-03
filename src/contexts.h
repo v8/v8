@@ -370,7 +370,7 @@ class Context: public FixedArray {
 
   GlobalObject* global_object() {
     Object* result = get(GLOBAL_OBJECT_INDEX);
-    ASSERT(IsBootstrappingOrGlobalObject(result));
+    ASSERT(IsBootstrappingOrGlobalObject(this->GetIsolate(), result));
     return reinterpret_cast<GlobalObject*>(result);
   }
   void set_global_object(GlobalObject* object) {
@@ -508,7 +508,7 @@ class Context: public FixedArray {
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
   static bool IsBootstrappingOrValidParentContext(Object* object, Context* kid);
-  static bool IsBootstrappingOrGlobalObject(Object* object);
+  static bool IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object);
 #endif
 
   STATIC_CHECK(kHeaderSize == Internals::kContextHeaderSize);

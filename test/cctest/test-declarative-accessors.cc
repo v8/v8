@@ -38,11 +38,11 @@ class HandleArray : public Malloced {
  public:
   static const unsigned kArraySize = 200;
   explicit HandleArray() {}
-  ~HandleArray() { Reset(v8::Isolate::GetCurrent()); }
-  void Reset(v8::Isolate* isolate) {
+  ~HandleArray() { Reset(); }
+  void Reset() {
     for (unsigned i = 0; i < kArraySize; i++) {
       if (handles_[i].IsEmpty()) continue;
-      handles_[i].Dispose(isolate);
+      handles_[i].Dispose();
       handles_[i].Clear();
     }
   }

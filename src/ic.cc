@@ -500,7 +500,7 @@ static void LookupForRead(Handle<Object> object,
 
 
 Handle<Object> CallICBase::TryCallAsFunction(Handle<Object> object) {
-  Handle<Object> delegate = Execution::GetFunctionDelegate(object);
+  Handle<Object> delegate = Execution::GetFunctionDelegate(isolate(), object);
 
   if (delegate->IsJSFunction() && !object->IsJSFunctionProxy()) {
     // Patch the receiver and use the delegate as the function to
@@ -1719,7 +1719,8 @@ MaybeObject* StoreIC::Store(State state,
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
   } else if (FLAG_use_ic &&
-             (lookup.IsNormal() ||
+             (!name->IsCacheable(isolate()) ||
+              lookup.IsNormal() ||
               (lookup.IsField() && lookup.CanHoldValue(value)))) {
     Handle<Code> stub = strict_mode == kStrictMode
         ? generic_stub_strict() : generic_stub();

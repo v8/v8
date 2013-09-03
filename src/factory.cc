@@ -664,7 +664,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     return result;
   }
 
-  if (V8::UseCrankshaft() &&
+  if (isolate()->use_crankshaft() &&
       FLAG_always_opt &&
       result->is_compiled() &&
       !function_info->is_toplevel() &&
@@ -1586,7 +1586,8 @@ void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
   // instance template.
   Handle<Object> instance_template(desc->instance_template(), isolate());
   if (!instance_template->IsUndefined()) {
-    Execution::ConfigureInstance(instance,
+    Execution::ConfigureInstance(isolate(),
+                                 instance,
                                  instance_template,
                                  pending_exception);
   } else {

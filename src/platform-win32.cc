@@ -1616,49 +1616,6 @@ void Thread::YieldCPU() {
 
 
 // ----------------------------------------------------------------------------
-// Win32 semaphore support.
-//
-// On Win32 semaphores are implemented using Win32 Semaphore objects. The
-// semaphores are anonymous. Also, the semaphores are initialized to have
-// no upper limit on count.
-
-
-class Win32Semaphore : public Semaphore {
- public:
-  explicit Win32Semaphore(int count) {
-    sem = ::CreateSemaphoreA(NULL, count, 0x7fffffff, NULL);
-  }
-
-  ~Win32Semaphore() {
-    CloseHandle(sem);
-  }
-
-  void Wait() {
-    WaitForSingleObject(sem, INFINITE);
-  }
-
-  bool Wait(int timeout) {
-    // Timeout in Windows API is in milliseconds.
-    DWORD millis_timeout = timeout / 1000;
-    return WaitForSingleObject(sem, millis_timeout) != WAIT_TIMEOUT;
-  }
-
-  void Signal() {
-    LONG dummy;
-    ReleaseSemaphore(sem, 1, &dummy);
-  }
-
- private:
-  HANDLE sem;
-};
-
-
-Semaphore* OS::CreateSemaphore(int count) {
-  return new Win32Semaphore(count);
-}
-
-
-// ----------------------------------------------------------------------------
 // Win32 socket support.
 //
 

@@ -94,6 +94,22 @@ class Mutex V8_FINAL {
   int level_;
 #endif
 
+  V8_INLINE(void AssertHeldAndUnmark()) {
+#ifdef DEBUG
+    ASSERT_EQ(1, level_);
+    level_--;
+#endif
+  }
+
+  V8_INLINE(void AssertUnheldAndMark()) {
+#ifdef DEBUG
+    ASSERT_EQ(0, level_);
+    level_++;
+#endif
+  }
+
+  friend class ConditionVariable;
+
   DISALLOW_COPY_AND_ASSIGN(Mutex);
 };
 

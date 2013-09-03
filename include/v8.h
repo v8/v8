@@ -634,8 +634,7 @@ template <class T> class Persistent // NOLINT
    * This handle's reference, and any other references to the storage
    * cell remain and IsEmpty will still return false.
    */
-  // TODO(dcarney): deprecate
-  V8_INLINE(void Dispose(Isolate* isolate)) { Dispose(); }
+  V8_DEPRECATED(V8_INLINE(void Dispose(Isolate* isolate))) { Dispose(); }
 
   /**
    * Make the reference to this object weak.  When only weak handles
@@ -667,8 +666,7 @@ template <class T> class Persistent // NOLINT
 
   V8_INLINE(void ClearWeak());
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(void ClearWeak(Isolate* isolate)) { ClearWeak(); }
+  V8_DEPRECATED(V8_INLINE(void ClearWeak(Isolate* isolate))) { ClearWeak(); }
 
   /**
    * Marks the reference to this object independent. Garbage collector is free
@@ -678,8 +676,9 @@ template <class T> class Persistent // NOLINT
    */
   V8_INLINE(void MarkIndependent());
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(void MarkIndependent(Isolate* isolate)) { MarkIndependent(); }
+  V8_DEPRECATED(V8_INLINE(void MarkIndependent(Isolate* isolate))) {
+    MarkIndependent();
+  }
 
   /**
    * Marks the reference to this object partially dependent. Partially dependent
@@ -691,29 +690,29 @@ template <class T> class Persistent // NOLINT
    */
   V8_INLINE(void MarkPartiallyDependent());
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(void MarkPartiallyDependent(Isolate* isolate)) {
+  V8_DEPRECATED(V8_INLINE(void MarkPartiallyDependent(Isolate* isolate))) {
     MarkPartiallyDependent();
   }
 
   V8_INLINE(bool IsIndependent() const);
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(bool IsIndependent(Isolate* isolate) const) {
+  V8_DEPRECATED(V8_INLINE(bool IsIndependent(Isolate* isolate)) const) {
     return IsIndependent();
   }
 
   /** Checks if the handle holds the only reference to an object. */
   V8_INLINE(bool IsNearDeath() const);
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(bool IsNearDeath(Isolate* isolate) const) { return IsNearDeath(); }
+  V8_DEPRECATED(V8_INLINE(bool IsNearDeath(Isolate* isolate)) const) {
+    return IsNearDeath();
+  }
 
   /** Returns true if the handle's reference is weak.  */
   V8_INLINE(bool IsWeak() const);
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(bool IsWeak(Isolate* isolate) const) { return IsWeak(); }
+  V8_DEPRECATED(V8_INLINE(bool IsWeak(Isolate* isolate)) const) {
+    return IsWeak();
+  }
 
   /**
    * Assigns a wrapper class ID to the handle. See RetainedObjectInfo interface
@@ -721,8 +720,8 @@ template <class T> class Persistent // NOLINT
    */
   V8_INLINE(void SetWrapperClassId(uint16_t class_id));
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(void SetWrapperClassId(Isolate* isolate, uint16_t class_id)) {
+  V8_DEPRECATED(
+      V8_INLINE(void SetWrapperClassId(Isolate * isolate, uint16_t class_id))) {
     SetWrapperClassId(class_id);
   }
 
@@ -732,8 +731,7 @@ template <class T> class Persistent // NOLINT
    */
   V8_INLINE(uint16_t WrapperClassId() const);
 
-  // TODO(dcarney): deprecate
-  V8_INLINE(uint16_t WrapperClassId(Isolate* isolate) const) {
+  V8_DEPRECATED(V8_INLINE(uint16_t WrapperClassId(Isolate* isolate)) const) {
     return WrapperClassId();
   }
 
@@ -5736,7 +5734,7 @@ void Persistent<T>::MarkPartiallyDependent() {
 
 template <class T>
 void Persistent<T>::Reset(Isolate* isolate, const Handle<T>& other) {
-  Dispose(isolate);
+  Dispose();
 #ifdef V8_USE_UNSAFE_HANDLES
   *this = *New(isolate, other);
 #else
@@ -5754,7 +5752,7 @@ void Persistent<T>::Reset(Isolate* isolate, const Handle<T>& other) {
 #ifndef V8_USE_UNSAFE_HANDLES
 template <class T>
 void Persistent<T>::Reset(Isolate* isolate, const Persistent<T>& other) {
-  Dispose(isolate);
+  Dispose();
   if (other.IsEmpty()) {
     this->val_ = NULL;
     return;

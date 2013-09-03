@@ -412,7 +412,7 @@ TEST(PartialSerialization) {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
     }
-    env.Dispose(v8_isolate);
+    env.Dispose();
 
     FileByteSink startup_sink(startup_name.start());
     StartupSerializer startup_serializer(&startup_sink);
@@ -558,7 +558,7 @@ TEST(ContextSerialization) {
 
     i::Object* raw_context = *v8::Utils::OpenPersistent(env);
 
-    env.Dispose(v8_isolate);
+    env.Dispose();
 
     FileByteSink startup_sink(startup_name.start());
     StartupSerializer startup_serializer(&startup_sink);

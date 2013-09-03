@@ -69,7 +69,7 @@ void TestSeeds(Handle<JSFunction> fun,
 TEST(CrankshaftRandom) {
   v8::V8::Initialize();
   // Skip test if crankshaft is disabled.
-  if (!V8::UseCrankshaft()) return;
+  if (!Isolate::Current()->use_crankshaft()) return;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
   v8::Context::Scope context_scope(v8::Context::New(isolate));

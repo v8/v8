@@ -201,7 +201,7 @@ void RemoteDebugger::Run() {
   // Process events received from debugged VM and from the keyboard.
   bool terminate = false;
   while (!terminate) {
-    event_available_->Wait();
+    event_available_.Wait();
     RemoteDebuggerEvent* event = GetEvent();
     switch (event->type()) {
       case RemoteDebuggerEvent::kMessage:
@@ -258,7 +258,7 @@ void RemoteDebugger::AddEvent(RemoteDebuggerEvent* event) {
     tail_->set_next(event);
     tail_ = event;
   }
-  event_available_->Signal();
+  event_available_.Signal();
 }
 
 

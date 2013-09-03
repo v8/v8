@@ -556,7 +556,7 @@ class Profiler: public Thread {
     } else {
       buffer_[head_] = *sample;
       head_ = Succ(head_);
-      buffer_semaphore_->Signal();  // Tell we have an element.
+      buffer_semaphore_.Signal();  // Tell we have an element.
     }
   }
 
@@ -569,7 +569,7 @@ class Profiler: public Thread {
  private:
   // Waits for a signal and removes profiling data.
   bool Remove(TickSample* sample) {
-    buffer_semaphore_->Wait();  // Wait for an element.
+    buffer_semaphore_.Wait();  // Wait for an element.
     *sample = buffer_[tail_];
     bool result = overflow_;
     tail_ = Succ(tail_);
@@ -589,7 +589,7 @@ class Profiler: public Thread {
   int tail_;  // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
   // Sempahore used for buffer synchronization.
-  SmartPointer<Semaphore> buffer_semaphore_;
+  Semaphore buffer_semaphore_;
 
   // Tells whether profiler is engaged, that is, processing thread is stated.
   bool engaged_;
@@ -645,7 +645,7 @@ Profiler::Profiler(Isolate* isolate)
       head_(0),
       tail_(0),
       overflow_(false),
-      buffer_semaphore_(OS::CreateSemaphore(0)),
+      buffer_semaphore_(0),
       engaged_(false),
       running_(false),
       paused_(false) {

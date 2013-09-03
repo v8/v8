@@ -156,8 +156,9 @@ Handle<Object> Execution::Call(Handle<Object> callable,
                                bool convert_receiver) {
   *pending_exception = false;
 
+  Isolate* isolate = Isolate::Current();
   if (!callable->IsJSFunction()) {
-    callable = TryGetFunctionDelegate(callable, pending_exception);
+    callable = TryGetFunctionDelegate(isolate, callable, pending_exception);
     if (*pending_exception) return callable;
   }
   Handle<JSFunction> func = Handle<JSFunction>::cast(callable);
@@ -174,7 +175,7 @@ Handle<Object> Execution::Call(Handle<Object> callable,
         receiver = Handle<Object>(global, func->GetIsolate());
       }
     } else {
-      receiver = ToObject(receiver, pending_exception);
+      receiver = ToObject(isolate, receiver, pending_exception);
     }
     if (*pending_exception) return callable;
   }
@@ -234,9 +235,9 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
 }
 
 
-Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
+Handle<Object> Execution::GetFunctionDelegate(Isolate* isolate,
+                                              Handle<Object> object) {
   ASSERT(!object->IsJSFunction());
-  Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
 
   // If you return a function from here, it will be called when an
@@ -261,10 +262,10 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
 }
 
 
-Handle<Object> Execution::TryGetFunctionDelegate(Handle<Object> object,
+Handle<Object> Execution::TryGetFunctionDelegate(Isolate* isolate,
+                                                 Handle<Object> object,
                                                  bool* has_pending_exception) {
   ASSERT(!object->IsJSFunction());
-  Isolate* isolate = Isolate::Current();
 
   // If object is a function proxy, get its handler. Iterate if necessary.
   Object* fun = *object;
@@ -292,9 +293,9 @@ Handle<Object> Execution::TryGetFunctionDelegate(Handle<Object> object,
 }
 
 
-Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
+Handle<Object> Execution::GetConstructorDelegate(Isolate* isolate,
+                                                 Handle<Object> object) {
   ASSERT(!object->IsJSFunction());
-  Isolate* isolate = Isolate::Current();
 
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a constructor.
@@ -319,10 +320,10 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
 
 
 Handle<Object> Execution::TryGetConstructorDelegate(
+    Isolate* isolate,
     Handle<Object> object,
     bool* has_pending_exception) {
   ASSERT(!object->IsJSFunction());
-  Isolate* isolate = Isolate::Current();
 
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a constructor.
@@ -596,7 +597,6 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 
 #define RETURN_NATIVE_CALL(name, args, has_pending_exception)           \
   do {                                                                  \
-    Isolate* isolate = Isolate::Current();                              \
     Handle<Object> argv[] = args;                                       \
     ASSERT(has_pending_exception != NULL);                              \
     return Call(isolate->name##_fun(),                                  \
@@ -606,44 +606,50 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
   } while (false)
 
 
-Handle<Object> Execution::ToNumber(Handle<Object> obj, bool* exc) {
+Handle<Object> Execution::ToNumber(
+    Isolate* isolate, Handle<Object> obj, bool* exc) {
   RETURN_NATIVE_CALL(to_number, { obj }, exc);
 }
 
 
-Handle<Object> Execution::ToString(Handle<Object> obj, bool* exc) {
+Handle<Object> Execution::ToString(
+    Isolate* isolate, Handle<Object> obj, bool* exc) {
   RETURN_NATIVE_CALL(to_string, { obj }, exc);
 }
 
 
-Handle<Object> Execution::ToDetailString(Handle<Object> obj, bool* exc) {
+Handle<Object> Execution::ToDetailString(
+    Isolate* isolate, Handle<Object> obj, bool* exc) {
   RETURN_NATIVE_CALL(to_detail_string, { obj }, exc);
 }
 
 
-Handle<Object> Execution::ToObject(Handle<Object> obj, bool* exc) {
+Handle<Object> Execution::ToObject(
+    Isolate* isolate, Handle<Object> obj, bool* exc) {
   if (obj->IsSpecObject()) return obj;
   RETURN_NATIVE_CALL(to_object, { obj }, exc);
 }
 
 
-Handle<Object> Execution::ToInteger(Handle<Object> obj, bool* exc) {
+Handle<Object> Execution::ToInteger(
+    Isolate* isolate, Handle<Object> obj, bool* exc) {
   RETURN_NATIVE_CALL(to_integer, { obj }, exc);
 }
 
 
-Handle<Object> Execution::ToUint32(Handle<Object> obj, bool* exc) {
+Handle<Object> Execution::ToUint32(
+    Isolate* isolate, Handle<Object> obj, bool* exc) {
   RETURN_NATIVE_CALL(to_uint32, { obj }, exc);
 }
 
 
-Handle<Object> Execution::ToInt32(Handle<Object> obj, bool* exc) {
+Handle<Object> Execution::ToInt32(
+    Isolate* isolate, Handle<Object> obj, bool* exc) {
   RETURN_NATIVE_CALL(to_int32, { obj }, exc);
 }
 
 
-Handle<Object> Execution::NewDate(double time, bool* exc) {
-  Isolate* isolate = Isolate::Current();
+Handle<Object> Execution::NewDate(Isolate* isolate, double time, bool* exc) {
   Handle<Object> time_obj = isolate->factory()->NewNumber(time);
   RETURN_NATIVE_CALL(create_date, { time_obj }, exc);
 }
@@ -749,10 +755,10 @@ Handle<JSObject> Execution::InstantiateObject(Handle<ObjectTemplateInfo> data,
 }
 
 
-void Execution::ConfigureInstance(Handle<Object> instance,
+void Execution::ConfigureInstance(Isolate* isolate,
+                                  Handle<Object> instance,
                                   Handle<Object> instance_template,
                                   bool* exc) {
-  Isolate* isolate = Isolate::Current();
   Handle<Object> args[] = { instance, instance_template };
   Execution::Call(isolate->configure_instance_fun(),
                   isolate->js_builtins_object(),
@@ -782,9 +788,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
 }
 
 
-static Object* RuntimePreempt() {
-  Isolate* isolate = Isolate::Current();
-
+static Object* RuntimePreempt(Isolate* isolate) {
   // Clear the preempt request flag.
   isolate->stack_guard()->Continue(PREEMPT);
 
@@ -813,9 +817,7 @@ static Object* RuntimePreempt() {
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-Object* Execution::DebugBreakHelper() {
-  Isolate* isolate = Isolate::Current();
-
+Object* Execution::DebugBreakHelper(Isolate* isolate) {
   // Just continue if breaks are disabled.
   if (isolate->debug()->disable_break()) {
     return isolate->heap()->undefined_value();
@@ -861,15 +863,15 @@ Object* Execution::DebugBreakHelper() {
   // Clear the debug break request flag.
   isolate->stack_guard()->Continue(DEBUGBREAK);
 
-  ProcessDebugMessages(debug_command_only);
+  ProcessDebugMessages(isolate, debug_command_only);
 
   // Return to continue execution.
   return isolate->heap()->undefined_value();
 }
 
 
-void Execution::ProcessDebugMessages(bool debug_command_only) {
-  Isolate* isolate = Isolate::Current();
+void Execution::ProcessDebugMessages(Isolate* isolate,
+                                     bool debug_command_only) {
   // Clear the debug command request flag.
   isolate->stack_guard()->Continue(DEBUGCOMMAND);
 
@@ -880,7 +882,7 @@ void Execution::ProcessDebugMessages(bool debug_command_only) {
 
   HandleScope scope(isolate);
   // Enter the debugger. Just continue if we fail to enter the debugger.
-  EnterDebugger debugger;
+  EnterDebugger debugger(isolate);
   if (debugger.FailedToEnter()) {
     return;
   }
@@ -911,10 +913,10 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
   isolate->runtime_profiler()->OptimizeNow();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (stack_guard->IsDebugBreak() || stack_guard->IsDebugCommand()) {
-    DebugBreakHelper();
+    DebugBreakHelper(isolate);
   }
 #endif
-  if (stack_guard->IsPreempted()) RuntimePreempt();
+  if (stack_guard->IsPreempted()) RuntimePreempt(isolate);
   if (stack_guard->IsTerminateExecution()) {
     stack_guard->Continue(TERMINATE);
     return isolate->TerminateExecution();

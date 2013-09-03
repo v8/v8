@@ -335,7 +335,7 @@ class CompilationInfo {
   void Initialize(Isolate* isolate, Mode mode, Zone* zone);
 
   void SetMode(Mode mode) {
-    ASSERT(V8::UseCrankshaft());
+    ASSERT(isolate()->use_crankshaft());
     mode_ = mode;
   }
 

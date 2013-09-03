@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,39 +24,17 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Tests of the TokenLock class from lock.h
 
-#include <stdlib.h>
+// Flags: --allow-natives-syntax
 
-#include "v8.h"
-
-#include "platform.h"
-#include "cctest.h"
-
-
-using namespace ::v8::internal;
-
-
-TEST(SemaphoreTimeout) {
-  bool ok;
-  Semaphore* sem = OS::CreateSemaphore(0);
-
-  // Semaphore not signalled - timeout.
-  ok = sem->Wait(0);
-  CHECK(!ok);
-  ok = sem->Wait(100);
-  CHECK(!ok);
-  ok = sem->Wait(1000);
-  CHECK(!ok);
-
-  // Semaphore signalled - no timeout.
-  sem->Signal();
-  ok = sem->Wait(0);
-  sem->Signal();
-  ok = sem->Wait(100);
-  sem->Signal();
-  ok = sem->Wait(1000);
-  CHECK(ok);
-  delete sem;
+function f() {
+  var o = {};
+  o["<abc>"] = 123;
 }
+
+f();
+f();
+f();
+%OptimizeFunctionOnNextCall(f);
+f();
+assertOptimized(f);

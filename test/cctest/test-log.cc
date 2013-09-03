@@ -127,7 +127,7 @@ class LoopingThread : public v8::internal::Thread {
  public:
   explicit LoopingThread(v8::internal::Isolate* isolate)
       : v8::internal::Thread(isolate),
-        semaphore_(v8::internal::OS::CreateSemaphore(0)),
+        semaphore_(new v8::internal::Semaphore(0)),
         run_(true) {
   }
 
@@ -213,7 +213,7 @@ class TestSampler : public v8::internal::Sampler {
  public:
   explicit TestSampler(v8::internal::Isolate* isolate)
       : Sampler(isolate, 0, true, true),
-        semaphore_(v8::internal::OS::CreateSemaphore(0)),
+        semaphore_(new v8::internal::Semaphore(0)),
         was_sample_stack_called_(false) {
   }
 
@@ -427,9 +427,6 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   // it launches a new cctest instance for every test. To be sure that launching
   // cctest manually also works, please be sure that no tests below
   // are using V8.
-  //
-  // P.S. No, V8 can't be re-initialized after disposal, see include/v8.h.
-  CHECK(!i::V8::IsRunning());
 
   // Start with profiling to capture all code events from the beginning.
   ScopedLoggerInitializer initialize_logger;

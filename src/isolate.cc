@@ -226,8 +226,8 @@ class PreallocatedMemoryThread: public Thread {
   PreallocatedMemoryThread()
       : Thread("v8:PreallocMem"),
         keep_running_(true),
-        wait_for_ever_semaphore_(OS::CreateSemaphore(0)),
-        data_ready_semaphore_(OS::CreateSemaphore(0)),
+        wait_for_ever_semaphore_(new Semaphore(0)),
+        data_ready_semaphore_(new Semaphore(0)),
         data_(NULL),
         length_(0) {
   }
@@ -1369,7 +1369,8 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       // exception object to be set later must not be turned into a string.
       if (exception_arg->IsJSObject() && !IsErrorObject(exception_arg)) {
         bool failed = false;
-        exception_arg = Execution::ToDetailString(exception_arg, &failed);
+        exception_arg =
+            Execution::ToDetailString(this, exception_arg, &failed);
         if (failed) {
           exception_arg = factory()->InternalizeOneByteString(
               STATIC_ASCII_VECTOR("exception"));
@@ -1792,6 +1793,8 @@ Isolate::Isolate()
       regexp_stack_(NULL),
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
+      has_fatal_error_(false),
+      use_crankshaft_(true),
       initialized_from_snapshot_(false),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
@@ -2147,6 +2150,12 @@ bool Isolate::Init(Deserializer* des) {
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
 
+  has_fatal_error_ = false;
+
+  use_crankshaft_ = FLAG_crankshaft
+      && !Serializer::enabled()
+      && CPU::SupportsCrankshaft();
+
   if (function_entry_hook() != NULL) {
     // When function entry hooking is in effect, we have to create the code
     // stubs from scratch to get entry hooks, rather than loading the previously
@@ -2239,7 +2248,7 @@ bool Isolate::Init(Deserializer* des) {
   InitializeThreadLocal();
 
   bootstrapper_->Initialize(create_heap_objects);
-  builtins_.SetUp(create_heap_objects);
+  builtins_.SetUp(this, create_heap_objects);
 
   // Only preallocate on the first initialization.
   if (FLAG_preallocate_message_memory && preallocated_message_space_ == NULL) {

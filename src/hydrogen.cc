@@ -4003,13 +4003,18 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
+static bool CanInlinePropertyAccess(Map* type) {
+  return !type->is_dictionary_map() && !type->has_named_interceptor();
+}
+
+
 static void LookupInPrototypes(Handle<Map> map,
                                Handle<String> name,
                                LookupResult* lookup) {
   while (map->prototype()->IsJSObject()) {
     Handle<JSObject> holder(JSObject::cast(map->prototype()));
-    if (!holder->HasFastProperties()) break;
     map = Handle<Map>(holder->map());
+    if (!CanInlinePropertyAccess(*map)) break;
     map->LookupDescriptor(*holder, *name, lookup);
     if (lookup->IsFound()) return;
   }
@@ -4397,8 +4402,8 @@ static bool ComputeLoadStoreField(Handle<Map> type,
                                   LookupResult* lookup,
                                   bool is_store) {
   ASSERT(!is_store || !type->is_observed());
-  if (type->has_named_interceptor()) {
-    lookup->InterceptorResult(NULL);
+  if (!CanInlinePropertyAccess(*type)) {
+    lookup->NotFound();
     return false;
   }
   // If we directly find a field, the access can be inlined.
@@ -4541,8 +4546,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedMonomorphic(
 static bool CanLoadPropertyFromPrototype(Handle<Map> map,
                                          Handle<Name> name,
                                          LookupResult* lookup) {
-  if (map->has_named_interceptor()) return false;
-  if (map->is_dictionary_map()) return false;
+  if (!CanInlinePropertyAccess(*map)) return false;
   map->LookupDescriptor(NULL, *name, lookup);
   if (lookup->IsFound()) return false;
   return true;
@@ -4634,9 +4638,8 @@ static bool PrototypeChainCanNeverResolve(
     if (current->IsJSGlobalProxy() ||
         current->IsGlobalObject() ||
         !current->IsJSObject() ||
-        JSObject::cast(current)->map()->has_named_interceptor() ||
-        JSObject::cast(current)->IsAccessCheckNeeded() ||
-        !JSObject::cast(current)->HasFastProperties()) {
+        !CanInlinePropertyAccess(JSObject::cast(current)->map()) ||
+        JSObject::cast(current)->IsAccessCheckNeeded()) {
       return false;
     }
 
@@ -4671,8 +4674,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
     LookupResult lookup(isolate());
     if (ComputeLoadStoreField(map, name, &lookup, false) ||
         (lookup.IsCacheable() &&
-         !map->is_dictionary_map() &&
-         !map->has_named_interceptor() &&
+         CanInlinePropertyAccess(*map) &&
          (lookup.IsConstant() ||
           (!lookup.IsFound() &&
            PrototypeChainCanNeverResolve(map, name))))) {
@@ -4997,7 +4999,7 @@ void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
   Handle<Map> map;
   if (monomorphic) {
     map = types->first();
-    if (map->is_dictionary_map()) monomorphic = false;
+    monomorphic = CanInlinePropertyAccess(*map);
   }
   if (monomorphic) {
     Handle<JSFunction> setter;
@@ -5138,7 +5140,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         map = types->first();
         // We can't generate code for a monomorphic dict mode load so
         // just pretend it is not monomorphic.
-        if (map->is_dictionary_map()) monomorphic = false;
+        monomorphic = CanInlinePropertyAccess(*map);
       }
       if (monomorphic) {
         Handle<JSFunction> getter;
@@ -5896,10 +5898,10 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
     bool monomorphic = false;
     if (expr->IsMonomorphic()) {
       map = types->first();
-      monomorphic = !map->is_dictionary_map();
+      monomorphic = CanInlinePropertyAccess(*map);
     } else if (object->HasMonomorphicJSObjectType()) {
       map = object->GetMonomorphicJSObjectMap();
-      monomorphic = !map->is_dictionary_map();
+      monomorphic = CanInlinePropertyAccess(*map);
     }
     if (monomorphic) {
       Handle<JSFunction> getter;
@@ -7582,7 +7584,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
       SmallMapList* types = prop->GetReceiverTypes();
       if (monomorphic) {
         map = types->first();
-        if (map->is_dictionary_map()) monomorphic = false;
+        monomorphic = CanInlinePropertyAccess(*map);
       }
       if (monomorphic) {
         Handle<JSFunction> getter;

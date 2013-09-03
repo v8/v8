@@ -50,11 +50,8 @@ namespace internal {
 
 V8_DECLARE_ONCE(init_once);
 
-bool V8::is_running_ = false;
 bool V8::has_been_set_up_ = false;
 bool V8::has_been_disposed_ = false;
-bool V8::has_fatal_error_ = false;
-bool V8::use_crankshaft_ = true;
 List<CallCompletedCallback>* V8::call_completed_callbacks_ = NULL;
 v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
 
@@ -80,23 +77,14 @@ bool V8::Initialize(Deserializer* des) {
   ASSERT(i::Isolate::CurrentPerIsolateThreadData()->isolate() ==
          i::Isolate::Current());
 
-  if (IsDead()) return false;
-
   Isolate* isolate = Isolate::Current();
+  if (isolate->IsDead()) return false;
   if (isolate->IsInitialized()) return true;
 
-  is_running_ = true;
   has_been_set_up_ = true;
-  has_fatal_error_ = false;
   has_been_disposed_ = false;
 
   return isolate->Init(des);
-}
-
-
-void V8::SetFatalError() {
-  is_running_ = false;
-  has_fatal_error_ = true;
 }
 
 
@@ -118,7 +106,6 @@ void V8::TearDown() {
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
 
-  is_running_ = false;
   has_been_disposed_ = true;
 
   delete call_completed_callbacks_;
@@ -318,9 +305,6 @@ void V8::InitializeOncePerProcessImpl() {
   OS::SetUp();
   Sampler::SetUp();
   CPU::SetUp();
-  use_crankshaft_ = FLAG_crankshaft
-      && !Serializer::enabled()
-      && CPU::SupportsCrankshaft();
   OS::PostSetUp();
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
