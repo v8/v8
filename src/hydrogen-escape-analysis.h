@@ -45,10 +45,7 @@ class HEscapeAnalysisPhase : public HPhase {
         cumulative_values_(0),
         block_states_(graph->blocks()->length(), zone()) { }
 
-  void Run() {
-    CollectCapturedValues();
-    PerformScalarReplacement();
-  }
+  void Run();
 
  private:
   void CollectCapturedValues();
