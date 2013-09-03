@@ -845,7 +845,7 @@ static bool InstallFullCode(CompilationInfo* info) {
     // version of the function right away - unless the debugger is
     // active as it makes no sense to compile optimized code then.
     if (FLAG_always_opt &&
-        !Isolate::Current()->DebuggerHasBreakPoints()) {
+        !info->isolate()->DebuggerHasBreakPoints()) {
       CompilationInfoWithZone optimized(function);
       optimized.SetOptimizing(BailoutId::None());
       return Compiler::CompileLazy(&optimized);

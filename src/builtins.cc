@@ -1717,9 +1717,8 @@ void Builtins::InitBuiltinFunctionTable() {
 }
 
 
-void Builtins::SetUp(bool create_heap_objects) {
+void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   ASSERT(!initialized_);
-  Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
 
   // Create a scope for the handles in the builtins.
