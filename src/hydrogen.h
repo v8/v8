@@ -1911,7 +1911,7 @@ class HOptimizedGraphBuilder V8_FINAL
 
   bool TryInlineCall(Call* expr, bool drop_extra = false);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
-  bool TryInlineGetter(Handle<JSFunction> getter, Property* prop);
+  bool TryInlineGetter(Handle<JSFunction> getter, BailoutId return_id);
   bool TryInlineSetter(Handle<JSFunction> setter,
                        BailoutId id,
                        BailoutId assignment_id,
@@ -1939,12 +1939,12 @@ class HOptimizedGraphBuilder V8_FINAL
 
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
-  void HandlePolymorphicLoadNamedField(Property* expr,
+  void HandlePolymorphicLoadNamedField(int position,
+                                       BailoutId return_id,
                                        HValue* object,
                                        SmallMapList* types,
                                        Handle<String> name);
-  HInstruction* TryLoadPolymorphicAsMonomorphic(Property* expr,
-                                                HValue* object,
+  HInstruction* TryLoadPolymorphicAsMonomorphic(HValue* object,
                                                 SmallMapList* types,
                                                 Handle<String> name);
   void HandlePolymorphicStoreNamedField(int position,
@@ -2029,10 +2029,19 @@ class HOptimizedGraphBuilder V8_FINAL
                                 Handle<JSObject> holder);
   HInstruction* BuildLoadNamedMonomorphic(HValue* object,
                                           Handle<String> name,
-                                          Property* expr,
                                           Handle<Map> map);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
+
+  void BuildLoad(Property* property,
+                 int position,
+                 BailoutId ast_id,
+                 BailoutId return_id);
+  void PushLoad(Property* property,
+                HValue* object,
+                int position,
+                BailoutId ast_id,
+                BailoutId return_id);
 
   void BuildStoreNamed(Expression* expression,
                        BailoutId id,

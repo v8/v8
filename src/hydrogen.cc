@@ -4554,7 +4554,6 @@ static bool CanLoadPropertyFromPrototype(Handle<Map> map,
 
 
 HInstruction* HOptimizedGraphBuilder::TryLoadPolymorphicAsMonomorphic(
-    Property* expr,
     HValue* object,
     SmallMapList* types,
     Handle<String> name) {
@@ -4655,15 +4654,15 @@ static bool PrototypeChainCanNeverResolve(
 
 
 void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
-    Property* expr,
+    int position,
+    BailoutId return_id,
     HValue* object,
     SmallMapList* types,
     Handle<String> name) {
-  HInstruction* instr = TryLoadPolymorphicAsMonomorphic(
-      expr, object, types, name);
+  HInstruction* instr = TryLoadPolymorphicAsMonomorphic(object, types, name);
   if (instr != NULL) {
-    instr->set_position(expr->position());
-    return ast_context()->ReturnInstruction(instr, expr->id());
+    instr->set_position(position);
+    return ast_context()->ReturnInstruction(instr, return_id);
   }
 
   // Something did not match; must use a polymorphic load.
@@ -4695,7 +4694,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
       if (lookup.IsField()) {
         HObjectAccess access = HObjectAccess::ForField(map, &lookup, name);
         HLoadNamedField* load = BuildLoadNamedField(compare, access);
-        load->set_position(expr->position());
+        load->set_position(position);
         AddInstruction(load);
         if (!ast_context()->IsEffect()) Push(load);
       } else if (lookup.IsConstant()) {
@@ -4726,22 +4725,23 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
     FinishExitWithHardDeoptimization("Unknown map in polymorphic load", join);
   } else {
-    HInstruction* load = BuildLoadNamedGeneric(object, name, expr);
-    load->set_position(expr->position());
+    HValue* context = environment()->context();
+    HInstruction* load = new(zone()) HLoadNamedGeneric(context, object, name);
+    load->set_position(position);
     AddInstruction(load);
     if (!ast_context()->IsEffect()) Push(load);
 
     if (join != NULL) {
       current_block()->Goto(join);
     } else {
-      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
       if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
       return;
     }
   }
 
   ASSERT(join != NULL);
-  join->SetJoinId(expr->id());
+  join->SetJoinId(return_id);
   set_current_block(join);
   if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
 }
@@ -5130,34 +5130,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       // Named property.
       CHECK_ALIVE(VisitForValue(prop->obj()));
       HValue* object = Top();
-
-      Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
-      Handle<Map> map;
-      HInstruction* load = NULL;
-      SmallMapList* types = prop->GetReceiverTypes();
-      bool monomorphic = prop->IsMonomorphic();
-      if (monomorphic) {
-        map = types->first();
-        // We can't generate code for a monomorphic dict mode load so
-        // just pretend it is not monomorphic.
-        monomorphic = CanInlinePropertyAccess(*map);
-      }
-      if (monomorphic) {
-        Handle<JSFunction> getter;
-        Handle<JSObject> holder;
-        if (LookupGetter(map, name, &getter, &holder)) {
-          load = BuildCallGetter(object, map, getter, holder);
-        } else {
-          load = BuildLoadNamedMonomorphic(object, name, prop, map);
-        }
-      } else if (types != NULL && types->length() > 1) {
-        load = TryLoadPolymorphicAsMonomorphic(prop, object, types, name);
-      }
-      if (load == NULL) load = BuildLoadNamedGeneric(object, name, prop);
-      PushAndAdd(load);
-      if (load->HasObservableSideEffects()) {
-        Add<HSimulate>(prop->LoadId(), REMOVABLE_SIMULATE);
-      }
+      PushLoad(prop, object, expr->position(), expr->id(), prop->LoadId());
 
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* right = Pop();
@@ -5418,7 +5391,6 @@ HInstruction* HOptimizedGraphBuilder::BuildCallGetter(
 HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     HValue* object,
     Handle<String> name,
-    Property* expr,
     Handle<Map> map) {
   // Handle a load from a known field.
   ASSERT(!map->is_dictionary_map());
@@ -5471,7 +5443,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
   }
 
   // No luck, do a generic load.
-  return BuildLoadNamedGeneric(object, name, expr);
+  HValue* context = environment()->context();
+  return new(zone()) HLoadNamedGeneric(context, object, name);
 }
 
 
@@ -5858,15 +5831,21 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
 }
 
 
-void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
-  ASSERT(!HasStackOverflow());
-  ASSERT(current_block() != NULL);
-  ASSERT(current_block()->HasPredecessor());
+void HOptimizedGraphBuilder::PushLoad(Property* expr,
+                                      HValue* object,
+                                      int position,
+                                      BailoutId ast_id,
+                                      BailoutId return_id) {
+  ValueContext for_value(this, ARGUMENTS_NOT_ALLOWED);
+  Push(object);
+  BuildLoad(expr, position, ast_id, return_id);
+}
 
-  if (TryArgumentsAccess(expr)) return;
 
-  CHECK_ALIVE(VisitForValue(expr->obj()));
-
+void HOptimizedGraphBuilder::BuildLoad(Property* expr,
+                                       int position,
+                                       BailoutId ast_id,
+                                       BailoutId return_id) {
   HInstruction* instr = NULL;
   if (expr->IsStringLength()) {
     HValue* string = Pop();
@@ -5908,14 +5887,15 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
       Handle<JSObject> holder;
       if (LookupGetter(map, name, &getter, &holder)) {
         AddCheckConstantFunction(holder, Top(), map);
-        if (FLAG_inline_accessors && TryInlineGetter(getter, expr)) return;
+        if (FLAG_inline_accessors && TryInlineGetter(getter, return_id)) return;
         Add<HPushArgument>(Pop());
         instr = new(zone()) HCallConstantFunction(getter, 1);
       } else {
-        instr = BuildLoadNamedMonomorphic(Pop(), name, expr, map);
+        instr = BuildLoadNamedMonomorphic(Pop(), name, map);
       }
     } else if (types != NULL && types->length() > 1) {
-      return HandlePolymorphicLoadNamedField(expr, Pop(), types, name);
+      return HandlePolymorphicLoadNamedField(
+          position, return_id, Pop(), types, name);
     } else {
       instr = BuildLoadNamedGeneric(Pop(), name, expr);
     }
@@ -5928,22 +5908,34 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
 
     bool has_side_effects = false;
     HValue* load = HandleKeyedElementAccess(
-        obj, key, NULL, expr, expr->id(), expr->position(),
+        obj, key, NULL, expr, return_id, position,
         false,  // is_store
         &has_side_effects);
     if (has_side_effects) {
       if (ast_context()->IsEffect()) {
-        Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+        Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
       } else {
         Push(load);
-        Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+        Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
         Drop(1);
       }
     }
     return ast_context()->ReturnValue(load);
   }
-  instr->set_position(expr->position());
-  return ast_context()->ReturnInstruction(instr, expr->id());
+  instr->set_position(position);
+  return ast_context()->ReturnInstruction(instr, return_id);
+}
+
+
+void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
+  ASSERT(!HasStackOverflow());
+  ASSERT(current_block() != NULL);
+  ASSERT(current_block()->HasPredecessor());
+
+  if (TryArgumentsAccess(expr)) return;
+
+  CHECK_ALIVE(VisitForValue(expr->obj()));
+  BuildLoad(expr, expr->position(), expr->id(), expr->id());
 }
 
 
@@ -6620,13 +6612,13 @@ bool HOptimizedGraphBuilder::TryInlineConstruct(CallNew* expr,
 
 
 bool HOptimizedGraphBuilder::TryInlineGetter(Handle<JSFunction> getter,
-                                             Property* prop) {
+                                             BailoutId return_id) {
   return TryInline(CALL_AS_METHOD,
                    getter,
                    0,
                    NULL,
-                   prop->id(),
-                   prop->LoadId(),
+                   return_id,
+                   return_id,
                    GETTER_CALL_RETURN);
 }
 
@@ -7576,32 +7568,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
       CHECK_ALIVE(VisitForValue(prop->obj()));
       HValue* object = Top();
-
-      Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
-      Handle<Map> map;
-      HInstruction* load = NULL;
-      bool monomorphic = prop->IsMonomorphic();
-      SmallMapList* types = prop->GetReceiverTypes();
-      if (monomorphic) {
-        map = types->first();
-        monomorphic = CanInlinePropertyAccess(*map);
-      }
-      if (monomorphic) {
-        Handle<JSFunction> getter;
-        Handle<JSObject> holder;
-        if (LookupGetter(map, name, &getter, &holder)) {
-          load = BuildCallGetter(object, map, getter, holder);
-        } else {
-          load = BuildLoadNamedMonomorphic(object, name, prop, map);
-        }
-      } else if (types != NULL && types->length() > 1) {
-        load = TryLoadPolymorphicAsMonomorphic(prop, object, types, name);
-      }
-      if (load == NULL) load = BuildLoadNamedGeneric(object, name, prop);
-      PushAndAdd(load);
-      if (load->HasObservableSideEffects()) {
-        Add<HSimulate>(prop->LoadId(), REMOVABLE_SIMULATE);
-      }
+      PushLoad(prop, object, expr->position(), expr->id(), prop->LoadId());
 
       after = BuildIncrement(returns_original_input, expr);
       HValue* result = returns_original_input ? Pop() : after;
