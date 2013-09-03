@@ -6635,7 +6635,7 @@ TEST(ScriptCollectedEventContext) {
         v8::Local<v8::Context>::New(isolate, context);
     local_context->Exit();
   }
-  context.Dispose(isolate);
+  context.Dispose();
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.

@@ -709,7 +709,7 @@ void ScriptCache::HandleWeakScript(v8::Isolate* isolate,
   script_cache->collected_scripts_.Add(id);
 
   // Clear the weak handle.
-  obj->Dispose(isolate);
+  obj->Dispose();
 }
 
 

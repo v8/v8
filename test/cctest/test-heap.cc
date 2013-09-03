@@ -401,7 +401,7 @@ static void TestWeakGlobalHandleCallback(v8::Isolate* isolate,
                                          v8::Persistent<v8::Value>* handle,
                                          void* id) {
   if (1234 == reinterpret_cast<intptr_t>(id)) WeakPointerCleared = true;
-  handle->Dispose(isolate);
+  handle->Dispose();
 }
 
 
@@ -1723,12 +1723,12 @@ TEST(LeakNativeContextViaMap) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
-    ctx1p.Dispose(isolate);
+    ctx1p.Dispose();
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose(isolate);
+  ctx2p.Dispose();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1769,12 +1769,12 @@ TEST(LeakNativeContextViaFunction) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1p.Dispose(ctx1->GetIsolate());
+    ctx1p.Dispose();
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose(isolate);
+  ctx2p.Dispose();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1813,12 +1813,12 @@ TEST(LeakNativeContextViaMapKeyed) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1p.Dispose(ctx1->GetIsolate());
+    ctx1p.Dispose();
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose(isolate);
+  ctx2p.Dispose();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
@@ -1861,12 +1861,12 @@ TEST(LeakNativeContextViaMapProto) {
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();
     ctx1->Exit();
-    ctx1p.Dispose(isolate);
+    ctx1p.Dispose();
     v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Dispose(isolate);
+  ctx2p.Dispose();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
