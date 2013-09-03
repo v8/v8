@@ -1828,7 +1828,17 @@ void InterceptorGetter(Local<String> name,
 void InterceptorSetter(Local<String> name,
                        Local<Value> value,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
-  // Intercept accesses that set certain integer values.
+  // Intercept accesses that set certain integer values, for which the name does
+  // not start with 'accessor_'.
+  String::Utf8Value utf8(name);
+  char* name_str = *utf8;
+  char prefix[] = "accessor_";
+  int i;
+  for (i = 0; name_str[i] && prefix[i]; ++i) {
+    if (name_str[i] != prefix[i]) break;
+  }
+  if (!prefix[i]) return;
+
   if (value->IsInt32() && value->Int32Value() < 10000) {
     Handle<Object> self = info.This();
     self->SetHiddenValue(name, value);
@@ -20317,6 +20327,95 @@ THREADED_TEST(Regress256330) {
              "%OptimizeFunctionOnNextCall(f);"
              "f(o);");
   ExpectBoolean("%GetOptimizationStatus(f) != 2", true);
+}
+
+
+THREADED_TEST(CrankshaftInterceptorSetter) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  Handle<FunctionTemplate> templ = FunctionTemplate::New();
+  AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Obj"), templ->GetFunction());
+  CompileRun("var obj = new Obj;"
+             // Initialize fields to avoid transitions later.
+             "obj.age = 0;"
+             "obj.accessor_age = 42;"
+             "function setter(i) { this.accessor_age = i; };"
+             "function getter() { return this.accessor_age; };"
+             "function setAge(i) { obj.age = i; };"
+             "Object.defineProperty(obj, 'age', { get:getter, set:setter });"
+             "setAge(1);"
+             "setAge(2);"
+             "setAge(3);"
+             "%OptimizeFunctionOnNextCall(setAge);"
+             "setAge(4);");
+  // All stores went through the interceptor.
+  ExpectInt32("obj.interceptor_age", 4);
+  ExpectInt32("obj.accessor_age", 42);
+}
+
+
+THREADED_TEST(CrankshaftInterceptorGetter) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  Handle<FunctionTemplate> templ = FunctionTemplate::New();
+  AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Obj"), templ->GetFunction());
+  CompileRun("var obj = new Obj;"
+             // Initialize fields to avoid transitions later.
+             "obj.age = 1;"
+             "obj.accessor_age = 42;"
+             "function getter() { return this.accessor_age; };"
+             "function getAge() { return obj.interceptor_age; };"
+             "Object.defineProperty(obj, 'interceptor_age', { get:getter });"
+             "getAge();"
+             "getAge();"
+             "getAge();"
+             "%OptimizeFunctionOnNextCall(getAge);");
+  // Access through interceptor.
+  ExpectInt32("getAge()", 1);
+}
+
+
+THREADED_TEST(CrankshaftInterceptorFieldRead) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  Handle<FunctionTemplate> templ = FunctionTemplate::New();
+  AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Obj"), templ->GetFunction());
+  CompileRun("var obj = new Obj;"
+             "obj.__proto__.interceptor_age = 42;"
+             "obj.age = 100;"
+             "function getAge() { return obj.interceptor_age; };");
+  ExpectInt32("getAge();", 100);
+  ExpectInt32("getAge();", 100);
+  ExpectInt32("getAge();", 100);
+  CompileRun("%OptimizeFunctionOnNextCall(getAge);");
+  // Access through interceptor.
+  ExpectInt32("getAge();", 100);
+}
+
+
+THREADED_TEST(CrankshaftInterceptorFieldWrite) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  Handle<FunctionTemplate> templ = FunctionTemplate::New();
+  AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Obj"), templ->GetFunction());
+  CompileRun("var obj = new Obj;"
+             "obj.age = 100000;"
+             "function setAge(i) { obj.age = i };"
+             "setAge(100);"
+             "setAge(101);"
+             "setAge(102);"
+             "%OptimizeFunctionOnNextCall(setAge);"
+             "setAge(103);");
+  ExpectInt32("obj.age", 100000);
+  ExpectInt32("obj.interceptor_age", 103);
 }
 
 #endif  // V8_OS_POSIX
