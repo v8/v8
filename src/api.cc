@@ -225,7 +225,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   const char* message = "Allocation failed - process out of memory";
   callback(location, message);
   // If the callback returns, we stop execution.
-  UNREACHABLE();
+  FATAL("API fatal error handler returned after process out of memory");
 }
 
 
