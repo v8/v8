@@ -27,41 +27,12 @@
 
 "use strict";
 
-// Overview:
-//
-// This file contains all of the routing and accounting for Object.observe.
-// User code will interact with these mechanisms via the Object.observe APIs
-// and, as a side effect of mutation objects which are observed. The V8 runtime
-// (both C++ and JS) will interact with these mechanisms primarily by enqueuing
-// proper change records for objects which were mutated. The Object.observe
-// routing and accounting consists primarily of three participants
-//
-// 1) ObjectInfo. This represents the observed state of a given object. It
-//    records what callbacks are observing the object, with what options, and
-//    what "change types" are in progress on the object (i.e. via
-//    notifier.performChange).
-//
-// 2) CallbackInfo. This represents a callback used for observation. It holds
-//    the records which must be delivered to the callback, as well as the global
-//    priority of the callback (which determines delivery order between
-//    callbacks).
-//
-// 3) observationState.pendingObservers. This is the set of observers which
-//    have change records which must be delivered. During "normal" delivery
-//    (i.e. not Object.deliverChangeRecords), this is the mechanism by which
-//    callbacks are invoked in the proper order until there are no more
-//    change records pending to a callback.
-//
-// Note that in order to reduce allocation and processing costs, the
-// implementation of (1) and (2) have "optimized" states which represent
-// common cases which can be handled more efficiently.
-
 var observationState = %GetObservationState();
 if (IS_UNDEFINED(observationState.callbackInfoMap)) {
   observationState.callbackInfoMap = %ObservationWeakMapCreate();
   observationState.objectInfoMap = %ObservationWeakMapCreate();
-  observationState.notifierObjectInfoMap = %ObservationWeakMapCreate();
-  observationState.pendingObservers = null;
+  observationState.notifierTargetMap = %ObservationWeakMapCreate();
+  observationState.pendingObservers = new InternalArray;
   observationState.nextCallbackPriority = 0;
 }
 
@@ -88,191 +59,126 @@ ObservationWeakMap.prototype = {
 var callbackInfoMap =
     new ObservationWeakMap(observationState.callbackInfoMap);
 var objectInfoMap = new ObservationWeakMap(observationState.objectInfoMap);
-var notifierObjectInfoMap =
-    new ObservationWeakMap(observationState.notifierObjectInfoMap);
+var notifierTargetMap =
+    new ObservationWeakMap(observationState.notifierTargetMap);
 
-function TypeMapCreate() {
-  return { __proto__: null };
+function CreateObjectInfo(object) {
+  var info = {
+    changeObservers: new InternalArray,
+    notifier: null,
+    inactiveObservers: new InternalArray,
+    performing: { __proto__: null },
+    performingCount: 0,
+  };
+  objectInfoMap.set(object, info);
+  return info;
 }
 
-function TypeMapAddType(typeMap, type, ignoreDuplicate) {
-  typeMap[type] = ignoreDuplicate ? 1 : (typeMap[type] || 0) + 1;
+var defaultAcceptTypes = {
+  __proto__: null,
+  'new': true,
+  'updated': true,
+  'deleted': true,
+  'prototype': true,
+  'reconfigured': true
+};
+
+function CreateObserver(callback, accept) {
+  var observer = {
+    __proto__: null,
+    callback: callback,
+    accept: defaultAcceptTypes
+  };
+
+  if (IS_UNDEFINED(accept))
+    return observer;
+
+  var acceptMap = { __proto__: null };
+  for (var i = 0; i < accept.length; i++)
+    acceptMap[accept[i]] = true;
+
+  observer.accept = acceptMap;
+  return observer;
 }
 
-function TypeMapRemoveType(typeMap, type) {
-  typeMap[type]--;
-}
-
-function TypeMapCreateFromList(typeList) {
-  var typeMap = TypeMapCreate();
-  for (var i = 0; i < typeList.length; i++) {
-    TypeMapAddType(typeMap, typeList[i], true);
-  }
-  return typeMap;
-}
-
-function TypeMapHasType(typeMap, type) {
-  return !!typeMap[type];
-}
-
-function TypeMapIsDisjointFrom(typeMap1, typeMap2) {
-  if (!typeMap1 || !typeMap2)
+function ObserverIsActive(observer, objectInfo) {
+  if (objectInfo.performingCount === 0)
     return true;
 
-  for (var type in typeMap1) {
-    if (TypeMapHasType(typeMap1, type) && TypeMapHasType(typeMap2, type))
+  var performing = objectInfo.performing;
+  for (var type in performing) {
+    if (performing[type] > 0 && observer.accept[type])
       return false;
   }
 
   return true;
 }
 
-var defaultAcceptTypes = TypeMapCreateFromList([
-  'new',
-  'updated',
-  'deleted',
-  'prototype',
-  'reconfigured'
-]);
-
-// An Observer is a registration to observe an object by a callback with
-// a given set of accept types. If the set of accept types is the default
-// set for Object.observe, the observer is represented as a direct reference
-// to the callback. An observer never changes its accept types and thus never
-// needs to "normalize".
-function ObserverCreate(callback, acceptList) {
-  return IS_UNDEFINED(acceptList) ? callback : {
-    __proto__: null,
-    callback: callback,
-    accept: TypeMapCreateFromList(acceptList)
-  };
+function ObserverIsInactive(observer, objectInfo) {
+  return !ObserverIsActive(observer, objectInfo);
 }
 
-function ObserverGetCallback(observer) {
-  return IS_SPEC_FUNCTION(observer) ? observer : observer.callback;
-}
-
-function ObserverGetAcceptTypes(observer) {
-  return IS_SPEC_FUNCTION(observer) ? defaultAcceptTypes : observer.accept;
-}
-
-function ObserverIsActive(observer, objectInfo) {
-  return TypeMapIsDisjointFrom(ObjectInfoGetPerformingTypes(objectInfo),
-                               ObserverGetAcceptTypes(observer));
-}
-
-function ObjectInfoGet(object) {
-  var objectInfo = objectInfoMap.get(object);
-  if (IS_UNDEFINED(objectInfo)) {
-    if (!%IsJSProxy(object))
-      %SetIsObserved(object);
-
-    objectInfo = {
-      object: object,
-      changeObservers: null,
-      notifier: null,
-      performing: null,
-      performingCount: 0,
-    };
-    objectInfoMap.set(object, objectInfo);
-  }
-  return objectInfo;
-}
-
-function ObjectInfoGetFromNotifier(notifier) {
-  return notifierObjectInfoMap.get(notifier);
-}
-
-function ObjectInfoGetNotifier(objectInfo) {
-  if (IS_NULL(objectInfo.notifier)) {
-    objectInfo.notifier = { __proto__: notifierPrototype };
-    notifierObjectInfoMap.set(objectInfo.notifier, objectInfo);
+function RemoveNullElements(from) {
+  var i = 0;
+  var j = 0;
+  for (; i < from.length; i++) {
+    if (from[i] === null)
+      continue;
+    if (j < i)
+      from[j] = from[i];
+    j++;
   }
 
-  return objectInfo.notifier;
+  if (i !== j)
+    from.length = from.length - (i - j);
 }
 
-function ObjectInfoGetObject(objectInfo) {
-  return objectInfo.object;
-}
-
-function ChangeObserversIsOptimized(changeObservers) {
-  return typeof changeObservers === 'function' ||
-         typeof changeObservers.callback === 'function';
-}
-
-// The set of observers on an object is called 'changeObservers'. The first
-// observer is referenced directly via objectInfo.changeObservers. When a second
-// is added, changeObservers "normalizes" to become a mapping of callback
-// priority -> observer and is then stored on objectInfo.changeObservers.
-function ObjectInfoNormalizeChangeObservers(objectInfo) {
-  if (ChangeObserversIsOptimized(objectInfo.changeObservers)) {
-    var observer = objectInfo.changeObservers;
-    var callback = ObserverGetCallback(observer);
-    var callbackInfo = CallbackInfoGet(callback);
-    var priority = CallbackInfoGetPriority(callbackInfo);
-    objectInfo.changeObservers = { __proto__: null };
-    objectInfo.changeObservers[priority] = observer;
-  }
-}
-
-function ObjectInfoAddObserver(objectInfo, callback, acceptList) {
-  var callbackInfo = CallbackInfoGetOrCreate(callback);
-  var observer = ObserverCreate(callback, acceptList);
-
-  if (!objectInfo.changeObservers) {
-    objectInfo.changeObservers = observer;
-    return;
+function RepartitionObservers(conditionFn, from, to, objectInfo) {
+  var anyRemoved = false;
+  for (var i = 0; i < from.length; i++) {
+    var observer = from[i];
+    if (conditionFn(observer, objectInfo)) {
+      anyRemoved = true;
+      from[i] = null;
+      to.push(observer);
+    }
   }
 
-  ObjectInfoNormalizeChangeObservers(objectInfo);
-  var priority = CallbackInfoGetPriority(callbackInfo);
-  objectInfo.changeObservers[priority] = observer;
+  if (anyRemoved)
+    RemoveNullElements(from);
 }
 
-function ObjectInfoRemoveObserver(objectInfo, callback) {
-  if (!objectInfo.changeObservers)
-    return;
-
-  if (ChangeObserversIsOptimized(objectInfo.changeObservers)) {
-    if (callback === ObserverGetCallback(objectInfo.changeObservers))
-      objectInfo.changeObservers = null;
-    return;
-  }
-
-  var callbackInfo = CallbackInfoGet(callback);
-  var priority = CallbackInfoGetPriority(callbackInfo);
-  delete objectInfo.changeObservers[priority];
-}
-
-function ObjectInfoHasActiveObservers(objectInfo) {
-  if (IS_UNDEFINED(objectInfo) || !objectInfo.changeObservers)
-    return false;
-
-  if (ChangeObserversIsOptimized(objectInfo.changeObservers))
-    return ObserverIsActive(objectInfo.changeObservers, objectInfo);
-
-  for (var priority in objectInfo.changeObservers) {
-    if (ObserverIsActive(objectInfo.changeObservers[priority], objectInfo))
-      return true;
-  }
-
-  return false;
-}
-
-function ObjectInfoAddPerformingType(objectInfo, type) {
-  objectInfo.performing = objectInfo.performing || TypeMapCreate();
-  TypeMapAddType(objectInfo.performing, type);
+function BeginPerformChange(objectInfo, type) {
+  objectInfo.performing[type] = (objectInfo.performing[type] || 0) + 1;
   objectInfo.performingCount++;
+  RepartitionObservers(ObserverIsInactive,
+                       objectInfo.changeObservers,
+                       objectInfo.inactiveObservers,
+                       objectInfo);
 }
 
-function ObjectInfoRemovePerformingType(objectInfo, type) {
+function EndPerformChange(objectInfo, type) {
+  objectInfo.performing[type]--;
   objectInfo.performingCount--;
-  TypeMapRemoveType(objectInfo.performing, type);
+  RepartitionObservers(ObserverIsActive,
+                       objectInfo.inactiveObservers,
+                       objectInfo.changeObservers,
+                       objectInfo);
 }
 
-function ObjectInfoGetPerformingTypes(objectInfo) {
-  return objectInfo.performingCount > 0 ? objectInfo.performing : null;
+function EnsureObserverRemoved(objectInfo, callback) {
+  function remove(observerList) {
+    for (var i = 0; i < observerList.length; i++) {
+      if (observerList[i].callback === callback) {
+        observerList.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (!remove(objectInfo.changeObservers))
+    remove(objectInfo.inactiveObservers);
 }
 
 function AcceptArgIsValid(arg) {
@@ -292,31 +198,12 @@ function AcceptArgIsValid(arg) {
   return true;
 }
 
-// CallbackInfo's optimized state is just a number which represents its global
-// priority. When a change record must be enqueued for the callback, it
-// normalizes. When delivery clears any pending change records, it re-optimizes.
-function CallbackInfoGet(callback) {
-  return callbackInfoMap.get(callback);
+function EnsureCallbackPriority(callback) {
+  if (!callbackInfoMap.has(callback))
+    callbackInfoMap.set(callback, observationState.nextCallbackPriority++);
 }
 
-function CallbackInfoGetOrCreate(callback) {
-  var callbackInfo = callbackInfoMap.get(callback);
-  if (!IS_UNDEFINED(callbackInfo))
-    return callbackInfo;
-
-  var priority = observationState.nextCallbackPriority++
-  callbackInfoMap.set(callback, priority);
-  return priority;
-}
-
-function CallbackInfoGetPriority(callbackInfo) {
-  if (IS_NUMBER(callbackInfo))
-    return callbackInfo;
-  else
-    return callbackInfo.priority;
-}
-
-function CallbackInfoNormalize(callback) {
+function NormalizeCallbackInfo(callback) {
   var callbackInfo = callbackInfoMap.get(callback);
   if (IS_NUMBER(callbackInfo)) {
     var priority = callbackInfo;
@@ -327,18 +214,32 @@ function CallbackInfoNormalize(callback) {
   return callbackInfo;
 }
 
-function ObjectObserve(object, callback, acceptList) {
+function ObjectObserve(object, callback, accept) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["observe"]);
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["observe"]);
   if (ObjectIsFrozen(callback))
     throw MakeTypeError("observe_callback_frozen");
-  if (!AcceptArgIsValid(acceptList))
+  if (!AcceptArgIsValid(accept))
     throw MakeTypeError("observe_accept_invalid");
 
-  var objectInfo = ObjectInfoGet(object);
-  ObjectInfoAddObserver(objectInfo, callback, acceptList);
+  EnsureCallbackPriority(callback);
+
+  var objectInfo = objectInfoMap.get(object);
+  if (IS_UNDEFINED(objectInfo)) {
+    objectInfo = CreateObjectInfo(object);
+    %SetIsObserved(object);
+  }
+
+  EnsureObserverRemoved(objectInfo, callback);
+
+  var observer = CreateObserver(callback, accept);
+  if (ObserverIsActive(observer, objectInfo))
+    objectInfo.changeObservers.push(observer);
+  else
+    objectInfo.inactiveObservers.push(observer);
+
   return object;
 }
 
@@ -352,7 +253,7 @@ function ObjectUnobserve(object, callback) {
   if (IS_UNDEFINED(objectInfo))
     return object;
 
-  ObjectInfoRemoveObserver(objectInfo, callback);
+  EnsureObserverRemoved(objectInfo, callback);
   return object;
 }
 
@@ -367,52 +268,41 @@ function ArrayUnobserve(object, callback) {
   return ObjectUnobserve(object, callback);
 }
 
-function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
-  if (!ObserverIsActive(observer, objectInfo) ||
-      !TypeMapHasType(ObserverGetAcceptTypes(observer), changeRecord.type)) {
-    return;
-  }
-
-  var callback = ObserverGetCallback(observer);
-  var callbackInfo = CallbackInfoNormalize(callback);
-  if (!observationState.pendingObservers)
-    observationState.pendingObservers = { __proto__: null };
+function EnqueueToCallback(callback, changeRecord) {
+  var callbackInfo = NormalizeCallbackInfo(callback);
   observationState.pendingObservers[callbackInfo.priority] = callback;
   callbackInfo.push(changeRecord);
   %SetObserverDeliveryPending();
 }
 
-function ObjectInfoEnqueueChangeRecord(objectInfo, changeRecord) {
+function EnqueueChangeRecord(changeRecord, observers) {
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (IS_SYMBOL(changeRecord.name)) return;
 
-  if (ChangeObserversIsOptimized(objectInfo.changeObservers)) {
-    var observer = objectInfo.changeObservers;
-    ObserverEnqueueIfActive(observer, objectInfo, changeRecord);
-    return;
-  }
+  for (var i = 0; i < observers.length; i++) {
+    var observer = observers[i];
+    if (IS_UNDEFINED(observer.accept[changeRecord.type]))
+      continue;
 
-  for (var priority in objectInfo.changeObservers) {
-    var observer = objectInfo.changeObservers[priority];
-    ObserverEnqueueIfActive(observer, objectInfo, changeRecord);
+    EnqueueToCallback(observer.callback, changeRecord);
   }
 }
 
 function BeginPerformSplice(array) {
   var objectInfo = objectInfoMap.get(array);
   if (!IS_UNDEFINED(objectInfo))
-    ObjectInfoAddPerformingType(objectInfo, 'splice');
+    BeginPerformChange(objectInfo, 'splice');
 }
 
 function EndPerformSplice(array) {
   var objectInfo = objectInfoMap.get(array);
   if (!IS_UNDEFINED(objectInfo))
-    ObjectInfoRemovePerformingType(objectInfo, 'splice');
+    EndPerformChange(objectInfo, 'splice');
 }
 
 function EnqueueSpliceRecord(array, index, removed, addedCount) {
   var objectInfo = objectInfoMap.get(array);
-  if (!ObjectInfoHasActiveObservers(objectInfo))
+  if (IS_UNDEFINED(objectInfo) || objectInfo.changeObservers.length === 0)
     return;
 
   var changeRecord = {
@@ -425,19 +315,19 @@ function EnqueueSpliceRecord(array, index, removed, addedCount) {
 
   ObjectFreeze(changeRecord);
   ObjectFreeze(changeRecord.removed);
-  ObjectInfoEnqueueChangeRecord(objectInfo, changeRecord);
+  EnqueueChangeRecord(changeRecord, objectInfo.changeObservers);
 }
 
 function NotifyChange(type, object, name, oldValue) {
   var objectInfo = objectInfoMap.get(object);
-  if (!ObjectInfoHasActiveObservers(objectInfo))
+  if (objectInfo.changeObservers.length === 0)
     return;
 
   var changeRecord = (arguments.length < 4) ?
       { type: type, object: object, name: name } :
       { type: type, object: object, name: name, oldValue: oldValue };
   ObjectFreeze(changeRecord);
-  ObjectInfoEnqueueChangeRecord(objectInfo, changeRecord);
+  EnqueueChangeRecord(changeRecord, objectInfo.changeObservers);
 }
 
 var notifierPrototype = {};
@@ -446,16 +336,17 @@ function ObjectNotifierNotify(changeRecord) {
   if (!IS_SPEC_OBJECT(this))
     throw MakeTypeError("called_on_non_object", ["notify"]);
 
-  var objectInfo = ObjectInfoGetFromNotifier(this);
-  if (IS_UNDEFINED(objectInfo))
+  var target = notifierTargetMap.get(this);
+  if (IS_UNDEFINED(target))
     throw MakeTypeError("observe_notify_non_notifier");
   if (!IS_STRING(changeRecord.type))
     throw MakeTypeError("observe_type_non_string");
 
-  if (!ObjectInfoHasActiveObservers(objectInfo))
+  var objectInfo = objectInfoMap.get(target);
+  if (IS_UNDEFINED(objectInfo) || objectInfo.changeObservers.length === 0)
     return;
 
-  var newRecord = { object: ObjectInfoGetObject(objectInfo) };
+  var newRecord = { object: target };
   for (var prop in changeRecord) {
     if (prop === 'object') continue;
     %DefineOrRedefineDataProperty(newRecord, prop, changeRecord[prop],
@@ -463,16 +354,15 @@ function ObjectNotifierNotify(changeRecord) {
   }
   ObjectFreeze(newRecord);
 
-  ObjectInfoEnqueueChangeRecord(objectInfo, newRecord);
+  EnqueueChangeRecord(newRecord, objectInfo.changeObservers);
 }
 
 function ObjectNotifierPerformChange(changeType, changeFn, receiver) {
   if (!IS_SPEC_OBJECT(this))
     throw MakeTypeError("called_on_non_object", ["performChange"]);
 
-  var objectInfo = ObjectInfoGetFromNotifier(this);
-
-  if (IS_UNDEFINED(objectInfo))
+  var target = notifierTargetMap.get(this);
+  if (IS_UNDEFINED(target))
     throw MakeTypeError("observe_notify_non_notifier");
   if (!IS_STRING(changeType))
     throw MakeTypeError("observe_perform_non_string");
@@ -485,11 +375,15 @@ function ObjectNotifierPerformChange(changeType, changeFn, receiver) {
     receiver = ToObject(receiver);
   }
 
-  ObjectInfoAddPerformingType(objectInfo, changeType);
+  var objectInfo = objectInfoMap.get(target);
+  if (IS_UNDEFINED(objectInfo))
+    return;
+
+  BeginPerformChange(objectInfo, changeType);
   try {
     %_CallFunction(receiver, changeFn);
   } finally {
-    ObjectInfoRemovePerformingType(objectInfo, changeType);
+    EndPerformChange(objectInfo, changeType);
   }
 }
 
@@ -499,8 +393,18 @@ function ObjectGetNotifier(object) {
 
   if (ObjectIsFrozen(object)) return null;
 
-  var objectInfo = ObjectInfoGet(object);
-  return ObjectInfoGetNotifier(objectInfo);
+  var objectInfo = objectInfoMap.get(object);
+  if (IS_UNDEFINED(objectInfo)) {
+    objectInfo = CreateObjectInfo(object);
+    %SetIsObserved(object);
+  }
+
+  if (IS_NULL(objectInfo.notifier)) {
+    objectInfo.notifier = { __proto__: notifierPrototype };
+    notifierTargetMap.set(objectInfo.notifier, object);
+  }
+
+  return objectInfo.notifier;
 }
 
 function CallbackDeliverPending(callback) {
@@ -513,9 +417,7 @@ function CallbackDeliverPending(callback) {
   var priority = callbackInfo.priority;
   callbackInfoMap.set(callback, priority);
 
-  if (observationState.pendingObservers)
-    delete observationState.pendingObservers[priority];
-
+  delete observationState.pendingObservers[priority];
   var delivered = [];
   %MoveArrayContents(callbackInfo, delivered);
 
@@ -533,9 +435,9 @@ function ObjectDeliverChangeRecords(callback) {
 }
 
 function DeliverChangeRecords() {
-  while (observationState.pendingObservers) {
+  while (observationState.pendingObservers.length) {
     var pendingObservers = observationState.pendingObservers;
-    observationState.pendingObservers = null;
+    observationState.pendingObservers = new InternalArray;
     for (var i in pendingObservers) {
       CallbackDeliverPending(pendingObservers[i]);
     }
