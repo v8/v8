@@ -10376,6 +10376,18 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
 }
 
 
+BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
+  DisallowHeapAllocation no_gc;
+  ASSERT(kind() == FUNCTION);
+  for (FullCodeGenerator::BackEdgeTableIterator it(this, &no_gc);
+       !it.Done();
+       it.Next()) {
+    if (it.pc_offset() == pc_offset) return it.ast_id();
+  }
+  return BailoutId::None();
+}
+
+
 bool Code::allowed_in_shared_map_code_cache() {
   return is_keyed_load_stub() || is_keyed_store_stub() ||
       (is_compare_ic_stub() &&
@@ -10836,7 +10848,8 @@ void Code::Disassemble(const char* name, FILE* out) {
     // If there is no back edge table, the "table start" will be at or after
     // (due to alignment) the end of the instruction stream.
     if (static_cast<int>(offset) < instruction_size()) {
-      FullCodeGenerator::BackEdgeTableIterator back_edges(this);
+      DisallowHeapAllocation no_gc;
+      FullCodeGenerator::BackEdgeTableIterator back_edges(this, &no_gc);
 
       PrintF(out, "Back edges (size = %u)\n", back_edges.table_length());
       PrintF(out, "ast_id  pc_offset  loop_depth\n");

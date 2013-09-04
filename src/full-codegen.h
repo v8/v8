@@ -141,7 +141,8 @@ class FullCodeGenerator: public AstVisitor {
 
   class BackEdgeTableIterator {
    public:
-    explicit BackEdgeTableIterator(Code* unoptimized) {
+    explicit BackEdgeTableIterator(Code* unoptimized,
+                                   DisallowHeapAllocation* required) {
       ASSERT(unoptimized->kind() == Code::FUNCTION);
       instruction_start_ = unoptimized->instruction_start();
       cursor_ = instruction_start_ + unoptimized->back_edge_table_offset();
@@ -192,7 +193,6 @@ class FullCodeGenerator: public AstVisitor {
     Address end_;
     Address instruction_start_;
     uint32_t table_length_;
-    DisallowHeapAllocation no_gc_while_iterating_over_raw_addresses_;
 
     DISALLOW_COPY_AND_ASSIGN(BackEdgeTableIterator);
   };

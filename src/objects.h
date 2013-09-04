@@ -5107,6 +5107,8 @@ class Code: public HeapObject {
   void ClearInlineCaches();
   void ClearTypeFeedbackCells(Heap* heap);
 
+  BailoutId TranslatePcOffsetToAstId(uint32_t pc_offset);
+
 #define DECLARE_CODE_AGE_ENUM(X) k##X##CodeAge,
   enum Age {
     kNoAge = 0,

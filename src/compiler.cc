@@ -58,7 +58,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script,
                                  Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE)),
       script_(script),
-      osr_ast_id_(BailoutId::None()) {
+      osr_ast_id_(BailoutId::None()),
+      osr_pc_offset_(0) {
   Initialize(script->GetIsolate(), BASE, zone);
 }
 
@@ -68,7 +69,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
     : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
-      osr_ast_id_(BailoutId::None()) {
+      osr_ast_id_(BailoutId::None()),
+      osr_pc_offset_(0) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -80,7 +82,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       context_(closure->context()),
-      osr_ast_id_(BailoutId::None()) {
+      osr_ast_id_(BailoutId::None()),
+      osr_pc_offset_(0) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -90,7 +93,8 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
                                  Zone* zone)
     : flags_(LanguageModeField::encode(CLASSIC_MODE) |
              IsLazy::encode(true)),
-      osr_ast_id_(BailoutId::None()) {
+      osr_ast_id_(BailoutId::None()),
+      osr_pc_offset_(0) {
   Initialize(isolate, STUB, zone);
   code_stub_ = stub;
 }
@@ -963,8 +967,9 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 }
 
 
-void Compiler::RecompileConcurrent(Handle<JSFunction> closure) {
-  ASSERT(closure->IsMarkedForConcurrentRecompilation());
+bool Compiler::RecompileConcurrent(Handle<JSFunction> closure,
+                                   uint32_t osr_pc_offset) {
+  bool compiling_for_osr = (osr_pc_offset != 0);
 
   Isolate* isolate = closure->GetIsolate();
   // Here we prepare compile data for the concurrent recompilation thread, but
@@ -978,23 +983,39 @@ void Compiler::RecompileConcurrent(Handle<JSFunction> closure) {
       closure->PrintName();
       PrintF(" on next run.\n");
     }
-    return;
+    return false;
   }
 
   SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(closure));
+  Handle<SharedFunctionInfo> shared = info->shared_info();
+
+  if (compiling_for_osr) {
+    BailoutId osr_ast_id =
+        shared->code()->TranslatePcOffsetToAstId(osr_pc_offset);
+    ASSERT(!osr_ast_id.IsNone());
+    info->SetOptimizing(osr_ast_id);
+    info->set_osr_pc_offset(osr_pc_offset);
+
+    if (FLAG_trace_osr) {
+      PrintF("[COSR - attempt to queue ");
+      closure->PrintName();
+      PrintF(" at AST id %d]\n", osr_ast_id.ToInt());
+    }
+  } else {
+    info->SetOptimizing(BailoutId::None());
+  }
+
   VMState<COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
 
-  Handle<SharedFunctionInfo> shared = info->shared_info();
   int compiled_size = shared->end_position() - shared->start_position();
   isolate->counters()->total_compile_size()->Increment(compiled_size);
-  info->SetOptimizing(BailoutId::None());
 
   {
     CompilationHandleScope handle_scope(*info);
 
-    if (InstallCodeFromOptimizedCodeMap(*info)) {
-      return;
+    if (!compiling_for_osr && InstallCodeFromOptimizedCodeMap(*info)) {
+      return true;
     }
 
     if (Parser::Parse(*info)) {
@@ -1011,6 +1032,8 @@ void Compiler::RecompileConcurrent(Handle<JSFunction> closure) {
           info.Detach();
           shared->code()->set_profiler_ticks(0);
           isolate->optimizing_compiler_thread()->QueueForOptimization(compiler);
+          ASSERT(!isolate->has_pending_exception());
+          return true;
         } else if (status == OptimizingCompiler::BAILED_OUT) {
           isolate->clear_pending_exception();
           InstallFullCode(*info);
@@ -1019,19 +1042,12 @@ void Compiler::RecompileConcurrent(Handle<JSFunction> closure) {
     }
   }
 
-  if (shared->code()->back_edges_patched_for_osr()) {
-    // At this point we either put the function on recompilation queue or
-    // aborted optimization.  In either case we want to continue executing
-    // the unoptimized code without running into OSR.  If the unoptimized
-    // code has been patched for OSR, unpatch it.
-    Deoptimizer::RevertInterruptCode(isolate, shared->code());
-  }
-
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+  return false;
 }
 
 
-void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
+bool Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
   // The function may have already been optimized by OSR.  Simply continue.
   // Except when OSR already disabled optimization for some reason.
@@ -1044,7 +1060,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
       PrintF(" as it has been disabled.\n");
     }
     ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
-    return;
+    return false;
   }
 
   Isolate* isolate = info->isolate();
@@ -1091,6 +1107,168 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // profiler ticks to prevent too soon re-opt after a deopt.
   info->shared_info()->code()->set_profiler_ticks(0);
   ASSERT(!info->closure()->IsMarkedForInstallingRecompiledCode());
+  return status == OptimizingCompiler::SUCCEEDED;
+}
+
+
+static uint32_t CurrentPcOffset(Isolate* isolate,
+                                Handle<JSFunction> function,
+                                Handle<Code> unoptimized) {
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
+  ASSERT(frame->function() == *function);
+  ASSERT(frame->LookupCode() == *unoptimized);
+  ASSERT(unoptimized->contains(frame->pc()));
+
+  // Use linear search of the unoptimized code's back edge table to find
+  // the AST id matching the PC.
+  return static_cast<uint32_t>(frame->pc() - unoptimized->instruction_start());
+}
+
+
+static bool IsSuitableForOnStackReplacement(Isolate* isolate,
+                                            Handle<JSFunction> function,
+                                            Handle<Code> unoptimized) {
+  // Keep track of whether we've succeeded in optimizing.
+  if (!unoptimized->optimizable()) return false;
+  // If we are trying to do OSR when there are already optimized
+  // activations of the function, it means (a) the function is directly or
+  // indirectly recursive and (b) an optimized invocation has been
+  // deoptimized so that we are currently in an unoptimized activation.
+  // Check for optimized activations of this function.
+  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+    if (frame->is_optimized() && frame->function() == *function) return false;
+  }
+
+  return true;
+}
+
+
+BailoutId Compiler::CompileForOnStackReplacement(Handle<JSFunction> function) {
+  Isolate* isolate = function->GetIsolate();
+  // We have hit a back edge in an unoptimized frame for a function that was
+  // selected for on-stack replacement.  Find the unoptimized code object.
+  Handle<Code> unoptimized(function->shared()->code(), isolate);
+
+  Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
+  if (FLAG_trace_osr) {
+    PrintF("[OSR - restored original interrupt calls in ");
+    function->PrintName();
+    PrintF("]\n");
+  }
+
+  if (!IsSuitableForOnStackReplacement(isolate, function, unoptimized)) {
+    return BailoutId::None();
+  }
+
+  uint32_t pc_offset = CurrentPcOffset(isolate, function, unoptimized);
+
+  BailoutId ast_id = unoptimized->TranslatePcOffsetToAstId(pc_offset);
+  ASSERT(!ast_id.IsNone());
+  if (FLAG_trace_osr) {
+    PrintF("[OSR - replacing at AST id %d in ", ast_id.ToInt());
+    function->PrintName();
+    PrintF("]\n");
+  }
+
+  // Try to compile the optimized code.  A true return value from
+  // CompileOptimized means that compilation succeeded, not necessarily
+  // that optimization succeeded.
+  if (JSFunction::CompileOptimized(function, ast_id, CLEAR_EXCEPTION) &&
+      function->IsOptimized()) {
+    DeoptimizationInputData* data = DeoptimizationInputData::cast(
+        function->code()->deoptimization_data());
+    if (data->OsrPcOffset()->value() >= 0) {
+      if (FLAG_trace_osr) {
+        PrintF("[OSR - entry, offset %d in optimized code]\n",
+            data->OsrPcOffset()->value());
+      }
+      ASSERT(BailoutId(data->OsrAstId()->value()) == ast_id);
+      return ast_id;
+    }
+  } else {
+    if (FLAG_trace_osr) {
+      PrintF("[OSR - optimization failed for ");
+      function->PrintName();
+      PrintF("]\n");
+    }
+  }
+  return BailoutId::None();
+}
+
+
+BailoutId Compiler::CompileForConcurrentOSR(Handle<JSFunction> function) {
+  Isolate* isolate = function->GetIsolate();
+  Handle<Code> unoptimized(function->shared()->code(), isolate);
+
+  uint32_t pc_offset = CurrentPcOffset(isolate, function, unoptimized);
+
+  if (isolate->optimizing_compiler_thread()->
+          IsQueuedForOSR(function, pc_offset)) {
+    // Still waiting for the optimizing compiler thread to finish.  Carry on.
+    if (FLAG_trace_osr) {
+      PrintF("[COSR - polling recompile tasks for ");
+      function->PrintName();
+      PrintF("]\n");
+    }
+    return BailoutId::None();
+  }
+
+  OptimizingCompiler* compiler = isolate->optimizing_compiler_thread()->
+                                     FindReadyOSRCandidate(function, pc_offset);
+
+  if (compiler != NULL) {
+    if (FLAG_trace_osr) {
+      PrintF("[COSR - optimization complete for ");
+      function->PrintName();
+      PrintF(", restoring interrupt calls]\n");
+    }
+    Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
+
+    BailoutId ast_id = compiler->info()->osr_ast_id();
+
+    bool succeeded = InstallOptimizedCode(compiler);
+
+    isolate->optimizing_compiler_thread()->RemoveStaleOSRCandidates();
+
+    if (!succeeded) {
+      if (FLAG_trace_osr) {
+        PrintF("[COSR - optimization failed for ");
+        function->PrintName();
+        PrintF("]\n");
+      }
+      return BailoutId::None();
+    }
+
+    DeoptimizationInputData* data = DeoptimizationInputData::cast(
+        function->code()->deoptimization_data());
+
+    if (data->OsrPcOffset()->value() >= 0) {
+      ASSERT(BailoutId(data->OsrAstId()->value()) == ast_id);
+      if (FLAG_trace_osr) {
+        PrintF("[COSR - entry at AST id %d, offset %d in optimized code]\n",
+               ast_id.ToInt(), data->OsrPcOffset()->value());
+      }
+      return ast_id;
+    }
+    return BailoutId::None();
+  }
+
+  if (!IsSuitableForOnStackReplacement(isolate, function, unoptimized)) {
+    if (FLAG_trace_osr) {
+      PrintF("[COSR - ");
+      function->PrintName();
+      PrintF(" is unsuitable, restoring interrupt calls]\n");
+    }
+    Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
+    return BailoutId::None();
+  }
+
+  if (!RecompileConcurrent(function, pc_offset)) {
+    Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
+  }
+  return BailoutId::None();
 }
 
 

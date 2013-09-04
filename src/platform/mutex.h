@@ -230,8 +230,7 @@ class LockGuard V8_FINAL {
  private:
   Mutex* mutex_;
 
-  LockGuard(const LockGuard<Mutex>& other) V8_DELETE;
-  LockGuard<Mutex>& operator=(const LockGuard<Mutex>& other) V8_DELETE;
+  DISALLOW_COPY_AND_ASSIGN(LockGuard);
 };
 
 } }  // namespace v8::internal

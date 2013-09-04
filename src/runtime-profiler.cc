@@ -172,9 +172,9 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // any back edge in any unoptimized frame will trigger on-stack
   // replacement for that frame.
   if (FLAG_trace_osr) {
-    PrintF("[patching back edges in ");
+    PrintF("[OSR - patching back edges in ");
     function->PrintName();
-    PrintF(" for on-stack replacement]\n");
+    PrintF("]\n");
   }
 
   Deoptimizer::PatchInterruptCode(isolate_, shared->code());

@@ -262,7 +262,7 @@ class Deoptimizer : public Malloced {
                                                     Address pc_after);
 
   // Verify that all back edges of a certain loop depth are patched.
-  static void VerifyInterruptCode(Isolate* isolate,
+  static bool VerifyInterruptCode(Isolate* isolate,
                                   Code* unoptimized_code,
                                   int loop_nesting_level);
 #endif  // DEBUG

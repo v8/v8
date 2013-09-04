@@ -2591,71 +2591,68 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
 
 void Deoptimizer::PatchInterruptCode(Isolate* isolate,
-                                     Code* unoptimized_code) {
+                                     Code* unoptimized) {
   DisallowHeapAllocation no_gc;
   Code* replacement_code =
       isolate->builtins()->builtin(Builtins::kOnStackReplacement);
 
   // Iterate over the back edge table and patch every interrupt
   // call to an unconditional call to the replacement code.
-  int loop_nesting_level = unoptimized_code->allow_osr_at_loop_nesting_level();
+  int loop_nesting_level = unoptimized->allow_osr_at_loop_nesting_level();
 
-  for (FullCodeGenerator::BackEdgeTableIterator back_edges(unoptimized_code);
+  for (FullCodeGenerator::BackEdgeTableIterator back_edges(unoptimized, &no_gc);
        !back_edges.Done();
        back_edges.Next()) {
     if (static_cast<int>(back_edges.loop_depth()) == loop_nesting_level) {
       ASSERT_EQ(NOT_PATCHED, GetInterruptPatchState(isolate,
-                                                    unoptimized_code,
+                                                    unoptimized,
                                                     back_edges.pc()));
-      PatchInterruptCodeAt(unoptimized_code,
+      PatchInterruptCodeAt(unoptimized,
                            back_edges.pc(),
                            replacement_code);
     }
   }
 
-  unoptimized_code->set_back_edges_patched_for_osr(true);
-#ifdef DEBUG
-  Deoptimizer::VerifyInterruptCode(
-      isolate, unoptimized_code, loop_nesting_level);
-#endif  // DEBUG
+  unoptimized->set_back_edges_patched_for_osr(true);
+  ASSERT(Deoptimizer::VerifyInterruptCode(
+             isolate, unoptimized, loop_nesting_level));
 }
 
 
 void Deoptimizer::RevertInterruptCode(Isolate* isolate,
-                                      Code* unoptimized_code) {
+                                      Code* unoptimized) {
   DisallowHeapAllocation no_gc;
   Code* interrupt_code =
       isolate->builtins()->builtin(Builtins::kInterruptCheck);
 
   // Iterate over the back edge table and revert the patched interrupt calls.
-  ASSERT(unoptimized_code->back_edges_patched_for_osr());
-  int loop_nesting_level = unoptimized_code->allow_osr_at_loop_nesting_level();
+  ASSERT(unoptimized->back_edges_patched_for_osr());
+  int loop_nesting_level = unoptimized->allow_osr_at_loop_nesting_level();
 
-  for (FullCodeGenerator::BackEdgeTableIterator back_edges(unoptimized_code);
+  for (FullCodeGenerator::BackEdgeTableIterator back_edges(unoptimized, &no_gc);
        !back_edges.Done();
        back_edges.Next()) {
     if (static_cast<int>(back_edges.loop_depth()) <= loop_nesting_level) {
       ASSERT_EQ(PATCHED_FOR_OSR, GetInterruptPatchState(isolate,
-                                                        unoptimized_code,
+                                                        unoptimized,
                                                         back_edges.pc()));
-      RevertInterruptCodeAt(unoptimized_code, back_edges.pc(), interrupt_code);
+      RevertInterruptCodeAt(unoptimized, back_edges.pc(), interrupt_code);
     }
   }
 
-  unoptimized_code->set_back_edges_patched_for_osr(false);
-  unoptimized_code->set_allow_osr_at_loop_nesting_level(0);
-#ifdef DEBUG
+  unoptimized->set_back_edges_patched_for_osr(false);
+  unoptimized->set_allow_osr_at_loop_nesting_level(0);
   // Assert that none of the back edges are patched anymore.
-  Deoptimizer::VerifyInterruptCode(isolate, unoptimized_code, -1);
-#endif  // DEBUG
+  ASSERT(Deoptimizer::VerifyInterruptCode(isolate, unoptimized, -1));
 }
 
 
 #ifdef DEBUG
-void Deoptimizer::VerifyInterruptCode(Isolate* isolate,
-                                      Code* unoptimized_code,
+bool Deoptimizer::VerifyInterruptCode(Isolate* isolate,
+                                      Code* unoptimized,
                                       int loop_nesting_level) {
-  for (FullCodeGenerator::BackEdgeTableIterator back_edges(unoptimized_code);
+  DisallowHeapAllocation no_gc;
+  for (FullCodeGenerator::BackEdgeTableIterator back_edges(unoptimized, &no_gc);
        !back_edges.Done();
        back_edges.Next()) {
     uint32_t loop_depth = back_edges.loop_depth();
@@ -2664,9 +2661,10 @@ void Deoptimizer::VerifyInterruptCode(Isolate* isolate,
     // have already been patched.
     CHECK_EQ((static_cast<int>(loop_depth) <= loop_nesting_level),
              GetInterruptPatchState(isolate,
-                                    unoptimized_code,
+                                    unoptimized,
                                     back_edges.pc()) != NOT_PATCHED);
   }
+  return true;
 }
 #endif  // DEBUG
 
