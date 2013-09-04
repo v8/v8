@@ -319,14 +319,48 @@ void Context::RemoveOptimizedFunction(JSFunction* function) {
 }
 
 
+void Context::SetOptimizedFunctionsListHead(Object* head) {
+  ASSERT(IsNativeContext());
+  set(OPTIMIZED_FUNCTIONS_LIST, head);
+}
+
+
 Object* Context::OptimizedFunctionsListHead() {
   ASSERT(IsNativeContext());
   return get(OPTIMIZED_FUNCTIONS_LIST);
 }
 
 
-void Context::ClearOptimizedFunctions() {
-  set(OPTIMIZED_FUNCTIONS_LIST, GetHeap()->undefined_value());
+void Context::AddOptimizedCode(Code* code) {
+  ASSERT(IsNativeContext());
+  ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
+  ASSERT(code->next_code_link()->IsUndefined());
+  code->set_next_code_link(get(OPTIMIZED_CODE_LIST));
+  set(OPTIMIZED_CODE_LIST, code);
+}
+
+
+void Context::SetOptimizedCodeListHead(Object* head) {
+  ASSERT(IsNativeContext());
+  set(OPTIMIZED_CODE_LIST, head);
+}
+
+
+Object* Context::OptimizedCodeListHead() {
+  ASSERT(IsNativeContext());
+  return get(OPTIMIZED_CODE_LIST);
+}
+
+
+void Context::SetDeoptimizedCodeListHead(Object* head) {
+  ASSERT(IsNativeContext());
+  set(DEOPTIMIZED_CODE_LIST, head);
+}
+
+
+Object* Context::DeoptimizedCodeListHead() {
+  ASSERT(IsNativeContext());
+  return get(DEOPTIMIZED_CODE_LIST);
 }
 
 

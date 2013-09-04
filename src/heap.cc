@@ -1027,7 +1027,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   isolate_->eternal_handles()->PostGarbageCollectionProcessing(this);
 
   // Update relocatables.
-  Relocatable::PostGarbageCollectionProcessing();
+  Relocatable::PostGarbageCollectionProcessing(isolate_);
 
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
@@ -1616,6 +1616,29 @@ struct WeakListVisitor<JSFunction> {
 
 
 template<>
+struct WeakListVisitor<Code> {
+  static void SetWeakNext(Code* code, Object* next) {
+    code->set_next_code_link(next);
+  }
+
+  static Object* WeakNext(Code* code) {
+    return code->next_code_link();
+  }
+
+  static int WeakNextOffset() {
+    return Code::kNextCodeLinkOffset;
+  }
+
+  static void VisitLiveObject(Heap*, Code*,
+                              WeakObjectRetainer*, bool) {
+  }
+
+  static void VisitPhantomObject(Heap*, Code*) {
+  }
+};
+
+
+template<>
 struct WeakListVisitor<Context> {
   static void SetWeakNext(Context* context, Object* next) {
     context->set(Context::NEXT_CONTEXT_LINK,
@@ -1631,22 +1654,34 @@ struct WeakListVisitor<Context> {
                               Context* context,
                               WeakObjectRetainer* retainer,
                               bool record_slots) {
-    // Process the weak list of optimized functions for the context.
-    Object* function_list_head =
-        VisitWeakList<JSFunction>(
-            heap,
-            context->get(Context::OPTIMIZED_FUNCTIONS_LIST),
-            retainer,
-            record_slots);
-    context->set(Context::OPTIMIZED_FUNCTIONS_LIST,
-                 function_list_head,
-                 UPDATE_WRITE_BARRIER);
+    // Process the three weak lists linked off the context.
+    DoWeakList<JSFunction>(heap, context, retainer, record_slots,
+        Context::OPTIMIZED_FUNCTIONS_LIST);
+    DoWeakList<Code>(heap, context, retainer, record_slots,
+        Context::OPTIMIZED_CODE_LIST);
+    DoWeakList<Code>(heap, context, retainer, record_slots,
+        Context::DEOPTIMIZED_CODE_LIST);
+  }
+
+  template<class T>
+  static void DoWeakList(Heap* heap,
+                         Context* context,
+                         WeakObjectRetainer* retainer,
+                         bool record_slots,
+                         int index) {
+    // Visit the weak list, removing dead intermediate elements.
+    Object* list_head = VisitWeakList<T>(heap, context->get(index), retainer,
+        record_slots);
+
+    // Update the list head.
+    context->set(index, list_head, UPDATE_WRITE_BARRIER);
+
     if (record_slots) {
-      Object** optimized_functions =
-          HeapObject::RawField(
-              context, FixedArray::SizeFor(Context::OPTIMIZED_FUNCTIONS_LIST));
+      // Record the updated slot if necessary.
+      Object** head_slot = HeapObject::RawField(
+          context, FixedArray::SizeFor(index));
       heap->mark_compact_collector()->RecordSlot(
-          optimized_functions, optimized_functions, function_list_head);
+          head_slot, head_slot, list_head);
     }
   }
 
@@ -2938,7 +2973,7 @@ MaybeObject* Heap::CreateOddball(const char* to_string,
   { MaybeObject* maybe_result = Allocate(oddball_map(), OLD_POINTER_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  return Oddball::cast(result)->Initialize(to_string, to_number, kind);
+  return Oddball::cast(result)->Initialize(this, to_string, to_number, kind);
 }
 
 
@@ -3042,15 +3077,16 @@ bool Heap::CreateInitialObjects() {
 
   // Finish initializing oddballs after creating the string table.
   { MaybeObject* maybe_obj =
-        undefined_value()->Initialize("undefined",
+        undefined_value()->Initialize(this,
+                                      "undefined",
                                       nan_value(),
                                       Oddball::kUndefined);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
 
   // Initialize the null_value.
-  { MaybeObject* maybe_obj =
-        null_value()->Initialize("null", Smi::FromInt(0), Oddball::kNull);
+  { MaybeObject* maybe_obj = null_value()->Initialize(
+      this, "null", Smi::FromInt(0), Oddball::kNull);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
 
@@ -6115,12 +6151,12 @@ void Heap::Print() {
 
 void Heap::ReportCodeStatistics(const char* title) {
   PrintF(">>>>>> Code Stats (%s) >>>>>>\n", title);
-  PagedSpace::ResetCodeStatistics();
+  PagedSpace::ResetCodeStatistics(isolate());
   // We do not look for code in new space, map space, or old space.  If code
   // somehow ends up in those spaces, we would miss it here.
   code_space_->CollectCodeStatistics();
   lo_space_->CollectCodeStatistics();
-  PagedSpace::ReportCodeStatistics();
+  PagedSpace::ReportCodeStatistics(isolate());
 }
 
 
@@ -6574,7 +6610,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->Synchronize(VisitorSynchronization::kBootstrapper);
   isolate_->Iterate(v);
   v->Synchronize(VisitorSynchronization::kTop);
-  Relocatable::Iterate(v);
+  Relocatable::Iterate(isolate_, v);
   v->Synchronize(VisitorSynchronization::kRelocatable);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -6635,7 +6671,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   // serialization this does nothing, since the partial snapshot cache is
   // empty.  However the next thing we do is create the partial snapshot,
   // filling up the partial snapshot cache with objects it needs as we go.
-  SerializerDeserializer::Iterate(v);
+  SerializerDeserializer::Iterate(isolate_, v);
   // We don't do a v->Synchronize call here, because in debug mode that will
   // output a flag to the snapshot.  However at this point the serializer and
   // deserializer are deliberately a little unsynchronized (see above) so the
@@ -7239,12 +7275,12 @@ class HeapObjectsFilter {
 
 class UnreachableObjectsFilter : public HeapObjectsFilter {
  public:
-  UnreachableObjectsFilter() {
+  explicit UnreachableObjectsFilter(Heap* heap) : heap_(heap) {
     MarkReachableObjects();
   }
 
   ~UnreachableObjectsFilter() {
-    Isolate::Current()->heap()->mark_compact_collector()->ClearMarkbits();
+    heap_->mark_compact_collector()->ClearMarkbits();
   }
 
   bool SkipObject(HeapObject* object) {
@@ -7281,12 +7317,12 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   };
 
   void MarkReachableObjects() {
-    Heap* heap = Isolate::Current()->heap();
     MarkingVisitor visitor;
-    heap->IterateRoots(&visitor, VISIT_ALL);
+    heap_->IterateRoots(&visitor, VISIT_ALL);
     visitor.TransitiveClosure();
   }
 
+  Heap* heap_;
   DisallowHeapAllocation no_allocation_;
 };
 
@@ -7318,7 +7354,7 @@ void HeapIterator::Init() {
   space_iterator_ = new SpaceIterator(heap_);
   switch (filtering_) {
     case kFilterUnreachable:
-      filter_ = new UnreachableObjectsFilter;
+      filter_ = new UnreachableObjectsFilter(heap_);
       break;
     default:
       break;
@@ -7863,9 +7899,9 @@ void Heap::GarbageCollectionGreedyCheck() {
 #endif
 
 
-TranscendentalCache::SubCache::SubCache(Type t)
+TranscendentalCache::SubCache::SubCache(Isolate* isolate, Type t)
   : type_(t),
-    isolate_(Isolate::Current()) {
+    isolate_(isolate) {
   uint32_t in0 = 0xffffffffu;  // Bit-pattern for a NaN that isn't
   uint32_t in1 = 0xffffffffu;  // generated by the FPU.
   for (int i = 0; i < kCacheSize; i++) {

@@ -116,7 +116,7 @@ test-log/ProfLazyMode: SKIP
 # Native Client doesn't support sockets.
 test-debug/DebuggerAgent: SKIP
 test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
-test-sockets/Socket: SKIP
+test-socket/Socket: SKIP
 
 # Profiling doesn't work on Native Client.
 test-cpu-profiler/*: SKIP

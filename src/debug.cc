@@ -3433,15 +3433,11 @@ bool Debugger::StartAgent(const char* name, int port,
     v8::Debug::DebugBreak();
   }
 
-  if (Socket::SetUp()) {
-    if (agent_ == NULL) {
-      agent_ = new DebuggerAgent(isolate_, name, port);
-      agent_->Start();
-    }
-    return true;
+  if (agent_ == NULL) {
+    agent_ = new DebuggerAgent(isolate_, name, port);
+    agent_->Start();
   }
-
-  return false;
+  return true;
 }
 
 

@@ -888,8 +888,7 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
-    Add<HDeoptimize>("Deopt due to --trace-elements-transitions",
-                     Deoptimizer::EAGER);
+    Add<HDeoptimize>("Tracing elements transitions", Deoptimizer::EAGER);
   } else {
     info()->MarkAsSavesCallerDoubles();
 

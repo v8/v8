@@ -798,7 +798,7 @@ void RelocInfo::Print(Isolate* isolate, FILE* out) {
     target_object()->ShortPrint(out);
     PrintF(out, ")");
   } else if (rmode_ == EXTERNAL_REFERENCE) {
-    ExternalReferenceEncoder ref_encoder;
+    ExternalReferenceEncoder ref_encoder(isolate);
     PrintF(out, " (%s)  (%p)",
            ref_encoder.NameOfAddress(*target_reference_address()),
            *target_reference_address());

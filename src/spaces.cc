@@ -1777,8 +1777,7 @@ void SemiSpaceIterator::Initialize(Address start,
 
 #ifdef DEBUG
 // heap_histograms is shared, always clear it before using it.
-static void ClearHistograms() {
-  Isolate* isolate = Isolate::Current();
+static void ClearHistograms(Isolate* isolate) {
   // We reset the name each time, though it hasn't changed.
 #define DEF_TYPE_NAME(name) isolate->heap_histograms()[name].set_name(#name);
   INSTANCE_TYPE_LIST(DEF_TYPE_NAME)
@@ -1829,8 +1828,7 @@ static int CollectHistogramInfo(HeapObject* obj) {
 }
 
 
-static void ReportHistogram(bool print_spill) {
-  Isolate* isolate = Isolate::Current();
+static void ReportHistogram(Isolate* isolate, bool print_spill) {
   PrintF("\n  Object Histogram:\n");
   for (int i = 0; i <= LAST_TYPE; i++) {
     if (isolate->heap_histograms()[i].number() > 0) {
@@ -2685,8 +2683,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 
 
 #ifdef DEBUG
-void PagedSpace::ReportCodeStatistics() {
-  Isolate* isolate = Isolate::Current();
+void PagedSpace::ReportCodeStatistics(Isolate* isolate) {
   CommentStatistic* comments_statistics =
       isolate->paged_space_comments_statistics();
   ReportCodeKindStatistics(isolate->code_kind_statistics());
@@ -2703,8 +2700,7 @@ void PagedSpace::ReportCodeStatistics() {
 }
 
 
-void PagedSpace::ResetCodeStatistics() {
-  Isolate* isolate = Isolate::Current();
+void PagedSpace::ResetCodeStatistics(Isolate* isolate) {
   CommentStatistic* comments_statistics =
       isolate->paged_space_comments_statistics();
   ClearCodeKindStatistics(isolate->code_kind_statistics());
@@ -2819,11 +2815,11 @@ void PagedSpace::ReportStatistics() {
          Capacity(), Waste(), Available(), pct);
 
   if (was_swept_conservatively_) return;
-  ClearHistograms();
+  ClearHistograms(heap()->isolate());
   HeapObjectIterator obj_it(this);
   for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next())
     CollectHistogramInfo(obj);
-  ReportHistogram(true);
+  ReportHistogram(heap()->isolate(), true);
 }
 #endif
 
@@ -3160,7 +3156,7 @@ void LargeObjectSpace::Print() {
 void LargeObjectSpace::ReportStatistics() {
   PrintF("  size: %" V8_PTR_PREFIX "d\n", size_);
   int num_objects = 0;
-  ClearHistograms();
+  ClearHistograms(heap()->isolate());
   LargeObjectIterator it(this);
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
     num_objects++;
@@ -3169,7 +3165,7 @@ void LargeObjectSpace::ReportStatistics() {
 
   PrintF("  number of objects %d, "
          "size of objects %" V8_PTR_PREFIX "d\n", num_objects, objects_size_);
-  if (num_objects > 0) ReportHistogram(false);
+  if (num_objects > 0) ReportHistogram(heap()->isolate(), false);
 }
 
 

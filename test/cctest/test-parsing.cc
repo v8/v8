@@ -313,9 +313,10 @@ TEST(StandAlonePreParserNoNatives) {
 
 TEST(RegressChromium62639) {
   v8::V8::Initialize();
+  i::Isolate* isolate = i::Isolate::Current();
 
   int marker;
-  i::Isolate::Current()->stack_guard()->SetStackLimit(
+  isolate->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   const char* program = "var x = 'something';\n"
@@ -328,7 +329,7 @@ TEST(RegressChromium62639) {
   i::Utf8ToUtf16CharacterStream stream(
       reinterpret_cast<const i::byte*>(program),
       static_cast<unsigned>(strlen(program)));
-  i::ScriptDataImpl* data = i::PreParserApi::PreParse(&stream);
+  i::ScriptDataImpl* data = i::PreParserApi::PreParse(isolate, &stream);
   CHECK(data->HasError());
   delete data;
 }
@@ -355,7 +356,7 @@ TEST(Regress928) {
   i::Handle<i::String> source(
       factory->NewStringFromAscii(i::CStrVector(program)));
   i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
-  i::ScriptDataImpl* data = i::PreParserApi::PreParse(&stream);
+  i::ScriptDataImpl* data = i::PreParserApi::PreParse(isolate, &stream);
   CHECK(!data->HasError());
 
   data->Initialize();

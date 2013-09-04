@@ -25,12 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 
 #include "v8.h"
 #include "debug.h"
 #include "debug-agent.h"
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
+#include "platform/socket.h"
 
 namespace v8 {
 namespace internal {
@@ -41,6 +41,27 @@ void DebuggerAgentMessageHandler(const v8::Debug::Message& message) {
   DebuggerAgent* agent = Isolate::Current()->debugger_agent_instance();
   ASSERT(agent != NULL);
   agent->DebuggerMessage(message);
+}
+
+
+DebuggerAgent::DebuggerAgent(Isolate* isolate, const char* name, int port)
+  : Thread(name),
+    isolate_(isolate),
+    name_(StrDup(name)),
+    port_(port),
+    server_(new Socket),
+    terminate_(false),
+    session_(NULL),
+    terminate_now_(0),
+    listening_(0) {
+  ASSERT(isolate_->debugger_agent_instance() == NULL);
+  isolate_->set_debugger_agent_instance(this);
+}
+
+
+DebuggerAgent::~DebuggerAgent() {
+  isolate_->set_debugger_agent_instance(NULL);
+  delete server_;
 }
 
 
@@ -112,8 +133,10 @@ void DebuggerAgent::CreateSession(Socket* client) {
 
   // If another session is already established terminate this one.
   if (session_ != NULL) {
-    client->Send(kCreateSessionMessage, StrLength(kCreateSessionMessage));
+    int len = StrLength(kCreateSessionMessage);
+    int res = client->Send(kCreateSessionMessage, len);
     delete client;
+    USE(res);
     return;
   }
 
@@ -228,7 +251,7 @@ void DebuggerAgentSession::Shutdown() {
 const char* const DebuggerAgentUtil::kContentLength = "Content-Length";
 
 
-SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
+SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(Socket* conn) {
   int received;
 
   // Read header.
@@ -245,7 +268,7 @@ SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
       prev_c = c;
       received = conn->Receive(&c, 1);
       if (received == 0) {
-        PrintF("Error %d\n", Socket::LastError());
+        PrintF("Error %d\n", Socket::GetLastError());
         return SmartArrayPointer<char>();
       }
 
@@ -307,7 +330,7 @@ SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
   char* buffer = NewArray<char>(content_length + 1);
   received = ReceiveAll(conn, buffer, content_length);
   if (received < content_length) {
-    PrintF("Error %d\n", Socket::LastError());
+    PrintF("Error %d\n", Socket::GetLastError());
     return SmartArrayPointer<char>();
   }
   buffer[content_length] = '\0';
@@ -316,7 +339,7 @@ SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
 }
 
 
-bool DebuggerAgentUtil::SendConnectMessage(const Socket* conn,
+bool DebuggerAgentUtil::SendConnectMessage(Socket* conn,
                                            const char* embedding_host) {
   static const int kBufferSize = 80;
   char buffer[kBufferSize];  // Sending buffer.
@@ -362,7 +385,7 @@ bool DebuggerAgentUtil::SendConnectMessage(const Socket* conn,
 }
 
 
-bool DebuggerAgentUtil::SendMessage(const Socket* conn,
+bool DebuggerAgentUtil::SendMessage(Socket* conn,
                                     const Vector<uint16_t> message) {
   static const int kBufferSize = 80;
   char buffer[kBufferSize];  // Sending buffer both for header and body.
@@ -377,14 +400,17 @@ bool DebuggerAgentUtil::SendMessage(const Socket* conn,
   }
 
   // Send the header.
-  int len;
-  len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
-                     "%s: %d\r\n", kContentLength, utf8_len);
-  conn->Send(buffer, len);
+  int len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
+                         "%s: %d\r\n", kContentLength, utf8_len);
+  if (conn->Send(buffer, len) < len) {
+    return false;
+  }
 
   // Terminate header with empty line.
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize), "\r\n");
-  conn->Send(buffer, len);
+  if (conn->Send(buffer, len) < len) {
+    return false;
+  }
 
   // Send message body as UTF-8.
   int buffer_position = 0;  // Current buffer position.
@@ -404,13 +430,19 @@ bool DebuggerAgentUtil::SendMessage(const Socket* conn,
         const int kEncodedSurrogateLength =
             unibrow::Utf16::kUtf8BytesToCodeASurrogate;
         ASSERT(buffer_position >= kEncodedSurrogateLength);
-        conn->Send(buffer, buffer_position - kEncodedSurrogateLength);
+        len = buffer_position - kEncodedSurrogateLength;
+        if (conn->Send(buffer, len) < len) {
+          return false;
+        }
         for (int i = 0; i < kEncodedSurrogateLength; i++) {
           buffer[i] = buffer[buffer_position + i];
         }
         buffer_position = kEncodedSurrogateLength;
       } else {
-        conn->Send(buffer, buffer_position);
+        len = buffer_position;
+        if (conn->Send(buffer, len) < len) {
+          return false;
+        }
         buffer_position = 0;
       }
     }
@@ -421,7 +453,7 @@ bool DebuggerAgentUtil::SendMessage(const Socket* conn,
 }
 
 
-bool DebuggerAgentUtil::SendMessage(const Socket* conn,
+bool DebuggerAgentUtil::SendMessage(Socket* conn,
                                     const v8::Handle<v8::String> request) {
   static const int kBufferSize = 80;
   char buffer[kBufferSize];  // Sending buffer both for header and body.
@@ -430,24 +462,30 @@ bool DebuggerAgentUtil::SendMessage(const Socket* conn,
   v8::String::Utf8Value utf8_request(request);
 
   // Send the header.
-  int len;
-  len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
-                     "Content-Length: %d\r\n", utf8_request.length());
-  conn->Send(buffer, len);
+  int len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
+                         "Content-Length: %d\r\n", utf8_request.length());
+  if (conn->Send(buffer, len) < len) {
+    return false;
+  }
 
   // Terminate header with empty line.
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize), "\r\n");
-  conn->Send(buffer, len);
+  if (conn->Send(buffer, len) < len) {
+    return false;
+  }
 
   // Send message body as UTF-8.
-  conn->Send(*utf8_request, utf8_request.length());
+  len = utf8_request.length();
+  if (conn->Send(*utf8_request, len) < len) {
+    return false;
+  }
 
   return true;
 }
 
 
 // Receive the full buffer before returning unless an error occours.
-int DebuggerAgentUtil::ReceiveAll(const Socket* conn, char* data, int len) {
+int DebuggerAgentUtil::ReceiveAll(Socket* conn, char* data, int len) {
   int total_received = 0;
   while (total_received < len) {
     int received = conn->Receive(data + total_received, len - total_received);

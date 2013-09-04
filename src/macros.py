@@ -42,8 +42,8 @@ const SETTER = 1;
 # These definitions must match the index of the properties in objects.h.
 const kApiTagOffset                 = 0;
 const kApiPropertyListOffset        = 1;
-const kApiSerialNumberOffset        = 2;
-const kApiConstructorOffset         = 2;
+const kApiSerialNumberOffset        = 3;
+const kApiConstructorOffset         = 3;
 const kApiPrototypeTemplateOffset   = 5;
 const kApiParentTemplateOffset      = 6;
 const kApiFlagOffset                = 14;

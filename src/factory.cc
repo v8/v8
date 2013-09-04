@@ -130,7 +130,8 @@ Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
                                                     int slack) {
   ASSERT(0 <= number_of_descriptors);
   CALL_HEAP_FUNCTION(isolate(),
-                     DescriptorArray::Allocate(number_of_descriptors, slack),
+                     DescriptorArray::Allocate(
+                         isolate(), number_of_descriptors, slack),
                      DescriptorArray);
 }
 
@@ -806,7 +807,7 @@ Handle<String> Factory::EmergencyNewError(const char* message,
       *p++ = ' ';
       space--;
       if (space > 0) {
-        MaybeObject* maybe_arg = args->GetElement(i);
+        MaybeObject* maybe_arg = args->GetElement(isolate(), i);
         Handle<String> arg_str(reinterpret_cast<String*>(maybe_arg));
         const char* arg = *arg_str->ToCString();
         Vector<char> v2(p, static_cast<int>(space));
@@ -1321,7 +1322,7 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
 
 
 Handle<Object> Factory::ToObject(Handle<Object> object) {
-  CALL_HEAP_FUNCTION(isolate(), object->ToObject(), Object);
+  CALL_HEAP_FUNCTION(isolate(), object->ToObject(isolate()), Object);
 }
 
 
@@ -1460,15 +1461,29 @@ Handle<JSFunction> Factory::CreateApiFunction(
   result->shared()->set_construct_stub(*construct_stub);
   result->shared()->DontAdaptArguments();
 
-  // Recursively copy parent templates' accessors, 'data' may be modified.
+  // Recursively copy parent instance templates' accessors,
+  // 'data' may be modified.
   int max_number_of_additional_properties = 0;
+  int max_number_of_static_properties = 0;
   FunctionTemplateInfo* info = *obj;
   while (true) {
-    Object* props = info->property_accessors();
-    if (!props->IsUndefined()) {
-      Handle<Object> props_handle(props, isolate());
-      NeanderArray props_array(props_handle);
-      max_number_of_additional_properties += props_array.length();
+    if (!info->instance_template()->IsUndefined()) {
+      Object* props =
+          ObjectTemplateInfo::cast(
+              info->instance_template())->property_accessors();
+      if (!props->IsUndefined()) {
+        Handle<Object> props_handle(props, isolate());
+        NeanderArray props_array(props_handle);
+        max_number_of_additional_properties += props_array.length();
+      }
+    }
+    if (!info->property_accessors()->IsUndefined()) {
+      Object* props = info->property_accessors();
+      if (!props->IsUndefined()) {
+        Handle<Object> props_handle(props, isolate());
+        NeanderArray props_array(props_handle);
+        max_number_of_static_properties += props_array.length();
+      }
     }
     Object* parent = info->parent_template();
     if (parent->IsUndefined()) break;
@@ -1477,15 +1492,42 @@ Handle<JSFunction> Factory::CreateApiFunction(
 
   Map::EnsureDescriptorSlack(map, max_number_of_additional_properties);
 
+  // Use a temporary FixedArray to acculumate static accessors
+  int valid_descriptors = 0;
+  Handle<FixedArray> array;
+  if (max_number_of_static_properties > 0) {
+    array = NewFixedArray(max_number_of_static_properties);
+  }
+
   while (true) {
-    Handle<Object> props = Handle<Object>(obj->property_accessors(),
-                                          isolate());
-    if (!props->IsUndefined()) {
-      Map::AppendCallbackDescriptors(map, props);
+    // Install instance descriptors
+    if (!obj->instance_template()->IsUndefined()) {
+      Handle<ObjectTemplateInfo> instance =
+          Handle<ObjectTemplateInfo>(
+              ObjectTemplateInfo::cast(obj->instance_template()), isolate());
+      Handle<Object> props = Handle<Object>(instance->property_accessors(),
+                                            isolate());
+      if (!props->IsUndefined()) {
+        Map::AppendCallbackDescriptors(map, props);
+      }
     }
+    // Accumulate static accessors
+    if (!obj->property_accessors()->IsUndefined()) {
+      Handle<Object> props = Handle<Object>(obj->property_accessors(),
+                                            isolate());
+      valid_descriptors =
+          AccessorInfo::AppendUnique(props, array, valid_descriptors);
+    }
+    // Climb parent chain
     Handle<Object> parent = Handle<Object>(obj->parent_template(), isolate());
     if (parent->IsUndefined()) break;
     obj = Handle<FunctionTemplateInfo>::cast(parent);
+  }
+
+  // Install accumulated static accessors
+  for (int i = 0; i < valid_descriptors; i++) {
+    Handle<AccessorInfo> accessor(AccessorInfo::cast(array->get(i)));
+    JSObject::SetAccessor(result, accessor);
   }
 
   ASSERT(result->shared()->IsApiFunction());

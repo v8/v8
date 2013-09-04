@@ -1,3 +1,10 @@
+2013-09-04: Version 3.21.10
+
+        Fixed Eternal::IsEmpty logic (issue 2870).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-03: Version 3.21.9
 
         Deprecated Persistent functions which were marked to be deprecated.

@@ -333,8 +333,9 @@ int main(int argc, char** argv) {
     exit(1);
   }
 #endif
-  i::Serializer::Enable();
   Isolate* isolate = Isolate::GetCurrent();
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Serializer::Enable(internal_isolate);
   Persistent<Context> context;
   {
     HandleScope handle_scope(isolate);
@@ -391,7 +392,7 @@ int main(int argc, char** argv) {
   // Make sure all builtin scripts are cached.
   { HandleScope scope(isolate);
     for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
-      i::Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
+      internal_isolate->bootstrapper()->NativesSourceLookup(i);
     }
   }
   // If we don't do this then we end up with a stray root pointing at the
@@ -402,10 +403,11 @@ int main(int argc, char** argv) {
   CppByteSink sink(argv[1]);
   // This results in a somewhat smaller snapshot, probably because it gets rid
   // of some things that are cached between garbage collections.
-  i::StartupSerializer ser(&sink);
+  i::StartupSerializer ser(internal_isolate, &sink);
   ser.SerializeStrongReferences();
 
-  i::PartialSerializer partial_ser(&ser, sink.partial_sink());
+  i::PartialSerializer partial_ser(
+      internal_isolate, &ser, sink.partial_sink());
   partial_ser.Serialize(&raw_context);
 
   ser.SerializeWeakReferences();

@@ -240,7 +240,7 @@ DEFINE_bool(use_range, true, "use hydrogen range analysis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
-DEFINE_bool(use_escape_analysis, true, "use hydrogen escape analysis")
+DEFINE_bool(use_escape_analysis, false, "use hydrogen escape analysis")
 DEFINE_bool(use_allocation_folding, true, "use allocation folding")
 DEFINE_int(max_inlining_levels, 5, "maximum number of inlining levels")
 DEFINE_int(max_inlined_source_size, 600,
@@ -331,6 +331,8 @@ DEFINE_int(concurrent_recompilation_queue_length, 8,
            "the length of the concurrent compilation queue")
 DEFINE_int(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
+DEFINE_bool(concurrent_osr, false,
+            "concurrent on-stack replacement")
 
 DEFINE_bool(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
@@ -455,16 +457,8 @@ DEFINE_bool(compilation_cache, true, "enable compilation cache")
 DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
 
 // cpu-profiler.cc
-#if defined(ANDROID)
-// Phones and tablets have processors that are much slower than desktop
-// and laptop computers for which current heuristics are tuned.
-#define DEFAULT_INTERVAL 5000
-#else
-#define DEFAULT_INTERVAL 1000
-#endif
-DEFINE_int(cpu_profiler_sampling_interval, DEFAULT_INTERVAL,
+DEFINE_int(cpu_profiler_sampling_interval, 1000,
            "CPU profiler sampling interval in microseconds")
-#undef DEFAULT_INTERVAL
 
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")

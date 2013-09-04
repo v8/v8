@@ -1436,8 +1436,8 @@ class Object : public MaybeObject {
 
   inline bool HasSpecificClassOf(String* name);
 
-  MUST_USE_RESULT MaybeObject* ToObject();             // ECMA-262 9.9.
-  bool BooleanValue();                                 // ECMA-262 9.2.
+  MUST_USE_RESULT MaybeObject* ToObject(Isolate* isolate);  // ECMA-262 9.9.
+  bool BooleanValue();                                      // ECMA-262 9.2.
 
   // Convert to a JSObject if needed.
   // native_context is used when creating wrapper object.
@@ -1459,7 +1459,8 @@ class Object : public MaybeObject {
       Name* key,
       PropertyAttributes* attributes);
 
-  static Handle<Object> GetProperty(Handle<Object> object, Handle<Name> key);
+  static Handle<Object> GetProperty(Handle<Object> object,
+                                    Handle<Name> key);
   static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Object> receiver,
                                     LookupResult* result,
@@ -1481,11 +1482,15 @@ class Object : public MaybeObject {
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSReceiver* getter);
 
-  static Handle<Object> GetElement(Handle<Object> object, uint32_t index);
-  MUST_USE_RESULT inline MaybeObject* GetElement(uint32_t index);
+  static Handle<Object> GetElement(Isolate* isolate,
+                                   Handle<Object> object,
+                                   uint32_t index);
+  MUST_USE_RESULT inline MaybeObject* GetElement(Isolate* isolate,
+                                                 uint32_t index);
   // For use when we know that no exception can be thrown.
-  inline Object* GetElementNoExceptionThrown(uint32_t index);
-  MUST_USE_RESULT MaybeObject* GetElementWithReceiver(Object* receiver,
+  inline Object* GetElementNoExceptionThrown(Isolate* isolate, uint32_t index);
+  MUST_USE_RESULT MaybeObject* GetElementWithReceiver(Isolate* isolate,
+                                                      Object* receiver,
                                                       uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
@@ -3181,7 +3186,8 @@ class DescriptorArray: public FixedArray {
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors,
+  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
+                                               int number_of_descriptors,
                                                int slack = 0);
 
   // Casting.
@@ -4807,21 +4813,19 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [type_feedback_info]: Struct containing type feedback information for
-  // unoptimized code. Optimized code can temporarily store the head of
-  // the list of code to be deoptimized during mark-compact GC.
-  // STUBs can use this slot to store arbitrary information as a Smi.
-  // Will contain either a TypeFeedbackInfo object, or JSFunction object,
-  // or undefined, or a Smi.
+  // [type_feedback_info]: This field stores various things, depending on the
+  // kind of the code object.
+  //   FUNCTION           => type feedback information.
+  //   STUB               => various things, e.g. a SMI
+  //   OPTIMIZED_FUNCTION => the next_code_link for optimized code list.
   DECL_ACCESSORS(type_feedback_info, Object)
   inline void InitializeTypeFeedbackInfoNoWriteBarrier(Object* value);
   inline int stub_info();
   inline void set_stub_info(int info);
 
-  // Used during GC to code a list of code objects to deoptimize.
-  inline Object* code_to_deoptimize_link();
-  inline void set_code_to_deoptimize_link(Object* value);
-  inline Object** code_to_deoptimize_link_slot();
+  // [next_code_link]: Link for lists of optimized or deoptimized code.
+  // Note that storage for this field is overlapped with typefeedback_info.
+  DECL_ACCESSORS(next_code_link, Object)
 
   // [gc_metadata]: Field used to hold GC related metadata. The contents of this
   // field does not have to be traced during garbage collection since
@@ -5101,6 +5105,8 @@ class Code: public HeapObject {
   void ClearInlineCaches();
   void ClearTypeFeedbackCells(Heap* heap);
 
+  BailoutId TranslatePcOffsetToAstId(uint32_t pc_offset);
+
 #define DECLARE_CODE_AGE_ENUM(X) k##X##CodeAge,
   enum Age {
     kNoAge = 0,
@@ -5140,6 +5146,7 @@ class Code: public HeapObject {
       kHandlerTableOffset + kPointerSize;
   static const int kTypeFeedbackInfoOffset =
       kDeoptimizationDataOffset + kPointerSize;
+  static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset;  // Shared.
   static const int kGCMetadataOffset = kTypeFeedbackInfoOffset + kPointerSize;
   static const int kICAgeOffset =
       kGCMetadataOffset + kPointerSize;
@@ -7013,8 +7020,10 @@ class JSFunction: public JSObject {
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
 
-  // [next_function_link]: Field for linking functions. This list is treated as
-  // a weak list by the GC.
+  // [next_function_link]: Links functions into various lists, e.g. the list
+  // of optimized functions hanging off the native_context. The CodeFlusher
+  // uses this link to chain together flushing candidates. Treated weakly
+  // by the garbage collector.
   DECL_ACCESSORS(next_function_link, Object)
 
   // Prints the name of the function using PrintF.
@@ -8719,13 +8728,14 @@ class Relocatable BASE_EMBEDDED {
   virtual void IterateInstance(ObjectVisitor* v) { }
   virtual void PostGarbageCollection() { }
 
-  static void PostGarbageCollectionProcessing();
+  static void PostGarbageCollectionProcessing(Isolate* isolate);
   static int ArchiveSpacePerThread();
   static char* ArchiveState(Isolate* isolate, char* to);
   static char* RestoreState(Isolate* isolate, char* from);
-  static void Iterate(ObjectVisitor* v);
+  static void Iterate(Isolate* isolate, ObjectVisitor* v);
   static void Iterate(ObjectVisitor* v, Relocatable* top);
   static char* Iterate(ObjectVisitor* v, char* t);
+
  private:
   Isolate* isolate_;
   Relocatable* prev_;
@@ -8861,7 +8871,8 @@ class Oddball: public HeapObject {
   DECLARE_VERIFIER(Oddball)
 
   // Initialize the fields.
-  MUST_USE_RESULT MaybeObject* Initialize(const char* to_string,
+  MUST_USE_RESULT MaybeObject* Initialize(Heap* heap,
+                                          const char* to_string,
                                           Object* to_number,
                                           byte kind);
 
@@ -9484,6 +9495,11 @@ class AccessorInfo: public Struct {
   // Dispatched behavior.
   DECLARE_VERIFIER(AccessorInfo)
 
+  // Append all descriptors to the array that are not already there.
+  // Return number added.
+  static int AppendUnique(Handle<Object> descriptors,
+                          Handle<FixedArray> array,
+                          int valid_descriptors);
 
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kFlagOffset = kNameOffset + kPointerSize;
@@ -9790,12 +9806,15 @@ class TemplateInfo: public Struct {
  public:
   DECL_ACCESSORS(tag, Object)
   DECL_ACCESSORS(property_list, Object)
+  DECL_ACCESSORS(property_accessors, Object)
 
   DECLARE_VERIFIER(TemplateInfo)
 
-  static const int kTagOffset          = HeapObject::kHeaderSize;
+  static const int kTagOffset = HeapObject::kHeaderSize;
   static const int kPropertyListOffset = kTagOffset + kPointerSize;
-  static const int kHeaderSize         = kPropertyListOffset + kPointerSize;
+  static const int kPropertyAccessorsOffset =
+      kPropertyListOffset + kPointerSize;
+  static const int kHeaderSize = kPropertyAccessorsOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateInfo);
@@ -9806,7 +9825,6 @@ class FunctionTemplateInfo: public TemplateInfo {
  public:
   DECL_ACCESSORS(serial_number, Object)
   DECL_ACCESSORS(call_code, Object)
-  DECL_ACCESSORS(property_accessors, Object)
   DECL_ACCESSORS(prototype_template, Object)
   DECL_ACCESSORS(parent_template, Object)
   DECL_ACCESSORS(named_property_handler, Object)
@@ -9838,9 +9856,8 @@ class FunctionTemplateInfo: public TemplateInfo {
 
   static const int kSerialNumberOffset = TemplateInfo::kHeaderSize;
   static const int kCallCodeOffset = kSerialNumberOffset + kPointerSize;
-  static const int kPropertyAccessorsOffset = kCallCodeOffset + kPointerSize;
   static const int kPrototypeTemplateOffset =
-      kPropertyAccessorsOffset + kPointerSize;
+      kCallCodeOffset + kPointerSize;
   static const int kParentTemplateOffset =
       kPrototypeTemplateOffset + kPointerSize;
   static const int kNamedPropertyHandlerOffset =

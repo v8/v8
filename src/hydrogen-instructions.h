@@ -2159,7 +2159,7 @@ class HCallConstantFunction V8_FINAL : public HCall<0> {
 
   bool IsApplyFunction() const {
     return function_->code() ==
-        Isolate::Current()->builtins()->builtin(Builtins::kFunctionApply);
+        function_->GetIsolate()->builtins()->builtin(Builtins::kFunctionApply);
   }
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
@@ -2629,7 +2629,7 @@ class HCheckValue V8_FINAL : public HUnaryOperation {
  public:
   static HCheckValue* New(Zone* zone, HValue* context,
                           HValue* value, Handle<JSFunction> target) {
-    bool in_new_space = Isolate::Current()->heap()->InNewSpace(*target);
+    bool in_new_space = zone->isolate()->heap()->InNewSpace(*target);
     HCheckValue* check = new(zone) HCheckValue(value, target, in_new_space);
     return check;
   }

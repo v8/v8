@@ -917,17 +917,17 @@ bool Object::HasSpecificClassOf(String* name) {
 }
 
 
-MaybeObject* Object::GetElement(uint32_t index) {
+MaybeObject* Object::GetElement(Isolate* isolate, uint32_t index) {
   // GetElement can trigger a getter which can cause allocation.
   // This was not always the case. This ASSERT is here to catch
   // leftover incorrect uses.
   ASSERT(AllowHeapAllocation::IsAllowed());
-  return GetElementWithReceiver(this, index);
+  return GetElementWithReceiver(isolate, this, index);
 }
 
 
-Object* Object::GetElementNoExceptionThrown(uint32_t index) {
-  MaybeObject* maybe = GetElementWithReceiver(this, index);
+Object* Object::GetElementNoExceptionThrown(Isolate* isolate, uint32_t index) {
+  MaybeObject* maybe = GetElementWithReceiver(isolate, this, index);
   ASSERT(!maybe->IsFailure());
   Object* result = NULL;  // Initialization to please compiler.
   maybe->ToObject(&result);
@@ -4195,7 +4195,7 @@ static MaybeObject* EnsureHasTransitionArray(Map* map) {
   TransitionArray* transitions;
   MaybeObject* maybe_transitions;
   if (!map->HasTransitionArray()) {
-    maybe_transitions = TransitionArray::Allocate(0);
+    maybe_transitions = TransitionArray::Allocate(map->GetIsolate(), 0);
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
     transitions->set_back_pointer_storage(map->GetBackPointer());
   } else if (!map->transitions()->IsFullTransitionArray()) {
@@ -4466,11 +4466,10 @@ ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
 
 ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
 ACCESSORS(TemplateInfo, property_list, Object, kPropertyListOffset)
+ACCESSORS(TemplateInfo, property_accessors, Object, kPropertyAccessorsOffset)
 
 ACCESSORS(FunctionTemplateInfo, serial_number, Object, kSerialNumberOffset)
 ACCESSORS(FunctionTemplateInfo, call_code, Object, kCallCodeOffset)
-ACCESSORS(FunctionTemplateInfo, property_accessors, Object,
-          kPropertyAccessorsOffset)
 ACCESSORS(FunctionTemplateInfo, prototype_template, Object,
           kPrototypeTemplateOffset)
 ACCESSORS(FunctionTemplateInfo, parent_template, Object, kParentTemplateOffset)
@@ -4840,7 +4839,7 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
 
 bool SharedFunctionInfo::is_compiled() {
   return code() !=
-      Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
+      GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
 }
 
 
@@ -5004,6 +5003,7 @@ void JSFunction::ReplaceCode(Code* code) {
     context()->native_context()->AddOptimizedFunction(this);
   }
   if (was_optimized && !is_optimized) {
+    // TODO(titzer): linear in the number of optimized functions; fix!
     context()->native_context()->RemoveOptimizedFunction(this);
   }
 }
@@ -5266,6 +5266,20 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 }
 
 
+Object* Code::next_code_link() {
+  CHECK(kind() == OPTIMIZED_FUNCTION);
+  return Object::cast(READ_FIELD(this, kTypeFeedbackInfoOffset));
+}
+
+
+void Code::set_next_code_link(Object* value, WriteBarrierMode mode) {
+  CHECK(kind() == OPTIMIZED_FUNCTION);
+  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
+                            value, mode);
+}
+
+
 int Code::stub_info() {
   ASSERT(kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
          kind() == BINARY_OP_IC || kind() == LOAD_IC);
@@ -5284,25 +5298,6 @@ void Code::set_stub_info(int value) {
          kind() == STORE_IC ||
          kind() == KEYED_STORE_IC);
   WRITE_FIELD(this, kTypeFeedbackInfoOffset, Smi::FromInt(value));
-}
-
-
-Object* Code::code_to_deoptimize_link() {
-  // Optimized code should not have type feedback.
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
-  return READ_FIELD(this, kTypeFeedbackInfoOffset);
-}
-
-
-void Code::set_code_to_deoptimize_link(Object* value) {
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
-  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
-}
-
-
-Object** Code::code_to_deoptimize_link_slot() {
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
-  return HeapObject::RawField(this, kTypeFeedbackInfoOffset);
 }
 
 

@@ -61,23 +61,22 @@ class ThreadWithMutexAndConditionVariable V8_FINAL : public Thread {
     LockGuard<Mutex> lock_guard(&mutex_);
     running_ = true;
     cv_.NotifyOne();
-    cv_.Wait(&mutex_);
-    running_ = false;
+    while (running_) {
+      cv_.Wait(&mutex_);
+    }
     finished_ = true;
-    cv_.NotifyOne();
+    cv_.NotifyAll();
   }
 
-  volatile bool running_;
-  volatile bool finished_;
+  bool running_;
+  bool finished_;
   ConditionVariable cv_;
   Mutex mutex_;
 };
 
 
 TEST(MultipleThreadsWithSeparateConditionVariables) {
-  static const int kThreadCount = 16;
-  static const TimeDelta kMaxThreadStartTime =
-      TimeDelta::FromMilliseconds(250) * kThreadCount;
+  static const int kThreadCount = 128;
   ThreadWithMutexAndConditionVariable threads[kThreadCount];
 
   for (int n = 0; n < kThreadCount; ++n) {
@@ -86,7 +85,9 @@ TEST(MultipleThreadsWithSeparateConditionVariables) {
     CHECK(!threads[n].finished_);
     threads[n].Start();
     // Wait for nth thread to start.
-    CHECK(threads[n].cv_.WaitFor(&threads[n].mutex_, kMaxThreadStartTime));
+    while (!threads[n].running_) {
+      threads[n].cv_.Wait(&threads[n].mutex_);
+    }
   }
 
   for (int n = kThreadCount - 1; n >= 0; --n) {
@@ -96,11 +97,25 @@ TEST(MultipleThreadsWithSeparateConditionVariables) {
   }
 
   for (int n = 0; n < kThreadCount; ++n) {
+    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    CHECK(threads[n].running_);
+    CHECK(!threads[n].finished_);
+    // Tell the nth thread to quit.
+    threads[n].running_ = false;
     threads[n].cv_.NotifyOne();
   }
 
   for (int n = kThreadCount - 1; n >= 0; --n) {
     // Wait for nth thread to quit.
+    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    while (!threads[n].finished_) {
+      threads[n].cv_.Wait(&threads[n].mutex_);
+    }
+    CHECK(!threads[n].running_);
+    CHECK(threads[n].finished_);
+  }
+
+  for (int n = 0; n < kThreadCount; ++n) {
     threads[n].Join();
     LockGuard<Mutex> lock_guard(&threads[n].mutex_);
     CHECK(!threads[n].running_);
@@ -109,54 +124,181 @@ TEST(MultipleThreadsWithSeparateConditionVariables) {
 }
 
 
-static int loop_counter = 0;
-static const int kLoopCounterLimit = 100;
+class ThreadWithSharedMutexAndConditionVariable V8_FINAL : public Thread {
+ public:
+  ThreadWithSharedMutexAndConditionVariable()
+      : Thread("ThreadWithSharedMutexAndConditionVariable"),
+        running_(false), finished_(false), cv_(NULL), mutex_(NULL) {}
+  virtual ~ThreadWithSharedMutexAndConditionVariable() {}
+
+  virtual void Run() V8_OVERRIDE {
+    LockGuard<Mutex> lock_guard(mutex_);
+    running_ = true;
+    cv_->NotifyAll();
+    while (running_) {
+      cv_->Wait(mutex_);
+    }
+    finished_ = true;
+    cv_->NotifyAll();
+  }
+
+  bool running_;
+  bool finished_;
+  ConditionVariable* cv_;
+  Mutex* mutex_;
+};
+
+
+TEST(MultipleThreadsWithSharedSeparateConditionVariables) {
+  static const int kThreadCount = 128;
+  ThreadWithSharedMutexAndConditionVariable threads[kThreadCount];
+  ConditionVariable cv;
+  Mutex mutex;
+
+  for (int n = 0; n < kThreadCount; ++n) {
+    threads[n].mutex_ = &mutex;
+    threads[n].cv_ = &cv;
+  }
+
+  // Start all threads.
+  {
+    LockGuard<Mutex> lock_guard(&mutex);
+    for (int n = 0; n < kThreadCount; ++n) {
+      CHECK(!threads[n].running_);
+      CHECK(!threads[n].finished_);
+      threads[n].Start();
+    }
+  }
+
+  // Wait for all threads to start.
+  {
+    LockGuard<Mutex> lock_guard(&mutex);
+    for (int n = kThreadCount - 1; n >= 0; --n) {
+      while (!threads[n].running_) {
+        cv.Wait(&mutex);
+      }
+    }
+  }
+
+  // Make sure that all threads are running.
+  {
+    LockGuard<Mutex> lock_guard(&mutex);
+    for (int n = 0; n < kThreadCount; ++n) {
+      CHECK(threads[n].running_);
+      CHECK(!threads[n].finished_);
+    }
+  }
+
+  // Tell all threads to quit.
+  {
+    LockGuard<Mutex> lock_guard(&mutex);
+    for (int n = kThreadCount - 1; n >= 0; --n) {
+      CHECK(threads[n].running_);
+      CHECK(!threads[n].finished_);
+      // Tell the nth thread to quit.
+      threads[n].running_ = false;
+    }
+    cv.NotifyAll();
+  }
+
+  // Wait for all threads to quit.
+  {
+    LockGuard<Mutex> lock_guard(&mutex);
+    for (int n = 0; n < kThreadCount; ++n) {
+      while (!threads[n].finished_) {
+        cv.Wait(&mutex);
+      }
+    }
+  }
+
+  // Make sure all threads are finished.
+  {
+    LockGuard<Mutex> lock_guard(&mutex);
+    for (int n = kThreadCount - 1; n >= 0; --n) {
+      CHECK(!threads[n].running_);
+      CHECK(threads[n].finished_);
+    }
+  }
+
+  // Join all threads.
+  for (int n = 0; n < kThreadCount; ++n) {
+    threads[n].Join();
+  }
+}
+
 
 class LoopIncrementThread V8_FINAL : public Thread {
  public:
-  LoopIncrementThread(const char* name,
-                      int rem,
+  LoopIncrementThread(int rem,
+                      int* counter,
+                      int limit,
+                      int thread_count,
                       ConditionVariable* cv,
                       Mutex* mutex)
-      : Thread(name), rem_(rem), cv_(cv), mutex_(mutex) {}
-  virtual ~LoopIncrementThread() {}
+      : Thread("LoopIncrementThread"), rem_(rem), counter_(counter),
+        limit_(limit), thread_count_(thread_count), cv_(cv), mutex_(mutex) {
+    CHECK_LT(rem, thread_count);
+    CHECK_EQ(0, limit % thread_count);
+  }
 
   virtual void Run() V8_OVERRIDE {
     int last_count = -1;
     while (true) {
       LockGuard<Mutex> lock_guard(mutex_);
-      int count = loop_counter;
-      while (count % 2 != rem_ && count < kLoopCounterLimit) {
+      int count = *counter_;
+      while (count % thread_count_ != rem_ && count < limit_) {
         cv_->Wait(mutex_);
-        count = loop_counter;
+        count = *counter_;
       }
-      if (count >= kLoopCounterLimit) break;
-      CHECK_EQ(loop_counter, count);
+      if (count >= limit_) break;
+      CHECK_EQ(*counter_, count);
       if (last_count != -1) {
-        CHECK_EQ(last_count + 1, count);
+        CHECK_EQ(last_count + (thread_count_ - 1), count);
       }
       count++;
-      loop_counter = count;
+      *counter_ = count;
       last_count = count;
-      cv_->NotifyOne();
+      cv_->NotifyAll();
     }
   }
 
  private:
   const int rem_;
+  int* counter_;
+  const int limit_;
+  const int thread_count_;
   ConditionVariable* cv_;
   Mutex* mutex_;
 };
 
 
 TEST(LoopIncrement) {
+  static const int kMaxThreadCount = 16;
   Mutex mutex;
   ConditionVariable cv;
-  LoopIncrementThread t0("t0", 0, &cv, &mutex);
-  LoopIncrementThread t1("t1", 1, &cv, &mutex);
-  t0.Start();
-  t1.Start();
-  t0.Join();
-  t1.Join();
-  CHECK_EQ(kLoopCounterLimit, loop_counter);
+  for (int thread_count = 1; thread_count < kMaxThreadCount; ++thread_count) {
+    int limit = thread_count * 100;
+    int counter = 0;
+
+    // Setup the threads.
+    Thread** threads = new Thread*[thread_count];
+    for (int n = 0; n < thread_count; ++n) {
+      threads[n] = new LoopIncrementThread(
+          n, &counter, limit, thread_count, &cv, &mutex);
+    }
+
+    // Start all threads.
+    for (int n = thread_count - 1; n >= 0; --n) {
+      threads[n]->Start();
+    }
+
+    // Join and cleanup all threads.
+    for (int n = 0; n < thread_count; ++n) {
+      threads[n]->Join();
+      delete threads[n];
+    }
+    delete[] threads;
+
+    CHECK_EQ(limit, counter);
+  }
 }

@@ -3668,7 +3668,7 @@ HInstruction* HStringCharFromCode::New(
     Zone* zone, HValue* context, HValue* char_code) {
   if (FLAG_fold_constants && char_code->IsConstant()) {
     HConstant* c_code = HConstant::cast(char_code);
-    Isolate* isolate = Isolate::Current();
+    Isolate* isolate = zone->isolate();
     if (c_code->HasNumberValue()) {
       if (std::isfinite(c_code->DoubleValue())) {
         uint32_t code = c_code->NumberValueAsInteger32() & 0xffff;

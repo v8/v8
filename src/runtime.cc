@@ -4774,10 +4774,10 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
   }
 
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    return object->GetPrototype(isolate)->GetElement(index);
+    return object->GetPrototype(isolate)->GetElement(isolate, index);
   }
 
-  return object->GetElement(index);
+  return object->GetElement(isolate, index);
 }
 
 
@@ -5904,7 +5904,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
     if (index < n) {
       return frame->GetParameter(index);
     } else {
-      return isolate->initial_object_prototype()->GetElement(index);
+      return isolate->initial_object_prototype()->GetElement(isolate, index);
     }
   }
 
@@ -6679,7 +6679,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewStringWrapper) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(String, value, 0);
-  return value->ToObject();
+  return value->ToObject(isolate);
 }
 
 
@@ -7528,7 +7528,7 @@ static Object* FlatStringCompare(String* x, String* y) {
     result = (r < 0) ? Smi::FromInt(LESS) : Smi::FromInt(GREATER);
   }
   ASSERT(result ==
-      StringCharacterStreamCompare(Isolate::Current()->runtime_state(), x, y));
+      StringCharacterStreamCompare(x->GetIsolate()->runtime_state(), x, y));
   return result;
 }
 
@@ -8343,7 +8343,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ConcurrentRecompile) {
   }
   function->shared()->code()->set_profiler_ticks(0);
   ASSERT(FLAG_concurrent_recompilation);
-  Compiler::RecompileConcurrent(function);
+  if (!Compiler::RecompileConcurrent(function)) {
+    function->ReplaceCode(function->shared()->code());
+  }
   return isolate->heap()->undefined_value();
 }
 
@@ -8512,7 +8514,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
       unoptimized->kind() == Code::FUNCTION) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
     if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr"))) {
-      for (int i = 0; i <= Code::kMaxLoopNestingMarker; i++) {
+      // Start patching from the currently patched loop nesting level.
+      int current_level = unoptimized->allow_osr_at_loop_nesting_level();
+      ASSERT(Deoptimizer::VerifyInterruptCode(
+                 isolate, unoptimized, current_level));
+      for (int i = current_level + 1; i <= Code::kMaxLoopNestingMarker; i++) {
         unoptimized->set_allow_osr_at_loop_nesting_level(i);
         isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
       }
@@ -8586,98 +8592,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   // We're not prepared to handle a function with arguments object.
   ASSERT(!function->shared()->uses_arguments());
 
-  // We have hit a back edge in an unoptimized frame for a function that was
-  // selected for on-stack replacement.  Find the unoptimized code object.
-  Handle<Code> unoptimized(function->shared()->code(), isolate);
-  // Keep track of whether we've succeeded in optimizing.
-  bool succeeded = unoptimized->optimizable();
-  if (succeeded) {
-    // If we are trying to do OSR when there are already optimized
-    // activations of the function, it means (a) the function is directly or
-    // indirectly recursive and (b) an optimized invocation has been
-    // deoptimized so that we are currently in an unoptimized activation.
-    // Check for optimized activations of this function.
-    JavaScriptFrameIterator it(isolate);
-    while (succeeded && !it.done()) {
-      JavaScriptFrame* frame = it.frame();
-      succeeded = !frame->is_optimized() || frame->function() != *function;
-      it.Advance();
-    }
-  }
-
-  BailoutId ast_id = BailoutId::None();
-  if (succeeded) {
-    // The top JS function is this one, the PC is somewhere in the
-    // unoptimized code.
-    JavaScriptFrameIterator it(isolate);
-    JavaScriptFrame* frame = it.frame();
-    ASSERT(frame->function() == *function);
-    ASSERT(frame->LookupCode() == *unoptimized);
-    ASSERT(unoptimized->contains(frame->pc()));
-
-    // Use linear search of the unoptimized code's back edge table to find
-    // the AST id matching the PC.
-    uint32_t target_pc_offset =
-      static_cast<uint32_t>(frame->pc() - unoptimized->instruction_start());
-    uint32_t loop_depth = 0;
-
-    for (FullCodeGenerator::BackEdgeTableIterator back_edges(*unoptimized);
-         !back_edges.Done();
-         back_edges.Next()) {
-      if (back_edges.pc_offset() == target_pc_offset) {
-        ast_id = back_edges.ast_id();
-        loop_depth = back_edges.loop_depth();
-        break;
-      }
-    }
-    ASSERT(!ast_id.IsNone());
-
-    if (FLAG_trace_osr) {
-      PrintF("[replacing on-stack at AST id %d, loop depth %d in ",
-              ast_id.ToInt(), loop_depth);
-      function->PrintName();
-      PrintF("]\n");
-    }
-
-    // Try to compile the optimized code.  A true return value from
-    // CompileOptimized means that compilation succeeded, not necessarily
-    // that optimization succeeded.
-    if (JSFunction::CompileOptimized(function, ast_id, CLEAR_EXCEPTION) &&
-        function->IsOptimized()) {
-      DeoptimizationInputData* data = DeoptimizationInputData::cast(
-          function->code()->deoptimization_data());
-      if (data->OsrPcOffset()->value() >= 0) {
-        if (FLAG_trace_osr) {
-          PrintF("[on-stack replacement offset %d in optimized code]\n",
-               data->OsrPcOffset()->value());
-        }
-        ASSERT(BailoutId(data->OsrAstId()->value()) == ast_id);
-      } else {
-        // We may never generate the desired OSR entry if we emit an
-        // early deoptimize.
-        succeeded = false;
-      }
-    } else {
-      succeeded = false;
-    }
-  }
-
-  // Revert to the original interrupt calls in the original unoptimized code.
-  if (FLAG_trace_osr) {
-    PrintF("[restoring original interrupt calls in ");
-    function->PrintName();
-    PrintF("]\n");
-  }
-  Deoptimizer::RevertInterruptCode(isolate, *unoptimized);
-
   // If the optimization attempt succeeded, return the AST id tagged as a
   // smi. This tells the builtin that we need to translate the unoptimized
   // frame to an optimized one.
-  if (succeeded) {
+  BailoutId ast_id =
+      (FLAG_concurrent_recompilation && FLAG_concurrent_osr)
+          ? Compiler::CompileForConcurrentOSR(function)
+          : Compiler::CompileForOnStackReplacement(function);
+  if (!ast_id.IsNone()) {
     ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
     return Smi::FromInt(ast_id.ToInt());
   } else {
-    if (function->IsMarkedForLazyRecompilation()) {
+    if (function->IsMarkedForLazyRecompilation() ||
+        function->IsMarkedForConcurrentRecompilation()) {
       function->ReplaceCode(function->shared()->code());
     }
     return Smi::FromInt(-1);
@@ -8771,7 +8698,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
   }
 
   for (int i = 0; i < argc; ++i) {
-    argv[i] = Object::GetElement(arguments, offset + i);
+    argv[i] = Object::GetElement(isolate, arguments, offset + i);
   }
 
   bool threw;
@@ -8844,7 +8771,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
     extension_object = JSReceiver::cast(args[0]);
   } else {
     // Convert the object to a proper JavaScript object.
-    MaybeObject* maybe_js_object = args[0]->ToObject();
+    MaybeObject* maybe_js_object = args[0]->ToObject(isolate);
     if (!maybe_js_object->To(&extension_object)) {
       if (Failure::cast(maybe_js_object)->IsInternalError()) {
         HandleScope scope(isolate);
@@ -10158,7 +10085,7 @@ static bool IterateElements(Isolate* isolate,
         } else if (receiver->HasElement(j)) {
           // Call GetElement on receiver, not its prototype, or getters won't
           // have the correct receiver.
-          element_value = Object::GetElement(receiver, j);
+          element_value = Object::GetElement(isolate, receiver, j);
           RETURN_IF_EMPTY_HANDLE_VALUE(isolate, element_value, false);
           visitor->visit(j, element_value);
         }
@@ -10183,7 +10110,8 @@ static bool IterateElements(Isolate* isolate,
         } else if (receiver->HasElement(j)) {
           // Call GetElement on receiver, not its prototype, or getters won't
           // have the correct receiver.
-          Handle<Object> element_value = Object::GetElement(receiver, j);
+          Handle<Object> element_value =
+              Object::GetElement(isolate, receiver, j);
           RETURN_IF_EMPTY_HANDLE_VALUE(isolate, element_value, false);
           visitor->visit(j, element_value);
         }
@@ -10202,7 +10130,7 @@ static bool IterateElements(Isolate* isolate,
       while (j < n) {
         HandleScope loop_scope(isolate);
         uint32_t index = indices[j];
-        Handle<Object> element = Object::GetElement(receiver, index);
+        Handle<Object> element = Object::GetElement(isolate, receiver, index);
         RETURN_IF_EMPTY_HANDLE_VALUE(isolate, element, false);
         visitor->visit(index, element);
         // Skip to next different index (i.e., omit duplicates).
@@ -13590,7 +13518,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
   Handle<Name> base =
       isolate->factory()->NewStringFromAscii(CStrVector("base"));
   for (unsigned int i = 0; i < length; ++i) {
-    MaybeObject* maybe_string = input->GetElement(i);
+    MaybeObject* maybe_string = input->GetElement(isolate, i);
     Object* locale_id;
     if (!maybe_string->ToObject(&locale_id) || !locale_id->IsString()) {
       return isolate->Throw(isolate->heap()->illegal_argument_string());

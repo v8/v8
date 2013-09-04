@@ -39,6 +39,8 @@ function g() {
     var o2 = [{ x: 1.5, y: 1 }];
     return o2;
   }
+  // Clear type feedback from previous stress runs.
+  %ClearFunctionTypeFeedback(f);
   return f;
 }
 

@@ -3744,8 +3744,9 @@ bool CompileTimeValue::IsCompileTimeValue(Expression* expression) {
 }
 
 
-Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
-  Factory* factory = Isolate::Current()->factory();
+Handle<FixedArray> CompileTimeValue::GetValue(Isolate* isolate,
+                                              Expression* expression) {
+  Factory* factory = isolate->factory();
   ASSERT(IsCompileTimeValue(expression));
   Handle<FixedArray> result = factory->NewFixedArray(2, TENURED);
   ObjectLiteral* object_literal = expression->AsObjectLiteral();
@@ -3784,7 +3785,7 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
     return expression->AsLiteral()->value();
   }
   if (CompileTimeValue::IsCompileTimeValue(expression)) {
-    return CompileTimeValue::GetValue(expression);
+    return CompileTimeValue::GetValue(isolate(), expression);
   }
   return isolate()->factory()->uninitialized_value();
 }
@@ -5023,7 +5024,7 @@ RegExpParser::RegExpParser(FlatStringReader* in,
                            Handle<String>* error,
                            bool multiline,
                            Zone* zone)
-    : isolate_(Isolate::Current()),
+    : isolate_(zone->isolate()),
       zone_(zone),
       error_(error),
       captures_(NULL),
@@ -5895,9 +5896,9 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 
 
 // Create a Scanner for the preparser to use as input, and preparse the source.
-ScriptDataImpl* PreParserApi::PreParse(Utf16CharacterStream* source) {
+ScriptDataImpl* PreParserApi::PreParse(Isolate* isolate,
+                                       Utf16CharacterStream* source) {
   CompleteParserRecorder recorder;
-  Isolate* isolate = Isolate::Current();
   HistogramTimerScope timer(isolate->counters()->pre_parse());
   Scanner scanner(isolate->unicode_cache());
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
