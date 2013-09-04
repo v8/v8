@@ -768,7 +768,7 @@ TEST(JSArray) {
   // array[length] = name.
   array->SetElement(0, *name, NONE, kNonStrictMode)->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(1), array->length());
-  CHECK_EQ(array->GetElement(0), *name);
+  CHECK_EQ(array->GetElement(isolate, 0), *name);
 
   // Set array length with larger than smi value.
   Handle<Object> length =
@@ -785,8 +785,8 @@ TEST(JSArray) {
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
-  CHECK_EQ(array->GetElement(int_length), *name);
-  CHECK_EQ(array->GetElement(0), *name);
+  CHECK_EQ(array->GetElement(isolate, int_length), *name);
+  CHECK_EQ(array->GetElement(isolate, 0), *name);
 }
 
 
@@ -817,8 +817,8 @@ TEST(JSObjectCopy) {
   Handle<JSObject> clone = Copy(obj);
   CHECK(!clone.is_identical_to(obj));
 
-  CHECK_EQ(obj->GetElement(0), clone->GetElement(0));
-  CHECK_EQ(obj->GetElement(1), clone->GetElement(1));
+  CHECK_EQ(obj->GetElement(isolate, 0), clone->GetElement(isolate, 0));
+  CHECK_EQ(obj->GetElement(isolate, 1), clone->GetElement(isolate, 1));
 
   CHECK_EQ(obj->GetProperty(*first), clone->GetProperty(*first));
   CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*second));
@@ -832,8 +832,8 @@ TEST(JSObjectCopy) {
   clone->SetElement(0, *second, NONE, kNonStrictMode)->ToObjectChecked();
   clone->SetElement(1, *first, NONE, kNonStrictMode)->ToObjectChecked();
 
-  CHECK_EQ(obj->GetElement(1), clone->GetElement(0));
-  CHECK_EQ(obj->GetElement(0), clone->GetElement(1));
+  CHECK_EQ(obj->GetElement(isolate, 1), clone->GetElement(isolate, 0));
+  CHECK_EQ(obj->GetElement(isolate, 0), clone->GetElement(isolate, 1));
 
   CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*first));
   CHECK_EQ(obj->GetProperty(*first), clone->GetProperty(*second));

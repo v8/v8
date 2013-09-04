@@ -691,7 +691,7 @@ class JSArrayBasedStruct {
                         Handle<Smi>(Smi::FromInt(value), isolate()));
   }
   Object* GetField(int field_position) {
-    return array_->GetElementNoExceptionThrown(field_position);
+    return array_->GetElementNoExceptionThrown(isolate(), field_position);
   }
   int GetSmiValueField(int field_position) {
     Object* res = GetField(field_position);
@@ -788,7 +788,8 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
  public:
   static bool IsInstance(Handle<JSArray> array) {
     return array->length() == Smi::FromInt(kSize_) &&
-        array->GetElementNoExceptionThrown(kSharedInfoOffset_)->IsJSValue();
+        array->GetElementNoExceptionThrown(
+            array->GetIsolate(), kSharedInfoOffset_)->IsJSValue();
   }
 
   explicit SharedInfoWrapper(Handle<JSArray> array)
@@ -846,7 +847,8 @@ class FunctionInfoListener {
     HandleScope scope(isolate());
     FunctionInfoWrapper info =
         FunctionInfoWrapper::cast(
-            result_->GetElementNoExceptionThrown(current_parent_index_));
+            result_->GetElementNoExceptionThrown(
+                isolate(), current_parent_index_));
     current_parent_index_ = info.GetParentIndex();
   }
 
@@ -855,7 +857,8 @@ class FunctionInfoListener {
   void FunctionCode(Handle<Code> function_code) {
     FunctionInfoWrapper info =
         FunctionInfoWrapper::cast(
-            result_->GetElementNoExceptionThrown(current_parent_index_));
+            result_->GetElementNoExceptionThrown(
+                isolate(), current_parent_index_));
     info.SetFunctionCode(function_code,
                          Handle<Object>(isolate()->heap()->null_value(),
                                         isolate()));
@@ -870,7 +873,8 @@ class FunctionInfoListener {
     }
     FunctionInfoWrapper info =
         FunctionInfoWrapper::cast(
-            result_->GetElementNoExceptionThrown(current_parent_index_));
+            result_->GetElementNoExceptionThrown(
+                isolate(), current_parent_index_));
     info.SetFunctionCode(Handle<Code>(shared->code()),
                          Handle<Object>(shared->scope_info(), isolate()));
     info.SetSharedFunctionInfo(shared);
@@ -1001,11 +1005,13 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
 
 
 void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
-  HandleScope scope(array->GetIsolate());
+  Isolate* isolate = array->GetIsolate();
+  HandleScope scope(isolate);
   int len = GetArrayLength(array);
   for (int i = 0; i < len; i++) {
     Handle<SharedFunctionInfo> info(
-        SharedFunctionInfo::cast(array->GetElementNoExceptionThrown(i)));
+        SharedFunctionInfo::cast(
+            array->GetElementNoExceptionThrown(array->GetIsolate(), i)));
     SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create();
     Handle<String> name_handle(String::cast(info->name()));
     info_wrapper.SetProperties(name_handle, info->start_position(),
@@ -1360,20 +1366,24 @@ static int TranslatePosition(int original_position,
                              Handle<JSArray> position_change_array) {
   int position_diff = 0;
   int array_len = GetArrayLength(position_change_array);
+  Isolate* isolate = position_change_array->GetIsolate();
   // TODO(635): binary search may be used here
   for (int i = 0; i < array_len; i += 3) {
-    Object* element = position_change_array->GetElementNoExceptionThrown(i);
+    Object* element =
+        position_change_array->GetElementNoExceptionThrown(isolate, i);
     CHECK(element->IsSmi());
     int chunk_start = Smi::cast(element)->value();
     if (original_position < chunk_start) {
       break;
     }
-    element = position_change_array->GetElementNoExceptionThrown(i + 1);
+    element = position_change_array->GetElementNoExceptionThrown(isolate,
+                                                                 i + 1);
     CHECK(element->IsSmi());
     int chunk_end = Smi::cast(element)->value();
     // Position mustn't be inside a chunk.
     ASSERT(original_position >= chunk_end);
-    element = position_change_array->GetElementNoExceptionThrown(i + 2);
+    element = position_change_array->GetElementNoExceptionThrown(isolate,
+                                                                 i + 2);
     CHECK(element->IsSmi());
     int chunk_changed_end = Smi::cast(element)->value();
     position_diff = chunk_changed_end - chunk_end;
@@ -1630,7 +1640,8 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
   Isolate* isolate = shared_info_array->GetIsolate();
   int len = GetArrayLength(shared_info_array);
   for (int i = 0; i < len; i++) {
-    Object* element = shared_info_array->GetElementNoExceptionThrown(i);
+    Object* element =
+        shared_info_array->GetElementNoExceptionThrown(isolate, i);
     CHECK(element->IsJSValue());
     Handle<JSValue> jsvalue(JSValue::cast(element));
     Handle<SharedFunctionInfo> shared =
@@ -1949,7 +1960,7 @@ static const char* DropActivationsInActiveThread(
 
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {
-    if (result->GetElement(i) ==
+    if (result->GetElement(result->GetIsolate(), i) ==
         Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
       Handle<Object> replaced(
           Smi::FromInt(LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK), isolate);

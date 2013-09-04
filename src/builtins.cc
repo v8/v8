@@ -594,7 +594,7 @@ BUILTIN(ArrayPop) {
   if (accessor->HasElement(array, array, new_length, elms_obj)) {
     maybe_result = accessor->Get(array, array, new_length, elms_obj);
   } else {
-    maybe_result = array->GetPrototype()->GetElement(len - 1);
+    maybe_result = array->GetPrototype()->GetElement(isolate, len - 1);
   }
   if (maybe_result->IsFailure()) return maybe_result;
   MaybeObject* maybe_failure =

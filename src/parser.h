@@ -170,7 +170,8 @@ class PreParserApi {
   // This interface is here instead of in preparser.h because it instantiates a
   // preparser recorder object that is suited to the parser's purposes.  Also,
   // the preparser doesn't know about ScriptDataImpl.
-  static ScriptDataImpl* PreParse(Utf16CharacterStream* source);
+  static ScriptDataImpl* PreParse(Isolate* isolate,
+                                  Utf16CharacterStream* source);
 };
 
 
@@ -894,7 +895,7 @@ class CompileTimeValue: public AllStatic {
   static bool IsCompileTimeValue(Expression* expression);
 
   // Get the value as a compile time value.
-  static Handle<FixedArray> GetValue(Expression* expression);
+  static Handle<FixedArray> GetValue(Isolate* isolate, Expression* expression);
 
   // Get the type of a compile time value returned by GetValue().
   static LiteralType GetLiteralType(Handle<FixedArray> value);

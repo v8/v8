@@ -708,7 +708,7 @@ Handle<JSFunction> Execution::InstantiateFunction(
   int serial_number = Smi::cast(data->serial_number())->value();
   Object* elm =
       isolate->native_context()->function_cache()->
-          GetElementNoExceptionThrown(serial_number);
+          GetElementNoExceptionThrown(isolate, serial_number);
   if (elm->IsJSFunction()) return Handle<JSFunction>(JSFunction::cast(elm));
   // The function has not yet been instantiated in this context; do it.
   Handle<Object> args[] = { data };

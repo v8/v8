@@ -1436,8 +1436,8 @@ class Object : public MaybeObject {
 
   inline bool HasSpecificClassOf(String* name);
 
-  MUST_USE_RESULT MaybeObject* ToObject();             // ECMA-262 9.9.
-  bool BooleanValue();                                 // ECMA-262 9.2.
+  MUST_USE_RESULT MaybeObject* ToObject(Isolate* isolate);  // ECMA-262 9.9.
+  bool BooleanValue();                                      // ECMA-262 9.2.
 
   // Convert to a JSObject if needed.
   // native_context is used when creating wrapper object.
@@ -1459,7 +1459,8 @@ class Object : public MaybeObject {
       Name* key,
       PropertyAttributes* attributes);
 
-  static Handle<Object> GetProperty(Handle<Object> object, Handle<Name> key);
+  static Handle<Object> GetProperty(Handle<Object> object,
+                                    Handle<Name> key);
   static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Object> receiver,
                                     LookupResult* result,
@@ -1481,11 +1482,15 @@ class Object : public MaybeObject {
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSReceiver* getter);
 
-  static Handle<Object> GetElement(Handle<Object> object, uint32_t index);
-  MUST_USE_RESULT inline MaybeObject* GetElement(uint32_t index);
+  static Handle<Object> GetElement(Isolate* isolate,
+                                   Handle<Object> object,
+                                   uint32_t index);
+  MUST_USE_RESULT inline MaybeObject* GetElement(Isolate* isolate,
+                                                 uint32_t index);
   // For use when we know that no exception can be thrown.
-  inline Object* GetElementNoExceptionThrown(uint32_t index);
-  MUST_USE_RESULT MaybeObject* GetElementWithReceiver(Object* receiver,
+  inline Object* GetElementNoExceptionThrown(Isolate* isolate, uint32_t index);
+  MUST_USE_RESULT MaybeObject* GetElementWithReceiver(Isolate* isolate,
+                                                      Object* receiver,
                                                       uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).

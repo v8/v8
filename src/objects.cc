@@ -83,23 +83,19 @@ MaybeObject* Object::ToObject(Context* native_context) {
 }
 
 
-MaybeObject* Object::ToObject() {
+MaybeObject* Object::ToObject(Isolate* isolate) {
   if (IsJSReceiver()) {
     return this;
   } else if (IsNumber()) {
-    Isolate* isolate = Isolate::Current();
     Context* native_context = isolate->context()->native_context();
     return CreateJSValue(native_context->number_function(), this);
   } else if (IsBoolean()) {
-    Isolate* isolate = HeapObject::cast(this)->GetIsolate();
     Context* native_context = isolate->context()->native_context();
     return CreateJSValue(native_context->boolean_function(), this);
   } else if (IsString()) {
-    Isolate* isolate = HeapObject::cast(this)->GetIsolate();
     Context* native_context = isolate->context()->native_context();
     return CreateJSValue(native_context->string_function(), this);
   } else if (IsSymbol()) {
-    Isolate* isolate = HeapObject::cast(this)->GetIsolate();
     Context* native_context = isolate->context()->native_context();
     return CreateJSValue(native_context->symbol_function(), this);
   }
@@ -135,7 +131,7 @@ void Object::Lookup(Name* name, LookupResult* result) {
     } else if (IsBoolean()) {
       holder = native_context->boolean_function()->instance_prototype();
     } else {
-      Isolate::Current()->PushStackTraceAndDie(
+      result->isolate()->PushStackTraceAndDie(
           0xDEAD0000, this, JSReceiver::cast(this)->map(), 0xDEAD0001);
     }
   }
@@ -422,24 +418,22 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
 }
 
 
-Handle<Object> Object::GetProperty(Handle<Object> object, Handle<Name> name) {
+Handle<Object> Object::GetProperty(Handle<Object> object,
+                                   Handle<Name> name) {
   // TODO(rossberg): The index test should not be here but in the GetProperty
   // method (or somewhere else entirely). Needs more global clean-up.
   uint32_t index;
+  Isolate* isolate = name->GetIsolate();
   if (name->AsArrayIndex(&index))
-    return GetElement(object, index);
-  Isolate* isolate = object->IsHeapObject()
-      ? Handle<HeapObject>::cast(object)->GetIsolate()
-      : Isolate::Current();
+    return GetElement(isolate, object, index);
   CALL_HEAP_FUNCTION(isolate, object->GetProperty(*name), Object);
 }
 
 
-Handle<Object> Object::GetElement(Handle<Object> object, uint32_t index) {
-  Isolate* isolate = object->IsHeapObject()
-      ? Handle<HeapObject>::cast(object)->GetIsolate()
-      : Isolate::Current();
-  CALL_HEAP_FUNCTION(isolate, object->GetElement(index), Object);
+Handle<Object> Object::GetElement(Isolate* isolate,
+                                  Handle<Object> object,
+                                  uint32_t index) {
+  CALL_HEAP_FUNCTION(isolate, object->GetElement(isolate, index), Object);
 }
 
 
@@ -801,9 +795,7 @@ Handle<Object> Object::GetProperty(Handle<Object> object,
                                    LookupResult* result,
                                    Handle<Name> key,
                                    PropertyAttributes* attributes) {
-  Isolate* isolate = object->IsHeapObject()
-      ? Handle<HeapObject>::cast(object)->GetIsolate()
-      : Isolate::Current();
+  Isolate* isolate = result->isolate();
   CALL_HEAP_FUNCTION(
       isolate,
       object->GetProperty(*receiver, result, *key, attributes),
@@ -816,9 +808,7 @@ MaybeObject* Object::GetPropertyOrFail(Handle<Object> object,
                                        LookupResult* result,
                                        Handle<Name> key,
                                        PropertyAttributes* attributes) {
-  Isolate* isolate = object->IsHeapObject()
-      ? Handle<HeapObject>::cast(object)->GetIsolate()
-      : Isolate::Current();
+  Isolate* isolate = result->isolate();
   CALL_HEAP_FUNCTION_PASS_EXCEPTION(
       isolate,
       object->GetProperty(*receiver, result, *key, attributes));
@@ -910,10 +900,9 @@ MaybeObject* Object::GetProperty(Object* receiver,
 }
 
 
-MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
-  Isolate* isolate = IsSmi()
-      ? Isolate::Current()
-      : HeapObject::cast(this)->GetIsolate();
+MaybeObject* Object::GetElementWithReceiver(Isolate* isolate,
+                                            Object* receiver,
+                                            uint32_t index) {
   Heap* heap = isolate->heap();
   Object* holder = this;
 
@@ -4067,7 +4056,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   PropertyAttributes old_attributes = ABSENT;
   bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
   if (is_observed && lookup.IsProperty()) {
-    if (lookup.IsDataProperty()) old_value = Object::GetProperty(self, name);
+    if (lookup.IsDataProperty()) old_value =
+        Object::GetProperty(self, name);
     old_attributes = lookup.GetAttributes();
   }
 
@@ -5093,7 +5083,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
     if (should_enqueue_change_record) {
       old_value = object->GetLocalElementAccessorPair(index) != NULL
           ? Handle<Object>::cast(factory->the_hole_value())
-          : Object::GetElement(object, index);
+          : Object::GetElement(isolate, object, index);
     }
   }
 
@@ -6129,7 +6119,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
     if (is_element) {
       preexists = object->HasLocalElement(index);
       if (preexists && object->GetLocalElementAccessorPair(index) == NULL) {
-        old_value = Object::GetElement(object, index);
+        old_value = Object::GetElement(isolate, object, index);
       }
     } else {
       LookupResult lookup(isolate);
@@ -10965,7 +10955,7 @@ static bool GetOldValue(Isolate* isolate,
   ASSERT(attributes != ABSENT);
   if (attributes == DONT_DELETE) return false;
   old_values->Add(object->GetLocalElementAccessorPair(index) == NULL
-      ? Object::GetElement(object, index)
+      ? Object::GetElement(isolate, object, index)
       : Handle<Object>::cast(isolate->factory()->the_hole_value()));
   indices->Add(index);
   return true;
@@ -12205,7 +12195,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
 
   if (old_attributes != ABSENT) {
     if (self->GetLocalElementAccessorPair(index) == NULL)
-      old_value = Object::GetElement(self, index);
+      old_value = Object::GetElement(isolate, self, index);
   } else if (self->IsJSArray()) {
     // Store old array length in case adding an element grows the array.
     old_length_handle = handle(Handle<JSArray>::cast(self)->length(), isolate);
@@ -12247,7 +12237,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   } else if (old_value->IsTheHole()) {
     EnqueueChangeRecord(self, "reconfigured", name, old_value);
   } else {
-    Handle<Object> new_value = Object::GetElement(self, index);
+    Handle<Object> new_value = Object::GetElement(isolate, self, index);
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();
@@ -12575,7 +12565,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
 
   Object* pt = holder_handle->GetPrototype();
   if (pt == heap->null_value()) return heap->undefined_value();
-  return pt->GetElementWithReceiver(*this_handle, index);
+  return pt->GetElementWithReceiver(isolate, *this_handle, index);
 }
 
 

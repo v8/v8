@@ -501,7 +501,7 @@ void JSDate::JSDateVerify() {
   }
   if (cache_stamp()->IsSmi()) {
     CHECK(Smi::cast(cache_stamp())->value() <=
-          Smi::cast(Isolate::Current()->date_cache()->stamp())->value());
+          Smi::cast(GetIsolate()->date_cache()->stamp())->value());
   }
 }
 

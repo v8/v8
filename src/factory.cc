@@ -806,7 +806,7 @@ Handle<String> Factory::EmergencyNewError(const char* message,
       *p++ = ' ';
       space--;
       if (space > 0) {
-        MaybeObject* maybe_arg = args->GetElement(i);
+        MaybeObject* maybe_arg = args->GetElement(isolate(), i);
         Handle<String> arg_str(reinterpret_cast<String*>(maybe_arg));
         const char* arg = *arg_str->ToCString();
         Vector<char> v2(p, static_cast<int>(space));
@@ -1321,7 +1321,7 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
 
 
 Handle<Object> Factory::ToObject(Handle<Object> object) {
-  CALL_HEAP_FUNCTION(isolate(), object->ToObject(), Object);
+  CALL_HEAP_FUNCTION(isolate(), object->ToObject(isolate()), Object);
 }
 
 

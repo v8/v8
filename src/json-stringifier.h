@@ -602,12 +602,12 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArraySlow(
     Handle<JSArray> object, int length) {
   for (int i = 0; i < length; i++) {
     if (i > 0) Append(',');
-    Handle<Object> element = Object::GetElement(object, i);
+    Handle<Object> element = Object::GetElement(isolate_, object, i);
     RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, element, EXCEPTION);
     if (element->IsUndefined()) {
       AppendAscii("null");
     } else {
-      Result result = SerializeElement(object->GetIsolate(), element, i);
+      Result result = SerializeElement(isolate_, element, i);
       if (result == SUCCESS) continue;
       if (result == UNCHANGED) {
         AppendAscii("null");
@@ -678,9 +678,10 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
         key_handle = factory_->NumberToString(Handle<Object>(key, isolate_));
         uint32_t index;
         if (key->IsSmi()) {
-          property = Object::GetElement(object, Smi::cast(key)->value());
+          property = Object::GetElement(
+              isolate_, object, Smi::cast(key)->value());
         } else if (key_handle->AsArrayIndex(&index)) {
-          property = Object::GetElement(object, index);
+          property = Object::GetElement(isolate_, object, index);
         } else {
           property = GetProperty(isolate_, object, key_handle);
         }

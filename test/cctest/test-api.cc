@@ -15006,10 +15006,19 @@ THREADED_TEST(Regress16276) {
   CHECK_EQ(42, CompileRun("f(this).foo")->Int32Value());
 }
 
+static void CheckElementValue(i::Isolate* isolate,
+                              int expected,
+                              i::Handle<i::Object> obj,
+                              int offset) {
+  i::Object* element = obj->GetElement(isolate, offset)->ToObjectChecked();
+  CHECK_EQ(expected, i::Smi::cast(element)->value());
+}
+
 
 THREADED_TEST(PixelArray) {
   LocalContext context;
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Isolate* isolate = i::Isolate::Current();
+  i::Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
@@ -15035,7 +15044,7 @@ THREADED_TEST(PixelArray) {
   // Set the elements to be the pixels.
   // jsobj->set_elements(*pixels);
   obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
-  CHECK_EQ(1, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 1, jsobj, 1);
   obj->Set(v8_str("field"), v8::Int32::New(1503));
   context->Global()->Set(v8_str("pixels"), obj);
   v8::Handle<v8::Value> result = CompileRun("pixels.field");
@@ -15092,40 +15101,33 @@ THREADED_TEST(PixelArray) {
       i::JSObject::SetElement(jsobj, 1, value, NONE, i::kNonStrictMode);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
-  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 2, jsobj, 1);
   *value.location() = i::Smi::FromInt(256);
   no_failure =
       i::JSObject::SetElement(jsobj, 1, value, NONE, i::kNonStrictMode);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
-  CHECK_EQ(255,
-           i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 255, jsobj, 1);
   *value.location() = i::Smi::FromInt(-1);
   no_failure =
       i::JSObject::SetElement(jsobj, 1, value, NONE, i::kNonStrictMode);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 0, jsobj, 1);
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[i] = (i * 65) - 109;"
                       "}"
                       "pixels[1] + pixels[6];");
   CHECK_EQ(255, result->Int32Value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(0)->ToObjectChecked())->value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
-  CHECK_EQ(21,
-           i::Smi::cast(jsobj->GetElement(2)->ToObjectChecked())->value());
-  CHECK_EQ(86,
-           i::Smi::cast(jsobj->GetElement(3)->ToObjectChecked())->value());
-  CHECK_EQ(151,
-           i::Smi::cast(jsobj->GetElement(4)->ToObjectChecked())->value());
-  CHECK_EQ(216,
-           i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
-  CHECK_EQ(255,
-           i::Smi::cast(jsobj->GetElement(6)->ToObjectChecked())->value());
-  CHECK_EQ(255,
-           i::Smi::cast(jsobj->GetElement(7)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 0, jsobj, 0);
+  CheckElementValue(isolate, 0, jsobj, 1);
+  CheckElementValue(isolate, 21, jsobj, 2);
+  CheckElementValue(isolate, 86, jsobj, 3);
+  CheckElementValue(isolate, 151, jsobj, 4);
+  CheckElementValue(isolate, 216, jsobj, 5);
+  CheckElementValue(isolate, 255, jsobj, 6);
+  CheckElementValue(isolate, 255, jsobj, 7);
   result = CompileRun("var sum = 0;"
                       "for (var i = 0; i < 8; i++) {"
                       "  sum += pixels[i];"
@@ -15138,50 +15140,49 @@ THREADED_TEST(PixelArray) {
                       "}"
                       "pixels[1] + pixels[6];");
   CHECK_EQ(8, result->Int32Value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(0)->ToObjectChecked())->value());
-  CHECK_EQ(1, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
-  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(2)->ToObjectChecked())->value());
-  CHECK_EQ(3, i::Smi::cast(jsobj->GetElement(3)->ToObjectChecked())->value());
-  CHECK_EQ(4, i::Smi::cast(jsobj->GetElement(4)->ToObjectChecked())->value());
-  CHECK_EQ(6, i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
-  CHECK_EQ(7, i::Smi::cast(jsobj->GetElement(6)->ToObjectChecked())->value());
-  CHECK_EQ(8, i::Smi::cast(jsobj->GetElement(7)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 0, jsobj, 0);
+  CheckElementValue(isolate, 1, jsobj, 1);
+  CheckElementValue(isolate, 2, jsobj, 2);
+  CheckElementValue(isolate, 3, jsobj, 3);
+  CheckElementValue(isolate, 4, jsobj, 4);
+  CheckElementValue(isolate, 6, jsobj, 5);
+  CheckElementValue(isolate, 7, jsobj, 6);
+  CheckElementValue(isolate, 8, jsobj, 7);
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[7] = undefined;"
                       "}"
                       "pixels[7];");
   CHECK_EQ(0, result->Int32Value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(7)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 0, jsobj, 7);
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[6] = '2.3';"
                       "}"
                       "pixels[6];");
   CHECK_EQ(2, result->Int32Value());
-  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(6)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 2, jsobj, 6);
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[5] = NaN;"
                       "}"
                       "pixels[5];");
   CHECK_EQ(0, result->Int32Value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 0, jsobj, 5);
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[8] = Infinity;"
                       "}"
                       "pixels[8];");
   CHECK_EQ(255, result->Int32Value());
-  CHECK_EQ(255,
-           i::Smi::cast(jsobj->GetElement(8)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 255, jsobj, 8);
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[9] = -Infinity;"
                       "}"
                       "pixels[9];");
   CHECK_EQ(0, result->Int32Value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(9)->ToObjectChecked())->value());
+  CheckElementValue(isolate, 0, jsobj, 9);
 
   result = CompileRun("pixels[3] = 33;"
                       "delete pixels[3];"
@@ -15498,6 +15499,7 @@ static void ObjectWithExternalArrayTestHelper(
     v8::ExternalArrayType array_type,
     int64_t low, int64_t high) {
   i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  i::Isolate* isolate = jsobj->GetIsolate();
   obj->Set(v8_str("field"), v8::Int32::New(1503));
   context->Global()->Set(v8_str("ext_array"), obj);
   v8::Handle<v8::Value> result = CompileRun("ext_array.field");
@@ -15639,12 +15641,11 @@ static void ObjectWithExternalArrayTestHelper(
   CHECK_EQ(0, result->Int32Value());
   if (array_type == v8::kExternalDoubleArray ||
       array_type == v8::kExternalFloatArray) {
-    CHECK_EQ(
-        static_cast<int>(i::OS::nan_value()),
-        static_cast<int>(jsobj->GetElement(7)->ToObjectChecked()->Number()));
+    CHECK_EQ(static_cast<int>(i::OS::nan_value()),
+             static_cast<int>(
+                 jsobj->GetElement(isolate, 7)->ToObjectChecked()->Number()));
   } else {
-    CHECK_EQ(0, static_cast<int>(
-        jsobj->GetElement(7)->ToObjectChecked()->Number()));
+    CheckElementValue(isolate, 0, jsobj, 7);
   }
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
@@ -15652,8 +15653,9 @@ static void ObjectWithExternalArrayTestHelper(
                       "}"
                       "ext_array[6];");
   CHECK_EQ(2, result->Int32Value());
-  CHECK_EQ(
-      2, static_cast<int>(jsobj->GetElement(6)->ToObjectChecked()->Number()));
+  CHECK_EQ(2,
+           static_cast<int>(
+               jsobj->GetElement(isolate, 6)->ToObjectChecked()->Number()));
 
   if (array_type != v8::kExternalFloatArray &&
       array_type != v8::kExternalDoubleArray) {
@@ -15667,8 +15669,7 @@ static void ObjectWithExternalArrayTestHelper(
                         "}"
                         "ext_array[5];");
     CHECK_EQ(0, result->Int32Value());
-    CHECK_EQ(0,
-             i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
+    CheckElementValue(isolate, 0, jsobj, 5);
 
     result = CompileRun("for (var i = 0; i < 8; i++) {"
                         "  ext_array[i] = 5;"
@@ -15680,8 +15681,7 @@ static void ObjectWithExternalArrayTestHelper(
     int expected_value =
         (array_type == v8::kExternalPixelArray) ? 255 : 0;
     CHECK_EQ(expected_value, result->Int32Value());
-    CHECK_EQ(expected_value,
-             i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
+    CheckElementValue(isolate, expected_value, jsobj, 5);
 
     result = CompileRun("for (var i = 0; i < 8; i++) {"
                         "  ext_array[i] = 5;"
@@ -15691,8 +15691,7 @@ static void ObjectWithExternalArrayTestHelper(
                         "}"
                         "ext_array[5];");
     CHECK_EQ(0, result->Int32Value());
-    CHECK_EQ(0,
-             i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
+    CheckElementValue(isolate, 0, jsobj, 5);
 
     // Check truncation behavior of integral arrays.
     const char* unsigned_data =
@@ -15798,7 +15797,8 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                                     int64_t low,
                                     int64_t high) {
   LocalContext context;
-  i::Factory* factory = i::Isolate::Current()->factory();
+  i::Isolate* isolate = i::Isolate::Current();
+  i::Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   const int kElementCount = 40;
   int element_size = ExternalArrayElementSize(array_type);
@@ -15826,8 +15826,9 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   obj->SetIndexedPropertiesToExternalArrayData(array_data,
                                                array_type,
                                                kElementCount);
-  CHECK_EQ(
-      1, static_cast<int>(jsobj->GetElement(1)->ToObjectChecked()->Number()));
+  CHECK_EQ(1,
+           static_cast<int>(
+               jsobj->GetElement(isolate, 1)->ToObjectChecked()->Number()));
 
   ObjectWithExternalArrayTestHelper<ExternalArrayClass, ElementType>(
       context.local(), obj, kElementCount, array_type, low, high);

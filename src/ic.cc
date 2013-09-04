@@ -566,7 +566,7 @@ MaybeObject* CallICBase::LoadFunction(State state,
   // the element if so.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    Handle<Object> result = Object::GetElement(object, index);
+    Handle<Object> result = Object::GetElement(isolate(), object, index);
     RETURN_IF_EMPTY_HANDLE(isolate(), result);
     if (result->IsJSFunction()) return *result;
 

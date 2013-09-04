@@ -917,17 +917,17 @@ bool Object::HasSpecificClassOf(String* name) {
 }
 
 
-MaybeObject* Object::GetElement(uint32_t index) {
+MaybeObject* Object::GetElement(Isolate* isolate, uint32_t index) {
   // GetElement can trigger a getter which can cause allocation.
   // This was not always the case. This ASSERT is here to catch
   // leftover incorrect uses.
   ASSERT(AllowHeapAllocation::IsAllowed());
-  return GetElementWithReceiver(this, index);
+  return GetElementWithReceiver(isolate, this, index);
 }
 
 
-Object* Object::GetElementNoExceptionThrown(uint32_t index) {
-  MaybeObject* maybe = GetElementWithReceiver(this, index);
+Object* Object::GetElementNoExceptionThrown(Isolate* isolate, uint32_t index) {
+  MaybeObject* maybe = GetElementWithReceiver(isolate, this, index);
   ASSERT(!maybe->IsFailure());
   Object* result = NULL;  // Initialization to please compiler.
   maybe->ToObject(&result);
@@ -4840,7 +4840,7 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
 
 bool SharedFunctionInfo::is_compiled() {
   return code() !=
-      Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
+      GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
 }
 
 
