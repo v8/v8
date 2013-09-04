@@ -1951,14 +1951,12 @@ class HOptimizedGraphBuilder V8_FINAL
                                         BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
-                                        HValue* result,
                                         SmallMapList* types,
                                         Handle<String> name);
   bool TryStorePolymorphicAsMonomorphic(int position,
                                         BailoutId assignment_id,
                                         HValue* object,
                                         HValue* value,
-                                        HValue* result,
                                         SmallMapList* types,
                                         Handle<String> name);
   void HandlePolymorphicCallNamed(Call* expr,
@@ -2049,8 +2047,7 @@ class HOptimizedGraphBuilder V8_FINAL
                        BailoutId assignment_id,
                        Property* prop,
                        HValue* object,
-                       HValue* store_value,
-                       HValue* result_value);
+                       HValue* value);
 
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
