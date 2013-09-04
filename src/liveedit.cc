@@ -1247,27 +1247,41 @@ static bool IsInlined(JSFunction* function, SharedFunctionInfo* candidate) {
 }
 
 
-class DependentFunctionFilter : public OptimizedFunctionFilter {
- public:
-  explicit DependentFunctionFilter(
-      SharedFunctionInfo* function_info)
-      : function_info_(function_info) {}
-
-  virtual bool TakeFunction(JSFunction* function) {
-    return (function->shared() == function_info_ ||
-            IsInlined(function, function_info_));
-  }
-
- private:
-  SharedFunctionInfo* function_info_;
-};
-
-
 static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
-  DisallowHeapAllocation no_allocation;
+  // Marks code that shares the same shared function info or has inlined
+  // code that shares the same function info.
+  class DependentFunctionMarker: public OptimizedFunctionVisitor {
+   public:
+    SharedFunctionInfo* shared_info_;
+    bool found_;
 
-  DependentFunctionFilter filter(function_info);
-  Deoptimizer::DeoptimizeAllFunctionsWith(function_info->GetIsolate(), &filter);
+    explicit DependentFunctionMarker(SharedFunctionInfo* shared_info)
+      : shared_info_(shared_info), found_(false) { }
+
+    virtual void EnterContext(Context* context) { }  // Don't care.
+    virtual void LeaveContext(Context* context)  { }  // Don't care.
+    virtual void VisitFunction(JSFunction* function) {
+      // It should be guaranteed by the iterator that everything is optimized.
+      ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
+      if (shared_info_ == function->shared() ||
+          IsInlined(function, shared_info_)) {
+        // mark the code for deoptimization
+        function->code()->set_marked_for_deoptimization(true);
+        found_ = true;
+      }
+    }
+  };
+
+
+  DisallowHeapAllocation no_allocation;
+  DependentFunctionMarker marker(function_info);
+  // TODO(titzer): need to traverse all optimized code to find OSR code here.
+  Deoptimizer::VisitAllOptimizedFunctions(function_info->GetIsolate(), &marker);
+
+  if (marker.found_) {
+    // Only go through with the deoptimization if something was found.
+    Deoptimizer::DeoptimizeMarkedCode(function_info->GetIsolate());
+  }
 }
 
 

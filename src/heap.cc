@@ -1616,6 +1616,29 @@ struct WeakListVisitor<JSFunction> {
 
 
 template<>
+struct WeakListVisitor<Code> {
+  static void SetWeakNext(Code* code, Object* next) {
+    code->set_next_code_link(next);
+  }
+
+  static Object* WeakNext(Code* code) {
+    return code->next_code_link();
+  }
+
+  static int WeakNextOffset() {
+    return Code::kNextCodeLinkOffset;
+  }
+
+  static void VisitLiveObject(Heap*, Code*,
+                              WeakObjectRetainer*, bool) {
+  }
+
+  static void VisitPhantomObject(Heap*, Code*) {
+  }
+};
+
+
+template<>
 struct WeakListVisitor<Context> {
   static void SetWeakNext(Context* context, Object* next) {
     context->set(Context::NEXT_CONTEXT_LINK,
@@ -1631,22 +1654,34 @@ struct WeakListVisitor<Context> {
                               Context* context,
                               WeakObjectRetainer* retainer,
                               bool record_slots) {
-    // Process the weak list of optimized functions for the context.
-    Object* function_list_head =
-        VisitWeakList<JSFunction>(
-            heap,
-            context->get(Context::OPTIMIZED_FUNCTIONS_LIST),
-            retainer,
-            record_slots);
-    context->set(Context::OPTIMIZED_FUNCTIONS_LIST,
-                 function_list_head,
-                 UPDATE_WRITE_BARRIER);
+    // Process the three weak lists linked off the context.
+    DoWeakList<JSFunction>(heap, context, retainer, record_slots,
+        Context::OPTIMIZED_FUNCTIONS_LIST);
+    DoWeakList<Code>(heap, context, retainer, record_slots,
+        Context::OPTIMIZED_CODE_LIST);
+    DoWeakList<Code>(heap, context, retainer, record_slots,
+        Context::DEOPTIMIZED_CODE_LIST);
+  }
+
+  template<class T>
+  static void DoWeakList(Heap* heap,
+                         Context* context,
+                         WeakObjectRetainer* retainer,
+                         bool record_slots,
+                         int index) {
+    // Visit the weak list, removing dead intermediate elements.
+    Object* list_head = VisitWeakList<T>(heap, context->get(index), retainer,
+        record_slots);
+
+    // Update the list head.
+    context->set(index, list_head, UPDATE_WRITE_BARRIER);
+
     if (record_slots) {
-      Object** optimized_functions =
-          HeapObject::RawField(
-              context, FixedArray::SizeFor(Context::OPTIMIZED_FUNCTIONS_LIST));
+      // Record the updated slot if necessary.
+      Object** head_slot = HeapObject::RawField(
+          context, FixedArray::SizeFor(index));
       heap->mark_compact_collector()->RecordSlot(
-          optimized_functions, optimized_functions, function_list_head);
+          head_slot, head_slot, list_head);
     }
   }
 

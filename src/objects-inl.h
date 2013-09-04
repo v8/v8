@@ -5003,6 +5003,7 @@ void JSFunction::ReplaceCode(Code* code) {
     context()->native_context()->AddOptimizedFunction(this);
   }
   if (was_optimized && !is_optimized) {
+    // TODO(titzer): linear in the number of optimized functions; fix!
     context()->native_context()->RemoveOptimizedFunction(this);
   }
 }
@@ -5265,6 +5266,20 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 }
 
 
+Object* Code::next_code_link() {
+  CHECK(kind() == OPTIMIZED_FUNCTION);
+  return Object::cast(READ_FIELD(this, kTypeFeedbackInfoOffset));
+}
+
+
+void Code::set_next_code_link(Object* value, WriteBarrierMode mode) {
+  CHECK(kind() == OPTIMIZED_FUNCTION);
+  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
+                            value, mode);
+}
+
+
 int Code::stub_info() {
   ASSERT(kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
          kind() == BINARY_OP_IC || kind() == LOAD_IC);
@@ -5283,25 +5298,6 @@ void Code::set_stub_info(int value) {
          kind() == STORE_IC ||
          kind() == KEYED_STORE_IC);
   WRITE_FIELD(this, kTypeFeedbackInfoOffset, Smi::FromInt(value));
-}
-
-
-Object* Code::code_to_deoptimize_link() {
-  // Optimized code should not have type feedback.
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
-  return READ_FIELD(this, kTypeFeedbackInfoOffset);
-}
-
-
-void Code::set_code_to_deoptimize_link(Object* value) {
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
-  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
-}
-
-
-Object** Code::code_to_deoptimize_link_slot() {
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
-  return HeapObject::RawField(this, kTypeFeedbackInfoOffset);
 }
 
 

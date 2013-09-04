@@ -11410,13 +11410,15 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   int code_entries = starts.number_of_entries();
   if (start == end) return;
 
-  // Collect all the code to deoptimize.
-  Zone zone(isolate);
-  ZoneList<Code*> codes(end - start, &zone);
+  // Mark all the code that needs to be deoptimized.
+  bool marked = false;
   for (int i = start; i < end; i++) {
     if (is_code_at(i)) {
       Code* code = code_at(i);
-      if (!code->marked_for_deoptimization()) codes.Add(code, &zone);
+      if (!code->marked_for_deoptimization()) {
+        code->set_marked_for_deoptimization(true);
+        marked = true;
+      }
     } else {
       CompilationInfo* info = compilation_info_at(i);
       info->AbortDueToDependencyChange();
@@ -11432,7 +11434,8 @@ void DependentCode::DeoptimizeDependentCodeGroup(
     clear_at(i);
   }
   set_number_of_entries(group, 0);
-  Deoptimizer::DeoptimizeCodeList(isolate, &codes);
+
+  if (marked) Deoptimizer::DeoptimizeMarkedCode(isolate);
 }
 
 

@@ -74,7 +74,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       heap_(NULL),
       code_flusher_(NULL),
       encountered_weak_collections_(NULL),
-      code_to_deoptimize_(NULL) { }
+      have_code_to_deoptimize_(false) { }
 
 #ifdef VERIFY_HEAP
 class VerifyMarkingVisitor: public ObjectVisitor {
@@ -961,22 +961,10 @@ void MarkCompactCollector::Finish() {
   // objects (empty string, illegal builtin).
   isolate()->stub_cache()->Clear();
 
-  if (code_to_deoptimize_ != Smi::FromInt(0)) {
-    // Convert the linked list of Code objects into a ZoneList.
-    Zone zone(isolate());
-    ZoneList<Code*> codes(4, &zone);
-
-    Object *list = code_to_deoptimize_;
-    while (list->IsCode()) {
-      Code *code = Code::cast(list);
-      list = code->code_to_deoptimize_link();
-      codes.Add(code, &zone);
-      // Destroy the link and don't ever try to deoptimize this code again.
-      code->set_code_to_deoptimize_link(Smi::FromInt(0));
-    }
-    code_to_deoptimize_ = Smi::FromInt(0);
-
-    Deoptimizer::DeoptimizeCodeList(isolate(), &codes);
+  if (have_code_to_deoptimize_) {
+    // Some code objects were marked for deoptimization during the GC.
+    Deoptimizer::DeoptimizeMarkedCode(isolate());
+    have_code_to_deoptimize_ = false;
   }
 }
 
@@ -2623,16 +2611,9 @@ void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
     ASSERT(entries->is_code_at(i));
     Code* code = entries->code_at(i);
 
-    if (IsMarked(code) && !WillBeDeoptimized(code)) {
-      // Insert the code into the code_to_deoptimize linked list.
-      Object* next = code_to_deoptimize_;
-      if (next != Smi::FromInt(0)) {
-        // Record the slot so that it is updated.
-        Object** slot = code->code_to_deoptimize_link_slot();
-        RecordSlot(slot, slot, next);
-      }
-      code->set_code_to_deoptimize_link(next);
-      code_to_deoptimize_ = code;
+    if (IsMarked(code) && !code->marked_for_deoptimization()) {
+      code->set_marked_for_deoptimization(true);
+      have_code_to_deoptimize_ = true;
     }
     entries->clear_at(i);
   }
@@ -3283,11 +3264,7 @@ void MarkCompactCollector::InvalidateCode(Code* code) {
 
 // Return true if the given code is deoptimized or will be deoptimized.
 bool MarkCompactCollector::WillBeDeoptimized(Code* code) {
-  // We assume the code_to_deoptimize_link is initialized to undefined.
-  // If it is 0, or refers to another Code object, then this code
-  // is already linked, or was already linked into the list.
-  return code->code_to_deoptimize_link() != heap()->undefined_value()
-      || code->marked_for_deoptimization();
+  return code->marked_for_deoptimization();
 }
 
 
@@ -3474,9 +3451,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     }
   }
 
-  // Update the heads of the native contexts list the code to deoptimize list.
+  // Update the head of the native contexts list in the heap.
   updating_visitor.VisitPointer(heap_->native_contexts_list_address());
-  updating_visitor.VisitPointer(&code_to_deoptimize_);
 
   heap_->string_table()->Iterate(&updating_visitor);
 

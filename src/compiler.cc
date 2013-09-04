@@ -498,6 +498,8 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
     info()->SetCode(optimized_code);
   }
   RecordOptimizationStats();
+  // Add to the weak list of optimized code objects.
+  info()->context()->native_context()->AddOptimizedCode(*info()->code());
   return SetLastStatus(SUCCEEDED);
 }
 
@@ -879,9 +881,10 @@ static void InstallCodeCommon(CompilationInfo* info) {
 
 static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   Handle<Code> code = info->code();
-  if (FLAG_cache_optimized_code &&
-      info->osr_ast_id().IsNone() &&
-      code->kind() == Code::OPTIMIZED_FUNCTION) {
+  if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
+
+  // Cache non-OSR optimized code.
+  if (FLAG_cache_optimized_code && info->osr_ast_id().IsNone()) {
     Handle<JSFunction> function = info->closure();
     Handle<SharedFunctionInfo> shared(function->shared());
     Handle<FixedArray> literals(function->literals());
@@ -893,9 +896,10 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 
 
 static bool InstallCodeFromOptimizedCodeMap(CompilationInfo* info) {
-  if (FLAG_cache_optimized_code &&
-      info->osr_ast_id().IsNone() &&
-      info->IsOptimizing()) {
+  if (!info->IsOptimizing()) return false;  // Nothing to look up.
+
+  // Lookup non-OSR optimized code.
+  if (FLAG_cache_optimized_code && info->osr_ast_id().IsNone()) {
     Handle<SharedFunctionInfo> shared = info->shared_info();
     Handle<JSFunction> function = info->closure();
     ASSERT(!function.is_null());

@@ -4813,21 +4813,19 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [type_feedback_info]: Struct containing type feedback information for
-  // unoptimized code. Optimized code can temporarily store the head of
-  // the list of code to be deoptimized during mark-compact GC.
-  // STUBs can use this slot to store arbitrary information as a Smi.
-  // Will contain either a TypeFeedbackInfo object, or JSFunction object,
-  // or undefined, or a Smi.
+  // [type_feedback_info]: This field stores various things, depending on the
+  // kind of the code object.
+  //   FUNCTION           => type feedback information.
+  //   STUB               => various things, e.g. a SMI
+  //   OPTIMIZED_FUNCTION => the next_code_link for optimized code list.
   DECL_ACCESSORS(type_feedback_info, Object)
   inline void InitializeTypeFeedbackInfoNoWriteBarrier(Object* value);
   inline int stub_info();
   inline void set_stub_info(int info);
 
-  // Used during GC to code a list of code objects to deoptimize.
-  inline Object* code_to_deoptimize_link();
-  inline void set_code_to_deoptimize_link(Object* value);
-  inline Object** code_to_deoptimize_link_slot();
+  // [next_code_link]: Link for lists of optimized or deoptimized code.
+  // Note that storage for this field is overlapped with typefeedback_info.
+  DECL_ACCESSORS(next_code_link, Object)
 
   // [gc_metadata]: Field used to hold GC related metadata. The contents of this
   // field does not have to be traced during garbage collection since
@@ -5148,6 +5146,7 @@ class Code: public HeapObject {
       kHandlerTableOffset + kPointerSize;
   static const int kTypeFeedbackInfoOffset =
       kDeoptimizationDataOffset + kPointerSize;
+  static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset;  // Shared.
   static const int kGCMetadataOffset = kTypeFeedbackInfoOffset + kPointerSize;
   static const int kICAgeOffset =
       kGCMetadataOffset + kPointerSize;
@@ -7021,8 +7020,10 @@ class JSFunction: public JSObject {
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
 
-  // [next_function_link]: Field for linking functions. This list is treated as
-  // a weak list by the GC.
+  // [next_function_link]: Links functions into various lists, e.g. the list
+  // of optimized functions hanging off the native_context. The CodeFlusher
+  // uses this link to chain together flushing candidates. Treated weakly
+  // by the garbage collector.
   DECL_ACCESSORS(next_function_link, Object)
 
   // Prints the name of the function using PrintF.
