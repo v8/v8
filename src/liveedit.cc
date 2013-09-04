@@ -1247,32 +1247,32 @@ static bool IsInlined(JSFunction* function, SharedFunctionInfo* candidate) {
 }
 
 
-static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
-  // Marks code that shares the same shared function info or has inlined
-  // code that shares the same function info.
-  class DependentFunctionMarker: public OptimizedFunctionVisitor {
-   public:
-    SharedFunctionInfo* shared_info_;
-    bool found_;
+// Marks code that shares the same shared function info or has inlined
+// code that shares the same function info.
+class DependentFunctionMarker: public OptimizedFunctionVisitor {
+ public:
+  SharedFunctionInfo* shared_info_;
+  bool found_;
 
-    explicit DependentFunctionMarker(SharedFunctionInfo* shared_info)
-      : shared_info_(shared_info), found_(false) { }
+  explicit DependentFunctionMarker(SharedFunctionInfo* shared_info)
+    : shared_info_(shared_info), found_(false) { }
 
-    virtual void EnterContext(Context* context) { }  // Don't care.
-    virtual void LeaveContext(Context* context)  { }  // Don't care.
-    virtual void VisitFunction(JSFunction* function) {
-      // It should be guaranteed by the iterator that everything is optimized.
-      ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
-      if (shared_info_ == function->shared() ||
-          IsInlined(function, shared_info_)) {
-        // mark the code for deoptimization
-        function->code()->set_marked_for_deoptimization(true);
-        found_ = true;
-      }
+  virtual void EnterContext(Context* context) { }  // Don't care.
+  virtual void LeaveContext(Context* context)  { }  // Don't care.
+  virtual void VisitFunction(JSFunction* function) {
+    // It should be guaranteed by the iterator that everything is optimized.
+    ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
+    if (shared_info_ == function->shared() ||
+        IsInlined(function, shared_info_)) {
+      // Mark the code for deoptimization.
+      function->code()->set_marked_for_deoptimization(true);
+      found_ = true;
     }
-  };
+  }
+};
 
 
+static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
   DisallowHeapAllocation no_allocation;
   DependentFunctionMarker marker(function_info);
   // TODO(titzer): need to traverse all optimized code to find OSR code here.
