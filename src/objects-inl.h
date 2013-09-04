@@ -4466,11 +4466,10 @@ ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
 
 ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
 ACCESSORS(TemplateInfo, property_list, Object, kPropertyListOffset)
+ACCESSORS(TemplateInfo, property_accessors, Object, kPropertyAccessorsOffset)
 
 ACCESSORS(FunctionTemplateInfo, serial_number, Object, kSerialNumberOffset)
 ACCESSORS(FunctionTemplateInfo, call_code, Object, kCallCodeOffset)
-ACCESSORS(FunctionTemplateInfo, property_accessors, Object,
-          kPropertyAccessorsOffset)
 ACCESSORS(FunctionTemplateInfo, prototype_template, Object,
           kPrototypeTemplateOffset)
 ACCESSORS(FunctionTemplateInfo, parent_template, Object, kParentTemplateOffset)

@@ -1438,52 +1438,92 @@ Local<ObjectTemplate> ObjectTemplate::New(
 
 // Ensure that the object template has a constructor.  If no
 // constructor is available we create one.
-static void EnsureConstructor(ObjectTemplate* object_template) {
-  if (Utils::OpenHandle(object_template)->constructor()->IsUndefined()) {
-    Local<FunctionTemplate> templ = FunctionTemplate::New();
-    i::Handle<i::FunctionTemplateInfo> constructor = Utils::OpenHandle(*templ);
-    constructor->set_instance_template(*Utils::OpenHandle(object_template));
-    Utils::OpenHandle(object_template)->set_constructor(*constructor);
+static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
+    ObjectTemplate* object_template) {
+  i::Object* obj = Utils::OpenHandle(object_template)->constructor();
+  if (!obj ->IsUndefined()) {
+    i::FunctionTemplateInfo* info = i::FunctionTemplateInfo::cast(obj);
+    return i::Handle<i::FunctionTemplateInfo>(info, info->GetIsolate());
   }
+  Local<FunctionTemplate> templ = FunctionTemplate::New();
+  i::Handle<i::FunctionTemplateInfo> constructor = Utils::OpenHandle(*templ);
+  constructor->set_instance_template(*Utils::OpenHandle(object_template));
+  Utils::OpenHandle(object_template)->set_constructor(*constructor);
+  return constructor;
 }
 
 
-static inline void AddPropertyToFunctionTemplate(
-    i::Handle<i::FunctionTemplateInfo> cons,
+static inline void AddPropertyToTemplate(
+    i::Handle<i::TemplateInfo> info,
     i::Handle<i::AccessorInfo> obj) {
-  i::Handle<i::Object> list(cons->property_accessors(), cons->GetIsolate());
+  i::Handle<i::Object> list(info->property_accessors(), info->GetIsolate());
   if (list->IsUndefined()) {
     list = NeanderArray().value();
-    cons->set_property_accessors(*list);
+    info->set_property_accessors(*list);
   }
   NeanderArray array(list);
   array.add(obj);
 }
 
 
-template<typename Setter, typename Getter, typename Data>
-static bool ObjectTemplateSetAccessor(
-    ObjectTemplate* object_template,
-    v8::Handle<String> name,
+static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
+    Template* template_obj) {
+  return Utils::OpenHandle(template_obj);
+}
+
+
+// TODO(dcarney): remove this with ObjectTemplate::SetAccessor
+static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
+    ObjectTemplate* object_template) {
+  EnsureConstructor(object_template);
+  return Utils::OpenHandle(object_template);
+}
+
+
+template<typename Setter, typename Getter, typename Data, typename Template>
+static bool TemplateSetAccessor(
+    Template* template_obj,
+    v8::Local<String> name,
     Getter getter,
     Setter setter,
     Data data,
     AccessControl settings,
     PropertyAttribute attribute,
-    v8::Handle<AccessorSignature> signature) {
-  i::Isolate* isolate = Utils::OpenHandle(object_template)->GetIsolate();
+    v8::Local<AccessorSignature> signature) {
+  i::Isolate* isolate = Utils::OpenHandle(template_obj)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::ObjectTemplate::SetAccessor()")) return false;
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  EnsureConstructor(object_template);
-  i::FunctionTemplateInfo* constructor = i::FunctionTemplateInfo::cast(
-      Utils::OpenHandle(object_template)->constructor());
-  i::Handle<i::FunctionTemplateInfo> cons(constructor);
   i::Handle<i::AccessorInfo> obj = MakeAccessorInfo(
       name, getter, setter, data, settings, attribute, signature);
   if (obj.is_null()) return false;
-  AddPropertyToFunctionTemplate(cons, obj);
+  i::Handle<i::TemplateInfo> info = GetTemplateInfo(template_obj);
+  AddPropertyToTemplate(info, obj);
   return true;
+}
+
+
+bool Template::SetDeclaredAccessor(
+    Local<String> name,
+    Local<DeclaredAccessorDescriptor> descriptor,
+    PropertyAttribute attribute,
+    Local<AccessorSignature> signature,
+    AccessControl settings) {
+  void* null = NULL;
+  return TemplateSetAccessor(
+      this, name, descriptor, null, null, settings, attribute, signature);
+}
+
+
+void Template::SetNativeDataProperty(v8::Local<String> name,
+                                     AccessorGetterCallback getter,
+                                     AccessorSetterCallback setter,
+                                     v8::Handle<Value> data,
+                                     PropertyAttribute attribute,
+                                     v8::Local<AccessorSignature> signature,
+                                     AccessControl settings) {
+  TemplateSetAccessor(
+      this, name, getter, setter, data, settings, attribute, signature);
 }
 
 
@@ -1494,19 +1534,8 @@ void ObjectTemplate::SetAccessor(v8::Handle<String> name,
                                  AccessControl settings,
                                  PropertyAttribute attribute,
                                  v8::Handle<AccessorSignature> signature) {
-  ObjectTemplateSetAccessor(
+  TemplateSetAccessor(
       this, name, getter, setter, data, settings, attribute, signature);
-}
-
-
-bool ObjectTemplate::SetAccessor(Handle<String> name,
-                                 Handle<DeclaredAccessorDescriptor> descriptor,
-                                 AccessControl settings,
-                                 PropertyAttribute attribute,
-                                 Handle<AccessorSignature> signature) {
-  void* null = NULL;
-  return ObjectTemplateSetAccessor(
-      this, name, descriptor, null, null, settings, attribute, signature);
 }
 
 
@@ -3638,10 +3667,10 @@ bool Object::SetAccessor(Handle<String> name,
 }
 
 
-bool Object::SetAccessor(Handle<String> name,
-                         Handle<DeclaredAccessorDescriptor> descriptor,
-                         AccessControl settings,
-                         PropertyAttribute attributes) {
+bool Object::SetDeclaredAccessor(Local<String> name,
+                                 Local<DeclaredAccessorDescriptor> descriptor,
+                                 PropertyAttribute attributes,
+                                 AccessControl settings) {
   void* null = NULL;
   return ObjectSetAccessor(
       this, name, descriptor, null, null, settings, attributes);
@@ -5314,18 +5343,6 @@ const char* v8::V8::GetVersion() {
 }
 
 
-static i::Handle<i::FunctionTemplateInfo>
-    EnsureConstructor(i::Handle<i::ObjectTemplateInfo> templ) {
-  if (templ->constructor()->IsUndefined()) {
-    Local<FunctionTemplate> constructor = FunctionTemplate::New();
-    Utils::OpenHandle(*constructor)->set_instance_template(*templ);
-    templ->set_constructor(*Utils::OpenHandle(*constructor));
-  }
-  return i::Handle<i::FunctionTemplateInfo>(
-    i::FunctionTemplateInfo::cast(templ->constructor()));
-}
-
-
 static i::Handle<i::Context> CreateEnvironment(
     i::Isolate* isolate,
     v8::ExtensionConfiguration* extensions,
@@ -5342,13 +5359,11 @@ static i::Handle<i::Context> CreateEnvironment(
 
     if (!global_template.IsEmpty()) {
       // Make sure that the global_template has a constructor.
-      global_constructor =
-          EnsureConstructor(Utils::OpenHandle(*global_template));
+      global_constructor = EnsureConstructor(*global_template);
 
       // Create a fresh template for the global proxy object.
       proxy_template = ObjectTemplate::New();
-      proxy_constructor =
-          EnsureConstructor(Utils::OpenHandle(*proxy_template));
+      proxy_constructor = EnsureConstructor(*proxy_template);
 
       // Set the global template to be the prototype template of
       // global proxy template.

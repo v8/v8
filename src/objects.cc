@@ -3001,45 +3001,98 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
 }
 
 
-void Map::AppendCallbackDescriptors(Handle<Map> map,
-                                    Handle<Object> descriptors) {
-  Isolate* isolate = map->GetIsolate();
-  Handle<DescriptorArray> array(map->instance_descriptors());
-  NeanderArray callbacks(descriptors);
-  int nof_callbacks = callbacks.length();
+template<class T>
+static int AppendUniqueCallbacks(NeanderArray* callbacks,
+                                 Handle<typename T::Array> array,
+                                 int valid_descriptors) {
+  int nof_callbacks = callbacks->length();
 
-  ASSERT(array->NumberOfSlackDescriptors() >= nof_callbacks);
-
+  Isolate* isolate = array->GetIsolate();
   // Ensure the keys are unique names before writing them into the
   // instance descriptor. Since it may cause a GC, it has to be done before we
   // temporarily put the heap in an invalid state while appending descriptors.
   for (int i = 0; i < nof_callbacks; ++i) {
-    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks.get(i)));
-    if (!entry->name()->IsUniqueName()) {
-      Handle<String> key =
-          isolate->factory()->InternalizedStringFromString(
-              Handle<String>(String::cast(entry->name())));
-      entry->set_name(*key);
-    }
+    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)));
+    if (entry->name()->IsUniqueName()) continue;
+    Handle<String> key =
+        isolate->factory()->InternalizedStringFromString(
+            Handle<String>(String::cast(entry->name())));
+    entry->set_name(*key);
   }
-
-  int nof = map->NumberOfOwnDescriptors();
 
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
   for (int i = nof_callbacks - 1; i >= 0; i--) {
-    AccessorInfo* entry = AccessorInfo::cast(callbacks.get(i));
+    AccessorInfo* entry = AccessorInfo::cast(callbacks->get(i));
     Name* key = Name::cast(entry->name());
     // Check if a descriptor with this name already exists before writing.
-    if (array->Search(key, nof) == DescriptorArray::kNotFound) {
-      CallbacksDescriptor desc(key, entry, entry->property_attributes());
-      array->Append(&desc);
-      nof += 1;
+    if (!T::Contains(key, entry, valid_descriptors, array)) {
+      T::Insert(key, entry, valid_descriptors, array);
+      valid_descriptors++;
     }
   }
 
+  return valid_descriptors;
+}
+
+struct DescriptorArrayAppender {
+  typedef DescriptorArray Array;
+  static bool Contains(Name* key,
+                       AccessorInfo* entry,
+                       int valid_descriptors,
+                       Handle<DescriptorArray> array) {
+    return array->Search(key, valid_descriptors) != DescriptorArray::kNotFound;
+  }
+  static void Insert(Name* key,
+                     AccessorInfo* entry,
+                     int valid_descriptors,
+                     Handle<DescriptorArray> array) {
+    CallbacksDescriptor desc(key, entry, entry->property_attributes());
+    array->Append(&desc);
+  }
+};
+
+
+struct FixedArrayAppender {
+  typedef FixedArray Array;
+  static bool Contains(Name* key,
+                       AccessorInfo* entry,
+                       int valid_descriptors,
+                       Handle<FixedArray> array) {
+    for (int i = 0; i < valid_descriptors; i++) {
+      if (key == AccessorInfo::cast(array->get(i))->name()) return true;
+    }
+    return false;
+  }
+  static void Insert(Name* key,
+                     AccessorInfo* entry,
+                     int valid_descriptors,
+                     Handle<FixedArray> array) {
+    array->set(valid_descriptors, entry);
+  }
+};
+
+
+void Map::AppendCallbackDescriptors(Handle<Map> map,
+                                    Handle<Object> descriptors) {
+  int nof = map->NumberOfOwnDescriptors();
+  Handle<DescriptorArray> array(map->instance_descriptors());
+  NeanderArray callbacks(descriptors);
+  ASSERT(array->NumberOfSlackDescriptors() >= callbacks.length());
+  nof = AppendUniqueCallbacks<DescriptorArrayAppender>(&callbacks, array, nof);
   map->SetNumberOfOwnDescriptors(nof);
+}
+
+
+int AccessorInfo::AppendUnique(Handle<Object> descriptors,
+                               Handle<FixedArray> array,
+                               int valid_descriptors) {
+  NeanderArray callbacks(descriptors);
+  ASSERT(array->length() >= callbacks.length() + valid_descriptors);
+  return AppendUniqueCallbacks<FixedArrayAppender>(&callbacks,
+                                                   array,
+                                                   valid_descriptors);
 }
 
 

@@ -889,6 +889,7 @@ void CallHandlerInfo::CallHandlerInfoVerify() {
 void TemplateInfo::TemplateInfoVerify() {
   VerifyPointer(tag());
   VerifyPointer(property_list());
+  VerifyPointer(property_accessors());
 }
 
 
@@ -897,7 +898,6 @@ void FunctionTemplateInfo::FunctionTemplateInfoVerify() {
   TemplateInfoVerify();
   VerifyPointer(serial_number());
   VerifyPointer(call_code());
-  VerifyPointer(property_accessors());
   VerifyPointer(prototype_template());
   VerifyPointer(parent_template());
   VerifyPointer(named_property_handler());

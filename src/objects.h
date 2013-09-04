@@ -9489,6 +9489,11 @@ class AccessorInfo: public Struct {
   // Dispatched behavior.
   DECLARE_VERIFIER(AccessorInfo)
 
+  // Append all descriptors to the array that are not already there.
+  // Return number added.
+  static int AppendUnique(Handle<Object> descriptors,
+                          Handle<FixedArray> array,
+                          int valid_descriptors);
 
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kFlagOffset = kNameOffset + kPointerSize;
@@ -9795,12 +9800,15 @@ class TemplateInfo: public Struct {
  public:
   DECL_ACCESSORS(tag, Object)
   DECL_ACCESSORS(property_list, Object)
+  DECL_ACCESSORS(property_accessors, Object)
 
   DECLARE_VERIFIER(TemplateInfo)
 
-  static const int kTagOffset          = HeapObject::kHeaderSize;
+  static const int kTagOffset = HeapObject::kHeaderSize;
   static const int kPropertyListOffset = kTagOffset + kPointerSize;
-  static const int kHeaderSize         = kPropertyListOffset + kPointerSize;
+  static const int kPropertyAccessorsOffset =
+      kPropertyListOffset + kPointerSize;
+  static const int kHeaderSize = kPropertyAccessorsOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateInfo);
@@ -9811,7 +9819,6 @@ class FunctionTemplateInfo: public TemplateInfo {
  public:
   DECL_ACCESSORS(serial_number, Object)
   DECL_ACCESSORS(call_code, Object)
-  DECL_ACCESSORS(property_accessors, Object)
   DECL_ACCESSORS(prototype_template, Object)
   DECL_ACCESSORS(parent_template, Object)
   DECL_ACCESSORS(named_property_handler, Object)
@@ -9843,9 +9850,8 @@ class FunctionTemplateInfo: public TemplateInfo {
 
   static const int kSerialNumberOffset = TemplateInfo::kHeaderSize;
   static const int kCallCodeOffset = kSerialNumberOffset + kPointerSize;
-  static const int kPropertyAccessorsOffset = kCallCodeOffset + kPointerSize;
   static const int kPrototypeTemplateOffset =
-      kPropertyAccessorsOffset + kPointerSize;
+      kCallCodeOffset + kPointerSize;
   static const int kParentTemplateOffset =
       kPrototypeTemplateOffset + kPointerSize;
   static const int kNamedPropertyHandlerOffset =
