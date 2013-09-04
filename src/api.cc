@@ -5316,7 +5316,8 @@ bool v8::V8::IdleNotification(int hint) {
   // continue to call IdleNotification.
   i::Isolate* isolate = i::Isolate::Current();
   if (isolate == NULL || !isolate->IsInitialized()) return true;
-  return i::V8::IdleNotification(hint);
+  if (!i::FLAG_use_idle_notification) return true;
+  return isolate->heap()->IdleNotification(hint);
 }
 
 

@@ -105,9 +105,6 @@ class V8 : public AllStatic {
   static Object* FillHeapNumberWithRandom(Object* heap_number,
                                           Context* context);
 
-  // Idle notification directly from the API.
-  static bool IdleNotification(int hint);
-
   static void AddCallCompletedCallback(CallCompletedCallback callback);
   static void RemoveCallCompletedCallback(CallCompletedCallback callback);
   static void FireCallCompletedCallback(Isolate* isolate);
