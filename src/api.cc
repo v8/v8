@@ -53,6 +53,7 @@
 #endif
 #include "parser.h"
 #include "platform.h"
+#include "platform/time.h"
 #include "profile-generator-inl.h"
 #include "property-details.h"
 #include "property.h"
@@ -7345,6 +7346,13 @@ int CpuProfile::GetSamplesCount() const {
 
 int CpuProfiler::GetProfileCount() {
   return reinterpret_cast<i::CpuProfiler*>(this)->GetProfilesCount();
+}
+
+
+void CpuProfiler::SetSamplingInterval(int us) {
+  ASSERT(us >= 0);
+  return reinterpret_cast<i::CpuProfiler*>(this)->set_sampling_interval(
+      i::TimeDelta::FromMicroseconds(us));
 }
 
 

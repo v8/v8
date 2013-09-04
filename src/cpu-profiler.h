@@ -31,6 +31,7 @@
 #include "allocation.h"
 #include "atomicops.h"
 #include "circular-queue.h"
+#include "platform/time.h"
 #include "sampler.h"
 #include "unbound-queue.h"
 
@@ -203,6 +204,7 @@ class CpuProfiler : public CodeEventListener {
 
   virtual ~CpuProfiler();
 
+  void set_sampling_interval(TimeDelta value);
   void StartProfiling(const char* title, bool record_samples = false);
   void StartProfiling(String* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
@@ -260,6 +262,7 @@ class CpuProfiler : public CodeEventListener {
   void LogBuiltins();
 
   Isolate* isolate_;
+  TimeDelta sampling_interval_;
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;
   ProfileGenerator* generator_;

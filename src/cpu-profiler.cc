@@ -363,6 +363,8 @@ void CpuProfiler::SetterCallbackEvent(Name* name, Address entry_point) {
 
 CpuProfiler::CpuProfiler(Isolate* isolate)
     : isolate_(isolate),
+      sampling_interval_(TimeDelta::FromMicroseconds(
+          FLAG_cpu_profiler_sampling_interval)),
       profiles_(new CpuProfilesCollection()),
       next_profile_uid_(1),
       generator_(NULL),
@@ -376,6 +378,8 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
                          ProfileGenerator* test_generator,
                          ProfilerEventsProcessor* test_processor)
     : isolate_(isolate),
+      sampling_interval_(TimeDelta::FromMicroseconds(
+          FLAG_cpu_profiler_sampling_interval)),
       profiles_(test_profiles),
       next_profile_uid_(1),
       generator_(test_generator),
@@ -387,6 +391,12 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
 CpuProfiler::~CpuProfiler() {
   ASSERT(!is_profiling_);
   delete profiles_;
+}
+
+
+void CpuProfiler::set_sampling_interval(TimeDelta value) {
+  ASSERT(!is_profiling_);
+  sampling_interval_ = value;
 }
 
 
@@ -418,8 +428,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     generator_ = new ProfileGenerator(profiles_);
     Sampler* sampler = logger->sampler();
     processor_ = new ProfilerEventsProcessor(
-        generator_, sampler,
-        TimeDelta::FromMicroseconds(FLAG_cpu_profiler_sampling_interval));
+        generator_, sampler, sampling_interval_);
     is_profiling_ = true;
     // Enumerate stuff we already have in the heap.
     ASSERT(isolate_->heap()->HasBeenSetUp());
