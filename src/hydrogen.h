@@ -1911,7 +1911,9 @@ class HOptimizedGraphBuilder V8_FINAL
 
   bool TryInlineCall(Call* expr, bool drop_extra = false);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
-  bool TryInlineGetter(Handle<JSFunction> getter, BailoutId return_id);
+  bool TryInlineGetter(Handle<JSFunction> getter,
+                       BailoutId ast_id,
+                       BailoutId return_id);
   bool TryInlineSetter(Handle<JSFunction> setter,
                        BailoutId id,
                        BailoutId assignment_id,
@@ -2033,13 +2035,10 @@ class HOptimizedGraphBuilder V8_FINAL
 
   void BuildLoad(Property* property,
                  int position,
-                 BailoutId ast_id,
-                 BailoutId return_id);
+                 BailoutId ast_id);
   void PushLoad(Property* property,
                 HValue* object,
-                int position,
-                BailoutId ast_id,
-                BailoutId return_id);
+                int position);
 
   void BuildStoreNamed(Expression* expression,
                        BailoutId id,

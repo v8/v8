@@ -4655,14 +4655,14 @@ static bool PrototypeChainCanNeverResolve(
 
 void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
     int position,
-    BailoutId return_id,
+    BailoutId ast_id,
     HValue* object,
     SmallMapList* types,
     Handle<String> name) {
   HInstruction* instr = TryLoadPolymorphicAsMonomorphic(object, types, name);
   if (instr != NULL) {
     instr->set_position(position);
-    return ast_context()->ReturnInstruction(instr, return_id);
+    return ast_context()->ReturnInstruction(instr, ast_id);
   }
 
   // Something did not match; must use a polymorphic load.
@@ -4734,14 +4734,14 @@ void HOptimizedGraphBuilder::HandlePolymorphicLoadNamedField(
     if (join != NULL) {
       current_block()->Goto(join);
     } else {
-      Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
+      Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
       if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
       return;
     }
   }
 
   ASSERT(join != NULL);
-  join->SetJoinId(return_id);
+  join->SetJoinId(ast_id);
   set_current_block(join);
   if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
 }
@@ -5122,7 +5122,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       // Named property.
       CHECK_ALIVE(VisitForValue(prop->obj()));
       HValue* object = Top();
-      PushLoad(prop, object, expr->position(), expr->id(), prop->LoadId());
+      PushLoad(prop, object, expr->position());
 
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* right = Pop();
@@ -5825,19 +5825,16 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
 
 void HOptimizedGraphBuilder::PushLoad(Property* expr,
                                       HValue* object,
-                                      int position,
-                                      BailoutId ast_id,
-                                      BailoutId return_id) {
+                                      int position) {
   ValueContext for_value(this, ARGUMENTS_NOT_ALLOWED);
   Push(object);
-  BuildLoad(expr, position, ast_id, return_id);
+  BuildLoad(expr, position, expr->LoadId());
 }
 
 
 void HOptimizedGraphBuilder::BuildLoad(Property* expr,
                                        int position,
-                                       BailoutId ast_id,
-                                       BailoutId return_id) {
+                                       BailoutId ast_id) {
   HInstruction* instr = NULL;
   if (expr->IsStringLength()) {
     HValue* string = Pop();
@@ -5879,7 +5876,10 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
       Handle<JSObject> holder;
       if (LookupGetter(map, name, &getter, &holder)) {
         AddCheckConstantFunction(holder, Top(), map);
-        if (FLAG_inline_accessors && TryInlineGetter(getter, return_id)) return;
+        if (FLAG_inline_accessors &&
+            TryInlineGetter(getter, ast_id, expr->LoadId())) {
+          return;
+        }
         Add<HPushArgument>(Pop());
         instr = new(zone()) HCallConstantFunction(getter, 1);
       } else {
@@ -5887,7 +5887,7 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
       }
     } else if (types != NULL && types->length() > 1) {
       return HandlePolymorphicLoadNamedField(
-          position, return_id, Pop(), types, name);
+          position, ast_id, Pop(), types, name);
     } else {
       instr = BuildLoadNamedGeneric(Pop(), name, expr);
     }
@@ -5900,22 +5900,22 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
 
     bool has_side_effects = false;
     HValue* load = HandleKeyedElementAccess(
-        obj, key, NULL, expr, return_id, position,
+        obj, key, NULL, expr, ast_id, position,
         false,  // is_store
         &has_side_effects);
     if (has_side_effects) {
       if (ast_context()->IsEffect()) {
-        Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
+        Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
       } else {
         Push(load);
-        Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
+        Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
         Drop(1);
       }
     }
     return ast_context()->ReturnValue(load);
   }
   instr->set_position(position);
-  return ast_context()->ReturnInstruction(instr, return_id);
+  return ast_context()->ReturnInstruction(instr, ast_id);
 }
 
 
@@ -5927,7 +5927,7 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   if (TryArgumentsAccess(expr)) return;
 
   CHECK_ALIVE(VisitForValue(expr->obj()));
-  BuildLoad(expr, expr->position(), expr->id(), expr->id());
+  BuildLoad(expr, expr->position(), expr->id());
 }
 
 
@@ -6604,12 +6604,13 @@ bool HOptimizedGraphBuilder::TryInlineConstruct(CallNew* expr,
 
 
 bool HOptimizedGraphBuilder::TryInlineGetter(Handle<JSFunction> getter,
+                                             BailoutId ast_id,
                                              BailoutId return_id) {
   return TryInline(CALL_AS_METHOD,
                    getter,
                    0,
                    NULL,
-                   return_id,
+                   ast_id,
                    return_id,
                    GETTER_CALL_RETURN);
 }
@@ -7560,7 +7561,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
       CHECK_ALIVE(VisitForValue(prop->obj()));
       HValue* object = Top();
-      PushLoad(prop, object, expr->position(), expr->id(), prop->LoadId());
+      PushLoad(prop, object, expr->position());
 
       after = BuildIncrement(returns_original_input, expr);
 
