@@ -1320,6 +1320,8 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "addsd";
     case 0x59:  // F2 prefix.
       return "mulsd";
+    case 0x5A:  // F2 prefix.
+      return "cvtsd2ss";
     case 0x5C:  // F2 prefix.
       return "subsd";
     case 0x5E:  // F2 prefix.
