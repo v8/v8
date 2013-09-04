@@ -37,7 +37,7 @@
 #include "compilation-cache.h"
 #include "debug.h"
 #include "deoptimizer.h"
-#include "platform.h"
+#include "platform/socket.h"
 #include "stub-cache.h"
 #include "utils.h"
 #undef V8_DISABLE_DEPRECATIONS
@@ -5947,9 +5947,6 @@ TEST(DebuggerAgent) {
 
   bool ok;
 
-  // Initialize the socket library.
-  i::Socket::SetUp();
-
   // Test starting and stopping the agent without any client connection.
   debugger->StartAgent("test", kPort1);
   debugger->StopAgent();
@@ -5958,7 +5955,7 @@ TEST(DebuggerAgent) {
   ok = debugger->StartAgent("test", kPort2);
   CHECK(ok);
   debugger->WaitForAgent();
-  i::Socket* client = i::OS::CreateSocket();
+  i::Socket* client = new i::Socket;
   ok = client->Connect("localhost", port2_str);
   CHECK(ok);
   // It is important to wait for a message from the agent. Otherwise,
@@ -5972,8 +5969,9 @@ TEST(DebuggerAgent) {
 
   // Test starting and stopping the agent with the required port already
   // occoupied.
-  i::Socket* server = i::OS::CreateSocket();
-  server->Bind(kPort3);
+  i::Socket* server = new i::Socket;
+  ok = server->Bind(kPort3);
+  CHECK(ok);
 
   debugger->StartAgent("test", kPort3);
   debugger->StopAgent();
@@ -6014,7 +6012,7 @@ void DebuggerAgentProtocolServerThread::Run() {
   bool ok;
 
   // Create the server socket and bind it to the requested port.
-  server_ = i::OS::CreateSocket();
+  server_ = new i::Socket;
   CHECK(server_ != NULL);
   ok = server_->Bind(port_);
   CHECK(ok);
@@ -6044,9 +6042,6 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
   char port_str[kPortBufferLen];
   OS::SNPrintF(i::Vector<char>(port_str, kPortBufferLen), "%d", kPort);
 
-  // Initialize the socket library.
-  i::Socket::SetUp();
-
   // Create a socket server to receive a debugger agent message.
   DebuggerAgentProtocolServerThread* server =
       new DebuggerAgentProtocolServerThread(kPort);
@@ -6054,7 +6049,7 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
   server->WaitForListening();
 
   // Connect.
-  i::Socket* client = i::OS::CreateSocket();
+  i::Socket* client = new i::Socket;
   CHECK(client != NULL);
   bool ok = client->Connect(kLocalhost, port_str);
   CHECK(ok);
@@ -6071,7 +6066,8 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
   buffer[kBufferSize - 3] = '0';
   buffer[kBufferSize - 2] = '\r';
   buffer[kBufferSize - 1] = '\n';
-  client->Send(buffer, kBufferSize);
+  int result = client->Send(buffer, kBufferSize);
+  CHECK_EQ(kBufferSize, result);
 
   // Short key and long value: X:XXXX....XXXX\r\n.
   buffer[0] = 'X';
@@ -6081,13 +6077,16 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
   }
   buffer[kBufferSize - 2] = '\r';
   buffer[kBufferSize - 1] = '\n';
-  client->Send(buffer, kBufferSize);
+  result = client->Send(buffer, kBufferSize);
+  CHECK_EQ(kBufferSize, result);
 
   // Add empty body to request.
   const char* content_length_zero_header = "Content-Length:0\r\n";
-  client->Send(content_length_zero_header,
-               StrLength(content_length_zero_header));
-  client->Send("\r\n", 2);
+  int length = StrLength(content_length_zero_header);
+  result = client->Send(content_length_zero_header, length);
+  CHECK_EQ(length, result);
+  result = client->Send("\r\n", 2);
+  CHECK_EQ(2, result);
 
   // Wait until data is received.
   server->Join();

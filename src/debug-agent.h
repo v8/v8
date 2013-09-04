@@ -37,27 +37,15 @@ namespace internal {
 
 // Forward decelrations.
 class DebuggerAgentSession;
+class Socket;
 
 
 // Debugger agent which starts a socket listener on the debugger port and
 // handles connection from a remote debugger.
 class DebuggerAgent: public Thread {
  public:
-  DebuggerAgent(Isolate* isolate, const char* name, int port)
-      : Thread(name),
-        isolate_(isolate),
-        name_(StrDup(name)), port_(port),
-        server_(OS::CreateSocket()), terminate_(false),
-        session_(NULL),
-        terminate_now_(0),
-        listening_(0) {
-    ASSERT(isolate_->debugger_agent_instance() == NULL);
-    isolate_->set_debugger_agent_instance(this);
-  }
-  ~DebuggerAgent() {
-     isolate_->set_debugger_agent_instance(NULL);
-     delete server_;
-  }
+  DebuggerAgent(Isolate* isolate, const char* name, int port);
+  ~DebuggerAgent();
 
   void Shutdown();
   void WaitUntilListening();
@@ -116,13 +104,11 @@ class DebuggerAgentUtil {
  public:
   static const char* const kContentLength;
 
-  static SmartArrayPointer<char> ReceiveMessage(const Socket* conn);
-  static bool SendConnectMessage(const Socket* conn,
-                                 const char* embedding_host);
-  static bool SendMessage(const Socket* conn, const Vector<uint16_t> message);
-  static bool SendMessage(const Socket* conn,
-                          const v8::Handle<v8::String> message);
-  static int ReceiveAll(const Socket* conn, char* data, int len);
+  static SmartArrayPointer<char> ReceiveMessage(Socket* conn);
+  static bool SendConnectMessage(Socket* conn, const char* embedding_host);
+  static bool SendMessage(Socket* conn, const Vector<uint16_t> message);
+  static bool SendMessage(Socket* conn, const v8::Handle<v8::String> message);
+  static int ReceiveAll(Socket* conn, char* data, int len);
 };
 
 } }  // namespace v8::internal

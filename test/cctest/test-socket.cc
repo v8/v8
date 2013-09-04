@@ -27,6 +27,7 @@
 
 #include "v8.h"
 #include "platform.h"
+#include "platform/socket.h"
 #include "cctest.h"
 
 
@@ -69,7 +70,7 @@ void SocketListenerThread::Run() {
   bool ok;
 
   // Create the server socket and bind it to the requested port.
-  server_ = OS::CreateSocket();
+  server_ = new Socket;
   server_->SetReuseAddress(true);
   CHECK(server_ != NULL);
   ok = server_->Bind(port_);
@@ -121,7 +122,7 @@ static void SendAndReceive(int port, char *data, int len) {
   listener->WaitForListening();
 
   // Connect and write some data.
-  Socket* client = OS::CreateSocket();
+  Socket* client = new Socket;
   CHECK(client != NULL);
   ok = client->Connect(kLocalhost, port_str);
   CHECK(ok);
@@ -150,12 +151,6 @@ TEST(Socket) {
   // parallel.
   static const int kPort = 5859 + FlagDependentPortOffset();
 
-  bool ok;
-
-  // Initialize socket support.
-  ok = Socket::SetUp();
-  CHECK(ok);
-
   // Send and receive some data.
   static const int kBufferSizeSmall = 20;
   char small_data[kBufferSizeSmall + 1] = "1234567890abcdefghij";
@@ -178,13 +173,4 @@ TEST(Socket) {
   }
   SendAndReceive(kPort, large_data, kBufferSizeLarge);
   delete[] large_data;
-}
-
-
-TEST(HToNNToH) {
-  uint16_t x = 1234;
-  CHECK_EQ(x, Socket::NToH(Socket::HToN(x)));
-
-  uint32_t y = 12345678;
-  CHECK(y == Socket::NToH(Socket::HToN(y)));
 }

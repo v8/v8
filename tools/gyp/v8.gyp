@@ -447,6 +447,8 @@
         '../../src/platform/mutex.h',
         '../../src/platform/semaphore.cc',
         '../../src/platform/semaphore.h',
+        '../../src/platform/socket.cc',
+        '../../src/platform/socket.h',
         '../../src/preparse-data-format.h',
         '../../src/preparse-data.cc',
         '../../src/preparse-data.h',

@@ -95,7 +95,7 @@
         'test-reloc-info.cc',
         'test-semaphore.cc',
         'test-serialize.cc',
-        'test-sockets.cc',
+        'test-socket.cc',
         'test-spaces.cc',
         'test-strings.cc',
         'test-symbols.cc',

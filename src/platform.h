@@ -108,9 +108,6 @@ double fast_sqrt(double input);
 // on demand.
 void lazily_initialize_fast_exp();
 
-// Forward declarations.
-class Socket;
-
 // ----------------------------------------------------------------------------
 // Fast TLS support
 
@@ -286,10 +283,6 @@ class OS {
   };
 
   static int StackWalk(Vector<StackFrame> frames);
-
-  // Factory method for creating platform dependent Socket.
-  // Please use delete to reclaim the storage for the returned Socket.
-  static Socket* CreateSocket();
 
   class MemoryMappedFile {
    public:
@@ -618,47 +611,6 @@ class Thread {
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
-
-
-// ----------------------------------------------------------------------------
-// Socket
-//
-
-class Socket {
- public:
-  virtual ~Socket() {}
-
-  // Server initialization.
-  virtual bool Bind(const int port) = 0;
-  virtual bool Listen(int backlog) const = 0;
-  virtual Socket* Accept() const = 0;
-
-  // Client initialization.
-  virtual bool Connect(const char* host, const char* port) = 0;
-
-  // Shutdown socket for both read and write. This causes blocking Send and
-  // Receive calls to exit. After Shutdown the Socket object cannot be used for
-  // any communication.
-  virtual bool Shutdown() = 0;
-
-  // Data Transimission
-  // Return 0 on failure.
-  virtual int Send(const char* data, int len) const = 0;
-  virtual int Receive(char* data, int len) const = 0;
-
-  // Set the value of the SO_REUSEADDR socket option.
-  virtual bool SetReuseAddress(bool reuse_address) = 0;
-
-  virtual bool IsValid() const = 0;
-
-  static bool SetUp();
-  static int LastError();
-  static uint16_t HToN(uint16_t value);
-  static uint16_t NToH(uint16_t value);
-  static uint32_t HToN(uint32_t value);
-  static uint32_t NToH(uint32_t value);
-};
-
 
 } }  // namespace v8::internal
 
