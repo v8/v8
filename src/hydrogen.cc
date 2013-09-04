@@ -5376,7 +5376,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedGeneric(
     Handle<String> name,
     Property* expr) {
   if (expr->IsUninitialized()) {
-    Add<HDeoptimize>("Insufficient feedback for generic named load",
+    Add<HDeoptimize>("Insufficient type feedback for generic named load",
                      Deoptimizer::SOFT);
   }
   HValue* context = environment()->context();
@@ -5690,7 +5690,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
   // Deopt if none of the cases matched.
   NoObservableSideEffectsScope scope(this);
-  FinishExitWithHardDeoptimization("Unknown type in polymorphic element access",
+  FinishExitWithHardDeoptimization("Unknown map in polymorphic element access",
                                    join);
   set_current_block(join);
   return is_store ? NULL : Pop();
@@ -5727,13 +5727,13 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   } else {
     if (is_store) {
       if (expr->IsAssignment() && expr->AsAssignment()->IsUninitialized()) {
-        Add<HDeoptimize>("Insufficient feedback for keyed store",
+        Add<HDeoptimize>("Insufficient type feedback for keyed store",
                          Deoptimizer::SOFT);
       }
       instr = BuildStoreKeyedGeneric(obj, key, val);
     } else {
       if (expr->AsProperty()->IsUninitialized()) {
-        Add<HDeoptimize>("Insufficient feedback for keyed load",
+        Add<HDeoptimize>("Insufficient type feedback for keyed load",
                          Deoptimizer::SOFT);
       }
       instr = BuildLoadKeyedGeneric(obj, key);
@@ -7745,13 +7745,13 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   }
 
   if (left_type->Is(Type::None())) {
-    Add<HDeoptimize>("Insufficient type feedback for left side",
+    Add<HDeoptimize>("Insufficient type feedback for LHS of binary operation",
                      Deoptimizer::SOFT);
     // TODO(rossberg): we should be able to get rid of non-continuous defaults.
     left_type = handle(Type::Any(), isolate());
   }
   if (right_type->Is(Type::None())) {
-    Add<HDeoptimize>("Insufficient type feedback for right side",
+    Add<HDeoptimize>("Insufficient type feedback for RHS of binary operation",
                      Deoptimizer::SOFT);
     right_type = handle(Type::Any(), isolate());
   }
@@ -8102,7 +8102,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   // Cases handled below depend on collected type feedback. They should
   // soft deoptimize when there is no type feedback.
   if (combined_type->Is(Type::None())) {
-    Add<HDeoptimize>("insufficient type feedback for combined type",
+    Add<HDeoptimize>("Insufficient type feedback for combined type "
+                     "of binary operation",
                      Deoptimizer::SOFT);
     combined_type = left_type = right_type = handle(Type::Any(), isolate());
   }
