@@ -1869,7 +1869,7 @@ static void EmitUseLookupTable(
   for (int i = j; i < kSize; i++) {
     templ[i] = bit;
   }
-  Factory* factory = Isolate::Current()->factory();
+  Factory* factory = masm->zone()->isolate()->factory();
   // TODO(erikcorry): Cache these.
   Handle<ByteArray> ba = factory->NewByteArray(kSize, TENURED);
   for (int i = 0; i < kSize; i++) {
@@ -2548,7 +2548,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = compiler->macro_assembler()->zone()->isolate();
   ASSERT(characters_filled_in < details->characters());
   int characters = details->characters();
   int char_mask;
@@ -3246,8 +3246,8 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
                             Trace* trace,
                             bool first_element_checked,
                             int* checked_up_to) {
-  Isolate* isolate = Isolate::Current();
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
+  Isolate* isolate = assembler->zone()->isolate();
   bool ascii = compiler->ascii();
   Label* backtrack = trace->backtrack();
   QuickCheckDetails* quick_check = trace->quick_check_performed();
@@ -3820,7 +3820,7 @@ bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
     return true;
   }
 
-  Factory* factory = Isolate::Current()->factory();
+  Factory* factory = masm->zone()->isolate()->factory();
   Handle<ByteArray> boolean_skip_table = factory->NewByteArray(kSize, TENURED);
   int skip_distance = GetSkipTable(
       min_lookahead, max_lookahead, boolean_skip_table);
@@ -5292,7 +5292,7 @@ void CharacterRange::Split(ZoneList<CharacterRange>* base,
 void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
                                         bool is_ascii,
                                         Zone* zone) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = zone->isolate();
   uc16 bottom = from();
   uc16 top = to();
   if (is_ascii && !RangeContainsLatin1Equivalents(*this)) {
@@ -5680,7 +5680,7 @@ OutSet* DispatchTable::Get(uc16 value) {
 
 
 void Analysis::EnsureAnalyzed(RegExpNode* that) {
-  StackLimitCheck check(Isolate::Current());
+  StackLimitCheck check(that->zone()->isolate());
   if (check.HasOverflowed()) {
     fail("Stack overflow");
     return;

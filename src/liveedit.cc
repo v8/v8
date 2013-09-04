@@ -631,8 +631,8 @@ static Handle<Object> UnwrapJSValue(Handle<JSValue> jsValue) {
 
 // Wraps any object into a OpaqueReference, that will hide the object
 // from JavaScript.
-static Handle<JSValue> WrapInJSValue(Handle<Object> object) {
-  Isolate* isolate = Isolate::Current();
+static Handle<JSValue> WrapInJSValue(Handle<HeapObject> object) {
+  Isolate* isolate = object->GetIsolate();
   Handle<JSFunction> constructor = isolate->opaque_reference_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(isolate->factory()->NewJSObject(constructor));
@@ -662,8 +662,8 @@ static int GetArrayLength(Handle<JSArray> array) {
 template<typename S>
 class JSArrayBasedStruct {
  public:
-  static S Create() {
-    Factory* factory = Isolate::Current()->factory();
+  static S Create(Isolate* isolate) {
+    Factory* factory = isolate->factory();
     Handle<JSArray> array = factory->NewJSArray(S::kSize_);
     return S(array);
   }
@@ -724,7 +724,7 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
     this->SetSmiValueField(kParentIndexOffset_, parent_index);
   }
   void SetFunctionCode(Handle<Code> function_code,
-      Handle<Object> code_scope_info) {
+      Handle<HeapObject> code_scope_info) {
     Handle<JSValue> code_wrapper = WrapInJSValue(function_code);
     this->SetField(kCodeOffset_, code_wrapper);
 
@@ -833,7 +833,7 @@ class FunctionInfoListener {
 
   void FunctionStarted(FunctionLiteral* fun) {
     HandleScope scope(isolate());
-    FunctionInfoWrapper info = FunctionInfoWrapper::Create();
+    FunctionInfoWrapper info = FunctionInfoWrapper::Create(isolate());
     info.SetInitialProperties(fun->name(), fun->start_position(),
                               fun->end_position(), fun->parameter_count(),
                               fun->materialized_literal_count(),
@@ -860,8 +860,7 @@ class FunctionInfoListener {
             result_->GetElementNoExceptionThrown(
                 isolate(), current_parent_index_));
     info.SetFunctionCode(function_code,
-                         Handle<Object>(isolate()->heap()->null_value(),
-                                        isolate()));
+                         Handle<HeapObject>(isolate()->heap()->null_value()));
   }
 
   // Saves full information about a function: its code, its scope info
@@ -876,7 +875,7 @@ class FunctionInfoListener {
             result_->GetElementNoExceptionThrown(
                 isolate(), current_parent_index_));
     info.SetFunctionCode(Handle<Code>(shared->code()),
-                         Handle<Object>(shared->scope_info(), isolate()));
+                         Handle<HeapObject>(shared->scope_info()));
     info.SetSharedFunctionInfo(shared);
 
     Handle<Object> scope_info_list(SerializeFunctionScope(scope, zone),
@@ -939,7 +938,7 @@ class FunctionInfoListener {
 
 JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
                                      Handle<String> source) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = script->GetIsolate();
 
   FunctionInfoListener listener(isolate);
   Handle<Object> original_source =
@@ -1011,8 +1010,8 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
   for (int i = 0; i < len; i++) {
     Handle<SharedFunctionInfo> info(
         SharedFunctionInfo::cast(
-            array->GetElementNoExceptionThrown(array->GetIsolate(), i)));
-    SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create();
+            array->GetElementNoExceptionThrown(isolate, i)));
+    SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create(isolate);
     Handle<String> name_handle(String::cast(info->name()));
     info_wrapper.SetProperties(name_handle, info->start_position(),
                                info->end_position(), info);
@@ -1275,7 +1274,7 @@ static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
 MaybeObject* LiveEdit::ReplaceFunctionCode(
     Handle<JSArray> new_compile_info_array,
     Handle<JSArray> shared_info_array) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = new_compile_info_array->GetIsolate();
   HandleScope scope(isolate);
 
   if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
@@ -1349,7 +1348,7 @@ void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
   CHECK(script_handle->IsScript() || script_handle->IsUndefined());
   shared_info->set_script(*script_handle);
 
-  Isolate::Current()->compilation_cache()->Remove(shared_info);
+  function_wrapper->GetIsolate()->compilation_cache()->Remove(shared_info);
 }
 
 
@@ -1518,7 +1517,7 @@ static Handle<Code> PatchPositionsInCode(
 MaybeObject* LiveEdit::PatchFunctionPositions(
     Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array) {
   if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
-    return Isolate::Current()->ThrowIllegalOperation();
+    return shared_info_array->GetIsolate()->ThrowIllegalOperation();
   }
 
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
@@ -1662,7 +1661,7 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
 static bool FixTryCatchHandler(StackFrame* top_frame,
                                StackFrame* bottom_frame) {
   Address* pointer_address =
-      &Memory::Address_at(Isolate::Current()->get_address_from_id(
+      &Memory::Address_at(top_frame->isolate()->get_address_from_id(
           Isolate::kHandlerAddress));
 
   while (*pointer_address < top_frame->sp()) {
@@ -1698,7 +1697,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   ASSERT(bottom_js_frame->is_java_script());
 
   // Check the nature of the top frame.
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = bottom_js_frame->isolate();
   Code* pre_top_frame_code = pre_top_frame->LookupCode();
   bool frame_has_padding;
   if (pre_top_frame_code->is_inline_cache_stub() &&
@@ -1801,7 +1800,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   // Make sure FixTryCatchHandler is idempotent.
   ASSERT(!FixTryCatchHandler(pre_top_frame, bottom_js_frame));
 
-  Handle<Code> code = Isolate::Current()->builtins()->FrameDropper_LiveEdit();
+  Handle<Code> code = isolate->builtins()->FrameDropper_LiveEdit();
   *top_frame_pc_address = code->entry();
   pre_top_frame->SetCallerFp(bottom_js_frame->fp());
 
@@ -1849,8 +1848,7 @@ class MultipleFunctionTarget {
 // Drops all call frame matched by target and all frames above them.
 template<typename TARGET>
 static const char* DropActivationsInActiveThreadImpl(
-    TARGET& target, bool do_drop) {
-  Isolate* isolate = Isolate::Current();
+    Isolate* isolate, TARGET& target, bool do_drop) {
   Debug* debug = isolate->debug();
   Zone zone(isolate);
   Vector<StackFrame*> frames = CreateStackMap(isolate, &zone);
@@ -1949,8 +1947,8 @@ static const char* DropActivationsInActiveThread(
     Handle<JSArray> shared_info_array, Handle<JSArray> result, bool do_drop) {
   MultipleFunctionTarget target(shared_info_array, result);
 
-  const char* message =
-      DropActivationsInActiveThreadImpl(target, do_drop);
+  const char* message = DropActivationsInActiveThreadImpl(
+      shared_info_array->GetIsolate(), target, do_drop);
   if (message) {
     return message;
   }
@@ -2015,7 +2013,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   // First check inactive threads. Fail if some functions are blocked there.
   InactiveThreadActivationsChecker inactive_threads_checker(shared_info_array,
                                                             result);
-  Isolate::Current()->thread_manager()->IterateArchivedThreads(
+  isolate->thread_manager()->IterateArchivedThreads(
       &inactive_threads_checker);
   if (inactive_threads_checker.HasBlockedFunctions()) {
     return result;
@@ -2067,7 +2065,8 @@ class SingleFrameTarget {
 const char* LiveEdit::RestartFrame(JavaScriptFrame* frame) {
   SingleFrameTarget target(frame);
 
-  const char* result = DropActivationsInActiveThreadImpl(target, true);
+  const char* result = DropActivationsInActiveThreadImpl(
+      frame->isolate(), target, true);
   if (result != NULL) {
     return result;
   }

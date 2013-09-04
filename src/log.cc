@@ -1764,21 +1764,21 @@ void Logger::LogAccessorCallbacks() {
 }
 
 
-static void AddIsolateIdIfNeeded(StringStream* stream) {
-  Isolate* isolate = Isolate::Current();
+static void AddIsolateIdIfNeeded(Isolate* isolate, StringStream* stream) {
   if (isolate->IsDefaultIsolate()) return;
   stream->Add("isolate-%p-", isolate);
 }
 
 
-static SmartArrayPointer<const char> PrepareLogFileName(const char* file_name) {
+static SmartArrayPointer<const char> PrepareLogFileName(
+    Isolate* isolate, const char* file_name) {
   if (strchr(file_name, '%') != NULL ||
-      !Isolate::Current()->IsDefaultIsolate()) {
+      !isolate->IsDefaultIsolate()) {
     // If there's a '%' in the log file name we have to expand
     // placeholders.
     HeapStringAllocator allocator;
     StringStream stream(&allocator);
-    AddIsolateIdIfNeeded(&stream);
+    AddIsolateIdIfNeeded(isolate, &stream);
     for (const char* p = file_name; *p; p++) {
       if (*p == '%') {
         p++;
@@ -1832,7 +1832,7 @@ bool Logger::SetUp(Isolate* isolate) {
   }
 
   SmartArrayPointer<const char> log_file_name =
-      PrepareLogFileName(FLAG_logfile);
+      PrepareLogFileName(isolate, FLAG_logfile);
   log_->Initialize(*log_file_name);
 
   if (FLAG_ll_prof) {

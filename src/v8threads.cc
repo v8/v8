@@ -227,7 +227,7 @@ void ThreadManager::Unlock() {
 }
 
 
-static int ArchiveSpacePerThread() {
+static int ArchiveSpacePerThread(Isolate* isolate) {
   return HandleScopeImplementer::ArchiveSpacePerThread() +
                         Isolate::ArchiveSpacePerThread() +
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -236,7 +236,7 @@ static int ArchiveSpacePerThread() {
                      StackGuard::ArchiveSpacePerThread() +
                     RegExpStack::ArchiveSpacePerThread() +
                    Bootstrapper::ArchiveSpacePerThread() +
-                    Relocatable::ArchiveSpacePerThread();
+                    Relocatable::ArchiveSpacePerThread(isolate);
 }
 
 
@@ -256,7 +256,7 @@ ThreadState::~ThreadState() {
 
 
 void ThreadState::AllocateSpace() {
-  data_ = NewArray<char>(ArchiveSpacePerThread());
+  data_ = NewArray<char>(ArchiveSpacePerThread(Isolate::Current()));
 }
 
 
@@ -396,7 +396,7 @@ void ThreadManager::Iterate(ObjectVisitor* v) {
     char* data = state->data();
     data = HandleScopeImplementer::Iterate(v, data);
     data = isolate_->Iterate(v, data);
-    data = Relocatable::Iterate(v, data);
+    data = Relocatable::Iterate(Isolate::Current(), v, data);
   }
 }
 

@@ -6584,7 +6584,7 @@ MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
   } else {
     // Descriptor arrays grow by 50%.
     MaybeObject* maybe_descriptors = DescriptorArray::Allocate(
-        old_size, old_size < 4 ? 1 : old_size / 2);
+        GetIsolate(), old_size, old_size < 4 ? 1 : old_size / 2);
     if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
     DescriptorArray::WhitenessWitness witness(new_descriptors);
@@ -6834,7 +6834,8 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
   }
 
   DescriptorArray* new_descriptors;
-  MaybeObject* maybe_descriptors = DescriptorArray::Allocate(old_size, 1);
+  MaybeObject* maybe_descriptors =
+      DescriptorArray::Allocate(GetIsolate(), old_size, 1);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
   DescriptorArray::WhitenessWitness witness(new_descriptors);
@@ -6881,7 +6882,7 @@ MaybeObject* DescriptorArray::CopyUpToAddAttributes(
   int size = enumeration_index;
 
   DescriptorArray* descriptors;
-  MaybeObject* maybe_descriptors = Allocate(size);
+  MaybeObject* maybe_descriptors = Allocate(GetIsolate(), size);
   if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
   DescriptorArray::WhitenessWitness witness(descriptors);
 
@@ -6928,7 +6929,8 @@ MaybeObject* Map::CopyReplaceDescriptor(DescriptorArray* descriptors,
   ASSERT_LT(insertion_index, new_size);
 
   DescriptorArray* new_descriptors;
-  MaybeObject* maybe_descriptors = DescriptorArray::Allocate(new_size);
+  MaybeObject* maybe_descriptors =
+      DescriptorArray::Allocate(GetIsolate(), new_size);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
   DescriptorArray::WhitenessWitness witness(new_descriptors);
 
@@ -7718,8 +7720,10 @@ bool FixedArray::IsEqualTo(FixedArray* other) {
 #endif
 
 
-MaybeObject* DescriptorArray::Allocate(int number_of_descriptors, int slack) {
-  Heap* heap = Isolate::Current()->heap();
+MaybeObject* DescriptorArray::Allocate(Isolate* isolate,
+                                       int number_of_descriptors,
+                                       int slack) {
+  Heap* heap = isolate->heap();
   // Do not use DescriptorArray::cast on incomplete object.
   int size = number_of_descriptors + slack;
   if (size == 0) return heap->empty_descriptor_array();
@@ -7787,7 +7791,8 @@ MaybeObject* DescriptorArray::Merge(int verbatim,
   // Allocate a new descriptor array large enough to hold the required
   // descriptors, with minimally the exact same size as this descriptor array.
   MaybeObject* maybe_descriptors = DescriptorArray::Allocate(
-      new_size, Max(new_size, other->number_of_descriptors()) - new_size);
+      GetIsolate(), new_size,
+      Max(new_size, other->number_of_descriptors()) - new_size);
   if (!maybe_descriptors->To(&result)) return maybe_descriptors;
   ASSERT(result->length() > length() ||
          result->NumberOfSlackDescriptors() > 0 ||
@@ -8003,7 +8008,7 @@ bool Name::IsCacheable(Isolate* isolate) {
 
 
 bool String::LooksValid() {
-  if (!Isolate::Current()->heap()->Contains(this)) return false;
+  if (!GetIsolate()->heap()->Contains(this)) return false;
   return true;
 }
 
@@ -8163,8 +8168,7 @@ const uc16* SeqTwoByteString::SeqTwoByteStringGetData(unsigned start) {
 }
 
 
-void Relocatable::PostGarbageCollectionProcessing() {
-  Isolate* isolate = Isolate::Current();
+void Relocatable::PostGarbageCollectionProcessing(Isolate* isolate) {
   Relocatable* current = isolate->relocatable_top();
   while (current != NULL) {
     current->PostGarbageCollection();
@@ -8174,8 +8178,8 @@ void Relocatable::PostGarbageCollectionProcessing() {
 
 
 // Reserve space for statics needing saving and restoring.
-int Relocatable::ArchiveSpacePerThread() {
-  return sizeof(Isolate::Current()->relocatable_top());
+int Relocatable::ArchiveSpacePerThread(Isolate* isolate) {
+  return sizeof(isolate->relocatable_top());
 }
 
 
@@ -8183,26 +8187,26 @@ int Relocatable::ArchiveSpacePerThread() {
 char* Relocatable::ArchiveState(Isolate* isolate, char* to) {
   *reinterpret_cast<Relocatable**>(to) = isolate->relocatable_top();
   isolate->set_relocatable_top(NULL);
-  return to + ArchiveSpacePerThread();
+  return to + ArchiveSpacePerThread(isolate);
 }
 
 
 // Restore statics that are thread local.
 char* Relocatable::RestoreState(Isolate* isolate, char* from) {
   isolate->set_relocatable_top(*reinterpret_cast<Relocatable**>(from));
-  return from + ArchiveSpacePerThread();
+  return from + ArchiveSpacePerThread(isolate);
 }
 
 
-char* Relocatable::Iterate(ObjectVisitor* v, char* thread_storage) {
+char* Relocatable::Iterate(
+    Isolate* isolate, ObjectVisitor* v, char* thread_storage) {
   Relocatable* top = *reinterpret_cast<Relocatable**>(thread_storage);
   Iterate(v, top);
-  return thread_storage + ArchiveSpacePerThread();
+  return thread_storage + ArchiveSpacePerThread(isolate);
 }
 
 
-void Relocatable::Iterate(ObjectVisitor* v) {
-  Isolate* isolate = Isolate::Current();
+void Relocatable::Iterate(Isolate* isolate, ObjectVisitor* v) {
   Iterate(v, isolate->relocatable_top());
 }
 
@@ -9316,7 +9320,7 @@ static bool CompileLazyHelper(CompilationInfo* info,
   ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
   ASSERT(!info->isolate()->has_pending_exception());
   bool result = Compiler::CompileLazy(info);
-  ASSERT(result != Isolate::Current()->has_pending_exception());
+  ASSERT(result != info->isolate()->has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) {
     info->isolate()->clear_pending_exception();
   }
@@ -9706,12 +9710,13 @@ bool JSFunction::PassesFilter(const char* raw_filter) {
 }
 
 
-MaybeObject* Oddball::Initialize(const char* to_string,
+MaybeObject* Oddball::Initialize(Heap* heap,
+                                 const char* to_string,
                                  Object* to_number,
                                  byte kind) {
   String* internalized_to_string;
   { MaybeObject* maybe_string =
-      Isolate::Current()->heap()->InternalizeUtf8String(
+      heap->InternalizeUtf8String(
           CStrVector(to_string));
     if (!maybe_string->To(&internalized_to_string)) return maybe_string;
   }
@@ -10432,7 +10437,7 @@ int Code::GetAge() {
 
 void Code::GetCodeAgeAndParity(Code* code, Age* age,
                                MarkingParity* parity) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = code->GetIsolate();
   Builtins* builtins = isolate->builtins();
   Code* stub = NULL;
 #define HANDLE_CODE_AGE(AGE)                                            \
@@ -15263,7 +15268,7 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
   // Allocate the instance descriptor.
   DescriptorArray* descriptors;
   MaybeObject* maybe_descriptors =
-      DescriptorArray::Allocate(instance_descriptor_length);
+      DescriptorArray::Allocate(GetIsolate(), instance_descriptor_length);
   if (!maybe_descriptors->To(&descriptors)) {
     return maybe_descriptors;
   }
@@ -15556,7 +15561,7 @@ void DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info,
                                 int code_position,
                                 Handle<Object> break_point_object) {
   Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_position),
-                                  Isolate::Current());
+                                  debug_info->GetIsolate());
   if (break_point_info->IsUndefined()) return;
   BreakPointInfo::ClearBreakPoint(
       Handle<BreakPointInfo>::cast(break_point_info),
@@ -15569,7 +15574,7 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
                               int source_position,
                               int statement_position,
                               Handle<Object> break_point_object) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = debug_info->GetIsolate();
   Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_position),
                                   isolate);
   if (!break_point_info->IsUndefined()) {
@@ -15683,7 +15688,7 @@ int DebugInfo::GetBreakPointInfoIndex(int code_position) {
 // Remove the specified break point object.
 void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,
                                      Handle<Object> break_point_object) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = break_point_info->GetIsolate();
   // If there are no break points just ignore.
   if (break_point_info->break_point_objects()->IsUndefined()) return;
   // If there is a single break point clear it if it is the same.
