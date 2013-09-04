@@ -458,7 +458,7 @@ template <class T> class Eternal {
   }
   // Can only be safely called if already set.
   V8_INLINE(Local<T> Get(Isolate* isolate));
-  V8_INLINE(bool IsEmpty()) { return index_ != kInitialValue; }
+  V8_INLINE(bool IsEmpty()) { return index_ == kInitialValue; }
   template<class S>
   V8_INLINE(void Set(Isolate* isolate, Local<S> handle));
 
