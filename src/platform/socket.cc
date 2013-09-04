@@ -128,7 +128,8 @@ bool Socket::Connect(const char* host, const char* port) {
   for (struct addrinfo* ai = info; ai != NULL; ai = ai->ai_next) {
     // Try to connect using this addr info.
     while (true) {
-      result = ::connect(native_handle_, ai->ai_addr, ai->ai_addrlen);
+      result = ::connect(
+          native_handle_, ai->ai_addr, static_cast<int>(ai->ai_addrlen));
       if (result == 0) {
         freeaddrinfo(info);
         return true;
