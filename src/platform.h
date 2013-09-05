@@ -178,9 +178,6 @@ class OS {
   // called after CPU initialization.
   static void PostSetUp();
 
-  // Clean up platform-OS-related things. Called once at VM shutdown.
-  static void TearDown();
-
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
   // strive for high-precision timer resolution, preferable
@@ -253,13 +250,6 @@ class OS {
 
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
-
-  // Returns an indication of whether a pointer is in a space that
-  // has been allocated by Allocate().  This method may conservatively
-  // always return false, but giving more accurate information may
-  // improve the robustness of the stack dump code in the presence of
-  // heap corruption.
-  static bool IsOutsideAllocatedSpace(void* pointer);
 
   // Sleep for a number of milliseconds.
   static void Sleep(const int milliseconds);

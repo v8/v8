@@ -112,7 +112,6 @@ void V8::TearDown() {
   call_completed_callbacks_ = NULL;
 
   Sampler::TearDown();
-  OS::TearDown();
 }
 
 
