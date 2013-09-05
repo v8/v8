@@ -161,7 +161,9 @@ class ProfilerEventsProcessor : public Thread {
  private:
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
-  bool ProcessOneSample();
+  bool ProcessTicks();
+
+  void ProcessEventsAndDoSample();
 
   ProfileGenerator* generator_;
   Sampler* sampler_;
