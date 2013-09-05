@@ -5796,8 +5796,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
     }
   } else {
     Push(graph()->GetArgumentsObject());
-    VisitForValue(expr->key());
-    if (HasStackOverflow() || current_block() == NULL) return true;
+    CHECK_ALIVE_OR_RETURN(VisitForValue(expr->key()), true);
     HValue* key = Pop();
     Drop(1);  // Arguments object.
     if (function_state()->outer() == NULL) {
@@ -6865,14 +6864,12 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
 
   // Found pattern f.apply(receiver, arguments).
-  VisitForValue(prop->obj());
-  if (HasStackOverflow() || current_block() == NULL) return true;
+  CHECK_ALIVE_OR_RETURN(VisitForValue(prop->obj()), true);
   HValue* function = Top();
   AddCheckConstantFunction(expr->holder(), function, function_map);
   Drop(1);
 
-  VisitForValue(args->at(0));
-  if (HasStackOverflow() || current_block() == NULL) return true;
+  CHECK_ALIVE_OR_RETURN(VisitForValue(args->at(0)), true);
   HValue* receiver = Pop();
 
   if (function_state()->outer() == NULL) {
