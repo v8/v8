@@ -4911,8 +4911,8 @@ void HOptimizedGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
       Add<HDeoptimize>("Insufficient type feedback for property assignment",
                        Deoptimizer::SOFT);
     }
-    return BuildStoreNamed(expr, expr->id(), expr->position(),
-                           expr->AssignmentId(), prop, object, value);
+    return BuildStoreNamed(
+        expr, expr->id(), expr->AssignmentId(), prop, object, value);
   } else {
     // Keyed store.
     CHECK_ALIVE(VisitForValue(prop->key()));
@@ -4980,7 +4980,6 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
 
 void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
                                              BailoutId id,
-                                             int position,
                                              BailoutId assignment_id,
                                              Property* prop,
                                              HValue* object,
@@ -5020,14 +5019,14 @@ void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
   } else if (types != NULL && types->length() > 1) {
     Drop(2);
     return HandlePolymorphicStoreNamedField(
-        position, id, object, value, types, name);
+        expr->position(), id, object, value, types, name);
   } else {
     Drop(2);
     instr = BuildStoreNamedGeneric(object, name, value);
   }
 
   if (!ast_context()->IsEffect()) Push(value);
-  instr->set_position(position);
+  instr->set_position(expr->position());
   AddInstruction(instr);
   if (instr->HasObservableSideEffects()) {
     Add<HSimulate>(id, REMOVABLE_SIMULATE);
@@ -5122,7 +5121,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       // Named property.
       CHECK_ALIVE(VisitForValue(prop->obj()));
       HValue* object = Top();
-      PushLoad(prop, object, expr->position());
+      CHECK_ALIVE(PushLoad(prop, object, expr->position()));
 
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* right = Pop();
@@ -5134,8 +5133,8 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         Add<HSimulate>(operation->id(), REMOVABLE_SIMULATE);
       }
 
-      return BuildStoreNamed(expr, expr->id(), expr->position(),
-                             expr->AssignmentId(), prop, object, instr);
+      return BuildStoreNamed(
+          expr, expr->id(), expr->AssignmentId(), prop, object, instr);
     } else {
       // Keyed property.
       CHECK_ALIVE(VisitForValue(prop->obj()));
@@ -7475,6 +7474,19 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
 }
 
 
+void HOptimizedGraphBuilder::BuildStoreInEffect(Expression* expr,
+                                                Property* prop,
+                                                BailoutId ast_id,
+                                                BailoutId return_id,
+                                                HValue* object,
+                                                HValue* value) {
+  EffectContext for_effect(this);
+  Push(object);
+  Push(value);
+  BuildStoreNamed(expr, ast_id, return_id, prop, object, value);
+}
+
+
 void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -7561,7 +7573,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
       CHECK_ALIVE(VisitForValue(prop->obj()));
       HValue* object = Top();
-      PushLoad(prop, object, expr->position());
+      CHECK_ALIVE(PushLoad(prop, object, expr->position()));
 
       after = BuildIncrement(returns_original_input, expr);
 
@@ -7569,18 +7581,13 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
         HValue* result = Pop();
         HValue* object = Pop();
         environment()->SetExpressionStackAt(0, result);
-        {
-          EffectContext for_effect(this);
-          Push(object);
-          Push(after);
-          BuildStoreNamed(expr, expr->id(), expr->position(),
-                          expr->AssignmentId(), prop, object, after);
-        }
+        CHECK_ALIVE(BuildStoreInEffect(
+            expr, prop, expr->id(), expr->AssignmentId(), object, after));
         return ast_context()->ReturnValue(Pop());
       }
 
-      return BuildStoreNamed(expr, expr->id(), expr->position(),
-                             expr->AssignmentId(), prop, object, after);
+      return BuildStoreNamed(
+          expr, expr->id(), expr->AssignmentId(), prop, object, after);
     } else {
       // Keyed property.
       if (returns_original_input) Push(graph()->GetConstantUndefined());

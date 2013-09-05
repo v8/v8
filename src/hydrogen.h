@@ -2040,9 +2040,15 @@ class HOptimizedGraphBuilder V8_FINAL
                 HValue* object,
                 int position);
 
+  void BuildStoreInEffect(Expression* expression,
+                          Property* prop,
+                          BailoutId ast_id,
+                          BailoutId return_id,
+                          HValue* object,
+                          HValue* value);
+
   void BuildStoreNamed(Expression* expression,
                        BailoutId id,
-                       int position,
                        BailoutId assignment_id,
                        Property* prop,
                        HValue* object,
