@@ -114,11 +114,11 @@ bool ProfilerEventsProcessor::ProcessOneSample() {
     return false;
   }
 
-  const TickSampleEventRecord* record = ticks_buffer_.StartDequeue();
+  const TickSampleEventRecord* record = ticks_buffer_.Peek();
   if (record == NULL) return true;
   if (record->order != last_processed_code_event_id_) return true;
   generator_->RecordTickSample(record->sample);
-  ticks_buffer_.FinishDequeue();
+  ticks_buffer_.Remove();
   return false;
 }
 

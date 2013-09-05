@@ -55,12 +55,11 @@ class SamplingCircularQueue {
   void FinishEnqueue();
 
   // Executed on the consumer (analyzer) thread.
-  // StartDequeue returns a pointer to a memory location for retrieving
-  // the next record. After the record had been read by a consumer,
-  // FinishDequeue must be called. Until that moment, subsequent calls
-  // to StartDequeue will return the same pointer.
-  T* StartDequeue();
-  void FinishDequeue();
+  // Retrieves, but does not remove, the head of this queue, returning NULL
+  // if this queue is empty. After the record had been read by a consumer,
+  // Remove must be called.
+  T* Peek();
+  void Remove();
 
  private:
   // Reserved values for the entry marker.
