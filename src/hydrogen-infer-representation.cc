@@ -152,8 +152,8 @@ void HInferRepresentationPhase::Run() {
   // Do a fixed point iteration, trying to improve representations
   while (!worklist_.is_empty()) {
     HValue* current = worklist_.RemoveLast();
-    in_worklist_.Remove(current->id());
     current->InferRepresentation(this);
+    in_worklist_.Remove(current->id());
   }
 
   // Lastly: any instruction that we don't have representation information
