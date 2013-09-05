@@ -142,7 +142,7 @@ void ProfilerEventsProcessor::Run() {
 
   // Process remaining tick events.
   do {
-    while (!ProcessOneSample());
+    while (!ProcessOneSample()) {}
   } while (ProcessCodeEvent());
 }
 
