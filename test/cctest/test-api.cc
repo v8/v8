@@ -166,6 +166,24 @@ static void SignatureCallback(
 }
 
 
+// Tests that call v8::V8::Dispose() cannot be threaded.
+TEST(InitializeAndDisposeOnce) {
+  CHECK(v8::V8::Initialize());
+  CHECK(v8::V8::Dispose());
+}
+
+
+// Tests that call v8::V8::Dispose() cannot be threaded.
+TEST(InitializeAndDisposeMultiple) {
+  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
+  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
+  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
+  // TODO(mstarzinger): This should fail gracefully instead of asserting.
+  // for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
+  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
+}
+
+
 THREADED_TEST(Handles) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   Local<Context> local_env;

@@ -50,8 +50,6 @@ namespace internal {
 
 V8_DECLARE_ONCE(init_once);
 
-bool V8::has_been_set_up_ = false;
-bool V8::has_been_disposed_ = false;
 List<CallCompletedCallback>* V8::call_completed_callbacks_ = NULL;
 v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
 
@@ -81,9 +79,6 @@ bool V8::Initialize(Deserializer* des) {
   if (isolate->IsDead()) return false;
   if (isolate->IsInitialized()) return true;
 
-  has_been_set_up_ = true;
-  has_been_disposed_ = false;
-
   return isolate->Init(des);
 }
 
@@ -91,8 +86,7 @@ bool V8::Initialize(Deserializer* des) {
 void V8::TearDown() {
   Isolate* isolate = Isolate::Current();
   ASSERT(isolate->IsDefaultIsolate());
-
-  if (!has_been_set_up_ || has_been_disposed_) return;
+  if (!isolate->IsInitialized()) return;
 
   // The isolate has to be torn down before clearing the LOperand
   // caches so that the optimizing compiler thread (if running)
@@ -105,8 +99,6 @@ void V8::TearDown() {
   ExternalReference::TearDownMathExpData();
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
-
-  has_been_disposed_ = true;
 
   delete call_completed_callbacks_;
   call_completed_callbacks_ = NULL;
