@@ -3422,7 +3422,6 @@ static void StubMessageHandler2(const v8::Debug::Message& message) {
 
 bool Debugger::StartAgent(const char* name, int port,
                           bool wait_for_connection) {
-  ASSERT(Isolate::Current() == isolate_);
   if (wait_for_connection) {
     // Suspend V8 if it is already running or set V8 to suspend whenever
     // it starts.
@@ -3443,7 +3442,6 @@ bool Debugger::StartAgent(const char* name, int port,
 
 
 void Debugger::StopAgent() {
-  ASSERT(Isolate::Current() == isolate_);
   if (agent_ != NULL) {
     agent_->Shutdown();
     agent_->Join();
@@ -3454,7 +3452,6 @@ void Debugger::StopAgent() {
 
 
 void Debugger::WaitForAgent() {
-  ASSERT(Isolate::Current() == isolate_);
   if (agent_ != NULL)
     agent_->WaitUntilListening();
 }
@@ -3508,7 +3505,6 @@ EnterDebugger::EnterDebugger(Isolate* isolate)
 
 
 EnterDebugger::~EnterDebugger() {
-  ASSERT(Isolate::Current() == isolate_);
   Debug* debug = isolate_->debug();
 
   // Restore to the previous break state.

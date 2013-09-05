@@ -1408,7 +1408,7 @@ class MarkCompactMarkingVisitor
   INLINE(static void VisitUnmarkedObject(MarkCompactCollector* collector,
                                          HeapObject* obj)) {
 #ifdef DEBUG
-    ASSERT(Isolate::Current()->heap()->Contains(obj));
+    ASSERT(collector->heap()->Contains(obj));
     ASSERT(!HEAP->mark_compact_collector()->IsMarked(obj));
 #endif
     Map* map = obj->map();

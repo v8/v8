@@ -1713,9 +1713,7 @@ class HeapObject: public Object {
   // The Heap the object was allocated in. Used also to access Isolate.
   inline Heap* GetHeap();
 
-  // Convenience method to get current isolate. This method can be
-  // accessed only when its result is the same as
-  // Isolate::Current(), it ASSERTs this. See also comment for GetHeap.
+  // Convenience method to get current isolate.
   inline Isolate* GetIsolate();
 
   // Converts an address to a HeapObject pointer.

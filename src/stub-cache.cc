@@ -45,9 +45,7 @@ namespace internal {
 
 
 StubCache::StubCache(Isolate* isolate)
-    : isolate_(isolate) {
-  ASSERT(isolate == Isolate::Current());
-}
+    : isolate_(isolate) { }
 
 
 void StubCache::Initialize() {

@@ -132,7 +132,6 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
   MUST_USE_RESULT static MaybeObject* Builtin_##name(            \
       int args_length, Object** args_object, Isolate* isolate) { \
     name##ArgumentsType args(args_length, args_object);          \
-    ASSERT(isolate == Isolate::Current());                       \
     args.Verify();                                               \
     return Builtin_Impl_##name(args, isolate);                   \
   }                                                              \

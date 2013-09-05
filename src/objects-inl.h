@@ -1185,7 +1185,6 @@ Heap* HeapObject::GetHeap() {
   Heap* heap =
       MemoryChunk::FromAddress(reinterpret_cast<Address>(this))->heap();
   ASSERT(heap != NULL);
-  ASSERT(heap->isolate() == Isolate::Current());
   return heap;
 }
 
@@ -6177,7 +6176,6 @@ SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
 
 
 Relocatable::Relocatable(Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   isolate_ = isolate;
   prev_ = isolate->relocatable_top();
   isolate->set_relocatable_top(this);
@@ -6185,7 +6183,6 @@ Relocatable::Relocatable(Isolate* isolate) {
 
 
 Relocatable::~Relocatable() {
-  ASSERT(isolate_ == Isolate::Current());
   ASSERT_EQ(isolate_->relocatable_top(), this);
   isolate_->set_relocatable_top(prev_);
 }

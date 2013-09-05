@@ -168,7 +168,6 @@ uint32_t V8::Random(Context* context) {
 // purposes. So, we keep a different state to prevent informations
 // leaks that could be used in an exploit.
 uint32_t V8::RandomPrivate(Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   return random_base(isolate->private_random_seed());
 }
 
