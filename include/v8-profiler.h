@@ -57,6 +57,11 @@ class V8_EXPORT CpuProfileNode {
    */
   int GetLineNumber() const;
 
+  /** Returns bailout reason for the function
+    * if the optimization was disabled for it.
+    */
+  const char* GetBailoutReason() const;
+
   /** DEPRECATED. Please use GetHitCount instead.
     * Returns the count of samples where function was currently executing.
     */

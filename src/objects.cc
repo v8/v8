@@ -32,6 +32,7 @@
 #include "arguments.h"
 #include "bootstrapper.h"
 #include "codegen.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "date.h"
@@ -40,6 +41,7 @@
 #include "full-codegen.h"
 #include "hydrogen.h"
 #include "isolate-inl.h"
+#include "log.h"
 #include "objects-inl.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
@@ -9852,12 +9854,16 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   // non-optimizable if optimization is disabled for the shared
   // function info.
   set_optimization_disabled(true);
+  set_bailout_reason(reason);
   // Code should be the lazy compilation stub or else unoptimized.  If the
   // latter, disable optimization for the code too.
   ASSERT(code()->kind() == Code::FUNCTION || code()->kind() == Code::BUILTIN);
   if (code()->kind() == Code::FUNCTION) {
     code()->set_optimizable(false);
   }
+  PROFILE(Isolate::Current(),
+      LogExistingFunction(Handle<SharedFunctionInfo>(this),
+                          Handle<Code>(code())));
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for ");
     ShortPrint();

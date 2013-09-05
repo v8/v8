@@ -230,7 +230,7 @@ bool CompilationInfo::ShouldSelfOptimize() {
   return FLAG_self_optimization &&
       FLAG_crankshaft &&
       !function()->flags()->Contains(kDontSelfOptimize) &&
-      !function()->flags()->Contains(kDontOptimize) &&
+      !function()->dont_optimize() &&
       function()->scope()->AllowsLazyCompilation() &&
       (shared_info().is_null() || !shared_info()->optimization_disabled());
 }
@@ -840,7 +840,7 @@ static bool InstallFullCode(CompilationInfo* info) {
 
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
-  shared->set_dont_optimize(lit->flags()->Contains(kDontOptimize));
+  shared->set_dont_optimize_reason(lit->dont_optimize_reason());
   shared->set_dont_inline(lit->flags()->Contains(kDontInline));
   shared->set_ast_node_count(lit->ast_node_count());
 
@@ -1360,7 +1360,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
   function_info->set_ast_node_count(lit->ast_node_count());
   function_info->set_is_function(lit->is_function());
-  function_info->set_dont_optimize(lit->flags()->Contains(kDontOptimize));
+  function_info->set_dont_optimize_reason(lit->dont_optimize_reason());
   function_info->set_dont_inline(lit->flags()->Contains(kDontInline));
   function_info->set_dont_cache(lit->flags()->Contains(kDontCache));
   function_info->set_is_generator(lit->is_generator());

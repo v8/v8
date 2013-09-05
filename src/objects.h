@@ -1121,6 +1121,7 @@ class MaybeObject BASE_EMBEDDED {
     "Expected property cell in register rbx")                                 \
   V(kExpectingAlignmentForCopyBytes,                                          \
     "Expecting alignment for CopyBytes")                                      \
+  V(kExportDeclaration, "Export declaration")                                 \
   V(kExternalStringExpectedButNotFound,                                       \
     "external string expected, but not found")                                \
   V(kFailedBailedOutLastTime, "failed/bailed out last time")                  \
@@ -1140,6 +1141,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kGlobalFunctionsMustHaveInitialMap,                                       \
     "Global functions must have initial map")                                 \
   V(kHeapNumberMapRegisterClobbered, "HeapNumberMap register clobbered")      \
+  V(kImportDeclaration, "Import declaration")                                 \
   V(kImproperObjectOnPrototypeChainForStore,                                  \
     "improper object on prototype chain for store")                           \
   V(kIndexIsNegative, "Index is negative")                                    \
@@ -1196,6 +1198,12 @@ class MaybeObject BASE_EMBEDDED {
   V(kLookupVariableInCountOperation,                                          \
     "lookup variable in count operation")                                     \
   V(kMapIsNoLongerInEax, "Map is no longer in eax")                           \
+  V(kModuleDeclaration, "Module declaration")                                 \
+  V(kModuleLiteral, "Module literal")                                         \
+  V(kModulePath, "Module path")                                               \
+  V(kModuleStatement, "Module statement")                                     \
+  V(kModuleVariable, "Module variable")                                       \
+  V(kModuleUrl, "Module url")                                                 \
   V(kNoCasesLeft, "no cases left")                                            \
   V(kNoEmptyArraysHereInEmitFastAsciiArrayJoin,                               \
     "No empty arrays here in EmitFastAsciiArrayJoin")                         \
@@ -1237,7 +1245,7 @@ class MaybeObject BASE_EMBEDDED {
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root") \
   V(kRegisterWasClobbered, "register was clobbered")                          \
   V(kScopedBlock, "ScopedBlock")                                              \
-  V(kSharedFunctionInfoLiteral, "SharedFunctionInfoLiteral")                  \
+  V(kSharedFunctionInfoLiteral, "Shared function info literal")               \
   V(kSmiAdditionOverflow, "Smi addition overflow")                            \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                      \
   V(kStackFrameTypesMustMatch, "stack frame types must match")                \
@@ -1323,7 +1331,8 @@ class MaybeObject BASE_EMBEDDED {
     "we should not have an empty lexical context")                            \
   V(kWithStatement, "WithStatement")                                          \
   V(kWrongAddressOrValuePassedToRecordWrite,                                  \
-    "Wrong address or value passed to RecordWrite")
+    "Wrong address or value passed to RecordWrite")                           \
+  V(kYield, "Yield")
 
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
@@ -6558,6 +6567,8 @@ class SharedFunctionInfo: public HeapObject {
   // shared function info.
   void DisableOptimization(BailoutReason reason);
 
+  inline BailoutReason DisableOptimizationReason();
+
   // Lookup the bailout ID and ASSERT that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are
   // disabled).
@@ -6586,6 +6597,21 @@ class SharedFunctionInfo: public HeapObject {
   // Stores deopt_count, opt_reenable_tries and ic_age as bit-fields.
   inline void set_counters(int value);
   inline int counters();
+
+  // Stores opt_count and bailout_reason as bit-fields.
+  inline void set_opt_count_and_bailout_reason(int value);
+  inline int opt_count_and_bailout_reason();
+
+  void set_bailout_reason(BailoutReason reason) {
+    set_opt_count_and_bailout_reason(
+        DisabledOptimizationReasonBits::update(opt_count_and_bailout_reason(),
+                                               reason));
+  }
+
+  void set_dont_optimize_reason(BailoutReason reason) {
+    set_bailout_reason(reason);
+    set_dont_optimize(reason != kNoReason);
+  }
 
   // Source size of this function.
   int SourceSize();
@@ -6653,8 +6679,10 @@ class SharedFunctionInfo: public HeapObject {
       kEndPositionOffset + kPointerSize;
   static const int kCompilerHintsOffset =
       kFunctionTokenPositionOffset + kPointerSize;
-  static const int kOptCountOffset = kCompilerHintsOffset + kPointerSize;
-  static const int kCountersOffset = kOptCountOffset + kPointerSize;
+  static const int kOptCountAndBailoutReasonOffset =
+      kCompilerHintsOffset + kPointerSize;
+  static const int kCountersOffset =
+      kOptCountAndBailoutReasonOffset + kPointerSize;
 
   // Total size.
   static const int kSize = kCountersOffset + kPointerSize;
@@ -6688,9 +6716,11 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCompilerHintsOffset =
       kFunctionTokenPositionOffset + kIntSize;
 
-  static const int kOptCountOffset = kCompilerHintsOffset + kIntSize;
+  static const int kOptCountAndBailoutReasonOffset =
+      kCompilerHintsOffset + kIntSize;
 
-  static const int kCountersOffset = kOptCountOffset + kIntSize;
+  static const int kCountersOffset =
+      kOptCountAndBailoutReasonOffset + kIntSize;
 
   // Total size.
   static const int kSize = kCountersOffset + kIntSize;
@@ -6748,6 +6778,9 @@ class SharedFunctionInfo: public HeapObject {
   class DeoptCountBits: public BitField<int, 0, 4> {};
   class OptReenableTriesBits: public BitField<int, 4, 18> {};
   class ICAgeBits: public BitField<int, 22, 8> {};
+
+  class OptCountBits: public BitField<int, 0, 22> {};
+  class DisabledOptimizationReasonBits: public BitField<int, 22, 8> {};
 
  private:
 #if V8_HOST_ARCH_32_BIT

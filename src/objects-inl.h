@@ -4606,7 +4606,8 @@ SMI_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
 SMI_ACCESSORS(SharedFunctionInfo, compiler_hints,
               kCompilerHintsOffset)
-SMI_ACCESSORS(SharedFunctionInfo, opt_count, kOptCountOffset)
+SMI_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
+              kOptCountAndBailoutReasonOffset)
 SMI_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
 
 #else
@@ -4655,7 +4656,9 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
                         compiler_hints,
                         kCompilerHintsOffset)
 
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, opt_count, kOptCountOffset)
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
+                        opt_count_and_bailout_reason,
+                        kOptCountAndBailoutReasonOffset)
 
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, counters, kCountersOffset)
 
@@ -4899,6 +4902,24 @@ int SharedFunctionInfo::opt_reenable_tries() {
 
 void SharedFunctionInfo::set_opt_reenable_tries(int tries) {
   set_counters(OptReenableTriesBits::update(counters(), tries));
+}
+
+
+int SharedFunctionInfo::opt_count() {
+  return OptCountBits::decode(opt_count_and_bailout_reason());
+}
+
+
+void SharedFunctionInfo::set_opt_count(int opt_count) {
+  set_opt_count_and_bailout_reason(
+      OptCountBits::update(opt_count_and_bailout_reason(), opt_count));
+}
+
+
+BailoutReason SharedFunctionInfo::DisableOptimizationReason() {
+  BailoutReason reason = static_cast<BailoutReason>(
+      DisabledOptimizationReasonBits::decode(opt_count_and_bailout_reason()));
+  return reason;
 }
 
 

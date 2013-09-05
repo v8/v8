@@ -7255,6 +7255,12 @@ int CpuProfileNode::GetLineNumber() const {
 }
 
 
+const char* CpuProfileNode::GetBailoutReason() const {
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  return node->entry()->bailout_reason();
+}
+
+
 double CpuProfileNode::GetSelfSamplesCount() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetSelfSamplesCount");

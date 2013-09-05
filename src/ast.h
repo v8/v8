@@ -171,7 +171,6 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 enum AstPropertiesFlag {
   kDontInline,
-  kDontOptimize,
   kDontSelfOptimize,
   kDontSoftInline,
   kDontCache
@@ -2316,6 +2315,12 @@ class FunctionLiteral V8_FINAL : public Expression {
     ast_properties_ = *ast_properties;
   }
 
+  bool dont_optimize() { return dont_optimize_reason_ != kNoReason; }
+  BailoutReason dont_optimize_reason() { return dont_optimize_reason_; }
+  void set_dont_optimize_reason(BailoutReason reason) {
+    dont_optimize_reason_ = reason;
+  }
+
  protected:
   FunctionLiteral(Isolate* isolate,
                   Handle<String> name,
@@ -2335,6 +2340,7 @@ class FunctionLiteral V8_FINAL : public Expression {
         scope_(scope),
         body_(body),
         inferred_name_(isolate->factory()->empty_string()),
+        dont_optimize_reason_(kNoReason),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
         handler_count_(handler_count),
@@ -2356,6 +2362,7 @@ class FunctionLiteral V8_FINAL : public Expression {
   ZoneList<Statement*>* body_;
   Handle<String> inferred_name_;
   AstProperties ast_properties_;
+  BailoutReason dont_optimize_reason_;
 
   int materialized_literal_count_;
   int expected_property_count_;
@@ -2830,9 +2837,10 @@ private:                                                            \
 
 class AstConstructionVisitor BASE_EMBEDDED {
  public:
-  AstConstructionVisitor() { }
+  AstConstructionVisitor() : dont_optimize_reason_(kNoReason) { }
 
   AstProperties* ast_properties() { return &properties_; }
+  BailoutReason dont_optimize_reason() { return dont_optimize_reason_; }
 
  private:
   template<class> friend class AstNodeFactory;
@@ -2845,8 +2853,12 @@ class AstConstructionVisitor BASE_EMBEDDED {
 
   void increase_node_count() { properties_.add_node_count(1); }
   void add_flag(AstPropertiesFlag flag) { properties_.flags()->Add(flag); }
+  void set_dont_optimize_reason(BailoutReason reason) {
+      dont_optimize_reason_ = reason;
+  }
 
   AstProperties properties_;
+  BailoutReason dont_optimize_reason_;
 };
 
 

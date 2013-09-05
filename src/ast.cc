@@ -1085,7 +1085,7 @@ CaseClause::CaseClause(Isolate* isolate,
 #define DONT_OPTIMIZE_NODE(NodeType) \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
-    add_flag(kDontOptimize); \
+    set_dont_optimize_reason(k##NodeType); \
     add_flag(kDontInline); \
     add_flag(kDontSelfOptimize); \
   }
@@ -1097,7 +1097,7 @@ CaseClause::CaseClause(Isolate* isolate,
 #define DONT_CACHE_NODE(NodeType) \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
-    add_flag(kDontOptimize); \
+    set_dont_optimize_reason(k##NodeType); \
     add_flag(kDontInline); \
     add_flag(kDontSelfOptimize); \
     add_flag(kDontCache); \

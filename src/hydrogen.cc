@@ -6358,7 +6358,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
     return false;
   }
   AstProperties::Flags* flags(function->flags());
-  if (flags->Contains(kDontInline) || flags->Contains(kDontOptimize)) {
+  if (flags->Contains(kDontInline) || function->dont_optimize()) {
     TraceInline(target, caller, "target contains unsupported syntax [late]");
     return false;
   }
