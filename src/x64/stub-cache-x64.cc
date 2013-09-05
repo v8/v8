@@ -1191,7 +1191,7 @@ Register BaseLoadStubCompiler::CallbackHandlerFrontend(
     Handle<JSObject> holder,
     Handle<Name> name,
     Label* success,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<Object> callback) {
   Label miss;
 
   Register reg = HandlerFrontendHeader(object, object_reg, holder, name, &miss);
@@ -1272,6 +1272,29 @@ void BaseLoadStubCompiler::GenerateLoadField(Register reg,
                             representation);
     GenerateTailCall(masm(), stub.GetCode(isolate()));
   }
+}
+
+
+void BaseLoadStubCompiler::GenerateLoadCallback(
+    const CallOptimization& call_optimization) {
+  ASSERT(call_optimization.is_simple_api_call());
+
+  // Copy return value.
+  __ movq(scratch3(), Operand(rsp, 0));
+  // Assign stack space for the call arguments.
+  __ subq(rsp, Immediate((kFastApiCallArguments + 1) * kPointerSize));
+  // Move the return address on top of the stack.
+  __ movq(Operand(rsp, 0), scratch3());
+
+  int argc = 0;
+  int api_call_argc = argc + kFastApiCallArguments;
+  StackArgumentsAccessor args(rsp, api_call_argc);
+  // Write holder to stack frame.
+  __ movq(args.GetArgumentOperand(api_call_argc), receiver());
+  // Write receiver to stack frame.
+  __ movq(args.GetArgumentOperand(api_call_argc - 6), receiver());
+
+  GenerateFastApiCall(masm(), call_optimization, argc);
 }
 
 

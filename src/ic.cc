@@ -1357,8 +1357,15 @@ Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
         if (!getter->IsJSFunction()) break;
         if (holder->IsGlobalObject()) break;
         if (!holder->HasFastProperties()) break;
+        Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
+        CallOptimization call_optimization(function);
+        if (call_optimization.is_simple_api_call() &&
+            call_optimization.IsCompatibleReceiver(*receiver)) {
+          return isolate()->stub_cache()->ComputeLoadCallback(
+              name, receiver, holder, call_optimization);
+        }
         return isolate()->stub_cache()->ComputeLoadViaGetter(
-            name, receiver, holder, Handle<JSFunction>::cast(getter));
+            name, receiver, holder, function);
       } else if (receiver->IsJSArray() &&
           name->Equals(isolate()->heap()->length_string())) {
         PropertyIndex lengthIndex =
@@ -1544,13 +1551,29 @@ Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
     case CALLBACKS: {
       Handle<Object> callback_object(lookup->GetCallbackObject(), isolate());
       // TODO(dcarney): Handle DeclaredAccessorInfo correctly.
-      if (!callback_object->IsExecutableAccessorInfo()) break;
-      Handle<ExecutableAccessorInfo> callback =
-          Handle<ExecutableAccessorInfo>::cast(callback_object);
-      if (v8::ToCData<Address>(callback->getter()) == 0) break;
-      if (!callback->IsCompatibleReceiver(*receiver)) break;
-      return isolate()->stub_cache()->ComputeKeyedLoadCallback(
-          name, receiver, holder, callback);
+      if (callback_object->IsExecutableAccessorInfo()) {
+        Handle<ExecutableAccessorInfo> callback =
+            Handle<ExecutableAccessorInfo>::cast(callback_object);
+        if (v8::ToCData<Address>(callback->getter()) == 0) break;
+        if (!callback->IsCompatibleReceiver(*receiver)) break;
+        return isolate()->stub_cache()->ComputeKeyedLoadCallback(
+            name, receiver, holder, callback);
+      } else if (callback_object->IsAccessorPair()) {
+        Handle<Object> getter(
+            Handle<AccessorPair>::cast(callback_object)->getter(),
+            isolate());
+        if (!getter->IsJSFunction()) break;
+        if (holder->IsGlobalObject()) break;
+        if (!holder->HasFastProperties()) break;
+        Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
+        CallOptimization call_optimization(function);
+        if (call_optimization.is_simple_api_call() &&
+            call_optimization.IsCompatibleReceiver(*receiver)) {
+          return isolate()->stub_cache()->ComputeKeyedLoadCallback(
+              name, receiver, holder, call_optimization);
+        }
+      }
+      break;
     }
     case INTERCEPTOR:
       ASSERT(HasInterceptorGetter(lookup->holder()));

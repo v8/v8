@@ -1292,7 +1292,7 @@ Register BaseLoadStubCompiler::CallbackHandlerFrontend(
     Handle<JSObject> holder,
     Handle<Name> name,
     Label* success,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<Object> callback) {
   Label miss;
 
   Register reg = HandlerFrontendHeader(object, object_reg, holder, name, &miss);
@@ -1376,6 +1376,24 @@ void BaseLoadStubCompiler::GenerateLoadConstant(Handle<Object> value) {
   // Return the constant value.
   __ LoadObject(r0, value);
   __ Ret();
+}
+
+
+void BaseLoadStubCompiler::GenerateLoadCallback(
+    const CallOptimization& call_optimization) {
+  ASSERT(call_optimization.is_simple_api_call());
+
+  // Assign stack space for the call arguments.
+  __ sub(sp, sp, Operand((kFastApiCallArguments + 1) * kPointerSize));
+
+  int argc = 0;
+  int api_call_argc = argc + kFastApiCallArguments;
+  // Write holder to stack frame.
+  __ str(receiver(), MemOperand(sp, 0));
+  // Write receiver to stack frame.
+  __ str(receiver(), MemOperand(sp, api_call_argc * kPointerSize));
+
+  GenerateFastApiDirectCall(masm(), call_optimization, argc);
 }
 
 
