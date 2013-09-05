@@ -1185,7 +1185,6 @@ Heap* HeapObject::GetHeap() {
   Heap* heap =
       MemoryChunk::FromAddress(reinterpret_cast<Address>(this))->heap();
   ASSERT(heap != NULL);
-  ASSERT(heap->isolate() == Isolate::Current());
   return heap;
 }
 
@@ -4607,7 +4606,8 @@ SMI_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
 SMI_ACCESSORS(SharedFunctionInfo, compiler_hints,
               kCompilerHintsOffset)
-SMI_ACCESSORS(SharedFunctionInfo, opt_count, kOptCountOffset)
+SMI_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
+              kOptCountAndBailoutReasonOffset)
 SMI_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
 
 #else
@@ -4656,7 +4656,9 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
                         compiler_hints,
                         kCompilerHintsOffset)
 
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, opt_count, kOptCountOffset)
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
+                        opt_count_and_bailout_reason,
+                        kOptCountAndBailoutReasonOffset)
 
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, counters, kCountersOffset)
 
@@ -4900,6 +4902,24 @@ int SharedFunctionInfo::opt_reenable_tries() {
 
 void SharedFunctionInfo::set_opt_reenable_tries(int tries) {
   set_counters(OptReenableTriesBits::update(counters(), tries));
+}
+
+
+int SharedFunctionInfo::opt_count() {
+  return OptCountBits::decode(opt_count_and_bailout_reason());
+}
+
+
+void SharedFunctionInfo::set_opt_count(int opt_count) {
+  set_opt_count_and_bailout_reason(
+      OptCountBits::update(opt_count_and_bailout_reason(), opt_count));
+}
+
+
+BailoutReason SharedFunctionInfo::DisableOptimizationReason() {
+  BailoutReason reason = static_cast<BailoutReason>(
+      DisabledOptimizationReasonBits::decode(opt_count_and_bailout_reason()));
+  return reason;
 }
 
 
@@ -6177,7 +6197,6 @@ SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
 
 
 Relocatable::Relocatable(Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   isolate_ = isolate;
   prev_ = isolate->relocatable_top();
   isolate->set_relocatable_top(this);
@@ -6185,7 +6204,6 @@ Relocatable::Relocatable(Isolate* isolate) {
 
 
 Relocatable::~Relocatable() {
-  ASSERT(isolate_ == Isolate::Current());
   ASSERT_EQ(isolate_->relocatable_top(), this);
   isolate_->set_relocatable_top(prev_);
 }

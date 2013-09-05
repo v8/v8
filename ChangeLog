@@ -1,3 +1,8 @@
+2013-09-05: Version 3.21.11
+
+        Performance and stability improvements on all platforms.
+
+
 2013-09-04: Version 3.21.10
 
         Fixed Eternal::IsEmpty logic (issue 2870).

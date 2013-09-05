@@ -41,7 +41,7 @@ TEST(SamplingCircularQueue) {
 
   // Check that we are using non-reserved values.
   // Fill up the first chunk.
-  CHECK_EQ(NULL, scq.StartDequeue());
+  CHECK_EQ(NULL, scq.Peek());
   for (Record i = 1; i < 1 + kMaxRecordsInQueue; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartEnqueue());
     CHECK_NE(NULL, rec);
@@ -53,27 +53,27 @@ TEST(SamplingCircularQueue) {
   CHECK_EQ(NULL, scq.StartEnqueue());
 
   // Try to enqueue when the the queue is full. Consumption must be available.
-  CHECK_NE(NULL, scq.StartDequeue());
+  CHECK_NE(NULL, scq.Peek());
   for (int i = 0; i < 10; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartEnqueue());
     CHECK_EQ(NULL, rec);
-    CHECK_NE(NULL, scq.StartDequeue());
+    CHECK_NE(NULL, scq.Peek());
   }
 
   // Consume all records.
   for (Record i = 1; i < 1 + kMaxRecordsInQueue; ++i) {
-    Record* rec = reinterpret_cast<Record*>(scq.StartDequeue());
+    Record* rec = reinterpret_cast<Record*>(scq.Peek());
     CHECK_NE(NULL, rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
-    CHECK_EQ(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
-    scq.FinishDequeue();
-    CHECK_NE(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
+    CHECK_EQ(rec, reinterpret_cast<Record*>(scq.Peek()));
+    scq.Remove();
+    CHECK_NE(rec, reinterpret_cast<Record*>(scq.Peek()));
   }
   // The queue is empty.
-  CHECK_EQ(NULL, scq.StartDequeue());
+  CHECK_EQ(NULL, scq.Peek());
 
 
-  CHECK_EQ(NULL, scq.StartDequeue());
+  CHECK_EQ(NULL, scq.Peek());
   for (Record i = 0; i < kMaxRecordsInQueue / 2; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartEnqueue());
     CHECK_NE(NULL, rec);
@@ -82,18 +82,18 @@ TEST(SamplingCircularQueue) {
   }
 
   // Consume all available kMaxRecordsInQueue / 2 records.
-  CHECK_NE(NULL, scq.StartDequeue());
+  CHECK_NE(NULL, scq.Peek());
   for (Record i = 0; i < kMaxRecordsInQueue / 2; ++i) {
-    Record* rec = reinterpret_cast<Record*>(scq.StartDequeue());
+    Record* rec = reinterpret_cast<Record*>(scq.Peek());
     CHECK_NE(NULL, rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
-    CHECK_EQ(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
-    scq.FinishDequeue();
-    CHECK_NE(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
+    CHECK_EQ(rec, reinterpret_cast<Record*>(scq.Peek()));
+    scq.Remove();
+    CHECK_NE(rec, reinterpret_cast<Record*>(scq.Peek()));
   }
 
   // The queue is empty.
-  CHECK_EQ(NULL, scq.StartDequeue());
+  CHECK_EQ(NULL, scq.Peek());
 }
 
 
@@ -148,41 +148,41 @@ TEST(SamplingCircularQueueMultithreading) {
   ProducerThread producer2(&scq, kRecordsPerChunk, 10, &semaphore);
   ProducerThread producer3(&scq, kRecordsPerChunk, 20, &semaphore);
 
-  CHECK_EQ(NULL, scq.StartDequeue());
+  CHECK_EQ(NULL, scq.Peek());
   producer1.Start();
   semaphore.Wait();
   for (Record i = 1; i < 1 + kRecordsPerChunk; ++i) {
-    Record* rec = reinterpret_cast<Record*>(scq.StartDequeue());
+    Record* rec = reinterpret_cast<Record*>(scq.Peek());
     CHECK_NE(NULL, rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
-    CHECK_EQ(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
-    scq.FinishDequeue();
-    CHECK_NE(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
+    CHECK_EQ(rec, reinterpret_cast<Record*>(scq.Peek()));
+    scq.Remove();
+    CHECK_NE(rec, reinterpret_cast<Record*>(scq.Peek()));
   }
 
-  CHECK_EQ(NULL, scq.StartDequeue());
+  CHECK_EQ(NULL, scq.Peek());
   producer2.Start();
   semaphore.Wait();
   for (Record i = 10; i < 10 + kRecordsPerChunk; ++i) {
-    Record* rec = reinterpret_cast<Record*>(scq.StartDequeue());
+    Record* rec = reinterpret_cast<Record*>(scq.Peek());
     CHECK_NE(NULL, rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
-    CHECK_EQ(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
-    scq.FinishDequeue();
-    CHECK_NE(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
+    CHECK_EQ(rec, reinterpret_cast<Record*>(scq.Peek()));
+    scq.Remove();
+    CHECK_NE(rec, reinterpret_cast<Record*>(scq.Peek()));
   }
 
-  CHECK_EQ(NULL, scq.StartDequeue());
+  CHECK_EQ(NULL, scq.Peek());
   producer3.Start();
   semaphore.Wait();
   for (Record i = 20; i < 20 + kRecordsPerChunk; ++i) {
-    Record* rec = reinterpret_cast<Record*>(scq.StartDequeue());
+    Record* rec = reinterpret_cast<Record*>(scq.Peek());
     CHECK_NE(NULL, rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
-    CHECK_EQ(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
-    scq.FinishDequeue();
-    CHECK_NE(rec, reinterpret_cast<Record*>(scq.StartDequeue()));
+    CHECK_EQ(rec, reinterpret_cast<Record*>(scq.Peek()));
+    scq.Remove();
+    CHECK_NE(rec, reinterpret_cast<Record*>(scq.Peek()));
   }
 
-  CHECK_EQ(NULL, scq.StartDequeue());
+  CHECK_EQ(NULL, scq.Peek());
 }

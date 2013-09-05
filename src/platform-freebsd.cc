@@ -63,9 +63,6 @@ namespace v8 {
 namespace internal {
 
 
-static Mutex* limit_mutex = NULL;
-
-
 const char* OS::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
@@ -84,31 +81,6 @@ double OS::LocalTimeOffset() {
 }
 
 
-// We keep the lowest and highest addresses mapped as a quick way of
-// determining that pointers are outside the heap (used mostly in assertions
-// and verification).  The estimate is conservative, i.e., not all addresses in
-// 'allocated' space are actually allocated to our heap.  The range is
-// [lowest, highest), inclusive on the low and and exclusive on the high end.
-static void* lowest_ever_allocated = reinterpret_cast<void*>(-1);
-static void* highest_ever_allocated = reinterpret_cast<void*>(0);
-
-
-static void UpdateAllocatedSpaceLimits(void* address, int size) {
-  ASSERT(limit_mutex != NULL);
-  LockGuard<Mutex> lock_guard(limit_mutex);
-
-  lowest_ever_allocated = Min(lowest_ever_allocated, address);
-  highest_ever_allocated =
-      Max(highest_ever_allocated,
-          reinterpret_cast<void*>(reinterpret_cast<char*>(address) + size));
-}
-
-
-bool OS::IsOutsideAllocatedSpace(void* address) {
-  return address < lowest_ever_allocated || address >= highest_ever_allocated;
-}
-
-
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool executable) {
@@ -121,7 +93,6 @@ void* OS::Allocate(const size_t requested,
     return NULL;
   }
   *allocated = msize;
-  UpdateAllocatedSpaceLimits(mbase, msize);
   return mbase;
 }
 
@@ -345,8 +316,6 @@ bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
                          kMmapFdOffset)) {
     return false;
   }
-
-  UpdateAllocatedSpaceLimits(base, size);
   return true;
 }
 
@@ -380,12 +349,6 @@ void OS::SetUp() {
   // call this setup code within the same millisecond.
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srandom(static_cast<unsigned int>(seed));
-  limit_mutex = new Mutex();
-}
-
-
-void OS::TearDown() {
-  delete limit_mutex;
 }
 
 

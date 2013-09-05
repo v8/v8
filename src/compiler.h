@@ -60,11 +60,10 @@ class CompilationInfo {
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
   virtual ~CompilationInfo();
 
-  Isolate* isolate() {
-    ASSERT(Isolate::Current() == isolate_);
+  Isolate* isolate() const {
     return isolate_;
   }
-  Zone* zone() { return zone_; }
+  Zone* zone() const { return zone_; }
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }

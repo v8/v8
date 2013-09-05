@@ -3681,7 +3681,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_function_token_position(0);
   // All compiler hints default to false or 0.
   share->set_compiler_hints(0);
-  share->set_opt_count(0);
+  share->set_opt_count_and_bailout_reason(0);
 
   return share;
 }
@@ -6204,7 +6204,7 @@ bool Heap::Contains(HeapObject* value) {
 
 
 bool Heap::Contains(Address addr) {
-  if (OS::IsOutsideAllocatedSpace(addr)) return false;
+  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(addr)) return false;
   return HasBeenSetUp() &&
     (new_space_.ToSpaceContains(addr) ||
      old_pointer_space_->Contains(addr) ||
@@ -6223,7 +6223,7 @@ bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
 
 
 bool Heap::InSpace(Address addr, AllocationSpace space) {
-  if (OS::IsOutsideAllocatedSpace(addr)) return false;
+  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(addr)) return false;
   if (!HasBeenSetUp()) return false;
 
   switch (space) {

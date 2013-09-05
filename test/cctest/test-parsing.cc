@@ -1067,8 +1067,8 @@ i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
       i::GetProperty(builtins, "FormatMessage");
   i::Handle<i::Object> arg_handles[] = { format, args_array };
   bool has_exception = false;
-  i::Handle<i::Object> result =
-      i::Execution::Call(format_fun, builtins, 2, arg_handles, &has_exception);
+  i::Handle<i::Object> result = i::Execution::Call(
+      isolate, format_fun, builtins, 2, arg_handles, &has_exception);
   CHECK(!has_exception);
   CHECK(result->IsString());
   for (int i = 0; i < args.length(); i++) {

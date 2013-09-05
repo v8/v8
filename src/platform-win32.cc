@@ -144,8 +144,6 @@ double ceiling(double x) {
 }
 
 
-static Mutex* limit_mutex = NULL;
-
 #if V8_TARGET_ARCH_IA32
 static void MemMoveWrapper(void* dest, const void* src, size_t size) {
   memmove(dest, src, size);
@@ -750,35 +748,6 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 #undef _TRUNCATE
 #undef STRUNCATE
 
-// We keep the lowest and highest addresses mapped as a quick way of
-// determining that pointers are outside the heap (used mostly in assertions
-// and verification).  The estimate is conservative, i.e., not all addresses in
-// 'allocated' space are actually allocated to our heap.  The range is
-// [lowest, highest), inclusive on the low and and exclusive on the high end.
-static void* lowest_ever_allocated = reinterpret_cast<void*>(-1);
-static void* highest_ever_allocated = reinterpret_cast<void*>(0);
-
-
-static void UpdateAllocatedSpaceLimits(void* address, int size) {
-  ASSERT(limit_mutex != NULL);
-  LockGuard<Mutex> lock_guard(limit_mutex);
-
-  lowest_ever_allocated = Min(lowest_ever_allocated, address);
-  highest_ever_allocated =
-      Max(highest_ever_allocated,
-          reinterpret_cast<void*>(reinterpret_cast<char*>(address) + size));
-}
-
-
-bool OS::IsOutsideAllocatedSpace(void* pointer) {
-  if (pointer < lowest_ever_allocated || pointer >= highest_ever_allocated)
-    return true;
-  // Ask the Windows API
-  if (IsBadWritePtr(pointer, 1))
-    return true;
-  return false;
-}
-
 
 // Get the system's page size used by VirtualAlloc() or the next power
 // of two. The reason for always returning a power of two is that the
@@ -872,7 +841,6 @@ void* OS::Allocate(const size_t requested,
   ASSERT(IsAligned(reinterpret_cast<size_t>(mbase), OS::AllocateAlignment()));
 
   *allocated = msize;
-  UpdateAllocatedSpaceLimits(mbase, static_cast<int>(msize));
   return mbase;
 }
 
@@ -1490,8 +1458,6 @@ bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
   if (NULL == VirtualAlloc(base, size, MEM_COMMIT, prot)) {
     return false;
   }
-
-  UpdateAllocatedSpaceLimits(base, static_cast<int>(size));
   return true;
 }
 
@@ -1623,13 +1589,6 @@ void OS::SetUp() {
   // call this setup code within the same millisecond.
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srand(static_cast<unsigned int>(seed));
-  limit_mutex = new Mutex();
 }
-
-
-void OS::TearDown() {
-  delete limit_mutex;
-}
-
 
 } }  // namespace v8::internal

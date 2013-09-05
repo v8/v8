@@ -2145,7 +2145,6 @@ void Isolate::InitializeDebugger() {
 
 bool Isolate::Init(Deserializer* des) {
   ASSERT(state_ != INITIALIZED);
-  ASSERT(Isolate::Current() == this);
   TRACE_ISOLATE(init);
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
@@ -2174,8 +2173,7 @@ bool Isolate::Init(Deserializer* des) {
   memory_allocator_ = new MemoryAllocator(this);
   code_range_ = new CodeRange(this);
 
-  // Safe after setting Heap::isolate_, initializing StackGuard and
-  // ensuring that Isolate::Current() == this.
+  // Safe after setting Heap::isolate_, and initializing StackGuard
   heap_.SetStackLimits();
 
 #define ASSIGN_ELEMENT(CamelName, hacker_name)                  \

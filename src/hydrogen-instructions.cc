@@ -3993,6 +3993,9 @@ Representation HPhi::RepresentationFromInputs() {
 Representation HValue::RepresentationFromUseRequirements() {
   Representation rep = Representation::None();
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    // Ignore the use requirement from never run code
+    if (it.value()->block()->IsDeoptimizing()) continue;
+
     // We check for observed_input_representation elsewhere.
     Representation use_rep =
         it.value()->RequiredInputRepresentation(it.index());

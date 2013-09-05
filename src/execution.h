@@ -62,7 +62,8 @@ class Execution : public AllStatic {
   // and the function called is not in strict mode, receiver is converted to
   // an object.
   //
-  static Handle<Object> Call(Handle<Object> callable,
+  static Handle<Object> Call(Isolate* isolate,
+                             Handle<Object> callable,
                              Handle<Object> receiver,
                              int argc,
                              Handle<Object> argv[],

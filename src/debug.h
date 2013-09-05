@@ -990,7 +990,6 @@ class DisableBreak BASE_EMBEDDED {
     isolate_->debug()->set_disable_break(disable_break);
   }
   ~DisableBreak() {
-    ASSERT(Isolate::Current() == isolate_);
     isolate_->debug()->set_disable_break(prev_disable_break_);
   }
 

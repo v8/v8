@@ -687,6 +687,8 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           FunctionLiteral::kNotParenthesized,
           FunctionLiteral::kNotGenerator);
       result->set_ast_properties(factory()->visitor()->ast_properties());
+      result->set_dont_optimize_reason(
+          factory()->visitor()->dont_optimize_reason());
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
     }
@@ -4334,6 +4336,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       ? FunctionLiteral::kIsGenerator
       : FunctionLiteral::kNotGenerator;
   AstProperties ast_properties;
+  BailoutReason dont_optimize_reason = kNoReason;
   // Parse function body.
   { FunctionState function_state(this, scope, isolate());
     top_scope_->SetScopeName(function_name);
@@ -4593,6 +4596,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                         CHECK_OK);
     }
     ast_properties = *factory()->visitor()->ast_properties();
+    dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
   }
 
   if (is_extended_mode()) {
@@ -4614,6 +4618,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                     generator);
   function_literal->set_function_token_position(function_token_position);
   function_literal->set_ast_properties(&ast_properties);
+  function_literal->set_dont_optimize_reason(dont_optimize_reason);
 
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
   return function_literal;

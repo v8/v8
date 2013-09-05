@@ -228,10 +228,10 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
   }
   ASSERT(*allocated <= current.size);
   ASSERT(IsAddressAligned(current.start, MemoryChunk::kAlignment));
-  if (!MemoryAllocator::CommitExecutableMemory(code_range_,
-                                               current.start,
-                                               commit_size,
-                                               *allocated)) {
+  if (!isolate_->memory_allocator()->CommitExecutableMemory(code_range_,
+                                                            current.start,
+                                                            commit_size,
+                                                            *allocated)) {
     *allocated = 0;
     return NULL;
   }
@@ -245,7 +245,7 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
 
 
 bool CodeRange::CommitRawMemory(Address start, size_t length) {
-  return code_range_->Commit(start, length, true);
+  return isolate_->memory_allocator()->CommitMemory(start, length, EXECUTABLE);
 }
 
 
@@ -278,7 +278,9 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
       capacity_(0),
       capacity_executable_(0),
       size_(0),
-      size_executable_(0) {
+      size_executable_(0),
+      lowest_ever_allocated_(reinterpret_cast<void*>(-1)),
+      highest_ever_allocated_(reinterpret_cast<void*>(0)) {
 }
 
 
@@ -301,6 +303,17 @@ void MemoryAllocator::TearDown() {
   // ASSERT(size_executable_ == 0);
   capacity_ = 0;
   capacity_executable_ = 0;
+}
+
+
+bool MemoryAllocator::CommitMemory(Address base,
+                                   size_t size,
+                                   Executability executable) {
+  if (!VirtualMemory::CommitRegion(base, size, executable == EXECUTABLE)) {
+    return false;
+  }
+  UpdateAllocatedSpaceLimits(base, base + size);
+  return true;
 }
 
 
@@ -383,7 +396,9 @@ Address MemoryAllocator::AllocateAlignedMemory(size_t reserve_size,
       base = NULL;
     }
   } else {
-    if (!reservation.Commit(base, commit_size, false)) {
+    if (reservation.Commit(base, commit_size, false)) {
+      UpdateAllocatedSpaceLimits(base, base + commit_size);
+    } else {
       base = NULL;
     }
   }
@@ -509,7 +524,10 @@ bool MemoryChunk::CommitArea(size_t requested) {
     Address start = address() + committed_size + guard_size;
     size_t length = commit_size - committed_size;
     if (reservation_.IsReserved()) {
-      if (!reservation_.Commit(start, length, IsFlagSet(IS_EXECUTABLE))) {
+      Executability executable = IsFlagSet(IS_EXECUTABLE)
+          ? EXECUTABLE : NOT_EXECUTABLE;
+      if (!heap()->isolate()->memory_allocator()->CommitMemory(
+              start, length, executable)) {
         return false;
       }
     } else {
@@ -763,7 +781,7 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
 bool MemoryAllocator::CommitBlock(Address start,
                                   size_t size,
                                   Executability executable) {
-  if (!VirtualMemory::CommitRegion(start, size, executable)) return false;
+  if (!CommitMemory(start, size, executable)) return false;
 
   if (Heap::ShouldZapGarbage()) {
     ZapBlock(start, size);
@@ -899,6 +917,9 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm,
     return false;
   }
 
+  UpdateAllocatedSpaceLimits(start,
+                             start + CodePageAreaStartOffset() +
+                             commit_size - CodePageGuardStartOffset());
   return true;
 }
 

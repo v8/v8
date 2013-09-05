@@ -114,11 +114,11 @@ bool ProfilerEventsProcessor::ProcessTicks() {
       generator_->RecordTickSample(record.sample);
     }
 
-    const TickSampleEventRecord* record = ticks_buffer_.StartDequeue();
+    const TickSampleEventRecord* record = ticks_buffer_.Peek();
     if (record == NULL) return !ticks_from_vm_buffer_.IsEmpty();
     if (record->order != last_processed_code_event_id_) return true;
     generator_->RecordTickSample(record->sample);
-    ticks_buffer_.FinishDequeue();
+    ticks_buffer_.Remove();
   }
 }
 
@@ -243,6 +243,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
     ASSERT(Script::cast(shared->script()));
     Script* script = Script::cast(shared->script());
     rec->entry->set_script_id(script->id()->value());
+    rec->entry->set_bailout_reason(
+        GetBailoutReason(shared->DisableOptimizationReason()));
   }
   rec->size = code->ExecutableSize();
   rec->shared = shared->address();
@@ -273,6 +275,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->entry->set_script_id(script->id()->value());
   rec->size = code->ExecutableSize();
   rec->shared = shared->address();
+  rec->entry->set_bailout_reason(
+      GetBailoutReason(shared->DisableOptimizationReason()));
   processor_->Enqueue(evt_rec);
 }
 

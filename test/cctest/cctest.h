@@ -91,6 +91,10 @@ class CcTest {
 
   static v8::Isolate* isolate() { return default_isolate_; }
 
+  static i::Isolate* i_isolate() {
+    return reinterpret_cast<i::Isolate*>(default_isolate_);
+  }
+
   // Helper function to initialize the VM.
   static void InitializeVM(CcTestExtensionFlags extensions = NO_EXTENSIONS);
 

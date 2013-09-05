@@ -1083,6 +1083,13 @@ class MemoryAllocator {
     return (Available() / Page::kPageSize) * Page::kMaxNonCodeHeapObjectSize;
   }
 
+  // Returns an indication of whether a pointer is in a space that has
+  // been allocated by this MemoryAllocator.
+  V8_INLINE(bool IsOutsideAllocatedSpace(const void* address)) const {
+    return address < lowest_ever_allocated_ ||
+        address >= highest_ever_allocated_;
+  }
+
 #ifdef DEBUG
   // Reports statistic info of the space.
   void ReportStatistics();
@@ -1104,6 +1111,8 @@ class MemoryAllocator {
                                 size_t alignment,
                                 Executability executable,
                                 VirtualMemory* controller);
+
+  bool CommitMemory(Address addr, size_t size, Executability executable);
 
   void FreeMemory(VirtualMemory* reservation, Executability executable);
   void FreeMemory(Address addr, size_t size, Executability executable);
@@ -1150,10 +1159,10 @@ class MemoryAllocator {
     return CodePageAreaEndOffset() - CodePageAreaStartOffset();
   }
 
-  MUST_USE_RESULT static bool CommitExecutableMemory(VirtualMemory* vm,
-                                                     Address start,
-                                                     size_t commit_size,
-                                                     size_t reserved_size);
+  MUST_USE_RESULT bool CommitExecutableMemory(VirtualMemory* vm,
+                                              Address start,
+                                              size_t commit_size,
+                                              size_t reserved_size);
 
  private:
   Isolate* isolate_;
@@ -1167,6 +1176,14 @@ class MemoryAllocator {
   size_t size_;
   // Allocated executable space size in bytes.
   size_t size_executable_;
+
+  // We keep the lowest and highest addresses allocated as a quick way
+  // of determining that pointers are outside the heap. The estimate is
+  // conservative, i.e. not all addrsses in 'allocated' space are allocated
+  // to our heap. The range is [lowest, highest[, inclusive on the low end
+  // and exclusive on the high end.
+  void* lowest_ever_allocated_;
+  void* highest_ever_allocated_;
 
   struct MemoryAllocationCallbackRegistration {
     MemoryAllocationCallbackRegistration(MemoryAllocationCallback callback,
@@ -1189,6 +1206,11 @@ class MemoryAllocator {
   // used as a marking stack and its page headers are destroyed.
   Page* InitializePagesInChunk(int chunk_id, int pages_in_chunk,
                                PagedSpace* owner);
+
+  void UpdateAllocatedSpaceLimits(void* low, void* high) {
+    lowest_ever_allocated_ = Min(lowest_ever_allocated_, low);
+    highest_ever_allocated_ = Max(highest_ever_allocated_, high);
+  }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryAllocator);
 };
