@@ -163,7 +163,6 @@ static void XGetter(Local<String> name,
 
 
 static void XGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK_EQ(x_receiver, info.Holder());
   XGetter(info, 1);
 }
 
@@ -173,7 +172,6 @@ static void XSetter(Local<Value> value, const Info& info, int offset) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(x_holder, info.This());
-  CHECK_EQ(x_holder, info.Holder());
   x_register[offset] = value->Int32Value();
 }
 
@@ -181,6 +179,7 @@ static void XSetter(Local<Value> value, const Info& info, int offset) {
 static void XSetter(Local<String> name,
                     Local<Value> value,
                     const v8::PropertyCallbackInfo<void>& info) {
+  CHECK_EQ(x_holder, info.Holder());
   XSetter(value, info, 0);
 }
 
@@ -206,23 +205,17 @@ THREADED_TEST(AccessorIC) {
   v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(CompileRun(
     "obj.__proto__ = holder;"
     "var result = [];"
-    "var key_0 = 'x0';"
-    "var key_1 = 'x1';"
     "for (var i = 0; i < 10; i++) {"
     "  holder.x0 = i;"
-    "  result.push(obj.x0);"
     "  holder.x1 = i;"
+    "  result.push(obj.x0);"
     "  result.push(obj.x1);"
-    "  holder[key_0] = i;"
-    "  result.push(obj[key_0]);"
-    "  holder[key_1] = i;"
-    "  result.push(obj[key_1]);"
     "}"
     "result"));
-  CHECK_EQ(40, array->Length());
-  for (int i = 0; i < 40; i++) {
+  CHECK_EQ(20, array->Length());
+  for (int i = 0; i < 20; i++) {
     v8::Handle<Value> entry = array->Get(v8::Integer::New(i));
-    CHECK_EQ(v8::Integer::New(i/4), entry);
+    CHECK_EQ(v8::Integer::New(i/2), entry);
   }
 }
 

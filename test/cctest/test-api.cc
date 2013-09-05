@@ -141,13 +141,10 @@ static void ExpectUndefined(const char* code) {
 
 
 static int signature_callback_count;
-static Local<Value> signature_expected_receiver;
 static void IncrementingSignatureCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
   signature_callback_count++;
-  CHECK_EQ(signature_expected_receiver, args.Holder());
-  CHECK_EQ(signature_expected_receiver, args.This());
   v8::Handle<v8::Array> result = v8::Array::New(args.Length());
   for (int i = 0; i < args.Length(); i++)
     result->Set(v8::Integer::New(i), args[i]);
@@ -216,50 +213,26 @@ THREADED_TEST(ReceiverSignature) {
       v8::FunctionTemplate::New(IncrementingSignatureCallback,
                                 v8::Handle<Value>(),
                                 sig));
-  fun->PrototypeTemplate()->SetAccessorProperty(
-      v8_str("n"),
-      v8::FunctionTemplate::New(IncrementingSignatureCallback,
-                                v8::Handle<Value>(),
-                                sig));
   env->Global()->Set(v8_str("Fun"), fun->GetFunction());
-  Local<Value> fun_instance = fun->InstanceTemplate()->NewInstance();
-  env->Global()->Set(v8_str("fun_instance"), fun_instance);
   signature_callback_count = 0;
-  int expected_count = 0;
-  signature_expected_receiver = fun_instance;
   CompileRun(
-      "var o = fun_instance;"
-      "var key_n = 'n';"
-      "for (var i = 0; i < 10; i++) o.m();"
-      "for (var i = 0; i < 10; i++) o.n;"
-      "for (var i = 0; i < 10; i++) o[key_n];");
-  expected_count += 30;
-  CHECK_EQ(expected_count, signature_callback_count);
+      "var o = new Fun();"
+      "o.m();");
+  CHECK_EQ(1, signature_callback_count);
   v8::Handle<v8::FunctionTemplate> sub_fun = v8::FunctionTemplate::New();
   sub_fun->Inherit(fun);
-  fun_instance = sub_fun->InstanceTemplate()->NewInstance();
-  env->Global()->Set(v8_str("fun_instance"), fun_instance);
-  signature_expected_receiver = fun_instance;
+  env->Global()->Set(v8_str("SubFun"), sub_fun->GetFunction());
   CompileRun(
-      "var o = fun_instance;"
-      "var key_n = 'n';"
-      "for (var i = 0; i < 10; i++) o.m();"
-      "for (var i = 0; i < 10; i++) o.n;"
-      "for (var i = 0; i < 10; i++) o[key_n];");
-  expected_count += 30;
-  CHECK_EQ(expected_count, signature_callback_count);
+      "var o = new SubFun();"
+      "o.m();");
+  CHECK_EQ(2, signature_callback_count);
+
   v8::TryCatch try_catch;
   CompileRun(
       "var o = { };"
       "o.m = Fun.prototype.m;"
       "o.m();");
-  CHECK_EQ(expected_count, signature_callback_count);
-  CHECK(try_catch.HasCaught());
-  CompileRun(
-      "var o = { };"
-      "o.n = Fun.prototype.n;"
-      "o.n;");
-  CHECK_EQ(expected_count, signature_callback_count);
+  CHECK_EQ(2, signature_callback_count);
   CHECK(try_catch.HasCaught());
   try_catch.Reset();
   v8::Handle<v8::FunctionTemplate> unrel_fun = v8::FunctionTemplate::New();
@@ -269,14 +242,7 @@ THREADED_TEST(ReceiverSignature) {
       "var o = new UnrelFun();"
       "o.m = Fun.prototype.m;"
       "o.m();");
-  CHECK_EQ(expected_count, signature_callback_count);
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
-  CompileRun(
-      "var o = new UnrelFun();"
-      "o.n = Fun.prototype.n;"
-      "o.n;");
-  CHECK_EQ(expected_count, signature_callback_count);
+  CHECK_EQ(2, signature_callback_count);
   CHECK(try_catch.HasCaught());
 }
 

@@ -48,8 +48,6 @@ namespace internal {
 // invalidate the cache whenever a prototype map is changed.  The stub
 // validates the map chain as in the mono-morphic case.
 
-
-class CallOptimization;
 class SmallMapList;
 class StubCache;
 
@@ -138,11 +136,6 @@ class StubCache {
                                    Handle<JSObject> holder,
                                    Handle<ExecutableAccessorInfo> callback);
 
-  Handle<Code> ComputeLoadCallback(Handle<Name> name,
-                                   Handle<JSObject> object,
-                                   Handle<JSObject> holder,
-                                   const CallOptimization& call_optimization);
-
   Handle<Code> ComputeLoadViaGetter(Handle<Name> name,
                                     Handle<JSObject> object,
                                     Handle<JSObject> holder,
@@ -179,12 +172,6 @@ class StubCache {
       Handle<JSObject> object,
       Handle<JSObject> holder,
       Handle<ExecutableAccessorInfo> callback);
-
-  Handle<Code> ComputeKeyedLoadCallback(
-      Handle<Name> name,
-      Handle<JSObject> object,
-      Handle<JSObject> holder,
-      const CallOptimization& call_optimization);
 
   Handle<Code> ComputeKeyedLoadConstant(Handle<Name> name,
                                         Handle<JSObject> object,
@@ -718,11 +705,6 @@ class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
                                    Handle<Name> name,
                                    Handle<ExecutableAccessorInfo> callback);
 
-  Handle<Code> CompileLoadCallback(Handle<JSObject> object,
-                                   Handle<JSObject> holder,
-                                   Handle<Name> name,
-                                   const CallOptimization& call_optimization);
-
   Handle<Code> CompileLoadConstant(Handle<JSObject> object,
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
@@ -748,7 +730,7 @@ class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
                                    Handle<JSObject> holder,
                                    Handle<Name> name,
                                    Label* success,
-                                   Handle<Object> callback);
+                                   Handle<ExecutableAccessorInfo> callback);
   void NonexistentHandlerFrontend(Handle<JSObject> object,
                                   Handle<JSObject> last,
                                   Handle<Name> name,
@@ -762,7 +744,6 @@ class BaseLoadStubCompiler: public BaseLoadStoreStubCompiler {
   void GenerateLoadConstant(Handle<Object> value);
   void GenerateLoadCallback(Register reg,
                             Handle<ExecutableAccessorInfo> callback);
-  void GenerateLoadCallback(const CallOptimization& call_optimization);
   void GenerateLoadInterceptor(Register holder_reg,
                                Handle<JSObject> object,
                                Handle<JSObject> holder,
@@ -1047,6 +1028,8 @@ class KeyedStoreStubCompiler: public BaseStoreStubCompiler {
   V(ArrayCode)
 
 
+class CallOptimization;
+
 class CallStubCompiler: public StubCompiler {
  public:
   CallStubCompiler(Isolate* isolate,
@@ -1177,12 +1160,6 @@ class CallOptimization BASE_EMBEDDED {
   // prototype chain between the two arguments.
   int GetPrototypeDepthOfExpectedType(Handle<JSObject> object,
                                       Handle<JSObject> holder) const;
-
-  bool IsCompatibleReceiver(Object* receiver) {
-    ASSERT(is_simple_api_call());
-    if (expected_receiver_type_.is_null()) return true;
-    return receiver->IsInstanceOf(*expected_receiver_type_);
-  }
 
  private:
   void Initialize(Handle<JSFunction> function);
