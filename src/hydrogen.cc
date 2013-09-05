@@ -7573,9 +7573,10 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
           EffectContext for_effect(this);
           Push(object);
           Push(after);
-          return BuildStoreNamed(expr, expr->id(), expr->position(),
-                                 expr->AssignmentId(), prop, object, after);
+          BuildStoreNamed(expr, expr->id(), expr->position(),
+                          expr->AssignmentId(), prop, object, after);
         }
+        return ast_context()->ReturnValue(Pop());
       }
 
       return BuildStoreNamed(expr, expr->id(), expr->position(),
