@@ -448,7 +448,8 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
     argv[i] = args.at<Object>(i + 1);
   }
   bool pending_exception;
-  Handle<Object> result = Execution::Call(function,
+  Handle<Object> result = Execution::Call(isolate,
+                                          function,
                                           args.receiver(),
                                           argc,
                                           argv.start(),

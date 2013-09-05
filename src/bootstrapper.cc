@@ -1552,7 +1552,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
                      : top_context->global_object(),
                      isolate);
   bool has_pending_exception;
-  Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
+  Execution::Call(isolate, fun, receiver, 0, NULL, &has_pending_exception);
   if (has_pending_exception) return false;
   return true;
 }

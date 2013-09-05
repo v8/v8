@@ -485,8 +485,8 @@ MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
 #endif
 
   bool has_pending_exception;
-  Handle<Object> result =
-      Execution::Call(fun, self, 0, NULL, &has_pending_exception, true);
+  Handle<Object> result = Execution::Call(
+      isolate, fun, self, 0, NULL, &has_pending_exception, true);
   // Check for pending exception and return the result.
   if (has_pending_exception) return Failure::Exception();
   return *result;
@@ -2089,7 +2089,8 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
   }
   Handle<Object> args[] = { type, object, name, old_value };
   bool threw;
-  Execution::Call(Handle<JSFunction>(isolate->observers_notify_change()),
+  Execution::Call(isolate,
+                  Handle<JSFunction>(isolate->observers_notify_change()),
                   isolate->factory()->undefined_value(),
                   old_value->IsTheHole() ? 3 : 4, args,
                   &threw);
@@ -2101,6 +2102,7 @@ void JSObject::DeliverChangeRecords(Isolate* isolate) {
   ASSERT(isolate->observer_delivery_pending());
   bool threw = false;
   Execution::Call(
+      isolate,
       isolate->observers_deliver_changes(),
       isolate->factory()->undefined_value(),
       0,
@@ -2877,7 +2879,8 @@ MaybeObject* JSReceiver::SetPropertyWithDefinedSetter(JSReceiver* setter,
 #endif
   bool has_pending_exception;
   Handle<Object> argv[] = { value_handle };
-  Execution::Call(fun, self, ARRAY_SIZE(argv), argv, &has_pending_exception);
+  Execution::Call(
+      isolate, fun, self, ARRAY_SIZE(argv), argv, &has_pending_exception);
   // Check for pending exception and return the result.
   if (has_pending_exception) return Failure::Exception();
   return *value_handle;
@@ -3492,9 +3495,9 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
   // Emulate [[GetProperty]] semantics for proxies.
   bool has_pending_exception;
   Handle<Object> argv[] = { result };
-  Handle<Object> desc =
-      Execution::Call(isolate->to_complete_property_descriptor(), result,
-                      ARRAY_SIZE(argv), argv, &has_pending_exception);
+  Handle<Object> desc = Execution::Call(
+      isolate, isolate->to_complete_property_descriptor(), result,
+      ARRAY_SIZE(argv), argv, &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
 
   // [[GetProperty]] requires to check that all properties are configurable.
@@ -3617,9 +3620,9 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
 
   bool has_pending_exception;
   Handle<Object> argv[] = { result };
-  Handle<Object> desc =
-      Execution::Call(isolate->to_complete_property_descriptor(), result,
-                      ARRAY_SIZE(argv), argv, &has_pending_exception);
+  Handle<Object> desc = Execution::Call(
+      isolate, isolate->to_complete_property_descriptor(), result,
+      ARRAY_SIZE(argv), argv, &has_pending_exception);
   if (has_pending_exception) return NONE;
 
   // Convert result to PropertyAttributes.
@@ -3717,7 +3720,7 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
   }
 
   bool threw;
-  return Execution::Call(trap, handler, argc, argv, &threw);
+  return Execution::Call(isolate, trap, handler, argc, argv, &threw);
 }
 
 
@@ -11045,7 +11048,8 @@ static void EnqueueSpliceRecord(Handle<JSArray> object,
       { object, index_object, deleted, add_count_object };
 
   bool threw;
-  Execution::Call(Handle<JSFunction>(isolate->observers_enqueue_splice()),
+  Execution::Call(isolate,
+                  Handle<JSFunction>(isolate->observers_enqueue_splice()),
                   isolate->factory()->undefined_value(), ARRAY_SIZE(args), args,
                   &threw);
   ASSERT(!threw);
@@ -11058,7 +11062,8 @@ static void BeginPerformSplice(Handle<JSArray> object) {
   Handle<Object> args[] = { object };
 
   bool threw;
-  Execution::Call(Handle<JSFunction>(isolate->observers_begin_perform_splice()),
+  Execution::Call(isolate,
+                  Handle<JSFunction>(isolate->observers_begin_perform_splice()),
                   isolate->factory()->undefined_value(), ARRAY_SIZE(args), args,
                   &threw);
   ASSERT(!threw);
@@ -11071,7 +11076,8 @@ static void EndPerformSplice(Handle<JSArray> object) {
   Handle<Object> args[] = { object };
 
   bool threw;
-  Execution::Call(Handle<JSFunction>(isolate->observers_end_perform_splice()),
+  Execution::Call(isolate,
+                  Handle<JSFunction>(isolate->observers_end_perform_splice()),
                   isolate->factory()->undefined_value(), ARRAY_SIZE(args), args,
                   &threw);
   ASSERT(!threw);

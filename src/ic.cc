@@ -2792,7 +2792,8 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
 
   bool caught_exception;
   Handle<Object> builtin_args[] = { right };
-  Handle<Object> result = Execution::Call(builtin_function,
+  Handle<Object> result = Execution::Call(isolate,
+                                          builtin_function,
                                           left,
                                           ARRAY_SIZE(builtin_args),
                                           builtin_args,

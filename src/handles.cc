@@ -615,8 +615,12 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
     if (p->IsJSProxy()) {
       Handle<JSProxy> proxy(JSProxy::cast(*p), isolate);
       Handle<Object> args[] = { proxy };
-      Handle<Object> names = Execution::Call(
-          isolate->proxy_enumerate(), object, ARRAY_SIZE(args), args, threw);
+      Handle<Object> names = Execution::Call(isolate,
+                                             isolate->proxy_enumerate(),
+                                             object,
+                                             ARRAY_SIZE(args),
+                                             args,
+                                             threw);
       if (*threw) return content;
       content = AddKeysFromJSArray(content, Handle<JSArray>::cast(names));
       break;

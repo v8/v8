@@ -367,7 +367,7 @@ Handle<Object> BasicJsonStringifier::ApplyToJsonFunction(
   Handle<Object> argv[] = { key };
   bool has_exception = false;
   HandleScope scope(isolate_);
-  object = Execution::Call(fun, object, 1, argv, &has_exception);
+  object = Execution::Call(isolate_, fun, object, 1, argv, &has_exception);
   // Return empty handle to signal an exception.
   if (has_exception) return Handle<Object>::null();
   return scope.CloseAndEscape(object);
@@ -470,7 +470,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
   Handle<Object> argv[] = { key, object };
   bool has_exception = false;
   Handle<Object> result =
-      Execution::Call(builtin, object, 2, argv, &has_exception);
+      Execution::Call(isolate_, builtin, object, 2, argv, &has_exception);
   if (has_exception) return EXCEPTION;
   if (result->IsUndefined()) return UNCHANGED;
   if (deferred_key) {

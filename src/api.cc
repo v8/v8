@@ -1877,8 +1877,8 @@ Local<Value> Script::Run() {
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> receiver(
         isolate->context()->global_proxy(), isolate);
-    i::Handle<i::Object> result =
-        i::Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
+    i::Handle<i::Object> result = i::Execution::Call(
+        isolate, fun, receiver, 0, NULL, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
     raw_result = *result;
   }
@@ -2177,8 +2177,8 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
       isolate->js_builtins_object()->GetPropertyNoExceptionThrown(*fmt_str);
   i::Handle<i::JSFunction> fun =
       i::Handle<i::JSFunction>(i::JSFunction::cast(object_fun));
-  i::Handle<i::Object> value =
-      i::Execution::Call(fun, recv, argc, argv, has_pending_exception);
+  i::Handle<i::Object> value = i::Execution::Call(
+      isolate, fun, recv, argc, argv, has_pending_exception);
   return value;
 }
 
@@ -4143,8 +4143,8 @@ Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
     recv_obj = obj;
   }
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> returned =
-      i::Execution::Call(fun, recv_obj, argc, args, &has_pending_exception);
+  i::Handle<i::Object> returned = i::Execution::Call(
+      isolate, fun, recv_obj, argc, args, &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
   return Utils::ToLocal(scope.CloseAndEscape(returned));
 }
@@ -4179,8 +4179,8 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
   if (!delegate->IsUndefined()) {
     i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(delegate);
     EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> returned =
-        i::Execution::Call(fun, obj, argc, args, &has_pending_exception);
+    i::Handle<i::Object> returned = i::Execution::Call(
+        isolate, fun, obj, argc, args, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<v8::Object>());
     ASSERT(!delegate->IsUndefined());
     return Utils::ToLocal(scope.CloseAndEscape(returned));
@@ -4231,8 +4231,8 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
     STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
     i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
     EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> returned =
-        i::Execution::Call(fun, recv_obj, argc, args, &has_pending_exception);
+    i::Handle<i::Object> returned = i::Execution::Call(
+        isolate, fun, recv_obj, argc, args, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Object>());
     raw_result = *returned;
   }

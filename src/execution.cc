@@ -148,7 +148,8 @@ static Handle<Object> Invoke(bool is_construct,
 }
 
 
-Handle<Object> Execution::Call(Handle<Object> callable,
+Handle<Object> Execution::Call(Isolate* isolate,
+                               Handle<Object> callable,
                                Handle<Object> receiver,
                                int argc,
                                Handle<Object> argv[],
@@ -156,7 +157,6 @@ Handle<Object> Execution::Call(Handle<Object> callable,
                                bool convert_receiver) {
   *pending_exception = false;
 
-  Isolate* isolate = Isolate::Current();
   if (!callable->IsJSFunction()) {
     callable = TryGetFunctionDelegate(isolate, callable, pending_exception);
     if (*pending_exception) return callable;
@@ -599,7 +599,8 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
   do {                                                                  \
     Handle<Object> argv[] = args;                                       \
     ASSERT(has_pending_exception != NULL);                              \
-    return Call(isolate->name##_fun(),                                  \
+    return Call(isolate,                                                \
+                isolate->name##_fun(),                                  \
                 isolate->js_builtins_object(),                          \
                 ARRAY_SIZE(argv), argv,                                 \
                 has_pending_exception);                                 \
@@ -712,7 +713,8 @@ Handle<JSFunction> Execution::InstantiateFunction(
   if (elm->IsJSFunction()) return Handle<JSFunction>(JSFunction::cast(elm));
   // The function has not yet been instantiated in this context; do it.
   Handle<Object> args[] = { data };
-  Handle<Object> result = Call(isolate->instantiate_fun(),
+  Handle<Object> result = Call(isolate,
+                               isolate->instantiate_fun(),
                                isolate->js_builtins_object(),
                                ARRAY_SIZE(args),
                                args,
@@ -744,7 +746,8 @@ Handle<JSObject> Execution::InstantiateObject(Handle<ObjectTemplateInfo> data,
     return Handle<JSObject>(JSObject::cast(result));
   } else {
     Handle<Object> args[] = { data };
-    Handle<Object> result = Call(isolate->instantiate_fun(),
+    Handle<Object> result = Call(isolate,
+                                 isolate->instantiate_fun(),
                                  isolate->js_builtins_object(),
                                  ARRAY_SIZE(args),
                                  args,
@@ -760,7 +763,8 @@ void Execution::ConfigureInstance(Isolate* isolate,
                                   Handle<Object> instance_template,
                                   bool* exc) {
   Handle<Object> args[] = { instance, instance_template };
-  Execution::Call(isolate->configure_instance_fun(),
+  Execution::Call(isolate,
+                  isolate->configure_instance_fun(),
                   isolate->js_builtins_object(),
                   ARRAY_SIZE(args),
                   args,

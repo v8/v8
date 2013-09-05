@@ -53,8 +53,8 @@ void TestSeeds(Handle<JSFunction> fun,
   Handle<ByteArray> seeds(context->random_seed());
 
   SetSeeds(seeds, state0, state1);
-  Handle<Object> value =
-      Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+  Handle<Object> value = Execution::Call(
+      context->GetIsolate(), fun, global, 0, NULL, &has_pending_exception);
   CHECK(value->IsHeapNumber());
   CHECK(fun->IsOptimized());
   double crankshaft_value = HeapNumber::cast(*value)->value();
@@ -70,11 +70,12 @@ TEST(CrankshaftRandom) {
   v8::V8::Initialize();
   // Skip test if crankshaft is disabled.
   if (!Isolate::Current()->use_crankshaft()) return;
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope scope(isolate);
-  v8::Context::Scope context_scope(v8::Context::New(isolate));
+  v8::Isolate* v8_isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope scope(v8_isolate);
+  v8::Context::Scope context_scope(v8::Context::New(v8_isolate));
 
-  Handle<Context> context(Isolate::Current()->context());
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  Handle<Context> context(isolate->context());
   Handle<JSObject> global(context->global_object());
   Handle<ByteArray> seeds(context->random_seed());
   bool has_pending_exception;
@@ -88,8 +89,8 @@ TEST(CrankshaftRandom) {
   Handle<JSFunction> fun(JSFunction::cast(fun_object->ToObjectChecked()));
 
   // Optimize function.
-  Execution::Call(fun, global, 0, NULL, &has_pending_exception);
-  Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
+  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   if (!fun->IsOptimized()) fun->MarkForLazyRecompilation();
 
   // Test with some random values.
@@ -100,7 +101,7 @@ TEST(CrankshaftRandom) {
   // Test that we bail out to runtime when seeds are uninitialized (zeros).
   SetSeeds(seeds, 0, 0);
   Handle<Object> value =
-      Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+      Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(value->IsHeapNumber());
   CHECK(fun->IsOptimized());
   double crankshaft_value = HeapNumber::cast(*value)->value();

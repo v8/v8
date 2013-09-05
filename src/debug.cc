@@ -3404,6 +3404,7 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
 
   Handle<Object> argv[] = { exec_state, data };
   Handle<Object> result = Execution::Call(
+      isolate_,
       fun,
       Handle<Object>(isolate_->debug()->debug_context_->global_proxy(),
                      isolate_),
