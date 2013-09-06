@@ -2038,21 +2038,22 @@ class HOptimizedGraphBuilder V8_FINAL
                  BailoutId ast_id);
   void PushLoad(Property* property,
                 HValue* object,
+                HValue* key,
                 int position);
 
-  void BuildStoreInEffect(Expression* expression,
-                          Property* prop,
-                          BailoutId ast_id,
-                          BailoutId return_id,
-                          HValue* object,
-                          HValue* value);
+  void BuildStoreForEffect(Expression* expression,
+                           Property* prop,
+                           BailoutId ast_id,
+                           BailoutId return_id,
+                           HValue* object,
+                           HValue* key,
+                           HValue* value);
 
-  void BuildStoreNamed(Expression* expression,
-                       BailoutId id,
-                       BailoutId assignment_id,
-                       Property* prop,
-                       HValue* object,
-                       HValue* value);
+  void BuildStore(Expression* expression,
+                  Property* prop,
+                  BailoutId ast_id,
+                  BailoutId return_id,
+                  bool is_uninitialized = false);
 
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,

@@ -4896,40 +4896,111 @@ void HOptimizedGraphBuilder::HandlePolymorphicStoreNamedField(
 }
 
 
-void HOptimizedGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
-  Property* prop = expr->target()->AsProperty();
-  ASSERT(prop != NULL);
-  CHECK_ALIVE(VisitForValue(prop->obj()));
+static bool ComputeReceiverTypes(Expression* expr,
+                                 HValue* receiver,
+                                 SmallMapList** t) {
+  SmallMapList* types = expr->GetReceiverTypes();
+  *t = types;
+  bool monomorphic = expr->IsMonomorphic();
+  if (types != NULL && receiver->HasMonomorphicJSObjectType()) {
+    Map* root_map = receiver->GetMonomorphicJSObjectMap()->FindRootMap();
+    types->FilterForPossibleTransitions(root_map);
+    monomorphic = types->length() == 1;
+  }
+  return monomorphic && CanInlinePropertyAccess(*types->first());
+}
 
-  if (prop->key()->IsPropertyName()) {
-    // Named store.
-    CHECK_ALIVE(VisitForValue(expr->value()));
-    HValue* value = environment()->ExpressionStackAt(0);
-    HValue* object = environment()->ExpressionStackAt(1);
 
-    if (expr->IsUninitialized()) {
-      Add<HDeoptimize>("Insufficient type feedback for property assignment",
-                       Deoptimizer::SOFT);
-    }
-    return BuildStoreNamed(
-        expr, expr->id(), expr->AssignmentId(), prop, object, value);
-  } else {
+void HOptimizedGraphBuilder::BuildStore(Expression* expr,
+                                        Property* prop,
+                                        BailoutId ast_id,
+                                        BailoutId return_id,
+                                        bool is_uninitialized) {
+  HValue* value = environment()->ExpressionStackAt(0);
+
+  if (!prop->key()->IsPropertyName()) {
     // Keyed store.
-    CHECK_ALIVE(VisitForValue(prop->key()));
-    CHECK_ALIVE(VisitForValue(expr->value()));
-    HValue* value = environment()->ExpressionStackAt(0);
     HValue* key = environment()->ExpressionStackAt(1);
     HValue* object = environment()->ExpressionStackAt(2);
     bool has_side_effects = false;
-    HandleKeyedElementAccess(object, key, value, expr, expr->AssignmentId(),
+    HandleKeyedElementAccess(object, key, value, expr, return_id,
                              expr->position(),
                              true,  // is_store
                              &has_side_effects);
     Drop(3);
     Push(value);
-    Add<HSimulate>(expr->AssignmentId(), REMOVABLE_SIMULATE);
+    Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
     return ast_context()->ReturnValue(Pop());
   }
+
+  // Named store.
+  HValue* object = environment()->ExpressionStackAt(1);
+
+  if (is_uninitialized) {
+    Add<HDeoptimize>("Insufficient type feedback for property assignment",
+                     Deoptimizer::SOFT);
+  }
+
+  Literal* key = prop->key()->AsLiteral();
+  Handle<String> name = Handle<String>::cast(key->value());
+  ASSERT(!name.is_null());
+
+  HInstruction* instr = NULL;
+
+  SmallMapList* types;
+  bool monomorphic = ComputeReceiverTypes(expr, object, &types);
+
+  if (monomorphic) {
+    Handle<Map> map = types->first();
+    Handle<JSFunction> setter;
+    Handle<JSObject> holder;
+    if (LookupSetter(map, name, &setter, &holder)) {
+      AddCheckConstantFunction(holder, object, map);
+      if (FLAG_inline_accessors &&
+          TryInlineSetter(setter, ast_id, return_id, value)) {
+        return;
+      }
+      Drop(2);
+      Add<HPushArgument>(object);
+      Add<HPushArgument>(value);
+      instr = new(zone()) HCallConstantFunction(setter, 2);
+    } else {
+      Drop(2);
+      CHECK_ALIVE(instr = BuildStoreNamedMonomorphic(object,
+                                                     name,
+                                                     value,
+                                                     map));
+    }
+  } else if (types != NULL && types->length() > 1) {
+    Drop(2);
+    return HandlePolymorphicStoreNamedField(
+        expr->position(), ast_id, object, value, types, name);
+  } else {
+    Drop(2);
+    instr = BuildStoreNamedGeneric(object, name, value);
+  }
+
+  if (!ast_context()->IsEffect()) Push(value);
+  instr->set_position(expr->position());
+  AddInstruction(instr);
+  if (instr->HasObservableSideEffects()) {
+    Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
+  }
+  if (!ast_context()->IsEffect()) Drop(1);
+  return ast_context()->ReturnValue(value);
+}
+
+
+void HOptimizedGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
+  Property* prop = expr->target()->AsProperty();
+  ASSERT(prop != NULL);
+  CHECK_ALIVE(VisitForValue(prop->obj()));
+  if (!prop->key()->IsPropertyName()) {
+    CHECK_ALIVE(VisitForValue(prop->key()));
+  }
+  CHECK_ALIVE(VisitForValue(expr->value()));
+  BuildStore(expr, prop, expr->id(),
+             expr->AssignmentId(), expr->IsUninitialized());
 }
 
 
@@ -4975,77 +5046,6 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     ASSERT(instr->HasObservableSideEffects());
     Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
   }
-}
-
-
-static bool ComputeReceiverTypes(Expression* expr,
-                                 HValue* receiver,
-                                 SmallMapList** t) {
-  SmallMapList* types = expr->GetReceiverTypes();
-  *t = types;
-  bool monomorphic = expr->IsMonomorphic();
-  if (types != NULL && receiver->HasMonomorphicJSObjectType()) {
-    Map* root_map = receiver->GetMonomorphicJSObjectMap()->FindRootMap();
-    types->FilterForPossibleTransitions(root_map);
-    monomorphic = types->length() == 1;
-  }
-  return monomorphic && CanInlinePropertyAccess(*types->first());
-}
-
-
-void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
-                                             BailoutId id,
-                                             BailoutId assignment_id,
-                                             Property* prop,
-                                             HValue* object,
-                                             HValue* value) {
-  Literal* key = prop->key()->AsLiteral();
-  Handle<String> name = Handle<String>::cast(key->value());
-  ASSERT(!name.is_null());
-
-  HInstruction* instr = NULL;
-
-  SmallMapList* types;
-  bool monomorphic = ComputeReceiverTypes(expr, object, &types);
-
-  if (monomorphic) {
-    Handle<Map> map = types->first();
-    Handle<JSFunction> setter;
-    Handle<JSObject> holder;
-    if (LookupSetter(map, name, &setter, &holder)) {
-      AddCheckConstantFunction(holder, object, map);
-      if (FLAG_inline_accessors &&
-          TryInlineSetter(setter, id, assignment_id, value)) {
-        return;
-      }
-      Drop(2);
-      Add<HPushArgument>(object);
-      Add<HPushArgument>(value);
-      instr = new(zone()) HCallConstantFunction(setter, 2);
-    } else {
-      Drop(2);
-      CHECK_ALIVE(instr = BuildStoreNamedMonomorphic(object,
-                                                     name,
-                                                     value,
-                                                     map));
-    }
-  } else if (types != NULL && types->length() > 1) {
-    Drop(2);
-    return HandlePolymorphicStoreNamedField(
-        expr->position(), id, object, value, types, name);
-  } else {
-    Drop(2);
-    instr = BuildStoreNamedGeneric(object, name, value);
-  }
-
-  if (!ast_context()->IsEffect()) Push(value);
-  instr->set_position(expr->position());
-  AddInstruction(instr);
-  if (instr->HasObservableSideEffects()) {
-    Add<HSimulate>(id, REMOVABLE_SIMULATE);
-  }
-  if (!ast_context()->IsEffect()) Drop(1);
-  return ast_context()->ReturnValue(value);
 }
 
 
@@ -5130,62 +5130,30 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     return ast_context()->ReturnValue(Pop());
 
   } else if (prop != NULL) {
-    if (prop->key()->IsPropertyName()) {
-      // Named property.
-      CHECK_ALIVE(VisitForValue(prop->obj()));
-      HValue* object = Top();
-      CHECK_ALIVE(PushLoad(prop, object, expr->position()));
-
-      CHECK_ALIVE(VisitForValue(expr->value()));
-      HValue* right = Pop();
-      HValue* left = Pop();
-
-      HInstruction* instr = BuildBinaryOperation(operation, left, right);
-      PushAndAdd(instr);
-      if (instr->HasObservableSideEffects()) {
-        Add<HSimulate>(operation->id(), REMOVABLE_SIMULATE);
-      }
-
-      return BuildStoreNamed(
-          expr, expr->id(), expr->AssignmentId(), prop, object, instr);
-    } else {
-      // Keyed property.
-      CHECK_ALIVE(VisitForValue(prop->obj()));
+    CHECK_ALIVE(VisitForValue(prop->obj()));
+    HValue* object = Top();
+    HValue* key = NULL;
+    if ((!prop->IsStringLength() &&
+         !prop->IsFunctionPrototype() &&
+         !prop->key()->IsPropertyName()) ||
+        prop->IsStringAccess()) {
       CHECK_ALIVE(VisitForValue(prop->key()));
-      HValue* obj = environment()->ExpressionStackAt(1);
-      HValue* key = environment()->ExpressionStackAt(0);
-
-      bool has_side_effects = false;
-      HValue* load = HandleKeyedElementAccess(
-          obj, key, NULL, prop, prop->LoadId(), RelocInfo::kNoPosition,
-          false,  // is_store
-          &has_side_effects);
-      Push(load);
-      if (has_side_effects) Add<HSimulate>(prop->LoadId(), REMOVABLE_SIMULATE);
-
-      CHECK_ALIVE(VisitForValue(expr->value()));
-      HValue* right = Pop();
-      HValue* left = Pop();
-
-      HInstruction* instr = BuildBinaryOperation(operation, left, right);
-      PushAndAdd(instr);
-      if (instr->HasObservableSideEffects()) {
-        Add<HSimulate>(operation->id(), REMOVABLE_SIMULATE);
-      }
-
-      HandleKeyedElementAccess(obj, key, instr, expr, expr->AssignmentId(),
-                               RelocInfo::kNoPosition,
-                               true,  // is_store
-                               &has_side_effects);
-
-      // Drop the simulated receiver, key, and value.  Return the value.
-      Drop(3);
-      Push(instr);
-      ASSERT(has_side_effects);  // Stores always have side effects.
-      Add<HSimulate>(expr->AssignmentId(), REMOVABLE_SIMULATE);
-      return ast_context()->ReturnValue(Pop());
+      key = Top();
     }
 
+    CHECK_ALIVE(PushLoad(prop, object, key, expr->position()));
+
+    CHECK_ALIVE(VisitForValue(expr->value()));
+    HValue* right = Pop();
+    HValue* left = Pop();
+
+    HInstruction* instr = BuildBinaryOperation(operation, left, right);
+    PushAndAdd(instr);
+    if (instr->HasObservableSideEffects()) {
+      Add<HSimulate>(operation->id(), REMOVABLE_SIMULATE);
+    }
+    BuildStore(expr, prop, expr->id(),
+               expr->AssignmentId(), expr->IsUninitialized());
   } else {
     return Bailout(kInvalidLhsInCompoundAssignment);
   }
@@ -5840,9 +5808,11 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
 
 void HOptimizedGraphBuilder::PushLoad(Property* expr,
                                       HValue* object,
+                                      HValue* key,
                                       int position) {
   ValueContext for_value(this, ARGUMENTS_NOT_ALLOWED);
   Push(object);
+  if (key != NULL) Push(key);
   BuildLoad(expr, position, expr->LoadId());
 }
 
@@ -5858,7 +5828,6 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
         AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
     instr = BuildLoadStringLength(string, checkstring);
   } else if (expr->IsStringAccess()) {
-    CHECK_ALIVE(VisitForValue(expr->key()));
     HValue* index = Pop();
     HValue* string = Pop();
     HValue* context = environment()->context();
@@ -5902,8 +5871,6 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
     }
 
   } else {
-    CHECK_ALIVE(VisitForValue(expr->key()));
-
     HValue* key = Pop();
     HValue* obj = Pop();
 
@@ -5936,6 +5903,13 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   if (TryArgumentsAccess(expr)) return;
 
   CHECK_ALIVE(VisitForValue(expr->obj()));
+  if ((!expr->IsStringLength() &&
+       !expr->IsFunctionPrototype() &&
+       !expr->key()->IsPropertyName()) ||
+      expr->IsStringAccess()) {
+    CHECK_ALIVE(VisitForValue(expr->key()));
+  }
+
   BuildLoad(expr, expr->position(), expr->id());
 }
 
@@ -7478,16 +7452,18 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
 }
 
 
-void HOptimizedGraphBuilder::BuildStoreInEffect(Expression* expr,
-                                                Property* prop,
-                                                BailoutId ast_id,
-                                                BailoutId return_id,
-                                                HValue* object,
-                                                HValue* value) {
+void HOptimizedGraphBuilder::BuildStoreForEffect(Expression* expr,
+                                                 Property* prop,
+                                                 BailoutId ast_id,
+                                                 BailoutId return_id,
+                                                 HValue* object,
+                                                 HValue* key,
+                                                 HValue* value) {
   EffectContext for_effect(this);
   Push(object);
+  if (key != NULL) Push(key);
   Push(value);
-  BuildStoreNamed(expr, ast_id, return_id, prop, object, value);
+  BuildStore(expr, prop, ast_id, return_id);
 }
 
 
@@ -7567,69 +7543,42 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
         return Bailout(kLookupVariableInCountOperation);
     }
 
-  } else {
-    // Argument of the count operation is a property.
-    ASSERT(prop != NULL);
-
-    if (prop->key()->IsPropertyName()) {
-      // Named property.
-      if (returns_original_input) Push(graph()->GetConstantUndefined());
-
-      CHECK_ALIVE(VisitForValue(prop->obj()));
-      HValue* object = Top();
-      CHECK_ALIVE(PushLoad(prop, object, expr->position()));
-
-      after = BuildIncrement(returns_original_input, expr);
-
-      if (returns_original_input) {
-        HValue* result = Pop();
-        HValue* object = Pop();
-        environment()->SetExpressionStackAt(0, result);
-        CHECK_ALIVE(BuildStoreInEffect(
-            expr, prop, expr->id(), expr->AssignmentId(), object, after));
-        return ast_context()->ReturnValue(Pop());
-      }
-
-      return BuildStoreNamed(
-          expr, expr->id(), expr->AssignmentId(), prop, object, after);
-    } else {
-      // Keyed property.
-      if (returns_original_input) Push(graph()->GetConstantUndefined());
-
-      CHECK_ALIVE(VisitForValue(prop->obj()));
-      CHECK_ALIVE(VisitForValue(prop->key()));
-      HValue* obj = environment()->ExpressionStackAt(1);
-      HValue* key = environment()->ExpressionStackAt(0);
-
-      bool has_side_effects = false;
-      HValue* load = HandleKeyedElementAccess(
-          obj, key, NULL, prop, prop->LoadId(), RelocInfo::kNoPosition,
-          false,  // is_store
-          &has_side_effects);
-      Push(load);
-      if (has_side_effects) Add<HSimulate>(prop->LoadId(), REMOVABLE_SIMULATE);
-
-      after = BuildIncrement(returns_original_input, expr);
-      input = environment()->ExpressionStackAt(0);
-
-      HandleKeyedElementAccess(obj, key, after, expr, expr->AssignmentId(),
-                               RelocInfo::kNoPosition,
-                               true,  // is_store
-                               &has_side_effects);
-
-      // Drop the key and the original value from the bailout environment.
-      // Overwrite the receiver with the result of the operation, and the
-      // placeholder with the original value if necessary.
-      Drop(2);
-      environment()->SetExpressionStackAt(0, after);
-      if (returns_original_input) environment()->SetExpressionStackAt(1, input);
-      ASSERT(has_side_effects);  // Stores always have side effects.
-      Add<HSimulate>(expr->AssignmentId(), REMOVABLE_SIMULATE);
-    }
+    Drop(returns_original_input ? 2 : 1);
+    return ast_context()->ReturnValue(expr->is_postfix() ? input : after);
   }
 
-  Drop(returns_original_input ? 2 : 1);
-  return ast_context()->ReturnValue(expr->is_postfix() ? input : after);
+  // Argument of the count operation is a property.
+  ASSERT(prop != NULL);
+  if (returns_original_input) Push(graph()->GetConstantUndefined());
+
+  CHECK_ALIVE(VisitForValue(prop->obj()));
+  HValue* object = Top();
+
+  HValue* key = NULL;
+  if ((!prop->IsStringLength() &&
+       !prop->IsFunctionPrototype() &&
+       !prop->key()->IsPropertyName()) ||
+      prop->IsStringAccess()) {
+    CHECK_ALIVE(VisitForValue(prop->key()));
+    key = Top();
+  }
+
+  CHECK_ALIVE(PushLoad(prop, object, key, expr->position()));
+
+  after = BuildIncrement(returns_original_input, expr);
+
+  if (returns_original_input) {
+    input = Pop();
+    // Drop object and key to push it again in the effect context below.
+    Drop(key == NULL ? 1 : 2);
+    environment()->SetExpressionStackAt(0, input);
+    CHECK_ALIVE(BuildStoreForEffect(
+        expr, prop, expr->id(), expr->AssignmentId(), object, key, after));
+    return ast_context()->ReturnValue(Pop());
+  }
+
+  environment()->SetExpressionStackAt(0, after);
+  return BuildStore(expr, prop, expr->id(), expr->AssignmentId());
 }
 
 
