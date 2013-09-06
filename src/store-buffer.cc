@@ -170,7 +170,10 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
   PointerChunkIterator it(heap_);
   MemoryChunk* chunk;
   while ((chunk = it.next()) != NULL) {
-    if (chunk->scan_on_scavenge()) page_has_scan_on_scavenge_flag = true;
+    if (chunk->scan_on_scavenge()) {
+      page_has_scan_on_scavenge_flag = true;
+      break;
+    }
   }
 
   if (page_has_scan_on_scavenge_flag) {
@@ -279,7 +282,10 @@ bool StoreBuffer::PrepareForIteration() {
   MemoryChunk* chunk;
   bool page_has_scan_on_scavenge_flag = false;
   while ((chunk = it.next()) != NULL) {
-    if (chunk->scan_on_scavenge()) page_has_scan_on_scavenge_flag = true;
+    if (chunk->scan_on_scavenge()) {
+      page_has_scan_on_scavenge_flag = true;
+      break;
+    }
   }
 
   if (page_has_scan_on_scavenge_flag) {
