@@ -6772,29 +6772,6 @@ void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 }
 
 
-int V8::GetCurrentThreadId() {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "V8::GetCurrentThreadId()");
-  return isolate->thread_id().ToInteger();
-}
-
-
-void V8::TerminateExecution(int thread_id) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!isolate->IsInitialized()) return;
-  API_ENTRY_CHECK(isolate, "V8::TerminateExecution()");
-  // If the thread_id identifies the current thread just terminate
-  // execution right away.  Otherwise, ask the thread manager to
-  // terminate the thread with the given id if any.
-  i::ThreadId internal_tid = i::ThreadId::FromInteger(thread_id);
-  if (isolate->thread_id().Equals(internal_tid)) {
-    isolate->stack_guard()->TerminateExecution();
-  } else {
-    isolate->thread_manager()->TerminateExecution(internal_tid);
-  }
-}
-
-
 void V8::TerminateExecution(Isolate* isolate) {
   // If no isolate is supplied, use the default isolate.
   if (isolate != NULL) {
