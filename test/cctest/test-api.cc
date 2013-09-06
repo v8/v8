@@ -224,78 +224,98 @@ THREADED_TEST(IsolateOfContext) {
 }
 
 
+static void TestSignature(const char* loop_js, Local<Value> receiver) {
+  i::ScopedVector<char> source(200);
+  i::OS::SNPrintF(source,
+                  "for (var i = 0; i < 10; i++) {"
+                  "  %s"
+                  "}",
+                  loop_js);
+  signature_callback_count = 0;
+  signature_expected_receiver = receiver;
+  bool expected_to_throw = receiver.IsEmpty();
+  v8::TryCatch try_catch;
+  CompileRun(source.start());
+  CHECK_EQ(expected_to_throw, try_catch.HasCaught());
+  if (!expected_to_throw) {
+    CHECK_EQ(10, signature_callback_count);
+  } else {
+    CHECK_EQ(v8_str("TypeError: Illegal invocation"),
+             try_catch.Exception()->ToString());
+  }
+}
+
+
 THREADED_TEST(ReceiverSignature) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
+  // Setup templates.
   v8::Handle<v8::FunctionTemplate> fun = v8::FunctionTemplate::New();
   v8::Handle<v8::Signature> sig = v8::Signature::New(fun);
-  fun->PrototypeTemplate()->Set(
-      v8_str("m"),
-      v8::FunctionTemplate::New(IncrementingSignatureCallback,
-                                v8::Handle<Value>(),
-                                sig));
-  fun->PrototypeTemplate()->SetAccessorProperty(
-      v8_str("n"),
-      v8::FunctionTemplate::New(IncrementingSignatureCallback,
-                                v8::Handle<Value>(),
-                                sig));
-  env->Global()->Set(v8_str("Fun"), fun->GetFunction());
-  Local<Value> fun_instance = fun->InstanceTemplate()->NewInstance();
-  env->Global()->Set(v8_str("fun_instance"), fun_instance);
-  signature_callback_count = 0;
-  int expected_count = 0;
-  signature_expected_receiver = fun_instance;
-  CompileRun(
-      "var o = fun_instance;"
-      "var key_n = 'n';"
-      "for (var i = 0; i < 10; i++) o.m();"
-      "for (var i = 0; i < 10; i++) o.n;"
-      "for (var i = 0; i < 10; i++) o[key_n];");
-  expected_count += 30;
-  CHECK_EQ(expected_count, signature_callback_count);
+  v8::Handle<v8::FunctionTemplate> callback_sig =
+      v8::FunctionTemplate::New(
+          IncrementingSignatureCallback, Local<Value>(), sig);
+  v8::Handle<v8::FunctionTemplate> callback =
+      v8::FunctionTemplate::New(IncrementingSignatureCallback);
   v8::Handle<v8::FunctionTemplate> sub_fun = v8::FunctionTemplate::New();
   sub_fun->Inherit(fun);
-  fun_instance = sub_fun->InstanceTemplate()->NewInstance();
-  env->Global()->Set(v8_str("fun_instance"), fun_instance);
-  signature_expected_receiver = fun_instance;
-  CompileRun(
-      "var o = fun_instance;"
-      "var key_n = 'n';"
-      "for (var i = 0; i < 10; i++) o.m();"
-      "for (var i = 0; i < 10; i++) o.n;"
-      "for (var i = 0; i < 10; i++) o[key_n];");
-  expected_count += 30;
-  CHECK_EQ(expected_count, signature_callback_count);
-  v8::TryCatch try_catch;
-  CompileRun(
-      "var o = { };"
-      "o.m = Fun.prototype.m;"
-      "o.m();");
-  CHECK_EQ(expected_count, signature_callback_count);
-  CHECK(try_catch.HasCaught());
-  CompileRun(
-      "var o = { };"
-      "o.n = Fun.prototype.n;"
-      "o.n;");
-  CHECK_EQ(expected_count, signature_callback_count);
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
   v8::Handle<v8::FunctionTemplate> unrel_fun = v8::FunctionTemplate::New();
-  sub_fun->Inherit(fun);
+  // Install properties.
+  v8::Handle<v8::ObjectTemplate> fun_proto = fun->PrototypeTemplate();
+  fun_proto->Set(v8_str("prop_sig"), callback_sig);
+  fun_proto->Set(v8_str("prop"), callback);
+  fun_proto->SetAccessorProperty(
+      v8_str("accessor_sig"), callback_sig, callback_sig);
+  fun_proto->SetAccessorProperty(v8_str("accessor"), callback, callback);
+  // Instantiate templates.
+  Local<Value> fun_instance = fun->InstanceTemplate()->NewInstance();
+  Local<Value> sub_fun_instance = sub_fun->InstanceTemplate()->NewInstance();
+  // Setup global variables.
+  env->Global()->Set(v8_str("Fun"), fun->GetFunction());
   env->Global()->Set(v8_str("UnrelFun"), unrel_fun->GetFunction());
+  env->Global()->Set(v8_str("fun_instance"), fun_instance);
+  env->Global()->Set(v8_str("sub_fun_instance"), sub_fun_instance);
   CompileRun(
-      "var o = new UnrelFun();"
-      "o.m = Fun.prototype.m;"
-      "o.m();");
-  CHECK_EQ(expected_count, signature_callback_count);
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
-  CompileRun(
-      "var o = new UnrelFun();"
-      "o.n = Fun.prototype.n;"
-      "o.n;");
-  CHECK_EQ(expected_count, signature_callback_count);
-  CHECK(try_catch.HasCaught());
+      "var accessor_sig_key = 'accessor_sig';"
+      "var accessor_key = 'accessor';"
+      "var prop_sig_key = 'prop_sig';"
+      "var prop_key = 'prop';"
+      ""
+      "function copy_props(obj) {"
+      "  var keys = [accessor_sig_key, accessor_key, prop_sig_key, prop_key];"
+      "  var source = Fun.prototype;"
+      "  for (var i in keys) {"
+      "    var key = keys[i];"
+      "    var desc = Object.getOwnPropertyDescriptor(source, key);"
+      "    Object.defineProperty(obj, key, desc);"
+      "  }"
+      "}"
+      ""
+      "var obj = {};"
+      "copy_props(obj);"
+      "var unrel = new UnrelFun();"
+      "copy_props(unrel);");
+  // Test with and without ICs
+  const char* test_objects[] = {
+      "fun_instance", "sub_fun_instance", "obj", "unrel" };
+  unsigned bad_signature_start_offset = 2;
+  for (unsigned i = 0; i < ARRAY_SIZE(test_objects); i++) {
+    i::ScopedVector<char> source(200);
+    i::OS::SNPrintF(
+        source, "var test_object = %s; test_object", test_objects[i]);
+    Local<Value> test_object = CompileRun(source.start());
+    TestSignature("test_object.prop();", test_object);
+    TestSignature("test_object.accessor;", test_object);
+    TestSignature("test_object[accessor_key];", test_object);
+    TestSignature("test_object.accessor = 1;", test_object);
+    TestSignature("test_object[accessor_key] = 1;", test_object);
+    if (i >= bad_signature_start_offset) test_object = Local<Value>();
+    TestSignature("test_object.prop_sig();", test_object);
+    TestSignature("test_object.accessor_sig;", test_object);
+    TestSignature("test_object[accessor_sig_key];", test_object);
+    TestSignature("test_object.accessor_sig = 1;", test_object);
+    TestSignature("test_object[accessor_sig_key] = 1;", test_object);
+  }
 }
 
 

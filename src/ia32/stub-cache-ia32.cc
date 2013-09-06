@@ -542,6 +542,39 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 }
 
 
+// Generate call to api function.
+static void GenerateFastApiCall(MacroAssembler* masm,
+                                const CallOptimization& optimization,
+                                Register receiver,
+                                Register scratch,
+                                int argc,
+                                Register* values) {
+  ASSERT(optimization.is_simple_api_call());
+  ASSERT(!receiver.is(scratch));
+
+  const int stack_space = kFastApiCallArguments + argc + 1;
+  // Copy return value.
+  __ mov(scratch, Operand(esp, 0));
+  // Assign stack space for the call arguments.
+  __ sub(esp, Immediate(stack_space * kPointerSize));
+  // Move the return address on top of the stack.
+  __ mov(Operand(esp, 0), scratch);
+  // Write holder to stack frame.
+  __ mov(Operand(esp, 1 * kPointerSize), receiver);
+  // Write receiver to stack frame.
+  int index = stack_space;
+  __ mov(Operand(esp, index-- * kPointerSize), receiver);
+  // Write the arguments to stack frame.
+  for (int i = 0; i < argc; i++) {
+    ASSERT(!receiver.is(values[i]));
+    ASSERT(!scratch.is(values[i]));
+    __ mov(Operand(esp, index-- * kPointerSize), values[i]);
+  }
+
+  GenerateFastApiCall(masm, optimization, argc);
+}
+
+
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(StubCompiler* stub_compiler,
@@ -1356,23 +1389,8 @@ void BaseLoadStubCompiler::GenerateLoadField(Register reg,
 
 void BaseLoadStubCompiler::GenerateLoadCallback(
     const CallOptimization& call_optimization) {
-  ASSERT(call_optimization.is_simple_api_call());
-
-  // Copy return value.
-  __ mov(scratch3(), Operand(esp, 0));
-  // Assign stack space for the call arguments.
-  __ sub(esp, Immediate((kFastApiCallArguments + 1) * kPointerSize));
-  // Move the return address on top of the stack.
-  __ mov(Operand(esp, 0), scratch3());
-
-  int argc = 0;
-  int api_call_argc = argc + kFastApiCallArguments;
-  // Write holder to stack frame.
-  __ mov(Operand(esp, 1 * kPointerSize), receiver());
-  // Write receiver to stack frame.
-  __ mov(Operand(esp, (api_call_argc + 1) * kPointerSize), receiver());
-
-  GenerateFastApiCall(masm(), call_optimization, argc);
+  GenerateFastApiCall(
+      masm(), call_optimization, receiver(), scratch3(), 0, NULL);
 }
 
 
@@ -2895,6 +2913,24 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty), isolate());
   __ TailCallExternalReference(store_callback_property, 4, 1);
+
+  // Return the generated code.
+  return GetCode(kind(), Code::CALLBACKS, name);
+}
+
+
+Handle<Code> StoreStubCompiler::CompileStoreCallback(
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Handle<Name> name,
+    const CallOptimization& call_optimization) {
+  Label success;
+  HandlerFrontend(object, receiver(), holder, name, &success);
+  __ bind(&success);
+
+  Register values[] = { value() };
+  GenerateFastApiCall(
+      masm(), call_optimization, receiver(), scratch1(), 1, values);
 
   // Return the generated code.
   return GetCode(kind(), Code::CALLBACKS, name);

@@ -631,6 +631,24 @@ Handle<Code> StubCache::ComputeStoreCallback(
 }
 
 
+Handle<Code> StubCache::ComputeStoreCallback(
+    Handle<Name> name,
+    Handle<JSObject> receiver,
+    Handle<JSObject> holder,
+    const CallOptimization& call_optimization,
+    StrictModeFlag strict_mode) {
+  Handle<Code> stub = FindStoreHandler(
+      name, receiver, Code::STORE_IC, Code::CALLBACKS, strict_mode);
+  if (!stub.is_null()) return stub;
+
+  StoreStubCompiler compiler(isolate_, strict_mode);
+  Handle<Code> handler = compiler.CompileStoreCallback(
+      receiver, holder, name, call_optimization);
+  JSObject::UpdateMapCodeCache(receiver, name, handler);
+  return handler;
+}
+
+
 Handle<Code> StubCache::ComputeStoreViaSetter(Handle<Name> name,
                                               Handle<JSObject> receiver,
                                               Handle<JSObject> holder,
