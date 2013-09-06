@@ -343,35 +343,23 @@ Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 #ifdef DEBUG
 Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
 #endif  // DEBUG
-RecursiveMutex Isolate::process_wide_mutex_;
+Mutex Isolate::process_wide_mutex_;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 Atomic32 Isolate::isolate_counter_ = 0;
-
-Isolate::PerIsolateThreadData* Isolate::AllocatePerIsolateThreadData(
-    ThreadId thread_id) {
-  ASSERT(!thread_id.Equals(ThreadId::Invalid()));
-  PerIsolateThreadData* per_thread = new PerIsolateThreadData(this, thread_id);
-  {
-    LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
-    ASSERT(thread_data_table_->Lookup(this, thread_id) == NULL);
-    thread_data_table_->Insert(per_thread);
-    ASSERT(thread_data_table_->Lookup(this, thread_id) == per_thread);
-  }
-  return per_thread;
-}
-
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = NULL;
   {
-    LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
+    LockGuard<Mutex> lock_guard(&process_wide_mutex_);
     per_thread = thread_data_table_->Lookup(this, thread_id);
     if (per_thread == NULL) {
-      per_thread = AllocatePerIsolateThreadData(thread_id);
+      per_thread = new PerIsolateThreadData(this, thread_id);
+      thread_data_table_->Insert(per_thread);
     }
   }
+  ASSERT(thread_data_table_->Lookup(this, thread_id) == per_thread);
   return per_thread;
 }
 
@@ -386,7 +374,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
   PerIsolateThreadData* per_thread = NULL;
   {
-    LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
+    LockGuard<Mutex> lock_guard(&process_wide_mutex_);
     per_thread = thread_data_table_->Lookup(this, thread_id);
   }
   return per_thread;
@@ -394,7 +382,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 
 
 void Isolate::EnsureDefaultIsolate() {
-  LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
+  LockGuard<Mutex> lock_guard(&process_wide_mutex_);
   if (default_isolate_ == NULL) {
     isolate_key_ = Thread::CreateThreadLocalKey();
     thread_id_key_ = Thread::CreateThreadLocalKey();
@@ -1717,15 +1705,6 @@ void Isolate::ThreadDataTable::Remove(PerIsolateThreadData* data) {
 }
 
 
-void Isolate::ThreadDataTable::Remove(Isolate* isolate,
-                                      ThreadId thread_id) {
-  PerIsolateThreadData* data = Lookup(isolate, thread_id);
-  if (data != NULL) {
-    Remove(data);
-  }
-}
-
-
 void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
   PerIsolateThreadData* data = list_;
   while (data != NULL) {
@@ -1864,7 +1843,7 @@ void Isolate::TearDown() {
 
   Deinit();
 
-  { LockGuard<RecursiveMutex> lock_guard(&process_wide_mutex_);
+  { LockGuard<Mutex> lock_guard(&process_wide_mutex_);
     thread_data_table_->RemoveAllThreads(this);
   }
 
