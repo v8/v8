@@ -63,8 +63,8 @@ bool V8::Initialize(Deserializer* des) {
 
   // The current thread may not yet had entered an isolate to run.
   // Note the Isolate::Current() may be non-null because for various
-  // initialization purposes an initializing thread may be assigned an
-  // isolate but not actually enter it.
+  // initialization purposes an initializing thread may be assigned an isolate
+  // but not actually enter it.
   if (i::Isolate::CurrentPerIsolateThreadData() == NULL) {
     i::Isolate::EnterDefaultIsolate();
   }
@@ -84,15 +84,6 @@ bool V8::Initialize(Deserializer* des) {
 
 
 void V8::TearDown() {
-  // The current thread may not yet had entered an isolate to run or may
-  // have already disposed the entered isolated before.
-  // Note the Isolate::Current() may be non-null because for various
-  // initialization purposes an initializing thread may be assigned an
-  // isolate but not actually enter it.
-  if (i::Isolate::CurrentPerIsolateThreadData() == NULL) {
-    return;
-  }
-
   Isolate* isolate = Isolate::Current();
   ASSERT(isolate->IsDefaultIsolate());
   if (!isolate->IsInitialized()) return;
@@ -100,7 +91,6 @@ void V8::TearDown() {
   // The isolate has to be torn down before clearing the LOperand
   // caches so that the optimizing compiler thread (if running)
   // doesn't see an inconsistent view of the lithium instructions.
-  Isolate::SetIsolateThreadLocals(isolate, NULL);
   isolate->TearDown();
   delete isolate;
 

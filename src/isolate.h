@@ -1383,7 +1383,6 @@ class Isolate {
   friend class v8::Isolate;
   friend class v8::Locker;
   friend class v8::Unlocker;
-  friend class V8;
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
