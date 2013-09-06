@@ -288,6 +288,14 @@ class SmallMapList V8_FINAL {
     Add(map, zone);
   }
 
+  void FilterForPossibleTransitions(Map* root_map) {
+    for (int i = list_.length() - 1; i >= 0; i--) {
+      if (at(i)->FindRootMap() != root_map) {
+        list_.RemoveElement(list_.at(i));
+      }
+    }
+  }
+
   void Add(Handle<Map> handle, Zone* zone) {
     list_.Add(handle.location(), zone);
   }
@@ -365,12 +373,6 @@ class Expression : public AstNode {
   virtual SmallMapList* GetReceiverTypes() {
     UNREACHABLE();
     return NULL;
-  }
-  Handle<Map> GetMonomorphicReceiverType() {
-    ASSERT(IsMonomorphic());
-    SmallMapList* types = GetReceiverTypes();
-    ASSERT(types != NULL && types->length() == 1);
-    return types->at(0);
   }
   virtual KeyedAccessStoreMode GetStoreMode() {
     UNREACHABLE();

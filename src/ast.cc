@@ -646,8 +646,15 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     Literal* key = property->key()->AsLiteral();
     ASSERT(key != NULL && key->value()->IsString());
     Handle<String> name = Handle<String>::cast(key->value());
+    check_type_ = oracle->GetCallCheckType(this);
     receiver_types_.Clear();
-    oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
+    if (check_type_ == RECEIVER_MAP_CHECK) {
+      oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
+      is_monomorphic_ = is_monomorphic_ && receiver_types_.length() > 0;
+    } else {
+      holder_ = GetPrototypeForPrimitiveCheck(check_type_, oracle->isolate());
+      receiver_types_.Add(handle(holder_->map()), oracle->zone());
+    }
 #ifdef DEBUG
     if (FLAG_enable_slow_asserts) {
       int length = receiver_types_.length();
@@ -657,17 +664,8 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
       }
     }
 #endif
-    check_type_ = oracle->GetCallCheckType(this);
     if (is_monomorphic_) {
-      Handle<Map> map;
-      if (receiver_types_.length() > 0) {
-        ASSERT(check_type_ == RECEIVER_MAP_CHECK);
-        map = receiver_types_.at(0);
-      } else {
-        ASSERT(check_type_ != RECEIVER_MAP_CHECK);
-        holder_ = GetPrototypeForPrimitiveCheck(check_type_, oracle->isolate());
-        map = Handle<Map>(holder_->map());
-      }
+      Handle<Map> map = receiver_types_.first();
       is_monomorphic_ = ComputeTarget(map, name);
     }
   }

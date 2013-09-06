@@ -4978,6 +4978,21 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
 }
 
 
+static bool ComputeReceiverTypes(Expression* expr,
+                                 HValue* receiver,
+                                 SmallMapList** t) {
+  SmallMapList* types = expr->GetReceiverTypes();
+  *t = types;
+  bool monomorphic = expr->IsMonomorphic();
+  if (types != NULL && receiver->HasMonomorphicJSObjectType()) {
+    Map* root_map = receiver->GetMonomorphicJSObjectMap()->FindRootMap();
+    types->FilterForPossibleTransitions(root_map);
+    monomorphic = types->length() == 1;
+  }
+  return monomorphic && CanInlinePropertyAccess(*types->first());
+}
+
+
 void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
                                              BailoutId id,
                                              BailoutId assignment_id,
@@ -4989,14 +5004,12 @@ void HOptimizedGraphBuilder::BuildStoreNamed(Expression* expr,
   ASSERT(!name.is_null());
 
   HInstruction* instr = NULL;
-  SmallMapList* types = expr->GetReceiverTypes();
-  bool monomorphic = expr->IsMonomorphic();
-  Handle<Map> map;
+
+  SmallMapList* types;
+  bool monomorphic = ComputeReceiverTypes(expr, object, &types);
+
   if (monomorphic) {
-    map = types->first();
-    monomorphic = CanInlinePropertyAccess(*map);
-  }
-  if (monomorphic) {
+    Handle<Map> map = types->first();
     Handle<JSFunction> setter;
     Handle<JSObject> holder;
     if (LookupSetter(map, name, &setter, &holder)) {
@@ -5692,8 +5705,12 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     bool* has_side_effects) {
   ASSERT(!expr->IsPropertyName());
   HInstruction* instr = NULL;
-  if (expr->IsMonomorphic()) {
-    Handle<Map> map = expr->GetMonomorphicReceiverType();
+
+  SmallMapList* types;
+  bool monomorphic = ComputeReceiverTypes(expr, obj, &types);
+
+  if (monomorphic) {
+    Handle<Map> map = types->first();
     if (map->has_slow_elements_kind()) {
       instr = is_store ? BuildStoreKeyedGeneric(obj, key, val)
                        : BuildLoadKeyedGeneric(obj, key);
@@ -5857,19 +5874,13 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
 
   } else if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
-    SmallMapList* types = expr->GetReceiverTypes();
     HValue* object = Top();
 
-    Handle<Map> map;
-    bool monomorphic = false;
-    if (expr->IsMonomorphic()) {
-      map = types->first();
-      monomorphic = CanInlinePropertyAccess(*map);
-    } else if (object->HasMonomorphicJSObjectType()) {
-      map = object->GetMonomorphicJSObjectMap();
-      monomorphic = CanInlinePropertyAccess(*map);
-    }
+    SmallMapList* types;
+    bool monomorphic = ComputeReceiverTypes(expr, object, &types);
+
     if (monomorphic) {
+      Handle<Map> map = types->first();
       Handle<JSFunction> getter;
       Handle<JSObject> holder;
       if (LookupGetter(map, name, &getter, &holder)) {
@@ -6962,23 +6973,19 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
     Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
-    SmallMapList* types = expr->GetReceiverTypes();
-
-    bool monomorphic = expr->IsMonomorphic();
-    Handle<Map> receiver_map;
-    if (monomorphic) {
-      receiver_map = (types == NULL || types->is_empty())
-          ? Handle<Map>::null()
-          : types->first();
-    }
-
     HValue* receiver =
         environment()->ExpressionStackAt(expr->arguments()->length());
+
+    SmallMapList* types;
+    bool was_monomorphic = expr->IsMonomorphic();
+    bool monomorphic = ComputeReceiverTypes(expr, receiver, &types);
+    if (!was_monomorphic && monomorphic) {
+      monomorphic = expr->ComputeTarget(types->first(), name);
+    }
+
     if (monomorphic) {
-      if (TryInlineBuiltinMethodCall(expr,
-                                     receiver,
-                                     receiver_map,
-                                     expr->check_type())) {
+      Handle<Map> map = types->first();
+      if (TryInlineBuiltinMethodCall(expr, receiver, map, expr->check_type())) {
         if (FLAG_trace_inlining) {
           PrintF("Inlining builtin ");
           expr->target()->ShortPrint();
@@ -6996,7 +7003,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         call = PreProcessCall(
             new(zone()) HCallNamed(context, name, argument_count));
       } else {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
+        AddCheckConstantFunction(expr->holder(), receiver, map);
 
         if (TryInlineCall(expr)) return;
         call = PreProcessCall(
