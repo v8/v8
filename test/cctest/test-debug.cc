@@ -37,6 +37,7 @@
 #include "compilation-cache.h"
 #include "debug.h"
 #include "deoptimizer.h"
+#include "frames.h"
 #include "platform.h"
 #include "platform/condition-variable.h"
 #include "platform/socket.h"
@@ -60,6 +61,7 @@ using ::v8::internal::Debug;
 using ::v8::internal::Debugger;
 using ::v8::internal::CommandMessage;
 using ::v8::internal::CommandMessageQueue;
+using ::v8::internal::StackFrame;
 using ::v8::internal::StepAction;
 using ::v8::internal::StepIn;  // From StepAction enum
 using ::v8::internal::StepNext;  // From StepAction enum
@@ -390,7 +392,7 @@ static void ChangeBreakOnExceptionFromJS(bool caught, bool uncaught) {
 // Prepare to step to next break location.
 static void PrepareStep(StepAction step_action) {
   v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
-  debug->PrepareStep(step_action, 1);
+  debug->PrepareStep(step_action, 1, StackFrame::NO_ID);
 }
 
 

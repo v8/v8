@@ -1017,7 +1017,7 @@ Object* Debug::Break(Arguments args) {
       // Clear queue
       thread_local_.queued_step_count_ = 0;
 
-      PrepareStep(StepNext, step_count);
+      PrepareStep(StepNext, step_count, StackFrame::NO_ID);
     } else {
       // Notify the debug event listeners.
       isolate_->debugger()->OnDebugBreak(break_points_hit, false);
@@ -1055,7 +1055,7 @@ Object* Debug::Break(Arguments args) {
     ClearStepping();
 
     // Set up for the remaining steps.
-    PrepareStep(step_action, step_count);
+    PrepareStep(step_action, step_count, StackFrame::NO_ID);
   }
 
   if (thread_local_.frame_drop_mode_ == FRAMES_UNTOUCHED) {
@@ -1376,7 +1376,9 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
 }
 
 
-void Debug::PrepareStep(StepAction step_action, int step_count) {
+void Debug::PrepareStep(StepAction step_action,
+                        int step_count,
+                        StackFrame::Id frame_id) {
   HandleScope scope(isolate_);
 
   PrepareForBreakPoints();
@@ -1401,6 +1403,9 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   if (id == StackFrame::NO_ID) {
     // If there is no JavaScript stack don't do anything.
     return;
+  }
+  if (frame_id != StackFrame::NO_ID) {
+    id = frame_id;
   }
   JavaScriptFrameIterator frames_it(isolate_, id);
   JavaScriptFrame* frame = frames_it.frame();
