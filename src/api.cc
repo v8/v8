@@ -660,11 +660,22 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 }
 
 
+i::Object** V8::CopyPersistent(i::Object** obj) {
+  i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(obj);
+#ifdef DEBUG
+  (*obj)->Verify();
+#endif  // DEBUG
+  return result.location();
+}
+
+
 void V8::MakeWeak(i::Object** object,
                   void* parameters,
+                  WeakCallback weak_callback,
                   RevivableCallback weak_reference_callback) {
   i::GlobalHandles::MakeWeak(object,
                              parameters,
+                             weak_callback,
                              weak_reference_callback);
 }
 
@@ -5434,26 +5445,6 @@ static i::Handle<i::Context> CreateEnvironment(
 
   return env;
 }
-
-#ifdef V8_USE_UNSAFE_HANDLES
-Persistent<Context> v8::Context::New(
-    v8::ExtensionConfiguration* extensions,
-    v8::Handle<ObjectTemplate> global_template,
-    v8::Handle<Value> global_object) {
-  i::Isolate::EnsureDefaultIsolate();
-  i::Isolate* isolate = i::Isolate::Current();
-  Isolate* external_isolate = reinterpret_cast<Isolate*>(isolate);
-  EnsureInitializedForIsolate(isolate, "v8::Context::New()");
-  LOG_API(isolate, "Context::New");
-  ON_BAILOUT(isolate, "v8::Context::New()", return Persistent<Context>());
-  i::HandleScope scope(isolate);
-  i::Handle<i::Context> env =
-      CreateEnvironment(isolate, extensions, global_template, global_object);
-  if (env.is_null()) return Persistent<Context>();
-  return Persistent<Context>::New(external_isolate, Utils::ToLocal(env));
-}
-#endif
-
 
 Local<Context> v8::Context::New(
     v8::Isolate* external_isolate,

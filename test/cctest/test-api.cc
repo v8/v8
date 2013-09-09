@@ -3246,13 +3246,8 @@ THREADED_TEST(GlobalHandleUpcast) {
   v8::HandleScope scope(isolate);
   v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
   v8::Persistent<String> global_string(isolate, local);
-#ifdef V8_USE_UNSAFE_HANDLES
-  v8::Persistent<Value> global_value =
-      v8::Persistent<Value>::Cast(global_string);
-#else
   v8::Persistent<Value>& global_value =
       v8::Persistent<Value>::Cast(global_string);
-#endif
   CHECK(v8::Local<v8::Value>::New(isolate, global_value)->IsString());
   CHECK(global_string == v8::Persistent<String>::Cast(global_value));
   global_string.Dispose();
@@ -12668,6 +12663,75 @@ TEST(DontLeakGlobalObjects) {
     v8::V8::ContextDisposedNotification();
     CheckSurvivingGlobalObjectsCount(0);
   }
+}
+
+template<class T>
+struct CopyablePersistentTraits {
+  typedef Persistent<T, CopyablePersistentTraits<T> > CopyablePersistent;
+  static const bool kResetInDestructor = true;
+  template<class S, class M>
+  V8_INLINE(static void Copy(const Persistent<S, M>& source,
+                             CopyablePersistent* dest)) {
+    // do nothing, just allow copy
+  }
+};
+
+
+TEST(CopyablePersistent) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  i::GlobalHandles* globals =
+      reinterpret_cast<i::Isolate*>(isolate)->global_handles();
+  int initial_handles = globals->global_handles_count();
+  {
+    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> > handle1;
+    {
+      v8::HandleScope scope(isolate);
+      handle1.Reset(isolate, v8::Object::New());
+    }
+    CHECK_EQ(initial_handles + 1, globals->global_handles_count());
+    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> > handle2;
+    handle2 = handle1;
+    CHECK(handle1 == handle2);
+    CHECK_EQ(initial_handles + 2, globals->global_handles_count());
+    v8::Persistent<v8::Object, CopyablePersistentTraits<v8::Object> >
+    handle3(handle2);
+    CHECK(handle1 == handle3);
+    CHECK_EQ(initial_handles + 3, globals->global_handles_count());
+  }
+  // Verify autodispose
+  CHECK_EQ(initial_handles, globals->global_handles_count());
+}
+
+
+static void WeakApiCallback(
+    const v8::WeakCallbackData<v8::Object, Persistent<v8::Object> >& data) {
+  Local<Value> value = data.GetValue()->Get(v8_str("key"));
+  CHECK_EQ(231, static_cast<int32_t>(Local<v8::Integer>::Cast(value)->Value()));
+  data.GetParameter()->Reset();
+  delete data.GetParameter();
+}
+
+
+TEST(WeakCallbackApi) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  i::GlobalHandles* globals =
+      reinterpret_cast<i::Isolate*>(isolate)->global_handles();
+  int initial_handles = globals->global_handles_count();
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> obj = v8::Object::New();
+    obj->Set(v8_str("key"), v8::Integer::New(231, isolate));
+    v8::Persistent<v8::Object>* handle =
+        new v8::Persistent<v8::Object>(isolate, obj);
+    handle->SetWeak<v8::Object, v8::Persistent<v8::Object> >(handle,
+                                                             WeakApiCallback);
+  }
+  reinterpret_cast<i::Isolate*>(isolate)->heap()->
+      CollectAllGarbage(i::Heap::kNoGCFlags);
+  // Verify disposed.
+  CHECK_EQ(initial_handles, globals->global_handles_count());
 }
 
 
