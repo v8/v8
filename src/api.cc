@@ -1052,6 +1052,37 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 }
 
 
+static Local<FunctionTemplate> FunctionTemplateNew(
+    i::Isolate* isolate,
+    FunctionCallback callback,
+    v8::Handle<Value> data,
+    v8::Handle<Signature> signature,
+    int length,
+    bool do_not_cache) {
+  i::Handle<i::Struct> struct_obj =
+      isolate->factory()->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
+  i::Handle<i::FunctionTemplateInfo> obj =
+      i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
+  InitializeFunctionTemplate(obj);
+  obj->set_do_not_cache(do_not_cache);
+  int next_serial_number = 0;
+  if (!do_not_cache) {
+    next_serial_number = isolate->next_serial_number() + 1;
+    isolate->set_next_serial_number(next_serial_number);
+  }
+  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
+  if (callback != 0) {
+    if (data.IsEmpty()) data = v8::Undefined();
+    Utils::ToLocal(obj)->SetCallHandler(callback, data);
+  }
+  obj->set_length(length);
+  obj->set_undetectable(false);
+  obj->set_needs_access_check(false);
+  if (!signature.IsEmpty())
+    obj->set_signature(*Utils::OpenHandle(*signature));
+  return Utils::ToLocal(obj);
+}
+
 Local<FunctionTemplate> FunctionTemplate::New(
     FunctionCallback callback,
     v8::Handle<Value> data,
@@ -1061,25 +1092,8 @@ Local<FunctionTemplate> FunctionTemplate::New(
   EnsureInitializedForIsolate(isolate, "v8::FunctionTemplate::New()");
   LOG_API(isolate, "FunctionTemplate::New");
   ENTER_V8(isolate);
-  i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
-  i::Handle<i::FunctionTemplateInfo> obj =
-      i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
-  InitializeFunctionTemplate(obj);
-  int next_serial_number = isolate->next_serial_number();
-  isolate->set_next_serial_number(next_serial_number + 1);
-  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
-  if (callback != 0) {
-    if (data.IsEmpty()) data = v8::Undefined();
-    Utils::ToLocal(obj)->SetCallHandler(callback, data);
-  }
-  obj->set_length(length);
-  obj->set_undetectable(false);
-  obj->set_needs_access_check(false);
-
-  if (!signature.IsEmpty())
-    obj->set_signature(*Utils::OpenHandle(*signature));
-  return Utils::ToLocal(obj);
+  return FunctionTemplateNew(
+      isolate, callback, data, signature, length, false);
 }
 
 
@@ -4186,6 +4200,19 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
     return Utils::ToLocal(scope.CloseAndEscape(returned));
   }
   return Local<v8::Object>();
+}
+
+
+Local<Function> Function::New(Isolate* v8_isolate,
+                              FunctionCallback callback,
+                              Local<Value> data,
+                              int length) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  LOG_API(isolate, "Function::New");
+  ENTER_V8(isolate);
+  return FunctionTemplateNew(
+      isolate, callback, data, Local<Signature>(), length, true)->
+          GetFunction();
 }
 
 

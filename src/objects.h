@@ -9878,6 +9878,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_BOOLEAN_ACCESSORS(needs_access_check)
   DECL_BOOLEAN_ACCESSORS(read_only_prototype)
   DECL_BOOLEAN_ACCESSORS(remove_prototype)
+  DECL_BOOLEAN_ACCESSORS(do_not_cache)
 
   static inline FunctionTemplateInfo* cast(Object* obj);
 
@@ -9913,6 +9914,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kNeedsAccessCheckBit  = 2;
   static const int kReadOnlyPrototypeBit = 3;
   static const int kRemovePrototypeBit   = 4;
+  static const int kDoNotCacheBit        = 5;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateInfo);
 };

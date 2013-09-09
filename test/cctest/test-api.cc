@@ -20491,4 +20491,34 @@ THREADED_TEST(CrankshaftInterceptorFieldWrite) {
   ExpectInt32("obj.interceptor_age", 103);
 }
 
+
 #endif  // V8_OS_POSIX
+
+
+static Local<Value> function_new_expected_env;
+static void FunctionNewCallback(const v8::FunctionCallbackInfo<Value>& info) {
+  CHECK_EQ(function_new_expected_env, info.Data());
+  info.GetReturnValue().Set(17);
+}
+
+
+THREADED_TEST(FunctionNew) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<Object> data = v8::Object::New();
+  function_new_expected_env = data;
+  Local<Function> func = Function::New(isolate, FunctionNewCallback, data);
+  env->Global()->Set(v8_str("func"), func);
+  Local<Value> result = CompileRun("func();");
+  CHECK_EQ(v8::Integer::New(17, isolate), result);
+  // Verify function not cached
+  int serial_number =
+      i::Smi::cast(v8::Utils::OpenHandle(*func)
+          ->shared()->get_api_func_data()->serial_number())->value();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Object* elm = i_isolate->native_context()->function_cache()
+      ->GetElementNoExceptionThrown(i_isolate, serial_number);
+  CHECK(elm->IsNull());
+}
+
