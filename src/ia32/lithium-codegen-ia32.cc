@@ -2232,11 +2232,36 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
     X87Register left = ToX87Register(instr->left());
     X87Register right = ToX87Register(instr->right());
     X87Register result = ToX87Register(instr->result());
-    X87PrepareBinaryOp(left, right, result);
+    if (instr->op() != Token::MOD) {
+      X87PrepareBinaryOp(left, right, result);
+    }
     switch (instr->op()) {
+      case Token::ADD:
+        __ fadd_i(1);
+        break;
+      case Token::SUB:
+        __ fsub_i(1);
+        break;
       case Token::MUL:
         __ fmul_i(1);
         break;
+      case Token::DIV:
+        __ fdiv_i(1);
+        break;
+      case Token::MOD: {
+        // Pass two doubles as arguments on the stack.
+        __ PrepareCallCFunction(4, eax);
+        X87Mov(Operand(esp, 1 * kDoubleSize), right);
+        X87Mov(Operand(esp, 0), left);
+        X87PrepareToWrite(result);
+        __ CallCFunction(
+            ExternalReference::double_fp_operation(Token::MOD, isolate()),
+            4);
+
+        // Return value is in st(0) on ia32.
+        X87CommitWrite(result);
+        break;
+      }
       default:
         UNREACHABLE();
         break;

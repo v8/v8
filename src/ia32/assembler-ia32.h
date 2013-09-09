@@ -956,10 +956,13 @@ class Assembler : public AssemblerBase {
   void fninit();
 
   void fadd(int i);
+  void fadd_i(int i);
   void fsub(int i);
+  void fsub_i(int i);
   void fmul(int i);
   void fmul_i(int i);
   void fdiv(int i);
+  void fdiv_i(int i);
 
   void fisub_s(const Operand& adr);
 
